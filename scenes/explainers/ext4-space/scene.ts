@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/ext4-space.ts';
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -65,7 +67,7 @@ const CARD: Box = [1.35, -4.25, 7.55, 3.25];
 export default class Ext4SpaceExplainer extends Scene {
   static meta = {
     id: 'ext4-space',
-    title: 'A new 1 TiB ext4 filesystem lets users write 93% of it; the 5% root reserve is nearly three times all its metadata',
+    title: 'Where does an empty ext4 filesystem’s space go?',
     sources: [
       E2FS + 'misc/mke2fs.conf.in#L1-L29',
       E2FS + 'misc/mke2fs.c#L1433-L1443',
@@ -100,7 +102,10 @@ export default class Ext4SpaceExplainer extends Scene {
       id: 'reserve',
       label: 'Root reserve',
       default: String(DEFAULT_RESERVE),
-      options: RESERVES.map((m) => ({ value: String(m), label: m === DEFAULT_RESERVE ? `-m ${m} (default)` : `-m ${m}` })),
+      options: RESERVES.map((m) => ({
+        value: String(m),
+        label: m === DEFAULT_RESERVE ? `-m ${m} (default)` : `-m ${m}`,
+      })),
     },
   ];
 
@@ -109,7 +114,7 @@ export default class Ext4SpaceExplainer extends Scene {
     const size = values.size as Size,
       m = Number(values.reserve);
     const name = SIZES[size].label;
-    const s = stage(this, { style: STYLE, headingSize: 0.46 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const sp = space(SIZES[size].bytes, DEFAULT_RESERVE),
       chosen = space(SIZES[size].bytes, m),
       l = sp.layout;
@@ -124,13 +129,17 @@ export default class Ext4SpaceExplainer extends Scene {
       [chosen, 'users'],
     ];
     const wholeNames = ['Metadata', 'Free', 'Kernel reserve', 'Root reserve'].filter((n) =>
-      stages.some(([x, st]) => wholePie(x, st).some((sl) => sl.label === n || (n === 'Free' && sl.label === 'Users can write'))),
+      stages.some(([x, st]) =>
+        wholePie(x, st).some((sl) => sl.label === n || (n === 'Free' && sl.label === 'Users can write')),
+      ),
     );
     const wholeTitle = `Every 4 KiB block of ${name}`;
     const whole = (x: Space, st: WholeStage) => pie(wholeNames, wholeTitle, wholePie(x, st));
 
     // ------------------------------------------------------------------ the whole
+    await readerFirst(this, s, readerFrames(size, m));
     await this.step('blocks', {
+      detail: true,
       title: `mkfs.ext4 makes ${name} into ${count(l.blocks)} blocks of 4 KiB`,
       line: `${of(l.metadata)} of the blocks hold metadata before any file is written.`,
       // mke2fs.conf.in:5 blocksize = 4096; initialize.c:266 blocks per group = blocksize * 8.
@@ -138,6 +147,7 @@ export default class Ext4SpaceExplainer extends Scene {
         BLOCKS_PER_GROUP,
       )}. Before any file is written, ${count(l.metadata)} blocks, ${of(l.metadata)}, already hold metadata: the filesystem’s own structures. The pie counts blocks as dumpe2fs reports them after a real mkfs.ext4 run. The question is how much of this new disk a regular user can write: metadata consumes blocks now, while the root and kernel reserves hold back some of the remaining free blocks.`,
     });
+    await s.clear();
     await s.show({ source: whole(sp, 'free') }, { box: PIE });
     await s.card(
       [
@@ -151,11 +161,18 @@ export default class Ext4SpaceExplainer extends Scene {
       ],
       { at: CARD, fontSize: SIZE, title: 'After mkfs.ext4' },
     );
-    this.state.blocks = { blocks: l.blocks, groups: l.groups, metadata: l.metadata, free: l.free, pie: wholePie(sp, 'free') };
+    this.state.blocks = {
+      blocks: l.blocks,
+      groups: l.groups,
+      metadata: l.metadata,
+      free: l.free,
+      pie: wholePie(sp, 'free'),
+    };
 
     // ------------------------------------------------------------------ inode tables
     const perInode = l.inodeRatio / 1024;
     await this.step('inodes', {
+      detail: true,
       title: `Inode tables are ${ofMeta(l.inodeTables)} of the metadata`,
       line: `One ${INODE_SIZE}-byte inode per ${perInode} KiB of disk: ${count(l.inodes)} inodes.`,
       // mke2fs.c:1433-1443 size types; mke2fs.conf.in:7, 24-29 inode_ratio; mke2fs.c:2811-2812.
@@ -165,7 +182,13 @@ export default class Ext4SpaceExplainer extends Scene {
     });
     await s.clear();
     const d2: Diagram = await s.show(
-      { source: pie(['Inode tables', 'Journal', 'Other metadata'], `The ${count(l.metadata)} metadata blocks`, metadataPie(l)) },
+      {
+        source: pie(
+          ['Inode tables', 'Journal', 'Other metadata'],
+          `The ${count(l.metadata)} metadata blocks`,
+          metadataPie(l),
+        ),
+      },
       { box: PIE },
     );
     await d2.mark(['slice:Inode tables'], { as: 'this step' });
@@ -190,7 +213,11 @@ export default class Ext4SpaceExplainer extends Scene {
 
     // ------------------------------------------------------------------ journal
     await this.step('journal', {
-      title: l.journal === 262144 ? `The journal stops growing at 1 GiB` : `The journal is ${bytesOf(l.journal)}, ${ofMeta(l.journal)} of the metadata`,
+      detail: true,
+      title:
+        l.journal === 262144
+          ? `The journal stops growing at 1 GiB`
+          : `The journal is ${bytesOf(l.journal)}, ${ofMeta(l.journal)} of the metadata`,
       line: `It doubles with disk size from 16 MiB to 1 GiB; here ${of(l.journal)} of the disk.`,
       // mkjournal.c:359-378.
       caption: `mke2fs sizes the journal in steps of disk size, doubling from 16 MiB at 128 MiB to 1 GiB at 128 GiB, and no larger after that. ${name} gets ${count(
@@ -210,6 +237,7 @@ export default class Ext4SpaceExplainer extends Scene {
     // ------------------------------------------------------------------ the rest
     const perCopy = 1 + l.descBlocks + l.reservedGdt;
     await this.step('other', {
+      detail: true,
       title: `The other ${count(l.other)} blocks: copies, bitmaps and the first files`,
       line: `Superblock copies in ${l.superGroups} of ${count(l.groups)} groups; two bitmaps in every group.`,
       // closefs.c:23-55 (sparse_super); initialize.c:58-86 (reserved GDT); mke2fs.c:475-555, 3656-3667.
@@ -252,6 +280,7 @@ export default class Ext4SpaceExplainer extends Scene {
         .map((x) => ({ kind: 'add_slice', label: x.label, value: x.value })),
     ];
     await this.step('reserve', {
+      detail: true,
       title: `The default 5% reserve is ${count(sp.root)} blocks, ${times(sp.root, l.metadata)} the metadata`,
       line: `The kernel holds back ${count(sp.kernel)} more blocks; both come out of free blocks.`,
       // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283.
@@ -279,6 +308,7 @@ export default class Ext4SpaceExplainer extends Scene {
 
     // ------------------------------------------------------------------ what users can write
     await this.step('users', {
+      detail: true,
       title: `Users can write ${of(sp.users)} of ${name}: ${count(sp.users)} blocks`,
       line: 'statfs f_bavail: the free blocks less the root and kernel reserves.',
       // Linux balloc.c:620-665, super.c:6807-6831; measured with statfs on the mounted filesystem.
@@ -287,7 +317,10 @@ export default class Ext4SpaceExplainer extends Scene {
       )} = ${count(sp.users)}. statfs on the mounted filesystem reports exactly that as f_bavail, which df shows as Avail.`,
     });
     await s.clearOverlays();
-    await d3.morph({ source: whole(sp, 'users') }, { ops: [{ kind: 'rename_slice', from: 'Free', to: 'Users can write' }] });
+    await d3.morph(
+      { source: whole(sp, 'users') },
+      { ops: [{ kind: 'rename_slice', from: 'Free', to: 'Users can write' }] },
+    );
     await d3.mark(['slice:Users can write'], { as: 'this step' });
     await s.card(
       [
@@ -305,6 +338,7 @@ export default class Ext4SpaceExplainer extends Scene {
     if (m !== DEFAULT_RESERVE) {
       const gained = chosen.users - sp.users;
       await this.step('chosen', {
+        detail: true,
         title: `With -m ${m}, users can write ${of(chosen.users)}`,
         line:
           m === 0
@@ -343,13 +377,20 @@ export default class Ext4SpaceExplainer extends Scene {
         ],
         { at: CARD, fontSize: SIZE, title: `mkfs.ext4 -m ${m}` },
       );
-      this.state.chosen = { percent: m, root: chosen.root, users: chosen.users, gained, pie: wholePie(chosen, 'users') };
+      this.state.chosen = {
+        percent: m,
+        root: chosen.root,
+        users: chosen.users,
+        gained,
+        pie: wholePie(chosen, 'users'),
+      };
     }
 
     // ------------------------------------------------------------------ three sizes
     const all = (Object.keys(SIZES) as Size[]).map((k) => ({ k, label: SIZES[k].label, x: space(SIZES[k].bytes, m) }));
     const share = (x: Space, n: number) => percent(n, x.layout.blocks);
     await this.step('sizes', {
+      detail: true,
       title: `At -m ${m}, users can write ${all.map((a) => share(a.x, a.x.users)).join(', ')} of ${all.map((a) => a.label).join(', ')}`,
       line: `Metadata falls from ${all.map((a) => share(a.x, a.x.layout.metadata)).join(' to ')} of the disk as disks grow.`,
       caption: `Metadata shrinks as a share of the disk, from ${all.map((a) => share(a.x, a.x.layout.metadata)).join(' to ')}, because the journal stops at 1 GiB and larger disks get fewer inodes per byte. ${
@@ -367,9 +408,15 @@ export default class Ext4SpaceExplainer extends Scene {
             `metadata ${share(a.x, a.x.layout.metadata)}, root reserve ${share(a.x, a.x.root)}, users ${share(a.x, a.x.users)}`,
           ] as [string, string],
       ),
-      { at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: `mkfs.ext4 -m ${m}, shares of each disk` },
+      {
+        at: regionBox('full', { top: 2.6, bottom: -3.6 }),
+        fontSize: 0.42,
+        title: `mkfs.ext4 -m ${m}, shares of each disk`,
+      },
     );
     await sizeCard.mark(name, { as: 'this case' });
-    this.state.sizes = Object.fromEntries(all.map((a) => [a.k, { metadata: a.x.layout.metadata, root: a.x.root, users: a.x.users }]));
+    this.state.sizes = Object.fromEntries(
+      all.map((a) => [a.k, { metadata: a.x.layout.metadata, root: a.x.root, users: a.x.users }]),
+    );
   }
 }

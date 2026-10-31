@@ -22,7 +22,7 @@ import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
 import { restingFrame, undescribed, stepWords, watchedChanges } from '../../explain/trace.ts';
 import { wordsReport } from './explain-words.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
@@ -35,11 +35,11 @@ export function lintConstruct(source: string): string[] {
   const errors: string[] = [];
   const named = (name: ts.PropertyName | ts.BindingName | undefined) =>
     !!name &&
-    ((ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)
+    (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)
       ? name.text
       : ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)
         ? name.expression.text
-        : '') === 'construct');
+        : '') === 'construct';
   // `async construct() {}`, `'construct'() {}`, `['construct']() {}` and `construct = async () => {}`.
   const isConstruct = (node: ts.Node) =>
     (ts.isMethodDeclaration(node) && named(node.name)) ||
@@ -88,9 +88,8 @@ const isHome = (view: Box) => view.every((v, i) => Math.abs(v - FRAME[i]!) < 1e-
  * A phone close-up multiplies this again (the reader's zoom, on top).
  */
 export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null {
-  const label = labelOf(m);
-  if (!label) return null;
-  return m.height() * label.emRatio * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
+  const size = readingLabelSize(m);
+  return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
 }
 /** `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips to its frame). */
 function clipped(m: Mobject, box: Box): Box {
@@ -135,7 +134,10 @@ export function restingTextProblems(scene: Viewed): string[] {
     const painted = (x: Mobject) =>
       (x.style.opacity ?? 1) >= 0.5 &&
       ((!!x.style.fill && x.style.fill !== 'none' && (x.style.fillOpacity ?? 1) >= 0.5) ||
-        (!!x.style.stroke && x.style.stroke !== 'none' && (x.style.strokeOpacity ?? 1) >= 0.5 && (x.style.strokeWidth ?? 0) > 0));
+        (!!x.style.stroke &&
+          x.style.stroke !== 'none' &&
+          (x.style.strokeOpacity ?? 1) >= 0.5 &&
+          (x.style.strokeWidth ?? 0) > 0));
     return m.family().some((x) => !x.children.length && painted(x));
   };
   const seen = new Set<Mobject>();
@@ -146,7 +148,8 @@ export function restingTextProblems(scene: Viewed): string[] {
     const text = (m as unknown as { text?: unknown }).text;
     if (typeof text !== 'string' || !text.trim() || !visible(m)) continue;
     let nested = false;
-    for (let a = m.parent; a; a = a.parent) if (typeof (a as unknown as { text?: unknown }).text === 'string') nested = true;
+    for (let a = m.parent; a; a = a.parent)
+      if (typeof (a as unknown as { text?: unknown }).text === 'string') nested = true;
     if (nested) continue;
     const drawn = m.box();
     if (!drawn) continue;
@@ -182,8 +185,7 @@ export function restingTextProblems(scene: Viewed): string[] {
         Math.min(a.box[3], b.box[3]),
       ];
       if (overlap[2] <= overlap[0] || overlap[3] <= overlap[1]) continue;
-      if (area(overlap) > 0.12 * Math.min(area(a.box), area(b.box)))
-        problems.push(`"${a.text}" overlaps "${b.text}"`);
+      if (area(overlap) > 0.12 * Math.min(area(a.box), area(b.box))) problems.push(`"${a.text}" overlaps "${b.text}"`);
     }
   return problems;
 }
@@ -257,7 +259,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     const phoneViews = new Map(
       v.trace.steps.map((s) => {
         const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
-        return [restingFrame(s), { k: tour[0]!.k, views: tour.map((z) => viewBox(z, PHONE_W, PHONE_H)) }] as const;
+        return [
+          restingFrame(s),
+          { k: tour[0]!.k, views: tour.map((z) => ({ k: z.k, box: viewBox(z, PHONE_W, PHONE_H) })) },
+        ] as const;
       }),
     );
     /**
@@ -270,10 +275,14 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       record.px = Math.max(record.px, px);
       const close = phoneViews.get(frame);
       if (!close) return;
-      record.phone = Math.max(record.phone, (px / STAGE_PX_PER_UNIT) * phoneUnit * close.k);
       const inside = (v: Box) =>
         !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
-      if (close.views.some(inside)) record.inView = true;
+      const complete = close.views.filter((v) => inside(v.box));
+      // The opening can frame a comparison at a smaller scale than its detail
+      // stops. Measure each label where the tour actually shows it whole.
+      const k = complete.length ? Math.max(...complete.map((v) => v.k)) : close.k;
+      record.phone = Math.max(record.phone, (px / STAGE_PX_PER_UNIT) * phoneUnit * k);
+      if (complete.length) record.inView = true;
     };
     const resting = new Map<number, string>();
     const restingText = new Map<number, string>();
@@ -282,7 +291,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
     const holds = v.trace.steps.flatMap((s) =>
-      s.hold == null ? [] : [{ step: s.step, from: Math.round(s.hold * v.trace.fps) + 1, to: s.frame1 ?? v.trace.frames }],
+      s.hold == null
+        ? []
+        : [{ step: s.step, from: Math.round(s.hold * v.trace.fps) + 1, to: s.frame1 ?? v.trace.frames }],
     );
     const held = new Map<string, string>(),
       moved = new Set<string>();
@@ -306,8 +317,14 @@ export async function checkProject(project: Project, out: string): Promise<Recor
           scene.mobjects = all;
           restingText.set(scene.frameCount, renderText(scene));
           if (scene.currentStep)
-            cardsAtRest[scene.currentStep.name] = scene.familyMembers().filter((m) => m instanceof Card && (m.style.opacity ?? 1) >= 0.5).length;
-          collisions.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${scene.currentStep?.name}: ${p}`));
+            cardsAtRest[scene.currentStep.name] = scene
+              .familyMembers()
+              .filter((m) => m instanceof Card && (m.style.opacity ?? 1) >= 0.5).length;
+          collisions.push(
+            ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(
+              (p) => `${scene.currentStep?.name}: ${p}`,
+            ),
+          );
         }
         // Sizes on screen: world size times the camera's zoom, inside the camera's view
         // cut by every clip; boxes for the phone's close-ups in the view's own units.
@@ -333,18 +350,16 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             if (!labels.has(m)) labels.set(m, { text, px: 0, phone: 0, inView: false });
             // A camera gliding past does not make a label read: between completed frames a
             // label counts at no more than its size with the camera home.
-            const credited = completedFrames.has(scene.frameCount) ? px : Math.min(px, m.height() * label.emRatio * STAGE_PX_PER_UNIT);
+            const credited = completedFrames.has(scene.frameCount)
+              ? px
+              : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
             if (readable(m, m.box(), viewport)) seen(labels.get(m)!, credited, shown(m.box()), scene.frameCount);
           }
         }
       },
     }).run();
     const events = analyzeMotion(motion);
-    assert.equal(
-      events.length,
-      0,
-      `Motion failures ${where}: ${JSON.stringify(events.slice(0, 8))}`,
-    );
+    assert.equal(events.length, 0, `Motion failures ${where}: ${JSON.stringify(events.slice(0, 8))}`);
     assert.deepEqual(
       [...moved],
       [],
@@ -365,12 +380,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `Each step must change the picture; these end exactly as the step before ${where}`,
     );
-    assert.deepEqual(
-      [...new Set(collisions)],
-      [],
-      `Resting frames have colliding or cut-off text ${where}`,
-    );
-    const staticSmall = [...staticLabels.values()].filter((label) => label.px < MIN_PX).map(({ text, px }) => ({ text, px }));
+    assert.deepEqual([...new Set(collisions)], [], `Resting frames have colliding or cut-off text ${where}`);
+    const staticSmall = [...staticLabels.values()]
+      .filter((label) => label.px < MIN_PX)
+      .map(({ text, px }) => ({ text, px }));
     assert.deepEqual(
       staticSmall,
       [],
@@ -382,7 +395,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
     // A lettered explainer's bare runtime puts its faces in place first, as its page does.
     const lettered = project.lettering
-      ? [`import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`, `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`]
+      ? [
+          `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`,
+          `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
+        ]
       : ['', ''];
     const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/index.ts'))};import{Scene,NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/index.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
     const b = await build({
@@ -400,7 +416,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     vm.runInContext(b.outputFiles[0]!.text + ';globalThis.result=bare.run()', context);
     const result = await context.result;
     const bare = `The bare runtime (no DOM, no Node) disagrees with the trace ${where}`;
-    assert.deepEqual(JSON.parse(JSON.stringify(result.steps)), v.trace.steps.map((s) => s.step), bare);
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(result.steps)),
+      v.trace.steps.map((s) => s.step),
+      bare,
+    );
     assert.deepEqual(JSON.parse(JSON.stringify(result.state)), v.trace.steps.at(-1)!.after, bare);
     assert.ok(result.svg.includes('<path'), bare);
     variants.push({
@@ -430,7 +450,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
           }
         : {}),
       // Each step's resting frame as text, so an author can read it without a browser.
-      restingFrames: Object.fromEntries(v.trace.steps.map((step) => [step.step, restingText.get(restingFrame(step)) ?? ''])),
+      restingFrames: Object.fromEntries(
+        v.trace.steps.map((step) => [step.step, restingText.get(restingFrame(step)) ?? '']),
+      ),
     });
   }
   const report = {

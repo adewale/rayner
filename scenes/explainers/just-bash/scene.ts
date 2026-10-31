@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/just-bash.ts';
 import { Scene, Text, Group, Rectangle, Transform } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -30,7 +32,7 @@ const TOP = regionBox('top', { bottom: -0.2 }),
 export default class BashExplainer extends Scene {
   static meta = {
     id: 'just-bash',
-    title: 'Running a command returns a new shell value',
+    title: 'Why must you keep the returned shell?',
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/just-bash.ts',
@@ -49,18 +51,21 @@ export default class BashExplainer extends Scene {
   ];
   override async construct() {
     const which = settingsOf(this).shell,
-      s = stage(this, { style: STYLE }),
+      s = stage(this, { headingSize: 0.6, style: STYLE }),
       ink = s.palette.ink,
       accent = s.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
 
     // ── command: a line of text and a shell value ──────────────────────
+    await readerFirst(this, s, readerFrames(which!));
     await this.step('command', {
+      detail: true,
       title: 'A command line and the empty shell it runs on',
       line: 'Two commands, a pipe and a redirect; the shell starts with no files.',
       caption:
         'This executable model follows the JustBash example: a pipeline transforms strings and a redirect writes an in-memory filesystem. The shell starts as a plain value with no files.',
     });
+    await s.clear();
     const parts: [string, string][] = [
       ['echo hello', 'command'],
       ['|', 'pipe'],
@@ -86,13 +91,18 @@ export default class BashExplainer extends Scene {
     await s.enter(line, { runTime: 0.5 });
     await s.enter(new Group(...roles), { runTime: 0.5 });
     const api = await s.code(
-      [`shell = { fs: ${JSON.stringify(old.fs)}, steps: ${old.steps} }`, 'exec(shell, pipeline, redirect)', '  → { shell, stdout }'],
+      [
+        `shell = { fs: ${JSON.stringify(old.fs)}, steps: ${old.steps} }`,
+        'exec(shell, pipeline, redirect)',
+        '  → { shell, stdout }',
+      ],
       { at: BOTTOM, fontSize: 0.3 },
     );
     await api.focus(0);
 
     // ── parse: the command is a tree ────────────────────────────────────
     await this.step('parse', {
+      detail: true,
       title: 'The command line parses into a tree',
       line: 'Echo and tr sit under the pipeline; the redirect is not a command.',
       caption:
@@ -106,10 +116,10 @@ export default class BashExplainer extends Scene {
       },
       { box: 'main' },
     );
-    const call = await s.code(
-      ['exec(shell,', '  [["echo", "hello"],', '   ["tr", "a-z", "A-Z"]],', `  "${FILE}")`],
-      { at: 'side', fontSize: 0.3 },
-    );
+    const call = await s.code(['exec(shell,', '  [["echo", "hello"],', '   ["tr", "a-z", "A-Z"]],', `  "${FILE}")`], {
+      at: 'side',
+      fontSize: 0.3,
+    });
     await ast.mark(['Echo', 'Tr']);
     await call.focus([1, 2]);
     await ast.note('Redirect', 'not a command', { side: 'below' });
@@ -118,6 +128,7 @@ export default class BashExplainer extends Scene {
     const afterEcho = exec(old, [PIPELINE[0]]).stdout,
       afterTr = exec(old, PIPELINE).stdout;
     await this.step('reduce', {
+      detail: true,
       title: 'A pipeline is a reduce over strings',
       line: `Echo sets stdout to ${q(afterEcho)}; tr turns it into ${q(afterTr)}.`,
       caption:
@@ -153,6 +164,7 @@ export default class BashExplainer extends Scene {
 
     // ── redirect: the write lands in a new value ────────────────────────
     await this.step('redirect', {
+      detail: true,
       title: 'The redirect writes into a new shell',
       line: `The returned shell holds ${FILE}; the original has no files.`,
       caption:
@@ -190,6 +202,7 @@ export default class BashExplainer extends Scene {
 
     // ── lookup: names resolve through a policy ──────────────────────────
     await this.step('lookup', {
+      detail: true,
       title: 'The model runs echo, tr and cat and refuses ls',
       line: 'A name with no branch falls to the last line and throws.',
       caption:
@@ -246,6 +259,7 @@ export default class BashExplainer extends Scene {
       other = exec(which === 'new' ? old : run.shell, [['cat', FILE]]);
     const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
     await this.step('cat', {
+      detail: true,
       title: which === 'new' ? 'cat reads the returned shell' : 'cat reads the original shell',
       line:
         which === 'new'
@@ -287,6 +301,7 @@ export default class BashExplainer extends Scene {
     const viaNew = exec(run.shell, [['cat', FILE]]).stdout,
       viaOld = exec(old, [['cat', FILE]]).stdout;
     await this.step('lesson', {
+      detail: true,
       title: 'The caller holds both shells and can cat either',
       line: `On s1 cat ${prints(viaNew)}, on s0 it ${prints(viaOld)}; s0.fs is still ${JSON.stringify(old.fs)}.`,
       caption:

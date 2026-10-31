@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/mr-cache.ts';
 import {
   Scene,
   Code,
@@ -111,7 +113,7 @@ function lineBar(code: Code, rect: Rectangle, i: number, color: string): Rectang
 export default class CacheMRExplainer extends Scene {
   static meta = {
     id: 'mr-cache',
-    title: 'Four added lines and one rewritten put a KV cache in front of D1',
+    title: 'What does a cache hit save?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts'],
     watch: { databaseReads: 'Database reads', request: 'Request', reads: 'D1 reads' },
   };
@@ -128,14 +130,17 @@ export default class CacheMRExplainer extends Scene {
   ];
   override async construct() {
     const which = settingsOf(this).request as 'hit' | 'miss',
-      s = stage(this, { style: STYLE });
+      s = stage(this, { headingSize: 0.6, style: STYLE });
 
+    await readerFirst(this, s, readerFrames(which));
     await this.step('before', {
+      detail: true,
       title: 'Before: every request reads D1',
       line: 'getUser is one D1 query, the outlined line 2.',
       caption:
         'getUser is a single D1 query, the outlined line, so the walked request goes from the handler straight to D1, and every lookup is a database read.',
     });
+    await s.clear();
     const flow = await s.show({ source: BEFORE }, { box: 'top' });
     const colors = s.palette,
       hot = s.emphasis;
@@ -168,7 +173,8 @@ export default class CacheMRExplainer extends Scene {
     this.state.databaseReads = 'every request';
 
     await this.step('diff', {
-      title: 'The merge request reads KV before D1',
+      detail: true,
+      title: 'Four added lines and one rewritten',
       line: 'The old return keeps its D1 call; green lines check KV first.',
       caption:
         'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the green lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
@@ -215,12 +221,14 @@ export default class CacheMRExplainer extends Scene {
       said: Mobject[] = [];
     for (const r of runs.sort((a, b) => a.from - b.from)) {
       const box = linesBox(after, r.from, r.to);
-      said.push(await s.callout([right - 0.1, box[1], right - 0.1, box[3]], `${lines(r.to - r.from + 1)} ${r.what}`, {
-        side: 'right',
-        gap: NOTES_BOX[0] - right + 0.15,
-        color: r.color,
-        size: 0.24,
-      }));
+      said.push(
+        await s.callout([right - 0.1, box[1], right - 0.1, box[3]], `${lines(r.to - r.from + 1)} ${r.what}`, {
+          side: 'right',
+          gap: NOTES_BOX[0] - right + 0.15,
+          color: r.color,
+          size: 0.24,
+        }),
+      );
     }
     const lookup = new Circumscribe(linesBox(after, 1, 2), {
       keep: true,
@@ -233,6 +241,7 @@ export default class CacheMRExplainer extends Scene {
     await this.play(lookup);
 
     await this.step('after', {
+      detail: true,
       title: 'Replayed on the diagram, the diff adds KV and a hit path',
       line: 'A hit goes from KV to Reply; a miss falls through to D1.',
       caption:
@@ -245,7 +254,11 @@ export default class CacheMRExplainer extends Scene {
     this.state.databaseReads = 'misses only';
 
     await this.step('request', {
-      title: which === 'hit' ? 'A cache hit returns from KV with no D1 read' : 'A cache miss reads D1 once, then caches the row',
+      detail: true,
+      title:
+        which === 'hit'
+          ? 'A cache hit returns from KV with no D1 read'
+          : 'A cache miss reads D1 once, then caches the row',
       line:
         which === 'hit'
           ? 'The hit row bypasses D1: 0 reads.'
@@ -274,25 +287,45 @@ export default class CacheMRExplainer extends Scene {
     // program path; its result now replaces the detailed diagram/code view.
     await s.clear();
     const result = new Group();
-    for (const [kind, y] of [['hit', 1.5], ['miss', -1.8]] as const) {
+    for (const [kind, y] of [
+      ['hit', 1.5],
+      ['miss', -1.8],
+    ] as const) {
       const selected = kind === which;
       const color = selected ? s.emphasis : s.palette.ink;
-      const row = new Group(new Rectangle({width: 14.4, height: 2.9, cornerRadius: 0.12, stroke: selected ? color : s.soft, strokeWidth: selected ? 0.05 : 0.015} ).moveTo([0, y]));
-      row.add(new Text(kind, {fontSize: 0.75, color, weight: selected ? 'bold' : 'normal'}).moveTo([-6.0, y]));
+      const row = new Group(
+        new Rectangle({
+          width: 14.4,
+          height: 2.9,
+          cornerRadius: 0.12,
+          stroke: selected ? color : s.soft,
+          strokeWidth: selected ? 0.05 : 0.015,
+        }).moveTo([0, y]),
+      );
+      row.add(new Text(kind, { fontSize: 0.75, color, weight: selected ? 'bold' : 'normal' }).moveTo([-6.0, y]));
       const node = (name: string, x: number, width: number) => {
-        row.add(new Rectangle({width, height: 1.0, cornerRadius: 0.1, stroke: color, strokeWidth: 0.025}).moveTo([x, y]), new Text(name, {fontSize: 0.7, color}).moveTo([x, y]));
+        row.add(
+          new Rectangle({ width, height: 1.0, cornerRadius: 0.1, stroke: color, strokeWidth: 0.025 }).moveTo([x, y]),
+          new Text(name, { fontSize: 0.7, color }).moveTo([x, y]),
+        );
       };
       node('KV', -3.3, 2.0);
       node('Reply', 4.6, 2.6);
       if (kind === 'miss') node('D1', 0.4, 1.8);
-      const arrow = (from: number, to: number) => row.add(new Arrow([from, y], [to, y], {stroke: color, strokeWidth: 0.04, tipLength: 0.16, tipWidth: 0.16}));
+      const arrow = (from: number, to: number) =>
+        row.add(new Arrow([from, y], [to, y], { stroke: color, strokeWidth: 0.04, tipLength: 0.16, tipWidth: 0.16 }));
       if (kind === 'hit') arrow(-2.3, 3.3);
-      else { arrow(-2.3, -0.5); arrow(1.3, 3.3); }
-      row.add(new Text(kind === 'hit' ? '0 D1 reads' : '1 D1 read', {fontSize: 0.7, color}).moveTo([0.4, y - 0.95]));
-      if (kind === 'miss') row.add(new Text('300 s', {fontSize: 0.7, color}).moveTo([-3.3, y - 0.95]));
+      else {
+        arrow(-2.3, -0.5);
+        arrow(1.3, 3.3);
+      }
+      row.add(new Text(kind === 'hit' ? '0 D1 reads' : '1 D1 read', { fontSize: 0.7, color }).moveTo([0.4, y - 0.95]));
+      if (kind === 'miss') row.add(new Text('300 s', { fontSize: 0.7, color }).moveTo([-3.3, y - 0.95]));
       row.key = `result:${kind}`;
       result.add(row);
     }
-    await s.enter(result, {describe: `Two request paths, ${which} highlighted: hit goes from KV to Reply with 0 D1 reads; miss goes from KV through D1 to Reply with 1 D1 read and caches the row for 300 seconds.`});
+    await s.enter(result, {
+      describe: `Two request paths, ${which} highlighted: hit goes from KV to Reply with 0 D1 reads; miss goes from KV through D1 to Reply with 1 D1 read and caches the row for 300 seconds.`,
+    });
   }
 }

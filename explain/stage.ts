@@ -9,7 +9,7 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, regionBox } from './look.ts';
+import { soft, emphasis, good, bad, regionBox, reading } from './look.ts';
 import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
@@ -58,7 +58,7 @@ export function isHeading(m: Mobject): boolean {
 }
 /**
  * The colour of the stage's paper (`__paper`, its palette's `paper`) as `scene` has it, or undefined
- * for a scene drawn without a stage. The player tints its chrome toward it (app/embed.css, --paper).
+ * for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
 export const paperOf = (scene: Scene): string | undefined => scene.mobjects.find((m) => m.key === '__paper')?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
@@ -78,9 +78,19 @@ const CONTENT: Box = [-7.55, -4.25, 7.55, 3.25];
 const HOME: Box = [-8, -4.5, 8, 4.5];
 
 export function stage(scene: Scene, options: StageOptions = {}) {
+  // Each caption owns its opening; a previous step's subjects must not leak.
+  scene.onStep(() => reading(scene));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
-    (at === 'start' ? (direction === 'ltr' ? 'left' : 'right') : at === 'end' ? (direction === 'ltr' ? 'right' : 'left') : at) as Exclude<T, 'start' | 'end'> | Region;
+    (at === 'start'
+      ? direction === 'ltr'
+        ? 'left'
+        : 'right'
+      : at === 'end'
+        ? direction === 'ltr'
+          ? 'right'
+          : 'left'
+        : at) as Exclude<T, 'start' | 'end'> | Region;
   // Without a style or palette, the stage adopts the first diagram's palette.
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
@@ -105,7 +115,10 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     if (number != null && text) {
       const r = headingSize * 0.62;
       const digit = new Text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold' });
-      badge = new Group(new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }), digit);
+      badge = new Group(
+        new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }),
+        digit,
+      );
       badge.key = '__chrome';
     }
     const badgeW = badge ? headingSize * 1.24 + headingSize * 0.5 : 0;
@@ -135,7 +148,10 @@ export function stage(scene: Scene, options: StageOptions = {}) {
    * A paper band behind the heading. Invisible at home, where content keeps below the heading;
    * while the camera is away, zoomed content passes under it instead of through the title.
    */
-  const band = new Rectangle({ width: 16, height: 4.5 - CONTENT[3], fill: colors.paper, stroke: 'none' }).moveTo([0, (4.5 + CONTENT[3]) / 2]);
+  const band = new Rectangle({ width: 16, height: 4.5 - CONTENT[3], fill: colors.paper, stroke: 'none' }).moveTo([
+    0,
+    (4.5 + CONTENT[3]) / 2,
+  ]);
   band.style.opacity = 0;
   band.key = '__chrome';
   scene.add(band, heading);
@@ -198,7 +214,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       setHeading(
         typeof s.meta.title === 'string' ? s.meta.title : '',
         typeof s.meta.line === 'string' ? s.meta.line.trim() : '',
-        numbered ? scene.steps.length : null,
+        numbered && s.meta.detail !== true ? scene.steps.filter((step) => step.meta.detail !== true).length : null,
         s.name,
       ),
     );
@@ -218,12 +234,19 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         if (!told.has(describe)) seen.push({ what: describe(), parts: [] });
         told.add(describe);
       } else {
-        const words = m.family().filter((t): t is Text => t instanceof Text && !!t.text.trim() && (t.style.opacity ?? 1) >= 0.5);
+        const words = m
+          .family()
+          .filter((t): t is Text => t instanceof Text && !!t.text.trim() && (t.style.opacity ?? 1) >= 0.5);
         labels.push(...words.map((t) => t.text));
         if (!words.length) blank++;
       }
     if (labels.length) seen.push({ what: w.count(labels.length, w.label), parts: labels.map((name) => ({ name })) });
-    if (blank) seen.push({ what: '', parts: [], blank: [`${blank} kept drawing${blank > 1 ? 's' : ''} with no text: give s.keep or s.enter a describe`] });
+    if (blank)
+      seen.push({
+        what: '',
+        parts: [],
+        blank: [`${blank} kept drawing${blank > 1 ? 's' : ''} with no text: give s.keep or s.enter a describe`],
+      });
     return seen;
   }
   // Each step's state records its resting picture and what changed since the step began.
@@ -256,11 +279,19 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       const mobs = (Array.isArray(target) ? target : [target]) as Mobject[];
       const boxes = mobs.map((m) => m.box()).filter((x): x is Box => !!x);
       if (!boxes.length) throw new Error('focus(): nothing to look at');
-      b = [Math.min(...boxes.map((x) => x[0])), Math.min(...boxes.map((x) => x[1])), Math.max(...boxes.map((x) => x[2])), Math.max(...boxes.map((x) => x[3]))];
+      b = [
+        Math.min(...boxes.map((x) => x[0])),
+        Math.min(...boxes.map((x) => x[1])),
+        Math.max(...boxes.map((x) => x[2])),
+        Math.max(...boxes.map((x) => x[3])),
+      ];
     }
     const w = b[2] - b[0] + 2 * margin,
       h = b[3] - b[1] + 2 * margin;
-    const z = Math.max(1, Math.min((CONTENT[2] - CONTENT[0]) / Math.max(w, 1e-6), (CONTENT[3] - CONTENT[1]) / Math.max(h, 1e-6)));
+    const z = Math.max(
+      1,
+      Math.min((CONTENT[2] - CONTENT[0]) / Math.max(w, 1e-6), (CONTENT[3] - CONTENT[1]) / Math.max(h, 1e-6)),
+    );
     const cc: Vec = [(CONTENT[0] + CONTENT[2]) / 2, (CONTENT[1] + CONTENT[3]) / 2],
       tc: Vec = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
     const hw = 8 / z,
@@ -340,13 +371,30 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       return diagram;
     },
     /** Labelled values; `card.set({...})` updates them, `card.mark(row)` lights one. */
-    async card(rows: readonly CardRow[], opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {}): Promise<Card> {
+    async card(
+      rows: readonly CardRow[],
+      opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
+    ): Promise<Card> {
       const cardDirection = layoutDirection(opts, direction);
-      return enterPanel(new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: cardDirection }), opts, { runTime: 0.35, shift: [0, -0.08] });
+      return enterPanel(
+        new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: cardDirection }),
+        opts,
+        { runTime: 0.35, shift: [0, -0.08] },
+      );
+    },
+    /** Keep these subjects together in the reader's opening when they fit legibly.
+     * Other artwork remains available in the close-up tour. Call after step(). */
+    reading(...subjects: Mobject[]) {
+      reading(scene, ...subjects);
     },
     /** Code on a panel; `code.focus(line)` keeps a bar on it. */
-    async code(lines: readonly string[], opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {}): Promise<CodeBlock> {
-      return enterPanel(new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) }), opts, { runTime: 0.4 });
+    async code(
+      lines: readonly string[],
+      opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
+    ): Promise<CodeBlock> {
+      return enterPanel(new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) }), opts, {
+        runTime: 0.4,
+      });
     },
     /** A plain line of supporting text in the stage's secondary colour. */
     async note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Promise<Text> {
@@ -400,7 +448,12 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      */
     async focus(
       target: Mobject | readonly Mobject[] | Box | 'all',
-      { margin = 0.4, runTime = 0.9, exact = false, with: also = [] }: { margin?: number; runTime?: number; exact?: boolean; with?: Animation[] } = {},
+      {
+        margin = 0.4,
+        runTime = 0.9,
+        exact = false,
+        with: also = [],
+      }: { margin?: number; runTime?: number; exact?: boolean; with?: Animation[] } = {},
     ) {
       const box = target === 'all' ? HOME : exact ? (target as Box) : viewFor(target, margin);
       await scene.play(...cameraTo(box, runTime), ...also.map((a) => a.setOptions({ runTime })));
@@ -414,14 +467,24 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       const target = m.copy();
       if (typeof to === 'string' || to.length === 4) {
         const b = typeof to === 'string' ? regionBox(to) : (to as Box);
-        const k = Math.min(1, (b[2] - b[0]) / Math.max(1e-6, target.width()), (b[3] - b[1]) / Math.max(1e-6, target.height()));
+        const k = Math.min(
+          1,
+          (b[2] - b[0]) / Math.max(1e-6, target.width()),
+          (b[3] - b[1]) / Math.max(1e-6, target.height()),
+        );
         target.scale(k).moveTo([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
       } else target.moveTo(to as Vec);
       await scene.play(new Transform(m, target, { runTime }));
     },
     /** A dimension line from `a` to `b` with `label`, set off by `offset`; drawn in, and kept. */
     async dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number } = {}) {
-      const g = onScreen(dimension(toScreen(a), toScreen(b), label, { color: opts.color ?? emphasis(colors), background: colors.paper, ...opts }));
+      const g = onScreen(
+        dimension(toScreen(a), toScreen(b), label, {
+          color: opts.color ?? emphasis(colors),
+          background: colors.paper,
+          ...opts,
+        }),
+      );
       keepAll([g], { describe: () => `A dimension line marked “${label}”` });
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       return g;
@@ -434,11 +497,21 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       return g;
     },
     /** Words beside a target with a leader line to it; drawn in, and kept. */
-    async callout(target: Vec | Box | Mobject, text: string, opts: { side?: Side; gap?: number; color?: string; size?: number } = {}) {
-      const box = Array.isArray(target) ? (target.length === 2 ? ([...target, ...target] as Box) : (target as Box)) : (target as Mobject).box();
+    async callout(
+      target: Vec | Box | Mobject,
+      text: string,
+      opts: { side?: Side; gap?: number; color?: string; size?: number } = {},
+    ) {
+      const box = Array.isArray(target)
+        ? target.length === 2
+          ? ([...target, ...target] as Box)
+          : (target as Box)
+        : (target as Mobject).box();
       if (!box) throw new Error('callout(): the target has no extent');
       const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
-      const g = onScreen(callout([a[0], a[1], b[0], b[1]], text, { color: opts.color ?? colors.ink, background: colors.paper, ...opts }));
+      const g = onScreen(
+        callout([a[0], a[1], b[0], b[1]], text, { color: opts.color ?? colors.ink, background: colors.paper, ...opts }),
+      );
       keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
       return g;
@@ -448,11 +521,21 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * and keep it. `m` must not be on stage yet. A path of several strokes is split into one path
      * per stroke first; the result is what was drawn and kept. `describe` says what it shows.
      */
-    async draw(m: Mobject, { tool: kind = 'pen', color, runTime = 1.5, describe }: { tool?: ToolKind | false; color?: string; runTime?: number } & Describe = {}) {
+    async draw(
+      m: Mobject,
+      {
+        tool: kind = 'pen',
+        color,
+        runTime = 1.5,
+        describe,
+      }: { tool?: ToolKind | false; color?: string; runTime?: number } & Describe = {},
+    ) {
       // One path per stroke, so the tool can follow each in turn.
       m = oneStrokeEach(m);
       keepAll([m], { describe });
-      const t = kind ? tool(kind, { ink: colors.ink, body: color ?? (kind === 'pen' ? soft(colors) : emphasis(colors)) }) : null;
+      const t = kind
+        ? tool(kind, { ink: colors.ink, body: color ?? (kind === 'pen' ? soft(colors) : emphasis(colors)) })
+        : null;
       if (t) {
         // The tool is sized to the stage, as the camera shows it.
         t.scale(view.k, { aboutPoint: [0, 0] });
