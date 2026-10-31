@@ -1,16 +1,14 @@
-/** Work belongs to a phase. Exiting it cancels waits and queued browser work. */
+/** Exiting a phase cancels pending waits. Check again at each synchronous commit. */
 export class StateScope extends AbortController {
-  exit() { this.abort(); }
+  check() { this.signal.throwIfAborted(); }
   async wait<T>(work: PromiseLike<T>): Promise<T> {
-    this.signal.throwIfAborted();
+    this.check();
     let abort!:()=>void;
     try {
-      const value=await Promise.race([work,new Promise<never>((_,reject)=>{
+      return await Promise.race([work,new Promise<never>((_,reject)=>{
         abort=()=>reject(this.signal.reason);
         this.signal.addEventListener('abort',abort,{once:true});
       })]);
-      this.signal.throwIfAborted();
-      return value;
     } finally { this.signal.removeEventListener('abort',abort); }
   }
   async run(work: () => Promise<void>): Promise<void> {

@@ -67,7 +67,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
   type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
-  type CaseHistory = { kind: 'keep-step' | 'requested'; name: string | undefined } | { kind: 'first'; name?: never };
+  type CaseHistory = readonly [kind: 'keep-step', name: string | undefined] | readonly [kind: 'step', name: string] | readonly [kind: 'first'];
   type CasePhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
   let casePhase: CasePhase = { kind: 'loading', scope: new StateScope() };
   const cache = new Map<string, Entry>();
@@ -329,9 +329,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   transcript.addEventListener('click', (e) => {
     const a = (e.target as Element).closest<HTMLAnchorElement>('section a'),
       step = a && new URLSearchParams(a.search).get('step');
-    if (!step || !trace) return;
+    if (!step) return;
     e.preventDefault();
-    void show(trace.steps.findIndex((s) => s.step === step));
+    if (casePhase.kind === 'ready') void show(casePhase.entry.trace.steps.findIndex((s) => s.step === step));
   });
   root.replaceChildren(layout);
   // Measured now, before the first step is shown, so the stage has its final size when the first
@@ -464,6 +464,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     return scope.run(async () => {
       follow = true;
       const target = await framing(trace.steps[selected]!, scope, at);
+      scope.check();
       if (target) zoom.to(target, true);
       else zoom.apply();
       // The button that was pressed hides; focus moves to the stage it changed.
@@ -496,19 +497,17 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     endControls(atEnd(), atEnd() ? tryLabel() : '');
     // Done, current, to do, in the rail and on the step bar. Only the current segment is a Tab
     // stop, full at rest and empty as its step starts.
-    for (const [i, b] of [...steps.querySelectorAll('button')].entries()) {
-      b.dataset.state = i < selected ? 'done' : i === selected ? 'current' : 'todo';
-      b.setAttribute('aria-current', i === selected ? 'step' : 'false');
-    }
-    keepInRail();
-    for (const [i, b] of [...bar.querySelectorAll('button')].entries()) {
+    for (const list of [steps,bar]) for (const [i,b] of list.querySelectorAll('button').entries()) {
       const state = i < selected ? 'done' : i === selected ? 'current' : 'todo';
       b.dataset.state = state;
-      b.tabIndex = state === 'current' ? 0 : -1;
-      b.setAttribute('aria-current', state === 'current' ? 'step' : 'false');
-      if (state === 'current') b.style.setProperty('--progress', isPlaying() ? '0' : '1');
-      else b.style.removeProperty('--progress');
+      b.setAttribute('aria-current',state === 'current' ? 'step' : 'false');
+      if(list===bar) {
+        b.tabIndex=state === 'current' ? 0 : -1;
+        if(state === 'current') b.style.setProperty('--progress',isPlaying() ? '0' : '1');
+        else b.style.removeProperty('--progress');
+      }
     }
+    keepInRail();
     stage.setAttribute('aria-label', t.stageLabel(title.textContent!, words.title, words.line));
     // Busy while a step plays: the resting picture, and its description, are still to come.
     if (isPlaying()) stage.setAttribute('aria-busy', 'true');
@@ -625,6 +624,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     stop = 0;
     at.layouts ??= stepLayouts(at.Scene);
     const layouts = await scope.wait(at.layouts);
+    scope.check();
     const layout = layouts.get(step.step);
     // A case or step shown while the layouts were worked out owns the overview now.
     caseLayouts = layouts;
@@ -632,13 +632,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     refreshTour();
     return narrow() && follow ? tour[0]! : null;
   }
-  function settle(step: Trace['steps'][number], target: Zoom | null, at: Entry) {
+  function settle(step: Trace['steps'][number], target: Zoom | null, at: Entry, scope: StateScope) {
+    scope.check();
     sound?.set(step.meta.audio);
     if (target) zoom.to(target);
     else zoom.apply();
     root.classList.remove('loading');
     document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values } }));
+    scope.check();
     toHost({ step: step.step, index: selected, total: trace.steps.length, settings: { ...values } });
+    scope.check();
     primeNext(at);
   }
   async function show(index: number, push = true) {
@@ -658,13 +661,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, { realtime: false }, readerView, scope.signal)),
         framing(step, scope, at),
       ]));
+      scope.check();
       if (!kept) at.resting.set(step.step, clones(container.childNodes));
       // Reduced motion: no animation, but the old picture fades out over the new one, so the change is still seen.
       const old = reduced() ? stage.querySelector('svg') : null;
       old?.classList.add('leaving');
       old?.addEventListener('animationend', () => old.remove());
       stage.replaceChildren(...container.childNodes, ...(old ? [old] : []));
-      settle(step, target, at);
+      settle(step, target, at, scope);
     });
   }
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -697,7 +701,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const isPlaying = () => playback.kind === 'playing' || playback.kind === 'following';
   function leaveStep(next: Playback) {
     const previous = playback;
-    previous.scope.exit();
+    previous.scope.abort();
     if ('run' in previous && (!('run' in next) || previous.run !== next.run)) previous.run.cancel();
     sound?.stop();
     playback = next;
@@ -729,8 +733,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     let aim = aimAt(first), release!: Run['release'];
     const gate = () => new Promise<Go | null>(r => { release = r; });
     let phase: RunPhase = { kind: 'primed', gate: gate() };
-    const cancel = () => { aim.scope.exit(); release(null); phase = { kind: 'cancelled' }; };
+    const cancel = () => { aim.scope.abort(); release(null); phase = { kind: 'cancelled' }; };
     const attach = (go: Go) => {
+      go.scope.check();
       stage.replaceChildren(...aim.container.childNodes);
       zoom.apply();
       if (phase.kind !== 'playing' && go.target) go.scope.frame(() => zoom.to(go.target!, true));
@@ -747,7 +752,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         const go = 'go' in phase ? phase.go : 'gate' in phase ? await phase.gate : null;
         if (!go) throw new StopScene();
         try {
-          go.scope.signal.throwIfAborted();
+          go.scope.check();
           if (scene.time > aim.end + 1e-8) {
             if (scene.time + 1e-9 < aim.rest) return;
             await go.scope.wait(new ReaderSink(aim.container, { realtime: false }, readerView, go.scope.signal).frame(scene, 0));
@@ -756,6 +761,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
             throw new StopScene();
           }
           await go.scope.wait(aim.seek.frame(scene, dt));
+          go.scope.check();
           if (phase.kind !== 'playing') attach(go);
           phase = { kind: 'playing', go };
           fill(aim.index, (scene.time - aim.start) / (aim.end - aim.start));
@@ -783,8 +789,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       release: g => {
         if (g) {
           const scope = aim.scope;
-          g.scope.signal.addEventListener('abort', () => scope.exit(), { once: true });
-          if (g.scope.signal.aborted) scope.exit();
+          g.scope.signal.addEventListener('abort', () => scope.abort(), { once: true });
+          if (g.scope.signal.aborted) scope.abort();
         }
         release(g);
       },
@@ -798,6 +804,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (index >= at.trace.steps.length || reduced()) return;
     void scope.run(async () => {
       await scope.wait(new Promise<void>(r => setTimeout(r)));
+      scope.check();
       const run = prepare(at, index);
       playback = { kind: 'primed', scope, run };
       run.done.catch(() => { }); // reported when used
@@ -816,13 +823,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     chrome();
     return scope.run(async () => {
       const target = await framing(step, scope, at);
+      scope.check();
       run.release({ scope, target });
       const rested = await scope.wait(run.done);
+      scope.check();
       if (!rested) return show(selected, false);
       at.resting.set(step.step, clones(stage.querySelectorAll(':scope>svg')));
       playback = { kind: 'resting', scope };
       chrome();
-      settle(step, null, at);
+      settle(step, null, at, scope);
     });
   }
   /**
@@ -831,10 +840,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * `step` may be a function, read when the case arrives.
    */
   async function load(request: Settings, step?: string | (() => string | undefined), push = false) {
-    if (casePhase.kind === 'loading') casePhase.scope.exit();
+    if (casePhase.kind === 'loading') casePhase.scope.abort();
     const scope = new StateScope();
-    const history: CaseHistory = typeof step === 'function' ? { kind: 'keep-step', name: step() } :
-      step ? { kind: 'requested', name: step } : { kind: 'first' };
+    const history: CaseHistory = typeof step === 'function' ? ['keep-step',step()] :
+      step ? ['step',step] : ['first'];
     casePhase = { kind: 'loading', scope };
     leaveStep({ kind: 'cancelled', scope: playback.scope });
     return scope.run(async () => {
@@ -854,10 +863,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (!entry) {
         const Scene = withSettings(Bound, next),
           { trace, scene } = await scope.wait(traceRun(Scene));
+        scope.check();
         entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
         cache.set(key, entry);
       }
-      const name = history.name;
+      const name = history[1];
       casePhase = { kind: 'ready',entry };
       // Zoom keeps its place across steps, including Back and Forward within a case.
       const changed = !values || JSON.stringify(values) !== key;
@@ -917,12 +927,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       await show(selected, push);
     });
   }
-  for (const type of ['click', 'keydown']) root.addEventListener(type, event => {
-    if (casePhase.kind === 'loading' && !(event.target as Element).closest('.case')) {
-      if(type==='click') event.preventDefault();
+  for (const type of ['click', 'wheel', 'dblclick', 'pointerdown', 'pointermove']) root.addEventListener(type, event => {
+    if (type === 'wheel' && !(event as WheelEvent).ctrlKey) return;
+    if (casePhase.kind === 'loading' && (event.target as Element).closest('.stage,button')) {
+      event.preventDefault();
       event.stopImmediatePropagation();
     }
-  }, true);
+  }, {capture:true,passive:false});
   prev.onclick = () => void show(selected - 1);
   // On the last step Next rests the step while it plays, and at rest starts again from step 1.
   next.onclick = () => {
@@ -983,6 +994,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
   };
   root.addEventListener('keydown', (e) => {
+    if (casePhase.kind === 'loading') return;
     const tag = (e.target as HTMLElement).tagName;
     if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SUMMARY'].includes(tag) || e.ctrlKey || e.metaKey) return;
     // Zoom keys act only on the focused stage, so they never take a key from the page; once
@@ -1022,7 +1034,6 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // unknown value falls back with the same notice). Given settings replace those of the case on
   // show; a request without a step keeps the step by name. It replaces the frame's history entry.
   const toHost = connectHost((request) => {
-    if (casePhase.kind==='loading') return;
     const given: Record<string, string> = {};
     for (const s of Source.settings ?? []) if (request.settings && Object.hasOwn(request.settings, s.id)) given[s.id] = request.settings[s.id]!;
     void load({ ...(wanted ?? values), ...given }, request.step ?? (() => trace?.steps[selected]?.step), false);

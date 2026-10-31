@@ -54,6 +54,8 @@ before(async () => {
         const w=globalThis as any;w.__sceneRuns=(w.__sceneRuns??0)+1;
         for(let i=0;i<4;i++){
           await this.step('step-'+i,{title:'Step '+i,caption:('Picture '+i+' ').repeat(12)});
+          const delay=typeof window==='undefined'?0:Number(new URLSearchParams(location.search).get('renderDelay'));
+          if(i===1&&this.skipUntil>0&&delay>0){w.__renderDelays=(w.__renderDelays??0)+1;await new Promise(r=>setTimeout(r,delay));}
           await this.play(new FadeIn(new Text('Picture '+i)),{runTime:2});
         }
       }
@@ -2643,6 +2645,15 @@ async function counted(context: import('playwright-core').BrowserContext, url: s
   await page.waitForSelector('[data-ready=true]');
   return { page, errors };
 }
+/** The latest accepted URL must have a matching resting-step event, including its case. */
+async function stepReady(page: Page, ids: string[]) {
+  await page.waitForFunction(ids => {
+    const last = (window as unknown as {__last: {step:string;settings:Record<string,string>} | null}).__last;
+    const q = new URLSearchParams(location.search);
+    return !document.querySelector('#content.loading, .stage[aria-busy=true]') && last?.step === q.get('step') &&
+      Object.keys(last.settings).length === ids.length && ids.every(id => last.settings[id] === q.get(id));
+  }, ids, {timeout:30_000});
+}
 /** Quiet: nothing loading, no animation playing, and no step settled for `ms`. */
 async function quiet(page: Page, ms = 300) {
   const deadline = Date.now() + 30_000;
@@ -2669,6 +2680,77 @@ const caseQuery = (p: Project, values: Settings, step: string) => {
   q.set('step', step);
   return q.toString();
 };
+
+test('player: resting-step readiness waits for a 1000 ms asynchronous render', options, async () => {
+  const context=await browser.newContext({reducedMotion:'reduce'});
+  try {
+    const {page,errors}=await counted(context,`${embed}/playback-probe.html?step=step-0&renderDelay=1000`);
+    const before=await page.evaluate(()=>(window as any).__renderDelays??0);
+    await page.locator('.steps button').nth(1).click();
+    await stepReady(page,[]);
+    assert.equal(await page.evaluate(()=>(window as any).__renderDelays),before+1,'the uncached render exercised the delay');
+    assert.equal(await page.evaluate(()=>(window as any).__last.step),'step-1');
+    const fresh=await counted(context,`${embed}/playback-probe.html?step=step-1`);
+    assert.equal(await stagePicture(page),await stagePicture(fresh.page));
+    assert.deepEqual([...errors,...fresh.errors],[]);
+  } finally {await context.close();}
+});
+
+test('player: mutation-observer microtask navigation rejects stale step events and attachments', options, async () => {
+  const context=await browser.newContext({reducedMotion:'reduce'});
+  try {
+    const {page,errors}=await counted(context,`${embed}/oauth-pkce.html?attacker=yes`);
+    const seen=await page.evaluate(async()=>{
+      const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('.steps button'));
+      const name=(index:number)=>buttons[index]!.dataset.step!;
+      const jump=(index:number)=>new Promise<void>(resolve=>{
+        const ready=(event:Event)=>{if((event as CustomEvent).detail.step===name(index)){document.removeEventListener('rayner:step',ready);resolve();}};
+        document.addEventListener('rayner:step',ready);buttons[index]!.click();
+      });
+      const picture=()=>document.querySelector('.stage svg:not(.leaving)')!.innerHTML;
+      const pictures:Record<string,string>={[name(0)]:picture()};
+      await jump(1);pictures[name(1)]=picture();await jump(0);
+      let depth=0,redirects=0;const completed:boolean[]=[];
+      const events:Array<{depth:number;step:string;url:string|null;settings:unknown;query:unknown}>=[];
+      const attachments:Array<{depth:number;html:string;url:string|null}>=[];
+      const onStep=(event:Event)=>{const detail=(event as CustomEvent).detail,q=new URLSearchParams(location.search);events.push({depth,step:detail.step,url:q.get('step'),settings:detail.settings,query:{attacker:q.get('attacker')}});};
+      document.addEventListener('rayner:step',onStep);
+      const native=Element.prototype.replaceChildren;
+      Element.prototype.replaceChildren=function(this:Element,...nodes:Parameters<typeof native>){
+        if(this.matches('.stage')) {
+          const svg=nodes.find((n):n is SVGSVGElement=>n instanceof SVGSVGElement&&!n.classList.contains('leaving'));
+          if(svg) attachments.push({depth,html:svg.innerHTML,url:new URLSearchParams(location.search).get('step')});
+        }
+        return native.apply(this,nodes);
+      };
+      try {
+        for(depth=0;depth<22;depth++) {
+          await jump(0);
+          const eventAt=events.length,paintAt=attachments.length;
+          const observer=new MutationObserver(()=>{
+            if(new URLSearchParams(location.search).get('step')!==name(1))return;
+            observer.disconnect();let remaining=depth;
+            const redirect=()=>{if(remaining-->0)queueMicrotask(redirect);else {redirects++;buttons[0]!.click();}};
+            redirect();
+          });
+          observer.observe(document.getElementById('content')!,{subtree:true,childList:true,attributes:true,characterData:true});
+          buttons[1]!.click();
+          await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+          observer.disconnect();
+          completed.push(events.slice(eventAt).some(e=>e.step===name(0)&&e.url===name(0))&&attachments.slice(paintAt).some(p=>p.url===name(0)&&p.html===pictures[name(0)]));
+        }
+      } finally {Element.prototype.replaceChildren=native;document.removeEventListener('rayner:step',onStep);}
+      return {pictures,events,attachments,redirects,completed};
+    });
+    assert.equal(seen.redirects,22,'every microtask depth triggered navigation');
+    assert.deepEqual(seen.completed,Array(22).fill(true),'every redirect finished on its requested picture and step');
+    assert.ok(seen.events.length>=22,'every redirect produced a resting step');
+    assert.ok(seen.attachments.length>=22,'every redirect attached a picture');
+    for(const event of seen.events){assert.equal(event.step,event.url,`stale event at microtask depth ${event.depth}`);assert.deepEqual(event.settings,event.query);}
+    for(const paint of seen.attachments)assert.equal(paint.html,seen.pictures[paint.url!],`stale attachment at microtask depth ${paint.depth}`);
+    assert.deepEqual(errors,[]);
+  } finally {await context.close();}
+});
 
 // Phone close-ups (app/embed-closeup.ts). On a 390 px page each step opens on the close-up
 // Node works out for it, whether reached by a link or by Next with motion on, and the two
@@ -2958,7 +3040,10 @@ for (const motion of ['reduce', 'no-preference'] as const)
                 settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })),
               },
             ));
+            await scheduler.waitFor(stepReady(page, ids));
+            // Quiet still drains unawaited history traversal; it is not the render-completion oracle.
             await scheduler.waitFor(quiet(page));
+            await scheduler.waitFor(stepReady(page, ids));
             const seen = await page.evaluate(observe, ids);
             const values = Object.fromEntries(ids.map((id) => [id, seen.urlCase[id]!])) as Settings;
             const list = stepsOf(p, values),

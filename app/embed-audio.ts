@@ -19,7 +19,7 @@ export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
   let context: AudioContext | null=null;
   let phase:Phase={kind:'idle'};
   function enter(next:Phase) {
-    if('scope' in phase) phase.scope.exit();
+    if('scope' in phase) phase.scope.abort();
     if(phase.kind==='playing') {
       for(const [osc,gain] of phase.active) {osc.stop();osc.disconnect();gain.disconnect();}
       phase.cursor?.remove();
@@ -32,8 +32,7 @@ export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
     // A click or keyboard focus can scroll the controls into view while hiding
     // the score. Native scrolling also reveals it through a host iframe or a
     // fullscreen scroll container, where window.scrollBy cannot reach it.
-    panel.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
-    stage.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+    for(const node of [panel,stage]) node.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
   }
   const stop=()=>enter({kind:'idle'});
   function tone(state:Playing,ctx:AudioContext,midi:number,start:number,duration:number,volume:number) {
@@ -48,12 +47,14 @@ export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
   }
   async function play(clip:AudioClip) {
     let scope=new StateScope();
+    const name=clip.id.toUpperCase();
     enter({kind:'starting',scope});
-    status.textContent=`Starting ${clip.id.toUpperCase()}.`;
+    status.textContent=`Starting ${name}.`;
     try {
       if(!context||context.state==='closed') context=new AudioContext();
       const ctx=context;
       await scope.wait(ctx.resume());
+      scope.check();
       const state:Playing={kind:'playing',scope:new StateScope(),active:new Map(),cursor:null};
       enter(state);
       scope=state.scope;
@@ -77,10 +78,10 @@ export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
         })) state.cursor.setAttribute(name,String(value));
         svg.append(state.cursor);
       }
-      status.textContent=`Playing ${clip.id.toUpperCase()} at ${clip.bpm} BPM.`;
+      status.textContent=`Playing ${name} at ${clip.bpm} BPM.`;
       const tick=()=>{
         const t=Math.max(0,ctx.currentTime-start);
-        if(t>=total) {enter({kind:'finished'});status.textContent=`Finished ${clip.id.toUpperCase()}.`;return;}
+        if(t>=total) {enter({kind:'finished'});status.textContent=`Finished ${name}.`;return;}
         elapsed.value=`Beat ${Math.min(Math.floor(t/seconds)+1,Math.ceil(clip.beats))} / ${clip.beats}`;
         if(state.cursor&&clip.plot) {
           const x=(clip.plot[0]+(clip.plot[2]-clip.plot[0])*Math.min(t/total,1))*UNITS;
