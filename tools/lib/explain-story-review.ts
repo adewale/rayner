@@ -1177,7 +1177,10 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
           else {
             // Normalize explicit dimming only for the geometric core mask. The
             // baseline/removal difference still uses the actual dimmed paint.
-            element.style.opacity = '1'; element.style.fillOpacity = '1'; element.style.strokeOpacity = '1';
+            element.style.opacity = '1';
+            // A disabled fill or stroke is not part of the authored glyph core.
+            if (Number(element.style.fillOpacity) > 0) element.style.fillOpacity = '1';
+            if (Number(element.style.strokeOpacity) > 0) element.style.strokeOpacity = '1';
           }
         });
         const mask = await raster();

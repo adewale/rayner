@@ -1122,7 +1122,9 @@ const s=stage(this);await this.step('comparison',{caption:'The blue shape and th
 const shape=new Rectangle({width:1,height:1,fill:'blue',stroke:'none'}).moveTo([-3,0]);shape.key='blue-shape';shape.clipBox=[-3.6,-.6,-2.4,.6];
 const label=new Text('Named value',{fontSize:.8}).moveTo([2,0]);label.clipBox=[-1,-.6,5,.6];
 const accent=new Rectangle({width:.5,height:.5,fill:'blue',stroke:'none'}).moveTo([2,-1.5]);
-const labelled=new Group(label,accent);labelled.key='label-subject';s.reading(shape,labelled);
+const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:'white',fillOpacity:0,stroke:'white',strokeWidth:.03,strokeOpacity:1}).moveTo([-3,-2.5]);
+const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:'white',strokeWidth:.2,strokeOpacity:0}).moveTo([3,-2.5]);
+const labelled=new Group(label,accent,outlined,filled);labelled.key='label-subject';s.reading(shape,labelled);
 const shapeCover=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).moveTo([-3,0]).setOpacity(.2);
 const labelCover=new Rectangle({width:6,height:2,fill:'red',stroke:'none'}).moveTo([2,0]).setOpacity(.2);
 const halfCover=new Rectangle({width:3,height:2,fill:'green',stroke:'none'}).moveTo([3.5,0]).setOpacity(.2);
@@ -1137,6 +1139,8 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover);}}`);
     const rows = await reviewStoryVariant(page, url, variant, claims);
     const receipt = rows.find(row => row.width === 390)!.openingAt320!;
     assert.ok(receipt.reviewed && receipt.minimumLabelPx! >= 12, 'translucent layers preserve painted facts and the label floor');
+    assert.deepEqual(receipt.labels, ['Named value', 'Outline', 'Fill'],
+      'outline-only and filled text with a disabled non-none stroke both retain their source paint channels');
     await page.close();
     for (const [which, missing] of [['shape', /missing or obscured paint: blue-shape/],
       ['label', /missing or obscured paint: label Named value/],
