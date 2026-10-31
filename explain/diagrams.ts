@@ -238,6 +238,7 @@ function emFrame(center: Vec, a: number, b: number, c: number, d: number): Float
 }
 function nativeEmBasis(text: Text): [number, number, number, number] {
   const f = text.frameBox, height = text.run.ascent + text.run.descent, size = text.run.fontSize;
+  if (!(height > 0 && size > 0 && Number.isFinite(height) && Number.isFinite(size))) return [0, 0, 0, 0];
   const c = (f[4]! - f[0]!) / height, d = (f[5]! - f[1]!) / height;
   const a = text.run.width > 0 ? (f[6]! - f[0]!) / text.run.width : d;
   const b = text.run.width > 0 ? (f[7]! - f[1]!) / text.run.width : -c;
@@ -276,6 +277,7 @@ class ImportedLabel extends Group implements LabelInfo {
   override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
   override matchingFrameFor(source: Mobject): Mobject {
     if (!(source instanceof Text)) return this;
+    if (!(source.run.fontSize > 0 && Number.isFinite(source.run.fontSize))) return this;
     const p = this.basis, frame = source.copy(), run = source.run;
     const width = run.width / run.fontSize, height = (run.ascent + run.descent) / run.fontSize;
     frame.frameBox = emFrame(this.center(), (p[6]! - p[0]!) * width, (p[7]! - p[1]!) * width,

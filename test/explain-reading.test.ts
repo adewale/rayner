@@ -168,6 +168,24 @@ test('matching between native and imported labels retains the target font scale 
     }
 });
 
+test('zero-em native matching keeps finite geometry and a closed readability floor in either direction', () => {
+  for (const nativeFirst of [true, false]) {
+    const native = new Text('Paper', { fontSize: 0 }), imported = importedLabel();
+    const source = nativeFirst ? native : imported, target = nativeFirst ? imported : native;
+    assert.equal(readingLabelSize(native), 0, 'the existing zero-size constructor yields no readable em');
+    const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
+    animation.begin();
+    for (const alpha of [0, 0.5, 1]) {
+      animation.interpolate(alpha);
+      const arrays = source.family().flatMap((m) => m.pointArrays());
+      assert.equal(arrays.length, 10, 'one metric frame and nine glyph contours');
+      assert.ok(arrays.every((a) => a.every(Number.isFinite)), 'normalizing a zero em must not introduce NaN coordinates');
+    }
+    animation.finish();
+    assert.equal(readingLabelSize(source), 0, 'degenerate native metrics fail closed');
+  }
+});
+
 test('imported labels retain their compressed font dimension in reader layouts', async () => {
   const { collectProject } = await import('../tools/lib/explain-project.ts');
   const p = await collectProject('test/fixtures/imported-reading', { write: false });
