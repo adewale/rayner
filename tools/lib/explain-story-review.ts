@@ -928,6 +928,7 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
         if (!definition || !r) throw new Error(`unresolved target clip ${clip}`);
         // The renderer emits one rectangular user-space clip. Other shapes,
         // units or transforms cannot be credited using an axis-aligned rect.
+        const clipStyle = getComputedStyle(r);
         const rectangular =
           definition.tagName.toLowerCase() === 'clippath' &&
           definition.children.length === 1 &&
@@ -935,7 +936,8 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
           definition.getAttribute('clipPathUnits') === 'userSpaceOnUse' &&
           [definition, r].every((n) => !n.hasAttribute('transform') && getComputedStyle(n).transform === 'none') &&
           Number(r.getAttribute('rx') ?? 0) === 0 &&
-          Number(r.getAttribute('ry') ?? 0) === 0;
+          Number(r.getAttribute('ry') ?? 0) === 0 &&
+          [clipStyle.rx, clipStyle.ry].every(radius => radius === 'auto' || /^0(?:\.0+)?(?:px|%)?$/.test(radius));
         if (!rectangular) visible = false;
         // Native geometry also observes CSS x/y/width/height overrides.
         const bounds = r.getBBox();
@@ -1084,14 +1086,20 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
     const effects = new Map<Element, boolean>();
     for (const subject of [...subjects.filter(subject => subject.label), ...subjects.filter(subject => !subject.label)])
       for (const index of subject.indices) {
-        const path = painted[index]!;
+        const path = painted[index]!, paint = getComputedStyle(path);
+        // Authored paths use solid colors. A transparent paint-server region
+        // must not erase the same glyph cores that the receipt is meant to prove.
+        if (['fill', 'stroke'].some(property => {
+          const value = paint.getPropertyValue(property);
+          return value !== 'none' && !CSS.supports('color', value);
+        })) throw new Error(`${subject.name}: unsupported paint server on a required opening subject`);
         // CSS can replace a path's d without changing its declared attribute.
         // Normalize the declaration with the browser's CSS parser before
         // comparing, so harmless SVG spacing/command serialization is allowed.
         if (path.tagName.toLowerCase() === 'path') {
           const declaration = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           declaration.style.setProperty('d', `path("${path.getAttribute('d') ?? ''}")`);
-          if (getComputedStyle(path).getPropertyValue('d') !== declaration.style.getPropertyValue('d'))
+          if (paint.getPropertyValue('d') !== declaration.style.getPropertyValue('d'))
             throw new Error(`${subject.name}: CSS overrides declared subject path`);
         }
         for (let element: Element | null = path; element; element = element.parentElement) {
