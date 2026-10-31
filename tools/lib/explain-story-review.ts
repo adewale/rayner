@@ -1,3 +1,5 @@
+import { readerShellProblems, cropTest } from './explain-reader-shell.ts';
+import type { ReaderShell } from './explain-reader-shell.ts';
 // Served-story evidence: Node declares the expected objects; native SVG geometry
 // establishes which of their actual painted paths the reader can see.
 import assert from 'node:assert/strict';
@@ -1203,7 +1205,7 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
       // Ignore antialias edges and at most 1% of core pixels for rounding;
       // the rest must retain half their unobscured contribution. This rejects
       // an opaque crossing or missing word without per-glyph renders.
-      if (!evidence.contributes || (subject.label && evidence.coreCoverage! < .99)) missing.push(subject.name);
+      if (!evidence.contributes || (subject.label && evidence.coreCoverage! < .99)) missing.push(`${subject.name} (contributes: ${evidence.contributes}, glyph core: ${evidence.coreCoverage ?? 'shape'})`);
     }
     return missing;
   }, subjects);
@@ -1275,6 +1277,7 @@ export async function reviewStoryVariant(
   variant: Project['variants'][number],
   claims: readonly StoryClaim[] = [],
   directory?: string,
+  shell?: ReaderShell,
 ) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   if (!initialized.has(page)) {
@@ -1331,6 +1334,10 @@ export async function reviewStoryVariant(
       await page.evaluate(
         () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
       );
+      if (index === 0 && shell) {
+        assert.deepEqual(await page.evaluate(readerShellProblems, shell), [], 'reader shell');
+        if (viewport.width === 1180 && shell.crop) assert.deepEqual(await page.evaluate(cropTest, shell.crop), [], 'standalone tile');
+      }
       assert.equal(await page.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
       assert.equal(await page.locator('.caption').innerText(), stepWords(step).caption);
       assert.ok(await page.locator('.stage path').count(), `${step.step}: no artwork`);

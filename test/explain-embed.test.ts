@@ -1,3 +1,5 @@
+import { cropTest, readerChrome, readerShellProblems } from '../tools/lib/explain-reader-shell.ts';
+import type { CropExpectation } from '../tools/lib/explain-reader-shell.ts';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -120,7 +122,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
     assert.ok(tour.length > 1 && tour[0]!.k === 1 && tour[1]!.k > 1,
       'large comparison labels need the whole frame while smaller implementation labels need detail stops');
     const count = page.locator('.view-controls > span'), next = page.getByRole('button', {name: 'Next view', exact: true});
-    const painted = () => page.locator('.stage svg').getAttribute('viewBox');
+    const painted = () => page.locator('.stage svg:not(.leaving)').getAttribute('viewBox');
     const opening = await painted();
     await next.click();
     const detail = await painted();
@@ -401,155 +403,41 @@ test('phone: the stepper row follows the picture, the words follow it, and a sin
     assert.ok(await page.locator('.stage').evaluate(stage => {const box = stage.getBoundingClientRect(); return box.top >= 0 && box.bottom <= innerHeight;}), 'using a view tool brings the changed picture into view');
   } finally { await page.close(); }
 });
-// Every catalog page, built from its scene as demos:check builds it: the player's controls are
-// the same everywhere, in each page's language.
-/** Every catalog explainer, built once from its scene into catalog/ as demos:check builds it. */
-let catalogBuild: Promise<Map<string, Project>> | undefined;
-const catalog = () =>
-  (catalogBuild ??= (async () => {
-    const { EXPLAINERS } = await import('../scenes/explainers/catalog.ts');
-    await mkdir(join(folder, 'catalog'), { recursive: true });
-    const built = new Map<string, Project>();
-    for (const { id } of EXPLAINERS) {
-      const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-      await buildExplainer(project, join(folder, 'catalog', id + '.html'));
-      built.set(id, project);
-    }
-    return built;
-  })());
-test('every catalog page, in English and French: no Replay, Stop or Fit stage button, one Whole picture button, one h1, in the card\'s header above the stage with the case picker, and one footer mark linking home with no way out of a frame it is not in', options, async () => {
+// Shell-wide assertions also run in every catalog story case. These fixtures keep the
+// independent language and hosting boundaries without rebuilding the whole collection.
+const shellFixtures = ['mr-cache', 'quotient-familial', 'feature-tour', 'lantern'];
+test('shared player chrome works in both languages, with and without settings', options, async () => {
   const { PRODUCT } = await import('../scenes/explainers/catalog.ts');
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+  const languages = new Set<string>();
   try {
-    const page = await context.newPage();
-    const languages = new Set<string>();
-    for (const [id, project] of await catalog()) {
-      const t = chromeFor(project.Scene.meta?.lang);
+    for (const id of shellFixtures) {
+      const project = projects.get(id)!;
       languages.add(project.Scene.meta?.lang ?? 'en');
-      // The removed controls' names, in English and in French.
-      const gone = ['Replay step', 'Stop animation', 'Fit stage', 'Rejouer l’étape', 'Arrêter l’animation', 'Adapter à la page'];
-      await page.goto(`${embed}/catalog/${id}.html`);
+      await page.goto(`${embed}/${id}.html`);
       await page.waitForSelector('[data-ready=true]');
-      const seen = await page.evaluate((names) => {
-        const count = (name: string) => document.querySelectorAll(`button[aria-label="${name}"]`).length;
-        return Object.fromEntries(names.map((n) => [n, count(n)]));
-      }, [...gone, t.wholePicture, t.nextLabel, t.previous]);
-      assert.deepEqual(seen, { ...Object.fromEntries(gone.map((n) => [n, 0])), [t.wholePicture]: 1, [t.nextLabel]: 1, [t.previous]: 1 }, id);
-      // specs/player-tile.md T1: the title and the cases are the card's header, the stage is mounted under it.
-      const tile = await page.evaluate(() => {
-        const h1s = document.querySelectorAll('h1'),
-          player = document.querySelector('.player')!,
-          head = document.querySelector('.head')!;
-        return {
-          h1s: h1s.length,
-          inCard: h1s[0]?.closest('.player') === player,
-          inHead: h1s[0]?.parentElement === head,
-          headFirst: player.firstElementChild === head,
-          frameNext: head.nextElementSibling?.className,
-          cases: document.querySelectorAll('.case input').length === document.querySelectorAll('.player .head .case input').length,
-        };
-      });
-      assert.deepEqual(tile, { h1s: 1, inCard: true, inHead: true, headFirst: true, frameNext: 'frame', cases: true }, id);
-      // specs/player-tile.md T3: the maker's mark, in the footer, never on the stage; standalone, no way out.
-      const foot = await page.evaluate(() => ({
-        marks: [...document.querySelectorAll<HTMLAnchorElement>('a.mark')].map((a) => [a.parentElement!.matches('.player > footer.foot'), a.textContent, a.href, a.getAttribute('aria-label'), a.target, a.rel]),
-        last: [...document.querySelector('.player')!.children].filter((e) => !e.matches('[hidden], .ruler, .lede-ruler, .changes-ruler')).at(-1)?.className,
-        open: document.querySelectorAll('.foot a.open').length,
-        onStage: document.querySelectorAll('.stage a, .stage .foot, .frame a').length,
-        // specs/player-guidance.md G3: one quiet line on how to move, straight after the mark.
-        hint: [...document.querySelectorAll<HTMLElement>('.foot .hint')].map((h) => [h.textContent, h.previousElementSibling?.classList.contains('mark'), h.checkVisibility()]),
-      }));
-      // A stage under 600 px wide (a tall header in the reader's fonts can make one) on a step with
-      // more than one view says how Next view differs from Next instead of the keys.
-      const touring = await page.locator('.view-controls').evaluate((v) => !(v as HTMLElement).hidden && (v as HTMLElement).style.visibility !== 'hidden');
-      assert.deepEqual(foot, { marks: [[true, 'Rayner', PRODUCT.home, t.madeWith, '_blank', 'noopener']], last: 'foot', open: 0, onStage: 0, hint: [[touring ? t.viewHelp : t.hintKeys, true, true]] }, id);
-      if (project.Scene.settings?.length) assert.ok(await page.locator('.player .case input').count() > 0, `${id}: the case picker is in the card`);
+      const contract = { chrome: readerChrome(chromeFor(project.Scene.meta?.lang)), home: PRODUCT.home,
+        cases: project.Scene.settings?.length ?? 0, steps: teachingSpecs(project, resolveSettings(project.Scene)).map(s => s.step) };
+      assert.deepEqual(await page.evaluate(readerShellProblems, contract), [], id);
+      // A deliberate missing segment and footer must each be rejected by the keeper.
+      if (id === shellFixtures[0]) {
+        await page.locator('.step-bar button').first().evaluate(el => el.remove());
+        assert.ok((await page.evaluate(readerShellProblems, contract)).some(p => p.startsWith('teaching steps:')));
+        await page.locator('a.mark').evaluate(el => el.remove());
+        assert.ok((await page.evaluate(readerShellProblems, contract)).some(p => p.startsWith('maker mark:')));
+      }
     }
-    assert.ok(languages.size === 2, `both languages visited: ${[...languages]}`);
-  } finally {
-    await context.close();
-  }
+    assert.equal(languages.size, 2, 'English and French both visited');
+  } finally { await page.close(); }
 });
-// specs/player-tile.md T12, the crop test: cut the tile out of any context and it still says what it
-// is, what it is about, who made it and where to go, and nothing of the page lies outside it. DOM only.
-interface CropExpectation {
-  player: string;
-  next: string;
-  title: string;
-  kicker: string;
-  segments: number;
-  cases: number;
-  madeWith: string;
-  home: string;
-  /** For a framed page: the way out's path and query, without parentOrigin. */
-  open: { path: string; query: Record<string, string> } | null;
-}
-function cropTest(e: CropExpectation) {
-  const tile = document.querySelector<HTMLElement>('#content .tile');
-  if (!tile) return ['no .tile in #content'];
-  const problems: string[] = [];
-  const all = (s: string) => [...tile.querySelectorAll<HTMLElement>(s)];
-  const say = (what: string, got: unknown, want: unknown) => {
-    if (JSON.stringify(got) !== JSON.stringify(want)) problems.push(`${what}: ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
-  };
-  // 1. What it is.
-  say('section.player and its name', all('section.player').map((p) => p.getAttribute('aria-label')), [e.player]);
-  say('.stepper holding Next and the step bar', all('.stepper').map((s) => [s.querySelectorAll(`button[aria-label="${e.next}"]`).length, s.querySelectorAll('ol.step-bar > li > button').length]), [[1, e.segments]]);
-  // 2. What it is about.
-  say('h1', all('h1').map((h) => h.textContent), [e.title]);
-  say('.lede .kicker', all('.lede .kicker').map((k) => k.textContent), [e.kicker]);
-  say('.case fieldsets', all('fieldset.case').length, e.cases);
-  // 3. Who made it.
-  say('.foot a.mark', all('.foot a.mark').map((a) => [a.textContent, (a as HTMLAnchorElement).href, a.getAttribute('aria-label')]), [['Rayner', e.home, e.madeWith]]);
-  // 4. Where to go.
-  say('transcript and steps disclosures in the tile', [document.querySelectorAll('details.transcript').length, all('details.transcript').length, document.querySelectorAll('.rail').length, all('.rail').length], [1, 1, 1, 1]);
-  const open = all('.foot a.open') as HTMLAnchorElement[];
-  if (!e.open) say('.foot a.open (standalone)', open.length, 0);
-  else {
-    say('.foot a.open (framed)', open.length, 1);
-    if (open[0]) {
-      const u = new URL(open[0].href);
-      const sorted = (q: [string, string][]) => Object.fromEntries(q.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-      say('the way out', { path: u.origin + u.pathname, query: sorted([...u.searchParams].filter(([k]) => k !== 'theme')), parentOrigin: u.searchParams.has('parentOrigin') }, { path: e.open.path, query: sorted(Object.entries(e.open.query)), parentOrigin: false });
-    }
-    // Nothing of Rayner's drawn outside the tile.
-    say('framed body and #content', [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.getElementById('content')!).padding], ['rgba(0, 0, 0, 0)', '0px']);
-  }
-  // 5. The boundary: every element under #content with a box is the tile or inside it, and what it
-  // draws is inside the tile's box. What it draws is its box cut by every ancestor that clips its
-  // overflow: a diagram's paths may run past the stage's edges, but the stage (overflow: hidden) and
-  // its SVG viewport cut them there, so they are never drawn outside the tile.
-  const t = tile.getBoundingClientRect();
-  const drawn = (el: Element) => {
-    const b = el.getBoundingClientRect();
-    let left = b.left, top = b.top, right = b.right, bottom = b.bottom;
-    // Ancestors inside the tile only: the tile clips too, and something it cuts off is a fault.
-    for (let a = el.parentElement; a && a !== tile; a = a.parentElement) {
-      const cs = getComputedStyle(a);
-      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
-      const c = a.getBoundingClientRect();
-      left = Math.max(left, c.left); top = Math.max(top, c.top); right = Math.min(right, c.right); bottom = Math.min(bottom, c.bottom);
-    }
-    return { left, top, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
-  };
-  for (const el of document.querySelectorAll<HTMLElement>('#content *')) {
-    const r = drawn(el);
-    // A closed disclosure's content keeps a layout box in Chromium but is not drawn (content-visibility);
-    // an element clipped away entirely draws nothing.
-    if ((r.width === 0 && r.height === 0) || !el.checkVisibility()) continue;
-    if (el !== tile && !tile.contains(el)) problems.push(`outside the tile: ${el.tagName.toLowerCase()}.${el.className}`);
-    else if (r.left < t.left - 1 || r.top < t.top - 1 || r.right > t.right + 1 || r.bottom > t.bottom + 1)
-      problems.push(`past the tile's edge: ${el.tagName.toLowerCase()}.${el.className} ${JSON.stringify([r.left, r.top, r.right, r.bottom])} vs ${JSON.stringify([t.left, t.top, t.right, t.bottom])}`);
-  }
-  return problems;
-}
-test('the tile stands alone: on every catalog page, standalone, in a raw iframe and in the loader, the tile says what it is, what it is about, who made it and where to go, and nothing lies outside it', options, async () => {
+test('the shared tile stands alone in English and French, standalone, in a raw iframe and in the loader', options, async () => {
   const { PRODUCT } = await import('../scenes/explainers/catalog.ts');
   const context = await browser.newContext({ viewport: { width: 900, height: 800 }, reducedMotion: 'reduce' });
   let pages = 0;
   try {
     const page = await context.newPage();
-    for (const [id, project] of await catalog()) {
+    for (const id of shellFixtures) {
+      const project = projects.get(id)!;
       const t = chromeFor(project.Scene.meta?.lang),
         values = resolveSettings(project.Scene),
         first = teachingSpecs(project, values);
@@ -564,7 +452,7 @@ test('the tile stands alone: on every catalog page, standalone, in a raw iframe 
         home: PRODUCT.home,
         open: null,
       };
-      const src = `${embed}/catalog/${id}.html`;
+      const src = `${embed}/${id}.html`;
       await page.goto(src);
       await page.waitForSelector('#content[data-ready=true]');
       assert.deepEqual(await page.evaluate(cropTest, expect), [], `${id}, standalone`);
@@ -585,29 +473,7 @@ test('the tile stands alone: on every catalog page, standalone, in a raw iframe 
   } finally {
     await context.close();
   }
-  assert.equal(pages, (await catalog()).size);
-});
-test('every case of every catalog explainer has one step bar segment per teaching step', options, async () => {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    const page = await context.newPage();
-    const inventory = await catalog();
-    const expectedCases = [...inventory.values()].reduce((sum, project) => sum + project.variants.length, 0);
-    assert.ok(expectedCases >= 100, `the catalog retains its expected case inventory (${expectedCases})`);
-    let cases = 0;
-    for (const [id, project] of inventory)
-      for (const v of project.variants) {
-        const q = new URLSearchParams(v.values as Record<string, string>);
-        await page.goto(`${embed}/catalog/${id}.html?${q}`);
-        await page.waitForSelector('[data-ready=true]');
-        const seen = await page.locator('.step-bar button').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-step')));
-        assert.deepEqual(seen, teachingSpecs(project, v.values).map((s) => s.step), `${id} ?${q}`);
-        cases++;
-      }
-    assert.equal(cases, expectedCases, 'every case visited exactly once');
-  } finally {
-    await context.close();
-  }
+  assert.equal(pages, shellFixtures.length);
 });
 test('the step heading shows on every width with the total', options, async () => {
   for (const [name, total, kicker] of [['mr-cache', 2, 'Step 1 of 2'], ['quotient-familial', 2, 'Étape 1 sur 2']] as const) {

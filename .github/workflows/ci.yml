@@ -181,11 +181,11 @@ jobs:
       - run: npm ci
       - run: npx playwright-core install --with-deps --only-shell chromium
       # Pure engine/property assertions have one full owner above. The minimum
-      # Node lane retains the standard suite and reader suite for API/warning drift.
+      # Node lane retains standard tests and installed browser smoke for API/warning drift.
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
         run: npm run check && node tools/ci-tests.ts --expose-gc --test test/*.test.ts
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: node tools/ci-tests.ts "$(command -v npm)" run test:embeds
+        run: EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test test/explain-cli.test.ts test/explain-review-scene.test.ts
       - run: EXPLAIN_BROWSER=1 npm run pack:smoke  # installed starter preview on Linux and both Mac architectures
       # Real browser diversity replaces four duplicate Chromium/property runs.
       - if: matrix.os == 'macos-26' && matrix.node == '24'

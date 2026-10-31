@@ -24,7 +24,7 @@ The `column` and `count` steps put their complete comparisons above a small unla
 
 ## Atlas inside the periodic-table picture
 
-The periodic-table picture uses [Atlas's design language](https://atlas-48p.pages.dev/about/design). Shared player and gallery chrome retain the design from `main`; the teaching/source navigation is described in the [reader audit](pr69-adversarial-audit-2026-10-31.md).
+The periodic-table picture uses [Atlas's design language](https://atlas-48p.pages.dev/about/design). Shared player and gallery chrome retain the design from `main`; the teaching/source navigation is described in the [reader audit](https://github.com/adewale/rayner/blob/11fde2bb570aff007b2a28b99fca66b69add4394/docs/evidence/pr69-adversarial-audit-2026-10-31.md).
 
 - **Palette.** Paper `#f7f2e8`, black `#0f0f0f` and Grey Mid `#666` for secondary text. Block colours: s deep blue `#133e7c`, d warm red `#9e1c2c`, p mustard `#856912`, f black.
 - **Cells.** Lit cells and the blocks step are solid block colour with paper lettering. Paper text on each reaches 4.67:1 (mustard) or better. Neon's core, in the count step's context table, stays a pale tint. Cells are square.
@@ -38,7 +38,7 @@ The periodic-table picture uses [Atlas's design language](https://atlas-48p.page
 | Chlorine count, 1280×800 | ![Count rows in one colour](periodic-groups/atlas-chlorine-count-before.png) | ![Counts in each element's block colour, groups in bold monospace](periodic-groups/atlas-chlorine-count-after.png) |
 | Sodium opening, 390×844 | ![Sodium highlighted in pale blue](periodic-groups/atlas-phone-sodium-before.png) | ![Sodium as a solid deep blue cell; the player around it identical](periodic-groups/atlas-phone-sodium-after.png) |
 
-These historical PR #60 captures compare the scene's palette in the same player from `main`. Their image files are pinned at [9c9e2a4](https://github.com/adewale/rayner/tree/9c9e2a4d33e2585524a9b17df9dc9e96cda5bfb8/docs/evidence/periodic-groups); the before palette comes from [bf24af0](https://github.com/adewale/rayner/commit/bf24af0444633b54f41249a6b06b12b07df87f62). They precede the shorter teaching path. Later opening captures and their pinned pre-neutral source fingerprints are recorded in the [reader audit](pr69-adversarial-audit-2026-10-31.md).
+These historical PR #60 captures compare the scene's palette in the same player from `main`. Their image files are pinned at [9c9e2a4](https://github.com/adewale/rayner/tree/9c9e2a4d33e2585524a9b17df9dc9e96cda5bfb8/docs/evidence/periodic-groups); the before palette comes from [bf24af0](https://github.com/adewale/rayner/commit/bf24af0444633b54f41249a6b06b12b07df87f62). They precede the shorter teaching path. Later opening captures and their pinned pre-neutral source fingerprints are recorded in the [reader audit](https://github.com/adewale/rayner/blob/11fde2bb570aff007b2a28b99fca66b69add4394/docs/evidence/pr69-adversarial-audit-2026-10-31.md).
 
 An earlier version of this PR restyled the shared player in Atlas's design language and added an 880 px standalone reading floor to every player. Both were removed: the player is shared by every explainer, and Atlas belongs to this explainer's picture only. Two defects the audit found came from that player styling and left with it: uppercase CSS that turned authored `-m` switches into `-M`, and a selected case that forced colours erased.
 

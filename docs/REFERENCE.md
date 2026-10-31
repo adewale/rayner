@@ -362,7 +362,7 @@ These checks establish deterministic behaviour and readable pictures. They do no
 
 ### Reader review
 
-`rayner review scene.ts` runs `check`, builds a temporary page and visits every resting step of every settings case at 390 and 1180 px in Chromium. It checks actual painted subjects, caption text, complete close-up tours, page overflow, console errors and outside connections. It saves screenshots and `review.json` under `out/review/<id>/`; `--out <directory>` changes that destination. A failed run removes the previous success receipt.
+`rayner review scene.ts` runs `check`, builds a temporary page and visits every resting step of every settings case at 390 and 1180 px in Chromium. It checks actual painted subjects, caption text, complete close-up tours, page overflow, console errors and outside connections. It retains the reviewed `scene.html`, its receipt, header recipe and `loader.js` alongside screenshots and `review.json` under `out/review/<id>/`. `--out <directory>` changes that directory; `--out public/example.html` saves the exact reviewed page there while keeping review reports in the default directory. A failed run removes the success receipt and preserves the previously reviewed page.
 
 Main steps with independent opening claims additionally open fresh at 320×568. Their claimed subjects must be complete in that first view, with labels at least 12 CSS pixels high. The receipt records those checks and names excluded steps; detailed source tours still use the full two-width review.
 
@@ -404,7 +404,7 @@ The collection reviewer combines each scene's companion claims with the built-in
 
 | Option | Applies to | Effect |
 | --- | --- | --- |
-| `--out <path>` | all but `init` and `snapshots` | The output file; for `check`, the report's directory; for `see`, the resting picture as SVG (nothing is written without it). Defaults under `out/` in the current directory |
+| `--out <path>` | all but `init` and `snapshots` | The output file; for `check`, the report's directory; for `review`, a report directory or an `.html` destination; for `see`, the resting picture as SVG (nothing is written without it). Defaults under `out/` in the current directory |
 | `--refresh` | all but `init` | Recapture every diagram |
 | `--case id=value` | `shots`, `see` | One case; repeat for several settings |
 | `--port <n>` | `preview` | Default 5174 |

@@ -1,3 +1,4 @@
+import { buildInputs } from '../tools/lib/build-inputs.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { copyFile, mkdir, mkdtemp, readFile, rm, unlink, writeFile } from 'node:fs/promises';
@@ -175,7 +176,7 @@ test('story receipts expire when caption claims, served runtime or review depend
       'package.json', 'LICENSE', ...runtimeFiles,
       'tools/explain-review.ts', 'tools/explain-review-merge.ts',
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
-      'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts',
+      'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
@@ -220,6 +221,12 @@ test('story receipts expire when caption claims, served runtime or review depend
     await assert.rejects(merge(), /stale review implementation/, 'new player helpers join the fingerprint automatically');
     await unlink(newHelper);
     assert.equal(await reviewCodeHash(root), current);
+    const renderingHash = (await buildInputs(root)).hash;
+    const reviewer = join(root, 'tools/lib/explain-story-review.ts'), reviewerBytes = await readFile(reviewer);
+    await writeFile(reviewer, Buffer.concat([reviewerBytes, Buffer.from('\n// changed reviewer only\n')]));
+    assert.equal((await buildInputs(root)).hash, renderingHash, 'reviewer changes reuse unchanged built pages');
+    await assert.rejects(merge(), /stale review implementation/, 'reviewer changes still require new review');
+    await writeFile(reviewer, reviewerBytes);
     const loader = join(root, 'tools/lib/explain-review-scene.ts');
     const loaderBytes = await readFile(loader);
     await writeFile(loader, Buffer.concat([loaderBytes, Buffer.from('\n// changed claim loading\n')]));

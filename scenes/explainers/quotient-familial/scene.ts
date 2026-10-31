@@ -223,7 +223,7 @@ export default class QuotientFamilialExplainer extends Scene {
       {
         source: chart({
           width: 540,
-          height: 250,
+          height: 210,
           x: TRANCHES,
           y: 'Impôt sur une part (€)',
           bars: b.slices.map((x) => x.tax),
@@ -342,7 +342,7 @@ export default class QuotientFamilialExplainer extends Scene {
       {
         source: chart({
           width: 540,
-          height: 250,
+          height: 210,
           x: COUNTS,
           y: 'Avantage (barres), plafond (ligne), €',
           bars: tous.map((t) => t.avantage),

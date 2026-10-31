@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import assert from 'node:assert/strict';
 import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -50,7 +51,10 @@ for (const item of EXPLAINERS) {
   // For agents: what site:export publishes as <id>.json, described right after the run, as
   // `rayner describe` does.
   const described = await describeProject(project);
-  await buildExplainer(project, join(directory, item.id + '.html'));
+  const { html, receipt } = await buildExplainer(project, join(directory, item.id + '.html'));
+  assert.equal('lettering' in receipt, !!project.lettering, `${item.id}: only a requested page reports lettering`);
+  assert.equal('letteringHash' in receipt, !!project.outlineLettering, `${item.id}: requested outlines have a hash`);
+  assert.equal(Buffer.byteLength(html), receipt.bytes, `${item.id}: receipt reports actual page bytes`);
   // The poster uses a representative step of the default case; tile links start at step one.
   const variant = defaultVariant(project),
     step = variant.trace.steps.find((s) => s.step === item.step) ?? variant.trace.steps[0]!;

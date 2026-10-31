@@ -126,7 +126,15 @@ export async function reviewCodeHash(root: string) {
     'tools/lib/explain-review-scene.ts',
     'tools/lib/explain-review-plan.ts',
     'tools/lib/explain-serve.ts',
+    'tools/lib/explain-reader-shell.ts',
+    'tools/lib/explain-check.ts',
   ];
+  if (import.meta.url.endsWith('.js')) {
+    // Installed tools are bundled; individual source module paths do not exist.
+    files.length = 0;
+    for (const entry of await readdir(join(root, 'dist/tools'), { recursive: true, withFileTypes: true }))
+      if (entry.isFile()) files.push(relative(root, join(entry.parentPath, entry.name)).split(sep).join('/'));
+  }
   // Companion claims are review inputs even though they do not change the
   // runtime scene or catalog evidence. Old shards must not vouch for new claims.
   const sceneRoot = join(root, 'scenes/explainers');

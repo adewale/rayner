@@ -33,7 +33,14 @@ test('an outside author reviews every served case and width; a false caption cla
     await writeFile(file, source);
     const project = await collectProject(file, { write: false });
     await writeFile(claims, JSON.stringify({ version: 1, claims: [{ step: 'one', opening: true, targets: [{ text: 'Answer' }] }] }));
-    const result = await reviewScene(project, output);
+    const published = join(folder, 'public', 'answer.html');
+    const result = await reviewScene(project, output, undefined, published);
+    assert.equal(result.artifact, published);
+    const { createHash } = await import('node:crypto');
+    const artifact = await readFile(result.artifact);
+    assert.equal(createHash('sha256').update(artifact).digest('hex'), result.artifactHash);
+    assert.ok((await readFile(result.artifact + '.headers.json', 'utf8')).includes('Content-Security-Policy'));
+    assert.ok((await readFile(join(folder, 'public', 'loader.js'), 'utf8')).length);
     assert.equal(result.cases, 2);
     assert.equal(result.stepWidths, 4);
     assert.deepEqual(result.results.map(c => c.steps.map(s => s.width)), [[390, 1180], [390, 1180]]);
@@ -42,6 +49,7 @@ test('an outside author reviews every served case and width; a false caption cla
     await writeFile(claims, JSON.stringify({ version: 1, claims: [{ step: 'one', targets: [{ text: 'Missing answer' }] }] }));
     await assert.rejects(reviewScene(project, output), /story target Missing answer is missing/);
     await assert.rejects(readFile(join(output, 'review.json')), { code: 'ENOENT' });
+    assert.deepEqual(await readFile(published), artifact, 'a failed review preserves the last reviewed page');
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
