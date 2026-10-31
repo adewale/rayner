@@ -96,7 +96,7 @@ erDiagram
 // The diagram takes the left of the stage, words the right; the day's chart takes the whole stage.
 const LEFT: Box = [-7.55, -4.25, 1.75, 3.25];
 const RIGHT: Box = [2.05, -4.25, 7.55, 3.05];
-const FULL: Box = [-7.55, -4.25, 7.55, 3.25];
+const FULL: Box = [-7.8, -4.25, 7.8, 3.25];
 const ZOOM = 1.2;
 const SIZE = 0.26;
 

@@ -456,6 +456,17 @@ test('the shared tile stands alone in English and French, standalone, in a raw i
       await page.goto(src);
       await page.waitForSelector('#content[data-ready=true]');
       assert.deepEqual(await page.evaluate(cropTest, expect), [], `${id}, standalone`);
+      if (id === shellFixtures[0]) {
+        await page.locator('#content').evaluate(content => {
+          const extra = document.createElement('div'); extra.id = 'outside-tile-control'; extra.textContent = 'Outside the tile'; content.append(extra);
+        });
+        assert.ok((await page.evaluate(cropTest, expect)).some(p => p.startsWith('outside the tile:')), 'the crop keeper rejects content outside the tile');
+        await page.locator('#outside-tile-control').evaluate(el => el.remove());
+        await page.locator('h1').evaluate(el => el.textContent = 'Wrong title');
+        assert.ok((await page.evaluate(cropTest, expect)).some(p => p.startsWith('h1:')), 'the crop keeper rejects a wrong title');
+        await page.locator('h1').evaluate((el, title) => el.textContent = title, expect.title);
+        assert.deepEqual(await page.evaluate(cropTest, expect), [], 'restoring the page restores crop acceptance');
+      }
       const framed = { ...expect, open: { path: src, query: { ...values, step: first[0]!.step } } };
       for (const [how, body] of [
         ['a raw iframe', `<!doctype html><style>body{margin:0}</style><iframe title="t" src="${src}" style="width:900px;height:800px;border:0"></iframe>`],

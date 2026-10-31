@@ -7,6 +7,7 @@
 - Replace overlapping PR audit logs with current testing guidance and four representative screenshots.
 
 - Keep authored comparison labels readable when they are unchanged, dimmed, rotated or compressed, and frame headings completely or leave them outside a close-up. Use one affine font metric for native and imported lettering; imported metrics survive copying, morphs and matching without changing layout bounds.
+- Treat backing strokes beneath filled letters as halos in the glyph mask, while retaining outline-only and covered-letter checks. Enlarge source-diagram views whose labels fell below the existing 14px floor.
 - Check independently claimed teaching openings at 320 pixels, including visible paint, and reject incomplete review receipts. Covers cannot hide required words; unsupported masks, paint servers, CSS path replacements and rounded clips fail review.
 - Let Next view advance from a whole-frame authored opening into its detail tour instead of repeatedly resetting to the opening.
 - Expire story-review receipts when player CSS, runtime helpers or build inputs change. Check retained detail tours against independently named facts and make the token-cap, proxy and seasonal labels reachable at readable size.

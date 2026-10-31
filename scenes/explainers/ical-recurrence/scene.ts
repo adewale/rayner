@@ -39,7 +39,7 @@ const STYLE = 'github-light';
 // Code on the left, the meeting list on the right; the ER diagram takes the whole stage.
 const CODE: Box = [-7.55, -4.1, -0.05, 3.1];
 const LIST: Box = [0.25, -4.1, 7.55, 3.1];
-const FULL: Box = [-7.55, -4.1, 7.55, 3.15];
+const FULL: Box = [-7.8, -4.3, 7.8, 3.3];
 const CODE_SIZE = 0.28;
 const LIST_SIZE = 0.3;
 const LIST_WIDTH = 7.3;

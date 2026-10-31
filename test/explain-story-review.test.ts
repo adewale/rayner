@@ -1124,12 +1124,15 @@ const label=new Text('Named value',{fontSize:.8}).moveTo([2,0]);label.clipBox=[-
 const accent=new Rectangle({width:.5,height:.5,fill:'blue',stroke:'none'}).moveTo([2,-1.5]);
 const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:'white',fillOpacity:0,stroke:'white',strokeWidth:.03,strokeOpacity:1}).moveTo([-3,-2.5]);
 const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:'white',strokeWidth:.2,strokeOpacity:0}).moveTo([3,-2.5]);
-const labelled=new Group(label,accent,outlined,filled);labelled.key='label-subject';s.reading(shape,labelled);
+const haloPlate=new Rectangle({width:4,height:1.4,fill:'red',stroke:'none'}).moveTo([0,2]);
+const halo=new Text('Halo',{fontSize:.8}).setStyle({fill:'white',stroke:'red',strokeWidth:.08,paintOrder:'stroke'}).moveTo([0,2]);
+const labelled=new Group(label,accent,outlined,filled,haloPlate,halo);labelled.key='label-subject';s.reading(shape,labelled);
 const shapeCover=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).moveTo([-3,0]).setOpacity(.2);
 const labelCover=new Rectangle({width:6,height:2,fill:'red',stroke:'none'}).moveTo([2,0]).setOpacity(.2);
 const halfCover=new Rectangle({width:3,height:2,fill:'green',stroke:'none'}).moveTo([3.5,0]).setOpacity(.2);
 const thinCover=new Rectangle({width:.1,height:2,fill:'yellow',stroke:'none'}).moveTo([2.5,0]).setOpacity(.2);
-this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover);}}`);
+const haloCover=new Rectangle({width:4,height:1.4,fill:'orange',stroke:'none'}).moveTo([0,2]).setOpacity(.2);
+this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover,haloCover);}}`);
     const project = await collectProject(dir, {write: false}), variant = project.variants[0]!;
     const claims = [{step: 'comparison', opening: true, targets: [{key: 'blue-shape'}, {key: 'label-subject'}]}];
     await buildExplainer(project, join(dir, 'scene.html'));
@@ -1139,19 +1142,20 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover);}}`);
     const rows = await reviewStoryVariant(page, url, variant, claims);
     const receipt = rows.find(row => row.width === 390)!.openingAt320!;
     assert.ok(receipt.reviewed && receipt.minimumLabelPx! >= 12, 'translucent layers preserve painted facts and the label floor');
-    assert.deepEqual(receipt.labels, ['Named value', 'Outline', 'Fill'],
-      'outline-only and filled text with a disabled non-none stroke both retain their source paint channels');
+    assert.deepEqual(receipt.labels, ['Named value', 'Outline', 'Fill', 'Halo'],
+      'outline-only, disabled-stroke and halo-backed labels retain their actual glyph cores');
     await page.close();
     for (const [which, missing] of [['shape', /missing or obscured paint: blue-shape/],
       ['label', /missing or obscured paint: label Named value/],
       ['partial', /missing or obscured paint: label Named value/],
-      ['thin', /missing or obscured paint: label Named value/]] as const) {
+      ['thin', /missing or obscured paint: label Named value/],
+      ['halo', /missing or obscured paint: label Halo/]] as const) {
       const poisoned = await browser.newPage();
       try {
         await poisoned.addInitScript(which => document.addEventListener('rayner:step', () => {
           if (innerWidth !== 320) return;
-          const covers = [...document.querySelectorAll('.stage svg:not(.leaving) path[fill="red"]')] as SVGElement[];
-          const cover = which === 'partial' || which === 'thin'
+          const covers = ([...document.querySelectorAll('.stage svg:not(.leaving) path[fill="red"]')] as SVGElement[]).filter(path => Number(getComputedStyle(path).opacity) === .2);
+          const cover = which === 'halo' ? document.querySelector('.stage svg:not(.leaving) path[fill="orange"]') as SVGElement : which === 'partial' || which === 'thin'
             ? document.querySelector(`.stage svg:not(.leaving) path[fill="${which === 'partial' ? 'green' : 'yellow'}"]`) as SVGElement
             : covers[which === 'shape' ? 0 : 1]!;
           const before = getComputedStyle(cover).opacity;

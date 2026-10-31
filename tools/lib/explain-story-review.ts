@@ -1183,6 +1183,12 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
             // A disabled fill or stroke is not part of the authored glyph core.
             if (Number(element.style.fillOpacity) > 0) element.style.fillOpacity = '1';
             if (Number(element.style.strokeOpacity) > 0) element.style.strokeOpacity = '1';
+            // A stroke painted underneath a filled glyph is a backing halo,
+            // often the paper colour. Its transparent contribution against
+            // matching paper is not missing letter ink. Require the filled
+            // glyph core; outline-only text still requires its stroke.
+            if (element.style.getPropertyValue('paint-order').startsWith('stroke') && element.style.fill !== 'none' && Number(element.style.fillOpacity) > 0)
+              element.style.strokeOpacity = '0';
           }
         });
         const mask = await raster();

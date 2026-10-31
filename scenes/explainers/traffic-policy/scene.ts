@@ -114,7 +114,7 @@ const shareRows = (s: Record<string, Q>) =>
 
 // The widest Cluster topology needs the full stage width to keep every
 // imported service label above the completed-view readability floor.
-const DIAGRAM: Box = [-7.95, -1.25, 7.95, 3.2];
+const DIAGRAM: Box = [-8, -1.25, 8, 3.2];
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 

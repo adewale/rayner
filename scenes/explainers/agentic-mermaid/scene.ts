@@ -170,7 +170,7 @@ export default class MermaidExplainer extends Scene {
     await s.clear();
     const chart = await s.show(
       {
-        source: `xychart-beta\n x-axis ["First edit", "Final"]\n y-axis "Warnings" 0 --> 3\n bar [${count},${finalCount}]`,
+        source: `---\nconfig:\n  xyChart:\n    width: 600\n    height: 400\n---\nxychart-beta\n x-axis ["First edit", "Final"]\n y-axis "Warnings" 0 --> 3\n bar [${count},${finalCount}]`,
       },
       { box: 'main' },
     );
