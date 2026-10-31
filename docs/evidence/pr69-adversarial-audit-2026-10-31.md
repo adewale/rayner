@@ -1,5 +1,7 @@
 # PR #69 adversarial audit
 
+The [second adversarial audit](pr69-second-audit-2026-10-31.md) records the later navigation, imported-font and native-paint repairs. This report retains the earlier measurements at their named revisions.
+
 Independent agents reviewed phone layout, reader behavior, test obligations, source claims and integration evidence. The starting revision was `210e347ba62de85a581dadbbc5a8de630baebd70`. Follow-up passes challenged the repairs and their tests. The user chose to consolidate the pending work into #69 targeting main.
 
 The combined code includes main at `11ff5694757646185f238e22b4f7cb050c6a337b`, PR #60 through `e256d98f3975012c24a08d9325b9132e77ca6bcd` and the lesson improvements. Integration preserves the shipped player: one stepper row, responsive progress rail, measured header and caption sizing, watch and host APIs, endpoint controls, optional audio and card sizing. Atlas stays inside the periodic-table picture. Teaching/source navigation retains raw step identities and direct source links. The pre-neutral validation profile uses production revision `cf9e63bd9cdd7900148e4a931cdc406b903e5bdf`. PR #60 was merged separately into main at `e84bed57bb5c044ef887dd43b33895b3ae5e828f` during final validation; its exact final head was already integrated here. This audit does not merge #69 or deploy anything.
@@ -88,6 +90,6 @@ The installed-package browser gate passes at `438468f`, including archive instal
 
 A [fresh matched GTFS capture](pr69-main73-gtfs/reader-date-320.webp) renders the combined runtime at `842049f`, against the same `210e347` baseline. Its [receipt](pr69-main73-gtfs/receipt.json) checks complete question/body geometry, 12 body labels at the 12px floor, unchanged model state and exact source-image pixels. The SVG subtitle is smaller; its text also appears in visible, accessible HTML at 15px. This check does not claim a 12px minimum for SVG headings.
 
-Required CI must rebuild the final catalog and complete the story, package and compatibility checks at the pushed revision. This report does not reuse the `e005` matrix as a current-runtime pass.
+The [subsequent CI run](https://github.com/adewale/rayner/actions/runs/41221281447) passed the catalog, story, package and compatibility jobs at `fc465a9b9771a92248d57be6cccb94a1960071bd`. The second audit's repairs require another pushed-head CI run. This report does not reuse the `e005` matrix as a current-runtime pass.
 
 These checks establish the tested geometry, values and navigation behavior. They do not establish learning outcomes, arbitrary caption truth, physical-phone performance or local Safari support. Native Safari and WebKit have their existing Mac CI owners. No deployment or publication is part of this audit.

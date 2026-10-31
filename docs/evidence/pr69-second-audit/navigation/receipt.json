@@ -133,5 +133,14 @@
     "beforeDecodedRGBSHA256": "bc67a7d58eff2cf37c74299b75d1cdf40fa8d4874a3fae710dec1b817881a129",
     "afterDecodedRGBSHA256": "1031a2bb051e310e75ccd74ae0955bb9cbc324589df5cb68b41690ec3d8c7d78",
     "assembly": "Stage and view controls cropped from full-page screenshots, without scaling. Both pasted RGB regions verified byte-for-byte after lossless WebP decoding."
+  },
+  "validatedAgainst": {
+    "sourceSHA": "dd749be6536158b1c72b0170a2ef3641009d08e6",
+    "buildHash": "2915a59118252da463908b91959d659f9e7ed7c3d84479675dbab8468021761c",
+    "sourceHash": "042818c72a5a77680bbbe109a4893920f030fb18c910305f399964ab5ad7596d",
+    "engineHash": "05fa2fa55369549fd41f90520fc9f5ce9992e2ca83c8ad91f28a2d9dd41bad73",
+    "artifactHash": "ea5b094f4bf25720c2c98be4a973173360cd66978d59abebfced97fce0f90e0a",
+    "identicalToRenderedArtifact": true,
+    "note": "The later commit changes only reviewer mask normalization and its positive tests. A fresh production build from the same fixture produces the exact captured HTML. The original render revision and image pixels remain unchanged."
   }
 }
