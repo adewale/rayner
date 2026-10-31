@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Rectangle, VMobject, NullSink, Transform, loadFonts, toSvgString } from '../src/index.ts';
+import { Scene, Group, Text, Rectangle, VMobject, NullSink, Transform, TransformMatchingShapes, loadFonts, toSvgString } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { stepLayouts, closeUps, viewBox, stageScale } from '../app/embed-closeup.ts';
 import type { Box } from '../src/index.ts';
@@ -97,6 +97,75 @@ test('imported label copies and animation retain their basis without changing gl
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
   moving.copy().rotate(Math.PI / 2);
   assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
+});
+
+test('imported font metadata stays out of every ancestor bound during different-word and native morphs', () => {
+  for (const word of ['iiiiiiii', 'W', 'native']) {
+    const source = importedLabel();
+    const ancestor = new Group(new Group(source));
+    let target;
+    if (word === 'native') target = new Text('Paper', { fontSize: 0.8 }).rotate(Math.PI / 3).moveTo(source.center());
+    else {
+      const snapshot = structuredClone(importedSnapshot) as DiagramSnapshot;
+      const shape = snapshot.parts.find((p) => p.id === 'B')!.shapes.find((s) => s.text === 'Paper')!;
+      shape.textRun!.text = shape.text = word;
+      delete shape.textRun!.width;
+      const diagram = new Diagram(new Scene(new NullSink()), snapshot.spec, snapshot);
+      target = diagram.get('B').family().find((m) => labelOf(m)?.text === word)!;
+      target.parent!.remove(target);
+    }
+    const animation = new Transform(source, target, { pathFunc: (from, to, alpha) =>
+      [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha + Math.sin(Math.PI * alpha)] });
+    animation.begin();
+    for (const alpha of [0, 0.1, 0.3, 0.5, 0.8, 1]) {
+      animation.interpolate(alpha);
+      const ink = new Group(...source.children.map((m) => m.copy()));
+      assert.deepEqual(source.box(), ink.box(), `${word}/${alpha}: no metric-only layout extent`);
+      assert.deepEqual(ancestor.box(), ink.box(), `${word}/${alpha}: ancestors also ignore metric-only extent`);
+    }
+    animation.finish();
+    assert.deepEqual(ancestor.box(), new Group(...source.children.map((m) => m.copy())).box());
+    assert.ok(Math.abs(readingLabelSize(source)! - readingLabelSize(target)!) < 2e-6,
+      `${word}: the endpoint retains the target font size`);
+    if (word === 'native') assert.ok(Math.abs(readingLabelSize(source)! - 0.8) < 2e-6);
+  }
+});
+
+test('nested imported font bases follow matching and morphed glyphs without target replacement', () => {
+  for (const factor of [0.01, 2]) {
+    const label = importedLabel(), originalSize = readingLabelSize(label)!;
+    label.saveState();
+    const source = new Group(label), target = source.copy().stretch(factor, 0);
+    const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
+    animation.begin();
+    animation.finish();
+    assert.ok(Math.abs(readingLabelSize(label)! - originalSize * Math.min(1, factor)) < 2e-6,
+      'retaining the source must not retain an obsolete font basis');
+    assert.deepEqual(source.box(), target.box(), 'matching glyphs retain their target geometry');
+    label.restore();
+    assert.ok(Math.abs(readingLabelSize(label)! - originalSize) < 2e-6, 'restore returns the independent saved font basis');
+  }
+});
+
+test('matching between native and imported labels retains the target font scale in either direction', () => {
+  for (const nested of [false, true])
+    for (const nativeFirst of [false, true]) {
+      const imported = importedLabel().stretch(0.01, 0);
+      const native = new Text('Paper', { fontSize: 1.2 }).moveTo(imported.center());
+      const sourceLabel = nativeFirst ? native : imported, targetLabel = nativeFirst ? imported : native;
+      const expected = readingLabelSize(targetLabel)!;
+      const source = nested ? new Group(sourceLabel) : sourceLabel;
+      const target = nested ? new Group(targetLabel) : targetLabel;
+      const animation = new TransformMatchingShapes(source, target, { replace: false, fadeMismatches: false });
+      animation.begin();
+      animation.finish();
+      assert.ok(Math.abs(readingLabelSize(sourceLabel)! - expected) < 2e-6,
+        `${nativeFirst ? 'native-to-imported' : 'imported-to-native'}/${nested}: exact target em`);
+      if (sourceLabel instanceof Text) {
+        assert.ok(Math.abs(sourceLabel.textSize() - expected * 10) < 2e-6,
+          'native public textSize keeps its geometric-mean contract after a hundredfold width compression');
+      }
+    }
 });
 
 test('imported labels retain their compressed font dimension in reader layouts', async () => {

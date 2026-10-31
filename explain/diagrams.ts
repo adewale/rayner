@@ -230,33 +230,33 @@ function smallestScale(a: number, b: number, c: number, d: number): number {
   return largest > 0 ? Math.abs(a * d - b * c) / largest : 0;
 }
 
-/**
- * Imported glyphs have no Text advance box. Retain three of their actual control
- * points instead: these follow every transform without adding layout or paint
- * outside the original geometry. The inverse triangle maps them back to an em
- * basis, including the captured SVG transform and any forced text width.
- */
+/** A canonical one-em parallelogram, centred on the label. Its point order
+ * matches Text's frame indexing, but its dimensions are always one font em. */
+function emFrame(center: Vec, a: number, b: number, c: number, d: number): Float32Array {
+  const x = center[0] - (a + c) / 2, y = center[1] - (b + d) / 2;
+  return new Float32Array([x, y, x + a + c, y + b + d, x + c, y + d, x + a, y + b]);
+}
+function nativeEmBasis(text: Text): [number, number, number, number] {
+  const f = text.frameBox, height = text.run.ascent + text.run.descent, size = text.run.fontSize;
+  const c = (f[4]! - f[0]!) / height, d = (f[5]! - f[1]!) / height;
+  const a = text.run.width > 0 ? (f[6]! - f[0]!) / text.run.width : d;
+  const b = text.run.width > 0 ? (f[7]! - f[1]!) / text.run.width : -c;
+  return [a * size, b * size, c * size, d * size];
+}
+/** Imported glyphs have no Text advance box. A separate one-em basis follows
+ * affine maps and animation, including captured SVG transforms and forced
+ * text widths, without contributing to glyph geometry or any layout bounds. */
 class ImportedLabel extends Group implements LabelInfo {
   text: string;
   fontSize: number;
   emRatio: number;
-  private basis = new Float32Array();
-  private em: readonly number[];
+  private basis: Float32Array = new Float32Array();
 
   constructor(paths: VMobject[], shape: SnapshotShape) {
     super(...paths);
     this.text = shape.text!;
     this.fontSize = shape.fontSize!;
     this.emRatio = this.fontSize / Math.max(0.001, this.height());
-    const points = paths.flatMap((p) => p.subpaths.flatMap((a) =>
-      Array.from({ length: a.length / 2 }, (_, i) => [a[2 * i]!, a[2 * i + 1]!] as Vec)));
-    const o = points[0] ?? [0, 0];
-    const u = points.reduce((best, p) =>
-      Math.hypot(p[0] - o[0], p[1] - o[1]) > Math.hypot(best[0] - o[0], best[1] - o[1]) ? p : best, o);
-    const cross = (p: Vec) => (u[0] - o[0]) * (p[1] - o[1]) - (u[1] - o[1]) * (p[0] - o[0]);
-    const v = points.reduce((best, p) => Math.abs(cross(p)) > Math.abs(cross(best)) ? p : best, o);
-    this.basis = points.length ? new Float32Array([...o, ...u, ...v]) : new Float32Array();
-    const det = cross(v);
     const run = shape.textRun;
     let [a, b, c, d] = [this.fontSize, 0, 0, this.fontSize];
     if (run) {
@@ -268,39 +268,53 @@ class ImportedLabel extends Group implements LabelInfo {
       c = -run.matrix[2]! * run.size / SVG_PX_PER_UNIT;
       d = run.matrix[3]! * run.size / SVG_PX_PER_UNIT;
     }
-    const x = u[0] - o[0], y = u[1] - o[1], z = v[0] - o[0], w = v[1] - o[1];
-    this.em = det ? [(w * a - z * b) / det, (-y * a + x * b) / det,
-      (w * c - z * d) / det, (-y * c + x * d) / det] : [0, 0, 0, 0];
+    this.basis = emFrame(this.center(), a, b, c, d);
   }
   override pointArrays(): Float32Array[] { return [this.basis]; }
+  override boundingPointArrays(): Float32Array[] { return []; }
   override pointKind(): string { return 'imported-label-basis'; }
   override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
-  override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
-    super.interpolate(a, b, alpha, pathFunc);
-    if (a instanceof ImportedLabel && b instanceof ImportedLabel) {
-      this.em = a.em.map((v, i) => alpha === 0 ? v : alpha === 1 ? b.em[i]! : v + (b.em[i]! - v) * alpha);
-      if (alpha >= 1) { this.text = b.text; this.fontSize = b.fontSize; this.emRatio = b.emRatio; }
+  override matchingFrameFor(source: Mobject): Mobject {
+    if (!(source instanceof Text)) return this;
+    const p = this.basis, frame = source.copy(), run = source.run;
+    const width = run.width / run.fontSize, height = (run.ascent + run.descent) / run.fontSize;
+    frame.frameBox = emFrame(this.center(), (p[6]! - p[0]!) * width, (p[7]! - p[1]!) * width,
+      (p[4]! - p[0]!) * height, (p[5]! - p[1]!) * height);
+    frame.invalidateBox();
+    return frame;
+  }
+  override interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
+    super.interpolateData(a, b, alpha, pathFunc);
+    if (a instanceof ImportedLabel && (b instanceof ImportedLabel || b instanceof Text)) {
+      if (b instanceof Text) {
+        // Text's advance frame is a different kind of point data. Only this
+        // imported label opts into it; native Text interpolation stays intact.
+        const target = emFrame(b.center(), ...nativeEmBasis(b));
+        for (let i = 0; i < this.basis.length; i += 2) {
+          const from: Vec = [a.basis[i]!, a.basis[i + 1]!], to: Vec = [target[i]!, target[i + 1]!];
+          const point = pathFunc ? pathFunc(from, to, alpha) :
+            alpha === 0 ? from : alpha === 1 ? to : [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha];
+          this.basis[i] = point[0]!; this.basis[i + 1] = point[1]!;
+        }
+      }
+      if (alpha >= 1) {
+        const label = labelOf(b)!;
+        this.text = label.text; this.fontSize = label.fontSize; this.emRatio = label.emRatio;
+      }
     }
-    return this;
   }
   readingSize(): number {
     if (!this.basis.length) return 0;
-    const p = this.basis, [a, b, c, d] = this.em;
-    const x = p[2]! - p[0]!, y = p[3]! - p[1]!, z = p[4]! - p[0]!, w = p[5]! - p[1]!;
-    return smallestScale(x * a! + z * b!, y * a! + w * b!, x * c! + z * d!, y * c! + w * d!);
+    const p = this.basis;
+    const x = p[6]! - p[0]!, y = p[7]! - p[1]!, z = p[4]! - p[0]!, w = p[5]! - p[1]!;
+    return smallestScale(x, y, z, w);
   }
 }
 
 /** Conservative font em in world units, for native and imported labels; undefined for other artwork. */
 export function readingLabelSize(m: Mobject): number | undefined {
   if (m instanceof ImportedLabel) return m.readingSize();
-  if (m instanceof Text) {
-    const f = m.frameBox, height = m.run.ascent + m.run.descent;
-    const c = (f[4]! - f[0]!) / height, d = (f[5]! - f[1]!) / height;
-    const a = m.run.width > 0 ? (f[6]! - f[0]!) / m.run.width : d;
-    const b = m.run.width > 0 ? (f[7]! - f[1]!) / m.run.width : -c;
-    return m.run.fontSize * smallestScale(a, b, c, d);
-  }
+  if (m instanceof Text) return smallestScale(...nativeEmBasis(m));
   const label = labelOf(m);
   return label ? m.height() * label.emRatio : undefined;
 }

@@ -831,7 +831,7 @@ interface MoveRow { sub: Mobject; start: Mobject; end: Mobject }
  */
 interface FadeRow { sub: Mobject; pts: Float32Array[]; opacity: number; tx: number; ty: number; ride?: Vec }
 /** A container's own points (a Text's advance box), blended between two fixed snapshots. */
-interface FrameRow { node: Mobject; from: Float32Array[]; to: Float32Array[] }
+interface FrameRow { node: Mobject; from: Float32Array[]; to: Float32Array[]; start?: Mobject; end?: Mobject }
 /** Where a source frame's contents go: p -> k * p + (bx, by). */
 interface Carry { k: number; bx: number; by: number }
 
@@ -907,7 +907,7 @@ export class TransformMatching extends Animation {
     const mapFrames = (pairOf: Int32Array): void => {
       const votes = new Map<number, number>();
       pairOf.forEach((j, i) => { if (j >= 0) { const k = sf[i]! * tFrames.length + tf[j]!; votes.set(k, (votes.get(k) ?? 0) + 1); } });
-      const mapped = new Set<Mobject>([src]);
+      const mapped = new Set<Mobject>(toSource.values());
       for (const [k] of [...votes].sort((a, b) => b[1] - a[1] || a[0] - b[0])) {
         const fs = sFrames[Math.floor(k / tFrames.length)]!, ft = tFrames[k % tFrames.length]!;
         if (!toSource.has(ft) && !mapped.has(fs)) { toSource.set(ft, fs); mapped.add(fs); }
@@ -927,6 +927,14 @@ export class TransformMatching extends Animation {
     this.morphed = removed.slice(0, m).map((s, i) => [s, added[i]!]);
     this.removed = removed.slice(m);
     this.added = added.slice(m);
+    // A frame follows morphed contents too. With no equal glyph shapes (for
+    // example, an anisotropically compressed label), matched-only votes leave
+    // its transform metadata behind while its glyphs move to the target.
+    if (m) {
+      const withMorphs = pairOf.slice();
+      for (const [s, t] of this.morphed) withMorphs[sParts.indexOf(s)] = tParts.indexOf(t);
+      mapFrames(withMorphs);
+    }
     const linked = [...this.pairs, ...this.morphed];
     // Where each source frame's contents go: scaled as its advance box scales
     // (a font size change), translated by the median move of its matched parts
@@ -955,7 +963,15 @@ export class TransformMatching extends Animation {
     this.frames = [];
     for (const [ft, fs] of toSource) {
       if (fs instanceof VMobjectClass || ft instanceof VMobjectClass) continue; // a path's points are a part's
-      const from = fs.pointArrays(), to = ft.pointArrays();
+      const targetFrame = ft.matchingFrameFor(fs);
+      const from = fs.pointArrays(), to = targetFrame.pointArrays();
+      if (fs.pointKind() !== targetFrame.pointKind()) {
+        // A metadata-only source may explicitly normalize another frame kind.
+        // Native geometry never treats an unrelated equal-length array as a box.
+        if (!fs.boundingPointArrays().length && from.length)
+          this.frames.push({ node: fs, from: [], to: [], start: bare(fs), end: bare(targetFrame) });
+        continue;
+      }
       if (from.length === to.length && from.every((a, i) => a.length === to[i]!.length)) {
         this.frames.push({ node: fs, from: from.map((a) => a.slice()), to: to.map((a) => a.slice()) });
       }
@@ -984,7 +1000,8 @@ export class TransformMatching extends Animation {
     for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n), this.pathFunc);
     for (const r of this.fadesOut) fade(r, 1 - this.subAlpha(alpha, i++, n), alpha, true);
     for (const r of this.fadesIn) fade(r, this.subAlpha(alpha, i++, n), alpha, false);
-    for (const { node, from, to } of this.frames) {
+    for (const { node, from, to, start, end } of this.frames) {
+      if (start && end) { node.interpolateData(start, end, alpha, this.pathFunc); continue; }
       const mine = node.pointArrays();
       for (let j = 0; j < mine.length; j++) {
         const m = mine[j]!, x = from[j]!, y = to[j]!;
@@ -1098,7 +1115,7 @@ function bare<M extends Mobject>(m: M): M {
 }
 
 /** Box of a mobject's own points (not its children's), or null. */
-function ownBox(m: Mobject): Box | null { return pointsBox(m.pointArrays()); }
+function ownBox(m: Mobject): Box | null { return pointsBox(m.boundingPointArrays()); }
 /** Box of point arrays, or null. */
 function pointsBox(arrays: readonly Float32Array[]): Box | null {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
