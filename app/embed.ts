@@ -395,6 +395,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     stop = Math.min(stop, tour.length - 1);
     caseHasTour = [...caseLayouts.values()].some(layout => closeUps(layout, w, h, zoom.max).length > 1);
   }
+  // An authored opening can be the whole frame while its later detail stops
+  // zoom in. Whole picture opts out of that tour; manually zooming out from a
+  // detail stop also returns to the whole frame until the tour is resumed.
+  const showingWhole = () => zoom.k <= 1 && !(follow && tour[stop]?.k === 1);
   function drawOverview() {
     refreshTour();
     const w = stage.clientWidth,
@@ -413,7 +417,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       sayHint();
     }
     nextView.disabled = tour.length < 2;
-    const count = on || !multiple ? t.viewCount(stop + 1, Math.max(1, tour.length)) : t.wholePicture;
+    const count = !multiple || !showingWhole() ? t.viewCount(stop + 1, Math.max(1, tour.length)) : t.wholePicture;
     if (viewCount.textContent !== count) viewCount.textContent = count;
     if (!on) return;
     overview.disabled = tour.length < 2;
@@ -438,7 +442,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     refreshTour();
     if (tour.length < 2) return;
     revealStage();
-    if (zoom.k <= 1) { closer.click(); return; }
+    if (showingWhole()) { closer.click(); return; }
     stop = (stop + 1) % tour.length;
     zoom.to(tour[stop]!, true);
   };

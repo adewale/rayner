@@ -101,6 +101,56 @@ await this.step(id,{title:id,caption:id,detail:id==='note'});await s.clear();awa
   }
 });
 
+test('Next view leaves an authored whole-frame opening and distinguishes Whole picture from its first stop', options, async () => {
+  const source = join(folder, 'identity-opening.ts');
+  await writeFile(source, `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';
+export default class IdentityOpening extends Scene{
+static meta={id:'identity-opening',title:'Readable comparison'};
+async construct(){const s=stage(this);await this.step('compare',{title:'Compare',caption:'The large labels compare.'});
+const subject=new Text('COMPARISON',{fontSize:1}),detail=new Text('tiny detail',{fontSize:0.15}).moveTo([4,-3]);
+await s.enter(subject,detail);s.reading(subject);}}`);
+  const project = await collectProject(source, {write: false});
+  await buildExplainer(project, join(folder, 'identity-opening.html'));
+  const page = await browser.newPage({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'});
+  try {
+    await page.goto(`${embed}/identity-opening.html`);
+    await page.waitForSelector('[data-ready=true]');
+    const [w, h] = await page.locator('.stage').evaluate(e => [e.clientWidth, e.clientHeight]);
+    const tour = closeUps((await stepLayouts(project.Scene)).get('compare'), w!, h!);
+    assert.ok(tour.length > 1 && tour[0]!.k === 1 && tour[1]!.k > 1,
+      'large comparison labels need the whole frame while smaller implementation labels need detail stops');
+    const count = page.locator('.view-controls > span'), next = page.getByRole('button', {name: 'Next view', exact: true});
+    const painted = () => page.locator('.stage svg').getAttribute('viewBox');
+    const opening = await painted();
+    await next.click();
+    const detail = await painted();
+    assert.notEqual(detail, opening, 'Next view must paint a detail view from the identity opening');
+    assert.equal(await count.textContent(), `View 2 of ${tour.length}`);
+    const detailZoom = await settledZoom(page);
+    assert.ok(detailZoom && Math.abs(detailZoom.k - tour[1]!.k) < 1e-6);
+    // Whole picture explicitly opts out, even though its pixels match the authored opening.
+    await page.getByRole('button', {name: 'Whole picture', exact: true}).click();
+    assert.equal(await count.textContent(), 'Whole picture');
+    await next.click();
+    assert.equal(await painted(), opening);
+    assert.equal(await count.textContent(), `View 1 of ${tour.length}`);
+    await next.click();
+    assert.equal(await painted(), detail);
+    assert.equal(await count.textContent(), `View 2 of ${tour.length}`);
+    // A manual reset away from a detail stop still behaves as Whole picture did.
+    await page.locator('.stage').focus();
+    await page.keyboard.press('-');
+    await page.keyboard.press('-');
+    await page.keyboard.press('-');
+    assert.equal(await painted(), opening);
+    assert.equal(await count.textContent(), 'Whole picture');
+    await next.click();
+    assert.equal(await count.textContent(), `View 1 of ${tour.length}`);
+    await next.click();
+    assert.equal(await painted(), detail);
+  } finally { await page.close(); }
+});
+
 test('authored phone openings keep comparison ink readable without painting a clipped heading', options, async () => {
   const { storyFrames, inspectStoryFrame, covered, STORY_CLAIMS } = await import(
     '../tools/lib/explain-story-review.ts'
@@ -2306,7 +2356,8 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   const tour = await tourOf(m, seen.stageW, seen.stageH),
     multipleViews = narrow && tour.length > 1;
   eq('overview hidden', seen.overviewHidden, !(multipleViews && m.k > 1));
-  eq('view count', seen.viewCount, multipleViews && m.k <= 1 ? 'Whole picture' : `View ${m.tourStop + 1} of ${tour.length}`);
+  const wholeFrameOutsideTour = m.k <= 1 && (!m.follow || tour[m.tourStop]?.k !== 1);
+  eq('view count', seen.viewCount, multipleViews && wholeFrameOutsideTour ? 'Whole picture' : `View ${m.tourStop + 1} of ${tour.length}`);
   // The zoom is painted as a viewBox over the author's frame (data-camera); at k = 1 it is that frame.
   const t = zoomOf(seen.painted && { ...seen.painted, w: seen.stageW, h: seen.stageH });
   if (m.k === 1) eq('viewBox at k=1 (the author frame)', seen.painted?.view, seen.painted?.camera);
