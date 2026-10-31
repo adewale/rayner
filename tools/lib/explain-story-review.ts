@@ -1075,6 +1075,33 @@ function verifyStoryTargets(
 async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: number[]; label?: boolean }[], step: string) {
   const missing = await page.locator('.stage svg:not(.leaving)').evaluate(async (node, subjects) => {
     const svg = node as SVGSVGElement, clone = svg.cloneNode(true) as SVGSVGElement;
+    const painted = [...svg.children].filter(element => element.tagName.toLowerCase() !== 'defs');
+    // The authored Style model has no mask/filter contract. Letting such an
+    // effect shrink both the actual picture and its expected glyph-core mask
+    // could make a partly erased word prove its own completeness. Shapes have
+    // the same unsupported-effect policy, even though their interiors can be
+    // covered by legitimate artwork such as endpoint nodes and label plates.
+    const effects = new Map<Element, boolean>();
+    for (const subject of [...subjects.filter(subject => subject.label), ...subjects.filter(subject => !subject.label)])
+      for (const index of subject.indices) {
+        const path = painted[index]!;
+        // CSS can replace a path's d without changing its declared attribute.
+        // Normalize the declaration with the browser's CSS parser before
+        // comparing, so harmless SVG spacing/command serialization is allowed.
+        if (path.tagName.toLowerCase() === 'path') {
+          const declaration = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          declaration.style.setProperty('d', `path("${path.getAttribute('d') ?? ''}")`);
+          if (getComputedStyle(path).getPropertyValue('d') !== declaration.style.getPropertyValue('d'))
+            throw new Error(`${subject.name}: CSS overrides declared subject path`);
+        }
+        for (let element: Element | null = path; element; element = element.parentElement) {
+          if (!effects.has(element)) {
+            const style = getComputedStyle(element);
+            effects.set(element, style.maskImage !== 'none' || style.filter !== 'none' || style.backdropFilter !== 'none');
+          }
+          if (effects.get(element)) throw new Error(`${subject.name}: unsupported mask/filter on a required opening subject`);
+        }
+      }
     const original = [svg, ...svg.querySelectorAll('*')], copies = [clone, ...clone.querySelectorAll('*')];
     // Image SVGs have no access to the reader stylesheet. Capture the effective
     // paint, including CSSOM overrides, before drawing the detached clone.

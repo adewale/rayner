@@ -1160,5 +1160,44 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover);}}`);
         'the cover begins translucent, and CSSOM poison applies under the served CSP');
       } finally { await poisoned.close(); }
     }
+    const frame = (await storyFrames(variant.Scene, claims)).get('comparison')!;
+    const labelIndices = frame.labels.find(label => label.text === 'Named value')!.indices;
+    const shapeIndices = frame.targets.find(target => target.name === 'blue-shape')!.indices;
+    for (const effect of ['mask', 'filter', 'ancestor-filter', 'path', 'shape-mask', 'shape-path'] as const) {
+      const poisoned = await browser.newPage();
+      try {
+        await poisoned.addInitScript(({effect, indices}) => document.addEventListener('rayner:step', () => {
+          if (innerWidth !== 320) return;
+          const svg = document.querySelector('.stage svg:not(.leaving)') as SVGSVGElement;
+          let defs = svg.querySelector('defs');
+          if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); svg.prepend(defs); }
+          const mask = document.createElementNS('http://www.w3.org/2000/svg', 'mask');
+          mask.id = 'erased-word-middle'; mask.setAttribute('maskContentUnits', 'objectBoundingBox');
+          mask.innerHTML = '<rect x="0" y="0" width="1" height="1" fill="white"/><rect x=".35" y="0" width=".3" height="1" fill="black"/>';
+          defs.append(mask);
+          const paths = [...svg.children].filter(element => element.tagName.toLowerCase() !== 'defs') as SVGElement[];
+          const label = paths[indices[0]!]!, before = getComputedStyle(label).maskImage;
+          for (const index of indices) {
+            if (effect === 'mask' || effect === 'shape-mask') paths[index]!.style.mask = 'url(#erased-word-middle)';
+            else if (effect === 'filter') paths[index]!.style.filter = 'opacity(1)';
+            else if (effect === 'path') paths[index]!.style.setProperty('d', 'path("M -500 -500 L500 -500 L500 500 L-500 500 Z")');
+            else if (effect === 'shape-path') {
+              const box = (paths[index] as SVGGraphicsElement).getBBox();
+              paths[index]!.style.setProperty('d', `path("M ${box.x} ${box.y} L ${box.x + box.width} ${box.y} L ${box.x + box.width} ${box.y + box.height} Z")`);
+            }
+          }
+          if (effect === 'ancestor-filter') svg.parentElement!.style.filter = 'opacity(1)';
+          const target = effect === 'ancestor-filter' ? svg.parentElement! : label;
+          (window as unknown as {effectControl: string[]}).effectControl = [before,
+            getComputedStyle(target).getPropertyValue(effect.endsWith('mask') ? 'mask-image' : effect.endsWith('path') ? 'd' : 'filter')];
+        }), {effect, indices: effect.startsWith('shape-') ? shapeIndices : labelIndices});
+        await assert.rejects(reviewStoryVariant(poisoned, url, variant, claims), effect.endsWith('path')
+          ? /(?:label Named value|blue-shape): CSS overrides declared subject path/
+          : /(?:label Named value|blue-shape): unsupported mask\/filter/);
+        const control = await poisoned.evaluate(() => (window as unknown as {effectControl: string[]}).effectControl);
+        assert.equal(control[0], 'none', 'the label starts without a mask');
+        assert.notEqual(control[1], 'none', 'the intended CSSOM effect applies under the served CSP');
+      } finally { await poisoned.close(); }
+    }
   } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
 });
