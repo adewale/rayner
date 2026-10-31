@@ -158,7 +158,11 @@ function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[]
     const text = inLabel || !!labelOf(m);
     const stress = fresh.has(m) ? m : stressed;
     if (!m.children.length) {
-      const b = m.box();
+      const geometry = m.box(), style = m.style;
+      // Path bounds exclude stroke. Plan the same painted extent that native
+      // SVG shows, then apply the authored clips (including the camera).
+      const half = style.stroke !== 'none' && style.strokeOpacity > 0 && style.strokeWidth > 0 ? style.strokeWidth / 2 : 0;
+      const b: Box | null = geometry ? [geometry[0] - half, geometry[1] - half, geometry[2] + half, geometry[3] + half] : null;
       const seen = b && painted(m) && (m.style.drawFraction ?? 1) > 0.05 ? intersect(b, c) : null;
       if (seen) {
         const s = m.style;

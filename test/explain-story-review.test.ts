@@ -1116,14 +1116,16 @@ test('320px opening paint requires each named shape and label to contribute thro
   const browser = await launch();
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   try {
-    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text,Group}from'rayner';import{stage}from'rayner/explain';
-export default class Occlusion extends Scene{static meta={id:'occlusion',title:'Named opening paint'};async construct(){
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text,Group}from'rayner';import{stage,settingsOf}from'rayner/explain';
+export default class Occlusion extends Scene{static meta={id:'occlusion',title:'Named opening paint'};
+static settings=[{id:'channels',label:'Disabled paint',default:'opacity',options:[{value:'opacity',label:'Zero opacity'},{value:'color',label:'Transparent colour'}]}];async construct(){
+const transparent=settingsOf(this).channels==='color';
 const s=stage(this);await this.step('comparison',{caption:'The blue shape and the named value are visible.'});
 const shape=new Rectangle({width:1,height:1,fill:'blue',stroke:'none'}).moveTo([-3,0]);shape.key='blue-shape';shape.clipBox=[-3.6,-.6,-2.4,.6];
 const label=new Text('Named value',{fontSize:.8}).moveTo([2,0]);label.clipBox=[-1,-.6,5,.6];
 const accent=new Rectangle({width:.5,height:.5,fill:'blue',stroke:'none'}).moveTo([2,-1.5]);
-const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:'white',fillOpacity:0,stroke:'white',strokeWidth:.03,strokeOpacity:1}).moveTo([-3,-2.5]);
-const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:'white',strokeWidth:.2,strokeOpacity:0}).moveTo([3,-2.5]);
+const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:transparent?'transparent':'white',fillOpacity:transparent?1:0,stroke:'white',strokeWidth:.03,strokeOpacity:1}).moveTo([-3,-2.5]);
+const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:transparent?'rgba(255,255,255,0)':'white',strokeWidth:.2,strokeOpacity:transparent?1:0}).moveTo([3,-2.5]);
 const haloPlate=new Rectangle({width:4,height:1.4,fill:'red',stroke:'none'}).moveTo([0,2]);
 const halo=new Text('Halo',{fontSize:.8}).setStyle({fill:'white',stroke:'red',strokeWidth:.08,paintOrder:'stroke'}).moveTo([0,2]);
 const labelled=new Group(label,accent,outlined,filled,haloPlate,halo);labelled.key='label-subject';s.reading(shape,labelled);
@@ -1138,12 +1140,15 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover,haloCover);}}`
     await buildExplainer(project, join(dir, 'scene.html'));
     server = await serve(dir, 0, 'scene.html');
     const url = server.url + '/scene.html';
+    assert.deepEqual(project.variants.map(v => v.values.channels), ['opacity', 'color']);
     const page = await browser.newPage();
-    const rows = await reviewStoryVariant(page, url, variant, claims);
-    const receipt = rows.find(row => row.width === 390)!.openingAt320!;
-    assert.ok(receipt.reviewed && receipt.minimumLabelPx! >= 12, 'translucent layers preserve painted facts and the label floor');
-    assert.deepEqual(receipt.labels, ['Named value', 'Outline', 'Fill', 'Halo'],
-      'outline-only, disabled-stroke and halo-backed labels retain their actual glyph cores');
+    for (const sample of project.variants) {
+      const rows = await reviewStoryVariant(page, url, sample, claims);
+      const receipt = rows.find(row => row.width === 390)!.openingAt320!;
+      assert.ok(receipt.reviewed && receipt.minimumLabelPx! >= 12, 'translucent layers preserve painted facts and the label floor');
+      assert.deepEqual(receipt.labels, ['Named value', 'Outline', 'Fill', 'Halo'],
+        'outline-only, disabled-stroke and halo-backed labels retain their actual glyph cores');
+    }
     await page.close();
     for (const [which, missing] of [['shape', /missing or obscured paint: blue-shape/],
       ['label', /missing or obscured paint: label Named value/],
@@ -1221,5 +1226,28 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover,haloCover);}}`
         assert.notEqual(control[1], 'none', 'the intended CSSOM effect applies under the served CSP');
       } finally { await poisoned.close(); }
     }
+  } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
+});
+
+test('a thick highlighted outline remains reachable above the heading boundary throughout its phone tour',
+  {skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for native painted-stroke coverage'}, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-stroke-tour-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text}from'rayner';
+export default class StrokeTour extends Scene{static meta={id:'stroke-tour',title:'The entire outlined region'};async construct(){
+await this.step('outlined',{caption:'The red outline surrounds the region.'});
+const heading=new Rectangle({width:12,height:.6,fill:'gray',stroke:'none'}).moveTo([0,3.5]);heading.key='__heading';
+const outline=new Rectangle({width:7.6,height:7.6,fill:'none',stroke:'red',strokeWidth:.126}).moveTo([-3.95,-.6]);outline.key='outlined-region';
+this.add(heading,outline,new Text('Region',{fontSize:.3}).moveTo([-4,0]));}}`);
+    const project = await collectProject(dir, {write: false});
+    await buildExplainer(project, join(dir, 'scene.html'));
+    server = await serve(dir, 0, 'scene.html');
+    const page = await browser.newPage();
+    const rows = await reviewStoryVariant(page, server.url + '/scene.html', project.variants[0]!,
+      [{step: 'outlined', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Region'}]}]);
+    assert.deepEqual(rows.map(row => row.width), [390, 1180]);
+    assert.ok(rows[0]!.views > 1, 'the phone assertion covers the whole tour, not an unzoomed overview');
   } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
 });

@@ -26,6 +26,34 @@ import {
 } from '../app/embed-closeup.ts';
 import type { StepLayout } from '../app/embed-closeup.ts';
 
+test('changed regions include visible stroke width before clipping to the authored viewport', async () => {
+  await fc.assert(fc.asyncProperty(
+    fc.integer({min: 1, max: 6}), fc.integer({min: 1, max: 6}),
+    fc.integer({min: -2, max: 2}), fc.integer({min: -1, max: 1}),
+    fc.integer({min: 1, max: 20}), fc.boolean(), fc.boolean(), fc.boolean(),
+    async (width, height, x, y, hundredths, stroke, opaque, clipped) => {
+      class Outlined extends Scene {
+        override async construct() {
+          await this.step('rectangle');
+          const rectangle = new Rectangle({width, height, fill: '#0099ff', stroke: stroke ? '#ff0000' : 'none',
+            strokeOpacity: opaque ? 1 : 0, strokeWidth: hundredths / 100}).moveTo([x, y]);
+          if (clipped) rectangle.clipBox = [-1, -1, 1, 1];
+          this.add(rectangle);
+        }
+      }
+      const layout = (await stepLayouts(Outlined)).get('rectangle')!;
+      // Independent axis-aligned rectangle oracle, including disabled strokes.
+      const half = stroke && opaque ? hundredths / 200 : 0;
+      const clip = clipped ? [-1, -1, 1, 1] : [-8, -4.5, 8, 4.5];
+      const expected = [Math.max(x - width / 2 - half, clip[0]!), Math.max(y - height / 2 - half, clip[1]!),
+        Math.min(x + width / 2 + half, clip[2]!), Math.min(y + height / 2 + half, clip[3]!)];
+      if (expected[2]! < expected[0]! || expected[3]! < expected[1]!) return assert.equal(layout.parts.length, 0);
+      assert.equal(layout.parts.length, 1);
+      for (const [i, edge] of expected.entries()) assert.ok(Math.abs(layout.parts[0]![i]! - edge) < 1e-5,
+        `edge ${i}: ${layout.parts[0]} must include the visible stroke and respect its clip ${expected}`);
+    }), params(60, {examples: [[6, 6, -2, 0, 20, true, true, false]]}));
+});
+
 /** A box inside the 16 × 9 frame, at least `min` units on a side. */
 const boxIn = (min = 0) =>
   fc
@@ -223,7 +251,7 @@ function sceneOf(rects: Box[], marked: Set<number>, dimmed: Set<number>, labelle
     override async construct() {
       const shapes = rects.map(
         (b) =>
-          new Rectangle({ width: b[2] - b[0], height: b[3] - b[1], fill: '#336699', stroke: '#000000' }).moveTo([
+          new Rectangle({ width: b[2] - b[0], height: b[3] - b[1], fill: '#336699', stroke: '#000000', strokeWidth: 0.04 }).moveTo([
             (b[0] + b[2]) / 2,
             (b[1] + b[3]) / 2,
           ]),
@@ -269,7 +297,10 @@ test('a step changes where it recolours; a step that only dims points at what it
         // The first step brings everything in, so all of it changed.
         assert.ok(first.parts.length >= 1);
         for (const r of rects) assert.ok(first.parts.some((p) => p[0] <= r[0] + 1e-3 && p[2] >= r[2] - 1e-3 && p[1] <= r[1] + 1e-3 && p[3] >= r[3] - 1e-3));
-        const pick = (keep: (i: number) => boolean) => rects.filter((_, i) => keep(i));
+        // These rectangles have a 0.04-unit stroke, clipped by the camera.
+        const painted = rects.map(([x0, y0, x1, y1]): Box => [Math.max(-8, x0 - .02), Math.max(-4.5, y0 - .02),
+          Math.min(8, x1 + .02), Math.min(4.5, y1 + .02)]);
+        const pick = (keep: (i: number) => boolean) => painted.filter((_, i) => keep(i));
         const expected = marked.size
           ? union(pick((i) => marked.has(i)))
           : dimmed.size && dimmed.size < rects.length

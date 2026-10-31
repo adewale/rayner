@@ -1172,8 +1172,11 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
         indices.forEach(index => clone.append(elements[index]!));
         const last = await raster();
         elements.forEach(element => clone.append(element));
+        const paintedColor = (value: string) => value !== 'none' && value !== 'transparent' &&
+          !/\/\s*0(?:\.0+)?\s*\)$/.test(value) && !/^(?:rgba|hsla)\([^,]*,[^,]*,[^,]*,\s*0(?:\.0+)?\s*\)$/.test(value);
         const selected = new Set(indices), old = elements.map(element => ({display: element.style.display,
-          opacity: element.style.opacity, fillOpacity: element.style.fillOpacity, strokeOpacity: element.style.strokeOpacity}));
+          opacity: element.style.opacity, fill: element.style.fill, stroke: element.style.stroke,
+          fillOpacity: element.style.fillOpacity, strokeOpacity: element.style.strokeOpacity}));
         elements.forEach((element, index) => {
           if (!selected.has(index)) element.style.display = 'none';
           else {
@@ -1183,21 +1186,27 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
             // A disabled fill or stroke is not part of the authored glyph core.
             if (Number(element.style.fillOpacity) > 0) element.style.fillOpacity = '1';
             if (Number(element.style.strokeOpacity) > 0) element.style.strokeOpacity = '1';
-            // A stroke painted underneath a filled glyph is a backing halo,
-            // often the paper colour. Its transparent contribution against
-            // matching paper is not missing letter ink. Require the filled
-            // glyph core; outline-only text still requires its stroke.
-            if (element.style.getPropertyValue('paint-order').startsWith('stroke') && element.style.fill !== 'none' && Number(element.style.fillOpacity) > 0)
-              element.style.strokeOpacity = '0';
+            // Keep stroke geometry and paint order active. Removing a halo
+            // changes WebKit's edge rasterization. Black ink over a white
+            // backing stroke separates glyph coverage without that switch.
+            const filled = paintedColor(element.style.fill) && Number(element.style.fillOpacity) > 0;
+            if (filled) element.style.fill = '#000000';
+            if (paintedColor(element.style.stroke) && Number(element.style.strokeOpacity) > 0)
+              element.style.stroke = filled && element.style.getPropertyValue('paint-order').startsWith('stroke') ? '#ffffff' : '#000000';
           }
         });
         const mask = await raster();
         elements.forEach((element, index) => Object.assign(element.style, old[index]!));
-        let alpha = 0;
-        for (let pixel = 0; pixel < evidence.delta.length; pixel++) alpha = Math.max(alpha, mask[pixel * 4 + 3]!);
+        const coverage = new Uint8Array(evidence.delta.length);
+        let peak = 0;
+        for (let pixel = 0; pixel < coverage.length; pixel++) {
+          // Black coverage counts; a white halo and transparent pixels do not.
+          coverage[pixel] = Math.round(mask[pixel * 4 + 3]! * (255 - mask[pixel * 4]!) / 255);
+          peak = Math.max(peak, coverage[pixel]!);
+        }
         let core = 0, shown = 0;
         for (let pixel = 0; pixel < evidence.delta.length; pixel++)
-          if (mask[pixel * 4 + 3]! > 0 && mask[pixel * 4 + 3]! >= alpha / 2) {
+          if (coverage[pixel]! > 0 && coverage[pixel]! >= peak / 2) {
             const full = Math.max(
               Math.abs(last[pixel * 4]! - evidence.removed[pixel * 4]!),
               Math.abs(last[pixel * 4 + 1]! - evidence.removed[pixel * 4 + 1]!),
