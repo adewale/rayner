@@ -136,12 +136,16 @@ export class ReaderView {
  */
 export class ReaderSink extends DomSink {
   private readonly reader: (author: string) => string;
-  constructor(container: Element, options: ConstructorParameters<typeof DomSink>[1], reader: (author: string) => string) {
+  private readonly signal:AbortSignal;
+  constructor(container: Element, options: ConstructorParameters<typeof DomSink>[1], reader: (author: string) => string, signal:AbortSignal) {
     super(container, options);
     this.reader = reader;
+    this.signal = signal;
     this.svg.setAttribute('data-camera', this.svg.getAttribute('viewBox') ?? HOME_VIEW);
   }
   override apply(els: readonly ElementRecord[], viewBox?: string): void {
+    // DomSink can wake from its browser clock after this step was left.
+    this.signal.throwIfAborted();
     if (viewBox !== undefined && viewBox !== this.svg.getAttribute('data-camera')) this.svg.setAttribute('data-camera', viewBox);
     super.apply(els, this.reader(this.svg.getAttribute('data-camera')!));
   }

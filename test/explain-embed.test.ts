@@ -54,6 +54,8 @@ before(async () => {
         const w=globalThis as any;w.__sceneRuns=(w.__sceneRuns??0)+1;
         for(let i=0;i<4;i++){
           await this.step('step-'+i,{title:'Step '+i,caption:('Picture '+i+' ').repeat(12)});
+          const delay=typeof window==='undefined'?0:Number(new URLSearchParams(location.search).get('renderDelay'));
+          if(i===1&&this.skipUntil>0&&delay>0){w.__renderDelays=(w.__renderDelays??0)+1;await new Promise(r=>setTimeout(r,delay));}
           await this.play(new FadeIn(new Text('Picture '+i)),{runTime:2});
         }
       }
@@ -96,55 +98,36 @@ const boxesOf = <K extends string>(page: Page, selectors: Record<K, string>) =>
   }, selectors as Record<string, string>) as Promise<{ boxes: Record<K, Rect>; scrollY: number; width: number; height: number; scrollWidth: number }>;
 const insideViewport = (b: Rect, v: { width: number; height: number }) => b.top >= 0 && b.bottom <= v.height && b.left >= 0 && b.right <= v.width;
 
-test('one stepper row: exactly one Next step and one Previous step button', options, async () => {
-  for (const [name, project] of projects) {
-    const t = chromeFor(project.Scene.meta?.lang);
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/${name}.html`);
-      await page.waitForSelector('[data-ready=true]');
-      const seen = await page.evaluate((t) => ({
-        next: document.querySelectorAll(`button[aria-label="${t.nextLabel}"]`).length,
-        previous: document.querySelectorAll(`button[aria-label="${t.previous}"]`).length,
-        // The card: the picture, the stepper row, the words, in that order.
-        order: [...document.querySelector('.player')!.children].filter((e) => e.matches('.frame, .stepper, .words')).map((e) => e.className),
-        stage: !!document.querySelector('.player > .frame > .stage'),
-        group: [document.querySelector('.stepper')?.getAttribute('role'), document.querySelector('.stepper')?.getAttribute('aria-label')],
-        first: [...document.querySelectorAll('.stepper > button')].slice(0, 2).map((b) => b.getAttribute('aria-label')),
-        nextText: document.querySelector('.stepper .primary')?.textContent,
-      }), { nextLabel: t.nextLabel, previous: t.previous });
-      assert.deepEqual(seen, {
-        next: 1,
-        previous: 1,
-        order: ['frame', 'stepper', 'words'],
-        stage: true,
-        group: ['group', t.controls],
-        first: [t.previous, t.nextLabel],
-        nextText: t.next,
-      }, name);
-    } finally { await page.close(); }
+/** Shared context lifetime for multi-page, iframe and pre-navigation instrumentation tests. */
+async function readerContext(contextOptions: Parameters<Browser['newContext']>[0], run: (context: import('playwright-core').BrowserContext) => Promise<void>) {
+  const context = await browser.newContext(contextOptions);
+  try {
+    await run(context);
+  } finally {
+    await context.close();
   }
-  // The one pair works, on a short phone and a desktop.
-  for (const viewport of [{ width: 390, height: 568 }, { width: 1280, height: 800 }]) {
-    const page = await browser.newPage({ viewport, reducedMotion: 'reduce' });
-    try {
-      await page.goto(embed + '/mr-cache.html?step=before&request=hit');
-      await page.waitForSelector('[data-ready=true]');
-      assert.equal(await page.getByRole('button', { name: 'Previous step', exact: true }).isDisabled(), true);
-      await page.getByRole('button', { name: 'Next step', exact: true }).click();
-      assert.equal(new URL(page.url()).searchParams.get('step'), 'diff');
-      assert.equal(await page.getByRole('button', { name: 'Previous step', exact: true }).isEnabled(), true);
-    } finally { await page.close(); }
+}
+
+/** Shared served-reader fixture; every caller keeps its original browser options and assertions. */
+async function readerPage(pageOptions: Parameters<Browser['newPage']>[0], url: string, run: (page: Page) => Promise<void>) {
+  const page = await browser.newPage(pageOptions);
+  try {
+    await page.goto(url);
+    await page.waitForSelector('[data-ready=true]');
+    await run(page);
+  } finally {
+    await page.close();
   }
-});
+}
+
+function readerTest(name: string, pageOptions: Parameters<Browser['newPage']>[0], url: () => string, run: (page: Page) => Promise<void>) {
+  test(name, options, () => readerPage(pageOptions, url(), run));
+}
 
 test('Next is on screen at load', options, async () => {
   for (const [width, height] of R2_VIEWPORTS)
     for (const url of R2_PAGES) {
-      const page = await browser.newPage({ viewport: { width, height } });
-      try {
-        await page.goto(embed + url);
-        await page.waitForSelector('[data-ready=true]');
+      await readerPage({ viewport: { width, height } }, embed + url, async page => {
         const v = await boxesOf(page, { next: 'button[aria-label="Next step"]', stage: '.stage', stepper: '.stepper', caption: '.caption', lede: '.lede' });
         const where = `${url} at ${width}×${height}`;
         assert.equal(v.scrollY, 0, `${where}: opened at the top`);
@@ -156,25 +139,12 @@ test('Next is on screen at load', options, async () => {
           assert.ok(v.boxes.caption.top + 24 <= v.height, `${where}: the caption's first line ${JSON.stringify(v.boxes.caption)}`);
         }
         assert.ok(v.scrollWidth <= v.width, `${where}: no horizontal scroll (${v.scrollWidth} > ${v.width})`);
-      } finally { await page.close(); }
+    });
     }
-  // specs/player-tile.md T1: with the header inside the card, the French ten-step page too.
-  for (const [width, height] of [[1280, 800], [1440, 900]] as const) {
-    const page = await browser.newPage({ viewport: { width, height } });
-    try {
-      await page.goto(embed + '/quotient-familial.html');
-      await page.waitForSelector('[data-ready=true]');
-      const v = await boxesOf(page, { next: '.stepper .primary', lede: '.lede' });
-      assert.ok(insideViewport(v.boxes.next, v) && insideViewport(v.boxes.lede, v), `quotient-familial at ${width}×${height}: ${JSON.stringify(v.boxes)}`);
-    } finally { await page.close(); }
-  }
+
 });
 
-test('feature-tour case navigation starts with its recipe, including transcript links, while direct result permalinks still work', options, async () => {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(embed + '/feature-tour.html?feature=camera&step=result');
-    await page.waitForSelector('[data-ready=true]');
+readerTest('feature-tour case navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
     assert.equal(new URL(page.url()).searchParams.get('step'), 'result', 'a direct result permalink remains valid');
     const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
     assert.equal(links.length, 15, 'each authoring case offers one entry link');
@@ -194,14 +164,9 @@ test('feature-tour case navigation starts with its recipe, including transcript 
     await page.waitForSelector('[data-ready=true]');
     await page.locator('fieldset.case input[value="miss"]').check();
     await page.waitForURL(/request=miss&step=request/);
-  } finally { await page.close(); }
-});
+    });
 
-test('fullscreen keeps the stepper row reachable when the player overflows', options, async () => {
-  const page = await browser.newPage({viewport: {width: 1280, height: 800}, reducedMotion: 'reduce'});
-  try {
-    await page.goto(embed + '/mr-cache.html?step=before&request=hit');
-    await page.waitForSelector('[data-ready=true]');
+readerTest('fullscreen keeps the stepper row reachable when the player overflows', {viewport: {width: 1280, height: 800}, reducedMotion: 'reduce'}, () => embed + '/mr-cache.html?step=before&request=hit', async page => {
     await page.getByRole('button', {name: 'Enlarge'}).click();
     await page.waitForFunction(() => !!document.fullscreenElement);
     const bounds = await page.evaluate(() => {
@@ -219,14 +184,9 @@ test('fullscreen keeps the stepper row reachable when the player overflows', opt
     assert.ok(bounds.head[0]! >= 0 && bounds.lede[1]! <= bounds.viewport, `the header and the step heading are on screen ${JSON.stringify(bounds)}`);
     await page.getByRole('button', {name: 'Next step', exact: true}).click();
     assert.equal(new URL(page.url()).searchParams.get('step'), 'diff');
-  } finally { await page.close(); }
-});
+    });
 
-test('phone: the stepper row follows the picture, the words follow it, and a single view never advertises Next view', options, async () => {
-  const page = await browser.newPage({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'});
-  try {
-    await page.goto(embed + '/oauth-pkce.html?attacker=yes&step=attack');
-    await page.waitForSelector('[data-ready=true]');
+readerTest('phone: the stepper row follows the picture, the words follow it, and a single view never advertises Next view', {viewport: {width: 390, height: 844}, reducedMotion: 'reduce'}, () => embed + '/oauth-pkce.html?attacker=yes&step=attack', async page => {
     await page.locator('.leaving').waitFor({state: 'detached'});
     const {boxes: b} = await boxesOf(page, {stage: '.stage', stepper: '.stepper', lede: '.lede', caption: '.caption'});
     assert.ok(b.stepper.top >= b.stage.bottom - 1 && b.stepper.top - b.stage.bottom <= 2, 'the stepper row is straight under the picture');
@@ -239,8 +199,7 @@ test('phone: the stepper row follows the picture, the words follow it, and a sin
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     await page.getByRole('button', {name: 'Zoom in', exact: true}).click();
     assert.ok(await page.locator('.stage').evaluate(stage => {const box = stage.getBoundingClientRect(); return box.top >= 0 && box.bottom <= innerHeight;}), 'using a view tool brings the changed picture into view');
-  } finally { await page.close(); }
-});
+    });
 // Every catalog page, built from its scene as demos:check builds it: the player's controls are
 // the same everywhere, in each page's language.
 /** Every catalog explainer, built once from its scene into catalog/ as demos:check builds it. */
@@ -257,66 +216,20 @@ const catalog = () =>
     }
     return built;
   })());
-test('every catalog page, in English and French: no Replay, Stop or Fit stage button, one Whole picture button, one h1, in the card\'s header above the stage with the case picker, and one footer mark linking home with no way out of a frame it is not in', options, async () => {
-  const { PRODUCT } = await import('../scenes/explainers/catalog.ts');
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    const page = await context.newPage();
-    const languages = new Set<string>();
-    for (const [id, project] of await catalog()) {
-      const t = chromeFor(project.Scene.meta?.lang);
-      languages.add(project.Scene.meta?.lang ?? 'en');
-      // The removed controls' names, in English and in French.
-      const gone = ['Replay step', 'Stop animation', 'Fit stage', 'Rejouer l’étape', 'Arrêter l’animation', 'Adapter à la page'];
-      await page.goto(`${embed}/catalog/${id}.html`);
-      await page.waitForSelector('[data-ready=true]');
-      const seen = await page.evaluate((names) => {
-        const count = (name: string) => document.querySelectorAll(`button[aria-label="${name}"]`).length;
-        return Object.fromEntries(names.map((n) => [n, count(n)]));
-      }, [...gone, t.wholePicture, t.nextLabel, t.previous]);
-      assert.deepEqual(seen, { ...Object.fromEntries(gone.map((n) => [n, 0])), [t.wholePicture]: 1, [t.nextLabel]: 1, [t.previous]: 1 }, id);
-      // specs/player-tile.md T1: the title and the cases are the card's header, the stage is mounted under it.
-      const tile = await page.evaluate(() => {
-        const h1s = document.querySelectorAll('h1'),
-          player = document.querySelector('.player')!,
-          head = document.querySelector('.head')!;
-        return {
-          h1s: h1s.length,
-          inCard: h1s[0]?.closest('.player') === player,
-          inHead: h1s[0]?.parentElement === head,
-          headFirst: player.firstElementChild === head,
-          frameNext: head.nextElementSibling?.className,
-          cases: document.querySelectorAll('.case input').length === document.querySelectorAll('.player .head .case input').length,
-        };
-      });
-      assert.deepEqual(tile, { h1s: 1, inCard: true, inHead: true, headFirst: true, frameNext: 'frame', cases: true }, id);
-      // specs/player-tile.md T3: the maker's mark, in the footer, never on the stage; standalone, no way out.
-      const foot = await page.evaluate(() => ({
-        marks: [...document.querySelectorAll<HTMLAnchorElement>('a.mark')].map((a) => [a.parentElement!.matches('.player > footer.foot'), a.textContent, a.href, a.getAttribute('aria-label'), a.target, a.rel]),
-        last: [...document.querySelector('.player')!.children].filter((e) => !e.matches('[hidden], .ruler, .lede-ruler, .changes-ruler')).at(-1)?.className,
-        open: document.querySelectorAll('.foot a.open').length,
-        onStage: document.querySelectorAll('.stage a, .stage .foot, .frame a').length,
-        // specs/player-guidance.md G3: one quiet line on how to move, straight after the mark.
-        hint: [...document.querySelectorAll<HTMLElement>('.foot .hint')].map((h) => [h.textContent, h.previousElementSibling?.classList.contains('mark'), h.checkVisibility()]),
-      }));
-      // A stage under 600 px wide (a tall header in the reader's fonts can make one) on a step with
-      // more than one view says how Next view differs from Next instead of the keys.
-      const touring = await page.locator('.view-controls').evaluate((v) => !(v as HTMLElement).hidden && (v as HTMLElement).style.visibility !== 'hidden');
-      assert.deepEqual(foot, { marks: [[true, 'Rayner', PRODUCT.home, t.madeWith, '_blank', 'noopener']], last: 'foot', open: 0, onStage: 0, hint: [[touring ? t.viewHelp : t.hintKeys, true, true]] }, id);
-      if (project.Scene.settings?.length) assert.ok(await page.locator('.player .case input').count() > 0, `${id}: the case picker is in the card`);
-    }
-    assert.ok(languages.size === 2, `both languages visited: ${[...languages]}`);
-  } finally {
-    await context.close();
-  }
-});
 // specs/player-tile.md T12, the crop test: cut the tile out of any context and it still says what it
 // is, what it is about, who made it and where to go, and nothing of the page lies outside it. DOM only.
 interface CropExpectation {
   player: string;
   next: string;
+  previous: string;
+  whole: string;
+  controls: string;
+  nextText: string;
+  hintKeys: string;
+  viewHelp: string;
   title: string;
   kicker: string;
+  heading: {title:string;line:string};
   segments: number;
   cases: number;
   madeWith: string;
@@ -332,15 +245,32 @@ function cropTest(e: CropExpectation) {
   const say = (what: string, got: unknown, want: unknown) => {
     if (JSON.stringify(got) !== JSON.stringify(want)) problems.push(`${what}: ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
   };
+  // Keeper for the former standalone chrome/stepper tests, including hidden duplicate controls.
+  const gone=['Replay step','Stop animation','Fit stage','Rejouer l’étape','Arrêter l’animation','Adapter à la page'];
+  say('global controls', [...gone,e.whole,e.next,e.previous].map(name=>document.querySelectorAll(`button[aria-label="${name}"]`).length), [...gone.map(()=>0),1,1,1]);
+  say('global h1 and mark counts',[document.querySelectorAll('h1').length,document.querySelectorAll('a.mark').length],[1,1]);
+  const player=tile.querySelector('.player')!,head=tile.querySelector('.head')!;
+  say('header location',[player.firstElementChild===head,head.nextElementSibling?.className,head.querySelector('h1')?.parentElement===head],[true,'frame',true]);
+  say('case input locations',document.querySelectorAll('.case input').length,document.querySelectorAll('.player .head .case input').length);
+  if(e.cases) say('nonempty case picker',all('.player .case input').length>0,true);
+  say('stepper order',[...player.children].filter(n=>n.matches('.frame,.stepper,.words')).map(n=>n.className),['frame','stepper','words']);
+  say('mounted stage',!!tile.querySelector('.player > .frame > .stage'),true);
+  say('stepper group',[tile.querySelector('.stepper')?.getAttribute('role'),tile.querySelector('.stepper')?.getAttribute('aria-label')],['group',e.controls]);
+  say('first controls',[...tile.querySelectorAll('.stepper > button')].slice(0,2).map(b=>b.getAttribute('aria-label')),[e.previous,e.next]);
+  say('Next text',tile.querySelector('.stepper .primary')?.textContent,e.nextText);
+  say('footer is last',[...player.children].filter(n=>!n.matches('[hidden],.ruler,.lede-ruler,.changes-ruler')).at(-1)?.className,'foot');
+  say('nothing over stage',tile.querySelectorAll('.stage a,.stage .foot,.frame a').length,0);
+  const toolbar=tile.querySelector<HTMLElement>('.view-controls')!,touring=!toolbar.hidden&&toolbar.style.visibility!=='hidden';
+  say('footer hint',all('.foot .hint').map(h=>[h.textContent,h.previousElementSibling?.classList.contains('mark'),h.checkVisibility()]),[[touring?e.viewHelp:e.hintKeys,true,true]]);
   // 1. What it is.
   say('section.player and its name', all('section.player').map((p) => p.getAttribute('aria-label')), [e.player]);
   say('.stepper holding Next and the step bar', all('.stepper').map((s) => [s.querySelectorAll(`button[aria-label="${e.next}"]`).length, s.querySelectorAll('ol.step-bar > li > button').length]), [[1, e.segments]]);
   // 2. What it is about.
-  say('h1', all('h1').map((h) => h.textContent), [e.title]);
-  say('.lede .kicker', all('.lede .kicker').map((k) => k.textContent), [e.kicker]);
+  say('h1', all('h1').map((h) => [h.textContent,h.closest('.player')===player]), [[e.title,true]]);
+  say('.lede', all('.lede').map(p=>[(p as HTMLElement).offsetParent!==null,p.querySelector('.kicker')?.textContent,p.querySelector('strong')?.textContent,(p.querySelector('.line') as HTMLElement)?.hidden?null:p.querySelector('.line')?.textContent,p.closest('[aria-live]')!==null]), [[true,e.kicker,e.heading.title,e.heading.line||null,false]]);
   say('.case fieldsets', all('fieldset.case').length, e.cases);
   // 3. Who made it.
-  say('.foot a.mark', all('.foot a.mark').map((a) => [a.textContent, (a as HTMLAnchorElement).href, a.getAttribute('aria-label')]), [['Rayner', e.home, e.madeWith]]);
+  say('.foot a.mark', all('.foot a.mark').map((a) => [a.parentElement?.matches('.player > footer.foot'),a.textContent,(a as HTMLAnchorElement).href,a.getAttribute('aria-label'),(a as HTMLAnchorElement).target,(a as HTMLAnchorElement).rel]), [[true,'Rayner',e.home,e.madeWith,'_blank','noopener']]);
   // 4. Where to go.
   say('transcript and steps disclosures in the tile', [document.querySelectorAll('details.transcript').length, all('details.transcript').length, document.querySelectorAll('.rail').length, all('.rail').length], [1, 1, 1, 1]);
   const open = all('.foot a.open') as HTMLAnchorElement[];
@@ -385,29 +315,47 @@ function cropTest(e: CropExpectation) {
 }
 test('the tile stands alone: on every catalog page, standalone, in a raw iframe and in the loader, the tile says what it is, what it is about, who made it and where to go, and nothing lies outside it', options, async () => {
   const { PRODUCT } = await import('../scenes/explainers/catalog.ts');
-  const context = await browser.newContext({ viewport: { width: 900, height: 800 }, reducedMotion: 'reduce' });
-  let pages = 0;
-  try {
+  let pages = 0, cases = 0;
+  await readerContext({ viewport: { width: 900, height: 800 }, reducedMotion: 'reduce' }, async context => {
     const page = await context.newPage();
-    for (const [id, project] of await catalog()) {
+    const rows=[...[...await catalog()].map(([id,project])=>({id,project,src:`${embed}/catalog/${id}.html`,catalog:true})),...[...projects].map(([id,project])=>({id,project,src:`${embed}/${id}.html`,catalog:false}))];
+    const languages=new Set<string>();
+    for (const {id,project,src,catalog:published} of rows) {
       const t = chromeFor(project.Scene.meta?.lang),
         values = resolveSettings(project.Scene),
         first = project.variants.find((v) => sameCase(project, v.values, values))!.trace.steps;
       const expect: CropExpectation = {
         player: t.player,
         next: t.nextLabel,
+        previous:t.previous, whole:t.wholePicture, controls:t.controls, nextText:t.next, hintKeys:t.hintKeys, viewHelp:t.viewHelp,
         title: project.Scene.meta?.title ?? id,
-        kicker: t.stepOf(1, first.length),
+        kicker: !published&&id==='mr-cache'?'Step 1 of 4':!published&&id==='quotient-familial'?'Étape 1 sur 10':t.stepOf(1, first.length),
+        heading:stepWords(first[0]!),
         segments: first.length,
         cases: project.Scene.settings?.length ?? 0,
         madeWith: t.madeWith,
         home: PRODUCT.home,
         open: null,
       };
-      const src = `${embed}/catalog/${id}.html`;
-      await page.goto(src);
-      await page.waitForSelector('#content[data-ready=true]');
-      assert.deepEqual(await page.evaluate(cropTest, expect), [], `${id}, standalone`);
+      languages.add(project.Scene.meta?.lang??'en');
+      if(!published&&['mr-cache','quotient-familial'].includes(id))assert.equal(first.length,id==='mr-cache'?4:10,'the heading retains its authored total');
+      const viewports=published?[{width:900,height:800},{width:1280,height:800}]:[{width:1280,height:800},...(['mr-cache','quotient-familial'].includes(id)?[{width:390,height:844}]:[]),...(id==='quotient-familial'?[{width:1440,height:900}]:[])];
+      for(const viewport of viewports) {
+        await page.setViewportSize(viewport);
+        await page.goto(src);
+        await page.waitForSelector('#content[data-ready=true]');
+        assert.deepEqual(await page.evaluate(cropTest,expect),[],`${id}, standalone at ${viewport.width}`);
+        if(!published&&id==='quotient-familial'&&viewport.width>=1280){const v=await boxesOf(page,{next:'.stepper .primary',lede:'.lede'});assert.ok(insideViewport(v.boxes.next,v)&&insideViewport(v.boxes.lede,v),`${id} at ${viewport.width}: ${JSON.stringify(v.boxes)}`);}
+      }
+      if(!published)continue;
+      await page.setViewportSize({width:1280,height:800});
+      for(const variant of project.variants){
+        const query=new URLSearchParams(variant.values);
+        await page.goto(`${src}?${query}`);await page.waitForSelector('[data-ready=true]');
+        const seen=await page.locator('.step-bar button').evaluateAll(bs=>bs.map(b=>b.getAttribute('data-step')));
+        assert.deepEqual(seen,variant.trace.steps.map(s=>s.step),`${id} ?${query}`);cases++;
+      }
+      await page.setViewportSize({width:900,height:800});
       const framed = { ...expect, open: { path: src, query: { ...values, step: first[0]!.step } } };
       for (const [how, body] of [
         ['a raw iframe', `<!doctype html><style>body{margin:0}</style><iframe title="t" src="${src}" style="width:900px;height:800px;border:0"></iframe>`],
@@ -422,53 +370,10 @@ test('the tile stands alone: on every catalog page, standalone, in a raw iframe 
       }
       pages++;
     }
-  } finally {
-    await context.close();
-  }
+    assert.equal(languages.size,2,`both languages visited: ${[...languages]}`);
+  });
   assert.equal(pages, (await catalog()).size);
-});
-test('every case of every catalog explainer has one step bar segment per step', options, async () => {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    const page = await context.newPage();
-    let cases = 0;
-    for (const [id, project] of await catalog())
-      for (const v of project.variants) {
-        const q = new URLSearchParams(v.values as Record<string, string>);
-        await page.goto(`${embed}/catalog/${id}.html?${q}`);
-        await page.waitForSelector('[data-ready=true]');
-        const seen = await page.locator('.step-bar button').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-step')));
-        assert.deepEqual(seen, v.trace.steps.map((s) => s.step), `${id} ?${q}`);
-        cases++;
-      }
-    assert.ok(cases >= 100, `every case visited (${cases})`);
-  } finally {
-    await context.close();
-  }
-});
-test('the step heading shows on every width with the total', options, async () => {
-  for (const [name, total, kicker] of [['mr-cache', 4, 'Step 1 of 4'], ['quotient-familial', 10, 'Étape 1 sur 10']] as const) {
-    const project = projects.get(name)!,
-      first = stepWords(project.variants.find((v) => sameCase(project, v.values, resolveSettings(project.Scene)))!.trace.steps[0]!);
-    for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
-      const page = await browser.newPage({ viewport, reducedMotion: 'reduce' });
-      try {
-        await page.goto(`${embed}/${name}.html`);
-        await page.waitForSelector('[data-ready=true]');
-        const lede = await page.locator('.lede').evaluate((p) => ({
-          visible: (p as HTMLElement).offsetParent !== null,
-          kicker: p.querySelector('.kicker')?.textContent,
-          title: p.querySelector('strong')?.textContent,
-          line: (p.querySelector('.line') as HTMLElement | null)?.hidden ? null : p.querySelector('.line')?.textContent,
-          // The caption announces the step; the heading is not a second live region.
-          live: p.closest('[aria-live]') !== null,
-        }));
-        const where = `${name} at ${viewport.width}`;
-        assert.deepEqual(lede, { visible: true, kicker, title: first.title, line: first.line || null, live: false }, where);
-        assert.match(lede.kicker!, new RegExp(` ${total}$`), `${where}: the kicker names the total`);
-      } finally { await page.close(); }
-    }
-  }
+  assert.ok(cases>=100,`every case visited (${cases})`);
 });
 // specs/player-guidance.md G1: under the caption, what the step changed of the state the author watches.
 const changesOf = (page: Page) =>
@@ -482,11 +387,7 @@ const changesOf = (page: Page) =>
       height: row.getBoundingClientRect().height,
     };
   });
-test('what changed: token-bucket\'s burst step lists its three watched changes under the caption; a scene without watch has no row', options, async () => {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/token-bucket.html?step=burst`);
-    await page.waitForSelector('[data-ready=true]');
+readerTest('what changed: token-bucket\'s burst step lists its three watched changes under the caption; a scene without watch has no row', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/token-bucket.html?step=burst`, async page => {
     const burst = await changesOf(page);
     assert.deepEqual({ ...burst, height: undefined }, {
       hidden: false,
@@ -515,10 +416,7 @@ test('what changed: token-bucket\'s burst step lists its three watched changes u
       assert.equal(await page.locator('.changes').count(), 0, `${scene}: no changes row`);
       assert.doesNotMatch((await page.locator('.transcript').textContent())!, /What changed/, `${scene}: no line in the transcript`);
     }
-  } finally {
-    await page.close();
-  }
-});
+    });
 // specs/player-guidance.md G3: the controls teach their keys, and the footer how to move.
 test('every keyed control names its key in its tooltip and aria-keyshortcuts, in English and French; names are unchanged', options, async () => {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
@@ -647,49 +545,8 @@ const endOf = (page: Page) =>
       request: new URL(location.href).searchParams.get('request'),
     };
   });
-test('the last step: Next becomes Start again, back to step 1; Try ‘Cache miss’ loads the miss case at step 1; leaving the end restores Next', options, async () => {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html?step=after`);
-    await page.waitForSelector('[data-ready=true]');
-    assert.deepEqual(await endOf(page), { name: 'Next step', text: 'Next', disabled: false, tryCase: [], step: 'after', request: 'hit' });
-    await page.getByRole('button', { name: 'Next step', exact: true }).click();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('step') === 'request');
-    assert.deepEqual(await endOf(page), {
-      name: 'Start again from step 1', text: 'Start again', disabled: false,
-      tryCase: [['Try ‘Cache miss’', true]], step: 'request', request: 'hit',
-    });
-    // ArrowRight at the end does nothing: no wrap.
-    await page.locator('#content').focus();
-    await page.keyboard.press('ArrowRight');
-    await page.waitForTimeout(200);
-    assert.equal((await endOf(page)).step, 'request');
-    // Start again goes to step 1 and pushes history, as a step click does.
-    const length = await page.evaluate(() => history.length);
-    await page.getByRole('button', { name: 'Start again from step 1', exact: true }).click();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('step') === 'before');
-    assert.deepEqual(await endOf(page), { name: 'Next step', text: 'Next', disabled: false, tryCase: [], step: 'before', request: 'hit' });
-    assert.equal(await page.evaluate(() => history.length), length + 1);
-    // Try: the next option of the first setting, at its first step; then it offers the one after, wrapping.
-    await page.goto(`${embed}/mr-cache.html?step=request`);
-    await page.waitForSelector('[data-ready=true]');
-    await page.getByRole('button', { name: 'Try ‘Cache miss’', exact: true }).click();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('request') === 'miss');
-    await page.waitForFunction(() => !document.getElementById('content')!.classList.contains('loading'));
-    assert.deepEqual(await endOf(page), { name: 'Next step', text: 'Next', disabled: false, tryCase: [], step: 'before', request: 'miss' });
-    assert.equal(await page.locator('input[name=request]:checked').getAttribute('value'), 'miss');
-    // Focus stays on Next when the Try button goes.
-    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('primary')), true);
-    await page.locator('.steps button[data-step=request]').click();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('step') === 'request');
-    assert.deepEqual((await endOf(page)).tryCase, [['Try ‘Cache hit’', true]]);
-    // Leaving the end, by Previous, restores Next and removes Try.
-    await page.getByRole('button', { name: 'Previous step', exact: true }).click();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('step') === 'after');
-    assert.deepEqual(await endOf(page), { name: 'Next step', text: 'Next', disabled: false, tryCase: [], step: 'after', request: 'miss' });
+readerTest('one-case and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/lantern.html`, async page => {
     // A scene with one case (lantern; exgit has two): Start again, and no case button at all.
-    await page.goto(`${embed}/lantern.html`);
-    await page.waitForSelector('[data-ready=true]');
     await page.locator('.step-bar button').last().click();
     await page.waitForFunction(() => document.querySelector('.stepper .primary')?.getAttribute('aria-label') === 'Start again from step 1');
     assert.equal(await page.locator('.stepper > .button:not(.icon):not(.primary)').count(), 0);
@@ -698,10 +555,7 @@ test('the last step: Next becomes Start again, back to step 1; Try ‘Cache miss
     await page.waitForSelector('[data-ready=true]');
     const fr = await endOf(page);
     assert.deepEqual([fr.name, fr.text, fr.tryCase], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]]]);
-  } finally {
-    await page.close();
-  }
-});
+    });
 test('the last step while it plays: Next still reads Next and rests the step; the face changes only at rest', options, async () => {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' });
   try {
@@ -740,73 +594,8 @@ const stepBarOf = (page: Page) =>
       progress: getComputedStyle(b).getPropertyValue('--progress').trim(),
     })),
   );
-test('the step bar has one segment per step of the current case and rebuilds on a case change', options, async () => {
-  for (const [name, setting, from, to] of [['mr-cache', 'request', 'hit', 'miss'], ['oauth-pkce', 'attacker', 'no', 'yes']] as const) {
-    const p = projects.get(name)!;
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/${name}.html?${setting}=${from}`);
-      await page.waitForSelector('[data-ready=true]');
-      const expected = (value: string) => {
-        const list = stepsOf(p, resolveSettings(p.Scene, { [setting]: value }));
-        return list.map((s, i) => ({ step: s.step, label: `Step ${i + 1} of ${list.length}: ${s.title}`, title: s.title }));
-      };
-      const seen = async () => (await stepBarOf(page)).map(({ step, label, title }) => ({ step, label, title }));
-      assert.deepEqual(await seen(), expected(from), `${name} ${setting}=${from}`);
-      assert.equal(await page.locator('.step-bar').getAttribute('aria-label'), 'Step progress');
-      await page.locator(`input[name="${setting}"][value="${to}"]`).locator('xpath=..').click();
-      await page.waitForURL(new RegExp(`${setting}=${to}`));
-      await page.waitForFunction((n) => document.querySelectorAll('.step-bar button').length === n, expected(to).length);
-      assert.deepEqual(await seen(), expected(to), `${name} ${setting}=${to}`);
-    } finally { await page.close(); }
-  }
-  // oauth-pkce's attacker adds a step: the two counts differ, so the bar was rebuilt, not kept.
-  const pkce = projects.get('oauth-pkce')!;
-  assert.notEqual(stepsOf(pkce, resolveSettings(pkce.Scene, { attacker: 'no' })).length, stepsOf(pkce, resolveSettings(pkce.Scene, { attacker: 'yes' })).length);
-});
-
-test('a segment jumps to its step', options, async () => {
-  const p = projects.get('mr-cache')!,
-    list = stepsOf(p, resolveSettings(p.Scene, { request: 'hit' }));
-  assert.equal(new Set(list.map((s) => s.caption)).size, list.length, 'mr-cache has distinct captions');
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html?request=hit`);
-    await page.waitForSelector('[data-ready=true]');
-    for (const i of [3, 0, 2, 1]) {
-      await page.locator('.step-bar button').nth(i).click();
-      await page.waitForFunction((step) => document.querySelector('[aria-current=step]')?.getAttribute('data-step') === step, list[i]!.step);
-      assert.equal(await page.locator('.caption').innerText(), list[i]!.caption, `segment ${i + 1}`);
-      assert.equal(await page.locator('.steps [aria-current=step]').getAttribute('data-step'), list[i]!.step, 'the rail agrees');
-      assert.equal(new URL(page.url()).searchParams.get('step'), list[i]!.step);
-    }
-  } finally { await page.close(); }
-});
-
-test('segment states follow the selected step', options, async () => {
-  const p = projects.get('mr-cache')!,
-    list = stepsOf(p, resolveSettings(p.Scene, { request: 'hit' }));
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    const { page } = await counted(context, `${embed}/mr-cache.html?request=hit`);
-    for (const k of [0, 2, 3, 1]) {
-      const n = await page.evaluate(() => (window as unknown as { __settles: number }).__settles);
-      if (k > 0) await page.locator('.steps button').nth(k).click();
-      if (k > 0) await page.waitForFunction((n) => (window as unknown as { __settles: number }).__settles > n, n);
-      const bar = await stepBarOf(page);
-      assert.deepEqual(
-        bar.map(({ step, state, current, tab }) => ({ step, state, current, tab })),
-        list.map((s, i) => ({ step: s.step, state: i < k ? 'done' : i === k ? 'current' : 'todo', current: i === k, tab: i === k ? 0 : -1 })),
-        `at step ${k + 1}`,
-      );
-      assert.equal(bar[k]!.progress, '1', 'the current segment is full at rest');
-    }
-  } finally { await context.close(); }
-});
-
 test('the current segment fills while a step plays and is full when it rests', options, async () => {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' });
-  try {
+  await readerContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, async context => {
     await context.addInitScript(() => {
       const w = window as unknown as { __fills: Array<string | 'settled'> };
       w.__fills = [];
@@ -833,14 +622,10 @@ test('the current segment fills while a step plays and is full when it rests', o
     assert.ok(playing.every((v, i) => i === 0 || v >= playing[i - 1]!), `the fill only grows while the step plays: ${JSON.stringify(playing)}`);
     assert.equal((await stepBarOf(page))[1]!.progress, '1', 'full once the step rests');
     assert.deepEqual(errors, []);
-  } finally { await context.close(); }
+  });
 });
 
-test('reduced motion fills the segment at once', options, async () => {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html?step=before&request=hit`);
-    await page.waitForSelector('[data-ready=true]');
+readerTest('reduced motion fills the segment at once', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/mr-cache.html?step=before&request=hit`, async page => {
     // Read in the same task as the press: nothing has had a frame to animate.
     const now = await page.evaluate(() => {
       document.querySelector<HTMLButtonElement>('button[aria-label="Next step"]')!.click();
@@ -848,16 +633,12 @@ test('reduced motion fills the segment at once', options, async () => {
       return { step: current.dataset.step, progress: getComputedStyle(current).getPropertyValue('--progress').trim(), transition: getComputedStyle(current.querySelector('.fill')!).transitionDuration };
     });
     assert.deepEqual(now, { step: 'diff', progress: '1', transition: '0s' });
-  } finally { await page.close(); }
-});
+    });
 
 test('arrow keys inside the step bar move the step and the focus', options, async () => {
   const p = projects.get('mr-cache')!,
     list = stepsOf(p, resolveSettings(p.Scene, { request: 'hit' }));
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html?step=before&request=hit`);
-    await page.waitForSelector('[data-ready=true]');
+  await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?step=before&request=hit`, async page => {
     const focused = () =>
       page.evaluate(() => {
         const a = document.activeElement as HTMLElement | null;
@@ -871,7 +652,7 @@ test('arrow keys inside the step bar move the step and the focus', options, asyn
     }
     // One Tab stop in the bar: the current segment.
     assert.equal(await page.locator('.step-bar button[tabindex="0"]').count(), 1);
-  } finally { await page.close(); }
+    });
 });
 
 test('pressing the current segment while a step plays rests the picture', options, async () => {
@@ -879,8 +660,7 @@ test('pressing the current segment while a step plays rests the picture', option
     step = p.variants.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
     motion = (step.hold ?? step.t1!) - step.t0;
   assert.equal(step.step, 'diff');
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' });
-  try {
+  await readerContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, async context => {
     const { page, errors } = await counted(context, `${embed}/mr-cache.html?step=before&request=hit`);
     await quiet(page);
     await page.getByRole('button', { name: 'Next step', exact: true }).click();
@@ -925,20 +705,17 @@ test('pressing the current segment while a step plays rests the picture', option
     const link = await counted(context, `${embed}/mr-cache.html?step=diff&request=hit`);
     assert.equal(await stagePicture(page), await stagePicture(link.page), 'the rested picture is the link\'s picture');
     assert.deepEqual([...errors, ...link.errors], []);
-  } finally { await context.close(); }
+  });
 });
 
 test('no horizontal overflow', options, async () => {
   for (const width of [320, 390, 768, 1280])
     for (const name of ['mr-cache', 'quotient-familial']) {
-      const page = await browser.newPage({ viewport: { width, height: 844 }, reducedMotion: 'reduce' });
-      try {
-        await page.goto(`${embed}/${name}.html`);
-        await page.waitForSelector('[data-ready=true]');
+      await readerPage({ viewport: { width, height: 844 }, reducedMotion: 'reduce' }, `${embed}/${name}.html`, async page => {
         const seen = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: innerWidth, segments: document.querySelectorAll('.step-bar button').length }));
         assert.ok(seen.scroll <= seen.width, `${name} at ${width}: ${JSON.stringify(seen)}`);
         if (name === 'quotient-familial') assert.equal(seen.segments, 10, 'the ten-step page');
-      } finally { await page.close(); }
+    });
     }
 });
 // specs/player-redesign.md R5, R6, R10: the rail beside the card, the tools beside Next, both following the page's direction.
@@ -964,10 +741,7 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       };
     });
   for (const [width, height] of [[1280, 800], [1440, 900]] as const) {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/mr-cache.html?request=hit`);
-      await page.waitForSelector('[data-ready=true]');
+    await readerPage({ viewport: { width, height }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?request=hit`, async page => {
       const seen = await rail(page);
       const where = `at ${width}×${height}`;
       assert.deepEqual([seen.tag, seen.rails, seen.heading, seen.holdsList], ['ASIDE', 1, 'Steps', true], where);
@@ -995,13 +769,10 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       await page.getByRole('button', { name: 'Next step', exact: true }).click();
       await page.waitForFunction((step) => document.querySelector('.steps [aria-current=step]')?.getAttribute('data-step') === step, list[3]!.step);
       assert.deepEqual(await place(), before, `${where}: Next kept the page and the card in place`);
-    } finally { await page.close(); }
+    });
   }
   for (const [width, height] of [[390, 844], [768, 1024]] as const) {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/mr-cache.html?request=hit`);
-      await page.waitForSelector('[data-ready=true]');
+    await readerPage({ viewport: { width, height }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?request=hit`, async page => {
       const seen = await rail(page);
       const where = `at ${width}×${height}`;
       assert.deepEqual([seen.tag, seen.rails, seen.summary, seen.open, seen.holdsList], ['DETAILS', 1, 'All 4 steps', false, true], where);
@@ -1012,13 +783,10 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       await page.locator('.steps button').nth(2).click();
       await page.waitForFunction((step) => document.querySelector('[aria-current=step]')?.getAttribute('data-step') === step, list[2]!.step);
       assert.equal(await page.locator('.caption').innerText(), list[2]!.caption, where);
-    } finally { await page.close(); }
+    });
   }
   // Across the width the rail moves between the two, keeping the one list.
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html?request=hit&step=${list[2]!.step}`);
-    await page.waitForSelector('[data-ready=true]');
+  await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?request=hit&step=${list[2]!.step}`, async page => {
     const list0 = await page.locator('.steps').elementHandle();
     await page.setViewportSize({ width: 600, height: 800 });
     await page.waitForFunction(() => document.querySelector('.rail')?.tagName === 'DETAILS');
@@ -1026,16 +794,13 @@ test('the rail is a pane beside the card when wide and a closed details row insi
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.waitForFunction(() => document.querySelector('.rail')?.tagName === 'ASIDE');
     assert.equal(await page.locator('.steps [aria-current=step]').getAttribute('data-step'), list[2]!.step);
-  } finally { await page.close(); }
+    });
 });
 
 // specs/player-tile.md T2: one tile holds everything the page shows.
 test('one tile: the border is on .layout.tile alone, the rail pane runs its height, and the steps and transcript rows are in the card', options, async () => {
   for (const [width, height] of [[1280, 800], [1440, 900], [390, 844], [768, 1024]] as const) {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/mr-cache.html?request=hit`);
-      await page.waitForSelector('[data-ready=true]');
+    await readerPage({ viewport: { width, height }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?request=hit`, async page => {
       const seen = await page.evaluate(() => {
         const tile = document.querySelector<HTMLElement>('.layout')!,
           player = document.querySelector<HTMLElement>('.player')!,
@@ -1066,16 +831,13 @@ test('one tile: the border is on .layout.tile alone, the rail pane runs its heig
         assert.equal(seen.railHeight, null, where);
         assert.deepEqual(seen.rows, ['words', 'rail', 'transcript'], `${where}: the steps row, then the transcript row, under the words`);
       }
-    } finally { await page.close(); }
+    });
   }
 });
 
 test('view tools share Next\'s row when wide and wrap below it when narrow', options, async () => {
   for (const [width, height] of [[1280, 800], [390, 844]] as const) {
-    const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/mr-cache.html?step=after&request=hit`);
-      await page.waitForSelector('[data-ready=true]');
+    await readerPage({ viewport: { width, height }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?step=after&request=hit`, async page => {
       const v = await boxesOf(page, { next: 'button[aria-label="Next step"]', tools: '.stepper .tools' });
       const { next, tools } = v.boxes, where = `at ${width}×${height}`;
       assert.equal(await page.locator('.stepper .tools').getAttribute('role'), 'group');
@@ -1091,17 +853,14 @@ test('view tools share Next\'s row when wide and wrap below it when narrow', opt
         );
         assert.deepEqual(small, [], where);
       }
-    } finally { await page.close(); }
+    });
   }
 });
 
 test('right to left: the step bar fills from the right, the rail sits on the left, and the footer\'s mark is on the right with the way out on the left', options, async () => {
   // No catalog page sets dir="rtl" (a right-to-left lettered page keeps its controls as they are),
   // so this sets it on mr-cache to check the logical properties the stepper row and rail use.
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html?request=hit&step=diff`);
-    await page.waitForSelector('[data-ready=true]');
+  await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, `${embed}/mr-cache.html?request=hit&step=diff`, async page => {
     const seen = await page.evaluate(() => {
       document.documentElement.setAttribute('dir', 'rtl');
       const b = document.querySelector<HTMLElement>('.step-bar [aria-current=step]')!;
@@ -1117,7 +876,7 @@ test('right to left: the step bar fills from the right, the rail sits on the lef
     assert.ok(Math.abs(seen.fill[1]! - seen.box[1]!) <= 1 && seen.fill[0]! > seen.box[0]! + 1, `the fill grows from the right: ${JSON.stringify(seen)}`);
     assert.ok(seen.rail <= seen.card, `the rail is on the card's left: ${JSON.stringify(seen)}`);
     assert.ok(seen.prev > seen.next, `Previous is right of Next: ${JSON.stringify(seen)}`);
-  } finally { await page.close(); }
+    });
   // specs/player-tile.md T9: in a frame, the footer's mark is at the inline start (the right) and the way out at the end (the left).
   hostBody = `<!doctype html><style>body{margin:0}</style><iframe title="t" src="${embed}/mr-cache.html?request=hit" style="width:1280px;height:800px;border:0"></iframe>`;
   const host2 = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
@@ -1363,8 +1122,7 @@ async function pixelAt(page: Page, x: number, y: number): Promise<number[]> {
 test('framed, the page draws only the tile: a transparent body, no padding, and the host\'s background at the tile\'s corner in light and dark device schemes', options, async () => {
   for (const colorScheme of ['light', 'dark'] as const) {
     hostBody = `<!doctype html><style>body{margin:0;padding:20px;background:rgb(251,248,243)}</style>${loader('a', 'mr-cache')}`;
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme, reducedMotion: 'reduce' });
-    try {
+    await readerContext({ viewport: { width: 1280, height: 800 }, colorScheme, reducedMotion: 'reduce' }, async context => {
       const page = await context.newPage();
       await page.goto(host);
       const frame = await readyFrame(page, 'mr-cache');
@@ -1381,19 +1139,16 @@ test('framed, the page draws only the tile: a transparent body, no padding, and 
       assert.deepEqual(await pixelAt(page, box.x + 2, box.y + 2), [251, 248, 243], `${colorScheme} device: the host's background at the tile's corner`);
       // And inside the corner's curve, the tile's own surface.
       assert.notDeepEqual(await pixelAt(page, box.x + 16, box.y + 16), [251, 248, 243], colorScheme);
-    } finally { await context.close(); }
+  });
   }
   // Standalone, as before: the page's background and padding.
-  const page = await browser.newPage({ reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/mr-cache.html`);
-    await page.waitForSelector('[data-ready=true]');
+  await readerPage({ reducedMotion: 'reduce' }, `${embed}/mr-cache.html`, async page => {
     assert.deepEqual(await page.evaluate(() => ({
       framed: document.documentElement.hasAttribute('data-framed'),
       body: getComputedStyle(document.body).backgroundColor,
       padding: getComputedStyle(document.getElementById('content')!).padding,
     })), { framed: false, body: 'rgb(247, 247, 247)', padding: '24px 16px 48px' });
-  } finally { await page.close(); }
+    });
 });
 test('the loader passes theme=light or theme=dark from the host page\'s computed colour scheme when the theme is auto, and the given theme otherwise', options, async () => {
   const cases = [
@@ -1408,13 +1163,12 @@ test('the loader passes theme=light or theme=dark from the host page\'s computed
   ] as const;
   for (const c of cases) {
     hostBody = `<!doctype html>${c.host ? `<style>:root{color-scheme:${c.host}}</style>` : ''}<div id="a"></div><script src="${embed}/loader.js" data-src="${embed}/mr-cache.html" data-target="a" data-title="t"${c.theme ? ` data-theme="${c.theme}"` : ''}></script>`;
-    const context = await browser.newContext({ colorScheme: c.scheme });
-    try {
+    await readerContext({ colorScheme: c.scheme }, async context => {
       const page = await context.newPage();
       await page.goto(host);
       const src = new URL(await page.locator('#a iframe').getAttribute('src') ?? '');
       assert.equal(src.searchParams.get('theme'), c.want, JSON.stringify(c));
-    } finally { await context.close(); }
+  });
   }
 });
 // specs/player-tile.md T5: no catalog explainer changes style between cases, so this scene does.
@@ -1433,10 +1187,7 @@ test('the neutral tile stays independent of the case palette, including before i
     player: getComputedStyle(document.querySelector('.player')!).getPropertyValue('--paper').trim(),
     tile: getComputedStyle(document.querySelector('.tile')!).backgroundColor,
   }));
-  const page = await browser.newPage({ reducedMotion: 'reduce' });
-  try {
-    await page.goto(`${embed}/two-papers.html`);
-    await page.waitForSelector('[data-ready=true]');
+  await readerPage({ reducedMotion: 'reduce' }, `${embed}/two-papers.html`, async page => {
     const first = await paper(page);
     assert.equal(first.player, '');
     assert.ok(['rgb(255, 255, 255)', 'color(srgb 1 1 1)'].includes(first.tile), first.tile);
@@ -1449,16 +1200,15 @@ test('the neutral tile stays independent of the case palette, including before i
     await page.goto(`${embed}/mr-cache.html`);
     await page.waitForSelector('[data-ready=true]');
     assert.deepEqual(await paper(page), first);
-  } finally { await page.close(); }
+    });
   // Without the script, the shell also uses neutral chrome.
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  try {
+  await readerContext({ javaScriptEnabled: false }, async context => {
     const shell = await context.newPage();
     for (const [id, want] of [['two-papers', ''], ['exgit', '']] as const) {
       await shell.goto(`${embed}/${id}.html`);
       assert.equal((await paper(shell)).player, want, id);
     }
-  } finally { await context.close(); }
+  });
 });
 // specs/player-tile.md T6: the published height at 640 px is the height the loader gives the frame there.
 test('known heights: mr-cache measures three heights above the floor, and the loader at 640 px settles the frame at heights["640"] within 2 px', options, async () => {
@@ -1479,9 +1229,9 @@ test('known heights: mr-cache measures three heights above the floor, and the lo
 // The rest of URL cases, step fallback, history, copy link and reduced motion is the player
 // model's (below), including the fixed fallback scenario.
 test('?theme=dark, light and auto (following the reader\'s colour scheme) set the page colours', options, async () => {
-  const context = await browser.newContext({ colorScheme: 'dark' });
+  await readerContext({ colorScheme: 'dark' }, async context => {
   const page = await context.newPage();
-  try {
+
     const background = async (theme: string) => {
       await page.goto(`${embed}/oauth-pkce.html?theme=${theme}`);
       await page.waitForSelector('[data-ready=true]');
@@ -1493,9 +1243,7 @@ test('?theme=dark, light and auto (following the reader\'s colour scheme) set th
     assert.deepEqual(await background('dark'), { theme: 'dark', background: 'rgb(20, 20, 20)' });
     assert.deepEqual(await background('light'), { theme: 'light', background: 'rgb(247, 247, 247)' });
     assert.deepEqual(await background('auto'), { theme: 'auto', background: 'rgb(20, 20, 20)' });
-  } finally {
-    await context.close();
-  }
+  });
 });
 // site:export --origin gives each step of the default case a share page, <path>/<id>/<step>, and
 // marks the player; Copy link then gives that page, whose link preview is the step. Any other case,
@@ -1521,7 +1269,7 @@ test('Copy link gives the step\'s share page when site:export published one, els
   );
   await buildExplainer(await collectProject(odd, { write: false }), join(folder, 'odd-steps.html'));
   await publish('odd-steps', join(folder, 'odd-steps'), ['one']);
-  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], reducedMotion: 'reduce' });
+  await readerContext({ permissions: ['clipboard-read', 'clipboard-write'], reducedMotion: 'reduce' }, async context => {
   const page = await context.newPage();
   const copied = async () => {
     await page.evaluate(() => {
@@ -1536,7 +1284,7 @@ test('Copy link gives the step\'s share page when site:export published one, els
     await page.goto(url);
     await page.waitForSelector('[data-ready=true]');
   };
-  try {
+
     await open(`${embed}/site/mr-cache.html?step=diff`);
     assert.equal(await copied(), 'https://example.org/projects/rayner/mr-cache/diff');
     // The share page sends readers to the default case, so another case keeps the player URL.
@@ -1555,9 +1303,7 @@ test('Copy link gives the step\'s share page when site:export published one, els
     // Built without site:export: no share pages, so the player URL, as before.
     await open(`${embed}/mr-cache.html?step=diff`);
     assert.equal(await copied(), `${embed}/mr-cache.html?step=diff&request=hit`);
-  } finally {
-    await context.close();
-  }
+  });
 });
 test('the transcript does not move between steps', options, async () => {
   // Captions run from one line to four, titles from one line to two, and on a phone send-sync's
@@ -1758,11 +1504,11 @@ test(
   "reader zoom composes with the author's camera: Whole picture is the author frame, and a camera glide plays under a held zoom",
   options,
   async () => {
-    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'no-preference' });
+    await readerContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'no-preference' }, async context => {
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    try {
+
       await page.goto(embed + '/lantern.html?step=points');
       await page.waitForSelector('[data-ready=true]');
       await quiet(page);
@@ -1824,18 +1570,16 @@ test(
         await phone.close();
       }
       assert.deepEqual(errors, []);
-    } finally {
-      await context.close();
-    }
+  });
   },
 );
 test(
   'raw iframe and standalone artifact contain a useful poster and all-case transcript without JavaScript',
   options,
   async () => {
-    const context = await browser.newContext({ javaScriptEnabled: false });
+    await readerContext({ javaScriptEnabled: false }, async context => {
     const page = await context.newPage();
-    try {
+
       await page.goto(embed + '/mr-cache.html');
       assert.ok((await page.locator('.poster path').count()) > 10);
       assert.match(await page.locator('.transcript').innerText(), /Follow a request: Cache hit/);
@@ -1845,9 +1589,7 @@ test(
       const frame = page.frames().find((f) => f.url().startsWith(embed));
       assert.ok(frame);
       assert.ok((await frame.locator('.poster path').count()) > 10);
-    } finally {
-      await context.close();
-    }
+  });
   },
 );
 
@@ -1973,6 +1715,11 @@ function observe(ids: string[]) {
     current: [...document.querySelectorAll<HTMLElement>('.steps [aria-current=step]')].map((b) => b.dataset.step),
     list: [...document.querySelectorAll<HTMLElement>('.steps button')].map((b) => b.dataset.step),
     bar: [...document.querySelectorAll<HTMLElement>('.step-bar button')].map((b) => [b.dataset.step, b.dataset.state, b.getAttribute('aria-current')]),
+    barNames: [...document.querySelectorAll<HTMLButtonElement>('.step-bar button')].map(b => [b.getAttribute('aria-label'), b.title, b.tabIndex]),
+    barLabel: document.querySelector('.step-bar')!.getAttribute('aria-label'),
+    barProgress: getComputedStyle(document.querySelector('.step-bar [aria-current=step]')!).getPropertyValue('--progress').trim(),
+    tryAfterNext: [...document.querySelectorAll<HTMLButtonElement>('.stepper > .button:not(.icon):not(.primary)')].filter(b => !b.hidden).map(b => b.previousElementSibling === document.querySelector('.stepper .primary')),
+    primaryFocused: document.activeElement?.classList.contains('primary'),
     caption: document.querySelector('.caption')!.textContent,
     lede: [...document.querySelectorAll('.lede > *')].map((e) => ((e as HTMLElement).hidden ? null : e.textContent)),
     stageLabel: stage.getAttribute('aria-label'),
@@ -2109,6 +1856,9 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   });
   eq('step list', seen.list, list.map((s) => s.step));
   eq('step bar', seen.bar, list.map((s, j) => [s.step, j < i ? 'done' : j === i ? 'current' : 'todo', j === i ? 'step' : 'false']));
+  eq('step bar names and Tab stops', seen.barNames, list.map((s,j) => [`Step ${j+1} of ${list.length}: ${s.title}`,s.title,j===i?0:-1]));
+  eq('step bar label', seen.barLabel, 'Step progress');
+  eq('resting segment fill', seen.barProgress, '1');
   eq('aria-current', seen.current, [entry.step]);
   eq('caption', seen.caption, spec.caption);
   eq('stage label', seen.stageLabel, `${seen.title}: ${spec.title}${spec.line ? ` — ${spec.line}` : ''}`);
@@ -2127,6 +1877,8 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
     : { name: 'Next step', text: 'Next', disabled: false });
   const first = settingsOfProject(m.project)[0];
   eq('Try another case', seen.tryCase, first ? [last ? `Try ‘${nextOption(m).label}’` : null] : []);
+  eq('Try button placement', seen.tryAfterNext, first && last ? [true] : []);
+  if(what==='TryCase') eq('Try restores focus to Next',seen.primaryFocused,true);
   eq('notice', seen.notice, m.notice);
   eq('history length', seen.history, r.base + m.entries.length);
   eq('horizontal overflow', seen.overflow, false);
@@ -2392,6 +2144,7 @@ const Key = (key: string, onStage = false) =>
     const i = selected(m),
       stepping = !(onStage && m.k > 1);
     if (stepping && key === 'ArrowRight' && i < steps(m).length - 1) goTo(m, i + 1);
+    if (stepping && key === 'ArrowRight' && i === steps(m).length - 1) await r.page.waitForTimeout(200);
     // ArrowLeft mirrors Previous, which is disabled on the first step.
     if (stepping && key === 'ArrowLeft' && i > 0) goTo(m, i - 1);
     if (!onStage) return;
@@ -2580,6 +2333,28 @@ for (const [name, runs, maxCommands] of [['oauth-pkce', 10, 40]] as const)
     },
   );
 
+// Keeper for fixed step-bar jumps/states/case rebuilds and English end-control scenarios.
+// verify() owns caption, rail/URL agreement, labels, Tab stops, fill, controls and history after every command.
+test('reader model fixed scenarios: segments, case rebuilding, Start again and Try retain their exact behavior', options, async () => {
+  const mr=projects.get('mr-cache')!, list=stepsOf(mr,resolveSettings(mr.Scene,{request:'hit'}));
+  assert.equal(new Set(list.map(s=>s.caption)).size,list.length,'mr-cache has distinct captions');
+  const pkce=projects.get('oauth-pkce')!;
+  assert.notEqual(stepsOf(pkce,{attacker:'no'}).length,stepsOf(pkce,{attacker:'yes'}).length,'the attacker changes the segment count');
+  const scenarios = [
+    ...[{width:390,height:568},{width:1280,height:800}].map(viewport=>({name:'mr-cache',values:['hit'],viewport,commands:[Next]})),
+    {name:'mr-cache',values:['hit'],commands:[ClickSegment(3),ClickSegment(0),ClickSegment(2),ClickSegment(1)]},
+    {name:'mr-cache',values:['hit'],commands:[ClickStep(2),ClickStep(3),ClickStep(1)]},
+    {name:'mr-cache',values:['hit'],step:'after',commands:[Next,Key('ArrowRight'),StartAgain]},
+    {name:'mr-cache',values:['hit'],step:'request',commands:[TryCase,ClickStep(3),Previous]},
+    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseCase(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
+  ];
+  for(const scenario of scenarios) {
+    const {context,model,real}=await openPlayer(scenario.name,{...scenario,viewport:'viewport' in scenario?scenario.viewport:{width:1280,height:800}});
+    try {await fc.asyncModelRun(()=>({model,real}),scenario.commands);}
+    finally {await context.close();}
+  }
+});
+
 test('phone tour metadata follows resizing while the current zoom and step stay put', options, async () => {
   for (const height of [400,1200]) for (const width of [200, 390, 632]) {
     const {context, model, real} = await openPlayer('oauth-pkce', {values: [undefined], viewport: {width, height}});
@@ -2643,6 +2418,15 @@ async function counted(context: import('playwright-core').BrowserContext, url: s
   await page.waitForSelector('[data-ready=true]');
   return { page, errors };
 }
+/** The latest accepted URL must have a matching resting-step event, including its case. */
+async function stepReady(page: Page, ids: string[]) {
+  await page.waitForFunction(ids => {
+    const last = (window as unknown as {__last: {step:string;settings:Record<string,string>} | null}).__last;
+    const q = new URLSearchParams(location.search);
+    return !document.querySelector('#content.loading, .stage[aria-busy=true]') && last?.step === q.get('step') &&
+      Object.keys(last.settings).length === ids.length && ids.every(id => last.settings[id] === q.get(id));
+  }, ids, {timeout:30_000});
+}
 /** Quiet: nothing loading, no animation playing, and no step settled for `ms`. */
 async function quiet(page: Page, ms = 300) {
   const deadline = Date.now() + 30_000;
@@ -2669,6 +2453,75 @@ const caseQuery = (p: Project, values: Settings, step: string) => {
   q.set('step', step);
   return q.toString();
 };
+
+test('player: resting-step readiness waits for a 1000 ms asynchronous render', options, async () => {
+  await readerContext({reducedMotion:'reduce'}, async context => {
+    const {page,errors}=await counted(context,`${embed}/playback-probe.html?step=step-0&renderDelay=1000`);
+    const before=await page.evaluate(()=>(window as any).__renderDelays??0);
+    await page.locator('.steps button').nth(1).click();
+    await stepReady(page,[]);
+    assert.equal(await page.evaluate(()=>(window as any).__renderDelays),before+1,'the uncached render exercised the delay');
+    assert.equal(await page.evaluate(()=>(window as any).__last.step),'step-1');
+    const fresh=await counted(context,`${embed}/playback-probe.html?step=step-1`);
+    assert.equal(await stagePicture(page),await stagePicture(fresh.page));
+    assert.deepEqual([...errors,...fresh.errors],[]);
+  });
+});
+
+test('player: mutation-observer microtask navigation rejects stale step events and attachments', options, async () => {
+  await readerContext({reducedMotion:'reduce'}, async context => {
+    const {page,errors}=await counted(context,`${embed}/oauth-pkce.html?attacker=yes`);
+    const seen=await page.evaluate(async()=>{
+      const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('.steps button'));
+      const name=(index:number)=>buttons[index]!.dataset.step!;
+      const jump=(index:number)=>new Promise<void>(resolve=>{
+        const ready=(event:Event)=>{if((event as CustomEvent).detail.step===name(index)){document.removeEventListener('rayner:step',ready);resolve();}};
+        document.addEventListener('rayner:step',ready);buttons[index]!.click();
+      });
+      const picture=()=>document.querySelector('.stage svg:not(.leaving)')!.innerHTML;
+      const pictures:Record<string,string>={[name(0)]:picture()};
+      await jump(1);pictures[name(1)]=picture();await jump(0);
+      let depth=0,redirects=0;const completed:boolean[]=[];
+      const events:Array<{depth:number;step:string;url:string|null;settings:unknown;query:unknown}>=[];
+      const attachments:Array<{depth:number;html:string;url:string|null}>=[];
+      const onStep=(event:Event)=>{const detail=(event as CustomEvent).detail,q=new URLSearchParams(location.search);events.push({depth,step:detail.step,url:q.get('step'),settings:detail.settings,query:{attacker:q.get('attacker')}});};
+      document.addEventListener('rayner:step',onStep);
+      const native=Element.prototype.replaceChildren;
+      Element.prototype.replaceChildren=function(this:Element,...nodes:Parameters<typeof native>){
+        if(this.matches('.stage')) {
+          const svg=nodes.find((n):n is SVGSVGElement=>n instanceof SVGSVGElement&&!n.classList.contains('leaving'));
+          if(svg) attachments.push({depth,html:svg.innerHTML,url:new URLSearchParams(location.search).get('step')});
+        }
+        return native.apply(this,nodes);
+      };
+      try {
+        for(depth=0;depth<22;depth++) {
+          await jump(0);
+          const eventAt=events.length,paintAt=attachments.length;
+          const observer=new MutationObserver(()=>{
+            if(new URLSearchParams(location.search).get('step')!==name(1))return;
+            observer.disconnect();let remaining=depth;
+            const redirect=()=>{if(remaining-->0)queueMicrotask(redirect);else {redirects++;buttons[0]!.click();}};
+            redirect();
+          });
+          observer.observe(document.getElementById('content')!,{subtree:true,childList:true,attributes:true,characterData:true});
+          buttons[1]!.click();
+          await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+          observer.disconnect();
+          completed.push(events.slice(eventAt).some(e=>e.step===name(0)&&e.url===name(0))&&attachments.slice(paintAt).some(p=>p.url===name(0)&&p.html===pictures[name(0)]));
+        }
+      } finally {Element.prototype.replaceChildren=native;document.removeEventListener('rayner:step',onStep);}
+      return {pictures,events,attachments,redirects,completed};
+    });
+    assert.equal(seen.redirects,22,'every microtask depth triggered navigation');
+    assert.deepEqual(seen.completed,Array(22).fill(true),'every redirect finished on its requested picture and step');
+    assert.ok(seen.events.length>=22,'every redirect produced a resting step');
+    assert.ok(seen.attachments.length>=22,'every redirect attached a picture');
+    for(const event of seen.events){assert.equal(event.step,event.url,`stale event at microtask depth ${event.depth}`);assert.deepEqual(event.settings,event.query);}
+    for(const paint of seen.attachments)assert.equal(paint.html,seen.pictures[paint.url!],`stale attachment at microtask depth ${paint.depth}`);
+    assert.deepEqual(errors,[]);
+  });
+});
 
 // Phone close-ups (app/embed-closeup.ts). On a 390 px page each step opens on the close-up
 // Node works out for it, whether reached by a link or by Next with motion on, and the two
@@ -2744,8 +2597,7 @@ test('phone: one press of Next view shows what PKCE\'s captions point at, emphas
     secret: await restingBox(v.Scene, 'secret', (scene) => wordsOutsideCards(scene, 'code_verifier', 'SHA-256')),
     authorize: await restingBox(v.Scene, 'authorize', (scene) => labelsSaying(scene, 'verifier not sent')),
   };
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, reducedMotion: 'no-preference' });
-  try {
+  await readerContext({ viewport: { width: 390, height: 844 }, hasTouch: true, reducedMotion: 'no-preference' }, async context => {
     const { page, errors } = await counted(context, `${embed}/oauth-pkce.html`);
     await quiet(page);
     const { w, h } = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
@@ -2782,9 +2634,7 @@ test('phone: one press of Next view shows what PKCE\'s captions point at, emphas
       assert.ok(atOnce || (await shows(evidence[step]!)), `${step}: view 1 or 2 shows ${JSON.stringify(evidence[step])}`);
     }
     assert.deepEqual(errors, []);
-  } finally {
-    await context.close();
-  }
+  });
 });
 
 // Every scene run draws into an SVG root the page creates, and a kept picture is a copy
@@ -2799,8 +2649,7 @@ test(
       p = projects.get(name)!,
       v = p.variants[0]!,
       list = v.trace.steps;
-    const context = await browser.newContext({ reducedMotion: 'no-preference' });
-    try {
+    await readerContext({ reducedMotion: 'no-preference' }, async context => {
       await context.addInitScript(() => {
         const born = new WeakMap<Node, number>(),
           w = window as unknown as { __shown: Array<{ at: number; born: number | null }> };
@@ -2836,9 +2685,7 @@ test(
         assert.equal(back.shown.at(-1)!.born, null, `step ${list[i]!.step} was drawn again, not copied: ${JSON.stringify(back)}`);
       }
       assert.deepEqual(errors, []);
-    } finally {
-      await context.close();
-    }
+  });
   },
 );
 
@@ -2877,8 +2724,8 @@ for (const motion of ['reduce', 'no-preference'] as const)
         fc.asyncProperty(inputs, early, fc.scheduler(), async ([start, burst], earlyActions, scheduler) => {
           const { name, values: initialValues, step } = start, p = choices.get(name)!, ids = settingsOfProject(p).map(s => s.id);
           const actions=name==='playback-probe'?[{action:{kind:'next' as const},gap:250},{action:{kind:'next' as const},gap:0},...burst]:burst;
-          const context = await browser.newContext({ reducedMotion: motion });
-          try {
+          await readerContext({ reducedMotion: motion }, async context => {
+
             const initialise = (page: Page) => page.addInitScript((actions: string[]) => {
               const w = window as unknown as { __early: number };
               w.__early = 0;
@@ -2958,7 +2805,10 @@ for (const motion of ['reduce', 'no-preference'] as const)
                 settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })),
               },
             ));
+            await scheduler.waitFor(stepReady(page, ids));
+            // Quiet still drains unawaited history traversal; it is not the render-completion oracle.
             await scheduler.waitFor(quiet(page));
+            await scheduler.waitFor(stepReady(page, ids));
             const seen = await page.evaluate(observe, ids);
             const values = Object.fromEntries(ids.map((id) => [id, seen.urlCase[id]!])) as Settings;
             const list = stepsOf(p, values),
@@ -2986,9 +2836,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
             const fresh = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, values, seen.urlStep!)}`));
             assert.deepEqual(fresh.errors,[]);
             assert.equal(await stagePicture(page), await stagePicture(fresh.page), 'stage picture');
-          } finally {
-            await context.close();
-          }
+  });
         }),
         params(12),
       );
@@ -3280,8 +3128,8 @@ test(
     await fc.assert(
       fc.asyncProperty(heightActions, async (actions) => {
         hostBody = `<!doctype html><style>body{margin:0}</style>${loader('a', 'oauth-pkce')}<div style="height:4000px"></div>`;
-        const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 700, height: 800 } });
-        try {
+        await readerContext({ reducedMotion: 'reduce', viewport: { width: 700, height: 800 } }, async context => {
+
           await recordPosts(context);
           const page = await context.newPage();
           await page.goto(host);
@@ -3311,9 +3159,7 @@ test(
             assert.equal(resizeHeight({ origin: host, source, data: p.msg }, host, source), p.msg.height, JSON.stringify(p));
             if (i) assert.notEqual(p.msg.height, posts[i - 1]!.msg.height, `posts ${i - 1} and ${i} repeat a height`);
           }
-        } finally {
-          await context.close();
-        }
+  });
       }),
       params(10),
     );
@@ -3364,8 +3210,8 @@ test(
       fc.asyncProperty(parentOriginArb(host), fc.boolean(), async ({ value, exact }, toggle) => {
         const src = `${embed}/oauth-pkce.html${value === undefined ? '' : '?' + new URLSearchParams({ parentOrigin: value })}`;
         hostBody = `<!doctype html><iframe title="t" src="${src.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" style="width:600px;height:640px;border:0"></iframe>`;
-        const context = await browser.newContext({ reducedMotion: 'reduce' });
-        try {
+        await readerContext({ reducedMotion: 'reduce' }, async context => {
+
           await recordPosts(context);
           const page = await context.newPage();
           await page.goto(host);
@@ -3390,9 +3236,7 @@ test(
             `parentOrigin ${JSON.stringify(value)}`,
           );
           assert.ok(out.step && out.attacker, `the player shows a step and a case: ${JSON.stringify(out)}`);
-        } finally {
-          await context.close();
-        }
+  });
       }),
       {
         ...params(16),
@@ -3431,8 +3275,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         targets.set(step.name, found);
       },
     }, { skipUntil: Infinity }).run();
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: variant.values.attacker === 'yes' ? 'no-preference' : 'reduce' });
-    try {
+    await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: variant.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
       const page = await context.newPage();
       await page.goto(`${embed}/oauth-pkce.html?attacker=${variant.values.attacker}`);
       await page.waitForSelector('[data-ready=true]');
@@ -3477,7 +3320,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
       assert.ok(await page.locator('.view-controls').isVisible());
       assert.ok(await page.getByRole('button', { name: 'Whole picture', exact: true }).isHidden(), 'Whole picture shows only while zoomed');
       assert.equal(zoomOf(await paintedView(page)), null);
-    } finally { await context.close(); }
+  });
   }
 });
 
@@ -3491,10 +3334,7 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
     return arrows;
   });
   for (const width of [320, 390]) {
-    const page = await browser.newPage({ viewport: { width, height: 844 }, reducedMotion: 'reduce' });
-    try {
-      await page.goto(`${embed}/oauth-pkce.html?attacker=yes&step=attack`);
-      await page.waitForSelector('[data-ready=true]');
+    await readerPage({ viewport: { width, height: 844 }, reducedMotion: 'reduce' }, `${embed}/oauth-pkce.html?attacker=yes&step=attack`, async page => {
       await quiet(page);
       const stageRect = await page.locator('.stage').boundingBox();
       const mapRect = await page.locator('.overview').boundingBox();
@@ -3512,6 +3352,6 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
       assert.ok(l! >= vl! - 1 && t! >= vt! - 1 && r! <= vr! + 1 && b! <= vb! + 1,
         `width ${width}: opening must contain the complete attack, not an unrelated card: ${JSON.stringify(seen)}`);
       assert.equal(await page.locator('[aria-current=step]').first().getAttribute('data-step'), 'attack');
-    } finally { await page.close(); }
+    });
   }
 });
