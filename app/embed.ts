@@ -1,3 +1,4 @@
+import { StateScope } from './embed-scope.ts';
 import { renderAt, SeekSink } from '../src/index.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Trace } from '../src/index.ts';
@@ -61,18 +62,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     t = chromeFor(lang);
   let values: Settings,
     trace: Trace,
-    Active: ExplainerClass,
     wanted: Settings | undefined,
     selected = 0,
-    generation = 0,
-    loads = 0,
-    playing = false,
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
   type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
+  type CaseHistory = { kind: 'keep-step' | 'requested'; name: string | undefined } | { kind: 'first'; name?: never };
+  type CasePhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
+  let casePhase: CasePhase = { kind: 'loading', scope: new StateScope() };
   const cache = new Map<string, Entry>();
-  /** The case on show, with its layouts once a close-up has needed them. */
-  let current: Entry | undefined;
 
   // The card's header: the title, then the cases it can show, so the choice sits next to what
   // it changes. The built page's heading is the title, so the live page says what the static one did.
@@ -176,7 +174,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (tryCase.textContent !== tryLabel) tryCase.textContent = tryLabel;
   }
   /** At rest on the last step: the end of the explanation, not of a step still playing. */
-  const atEnd = () => !playing && selected === trace.steps.length - 1;
+  const atEnd = () => !isPlaying() && selected === trace.steps.length - 1;
   const tryLabel = () => (firstSetting ? t.tryCase(nextOption().label) : '');
   const tools = el('div', undefined, 'tools');
   tools.setAttribute('role', 'group');
@@ -461,12 +459,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   };
   wholePicture.onclick = () => whole(true);
   closer.onclick = async () => {
-    follow = true;
-    const target = trace && (await framing(trace.steps[selected]!));
-    if (target) zoom.to(target, true);
-    else zoom.apply();
-    // The button that was pressed hides; focus moves to the stage it changed.
-    stage.focus();
+    if (casePhase.kind === 'loading') return;
+    const scope = playback.scope, at = casePhase.entry;
+    return scope.run(async () => {
+      follow = true;
+      const target = await framing(trace.steps[selected]!, scope, at);
+      if (target) zoom.to(target, true);
+      else zoom.apply();
+      // The button that was pressed hides; focus moves to the stage it changed.
+      stage.focus();
+    });
   };
   reportHeight(root);
 
@@ -504,12 +506,12 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       b.dataset.state = state;
       b.tabIndex = state === 'current' ? 0 : -1;
       b.setAttribute('aria-current', state === 'current' ? 'step' : 'false');
-      if (state === 'current') b.style.setProperty('--progress', playing ? '0' : '1');
+      if (state === 'current') b.style.setProperty('--progress', isPlaying() ? '0' : '1');
       else b.style.removeProperty('--progress');
     }
     stage.setAttribute('aria-label', t.stageLabel(title.textContent!, words.title, words.line));
     // Busy while a step plays: the resting picture, and its description, are still to come.
-    if (playing) stage.setAttribute('aria-busy', 'true');
+    if (isPlaying()) stage.setAttribute('aria-busy', 'true');
     else stage.removeAttribute('aria-busy');
     summary.textContent = pictureSummary(step.after);
     picture.innerHTML = pictureHtml(step.after);
@@ -549,7 +551,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   }
   function reserveOnce(): boolean {
     player.classList.toggle('narrow', narrow());
-    if (!trace || !caption.clientWidth) return false;
+    if (casePhase.kind==='loading' || !caption.clientWidth) return false;
     const key = `${caption.clientWidth} ${lede.clientWidth} ${shownCase}`;
     if (key === reservedFor) return false;
     reservedFor = key;
@@ -615,65 +617,60 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * its place. Layouts are prepared once per case, including on desktop, so a later
    * resize can refresh tour metadata without rerunning the scene or changing zoom.
    */
-  async function framing(step: Trace['steps'][number]): Promise<Zoom | null> {
-    const at = current,
-      gen = generation;
+  async function framing(step: Trace['steps'][number], scope: StateScope, at: Entry): Promise<Zoom | null> {
     shownLayout = undefined;
     caseLayouts = undefined;
     tourSize = '';
     tour = [];
     stop = 0;
-    if (!at) return null;
     at.layouts ??= stepLayouts(at.Scene);
-    const layouts = await at.layouts;
+    const layouts = await scope.wait(at.layouts);
     const layout = layouts.get(step.step);
     // A case or step shown while the layouts were worked out owns the overview now.
-    if (gen !== generation || at !== current) return null;
     caseLayouts = layouts;
     shownLayout = layout;
     refreshTour();
     return narrow() && follow ? tour[0]! : null;
   }
-  function settle(step: Trace['steps'][number], target: Zoom | null) {
+  function settle(step: Trace['steps'][number], target: Zoom | null, at: Entry) {
     sound?.set(step.meta.audio);
     if (target) zoom.to(target);
     else zoom.apply();
     root.classList.remove('loading');
     document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values } }));
     toHost({ step: step.step, index: selected, total: trace.steps.length, settings: { ...values } });
-    primeNext();
+    primeNext(at);
   }
   async function show(index: number, push = true) {
-    if (!trace) return; // Controls exist before the first case has loaded.
-    sound?.stop();
+    if (casePhase.kind === 'loading') return;
     if (push) revealStage();
-    const gen = ++generation;
-    playing = false;
-    active = undefined;
-    selected = Math.max(0, Math.min(trace.steps.length - 1, index));
-    chrome();
-    link(push);
-    const step = trace.steps[selected]!;
-    const at = current!,
-      kept = at.resting.get(step.step);
-    const container = el('div');
-    const [, target] = await Promise.all([
-      kept ? container.append(...kept.map((n) => n.cloneNode(true))) : renderAt(Active, restingTime(step, trace.fps), new ReaderSink(container, { realtime: false }, readerView)),
-      framing(step),
-    ]);
-    if (gen !== generation) return;
-    if (!kept) at.resting.set(step.step, [...container.childNodes].map((n) => n.cloneNode(true)));
-    // Reduced motion: no animation, but the old picture fades out over the new one, so the change is still seen.
-    const old = reduced() ? stage.querySelector('svg') : null;
-    old?.classList.add('leaving');
-    old?.addEventListener('animationend', () => old.remove());
-    stage.replaceChildren(...container.childNodes, ...(old ? [old] : []));
-    settle(step, target);
+    const at=casePhase.entry;
+    const scope = new StateScope();
+    leaveStep({ kind: 'resting', scope });
+    return scope.run(async () => {
+      selected = Math.max(0, Math.min(trace.steps.length - 1, index));
+      chrome();
+      link(push);
+      const step = trace.steps[selected]!;
+      const kept = at.resting.get(step.step);
+      const container = el('div');
+      const [, target] = await scope.wait(Promise.all([
+        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, { realtime: false }, readerView, scope.signal)),
+        framing(step, scope, at),
+      ]));
+      if (!kept) at.resting.set(step.step, clones(container.childNodes));
+      // Reduced motion: no animation, but the old picture fades out over the new one, so the change is still seen.
+      const old = reduced() ? stage.querySelector('svg') : null;
+      old?.classList.add('leaving');
+      old?.addEventListener('animationend', () => old.remove());
+      stage.replaceChildren(...container.childNodes, ...(old ? [old] : []));
+      settle(step, target, at);
+    });
   }
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Forward the way the author wrote it: play the step, then rest on its last frame. */
   async function advance() {
-    if (!trace || selected >= trace.steps.length - 1) return;
+    if (casePhase.kind === 'loading' || selected >= trace.steps.length - 1) return;
     revealStage();
     if (reduced()) return show(selected + 1);
     selected += 1;
@@ -685,30 +682,26 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * has played, written at most once per animation frame, and only while that step is still
    * the one playing (a rest, a jump or Next mid-motion writes its own value in chrome()).
    */
-  let filling: { index: number; value: number } | undefined;
   function fill(index: number, value: number) {
-    const queued = filling;
-    filling = { index, value: Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1 };
-    if (queued) return;
-    requestAnimationFrame(() => {
-      const f = filling!;
-      filling = undefined;
-      if (playing && f.index === selected)
-        bar.children[f.index]?.querySelector('button')?.style.setProperty('--progress', String(Math.round(f.value * 1000) / 1000));
+    playback.scope.frame(() => {
+      if (isPlaying()) bar.children[index]?.querySelector('button')?.style.setProperty('--progress', String(Math.round(Math.min(1, Math.max(0, Number.isFinite(value) ? value : 1)) * 1000) / 1000));
     });
   }
-  type Go = { gen: number; target: Zoom | null };
-  /**
-   * A run of the scene that plays one step's animation, held at the step's first frame until
-   * it is let go (or cancelled with null). While it plays, `follow` aims it at the next step
-   * instead: it runs on undrawn to that step's first frame and waits there to be let go again,
-   * so Next pressed mid-motion does not replay the scene from its start. It refuses (false)
-   * once the run is over or before it was first let go.
-   */
-  type Run = { at: Entry; index: () => number; release: (go: Go | null) => void; follow: () => boolean; done: Promise<boolean> };
-  let primed: Run | undefined,
-    // The run playing the step on show, while it plays.
-    active: Run | undefined;
+  const clones = (nodes: Iterable<Node>) => Array.from(nodes, n => n.cloneNode(true));
+  type Go = { scope: StateScope; target: Zoom | null };
+  type Run = { at: Entry; index: () => number; release: (go: Go | null) => void; follow: () => boolean; cancel: () => void; done: Promise<boolean> };
+  type Playback =
+    | { kind: 'resting' | 'cancelled'; scope: StateScope }
+    | { kind: 'primed' | 'playing' | 'following'; scope: StateScope; run: Run };
+  let playback: Playback = { kind: 'cancelled', scope: new StateScope() };
+  const isPlaying = () => playback.kind === 'playing' || playback.kind === 'following';
+  function leaveStep(next: Playback) {
+    const previous = playback;
+    previous.scope.exit();
+    if ('run' in previous && (!('run' in next) || previous.run !== next.run)) previous.run.cancel();
+    sound?.stop();
+    playback = next;
+  }
   /**
    * Run the scene to a step's first frame and wait there. Released, it plays the step until
    * the hold, then runs on undrawn to the step's resting frame (the one a link to it shows)
@@ -718,122 +711,119 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     /** Where the run is headed: a step, its times, and a fresh drawing of it. */
     const aimAt = (index: number) => {
       const step = at.trace.steps[index]!,
-        container = el('div');
+        container = el('div'), scope = new StateScope();
       return {
-        index,
+        index, scope,
         start: step.t0,
         // Stop when the picture stops: the reader sets the pace instead of waiting through the caption-reading hold.
         end: step.hold ?? step.t1 ?? at.trace.duration,
         rest: restingTime(step, at.trace.fps),
         container,
-        seek: new SeekSink(new ReaderSink(container, {}, readerView), step.t0),
+        seek: new SeekSink(new ReaderSink(container, {}, readerView, scope.signal), step.t0),
       };
     };
-    let aim = aimAt(first),
-      release!: Run['release'],
-      gate!: Promise<Go | null>;
-    const arm = () => (gate = new Promise<Go | null>((r) => (release = r)));
-    arm();
-    let go: Go | null | undefined,
-      attached = false,
-      rested = false,
-      over = false;
-    const stop = () => {
-      over = true;
-      return new StopScene();
-    };
-    const attach = (g: Go) => {
+    type RunPhase =
+      | { kind: 'primed' | 'following'; gate: Promise<Go | null> }
+      | { kind: 'playing'; go: Go }
+      | { kind: 'resting' | 'cancelled' };
+    let aim = aimAt(first), release!: Run['release'];
+    const gate = () => new Promise<Go | null>(r => { release = r; });
+    let phase: RunPhase = { kind: 'primed', gate: gate() };
+    const cancel = () => { aim.scope.exit(); release(null); phase = { kind: 'cancelled' }; };
+    const attach = (go: Go) => {
       stage.replaceChildren(...aim.container.childNodes);
       zoom.apply();
-      // The view glides to the step's close-up as the step begins, so the change is watched.
-      if (!attached && g.target) requestAnimationFrame(() => g.gen === generation && zoom.to(g.target!, true));
-      attached = true;
+      if (phase.kind !== 'playing' && go.target) go.scope.frame(() => zoom.to(go.target!, true));
     };
-    const runner = new at.Scene(
-      {
-        // Until released, yield at each step boundary, so a tap never waits behind the whole run.
-        async stepBegin() {
-          if (go === undefined) await new Promise((r) => setTimeout(r));
-        },
-        async frame(scene, dt) {
-          if (scene.time + 1e-9 < aim.start) return; // before the step: dropped, as SeekSink drops it
-          if (dt === 0 && scene.mobjects.length === 0) return; // Keep the poster until a meaningful first frame.
-          if (go === undefined) go = await gate;
-          if (!go || go.gen !== generation) throw stop();
+    const runner = new at.Scene({
+      async stepBegin() {
+        if ('gate' in phase) await new Promise(r => setTimeout(r));
+        if (phase.kind === 'cancelled') throw new StopScene();
+      },
+      async frame(scene, dt) {
+        if (phase.kind === 'cancelled') throw new StopScene();
+        if (scene.time + 1e-9 < aim.start) return;
+        if (dt === 0 && scene.mobjects.length === 0) return;
+        const go = 'go' in phase ? phase.go : 'gate' in phase ? await phase.gate : null;
+        if (!go) throw new StopScene();
+        try {
+          go.scope.signal.throwIfAborted();
           if (scene.time > aim.end + 1e-8) {
             if (scene.time + 1e-9 < aim.rest) return;
-            // Drawn afresh, as a link to the step draws it, so the two are the same picture.
-            await new ReaderSink(aim.container, { realtime: false }, readerView).frame(scene, 0);
+            await go.scope.wait(new ReaderSink(aim.container, { realtime: false }, readerView, go.scope.signal).frame(scene, 0));
             attach(go);
-            rested = true;
-            throw stop();
+            phase = { kind: 'resting' };
+            throw new StopScene();
           }
-          await aim.seek.frame(scene, dt);
-          // Superseded while that frame was drawn; a run sent on to the next step waits for it instead.
-          if (go && go.gen !== generation) throw stop();
-          if (go && !attached) attach(go);
-          if (go) fill(aim.index, (scene.time - aim.start) / (aim.end - aim.start));
-        },
+          await go.scope.wait(aim.seek.frame(scene, dt));
+          if (phase.kind !== 'playing') attach(go);
+          phase = { kind: 'playing', go };
+          fill(aim.index, (scene.time - aim.start) / (aim.end - aim.start));
+        } catch (error) {
+          // Next can hand the live run to a new step while a frame is in flight.
+          // That frame belongs to the departed step; continue undrawn to the new gate.
+          if (go.scope.signal.aborted) {
+            if (phase.kind !== 'cancelled') return;
+            throw new StopScene();
+          }
+          throw error;
+        }
       },
-      { skipUntil: aim.start },
-    );
-    const done = runner.run().then(() => rested);
+    }, { skipUntil: aim.start });
+    const done = runner.run().then(() => phase.kind === 'resting');
     const follow = () => {
-      if (over || rested || !go || aim.index + 1 >= at.trace.steps.length) return false;
+      if (phase.kind !== 'playing' || aim.index + 1 >= at.trace.steps.length) return false;
       aim = aimAt(aim.index + 1);
-      // The way a link seeks: plays begun from here on to the next step are not interpolated.
       runner.skipUntil = aim.start;
-      go = undefined;
-      attached = false;
-      arm();
+      phase = { kind: 'following', gate: gate() };
       return true;
     };
-    return { at, index: () => aim.index, release: (g) => release(g), follow, done };
+    return {
+      at, index: () => aim.index,
+      release: g => {
+        if (g) {
+          const scope = aim.scope;
+          g.scope.signal.addEventListener('abort', () => scope.exit(), { once: true });
+          if (g.scope.signal.aborted) scope.exit();
+        }
+        release(g);
+      },
+      follow, cancel, done,
+    };
   }
+
   /** Once the reader is on a step, run the scene to the next one, so Next starts at once. */
-  function primeNext() {
-    primed?.release(null);
-    primed = undefined;
-    const at = current,
-      index = selected + 1,
-      gen = generation;
-    if (!at || index >= at.trace.steps.length || reduced()) return;
-    setTimeout(() => {
-      if (gen !== generation || at !== current || primed) return;
-      primed = prepare(at, index);
-      primed.done.catch(() => {}); // reported when it is used
+  function primeNext(at: Entry) {
+    const index = selected + 1, scope = playback.scope;
+    if (index >= at.trace.steps.length || reduced()) return;
+    void scope.run(async () => {
+      await scope.wait(new Promise<void>(r => setTimeout(r)));
+      const run = prepare(at, index);
+      playback = { kind: 'primed', scope, run };
+      run.done.catch(() => { }); // reported when used
     });
   }
   async function animate(force = false) {
-    if (!trace) return;
-    sound?.stop();
-    if (playing && !force) return show(selected, false);
-    if (reduced()) {
-      notice.textContent = t.reducedMotion;
-      return show(selected, false);
-    }
-    const gen = ++generation;
-    playing = true;
+    if (casePhase.kind === 'loading') return;
+    if (isPlaying() && !force) return show(selected, false);
+    if (reduced()) { notice.textContent = t.reducedMotion; return show(selected, false); }
+    const at = casePhase.entry, step = trace.steps[selected]!, previous = playback;
+    const available = 'run' in previous ? previous.run : undefined;
+    const followed = available?.at === at && available.index() === selected - 1 && available.follow();
+    const run = followed ? available! : previous.kind === 'primed' && available?.at === at && available.index() === selected ? available : prepare(at, selected);
+    const scope = new StateScope();
+    leaveStep({ kind: followed ? 'following' : 'playing', scope, run });
     chrome();
-    const at = current!,
-      step = trace.steps[selected]!;
-    // Next mid-motion: the run playing the step before carries on to this one. This must happen
-    // before the first await, while that run has not yet seen the new generation.
-    const followed = active?.at === at && active.index() === selected - 1 && active.follow();
-    const run = followed ? active! : primed?.at === at && primed.index() === selected ? primed : prepare(at, selected);
-    if (run !== primed) primed?.release(null);
-    primed = undefined;
-    active = run;
-    const target = await framing(step);
-    run.release(gen === generation ? { gen, target } : null);
-    const rested = await run.done;
-    if (gen !== generation) return;
-    active = undefined;
-    if (!rested) return show(selected, false);
-    at.resting.set(step.step, [...stage.childNodes].filter((n) => n.nodeName === 'svg').map((n) => n.cloneNode(true)));
-    playing = false;
-    chrome();
-    settle(step, null);
+    return scope.run(async () => {
+      const target = await framing(step, scope, at);
+      run.release({ scope, target });
+      const rested = await scope.wait(run.done);
+      if (!rested) return show(selected, false);
+      at.resting.set(step.step, clones(stage.querySelectorAll(':scope>svg')));
+      playback = { kind: 'resting', scope };
+      chrome();
+      settle(step, null, at);
+    });
   }
   /**
    * Show a case. Until its trace is ready the player keeps showing (and linking to) the
@@ -841,92 +831,102 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * `step` may be a function, read when the case arrives.
    */
   async function load(request: Settings, step?: string | (() => string | undefined), push = false) {
-    sound?.stop();
-    const token = ++loads;
-    root.classList.add('loading');
-    let next: Settings,
-      fallback = '';
-    try {
-      next = resolveSettings(Source, request);
-    } catch (error) {
-      next = resolveSettings(Source);
-      fallback = t.fallback(settingsProblem(Source, request, error));
-    }
-    wanted = next;
-    for (const [id, inputs] of choices) for (const input of inputs) input.checked = input.value === next[id];
-    const key = JSON.stringify(next);
-    let entry = cache.get(key);
-    if (!entry) {
-      const Scene = withSettings(Bound, next),
-        { trace, scene } = await traceRun(Scene);
-      entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
-      cache.set(key, entry);
-    }
-    if (token !== loads) return;
-    const name = typeof step === 'function' ? step() : step;
-    // Zoom keeps its place across steps, including Back and Forward within a case.
-    const changed = !values || JSON.stringify(values) !== key;
-    values = next;
-    wanted = undefined;
-    current = entry;
-    Active = entry.Scene;
-    trace = entry.trace;
-    // Apply this case's validated cues, clearing any cue inherited from the previous case.
-    for (const [property, value] of Object.entries(playerProperties(Source.meta?.player, entry.palette)))
-      document.documentElement.style.setProperty(property, value);
-    if (changed) zoom.reset();
-    selected = name ? trace.steps.findIndex((s) => s.step === name) : 0;
-    // A previous case's fallback must not describe the restored case; both of this one's show.
-    const notices = fallback ? [fallback] : [];
-    if (selected < 0) {
-      selected = 0;
-      notices.push(t.noStep(name!));
-    }
-    notice.textContent = notices.join(' ');
-    // Each step's title and its line. The current step is marked by colour and a filled
-    // number, not by weight, so no item changes size as the reader steps.
-    steps.replaceChildren(
-      ...trace.steps.map((s, i) => {
-        const li = el('li'),
-          b = el('button'),
-          words = stepWords(s);
-        b.append(el('span', words.title, 'title'));
-        if (words.line) b.append(el('span', words.line, 'line'));
-        b.type = 'button';
-        b.dataset.step = s.step;
-        b.addEventListener('click', () => void show(i));
-        li.append(b);
-        return li;
-      }),
-    );
-    railSummary.textContent = t.allSteps(trace.steps.length);
-    bar.replaceChildren(
-      ...trace.steps.map((s, i, all) => {
-        const li = el('li'),
-          b = el('button'),
-          label = stepWords(s).title;
-        b.type = 'button';
-        b.dataset.step = s.step;
-        b.title = label;
-        b.setAttribute('aria-label', t.stepOf(i + 1, all.length, label));
-        b.append(el('span', undefined, 'fill'));
-        // Another segment jumps to its step; the current one, while its step plays, rests the
-        // picture at once (the stories skip), and at rest does nothing.
-        b.addEventListener('click', () => void (i !== selected ? show(i) : playing && animate()));
-        li.append(b);
-        return li;
-      }),
-    );
-    const shown = new URLSearchParams(values).toString();
-    for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.case !== shown;
-    shownCase = shown;
-    reserve();
-    await show(selected, push);
+    if (casePhase.kind === 'loading') casePhase.scope.exit();
+    const scope = new StateScope();
+    const history: CaseHistory = typeof step === 'function' ? { kind: 'keep-step', name: step() } :
+      step ? { kind: 'requested', name: step } : { kind: 'first' };
+    casePhase = { kind: 'loading', scope };
+    leaveStep({ kind: 'cancelled', scope: playback.scope });
+    return scope.run(async () => {
+      root.classList.add('loading');
+      let next: Settings,
+        fallback = '';
+      try {
+        next = resolveSettings(Source, request);
+      } catch (error) {
+        next = resolveSettings(Source);
+        fallback = t.fallback(settingsProblem(Source, request, error));
+      }
+      wanted = next;
+      for (const [id, inputs] of choices) for (const input of inputs) input.checked = input.value === next[id];
+      const key = JSON.stringify(next);
+      let entry = cache.get(key);
+      if (!entry) {
+        const Scene = withSettings(Bound, next),
+          { trace, scene } = await scope.wait(traceRun(Scene));
+        entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
+        cache.set(key, entry);
+      }
+      const name = history.name;
+      casePhase = { kind: 'ready',entry };
+      // Zoom keeps its place across steps, including Back and Forward within a case.
+      const changed = !values || JSON.stringify(values) !== key;
+      values = next;
+      wanted = undefined;
+      trace = entry.trace;
+      // Apply this case's validated cues, clearing any cue inherited from the previous case.
+      for (const [property, value] of Object.entries(playerProperties(Source.meta?.player, entry.palette)))
+        document.documentElement.style.setProperty(property, value);
+      if (changed) zoom.reset();
+      selected = name ? trace.steps.findIndex((s) => s.step === name) : 0;
+      // A previous case's fallback must not describe the restored case; both of this one's show.
+      const notices = fallback ? [fallback] : [];
+      if (selected < 0) {
+        selected = 0;
+        notices.push(t.noStep(name!));
+      }
+      notice.textContent = notices.join(' ');
+      // Each step's title and its line. The current step is marked by colour and a filled
+      // number, not by weight, so no item changes size as the reader steps.
+      steps.replaceChildren(
+        ...trace.steps.map((s, i) => {
+          const li = el('li'),
+            b = el('button'),
+            words = stepWords(s);
+          b.append(el('span', words.title, 'title'));
+          if (words.line) b.append(el('span', words.line, 'line'));
+          b.type = 'button';
+          b.dataset.step = s.step;
+          b.addEventListener('click', () => void show(i));
+          li.append(b);
+          return li;
+        }),
+      );
+      railSummary.textContent = t.allSteps(trace.steps.length);
+      bar.replaceChildren(
+        ...trace.steps.map((s, i, all) => {
+          const li = el('li'),
+            b = el('button'),
+            label = stepWords(s).title;
+          b.type = 'button';
+          b.dataset.step = s.step;
+          b.title = label;
+          b.setAttribute('aria-label', t.stepOf(i + 1, all.length, label));
+          b.append(el('span', undefined, 'fill'));
+          // Another segment jumps to its step; the current one, while its step plays, rests the
+          // picture at once (the stories skip), and at rest does nothing.
+          b.addEventListener('click', () => void (i !== selected ? show(i) : isPlaying() && animate()));
+          li.append(b);
+          return li;
+        }),
+      );
+      const shown = new URLSearchParams(values).toString();
+      for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.case !== shown;
+      shownCase = shown;
+      reserve();
+      await show(selected, push);
+    });
   }
+  for (const type of ['click', 'keydown']) root.addEventListener(type, event => {
+    if (casePhase.kind === 'loading' && !(event.target as Element).closest('.case')) {
+      if(type==='click') event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
   prev.onclick = () => void show(selected - 1);
   // On the last step Next rests the step while it plays, and at rest starts again from step 1.
   next.onclick = () => {
-    if (trace && selected === trace.steps.length - 1) void (playing ? animate() : show(0));
+    if (casePhase.kind==='ready' && selected === trace.steps.length - 1) void (isPlaying() ? animate() : show(0));
     else void advance();
   };
   tryCase.onclick = () => {
@@ -937,7 +937,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // Inside the step bar, arrows move a step and Home and End go to the ends; focus follows the
   // current segment (a roving Tab stop). The root's arrows skip buttons, so the bar has its own.
   bar.addEventListener('keydown', (e) => {
-    if (!trace) return;
+    if (casePhase.kind==='loading') return;
     const last = trace.steps.length - 1;
     const keys: Record<string, () => unknown> = {
       ArrowRight: () => advance(),
@@ -970,7 +970,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // default case with a path-safe name has a share page there, whose link preview is that step.
   const shared = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_META}"]`)?.content;
   copy.onclick = async () => {
-    if (!trace) return;
+    if (casePhase.kind==='loading') return;
     const url = urlFor();
     url.searchParams.delete('parentOrigin');
     const step = trace.steps[selected]!.step,
@@ -1022,7 +1022,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // unknown value falls back with the same notice). Given settings replace those of the case on
   // show; a request without a step keeps the step by name. It replaces the frame's history entry.
   const toHost = connectHost((request) => {
-    if (!trace) return;
+    if (casePhase.kind==='loading') return;
     const given: Record<string, string> = {};
     for (const s of Source.settings ?? []) if (request.settings && Object.hasOwn(request.settings, s.id)) given[s.id] = request.settings[s.id]!;
     void load({ ...(wanted ?? values), ...given }, request.step ?? (() => trace?.steps[selected]?.step), false);
