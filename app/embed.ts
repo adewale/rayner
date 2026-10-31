@@ -67,7 +67,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
   type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
-  let current: Entry | undefined, loads = 0;
+  type CaseHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
+  type CasePhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
+  let casePhase: CasePhase = { kind: 'loading', scope: new StateScope() };
   const cache = new Map<string, Entry>();
   const currentStep = () => trace.steps[selected]!;
   const stepCount = () => trace.steps.length;
@@ -331,7 +333,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       step = a && new URLSearchParams(a.search).get('step');
     if (!step) return;
     e.preventDefault();
-    if (!!trace) void show(trace.steps.findIndex((s) => s.step === step));
+    if (casePhase.kind === 'ready') void show(casePhase.entry.trace.steps.findIndex((s) => s.step === step));
   });
   root.replaceChildren(layout);
   // Measured now, before the first step is shown, so the stage has its final size when the first
@@ -460,8 +462,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   };
   wholePicture.onclick = () => whole(true);
   closer.onclick = async () => {
-    if (!trace) return;
-    const scope = playback.scope, at = current!;
+    if (casePhase.kind === 'loading') return;
+    const scope = playback.scope, at = casePhase.entry;
     return scope.run(function* () {
       follow = true;
       const target = yield* scope.wait(framing(currentStep(), scope, at));
@@ -550,7 +552,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   }
   function reserveOnce(): boolean {
     player.classList.toggle('narrow', narrow());
-    if (!trace || !caption.clientWidth) return false;
+    if (casePhase.kind==='loading' || !caption.clientWidth) return false;
     const key = `${caption.clientWidth} ${lede.clientWidth} ${shownCase}`;
     if (key === reservedFor) return false;
     reservedFor = key;
@@ -643,9 +645,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     primeNext(at);
   }
   async function show(index: number, push = true) {
-    if (!trace) return;
+    if (casePhase.kind === 'loading') return;
     if (push) revealStage();
-    const at=current!;
+    const at=casePhase.entry;
     const scope = new StateScope();
     leaveStep({ kind: 'resting', scope });
     return scope.run(function* () {
@@ -671,7 +673,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Forward the way the author wrote it: play the step, then rest on its last frame. */
   async function advance() {
-    if (!trace || selected >= stepCount() - 1) return;
+    if (casePhase.kind === 'loading' || selected >= stepCount() - 1) return;
     revealStage();
     if (reduced()) return show(selected + 1);
     selected += 1;
@@ -803,10 +805,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     });
   }
   async function animate(force = false) {
-    if (!trace) return;
+    if (casePhase.kind === 'loading') return;
     if (isPlaying() && !force) return show(selected, false);
     if (reduced()) { notice.textContent = t.reducedMotion; return show(selected, false); }
-    const at = current!, step = currentStep(), previous = playback;
+    const at = casePhase.entry, step = currentStep(), previous = playback;
     const available = 'run' in previous ? previous.run : undefined;
     const followed = available?.at === at && available.index() === selected - 1 && available.follow();
     const run = followed ? available! : previous.kind === 'primed' && available?.at === at && available.index() === selected ? available : prepare(at, selected);
@@ -827,94 +829,106 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   /**
    * Show a case. Until its trace is ready the player keeps showing (and linking to) the
    * case it has, so navigation meanwhile stays consistent; a newer load supersedes this one.
-   * `step` may be a function, read when the case arrives.
+   * `step` may be a function, captured before loading freezes child navigation.
    */
   async function load(request: Settings, step?: string | (() => string | undefined), push = false) {
+    if (casePhase.kind === 'loading') casePhase.scope.abort();
+    const scope = new StateScope();
+    const history: CaseHistory = typeof step === 'function' ? {kind:'keep-step',name:step()} :
+      step ? {kind:'step',name:step} : {kind:'first'};
+    casePhase = { kind: 'loading', scope };
     leaveStep({ kind: 'cancelled', scope: playback.scope });
-    const token = ++loads;
-    root.classList.add('loading');
-    let next: Settings,
-      fallback = '';
-    try {
-      next = resolveSettings(Source, request);
-    } catch (error) {
-      next = resolveSettings(Source);
-      fallback = t.fallback(settingsProblem(Source, request, error));
-    }
-    wanted = next;
-    for (const [id, inputs] of choices) for (const input of inputs) input.checked = input.value === next[id];
-    const key = JSON.stringify(next);
-    let entry = cache.get(key);
-    if (!entry) {
-      const Scene = withSettings(Bound, next),
-        { trace, scene } = await traceRun(Scene);
-      entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
-      cache.set(key, entry);
-    }
-    if (token !== loads) return;
-    const name = typeof step === 'function' ? step() : step;
-    // Zoom keeps its place across steps, including Back and Forward within a case.
-    const changed = !values || JSON.stringify(values) !== key;
-    values = next;
-    wanted = undefined;
-    current = entry;
-    trace = entry.trace;
-    // Apply this case's validated cues, clearing any cue inherited from the previous case.
-    for (const [property, value] of Object.entries(playerProperties(Source.meta?.player, entry.palette)))
-      document.documentElement.style.setProperty(property, value);
-    if (changed) zoom.reset();
-    selected = name ? trace.steps.findIndex((s) => s.step === name) : 0;
-    // A previous case's fallback must not describe the restored case; both of this one's show.
-    const notices = fallback ? [fallback] : [];
-    if (selected < 0) {
-      selected = 0;
-      notices.push(t.noStep(name!));
-    }
-    notice.textContent = notices.join(' ');
-    // Each step's title and its line. The current step is marked by colour and a filled
-    // number, not by weight, so no item changes size as the reader steps.
-    steps.replaceChildren(
-      ...trace.steps.map((s, i) => {
-        const li = el('li'),
-          b = el('button'),
-          words = stepWords(s);
-        b.append(el('span', words.title, 'title'));
-        if (words.line) b.append(el('span', words.line, 'line'));
-        b.type = 'button';
-        b.dataset.step = s.step;
-        b.addEventListener('click', () => void show(i));
-        li.append(b);
-        return li;
-      }),
-    );
-    railSummary.textContent = t.allSteps(trace.steps.length);
-    bar.replaceChildren(
-      ...trace.steps.map((s, i, all) => {
-        const li = el('li'),
-          b = el('button'),
-          label = stepWords(s).title;
-        b.type = 'button';
-        b.dataset.step = s.step;
-        b.title = label;
-        b.setAttribute('aria-label', t.stepOf(i + 1, all.length, label));
-        b.append(el('span', undefined, 'fill'));
-        // Another segment jumps to its step; the current one, while its step plays, rests the
-        // picture at once (the stories skip), and at rest does nothing.
-        b.addEventListener('click', () => void (i !== selected ? show(i) : isPlaying() && animate()));
-        li.append(b);
-        return li;
-      }),
-    );
-    const shown = new URLSearchParams(values).toString();
-    for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.case !== shown;
-    shownCase = shown;
-    reserve();
-    await show(selected, push);
+    return scope.run(function* () {
+      root.classList.add('loading');
+      let next: Settings,
+        fallback = '';
+      try {
+        next = resolveSettings(Source, request);
+      } catch (error) {
+        next = resolveSettings(Source);
+        fallback = t.fallback(settingsProblem(Source, request, error));
+      }
+      wanted = next;
+      for (const [id, inputs] of choices) for (const input of inputs) input.checked = input.value === next[id];
+      const key = JSON.stringify(next);
+      let entry = cache.get(key);
+      if (!entry) {
+        const Scene = withSettings(Bound, next),
+          { trace, scene } = yield* scope.wait(traceRun(Scene));
+        entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
+        cache.set(key, entry);
+      }
+      const name = history.kind === 'first' ? undefined : history.name;
+      casePhase = { kind: 'ready',entry };
+      // Zoom keeps its place across steps, including Back and Forward within a case.
+      const changed = !values || JSON.stringify(values) !== key;
+      values = next;
+      wanted = undefined;
+      trace = entry.trace;
+      // Apply this case's validated cues, clearing any cue inherited from the previous case.
+      for (const [property, value] of Object.entries(playerProperties(Source.meta?.player, entry.palette)))
+        document.documentElement.style.setProperty(property, value);
+      if (changed) zoom.reset();
+      selected = name ? trace.steps.findIndex((s) => s.step === name) : 0;
+      // A previous case's fallback must not describe the restored case; both of this one's show.
+      const notices = fallback ? [fallback] : [];
+      if (selected < 0) {
+        selected = 0;
+        notices.push(t.noStep(name!));
+      }
+      notice.textContent = notices.join(' ');
+      // Each step's title and its line. The current step is marked by colour and a filled
+      // number, not by weight, so no item changes size as the reader steps.
+      steps.replaceChildren(
+        ...trace.steps.map((s, i) => {
+          const li = el('li'),
+            b = el('button'),
+            words = stepWords(s);
+          b.append(el('span', words.title, 'title'));
+          if (words.line) b.append(el('span', words.line, 'line'));
+          b.type = 'button';
+          b.dataset.step = s.step;
+          b.addEventListener('click', () => void show(i));
+          li.append(b);
+          return li;
+        }),
+      );
+      railSummary.textContent = t.allSteps(stepCount());
+      bar.replaceChildren(
+        ...trace.steps.map((s, i, all) => {
+          const li = el('li'),
+            b = el('button'),
+            label = stepWords(s).title;
+          b.type = 'button';
+          b.dataset.step = s.step;
+          b.title = label;
+          b.setAttribute('aria-label', t.stepOf(i + 1, all.length, label));
+          b.append(el('span', undefined, 'fill'));
+          // Another segment jumps to its step; the current one, while its step plays, rests the
+          // picture at once (the stories skip), and at rest does nothing.
+          b.addEventListener('click', () => void (i !== selected ? show(i) : isPlaying() && animate()));
+          li.append(b);
+          return li;
+        }),
+      );
+      const shown = new URLSearchParams(values).toString();
+      for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.case !== shown;
+      shownCase = shown;
+      reserve();
+      yield* scope.wait(show(selected, push));
+    });
   }
+  for (const type of ['click', 'wheel', 'dblclick', 'pointerdown', 'pointermove']) root.addEventListener(type, event => {
+    if (type === 'wheel' && !(event as WheelEvent).ctrlKey) return;
+    if (casePhase.kind === 'loading' && (event.target as Element).closest('.stage,button')) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, {capture:true,passive:false});
   prev.onclick = () => void show(selected - 1);
   // On the last step Next rests the step while it plays, and at rest starts again from step 1.
   next.onclick = () => {
-    if (!!trace && selected === stepCount() - 1) void (isPlaying() ? animate() : show(0));
+    if (casePhase.kind==='ready' && selected === stepCount() - 1) void (isPlaying() ? animate() : show(0));
     else void advance();
   };
   tryCase.onclick = () => {
@@ -925,7 +939,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // Inside the step bar, arrows move a step and Home and End go to the ends; focus follows the
   // current segment (a roving Tab stop). The root's arrows skip buttons, so the bar has its own.
   bar.addEventListener('keydown', (e) => {
-    if (!trace) return;
+    if (casePhase.kind==='loading') return;
     const last = stepCount() - 1;
     const keys: Record<string, () => unknown> = {
       ArrowRight: () => advance(),
@@ -958,7 +972,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // default case with a path-safe name has a share page there, whose link preview is that step.
   const shared = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_META}"]`)?.content;
   copy.onclick = async () => {
-    if (!trace) return;
+    if (casePhase.kind==='loading') return;
     const url = urlFor();
     url.searchParams.delete('parentOrigin');
     const step = currentStep().step,
@@ -971,7 +985,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
   };
   root.addEventListener('keydown', (e) => {
-    if (!trace) return;
+    if (casePhase.kind === 'loading') return;
     const tag = (e.target as HTMLElement).tagName;
     if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SUMMARY'].includes(tag) || e.ctrlKey || e.metaKey) return;
     // Zoom keys act only on the focused stage, so they never take a key from the page; once
@@ -1011,7 +1025,6 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // unknown value falls back with the same notice). Given settings replace those of the case on
   // show; a request without a step keeps the step by name. It replaces the frame's history entry.
   const toHost = connectHost((request) => {
-    if (!trace) return;
     const given: Record<string, string> = {};
     for (const s of Source.settings ?? []) if (request.settings && Object.hasOwn(request.settings, s.id)) given[s.id] = request.settings[s.id]!;
     void load({ ...(wanted ?? values), ...given }, request.step ?? (() => trace?.steps[selected]?.step), false);
