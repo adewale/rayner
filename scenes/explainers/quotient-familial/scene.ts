@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/quotient-familial.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { impot, bareme, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from '../lib/quotient-familial.ts';
@@ -64,7 +66,7 @@ const chart = (opts: { width: number; height: number; x: string[]; y: string; ba
 export default class QuotientFamilialExplainer extends Scene {
   static meta = {
     id: 'quotient-familial',
-    title: 'Le quotient familial divise le revenu avant le barème, et son plafond reprend l’excédent',
+    title: 'Comment les parts changent-elles l’impôt d’un couple ?',
     lang: 'fr',
     watch: { rni: 'Revenu net imposable', parts: 'Parts', quotient: 'Quotient', impot: 'Impôt' },
     sources: [
@@ -110,7 +112,7 @@ export default class QuotientFamilialExplainer extends Scene {
     const r: Impot = impot(rni, enfants),
       tous = [0, 1, 2, 3].map((n) => impot(rni, n)),
       r25 = impot(rni, enfants, 2025);
-    const s = stage(this, { style: STYLE, headingSize: 0.5 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     type Rows = Parameters<typeof s.card>[0];
     const card = (rows: Rows, opts: Parameters<typeof s.card>[1]) =>
       s.card(
@@ -128,11 +130,14 @@ export default class QuotientFamilialExplainer extends Scene {
       RIGHT = regionBox(BELOW, { left: 1.5 });
 
     // ------------------------------------------------------------- revenu
+    await readerFirst(this, s, readerFrames(rni, enfants));
     await this.step('revenu', {
+      detail: true,
       title: `Un couple déclare ${rniTexte} de revenu imposable`,
       line: `${majuscule(ENFANTS[enfants]!)}, revenus 2024, hors réductions et crédits d’impôt.`,
       caption: `Un couple marié ou pacsé, ${ENFANTS[enfants]}, déclare ${rniTexte} de revenu net imposable pour 2024. Le calcul reprend celui d’OpenFisca France 176.1.3, réduit aux étapes du schéma${deux} il s’arrête avant les réductions et crédits d’impôt, et ignore le seuil de 61 € sous lequel l’impôt n’est pas recouvré. ${enfants ? 'Pour mesurer l’avantage des enfants, nous calculerons d’abord l’impôt avec les parts du foyer, puis sur deux parts seulement. Le plafond borne leur écart.' : 'Sans enfant, le foyer a déjà deux parts. Nous comparerons quand même son impôt au calcul de référence sur deux parts : l’avantage et le plafond seront nuls.'}`,
     });
+    await s.clear();
     const flow = await s.show({ source: FLOW }, { box: TOP });
     /** A step's arithmetic, said under the node of the pipeline that does it. */
     const sous = (id: string, texte: string) => {
@@ -162,6 +167,7 @@ export default class QuotientFamilialExplainer extends Scene {
 
     // -------------------------------------------------------------- parts
     await this.step('parts', {
+      detail: true,
       title: `${majuscule(ENFANTS[enfants]!)}${deux} ${partsTexte(r.parts)} parts`,
       line: !enfants
         ? 'Le couple compte 2 parts et aucun enfant n’en ajoute.'
@@ -177,11 +183,16 @@ export default class QuotientFamilialExplainer extends Scene {
     await s.clearOverlays();
     await flow.unmark();
     await flow.mark(['QUOT'], { as: 'étape en cours' });
-    await sous('QUOT', [`2 pour le couple`, ...RANG.slice(0, enfants).map((_, i) => (i < 2 ? '0,5' : '1'))].join(' + ') + ` = ${partsTexte(r.parts)} parts`);
+    await sous(
+      'QUOT',
+      [`2 pour le couple`, ...RANG.slice(0, enfants).map((_, i) => (i < 2 ? '0,5' : '1'))].join(' + ') +
+        ` = ${partsTexte(r.parts)} parts`,
+    );
     this.state.parts = r.parts;
 
     // ----------------------------------------------------------- quotient
     await this.step('quotient', {
+      detail: true,
       title: `Le quotient${deux} ${eur2(r.quotient)} par part`,
       line: `${rniTexte} ÷ ${partsTexte(r.parts)} parts${deux} le barème s’applique à une seule part.`,
       caption: `Le barème s’applique au revenu d’une seule part, le quotient${deux} ${rniTexte} ÷ ${partsTexte(r.parts)} = ${eur2(r.quotient)}. Plus le foyer a de parts, plus ce quotient est bas, et plus il reste dans les tranches du bas.`,
@@ -198,6 +209,7 @@ export default class QuotientFamilialExplainer extends Scene {
       reached = b.slices.filter((x) => x.base > 0),
       top = reached.at(-1)!;
     await this.step('bareme', {
+      detail: true,
       title: 'Le barème taxe chaque tranche à son propre taux',
       line: `Impôt de chaque tranche${pv} total pour une part${deux} ${eur2(b.total)}.`,
       caption: `Le barème des revenus 2024 a cinq tranches, de 0 à 45${nb}%. Chaque barre est l’impôt d’une tranche sur ce quotient de ${eur2(r.quotient)}${deux} ${reached
@@ -211,7 +223,7 @@ export default class QuotientFamilialExplainer extends Scene {
       {
         source: chart({
           width: 540,
-          height: 250,
+          height: 210,
           x: TRANCHES,
           y: 'Impôt sur une part (€)',
           bars: b.slices.map((x) => x.tax),
@@ -220,12 +232,14 @@ export default class QuotientFamilialExplainer extends Scene {
       { box: BELOW },
     );
     // Each tranche the quotient reaches says its tax over its own bar.
-    for (const x of reached) await s.callout(bars.get(`bar:0:${pourcent(x.rate)}`), eur2(x.tax), { side: 'above', gap: 0.2, size: 0.26 });
+    for (const x of reached)
+      await s.callout(bars.get(`bar:0:${pourcent(x.rate)}`), eur2(x.tax), { side: 'above', gap: 0.2, size: 0.26 });
     this.state.parPart = r.parPart;
 
     // -------------------------------------------------------------- taux
     const moyen = r.parPart / r.quotient;
     await this.step('taux', {
+      detail: true,
       title:
         top.rate > 0
           ? `La tranche à ${pourcent(top.rate)} ne taxe que l’excédent`
@@ -247,6 +261,7 @@ export default class QuotientFamilialExplainer extends Scene {
     // --------------------------------------------------------- multiplie
     const enGros = bareme(rni).total;
     await this.step('multiplie', {
+      detail: true,
       title: `${partsTexte(r.parts)} parts × ${euros(r.parPart)}${deux} ${euros(r.brut)}`,
       line: `Sur le revenu entier, le barème donnerait ${eur2(enGros)}.`,
       caption: `L’impôt d’une part est multiplié par le nombre de parts${deux} ${partsTexte(r.parts)} × ${eur2(r.parPart)} = ${eur2(r.brut)}, la variable ir_brut d’OpenFisca. Chaque part repart du bas du barème, donc diviser puis multiplier donne moins d’impôt que d’appliquer le barème au revenu entier.`,
@@ -261,6 +276,7 @@ export default class QuotientFamilialExplainer extends Scene {
 
     // --------------------------------------------------------- reference
     await this.step('reference', {
+      detail: true,
       title: enfants
         ? `Sans enfants, ce revenu paierait ${euros(r.sansEnfants)}`
         : 'Sans enfant, la référence est ce calcul',
@@ -292,6 +308,7 @@ export default class QuotientFamilialExplainer extends Scene {
       : `Pour ce revenu, la barre dépasse la ligne avec ${lies.join(', ').replace(/, (\d)$/, ' et $1')} enfant${lies.length > 1 || lies[0]! > 1 ? 's' : ''}.`;
     const plafondTexte = euros(PARAMS[2024].plafond);
     await this.step('plafond', {
+      detail: true,
       title: !enfants
         ? 'Sans enfant, le plafond n’a rien à reprendre'
         : r.plafonne
@@ -325,7 +342,7 @@ export default class QuotientFamilialExplainer extends Scene {
       {
         source: chart({
           width: 540,
-          height: 250,
+          height: 210,
           x: COUNTS,
           y: 'Avantage (barres), plafond (ligne), €',
           bars: tous.map((t) => t.avantage),
@@ -355,6 +372,7 @@ export default class QuotientFamilialExplainer extends Scene {
       // around(1 470 − 0,4525 × impôt) is 0 once the impôt passes 1 469,5 / 0,4525 = 3 247,51 €.
       fin = Math.ceil((seuil - 0.5) / taux);
     await this.step('decote', {
+      detail: true,
       title:
         r.plafQf === 0
           ? 'Pas d’impôt, rien à décoter'
@@ -404,6 +422,7 @@ export default class QuotientFamilialExplainer extends Scene {
     const hausses = [1, 2, 3, 4].map((i) => pourcent(BAREME[2025][i]!.from / BAREME[2024][i]!.from - 1, 1)),
       hausse = hausses.every((h) => h === hausses[0]) ? hausses[0]! : `${hausses[0]} à ${hausses.at(-1)}`;
     await this.step('revenus-2025', {
+      detail: true,
       title: `Pour les revenus 2025, les seuils montent de ${hausse}`,
       line:
         r25.impot === r.impot

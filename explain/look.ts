@@ -62,6 +62,16 @@ export function emphasisOf(scene: Scene): Map<Mobject, string> {
     for (const [m, what] of now()) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
   return out;
 }
+
+const readingSubjects = new WeakMap<Scene, readonly Mobject[]>();
+/** The objects a reader must compare together before exploring the details.
+ * This selects an opening; it neither removes artwork nor changes its scale. */
+export function reading(scene: Scene, ...subjects: Mobject[]): void {
+  readingSubjects.set(scene, [...subjects]);
+}
+export function readingOf(scene: Scene): readonly Mobject[] {
+  return readingSubjects.get(scene) ?? [];
+}
 /** Success and failure colours that read on the paper, for outcomes such as accepted and rejected. */
 export const good = (p: Palette) => onPaper(p, '#3fb950', '#1a7f37');
 export const bad = (p: Palette) => onPaper(p, '#f85149', '#cf222e');

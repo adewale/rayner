@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import assert from 'node:assert/strict';
 import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -17,6 +18,9 @@ import type { ShareManifest } from './lib/explain-share.ts';
 import { measureEmbed, embedSizeProblems } from './lib/explain-embed-size.ts';
 import { serve } from './lib/explain-serve.ts';
 import { launch } from './lib/browser.ts';
+import {reviewClaims} from './lib/explain-review-scene.ts';
+import {STORY_CLAIMS, narrowOpeningPlan} from './lib/explain-story-review.ts';
+import type {NarrowOpeningObligation} from './lib/explain-review-plan.ts';
 
 const directory = join(ROOT, 'out/explainers');
 await mkdir(directory, { recursive: true });
@@ -31,6 +35,7 @@ const evidence: {
   title: string;
   lang: string;
   cases: Record<string, string>[];
+  narrowOpenings: {settings: Record<string, string>; steps: NarrowOpeningObligation[]}[];
   diagrams: number;
   styles: string[];
   families: string[];
@@ -46,7 +51,10 @@ for (const item of EXPLAINERS) {
   // For agents: what site:export publishes as <id>.json, described right after the run, as
   // `rayner describe` does.
   const described = await describeProject(project);
-  await buildExplainer(project, join(directory, item.id + '.html'));
+  const { html, receipt } = await buildExplainer(project, join(directory, item.id + '.html'));
+  assert.equal('lettering' in receipt, !!project.lettering, `${item.id}: only a requested page reports lettering`);
+  assert.equal('letteringHash' in receipt, !!project.outlineLettering, `${item.id}: requested outlines have a hash`);
+  assert.equal(Buffer.byteLength(html), receipt.bytes, `${item.id}: receipt reports actual page bytes`);
   // The poster uses a representative step of the default case; tile links start at step one.
   const variant = defaultVariant(project),
     step = variant.trace.steps.find((s) => s.step === item.step) ?? variant.trace.steps[0]!;
@@ -76,11 +84,16 @@ for (const item of EXPLAINERS) {
   // Last, after the checks, so it vouches for every file above: what they were built from, which
   // site:export compares with the checkout.
   await writeFile(join(directory, item.id, 'inputs.json'), JSON.stringify(await sceneInputs(project), null, 2) + '\n');
+  const claims = await reviewClaims(project, undefined, STORY_CLAIMS[item.id]);
+  const narrowOpenings = [];
+  for (const variant of project.variants)
+    narrowOpenings.push({settings: variant.values, steps: await narrowOpeningPlan(variant, claims)});
   evidence.push({
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
     lang: project.Scene.meta?.lang ?? 'en',
     cases: project.variants.map((v) => v.values),
+    narrowOpenings,
     diagrams: Object.keys(project.store).length,
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],

@@ -56,7 +56,7 @@ jobs:
 
   catalog:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60  # full scene/composite checks and embed heights exceeded 45 minutes locally
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -70,7 +70,7 @@ jobs:
       - run: npm ci
       - run: npx playwright-core install --with-deps --only-shell chromium
       - run: node tools/ci-tests.ts "$(command -v npm)" run demos:check
-      - run: npm run check:budgets
+      - run: node tools/ci-tests.ts "$(command -v npm)" run check:budgets
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rayner-catalog-${{ github.sha }}
@@ -181,11 +181,11 @@ jobs:
       - run: npm ci
       - run: npx playwright-core install --with-deps --only-shell chromium
       # Pure engine/property assertions have one full owner above. The minimum
-      # Node lane retains the standard suite and reader suite for API/warning drift.
+      # Node lane retains standard tests and installed browser smoke for API/warning drift.
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
         run: npm run check && node tools/ci-tests.ts --expose-gc --test test/*.test.ts
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: node tools/ci-tests.ts "$(command -v npm)" run test:embeds
+        run: EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test test/explain-cli.test.ts test/explain-review-scene.test.ts
       - run: EXPLAIN_BROWSER=1 npm run pack:smoke  # installed starter preview on Linux and both Mac architectures
       # Real browser diversity replaces four duplicate Chromium/property runs.
       - if: matrix.os == 'macos-26' && matrix.node == '24'

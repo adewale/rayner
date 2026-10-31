@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/gnome-files.ts';
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import {
@@ -50,9 +52,11 @@ const STEPS = ['tasks-1-4', 'tasks-5-8', 'tasks-9-11'] as const;
 // By session order: the report numbers tasks by topic, and the session ran 1–6, 11, 10, 7, 8, 9.
 const RANGE = ['the first four tasks', 'the next four tasks', 'the last three tasks'] as const;
 /** "A", "A and B", "A, B and C". */
-const and = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
+const and = (xs: readonly string[]) =>
+  xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 /** Items that may hold commas themselves: "A, as did P2; and B". */
-const series = (xs: readonly string[]) => (xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join('; ')}; and ${xs.at(-1)}`);
+const series = (xs: readonly string[]) =>
+  xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join('; ')}; and ${xs.at(-1)}`;
 const name = (n: number) => task(n).name;
 /** A task as a sentence names it: "gave up on Undo". */
 const PROSE: Readonly<Record<number, string>> = {
@@ -73,7 +77,7 @@ const said = (n: number) => PROSE[n]!;
 export default class GnomeFilesExplainer extends Scene {
   static meta = {
     id: 'gnome-files',
-    title: 'Each of six first-time users gave up on a GNOME Files task, every time in the menus',
+    title: 'Why couldn’t these users find the command?',
     sources: [REPORT, ARTICLE, 'https://technicallywewrite.com/images/2025/01/gnome3.png'],
   };
   static settings = [
@@ -87,11 +91,13 @@ export default class GnomeFilesExplainer extends Scene {
 
   override async construct() {
     const p = settingsOf(this).participant as Participant;
-    const s = stage(this, { style: STYLE, headingSize: SIZE });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
 
     // ------------------------------------------------------------------ the test and its key
+    await readerFirst(this, s, readerFrames(p));
     await this.step('test', {
+      detail: true,
       title: 'Six first-time users, eleven tasks, one colour each',
       line: 'The report’s colours become scores: green 5 down to black 1.',
       // Page 2: "the design team wanted to assess the effectiveness of these updates… we executed a user
@@ -101,6 +107,7 @@ export default class GnomeFilesExplainer extends Scene {
       caption:
         'Researchers for GNOME’s design team watched six people who had never used GNOME, aged 21 to 47, try eleven tasks in test builds of Files 47. Their report colours each attempt from green, no difficulty, to black, unable to complete. To plot attempts as journeys, this page scores green 5 down to black 1.',
     });
+    await s.clear();
     const top = 2.7,
       pitch = 0.9;
     const key = new Group(
@@ -108,7 +115,10 @@ export default class GnomeFilesExplainer extends Scene {
         const y = top - i * pitch;
         return [
           new Rectangle({ width: 0.7, height: 0.6, fill: RGB[c], stroke: ink, strokeWidth: 0.015 }).moveTo([-6.9, y]),
-          new Text(SCORE[c] == null ? '–' : String(SCORE[c]), { fontSize: SIZE, color: ink, weight: 'bold' }).moveTo([-6.0, y]),
+          new Text(SCORE[c] == null ? '–' : String(SCORE[c]), { fontSize: SIZE, color: ink, weight: 'bold' }).moveTo([
+            -6.0,
+            y,
+          ]),
           new Text(`${c}: ${MEANING[c]}`, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo([-5.5, y], [-1, 0]),
         ];
       }),
@@ -138,16 +148,20 @@ export default class GnomeFilesExplainer extends Scene {
         'The report numbers tasks by topic; by the article’s list of the order, the list-view task 11 and the search task 10 came seventh and eighth.',
         'The last three tasks went back to the menus.',
       ][g]!;
-      const gray = shown.length < group.length ? ` ${p}’s Select All is gray, outside the study’s scope: no column.` : '';
+      const gray =
+        shown.length < group.length ? ` ${p}’s Select All is gray, outside the study’s scope: no column.` : '';
       const highest = Math.max(...shown.map((n) => scoreOf(n, p)!));
       const saying = quit.length
         ? ` Red marks a give-up: ${quit.map((n) => WHY[n]).join('; ')}.`
         : anyone.length
           ? ` ${p} finished all of them; others gave up on ${and(anyone.map(said))}.`
           : ` No one gave up on any of them; ${
-              lowest === highest ? `${p} scored ${lowest} on all ${shown.length}` : `${p}’s lowest score was ${lowest}, on ${and(lowAt.map(said))}`
+              lowest === highest
+                ? `${p} scored ${lowest} on all ${shown.length}`
+                : `${p}’s lowest score was ${lowest}, on ${and(lowAt.map(said))}`
             }.`;
       await this.step(STEPS[g]!, {
+        detail: true,
         title: `${p}, ${RANGE[g]}: ${quit.length ? `gave up on ${and(quit.map(said))}` : 'no give-ups'}`,
         line: quit.length
           ? 'Each marked task is a give-up, scored 1, the lowest.'
@@ -170,6 +184,7 @@ export default class GnomeFilesExplainer extends Scene {
     const most = Math.max(...SESSION.map((n) => quitters(n).length)),
       worst = SESSION.filter((n) => quitters(n).length === most).sort((a, b) => a - b);
     await this.step('give-ups', {
+      detail: true,
       title: 'All six gave up at least once, always in the menus',
       line: `All ${all.length} give-ups score 1, and all fall in tasks 1 to 9.`,
       // Ranking by black cells is this page's rule. ARTICLE §6.1 names icon size and Bookmarks the
@@ -196,7 +211,10 @@ export default class GnomeFilesExplainer extends Scene {
         ...PARTICIPANTS.flatMap((q, i) => {
           const c = colourOf(n, q);
           return [
-            new Rectangle({ width: CW - 0.06, height: RH - 0.07, fill: RGB[c], stroke: 'none' }).moveTo([col(i), rowY(r)]),
+            new Rectangle({ width: CW - 0.06, height: RH - 0.07, fill: RGB[c], stroke: 'none' }).moveTo([
+              col(i),
+              rowY(r),
+            ]),
             new Text(SCORE[c] == null ? '–' : String(SCORE[c]), {
               fontSize: LABEL,
               color: c === 'black' ? '#ffffff' : '#1f2328',
@@ -223,12 +241,16 @@ export default class GnomeFilesExplainer extends Scene {
       const q = quitters(n);
       if (!q.length) continue;
       const y = rowY(r);
-      await s.callout([col(0) - CW / 2, y - RH / 2, col(PARTICIPANTS.length - 1) + CW / 2, y + RH / 2], `${and(q)} gave up`, {
-        side: 'right',
-        gap: 0.3,
-        color: q.includes(p) ? s.emphasis : s.soft,
-        size: 0.28,
-      });
+      await s.callout(
+        [col(0) - CW / 2, y - RH / 2, col(PARTICIPANTS.length - 1) + CW / 2, y + RH / 2],
+        `${and(q)} gave up`,
+        {
+          side: 'right',
+          gap: 0.3,
+          color: q.includes(p) ? s.emphasis : s.soft,
+          size: 0.28,
+        },
+      );
     }
     this.state.giveUps = { mine, others: Object.fromEntries(mine.map((n) => [n, others(n)])), total: all.length };
   }

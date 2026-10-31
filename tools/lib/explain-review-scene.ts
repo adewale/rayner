@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { readFile, writeFile, mkdir, mkdtemp, rm, copyFile } from 'node:fs/promises';
+import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { buildExplainer } from './explain-build.ts';
+import { reviewCodeHash } from './explain-review-plan.ts';
+import { buildExplainer, buildLoader } from './explain-build.ts';
 import { checkProject } from './explain-check.ts';
 import { buildInputs } from './build-inputs.ts';
 import { ROOT, hash, loadScene } from './explain-project.ts';
@@ -43,13 +44,14 @@ export async function reviewClaims(project: Project, file?: string, builtIn: rea
 }
 
 /** The same served-paint reviewer used by the catalog, for any installed author's scene. */
-export async function reviewScene(project: Project, directory: string, claimsFile?: string) {
+export async function reviewScene(project: Project, directory: string, claimsFile?: string, artifact?: string) {
   directory = resolve(directory);
   await mkdir(directory, { recursive: true });
   const receiptFile = join(directory, 'review.json');
   await rm(receiptFile, { force: true });
   const claims = await reviewClaims(project, claimsFile);
   const inputs = await buildInputs(ROOT);
+  const reviewer = await reviewCodeHash(ROOT);
   await checkProject(project, join(directory, 'checks'));
   const temporary = await mkdtemp(join(tmpdir(), 'rayner-review-'));
   let server: Awaited<ReturnType<typeof serve>> | undefined;
@@ -82,11 +84,18 @@ export async function reviewScene(project: Project, directory: string, claimsFil
       throw error;
     }
     assert.equal((await buildInputs(ROOT)).hash, inputs.hash, 'build inputs changed during review');
+    assert.equal(await reviewCodeHash(ROOT), reviewer, 'review inputs changed during review');
     assert.equal((await loadScene(project.file)).sourceHash, project.sourceHash, 'scene changed during review');
     assert.deepEqual(await reviewClaims(project, claimsFile), claims, 'caption claims changed during review');
+    const retained = resolve(artifact ?? join(directory, 'scene.html'));
+    await mkdir(dirname(retained), { recursive: true });
+    for (const suffix of ['', '.headers.json', '.receipt.json'])
+      await copyFile(join(temporary, 'scene.html' + suffix), retained + suffix);
+    assert.equal(hash(await readFile(retained)), receipt.artifactHash, 'retain the exact reviewed page');
+    await buildLoader(join(dirname(retained), 'loader.js'));
     const report = {
       version: 1, scene: project.Scene.meta?.id ?? 'scene', sourceHash: project.sourceHash,
-      buildHash: inputs.hash, artifactHash: receipt.artifactHash, claimsHash: hash(JSON.stringify(claims)),
+      buildHash: inputs.hash, reviewCodeHash: reviewer, artifact: retained, artifactHash: receipt.artifactHash, claimsHash: hash(JSON.stringify(claims)),
       cases: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0), results,
       consoleErrors: errors, runtimeConnections: connections,
     };

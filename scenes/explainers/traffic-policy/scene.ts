@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/traffic-policy.ts';
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -69,16 +71,26 @@ function cluster(counts: readonly number[], policy: Policy): string {
   return lines.join('\n');
 }
 /** The pod the drawn second hop reaches: the last pod on Node 2, which every placement has. */
-const hopTarget = (counts: readonly number[]) => podsOf(counts).filter((p) => p.node === 1).at(-1)!.id;
+const hopTarget = (counts: readonly number[]) =>
+  podsOf(counts)
+    .filter((p) => p.node === 1)
+    .at(-1)!.id;
 
 const named = (n: number) => NAMES[n - 1] ?? String(n);
 const podList = (ids: readonly string[]) =>
   ids.length === 1 ? `pod ${ids[0]}` : `pods ${ids.slice(0, -1).join(', ')} and ${ids.at(-1)}`;
 const nodeList = (nodes: readonly number[]) =>
-  nodes.length === 1 ? NODES[nodes[0]!]! : `${nodes.slice(0, -1).map((j) => NODES[j]).join(', ')} and ${NODES[nodes.at(-1)!]}`;
+  nodes.length === 1
+    ? NODES[nodes[0]!]!
+    : `${nodes
+        .slice(0, -1)
+        .map((j) => NODES[j])
+        .join(', ')} and ${NODES[nodes.at(-1)!]}`;
 /** "Node 1 runs 3 pods, Node 2 runs 1 and Node 3 runs none." */
 const placementWords = (counts: readonly number[]) => {
-  const parts = counts.map((n, j) => `${NODES[j]} runs ${n === 0 ? 'none' : j === 0 ? `${n} pod${n === 1 ? '' : 's'}` : n}`);
+  const parts = counts.map(
+    (n, j) => `${NODES[j]} runs ${n === 0 ? 'none' : j === 0 ? `${n} pod${n === 1 ? '' : 's'}` : n}`,
+  );
   return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
 };
 /** "1 in 4" for a fraction. */
@@ -95,18 +107,21 @@ function byShare(s: Record<string, Q>): [Q, string[]][] {
 }
 /** A card line for each share: "pods a, b, c" → "1/6 each (16.7%)". */
 const shareRows = (s: Record<string, Q>) =>
-  byShare(s).map(([share, ids]) => [podList(ids).replace(/^p/, 'P'), `${frac(share)}${ids.length > 1 ? ' each' : ''} (${percent(share)})`] as const);
+  byShare(s).map(
+    ([share, ids]) =>
+      [podList(ids).replace(/^p/, 'P'), `${frac(share)}${ids.length > 1 ? ' each' : ''} (${percent(share)})`] as const,
+  );
 
 // The widest Cluster topology needs the full stage width to keep every
 // imported service label above the completed-view readability floor.
-const DIAGRAM: Box = [-7.95, -1.25, 7.95, 3.2];
+const DIAGRAM: Box = [-8, -1.25, 8, 3.2];
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
 export default class TrafficPolicyExplainer extends Scene {
   static meta = {
     id: 'traffic-policy',
-    title: 'externalTrafficPolicy: Local keeps the client’s address but splits traffic by node, not by pod',
+    title: 'How does traffic policy divide requests among pods?',
     sources: [
       K8S + 'pkg/proxy/iptables/proxier.go#L390-L392',
       K8S + 'pkg/proxy/iptables/proxier.go#L1454-L1472',
@@ -148,16 +163,19 @@ export default class TrafficPolicyExplainer extends Scene {
       pods = podsOf(counts),
       n = pods.length,
       ids = pods.map((p) => p.id);
-    const s = stage(this, { style: STYLE, headingSize: 0.46 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const groups = counts.map((_, j) => `group:n${j + 1}`);
     const nodeParts = (j: number) => [groups[j]!, `k${j + 1}`, ...pods.filter((p) => p.node === j).map((p) => p.id)];
 
     // ------------------------------------------------------------------ topology
+    await readerFirst(this, s, readerFrames(key, policy));
     await this.step('topology', {
+      detail: true,
       title: `${n} pods on three nodes behind one load balancer`,
       line: 'The load balancer sends to nodes; each node’s rules pick a pod.',
       caption: `A Service of type LoadBalancer: a cloud load balancer sends outside requests to the nodes, and rules that kube-proxy writes on each node hand every request to a pod. ${placementWords(counts)}. The setting chooses externalTrafficPolicy: ${POLICY[policy]}.`,
     });
+    await s.clear();
     const d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
     await s.card(
       [
@@ -176,8 +194,11 @@ export default class TrafficPolicyExplainer extends Scene {
     const chain = rules(chainPods),
       each = ruleShares(chainPods.length);
     const chainName = policy === 'cluster' ? 'KUBE-SVC' : 'KUBE-SVL';
-    const spelled = chain.map((r) => (r.probability ? `1/${Math.round(1 / Number(r.probability))}` : 'always')).join(', ');
+    const spelled = chain
+      .map((r) => (r.probability ? `1/${Math.round(1 / Number(r.probability))}` : 'always'))
+      .join(', ');
     await this.step('rules', {
+      detail: true,
       title:
         policy === 'cluster'
           ? `Each node’s rules pick one of all ${n} pods`
@@ -205,7 +226,11 @@ export default class TrafficPolicyExplainer extends Scene {
     const code = await s.code(
       [
         `# ${chainName} chain on ${policy === 'cluster' ? 'every node' : 'Node 1'}, one rule per pod`,
-        ...chain.map((r) => (r.probability ? `-m statistic --mode random --probability ${r.probability} -j pod ${r.pod}` : `-j pod ${r.pod}`)),
+        ...chain.map((r) =>
+          r.probability
+            ? `-m statistic --mode random --probability ${r.probability} -j pod ${r.pod}`
+            : `-j pod ${r.pod}`,
+        ),
       ],
       { at: BELOW, fontSize: 0.22, enter: false },
     );
@@ -223,6 +248,7 @@ export default class TrafficPolicyExplainer extends Scene {
         target = hopTarget(counts);
       const leave = counts.map((c) => q(n - c, n));
       await this.step('second-hop', {
+        detail: true,
         title: `Under Cluster, ${inN(hop)} requests leave the node they reach`,
         line: `Node 3 sends this request on to pod ${target} on Node 2.`,
         // source-ip.md:204-209: the node that receives the packet sends it on to the node with the endpoint.
@@ -246,6 +272,7 @@ export default class TrafficPolicyExplainer extends Scene {
 
       // ---------------------------------------------------------------- snat
       await this.step('snat', {
+        detail: true,
         title: 'The pod sees the node’s address, not the client’s',
         line: `Node 3 swaps ${CLIENT_IP} for its own address, ${nodeIp(2)}.`,
         // proxier.go:1104-1110: under Cluster every packet in the external chain is marked for masquerade,
@@ -261,6 +288,7 @@ export default class TrafficPolicyExplainer extends Scene {
       const failing = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [] : [j])),
         healthy = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [j] : []));
       await this.step('health', {
+        detail: true,
         title: failing.length
           ? `${nodeList(failing)} runs no pod, so it fails the health check`
           : 'Every node runs a pod, so every node passes the health check',
@@ -274,14 +302,23 @@ export default class TrafficPolicyExplainer extends Scene {
       await s.clearOverlays();
       await d.unmark();
       await d.focus('all');
-      if (failing.length) await d.mark(failing.flatMap((j) => [groups[j]!, `k${j + 1}`]), { color: s.bad, as: 'fails the health check' });
+      if (failing.length)
+        await d.mark(
+          failing.flatMap((j) => [groups[j]!, `k${j + 1}`]),
+          { color: s.bad, as: 'fails the health check' },
+        );
       // Each node's health check answer, said under the node.
       for (const [j, c] of counts.entries())
-        await d.note(`k${j + 1}`, `${passes(counts, 'local', j) ? '200' : '503'}, ${c} local pod${c === 1 ? '' : 's'}`, { side: 'below', size: SIZE });
+        await d.note(
+          `k${j + 1}`,
+          `${passes(counts, 'local', j) ? '200' : '503'}, ${c} local pod${c === 1 ? '' : 's'}`,
+          { side: 'below', size: SIZE },
+        );
       this.state.passes = counts.map((_, j) => passes(counts, 'local', j));
 
       // ---------------------------------------------------------------- local path
       await this.step('local-path', {
+        detail: true,
         title: 'The request stays on its node and keeps the client’s address',
         line: `Pod a sees ${CLIENT_IP}: no source NAT and no second hop.`,
         // proxier.go:1104-1146: under Local no masquerade rule applies to outside traffic, which goes to
@@ -309,6 +346,7 @@ export default class TrafficPolicyExplainer extends Scene {
       low = ranked.at(-1)!;
     const ratio = value(top[0]) / value(low[0]);
     await this.step('shares', {
+      detail: true,
       title: even
         ? `Each pod gets ${frac(top[0])} of the requests`
         : `${podList(top[1]).replace(/^p/, 'P')} ${top[1].length > 1 ? 'get' : 'gets'} ${frac(top[0])} of the requests; ${podList(low[1])} ${low[1].length > 1 ? `get ${frac(low[0])} each` : `gets ${frac(low[0])}`}`,
@@ -333,7 +371,9 @@ export default class TrafficPolicyExplainer extends Scene {
                         ],
                   )
                   .join('; ')) +
-            (even ? ', so every pod gets the same.' : `, so pod ${top[1][0]} gets ${ratio} times as many requests as pod ${low[1][0]}.`),
+            (even
+              ? ', so every pod gets the same.'
+              : `, so pod ${top[1][0]} gets ${ratio} times as many requests as pod ${low[1][0]}.`),
     });
     await s.clearOverlays();
     await d.unmark();
@@ -349,6 +389,7 @@ export default class TrafficPolicyExplainer extends Scene {
     const lTop = byShare(local)[0]!,
       lLow = byShare(local).at(-1)!;
     await this.step('compare', {
+      detail: true,
       title: uneven
         ? `With ${counts.join(', ')} pods, Local trades even load for the client’s address`
         : `With ${counts.join(', ')} pods, Local keeps both even load and the client’s address`,
@@ -372,6 +413,16 @@ export default class TrafficPolicyExplainer extends Scene {
       );
     const left = await half('cluster', regionBox(BELOW, { right: -0.15 })),
       right = await half('local', regionBox(BELOW, { left: 0.15 }));
+    for (const [policy, card] of [['cluster', left], ['local', right]] as const) {
+      card.key = `traffic-compare:${policy}`;
+      card.values.get('Second hop')!.key = `${card.key}:hop`;
+      card.values.get('Pod sees')!.key = `${card.key}:source`;
+      for (const [label, value] of card.values)
+        if (label !== 'Second hop' && label !== 'Pod sees') {
+          card.labels.get(label)!.key = `${card.key}:pods:${label}`;
+          value.key = `${card.key}:share:${label}`;
+        }
+    }
     await s.enter(left, right);
     this.state.compare = {
       cluster: Object.fromEntries(ids.map((id) => [id, frac(cl[id]!)])),
@@ -380,6 +431,7 @@ export default class TrafficPolicyExplainer extends Scene {
 
     // ------------------------------------------------------------------ caveats
     await this.step('caveats', {
+      detail: true,
       title: 'What these shares leave out',
       line: 'Shares are iptables-mode averages; IPVS defaults to round robin.',
       // ipvs/proxier.go:91-92 defaultScheduler "rr"; service_health.go:255 the weight header;
