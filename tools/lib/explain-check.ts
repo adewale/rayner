@@ -22,7 +22,7 @@ import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
 import { restingFrame, undescribed, stepWords, watchedChanges } from '../../explain/trace.ts';
 import { wordsReport } from './explain-words.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
@@ -88,9 +88,8 @@ const isHome = (view: Box) => view.every((v, i) => Math.abs(v - FRAME[i]!) < 1e-
  * A phone close-up multiplies this again (the reader's zoom, on top).
  */
 export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null {
-  const label = labelOf(m);
-  if (!label) return null;
-  return m.height() * label.emRatio * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
+  const size = readingLabelSize(m);
+  return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
 }
 /** `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips to its frame). */
 function clipped(m: Mobject, box: Box): Box {
@@ -353,7 +352,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             // label counts at no more than its size with the camera home.
             const credited = completedFrames.has(scene.frameCount)
               ? px
-              : Math.min(px, m.height() * label.emRatio * STAGE_PX_PER_UNIT);
+              : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
             if (readable(m, m.box(), viewport)) seen(labels.get(m)!, credited, shown(m.box()), scene.frameCount);
           }
         }

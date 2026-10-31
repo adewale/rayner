@@ -1,10 +1,152 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Rectangle } from '../src/index.ts';
+import { Scene, Group, Text, Rectangle, VMobject, NullSink, Transform, loadFonts, toSvgString } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { stepLayouts, closeUps, viewBox, stageScale } from '../app/embed-closeup.ts';
 import type { Box } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
+import { Diagram, labelOf, readingLabelSize } from '../explain/diagrams.ts';
+import type { DiagramSnapshot } from '../explain/index.ts';
+import importedSnapshot from '../scenes/explainers/font-metrics/scene.snapshots/4ee0d75a90dc9b78.json' with { type: 'json' };
+import { outlineText } from '../integrations/agentic-mermaid/text.ts';
+await loadFonts();
+
+function importedLabel(snapshot = importedSnapshot as DiagramSnapshot) {
+  const diagram = new Diagram(new Scene(new NullSink()), snapshot.spec, snapshot);
+  const label = diagram.get('B').family().find((m) => labelOf(m)?.text === 'Paper')!;
+  label.parent!.remove(label);
+  return label;
+}
+
+test('native and imported font metrics preserve rotation and uniform scale, and detect squash and shear', async () => {
+  const { labelPx } = await import('../tools/lib/explain-check.ts');
+  const cases = [
+    { matrix: [0, 1, -1, 0], scale: 1 },
+    { matrix: [0, 2, -2, 0], scale: 2 },
+    { matrix: [0.01, 0, 0, 1], scale: 0.01 },
+    { matrix: [1, 0, 0, 0.25], scale: 0.25 },
+    { matrix: [1, 0, 3, 1], scale: (Math.sqrt(13) - 3) / 2 },
+    { matrix: [-2, 0, 0, 2], scale: 2 },
+    { matrix: [0, 0, 0, 1], scale: 0 },
+  ];
+  for (const make of [() => new Text('Paper', { fontSize: 0.8 }), importedLabel])
+    for (const { matrix, scale } of cases) {
+      const label = make(), original = readingLabelSize(label)!;
+      const [a, b, c, d] = matrix as [number, number, number, number];
+      label.applyAffine(a, b, c, d, 0, 0, { aboutPoint: [0, 0] });
+      assert.ok(Math.abs(readingLabelSize(label)! - original * scale) < 2e-6, JSON.stringify(matrix));
+      assert.ok(Math.abs(labelPx(label, {})! - original * scale * 80) < 2e-4,
+        'the production legibility checker uses the same transformed font floor');
+    }
+});
+
+test('imported source matrices and forced widths determine font size without altering SVG bytes or bounds', () => {
+  const svg = (m: Group) => { const scene = new Scene(new NullSink()); scene.add(m); return toSvgString(scene); };
+  for (const natural of [true, false]) {
+    const snapshot = structuredClone(importedSnapshot) as DiagramSnapshot;
+    const shape = snapshot.parts.find((p) => p.id === 'B')!.shapes.find((s) => s.text === 'Paper')!;
+    const run = shape.textRun!;
+    // A rotated, nonuniform captured transform; the legacy fontSize only
+    // records its geometric mean. A forced width supplies another squash.
+    run.matrix = [0, 2, -0.5, 0, 15, 20];
+    if (!natural) {
+      delete run.natural;
+      run.width = new Text(run.text, { fontSize: run.size }).advance() / 4;
+    }
+    const raw = new Group(...outlineText(run, shape.style));
+    const label = importedLabel(snapshot);
+    const fit = label.width() / raw.width();
+    // Original em: 13 / 100. Matrix singular values: 2 and 0.5;
+    // forced quarter width changes them to 0.5 and 0.5.
+    assert.ok(Math.abs(readingLabelSize(label)! - 0.13 * 0.5 * fit) < 2e-6);
+    const control = new Group(...label.children.map((m) => m.copy()));
+    control.mergeLeaves = label.mergeLeaves;
+    assert.deepEqual(label.box(), control.box(), 'the actual imported label starts with its original ink bounds');
+    assert.equal(svg(label as Group), svg(control), 'the added font basis emits no SVG');
+    for (const m of [label, control]) m.rotate(Math.PI / 3).applyAffine(1, 0.4, 2, 1, -3, 2);
+    assert.deepEqual(label.box(), control.box(), 'rotation and shear preserve the original layout bounds');
+    assert.equal(svg(label as Group), svg(control), 'rotation and shear preserve the original SVG bytes');
+    const text = new Text('Paper', { fontSize: 0.8 }).rotate(Math.PI / 3);
+    const before = svg(text);
+    readingLabelSize(text);
+    assert.equal(svg(text), before, 'reading the native metric leaves its SVG bytes unchanged');
+  }
+});
+
+test('imported label copies and animation retain their basis without changing glyphs or layout bounds', () => {
+  const original = importedLabel(), size = readingLabelSize(original)!;
+  const copy = original.copy();
+  copy.stretch(0.01, 0);
+  assert.equal(readingLabelSize(original), size, 'a copy cannot mutate its source basis');
+  assert.ok(Math.abs(readingLabelSize(copy)! - size * 0.01) < 2e-6);
+  const geometry = new Group(...original.children.map((m) => m.copy()));
+  const matrix = [1, 0.4, 2, 1, -3, 2] as const;
+  original.applyAffine(...matrix, { aboutPoint: [0, 0] });
+  geometry.applyAffine(...matrix, { aboutPoint: [0, 0] });
+  assert.deepEqual(original.box(), geometry.box(), 'basis points add no layout extent, including after shear');
+  const paths = (m: Group) => m.family().filter((p): p is VMobject => p instanceof VMobject)
+    .map((p) => p.subpaths.map((a) => [...a]));
+  assert.deepEqual(paths(original as Group), paths(geometry), 'metric bookkeeping leaves emitted glyph geometry intact');
+  const moving = importedLabel(), start = readingLabelSize(moving)!;
+  const target = moving.copy().stretch(0.25, 0);
+  const animation = new Transform(moving, target);
+  animation.begin();
+  animation.interpolate(0.5);
+  assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.625) < 2e-6, 'the basis follows the glyphs during interpolation');
+  animation.finish();
+  assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
+  moving.copy().rotate(Math.PI / 2);
+  assert.ok(Math.abs(readingLabelSize(moving)! - start * 0.25) < 2e-6);
+});
+
+test('imported labels retain their compressed font dimension in reader layouts', async () => {
+  const { collectProject } = await import('../tools/lib/explain-project.ts');
+  const p = await collectProject('test/fixtures/imported-reading', { write: false });
+  assert.equal(p.variants.length, 2);
+  for (const variant of p.variants) {
+    const layout = (await stepLayouts(variant.Scene)).get('opening')!;
+    assert.equal(layout.reading!.labels.length, 1);
+    const expected = variant.values.width === 'thin' ? 0.008 : 0.8;
+    assert.ok(Math.abs(layout.reading!.labels[0]!.size - expected) < 1e-5,
+      `${variant.values.width}: use the smallest transformed font dimension`);
+  }
+});
+
+test('the served review rejects a compressed imported word after accepting its readable control',
+  { skip: process.env.EXPLAIN_BROWSER ? false : 'set EXPLAIN_BROWSER=1 for imported-label reader review' },
+  async () => {
+    const { collectProject } = await import('../tools/lib/explain-project.ts');
+    const { buildExplainer } = await import('../tools/lib/explain-build.ts');
+    const { serve } = await import('../tools/lib/explain-serve.ts');
+    const { launch } = await import('../tools/lib/browser.ts');
+    const { reviewStoryVariant } = await import('../tools/lib/explain-story-review.ts');
+    const { mkdtemp, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const project = await collectProject('test/fixtures/imported-reading', { write: false });
+    assert.equal(project.variants.length, 2);
+    const folder = await mkdtemp(join(tmpdir(), 'rayner-imported-reading-'));
+    let browser: Awaited<ReturnType<typeof launch>> | undefined, server: Awaited<ReturnType<typeof serve>> | undefined;
+    try {
+      await buildExplainer(project, join(folder, 'index.html'));
+      server = await serve(folder, 0, 'index.html');
+      browser = await launch();
+      const page = await browser.newPage();
+      const claims = [{ step: 'opening', opening: true, targets: [{ key: 'paper' }] }];
+      const normal = project.variants.find((v) => v.values.width === 'normal')!;
+      const thin = project.variants.find((v) => v.values.width === 'thin')!;
+      const url = `${server.url}/index.html`;
+      const control = await reviewStoryVariant(page, url, normal, claims);
+      assert.equal(control.length, 2, 'the normal word passes at both review widths');
+      await assert.rejects(reviewStoryVariant(page, url, thin, claims), /readable|12px|font|label/i,
+        'a word under one CSS pixel wide cannot pass the readable-label gate');
+      await page.close();
+    } finally {
+      await browser?.close();
+      server?.close();
+      await rm(folder, { recursive: true, force: true });
+    }
+  });
 
 test('declared label scale survives unrelated changes at generated phone sizes', () => {
   fc.assert(

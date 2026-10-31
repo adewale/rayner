@@ -22,7 +22,7 @@
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { Text } from '../src/index.ts';
-import { labelOf } from '../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
 import { emphasisOf, readingOf } from '../explain/look.ts';
 import { isHeading } from '../explain/stage.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
@@ -215,21 +215,6 @@ function headingBox(scene: Scene): Box | undefined {
 }
 
 /** Every readable label in the camera's view, in its units: a label's size grows with the camera's zoom. */
-function nativeLabelSize(text: Text): number {
-  const f = text.frameBox,
-    height = text.run.ascent + text.run.descent;
-  const ey = [(f[4]! - f[0]!) / height, (f[5]! - f[1]!) / height];
-  const ex =
-    text.run.width > 0 ? [(f[6]! - f[0]!) / text.run.width, (f[7]! - f[1]!) / text.run.width] : [ey[1]!, -ey[0]!];
-  const xx = ex[0]! ** 2 + ex[1]! ** 2,
-    yy = ey[0]! ** 2 + ey[1]! ** 2,
-    xy = ex[0]! * ey[0]! + ex[1]! * ey[1]!;
-  const largest = Math.sqrt((xx + yy + Math.hypot(xx - yy, 2 * xy)) / 2);
-  // The smallest affine scale preserves rotations without crediting a wide or
-  // sheared glyph for a compressed dimension. textSize() intentionally reports
-  // the geometric mean, which is not a safe readability floor after stretching.
-  return largest > 0 ? (text.run.fontSize * Math.abs(ex[0]! * ey[1]! - ex[1]! * ey[0]!)) / largest : 0;
-}
 function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
   const out: LayoutLabel[] = [];
   const view = viewOf(scene),
@@ -247,7 +232,7 @@ function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
       if (seen)
         out.push({
           box: toView(seen, view),
-          size: (m instanceof Text ? nativeLabelSize(m) : m.height() * label.emRatio) * zoom,
+          size: readingLabelSize(m)! * zoom,
         });
       return; // a label's own parts are not labels
     }
