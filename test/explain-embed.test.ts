@@ -24,7 +24,7 @@ import { chromeFor } from '../app/embed-strings.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER,
   options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for real cross-origin browser checks' };
-let browser: Browser, folder: string, host: string, embed: string;
+let browser: Browser, folder: string, host: string, embed: string, playbackProbe:Project;
 // The host page is whatever a test sets; the explainers are served as published, with their header recipe.
 let hostBody = '';
 const hostServer = createServer((_, res) => {
@@ -46,6 +46,20 @@ before(async () => {
     projects.set(name, project);
     await buildExplainer(project, join(folder, name + '.html'));
   }
+  // A real scene counts executions without adding player hooks or changing its artwork.
+  const probe=join(folder,'playback-probe');await mkdir(probe);
+  await writeFile(join(probe,'scene.ts'),`import{Scene,Text,FadeIn}from'rayner';
+    export default class PlaybackProbe extends Scene {
+      override async construct(){
+        const w=globalThis as any;w.__sceneRuns=(w.__sceneRuns??0)+1;
+        for(let i=0;i<4;i++){
+          await this.step('step-'+i,{title:'Step '+i,caption:('Picture '+i+' ').repeat(12)});
+          await this.play(new FadeIn(new Text('Picture '+i)),{runTime:2});
+        }
+      }
+    }`);
+  playbackProbe=await collectProject(probe,{write:false});
+  await buildExplainer(playbackProbe,join(folder,'playback-probe.html'));
   await buildLoader(join(folder, 'loader.js'));
   embedServer = await serve(folder, 0, 'mr-cache.html');
   embed = embedServer.url;
@@ -2567,14 +2581,22 @@ for (const [name, runs, maxCommands] of [['oauth-pkce', 10, 40]] as const)
   );
 
 test('phone tour metadata follows resizing while the current zoom and step stay put', options, async () => {
-  for (const width of [200, 632]) {
-    const {context, model, real} = await openPlayer('oauth-pkce', {values: [undefined], viewport: {width, height: 400}});
+  for (const height of [400,1200]) for (const width of [200, 390, 632]) {
+    const {context, model, real} = await openPlayer('oauth-pkce', {values: [undefined], viewport: {width, height}});
     try {
+      if(width===632&&height===1200) assert.ok((await stageSize(real)).w>=NARROW_PX,'the tall desktop stage crosses the 600 px boundary');
       const commands = width === 632
-        ? [Resize(200, 400), DoubleClick(0, 0), OverviewButton]
-        : [Resize(632, 400), Resize(200, 400), OverviewButton];
+        ? [Resize(390, height), DoubleClick(0, 0), ZoomButton('Zoom in'), OverviewButton]
+        : [Resize(632, height), Resize(width, height), ZoomButton('Zoom in'), OverviewButton];
       await fc.asyncModelRun(() => ({model, real}), commands);
       assert.equal(current(model).step, 'secret');
+      const size=await stageSize(real),tour=await tourOf(model,size.w,size.h);
+      assert.ok(tour.length>1,'the resized step offers a second close-up');
+      for(let stop=1;stop<=tour.length;stop++) {
+        if(stop>1) await real.page.getByRole('button',{name:'Next view',exact:true}).click();
+        const actual=(await settledZoom(real.page))??{k:1,x:0,y:0},target=tour[stop%tour.length]!;
+        assert.ok(Math.abs(actual.k-target.k)<1e-4&&Math.abs(actual.x-target.x)<.01&&Math.abs(actual.y-target.y)<.01,`width ${width}, view ${stop}: ${JSON.stringify(actual)} uses resized tour ${JSON.stringify(target)}`);
+      }
     } finally { await context.close(); }
   }
 });
@@ -2598,7 +2620,7 @@ test(
 );
 
 /** Open a player page with the settle and attach counters installed. */
-async function counted(context: import('playwright-core').BrowserContext, url: string) {
+async function counted(context: import('playwright-core').BrowserContext, url: string, initialise?:(page:Page)=>Promise<unknown>) {
   await context.addInitScript(() => {
     const w = window as unknown as { __settles: number; __attaches: number; __last: unknown };
     w.__settles = 0;
@@ -2608,8 +2630,13 @@ async function counted(context: import('playwright-core').BrowserContext, url: s
       w.__settles++;
       w.__last = (e as CustomEvent).detail;
     });
+    new MutationObserver(records=>{
+      if(records.some(r=>(r.target as Element).matches?.('.stage')&&r.addedNodes.length))
+        (window as any).__attachedStep=new URLSearchParams(location.search).get('step');
+    }).observe(document,{childList:true,subtree:true});
   });
   const page = await context.newPage();
+  await initialise?.(page);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(url);
@@ -2760,83 +2787,6 @@ test('phone: one press of Next view shows what PKCE\'s captions point at, emphas
   }
 });
 
-// Regression (ledger P5): Next used to stop the animation where the caption hold
-// begins, before anything a step adds after its last play(), so the picture the
-// reader rested on differed from the one a link to that step shows.
-test(
-  'player, motion on: after Next settles, the stage shows exactly the picture a link to that step shows',
-  options,
-  async () => {
-    const all = ['oauth-pkce', 'exgit', 'mr-cache'].flatMap((name) =>
-      projects.get(name)!.variants.flatMap((v) =>
-        v.trace.steps.slice(0, -1).map((_, i) => ({ name, values: v.values, i })),
-      ),
-    );
-    await fc.assert(
-      fc.asyncProperty(fc.constantFrom(...all), async ({ name, values, i }) => {
-        const p = projects.get(name)!,
-          list = stepsOf(p, values);
-        const context = await browser.newContext({ reducedMotion: 'no-preference' });
-        try {
-          const a = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i]!.step)}`);
-          await a.page.locator('.stepper button[aria-label="Next step"]').click();
-          await a.page.waitForFunction(() => (window as unknown as { __settles: number }).__settles >= 2, undefined, {
-            timeout: 30_000,
-          });
-          await quiet(a.page);
-          const b = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i + 1]!.step)}`);
-          assert.equal(new URL(a.page.url()).searchParams.get('step'), list[i + 1]!.step);
-          assert.equal(await stagePicture(a.page), await stagePicture(b.page), `${name} ${JSON.stringify(values)} ${list[i]!.step} → Next`);
-          assert.deepEqual([...a.errors, ...b.errors], []);
-        } finally {
-          await context.close();
-        }
-      }),
-      params(5),
-    );
-  },
-);
-
-// Next pressed while a step plays sends the playing run on to the next step, undrawn,
-// instead of replaying the scene from its start; it must still rest on the link's picture.
-test(
-  'player, motion on: Next pressed mid-motion rests on exactly the picture a link to the step after shows',
-  options,
-  async () => {
-    const all = ['oauth-pkce', 'exgit'].flatMap((name) =>
-      projects.get(name)!.variants.slice(0, 1).flatMap((v) =>
-        v.trace.steps.slice(0, -2).map((_, i) => ({ name, values: v.values, i })),
-      ),
-    );
-    await fc.assert(
-      fc.asyncProperty(fc.constantFrom(...all), fc.constantFrom(60, 250, 600), async ({ name, values, i }, after) => {
-        const p = projects.get(name)!,
-          list = stepsOf(p, values);
-        const context = await browser.newContext({ reducedMotion: 'no-preference' });
-        try {
-          const a = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i]!.step)}`);
-          await quiet(a.page);
-          await a.page.locator('.stepper button[aria-label="Next step"]').click();
-          await a.page.waitForTimeout(after);
-          await a.page.locator('.stepper button[aria-label="Next step"]').click();
-          await a.page.waitForFunction((step) => (window as unknown as { __last: { step: string } | null }).__last?.step === step, list[i + 2]!.step, {
-            timeout: 30_000,
-          });
-          await quiet(a.page);
-          const b = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i + 2]!.step)}`);
-          const where = `${name} ${list[i]!.step} → Next, ${after} ms, Next`;
-          assert.equal(new URL(a.page.url()).searchParams.get('step'), list[i + 2]!.step, where);
-          assert.equal(await stagePicture(a.page), await stagePicture(b.page), where);
-          assert.deepEqual([...a.errors, ...b.errors], []);
-        } finally {
-          await context.close();
-        }
-      }),
-      params(6),
-    );
-  },
-);
-
 // Every scene run draws into an SVG root the page creates, and a kept picture is a copy
 // (cloneNode creates nothing). So when a stage picture was created tells whether the
 // player re-ran the scene for it: Next should play a run prepared while the reader was
@@ -2904,10 +2854,272 @@ const burstArb = (p: Project) =>
         fc.record({ kind: fc.constant('step' as const), i: fc.nat({ max: 7 }) }),
       ),
       // Same task, next microtask-free turn, or a short pause.
-      gap: fc.constantFrom(0, 1, 5, 20, 60),
+      gap: fc.constantFrom(0, 1, 5, 20, 60, 250, 600),
     }),
     { minLength: 1, maxLength: 12 },
   );
+for (const motion of ['reduce', 'no-preference'] as const)
+  test(
+    `player (motion ${motion}): any burst of case changes and navigation, unawaited, ends with the URL, choice, list, caption and picture all on one case and step`,
+    options,
+    async () => {
+      const choices = new Map(projects).set('playback-probe', playbackProbe);
+      const starts = ['oauth-pkce', 'exgit', 'mr-cache', 'playback-probe'].flatMap(name => choices.get(name)!.variants.flatMap(v => v.trace.steps.map(step => ({ name, values: v.values, step: step.step }))));
+      const early = fc.array(fc.constantFrom('Next step', 'Previous step', 'Whole picture', 'Copy link', 'Zoom in', 'Zoom out', 'ArrowRight', 'ArrowLeft', '+', '0'), {
+        minLength: 1,
+        maxLength: 8,
+      });
+      const inputs = fc.oneof(fc.constant(starts.find(s => s.name === 'playback-probe')!), fc.constantFrom(...starts)).chain(start => fc.tuple(fc.constant(start), fc.oneof(
+        fc.constant([{ action: { kind: 'step' as const, i: 1 }, gap: 0 }, { action: { kind: 'step' as const, i: 0 }, gap: 0 }]),
+        fc.constant([{ action: { kind: 'next' as const }, gap: 250 }, { action: { kind: 'next' as const }, gap: 0 }]),
+        fc.constant([{ action: { kind: 'next' as const }, gap: 0 }]), burstArb(choices.get(start.name)!))));
+      await fc.assert(
+        fc.asyncProperty(inputs, early, fc.scheduler(), async ([start, burst], earlyActions, scheduler) => {
+          const { name, values: initialValues, step } = start, p = choices.get(name)!, ids = settingsOfProject(p).map(s => s.id);
+          const actions=name==='playback-probe'?[{action:{kind:'next' as const},gap:250},{action:{kind:'next' as const},gap:0},...burst]:burst;
+          const context = await browser.newContext({ reducedMotion: motion });
+          try {
+            const initialise = (page: Page) => page.addInitScript((actions: string[]) => {
+              const w = window as unknown as { __early: number };
+              w.__early = 0;
+              const observer = new MutationObserver(() => {
+                if (!document.querySelector('button[aria-label="Next step"]')) return;
+                observer.disconnect();
+                for (const a of actions) {
+                  const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${a}"]`);
+                  if (b) b.click();
+                  else document.getElementById('content')!.dispatchEvent(new KeyboardEvent('keydown', { key: a, bubbles: true }));
+                  w.__early++;
+                }
+              });
+              observer.observe(document, { childList: true, subtree: true });
+            }, earlyActions);
+            // Schedule the player's zero-delay yields (preloading and step boundaries),
+            // retaining the browser's native animation clock and paint timing.
+            await context.exposeFunction('__playerYield', () => scheduler.schedule(Promise.resolve(), 'player yield'));
+            await context.addInitScript(() => {
+              const native = window.setTimeout.bind(window);
+              window.setTimeout = ((callback: TimerHandler, delay?: number, ...args: unknown[]) =>
+                native(() => {
+                  const run = () => { if (typeof callback === 'function') callback(...args); };
+                  if (!delay) void (window as unknown as { __playerYield(): Promise<void> }).__playerYield().then(run);
+                  else run();
+                }, delay)) as typeof window.setTimeout;
+            });
+            const { page, errors } = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, initialValues, step)}`, initialise));
+            assert.equal(await page.evaluate(() => (window as unknown as { __early: number }).__early), earlyActions.length);
+            assert.deepEqual(errors, []);
+            assert.equal(new URL(page.url()).searchParams.get('step'), step, 'early controls keep the requested step');
+            const whole=page.getByRole('button',{name:'Whole picture',exact:true});
+            if(await whole.isVisible()) await whole.click();
+            await scheduler.waitFor(page.evaluate(
+              async ({ burst, settings }) => {
+                const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+                // At rest on the last step Next is Start again, named otherwise: no Next step to press, as when it was disabled.
+                const button = (n: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${n}"]`);
+                const key = (k: string) =>
+                  document.getElementById('content')!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+                // Back must not leave the player's document: count Backs not yet committed.
+                const nav = (window as unknown as { navigation: { currentEntry: { index: number } } }).navigation;
+                let queued = 0,
+                  seenIndex = nav.currentEntry.index;
+                for (const { action: a, gap } of burst) {
+                  const w = window as any, runs = w.__sceneRuns;
+                  const names=Array.from(document.querySelectorAll('.steps button')).map(b=>b.getAttribute('data-step'));
+                  const expectedNext=a.kind==='next'&&!document.querySelector('#content.loading')&&button('Next step')?.disabled===false?names[names.indexOf(new URLSearchParams(location.search).get('step'))+1]:undefined;
+                  const continuing = a.kind === 'next' && !document.querySelector('.steps li:last-child [aria-current=step]') && !!document.querySelector('.stage[aria-busy=true]') && w.__attachedStep === new URLSearchParams(location.search).get('step');
+                  if (nav.currentEntry.index !== seenIndex) [queued, seenIndex] = [0, nav.currentEntry.index];
+                  if (a.kind === 'case') {
+                    const s = settings[a.setting];
+                    const input = s && document.querySelector<HTMLInputElement>(`input[name="${s.id}"][value="${s.options[a.option % s.options.length]}"]`);
+                    input?.click();
+                  } else if (a.kind === 'next') button('Next step')?.click();
+                  else if (a.kind === 'prev') button('Previous step')!.click();
+                  else if (a.kind === 'back') {
+                    if (nav.currentEntry.index - queued > 0) {
+                      queued++;
+                      history.back();
+                    }
+                  }
+                  else if (a.kind === 'forward') history.forward();
+                  else if (a.kind === 'left') key('ArrowLeft');
+                  else if (a.kind === 'right') key('ArrowRight');
+                  else if (a.kind === 'step') document.querySelectorAll<HTMLButtonElement>('.steps button')[a.i]?.click();
+                  if(expectedNext&&new URLSearchParams(location.search).get('step')!==expectedNext) throw new Error('Next did not advance exactly one step');
+                  if(continuing&&runs!==undefined) {
+                    await new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r())));
+                    if(w.__sceneRuns!==runs) throw new Error('mid-motion Next restarted the scene');
+                  }
+                  if (gap) await pause(gap);
+                }
+              },
+              {
+                burst: actions as { action: Burst; gap: number }[],
+                settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })),
+              },
+            ));
+            await scheduler.waitFor(quiet(page));
+            const seen = await page.evaluate(observe, ids);
+            const values = Object.fromEntries(ids.map((id) => [id, seen.urlCase[id]!])) as Settings;
+            const list = stepsOf(p, values),
+              at = list.findIndex((s) => s.step === seen.urlStep);
+            assert.ok(at >= 0, `URL step ${seen.urlStep} is not a step of ${JSON.stringify(values)}`);
+            assert.deepEqual(
+              {
+                checked: seen.checked,
+                list: seen.list,
+                current: seen.current,
+                caption: seen.caption,
+                last: seen.last,
+                errors,
+              },
+              {
+                checked: seen.urlCase,
+                list: list.map((s) => s.step),
+                current: [seen.urlStep],
+                caption: list[at]!.caption,
+                last: { step: seen.urlStep, settings: seen.urlCase },
+                errors: [],
+              },
+            );
+            // Ledger P5: include post-hold additions in the resting picture a fresh link shows.
+            const fresh = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, values, seen.urlStep!)}`));
+            assert.deepEqual(fresh.errors,[]);
+            assert.equal(await stagePicture(page), await stagePicture(fresh.page), 'stage picture');
+          } finally {
+            await context.close();
+          }
+        }),
+        params(12),
+      );
+    },
+  );
+
+// Regression (ledger P5): Next used to stop the animation where the caption hold
+// begins, before anything a step adds after its last play(), so the picture the
+// reader rested on differed from the one a link to that step shows.
+test(
+  'player, motion on: after Next settles, the stage shows exactly the picture a link to that step shows',
+  options,
+  async () => {
+    const all = ['oauth-pkce', 'exgit', 'mr-cache'].flatMap((name) =>
+      projects.get(name)!.variants.flatMap((v) =>
+        v.trace.steps.slice(0, -1).map((_, i) => ({ name, values: v.values, i })),
+      ),
+    );
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom(...all), async ({ name, values, i }) => {
+        const p = projects.get(name)!,
+          list = stepsOf(p, values);
+        const context = await browser.newContext({ reducedMotion: 'no-preference' });
+        try {
+          const a = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i]!.step)}`);
+          await a.page.locator('.stepper button[aria-label="Next step"]').click();
+          await a.page.waitForFunction(() => (window as unknown as { __settles: number }).__settles >= 2, undefined, {
+            timeout: 30_000,
+          });
+          await quiet(a.page);
+          const b = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i + 1]!.step)}`);
+          assert.equal(new URL(a.page.url()).searchParams.get('step'), list[i + 1]!.step);
+          assert.equal(await stagePicture(a.page), await stagePicture(b.page), `${name} ${JSON.stringify(values)} ${list[i]!.step} → Next`);
+          assert.deepEqual([...a.errors, ...b.errors], []);
+        } finally {
+          await context.close();
+        }
+      }),
+      params(5),
+    );
+  },
+);
+
+
+// Next pressed while a step plays sends the playing run on to the next step, undrawn,
+// instead of replaying the scene from its start; it must still rest on the link's picture.
+test(
+  'player, motion on: Next pressed mid-motion rests on exactly the picture a link to the step after shows',
+  options,
+  async () => {
+    const all = ['oauth-pkce', 'exgit'].flatMap((name) =>
+      projects.get(name)!.variants.slice(0, 1).flatMap((v) =>
+        v.trace.steps.slice(0, -2).map((_, i) => ({ name, values: v.values, i })),
+      ),
+    );
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom(...all), fc.constantFrom(60, 250, 600), async ({ name, values, i }, after) => {
+        const p = projects.get(name)!,
+          list = stepsOf(p, values);
+        const context = await browser.newContext({ reducedMotion: 'no-preference' });
+        try {
+          const a = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i]!.step)}`);
+          await quiet(a.page);
+          await a.page.locator('.stepper button[aria-label="Next step"]').click();
+          await a.page.waitForTimeout(after);
+          await a.page.locator('.stepper button[aria-label="Next step"]').click();
+          await a.page.waitForFunction((step) => (window as unknown as { __last: { step: string } | null }).__last?.step === step, list[i + 2]!.step, {
+            timeout: 30_000,
+          });
+          await quiet(a.page);
+          const b = await counted(context, `${embed}/${name}.html?${caseQuery(p, values, list[i + 2]!.step)}`);
+          const where = `${name} ${list[i]!.step} → Next, ${after} ms, Next`;
+          assert.equal(new URL(a.page.url()).searchParams.get('step'), list[i + 2]!.step, where);
+          assert.equal(await stagePicture(a.page), await stagePicture(b.page), where);
+          assert.deepEqual([...a.errors, ...b.errors], []);
+        } finally {
+          await context.close();
+        }
+      }),
+      params(6),
+    );
+  },
+);
+
+
+test(
+  'player: controls and keys used before the first case has loaded raise no errors and leave the requested step showing',
+  options,
+  async () => {
+    const name = 'oauth-pkce',
+      p = projects.get(name)!;
+    const early = fc.array(fc.constantFrom('Next step', 'Previous step', 'Whole picture', 'Copy link', 'Zoom in', 'Zoom out', 'ArrowRight', 'ArrowLeft', '+', '0'), {
+      minLength: 1,
+      maxLength: 8,
+    });
+    await fc.assert(
+      fc.asyncProperty(early, fc.constantFrom(...stepsOf(p, resolveSettings(p.Scene)).map((s) => s.step)), async (actions, step) => {
+        const context = await browser.newContext({ reducedMotion: 'reduce', permissions: ['clipboard-read', 'clipboard-write'] });
+        try {
+          // As soon as the controls exist, before the first trace is ready, use them.
+          await context.addInitScript((actions: string[]) => {
+            const w = window as unknown as { __early: number };
+            w.__early = 0;
+            const observer = new MutationObserver(() => {
+              if (!document.querySelector('button[aria-label="Next step"]')) return;
+              observer.disconnect();
+              for (const a of actions) {
+                const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${a}"]`);
+                if (b) b.click();
+                else document.getElementById('content')!.dispatchEvent(new KeyboardEvent('keydown', { key: a, bubbles: true }));
+                w.__early++;
+              }
+            });
+            observer.observe(document, { childList: true, subtree: true });
+          }, actions);
+          const { page, errors } = await counted(context, `${embed}/${name}.html?step=${step}`);
+          await quiet(page);
+          assert.equal(await page.evaluate(() => (window as unknown as { __early: number }).__early), actions.length);
+          assert.deepEqual(errors, []);
+          // Nothing could move before the trace existed, so the deep link's step is showing.
+          assert.equal(new URL(page.url()).searchParams.get('step'), step);
+        } finally {
+          await context.close();
+        }
+      }),
+      params(10),
+    );
+  },
+);
+
+
 for (const name of ['oauth-pkce'] as const)
   test(
     `player (${name}): any burst of case changes and navigation, unawaited, ends with the URL, choice, list, caption and picture all on one case and step`,
@@ -2993,50 +3205,6 @@ for (const name of ['oauth-pkce'] as const)
     },
   );
 
-test(
-  'player: controls and keys used before the first case has loaded raise no errors and leave the requested step showing',
-  options,
-  async () => {
-    const name = 'oauth-pkce',
-      p = projects.get(name)!;
-    const early = fc.array(fc.constantFrom('Next step', 'Previous step', 'Whole picture', 'Copy link', 'Zoom in', 'Zoom out', 'ArrowRight', 'ArrowLeft', '+', '0'), {
-      minLength: 1,
-      maxLength: 8,
-    });
-    await fc.assert(
-      fc.asyncProperty(early, fc.constantFrom(...stepsOf(p, resolveSettings(p.Scene)).map((s) => s.step)), async (actions, step) => {
-        const context = await browser.newContext({ reducedMotion: 'reduce', permissions: ['clipboard-read', 'clipboard-write'] });
-        try {
-          // As soon as the controls exist, before the first trace is ready, use them.
-          await context.addInitScript((actions: string[]) => {
-            const w = window as unknown as { __early: number };
-            w.__early = 0;
-            const observer = new MutationObserver(() => {
-              if (!document.querySelector('button[aria-label="Next step"]')) return;
-              observer.disconnect();
-              for (const a of actions) {
-                const b = document.querySelector<HTMLButtonElement>(`button[aria-label="${a}"]`);
-                if (b) b.click();
-                else document.getElementById('content')!.dispatchEvent(new KeyboardEvent('keydown', { key: a, bubbles: true }));
-                w.__early++;
-              }
-            });
-            observer.observe(document, { childList: true, subtree: true });
-          }, actions);
-          const { page, errors } = await counted(context, `${embed}/${name}.html?step=${step}`);
-          await quiet(page);
-          assert.equal(await page.evaluate(() => (window as unknown as { __early: number }).__early), actions.length);
-          assert.deepEqual(errors, []);
-          // Nothing could move before the trace existed, so the deep link's step is showing.
-          assert.equal(new URL(page.url()).searchParams.get('step'), step);
-        } finally {
-          await context.close();
-        }
-      }),
-      params(10),
-    );
-  },
-);
 
 // ---------------------------------------------------------------------------
 // reportHeight, in real cross-origin frames. Each frame's `parent` is wrapped
