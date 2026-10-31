@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Include visible stroke width in phone tour bounds. Preserve backing-stroke rasterization when checking letter visibility in WebKit, while rejecting covered glyphs.
+- Include visible stroke width and newly focused context in phone tours, keeping unrelated labels out of the reading-scale decision. Preserve backing-stroke rasterization when checking letter visibility in WebKit, while rejecting covered glyphs.
 
 - Retain the exact reviewed HTML with `rayner review --out page.html`, including its header recipe and loader.
 - Reuse catalog visits for shared player checks and keep minimum-Node browser coverage focused on compatibility. Reviewer-only edits invalidate review receipts without rebuilding unchanged source pages.

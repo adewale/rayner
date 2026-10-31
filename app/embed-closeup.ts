@@ -48,11 +48,13 @@ export interface StepLayout {
   /** Complete visible stage chrome, so an opening never shows half a heading. */
   heading?: Box;
   /**
-   * Where the picture changed during the step, in the units of the camera's view, as
+   * What changed or received fresh helper emphasis, in the camera's view units, as
    * separate parts in reading order (rows top to bottom, each left to right); empty
    * when nothing is drawn.
    */
   parts: Box[];
+  /** Painted extents of those parts, including stroke and authored clips. */
+  painted?: Box[];
   /** The part the step opens on: the one whose lettering changed most (new words, new values), else the first. */
   lead: number;
   labels: LayoutLabel[];
@@ -88,6 +90,7 @@ interface Leaf {
   key: string;
   opacity: number;
   box: Box;
+  painted: Box;
   top: Mobject;
   /** Part of a label's lettering. */
   text: boolean;
@@ -159,11 +162,11 @@ function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[]
     const stress = fresh.has(m) ? m : stressed;
     if (!m.children.length) {
       const geometry = m.box(), style = m.style;
-      // Path bounds exclude stroke. Plan the same painted extent that native
-      // SVG shows, then apply the authored clips (including the camera).
+      // Keep geometry for label relevance and painted bounds for coverage.
+      // A stroke near an unrelated label must not make that label set the zoom.
       const half = style.stroke !== 'none' && style.strokeOpacity > 0 && style.strokeWidth > 0 ? style.strokeWidth / 2 : 0;
-      const b: Box | null = geometry ? [geometry[0] - half, geometry[1] - half, geometry[2] + half, geometry[3] + half] : null;
-      const seen = b && painted(m) && (m.style.drawFraction ?? 1) > 0.05 ? intersect(b, c) : null;
+      const bounds: Box | null = geometry ? [geometry[0] - half, geometry[1] - half, geometry[2] + half, geometry[3] + half] : null;
+      const seen = bounds && painted(m) && (m.style.drawFraction ?? 1) > 0.05 ? intersect(bounds, c) : null;
       if (seen) {
         const s = m.style;
         const key = [
@@ -175,10 +178,10 @@ function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[]
           s.drawFraction ?? 1,
           hashPoints(m),
         ].join('|');
-        const form = [s.fill, s.fillOpacity, s.stroke, s.strokeOpacity, s.drawFraction ?? 1, hashShape(m, b!)].join(
+        const form = [s.fill, s.fillOpacity, s.stroke, s.strokeOpacity, s.drawFraction ?? 1, hashShape(m, geometry!)].join(
           '|',
         );
-        out.push({ key, opacity: o, box: seen, top, text, stress, m, form });
+        out.push({ key, opacity: o, box: intersect(geometry!, c) ?? seen, painted: seen, top, text, stress, m, form });
       }
     }
     for (const child of m.children) walk(child, top, o, c, text, stress);
@@ -190,9 +193,12 @@ function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[]
 /** Rows a unit tall, top first, then left to right: the order parts are read in. */
 const readingOrder = (a: Box, b: Box) => Math.floor(-a[3]) - Math.floor(-b[3]) || a[0] - b[0];
 /** What the step emphasised: one box for each object that shows it, around its drawn leaves. */
-function emphasised(leaves: readonly Leaf[]): Box[] {
-  const boxes = new Map<Mobject, Box>();
-  for (const l of leaves) if (l.stress) boxes.set(l.stress, union(boxes.get(l.stress) ?? null, l.box));
+function emphasised(leaves: readonly Leaf[]): {box: Box; painted: Box}[] {
+  const boxes = new Map<Mobject, {box: Box; painted: Box}>();
+  for (const l of leaves) if (l.stress) {
+    const prior = boxes.get(l.stress);
+    boxes.set(l.stress, {box: union(prior?.box ?? null, l.box), painted: union(prior?.painted ?? null, l.painted)});
+  }
   return [...boxes.values()];
 }
 
@@ -266,17 +272,18 @@ export function changed(leaves: readonly Leaf[], before: readonly Leaf[]): Chang
   for (const l of leaves) {
     const prior = was.get(l.key);
     if (prior == null || l.opacity > prior + 0.1)
-      out.push({ box: l.box, text: l.text, ...(prior == null && forms.get(l.m) === l.form ? { moved: true } : {}) });
+      out.push({ box: l.box, painted: l.painted, text: l.text, ...(prior == null && forms.get(l.m) === l.form ? { moved: true } : {}) });
     else if (l.opacity < prior - 0.1) dimmed.add(l.top);
   }
   if (out.length) return out;
   const kept = leaves.filter((l) => dimmed.has(l.top) && (was.get(l.key) ?? 0) - l.opacity <= 0.1);
   // Kept or not, nothing here is new lettering: the step opens on the first part.
-  return (kept.length ? kept : leaves).map((l) => ({ box: l.box, text: false }));
+  return (kept.length ? kept : leaves).map((l) => ({ box: l.box, painted: l.painted, text: false }));
 }
 /** A changed leaf: where, whether it is lettering, and whether it was only moved or scaled. */
 export interface Change {
   box: Box;
+  painted?: Box;
   text: boolean;
   moved?: boolean;
 }
@@ -287,9 +294,10 @@ export interface Change {
  * that was only moved counts after it (a block carried aside is not what the step is
  * about); with no changed lettering, it opens on the first part.
  */
-export function partsOf(changes: readonly Change[]): { parts: Box[]; lead: number } {
+export function partsOf(changes: readonly Change[]): { parts: Box[]; lead: number; painted?: Box[] } {
   let parts = changes.map((c) => ({
     box: [...c.box] as Box,
+    painted: [...(c.painted ?? c.box)] as Box,
     text: +(c.text && !c.moved),
     moved: +(c.text && !!c.moved),
   }));
@@ -303,6 +311,7 @@ export function partsOf(changes: readonly Change[]): { parts: Box[]; lead: numbe
       else {
         next[near] = {
           box: union(next[near]!.box, b),
+          painted: union(next[near]!.painted, p.painted),
           text: next[near]!.text + p.text,
           moved: next[near]!.moved + p.moved,
         };
@@ -316,7 +325,8 @@ export function partsOf(changes: readonly Change[]): { parts: Box[]; lead: numbe
     const b = parts[best]!;
     return p.text > b.text || (p.text === b.text && p.moved > b.moved) ? i : best;
   }, 0);
-  return { parts: parts.map((p) => p.box), lead: parts.length ? lead : 0 };
+  return { parts: parts.map((p) => p.box), lead: parts.length ? lead : 0,
+    ...(changes.some(c => c.painted) ? {painted: parts.map(p => p.painted)} : {}) };
 }
 /** All the parts as one box, or null when there are none. */
 export const focusOf = (layout: StepLayout): Box | null => layout.parts.reduce<Box | null>(union, null);
@@ -341,8 +351,9 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
       const leaves = leavesOf(scene, fresh),
         view = viewOf(scene);
       // Changes are found in the world (a camera move alone changes no leaf), then framed as the camera shows them.
-      const changes = changed(leaves, before).map((c) => ({ ...c, box: toView(c.box, view) }));
-      const stress = emphasised(leaves).map((b) => toView(b, view)),
+      const changes = changed(leaves, before).map((c) => ({ ...c, box: toView(c.box, view), painted: toView(c.painted!, view) }));
+      const intent = emphasised(leaves).map(c => ({box: toView(c.box, view), painted: toView(c.painted, view), text: false})),
+        stress = intent.map(c => c.box),
         heading = headingBox(scene),
         top = heading?.[1];
       const subjects = new Set(readingOf(scene).flatMap((m) => m.family()));
@@ -356,7 +367,9 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
       const labels = labelsOf(scene);
       const subjectLabels = labelsOf(scene, subjects);
       layouts.set(step.name, {
-        ...partsOf(changes),
+        // A fresh focus can name unchanged artwork. Keep its painted bounds
+        // in the tour even when only a nearby label changed this step.
+        ...partsOf([...changes, ...intent]),
         labels,
         ...(heading ? { heading } : {}),
         ...(box ? { reading: { box: toView(box, view), labels: subjectLabels } } : {}),
@@ -486,7 +499,8 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   // Below the heading, unless a change reaches into it. A view shorter than the frame would
   // cut the heading somewhere, so it zooms a little further, until it fits under it (as far
   // as the zoom cap allows); a view as tall as the frame shows the heading whole.
-  const ceiling = Math.min(FRAME[3], Math.max(layout.top ?? FRAME[3], ...layout.parts.map((p) => p[3])));
+  const painted = layout.painted ?? layout.parts;
+  const ceiling = Math.min(FRAME[3], Math.max(layout.top ?? FRAME[3], ...painted.map((p) => p[3])));
   const bounds: Box = [FRAME[0], FRAME[1], FRAME[2], ceiling];
   const short = h / (reading * s) < FRAME[3] - FRAME[1] - 1e-9;
   const fit = short && ceiling < FRAME[3] ? h / ((ceiling - FRAME[1]) * s) : 1;
@@ -497,7 +511,7 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   const zoomOn = ([left, , , top]: Box) =>
     clampZoom({ k, x: -k * (ox + (left + 8) * s), y: -k * (oy + (4.5 - top) * s) }, w, h, max);
   // Clamping at the frame's edge can move a region; what a close-up shows is the view it lands on.
-  const views = tourRegions(layout.parts, vw, vh, bounds).map((r) => {
+  const views = tourRegions(painted, vw, vh, bounds).map((r) => {
     const zoom = zoomOn(r);
     return { zoom, box: viewBox(zoom, w, h) };
   });

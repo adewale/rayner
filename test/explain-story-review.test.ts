@@ -1235,19 +1235,22 @@ test('a thick highlighted outline remains reachable above the heading boundary t
   const browser = await launch();
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   try {
-    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text}from'rayner';
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text}from'rayner';import{emphasises}from${JSON.stringify(join(ROOT, 'explain/look.ts'))};
 export default class StrokeTour extends Scene{static meta={id:'stroke-tour',title:'The entire outlined region'};async construct(){
 await this.step('outlined',{caption:'The red outline surrounds the region.'});
 const heading=new Rectangle({width:12,height:.6,fill:'gray',stroke:'none'}).moveTo([0,3.5]);heading.key='__heading';
 const outline=new Rectangle({width:7.6,height:7.6,fill:'none',stroke:'red',strokeWidth:.126}).moveTo([-3.95,-.6]);outline.key='outlined-region';
-this.add(heading,outline,new Text('Region',{fontSize:.3}).moveTo([-4,0]));}}`);
+const label=new Text('Region',{fontSize:.3}).moveTo([-4,0]);this.add(heading,outline,label);
+await this.step('refocus',{caption:'The outline stays while Region becomes Area.'});label.setText('Area');
+emphasises(this,()=>[[outline,'same region, newly focused']]);}}`);
     const project = await collectProject(dir, {write: false});
     await buildExplainer(project, join(dir, 'scene.html'));
     server = await serve(dir, 0, 'scene.html');
     const page = await browser.newPage();
     const rows = await reviewStoryVariant(page, server.url + '/scene.html', project.variants[0]!,
-      [{step: 'outlined', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Region'}]}]);
-    assert.deepEqual(rows.map(row => row.width), [390, 1180]);
+      [{step: 'outlined', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Region'}]},
+        {step: 'refocus', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Area'}]}]);
+    assert.deepEqual(rows.map(row => [row.step, row.width]), [['outlined', 390], ['refocus', 390], ['outlined', 1180], ['refocus', 1180]]);
     assert.ok(rows[0]!.views > 1, 'the phone assertion covers the whole tour, not an unzoomed overview');
   } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
 });

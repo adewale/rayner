@@ -48,10 +48,27 @@ test('changed regions include visible stroke width before clipping to the author
       const expected = [Math.max(x - width / 2 - half, clip[0]!), Math.max(y - height / 2 - half, clip[1]!),
         Math.min(x + width / 2 + half, clip[2]!), Math.min(y + height / 2 + half, clip[3]!)];
       if (expected[2]! < expected[0]! || expected[3]! < expected[1]!) return assert.equal(layout.parts.length, 0);
-      assert.equal(layout.parts.length, 1);
-      for (const [i, edge] of expected.entries()) assert.ok(Math.abs(layout.parts[0]![i]! - edge) < 1e-5,
-        `edge ${i}: ${layout.parts[0]} must include the visible stroke and respect its clip ${expected}`);
+      assert.equal(layout.painted?.length, 1);
+      for (const [i, edge] of expected.entries()) assert.ok(Math.abs(layout.painted![0]![i]! - edge) < 1e-5,
+        `edge ${i}: ${layout.painted![0]} must include the visible stroke and respect its clip ${expected}`);
     }), params(60, {examples: [[6, 6, -2, 0, 20, true, true, false]]}));
+});
+
+test('stroke outsets do not make an unrelated nearby label determine the reading scale', async () => {
+  class Boundary extends Scene {
+    override async construct() {
+      const rectangle = new Rectangle({width: 2, height: 2, fill: '#0099ff', stroke: '#ff0000', strokeWidth: .2});
+      await this.step('before');
+      this.add(rectangle, new Text('A', {fontSize: .7}), new Text('Tiny context', {fontSize: .1}).moveTo([1.21, 0], [-1, 0]));
+      await this.step('recolour');
+      rectangle.setFill('#ff9900');
+    }
+  }
+  const layout = (await stepLayouts(Boundary)).get('recolour')!;
+  assert.ok(layout.painted![0]![2] > 1.09, 'the outer stroke remains part of the tour coverage');
+  assert.equal(labelsToRead(layout).length, 1, 'the nearby context is outside the changed subject');
+  assert.ok(Math.abs(labelsToRead(layout)[0]!.size - .7) < 1e-6);
+  assert.equal(closeUps(layout, 357, 201)[0]!.k, 1, 'readable content keeps its complete opening');
 });
 
 /** A box inside the 16 × 9 frame, at least `min` units on a side. */
@@ -251,7 +268,7 @@ function sceneOf(rects: Box[], marked: Set<number>, dimmed: Set<number>, labelle
     override async construct() {
       const shapes = rects.map(
         (b) =>
-          new Rectangle({ width: b[2] - b[0], height: b[3] - b[1], fill: '#336699', stroke: '#000000', strokeWidth: 0.04 }).moveTo([
+          new Rectangle({ width: b[2] - b[0], height: b[3] - b[1], fill: '#336699', stroke: '#000000' }).moveTo([
             (b[0] + b[2]) / 2,
             (b[1] + b[3]) / 2,
           ]),
@@ -297,10 +314,7 @@ test('a step changes where it recolours; a step that only dims points at what it
         // The first step brings everything in, so all of it changed.
         assert.ok(first.parts.length >= 1);
         for (const r of rects) assert.ok(first.parts.some((p) => p[0] <= r[0] + 1e-3 && p[2] >= r[2] - 1e-3 && p[1] <= r[1] + 1e-3 && p[3] >= r[3] - 1e-3));
-        // These rectangles have a 0.04-unit stroke, clipped by the camera.
-        const painted = rects.map(([x0, y0, x1, y1]): Box => [Math.max(-8, x0 - .02), Math.max(-4.5, y0 - .02),
-          Math.min(8, x1 + .02), Math.min(4.5, y1 + .02)]);
-        const pick = (keep: (i: number) => boolean) => painted.filter((_, i) => keep(i));
+        const pick = (keep: (i: number) => boolean) => rects.filter((_, i) => keep(i));
         const expected = marked.size
           ? union(pick((i) => marked.has(i)))
           : dimmed.size && dimmed.size < rects.length

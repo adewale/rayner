@@ -1145,7 +1145,7 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
     };
     const baseline = await raster();
     const elements = [...clone.children].filter(e => e.tagName.toLowerCase() !== 'defs') as SVGElement[];
-    const checked = new Map<string, { delta: Uint8Array; removed: Uint8ClampedArray; contributes: boolean; coreCoverage?: number }>();
+    const checked = new Map<string, { delta: Uint8Array; removed: Uint8ClampedArray; contributes: boolean; coreCoverage?: number; unpaintedCore?: number }>();
     const missing: string[] = [];
     for (const subject of subjects) {
       const indices = [...new Set(subject.indices)].sort((a, b) => a - b), key = indices.join(',');
@@ -1204,7 +1204,7 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
           coverage[pixel] = Math.round(mask[pixel * 4 + 3]! * (255 - mask[pixel * 4]!) / 255);
           peak = Math.max(peak, coverage[pixel]!);
         }
-        let core = 0, shown = 0;
+        let core = 0, shown = 0, unpainted = 0;
         for (let pixel = 0; pixel < evidence.delta.length; pixel++)
           if (coverage[pixel]! > 0 && coverage[pixel]! >= peak / 2) {
             const full = Math.max(
@@ -1213,14 +1213,16 @@ async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: 
               Math.abs(last[pixel * 4 + 2]! - evidence.removed[pixel * 4 + 2]!),
               Math.abs(last[pixel * 4 + 3]! - evidence.removed[pixel * 4 + 3]!),
             );
-            core++; if (full > 0 && evidence.delta[pixel]! >= full / 2) shown++;
+            core++; if (full <= 0) unpainted++;
+            if (full > 0 && evidence.delta[pixel]! >= full / 2) shown++;
           }
         evidence.coreCoverage = core ? shown / core : 0;
+        evidence.unpaintedCore = unpainted;
       }
       // Ignore antialias edges and at most 1% of core pixels for rounding;
       // the rest must retain half their unobscured contribution. This rejects
       // an opaque crossing or missing word without per-glyph renders.
-      if (!evidence.contributes || (subject.label && evidence.coreCoverage! < .99)) missing.push(`${subject.name} (contributes: ${evidence.contributes}, glyph core: ${evidence.coreCoverage ?? 'shape'})`);
+      if (!evidence.contributes || (subject.label && evidence.coreCoverage! < .99)) missing.push(`${subject.name} (contributes: ${evidence.contributes}, glyph core: ${evidence.coreCoverage ?? 'shape'}, unpainted core: ${evidence.unpaintedCore ?? 'shape'})`);
     }
     return missing;
   }, subjects);
