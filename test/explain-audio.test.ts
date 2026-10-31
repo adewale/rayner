@@ -1,5 +1,6 @@
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
+import {fc,params} from './lib/pbt.ts';
 import {mkdtemp,mkdir,writeFile,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -111,28 +112,70 @@ test('audio is opt-in, offline, gesture-triggered and follows the score at both 
   }
 });
 
-test('navigation cancels a pending audio resume, and flattened pitches really play C',options,async()=>{
+test('flattened pitches really play C',options,async()=>{
   const page=await browser.newPage({reducedMotion:'reduce'});
   try {
-    await observed(page);await page.goto(server.url+'/melody-rhythm.html');await ready(page);
-    await page.evaluate(()=>(window as any).scoreProbe.late=true);
-    await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
-    await page.getByRole('button',{name:'Stop',exact:true}).click();
-    await page.evaluate(()=>{const p=(window as any).scoreProbe;p.release();});
-    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-    assert.equal(await page.evaluate(()=>(window as any).scoreProbe.tones.length),0,'Stop cancels a pending resume');
-    await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
-    await page.locator('.stepper button[aria-label="Next step"]').click();await ready(page,'pulse');
-    await page.evaluate(()=>{const p=(window as any).scoreProbe;p.release();p.late=false;});
-    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-    assert.equal(await page.evaluate(()=>(window as any).scoreProbe.tones.length),0,'late resume cannot start an obsolete score');
-    await page.locator('.stepper button[aria-label="Next step"]').click();await ready(page,'rhythm');
+    await observed(page);await page.goto(server.url+'/melody-rhythm.html?step=rhythm');await ready(page,'rhythm');
     await page.getByRole('checkbox',{name:'Pulse'}).uncheck();
     await page.getByRole('button',{name:'Play B: shifted timing',exact:true}).click();
     await page.waitForFunction(()=>(window as any).scoreProbe.tones.length===8);
     const frequencies=await page.evaluate(()=>(window as any).scoreProbe.tones.map((t:any)=>t.frequency));
     assert.ok(frequencies.every((hz:number)=>Math.abs(hz-261.625565)<.001),'flat-pitch stage plays C for every event');
   } finally {await page.close();}
+});
+
+test('audio, motion on: scheduled resumes and reader actions never sound a departed step or case',options,async()=>{
+  await fc.assert(fc.asyncProperty(
+    fc.array(fc.record({action:fc.constantFrom('play','stop','next','previous','case','pulse'),release:fc.boolean()}),{minLength:1,maxLength:16}),
+    fc.scheduler(),async(actions,scheduler)=>{
+      const page=await browser.newPage({reducedMotion:'no-preference'});
+      try {
+        await observed(page);
+        await page.exposeFunction('__resume',()=>scheduler.schedule(Promise.resolve(),'audio resume'));
+        await page.addInitScript(()=>{
+          const Context=AudioContext,w=window as any;
+          w.AudioContext=class extends Context {
+            private owner='';
+            override resume(){const owner=location.search+'|'+w.__audioEpoch;return w.__resume().then(()=>super.resume()).then(()=>{this.owner=owner;});}
+            override createOscillator(){
+              const osc=super.createOscillator();
+              const owner=this.owner;
+              const start=osc.start.bind(osc),stop=osc.stop.bind(osc);
+              const entry={owner,live:false};(w.owners??=[]).push(entry);
+              osc.start=(at=0)=>{entry.live=true;start(at);};
+              osc.stop=(at=0)=>{if(!at)entry.live=false;stop(at);};
+              osc.addEventListener('ended',()=>{entry.live=false;});
+              return osc;
+            }
+          };
+        });
+        await page.goto(server.url+'/melody-rhythm.html');await ready(page);
+        await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
+        await scheduler.waitFor(page.waitForFunction(()=>document.querySelector<HTMLElement>('.score-audio')?.dataset.playing==='true'));
+        for(const {action,release} of [{action:'case',release:false},{action:'play',release:false},{action:'next',release:true},...actions]) {
+          const playing=await page.evaluate(action=>{
+            const click=(selector:string|HTMLButtonElement|undefined)=>{
+              const b=typeof selector==='string'?document.querySelector<HTMLButtonElement>(selector):selector;
+              if(b&&!b.disabled){const w=window as any;w.__audioEpoch=(w.__audioEpoch??0)+1;b.click();}
+            };
+            if(action==='play') click('.score-audio button');
+            if(action==='stop') click(Array.from(document.querySelectorAll<HTMLButtonElement>('.score-audio button')).find(b=>b.textContent==='Stop'));
+            if(action==='next') click('.stepper button[aria-label="Next step"]');
+            if(action==='previous') click('.stepper button[aria-label="Previous step"]');
+            if(action==='case') click('.case input:not(:checked)');
+            if(action==='pulse') click('.score-audio input');
+            return document.querySelector<HTMLElement>('.score-audio')?.dataset.playing;
+          },action);
+          if(action==='case') assert.equal(playing,'false','case changes stop sound before loading');
+          if(release&&scheduler.count()) await scheduler.waitOne();
+          await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+          assert.equal(await page.evaluate(()=>(window as any).owners?.some((o:any)=>o.live&&o.owner!==location.search+'|'+(window as any).__audioEpoch)??false),false,action);
+        }
+        await scheduler.waitAll();
+        await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+        assert.equal(await page.evaluate(()=>(window as any).owners?.some((o:any)=>o.live&&o.owner!==location.search+'|'+(window as any).__audioEpoch)??false),false,'all resumes released');
+      } finally {await page.close();}
+    }),params(12));
 });
 
 test('without Web Audio the full score and step controls remain usable',options,async()=>{
