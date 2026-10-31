@@ -1109,3 +1109,56 @@ test('traffic policy reviews every case and step while binding its comparison to
     assert.equal(rejected, 2, 'each source-address role is required at its actual review width');
   } finally {await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true});}
 });
+
+test('320px opening paint requires each named shape and label to contribute through actual opaque layers',
+  {skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for native opening occlusion checks'}, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-opening-occlusion-'));
+  const browser = await launch();
+  let server: Awaited<ReturnType<typeof serve>> | undefined;
+  try {
+    await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text,Group}from'rayner';import{stage}from'rayner/explain';
+export default class Occlusion extends Scene{static meta={id:'occlusion',title:'Named opening paint'};async construct(){
+const s=stage(this);await this.step('comparison',{caption:'The blue shape and the named value are visible.'});
+const shape=new Rectangle({width:1,height:1,fill:'blue',stroke:'none'}).moveTo([-3,0]);shape.key='blue-shape';shape.clipBox=[-3.6,-.6,-2.4,.6];
+const label=new Text('Named value',{fontSize:.8}).moveTo([2,0]);
+const accent=new Rectangle({width:.5,height:.5,fill:'blue',stroke:'none'}).moveTo([2,-1.5]);
+const labelled=new Group(label,accent);labelled.key='label-subject';s.reading(shape,labelled);
+const shapeCover=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).moveTo([-3,0]).setOpacity(.2);
+const labelCover=new Rectangle({width:6,height:2,fill:'red',stroke:'none'}).moveTo([2,0]).setOpacity(.2);
+const halfCover=new Rectangle({width:3,height:2,fill:'green',stroke:'none'}).moveTo([3.5,0]).setOpacity(.2);
+const thinCover=new Rectangle({width:.1,height:2,fill:'yellow',stroke:'none'}).moveTo([2.5,0]).setOpacity(.2);
+this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover);}}`);
+    const project = await collectProject(dir, {write: false}), variant = project.variants[0]!;
+    const claims = [{step: 'comparison', opening: true, targets: [{key: 'blue-shape'}, {key: 'label-subject'}]}];
+    await buildExplainer(project, join(dir, 'scene.html'));
+    server = await serve(dir, 0, 'scene.html');
+    const url = server.url + '/scene.html';
+    const page = await browser.newPage();
+    const rows = await reviewStoryVariant(page, url, variant, claims);
+    const receipt = rows.find(row => row.width === 390)!.openingAt320!;
+    assert.ok(receipt.reviewed && receipt.minimumLabelPx! >= 12, 'translucent layers preserve painted facts and the label floor');
+    await page.close();
+    for (const [which, missing] of [['shape', /missing or obscured paint: blue-shape/],
+      ['label', /missing or obscured paint: label Named value/],
+      ['partial', /missing or obscured paint: label Named value/],
+      ['thin', /missing or obscured paint: label Named value/]] as const) {
+      const poisoned = await browser.newPage();
+      try {
+        await poisoned.addInitScript(which => document.addEventListener('rayner:step', () => {
+          if (innerWidth !== 320) return;
+          const covers = [...document.querySelectorAll('.stage svg:not(.leaving) path[fill="red"]')] as SVGElement[];
+          const cover = which === 'partial' || which === 'thin'
+            ? document.querySelector(`.stage svg:not(.leaving) path[fill="${which === 'partial' ? 'green' : 'yellow'}"]`) as SVGElement
+            : covers[which === 'shape' ? 0 : 1]!;
+          const before = getComputedStyle(cover).opacity;
+          cover.style.opacity = '1';
+          (window as unknown as {occlusionControl: string[]}).occlusionControl = [before, getComputedStyle(cover).opacity];
+        }), which);
+        await assert.rejects(reviewStoryVariant(poisoned, url, variant, claims), missing, which);
+        assert.deepEqual(await poisoned.evaluate(() =>
+          (window as unknown as {occlusionControl: string[]}).occlusionControl), ['0.2', '1'],
+        'the cover begins translucent, and CSSOM poison applies under the served CSP');
+      } finally { await poisoned.close(); }
+    }
+  } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
+});

@@ -2,10 +2,10 @@
 // establishes which of their actual painted paths the reader can see.
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
-import { renderElements, VMobject, Text } from '../../src/index.ts';
+import { renderElements, VMobject } from '../../src/index.ts';
 import type { SceneClass, Mobject, ElementRecord } from '../../src/index.ts';
 import { emphasisOf } from '../../explain/look.ts';
-import { labelOf } from '../../explain/diagrams.ts';
+import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { isHeading } from '../../explain/stage.ts';
 import { stepWords } from '../../explain/trace.ts';
 import type { Project } from './explain-project.ts';
@@ -460,21 +460,6 @@ interface StoryPaint {
   bounds: Rect | null;
   record: ElementRecord;
 }
-// Use the transformed em basis, not its axis-aligned box or the geometric
-// mean area: either can credit a very short, wide glyph as full-size text.
-function nativeEmSize(text: Text): number {
-  const f = text.frameBox,
-    run = text.run,
-    height = run.ascent + run.descent;
-  const c = (f[4]! - f[0]!) / height,
-    d = (f[5]! - f[1]!) / height;
-  const a = run.width > 0 ? (f[6]! - f[0]!) / run.width : d;
-  const b = run.width > 0 ? (f[7]! - f[1]!) / run.width : -c;
-  const x = a * a + b * b,
-    y = c * c + d * d;
-  const largest = Math.sqrt((x + y + Math.hypot(x - y, 2 * (a * c + b * d))) / 2);
-  return largest ? (run.fontSize * Math.abs(a * d - b * c)) / largest : 0;
-}
 const paintBoundsCache = new WeakMap<ElementRecord, Rect | null>();
 /** Bounds of emitted integer path coordinates, not a Text's advance rectangle. */
 function paintBounds(record: ElementRecord): Rect | null {
@@ -829,7 +814,7 @@ export async function storyFrames(
           const ids = new Set(m.family().map((child) => child.id));
           const indices = records.flatMap((r, index) => (ids.has(r.id) && realInk(r) ? [index] : []));
           return indices.length
-            ? [{ text: label.text, size: m instanceof Text ? nativeEmSize(m) : m.height() * label.emRatio, indices }]
+            ? [{ text: label.text, size: readingLabelSize(m)!, indices }]
             : [];
         });
         frames.set(step.name, { records, targets, camera: [...scene.frame.box()!], labels });
@@ -1084,6 +1069,109 @@ function verifyStoryTargets(
   return verified;
 }
 
+/** Named subjects must contribute pixels and their labels must retain their
+ * glyph cores in the actual opening. Small native-browser rasters preserve
+ * clips, paint order and effective styles without per-glyph screenshots. */
+async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: number[]; label?: boolean }[], step: string) {
+  const missing = await page.locator('.stage svg:not(.leaving)').evaluate(async (node, subjects) => {
+    const svg = node as SVGSVGElement, clone = svg.cloneNode(true) as SVGSVGElement;
+    const original = [svg, ...svg.querySelectorAll('*')], copies = [clone, ...clone.querySelectorAll('*')];
+    // Image SVGs have no access to the reader stylesheet. Capture the effective
+    // paint, including CSSOM overrides, before drawing the detached clone.
+    const properties = ['fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-opacity', 'stroke-width',
+      'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'stroke-dashoffset',
+      'opacity', 'visibility', 'display', 'clip-path', 'clip-rule', 'filter', 'mask', 'paint-order',
+      'vector-effect', 'transform', 'transform-origin', 'transform-box', 'mix-blend-mode'];
+    for (const [index, source] of original.entries()) {
+      const target = copies[index] as SVGElement, computed = getComputedStyle(source);
+      target.removeAttribute('style');
+      for (const property of properties) {
+        const value = computed.getPropertyValue(property).replace(/url\(["']?[^"')]*#([^"')]+)["']?\)/g, 'url(#$1)');
+        if (value) target.style.setProperty(property, value);
+      }
+      // Clip rectangles may have CSS geometry overrides as well as paint.
+      if (source.tagName.toLowerCase() === 'rect')
+        for (const property of ['x', 'y', 'width', 'height', 'rx', 'ry']) {
+          const value = computed.getPropertyValue(property);
+          if (value) target.style.setProperty(property, value);
+        }
+    }
+    const bounds = svg.parentElement!.getBoundingClientRect(), width = Math.ceil(bounds.width), height = Math.ceil(bounds.height);
+    clone.setAttribute('width', String(width)); clone.setAttribute('height', String(height));
+    const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+    const context = canvas.getContext('2d')!;
+    const raster = async () => {
+      const image = new Image();
+      image.src = 'data:image/svg+xml,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+      await image.decode(); context.clearRect(0, 0, width, height); context.drawImage(image, 0, 0);
+      return context.getImageData(0, 0, width, height).data;
+    };
+    const baseline = await raster();
+    const elements = [...clone.children].filter(e => e.tagName.toLowerCase() !== 'defs') as SVGElement[];
+    const checked = new Map<string, { delta: Uint8Array; removed: Uint8ClampedArray; contributes: boolean; coreCoverage?: number }>();
+    const missing: string[] = [];
+    for (const subject of subjects) {
+      const indices = [...new Set(subject.indices)].sort((a, b) => a - b), key = indices.join(',');
+      let evidence = checked.get(key);
+      if (!evidence) {
+        const old = indices.map(index => elements[index]!.style.display);
+        indices.forEach(index => elements[index]!.style.display = 'none');
+        const removed = await raster(), delta = new Uint8Array(width * height);
+        for (let pixel = 0; pixel < delta.length; pixel++)
+          delta[pixel] = Math.max(
+            Math.abs(baseline[pixel * 4]! - removed[pixel * 4]!),
+            Math.abs(baseline[pixel * 4 + 1]! - removed[pixel * 4 + 1]!),
+            Math.abs(baseline[pixel * 4 + 2]! - removed[pixel * 4 + 2]!),
+            Math.abs(baseline[pixel * 4 + 3]! - removed[pixel * 4 + 3]!),
+          );
+        indices.forEach((index, i) => elements[index]!.style.display = old[i]!);
+        evidence = {delta, removed, contributes: delta.some(value => value > 0)};
+        checked.set(key, evidence);
+      }
+      if (subject.label && evidence.coreCoverage === undefined) {
+        // Paint the actual label last over the same backdrop as a full-strength
+        // reference. A thin opaque crossing can leave antialias traces, so a
+        // nonzero difference alone does not establish meaningful glyph ink.
+        indices.forEach(index => clone.append(elements[index]!));
+        const last = await raster();
+        elements.forEach(element => clone.append(element));
+        const selected = new Set(indices), old = elements.map(element => ({display: element.style.display,
+          opacity: element.style.opacity, fillOpacity: element.style.fillOpacity, strokeOpacity: element.style.strokeOpacity}));
+        elements.forEach((element, index) => {
+          if (!selected.has(index)) element.style.display = 'none';
+          else {
+            // Normalize explicit dimming only for the geometric core mask. The
+            // baseline/removal difference still uses the actual dimmed paint.
+            element.style.opacity = '1'; element.style.fillOpacity = '1'; element.style.strokeOpacity = '1';
+          }
+        });
+        const mask = await raster();
+        elements.forEach((element, index) => Object.assign(element.style, old[index]!));
+        let alpha = 0;
+        for (let pixel = 0; pixel < evidence.delta.length; pixel++) alpha = Math.max(alpha, mask[pixel * 4 + 3]!);
+        let core = 0, shown = 0;
+        for (let pixel = 0; pixel < evidence.delta.length; pixel++)
+          if (mask[pixel * 4 + 3]! > 0 && mask[pixel * 4 + 3]! >= alpha / 2) {
+            const full = Math.max(
+              Math.abs(last[pixel * 4]! - evidence.removed[pixel * 4]!),
+              Math.abs(last[pixel * 4 + 1]! - evidence.removed[pixel * 4 + 1]!),
+              Math.abs(last[pixel * 4 + 2]! - evidence.removed[pixel * 4 + 2]!),
+              Math.abs(last[pixel * 4 + 3]! - evidence.removed[pixel * 4 + 3]!),
+            );
+            core++; if (full > 0 && evidence.delta[pixel]! >= full / 2) shown++;
+          }
+        evidence.coreCoverage = core ? shown / core : 0;
+      }
+      // Ignore antialias edges and at most 1% of core pixels for rounding;
+      // the rest must retain half their unobscured contribution. This rejects
+      // an opaque crossing or missing word without per-glyph renders.
+      if (!evidence.contributes || (subject.label && evidence.coreCoverage! < .99)) missing.push(subject.name);
+    }
+    return missing;
+  }, subjects);
+  assert.deepEqual(missing, [], `${step} at 320px: subjects have missing or obscured paint: ${missing.join(', ')}`);
+}
+
 async function reviewNarrowOpening(
   page: Page,
   url: string,
@@ -1127,6 +1215,10 @@ async function reviewNarrowOpening(
     minimumLabelPx = minimumLabelPx === null ? pixels : Math.min(minimumLabelPx, pixels);
   }
   assert.ok(verified.size, `${step} at 320px: no opening subject is painted`);
+  await verifyNarrowPaint(page, [
+    ...targets.map(target => ({name: target.name, indices: target.indices})),
+    ...labels.map(label => ({name: `label ${label.text}`, indices: label.indices.filter(index => indices.has(index)), label: true})),
+  ], step);
   return {
     reviewed: true,
     width: 320,
