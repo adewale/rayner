@@ -46,14 +46,18 @@ async function observed(page:Page) {
     w.AudioContext=class extends Native {
       constructor(){super();w.scoreProbe.contexts++;w.scoreProbe.context=this;}
       override resume(){
-        if(w.scoreProbe.late) return new Promise<void>(resolve=>{w.scoreProbe.release=()=>{super.resume().then(resolve);};});
+        if(w.scoreProbe.late) return new Promise<void>(resolve=>{w.scoreProbe.release=()=>super.resume().then(()=>{
+          resolve();
+          // Exercise departure after wait() resolves, before its caller resumes.
+          if(w.scoreProbe.cancelOnResume) queueMicrotask(()=>queueMicrotask(()=>w.scoreProbe.cancelOnResume()));
+        });});
         return super.resume();
       }
       override createOscillator(){
         const osc=super.createOscillator(),entry:any={stops:[]};w.scoreProbe.tones.push(entry);
         const start=osc.start.bind(osc),stop=osc.stop.bind(osc),frequency=osc.frequency.setValueAtTime.bind(osc.frequency);
         osc.frequency.setValueAtTime=(value,when)=>{entry.frequency=value;return frequency(value,when);};
-        osc.start=(when=0)=>{entry.start=when;start(when);};
+        osc.start=(when=0)=>{entry.start=when;entry.afterCancel=!!w.scoreProbe.cancelled;start(when);};
         osc.stop=(when=0)=>{entry.stops.push(when);stop(when);};
         return osc;
       }
@@ -122,6 +126,35 @@ test('flattened pitches really play C',options,async()=>{
     const frequencies=await page.evaluate(()=>(window as any).scoreProbe.tones.map((t:any)=>t.frequency));
     assert.ok(frequencies.every((hz:number)=>Math.abs(hz-261.625565)<.001),'flat-pitch stage plays C for every event');
   } finally {await page.close();}
+});
+
+test('audio: resume completion cannot restart sound after microtask Stop, Next or Pulse',options,async(t)=>{
+  for(const action of ['Stop','Next step','Pulse']) await t.test(action,async()=>{
+    const page=await browser.newPage({reducedMotion:'no-preference'}),errors:string[]=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    try {
+      await observed(page);await page.goto(server.url+'/melody-rhythm.html');await ready(page);
+      await page.evaluate(action=>{
+        const probe=(window as any).scoreProbe;probe.late=true;probe.cancelled=0;
+        probe.cancelOnResume=()=>{
+          const control=action==='Pulse'?document.querySelector<HTMLInputElement>('.score-audio input'):
+            Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(b=>b.textContent===action||b.getAttribute('aria-label')===action);
+          if(!control||control.disabled) throw new Error('missing enabled cancellation control: '+action);
+          probe.cancelled++;control.click();
+        };
+      },action);
+      await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
+      await page.evaluate(()=>(window as any).scoreProbe.release());
+      await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+      const probe=await page.evaluate(()=>{const p=(window as any).scoreProbe;return {cancelled:p.cancelled,tones:p.tones};});
+      assert.equal(probe.cancelled,1,action+' executed at resume completion');
+      assert.equal(probe.tones.filter((tone:any)=>tone.afterCancel).length,0,action+' never starts a tone after cancellation');
+      assert.equal(probe.tones.filter((tone:any)=>tone.stops.at(-1)!==0).length,0,action+' leaves no sound scheduled');
+      assert.equal(await page.locator('.score-audio').getAttribute('data-playing'),'false',action+' leaves audio stopped');
+      assert.equal(await page.locator('.score-playhead').count(),0,action+' removes the cursor');
+      assert.deepEqual(errors,[]);
+    } finally {await page.close();}
+  });
 });
 
 test('audio, motion on: scheduled resumes and reader actions never sound a departed step or case',options,async()=>{
