@@ -1,4 +1,5 @@
 import { build } from 'esbuild';
+import { browserFonts } from './explain-browser-fonts.ts';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -22,7 +23,7 @@ import {stepAudio} from '../../explain/audio.ts';
  * P2-P3), so an Arabic or Hebrew caption reads and aligns right to left while
  * the player's controls stay as they are. Every other page's style is as it was.
  */
-const RTL_CSS = '\nh1,.caption,.ruler,.lede,.lede *,.changes span,.transcript h2,.transcript a,.transcript p,.steps button span,.steps .line{unicode-bidi:plaintext;text-align:start}\n';
+const RTL_CSS = '\nh1,.caption,.lede,.lede *,.changes span,.transcript h2,.transcript a,.transcript p,.steps button span,.steps .line{unicode-bidi:plaintext;text-align:start}\n';
 const rightToLeftPage = (project: Project) =>
   !!project.outlineLettering?.request.scripts?.some((script) => RTL_SCRIPTS.includes(script));
 
@@ -84,6 +85,7 @@ export async function buildExplainer(
           }));
         },
       },
+      ...(!project.lettering && !project.outlineLettering ? [browserFonts(ROOT)] : []),
       engineAlias(false, !!project.outlineLettering),
     ],
     logLevel: 'silent',

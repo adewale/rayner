@@ -2,22 +2,34 @@
 // Explicit distribution gate: pack, install in a fresh author project, run the installed CLI.
 import { mkdtemp, mkdir, writeFile, readFile, copyFile, cp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { parseArgs } from 'node:util';
 import { existsSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { ROOT } from './lib/explain-project.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
 try {
-  const { values } = parseArgs({ options: { archive: { type: 'string' } } });
-  const packed = values.archive ? undefined : await run('npm', ['pack', '--json', '--pack-destination', folder], {
+  const { values } = parseArgs({ options: { archive: { type: 'string' }, manifest: { type: 'string' } } });
+  if (values.archive && values.manifest) throw new Error('Choose --archive or --manifest');
+  let candidate: { filename: string; integrity: string; sourceCommit: string } | undefined;
+  if (values.manifest) {
+    candidate = JSON.parse(await readFile(resolve(values.manifest), 'utf8'));
+    assert.ok(candidate && typeof candidate.filename === 'string' && basename(candidate.filename) === candidate.filename && candidate.filename.endsWith('.tgz'), 'invalid candidate filename');
+    const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
+    assert.equal(candidate.sourceCommit, commit, 'candidate comes from another source commit');
+  }
+  const selectedArchive = candidate ? join(dirname(resolve(values.manifest!)), candidate.filename) : values.archive;
+  const packed = selectedArchive ? undefined : await run('npm', ['pack', '--json', '--pack-destination', folder], {
     cwd: ROOT,
     maxBuffer: 4 * 1024 * 1024,
   });
-  const archive = values.archive ? resolve(values.archive) : join(folder, JSON.parse(packed!.stdout)[0].filename);
+  const archive = selectedArchive ? resolve(selectedArchive) : join(folder, JSON.parse(packed!.stdout)[0].filename);
+  const archiveIntegrity = async () => 'sha512-' + createHash('sha512').update(await readFile(archive)).digest('base64');
+  if (candidate) assert.equal(await archiveIntegrity(), candidate.integrity, 'candidate archive integrity mismatch');
   await writeFile(
     join(folder, 'package.json'),
     JSON.stringify({ name: 'outside-author', private: true, type: 'module' }),
@@ -309,6 +321,7 @@ try {
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',
   );
+  if (candidate) assert.equal(await archiveIntegrity(), candidate.integrity, 'candidate changed during package checks');
 } finally {
   await rm(folder, { recursive: true, force: true });
 }

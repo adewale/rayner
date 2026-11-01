@@ -12,3 +12,19 @@ test('catalog tiles open the beginning of every lesson without changing curated 
   }
   assert.match(galleryTile({ id: 'quotient-familial', title: 'Le quotient familial', lang: 'fr' }, true), /hreflang="fr".*loading="eager".*lang="fr"/);
 });
+
+test('gallery entries and subset cards come from the selected catalog', async () => {
+  const {galleryPage}=await import('../tools/lib/explain-gallery.ts');
+  const catalog={product:{entry:{id:'other',step:'question',settings:{case:'two'},label:'Start here'}},scenes:[
+    {id:'featured',title:'Featured',lang:'en',group:'topic',showcase:true},
+    {id:'other',title:'Other',lang:'en',group:'topic',showcase:false},
+    {id:'recipe',title:'Recipe',lang:'en',group:'toolchain',showcase:false},
+  ]};
+  const full=galleryPage(catalog,'');
+  assert.ok(full.includes('other.html?case=two&amp;step=question'));
+  assert.ok(full.indexOf('src="other.png"')<full.indexOf('src="featured.png"'));
+  const subset=galleryPage({...catalog,scenes:[catalog.scenes[1]!]},'',false);
+  assert.equal((subset.match(/<li/g)??[]).length,2,'one selected card and the evidence link');
+  assert.ok(!subset.includes('featured.png')&&!subset.includes('recipe.png'));
+  assert.ok(!subset.includes('<details')&&!subset.includes('embed-lab.html'));
+});

@@ -1,8 +1,0 @@
-{
-  "positiveExport": true,
-  "lateFailure": "independent host llms.txt refused after staging",
-  "hostFilesUnchangedOnFailure": true,
-  "repeatedHeadersIdentical": true,
-  "cspRules": 54,
-  "unrelatedRulePreserved": true
-}

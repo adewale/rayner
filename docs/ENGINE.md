@@ -43,3 +43,9 @@ Each for a reason:
 
 Lantern listed matching morphs as out of scope at the fork base; [MATCHING.md](MATCHING.md) adds them.
 Which of these changes are offered to the original project: [upstream](UPSTREAM.md#offered-upstream-draft-pr-description).
+
+## Embedded browser fonts
+
+Ordinary portable pages use SFNT copies of the embedded Inter, JetBrains Mono and Noto subsets. They retain the same glyphs and metrics while omitting the WOFF2 Brotli decoder. Authoring and pages that request additional lettering keep the full loader. `test/browser-fonts.test.ts` compares both loaders over fixed fallback examples and generated strings.
+
+`npm run fonts` regenerates both representations. To rebuild only the browser copies from the committed subsets, run `node tools/fonts-sfnt.ts` with fonttools and brotli installed in Python; `RAYNER_LETTERING_PYTHON` selects a Python interpreter. The tool checks the original shaper pin before deriving its SFNT-only variant. No Python process runs when an author builds a normal page.

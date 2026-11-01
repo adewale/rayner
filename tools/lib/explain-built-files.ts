@@ -16,7 +16,7 @@ async function outputNames(dir: string, ids: readonly string[]): Promise<string[
     if (!Array.isArray(share.steps)) throw new Error(`Invalid ${id}/steps.json`);
     for (const { step } of share.steps) {
       if (!/^[A-Za-z0-9_-]+$/.test(step)) throw new Error(`Invalid shared step: ${id}/${step}`);
-      paths.push(`${id}/${step}.png`);
+      // Step cards are produced in the isolated export, not the checked collection.
     }
   }
   return paths.sort();

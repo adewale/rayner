@@ -22,7 +22,7 @@ npm run demos:review
 
 The command retains `out/release/rayner-<version>.tgz` and `manifest.json`, which records the archive's SHA-512 integrity, source commit, dirty-tree status, file list and gates run. A dirty checkout can be tested locally, but cannot be published by the workflow. Review the file list and licence notices. Do not repack after testing.
 
-`pack:smoke -- --archive <path>` can retest an existing archive without packing again. Consumer installs compile no package source and download no fonts; capture and PNG dependencies are included.
+`pack:smoke -- --archive <path>` can retest an existing archive without packing again. In CI, all six compatibility lanes download the primary job’s candidate and use `pack:smoke -- --manifest out/release/manifest.json`. This checks the candidate’s source commit and SHA-512 before installation, then confirms the archive bytes after validation. Consumer installs compile no package source and download no fonts; capture and PNG dependencies are included.
 
 The compatibility job checks Node 24 on macOS as well as Ubuntu, including an installed starter preview with the normal authoring dependencies. A configured matrix is not evidence of a successful Mac run: require both platforms to pass before tagging.
 
@@ -59,6 +59,10 @@ The archive job checks out the existing version tag, downloads the original publ
 The job reads every page of the release list, including drafts. It reuses a unique empty draft for the exact tag and refuses a public release, retained assets or duplicate matching records. A failed tag lookup is not permission to create another draft. If duplicate records exist, identify each record by its release ID and inspect its assets before deciding how to recover. Preserve the public release, original archive and tag; do not rerun archival to overwrite evidence or resolve an ambiguous record automatically.
 
 After publication, confirm the version and dist-tag with `npm view rayner version dist-tags dist.integrity --json`, and try installation in a fresh author project. For a candidate, ask an outside author to follow the tutorial before promoting it with `npm dist-tag add rayner@<version> latest`. The README's install section reads the same before and after publication, because npm shows the README from the archive and a published archive cannot change; do not add or remove an "unpublished" note around a release. A published name/version pair cannot be reused, so correct mistakes in a new version.
+
+## Prepare the website collection
+
+Use the [curated export instructions](PUBLISHING.md#export-the-collection) to prepare the Oshineye.dev showcase. The full source collection remains the coverage inventory. Export and deployment are separate actions.
 
 ## Verify the deployed collection
 

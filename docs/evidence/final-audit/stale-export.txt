@@ -1,9 +1,0 @@
-file:///workspace/rayner/tools/lib/explain-site-describe.ts:46
-    throw new Error(`${folder} is stale: ${changed.map((k) => CHANGED[k] ?? k).join(', ')} changed since it was built. Run npm run demos:build`);
-          ^
-
-Error: /workspace/rayner/out/explainers/seasons is stale: the player, build tools or dependencies changed since it was built. Run npm run demos:build
-    at checkBuilt (file:///workspace/rayner/tools/lib/explain-site-describe.ts:46:11)
-    at async file:///workspace/rayner/tools/explain-site.ts:41:34
-
-Node.js v24.22.1

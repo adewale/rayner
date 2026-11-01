@@ -2,7 +2,7 @@ import { Group } from '../../../../src/index.ts';
 import { exec } from '../models.ts';
 import { flow, label, table } from '../reader-drawing.ts';
 import type { ReaderFrame } from '../reader-drawing.ts';
-export function frames(which: string): ReaderFrame[] {
+export function frames(): ReaderFrame[] {
   const original = { fs: {}, steps: 0 },
     run = exec(
       original,
@@ -33,10 +33,10 @@ export function frames(which: string): ReaderFrame[] {
     {
       id: 'reader-values',
       title: 'Which shell can read the file?',
-      line: `Selected case: cat receives the ${which === 'new' ? 'returned' : 'original'} shell.`,
+      line: 'Compare the two shell values after the same command.',
       caption:
         'cat prints HELLO when it receives the returned shell, which owns shout.txt. The original shell has no files because exec returns a new shell instead of mutating the old one.',
-      values: { old, next, chosen: which === 'new' ? next : old },
+      values: { old, next },
       draw: (s) =>
         table(
           ['Shell', 'shout.txt', 'cat prints'],

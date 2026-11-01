@@ -48,7 +48,7 @@ Three alternating-order old/new cubic comparisons used the same production bytes
 
 Direct source-line projection removed 400 redundant CodeBlock constructions in a small morph-oracle experiment (103.1ms versus 0.066ms for projection alone). The real morph, independent LCS and identity checks remain. The default frozen-page path goes from 29 builds across duplicate owners to 26; FULL goes from 52 to 26, with all original fields retained. Optional lettering checks no longer repeat that catalog build loop.
 
-[PR #11 review](../pr-11-test-review.md) separates cheap generated arithmetic/decision checks from actual browser performance measurements. Its isolated prototype executed 2,000 green cases in roughly 26ms of check time and reproduced finite-median overflow, invalid-data fail-green and a separately labelled terminal-wait measurement gap. Browser latency remains a real-browser responsibility.
+[PR #11 review](https://github.com/adewale/rayner/blob/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence/pr-11-test-review.md) separates cheap generated arithmetic/decision checks from actual browser performance measurements. Its isolated prototype executed 2,000 green cases in roughly 26ms of check time and reproduced finite-median overflow, invalid-data fail-green and a separately labelled terminal-wait measurement gap. Browser latency remains a real-browser responsibility.
 
 ## Evidence map and limits
 

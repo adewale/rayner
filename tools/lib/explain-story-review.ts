@@ -276,7 +276,7 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'trust-proxy': ['reader-path', 'reader-answer'],
   'traffic-policy': ['reader-nodes', 'reader-shares'],
   'ext4-space': ['reader-allocation', 'reader-reserve'],
-  'send-sync': ['reader-threads', 'reader-wrappers'],
+  'send-sync': ['reader-threads', 'reader-requirements', 'reader-wrappers'],
   'quotient-familial': ['reader-quotient', 'reader-cap'],
   glyph: ['reader-width', 'reader-shape'],
   'pen-and-pencil': ['reader-separate', 'reader-labels'],
@@ -286,8 +286,8 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'agentic-mermaid': ['reader-branches', 'reader-repair'],
   lantern: ['reader-object', 'reader-outputs'],
   isdigit: ['reader-predict', 'reader-result'],
-  'latest-search': ['reader-order', 'reader-guard'],
-  'oauth-pkce': ['reader-bind', 'reader-redeem'],
+  'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
+  'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
   'pg-page': ['reader-row', 'reader-page'],
   'periodic-groups': ['reader-electrons', 'reader-filling'],
 };
@@ -344,7 +344,7 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   'trust-proxy': { 'reader-path': ['Express'], 'reader-answer': ['Order', 'Address', 'Decision', 'req.ip'] },
   'traffic-policy': { 'reader-nodes': ['Node 1', 'Node 2', 'Node 3'], 'reader-shares': ['Pod', 'Cluster', 'Local'] },
   'ext4-space': { 'reader-reserve': ['Users at 5% reserve'] },
-  'send-sync': { 'reader-threads': ['Thread A', 'Thread B'], 'reader-wrappers': ['Type', 'Send', 'Sync'] },
+  'send-sync': { 'reader-threads': ['Thread A', 'Thread B'], 'reader-requirements': ['Wrapper', 'Needs from T', 'Met?'], 'reader-wrappers': ['Type', 'Send', 'Sync'] },
   'quotient-familial': {
     'reader-quotient': ['Revenu', '÷ parts', 'Barème', '× parts'],
     'reader-cap': ['Calcul brut', 'Après plafond', 'Après décote'],
@@ -368,10 +368,12 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   isdigit: { 'reader-result': ['Guard', 'Passes?', 'Then int'] },
   'latest-search': {
     'reader-order': ['A then B', 'Latest intent: B'],
+    'reader-first': ['Latest 2'], 'reader-ticket': ['Latest 2'],
     'reader-guard': ['After', 'No guard', 'Guard on'],
   },
   'oauth-pkce': {
     'reader-bind': ['Client', 'Auth server', 'Code', 'issued'],
+    'reader-check': ['Saved challenge', 'Client hash', 'Prefix (8)'],
     'reader-redeem': ['Caller', 'S256 matches?', 'Result', 'Client', 'token'],
   },
   'pg-page': {

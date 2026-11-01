@@ -24,9 +24,32 @@ export function frames(attacker: boolean): ReaderFrame[] {
         ),
     },
     {
+      id: 'reader-check',
+      title: 'Hash the submitted verifier before comparing',
+      line: 'The code selects the saved challenge; the verifier must reproduce it.',
+      caption:
+        'S256 means SHA-256 followed by base64url encoding. The client’s verifier reproduces the saved challenge.' +
+        (attacker ? ' A guessed verifier produces a different hash.' : '') +
+        ' This picture shows eight-character prefixes. The check compares all 43 characters.',
+      values: { challenge, clientHash: pkceChallenge(verifier), attackerHash: pkceChallenge(guess), matches },
+      draw: (s) =>
+        table(
+          ['Value', 'Prefix (8)', 'Matches?'],
+          [
+            ['Saved challenge', challenge.slice(0, 8), 'reference'],
+            ['Client hash', pkceChallenge(verifier).slice(0, 8), 'yes'],
+            ...(attacker
+              ? [['Attacker hash', pkceChallenge(guess).slice(0, 8), matches ? 'yes' : 'no']]
+              : []),
+          ],
+          s,
+          { xs: [-4.2, 0.4, 4.6], y: 2.5, gap: 1.5, size: 0.6 },
+        ),
+    },
+    {
       id: 'reader-redeem',
       title: attacker ? 'Can the thief redeem the stolen code?' : 'Why does the client’s verifier work?',
-      line: 'Same code; compare the submitted verifiers.',
+      line: attacker ? 'Same code; compare the submitted verifiers.' : 'The client presents its code and verifier.',
       caption: attacker
         ? 'The attacker submits the stolen code with a guessed verifier. Its hash differs from the saved challenge, so the server returns invalid_grant. The client’s verifier matches and gets a token. This defence assumes the attacker has not also stolen that verifier.'
         : 'The client submits the code and its verifier. Hashing the verifier reproduces the saved challenge, so the server issues a token. The earlier authorization request carried only the challenge.',
@@ -34,7 +57,10 @@ export function frames(attacker: boolean): ReaderFrame[] {
       draw: (s) =>
         table(
           ['Caller', 'S256 matches?', 'Result'],
-          [['Client', 'yes', 'token'], ...(attacker ? [['Attacker', matches ? 'yes' : 'no', 'invalid_grant']] : [])],
+          [
+            ['Client', 'yes', 'token'],
+            ...(attacker ? [['Attacker', matches ? 'yes' : 'no', 'invalid_grant']] : []),
+          ],
           s,
           { xs: [-5.2, 0, 5.2], y: 2, gap: 1.6 },
         ),

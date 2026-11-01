@@ -7,6 +7,8 @@ export const HOME = 'https://github.com/adewale/rayner';
 
 /** The meta tag `site:export --origin` adds to a page whose steps have share pages. */
 export const SHARE_META = 'rayner:share';
+/** Named steps with a generated preview; other steps retain ordinary query links. */
+export const SHARE_STEPS_META = 'rayner:share-steps';
 
 /** Steps whose names are safe as one path segment; others get no share page. */
 export const shareable = (step: string) => /^[A-Za-z0-9_-]+$/.test(step);

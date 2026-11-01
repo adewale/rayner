@@ -1,8 +1,0 @@
-file:///tmp/story-fail-listen-async.mjs:2
-Server.prototype.listen=function(){queueMicrotask(()=>this.emit('error',new Error('injected asynchronous review server startup failure')));return this;};
-                                                                        ^
-
-Error: injected asynchronous review server startup failure
-    at file:///tmp/story-fail-listen-async.mjs:2:73
-
-Node.js v24.22.1
