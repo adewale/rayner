@@ -26,6 +26,51 @@ import {
 } from '../app/embed-closeup.ts';
 import type { StepLayout } from '../app/embed-closeup.ts';
 
+test('changed regions include visible stroke width before clipping to the authored viewport', async () => {
+  await fc.assert(fc.asyncProperty(
+    fc.integer({min: 1, max: 6}), fc.integer({min: 1, max: 6}),
+    fc.integer({min: -2, max: 2}), fc.integer({min: -1, max: 1}),
+    fc.integer({min: 1, max: 20}), fc.boolean(), fc.boolean(), fc.boolean(),
+    async (width, height, x, y, hundredths, stroke, opaque, clipped) => {
+      class Outlined extends Scene {
+        override async construct() {
+          await this.step('rectangle');
+          const rectangle = new Rectangle({width, height, fill: '#0099ff', stroke: stroke ? '#ff0000' : 'none',
+            strokeOpacity: opaque ? 1 : 0, strokeWidth: hundredths / 100}).moveTo([x, y]);
+          if (clipped) rectangle.clipBox = [-1, -1, 1, 1];
+          this.add(rectangle);
+        }
+      }
+      const layout = (await stepLayouts(Outlined)).get('rectangle')!;
+      // Independent axis-aligned rectangle oracle, including disabled strokes.
+      const half = stroke && opaque ? hundredths / 200 : 0;
+      const clip = clipped ? [-1, -1, 1, 1] : [-8, -4.5, 8, 4.5];
+      const expected = [Math.max(x - width / 2 - half, clip[0]!), Math.max(y - height / 2 - half, clip[1]!),
+        Math.min(x + width / 2 + half, clip[2]!), Math.min(y + height / 2 + half, clip[3]!)];
+      if (expected[2]! < expected[0]! || expected[3]! < expected[1]!) return assert.equal(layout.parts.length, 0);
+      assert.equal(layout.painted?.length, 1);
+      for (const [i, edge] of expected.entries()) assert.ok(Math.abs(layout.painted![0]![i]! - edge) < 1e-5,
+        `edge ${i}: ${layout.painted![0]} must include the visible stroke and respect its clip ${expected}`);
+    }), params(60, {examples: [[6, 6, -2, 0, 20, true, true, false]]}));
+});
+
+test('stroke outsets do not make an unrelated nearby label determine the reading scale', async () => {
+  class Boundary extends Scene {
+    override async construct() {
+      const rectangle = new Rectangle({width: 2, height: 2, fill: '#0099ff', stroke: '#ff0000', strokeWidth: .2});
+      await this.step('before');
+      this.add(rectangle, new Text('A', {fontSize: .7}), new Text('Tiny context', {fontSize: .1}).moveTo([1.21, 0], [-1, 0]));
+      await this.step('recolour');
+      rectangle.setFill('#ff9900');
+    }
+  }
+  const layout = (await stepLayouts(Boundary)).get('recolour')!;
+  assert.ok(layout.painted![0]![2] > 1.09, 'the outer stroke remains part of the tour coverage');
+  assert.equal(labelsToRead(layout).length, 1, 'the nearby context is outside the changed subject');
+  assert.ok(Math.abs(labelsToRead(layout)[0]!.size - .7) < 1e-6);
+  assert.equal(closeUps(layout, 357, 201)[0]!.k, 1, 'readable content keeps its complete opening');
+});
+
 /** A box inside the 16 × 9 frame, at least `min` units on a side. */
 const boxIn = (min = 0) =>
   fc

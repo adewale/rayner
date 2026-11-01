@@ -307,6 +307,7 @@ for (const entry of EXPLAINERS)
           await new variant.Scene({
             async frame() {},
             async stepEnd(scene, step) {
+              if (step.name !== 'columns' && step.name !== 'updates') return;
               const cards = scene.familyMembers().filter((m): m is Card => m instanceof Card);
               assert.equal(cards.length, 2);
               const [left, right] = cards.sort((a, b) => a.center()[0] - b.center()[0]);
@@ -428,7 +429,7 @@ for (const entry of EXPLAINERS)
  * two code texts, its line counts are git's, and every line git leaves alone ends exactly
  * on its line of the after block.
  */
-async function mrCacheDiff(trace: { steps: { step: string; evidence?: { kind: string }[] }[] }, Bound: new (sink: Sink) => Scene) {
+async function mrCacheDiff(trace: { steps: { step: string; meta: Record<string,unknown>; evidence?: { kind: string }[] }[] }, Bound: new (sink: Sink) => Scene) {
   const { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } = mrCache;
   // The syntax colours lie inside their lines.
   for (const [code, spans] of [
@@ -448,10 +449,10 @@ async function mrCacheDiff(trace: { steps: { step: string; evidence?: { kind: st
   assert.equal(recorded.lines.changed + recorded.lines.removed, count('-'));
   assert.equal(recorded.lines.changed + recorded.lines.added, count('+'));
   assert.equal(recorded.lines.unchanged, BEFORE_CODE.length - count('-'));
-  // The title counts the lines as the callouts beside the code do, from the transform's plan.
+  // The diff step’s title counts the lines as its callouts do; the page title asks the reader’s question.
   const word = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
   const counted = `${word[recorded.lines.added]} added lines and ${word[recorded.lines.changed]} rewritten`;
-  const title = (Bound as unknown as { meta: { title: string } }).meta.title;
+  const title = String(trace.steps.find(s=>s.step==='diff')!.meta.title);
   assert.ok(title.toLowerCase().startsWith(counted), `${title} / ${counted}`);
   // Together they are git's insertions.
   assert.equal(recorded.lines.added + recorded.lines.changed, count('+'));

@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "11d0423eb190709f",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "983b9df1eaf5a7d78123aedc1a6d748c62a0fd475cbd7ca331fd2ece25c104ed",
+  "sourceHash": "ba8d3bc4d6e7468c60d7cdb15820e8244a44b0024f37bb7baaac2c639fda2eda",
   "diagrams": {
     "[\"gantt\\n  dateFormat YYYY-MM-DD HH:mm\\n  axisFormat %d %b\\n  section One 160-hour certificate\\n    Valid :life, 2028-03-01 00:00, 160h\\n    Retry window, the default rule :fraction, 2028-03-04 08:00, 80h\\n    Retry window, the 30-day rule :fixed30, 2028-03-01 00:00, 160h\",\"excalidraw\"]": "32195d8a03890775.json",
     "[\"gantt\\n  dateFormat YYYY-MM-DD HH:mm\\n  axisFormat %d %b\\n  section One 45-day certificate\\n    Valid :life, 2028-03-01 00:00, 1080h\\n    Retry window, the default rule :fraction, 2028-03-31 00:00, 360h\\n    Retry window, the 30-day rule :fixed30, 2028-03-16 00:00, 720h\",\"excalidraw\"]": "abf0fe2cebe8315e.json",

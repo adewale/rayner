@@ -12,7 +12,7 @@ import {
   Rectangle,
   Text,
 } from '../src/index.ts';
-import type { Scene, Mobject, Box, Vec, Style } from '../src/index.ts';
+import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises } from './look.ts';
 import type { Region } from './look.ts';
 import { diagramsOf, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -26,6 +26,7 @@ import type {
   DiagramSpec,
   DiagramSnapshot,
   SnapshotPart,
+  SnapshotShape,
   MutationOp,
 } from '../integrations/agentic-mermaid/snapshot.ts';
 
@@ -212,7 +213,7 @@ function journeyActors(source: string): string[] {
 export interface LabelInfo {
   text: string;
   fontSize: number;
-  /** Font size per unit of drawn height, so a scaled label's size can be read from its height. */
+  /** Original font size per unit of ink height. Use readingLabelSize after transforming a label. */
   emRatio: number;
 }
 /** A label's words and size, or undefined for a mobject that is not a label. */
@@ -220,6 +221,104 @@ export function labelOf(m: Mobject): LabelInfo | undefined {
   if (m instanceof Text) return { text: m.text, fontSize: m.run.fontSize, emRatio: m.run.fontSize / (m.run.ascent + m.run.descent) };
   const info = m as Partial<LabelInfo>;
   return typeof info.text === 'string' && info.emRatio ? (info as LabelInfo) : undefined;
+}
+
+/** The smaller affine scale: rotation preserves size; squash and shear reduce it. */
+function smallestScale(a: number, b: number, c: number, d: number): number {
+  const x = a * a + b * b, y = c * c + d * d;
+  const largest = Math.sqrt((x + y + Math.hypot(x - y, 2 * (a * c + b * d))) / 2);
+  return largest > 0 ? Math.abs(a * d - b * c) / largest : 0;
+}
+
+/** A canonical one-em parallelogram, centred on the label. Its point order
+ * matches Text's frame indexing, but its dimensions are always one font em. */
+function emFrame(center: Vec, a: number, b: number, c: number, d: number): Float32Array {
+  const x = center[0] - (a + c) / 2, y = center[1] - (b + d) / 2;
+  return new Float32Array([x, y, x + a + c, y + b + d, x + c, y + d, x + a, y + b]);
+}
+function nativeEmBasis(text: Text): [number, number, number, number] {
+  const f = text.frameBox, height = text.run.ascent + text.run.descent, size = text.run.fontSize;
+  if (!(height > 0 && size > 0 && Number.isFinite(height) && Number.isFinite(size))) return [0, 0, 0, 0];
+  const c = (f[4]! - f[0]!) / height, d = (f[5]! - f[1]!) / height;
+  const a = text.run.width > 0 ? (f[6]! - f[0]!) / text.run.width : d;
+  const b = text.run.width > 0 ? (f[7]! - f[1]!) / text.run.width : -c;
+  return [a * size, b * size, c * size, d * size];
+}
+/** Imported glyphs have no Text advance box. A separate one-em basis follows
+ * affine maps and animation, including captured SVG transforms and forced
+ * text widths, without contributing to glyph geometry or any layout bounds. */
+class ImportedLabel extends Group implements LabelInfo {
+  text: string;
+  fontSize: number;
+  emRatio: number;
+  private basis: Float32Array = new Float32Array();
+
+  constructor(paths: VMobject[], shape: SnapshotShape) {
+    super(...paths);
+    this.text = shape.text!;
+    this.fontSize = shape.fontSize!;
+    this.emRatio = this.fontSize / Math.max(0.001, this.height());
+    const run = shape.textRun;
+    let [a, b, c, d] = [this.fontSize, 0, 0, this.fontSize];
+    if (run) {
+      const advance = !run.natural && run.width != null ? new Text(run.text, { fontSize: run.size }).advance() : 0;
+      const width = advance ? run.width! / advance : 1;
+      // outlineText maps SVG's downward y axis into the scene's upward y axis.
+      a = run.matrix[0]! * run.size * width / SVG_PX_PER_UNIT;
+      b = -run.matrix[1]! * run.size * width / SVG_PX_PER_UNIT;
+      c = -run.matrix[2]! * run.size / SVG_PX_PER_UNIT;
+      d = run.matrix[3]! * run.size / SVG_PX_PER_UNIT;
+    }
+    this.basis = emFrame(this.center(), a, b, c, d);
+  }
+  override pointArrays(): Float32Array[] { return [this.basis]; }
+  override boundingPointArrays(): Float32Array[] { return []; }
+  override pointKind(): string { return 'imported-label-basis'; }
+  override copyData(src: Mobject): void { this.basis = new Float32Array((src as ImportedLabel).basis); }
+  override matchingFrameFor(source: Mobject): Mobject {
+    if (!(source instanceof Text)) return this;
+    if (!(source.run.fontSize > 0 && Number.isFinite(source.run.fontSize))) return this;
+    const p = this.basis, frame = source.copy(), run = source.run;
+    const width = run.width / run.fontSize, height = (run.ascent + run.descent) / run.fontSize;
+    frame.frameBox = emFrame(this.center(), (p[6]! - p[0]!) * width, (p[7]! - p[1]!) * width,
+      (p[4]! - p[0]!) * height, (p[5]! - p[1]!) * height);
+    frame.invalidateBox();
+    return frame;
+  }
+  override interpolateData(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null): void {
+    super.interpolateData(a, b, alpha, pathFunc);
+    if (a instanceof ImportedLabel && (b instanceof ImportedLabel || b instanceof Text)) {
+      if (b instanceof Text) {
+        // Text's advance frame is a different kind of point data. Only this
+        // imported label opts into it; native Text interpolation stays intact.
+        const target = emFrame(b.center(), ...nativeEmBasis(b));
+        for (let i = 0; i < this.basis.length; i += 2) {
+          const from: Vec = [a.basis[i]!, a.basis[i + 1]!], to: Vec = [target[i]!, target[i + 1]!];
+          const point = pathFunc ? pathFunc(from, to, alpha) :
+            alpha === 0 ? from : alpha === 1 ? to : [from[0] + (to[0] - from[0]) * alpha, from[1] + (to[1] - from[1]) * alpha];
+          this.basis[i] = point[0]!; this.basis[i + 1] = point[1]!;
+        }
+      }
+      if (alpha >= 1) {
+        const label = labelOf(b)!;
+        this.text = label.text; this.fontSize = label.fontSize; this.emRatio = label.emRatio;
+      }
+    }
+  }
+  readingSize(): number {
+    if (!this.basis.length) return 0;
+    const p = this.basis;
+    const x = p[6]! - p[0]!, y = p[7]! - p[1]!, z = p[4]! - p[0]!, w = p[5]! - p[1]!;
+    return smallestScale(x, y, z, w);
+  }
+}
+
+/** Conservative font em in world units, for native and imported labels; undefined for other artwork. */
+export function readingLabelSize(m: Mobject): number | undefined {
+  if (m instanceof ImportedLabel) return m.readingSize();
+  if (m instanceof Text) return smallestScale(...nativeEmBasis(m));
+  const label = labelOf(m);
+  return label ? m.height() * label.emRatio : undefined;
 }
 const OPPOSITE: Record<NoteSide, NoteSide> = { above: 'below', below: 'above', left: 'right', right: 'left' };
 /**
@@ -361,11 +460,8 @@ export class Diagram {
           paths[0]!.closed = [...shape.closed];
         }
         // A text run is one label of many outlines: it moves and checks as a unit.
-        const drawn = shape.textRun ? Object.assign(new Group(...paths), { mergeLeaves: true }) : paths[0]!;
-        if (shape.text != null) {
-          const label: LabelInfo = { text: shape.text, fontSize: shape.fontSize!, emRatio: shape.fontSize! / Math.max(0.001, drawn.height()) };
-          Object.assign(drawn, label);
-        }
+        const drawn = shape.text != null ? new ImportedLabel(paths, shape) : paths[0]!;
+        if (shape.textRun) drawn.mergeLeaves = true;
         mob.add(drawn);
       }
       // Connector lettering needs a paper gap, not just an outline around each

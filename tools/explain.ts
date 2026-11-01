@@ -27,7 +27,7 @@ Commands:
                       change, still after the caption hold, text collision,
                       legibility, words for every drawing, catch lint
   review <scene>      Check every case, then review its served reader at phone
-                      and desktop widths; optional <scene>.review.json claims
+                      and desktop widths; retain reviewed HTML with --out page.html
   build <scene>       HTML, receipt, header recipe, loader.js
   shots <scene>       Step contact sheet as SVG and PNG
   describe <scene>    Every case and step as JSON for agents: words, state, what
@@ -96,7 +96,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const slug = sceneSlug(project);
   if (command === 'review') {
     const { reviewScene } = await import('./lib/explain-review-scene.ts');
-    console.log(JSON.stringify(await reviewScene(project, flags.out ?? resolve('out/review', slug), flags.claims), null, 2));
+    const artifact = flags.out?.endsWith('.html') ? resolve(flags.out) : undefined;
+    const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
+    console.log(JSON.stringify(await reviewScene(project, directory, flags.claims, artifact), null, 2));
     return;
   }
   if (command === 'snapshots') {

@@ -19,7 +19,8 @@ const server = await serve(root, 0, 'mr-cache.html');
 const browser = await launch();
 try {
   const rows = [];
-  for (const id of ['mr-cache', 'token-bucket', 'tailwind-gamut']) {
+  // Requested lettering exercises a separate startup path and is currently the largest page.
+  for (const id of ['mr-cache', 'token-bucket', 'tailwind-gamut', 'font-metrics']) {
     const inputs = JSON.parse(await readFile(join(root, id, 'inputs.json'), 'utf8'));
     assert.equal(inputs.buildHash, current.hash, `${id}: run demos:check after changing build inputs`);
     const html = await readFile(join(root, id + '.html'), 'utf8');

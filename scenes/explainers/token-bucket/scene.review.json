@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "later",
+      "targets": [
+        { "key": "request:R9" },
+        { "key": "arrival:R9" },
+        { "key": "request:R10" },
+        { "key": "arrival:R10" },
+        { "key": "balance:refill:R10", "paint": "stroke" },
+        { "key": "balance:found:R10" },
+        { "key": "balance:spend:R10", "paint": "stroke" },
+        { "key": "balance:cap" },
+        { "key": "balance:label" },
+        { "key": "balance:value" }
+      ]
+    }
+  ]
+}

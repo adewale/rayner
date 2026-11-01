@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/tailwind-gamut.ts';
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
@@ -54,12 +56,13 @@ const SIZE = 0.24;
 const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
 
 const pct = (v: number) => `${v.toFixed(1)}%`;
-const list = (xs: readonly string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
+const list = (xs: readonly string[]) =>
+  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
     id: 'tailwind-gamut',
-    title: '14 of Tailwind 4’s 17 coloured 500 shades lie outside sRGB; none lie outside Display P3',
+    title: 'Will this Tailwind colour fit the display?',
     sources: [
       THEME + '#L10-L323',
       BLOG + '#L356-L366',
@@ -93,7 +96,7 @@ export default class TailwindGamutExplainer extends Scene {
       screen = values.screen as Screen;
     const all = rows(shade),
       sum = summarize(shade);
-    const s = stage(this, { style: STYLE, headingSize: 0.46 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
     const n = sum.count,
       out = sum.outsideSrgb.length;
@@ -132,11 +135,18 @@ export default class TailwindGamutExplainer extends Scene {
             .map((m) => m.style.fill)
             .find((f) => f && f !== 'none') ?? ink;
         const y = SIDE[1] + 0.35 + (curves.length - 1 - i) * 0.42;
-        const swatch = new Rectangle({ width: 0.26, height: 0.26, fill, fillOpacity: 0.6, stroke: fill, strokeWidth: 0.02 }).moveTo([
-          SIDE[0] + 0.13,
-          y,
-        ]);
-        const label = new Text(c.label, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo([SIDE[0] + 0.4, y], [-1, 0]);
+        const swatch = new Rectangle({
+          width: 0.26,
+          height: 0.26,
+          fill,
+          fillOpacity: 0.6,
+          stroke: fill,
+          strokeWidth: 0.02,
+        }).moveTo([SIDE[0] + 0.13, y]);
+        const label = new Text(c.label, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo(
+          [SIDE[0] + 0.4, y],
+          [-1, 0],
+        );
         rowsOut.push(new Group(swatch, label));
       });
       return {
@@ -145,7 +155,12 @@ export default class TailwindGamutExplainer extends Scene {
       };
     };
     /** A card at the top of the side column, lines under it, and the key at its foot, entering together. */
-    const column = async (d: Diagram | null, card: readonly (readonly [string, string])[], texts: readonly string[], curves: readonly Curve[] = []) => {
+    const column = async (
+      d: Diagram | null,
+      card: readonly (readonly [string, string])[],
+      texts: readonly string[],
+      curves: readonly Curve[] = [],
+    ) => {
       const c = card.length ? await s.card(card, { at: SIDE, align: 'top', fontSize: SIZE, enter: false }) : null;
       if (c) c.shift([SIDE[0] - c.box()![0], 0]);
       const { made } = lines(texts, SIDE[3] - (c ? c.height() + 0.3 : 0));
@@ -168,8 +183,22 @@ export default class TailwindGamutExplainer extends Scene {
         ring = d.get('ring:0').box()!;
       const dx = (dot[0] + dot[2]) / 2 - (ring[0] + ring[2]) / 2,
         dy = (dot[1] + dot[3]) / 2 - (ring[1] + ring[3]) / 2;
-      const across: Side[] = Math.abs(dx) > Math.abs(dy) ? (dy >= 0 ? ['above', 'below'] : ['below', 'above']) : dx >= 0 ? ['right', 'left'] : ['left', 'right'];
-      const along: Side[] = Math.abs(dx) > Math.abs(dy) ? (dx >= 0 ? ['left', 'right'] : ['right', 'left']) : dy >= 0 ? ['below', 'above'] : ['above', 'below'];
+      const across: Side[] =
+        Math.abs(dx) > Math.abs(dy)
+          ? dy >= 0
+            ? ['above', 'below']
+            : ['below', 'above']
+          : dx >= 0
+            ? ['right', 'left']
+            : ['left', 'right'];
+      const along: Side[] =
+        Math.abs(dx) > Math.abs(dy)
+          ? dx >= 0
+            ? ['left', 'right']
+            : ['right', 'left']
+          : dy >= 0
+            ? ['below', 'above']
+            : ['above', 'below'];
       const words = [...d.parts.keys()]
         .filter((id) => id.startsWith('axis-label:') || id.startsWith('tick'))
         .map((id) => d.get(id).box())
@@ -190,7 +219,8 @@ export default class TailwindGamutExplainer extends Scene {
               ? [cx - w / 2, dot[3] + 0.14, cx + w / 2, dot[3] + 0.14 + h]
               : [cx - w / 2, dot[1] - 0.14 - h, cx + w / 2, dot[1] - 0.14];
       const overlap = (a: Box, b: Box) =>
-        Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
+        Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) *
+        Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
       const cost = (sd: Side) => taken.reduce((sum, b) => sum + overlap(boxAt(sd), b), 0);
       const sides = [...across, ...along];
       const best = sides.find((sd) => cost(sd) === 0) ?? sides.reduce((a, b) => (cost(b) < cost(a) ? b : a));
@@ -203,11 +233,14 @@ export default class TailwindGamutExplainer extends Scene {
     // (l.322–323) are hex. The 17 coloured families come first (l.10–212), then nine greys. Blog l.358–360: "We've upgraded the entire default
     // color palette from rgb to oklch, taking advantage of the wider gamut to make the colors more vivid in
     // places where we were previously limited by the sRGB color space."
+    await readerFirst(this, s, readerFrames(shade, screen));
     await this.step('oklch', {
+      detail: true,
       title: 'Tailwind 4 writes each colour as lightness, chroma and hue',
       line: 'Each line reads oklch(L C h); C, chroma, is distance from grey.',
       caption: `Tailwind CSS 4.3.3’s theme.css writes all 286 palette shades as oklch(L C h): lightness, chroma (how far from grey) and hue angle. The v4.0 announcement says the move from rgb to oklch makes colours more vivid where sRGB had limited them. This page takes the ${shade} shade of the ${n} coloured families. We will compare each shade with the limits of sRGB and Display P3, then show what the selected screen does when a colour lies outside its range.`,
     });
+    await s.clear();
     const code = await s.code(
       [`/* theme.css, v4.3.3: the ${shade} shades */`, ...all.map((r) => THEME_LINES[r.line]!.trim())],
       { at: [REGIONS.main[0], REGIONS.main[1], REGIONS.main[2], 3.05], fontSize: 0.19 },
@@ -228,6 +261,7 @@ export default class TailwindGamutExplainer extends Scene {
     const twCurve: Curve = { id: 'tw', label: tw, values: all.map((r) => r.C) };
     const gap = sum.hueGap;
     await this.step('srgb-edge', {
+      detail: true,
       title: 'An sRGB screen’s edge sits at a different chroma for each colour',
       line: 'The outline is the most chroma sRGB can show on each spoke.',
       caption: `Each spoke is one family, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, found by bisection with CSS Color 4’s sample code. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
@@ -249,6 +283,7 @@ export default class TailwindGamutExplainer extends Scene {
 
     // ------------------------------------------------------------------ palette
     await this.step('palette', {
+      detail: true,
       title: `${out} of the ${n} ${shade} shades lie outside sRGB`,
       line: `Furthest past the edge: ${sum.furthest.family}-${shade}, by ${sum.furthest.value.toFixed(3)} chroma.`,
       caption: `Tailwind’s own chroma for each colour, drawn over the edge. ${out} of ${n} lie outside sRGB; only ${list(sum.insideSrgb)} fit. At this scale the overshoot is a sliver: the furthest out in chroma, ${sum.furthest.family}-${shade}, is ${sum.furthest.value.toFixed(3)} past the edge.`,
@@ -268,6 +303,7 @@ export default class TailwindGamutExplainer extends Scene {
       { ...twCurve, values: all.map((r) => r.ofSrgb) },
     ];
     await this.step('share', {
+      detail: true,
       title: `As a share of the edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
       caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family} goes furthest, to ${pct(sum.mostOfSrgb.value)}; ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
@@ -294,6 +330,7 @@ export default class TailwindGamutExplainer extends Scene {
     const withP3 = [...shareCurves, p3Curve];
     const near = sum.nearestP3;
     await this.step('p3-edge', {
+      detail: true,
       title: `None of the ${n} lie outside Display P3`,
       line: `Closest to the P3 edge: ${near.family}-${shade}, at ${pct(near.value)} of it.`,
       caption: `The Display P3 edge on the same scale lies beyond sRGB’s on every spoke, from ${pct(sum.p3OfSrgb.lo.value)} at ${sum.p3OfSrgb.lo.family} to ${pct(sum.p3OfSrgb.hi.value)} at ${sum.p3OfSrgb.hi.family}. All ${n} colours fit inside it. The closest is ${near.family}-${shade}, at ${pct(near.value)} of the P3 edge, ${near.spare.toFixed(3)} chroma short of it.`,
@@ -329,6 +366,7 @@ export default class TailwindGamutExplainer extends Scene {
       const mapped: Curve = { id: 'tw', label: `${tw} on sRGB`, values: all.map((r) => r.shownOfSrgb) };
       const lost = sum.lost;
       await this.step('srgb-screen', {
+        detail: true,
         title: `On an sRGB screen, the ${out} land on its edge`,
         line: `Chroma drops to the edge; ${lost.family}-${shade} loses most, ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
         caption: `CSS Color 4 says a colour outside the screen’s gamut must be mapped into it. Its binary search lowers chroma at fixed lightness and hue until clipping changes the colour by under 0.02, then clips; hue moves by up to ${sum.hueShift.value}°. All ${out} land on the edge. ${lost.family}-${shade} loses most chroma: ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
@@ -366,6 +404,7 @@ export default class TailwindGamutExplainer extends Scene {
         { ...p3Curve, values: edge100 },
       ];
       await this.step('p3-screen', {
+        detail: true,
         title: `On a Display P3 screen, all ${n} show as written`,
         line: `Ring 100 is now the P3 edge; sRGB’s falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of it.`,
         caption: `Now each spoke is measured against the Display P3 edge, the new 100 ring. CSS Color 4’s gamut mapping leaves a colour inside the screen’s gamut unchanged, so a P3 screen shows all ${n} as written. The sRGB edge falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of P3’s; ${near.family} comes closest, at ${pct(near.value)}.`,
@@ -381,7 +420,10 @@ export default class TailwindGamutExplainer extends Scene {
       await column(
         d,
         [],
-        ['Ring 100 is now the Display P3 edge.', 'Each spoke is now a percentage of the P3 edge at that colour’s lightness and hue.'],
+        [
+          'Ring 100 is now the Display P3 edge.',
+          'Each spoke is now a percentage of the P3 edge at that colour’s lightness and hue.',
+        ],
         p3Share,
       );
       this.state.ofP3 = all.map((r) => r.ofP3);

@@ -160,7 +160,12 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
               .evaluate((e) => getComputedStyle(e).textTransform),
             'none',
           );
+          const flow = () => page.evaluate(() =>
+            ['.tile', '.head', '.frame', '.stage', '.stepper', '.words', '.rail', '.step-bar', '.segments']
+              .map(selector => [selector, document.querySelector(selector)!.getBoundingClientRect().toJSON()]));
+          const normalFlow = await flow();
           await page.emulateMedia({ forcedColors: 'active' });
+          assert.deepEqual(await flow(), normalFlow, 'forced-colour markers preserve layout and control positions');
           for (const mode of ['a', 'b']) {
             await page.locator(`input[value=${mode}]`).check();
             await page.waitForFunction(

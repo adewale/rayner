@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "terminal",
+      "targets": [
+        { "key": "reducer:idle:CONNECT" },
+        { "key": "reducer:connecting:OPENED" },
+        { "key": "reducer:connecting:ERROR" },
+        { "key": "reducer:open:CLOSE" },
+        { "key": "reducer:throw" },
+        { "key": "reducer:throw-box", "paint": "stroke" },
+        { "key": "closed" },
+        { "key": "session:ring:closed", "paint": "stroke" },
+        { "text": "State" },
+        { "key": "session:state" },
+        { "text": "Event" },
+        { "key": "session:event" },
+        { "text": "Returns" },
+        { "key": "session:returns" }
+      ]
+    }
+  ]
+}

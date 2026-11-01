@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/trust-proxy.ts';
 import { Scene, Text, Rectangle } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -105,7 +107,7 @@ const answerLabel = (rs: readonly Reading[]) => {
 export default class TrustProxyExplainer extends Scene {
   static meta = {
     id: 'trust-proxy',
-    title: 'With trust proxy set to 2, an attacker who skips the CDN can make Express report any client IP',
+    title: 'Which address should Express call the client?',
     sources: [
       GUIDE + '#L26-L31',
       GUIDE + '#L53',
@@ -142,7 +144,7 @@ export default class TrustProxyExplainer extends Scene {
       trust = TRUSTS[trustKey],
       reading = readAddresses(got.socket, got.xff, trust),
       mine = answer(trustKey, reqKey);
-    const s = stage(this, { style: STYLE, headingSize: 0.46 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
 
     /** Lines of text wrapped to a width, from a top-left corner down. */
@@ -150,7 +152,12 @@ export default class TrustProxyExplainer extends Scene {
       const out: Text[] = [];
       let line = '';
       const flush = () => {
-        out.push(new Text(line, { fontSize: size, color, anchor: 'start' }).moveTo([x, y - size * 0.6 - out.length * size * 1.5], [-1, 0]));
+        out.push(
+          new Text(line, { fontSize: size, color, anchor: 'start' }).moveTo(
+            [x, y - size * 0.6 - out.length * size * 1.5],
+            [-1, 0],
+          ),
+        );
         line = '';
       };
       for (const w of text.split(' ')) {
@@ -163,12 +170,15 @@ export default class TrustProxyExplainer extends Scene {
     };
 
     // ------------------------------------------------------------------ paths
+    await readerFirst(this, s, readerFrames(trustKey, reqKey));
     await this.step('paths', {
+      detail: true,
       title: 'Two ways into one app',
       line: 'The load balancer also accepts connections from the internet.',
       caption:
         'Requests are meant to reach Express through a CDN and then a load balancer, but the load balancer also accepts connections from the internet, so an attacker can skip the CDN. The addresses are examples. Assumed throughout: each proxy appends the address its connection came from to X-Forwarded-For. When the CDN is skipped, does Express report the sender’s address or one the attacker wrote? Follow the header entries to see how the trust setting decides.',
     });
+    await s.clear();
     const d = await s.show({ source: NETWORK }, { box: DIAGRAM });
     const addresses = await s.card(
       [
@@ -201,6 +211,7 @@ export default class TrustProxyExplainer extends Scene {
     const sent = req.sent ? `X-Forwarded-For: ${req.sent}` : 'no X-Forwarded-For';
     const entries = ['no', 'one', 'two', 'three', 'four'][got.xff ? got.xff.split(',').length : 0];
     await this.step('follow', {
+      detail: true,
       title:
         reqKey === 'client'
           ? 'The client’s request gains one address at each proxy'
@@ -233,6 +244,7 @@ export default class TrustProxyExplainer extends Scene {
     // utils.js:197-213 compileTrust; proxy-addr index.js:57, 68-74 (alladdrs) and 231-232 (proxyaddr).
     // forwarded index.js:30-32: addrs is the socket address, then the header's entries right to left.
     await this.step('code', {
+      detail: true,
       title:
         trustKey === 'true'
           ? 'trust proxy true trusts every address'
@@ -303,7 +315,8 @@ export default class TrustProxyExplainer extends Scene {
     const forgedUnread = reading.some((r) => r.verdict === 'unread' && r.addr === ADDR.forged);
     const trusted = reading.filter((r) => r.verdict === 'trusted'),
       last = reading.at(-1)!.verdict === 'answer';
-    const both = (xs: readonly string[]) => (xs.length === 1 ? xs[0]! : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
+    const both = (xs: readonly string[]) =>
+      xs.length === 1 ? xs[0]! : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
     const why =
       trustKey === 'true'
         ? `true trusts every address, so Express reads to the end of the list.`
@@ -322,6 +335,7 @@ export default class TrustProxyExplainer extends Scene {
           ? `That is the CDN edge, an honest proxy, so the ${req.sender.name}’s address is lost.`
           : `The attacker wrote that address, and Express trusted its real one, ${ADDR.attacker}, as if it were a proxy.`;
     await this.step('read', {
+      detail: true,
       title:
         mine.outcome === 'sender'
           ? `req.ip is ${mine.ip}, the ${req.sender.name}’s real address`
@@ -349,7 +363,9 @@ export default class TrustProxyExplainer extends Scene {
       { at: regionBox(FULL, { left: 1.6, top: 2.6 }), align: 'top', fontSize: BIG, title: 'Result', enter: false },
     );
     const said = wrap(
-      mine.outcome === 'sender' ? `Right: the ${req.sender.name}’s own address.` : `Wrong: ${mine.outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`,
+      mine.outcome === 'sender'
+        ? `Right: the ${req.sender.name}’s own address.`
+        : `Wrong: ${mine.outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`,
       [result.box()![0] + 0.1, result.box()![1] - 0.2],
       result.box()![2] - result.box()![0] - 0.2,
       BIG,
@@ -365,6 +381,7 @@ export default class TrustProxyExplainer extends Scene {
     const row = TABLE[trustKey];
     const wrong = REQUEST_KEYS.filter((q) => row[q].outcome !== 'sender');
     await this.step('requests', {
+      detail: true,
       title:
         wrong.length === 0
           ? `With ${setting(trustKey)}, req.ip is the real sender on every path`
@@ -405,7 +422,9 @@ export default class TrustProxyExplainer extends Scene {
     }
     const verdicts = REQUEST_KEYS.flatMap((q, k) =>
       wrap(
-        row[q].outcome === 'sender' ? `Right: the ${REQUESTS[q].sender.name}’s own address.` : `Wrong: ${row[q].outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`,
+        row[q].outcome === 'sender'
+          ? `Right: the ${REQUESTS[q].sender.name}’s own address.`
+          : `Wrong: ${row[q].outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`,
         [-7.55 + k * third + 0.2, columns[k]!.box()![1] - 0.15],
         third - 0.5,
         BIG,
@@ -429,6 +448,7 @@ export default class TrustProxyExplainer extends Scene {
       list: '“the untrusted IP address nearest to the application server is determined as the client’s IP address.”',
     };
     await this.step('why', {
+      detail: true,
       title:
         trustKey === 'true'
           ? 'true trusts whatever the sender wrote first'
@@ -476,6 +496,7 @@ export default class TrustProxyExplainer extends Scene {
     // ------------------------------------------------------------------ ranges
     const other: TrustKey = trustKey === 'list' ? '2' : 'list';
     await this.step('ranges', {
+      detail: true,
       title:
         trustKey === 'list'
           ? 'Counting two hops instead gives the attacker the short path'
@@ -496,12 +517,26 @@ export default class TrustProxyExplainer extends Scene {
     await d.mark(['service:edge', 'service:balancer'], { color: s.good, as: 'trusted by address' });
     const side = (t: TrustKey, box: Box) =>
       s.card(
-        REQUEST_KEYS.map((q) => [REQUEST_LABEL[q], `${TABLE[t][q].ip}  ${TABLE[t][q].outcome === 'sender' ? 'right' : 'wrong'}`] as const),
-        { at: box, align: 'top', fontSize: SIZE, title: `trust proxy ${t === 'list' ? TRUST_CODE.list : TRUST_LABEL[t]}`, enter: false },
+        REQUEST_KEYS.map(
+          (q) =>
+            [REQUEST_LABEL[q], `${TABLE[t][q].ip}  ${TABLE[t][q].outcome === 'sender' ? 'right' : 'wrong'}`] as const,
+        ),
+        {
+          at: box,
+          align: 'top',
+          fontSize: SIZE,
+          title: `trust proxy ${t === 'list' ? TRUST_CODE.list : TRUST_LABEL[t]}`,
+          enter: false,
+        },
       );
     const a = await side(trustKey, regionBox(BELOW, { right: -0.1 })),
       b = await side(other, regionBox(BELOW, { left: 0.1 }));
+    // The comparison's six answers are the ranges step's evidence. The
+    // network panel behind the preceding quote is context when it is revealed.
+    a.key = 'ranges-current';
+    b.key = 'ranges-alternative';
     await s.enter(a, b);
+    s.reading(a, b, d.get('service:edge'), d.get('service:balancer'));
     this.state.compare = Object.fromEntries(
       [trustKey, other].map((t) => [t, Object.fromEntries(REQUEST_KEYS.map((q) => [q, TABLE[t][q].ip]))]),
     );
@@ -512,6 +547,7 @@ export default class TrustProxyExplainer extends Scene {
       t === 'list' ? 'the address list' : `trust proxy ${t}`,
     );
     await this.step('table', {
+      detail: true,
       title: 'Twelve answers from real Express 5.3.0',
       line: `Green is the real sender; ${allRight.length ? `only ${allRight.join(' and ')} ${allRight.length === 1 ? 'gets' : 'get'} all three` : 'no setting gets all three'}.`,
       caption: `Each row is a setting and each column a request; green marks the real sender’s address. Out of three requests, true gets ${rights[0]} right, 1 gets ${rights[1]}, 2 gets ${rights[2]} and the address list gets ${rights[3]}. This case, ${TRUST_LABEL[trustKey]} with ${lowerFirst(REQUEST_LABEL[reqKey])}, is outlined.`,
@@ -525,30 +561,43 @@ export default class TrustProxyExplainer extends Scene {
       rowH = 1.15;
     const cells: (Text | Rectangle)[] = [];
     const head = (text: string, x: number) =>
-      cells.push(new Text(text, { fontSize: SIZE, color: s.soft, weight: 'bold', anchor: 'start' }).moveTo([x, top], [-1, 0]));
+      cells.push(
+        new Text(text, { fontSize: SIZE, color: s.soft, weight: 'bold', anchor: 'start' }).moveTo([x, top], [-1, 0]),
+      );
     head('trust proxy', x0);
     REQUEST_KEYS.forEach((q, j) => head(REQUEST_LABEL[q], x0 + col0 + j * colW));
     TRUST_KEYS.forEach((t, i) => {
       const y = top - (i + 1) * rowH;
-      cells.push(new Text(TRUST_LABEL[t], { fontSize: BIG, color: ink, font: 'mono', anchor: 'start' }).moveTo([x0, y], [-1, 0]));
+      cells.push(
+        new Text(TRUST_LABEL[t], { fontSize: BIG, color: ink, font: 'mono', anchor: 'start' }).moveTo([x0, y], [-1, 0]),
+      );
       REQUEST_KEYS.forEach((q, j) => {
         const cell = TABLE[t][q],
           x = x0 + col0 + j * colW;
         const color = cell.outcome === 'sender' ? s.good : s.bad;
-        cells.push(new Text(cell.ip, { fontSize: BIG, color, font: 'mono', anchor: 'start' }).moveTo([x, y + 0.13], [-1, 0]));
         cells.push(
-          new Text(cell.outcome === 'sender' ? 'real sender' : cell.outcome === 'proxy' ? 'CDN edge' : 'attacker wrote it', {
-            fontSize: 0.22,
-            color: s.soft,
-            anchor: 'start',
-          }).moveTo([x, y - 0.3], [-1, 0]),
+          new Text(cell.ip, { fontSize: BIG, color, font: 'mono', anchor: 'start' }).moveTo([x, y + 0.13], [-1, 0]),
+        );
+        cells.push(
+          new Text(
+            cell.outcome === 'sender' ? 'real sender' : cell.outcome === 'proxy' ? 'CDN edge' : 'attacker wrote it',
+            {
+              fontSize: 0.22,
+              color: s.soft,
+              anchor: 'start',
+            },
+          ).moveTo([x, y - 0.3], [-1, 0]),
         );
         if (t === trustKey && q === reqKey)
           cells.push(
-            new Rectangle({ width: colW - 0.2, height: rowH - 0.15, stroke: s.emphasis, strokeWidth: 0.03, fill: 'none', cornerRadius: 0.08 }).moveTo([
-              x - 0.15 + (colW - 0.2) / 2,
-              y - 0.07,
-            ]),
+            new Rectangle({
+              width: colW - 0.2,
+              height: rowH - 0.15,
+              stroke: s.emphasis,
+              strokeWidth: 0.03,
+              fill: 'none',
+              cornerRadius: 0.08,
+            }).moveTo([x - 0.15 + (colW - 0.2) / 2, y - 0.07]),
           );
       });
     });
@@ -558,7 +607,10 @@ export default class TrustProxyExplainer extends Scene {
         TRUST_KEYS.map(
           (t) =>
             `trust proxy ${TRUST_LABEL[t]}: ` +
-            REQUEST_KEYS.map((q) => `${REQUEST_LABEL[q].toLowerCase()} ${TABLE[t][q].ip} (${TABLE[t][q].outcome === 'sender' ? 'real sender' : TABLE[t][q].whose})`).join(', '),
+            REQUEST_KEYS.map(
+              (q) =>
+                `${REQUEST_LABEL[q].toLowerCase()} ${TABLE[t][q].ip} (${TABLE[t][q].outcome === 'sender' ? 'real sender' : TABLE[t][q].whose})`,
+            ).join(', '),
         ).join('. ') +
         `. This case, ${TRUST_LABEL[trustKey]} with ${REQUEST_LABEL[reqKey].toLowerCase()}, is outlined.`,
     });

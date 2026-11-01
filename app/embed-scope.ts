@@ -1,22 +1,24 @@
+export function* wait<T>(work: PromiseLike<T>): Generator<PromiseLike<T>, T, unknown> {
+  return (yield work) as T;
+}
+
 /**
- * Run a generator with `yield* scope.wait(promise)` at each suspension.
+ * Run a generator with `yield* wait(promise)` at each suspension.
  * Only this driver resumes it; cancellation closes the continuation. A yielded
  * browser operation still needs the signal at its paint boundary (ReaderSink).
  */
 export class StateScope extends AbortController {
-  *wait<T>(work: PromiseLike<T>): Generator<PromiseLike<T>, T, unknown> {
-    return (yield work) as T;
-  }
   async run<T>(work: () => Generator<PromiseLike<unknown>, T, unknown>): Promise<T | undefined> {
+    const signal = this.signal;
     const task = work();
     let abort!:()=>void;
     const cancelled = new Promise<never>((_, reject) => {
-      abort = () => reject(this.signal.reason);
-      this.signal.addEventListener('abort', abort, {once:true});
+      abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, {once:true});
     });
     void cancelled.catch(() => {});
     try {
-      this.signal.throwIfAborted();
+      signal.throwIfAborted();
       let next = task.next();
       while (!next.done) {
         // Neither success nor failure may enter the continuation before this check.
@@ -24,13 +26,13 @@ export class StateScope extends AbortController {
           value => () => task.next(value),
           error => () => task.throw(error),
         );
-        this.signal.throwIfAborted();
+        signal.throwIfAborted();
         next = resume();
       }
       return next.value;
-    } catch (error) { if (!this.signal.aborted) throw error; }
+    } catch (error) { if (!signal.aborted) throw error; }
     finally {
-      this.signal.removeEventListener('abort', abort);
+      signal.removeEventListener('abort', abort);
       task.return(undefined as never);
     }
   }

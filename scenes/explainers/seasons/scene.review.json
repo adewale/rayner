@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "noon",
+      "targets": [
+        { "key": "june-horizon", "paint": "stroke" },
+        { "key": "june-place" },
+        { "key": "june-noon-ray", "paint": "stroke" },
+        { "key": "noon-notes" }
+      ]
+    },
+    {
+      "step": "december",
+      "targets": [
+        { "key": "june-latitude", "paint": "stroke" },
+        { "key": "december-latitude", "paint": "stroke" },
+        { "key": "june-north" },
+        { "key": "december-north" },
+        { "key": "solstice-months" },
+        { "key": "june-daylight-callout" },
+        { "key": "december-daylight-callout" },
+        { "key": "december-noon-ray", "paint": "stroke" }
+      ]
+    },
+    {
+      "step": "latitude",
+      "targets": [
+        { "key": "june-latitude", "paint": "stroke" },
+        { "key": "december-latitude", "paint": "stroke" },
+        { "key": "latitude-circles", "paint": "stroke" },
+        { "key": "june-daylight-table" },
+        { "key": "december-daylight-table" }
+      ]
+    },
+    {
+      "step": "distance",
+      "targets": [
+        { "key": "distance-orbit", "paint": "stroke" },
+        { "key": "daylight-curve", "paint": "stroke" },
+        { "key": "january-point" },
+        { "key": "january-value" }
+      ]
+    },
+    {
+      "step": "distance",
+      "settings": { "place": "quito" },
+      "targets": [{ "key": "july-point" }, { "key": "july-value" }]
+    },
+    {
+      "step": "distance",
+      "settings": { "place": "tromso" },
+      "targets": [{ "key": "mirror-daylight-curve", "paint": "stroke" }, { "key": "mirror-january-point" }, { "key": "mirror-january-value" }]
+    },
+    {
+      "step": "distance",
+      "settings": { "place": "london" },
+      "targets": [{ "key": "mirror-daylight-curve", "paint": "stroke" }, { "key": "mirror-january-point" }, { "key": "mirror-january-value" }]
+    },
+    {
+      "step": "distance",
+      "settings": { "place": "sydney" },
+      "targets": [{ "key": "mirror-daylight-curve", "paint": "stroke" }, { "key": "mirror-january-point" }, { "key": "mirror-january-value" }]
+    }
+  ]
+}
