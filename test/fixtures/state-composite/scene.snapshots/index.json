@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "importer": "11d0423eb190709f",
+  "renderer": "agentic-mermaid@0.5.1",
+  "sourceHash": "efa6a6f7f18a9d7df10ed959b26c3f728dd403f9e7f52f3a3572f39531bbf6f7",
+  "diagrams": {
+    "[\"stateDiagram-v2\\n  direction LR\\n  [*] --> off\\n  off --> on: POWER\\n  state on {\\n    direction TB\\n    [*] --> paused\\n    paused --> playing: PLAY\\n    playing --> paused: PAUSE\\n    --\\n    [*] --> unmuted\\n    unmuted --> muted: MUTE\\n    muted --> unmuted: UNMUTE\\n  }\\n  on --> off: POWER_OFF\",\"default\"]": "c9fb3d1858d57e88.json",
+    "[\"stateDiagram-v2\\n  direction TB\\n  off --> on: POWER_ON\\n  state on {\\n    direction LR\\n    [*] --> idle\\n    idle --> brewing: START\\n    brewing --> ready: BREWED\\n    ready --> idle: TAKE\\n  }\\n  on --> off: POWER_OFF\",\"default\"]": "79808cb0d4016cfd.json"
+  }
+}

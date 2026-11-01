@@ -230,6 +230,34 @@ The diagram spec accepts `lettering: 'natural'` to measure the active requested 
 - Descriptions name a link by the labels at its ends ("Attacker → Load balancer"), and a class or ER entity by its name.
 - The collection uses all 15 families. Captured diagrams use the 8 styles listed in `out/explainers/evidence.json` (the build's per-explainer list of families and styles, not step evidence); ring-buffer (dusk), seasons (tokyo-night) and token-bucket (github-dark) use a style only as the stage palette. Other styles are untested.
 
+### State machines and graphs
+
+Write a state machine, statechart or graph as Mermaid source and draw it with `s.show`, rather than placing boxes and arrows by hand. Agentic Mermaid lays it out and routes connectors clear of labels, and the checks verify the result like any other diagram.
+
+```ts
+const d = await s.show({ source: `stateDiagram-v2
+  direction TB
+  off --> on: POWER_ON
+  state on {
+    direction LR
+    [*] --> idle
+    idle --> brewing: START
+    brewing --> ready: BREWED
+    ready --> idle: TAKE
+  }
+  on --> off: POWER_OFF` }, { box: 'full' });
+await d.walk([['off', 'on'], ['on_start', 'idle'], ['idle', 'brewing']], { trail: true });
+```
+
+- A composite `state on { … }` is a box with its name in a header. Its part id is `group:on`, and `'on'` finds it. A transition to or from the composite (`on --> off`) attaches to its border.
+- `--` inside a composite splits it into concurrent regions, with a dashed line between them.
+- `[*]` draws a start dot or an end state. Its id is `_start` (or `_end`) at the top level, `on_start` inside `on`, and `on__r2_start` in the second region of `on`. Descriptions call it "start of on, region 2". Read `d.parts` or the snapshot for other ids.
+- `mark`, `walk`, `note` and `dim` work on composites and their contents. Marking `on` fills its whole box. `dim(['on'])` keeps everything drawn inside `on` and fades the rest. `walk` follows real links only. An event that a child leaves to its parent is the parent's link (`on → off`), not a link from the child.
+- A morph keeps every part whose id survives, so a composite and its states keep their identity. With `ops`, use Agentic Mermaid's state edits (`add_state`, `add_transition`, `remove_transition`, `make_composite`, `move_state` and others). The build replays them and requires the result to serialize to the next source. That source must include any state the edits declare explicitly, such as `off` once its last transition is removed. Agentic Mermaid 0.5.1 has no edit that adds a concurrency region, and it refuses `make_composite` after a `remove_transition` in the same list. Put `make_composite` first, or morph without `ops`, which is a visual transition only.
+- Size the chart for the stage. Mermaid sets state names at 12 px and transition labels a little smaller, and `check` needs imported labels to reach 14 px at 1280 px. In the `full` region, that means the chart must lay out within about 930 × 460 of its own pixels. Set `direction` for the chart and again inside each composite to fit it: an outer `TB` with an inner `LR` cycle, or an outer `LR` with regions stacked by an inner `TB`. A four-state cycle in a row beside a second region does not fit. Split it across steps, or focus the camera on part of it.
+
+Hand drawing is still justified when position itself carries meaning that a layout engine cannot keep. Examples are states that hold their grid cell while a flat machine becomes regions (the statecharts explainer), panels that must align so they can be compared, or a keyed `view` whose positions come from a model.
+
 ## Engine features
 
 These are the engine's own features, imported from `rayner` and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).

@@ -198,7 +198,25 @@ const journeyName: Namer = ({ w, snapshot, info, words }) => {
   const tasks = snapshot.parts.filter((p) => p.role === 'task' && Number.isFinite(journeyScore(p)));
   return tasks.length ? extremes(w, w.curve, tasks.map(journeyScore), tasks.map((t) => textOf(t))) : undefined;
 };
-const NAMERS: Readonly<Record<string, Namer>> = { er: erName, journey: journeyName };
+/** Whether a state diagram part is a `[*]` dot, which capture marks with a `start` or `end` status. */
+const pseudostate = (info: SnapshotPart): 'start' | 'end' | undefined => {
+  const status = (info.channels as { status?: unknown } | undefined)?.status;
+  return status === 'start' || status === 'end' ? status : undefined;
+};
+/**
+ * State words for the `[*]` dots, which have no label. Their ids name the state they belong to,
+ * then its region when it has several: `_start`, `on_end`, `on__r2_start`. Each is named that
+ * way, "start of on, region 2", so descriptions and walks never fall back to the id. Undefined
+ * for any other part.
+ */
+const stateName: Namer = ({ w, info, end }) => {
+  const status = pseudostate(info);
+  if (!status) return undefined;
+  const m = /^(.*?)(?:__r(\d+))?_(?:start|end)$/s.exec(info.id);
+  if (!m) return undefined;
+  return w.pseudostate(status, m[1] ? end(m[1]) : undefined, m[2] ? Number(m[2]) : undefined);
+};
+const NAMERS: Readonly<Record<string, Namer>> = { er: erName, journey: journeyName, state: stateName };
 /** A journey's actors, as its task lines name them (`Task: 3: Alice, Bob`), in order of first mention. */
 function journeyActors(source: string): string[] {
   const out: string[] = [];
@@ -769,7 +787,8 @@ export class Diagram {
     const [english] = familyNames(wordsFor('en'), this.snapshot.family);
     const parts: SeenPart[] = [];
     const blank: string[] = [];
-    const journey = this.snapshot.family === 'journey';
+    const journey = this.snapshot.family === 'journey',
+      stateFamily = this.snapshot.family === 'state';
     let things = 0,
       links = 0;
     const step = this.scene.steps.at(-1)?.name;
@@ -795,8 +814,14 @@ export class Diagram {
         continue;
       }
       if (info.from && info.to) links++;
-      // A line through the things (a journey's experience curve) is not one of them.
-      else if ((!isScaffold(info) || info.role === 'actor') && info.role !== 'series') things++;
+      // A line through the things (a journey's experience curve) is not one of them. In a state
+      // diagram a composite (drawn as a group) is a state, and a `[*]` dot is not.
+      else if (
+        (!isScaffold(info) || info.role === 'actor' || (stateFamily && info.role === 'group')) &&
+        info.role !== 'series' &&
+        !(stateFamily && pseudostate(info))
+      )
+        things++;
       // A part in focus is said to be, unless a mark says more.
       const mark = this.marks.get(id)?.as ?? (focused?.includes(id) ? w.focused : undefined);
       const dimmed = !!this.kept && !this.kept.has(id) && !isScaffold(info);
@@ -901,12 +926,26 @@ export class Diagram {
   }
   /**
    * Fade everything except these parts (and links between them, and the
-   * family's scaffolding such as lifelines and axes). `null` restores.
+   * family's scaffolding such as lifelines and axes). A kept group (a composite
+   * state, a subgraph, an architecture group) keeps what is drawn inside it.
+   * `null` restores.
    */
   async dim(keep: readonly string[] | null, { runTime = 0.5 } = {}): Promise<void> {
     if (keep == null) this.kept = null;
     else {
       const kept = new Set(keep.map((id) => this.top(id)));
+      // Members are not recorded on a group's parts, but the layout draws them inside its box.
+      const within = (inner: Box, outer: Box) =>
+        inner[0] >= outer[0] - 1e-6 && inner[1] >= outer[1] - 1e-6 && inner[2] <= outer[2] + 1e-6 && inner[3] <= outer[3] + 1e-6;
+      for (const id of [...kept]) {
+        const group = this.parts.get(id)!;
+        const outer = group.info.role === 'group' ? group.mob.box() : null;
+        if (outer)
+          for (const p of this.parts.values()) {
+            const box = !p.info.owner && p !== group && !(p.info.from && p.info.to) ? p.mob.box() : null;
+            if (box && within(box, outer)) kept.add(p.info.id);
+          }
+      }
       for (const p of this.parts.values())
         if (!p.info.owner && p.info.from && p.info.to && !kept.has(p.info.id)) {
           if ([p.info.from, p.info.to].every((n) => kept.has(this.end(n)))) kept.add(p.info.id);

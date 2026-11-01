@@ -77,7 +77,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | A protocol or request flow | `oauth-pkce` | A sequence diagram revealed message by message (`build: 'frame'`, `reveal`); a setting that adds the attacker's step |
 | A data structure changing step by step | `ring-buffer` | No diagram: native shapes, `Succession`, a `view` of `scene.state` |
 | A state machine | `state-machine` | A state diagram driven by the real reducer, code spans, `Restore` |
-| Nested or parallel states | `statecharts` | Native boxes and arrows drawn from a model's states and transitions; a keyed `view` whose parts keep their identity as a grid becomes regions; a flat and a structured drawing side by side |
+| Nested or parallel states | A Mermaid `stateDiagram-v2` with composites and regions ([recipe](../../docs/REFERENCE.md#state-machines-and-graphs)); `statecharts` when position carries meaning | `statecharts`: native boxes and arrows drawn from a model's states and transitions; a keyed `view` whose parts keep their identity as a grid becomes regions; a flat and a structured drawing side by side |
 | A race or ordering bug | `latest-search` | A real controlled-promise run, `Axes` and a `view` of `scene.state`; guard and completion order change the displayed result |
 | A rate or a model's numbers over time | `token-bucket`, `seasons` | `token-bucket`: `Axes`, `lineGraph`, `stateView`; `seasons`: `Axes.plot`; a setting that reruns the model |
 | Identity, hashing or text that changes | `exgit` | `TransformMatchingText`, `TransformMatchingShapes`, `TransformFromCopy` |
@@ -100,6 +100,7 @@ The scene asks the model; it never states an answer it did not get from one. The
 
 ## Rules
 
+- Draw a state machine, statechart or graph as a Mermaid `stateDiagram-v2` or flowchart with `s.show`; do not place its boxes and arrows by hand. Layout and connectors routed clear of labels come with it, and composite states, concurrent regions (`--`), marks, walks, `dim` and keyed morphs work on its parts ([recipe](../../docs/REFERENCE.md#state-machines-and-graphs)). Draw by hand only when position itself carries meaning that the layout cannot keep, such as states that hold their place while the picture changes, or panels that must align for a comparison.
 - Walks use real links; a missing link is a bug in the diagram or the model, never a reason to draw a shortcut.
 - Morphs with `ops` must reproduce the next diagram through Agentic Mermaid's mutation replay. Without `ops`, call it a visual transition.
 - One scene, one clock: never call `Scene.play()` concurrently. Use `{ parallel: true }` or one `play`.
