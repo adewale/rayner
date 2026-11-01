@@ -70,5 +70,6 @@ export { ItalicText } from './italic.ts';
 export type { LetteringRequest, LetteringSnapshot, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringStyle } from './lettering-outlines.ts';
 // End optional lettering.
 
+export {jsonObject} from './json.ts';
 export type {JsonValue, JsonObject} from './json.ts';
 export type {TextShaping} from './text-context.ts';

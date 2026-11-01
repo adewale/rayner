@@ -1,7 +1,6 @@
-import { Scene, Group, Text, Rectangle, Circle, Line } from '../../../src/index.ts';
+import { Scene, Group, Text, Rectangle, Circle, Line, jsonObject } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage } from '../../../explain/index.ts';
-import {jsonObject} from '../../../src/json.ts';
 import type {StepAudio} from '../../../explain/audio.ts';
 import type { Stage } from '../../../explain/index.ts';
 

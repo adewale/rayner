@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "e84718f81330d37ac5eef333d16ba97b400390f37b4f001c9285534da48196ea",
+  "sourceHash": "e868d86030cac5e948b21207e5b0b007b31d671ec55ac830cb118f703f4e992c",
   "diagrams": {
     "[\"classDiagram\\n direction LR\\n class Scene {\\n construct()\\n play()\\n step()\\n }\\n class Mobject {\\n points\\n style\\n }\\n class Animation {\\n interpolate()\\n }\\n class Sink {\\n frame()\\n }\\n Scene --> Mobject : owns\\n Scene --> Animation : plays\\n Scene --> Sink : emits\",\"hand-drawn\"]": "29736f122149eed1.json",
     "[\"graph LR\\nAuthor[Native Scene] --> Build[Build snapshots]\\nBuild --> Page[Portable HTML]\\nBuild --> JSON[Scene description]\\nPage --> Reader[Reader-paced steps]\",\"hand-drawn\"]": "b7eaf32b86bd2d42.json",
