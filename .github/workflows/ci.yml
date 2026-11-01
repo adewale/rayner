@@ -35,10 +35,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tools/ci-scope.ts
-      - if: github.event_name == 'pull_request' && steps.scope.outputs.full == 'false'
+      - if: steps.scope.outputs.prose == 'true'
         run: |
           npm ci
-          git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
           node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts
 
   check:

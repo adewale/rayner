@@ -32,10 +32,11 @@ Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the
 npm run site:export -- <site-root> --only python-dict,bloom-filter,git-branches,melody-rhythm,monty-hall,token-bucket --entry python-dict
 ```
 
-You can also build just the selected pages in an isolated directory:
+You can also build and review just the selected pages in an isolated directory:
 
 ```sh
 npm run demos:check -- --only python-dict,bloom-filter --out out/showcase
+npm run demos:review -- --from out/showcase
 npm run site:export -- <site-root> --from out/showcase --only python-dict,bloom-filter --entry python-dict
 ```
 

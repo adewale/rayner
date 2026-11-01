@@ -11,18 +11,31 @@ const git = async (...args: string[]) => (await run('git', args)).stdout.trim();
 const api = async (path: string) => JSON.parse((await run('gh', ['api', path], {maxBuffer: 8 * 1024 * 1024})).stdout);
 const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, 'utf8'));
 const repo = process.env.GITHUB_REPOSITORY!, sha = process.env.GITHUB_SHA!;
-let full = true, reason = 'Full validation: code, fixtures, unknown changes or explicit dispatch.';
-if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
-  const paths = (await git('diff', '--no-renames', '--name-only', '-z', `${event.pull_request.base.sha}...${event.pull_request.head.sha}`)).split('\0').filter(Boolean);
-  if (proseOnly(paths)) { full = false; reason = 'Prose-only change: authoring documentation checks run in scope.'; }
-} else if (process.env.GITHUB_EVENT_NAME === 'push' && process.env.GITHUB_REF === 'refs/heads/main') {
+let full = true, prose = false, reason = 'Full validation: code, fixtures, unknown changes or explicit dispatch.';
+const eventName = process.env.GITHUB_EVENT_NAME;
+const mainPush = eventName === 'push' && process.env.GITHUB_REF === 'refs/heads/main';
+const range = eventName === 'pull_request'
+  ? `${event.pull_request.base.sha}...${event.pull_request.head.sha}`
+  : mainPush && /^[a-f0-9]{40}$/.test(event.before ?? '') && !/^0+$/.test(event.before)
+    ? `${event.before}..${sha}` : undefined;
+if (range) {
+  let paths: string[] = [];
+  try { paths = (await git('diff', '--no-renames', '--name-only', '-z', range)).split('\0').filter(Boolean); }
+  catch (error) { console.log(`Could not establish the diff; running full CI: ${String(error)}`); }
+  if (proseOnly(paths)) {
+    await git('diff', '--check', range);
+    full = false; prose = true;
+    reason = 'Prose-only change: authoring documentation checks run in scope.';
+  }
+}
+if (mainPush && full) {
   try {
     const pulls = await api(`repos/${repo}/commits/${sha}/pulls`);
     const pr = pulls.find((p: any) => p.merged_at && p.merge_commit_sha === sha && p.base.ref === 'main' && p.head.repo?.full_name === repo);
     if (pr) {
       const runs = await api(`repos/${repo}/actions/workflows/ci.yml/runs?event=pull_request&head_sha=${pr.head.sha}&status=success&per_page=10`);
       for (const candidate of runs.workflow_runs) {
-        const age = Date.now() - Date.parse(candidate.updated_at);
+        const age = Date.now() - Date.parse(candidate.created_at);
         if (!(age >= 0 && age <= 24 * 60 * 60 * 1000) || candidate.head_repository?.full_name !== repo) continue;
         const jobs = await api(`repos/${repo}/actions/runs/${candidate.id}/jobs?per_page=100`);
         if (!completedCampaign(jobs.jobs)) continue;
@@ -56,5 +69,5 @@ if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
 }
 console.log(reason);
 // The caller runs documentation assertions before accepting a prose-only decision.
-await appendFile(process.env.GITHUB_OUTPUT!, `full=${full}\n`);
+await appendFile(process.env.GITHUB_OUTPUT!, `full=${full}\nprose=${prose}\n`);
 await appendFile(process.env.GITHUB_STEP_SUMMARY!, `${reason}\n`);
