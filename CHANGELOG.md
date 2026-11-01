@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Rewrite the authoring skill around what an explainer must achieve and how each part is checked, and drop technique rules no check or reader would miss. Replace the rubric's scored dimensions with a judgement: would a newcomer learn the answer, and is it better than the alternative? The README now says what Rayner checks and where it stands against hand-made pages.
 - Arrow keys step through a standalone page as soon as it loads, before the reader clicks anything. Frames still take keys only once focused.
 - Reserve the caption's first two lines in the stage's height cap, so at 1280 × 800 and 1366 × 768 a reader sees the picture and the start of its explanation without scrolling.
 - Name a teaching step in the steps rail and step bar only once the reader reaches it; until then the rail shows its number. A later title such as "Answer: …" no longer gives away an earlier prediction. `meta.player.outline` shows every title from the start.

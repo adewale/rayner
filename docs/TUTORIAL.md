@@ -335,4 +335,4 @@ npx rayner build lru-mru/scene.ts --out public/lru-mru.html
 
 - To explain another kind of subject, start from the nearest example. The [skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) matches subjects such as a protocol, a race, a state machine or a code change to explainers in `scenes/explainers/`.
 - The [reference](REFERENCE.md) covers the stage, card, diagram and check APIs. The [engine map](ENGINE.md) covers camera moves, code diffs, charts and pictures rebuilt from state.
-- The [editorial rubric](EXPLAINER-RUBRIC.md) scores a finished explainer against the principles at the top of this page.
+- [Judging an explainer](EXPLAINER-RUBRIC.md) asks whether a finished explainer teaches a newcomer, and whether it beats the alternative.

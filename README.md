@@ -10,6 +10,21 @@ Rayner turns a TypeScript model into a step-through explanation. Readers can cha
 
 [Browse the subject lessons](https://oshineye.dev/projects/rayner/) · [Write your first scene](docs/TUTORIAL.md) · [API and CLI reference](docs/REFERENCE.md)
 
+## What Rayner checks for you
+
+An explainer written by hand, or by a language model, can look right and be wrong. Rayner's job is to check what an author, human or model, cannot easily check by eye:
+
+- **Every value comes from a model, and the model is tested against the real thing.** A scene draws numbers, paths and outcomes from a separate TypeScript model; its test compares the model with the program, library or published vectors it describes (CPython, Git, XState and others in the gallery), and a fidelity test asserts that every step of every case shows what the model computed.
+- **Pictures are measured as painted.** `rayner check` runs every case and fails on labels a reader would see under 12 px on a phone, text that collides, connectors that cross labels, a picture that moves after its caption starts, a jump to a step that draws differently from playing to it, and a drawing with no description in words. It also fails an explanation that does not state its declared answer (`meta.answer`) by step 2.
+- **The page is reviewed as served.** `rayner review` opens the built page at phone and desktop widths, visits every resting step of every case, and checks what is actually painted.
+- **Agents can read it.** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
+
+The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
+
+## Where it stands
+
+Readers can step through an explanation and switch between prebuilt cases, but they cannot yet act inside a step. That matters. In a [blind benchmark](bench/explainers/README.md) where the same models built one statecharts script with Rayner and as a hand-made page, the reviewer preferred the hand-made page in all three pairs, in two rounds, because those let the reader commit to predictions and send events to a live machine. Rayner's pages were credited with cleaner diagrams, a text alternative for every picture, keyboard navigation and deep links. [The live machine](https://github.com/adewale/rayner/issues/88), in which readers drive the scene's own tested model and `check` tests every picture they can reach, is the proposed answer. Until a benchmark round says otherwise, do not assume a Rayner explainer teaches better than a careful hand-made one.
+
 ## Write your first scene
 
 Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported. In an empty directory, install the published package and start the tutorial's two-case explainer of LRU and MRU cache replacement:
@@ -24,7 +39,7 @@ npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
+Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the script the scene shows, `script.md`, the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
 
 When your explanation is ready, review every case and save the page to publish:
 
