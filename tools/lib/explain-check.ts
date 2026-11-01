@@ -271,17 +271,32 @@ export async function checkProject(project: Project, out: string): Promise<Recor
      * frame is a resting one. `px` is already on screen (world size × the author's camera
      * zoom); the phone's close-up is the reader's zoom over that view, so the two multiply.
      * `box` is in the camera's view units, where close-ups are worked out.
+     *
+     * A picture label no close-up shows is measured at the opening's zoom, where a reader
+     * panning to it finds it. The stage's heading (`chrome`) is not: close-ups keep below
+     * it by design and the player sets the step's number, title and line as page text
+     * over the stage, so the stage's copy is measured only in the close-ups that show it.
+     * Otherwise the opening's zoom, set by the picture's smallest label, decides whether
+     * the heading's fixed-size line reads, and a larger, more legible drawing scores worse.
      */
-    const seen = (record: LabelSizes, px: number, box: Box | null, frame: number) => {
+    const seen = (record: LabelSizes, px: number, box: Box | null, frame: number, chrome = false) => {
       record.px = Math.max(record.px, px);
       const close = phoneViews.get(frame);
       if (!close) return;
       const inside = (v: Box) =>
         !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
+      const touches = (v: Box) => !!box && box[0] < v[2] && box[2] > v[0] && box[1] < v[3] && box[3] > v[1];
       const complete = close.views.filter((v) => inside(v.box));
+      const shown = chrome ? close.views.filter((v) => touches(v.box)) : [];
+      if (chrome && !shown.length) return;
       // The opening can frame a comparison at a smaller scale than its detail
-      // stops. Measure each label where the tour actually shows it whole.
-      const k = complete.length ? Math.max(...complete.map((v) => v.k)) : close.k;
+      // stops. Measure each label where the tour actually shows it whole; a heading
+      // a close-up cuts is still drawn there, at that close-up's zoom.
+      const k = complete.length
+        ? Math.max(...complete.map((v) => v.k))
+        : chrome
+          ? Math.max(...shown.map((v) => v.k))
+          : close.k;
       record.phone = Math.max(record.phone, (px / STAGE_PX_PER_UNIT) * phoneUnit * k);
       if (complete.length) record.inView = true;
     };
@@ -354,7 +369,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             const credited = completedFrames.has(scene.frameCount)
               ? px
               : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
-            if (readable(m, m.box(), viewport)) seen(labels.get(m)!, credited, shown(m.box()), scene.frameCount);
+            if (readable(m, m.box(), viewport))
+              seen(labels.get(m)!, credited, shown(m.box()), scene.frameCount, isHeading(m));
           }
         }
       },

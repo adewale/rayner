@@ -347,6 +347,8 @@ The report goes to `out/checks/<id>/report.json`. For each case it holds the ful
 | `labelsOutsideCloseUpsAt390` | Labels no close-up shows whole, which a reader reaches by panning |
 | `minLabelPx390WholeStage` | Smallest label on that phone without close-ups |
 
+A picture label that no close-up shows whole is measured at the step's opening zoom, where a reader panning to it finds it. The stage's heading (number, title and line) is measured only in the close-ups that show it. Close-ups keep below it, and on a narrow stage the player sets the step's number, title and line as page text above the stage. A drawing can therefore fill the stage: its labels may be larger than the heading's line without the line counting against them. A step that opens on the whole picture shows the heading at the stage's own scale, and there it is measured.
+
 `cardsAtRest` counts the cards in each step's resting picture.
 
 `watch`, for a scene that declares [`meta.watch`](#scene), gives each step's formatted changes (`{ step, changes, unformatted }`), where `unformatted` names the watched keys skipped because their value cannot be said briefly. It is reported, not gated.

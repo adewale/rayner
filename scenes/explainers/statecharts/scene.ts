@@ -559,9 +559,9 @@ export default class Statecharts extends Scene {
     const combos = (n: number) => flatCounts(flatten(player(n))).states - 1;
 
     const FULL = regionBox('full', { top: 3.05 });
-    const big = (b: Box, max = 0.95) => fit(b, FULL, scaleFor(b, FULL, max));
+    const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
     const DEFINE = regionBox('full', { top: 2.6, bottom: -3.2 });
-    const defineFit = fit(CHART.bounds, DEFINE, scaleFor(CHART.bounds, DEFINE, 0.75));
+    const defineFit = fit(CHART.bounds, DEFINE, scaleFor(CHART.bounds, DEFINE));
 
     type Phase = 'what' | 'copies' | 'parent' | 'multiply' | 'growth' | 'booleans' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
     let phase: Phase = 'what';
@@ -587,13 +587,13 @@ export default class Statecharts extends Scene {
         case 'growth':
           return growthPicture(s, big([-6.4, -3.6, 6.2, 2.8]), 3);
         case 'booleans':
-          return booleanPicture(s, big(BOOLEANS, 0.95));
+          return booleanPicture(s, big(BOOLEANS));
         case 'grid':
           return chartPicture(s, playerChart, 'boxed', big(CHART.bounds), { follow: [followCell], lit: [] }, false);
         case 'regions':
           return chartPicture(s, playerChart, 'regions', big(CHART.bounds), { follow: ACTIVE, lit: ['r:arrow:0,0:PLAY:1,0', 'r:arrow:1,0:PAUSE:0,0', 'r:arrow:0,0:MUTE:0,1', 'r:arrow:0,1:UNMUTE:0,0'] });
         case 'flatten':
-          return tracePicture(s, big(TRACE, 0.92));
+          return tracePicture(s, big(TRACE));
         case 'question':
           return coffeePicture(s, big(coffeeLayout('question').bounds), 'question', { follow: [], lit: [] });
         case 'frother':

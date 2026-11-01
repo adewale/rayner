@@ -542,3 +542,36 @@ test('the legibility report measures each label at a tour stop that actually con
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test('the phone report measures the stage heading in close-ups that show it, not at a zoom it never gets', async () => {
+  const { collectProject } = await import('../tools/lib/explain-project.ts');
+  const { checkProject } = await import('../tools/lib/explain-check.ts');
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-heading-closeup-'));
+  try {
+    const p = await collectProject('test/fixtures/heading-closeup', { write: false });
+    const report = await checkProject(p, folder);
+    const variants = report.variants as {
+      settings: { reach: string };
+      legibility: { minLabelPx390: number; labelsUnder12PxAt390: number; labelsOutsideCloseUpsAt390: number };
+    }[];
+    assert.equal(variants.length, 2);
+    const by = (reach: string) => variants.find((v) => v.settings.reach === reach)!.legibility;
+    // Close-ups keep below the heading. Its number, title and line used to be measured at
+    // the zoom the 0.42-unit box labels need (7.4 px for the number) and failed the 12 px
+    // floor, so a drawing passed only once its labels shrank to the heading line's size.
+    const below = by('below');
+    assert.equal(below.labelsUnder12PxAt390, 0);
+    assert.equal(below.labelsOutsideCloseUpsAt390, 0);
+    assert.equal(below.minLabelPx390, 12);
+    // A frame drawn into the heading brings it into the close-ups. There it is still
+    // measured, and it sets the smallest size: the box labels alone read near 19 px.
+    const into = by('into');
+    assert.equal(into.labelsUnder12PxAt390, 0);
+    assert.ok(into.minLabelPx390 >= 12 && into.minLabelPx390 < 13, `heading measured in its close-up: ${into.minLabelPx390}`);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
