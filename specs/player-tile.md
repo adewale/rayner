@@ -170,6 +170,8 @@ Acceptance:
 
 ### T5. The chrome takes a tint from the paper
 
+**Historical requirement, superseded by #73.** The player now defaults to neutral colours. Per-page palette cues are opt-in and contrast-checked; the current contract is in [The tile](../docs/REFERENCE.md#the-tile). The automatic tint and its acceptance criteria below describe the earlier implementation.
+
 The player sets `--paper` on `section.player` to the current case's paper colour, from the palette, when the case loads (and in `load()` when it changes). The build sets the same inline `style="--paper:#…"` on the shell's `.player` for the default case, so the first paint is already tinted. Get the colour from where the stage already has it: `explain/stage.ts` exposes `palette` on the stage; make the trace or the scene's description carry `paper` (one hex string per case) and read it in the player. Do not sample pixels.
 
 CSS tokens, on `.tile`:

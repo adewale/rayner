@@ -4,19 +4,15 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
 
 ## Publish a page
 
-1. Review every case, then build it:
+1. Review every case and retain the exact reviewed page:
 
    ```sh
-   rayner review scene.ts
+   rayner review scene.ts --out public/cache.html
    ```
 
-   Review runs the checks and served-reader audit; `build` writes files without repeating validation. Test the model and inspect the screenshots too. Then build:
+   Review runs the checks and served-reader audit, then saves the reviewed HTML, receipt, header recipe and `loader.js`. Test the model and inspect the screenshots under `out/review/<id>/` too. A failed review removes the success receipt and leaves the previous published page alone.
 
-   ```sh
-   rayner build scene.ts --out public/cache.html
-   ```
-
-   In a checkout, use `npm run rayner -- build ...`. The HTML file is the whole explainer: every case, poster, transcript, sources and licence notices. It makes no network requests at runtime.
+   In a checkout, use `npm run rayner -- review ...`. The HTML contains every case, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
 
 2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader.
 

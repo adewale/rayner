@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/oauth-pkce.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from '../lib/models.ts';
@@ -18,7 +20,11 @@ function sequence(attacker: boolean): string {
     ' C->>S: Authorize request + code_challenge',
     ' S-->>C: Redirect with code',
     ...(attacker
-      ? [' S-->>X: Redirect via the shared URI scheme', ' X->>S: Token request: code + a guess', ' S-->>X: invalid_grant']
+      ? [
+          ' S-->>X: Redirect via the shared URI scheme',
+          ' X->>S: Token request: code + a guess',
+          ' S-->>X: invalid_grant',
+        ]
       : []),
     ' C->>S: Token request: code + code_verifier',
     ' S-->>C: Access token',
@@ -45,18 +51,20 @@ export default class OAuthExplainer extends Scene {
     const attacker = settingsOf(this).attacker === 'yes';
     const digest = sha256(VERIFIER),
       challenge = pkceChallenge(VERIFIER),
-      s = stage(this, { style: STYLE });
+      s = stage(this, { headingSize: 0.6, style: STYLE });
 
+    await readerFirst(this, s, readerFrames(attacker));
     await this.step('secret', {
+      detail: true,
       title: 'The client keeps the verifier and sends only its challenge',
       line: 'The challenge is the base64url SHA-256 of the verifier.',
       caption:
         'PKCE protects public clients, such as mobile and desktop apps, which cannot keep a client secret. The client generates a random verifier, and the S256 challenge is the base64url SHA-256 of it. The card starts from RFC 7636’s example verifier.',
     });
+    await s.clear();
     const derive = await s.show(
       {
-        source:
-          'graph LR\nV[code_verifier] -->|SHA-256| H[32-byte digest]\nH -->|base64url| C[code_challenge]',
+        source: 'graph LR\nV[code_verifier] -->|SHA-256| H[32-byte digest]\nH -->|base64url| C[code_challenge]',
       },
       { box: regionBox('full', { bottom: 0, top: 3.15 }) },
     );
@@ -80,6 +88,7 @@ export default class OAuthExplainer extends Scene {
     this.state = { verifier: VERIFIER, challenge };
 
     await this.step('authorize', {
+      detail: true,
       title: 'The authorization request carries the challenge and S256',
       line: 'The request carries the challenge and S256, never the verifier.',
       caption:
@@ -88,13 +97,15 @@ export default class OAuthExplainer extends Scene {
     await s.clear();
     const seq = await s.show({ source: sequence(attacker) }, { box: 'full', build: 'frame' });
     /** What a message carries, or what the server makes of it, said on the diagram under its arrow. */
-    const say = (id: string, text: string, color: string = s.palette.ink) => seq.note(id, text, { side: 'below', color });
+    const say = (id: string, text: string, color: string = s.palette.ink) =>
+      seq.note(id, text, { side: 'below', color });
     await seq.reveal(['message:C->S#0']);
     await seq.mark(['message:C->S#0'], { color: CHALLENGE, as: 'carries the challenge' });
     // Short enough to read whole in one phone close-up.
     await say('message:C->S#0', 'challenge + S256; verifier not sent', CHALLENGE);
 
     await this.step('code', {
+      detail: true,
       title: 'The redirect carries a short-lived code bound to the challenge',
       line: 'An interceptor gets only the code; the verifier is not in it.',
       caption:
@@ -107,6 +118,7 @@ export default class OAuthExplainer extends Scene {
 
     if (attacker) {
       await this.step('attack', {
+        detail: true,
         title: 'A stolen code fails without the verifier',
         line: 'S256 of the guess differs from the challenge: invalid_grant.',
         caption:
@@ -123,6 +135,7 @@ export default class OAuthExplainer extends Scene {
     }
 
     await this.step('exchange', {
+      detail: true,
       title: 'The token endpoint returns a token only when S256(verifier) matches',
       line: 'The real verifier hashes to the bound challenge, so they match.',
       caption:
@@ -137,6 +150,7 @@ export default class OAuthExplainer extends Scene {
     this.state.accepted = accepted;
 
     await this.step('channels', {
+      detail: true,
       title: 'The verifier never travels where the code does',
       line: 'Challenge and code pass the browser; the verifier goes by TLS.',
       caption:

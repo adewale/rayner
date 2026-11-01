@@ -28,7 +28,14 @@ test('artifact identity changes for reader, builder, dependency and notice edits
         assert.notEqual((await buildInputs(root)).hash, original.hash, `${name} must invalidate a built artifact`);
       } finally { await writeFile(join(root, name), 'original'); }
     }), params(40));
-    await writeFile(join(root, 'tools/new-builder.ts'), 'new producer');
-    assert.notEqual((await buildInputs(root)).hash, original.hash, 'new producer files count');
+    for (const name of ['tools/lib/explain-story-review.ts', 'tools/bench.ts', 'tools/prepare-release.ts']) {
+      await writeFile(join(root, name), 'review or maintenance only');
+      assert.equal((await buildInputs(root)).hash, original.hash, name + ' must not rebuild pages');
+    }
+    await writeFile(join(root, 'tools/lib/new-builder.ts'), 'export const value = 1;');
+    await writeFile(join(root, 'tools/lib/explain-build.ts'), "import './new-builder.ts';");
+    const withHelper = (await buildInputs(root)).hash;
+    await writeFile(join(root, 'tools/lib/new-builder.ts'), 'export const value = 2;');
+    assert.notEqual((await buildInputs(root)).hash, withHelper, 'new transitive producer dependencies count automatically');
   } finally { await rm(root, { recursive: true, force: true }); }
 });
