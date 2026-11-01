@@ -31,9 +31,9 @@ export type ExplainerClass = SceneClass & {
     player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number; outline?: boolean };
     watch?: Readonly<Record<string, string>>;
     /**
-     * The script's answer to the reader's question, in one sentence. `check` requires the title, line
-     * or caption of one of the first two teaching steps to contain it, so the explanation answers
-     * before it elaborates.
+     * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
+     * step's title, line or caption contains it, and reports the step where it first appears; it
+     * should come before the explanation elaborates.
      */
     answer?: string;
     /**

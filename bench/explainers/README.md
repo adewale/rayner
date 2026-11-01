@@ -4,8 +4,8 @@ The question this answers: does an explainer an author builds with Rayner teach 
 
 ## A round
 
-1. **One script.** Write and approve a script first (questions, a 150 to 250 word answer-first script, a sentence to remember, check questions, a transfer exercise), as the skill's "Script first" describes. Every builder gets the same one.
-2. **Two pages per author.** Each author (a model, or a person) builds the explainer twice, in separate worktrees, from [`prompts/build-rayner.md`](prompts/build-rayner.md) and [`prompts/build-plain.md`](prompts/build-plain.md). The briefs share their definition of "educational" word for word; only the method differs. A plain builder must not read this repository.
+1. **One script.** Write and approve a script first (the reader's questions, a short answer-first script, a sentence to remember, check questions only the explainer answers, and a transfer exercise), as the skill's "Script first" describes. Every builder gets the same one.
+2. **Two pages per author.** Each author (a model, or a person) builds the explainer twice, in separate worktrees, from [`prompts/build-rayner.md`](prompts/build-rayner.md) and [`prompts/build-plain.md`](prompts/build-plain.md). The briefs share the script and the same two requirements, correct and usable on a phone, word for word, and neither says how to teach: a brief that prescribes technique steers both builders and caps what the comparison can find. Only the method differs. A plain builder must not read this repository.
 3. **Evidence per page.** For a Rayner page: `rayner build` for the html, `rayner shots` for the contact sheet, `rayner describe` (drawings removed) for the transcript. For a plain page: the html, contact sheet and transcript its brief asks for.
 4. **Blind pairs.** List the pages in a manifest and run `node tools/bench-explainers.ts pair manifest.json <dir>`. It writes `pairN-X.*` and `pairN-Y.*`, with the author order and sides drawn from the manifest's seed, and the key beside the directory.
 5. **One blind review.** Give a fresh reviewer [`prompts/review.md`](prompts/review.md), filled in with the round's script and nothing else. The brief stays the same between rounds, so rounds can be compared.
@@ -17,7 +17,7 @@ The comparison is small and judged by one reviewer per round. Treat a round as e
 
 ### Round 1: statecharts, 1 November 2026
 
-Script: [`scenes/explainers/statecharts/script.md`](../../scenes/explainers/statecharts/script.md). Authors: three models. The Rayner pages were built with the skill as it stood after "Script first" was added; the reviewer saw pages, contact sheets and transcripts.
+Script: [`scenes/explainers/statecharts/script.md`](../../scenes/explainers/statecharts/script.md). Authors: three models. The Rayner pages were built with the skill as it stood after "Script first" was added; the reviewer saw pages, contact sheets and transcripts. Both briefs in rounds 1 and 2 listed what "educational" meant (predictions, a misconception, a transfer exercise and so on); the briefs no longer do.
 
 | Author | Preferred | How decisively |
 | --- | --- | --- |

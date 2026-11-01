@@ -31,6 +31,15 @@ fixed when its animation begins, so a seek renders the byte-identical frame a fu
 renders; nothing in `src/` imports a dependency or shells out; inputs computed outside the
 scene (token colours, git hunks, diagram snapshots) are produced at build time and checked in.
 
+## What belongs in Rayner
+
+Sort a feature request with one question: does it check, ground or publish the result, or does it do work a capable author would do anyway?
+
+- **Belongs:** work an author, human or model, cannot easily do or verify by eye, and that should be identical on every page. Testing a model against its source, measuring what is painted, reviewing the served page, deterministic frames, portable and accessible pages, a description and transcript for every picture, and making the reader's own actions checkable ([the live machine](https://github.com/adewale/rayner/issues/88)). These get more valuable as authoring models get better, because there is more output to check.
+- **Does not belong:** work that needs judgement and improves with the author's skill. Wording, pacing, narration, layout choices and how to teach. Rayner should give the author what that work needs (`describe`, `see`, the resting-picture descriptions, step timing) and leave the work to the author. A feature here would cap good authors at the feature's level and be outgrown by better models. The same goes for guidance: the [authoring skill](../skills/rayner-explainers/SKILL.md) says what must be true and how it is checked, not how to draw.
+
+When a request is the second kind, the answer is usually to expose the data the author needs, not to build the behaviour.
+
 ## Out of scope
 
 Each for a reason:

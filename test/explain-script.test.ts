@@ -1,4 +1,4 @@
-// The script gate: meta.answer stated by step 2, meta.checks well formed (explain/script.ts).
+// The script gate: meta.answer stated by some teaching step, where reported; meta.checks well formed (explain/script.ts).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { answerStep, checkScriptMeta, normalise, scriptReport, CHECKS_MAX } from '../explain/script.ts';
@@ -18,21 +18,22 @@ test('an answer is found in the title, line or caption, ignoring case, quotes, s
   assert.equal(normalise(' The  “Answer”! '), 'the "answer"');
 });
 
-test('reference steps are not teaching steps: the answer must come within the first two the reader steps through', () => {
+test('reference steps are not teaching steps: the answer is counted among the steps the reader steps through', () => {
   const withDetail = [step('ref', { title: 'Source notes', detail: true, caption: 'LRU evicts the item used longest ago.' }), ...steps];
   assert.deepEqual(answerStep('LRU evicts the item used longest ago', withDetail), { step: 'rule', at: 2 });
 });
 
-test('the gate fails an answer that arrives after step 2 or never, and reports what is undeclared', () => {
+test('the gate fails an answer no step states, reports where a stated one first appears, and reports what is undeclared', () => {
   assert.deepEqual(scriptReport({ answer: 'LRU evicts the item used longest ago', checks: [{ question: 'Q?', answer: 'A.' }] }, steps), {
     answer: { step: 'rule', at: 2 },
     checks: 1,
     missing: [],
     problems: [],
   });
+  // A late answer is reported, not failed: whether it comes before the elaboration is a reader's call.
   const late = scriptReport({ answer: 'And so on' }, steps);
-  assert.equal(late.problems.length, 1);
-  assert.match(late.problems[0]!, /step 3 \("more"\).*by step 2/);
+  assert.deepEqual(late.problems, []);
+  assert.deepEqual(late.answer, { step: 'more', at: 3 });
   assert.deepEqual(late.missing, ['checks']);
   assert.match(scriptReport({ answer: 'Never said' }, steps).problems[0]!, /No step states meta.answer/);
   assert.deepEqual(scriptReport(undefined, steps), { checks: 0, missing: ['answer', 'checks'], problems: [] });

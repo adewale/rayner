@@ -19,7 +19,7 @@ Write the script the explainer exists to show before you draw anything. Explaine
 - **Check questions.** Write the questions a reader should be able to answer afterwards and that only this explainer answers: its own example's outcome, or a transfer to a new case. A reader who already knows the topic recites definitions anyway; a model reader answered every statecharts question from prior knowledge alone. On a topic that well known, only people new to it can tell you whether the explainer teaches.
 - **Test it alone.** If a newcomer who reads only the script cannot answer the check questions, fix the script before drawing.
 
-Keep the script beside the scene as `script.md` (`rayner init` starts one). Put its one-sentence answer in `meta.answer`, which `rayner check` requires step 1 or 2 to state, and the check questions with their answers in `meta.checks`, which the player asks after the last step. Do not also print the answers in the last step: the disclosures exist so the reader answers first. The script decides what the explainer says; the model and its tests decide whether it is true.
+Keep the script beside the scene as `script.md` (`rayner init` starts one). Put its one-sentence answer in `meta.answer`, which `rayner check` requires some step to state (it reports which; state it before you elaborate), and the check questions with their answers in `meta.checks`, which the player asks after the last step. Do not also print the answers in the last step: the disclosures exist so the reader answers first. The script decides what the explainer says; the model and its tests decide whether it is true.
 
 ## What must be true
 
@@ -28,7 +28,7 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | The explainer… | Checked by |
 | --- | --- |
 | Draws every value from a model, tested against the real source | A fidelity test per case and step ([Test the model](#test-the-model)) |
-| States its answer by step 2 | `rayner check`, from `meta.answer` |
+| States its answer before it elaborates | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether that is early enough |
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` |
 | Works as served: every step from a fresh link, every case, phone and desktop | `rayner review` |

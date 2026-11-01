@@ -1,6 +1,6 @@
 # Judging an explainer
 
-Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence, not a score. Earlier editions scored six, then seven, dimensions from 0 to 4; those totals measured adherence to a list, and explainers that scored well could still fail to say what they taught. Totals from those editions (in dated assessments under `docs/evidence/`) are not comparable with anything here.
+Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence, not a score. Earlier editions scored six, then seven, dimensions from 0 to 4; those totals measured adherence to a list, and explainers that scored well could still fail to say what they taught. Totals from those editions, such as the /24 scores in the dated assessments preserved in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), are on a retired scale and are not comparable with anything here.
 
 ## The question
 
@@ -16,7 +16,7 @@ Then answer, citing steps:
 
 These are failures, not shortcomings to weigh:
 
-- **No answer.** The transcript (titles, lines and captions) does not state the answer to the title's question by step 2. `rayner check` fails a declared `meta.answer` that is missing there; without one, read for it. Write the script first (the skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first)) and rebuild. Clarity ratings do not show learning ([Muller 2008](https://thejournal.com/articles/2015/05/05/watching-videos-does-not-necessarily-lead-to-learning.aspx)).
+- **No answer.** The transcript (titles, lines and captions) does not state the answer to the title's question before it starts elaborating: before the mechanism, the cases or the taxonomy. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears; whether that is early enough is your judgement. Write the script first (the skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first)) and rebuild. Clarity ratings do not show learning ([Muller 2008](https://thejournal.com/articles/2015/05/05/watching-videos-does-not-necessarily-lead-to-learning.aspx)).
 - **Untrue.** A known false claim, a picture that misleads, a sentence that a setting makes false, or a claim beyond what the model and its sources support.
 - **Broken.** A failing build or check, a step or case that restores wrongly from a fresh link, or a continuation a keyboard or screen-reader user cannot reach.
 

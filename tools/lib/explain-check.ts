@@ -18,11 +18,9 @@ import {
   renderText,
   Text,
 } from '../../src/index.ts';
-import { Card } from '../../explain/panels.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
-import { restingFrame, undescribed, stepWords, watchedChanges } from '../../explain/trace.ts';
-import { wordsReport } from './explain-words.ts';
+import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject } from '../../src/index.ts';
@@ -313,8 +311,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     const held = new Map<string, string>(),
       moved = new Set<string>();
-    // Cards on screen at each resting picture: a step that ends on a card says its values in a panel.
-    const cardsAtRest: Record<string, number> = {};
     await new v.Scene({
       async frame(scene, dt) {
         await motion.frame(scene);
@@ -332,10 +328,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
           resting.set(scene.frameCount, toSvgString(scene));
           scene.mobjects = all;
           restingText.set(scene.frameCount, renderText(scene));
-          if (scene.currentStep)
-            cardsAtRest[scene.currentStep.name] = scene
-              .familyMembers()
-              .filter((m) => m instanceof Card && (m.style.opacity ?? 1) >= 0.5).length;
           collisions.push(
             ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(
               (p) => `${scene.currentStep?.name}: ${p}`,
@@ -454,10 +446,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
       legibility: legibilityReport([...labels.values(), ...staticLabels.values()]),
       // Cards in each step's resting picture: values said in a panel rather than on the drawing.
-      cardsAtRest,
-      // Each step's words on a phone, estimated, and the steps whose length sets the room for the rest.
-      words: wordsReport(v.trace.steps.map((s) => ({ step: s.step, ...stepWords(s) }))),
-      // The script gate (explain/script.ts): a declared meta.answer stated by step 2, and how many
+      // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
       // check questions the page asks. Undeclared parts are reported as missing.
       script,
       // What each step changed of the state the author watches (meta.watch), as readers see it, and

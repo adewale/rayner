@@ -11,8 +11,6 @@ export interface ScriptMeta {
 }
 /** The most check questions a scene may ask: more is a test, not a check. */
 export const CHECKS_MAX = 6;
-/** The teaching steps an answer must arrive within. */
-export const ANSWER_BY_STEP = 2;
 
 /** Refuse an `answer` or `checks` that cannot work: wrong types, empty text, or too many questions. */
 export function checkScriptMeta(meta: ScriptMeta | undefined): void {
@@ -74,9 +72,11 @@ export interface ScriptReport {
   problems: string[];
 }
 /**
- * The script gate for one case: a declared answer must be stated by the second teaching step.
- * An undeclared answer or check list is reported as missing, not failed, so older scenes still
- * check; new scenes start with both (`rayner init`).
+ * The script gate for one case: some teaching step must state a declared answer. Where it first
+ * does is reported (`answer.at`), not gated: whether it arrives before the explanation elaborates
+ * is a reader's judgement, and a fixed step number would only stand in for it. An undeclared
+ * answer or check list is reported as missing, not failed, so older scenes still check; new
+ * scenes start with both (`rayner init`).
  */
 export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[]): ScriptReport {
   checkScriptMeta(meta);
@@ -85,9 +85,7 @@ export function scriptReport(meta: ScriptMeta | undefined, steps: readonly Step[
   let found: ScriptReport['answer'];
   if (typeof meta?.answer === 'string') {
     found = answerStep(meta.answer, steps);
-    if (!found) problems.push(`No step states meta.answer ("${meta.answer}"); put it in the title, line or caption of step 1 or 2`);
-    else if (found.at > ANSWER_BY_STEP)
-      problems.push(`meta.answer first appears in step ${found.at} ("${found.step}"); state it by step ${ANSWER_BY_STEP}, before the explanation elaborates`);
+    if (!found) problems.push(`No step states meta.answer ("${meta.answer}"); put it in a title, line or caption, before the explanation elaborates`);
   } else missing.push('answer');
   const checks = Array.isArray(meta?.checks) ? meta.checks.length : 0;
   if (!checks) missing.push('checks');

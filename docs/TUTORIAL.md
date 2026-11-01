@@ -6,16 +6,18 @@ You will plan the explainer, generate it with `rayner init`, test its model agai
 
 ## What makes an explainer work
 
+These are lessons from explainers that worked, not rules to satisfy. Rayner checks a few of them for you; the rest are judgement, and the end of the list says which is which.
+
 1. Start from a reader's question. Write down who is asking, what result they saw and the answer you can support. If a screenshot or a short diff already answers the question, publish that instead.
 2. Open on the result that needs explaining. Names for the parts can wait until the reader needs them.
 3. Get every value from a model. The numbers, paths and outcomes on screen come from a small program, which you check against the real system by running the tool, using its test vectors or citing the exact source version you read. A caption never states an answer the model did not give.
-4. Give each step one inference. A step answers a question the previous step raised. Its title says what the picture proves, its line says where to look, and its caption connects what is visible to what follows from it.
+4. Give each step one inference. A step answers a question the previous step raised. One arrangement that works: the title says what the picture proves, the line says where to look, and the caption connects what is visible to what follows from it.
 5. Leave the evidence on screen. Readers read the caption while the picture is still, so the item, mark or value the caption mentions must be there when the motion stops. Put a value beside the thing it measures.
 6. Use a second case to test the tempting shortcut. Change one input that could prove the reader's guess wrong, keep everything else fixed, and write each case's caption for that case's own outcome. A change that only recolours the picture tests nothing.
 7. Move things only to show order, identity or cause. If the final picture already tells the whole story, show it at once. When something changes form, keep it recognisable, because a morph on its own does not prove that the before and after are the same thing.
 8. End on the specific result and its limit: what the explainer showed, and where the claim stops holding.
 
-`rayner check` and `rayner review` find missing, overlapping and unreadable ink. Because they cannot tell whether a caption is true, principles 1, 3, 6 and 8 stay with you.
+What Rayner checks: the model's test, against the real system, checks principle 3; `rayner check` checks that the evidence of principle 5 stays still and readable while the caption is read, that every drawing has a description in words, and that the script's answer is stated; `rayner review` checks the page as served. None of them can tell whether a caption is true or whether a reader learns, so principles 1, 2, 4, 6, 7 and 8 stay with you.
 
 ## Before you start
 
@@ -77,7 +79,7 @@ These counts cover eight requests through three slots. They leave out what track
 3. Which policy should manage a buffer for a file scanned over and over that does not fit in memory?
 ```
 
-The scene carries two parts of it, so the tools can hold the explainer to the script: `meta.answer`, which `rayner check` requires the title, line or caption of step 1 or 2 to contain, and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure.
+The scene carries two parts of it, so the tools can hold the explainer to the script: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see the answer arrives before the explanation elaborates), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure.
 
 ## 2. Generate the explainer
 

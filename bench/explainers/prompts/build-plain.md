@@ -1,4 +1,4 @@
-<!-- The no-Rayner builder's brief. Fill {TOPIC}, {OUT}, {SCRIPT}, {REMEMBER}, {CHECKS} and {TRANSFER}; keep the rest identical to build-rayner.md's shared parts. -->
+<!-- The no-Rayner builder's brief. Fill {TOPIC}, {OUT}, {SCRIPT}, {REMEMBER}, {CHECKS} and {TRANSFER}. The script, transfer and requirements match build-rayner.md word for word; neither brief says how to teach. -->
 Build the best educational web explainer you can of {TOPIC}, as a single self-contained HTML page, in whatever way you think teaches best. **Do not use the Rayner engine or anything in this repository, and do not read it.** This is a baseline for comparison with Rayner, so it must reflect your own approach. You may use plain HTML, CSS, SVG, canvas and vanilla JavaScript, written inline. No external libraries or network requests: everything lives in the one file.
 
 Write your work in `{OUT}`. Commit it there when done; don't push.
@@ -11,19 +11,11 @@ Write your work in `{OUT}`. Commit it there when done; don't push.
 **Check questions:**
 {CHECKS}
 
-**What "educational" means here:**
-- State the answer first.
-- Each picture should teach without its caption.
-- Draw the mechanism that decides the outcome as a visible trace.
-- Show the pattern beyond the example.
-- Make the reader predict before reveals, and answer each prediction.
-- Name and refute a misconception.
-- End with a transfer exercise: {TRANSFER}
-- Close on the sentence to remember.
-- Use no unexplained jargon.
-- Make it correct, readable on a 390 px phone as well as a desktop, and accessible.
+**Transfer exercise** (part of the script): {TRANSFER}
 
-**Make it step-through.** The reader advances with a Next button, so the page can be compared with other step-through explainers. Within that, you are free to add any interactivity that helps.
+**Requirements.** Make it teach as well as you can, in whatever way you judge best. It must be correct, and readable and usable on a 390 px phone as well as a desktop.
+
+**Make it step-through.** The reader advances with a Next button, so the page can be compared with other step-through explainers; everything else about it is your choice.
 
 **Evidence for the comparison.** Use Playwright to capture the page:
 - Screenshot every step at 1280×720 and at 390×844 into `{OUT}/out/`, named `<step>-1280.png` and `<step>-390.png`.
