@@ -1,8 +1,8 @@
 import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
-import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasises } from './look.ts';
-import type { Region } from './look.ts';
+import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource } from './look.ts';
+import type { Region, Emphasis } from './look.ts';
 import type { Seen } from './trace.ts';
 import { wordsOf } from './words.ts';
 import { layoutDirection } from './layout-direction.ts';
@@ -30,7 +30,6 @@ export interface CardOptions {
   /** Field arrangement only: RTL puts labels on the right and values on the left. */
   direction?: LayoutDirection;
 }
-const registeredEmphasis = new WeakSet<object>();
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
 function fitValue(value: Text, room: number, edge: -1 | 1 = 1): void {
@@ -164,7 +163,6 @@ export class Card extends Group {
     this.panel = panelRect(colors, width, height);
     this.bar = tint(emphasis(colors), width - 0.12, pitch * 0.92).setOpacity(0);
     this.add(this.panel, this.bar);
-    this.registerEmphasis();
     const left = edge * (-width / 2 + PAD);
     this.valueEdge = edge * (width / 2 - PAD);
     let y = height / 2 - PAD - size * 0.5;
@@ -248,11 +246,7 @@ export class Card extends Group {
     place(this, at, height, options.align);
   }
 
-  private registerEmphasis(): void {
-    if (registeredEmphasis.has(this)) return;
-    registeredEmphasis.add(this);
-    emphasises(this.scene, () => this.lit ? [[this.bar, `row ${this.lit.label}`]] : []);
-  }
+  [emphasisSource](): Emphasis { return this.lit ? [[this.bar, `row ${this.lit.label}`]] : []; }
 
   override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     const from = source as Card;
@@ -367,7 +361,6 @@ export class Card extends Group {
    * resting frame. `as` is the word the description gives it (default "marked", in the scene's language).
    */
   async mark(label: string | null, { as = wordsOf(this.scene).marked, runTime = 0.4 } = {}): Promise<void> {
-    this.registerEmphasis();
     // The row's last value sits on the value edge, where the bar is measured from.
     const anchor = label == null ? null : this.row(label).cells.at(-1)!.anchorPoint();
     let target: Rectangle | null = null;
@@ -454,7 +447,6 @@ export class CodeBlock extends Group {
     this.head = head;
     this.bar = tint(emphasis(colors), width - 0.14, 0.1).setOpacity(0);
     this.add(this.panel);
-    this.registerEmphasis();
     if (options.diff)
       lines.forEach((line, i) => {
         if (!/^[+-] /.test(line)) return;
@@ -467,13 +459,11 @@ export class CodeBlock extends Group {
     place(this, at, height, options.align);
   }
 
-  private registerEmphasis(): void {
-    if (registeredEmphasis.has(this)) return;
-    registeredEmphasis.add(this);
-    emphasises(this.scene, () => [
+  [emphasisSource](): Emphasis {
+    return [
       ...(this.focused ? [[this.bar, `lines ${this.focused.lines.join('-')}`] as const] : []),
       ...this.marks.map((m) => [m.mob, `${m.kind} ${m.line}`] as const),
-    ]);
+    ];
   }
 
   override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
@@ -540,7 +530,6 @@ export class CodeBlock extends Group {
     lines: number | readonly [number, number] | null,
     { as = wordsOf(this.scene).focused, runTime = 0.4 } = {},
   ): Promise<void> {
-    this.registerEmphasis();
     if (lines == null) {
       this.focused = null;
       return moveBar(this.scene, this.bar, null, runTime);
@@ -558,7 +547,6 @@ export class CodeBlock extends Group {
    * fade out, and added lines fade in, optionally with a bar that stays.
    */
   async morph(next: readonly string[], { runTime = 0.9, markAdded = false } = {}): Promise<void> {
-    this.registerEmphasis();
     if (!next.length) throw new Error('A code block needs at least one line');
     const old = this.code.lines;
     const target = new Code(next, {fontSize: this.fontSize, color: this.colors.ink, shaping: this.scene.textShaping});

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Capture numbered contact-sheet titles in explicit lettering mode. Preserve copied panels’ reader emphasis and repeated state-readout labels. Export `jsonObject` for portable authoring helpers, and reject array subclasses and inherited array entries.
 - Give composite objects a shared copy/restore contract so copied cards and code blocks update their own children, readouts and highlights.
 - Separate animation schedules from drawable targets and packed lettering references from expanded glyph paths. Type known step metadata and scene state; reject lossy JSON state and evidence with a field path.
 - Add retained text-shaping services and explicit scene authoring. Keep existing ambient constructors behind a compatibility adapter; remove font-table replacement, prototype patches and the dummy installation scene. Pass the service through diagram measurement and SVG lowering.

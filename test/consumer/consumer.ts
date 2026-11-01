@@ -4,6 +4,9 @@
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, RIGHT, TEAL, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
 import type { AnimOpts, TextOpts } from 'rayner';
+import {jsonObject} from 'rayner';
+const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
+void serializedState;
 import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';

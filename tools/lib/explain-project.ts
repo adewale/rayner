@@ -386,8 +386,7 @@ export async function collectProject(
         for (const [i, s] of trace.steps.entries()) {
           step = s.step;
           // Contact sheets draw this numbered title outside the authored scene.
-          new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`);
-
+          new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
       variants.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });

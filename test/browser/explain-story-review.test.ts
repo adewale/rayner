@@ -12,6 +12,31 @@ import { launch } from '../../tools/lib/browser.ts';
 import { Scene, Text, Line, Group, Rectangle, VMobject, renderElements, toSvgString, traceScene } from '../../src/index.ts';
 import { stage } from '../../explain/index.ts';
 import { emphasises } from '../../explain/look.ts';
+import {Card, CodeBlock} from '../../explain/panels.ts';
+import {palette} from '../../explain/palettes.ts';
+
+test('story review requires copied card, focus and diff highlights without another marking call', async () => {
+  const names = ['copied-card', 'copied-focus', 'copied-added', 'copied-removed'];
+  const fixture = (missing: boolean) => class Copied extends Scene {
+    override async construct() {
+      await this.step('copied');
+      const card = new Card(this, palette('nord'), [['Count', 1]]);
+      const code = new CodeBlock(this, palette('nord'), ['+ added', '- removed'], {diff: true});
+      await card.mark('Count', {runTime: 0});
+      await code.focus(0, {runTime: 0});
+      this.clear();
+      const copies = new Group(card, code).copy();
+      const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
+      const bars = [copiedCard.bar, copiedCode.bar, ...copiedCode.marks.map(m => m.mob)];
+      bars.forEach((bar, i) => bar.key = names[i]!);
+      this.add(copies);
+      if (missing) copiedCard.remove(copiedCard.bar);
+    }
+  };
+  const frame = (await storyFrames(fixture(false))).get('copied')!;
+  assert.deepEqual(frame.targets.map(t => t.name).sort(), names.map(n => `emphasis: ${n}`).sort());
+  await assert.rejects(storyFrames(fixture(true)), /newly emphasised copied-card is absent from the stage/);
+});
 
 test('local review server rejects an occupied port so startup failure can be reported', async () => {
   const first = await serve(tmpdir(), 0, 'index.html');

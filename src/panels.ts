@@ -28,7 +28,7 @@ export class StateReadout extends Group {
   /** Each key's value Text, read from the children, so a copy() answers with its own. */
   get values(): Record<string, Text> {
     const out: Record<string, Text> = {};
-    this.keys.forEach((k, i) => { Object.defineProperty(out, k, {value: this.children[2 * i + 1] as Text, enumerable: true}); });
+    this.keys.forEach((k, i) => { Object.defineProperty(out, k, {value: this.children[2 * i + 1] as Text, enumerable: true, configurable: true, writable: true}); });
     return out;
   }
 }

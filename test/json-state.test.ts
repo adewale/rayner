@@ -40,3 +40,18 @@ test('known step metadata fields fail before the existing step is ended', async 
   assert.equal(scene.steps.length, 1);
   assert.equal(scene.current?.name, 'first');
 });
+
+test('JSON arrays refuse subclasses, inherited entries and iterator substitution', () => {
+  class Values extends Array<number> {
+    override *[Symbol.iterator]() { yield 99; return undefined; }
+  }
+  const values = new Values(); values.push(1, 2);
+  assert.equal(JSON.stringify({values}), '{"values":[1,2]}');
+  assert.throws(() => jsonObject({values}), /state.values must be a JSON/);
+  const inherited = Array(1);
+  Object.setPrototypeOf(inherited, Object.create(Array.prototype, {0: {value: 7}}));
+  assert.throws(() => jsonObject({values: inherited}), /state.values/);
+  const substituted = [1, 2];
+  substituted[Symbol.iterator] = function* () { yield 99; return undefined; };
+  assert.throws(() => jsonObject({values: substituted}), /state.values must use JSON string keys/);
+});

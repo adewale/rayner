@@ -65,3 +65,46 @@ test('a copied StateReadout owns its key index and exposes prototype-sensitive l
     assert.ok(copy.family().includes(copy.values[key]!));
   }
 });
+
+test('live copied panels expose inherited highlights without registering temporary copies', async () => {
+  await loadFonts();
+  const scene = new Scene(new NullSink()), colors = palette('nord');
+  const card = new Card(scene, colors, [['Count', 1]]);
+  const code = new CodeBlock(scene, colors, ['+ added', '- removed'], {diff: true});
+  await card.mark('Count', {runTime: 0});
+  await code.focus(0, {runTime: 0});
+  const copies = new Group(card, code).copy();
+  const [copiedCard, copiedCode] = copies.children as [Card, CodeBlock];
+  scene.clear(); scene.add(copies);
+  const highlighted = emphasisOf(scene);
+  assert.equal(highlighted.get(copiedCard.bar), 'row Count');
+  assert.equal(highlighted.get(copiedCode.bar), 'lines 0-0');
+  assert.equal(copiedCode.marks.length, 2);
+  for (const mark of copiedCode.marks) assert.equal(highlighted.get(mark.mob), `${mark.kind} ${mark.line}`);
+  assert.equal(highlighted.has(card.bar), false);
+  assert.equal(highlighted.has(code.bar), false);
+  for (let i = 0; i < 10; i++) copies.copy();
+  assert.deepEqual(emphasisOf(scene), highlighted, 'temporary copies contribute no reader metadata');
+  copiedCard.saveState();
+  await copiedCard.mark(null, {runTime: 0});
+  copiedCard.restore();
+  assert.equal(emphasisOf(scene).get(copiedCard.bar), 'row Count');
+  const added = copiedCode.copy(); copies.add(added);
+  assert.equal(emphasisOf(scene).get(added.bar), 'lines 0-0');
+  copiedCode.remove(copiedCode.bar);
+  assert.equal(emphasisOf(scene).get(copiedCode.bar), 'lines 0-0', 'a missing highlight stays declared so story checks can reject it');
+  scene.clear();
+  assert.equal(emphasisOf(scene).size, 0);
+});
+
+test('repeated readout labels preserve last-value lookup for ordinary and prototype-sensitive keys', async () => {
+  await loadFonts();
+  fc.assert(fc.property(fc.constantFrom('same', '__proto__', 'constructor'), fc.integer(), fc.integer(), (key, first, last) => {
+    const readout = new StateReadout([[key, first], [key, last]]), copy = readout.copy();
+    assert.equal(readout.values[key]!.text, String(last));
+    assert.equal(copy.values[key]!.text, String(last));
+    assert.equal(copy.values[key], copy.children[3]);
+    assert.notEqual(copy.values[key], readout.values[key]);
+    assert.ok(Object.hasOwn(copy.values, key));
+  }), params(24));
+});
