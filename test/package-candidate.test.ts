@@ -19,9 +19,9 @@ for (const [name, change, message] of [
       const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
       const manifest = join(folder, 'manifest.json');
       await writeFile(join(folder, 'candidate.tgz'), 'not installed');
-      await writeFile(manifest, JSON.stringify({
-        filename: 'candidate.tgz', sourceCommit: commit, integrity: 'sha512-unused', ...change,
-      }));
+      await writeFile(manifest, JSON.stringify(Object.assign({
+        filename: 'candidate.tgz', sourceCommit: commit, integrity: 'sha512-unused',
+      }, change)));
       await assert.rejects(
         run(process.execPath, [join(ROOT, 'tools/explain-package-smoke.ts'), '--manifest', manifest], { cwd: ROOT }),
         (error) => {
