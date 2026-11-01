@@ -7,12 +7,11 @@ import type { Expected } from '../../../tools/oracle/statecharts.ts';
 
 /**
  * The states the scene reports come from its own model run; here they are checked against XState's run
- * of the same chart instead: after POWER, PLAY, MUTE the statechart is in playing and muted (inside the
- * boxes that hold them), and POWER then takes it to off.
+ * of the same charts: the coffee machine is brewing when POWER_OFF arrives, and the player is in
+ * playing and muted (inside on) after POWER, PLAY, MUTE.
  */
-export function check(values: Record<string, string>, trace: Trace): void {
-  const name = values.mute === 'playing' ? 'muteWhilePlaying' : 'mute';
-  const follow = (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Expected).charts[name]!.follow;
-  assertStepState(trace, 'split', { flat: 'playing · muted', active: activeStates(CHARTS[name]!, follow[2]!.config) });
-  assertStepState(trace, 'power', { flat: 'off', active: follow[3]!.config });
+export function check(_values: Record<string, string>, trace: Trace): void {
+  const x = (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Expected).charts;
+  assertStepState(trace, 'parent', { current: activeStates(CHARTS.coffee!.chart, x.coffee!.follow[2]!.config) });
+  assertStepState(trace, 'regions', { current: activeStates(CHARTS.player!.chart, x.player!.follow[2]!.config) });
 }

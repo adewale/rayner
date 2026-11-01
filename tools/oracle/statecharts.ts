@@ -9,18 +9,16 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { player, muteWhilePlaying, boxed, FOLLOW } from '../../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, boxed, RUNS } from '../../scenes/explainers/lib/statecharts.ts';
 import type { StateNode } from '../../scenes/explainers/lib/statecharts.ts';
 
 export const XSTATE_VERSION = '5.33.3';
 export const FIXTURE = new URL('../../test/fixtures/statecharts-xstate.json', import.meta.url);
-/** Every chart the explainer draws, by name: the one-button player, both two-button players, and each boxed flat machine. */
-export const CHARTS: Readonly<Record<string, StateNode>> = {
-  play: player(1),
-  mute: player(2),
-  muteWhilePlaying: muteWhilePlaying(),
-  boxedMute: boxed(player(2)),
-  boxedMuteWhilePlaying: boxed(muteWhilePlaying()),
+/** Every chart the explainer draws, by name, with the events it sends that chart. */
+export const CHARTS: Readonly<Record<string, { chart: StateNode; run: readonly string[] }>> = {
+  coffee: { chart: coffee(), run: RUNS.coffee },
+  player: { chart: player(2), run: RUNS.player },
+  boxedPlayer: { chart: boxed(player(2)), run: RUNS.player },
 };
 
 /** A chart XState explored: every reachable configuration and where each event it takes leads. */
@@ -36,7 +34,7 @@ export interface Explored {
 
 export interface Expected {
   xstate: string;
-  /** Each chart in CHARTS, explored, with FOLLOW sent in turn and the active atomic states after each event. */
+  /** Each chart in CHARTS, explored, with its run sent in turn and the active atomic states after each event. */
   charts: Record<string, Explored & { follow: { event: string; can: boolean; config: string[] }[] }>;
   /** PREEMPT, where a child and its parent both handle GO. */
   preempt: Explored;
@@ -104,10 +102,10 @@ export async function expected(xstateDir: string): Promise<Expected> {
     return { machine, start, events, initial: leaves(start.value), configurations, transitions };
   };
   const charts: Expected['charts'] = {};
-  for (const [name, chart] of Object.entries(CHARTS)) {
+  for (const [name, { chart, run }] of Object.entries(CHARTS)) {
     const { machine, start, ...explored } = explore(chart);
     let snapshot = start;
-    const follow = FOLLOW.map((type) => {
+    const follow = run.map((type) => {
       const can = snapshot.can({ type });
       [snapshot] = x.transition(machine, snapshot, { type });
       return { event: type, can, config: leaves(snapshot.value) };

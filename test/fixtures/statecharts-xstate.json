@@ -1,11 +1,14 @@
 {
  "xstate": "5.33.3",
  "charts": {
-  "play": {
+  "coffee": {
    "events": [
-    "POWER",
-    "PLAY",
-    "PAUSE"
+    "POWER_ON",
+    "POWER_OFF",
+    "START",
+    "GROUND",
+    "BREWED",
+    "TAKE"
    ],
    "initial": [
     "off"
@@ -15,63 +18,89 @@
      "off"
     ],
     [
-     "paused"
+     "idle"
     ],
     [
-     "playing"
+     "grinding"
+    ],
+    [
+     "brewing"
+    ],
+    [
+     "ready"
     ]
    ],
    "transitions": [
     [
      0,
-     "POWER",
+     "POWER_ON",
      1
     ],
     [
      1,
-     "POWER",
+     "POWER_OFF",
      0
     ],
     [
      1,
-     "PLAY",
+     "START",
      2
     ],
     [
      2,
-     "POWER",
+     "POWER_OFF",
      0
     ],
     [
      2,
-     "PAUSE",
+     "GROUND",
+     3
+    ],
+    [
+     3,
+     "POWER_OFF",
+     0
+    ],
+    [
+     3,
+     "BREWED",
+     4
+    ],
+    [
+     4,
+     "POWER_OFF",
+     0
+    ],
+    [
+     4,
+     "TAKE",
      1
     ]
    ],
    "follow": [
     {
-     "event": "POWER",
+     "event": "POWER_ON",
      "can": true,
      "config": [
-      "paused"
+      "idle"
      ]
     },
     {
-     "event": "PLAY",
+     "event": "START",
      "can": true,
      "config": [
-      "playing"
+      "grinding"
      ]
     },
     {
-     "event": "MUTE",
-     "can": false,
+     "event": "GROUND",
+     "can": true,
      "config": [
-      "playing"
+      "brewing"
      ]
     },
     {
-     "event": "POWER",
+     "event": "POWER_OFF",
      "can": true,
      "config": [
       "off"
@@ -79,7 +108,7 @@
     }
    ]
   },
-  "mute": {
+  "player": {
    "events": [
     "POWER",
     "PLAY",
@@ -212,110 +241,7 @@
     }
    ]
   },
-  "muteWhilePlaying": {
-   "events": [
-    "POWER",
-    "PLAY",
-    "PAUSE",
-    "MUTE",
-    "UNMUTE"
-   ],
-   "initial": [
-    "off"
-   ],
-   "configurations": [
-    [
-     "off"
-    ],
-    [
-     "paused"
-    ],
-    [
-     "unmuted"
-    ],
-    [
-     "muted"
-    ]
-   ],
-   "transitions": [
-    [
-     0,
-     "POWER",
-     1
-    ],
-    [
-     1,
-     "POWER",
-     0
-    ],
-    [
-     1,
-     "PLAY",
-     2
-    ],
-    [
-     2,
-     "POWER",
-     0
-    ],
-    [
-     2,
-     "PAUSE",
-     1
-    ],
-    [
-     2,
-     "MUTE",
-     3
-    ],
-    [
-     3,
-     "POWER",
-     0
-    ],
-    [
-     3,
-     "PAUSE",
-     1
-    ],
-    [
-     3,
-     "UNMUTE",
-     2
-    ]
-   ],
-   "follow": [
-    {
-     "event": "POWER",
-     "can": true,
-     "config": [
-      "paused"
-     ]
-    },
-    {
-     "event": "PLAY",
-     "can": true,
-     "config": [
-      "unmuted"
-     ]
-    },
-    {
-     "event": "MUTE",
-     "can": true,
-     "config": [
-      "muted"
-     ]
-    },
-    {
-     "event": "POWER",
-     "can": true,
-     "config": [
-      "off"
-     ]
-    }
-   ]
-  },
-  "boxedMute": {
+  "boxedPlayer": {
    "events": [
     "POWER",
     "PLAY",
@@ -430,109 +356,6 @@
      "can": true,
      "config": [
       "playing_muted"
-     ]
-    },
-    {
-     "event": "POWER",
-     "can": true,
-     "config": [
-      "off"
-     ]
-    }
-   ]
-  },
-  "boxedMuteWhilePlaying": {
-   "events": [
-    "POWER",
-    "PLAY",
-    "PAUSE",
-    "MUTE",
-    "UNMUTE"
-   ],
-   "initial": [
-    "off"
-   ],
-   "configurations": [
-    [
-     "off"
-    ],
-    [
-     "paused"
-    ],
-    [
-     "unmuted"
-    ],
-    [
-     "muted"
-    ]
-   ],
-   "transitions": [
-    [
-     0,
-     "POWER",
-     1
-    ],
-    [
-     1,
-     "POWER",
-     0
-    ],
-    [
-     1,
-     "PLAY",
-     2
-    ],
-    [
-     2,
-     "POWER",
-     0
-    ],
-    [
-     2,
-     "PAUSE",
-     1
-    ],
-    [
-     2,
-     "MUTE",
-     3
-    ],
-    [
-     3,
-     "POWER",
-     0
-    ],
-    [
-     3,
-     "PAUSE",
-     1
-    ],
-    [
-     3,
-     "UNMUTE",
-     2
-    ]
-   ],
-   "follow": [
-    {
-     "event": "POWER",
-     "can": true,
-     "config": [
-      "paused"
-     ]
-    },
-    {
-     "event": "PLAY",
-     "can": true,
-     "config": [
-      "unmuted"
-     ]
-    },
-    {
-     "event": "MUTE",
-     "can": true,
-     "config": [
-      "muted"
      ]
     },
     {

@@ -1,8 +1,8 @@
 import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view } from 'rayner';
 import type { Mobject, MatchKey, Vec, Box } from 'rayner';
-import { stage, settingsOf, regionBox } from 'rayner/explain';
+import { stage, regionBox } from 'rayner/explain';
 import type { Stage } from 'rayner/explain';
-import { CONTROLS, FOLLOW, player, muteWhilePlaying, boxed, flatten, run, activeStates, chartCounts, flatCounts } from '../lib/statecharts.ts';
+import { CONTROLS, RUNS, player, coffee, boxed, flatten, run, activeStates, chartCounts, flatCounts } from '../lib/statecharts.ts';
 import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
 
 // Every box and arrow below is drawn from a model state or transition; only positions are chosen
@@ -76,13 +76,6 @@ function stateBox(s: Stage, f: Fit, key: string, center: Vec, size: Vec, words: 
   );
   return [box, ...texts];
 }
-/** A combination the machine never reaches: its words greyed in a dashed box, labelled above. */
-function emptyBox(s: Stage, f: Fit, prefix: string, cell: Cell, center: Vec) {
-  const k = cellKey(cell),
-    words = [PLAYBACK.states[cell[0]]!, VOLUME.states[cell[1]]!];
-  const label = keyed(new Text('never reached', { fontSize: L * f.k, color: s.soft }).moveTo(f.at([center[0], center[1] + CELL[1] / 2 + 0.25])), `${prefix}never:${k}`);
-  return [...stateBox(s, f, `${prefix}cell:${k}`, center, CELL, words.map((t, i) => ({ key: `${prefix}ghost:${k}:${i}`, text: t })), false, true), label];
-}
 /** A start dot and its short arrow into a box: the state a compound state enters first. */
 function start(s: Stage, f: Fit, key: string, target: Place, from: 'left' | 'above') {
   const edge: Vec = from === 'left' ? [target.center[0] - target.size[0] / 2 - 0.07, target.center[1]] : [target.center[0], target.center[1] + target.size[1] / 2 + 0.07];
@@ -130,7 +123,8 @@ function curved(s: Stage, f: Fit, key: string, start: Vec, end: Vec, angle: numb
     n: Vec = [(chord[1] / d) * Math.sign(angle), (-chord[0] / d) * Math.sign(angle)];
   const apex: Vec = [(start[0] + end[0]) / 2 + n[0] * sag, (start[1] + end[1]) / 2 + n[1] * sag];
   const text = keyed(new Text(label, { fontSize: L * f.k, color: lit ? s.emphasis : s.soft }), `${key}|label`);
-  text.moveTo(f.at([apex[0] + n[0] * 0.26, apex[1] + n[1] * 0.26]));
+  const reach = 0.2 + Math.abs(n[0]) * (text.width() / f.k / 2) + Math.abs(n[1]) * (L * 0.4);
+  text.moveTo(f.at([apex[0] + n[0] * reach, apex[1] + n[1] * reach]));
   return [arrow, text];
 }
 const note = (s: Stage, f: Fit, bounds: Box, text: string) =>
@@ -160,14 +154,6 @@ function flatPicture(s: Stage, chart: StateNode, f: Fit, look: Look): Drawn {
     parts.push(...stateBox(s, f, `cell:${k}`, place(cell).center, CELL, w.map((t, i) => ({ key: `word:${k}:${i}`, text: t })), look.follow.includes(k)));
     words.push(w.join(' · ') + (look.follow.includes(k) ? ' (followed)' : ''));
   }
-  if (twoCols)
-    for (const r of [0, 1])
-      for (const c of [0, 1])
-        if (![...cells.values()].some((x) => x[0] === r && x[1] === c)) {
-          const k = cellKey([r, c]);
-          parts.push(...emptyBox(s, f, '', [r, c], place([r, c]).center));
-          words.push(`${PLAYBACK.states[r]} · ${VOLUME.states[c]}, never reached`);
-        }
   const at = (n: string) => (n === flat.initial ? 'off' : cellKey(cells.get(n)!));
   const middle: Vec = [(FLAT.cols[0]! + (twoCols ? FLAT.cols[1]! : FLAT.cols[0]!)) / 2, 0];
   for (const t of flat.transitions) {
@@ -197,13 +183,13 @@ function flatPicture(s: Stage, chart: StateNode, f: Fit, look: Look): Drawn {
   return { group: new Group(...parts), words };
 }
 
-type ChartKind = 'boxed' | 'regions' | 'nested';
+type ChartKind = 'boxed' | 'regions';
 /**
- * The statechart. `boxed`: the flat grid inside on, which carries POWER once. `regions`: playback and
- * volume side by side in on. `nested`: volume inside playing. A state takes the key of the grid part
- * it comes from, so changing kind moves those parts instead of redrawing them.
+ * The player as a statechart. `boxed`: the flat grid inside on, which carries POWER once. `regions`:
+ * playback and volume side by side in on. A state takes the key of the grid part it comes from, so
+ * changing kind moves those parts instead of redrawing them.
  */
-function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look: Look): Drawn {
+function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look: Look, counts = true): Drawn {
   const parts: Mobject[] = [],
     words: string[] = [];
   const chart = kind === 'boxed' ? boxed(source) : source;
@@ -245,13 +231,6 @@ function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look
       boxKey.set(name, `r:cell:${k}`);
       wordKeys.set(name, w.map((t, i) => ({ key: `r:word:${k}:${i}`, text: t })));
     }
-    if ([...boxKey.values()].some((k) => k.endsWith(',1')))
-      for (const r of [0, 1])
-        for (const c of [0, 1]) {
-          const k = cellKey([r, c]);
-          if (![...boxKey.values()].includes(`r:cell:${k}`))
-            parts.push(...emptyBox(s, f, 'r:', [r, c], [CHART.cols[c]!, CHART.rows[r]!]));
-        }
   } else if (kind === 'regions') {
     const x = [-2.6, 2.6];
     // Playback takes the grid's left column, volume its right; each word comes from a box that holds it.
@@ -273,22 +252,6 @@ function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look
       parts.push(keyed(new Text(c.region, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([x[i]!, CHART.on[1] + 0.32])), `r:region:${c.region}`));
       words.push(`region ${c.region}`);
     }
-  } else {
-    // Volume inside playing: paused on the left, the playing box on the right holding unmuted and muted.
-    const inner: Box = [-1.0, -2.7, 4.9, 1.35];
-    const [paused, playing] = PLAYBACK.states;
-    places.set(paused, { center: [-3.3, CHART.rows[0]!], size: STATE });
-    boxKey.set(paused, 'r:cell:0,0');
-    wordKeys.set(paused, [{ key: 'r:word:0,0:0', text: paused }]);
-    places.set(playing, { center: [(inner[0] + inner[2]) / 2, (inner[1] + inner[3]) / 2], size: [inner[2] - inner[0], inner[3] - inner[1]] });
-    VOLUME.states.forEach((id, i) => {
-      places.set(id, { center: [2.6, i ? -1.85 : 0.3], size: STATE });
-      boxKey.set(id, `r:cell:1,${i}`);
-      wordKeys.set(id, [{ key: `r:word:1,${i}:1`, text: id }]);
-    });
-    const followed = look.follow.includes(playing);
-    parts.push(box('r:playing', inner, followed, 0.16), keyed(new Text(playing, { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([inner[0] + 0.8, inner[3] - 0.3])), 'r:word:1,1:0'));
-    words.push(`${playing}${followed ? ' (followed)' : ''}, holding ${VOLUME.states.join(' and ')}`);
   }
   for (const [id, key] of boxKey) {
     const p = places.get(id)!,
@@ -313,10 +276,7 @@ function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look
   collect(chart);
   const grid = (id: string) => boxKey.get(id)?.slice('r:cell:'.length) ?? id;
   // Outside the grid, an arrow keeps the key of the grid arrow it replaces: the duplicates fade, one remains.
-  const lineage: Record<string, string> =
-    kind === 'nested'
-      ? { PLAY: '0,0:PLAY:1,0', PAUSE: '1,0:PAUSE:0,0', MUTE: '1,0:MUTE:1,1', UNMUTE: '1,1:UNMUTE:1,0' }
-      : { PLAY: '0,0:PLAY:1,0', PAUSE: '1,0:PAUSE:0,0', MUTE: '0,0:MUTE:0,1', UNMUTE: '0,1:UNMUTE:0,0' };
+  const lineage: Record<string, string> = { PLAY: '0,0:PLAY:1,0', PAUSE: '1,0:PAUSE:0,0', MUTE: '0,0:MUTE:0,1', UNMUTE: '0,1:UNMUTE:0,0' };
   for (const t of written) {
     const a = places.get(t.from),
       b = places.get(t.to);
@@ -327,7 +287,7 @@ function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look
     const name = (id: string) => wordKeys.get(id)?.map((w) => w.text).join(' · ') ?? id;
     words.push(`${name(t.from)} → ${name(t.to)}: ${t.event}${lit ? ' (marked)' : ''}`);
   }
-  parts.push(note(s, f, CHART.bounds, `Statechart: ${counted(chartCounts(chart))}`));
+  if (counts) parts.push(note(s, f, CHART.bounds, `Statechart: ${counted(chartCounts(chart))}`));
   return { group: new Group(...parts), words };
 }
 
@@ -344,145 +304,261 @@ const byKey: MatchKey = (p) => {
   return m instanceof Text ? `${m.key}|${m.text}|${path.join('.')}` : `${m.key}|${path.join('.')}`;
 };
 
+
+// The coffee machine: a column of on states with off to its right, flat or inside the box on.
+const COFFEE = {
+  bounds: [-6.4, -3.75, 4.9, 3.45] as Box,
+  x: -2.4,
+  ys: { idle: 2.05, grinding: 0.65, brewing: -0.75, ready: -2.15 } as Record<string, number>,
+  size: [2.4, 0.8] as Vec,
+  off: [3.0, -0.05] as Vec,
+  offSize: [1.3, 5.0] as Vec,
+  on: [-5.45, -2.9, -0.7, 3.2] as Box,
+};
+/** The coffee machine, flat (each on state has its own POWER_OFF) or as the statechart (one POWER_OFF on on). */
+function coffeePicture(s: Stage, f: Fit, asChart: boolean, look: Look): Drawn {
+  const chart = coffee(),
+    parts: Mobject[] = [],
+    words: string[] = [];
+  const places = new Map<string, Place>([['off', { center: COFFEE.off, size: COFFEE.offSize }]]);
+  for (const [id, y] of Object.entries(COFFEE.ys)) places.set(id, { center: [COFFEE.x, y], size: COFFEE.size });
+  const onBox: Place = { center: [(COFFEE.on[0] + COFFEE.on[2]) / 2, (COFFEE.on[1] + COFFEE.on[3]) / 2], size: [COFFEE.on[2] - COFFEE.on[0], COFFEE.on[3] - COFFEE.on[1]] };
+  if (asChart) {
+    const followed = look.follow.includes('on');
+    parts.push(
+      keyed(
+        new Rectangle({ width: onBox.size[0] * f.k, height: onBox.size[1] * f.k, cornerRadius: 0.2 * f.k, fill: 'none', stroke: followed ? s.good : s.soft, strokeWidth: (followed ? 0.06 : 0.03) * f.k }).moveTo(f.at(onBox.center)),
+        'c:on',
+      ),
+      keyed(new Text('on', { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([COFFEE.on[0] + 0.42, COFFEE.on[3] - 0.32])), 'c:on|w'),
+    );
+    words.push(`on, a box holding ${Object.keys(COFFEE.ys).join(', ')}${followed ? ' (current)' : ''}`);
+  }
+  for (const [id, p] of places) {
+    parts.push(...stateBox(s, f, `c:${id}`, p.center, p.size, [{ key: `c:${id}|w`, text: id }], look.follow.includes(id)));
+    words.push(id + (look.follow.includes(id) ? ' (current)' : ''));
+  }
+  parts.push(...start(s, f, 'c:start:machine', places.get('off')!, 'above'));
+  words.push('start → off');
+  if (asChart) {
+    parts.push(...start(s, f, 'c:start:on', places.get('idle')!, 'above'));
+    words.push('start of on → idle');
+  }
+  // The arrows: every transition of the flat machine, or every transition the chart writes, from the model.
+  const arrows = asChart
+    ? (() => {
+        const out: { from: string; event: string; to: string }[] = [];
+        const collect = (n: StateNode) => {
+          for (const [event, to] of Object.entries(n.on ?? {})) out.push({ from: n.id, event, to });
+          for (const c of n.children ?? []) collect(c);
+        };
+        collect(chart);
+        return out;
+      })()
+    : flatten(chart).transitions;
+  // A box arrow keeps the key of a state arrow it replaces, so the other copies fade.
+  const lineage = (t: { from: string; event: string; to: string }) =>
+    t.from === 'on' ? 'c:arrow:grinding:POWER_OFF:off' : t.to === 'on' ? 'c:arrow:off:POWER_ON:idle' : `c:arrow:${t.from}:${t.event}:${t.to}`;
+  for (const t of arrows) {
+    const key = lineage(t),
+      lit = look.lit.includes(key);
+    const at = (id: string) => (id === 'on' ? onBox : places.get(id));
+    const a = at(t.from),
+      b = at(t.to);
+    if (!a || !b) throw new Error(`No place for ${t.from} → ${t.to}`);
+    if (t.event === 'TAKE') {
+      // Round the left of the column, from ready back to idle.
+      const half = COFFEE.size[0] / 2 + 0.07;
+      parts.push(...curved(s, f, key, [a.center[0] - half, a.center[1]], [b.center[0] - half, b.center[1]], -1.3, t.event, lit));
+    } else if (t.from === 'off' || t.to === 'off') {
+      // To and from the tall off box: straight across, at the row of the state (or the middle of on).
+      const other = t.from === 'off' ? b : a,
+        paired = arrows.some((u) => u.from === t.to && u.to === t.from),
+        y = (other === onBox ? 0 : other.center[1]) + (paired ? (t.to === 'off' ? 0.13 : -0.13) : 0);
+      const left = other.center[0] + other.size[0] / 2 + 0.07,
+        right = COFFEE.off[0] - COFFEE.offSize[0] / 2 - 0.07;
+      const [x1, x2] = t.to === 'off' ? [left, right] : [right, left];
+      parts.push(keyed(new Arrow(f.at([x1, y]), f.at([x2, y]), arrowStyle(s, f, lit)), key));
+      const below = paired && t.from === 'off';
+      parts.push(keyed(new Text(t.event, { fontSize: L * f.k, color: lit ? s.emphasis : s.soft }).moveTo(f.at([(left + right) / 2, y + (below ? -0.27 : 0.27)])), `${key}|label`));
+    } else {
+      parts.push(...straight(s, f, key, a, b, t.event, false, lit, -1));
+    }
+    words.push(`${t.from} → ${t.to}: ${t.event}${lit ? ' (marked)' : ''}`);
+  }
+  const n = asChart ? chartCounts(chart) : flatCounts(flatten(chart));
+  parts.push(note(s, f, COFFEE.bounds, `${asChart ? 'Statechart' : 'Flat'}: ${counted(n)}`));
+  return { group: new Group(...parts), words };
+}
+
+/** Two booleans for playback, every combination, the one that should be impossible marked; struck once regions rule it out. */
+function booleanPicture(s: Stage, f: Fit, ruledOut: boolean): Drawn {
+  const rows: [string, string, string, boolean][] = [
+    ['false', 'false', 'neither?', false],
+    ['true', 'false', 'playing', false],
+    ['false', 'true', 'paused', false],
+    ['true', 'true', 'both: impossible', true],
+  ];
+  const xs = [-3.2, -0.9, 2.2],
+    top = 1.9,
+    gap = 0.95;
+  const parts: Mobject[] = [
+    keyed(new Text('Two booleans for playback', { fontSize: F * f.k, color: s.palette.ink }).moveTo(f.at([-0.6, top + 1.1])), 'b:title'),
+    ...['isPlaying', 'isPaused', 'means'].map((h, i) => keyed(new Text(h, { fontSize: L * f.k, color: s.soft, font: i < 2 ? 'mono' : 'sans' }).moveTo(f.at([xs[i]!, top])), `b:head:${i}`)),
+  ];
+  rows.forEach(([a, b, m, bad], r) => {
+    const y = top - (r + 1) * gap,
+      color = bad ? s.bad : s.palette.ink;
+    parts.push(
+      keyed(new Text(a, { fontSize: L * f.k, color, font: 'mono' }).moveTo(f.at([xs[0]!, y])), `b:${r}:0`),
+      keyed(new Text(b, { fontSize: L * f.k, color, font: 'mono' }).moveTo(f.at([xs[1]!, y])), `b:${r}:1`),
+      keyed(new Text(m, { fontSize: L * f.k, color }).moveTo(f.at([xs[2]!, y])), `b:${r}:2`),
+    );
+  });
+  const words = ['Two booleans for playback, isPlaying and isPaused', ...rows.map(([a, b, m]) => `${a}, ${b}: ${m}`)];
+  if (ruledOut) {
+    const y = top - 4 * gap;
+    parts.push(keyed(new Text('with regions: cannot be written', { fontSize: L * f.k, color: s.bad }).moveTo(f.at([-0.6, y - 0.75])), 'b:why'));
+    words.push('with regions, the impossible row cannot be written: a region is in one state');
+  }
+  return { group: new Group(...parts), words };
+}
+const BOOLEANS: Box = [-4.3, -2.75, 3.9, 3.35];
+
 export default class Statecharts extends Scene {
   static meta = {
     id: 'statecharts',
-    title: 'What does a statechart add to a state machine?',
+    title: 'What is a statechart, and why use one instead of a state machine?',
     sources: [
       'https://x.com/DavidKPiano/status/2116523008323981315',
       'https://www.state-machine.com/doc/Harel87.pdf',
       'https://www.w3.org/TR/2015/REC-scxml-20150901/',
       'https://www.npmjs.com/package/xstate/v/5.33.3',
     ],
-    watch: { flat: 'Flat state', active: 'Statechart states' },
+    watch: { current: 'Current states', takenBy: 'Event taken by' },
   };
-  static settings = [
-    {
-      id: 'mute',
-      label: 'Mute works',
-      default: 'always',
-      options: [
-        { value: 'always', label: 'Paused or playing' },
-        { value: 'playing', label: 'Only while playing' },
-      ],
-    },
-  ];
 
   override async construct() {
-    const always = settingsOf(this).mute !== 'playing';
     const s = stage(this, { style: 'github-light', headingSize: 0.54 });
-    const chart = always ? player(2) : muteWhilePlaying(),
-      one = player(1),
-      flat = flatten(chart),
-      before = flatCounts(flatten(one)),
-      after = flatCounts(flat),
-      final = chartCounts(chart);
-    const powerOff = flat.transitions.filter((t) => t.event === 'POWER' && t.to === flat.initial).length;
+    const playerChart = player(2),
+      flatPlayer = flatCounts(flatten(playerChart)),
+      chartPlayer = chartCounts(playerChart);
+    const coffeeFlat = flatCounts(flatten(coffee())),
+      coffeeChart = chartCounts(coffee());
 
     const FULL = regionBox('full', { top: 3.05 }),
       LEFT = regionBox('left', { top: 3.05, right: -0.45 }),
       RIGHT = regionBox('right', { top: 3.05, left: 0.45 });
-    const half = Math.min(scaleFor(FLAT.bounds, LEFT), scaleFor(CHART.bounds, RIGHT));
-    const fullFit = fit(FLAT.bounds, FULL, scaleFor(FLAT.bounds, FULL, 0.95)),
-      leftFit = fit(FLAT.bounds, LEFT, half),
-      rightFit = fit(CHART.bounds, RIGHT, half);
+    const half = Math.min(scaleFor(FLAT.bounds, LEFT), scaleFor(CHART.bounds, LEFT));
+    const DEFINE = regionBox('full', { top: 2.6, bottom: -3.2 });
 
-    // The two pictures, each a function of the chart it draws, where, and how it is marked.
-    let flatChart = one,
-      flatFit = fullFit,
-      flatLook: Look = { follow: [], lit: [] };
-    let flatDrawn = flatPicture(s, flatChart, flatFit, flatLook);
-    const left = view(() => (flatDrawn = flatPicture(s, flatChart, flatFit, flatLook)).group, { place: false });
-    let kind: ChartKind = 'boxed',
-      chartLook: Look = { follow: [], lit: [] };
-    let chartDrawn = chartPicture(s, chart, kind, rightFit, chartLook);
-    const right = view(() => (chartDrawn = chartPicture(s, chart, kind, rightFit, chartLook)).group, { place: false });
-    const sync = (v: typeof left | typeof right) => v.sync({ match: byKey, runTime: 1.2 });
-    const said = (d: () => Drawn, what: string) => () => `${what}: ${d().words.join('; ')}`;
-
-    // 1. The small machine before the button.
-    await this.step('player', {
-      title: 'Three states. What will a mute button add?',
-      line: 'Both paused and playing need their own POWER arrow to off.',
-      caption: `The player starts off and is then paused or playing: ${before.states} boxes and ${before.transitions} transitions. Next it gains a mute button that ${always ? 'works whether paused or playing' : 'works only while playing, and pausing unmutes'}.`,
-    });
-    s.keep(left, { describe: said(() => flatDrawn, 'Flat state machine') });
-    await this.play(new FadeIn(left, { runTime: 0.6 }));
-    this.state = { flat: null, active: null };
-
-    // 2. The button splits states and copies their arrows: the copies are the arrows of an old kind on a new place.
-    const oldKeys = new Set(flatPicture(s, one, fullFit, flatLook).group.children.map((m) => m.key));
-    const oldEvents = new Set(flatten(one).transitions.map((t) => t.event));
-    const copies = flatPicture(s, chart, fullFit, flatLook)
-      .group.children.map((m) => m.key ?? '')
-      .filter((k) => k.startsWith('arrow:') && !oldKeys.has(k) && oldEvents.has(k.split(':')[2]!));
-    await this.step('mute', {
-      title: always ? 'Mute splits both states and copies their arrows' : 'Mute splits only playing',
-      line: always ? `${after.states} boxes now; every arrow out of paused or playing has a marked copy.` : 'paused · muted is greyed: no event leads there.',
-      caption: always
-        ? `A flat machine needs one state per combination, so paused and playing each split into an unmuted and a muted copy. The copies keep every arrow, marked: PLAY and PAUSE appear in both columns and ${powerOff} POWER arrows return to off. ${after.states} boxes and ${after.transitions} transitions, up from ${before.states} and ${before.transitions}.`
-        : `Only playing splits, into unmuted and muted copies. Pausing unmutes, so PAUSE from playing · muted lands on paused, and paused · muted is never reached. The copies keep their arrows, marked: PAUSE leaves both playing states and POWER all ${powerOff}. ${after.states} boxes and ${after.transitions} transitions, up from ${before.states} and ${before.transitions}.`,
-    });
-    flatChart = chart;
-    flatLook = { follow: [], lit: copies };
-    await this.play(sync(left));
-
-    // 3. A box around the combinations carries POWER once.
+    // Two pictures, each a function of the step: `main` on the left (or the whole stage), `aside` on the right.
+    type Phase = 'what' | 'copies' | 'parent' | 'multiply' | 'regions' | 'flatten';
+    let phase: Phase = 'what';
     const followCell = cellKey(cellOf([PLAYBACK.states[1], VOLUME.states[1]]));
-    const powerKeys = flatDrawn.group.children.map((m) => m.key ?? '').filter((k) => k.startsWith('arrow:') && k.endsWith(':POWER:off'));
-    await this.step('box', {
-      title: 'A box around them needs POWER only once',
-      line: `on handles POWER for every state inside: 1 arrow, not ${powerOff}.`,
-      caption: `On the right, a box called on holds the ${always ? 'four' : 'three'} states. An event no state inside handles goes to the box, so one POWER arrow from on replaces the ${powerOff} marked on the left. on is a state too: the player is in on and in one state inside it. Both drawings mark playing · muted, the state to follow.`,
-    });
-    flatFit = leftFit;
-    flatLook = { follow: [followCell], lit: powerKeys };
-    chartLook = { follow: [followCell], lit: ['r:power:off'] };
-    s.keep(right, { describe: said(() => chartDrawn, 'Statechart') });
-    right.rebuild();
-    await this.play(sync(left), new FadeIn(right, { runTime: 1.2 }));
-    this.state = { flat: 'playing · muted', active: ['on', 'playing · muted'] };
-
-    // 4. The pivotal change: the grid's words become regions, or volume goes inside playing.
-    const followed = run(chart, FOLLOW).at(-2)!.config;
-    const activeNow = activeStates(chart, followed);
-    await this.step(
-      'split',
-      always
-        ? {
-            title: 'Each combination is one state from each region',
-            line: 'playing · muted becomes playing beside muted.',
-            caption:
-              'The grid’s rows and columns are two separate choices, so keep only the choices: playback is paused or playing, and volume is unmuted or muted, side by side in on, split by the dashed line. The marked playing · muted becomes playing in one region and muted in the other, and each button’s arrows are drawn once.',
-          }
-        : {
-            title: 'Volume goes inside playing, not beside it',
-            line: 'Regions side by side would allow paused with muted.',
-            caption:
-              'Side-by-side regions, with no guards between them, would let paused and muted be active together, which this player never allows. Instead unmuted and muted go inside playing, and one PAUSE arrow from the playing box replaces two; leaving playing forgets volume, so it restarts unmuted. The marked playing · muted is muted inside playing.',
-          },
-    );
-    kind = always ? 'regions' : 'nested';
-    chartLook = {
-      follow: activeNow,
-      lit: always ? ['r:arrow:0,0:PLAY:1,0', 'r:arrow:1,0:PAUSE:0,0', 'r:arrow:0,0:MUTE:0,1', 'r:arrow:0,1:UNMUTE:0,0'] : ['r:arrow:1,0:PAUSE:0,0'],
+    const ACTIVE = ['on', PLAYBACK.states[1], VOLUME.states[1]];
+    const coffeeRun = run(coffee(), RUNS.coffee);
+    const brewing = coffeeRun[2]!.config;
+    let mainDrawn: Drawn = { group: new Group(), words: [] },
+      asideDrawn: Drawn = { group: new Group(), words: [] };
+    const mainPicture = (): Drawn => {
+      switch (phase) {
+        case 'what': {
+          const d = chartPicture(s, playerChart, 'regions', fit(CHART.bounds, DEFINE, scaleFor(CHART.bounds, DEFINE, 0.75)), { follow: [], lit: [] }, false);
+          return d;
+        }
+        case 'copies':
+          return coffeePicture(s, fit(COFFEE.bounds, FULL, scaleFor(COFFEE.bounds, FULL, 0.95)), false, { follow: [], lit: ['grinding', 'idle', 'brewing', 'ready'].map((id) => `c:arrow:${id}:POWER_OFF:off`) });
+        case 'parent':
+          return coffeePicture(s, fit(COFFEE.bounds, FULL, scaleFor(COFFEE.bounds, FULL, 0.95)), true, { follow: brewing, lit: ['c:arrow:grinding:POWER_OFF:off'] });
+        case 'multiply':
+          return chartPicture(s, playerChart, 'boxed', fit(CHART.bounds, LEFT, half), { follow: [followCell], lit: [] });
+        case 'regions':
+        case 'flatten':
+          return chartPicture(s, playerChart, 'regions', fit(CHART.bounds, LEFT, half), { follow: ACTIVE, lit: phase === 'regions' ? ['r:arrow:0,0:PLAY:1,0', 'r:arrow:1,0:PAUSE:0,0', 'r:arrow:0,0:MUTE:0,1', 'r:arrow:0,1:UNMUTE:0,0'] : [] });
+      }
     };
-    flatLook = { follow: [followCell], lit: [] };
-    await this.play(sync(right), sync(left));
-    this.state = { flat: 'playing · muted', active: activeNow };
+    const asidePicture = (): Drawn => {
+      if (phase === 'flatten') return flatPicture(s, playerChart, fit(FLAT.bounds, RIGHT, half), { follow: [followCell], lit: [] });
+      return booleanPicture(s, fit(BOOLEANS, RIGHT, scaleFor(BOOLEANS, RIGHT, 0.85)), phase === 'regions');
+    };
+    const main = view(() => (mainDrawn = mainPicture()).group, { place: false });
+    const aside = view(() => (asideDrawn = asidePicture()).group, { place: false });
+    const sync = (v: typeof main) => v.sync({ match: byKey, runTime: 1.2 });
+    s.keep(main, { describe: () => mainDrawn.words.join('; ') });
 
-    // 5. Same behaviour: POWER from the followed state reaches off in both drawings.
-    const last = run(chart, FOLLOW).at(-1)!;
-    await this.step('power', {
-      title: `Both reach off: ${final.transitions} transitions instead of ${after.transitions}`,
-      line: `POWER leaves playing · muted by its own arrow, or by ${last.sources.join(', ')}’s.`,
-      caption: always
-        ? `From playing and muted, POWER reaches off by that box’s own arrow on the left and by on’s one arrow on the right, leaving both regions. Run on every event from every state, XState reaches the same state in both. The statechart draws one more box, on, and ${after.transitions - final.transitions} fewer transitions, because mute and play never constrain each other.`
-        : `From playing and muted, POWER reaches off by that box’s own arrow on the left and by on’s one arrow on the right. Run on every event from every state, XState reaches the same state in both. The statechart draws ${final.states - after.states} more boxes, on and playing around its two volume states, and ${after.transitions - final.transitions} fewer transitions. A history state could remember mute across a pause; this model has none.`,
+    // 1. What it is: the definition, with the parts named on one small chart.
+    await this.step('what', {
+      title: 'A statechart is a state machine with states inside states',
+      line: 'on is a parent state; the dashed line splits it into two regions.',
+      caption:
+        'A statechart is a state machine whose states can contain other states. It adds two things. A state can be a box of states, a parent, and any event its children don’t handle goes to the parent. And a state can be split into regions, each in one state at the same time.',
     });
-    flatLook = { follow: ['off'], lit: [`arrow:${followCell}:POWER:off`] };
-    chartLook = { follow: ['off'], lit: ['r:power:off'] };
-    await this.play(sync(left), sync(right));
-    this.state = { flat: 'off', active: last.config };
+    main.rebuild();
+    const defineFit = fit(CHART.bounds, DEFINE, scaleFor(CHART.bounds, DEFINE, 0.75));
+    const callout = (text: string, at: Vec, key: string) => keyed(new Text(text, { fontSize: L * defineFit.k * 1.25, color: s.emphasis }).moveTo(defineFit.at(at)), key);
+    const parentNote = callout('a parent state: on holds the others', [2.4, CHART.on[3] + 0.45], 'n:parent');
+    const regionNote = callout('two regions, each in one state at once', [0, CHART.on[1] - 0.45], 'n:regions');
+    await this.play(new FadeIn(main, { runTime: 0.7 }));
+    await s.enter(parentNote, regionNote, { describe: 'Labels: on is a parent state holding the others; the dashed line splits it into two regions, each in one state at once' });
+
+    // 2. Why: shared behaviour is copied onto every state.
+    await this.step('copies', {
+      title: 'Shared behaviour is copied onto every state',
+      line: 'Predict: what could replace these four POWER_OFF arrows?',
+      caption: `In a plain state machine, behaviour shared by many states must be copied onto each of them. Give a coffee machine a power button, and idle, grinding, brewing and ready each need their own POWER_OFF arrow, marked: ${coffeeFlat.states} states and ${coffeeFlat.transitions} transitions.`,
+    });
+    await s.clear({ runTime: 0.35 });
+    phase = 'copies';
+    main.rebuild();
+    s.keep(main, { describe: () => mainDrawn.words.join('; ') });
+    await this.play(new FadeIn(main, { runTime: 0.7 }));
+
+    // 3. A parent takes what its children don't handle.
+    const takenBy = coffeeRun.at(-1)!.sources;
+    await this.step('parent', {
+      title: 'One POWER_OFF on the box does the job',
+      line: `brewing has no POWER_OFF, so its parent ${takenBy.join(', ')} answers.`,
+      caption: `Put the four in a box called on, and one POWER_OFF on the box does the job. The current state is asked first, then its parent: brewing has no POWER_OFF, so on takes it and the machine switches off. ${coffeeFlat.transitions} transitions become ${coffeeChart.transitions}.`,
+    });
+    phase = 'parent';
+    await this.play(sync(main));
+    this.state = { current: activeStates(coffee(), brewing), takenBy };
+
+    // 4. Independent features multiply, and booleans hide the same problem.
+    await this.step('multiply', {
+      title: 'Independent features multiply',
+      line: 'Predict: how many combinations with a third on/off button?',
+      caption:
+        'A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that. Booleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible.',
+    });
+    await s.clear({ runTime: 0.35 });
+    phase = 'multiply';
+    main.rebuild();
+    aside.rebuild();
+    s.keep(main, { describe: () => `Player: ${mainDrawn.words.join('; ')}` });
+    s.keep(aside, { describe: () => asideDrawn.words.join('; ') });
+    await this.play(new FadeIn(main, { runTime: 0.7 }), new FadeIn(aside, { runTime: 0.7 }));
+    this.state = { current: ['on', 'playing · muted'], takenBy: null };
+
+    // 5. Regions keep the independent parts apart.
+    await this.step('regions', {
+      title: 'Regions keep playback and volume apart',
+      line: 'Predict: can a statechart do anything a state machine can’t?',
+      caption:
+        'Regions keep playback and volume apart, as two small machines side by side, so the impossible combination can’t be written: playback is paused or playing, never both. The marked playing · muted is now playing in one region and muted in the other. A third on/off button would make 8 combinations, but only one more region.',
+    });
+    phase = 'regions';
+    await this.play(sync(main), sync(aside));
+    this.state = { current: activeStates(playerChart, run(playerChart, RUNS.player)[2]!.config), takenBy: null };
+
+    // 6. Same behaviour, smaller drawing.
+    await this.step('flatten', {
+      title: 'Flatten it and the same machine comes back',
+      line: `${flatPlayer.transitions} transitions flat, ${chartPlayer.transitions} in the statechart; the marked states match.`,
+      caption: `Nothing new becomes possible: flatten any statechart and you get an ordinary state machine with the same behaviour, and XState reaches the same state after every event in both. What you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.`,
+    });
+    phase = 'flatten';
+    await this.play(sync(main), sync(aside));
   }
 }

@@ -7,9 +7,22 @@ description: Author, check and publish Rayner explainers as reader-paced HTML em
 
 An explainer is one Rayner `Scene`. The CLI builds it into a step-through HTML page. It needs no server or MCP. Start with [Your first explainer](https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md) for a worked example: LRU versus MRU cache replacement, with its model tested against published examples. Read the [reference](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md) for the helper API and the checks, and [publishing](https://github.com/adewale/rayner/blob/main/docs/PUBLISHING.md) before you host a page.
 
+## Script first
+
+Before planning steps or drawing anything, write the script the explainer exists to show. Pictures that grow from a model without a script tend to explain their own mechanics and never answer the reader's question.
+
+1. **Questions.** Write the two or three questions the reader brings, in their words: "What is a statechart? How is it different from a state machine? Why would I use one?"
+2. **Script.** Answer them in 150 to 250 words of plain prose, answer first. For a concept, the first sentence is a definition: what kind of thing it is and what sets it apart. Give each reason one concrete example, say early why the reader should care, and end on the limit. A few seconds of concrete hook may come before the definition; the definition is still stated outright, never left to be inferred.
+3. **Sentence to remember.** One sentence the reader should still have in a month.
+4. **Check questions.** Two or three questions a reader should be able to answer afterwards. They become prediction prompts: a step's line or caption asks, and the next step answers.
+5. **Test the script alone.** A newcomer who reads only the script can answer the check questions. If not, rewrite the script; do not start drawing.
+6. **Storyboard from the script.** Each step shows one or two of its sentences, and its caption is essentially those sentences, adapted to the picture. Cut anything on screen that serves no sentence. The model and its tests ground what the script claims; they do not choose what the explainer says.
+
+Keep the script beside the scene, for example as `script.md`, so reviewers can check the explainer against it. Gallery explainers that explain an observed result (a bug, a measurement, a surprising output) need the same script: its questions are the reader's questions about that result.
+
 ## Editorial gate
 
-Before writing the scene, state **who** needs to explain **which observed result** to **whom**, the reader's specific question, the answer the model can support, and the conditions under which it holds. Ask whether a still or short code diff already explains it: do not add cases or motion just to demonstrate Rayner. A source link is not a licence to claim more than the scene tests. For example, a ruler across “Ink on paper” measures that phrase's advance; without a trailing space, it does not locate the next word.
+With the script written, state **who** needs to explain **what** to **whom**, the reader's specific question, the answer the model can support, and the conditions under which it holds. Ask whether a still or short code diff already explains it: do not add cases or motion just to demonstrate Rayner. A source link is not a licence to claim more than the scene tests. For example, a ruler across “Ink on paper” measures that phrase's advance; without a trailing space, it does not locate the next word.
 
 Plan the steps in words before drawing them. For the pivotal inference, write one compact row: `question | before | model operation | after | same entity or invariant | resting witness | source/assumption`. Keep the object, route, value or reference state recognisable when the representation changes; a morph is not proof of identity.
 

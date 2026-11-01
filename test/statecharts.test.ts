@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { player, muteWhilePlaying, initial, send, run, events, flatten, flatName, activeStates, FOLLOW } from '../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, initial, send, run, events, flatten, flatName, activeStates, RUNS } from '../scenes/explainers/lib/statecharts.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from '../tools/oracle/statecharts.ts';
 import type { Expected, Explored } from '../tools/oracle/statecharts.ts';
 
@@ -17,7 +17,7 @@ const named = (x: Explored) => {
 test('flattening each drawn chart reaches the configurations and transitions XState reaches', () => {
   assert.equal(xstate.xstate, XSTATE_VERSION);
   assert.deepEqual(Object.keys(xstate.charts), Object.keys(CHARTS));
-  for (const [name, chart] of Object.entries(CHARTS)) {
+  for (const [name, { chart, run: sent }] of Object.entries(CHARTS)) {
     const x = xstate.charts[name]!,
       flat = flatten(chart);
     assert.deepEqual(events(chart), x.events, `${name}: events`);
@@ -28,30 +28,30 @@ test('flattening each drawn chart reaches the configurations and transitions XSt
     for (const config of x.configurations)
       for (const event of x.events)
         assert.equal(send(chart, config, event).handled, named(x).some((t) => t.startsWith(`${flatName(config)} ${event} `)), `${name}: ${flatName(config)} ${event}`);
-    assert.deepEqual(run(chart, FOLLOW).map((s) => ({ event: s.event, can: s.handled, config: s.config })), x.follow, `${name}: follow`);
+    assert.deepEqual(run(chart, sent).map((s) => ({ event: s.event, can: s.handled, config: s.config })), x.follow, `${name}: run`);
   }
 });
 
-test('XState finds each statechart and its boxed flat machine behave exactly like the flat machine', () => {
-  // The flat machine is what XState explores; the claim "same behaviour" is that the other drawings explore to it.
-  assert.deepEqual(named(xstate.charts.boxedMute!), named(xstate.charts.mute!));
-  assert.deepEqual(named(xstate.charts.boxedMuteWhilePlaying!), named(xstate.charts.muteWhilePlaying!));
-  assert.equal(named(xstate.charts.mute!).length, 13);
-  assert.equal(named(xstate.charts.muteWhilePlaying!).length, 9);
+test('XState finds the boxed flat player behaves exactly like the flat player, and the flat machines have the arrows the script counts', () => {
+  assert.deepEqual(named(xstate.charts.boxedPlayer!), named(xstate.charts.player!));
+  assert.equal(named(xstate.charts.player!).length, 13);
+  // The coffee machine flattens to five states, each of the four on states with its own POWER_OFF.
+  const flatCoffee = named(xstate.charts.coffee!);
+  assert.equal(flatCoffee.length, 9);
+  assert.deepEqual(flatCoffee.filter((t) => t.includes(' POWER_OFF ')), ['brewing POWER_OFF off', 'grinding POWER_OFF off', 'idle POWER_OFF off', 'ready POWER_OFF off']);
 });
 
-test('POWER from inside on is taken by on, leaving every state inside at once', () => {
-  for (const chart of [player(2), muteWhilePlaying()]) {
-    const last = run(chart, FOLLOW).at(-1)!;
-    assert.deepEqual(last.sources, ['on']);
-    assert.deepEqual(last.config, ['off']);
-  }
-  assert.deepEqual(run(player(2), FOLLOW)[2]!.exited, ['unmuted'], 'MUTE leaves the playback region alone');
+test('an event the current state does not handle is taken by its parent, leaving everything inside', () => {
+  const coffeeOff = run(coffee(), RUNS.coffee).at(-1)!;
+  assert.deepEqual([coffeeOff.sources, coffeeOff.exited, coffeeOff.config], [['on'], ['brewing'], ['off']]);
+  const playerOff = run(player(2), RUNS.player).at(-1)!;
+  assert.deepEqual([playerOff.sources, playerOff.exited, playerOff.config], [['on'], ['playing', 'muted'], ['off']]);
+  assert.deepEqual(run(player(2), RUNS.player)[2]!.exited, ['unmuted'], 'MUTE leaves the playback region alone');
 });
 
 test('active states name the boxes a configuration is in, ancestors included, regions left out', () => {
   assert.deepEqual(activeStates(player(2), ['playing', 'muted']), ['on', 'playing', 'muted']);
-  assert.deepEqual(activeStates(muteWhilePlaying(), ['muted']), ['on', 'playing', 'muted']);
+  assert.deepEqual(activeStates(coffee(), ['brewing']), ['on', 'brewing']);
   assert.deepEqual(activeStates(player(2), ['off']), ['off']);
 });
 

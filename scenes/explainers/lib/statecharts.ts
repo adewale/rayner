@@ -28,8 +28,13 @@ export const CONTROLS: readonly Control[] = [
   { region: 'volume', states: ['unmuted', 'muted'], events: ['MUTE', 'UNMUTE'] },
 ];
 
-/** The events the explainer sends: on, play, mute, then off again. tools/oracle/statecharts.ts sends XState the same. */
-export const FOLLOW: readonly string[] = ['POWER', 'PLAY', 'MUTE', 'POWER'];
+/** The events the explainer sends each chart; tools/oracle/statecharts.ts sends XState the same. */
+export const RUNS = {
+  /** Switch on, start a brew, then switch off while brewing. */
+  coffee: ['POWER_ON', 'START', 'GROUND', 'POWER_OFF'],
+  /** Switch on, play, mute, then switch off. */
+  player: ['POWER', 'PLAY', 'MUTE', 'POWER'],
+} as const;
 
 const region = (c: Control): StateNode => ({
   id: c.region,
@@ -60,20 +65,26 @@ export function player(controls: number): StateNode {
 }
 
 /**
- * The same player when mute works only while playing: the volume states live inside playing, so
- * pausing leaves them and playing starts unmuted again. One PAUSE on playing covers both.
+ * The coffee machine of "Statecharts in 2 minutes": off, and on holding idle → grinding → brewing →
+ * ready → idle. POWER_OFF is written once, on on.
  */
-export function muteWhilePlaying(): StateNode {
-  const [playback, volume] = CONTROLS as [Control, Control];
-  return withPower({
-    id: 'on',
+export function coffee(): StateNode {
+  const steps = [['idle', 'START'], ['grinding', 'GROUND'], ['brewing', 'BREWED'], ['ready', 'TAKE']] as const;
+  return {
+    id: 'machine',
     type: 'compound',
-    initial: playback.states[0],
+    initial: 'off',
     children: [
-      { id: playback.states[0], type: 'atomic', on: { [playback.events[0]]: playback.states[1] } },
-      { ...region(volume), id: playback.states[1], on: { [playback.events[1]]: playback.states[0] } },
+      { id: 'off', type: 'atomic', on: { POWER_ON: 'on' } },
+      {
+        id: 'on',
+        type: 'compound',
+        initial: 'idle',
+        on: { POWER_OFF: 'off' },
+        children: steps.map(([id, event], i) => ({ id, type: 'atomic' as const, on: { [event]: steps[(i + 1) % steps.length]![0] } })),
+      },
     ],
-  });
+  };
 }
 
 /**

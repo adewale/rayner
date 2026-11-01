@@ -34,7 +34,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'mr-cache', step: 'after', group: 'topic' },
   { id: 'latest-search', step: 'compare', group: 'topic' },
   { id: 'state-machine', step: 'opened', group: 'topic' },
-  { id: 'statecharts', step: 'split', group: 'topic' },
+  { id: 'statecharts', step: 'regions', group: 'topic' },
   { id: 'ring-buffer', step: 'result', group: 'topic' },
   { id: '2password', step: 'suggest', group: 'topic' },
   { id: 'just-bash', step: 'cat', group: 'topic' },
