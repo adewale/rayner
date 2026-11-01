@@ -84,5 +84,27 @@ export function ring(s: Stage, at: Vec, w: number, h: number): Rectangle {
   return new Rectangle({ width: w + 0.2, height: h + 0.2, cornerRadius: 0.2, fill: 'none', stroke: s.emphasis, strokeWidth: 0.07 }).moveTo(at);
 }
 
-export const dot = (s: Stage, at: Vec, color = s.palette.ink) =>
+/** A path of straight segments ending in an arrowhead, for an arrow that has to go round something. */
+export function route(points: Vec[], color: string, width = 0.035): Group {
+  const g = new Group();
+  points.slice(0, -2).forEach((p, i) => g.add(new Line(p, points[i + 1]!, { stroke: color, strokeWidth: width })));
+  g.add(arrow(points[points.length - 2]!, points[points.length - 1]!, color, width));
+  return g;
+}
+
+/** A numbered disc: the order in which states were asked. */
+export function badge(s: Stage, n: number, at: Vec): Group {
+  const disc = new Circle({ radius: 0.24, fill: s.emphasis, fillOpacity: 1, stroke: 'none' }).moveTo(at);
+  return new Group(disc, words(String(n), at, s.palette.paper, 0.3));
+}
+
+/** The legend for the ring: a small ring and what it means. */
+export function ringLegend(s: Stage, at: Vec): Group {
+  return new Group(
+    new Rectangle({ width: 0.6, height: 0.36, cornerRadius: 0.1, fill: 'none', stroke: s.emphasis, strokeWidth: 0.06 }).moveTo([at[0] + 0.3, at[1]]),
+    words('= where the machine is now', [at[0] + 0.75, at[1]], s.palette.ink, 0.3, 'left'),
+  );
+}
+
+export const dot =(s: Stage, at: Vec, color = s.palette.ink) =>
   new Circle({ radius: 0.11, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(at);

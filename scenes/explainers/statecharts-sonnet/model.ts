@@ -165,6 +165,17 @@ export const declaredFor = (root: StateNode, event: string): number => {
 /** How many arrows carry `event` in the equivalent ordinary machine. */
 export const flatFor = (m: FlatMachine, event: string): number => m.transitions.filter((t) => t.event === event).length;
 
+/** States a person draws: every state except the root and the regions of a parallel state. */
+export const drawnStates = (root: StateNode): number => {
+  let n = 0;
+  const walk = (node: StateNode, isRegion: boolean) => {
+    if (node !== root && !isRegion) n += 1;
+    node.children?.forEach((c) => walk(c, !!node.parallel));
+  };
+  walk(root, false);
+  return n;
+};
+
 /** Arrows a person draws: one for each `on` entry in the chart. */
 export const declaredTransitions = (root: StateNode): number => {
   let n = 0;
@@ -172,27 +183,86 @@ export const declaredTransitions = (root: StateNode): number => {
   return n;
 };
 
+/** The two drawings side by side: what the ordinary machine needs against what the chart draws. */
+export const sizes = (root: StateNode) => {
+  const flat = flatten(root);
+  return {
+    flatStates: flat.states.length,
+    flatArrows: flat.transitions.length,
+    chartStates: drawnStates(root),
+    chartArrows: declaredTransitions(root),
+  };
+};
+
+/** Run every event sequence of `length` through the chart and its flattened machine: how many were tried, how many agreed. */
+export function compareAll(root: StateNode, events: readonly string[], length: number): { tried: number; agreed: number } {
+  const flat = flatten(root);
+  let tried = 0,
+    agreed = 0;
+  const walk = (seq: string[]) => {
+    if (seq.length === length) {
+      tried += 1;
+      const a = run(root, seq).map(configName),
+        b = runFlat(flat, seq);
+      if (a.every((c, i) => c === b[i])) agreed += 1;
+      return;
+    }
+    for (const e of events) walk([...seq, e]);
+  };
+  walk([]);
+  return { tried, agreed };
+}
+
+/** Every event name used in a chart, sorted. */
+export const eventsOf = (root: StateNode): string[] => {
+  const out = new Set<string>();
+  index(root).forEach((n) => Object.keys(n.on ?? {}).forEach((e) => out.add(e)));
+  return [...out].sort();
+};
+
 // ---- the charts the explainer draws ----
 
-/** The coffee machine: four working states in a box called on, one POWER_OFF on the box. */
+/** The coffee machine: four working states in a box called on, one POWER_OFF on the box, and the way back on. */
 export const COFFEE_STATES = ['idle', 'grinding', 'brewing', 'ready'] as const;
-export const COFFEE_FLOW: Record<string, string> = { idle: 'SELECT', grinding: 'GROUND', brewing: 'BREWED' };
+/** The arrow that leaves each working state: the event, in the order the cycle runs. TAKE closes the loop. */
+export const COFFEE_FLOW: Record<string, string> = { idle: 'SELECT', grinding: 'GROUND', brewing: 'BREWED', ready: 'TAKE' };
+const coffeeCycle = (): StateNode[] => [
+  { id: 'idle', on: { SELECT: 'grinding' } },
+  { id: 'grinding', on: { GROUND: 'brewing' } },
+  { id: 'brewing', on: { BREWED: 'ready' } },
+  { id: 'ready', on: { TAKE: 'idle' } },
+];
 export const coffeeChart = (): StateNode => ({
+  id: 'machine',
+  initial: 'on',
+  children: [
+    { id: 'on', initial: 'idle', on: { POWER_OFF: 'off' }, children: coffeeCycle() },
+    { id: 'off', on: { POWER_ON: 'on' } },
+  ],
+});
+
+/** The same machine with a milk frother that can be switched on or off at any time: a second region inside the box. */
+export const frotherChart = (): StateNode => ({
   id: 'machine',
   initial: 'on',
   children: [
     {
       id: 'on',
-      initial: 'idle',
+      parallel: true,
       on: { POWER_OFF: 'off' },
       children: [
-        { id: 'idle', on: { SELECT: 'grinding' } },
-        { id: 'grinding', on: { GROUND: 'brewing' } },
-        { id: 'brewing', on: { BREWED: 'ready' } },
-        { id: 'ready' },
+        { id: 'cycle', initial: 'idle', children: coffeeCycle() },
+        {
+          id: 'frother',
+          initial: 'froth off',
+          children: [
+            { id: 'froth off', on: { FROTH_ON: 'froth on' } },
+            { id: 'froth on', on: { FROTH_OFF: 'froth off' } },
+          ],
+        },
       ],
     },
-    { id: 'off' },
+    { id: 'off', on: { POWER_ON: 'on' } },
   ],
 });
 
@@ -222,14 +292,19 @@ export const playerChart = (features = 2): StateNode => ({
 export const growth = (features: number) => {
   const chart = playerChart(features);
   const flat = flatten(chart);
-  const drawn = index(chart).size - 1 - features; // atomic states: every node but the root and the regions
-  return { features, flatStates: flat.states.length, regionStates: drawn, flatArrows: flat.transitions.length, regionArrows: declaredTransitions(chart) };
+  return { features, flatStates: flat.states.length, regionStates: drawnStates(chart), flatArrows: flat.transitions.length, regionArrows: declaredTransitions(chart) };
 };
 
-/** The two flags that stand in for playback: four ways to write them, two of which the player never is in. */
+/**
+ * The two flags that stand in for playback, written all four ways. Only two rows name a state of the player.
+ * Both true is impossible. Both false is not impossible, just unnamed: a stopped player is legitimate, and the flags cannot say it.
+ */
 export const FLAGS = [
   { isPlaying: true, isPaused: false },
   { isPlaying: false, isPaused: true },
   { isPlaying: true, isPaused: true },
   { isPlaying: false, isPaused: false },
-].map((f) => ({ ...f, state: f.isPlaying === f.isPaused ? null : f.isPlaying ? 'playing' : 'paused' }));
+].map((f) => ({
+  ...f,
+  verdict: (f.isPlaying && f.isPaused ? 'impossible' : f.isPlaying ? 'playing' : f.isPaused ? 'paused' : 'neither?') as 'impossible' | 'playing' | 'paused' | 'neither?',
+}));
