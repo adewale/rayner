@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statecharts, explained</title>
+<meta name="description" content="A step-through explainer: what a statechart is, why parents and regions exist, and why nothing new becomes possible.">
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#f6f4ee; --surface:#ffffff; --ink:#1c2130; --ink2:#3b4358; --muted:#586072; --line:#cfc9bb;
+  --accent:#2457d6; --accent-ink:#ffffff; --accent-soft:#e3ebff; --box:#f1f5ff;
+  --good:#12765a; --good-soft:#dcf3ea; --warn:#a15500; --warn-soft:#fff0d6; --bad:#b3261e; --bad-soft:#fde4e1;
+  --arrow:#5a6275;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#13161e; --surface:#1c212c; --ink:#eceef4; --ink2:#cdd2e0; --muted:#a9b0c2; --line:#3a4153;
+    --accent:#7ea2ff; --accent-ink:#0b1020; --accent-soft:#233260; --box:#202a45;
+    --good:#5fd3a8; --good-soft:#143a2e; --warn:#ffb454; --warn-soft:#3f2e12; --bad:#ff8f86; --bad-soft:#44201d;
+    --arrow:#9aa3b8;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.55;padding-bottom:0}
+[hidden]{display:none !important}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:8px;top:-60px;background:var(--accent);color:var(--accent-ink);padding:10px 14px;border-radius:8px;z-index:50}
+.skip:focus{top:8px}
+code,.mono{font-family:var(--mono);font-size:.9em}
+code{background:var(--accent-soft);color:var(--ink);padding:1px 6px;border-radius:5px;white-space:nowrap}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:6px}
+button{font:inherit;color:inherit}
+
+/* header */
+.top{max-width:1160px;margin:0 auto;padding:18px 16px 6px}
+.top .brand{font-weight:700;letter-spacing:.01em;font-size:15px;color:var(--muted)}
+.stepline{display:flex;align-items:center;gap:12px;margin-top:8px;font-size:14px;color:var(--muted)}
+.stepline b{color:var(--ink)}
+.bar-track{flex:1;height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);width:0;transition:width .3s}
+@media (prefers-reduced-motion: reduce){.bar-fill{transition:none}}
+
+main{max-width:1160px;margin:0 auto;padding:10px 16px 24px}
+
+/* step layout */
+.step{display:grid;gap:18px 44px;grid-template-columns:minmax(0,1fr);grid-template-areas:"intro" "visual" "task"}
+.intro{grid-area:intro;min-width:0}
+.visual{grid-area:visual;min-width:0}
+.task{grid-area:task;min-width:0}
+@media (min-width:920px){
+  .step{grid-template-columns:minmax(0,5fr) minmax(0,6fr);grid-template-areas:"intro visual" "task visual";grid-template-rows:auto 1fr;align-items:start}
+  .step.wide{grid-template-columns:minmax(0,1fr);grid-template-areas:"intro" "task" "visual";grid-template-rows:auto}
+}
+h2{font-size:clamp(1.55rem,4.4vw,2.15rem);line-height:1.18;margin:10px 0 12px;letter-spacing:-.01em;outline:none}
+h3{font-size:1.02rem;margin:0 0 6px}
+p{margin:0 0 12px}
+.lead{font-size:1.08em}
+.muted{color:var(--muted)}
+ol.plain,ul.plain{margin:0 0 12px;padding-left:1.25em}
+ol.plain li,ul.plain li{margin-bottom:6px}
+
+/* callouts */
+.callout{border-left:5px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 10px 10px 0;margin:14px 0}
+.callout.good{border-color:var(--good);background:var(--good-soft)}
+.callout.bad{border-color:var(--bad);background:var(--bad-soft)}
+.callout .k{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;margin-bottom:2px;color:var(--ink2)}
+.callout p:last-child{margin-bottom:0}
+dl.words{margin:14px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.95em}
+dl.words dt{font-weight:700}
+dl.words dd{margin:0}
+
+/* prediction */
+.predict{border:2px solid var(--accent);border-radius:14px;padding:12px 14px 14px;margin:0 0 12px;background:var(--surface)}
+.predict .pq{font-weight:700;margin:0 0 4px}
+.tag{display:inline-block;background:var(--accent);color:var(--accent-ink);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:99px;margin-right:6px;vertical-align:2px}
+.opts{display:grid;gap:8px;margin-top:6px}
+.opt{display:block;width:100%;text-align:left;background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:10px 12px;min-height:48px;cursor:pointer;line-height:1.35}
+.opt:hover:not([disabled]){border-color:var(--accent)}
+.opt[disabled]{cursor:default;opacity:1}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt .mk2{display:block;font-size:13px;font-weight:700;margin-top:2px}
+.opt.right .mk2{color:var(--good)} .opt.wrong .mk2{color:var(--bad)}
+.skipbtn{margin-top:10px;background:none;border:0;color:var(--accent);text-decoration:underline;cursor:pointer;min-height:44px;padding:0 4px}
+.fb{border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--good-soft);border:1px solid var(--good)}
+.fb p:last-child{margin-bottom:0}
+.fb strong.v{display:block;margin-bottom:2px}
+
+/* buttons */
+.evrow{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.ev{font-family:var(--mono);font-size:13px;font-weight:700;background:var(--surface);border:2px solid var(--ink2);border-radius:10px;padding:8px 12px;min-height:44px;cursor:pointer}
+.ev:hover{background:var(--accent-soft);border-color:var(--accent)}
+.ev:active{transform:translateY(1px)}
+.btn2{background:var(--surface);border:2px solid var(--line);border-radius:10px;padding:8px 14px;min-height:44px;cursor:pointer;font-weight:600}
+.btn2:hover{border-color:var(--accent)}
+
+/* diagram */
+.dia{width:100%;height:auto;display:block;max-width:600px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.dia text{font-family:var(--sans);fill:var(--ink);font-size:13px}
+.dia .node rect{fill:var(--surface);stroke:var(--ink2);stroke-width:1.6}
+.dia .node.box rect{fill:var(--box);stroke:var(--accent);stroke-width:1.8}
+.dia .node.region rect{fill:none;stroke:var(--muted);stroke-dasharray:6 4;stroke-width:1.4}
+.dia .node .ttl{font-size:12px;font-weight:700;fill:var(--accent)}
+.dia .node.region .ttl{fill:var(--muted)}
+.dia .node .lbl{text-anchor:middle;font-weight:600}
+.dia .node .lbl2{font-weight:400;font-size:12px}
+.dia .node.leaf.active rect{fill:var(--accent);stroke:var(--accent)}
+.dia .node.leaf.active text{fill:var(--accent-ink);font-weight:700}
+.dia .node.box.active rect{stroke-width:3.6}
+.dia .node.box.active .ttl{text-decoration:underline}
+.dia .node.region.active rect{stroke:var(--accent);stroke-width:1.8}
+.dia .badge{display:none}
+.dia .qno .badge,.dia .qyes .badge,.dia .qign .badge{display:block}
+.dia .node.qno rect{stroke:var(--warn);stroke-dasharray:5 3;stroke-width:3}
+.dia .node.qyes rect{stroke:var(--good);stroke-width:3.8;stroke-dasharray:none}
+.dia .node.qign rect{stroke:var(--muted);stroke-dasharray:2 3;stroke-width:3}
+.dia .qign .badge circle{fill:var(--muted)}
+.dia .badge circle{stroke:var(--surface);stroke-width:1.5}
+.dia .qno .badge circle{fill:var(--warn)} .dia .qyes .badge circle{fill:var(--good)}
+.dia .badge text{fill:#fff;font-weight:800;font-size:12px;text-anchor:middle}
+.dia .edge path{fill:none;stroke:var(--arrow);stroke-width:1.7}
+.dia .edge text{font-family:var(--mono);font-size:10px;fill:var(--ink2);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.dia .edge.hl path{stroke:var(--warn);stroke-width:2.4}
+.dia .edge.hl text{fill:var(--warn);font-weight:700}
+.dia .edge.fired path{stroke:var(--good);stroke-width:3.4}
+.dia .edge.fired text{fill:var(--good);font-weight:800}
+.dia .mk{fill:var(--arrow)} .dia .mkw{fill:var(--warn)} .dia .mkh{fill:var(--good)}
+.dia .init circle{fill:var(--ink2)}
+.dia .init path{stroke:var(--ink2);stroke-width:1.5;fill:none}
+.dia .note{font-size:10.5px;fill:var(--muted)}
+.dia.ico rect{fill:var(--surface);stroke:var(--ink2);stroke-width:1.6}
+.dia.ico rect.fillme{fill:var(--accent);stroke:var(--accent)}
+.dia.ico rect.boxr{fill:var(--box);stroke:var(--accent);stroke-width:1.8}
+.dia.ico > path{fill:none;stroke:var(--arrow);stroke-width:1.8}
+.dia.ico > path.dash{stroke:var(--muted);stroke-dasharray:5 4}
+.dia .cap{font-size:11px;fill:var(--muted)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin:10px 0 0;justify-content:center}
+.legend .lg{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;font-style:normal;font-weight:800;font-size:11px;border:2px solid var(--ink2);background:var(--surface);color:#fff}
+.legend i.cur{background:var(--accent);border-color:var(--accent)}
+.legend i.no{background:var(--warn);border-color:var(--warn);border-radius:99px}
+.legend i.ign{background:var(--muted);border-color:var(--muted);border-radius:99px}
+.legend i.yes{background:var(--good);border-color:var(--good);border-radius:99px}
+.legend i.hl{border-color:var(--warn);background:var(--surface)}
+
+.readout{margin:12px 0 4px;padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;font-size:15px}
+.readout b{font-family:var(--mono);font-size:.92em}
+.trace{margin:10px 0 0;display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:560px){.trace.two{grid-template-columns:1fr 1fr}}
+.trace .lane{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.trace h4{margin:0 0 4px;font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.trace ol{list-style:none;margin:0;padding:0}
+.trace li{display:flex;gap:8px;padding:4px 0;font-size:15px;line-height:1.4}
+.trace li .ic{flex:none;width:22px;height:22px;border-radius:99px;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;margin-top:1px}
+.trace li.no .ic{background:var(--warn)} .trace li.yes .ic{background:var(--good)} .trace li.ign .ic{background:var(--muted)} .trace li.done .ic{background:var(--accent);color:var(--accent-ink)}
+.trace .hint{color:var(--muted);font-size:15px;margin:0}
+
+/* pills / stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat .n{display:block;font-size:1.9rem;font-weight:800;line-height:1.1}
+.stat .l{font-size:14px;color:var(--muted)}
+.stat.flat .n{color:var(--warn)} .stat.chart .n{color:var(--accent)}
+
+/* switchboard */
+.sb{display:grid;gap:10px;margin:0 0 12px}
+.sb .grp{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.sb .grp span.t{font-weight:700;min-width:84px}
+.seg{display:inline-flex;border:2px solid var(--ink2);border-radius:10px;overflow:hidden}
+.seg button{background:var(--surface);border:0;padding:8px 14px;min-height:44px;cursor:pointer;font-weight:600}
+.seg button+button{border-left:2px solid var(--ink2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+/* tiles */
+.cols2{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:560px){.cols2{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.card .big{font-size:1.5rem;font-weight:800;margin:0}
+.tiles{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px;align-content:flex-start;min-height:30px}
+.tiles i{width:11px;height:11px;border-radius:3px;background:var(--warn)}
+.tiles.r i{background:var(--accent)}
+.tiles .pair{display:inline-flex;gap:3px;padding:3px;border:1.5px solid var(--accent);border-radius:6px}
+.tiles .pair i{background:var(--surface);border:1.5px solid var(--accent);width:11px;height:11px}
+.tiles .pair i.on{background:var(--accent)}
+input[type=range]{width:100%;min-height:44px;accent-color:var(--accent)}
+
+/* booleans */
+table.b4{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0}
+table.b4 th,table.b4 td{border:1px solid var(--line);padding:6px 6px;text-align:center}
+table.b4 th{font-family:var(--mono);font-size:12px;font-weight:700;background:var(--bg)}
+table.b4 td.cur{outline:3px solid var(--accent);outline-offset:-3px;font-weight:800}
+table.b4 td .m{display:block;font-size:12px}
+.b4 .okc .m{color:var(--good)} .b4 .badc .m{color:var(--bad)}
+.b4 .m{visibility:hidden}
+.bools.revealed .b4 .m{visibility:visible}
+label.sw{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
+label.sw input{width:22px;height:22px;accent-color:var(--accent)}
+.status{margin:8px 0 0;padding:8px 10px;border-radius:8px;background:var(--bg);font-size:15px;border:1px solid var(--line)}
+.status.bad{background:var(--bad-soft);border-color:var(--bad)}
+.status.ok{background:var(--good-soft);border-color:var(--good)}
+
+/* table for lockstep */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.tabs button{background:var(--surface);border:2px solid var(--line);border-radius:99px;padding:8px 16px;min-height:44px;cursor:pointer;font-weight:600}
+.tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.two{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:920px){.two{grid-template-columns:1fr 1fr}}
+.two h3{text-align:center}
+table.run{border-collapse:collapse;width:100%;font-size:14px;margin-top:10px;background:var(--surface)}
+table.run th,table.run td{border:1px solid var(--line);padding:5px 8px;text-align:left}
+table.run th{background:var(--bg);font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+table.run td.ok{color:var(--good);font-weight:800}
+.tablewrap{overflow-x:auto}
+
+/* check */
+.q{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 12px}
+.q h3{font-size:1.05rem}
+.q .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:14px;margin-right:8px}
+.q .ans{margin-top:10px;padding:10px 12px;background:var(--good-soft);border-radius:10px;border:1px solid var(--good)}
+.q .ans p:last-child{margin-bottom:0}
+
+/* remember */
+.remember{font-size:clamp(1.35rem,3.8vw,1.9rem);line-height:1.3;font-weight:700;border:3px solid var(--accent);border-radius:18px;padding:18px 20px;background:var(--surface);margin:18px 0 8px}
+.recap{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:12px 0}
+.recap .card p{margin:6px 0 0;font-size:15px}
+.cards3{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.cards3 .card{padding:8px}
+.cards3 .dia{border:0;max-width:260px}
+.cards3 p{margin:4px 4px 2px;font-size:14px;text-align:center}
+
+/* nav bar */
+.bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:20;padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.bar .in{max-width:1160px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar .nxt,.bar .bk{min-height:48px;min-width:104px;border-radius:12px;font-weight:700;font-size:1rem;cursor:pointer;border:2px solid var(--accent)}
+.bar .nxt{background:var(--accent);color:var(--accent-ink)}
+.bar .bk{background:var(--surface);color:var(--accent)}
+.bar .bk{order:1}.bar .mid,.bar .dots{order:2}.bar .nxt{order:3}
+.bar button[disabled]{opacity:.45;cursor:default}
+.dots{display:none;list-style:none;margin:0 auto;padding:0;gap:2px}
+.dots button{width:24px;height:44px;background:none;border:0;cursor:pointer;display:grid;place-items:center;padding:0}
+.dots button span{width:11px;height:11px;border-radius:99px;background:var(--line);border:2px solid var(--line)}
+.dots button[aria-current="step"] span{background:var(--accent);border-color:var(--accent);transform:scale(1.25)}
+.dots button.seen span{border-color:var(--accent)}
+.bar .mid{flex:1;text-align:center;font-size:14px;color:var(--muted)}
+@media (min-width:720px){.dots{display:flex}.bar .mid{display:none}.bar .in{gap:20px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the lesson</a>
+
+<header class="top">
+  <div class="brand">Statecharts, explained</div>
+  <div class="stepline"><span>Step <b id="stepNo">1</b> of <span id="stepTotal">12</span></span><div class="bar-track" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div></div>
+</header>
+
+<main id="main">
+
+<!-- 1 ───────────────────────────────────────────── -->
+<section class="step" data-slug="01-definition" data-title="What a statechart is">
+  <div class="intro">
+    <h2 tabindex="-1">A statechart is a state machine whose states can contain other states</h2>
+    <p class="lead">It adds two things to an ordinary state machine:</p>
+    <ol class="plain">
+      <li><b>A parent.</b> A state can be a box of states, a parent. Any event its children don’t handle goes to the parent.</li>
+      <li><b>Regions.</b> A state can be split into regions, each in one state at the same time.</li>
+    </ol>
+    <dl class="words" aria-label="Words used on this page">
+      <dt>State</dt><dd>what the thing is doing right now, such as <code>idle</code> or <code>playing</code>.</dd>
+      <dt>Event</dt><dd>something that happens, written in capitals, such as <code>POWER_OFF</code>.</dd>
+      <dt>Arrow</dt><dd>“if this event arrives while in this state, move to that state.”</dd>
+      <dt>State machine</dt><dd>states joined by arrows. It is in exactly one state at a time.</dd>
+    </dl>
+  </div>
+  <div class="visual"><div data-mount="cards3"></div></div>
+  <div class="task">
+    <div class="callout"><span class="k">What comes next</span><p>Each addition solves a different problem. We start with the problem parents solve, using a coffee machine.</p></div>
+  </div>
+</section>
+
+<!-- 2 ───────────────────────────────────────────── -->
+<section class="step" data-slug="02-plain-machine" data-title="Where a plain state machine hurts" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Where a plain state machine hurts</h2>
+    <p>Here is a coffee machine as an ordinary state machine. It loops through four states: <code>idle</code>, <code>grinding</code>, <code>brewing</code>, <code>ready</code>. Press an event button and watch the filled state move.</p>
+    <p>Now give it a power button. <code>POWER_OFF</code> has to work in <em>any</em> of the four states, and <code>POWER_ON</code> brings the machine back.</p>
+  </div>
+  <div class="visual"><div data-mount="live2"></div></div>
+  <div class="task">
+    <div data-predict="p2"></div>
+    <div data-after="p2" hidden>
+      <div class="callout bad"><span class="k">The cost</span><p>Four copies of one arrow: same event, same destination. Every time you add a state to the loop you must remember another copy. Forget one and the power button silently stops working there. Try <code>POWER_OFF</code> in each state to see them all work.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ───────────────────────────────────────────── -->
+<section class="step" data-slug="03-parent-box" data-title="Put the four in a box" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Put the four in a box, draw the arrow once</h2>
+    <p>Idle, grinding, brewing and ready all do the same thing on <code>POWER_OFF</code>. So put the four in a box called <code>on</code> and draw <code>POWER_OFF</code> once, from the box. A box of states is a <b>parent</b>; the states inside are its <b>children</b>.</p>
+    <div class="callout"><span class="k">The rule</span><p>When an event arrives, ask the state the machine is in. If it has no arrow for that event, ask its parent, then the parent’s parent, until someone does.</p></div>
+  </div>
+  <div class="visual"><div data-mount="live3"></div></div>
+  <div class="task">
+    <p class="muted">The machine is in <code>brewing</code> right now.</p>
+    <div data-predict="p3"></div>
+    <div data-after="p3" hidden>
+      <div class="stats"><div class="stat flat"><span class="n" data-stat="coffee.flatOff">4</span><span class="l">POWER_OFF arrows in the plain machine</span></div><div class="stat chart"><span class="n" data-stat="coffee.boxOff">1</span><span class="l">POWER_OFF arrow with a parent</span></div></div>
+      <p>Notice the machine is in <code>brewing</code> and in <code>on</code> at once: <code>brewing</code> sits inside <code>on</code>. Press other events to explore. Powering on enters <code>on</code>, which starts at <code>idle</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ───────────────────────────────────────────── -->
+<section class="step" data-slug="04-pattern" data-title="The same pattern, one level deeper" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">The same pattern, one level deeper</h2>
+    <p>This is not just a coffee trick. Here is a phone app. While signed in you can be at <code>home</code> or in <code>settings</code>, and <code>settings</code> is itself a box holding <code>account</code> and <code>privacy</code>.</p>
+    <p><code>SIGN_OUT</code> is drawn once, on <code>signed in</code>. <code>BACK</code> is drawn on <code>settings</code> (go home) and also on <code>privacy</code> (go to account).</p>
+  </div>
+  <div class="visual"><div data-mount="live4"></div></div>
+  <div class="task">
+    <p class="muted">You are on the <code>privacy</code> page right now.</p>
+    <div data-predict="p4"></div>
+    <div data-after="p4" hidden>
+      <div class="callout good"><span class="k">The pattern, anywhere</span>
+        <ol class="plain"><li>Spot an arrow repeated on several states.</li><li>Put those states in a box.</li><li>Draw the arrow once, on the box.</li></ol>
+        <p>An arrow on an inner state still beats the same event on an outer one, because inner states are asked first. Try <code>SIGN_OUT</code> from <code>privacy</code>: it climbs two levels.</p>
+      </div>
+      <div data-mount="pattern"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ───────────────────────────────────────────── -->
+<section class="step" data-slug="05-two-features" data-title="Two independent choices" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Two independent choices</h2>
+    <p>A music player has two separate facts about it. It is <b>playing</b> or <b>paused</b>. And it is <b>muted</b> or <b>unmuted</b>. Changing one never changes the other. Flip the switches:</p>
+    <div data-mount="switchboard"></div>
+  </div>
+  <div class="visual"><div data-after="p5" hidden><div data-mount="live5"></div></div></div>
+  <div class="task">
+    <div data-predict="p5"></div>
+    <div data-after="p5" hidden>
+      <div class="callout bad"><span class="k">What you are looking at</span><p>Four states and eight arrows for just two on/off features. Look at the arrows: every state carries its own copy of both flips. Press the events and watch the machine hop between combinations.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ───────────────────────────────────────────── -->
+<section class="step" data-slug="06-doubling" data-title="Every new feature doubles it" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Every new feature doubles it</h2>
+    <p>Add a third on/off feature to the player, say <b>repeat</b>. A plain machine is in one state at a time, so it needs a state for every combination of all three facts.</p>
+  </div>
+  <div class="visual"><div data-after="p6" hidden><div data-mount="slider"></div></div></div>
+  <div class="task">
+    <div data-predict="p6"></div>
+    <div data-after="p6" hidden>
+      <div class="callout"><span class="k">The pattern</span><p>Each new on/off feature <b>doubles</b> the flat machine: 2, 4, 8, 16, 32… With regions, each new feature adds one small two-state machine: 2, 4, 6, 8, 10… Drag the slider to see how far apart they get.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 ───────────────────────────────────────────── -->
+<section class="step" data-slug="07-booleans" data-title="Booleans hide the same problem" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Booleans hide the same problem</h2>
+    <p>Many programs skip state machines and keep flags instead: <code>isPlaying</code> and <code>isPaused</code>. Two flags can be set four ways. The player is always either playing or paused.</p>
+  </div>
+  <div class="visual"><div data-mount="bools"></div></div>
+  <div class="task">
+    <div data-predict="p7"></div>
+    <div data-after="p7" hidden>
+      <div class="callout bad"><span class="k">The hidden problem</span><p>Flags don’t forbid the impossible. A bug that forgets to clear <code>isPaused</code> when playback starts leaves both true, and nothing stops it. A region always holds exactly one of its states, so “playing and paused” is something you cannot write.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ───────────────────────────────────────────── -->
+<section class="step" data-slug="08-regions" data-title="Regions: two small machines" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Regions: two small machines side by side</h2>
+    <p>Split the player into two <b>regions</b>. Playback is one tiny machine (<code>playing</code>, <code>paused</code>). Volume is another (<code>unmuted</code>, <code>muted</code>). The player is in one state of <em>each</em> region at the same time.</p>
+    <p class="muted">The player is <code>playing</code> and <code>unmuted</code> right now.</p>
+  </div>
+  <div class="visual"><div data-mount="live8"></div></div>
+  <div class="task">
+    <div data-predict="p8"></div>
+    <div data-after="p8" hidden>
+      <div class="callout good"><span class="k">What to notice</span><p>Every region is asked about every event, and each answers only the events it has arrows for. Four states and four arrows, instead of four states and eight. Add a third feature and you add a third region of two states, not four more combinations.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ───────────────────────────────────────────── -->
+<section class="step wide" data-slug="09-flatten" data-title="Nothing new becomes possible" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Nothing new becomes possible</h2>
+    <div class="callout bad"><span class="k">A common misconception</span><p>“A statechart is a more powerful kind of machine that can do things an ordinary state machine can’t.”</p></div>
+  </div>
+  <div class="visual"><div data-after="p9" hidden><div data-mount="lockstep"></div></div></div>
+  <div class="task">
+    <div data-predict="p9"></div>
+    <div data-after="p9" hidden>
+      <div class="callout"><span class="k">How to flatten any statechart</span>
+        <ol class="plain"><li>Copy each parent’s arrows onto every child inside it.</li><li>Make one flat state for each combination of region states.</li></ol>
+        <p>What is left is an ordinary state machine with the same behaviour. What you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ───────────────────────────────────────────── -->
+<section class="step" data-slug="10-check" data-title="Check yourself" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Check yourself</h2>
+    <p>Three questions. Answer each in your head first, then reveal.</p>
+  </div>
+  <div class="visual"><div data-mount="checks"></div></div>
+  <div class="task"></div>
+</section>
+
+<!-- 11 ───────────────────────────────────────────── -->
+<section class="step" data-slug="11-transfer" data-title="Your turn: a milk frother" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Your turn: add a milk frother</h2>
+    <p>The coffee machine gets a milk frother. It can be switched on or off at <em>any</em> time, whatever the machine is doing, and it doesn’t change how the coffee is made.</p>
+    <p><b>Where does it go in the statechart, and what happens to the flat machine?</b></p>
+  </div>
+  <div class="visual"><div data-after="p11a" hidden>
+    <div data-mount="live11"></div>
+    <div data-after="p11b" hidden><div data-mount="hairball"></div></div>
+  </div></div>
+  <div class="task">
+    <div data-predict="p11a"></div>
+    <div data-after="p11a" hidden>
+      <div class="callout good"><span class="k">Where it goes</span><p>The frother is independent of the coffee steps, so it is a <b>region</b>. It sits inside <code>on</code> so that the one <code>POWER_OFF</code> still switches everything off, frother included. Try <code>FROTH_ON</code> mid-brew, then <code>POWER_OFF</code>.</p></div>
+      <div data-predict="p11b"></div>
+    </div>
+    <div data-after="p11b" hidden>
+      <div class="stats">
+        <div class="stat chart"><span class="n" data-stat="frother.chartArrows"></span><span class="l">arrows in the statechart (<span data-stat="frother.chartStates"></span> states)</span></div>
+        <div class="stat flat"><span class="n" data-stat="frother.flatArrows"></span><span class="l">arrows in the flat machine (<span data-stat="frother.flatStates"></span> states)</span></div>
+      </div>
+      <p><span data-stat="frother.flatOff"></span> of those flat arrows are copies of <code>POWER_OFF</code>, up from 4. Each further on/off feature would double the flat machine again; as a region it adds two states and two arrows.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 12 ───────────────────────────────────────────── -->
+<section class="step wide" data-slug="12-remember" data-title="Remember this" hidden>
+  <div class="intro">
+    <h2 tabindex="-1">Remember this</h2>
+    <div class="recap">
+      <div class="card"><h3>Parents</h3><p>Shared behaviour is written once, on the box, not copied onto each child.</p></div>
+      <div class="card"><h3>Regions</h3><p>Independent features sit side by side, so they add up instead of multiplying.</p></div>
+      <div class="card"><h3>Nothing new</h3><p>Flatten any statechart and you get an ordinary state machine that behaves the same.</p></div>
+    </div>
+    <div class="remember" role="note" aria-label="Sentence to remember">A statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don’t multiply.</div>
+  </div>
+  <div class="visual"></div>
+  <div class="task"></div>
+</section>
+
+</main>
+
+<nav class="bar" aria-label="Lesson steps">
+  <div class="in">
+    <button class="bk" id="back" type="button">Back</button>
+    <div class="mid" id="mid"></div>
+    <button class="nxt" id="next" type="button">Next</button>
+    <ol class="dots" id="dots" aria-label="Jump to a step"></ol>
+  </div>
+</nav>
+<div class="sr-only" id="stepAnnounce" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ═════════ 1. A tiny statechart engine ═════════
+   A machine definition is a tree. A node with children is a parent.
+   A parallel node has regions: all its children are active at once.   */
+const coffeeDef = {name:'coffee', init:'off', children:[
+  {name:'off', on:{POWER_ON:'on'}},
+  {name:'on', init:'idle', on:{POWER_OFF:'off'}, children:[
+    {name:'idle',     on:{START:'grinding'}},
+    {name:'grinding', on:{GRIND_DONE:'brewing'}},
+    {name:'brewing',  on:{BREW_DONE:'ready'}},
+    {name:'ready',    on:{TAKE_CUP:'idle'}}]}]};
+const appDef = {name:'app', init:'signedIn', children:[
+  {name:'signedIn', label:'signed in', init:'home', on:{SIGN_OUT:'signedOut'}, children:[
+    {name:'home', on:{SETTINGS:'settings'}},
+    {name:'settings', init:'account', on:{BACK:'home'}, children:[
+      {name:'account', on:{PRIVACY:'privacy'}},
+      {name:'privacy', on:{BACK:'account'}}]}]},
+  {name:'signedOut', label:'signed out', on:{SIGN_IN:'signedIn'}}]};
+const playerDef = {name:'player', parallel:true, children:[
+  {name:'playback', init:'playing', children:[
+    {name:'playing', on:{PAUSE:'paused'}}, {name:'paused', on:{PLAY:'playing'}}]},
+  {name:'volume', init:'unmuted', children:[
+    {name:'unmuted', on:{MUTE:'muted'}}, {name:'muted', on:{UNMUTE:'unmuted'}}]}]};
+const playbackOnlyDef = {name:'playback', init:'playing', children:[
+  {name:'playing', on:{PAUSE:'paused'}}, {name:'paused', on:{PLAY:'playing'}}]};
+const frotherDef = {name:'machine', init:'off', children:[
+  {name:'off', on:{POWER_ON:'on'}},
+  {name:'on', parallel:true, on:{POWER_OFF:'off'}, children:[
+    {name:'coffee', init:'idle', children:[
+      {name:'idle',     on:{START:'grinding'}},
+      {name:'grinding', on:{GRIND_DONE:'brewing'}},
+      {name:'brewing',  on:{BREW_DONE:'ready'}},
+      {name:'ready',    on:{TAKE_CUP:'idle'}}]},
+    {name:'frother', init:'frotherOff', children:[
+      {name:'frotherOff', label:'frother off', on:{FROTH_ON:'frotherOn'}},
+      {name:'frotherOn',  label:'frother on',  on:{FROTH_OFF:'frotherOff'}}]}]}]};
+
+function compile(def){
+  const nodes = {}; let order = 0;
+  (function walk(d, parent, depth){
+    const n = {id:d.name, label:d.label||d.name, parent, children:[], parallel:!!d.parallel, init:d.init||null, on:d.on||{}, depth, order:order++};
+    nodes[n.id] = n; if(parent) parent.children.push(n);
+    (d.children||[]).forEach(c => walk(c, n, depth+1));
+  })(def, null, 0);
+  return {nodes, root:nodes[def.name]};
+}
+function leavesOf(M, n){
+  if(!n.children.length) return [n.id];
+  if(n.parallel) return n.children.flatMap(c => leavesOf(M, c));
+  return leavesOf(M, M.nodes[n.init]);
+}
+function chain(M, id){ const a=[]; for(let n=M.nodes[id]; n; n=n.parent) a.push(n); return a; }
+const isRegion = n => !!(n.parent && n.parent.parallel);
+
+class Runner{
+  constructor(def){ this.def=def; this.M=compile(def); this.reset(); }
+  reset(){ this.config = leavesOf(this.M, this.M.root); }
+  active(){ const s=new Set(); this.config.forEach(l => chain(this.M,l).forEach(n => s.add(n.id))); return s; }
+  name(){ return this.config.map(l => this.M.nodes[l].label).join(' · '); }
+  /* Ask the innermost active state first, then its parent, and so on outward. */
+  send(ev){
+    const M=this.M, trace=[], taken=new Map();
+    for(const leaf of this.config){
+      const walk=[]; let h=null;
+      for(let n=M.nodes[leaf]; n; n=n.parent){
+        const t=n.on[ev]; walk.push({id:n.id, has:!!t});
+        if(t){ h=n; break; }
+      }
+      trace.push({leaf, walk, handler:h?h.id:null, target:h?h.on[ev]:null, dup:!!(h && taken.has(h.id))});
+      if(h && !taken.has(h.id)) taken.set(h.id, h.on[ev]);
+    }
+    let cfg=[...this.config];
+    for(const [hid,target] of taken){
+      cfg = cfg.filter(l => !chain(M,l).some(n => n.id===hid));
+      cfg.push(...leavesOf(M, M.nodes[target]));
+    }
+    cfg.sort((a,b) => M.nodes[a].order - M.nodes[b].order);
+    const changed = cfg.join()!==this.config.join();
+    this.config = cfg;
+    return {event:ev, trace, fired:[...taken.keys()].map(h => h+'|'+ev), changed};
+  }
+}
+function describe(M, active){
+  const d = n => {
+    const kids = n.children.filter(c => active.has(c.id));
+    if(!kids.length) return n.label;
+    const parts = kids.map(d);
+    const inner = n.parallel ? '('+parts.join(' | ')+')' : parts[0];
+    return n.parent ? n.label+' › '+inner : inner;
+  };
+  return d(M.root);
+}
+/* Flatten: turn any statechart into an ordinary machine (one flat state per reachable combination). */
+function flatten(def){
+  const base=new Runner(def), M=base.M;
+  const events=[...new Set(Object.values(M.nodes).flatMap(n => Object.keys(n.on)))];
+  const lab = cfg => cfg.map(l => M.nodes[l].label).join(' · ');
+  const seen=new Map([[lab(base.config), 1]]), trans={}, queue=[base.config.slice()];
+  while(queue.length){
+    const cfg=queue.shift(), from=lab(cfg); trans[from]={};
+    for(const ev of events){
+      const r=new Runner(def); r.config=cfg.slice();
+      if(r.send(ev).changed){
+        const to=lab(r.config); trans[from][ev]=to;
+        if(!seen.has(to)){ seen.set(to,1); queue.push(r.config.slice()); }
+      }
+    }
+  }
+  const names=[...seen.keys()];
+  return {name:'flat', init:names[0], children:names.map(n => ({name:n, on:trans[n]}))};
+}
+const arrowCount = def => { let c=0; (function w(d){ c+=Object.keys(d.on||{}).length; (d.children||[]).forEach(w); })(def); return c; };
+const leafCount  = def => { let c=0; (function w(d){ if(!(d.children||[]).length) c++; (d.children||[]).forEach(w); })(def); return c; };
+const countEvent = (def, ev) => { let c=0; (function w(d){ if(d.on && d.on[ev]) c++; (d.children||[]).forEach(w); })(def); return c; };
+const withoutEvent = (def, ev) => { const cp=JSON.parse(JSON.stringify(def)); (function w(d){ if(d.on) delete d.on[ev]; (d.children||[]).forEach(w); })(cp); return cp; };
+const eventsOf = def => [...new Set(Object.values(compile(def).nodes).flatMap(n => Object.keys(n.on)))];
+
+/* ═════════ 2. Diagram layouts (hand-placed, viewBox ≈ 400 wide so text stays legible on phones) ═════════ */
+const N = (id,x,y,w,h,label,o={}) => ({id,x,y,w,h,label,...o});
+const E = (k,d,lx,ly,a='middle') => ({k,d,lx,ly,a});
+const SPEC = {};
+
+const coffeeCycle = [
+  E('idle|START',          'M260 69 L260 97',   268, 87, 'start'),
+  E('grinding|GRIND_DONE', 'M260 135 L260 163', 268,153, 'start'),
+  E('brewing|BREW_DONE',   'M260 201 L260 229', 268,219, 'start'),
+  E('ready|TAKE_CUP',      'M320 248 H352 V50 H320', 352,112, 'middle')];
+const coffeeStates = [N('idle',200,31,120,38,'idle'), N('grinding',200,97,120,38,'grinding'), N('brewing',200,163,120,38,'brewing'), N('ready',200,229,120,38,'ready')];
+SPEC.coffeeFlat = {w:400,h:290,aria:'Coffee machine as a plain state machine: off, idle, grinding, brewing and ready, with one POWER_OFF arrow from each of the four working states.',
+  nodes:[N('off',10,109,80,80,'off'), ...coffeeStates],
+  edges:[...coffeeCycle,
+    E('off|POWER_ON','M50 109 C50 40 120 38 200 42', 100, 38),
+    E('idle|POWER_OFF','M200 58 L90 123', 152, 83),
+    E('grinding|POWER_OFF','M200 116 L90 141', 152,124),
+    E('brewing|POWER_OFF','M200 182 L90 159', 152,175),
+    E('ready|POWER_OFF','M200 248 L90 177', 152,224)]};
+SPEC.coffeeBox = {w:400,h:290,aria:'Coffee machine as a statechart: a box called on holds idle, grinding, brewing and ready. One POWER_OFF arrow leaves the box to off.',
+  nodes:[N('off',10,109,80,80,'off'), N('on',188,4,196,282,'on',{title:true}), ...coffeeStates],
+  initials:[{x:238,y:15,y2:31}],
+  extras:['<text class="note" x="248" y="19">starts at idle</text>'],
+  edges:[...coffeeCycle,
+    E('off|POWER_ON','M50 109 C50 40 110 40 188 40', 96, 37),
+    E('on|POWER_OFF','M188 168 L90 168', 139, 160)]};
+
+SPEC.app = {w:400,h:326,aria:'Phone app as a statechart. A box signed in holds home and a box settings; settings holds account and privacy. Below is signed out.',
+  nodes:[N('signedIn',8,6,384,246,'signed in',{title:true}), N('home',20,84,90,48,'home'),
+    N('settings',192,34,188,206,'settings',{title:true}), N('account',210,74,152,36,'account'), N('privacy',210,166,152,36,'privacy'),
+    N('signedOut',120,282,160,36,'signed out')],
+  initials:[{x:65,y:52,y2:84},{x:330,y:50,y2:74}],
+  edges:[E('home|SETTINGS','M110 100 L192 100',151,92), E('settings|BACK','M192 122 L110 122',151,135),
+    E('account|PRIVACY','M250 110 L250 166',258,142,'start'), E('privacy|BACK','M326 166 L326 110',334,142,'start'),
+    E('signedIn|SIGN_OUT','M150 252 L150 282',158,271,'start'), E('signedOut|SIGN_IN','M250 282 L250 252',258,271,'start')]};
+
+SPEC.playerFlat = {w:400,h:228,aria:'Music player as a plain state machine: four states, one for each combination of playing or paused and muted or unmuted, with eight arrows between them.',
+  nodes:[N('playing · unmuted',16,24,140,50,['playing','unmuted']), N('playing · muted',244,24,140,50,['playing','muted']),
+         N('paused · unmuted',16,154,140,50,['paused','unmuted']), N('paused · muted',244,154,140,50,['paused','muted'])],
+  edges:[E('playing · unmuted|MUTE','M156 41 L244 41',200,36), E('playing · muted|UNMUTE','M244 57 L156 57',200,70),
+    E('paused · unmuted|MUTE','M156 171 L244 171',200,166), E('paused · muted|UNMUTE','M244 187 L156 187',200,200),
+    E('playing · unmuted|PAUSE','M70 74 L70 154',64,118,'end'), E('paused · unmuted|PLAY','M102 154 L102 74',108,118,'start'),
+    E('playing · muted|PAUSE','M298 74 L298 154',292,118,'end'), E('paused · muted|PLAY','M330 154 L330 74',336,118,'start')]};
+SPEC.playerRegions = {w:400,h:214,aria:'Music player as a statechart with two regions side by side. The playback region holds playing and paused. The volume region holds unmuted and muted.',
+  nodes:[N('player',8,6,384,202,'player',{title:true}), N('playback',16,34,180,166,'playback',{title:true}), N('volume',204,34,180,166,'volume',{title:true}),
+    N('playing',36,76,140,40,'playing'), N('paused',36,150,140,40,'paused'), N('unmuted',224,76,140,40,'unmuted'), N('muted',224,150,140,40,'muted')],
+  initials:[{x:150,y:46,y2:76},{x:338,y:46,y2:76}],
+  extras:['<text class="note" x="64" y="24">two regions, both active at the same time</text>'],
+  edges:[E('playing|PAUSE','M88 116 L88 150',80,137,'end'), E('paused|PLAY','M124 150 L124 116',132,137,'start'),
+    E('unmuted|MUTE','M276 116 L276 150',262,137,'end'), E('muted|UNMUTE','M312 150 L312 116',320,137,'start')]};
+SPEC.frother = {w:400,h:384,aria:'Coffee machine with a milk frother. A box called on contains two regions: coffee, with idle, grinding, brewing and ready; and frother, with frother off and frother on. Above it is off.',
+  nodes:[N('off',140,6,120,36,'off'), N('on',8,82,384,296,'on',{title:true}),
+    N('coffee',16,108,206,262,'coffee',{title:true}), N('frother',230,108,154,162,'frother',{title:true}),
+    N('idle',40,135,120,34,'idle'), N('grinding',40,197,120,34,'grinding'), N('brewing',40,259,120,34,'brewing'), N('ready',40,321,120,34,'ready'),
+    N('frotherOff',252,135,110,34,'frother off'), N('frotherOn',252,209,110,34,'frother on')],
+  initials:[{x:150,y:120,y2:135},{x:340,y:120,y2:135}],
+  edges:[E('off|POWER_ON','M180 42 L180 82',174,66,'end'), E('on|POWER_OFF','M220 82 L220 42',226,66,'start'),
+    E('idle|START','M100 169 L100 197',108,187,'start'), E('grinding|GRIND_DONE','M100 231 L100 259',108,249,'start'), E('brewing|BREW_DONE','M100 293 L100 321',108,311,'start'),
+    E('ready|TAKE_CUP','M160 338 H192 V152 H160',192,205,'middle'),
+    E('frotherOff|FROTH_ON','M294 169 L294 209',288,193,'end'), E('frotherOn|FROTH_OFF','M318 209 L318 169',324,193,'start')]};
+
+/* ═════════ 3. Diagram renderer ═════════ */
+let uid = 0;
+class Dia{
+  constructor(host, spec, M, o={}){
+    this.spec=spec; this.M=M; this.o=o; const id='d'+(++uid); this.id=id;
+    let h=`<svg class="dia" viewBox="0 0 ${spec.w} ${spec.h}" role="img" aria-label="${esc(spec.aria)}" focusable="false"><defs>`+
+      ['','w','h'].map(k => `<marker id="${id}${k||'a'}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="mk${k}"/></marker>`).join('')+`</defs>`;
+    const drawn=spec.nodes.filter(n => M.nodes[n.id]);
+    const kind = n => { const m=M.nodes[n.id]; return m.children.length ? (isRegion(m)?'region':'box') : 'leaf'; };
+    // boxes and regions first, leaves on top
+    [...drawn].sort((a,b) => M.nodes[a.id].depth - M.nodes[b.id].depth).forEach(n => {
+      const k=kind(n), cy=n.y+n.h/2;
+      h+=`<g class="node ${k}" data-id="${esc(n.id)}"><rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${k==='leaf'?9:12}"/>`;
+      if(k==='leaf'){
+        const L=Array.isArray(n.label)?n.label:[n.label];
+        h+= L.length===1 ? `<text class="lbl" x="${n.x+n.w/2}" y="${cy+4.5}">${esc(L[0])}</text>`
+          : `<text class="lbl" x="${n.x+n.w/2}" y="${cy-3}">${esc(L[0])}</text><text class="lbl lbl2" x="${n.x+n.w/2}" y="${cy+13}">${esc(L[1])}</text>`;
+      } else h+=`<text class="ttl" x="${n.x+12}" y="${n.y+18}">${esc(M.nodes[n.id].label)}</text>`;
+      if(k!=='region' && !(k==='box' && M.nodes[n.id].parallel && !M.nodes[n.id].parent)) h+=`<g class="badge" transform="translate(${n.x+n.w-3} ${n.y+3})"><circle r="9"/><text y="4.5"></text></g>`;
+      h+=`</g>`;
+    });
+    (spec.initials||[]).forEach(i => { h+=`<g class="init"><circle cx="${i.x}" cy="${i.y}" r="3.6"/><path d="M${i.x} ${i.y+3.6} L${i.x} ${i.y2}" marker-end="url(#${id}a)"/></g>`; });
+    (spec.extras||[]).forEach(x => h+=x);
+    spec.edges.forEach(e => {
+      const [hid,ev]=e.k.split('|'); if(!(M.nodes[hid] && M.nodes[hid].on[ev])) return;
+      const hl = o.hl===ev;
+      h+=`<g class="edge${hl?' hl':''}" data-key="${esc(e.k)}"><path d="${e.d}" marker-end="url(#${id}${hl?'w':'a'})"/><text x="${e.lx}" y="${e.ly}" text-anchor="${e.a}">${ev}</text></g>`;
+    });
+    h+=`</svg>`;
+    host.innerHTML=h; this.svg=host.firstChild;
+    this.nodeEl={}; $$('.node',this.svg).forEach(g => this.nodeEl[g.dataset.id]=g);
+    this.edgeEl={}; $$('.edge',this.svg).forEach(g => this.edgeEl[g.dataset.key]=g);
+  }
+  setActive(set, text){
+    for(const id in this.nodeEl) this.nodeEl[id].classList.toggle('active', set.has(id));
+    this.svg.setAttribute('aria-label', this.spec.aria+(text?' Currently in: '+text+'.':''));
+  }
+  clearMarks(){
+    for(const id in this.nodeEl) this.nodeEl[id].classList.remove('qno','qyes','qign');
+    for(const k in this.edgeEl){ this.edgeEl[k].classList.remove('fired'); this.edgeEl[k].firstChild.setAttribute('marker-end',`url(#${this.id}${this.edgeEl[k].classList.contains('hl')?'w':'a'})`); }
+  }
+  mark(id, yes, ign){
+    const g=this.nodeEl[id]; if(!g) return;
+    g.classList.remove('qno','qyes','qign'); g.classList.add(ign?'qign':yes?'qyes':'qno');
+    g.querySelector('.badge text').textContent = ign ? '✗' : yes ? '✓' : '↑';
+  }
+  fire(keys){ keys.forEach(k => { const g=this.edgeEl[k]; if(g){ g.classList.add('fired'); g.firstChild.setAttribute('marker-end',`url(#${this.id}h)`); } }); }
+}
+
+/* ═════════ 4. Live panel: a running machine, a diagram, event buttons and a visible trace ═════════ */
+class Live{
+  constructor(host, o){ this.host=host; this.o=o; this.frames=[]; this.timer=null; this.setDef(o.def); }
+  setDef(def){
+    const o=this.o; this.runner=new Runner(def);
+    (o.setup||[]).forEach(e => this.runner.send(e));
+    this.initialConfig=this.runner.config.slice();
+    const evs = o.events || eventsOf(def);
+    this.host.innerHTML = `<div class="live"><div class="dia-slot"></div>
+      <div class="legend" aria-hidden="true"><span class="lg"><i class="cur"></i>where the machine is now</span>${o.trace===false?'':'<span class="lg"><i class="no">↑</i>asked, passes it up</span><span class="lg"><i class="yes">✓</i>has the arrow</span><span class="lg"><i class="ign">✗</i>ignores it</span>'}${o.hl?'<span class="lg"><i class="hl"></i>repeated arrow</span>':''}</div>
+      <p class="readout" aria-live="off">Now in: <b class="ro"></b></p>
+      ${o.controls===false?'':`<div class="evrow" role="group" aria-label="Send an event to the machine">${evs.map(e => `<button type="button" class="ev" data-ev="${e}">${e}</button>`).join('')}<button type="button" class="btn2 rs">Reset</button></div>`}
+      ${o.trace===false?'':`<div class="trace" aria-label="What happened to the last event"><p class="hint">Press an event to see which state answers it.</p></div>`}
+      <div class="sr-only" role="status"></div></div>`;
+    this.dia=new Dia($('.dia-slot',this.host), o.spec, this.runner.M, {hl:o.hl});
+    this.traceEl=$('.trace',this.host); this.srEl=$('[role=status]',this.host);
+    $$('.ev',this.host).forEach(b => b.addEventListener('click', () => this.send(b.dataset.ev)));
+    const rs=$('.rs',this.host); if(rs) rs.addEventListener('click', () => this.reset());
+    this.refresh();
+  }
+  refresh(){
+    const a=this.runner.active(), t=describe(this.runner.M,a);
+    this.dia.setActive(a,t); $('.ro',this.host).textContent=t;
+    if(this.o.onChange) this.o.onChange(this);
+  }
+  reset(){
+    this.finish(); this.runner.reset(); (this.o.setup||[]).forEach(e => this.runner.send(e));
+    this.dia.clearMarks(); if(this.traceEl) this.traceEl.innerHTML='<p class="hint">Reset. Press an event to see which state answers it.</p>';
+    this.srEl.textContent='Machine reset.'; this.refresh();
+  }
+  finish(){ clearTimeout(this.timer); while(this.frames.length) this.frames.shift()(); }
+  lanes(res){
+    const M=this.runner.M, L=id => M.nodes[id].label, ev=res.event, multi=res.trace.length>1;
+    const start = id => { const lv=leavesOf(M,M.nodes[id]); return (lv.length===1 && lv[0]===id) ? '' : lv.map(L); };
+    return res.trace.map(t => {
+      const items=[], shown=t.walk.filter(w => { const n=M.nodes[w.id]; return n.parent && !isRegion(n); });
+      shown.forEach(w => {
+        if(w.has){
+          const tg=t.target, st=start(tg), stH=st?`, which starts at <b>${st.map(esc).join(' and ')}</b>`:'', stP=st?`, which starts at ${st.join(' and ')}`:'';
+          items.push({id:w.id, yes:true, cls:'yes', ic:'✓',
+            html:`<span><b>${esc(L(w.id))}</b> has an arrow for <code>${ev}</code>${t.dup?' (the same arrow the other region reached, so it is taken once)':''}. Take it: go to <b>${esc(L(tg))}</b>${stH}.</span>`,
+            plain:`${L(w.id)} has an arrow for ${ev}. Take it: go to ${L(tg)}${stP}.`});
+        } else {
+          items.push({id:w.id, yes:false, cls:'no', ic:'↑',
+            html:`<span><b>${esc(L(w.id))}</b> has no arrow for <code>${ev}</code>. Ask its parent.</span>`, plain:`${L(w.id)} has no arrow for ${ev}. Ask its parent.`});
+        }
+      });
+      let last=items[items.length-1];
+      if(!t.handler){
+        if(last){ const nm=L(shown[shown.length-1].id);
+          last.html= multi ? `<span><b>${esc(nm)}</b> has no arrow for <code>${ev}</code>, and nothing above it in this region does either. This region ignores the event; it stays put.</span>` : `<span><b>${esc(nm)}</b> has no arrow for <code>${ev}</code>, and there is no parent left to ask. The event is ignored; nothing changes.</span>`;
+          last.plain= multi ? `${nm} has no arrow for ${ev}, and nothing above it in this region does either. This region ignores the event.` : `${nm} has no arrow for ${ev}, and there is no parent left. Ignored.`; last.cls='ign'; last.ic='✗'; last.ign=true; }
+      }
+      // region heading
+      let title=''; if(multi){ const reg=chain(M,t.leaf).find(n => isRegion(n)); title = reg ? reg.label+' region' : ''; }
+      return {title, items};
+    });
+  }
+  send(ev){
+    this.finish();
+    const res=this.runner.send(ev); this.last=res;
+    this.dia.clearMarks();
+    if(this.traceEl){
+      const lanes=this.lanes(res); this.traceEl.className='trace'+(lanes.length>1?' two':''); this.traceEl.innerHTML='';
+      const ols=lanes.map(l => { const d=document.createElement('div'); d.className='lane'; d.innerHTML=(l.title?`<h4>${esc(l.title)}</h4>`:'')+'<ol></ol>'; this.traceEl.append(d); return $('ol',d); });
+      const li=(it) => { const e=document.createElement('li'); e.className=it.cls; e.innerHTML=`<span class="ic" aria-hidden="true">${it.ic}</span>${it.html}`; return e; };
+      const rounds=Math.max(...lanes.map(l => l.items.length), 0);
+      for(let r=0;r<rounds;r++) this.frames.push(() => lanes.forEach((l,i) => { const it=l.items[r]; if(it){ this.dia.mark(it.id,it.yes,it.ign); ols[i].append(li(it)); } }));
+      this.frames.push(() => {
+        const a=this.runner.active(), t=describe(this.runner.M,a);
+        if(res.changed) { const d=document.createElement('li'); d.className='done'; d.innerHTML=`<span class="ic" aria-hidden="true">→</span><span>Now in <b>${esc(t)}</b>.</span>`; (ols[ols.length-1]).append(d); }
+        else if(lanes.every(l => !l.items.some(i => i.yes))){ /* ignored text already shown */ }
+        this.dia.fire(res.fired); this.refresh();
+        this.srEl.textContent = ev+'. '+lanes.map(l => (l.title?l.title+': ':'')+l.items.map(i => i.plain).join(' ')).join(' ')+' Now in: '+t+'.';
+      });
+    }else{
+      this.frames.push(() => { this.dia.fire(res.fired); this.refresh(); });
+    }
+    if(reduce || this.o.fast) this.finish(); else this.step();
+  }
+  step(){ if(!this.frames.length) return; this.frames.shift()(); this.timer=setTimeout(() => this.step(), 620); }
+}
+
+/* ═════════ 5. Prediction component ═════════ */
+const predictions = {};
+function Predict(host, id, cfg){
+  const optsHtml = cfg.options.map((o,i) => `<button type="button" class="opt" data-i="${i}">${o.text}<span class="mk2" hidden></span></button>`).join('');
+  host.innerHTML = `<div class="predict" role="group" aria-labelledby="pq-${id}"><p class="pq" id="pq-${id}"><span class="tag">Predict first</span>${cfg.q}</p><div class="opts">${optsHtml}</div><button type="button" class="skipbtn">I’m not sure. Just show me.</button></div><div class="fb" role="status" hidden></div>`;
+  const fb=$('.fb',host), btns=$$('.opt',host), skip=$('.skipbtn',host);
+  const right=cfg.options.findIndex(o => o.correct);
+  function reveal(i){
+    if(predictions[id]) return; predictions[id]={picked:i};
+    btns.forEach((b,j) => { b.disabled=true; const m=$('.mk2',b);
+      if(j===right){ b.classList.add('right'); m.hidden=false; m.textContent = i===j ? '✓ Your answer, and correct' : '✓ The answer'; }
+      else if(j===i){ b.classList.add('wrong'); m.hidden=false; m.textContent='✗ Your answer'; } });
+    skip.hidden=true;
+    const lead = i===right ? '<strong class="v">Right.</strong>' : i<0 ? '<strong class="v">Here is the answer.</strong>' : `<strong class="v">Not quite.</strong><p>${cfg.options[i].why}</p>`;
+    fb.innerHTML = lead+`<p>${cfg.explain}</p>`; fb.hidden=false;
+    $$(`[data-after="${id}"]`).forEach(e => e.hidden=false);
+    if(cfg.onReveal) cfg.onReveal(i);
+    if(!reduce) fb.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+  btns.forEach((b,i) => b.addEventListener('click', () => reveal(i)));
+  skip.addEventListener('click', () => reveal(-1));
+}
+
+/* ═════════ 6. Static pictures ═════════ */
+function cards3(){
+  const A='M0 0L10 5L0 10z';
+  const svg = (inner,label) => `<svg class="dia ico" viewBox="0 0 220 124" role="img" aria-label="${esc(label)}" focusable="false"><defs><marker id="cm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="${A}" class="mk"/></marker></defs>${inner}</svg>`;
+  const c1 = svg(`<rect x="8" y="42" width="54" height="34" rx="9" class="fillme"/><rect x="83" y="42" width="54" height="34" rx="9"/><rect x="158" y="42" width="54" height="34" rx="9"/>
+    <path d="M62 59 H83" marker-end="url(#cm)"/><path d="M137 59 H158" marker-end="url(#cm)"/><path d="M185 76 C185 112 35 112 35 80" marker-end="url(#cm)"/>`,'Three states in a loop, joined by arrows. One state is filled: the machine is in exactly one state.');
+  const c2 = svg(`<rect x="8" y="8" width="128" height="108" rx="12" class="boxr"/><rect x="26" y="22" width="92" height="22" rx="7"/><rect x="26" y="51" width="92" height="22" rx="7"/><rect x="26" y="80" width="92" height="22" rx="7" class="fillme"/>
+    <path d="M136 62 H168" marker-end="url(#cm)"/><rect x="170" y="44" width="44" height="34" rx="9"/>`,'A box containing three states, with a single arrow leaving the box to another state.');
+  const c3 = svg(`<rect x="8" y="8" width="204" height="108" rx="12" class="boxr"/><path d="M110 14 V110" class="dash"/>
+    <rect x="24" y="24" width="72" height="30" rx="7" class="fillme"/><rect x="24" y="68" width="72" height="30" rx="7"/><rect x="124" y="24" width="72" height="30" rx="7"/><rect x="124" y="68" width="72" height="30" rx="7" class="fillme"/>`,'A box split in two halves by a dashed line. Each half has two states and exactly one is filled in each half.');
+  return `<div class="cards3"><div class="card">${c1}<p><b>Ordinary machine.</b> One state at a time.</p></div><div class="card">${c2}<p><b>Addition 1.</b> A state that holds states.</p></div><div class="card">${c3}<p><b>Addition 2.</b> Parts side by side.</p></div></div>`;
+}
+function patternStrip(){
+  const R=(x,y,w,h,c='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" class="${c}"/>`;
+  let s=`<svg class="dia ico" viewBox="0 0 420 164" role="img" aria-label="Left: four states each have their own arrow labelled EXIT to the same target. Right: the four states sit in a box and one EXIT arrow leaves the box to the same target." focusable="false" style="margin-top:12px"><defs><marker id="ps" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="mk"/></marker></defs>`;
+  const ys=[8,40,72,104];
+  ys.forEach((y,i) => { s+=R(8,y,70,24)+`<path d="M78 ${y+12} L150 ${70+(i-1.5)*6}" marker-end="url(#ps)"/>`; });
+  s+=R(152,52,50,34);
+  s+=R(222,2,88,136,'boxr');
+  ys.forEach(y => { s+=R(232,y,68,24); });
+  s+=`<path d="M310 69 L364 69" marker-end="url(#ps)"/>`+R(366,52,50,34);
+  s+=`<text class="cap" x="105" y="156" text-anchor="middle">same arrow, four times</text><text class="cap" x="316" y="156" text-anchor="middle">drawn once, on the box</text>`;
+  return s+`</svg>`;
+}
+
+/* ═════════ 7. Mount each step's interactive pieces ═════════ */
+const mounts = {};
+const frothFlat = flatten(frotherDef);
+const stats = {
+  'coffee.flatOff': countEvent(flatten(coffeeDef),'POWER_OFF'), 'coffee.boxOff': countEvent(coffeeDef,'POWER_OFF'),
+  'frother.chartArrows': arrowCount(frotherDef), 'frother.chartStates': leafCount(frotherDef),
+  'frother.flatArrows': arrowCount(frothFlat), 'frother.flatStates': leafCount(frothFlat), 'frother.flatOff': countEvent(frothFlat,'POWER_OFF')
+};
+$$('[data-stat]').forEach(e => e.textContent = stats[e.dataset.stat]);
+
+$('[data-mount=cards3]').innerHTML = cards3();
+$('[data-mount=pattern]').innerHTML = patternStrip();
+
+/* step 2 */
+const flatCoffee = flatten(coffeeDef);
+mounts.live2 = new Live($('[data-mount=live2]'), {def:withoutEvent(flatCoffee,'POWER_OFF'), spec:SPEC.coffeeFlat, setup:['POWER_ON'], hl:'POWER_OFF',
+  events:['START','GRIND_DONE','BREW_DONE','TAKE_CUP','POWER_OFF','POWER_ON']});
+Predict($('[data-predict=p2]'),'p2',{q:'In a plain state machine, how many POWER_OFF arrows does the power button need?',
+  options:[
+    {text:'One.', why:'A plain machine only looks at the state it is in. One arrow belongs to one state, so the other three would not react.'},
+    {text:'Four: one from each of idle, grinding, brewing and ready.', correct:true},
+    {text:'Five: one from every state, including off.', why:'Off is already off. An arrow from it would go nowhere, so it needs none.'}],
+  explain:'Four. A plain machine only looks at the state it is in, so each of the four working states needs its own <code>POWER_OFF</code> arrow. The four copies are now drawn in orange.',
+  onReveal(){ mounts.live2.setDef(flatCoffee); }});
+
+/* step 3 */
+mounts.live3 = new Live($('[data-mount=live3]'), {def:coffeeDef, spec:SPEC.coffeeBox, setup:['POWER_ON','START','GRIND_DONE'], hl:'POWER_OFF', fast:false,
+  events:['START','GRIND_DONE','BREW_DONE','TAKE_CUP','POWER_OFF','POWER_ON']});
+Predict($('[data-predict=p3]'),'p3',{q:'POWER_OFF arrives while the machine is brewing. The brewing state has no POWER_OFF arrow. What happens?',
+  options:[
+    {text:'Nothing. Brewing doesn’t handle POWER_OFF, so it is ignored.', why:'Not ignored yet: an unhandled event is passed up to the parent first.'},
+    {text:'It goes up to on, which has the arrow, and the machine turns off.', correct:true},
+    {text:'The machine breaks, because no arrow was drawn from brewing.', why:'The parent step exists precisely so that a missing arrow isn’t a dead end.'}],
+  explain:'Brewing is asked first and has no <code>POWER_OFF</code> arrow, so the event goes up to <code>on</code>. <code>on</code> has the arrow, so the machine moves to <code>off</code>. Watch the trace on the right.',
+  onReveal(){ mounts.live3.send('POWER_OFF'); }});
+
+/* step 4 */
+mounts.live4 = new Live($('[data-mount=live4]'), {def:appDef, spec:SPEC.app, setup:['SETTINGS','PRIVACY'], events:['SETTINGS','PRIVACY','BACK','SIGN_OUT','SIGN_IN']});
+Predict($('[data-predict=p4]'),'p4',{q:'On the privacy page you press BACK. Where do you land?',
+  options:[
+    {text:'Home.', why:'That is what settings does with BACK, but privacy is asked first, and privacy has its own BACK arrow.'},
+    {text:'Account.', correct:true},
+    {text:'Signed out.', why:'BACK is not SIGN_OUT. Nothing on the way up turns BACK into a sign out.'}],
+  explain:'Privacy is asked first and has its own <code>BACK</code>, so the inner arrow wins and you land on <code>account</code>. From <code>account</code>, <code>BACK</code> would travel up to <code>settings</code>, which sends you home.',
+  onReveal(){ mounts.live4.send('BACK'); }});
+
+/* step 5 */
+(function(){
+  const host=$('[data-mount=switchboard]'); let st={p:'playing',v:'unmuted'};
+  host.innerHTML=`<div class="sb"><div class="grp"><span class="t">Playback</span><div class="seg" role="group" aria-label="Playback"><button type="button" data-g="p" data-v="playing">playing</button><button type="button" data-g="p" data-v="paused">paused</button></div></div>
+  <div class="grp"><span class="t">Volume</span><div class="seg" role="group" aria-label="Volume"><button type="button" data-g="v" data-v="unmuted">unmuted</button><button type="button" data-g="v" data-v="muted">muted</button></div></div>
+  <p class="status" role="status"></p></div>`;
+  const upd=()=>{ $$('button',host).forEach(b => b.setAttribute('aria-pressed', st[b.dataset.g]===b.dataset.v)); $('.status',host).innerHTML=`Right now: <b>${st.p}</b> and <b>${st.v}</b>. Two independent facts, so the player is in one of 2 × 2 combinations.`; };
+  $$('button',host).forEach(b => b.addEventListener('click', () => { st[b.dataset.g]=b.dataset.v; upd(); })); upd();
+})();
+mounts.live5 = new Live($('[data-mount=live5]'), {def:flatten(playerDef), spec:SPEC.playerFlat, events:['PLAY','PAUSE','MUTE','UNMUTE']});
+Predict($('[data-predict=p5]'),'p5',{q:'A plain state machine is in exactly one state at a time. How many states does it need to remember both facts?',
+  options:[
+    {text:'2.', why:'Two states can only remember one of the facts. You would lose whether the player is muted.'},
+    {text:'3.', why:'Every combination can really happen, including paused and muted, so none can be dropped.'},
+    {text:'4.', correct:true}],
+  explain:'Four, one for every combination: playing and unmuted, playing and muted, paused and unmuted, paused and muted.'});
+
+/* step 6 */
+(function(){
+  const host=$('[data-mount=slider]'), names=['playback','volume','repeat','shuffle','crossfade','autoplay','lyrics','casting'];
+  host.innerHTML=`<div class="card"><label for="nf" style="font-weight:700">Independent on/off features: <output id="nfo">3</output></label>
+   <input id="nf" type="range" min="1" max="8" value="3" aria-describedby="nfl"><p class="muted" id="nfl" style="margin:0 0 10px"></p>
+   <div class="cols2"><div class="card"><h3>Flat machine</h3><p class="big" style="color:var(--warn)"><span id="fs"></span> states</p><p class="muted" style="margin:0"><span id="fa"></span> arrows</p><div class="tiles" id="ft" aria-hidden="true"></div></div>
+   <div class="card"><h3>With regions</h3><p class="big" style="color:var(--accent)"><span id="rs"></span> states</p><p class="muted" style="margin:0"><span id="ra"></span> arrows</p><div class="tiles r" id="rt" aria-hidden="true"></div></div></div></div>`;
+  const nf=$('#nf',host);
+  const upd=()=>{ const n=+nf.value, f=2**n; $('#nfo',host).textContent=n;
+    $('#nfl',host).textContent='Features: '+names.slice(0,n).join(', ')+'.';
+    $('#fs',host).textContent=f; $('#fa',host).textContent=n*f; $('#rs',host).textContent=2*n; $('#ra',host).textContent=2*n;
+    $('#ft',host).innerHTML='<i></i>'.repeat(f); $('#rt',host).innerHTML=Array.from({length:n},()=>'<span class="pair"><i class="on"></i><i></i></span>').join(''); };
+  nf.addEventListener('input',upd); upd();
+})();
+Predict($('[data-predict=p6]'),'p6',{q:'Repeat is added to the player. How many states does the plain machine need now?',
+  options:[
+    {text:'6, because 4 + 2.', why:'Adding would be right if repeat were a separate machine. A plain machine must remember all three facts together.'},
+    {text:'8.', correct:true},
+    {text:'12.', why:'That overcounts. Each of the existing 4 states exists once with repeat off and once with repeat on: 4 × 2.'}],
+  explain:'Eight. Every one of the four existing states now comes in two versions, repeat off and repeat on. Each new on/off feature doubles the count.'});
+
+/* step 7 */
+(function(){
+  const host=$('[data-mount=bools]'); let p=true, q=false;
+  const pb=new Runner(playbackOnlyDef);
+  host.innerHTML=`<div class="bools"><div style="display:grid;gap:14px">
+   <div class="card"><h3>With two booleans</h3>
+     <label class="sw"><input type="checkbox" id="bp"> <span class="mono">isPlaying</span> <b id="bpv"></b></label>
+     <label class="sw"><input type="checkbox" id="bq"> <span class="mono">isPaused</span> <b id="bqv"></b></label>
+     <table class="b4"><caption class="sr-only">All four settings of the two flags</caption><thead><tr><th></th><th scope="col">isPaused false</th><th scope="col">isPaused true</th></tr></thead><tbody>
+      <tr><th scope="row">isPlaying true</th><td class="okc" data-c="TF">true / false<span class="m">playing: fine</span></td><td class="badc" data-c="TT">true / true<span class="m">both?! impossible</span></td></tr>
+      <tr><th scope="row">isPlaying false</th><td class="badc" data-c="FF">false / false<span class="m">neither?! impossible</span></td><td class="okc" data-c="FT">false / true<span class="m">paused: fine</span></td></tr></tbody></table>
+     <button type="button" class="btn2" id="bug">Simulate the bug: forget to clear a flag</button>
+     <p class="status" id="bst" role="status"></p></div>
+   <div class="card"><h3>With one region</h3><p style="margin:0 0 8px">Playback is exactly one of two states.</p>
+     <div class="evrow"><button type="button" class="ev" data-e="PLAY">PLAY</button><button type="button" class="ev" data-e="PAUSE">PAUSE</button><button type="button" class="btn2" id="both">Try to be both</button></div>
+     <p class="status ok" id="rst" role="status"></p></div></div></div>`;
+  const cell=()=>q?(p?'TT':'FT'):(p?'TF':'FF');
+  const updB=()=>{ $('#bp',host).checked=p; $('#bq',host).checked=q; $('#bpv',host).textContent=p; $('#bqv',host).textContent=q;
+    $$('td',host).forEach(td => td.classList.toggle('cur', td.dataset.c===cell()));
+    const s=$('#bst',host), c=cell(), revealed=$('.bools',host).classList.contains('revealed');
+    s.className='status'+(revealed ? (c==='TF'||c==='FT'?' ok':' bad') : '');
+    s.textContent = !revealed ? `isPlaying is ${p} and isPaused is ${q}.` : c==='TT' ? 'isPlaying and isPaused are both true. The player claims to be playing and paused. Nothing stops this.' : c==='FF' ? 'Both flags are false. The player claims to be neither playing nor paused. Nothing stops this.' : c==='TF' ? 'A sensible setting: playing.' : 'A sensible setting: paused.'; };
+  $('#bp',host).addEventListener('change',e => { p=e.target.checked; updB(); });
+  $('#bq',host).addEventListener('change',e => { q=e.target.checked; updB(); });
+  $('#bug',host).addEventListener('click',() => { p=true; q=true; updB(); });
+  const updR=(msg)=>{ $('#rst',host).innerHTML = (msg||'')+`Playback is <b>${pb.name()}</b>.`; };
+  $$('[data-e]',host).forEach(b => b.addEventListener('click',() => { pb.send(b.dataset.e); updR(); }));
+  $('#both',host).addEventListener('click',() => updR('There is no state and no arrow that means “both”. '));
+  updB(); updR();
+  mounts.bools={reveal(){ $('.bools',host).classList.add('revealed'); updB(); }};
+})();
+Predict($('[data-predict=p7]'),'p7',{q:'Two flags can be set four ways. For a player that is always playing or paused, how many of the four make sense?',
+  options:[
+    {text:'All 4.', why:'Both true says “playing and paused”. Both false says “neither”. Neither describes this player.'},
+    {text:'3.', why:'Both false would mean “neither playing nor paused”, and this player is always one or the other.'},
+    {text:'2.', correct:true}],
+  explain:'Two: playing (true, false) and paused (false, true). The other two settings are impossible, yet nothing in the code forbids them. Tick both boxes and see.',
+  onReveal(){ mounts.bools.reveal(); }});
+
+/* step 8 */
+mounts.live8 = new Live($('[data-mount=live8]'), {def:playerDef, spec:SPEC.playerRegions, events:['PLAY','PAUSE','MUTE','UNMUTE'],
+  onChange(l){ if(l.flatNote) l.flatNote.textContent=l.runner.name(); }});
+(function(){ const l=mounts.live8, ro=$('.readout',l.host); ro.insertAdjacentHTML('afterend','<p class="muted" style="margin:4px 0 0;font-size:15px">A plain machine would need to be in the single state: <b class="mono" id="flatNote"></b></p>'); l.flatNote=$('#flatNote',l.host); l.flatNote.textContent=l.runner.name(); })();
+Predict($('[data-predict=p8]'),'p8',{q:'The player is playing and unmuted. MUTE arrives. What happens to playback?',
+  options:[
+    {text:'Playback pauses.', why:'MUTE is not an arrow in the playback region at all, so playback never hears about it.'},
+    {text:'Playback keeps playing. Only volume changes.', correct:true},
+    {text:'The whole player resets.', why:'Nothing resets. Each region moves only on its own arrows.'}],
+  explain:'Playback is asked first and ignores <code>MUTE</code>. Volume is asked too, and <code>unmuted</code> has the arrow, so volume moves to <code>muted</code>. Both columns of the trace are shown.',
+  onReveal(){ mounts.live8.send('MUTE'); }});
+
+/* step 9: coffee + player, statechart beside its flat twin, run in lockstep */
+(function(){
+  const host=$('[data-mount=lockstep]');
+  const modes={
+    coffee:{label:'Coffee machine (parent box)', def:coffeeDef, spec:SPEC.coffeeBox, fspec:SPEC.coffeeFlat, setup:['POWER_ON'], hl:'POWER_OFF'},
+    player:{label:'Music player (regions)', def:playerDef, spec:SPEC.playerRegions, fspec:SPEC.playerFlat, setup:[], hl:null}};
+  host.innerHTML=`<div class="tabs" role="group" aria-label="Pick a machine"><button type="button" data-m="coffee">Coffee machine (parent box)</button><button type="button" data-m="player">Music player (regions)</button></div>
+   <div class="two"><div><h3>Statechart</h3><div id="ca"></div></div><div><h3>Flat state machine, built by the recipe</h3><div id="cb"></div></div></div>
+   <p class="readout" id="agree" role="status"></p>
+   <div class="evrow" id="lsev" role="group" aria-label="Send an event to both machines"></div>
+   <button type="button" class="btn2" id="runrand">Run a random 12-event script on both</button>
+   <div class="tablewrap" id="tbl"></div>`;
+  let cur='coffee', A, B, seed=11, counts;
+  const rnd=()=>{ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; };
+  function build(m){
+    cur=m; const md=modes[m]; const flat=flatten(md.def);
+    $$('.tabs button',host).forEach(b => b.setAttribute('aria-pressed', b.dataset.m===m));
+    A=new Live($('#ca',host),{def:md.def,spec:md.spec,setup:md.setup,controls:false,trace:false,hl:md.hl});
+    B=new Live($('#cb',host),{def:flat,spec:md.fspec,setup:md.setup,controls:false,trace:false,hl:md.hl});
+    counts=`Statechart: ${arrowCount(md.def)} arrows drawn, ${leafCount(md.def)} states. Flat machine: ${arrowCount(flat)} arrows, ${leafCount(flat)} states.`;
+    $('#lsev',host).innerHTML=eventsOf(md.def).map(e => `<button type="button" class="ev" data-ev="${e}">${e}</button>`).join('')+'<button type="button" class="btn2" id="lsr">Reset both</button>';
+    $$('#lsev .ev',host).forEach(b => b.addEventListener('click',() => both(b.dataset.ev)));
+    $('#lsr',host).addEventListener('click',() => { A.reset(); B.reset(); $('#tbl',host).innerHTML=''; agree(); });
+    $('#tbl',host).innerHTML=''; agree();
+  }
+  const same=()=>A.runner.name()===B.runner.name();
+  function agree(){ $('#agree',host).innerHTML=`Statechart is in <b>${esc(A.runner.name())}</b>. Flat machine is in <b>${esc(B.runner.name())}</b>. ${same()?'<b style="color:var(--good)">Same state ✓</b>':'<b style="color:var(--bad)">Different ✗</b>'}<br><span class="muted">${counts}</span>`; }
+  function both(ev){ A.send(ev); B.send(ev); agree(); return {ev, a:A.runner.name(), b:B.runner.name()}; }
+  host.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click',() => build(b.dataset.m)));
+  $('#runrand',host).addEventListener('click',() => {
+    A.reset(); B.reset(); const evs=eventsOf(modes[cur].def), rows=[]; let ok=0;
+    for(let i=1;i<=12;i++){
+      // mostly pick events that do something, sometimes any event (ignored events must agree too)
+      const probe=evs.filter(e => { const r=new Runner(modes[cur].def); r.config=A.runner.config.slice(); return r.send(e).changed; });
+      const pool=(probe.length && rnd()<0.8)?probe:evs; const ev=pool[Math.floor(rnd()*pool.length)];
+      const r=both(ev); const m=r.a===r.b; if(m) ok++; rows.push(`<tr><td>${i}</td><td><code>${ev}</code></td><td>${esc(r.a)}</td><td>${esc(r.b)}</td><td class="${m?'ok':''}">${m?'✓':'✗'}</td></tr>`);
+    }
+    $('#tbl',host).innerHTML=`<table class="run"><caption class="sr-only">Random script run on both machines</caption><thead><tr><th scope="col">#</th><th scope="col">Event</th><th scope="col">Statechart</th><th scope="col">Flat machine</th><th scope="col">Same?</th></tr></thead><tbody>${rows.join('')}</tbody></table><p><b>${ok} of 12</b> events: the two machines were in the same state every time.</p>`;
+  });
+  build('coffee'); mounts.lockstep={build};
+})();
+Predict($('[data-predict=p9]'),'p9',{q:'Is that true? Can a statechart do anything that a plain state machine can’t?',
+  options:[
+    {text:'Yes. Nesting and regions add abilities a plain machine lacks.', why:'They add convenience, not ability. Every statechart can be rewritten as a plain machine; it just takes more states and arrows.'},
+    {text:'No. Any statechart can be flattened into a plain machine that behaves the same.', correct:true}],
+  explain:'No. The flat machine on the right was produced mechanically from the statechart on the left. Send the same events to both, or run a random script, and compare.'});
+
+/* step 10 */
+(function(){
+  const host=$('[data-mount=checks]');
+  const qs=[
+    ['Given four states that all have the same EXIT arrow, what would a statechart do?','It would put the four states in a box, a parent, and draw <code>EXIT</code> once, on the box. An event none of the four handles goes up to the box, which does the job for all of them.'],
+    ['Why do two independent on/off features need four flat states but only two regions?','A flat machine is in one state at a time, so it needs one state for every combination: 2 × 2 = 4. With regions, each feature is its own small machine of two states, so the sizes add instead of multiply. A third feature makes it 8 flat states but only 3 regions.'],
+    ['Can a statechart do anything a state machine can’t?','No. Flatten any statechart and you get an ordinary state machine with the same behaviour. What you gain is a drawing the size of the idea instead of the size of every combination.']];
+  host.innerHTML=qs.map((q,i) => `<div class="q"><h3><span class="num" aria-hidden="true">${i+1}</span>${q[0]}</h3><button type="button" class="btn2" aria-expanded="false" aria-controls="ans${i}">Reveal answer</button><div class="ans" id="ans${i}" hidden>${'<p>'+q[1]+'</p>'}</div></div>`).join('');
+  $$('.q',host).forEach(q => { const b=$('button',q), a=$('.ans',q); b.addEventListener('click',() => { const open=a.hidden; a.hidden=!open; b.setAttribute('aria-expanded',open); b.textContent=open?'Hide answer':'Reveal answer'; }); });
+})();
+
+/* step 11 */
+mounts.live11 = new Live($('[data-mount=live11]'), {def:frotherDef, spec:SPEC.frother, setup:['POWER_ON'], hl:null,
+  events:['START','GRIND_DONE','BREW_DONE','TAKE_CUP','FROTH_ON','FROTH_OFF','POWER_OFF','POWER_ON']});
+Predict($('[data-predict=p11a]'),'p11a',{q:'Where does the frother go?',
+  options:[
+    {text:'A fifth state in the coffee loop, after ready.', why:'The frother can be on while grinding or brewing too. A fifth state would make frothing replace the other states instead of running alongside them.'},
+    {text:'A second region inside on, next to the coffee states.', correct:true},
+    {text:'Inside brewing only.', why:'It can be switched on when the machine is idle or ready, not only when brewing.'}],
+  explain:'It is an independent on/off feature, so it is a region: coffee in one, frother in the other, both inside <code>on</code>.'});
+Predict($('[data-predict=p11b]'),'p11b',{q:'Now the flat machine. How many states does it need?',
+  options:[
+    {text:'6: the old five plus one for the frother.', why:'A plain machine can’t keep the frother “beside” the coffee state. Every coffee state needs a frother-off and a frother-on version.'},
+    {text:'9: off, plus every coffee state with the frother off or on.', correct:true},
+    {text:'13.', why:'Too many. Off stays one state. Only the four states inside on double: 1 + 4 × 2.'}],
+  explain:'Nine: <code>off</code> plus 4 × 2 combinations. Its arrows are drawn below, as a tangle; the orange ones are all copies of <code>POWER_OFF</code>.',
+  onReveal(){ mounts.hairball.draw(); }});
+(function(){
+  const host=$('[data-mount=hairball]');
+  host.innerHTML='<div class="card" style="margin-top:14px"><h3>The flat machine, every arrow drawn</h3><div id="hb"></div><p class="muted" style="margin:6px 0 0;font-size:14px">Dots are states, lines are arrows. Orange lines are copies of POWER_OFF.</p></div>';
+  mounts.hairball={draw(){
+    const names=frothFlat.children, n=names.length, cx=150, cy=150, R=112, pos={};
+    names.forEach((s,i) => { if(i===0) pos[s.name]=[cx,cy]; else { const a=-Math.PI/2+2*Math.PI*(i-1)/(n-1); pos[s.name]=[cx+R*Math.cos(a), cy+R*Math.sin(a)]; } });
+    let s=`<svg class="dia" viewBox="0 0 300 300" style="max-width:340px;border:0" role="img" aria-label="The flat machine as a tangle: ${n} states and ${arrowCount(frothFlat)} arrows, eight of them copies of POWER_OFF." focusable="false"><defs><marker id="hbm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" class="mk"/></marker><marker id="hbw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" class="mkw"/></marker></defs>`;
+    const edges=[]; names.forEach(f => Object.entries(f.on).forEach(([ev,to]) => edges.push([f.name,to,ev])));
+    edges.sort((a,b) => (a[2]==='POWER_OFF')-(b[2]==='POWER_OFF'));
+    edges.forEach(([f,t,ev]) => { const [x1,y1]=pos[f],[x2,y2]=pos[t], dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy)||1, nx=-dy/L, ny=dx/L, k=ev==='POWER_OFF'?0:22, mx=(x1+x2)/2+nx*k, my=(y1+y2)/2+ny*k;
+      const sx=x1+dx/L*9, sy=y1+dy/L*9, ex=x2-dx/L*11, ey=y2-dy/L*11, w=ev==='POWER_OFF';
+      s+=`<path d="M${sx.toFixed(1)} ${sy.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="${w?'var(--warn)':'var(--arrow)'}" stroke-width="${w?1.6:1.1}" opacity="${w?.95:.7}" marker-end="url(#${w?'hbw':'hbm'})"/>`; });
+    names.forEach(f => { const [x,y]=pos[f.name]; s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${f.name==='off'?9:7}" fill="var(--surface)" stroke="var(--ink2)" stroke-width="2"/>`; });
+    s+=`<text x="${cx}" y="${cy+24}" text-anchor="middle" class="cap">off</text></svg>`;
+    $('#hb',host).innerHTML=s; }};
+})();
+
+/* ═════════ 8. Navigation ═════════ */
+const steps=$$('.step'), total=steps.length; let cur=-1; const seen=new Set();
+$('#stepTotal').textContent=total;
+const dots=$('#dots');
+steps.forEach((s,i) => { const li=document.createElement('li'); li.innerHTML=`<button type="button" aria-label="Go to step ${i+1}: ${esc(s.dataset.title)}"><span></span></button>`; $('button',li).addEventListener('click',() => go(i)); dots.append(li); });
+function go(i, focus=true){
+  i=Math.max(0,Math.min(total-1,i)); const first=cur<0; cur=i; seen.add(i);
+  steps.forEach((s,j) => s.hidden = j!==i);
+  $('#stepNo').textContent=i+1; $('#barFill').style.width=((i+1)/total*100)+'%';
+  $('#back').disabled = i===0; $('#next').textContent = i===total-1 ? 'Start again' : 'Next';
+  $('#mid').textContent=`${i+1} / ${total}`;
+  $$('button',dots).forEach((b,j) => { b.toggleAttribute('aria-current',false); if(j===i) b.setAttribute('aria-current','step'); else b.removeAttribute('aria-current'); b.classList.toggle('seen',seen.has(j)); });
+  const t=steps[i].dataset.title; document.title=`Step ${i+1}: ${t} · Statecharts, explained`;
+  history.replaceState(null,'','#step-'+(i+1));
+  $('#stepAnnounce').textContent=`Step ${i+1} of ${total}: ${t}`;
+  window.scrollTo(0,0);
+  if(focus && !first) $('h2',steps[i]).focus({preventScroll:true});
+}
+$('#next').addEventListener('click',() => go(cur===total-1?0:cur+1));
+$('#back').addEventListener('click',() => go(cur-1));
+addEventListener('hashchange',() => { const m=/step-(\d+)/.exec(location.hash); if(m && +m[1]-1!==cur) go(+m[1]-1); });
+{ const m=/step-(\d+)/.exec(location.hash); go(m?+m[1]-1:0,false); }
+
+window.__sc={Runner,flatten,compile,arrowCount,leafCount,countEvent,coffeeDef,playerDef,frotherDef,appDef,describe,steps:total};
+})();
+</script>
+</body>
+</html>
