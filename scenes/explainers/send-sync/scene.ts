@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/send-sync.ts';
 import { Scene, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -8,8 +10,10 @@ import type { Inner, Wrapper, Quadrant, Layer } from '../lib/send-sync.ts';
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in lib/send-sync.ts
 // and test/explain-send-sync.test.ts.
 const RUST = 'https://github.com/rust-lang/rust/blob/1.99.1/library/';
-const REFERENCE = 'https://github.com/rust-lang/reference/blob/d9d9ed57a120e3c87033fd598f191bbb84aad097/src/types/closure.md';
-const NOMICON = 'https://github.com/rust-lang/nomicon/blob/60ed8f3bb9d22a60865197a0ac74911436703430/src/send-and-sync.md';
+const REFERENCE =
+  'https://github.com/rust-lang/reference/blob/d9d9ed57a120e3c87033fd598f191bbb84aad097/src/types/closure.md';
+const NOMICON =
+  'https://github.com/rust-lang/nomicon/blob/60ed8f3bb9d22a60865197a0ac74911436703430/src/send-and-sync.md';
 
 // Phone legibility sets every size here. On a 390 px page the stage is 358 px wide, so a label needs
 // 0.536 units (43 px on a 1280 px stage) to be 12 px there; native text is 0.54 units, so it reads
@@ -29,7 +33,12 @@ const HEAD =
 // Every point sits at one fixed spot per quadrant: at the left edge, so its name fits to its right, and
 // below the quadrant's own name, which Mermaid centres in it.
 // Mermaid's quadrant numbers, with x = Send and y = Sync: 1 both, 2 Sync only, 3 neither, 4 Send only.
-const SPOT: Record<Quadrant, [number, number]> = { 1: [0.52, 0.625], 2: [0.02, 0.625], 3: [0.02, 0.125], 4: [0.52, 0.125] };
+const SPOT: Record<Quadrant, [number, number]> = {
+  1: [0.52, 0.625],
+  2: [0.02, 0.625],
+  3: [0.02, 0.125],
+  4: [0.52, 0.125],
+};
 const QUADRANT: Record<Quadrant, string> = { 1: 'Send and Sync', 2: 'Sync only', 3: 'Neither', 4: 'Send only' };
 const chart = (points: readonly { name: string; q: Quadrant }[]) =>
   HEAD +
@@ -55,7 +64,7 @@ const valueName = (type: string) => `x is ${type}`;
 export default class SendSyncExplainer extends Scene {
   static meta = {
     id: 'send-sync',
-    title: 'Arc<T> is Send and Sync only when T already is',
+    title: 'Can this Rust value cross a thread boundary?',
     sources: [
       RUST + 'alloc/src/sync.rs#L284-L286',
       RUST + 'alloc/src/rc.rs#L334-L342',
@@ -96,7 +105,7 @@ export default class SendSyncExplainer extends Scene {
     const values = settingsOf(this);
     const wrapper = values.wrapper as Wrapper,
       inner = values.inner as Inner;
-    const s = stage(this, { style: 'hand-drawn', headingSize: SIZE });
+    const s = stage(this, { style: 'hand-drawn', headingSize: 0.6 });
     const ink = s.palette.ink;
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */
@@ -130,7 +139,13 @@ export default class SendSyncExplainer extends Scene {
     };
     /** A card at the top of the right column, with lines under it. */
     const column = async (rows: readonly (readonly [string, string])[], words: readonly string[], title?: string) => {
-      const card = await s.card(rows, { at: RIGHT, align: 'top', fontSize: SIZE, enter: false, ...(title ? { title } : {}) });
+      const card = await s.card(rows, {
+        at: RIGHT,
+        align: 'top',
+        fontSize: SIZE,
+        enter: false,
+        ...(title ? { title } : {}),
+      });
       // Left-aligned with the lines under it.
       card.shift([RIGHT[0] + 0.1 - card.box()![0], 0]);
       const text = lines(words, RIGHT[3] - card.height() - 0.35);
@@ -140,18 +155,29 @@ export default class SendSyncExplainer extends Scene {
 
     /** A point's two answers, said on the point, with the column's words beside the chart. */
     const tell = async (chartOf: Diagram, point: string, send: boolean, sync: boolean, words: readonly string[]) => {
-      await chartOf.note(`point:${point}:label`, `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, { side: 'below', size: SIZE });
+      await chartOf.note(`point:${point}:label`, `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, {
+        side: 'below',
+        size: SIZE,
+      });
       await s.enter(...lines(words, RIGHT[3]));
     };
 
     // ------------------------------------------------------------------ the two questions
+    await readerFirst(this, s, readerFrames(wrapper, inner));
     await this.step('questions', {
+      detail: true,
       title: 'Send and Sync are two separate questions',
       line: 'Send: move it to another thread. Sync: share &T between threads.',
       caption:
         'Send asks whether a value can move to another thread. Sync asks whether several threads can hold a shared reference to it at once: the standard library defines T as Sync exactly when &T is Send. The compiler answers both for every type, so each type falls in one of four quadrants.',
     });
-    const singles = SINGLES.map((type) => ({ name: nameOf(type), q: quadrantOf(type), send: isSend(type), sync: isSync(type) }));
+    await s.clear();
+    const singles = SINGLES.map((type) => ({
+      name: nameOf(type),
+      q: quadrantOf(type),
+      send: isSend(type),
+      sync: isSync(type),
+    }));
     const d = await s.show({ source: chart(singles) }, { box: LEFT, build: 'frame' });
     await d.reveal(([1, 2, 3, 4] as const).map((n) => `quadrant-label:${n}`));
     await s.enter(
@@ -212,11 +238,14 @@ export default class SendSyncExplainer extends Scene {
     };
     for (const p of singles) {
       const meta = SINGLE_STEPS[p.name]!;
-      await this.step(meta.id, { title: meta.title, line: meta.line, caption: meta.caption });
+      await this.step(meta.id, { detail: true, title: meta.title, line: meta.line, caption: meta.caption });
       await s.clearOverlays();
       await d.reveal([`point:${p.name}`, `point:${p.name}:label`]);
       await d.focus([`plate:${p.q}`], { zoom: ZOOM });
-      await tell(d, p.name, p.send, p.sync, [meta.source, ...(p.name === 'i32' ? ['Only the quadrant counts: a point’s place inside it means nothing.'] : [])]);
+      await tell(d, p.name, p.send, p.sync, [
+        meta.source,
+        ...(p.name === 'i32' ? ['Only the quadrant counts: a point’s place inside it means nothing.'] : []),
+      ]);
       this.state.shown = p.name;
     }
 
@@ -224,6 +253,7 @@ export default class SendSyncExplainer extends Scene {
     const layers = build(wrapper, inner);
     const ctors = WRAPS[wrapper];
     await this.step('rules', {
+      detail: true,
       title: 'Arc needs Send and Sync inside; Mutex needs Send',
       line:
         wrapper === 'arc'
@@ -270,6 +300,7 @@ export default class SendSyncExplainer extends Scene {
             ? ' Clones of one Arc on several threads would all reach the one value.'
             : '';
       await this.step(`wrap-${ctor.toLowerCase()}`, {
+        detail: true,
         title: `${now.name} is ${traits(now.send, now.sync)}`,
         line: `${ctor} needs T: ${ctor === 'Arc' ? 'Send + Sync' : 'Send'}; ${was.name} is ${traits(was.send, was.sync)}.`,
         caption:
@@ -290,7 +321,10 @@ export default class SendSyncExplainer extends Scene {
         await q.morph({ source: chart(points) }, { ops: [{ kind: 'move_point', label: to, x, y }] });
       }
       await q.focus([`plate:${now.quadrant}`], { zoom: ZOOM });
-      await tell(q, to, now.send, now.sync, [`${ctor} needs T: ${ctor === 'Arc' ? 'Send + Sync' : 'Send'}`, `T here: ${was.name}`]);
+      await tell(q, to, now.send, now.sync, [
+        `${ctor} needs T: ${ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
+        `T here: ${was.name}`,
+      ]);
       this.state.built = now;
     }
 
@@ -299,6 +333,7 @@ export default class SendSyncExplainer extends Scene {
     const both = run.spawnMove && run.scopeBorrow,
       none = !run.spawnMove && !run.scopeBorrow;
     await this.step('threads', {
+      detail: true,
       title: both
         ? 'Both thread APIs accept x'
         : none
@@ -311,11 +346,20 @@ export default class SendSyncExplainer extends Scene {
       // F: Send + 'scope. The Reference (types/closure.md:734): a closure is Send if values it captures
       // by shared reference are Sync and values it captures by move are Send (marker.rs:105, :537).
       caption: `thread::spawn needs a Send closure, and a move closure that owns x is Send only if ${run.name} is. thread::scope lets threads borrow &x instead, and a closure holding &x is Send only if ${run.name} is Sync. rustc 1.99.1 ${
-        both ? 'accepts both' : none ? 'rejects both' : run.spawnMove ? 'accepts the move and rejects the borrow' : 'accepts the borrow and rejects the move'
+        both
+          ? 'accepts both'
+          : none
+            ? 'rejects both'
+            : run.spawnMove
+              ? 'accepts the move and rejects the borrow'
+              : 'accepts the borrow and rejects the move'
       } for x: ${run.name}.`,
     });
     await s.clearOverlays();
-    await q!.mark([`point:${valueName(run.name)}`], { color: both ? s.good : s.bad, as: both ? 'accepted' : 'rejected' });
+    await q!.mark([`point:${valueName(run.name)}`], {
+      color: both ? s.good : s.bad,
+      as: both ? 'accepted' : 'rejected',
+    });
     await column(
       [
         ['thread::spawn', yesNo(run.spawnMove)],

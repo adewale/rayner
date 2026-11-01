@@ -73,7 +73,7 @@ export interface AnimateBuilderBase<M extends Mobject = Mobject> {
 }
 
 /** The methods of M that return the mobject itself: the ones `.animate` can chain. */
-export type ChainableKeys<M> = { [K in Exclude<keyof M, 'animate'>]: M[K] extends (...args: never[]) => M ? K : never }[Exclude<keyof M, 'animate'>];
+export type ChainableKeys<M> = { [K in Exclude<keyof M, 'animate' | 'matchingFrameFor'>]: M[K] extends (...args: never[]) => M ? K : never }[Exclude<keyof M, 'animate' | 'matchingFrameFor'>];
 
 /**
  * `mob.animate`: the mobject's chainable methods, recorded instead of run, each
@@ -122,6 +122,12 @@ export class Mobject {
 
   /** The Float32Arrays (stride 2) a transform maps over. Subclasses override. */
   pointArrays(): Float32Array[] { return []; }
+  /** Geometry contributing to layout bounds. Transform-only metadata can opt
+   * out here while still following affine maps and animation in pointArrays(). */
+  boundingPointArrays(): Float32Array[] { return this.pointArrays(); }
+  /** Frame-only adapter for matching transforms. A target with different
+   * metric units can supply a compatible frame without changing drawn parts. */
+  matchingFrameFor(_source: Mobject): Mobject { return this; }
   /**
    * What this mobject's point arrays are: 'path' (curves) or 'box' (a Text's
    * advance box). Arrays only blend with arrays of the same kind; equal
@@ -193,7 +199,7 @@ export class Mobject {
     perf.count('box() miss');
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const m of this.family()) {
-      for (const a of m.pointArrays()) {
+      for (const a of m.boundingPointArrays()) {
         for (let i = 0; i < a.length; i += 2) {
           const x = a[i]!, y = a[i + 1]!;
           if (x < minX) minX = x; if (x > maxX) maxX = x;

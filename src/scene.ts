@@ -444,7 +444,7 @@ export class Scene {
         if (!m || m === this.frame || present.has(m)) continue;
         // A new wrapper around things already on screen (Indicate(new Group(a, b))) must not
         // draw them a second time on top: add it only if some drawable member is new.
-        const drawn = m.family().filter((f) => f.pointArrays().some((a) => a.length > 0));
+        const drawn = m.family().filter((f) => f.boundingPointArrays().some((a) => a.length > 0));
         if (drawn.length && drawn.every((f) => present.has(f))) continue;
         this.add(m);
         for (const f of m.family()) present.add(f);

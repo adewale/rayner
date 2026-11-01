@@ -14,6 +14,8 @@ export type SettingsProblem =
   | { kind: 'other'; message: string };
 
 export interface Chrome {
+  details: string;
+  backToStory: string;
   /** Accessible name of the player section. */
   player: string;
   /** The disclosure under the caption that lists what the picture shows. */
@@ -90,6 +92,8 @@ export interface Chrome {
 }
 
 const EN: Chrome = {
+  details: 'Details and sources',
+  backToStory: 'Back to the explanation',
   player: 'Explainer',
   picture: 'What the picture shows',
   controls: 'Steps',
@@ -139,6 +143,8 @@ const EN: Chrome = {
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
+  details: 'Détails et sources',
+  backToStory: 'Revenir à l’explication',
   player: 'Explication',
   picture: 'Ce que montre l’image',
   controls: 'Étapes',
@@ -217,11 +223,14 @@ export const descriptionLang = (lang = 'en') => {
 export function settingsProblem(Scene: ExplainerClass, values: Settings, error: unknown): SettingsProblem {
   for (const s of Scene.settings ?? []) {
     const value = Object.hasOwn(values, s.id) ? values[s.id]! : undefined;
-    if (value !== undefined && !s.options.some((o) => o.value === value)) return { kind: 'option', id: s.id, label: s.label, value };
+    if (value !== undefined && !s.options.some((o) => o.value === value))
+      return { kind: 'option', id: s.id, label: s.label, value };
   }
   const declared = new Set((Scene.settings ?? []).map((s) => s.id));
   const unknown = Object.keys(values).find((id) => !declared.has(id));
-  return unknown !== undefined ? { kind: 'setting', id: unknown } : { kind: 'other', message: String((error as Error)?.message ?? error) };
+  return unknown !== undefined
+    ? { kind: 'setting', id: unknown }
+    : { kind: 'other', message: String((error as Error)?.message ?? error) };
 }
 /** A case's name, "Label: option · Label: option", with the language's punctuation. */
 export function caseNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {

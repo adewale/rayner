@@ -19,7 +19,7 @@
     "check:budgets": "node tools/page-budgets.ts",
     "pack:smoke": "node tools/explain-package-smoke.ts",
     "site:export": "node tools/explain-site.ts",
-    "test:embeds": "EXPLAIN_BROWSER=1 node --test test/explain-player-style.test.ts test/explain-capture.test.ts test/explain-embed.test.ts test/explain-loading.test.ts test/explain-audio.test.ts test/explain-periodic-reader.test.ts test/lettering-browser.test.ts test/lettering-math.test.ts test/explain-lang.test.ts test/svg-browser.test.ts test/explain-story-review.test.ts test/explain-review-scene.test.ts test/bench-measure.test.ts",
+    "test:embeds": "EXPLAIN_BROWSER=1 node --test test/explain-player-style.test.ts test/explain-capture.test.ts test/explain-embed.test.ts test/explain-loading.test.ts test/explain-reference-reader.test.ts test/explain-audio.test.ts test/explain-periodic-reader.test.ts test/explain-monty-reader.test.ts test/explain-ring-reader.test.ts test/explain-birthday-reader.test.ts test/lettering-browser.test.ts test/lettering-math.test.ts test/explain-lang.test.ts test/svg-browser.test.ts test/explain-story-review.test.ts test/explain-review-scene.test.ts test/bench-measure.test.ts",
     "release:check": "node tools/prepare-release.ts",
     "bench": "node tools/bench.ts"
   },

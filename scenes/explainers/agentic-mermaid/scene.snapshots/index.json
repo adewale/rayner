@@ -2,12 +2,12 @@
   "version": 2,
   "importer": "11d0423eb190709f",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "19cd1eba3703f7be62e8dced295d71febce0b813a32627f23cfa38276ef41772",
+  "sourceHash": "e3a024d3f1bc6ac1a260e128c5f7f80513cc5d55f16c2da9c263cfeea7a2a2f6",
   "diagrams": {
+    "[\"---\\nconfig:\\n  xyChart:\\n    width: 600\\n    height: 400\\n---\\nxychart-beta\\n x-axis [\\\"First edit\\\", \\\"Final\\\"]\\n y-axis \\\"Warnings\\\" 0 --> 3\\n bar [0,0]\",\"blueprint\"]": "2b66678a5310897b.json",
+    "[\"---\\nconfig:\\n  xyChart:\\n    width: 600\\n    height: 400\\n---\\nxychart-beta\\n x-axis [\\\"First edit\\\", \\\"Final\\\"]\\n y-axis \\\"Warnings\\\" 0 --> 3\\n bar [2,0]\",\"blueprint\"]": "69a1adbcc945890c.json",
     "[\"gitGraph TB:\\n commit id: \\\"source\\\"\\n commit id: \\\"typed edit\\\"\\n commit id: \\\"checked snapshot\\\"\",\"blueprint\"]": "c8a8099341498cc2.json",
     "[\"graph LR\\nA{Cached} --> B[Reply]\\nA --> C[Database]\",\"blueprint\"]": "55922a412697468b.json",
-    "[\"graph LR\\nA{Cached} -->|yes| B[Reply]\\nA -->|no| C[Database]\",\"blueprint\"]": "b1c244d658194a5a.json",
-    "[\"xychart-beta\\n x-axis [\\\"First edit\\\", \\\"Final\\\"]\\n y-axis \\\"Warnings\\\" 0 --> 3\\n bar [0,0]\",\"blueprint\"]": "63e8925ed08c5133.json",
-    "[\"xychart-beta\\n x-axis [\\\"First edit\\\", \\\"Final\\\"]\\n y-axis \\\"Warnings\\\" 0 --> 3\\n bar [2,0]\",\"blueprint\"]": "d9866beaf3e4f0be.json"
+    "[\"graph LR\\nA{Cached} -->|yes| B[Reply]\\nA -->|no| C[Database]\",\"blueprint\"]": "b1c244d658194a5a.json"
   }
 }

@@ -102,6 +102,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    height; the mark is a thin bar. Done segments are the accent, the current one is taller and fills
    with --progress (0 to 1, 1 at rest), the rest are quiet (at least 3:1 on the card in both themes). */
 .step-bar{list-style:none;margin:0;padding:0;flex:1 1 120px;min-width:0;display:flex;gap:3px;align-self:stretch}
+.step-bar[hidden]{display:none}
 .step-bar li{flex:1 1 0;min-width:0;display:flex}
 .step-bar button{position:relative;flex:1 1 0;min-width:0;min-height:40px;margin:0;padding:0;border:0;border-radius:4px;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .step-bar button:focus-visible{outline-offset:-2px}
@@ -186,6 +187,12 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 
 @media(max-width:480px){.caption,.ruler{font-size:1.0625rem}.stepper{gap:6px}}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
+
+/* Source notes remain a separate disclosure beneath the teaching path. */
+.supporting{border-block-start:1px solid var(--line);padding:12px var(--inset)}
+.supporting>summary{cursor:pointer;min-height:44px;display:list-item;padding-block:10px;color:var(--muted)}
+.supporting .steps{margin:0;padding-block-start:4px;border:0}
+.supporting[hidden]{display:none}
 
 /* A per-page width floor scrolls only the picture, keeping controls reachable. */
 .frame{overflow-x:var(--player-stage-overflow,visible)}

@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/lantern.ts';
 import {
   Scene,
   Circle,
@@ -82,23 +84,23 @@ async function playedAndSeeked(ink: string, accent: string) {
 export default class LanternExplainer extends Scene {
   static meta = {
     id: 'lantern',
-    title: 'How one scene program becomes a page, pictures and a trace',
-    sources: [
-      'https://github.com/ivarvong/lantern',
-      'https://github.com/ivarvong/lantern/blob/2c7bad5/src/scene.ts',
-    ],
+    title: 'How does one scene produce several outputs?',
+    sources: ['https://github.com/ivarvong/lantern', 'https://github.com/ivarvong/lantern/blob/2c7bad5/src/scene.ts'],
   };
   override async construct() {
-    const s = stage(this, { style: STYLE });
+    const s = stage(this, { headingSize: 0.6, style: STYLE });
     const ink = s.palette.ink,
       accent = s.emphasis;
 
+    await readerFirst(this, s, readerFrames());
     await this.step('model', {
+      detail: true,
       title: 'One program names the steps and draws their pictures',
       line: 'Follow this.step and this.play from the code to the stage.',
       caption:
         'How can one scene make both an interactive page and the stills and trace that inspect it? In demo.ts, construct calls this.step to name each idea and this.play to draw it on the stage beside the code. The engine runs that ordinary method; later steps follow its frames into the page, SVG and trace rather than interpreting a separate lesson document.',
     });
+    await s.clear();
     const code = await s.code(DEMO, { at: 'main', fontSize: 0.26 });
     // The same program, running on a small stage beside it.
     await s.enter(
@@ -107,12 +109,17 @@ export default class LanternExplainer extends Scene {
       ]),
       { describe: 'A small stage beside the code, running the same program' },
     );
-    const stepLabel = new Text("step 'before'", { fontSize: 0.22, font: 'mono', color: ink }).moveTo([3.0, 0.5], [-1, 0]);
+    const stepLabel = new Text("step 'before'", { fontSize: 0.22, font: 'mono', color: ink }).moveTo(
+      [3.0, 0.5],
+      [-1, 0],
+    );
     await code.focus(3);
     await s.enter(stepLabel);
     const dot = new Circle({ radius: 0.6, stroke: ink, strokeWidth: 0.03 }).moveTo([5.1, 1.7]);
     await code.focus(4);
-    await s.enter(dot, { describe: 'On the small stage, the circle the program drew, turned into a square by its last play' });
+    await s.enter(dot, {
+      describe: 'On the small stage, the circle the program drew, turned into a square by its last play',
+    });
     await code.focus(5);
     const after = new Text("step 'after'", { fontSize: 0.22, font: 'mono', color: ink }).moveTo([3.0, 0.5], [-1, 0]);
     await this.play(new FadeOut(stepLabel), new FadeIn(s.keep(after)));
@@ -135,6 +142,7 @@ export default class LanternExplainer extends Scene {
     }
 
     await this.step('objects', {
+      detail: true,
       title: 'A Scene owns mobjects, plays animations and emits frames to a sink',
       line: 'Three sinks turn the same frames into a view, SVG or a trace.',
       caption:
@@ -159,7 +167,12 @@ export default class LanternExplainer extends Scene {
     kinds.forEach(([kind, makes], i) => {
       const to: Vec = [from[0] + 0.9, from[1] + (1 - i) * 0.55];
       fan.add(new Line(from, to, { stroke: s.soft, strokeWidth: 0.02 }));
-      names.add(new Text(`${kind}: ${makes}`, { fontSize: 0.24, color: ink, anchor: 'start' }).moveTo([to[0] + 0.12, to[1]], [-1, 0]));
+      names.add(
+        new Text(`${kind}: ${makes}`, { fontSize: 0.24, color: ink, anchor: 'start' }).moveTo(
+          [to[0] + 0.12, to[1]],
+          [-1, 0],
+        ),
+      );
     });
     await s.draw(fan, { tool: 'pen', runTime: 0.8, describe: 'Three lines fanning out of Sink to its three kinds' });
     await s.enter(names);
@@ -172,6 +185,7 @@ export default class LanternExplainer extends Scene {
     const pts: Vec[] = [];
     for (let i = 0; i < raw.length; i += 2) pts.push([raw[i]!, raw[i + 1]!]);
     await this.step('points', {
+      detail: true,
       title: `A circle is ${pts.length} points: ${(pts.length - 1) / 3} cubic Béziers`,
       line: 'Anchors and handles: every shape and glyph is stored this way.',
       caption:
@@ -208,6 +222,7 @@ export default class LanternExplainer extends Scene {
     await classes.focus(['Mobject'], { camera: true, also: [figure, listing], margin: 1 });
 
     await this.step('clock', {
+      detail: true,
       title: `Every sink gets the same frames, 1/${this.fps} s apart`,
       line: 'The browser waits for display ticks; the trace takes all at once.',
       caption:
@@ -248,6 +263,7 @@ export default class LanternExplainer extends Scene {
     await s.enter(ruler);
 
     await this.step('seek', {
+      detail: true,
       title: 'Seeking replays the same program',
       line: 'Played or seeked to the same moment, the SVG matches.',
       caption:
@@ -289,6 +305,7 @@ export default class LanternExplainer extends Scene {
     this.state.seekContract = 'played SVG equals seeked SVG';
 
     await this.step('publish', {
+      detail: true,
       title: 'The build captures diagrams once and ships one HTML file',
       line: 'Readers change only the pace; the page never lays anything out.',
       caption:
@@ -316,6 +333,7 @@ export default class LanternExplainer extends Scene {
     );
 
     await this.step('inspect', {
+      detail: true,
       title: 'The trace records every walk, and rayner check tests every case',
       line: 'Recorded walks, and four checks run on every case.',
       caption:

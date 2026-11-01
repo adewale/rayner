@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/agentic-mermaid.ts';
 import { Scene, FadeOut } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
@@ -15,11 +17,8 @@ const SIDE = REGIONS.side,
 export default class MermaidExplainer extends Scene {
   static meta = {
     id: 'agentic-mermaid',
-    title: 'How a Mermaid verifier checks and repairs flowchart branches',
-    sources: [
-      'https://github.com/adewale/agentic-mermaid',
-      'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',
-    ],
+    title: 'What can a Mermaid verifier prove?',
+    sources: ['https://github.com/adewale/agentic-mermaid', 'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1'],
   };
   static settings = [
     {
@@ -34,7 +33,7 @@ export default class MermaidExplainer extends Scene {
   ];
   override async construct() {
     const missing = settingsOf(this).edit === 'missing',
-      s = stage(this, { style: STYLE });
+      s = stage(this, { headingSize: 0.6, style: STYLE });
     const first = missing ? BAD : GOOD;
     const code = (lines: readonly string[], fontSize = 0.24) => s.code(lines, { at: SIDE, fontSize, enter: false });
     const card = (rows: readonly CardRow[]) => s.card(rows, { at: SIDE, enter: false });
@@ -49,13 +48,18 @@ export default class MermaidExplainer extends Scene {
       await s.enter(...panels, { runTime: 0.35 });
     };
 
+    await readerFirst(this, s, readerFrames(missing));
     await this.step('source', {
-      title: missing ? 'Two branches leave Cached with no yes or no' : 'Both branches out of Cached already have labels',
+      detail: true,
+      title: missing
+        ? 'Two branches leave Cached with no yes or no'
+        : 'Both branches out of Cached already have labels',
       line: 'The snapshot gives each edge an id so the verifier can name it.',
       caption: missing
         ? 'An agent drew two routes out of Cached but did not say which means yes. Agentic Mermaid parses the Mermaid source into a snapshot with an id for each edge, then checks the branches. The next step shows the warnings before a typed edit adds the missing labels; the renderer runs at build time, not in the reader.'
         : 'The agent’s edit already names both routes out of Cached, yes and no. Agentic Mermaid parses the source into a snapshot with an id for each edge and verifies it at build time. The next step confirms there are no warnings, so this case needs no repair.',
     });
+    await s.clear();
     const d = await s.show({ source: first }, { box: 'main' });
     const source = await code(first.split('\n'));
     await column(source);
@@ -67,7 +71,10 @@ export default class MermaidExplainer extends Scene {
       });
 
     await this.step('verify', {
-      title: missing ? 'The verifier flags both edges out of Cached' : 'The verifier finds no warnings in the first edit',
+      detail: true,
+      title: missing
+        ? 'The verifier flags both edges out of Cached'
+        : 'The verifier finds no warnings in the first edit',
       line: missing
         ? 'The verifier says ok: true, with one warning per unlabeled edge.'
         : 'Both edges already carry yes and no, so nothing is flagged.',
@@ -104,6 +111,7 @@ export default class MermaidExplainer extends Scene {
 
     if (missing) {
       await this.step('repair', {
+        detail: true,
         title: 'Two set_label operations label the branches',
         line: 'Replaying the ops on the first edit must give the next diagram.',
         caption:
@@ -123,6 +131,7 @@ export default class MermaidExplainer extends Scene {
     }
 
     await this.step('walk', {
+      detail: true,
       title: 'The token travels the yes edge’s own route',
       line: 'Each hop is checked first; Reply to Database would throw.',
       caption:
@@ -152,6 +161,7 @@ export default class MermaidExplainer extends Scene {
     const count = warnings.length,
       finalCount = d.findings().length;
     await this.step('evidence', {
+      detail: true,
       title: 'The chart counts stored verifier warnings',
       line: `First edit: ${count} warnings; final diagram: ${finalCount}.`,
       caption:
@@ -159,7 +169,9 @@ export default class MermaidExplainer extends Scene {
     });
     await s.clear();
     const chart = await s.show(
-      { source: `xychart-beta\n x-axis ["First edit", "Final"]\n y-axis "Warnings" 0 --> 3\n bar [${count},${finalCount}]` },
+      {
+        source: `---\nconfig:\n  xyChart:\n    width: 600\n    height: 400\n---\nxychart-beta\n x-axis ["First edit", "Final"]\n y-axis "Warnings" 0 --> 3\n bar [${count},${finalCount}]`,
+      },
       { box: 'main' },
     );
     // A bar of height zero draws nothing, so a zero gets its value as a note.
@@ -175,6 +187,7 @@ export default class MermaidExplainer extends Scene {
     this.state.finalWarnings = finalCount;
 
     await this.step('history', {
+      detail: true,
       title: 'Source, edit and snapshot share one history',
       line: 'Three commits in order; the renderer stays pinned at 0.5.1.',
       caption:

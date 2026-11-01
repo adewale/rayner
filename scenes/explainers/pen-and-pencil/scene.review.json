@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "marks",
+      "targets": [
+        { "key": "construction:marks", "paint": "stroke" },
+        { "key": "construction:tally" }
+      ]
+    }
+  ]
+}

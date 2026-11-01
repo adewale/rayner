@@ -1,3 +1,4 @@
+import { readerChrome } from './lib/explain-reader-shell.ts';
 // Review the built collection as served, not just its source. Run demos:build (or demos:check) first;
 // Checks every resting step in every served case on desktop and phone.
 import assert from 'node:assert/strict';
@@ -9,7 +10,8 @@ import type { Browser, Page } from 'playwright-core';
 import { launch } from './lib/browser.ts';
 import { collectProject, sceneInputs, ROOT } from './lib/explain-project.ts';
 import { serve } from './lib/explain-serve.ts';
-import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
+import { chromeFor } from '../app/embed-strings.ts';
+import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 import {
   reviewScope,
   inReviewScope,
@@ -74,12 +76,18 @@ try {
       selected++;
       const directory = join(review, 'story', entry.id, String(index));
       await mkdir(directory, { recursive: true });
+      const t = chromeFor(project.Scene.meta?.lang);
+      const teaching = variant.trace.steps.some(s => s.meta.detail !== true) ? variant.trace.steps.filter(s => s.meta.detail !== true) : variant.trace.steps;
       const steps = await reviewStoryVariant(
         page,
         `${base}/explainers/${entry.id}.html`,
         variant,
         claims,
         directory,
+        { chrome: readerChrome(t), home: PRODUCT.home, cases: project.Scene.settings?.length ?? 0, steps: teaching.map(s => s.step),
+          crop: { player: t.player, next: t.nextLabel, title: project.Scene.meta?.title ?? entry.id,
+            kicker: t.stepOf(1, teaching.length), segments: teaching.length, cases: project.Scene.settings?.length ?? 0,
+            madeWith: t.madeWith, home: PRODUCT.home, open: null } },
       );
       cases.push({ scene: entry.id, settings: variant.values, steps });
     }

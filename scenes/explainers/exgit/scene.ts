@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/exgit.ts';
 import type { Evidence } from '../../../src/index.ts';
 import {
   Scene,
@@ -30,7 +32,11 @@ const entryLines = (repo: Repo, id: string, hex: number) =>
     ([mode, name, child]) => `${mode} ${name}\\0 ${hex < 40 ? child.slice(0, hex) + '…' : child}`,
   );
 /** A tree's bytes as listed on stage: its header, its entries with full ids, then its own id. */
-const treeLines = (repo: Repo, id: string) => [`header  ${objectHeader(repo, id)}`, ...entryLines(repo, id, 40), `sha1    ${id}`];
+const treeLines = (repo: Repo, id: string) => [
+  `header  ${objectHeader(repo, id)}`,
+  ...entryLines(repo, id, 40),
+  `sha1    ${id}`,
+];
 /** A commit's stored text, one line per row. */
 const objectLines = (repo: Repo, id: string) => repo.text(id).replace(/\n$/, '').split('\n');
 /** Every object a commit reaches through its tree and parent lines: what a clone has to fetch. */
@@ -65,7 +71,7 @@ const glyph = (b: number) => (b === 0 ? '\\0' : b === 10 ? '\\n' : b === 32 ? 's
 export default class GitExplainer extends Scene {
   static meta = {
     id: 'exgit',
-    title: 'Git names each object by the hash of its bytes',
+    title: 'What does Git store when a file changes?',
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',
@@ -86,17 +92,20 @@ export default class GitExplainer extends Scene {
     const which = settingsOf(this).change,
       add = which === 'add',
       repo = new Repo(),
-      s = stage(this, { style: STYLE }),
+      s = stage(this, { headingSize: 0.6, style: STYLE }),
       ink = s.palette.ink,
       accent = s.emphasis;
 
     // ── blob: the bytes that are hashed ────────────────────────────────
+    await readerFirst(this, s, readerFrames(which!));
     await this.step('blob', {
+      detail: true,
       title: 'A blob id is the SHA-1 of typed bytes',
       line: 'Header bytes, then content bytes: 13 in all, hashed together.',
       caption:
         'Git hashes a header (the type, the byte length and a zero byte) followed by the content. The id is the SHA-1 of exactly these 13 bytes, and the brace marks the seven digits that name it in later pictures.',
     });
+    await s.clear();
     const hello = repo.blob('hello\n');
     this.state.hello = hello;
     const object = repo.objects[hello]!,
@@ -149,7 +158,10 @@ export default class GitExplainer extends Scene {
       describe: `The header bytes “${object.type} ${object.bytes.length}” and a zero byte, in front of the content`,
     });
     const arrow = new Arrow([0, cellY - 1.1], [0, cellY - 2.05], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2 });
-    const how = new Text('SHA-1', { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo([0.3, cellY - 1.57], [-1, 0]);
+    const how = new Text('SHA-1', { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo(
+      [0.3, cellY - 1.57],
+      [-1, 0],
+    );
     const idHead = new Text(short(hello), { fontSize: 0.42, font: 'mono', color: accent, weight: 'bold' }),
       idTail = new Text(hello.slice(7), { fontSize: 0.42, font: 'mono', color: ink });
     const idRow = new Group(idHead, idTail);
@@ -171,13 +183,16 @@ export default class GitExplainer extends Scene {
 
     // ── tree: names live in the tree ────────────────────────────────────
     await this.step('tree', {
+      detail: true,
       title: 'A tree gives those bytes a name',
       line: 'The name hello.txt is in the tree entry, not in the blob.',
       caption:
         'A tree entry stores a mode, the name hello.txt and the blob’s id. Hashing the tree’s own bytes gives it an id too. The name lives in the tree, never in the blob.',
     });
     // The bytes go; their id is carried into the tree entry that names it, where the tree's bytes take it up.
-    await this.play(...[...cells, headLabel, bodyLabel, arrow, how, abbrev].map((m) => new FadeOut(m, { runTime: 0.4 })));
+    await this.play(
+      ...[...cells, headLabel, bodyLabel, arrow, how, abbrev].map((m) => new FadeOut(m, { runTime: 0.4 })),
+    );
     const t1 = repo.tree([['100644', 'hello.txt', hello]]);
     const treeCode = await s.code(treeLines(repo, t1), { at: BOTTOM, enter: false });
     await s.carry(idRow, treeCode.code.token(1, hello).box()!);
@@ -190,6 +205,7 @@ export default class GitExplainer extends Scene {
 
     // ── commit: a commit names a tree; a branch names a commit ─────────
     await this.step('commit', {
+      detail: true,
       title: 'A commit names a tree; a branch names a commit',
       line: 'main → commit → tree → blob: each holds the next one’s id.',
       caption:
@@ -228,6 +244,7 @@ export default class GitExplainer extends Scene {
     const before = reachable(repo, c1),
       written = reachable(repo, c2).filter((id) => !before.includes(id)).length;
     await this.step('change', {
+      detail: true,
       title: add ? 'Add a file: the old blob is reused' : 'Edit a file: new blob, new tree, new commit',
       line: add
         ? `Tree two names blob ${short(hello)} again; ${written} new objects are written.`
@@ -250,7 +267,14 @@ export default class GitExplainer extends Scene {
     // Below the graph, each commit's row as native boxes with the model's ids:
     // the commit, then its tree holding each entry's blob, read back from the stored bytes.
     /** An object as a box: its kind and short id, then lines of what it holds. */
-    const objectBox = (kind: string, id: string, lines: readonly string[], width: number, height: number, stroke: string) => {
+    const objectBox = (
+      kind: string,
+      id: string,
+      lines: readonly string[],
+      width: number,
+      height: number,
+      stroke: string,
+    ) => {
       const rect = new Rectangle({
         width,
         height,
@@ -272,11 +296,19 @@ export default class GitExplainer extends Scene {
       ENTRY_W = 3.62,
       TREE_LEFT = -1.75;
     /** One commit's row. `lit` outlines a blob in the emphasis colour; `skip` leaves it out, to arrive by copy. */
-    const commitRow = (label: string, commit: string, y: number, { lit, skip }: { lit?: string; skip?: string } = {}) => {
+    const commitRow = (
+      label: string,
+      commit: string,
+      y: number,
+      { lit, skip }: { lit?: string; skip?: string } = {},
+    ) => {
       const text = objectLines(repo, commit),
         tree = text.find((l) => l.startsWith('tree '))!.slice(5),
         parents = text.filter((l) => l.startsWith('parent ')).map((l) => l.slice(7));
-      const name = new Text(label, { fontSize: 0.22, color: s.soft, anchor: 'end' }).moveTo([TREE_LEFT - 2.9, y], [1, 0]);
+      const name = new Text(label, { fontSize: 0.22, color: s.soft, anchor: 'end' }).moveTo(
+        [TREE_LEFT - 2.9, y],
+        [1, 0],
+      );
       const commitBox = objectBox(
         'commit',
         commit,
@@ -308,8 +340,17 @@ export default class GitExplainer extends Scene {
       entries.forEach(([, file, blob], k) => {
         const x = TREE_LEFT + 0.2 + k * ENTRY_W,
           by = y - 0.17;
-        parts.push(new Text(file, { fontSize: 0.19, font: 'mono', color: s.soft, anchor: 'start' }).moveTo([x, by], [-1, 0]));
-        const box = objectBox('blob', blob, [JSON.stringify(repo.text(blob))], 2.15, 0.66, file === lit ? accent : s.soft);
+        parts.push(
+          new Text(file, { fontSize: 0.19, font: 'mono', color: s.soft, anchor: 'start' }).moveTo([x, by], [-1, 0]),
+        );
+        const box = objectBox(
+          'blob',
+          blob,
+          [JSON.stringify(repo.text(blob))],
+          2.15,
+          0.66,
+          file === lit ? accent : s.soft,
+        );
         blobs.set(file, box.moveTo([x + 1.27 + 2.15 / 2, by]));
         if (file !== skip) parts.push(box);
       });
@@ -356,6 +397,7 @@ export default class GitExplainer extends Scene {
 
     // ── head: the branch moves; HEAD follows it ─────────────────────────
     await this.step('head', {
+      detail: true,
       title: 'Moving main to commit two changes one reference',
       line: 'refs/heads/main now holds commit two’s id; no object is copied.',
       caption:
@@ -386,6 +428,7 @@ export default class GitExplainer extends Scene {
     const inPlace = { tree: samePlace(t1, t2), commit: samePlace(c1, c2) },
       kept = inPlace.tree + inPlace.commit;
     await this.step('hashes', {
+      detail: true,
       title: 'Commit two’s id depends on every object it reaches',
       line: `${kept} of 80 digits match in place, about the ${80 / 16} chance gives.`,
       caption: `Commit two’s bytes hold its tree’s id and its parent’s id, so its id depends on everything it reaches. Of the 80 digits in the new tree and commit ids, ${kept} are the same digit in the same place as in the old ids, about the ${80 / 16} that chance alone gives: SHA-1 changes everywhere. A test checks every id against git hash-object.`,
@@ -402,7 +445,10 @@ export default class GitExplainer extends Scene {
         new Text(text, { fontSize: 0.22, color: s.soft, anchor: 'start' }).moveTo([idX, y], [-1, 0]),
       /** An id in mono, with the digits it shares, place for place, with `other` in the emphasis colour. */
       hex = (id: string, other: string, y: number, color: string) => {
-        const t = new Text(id, { fontSize: 0.2, font: 'mono', color, anchor: 'start' }).moveTo([idX + 1.45, y], [-1, 0]);
+        const t = new Text(id, { fontSize: 0.2, font: 'mono', color, anchor: 'start' }).moveTo(
+          [idX + 1.45, y],
+          [-1, 0],
+        );
         if (t.children.length !== id.length) throw new Error('Expected one glyph per hex digit');
         t.children.forEach((g, i) => id[i] === other[i] && g.setFill(accent));
         return t;
@@ -431,7 +477,10 @@ export default class GitExplainer extends Scene {
     );
     const [treeMatch, commitMatch] = lastMatches(this, 2);
     const counts = [
-      label(`Paired with an equal digit anywhere: tree ${treeMatch!.matched}, commit ${commitMatch!.matched} of 40`, -3.4),
+      label(
+        `Paired with an equal digit anywhere: tree ${treeMatch!.matched}, commit ${commitMatch!.matched} of 40`,
+        -3.4,
+      ),
       label(`Same digit in the same place, coloured: tree ${inPlace.tree}, commit ${inPlace.commit} of 40`, -3.8),
     ];
     await s.enter(...counts, { runTime: 0.4 });

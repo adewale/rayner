@@ -12,7 +12,7 @@ const CHOSEN: Record<string, Symbol> = { na: 'Na', cl: 'Cl', fe: 'Fe', cu: 'Cu',
 export function check(trace: Trace, values: Record<string, string>): void {
   const symbol = CHOSEN[values.element!]!;
   const z = atomicNumber(symbol), p = position(z), group = p.group!, core = coreOf(z);
-  assert.equal(trace.steps.length, 7);
+  assert.equal(trace.steps.length, 9);
   assertStepState(trace, 'column', { element: symbol, z, group, members: membersOf(group).map((m) => m.z), gaps: gaps(group) });
   assertStepState(trace, 'fill', { lit: z, filling: configText(predicted(z)) });
   assertStepState(trace, 'count', {

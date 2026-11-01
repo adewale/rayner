@@ -1,6 +1,6 @@
 import {stepAudio} from '../explain/audio.ts';
 import type {AudioClip} from '../explain/audio.ts';
-import {StateScope} from './embed-scope.ts';
+import {StateScope, wait} from './embed-scope.ts';
 import {UNITS} from '../src/svg.ts';
 
 /** Optional reader module. Only pages with authored audio import this code. */
@@ -54,7 +54,7 @@ export function mountAudio(stage: HTMLElement, frame: HTMLElement) {
       try {
         if(!context||context.state==='closed') context=new AudioContext();
         const ctx=context;
-        yield* scope.wait(ctx.resume());
+        yield* wait(ctx.resume());
         const state:Playing={kind:'playing',scope,active:new Map(),cursor:null};
         enter(state);
         const seconds=60/clip.bpm,start=ctx.currentTime+0.04,total=clip.beats*seconds;
