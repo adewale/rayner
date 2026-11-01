@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/pg-page.ts';
 import { Scene, Group, Rectangle, Text, Arrow, FadeOut } from '../../../src/index.ts';
 import type { Box, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -82,7 +84,7 @@ const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
 export default class PgPageExplainer extends Scene {
   static meta = {
     id: 'pg-page',
-    title: 'A one-integer Postgres row takes 36 bytes of an 8 KB page, and a bigint row takes the same',
+    title: 'Why can int4 and int8 rows take the same space?',
     sources: [
       PG + 'include/storage/bufpage.h#L158-L218',
       PG + 'include/storage/itemid.h#L25-L30',
@@ -126,7 +128,7 @@ export default class PgPageExplainer extends Scene {
     const values = settingsOf(this);
     const column = values.column as Column,
       ff = Number(values.fillfactor);
-    const s = stage(this, { style: STYLE, headingSize: 0.46 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
     const c = caseOf(column, 100),
       w = caseOf(SWAP[column], 100),
@@ -142,7 +144,10 @@ export default class PgPageExplainer extends Scene {
     const pw = PAGE[2] - PAGE[0],
       ph = PAGE[3] - PAGE[1];
     const box = (x0: number, y0: number, x1: number, y1: number, fill: string, stroke = ink) =>
-      new Rectangle({ width: x1 - x0, height: y1 - y0, fill, stroke, strokeWidth: 0.02 }).moveTo([(x0 + x1) / 2, (y0 + y1) / 2]);
+      new Rectangle({ width: x1 - x0, height: y1 - y0, fill, stroke, strokeWidth: 0.02 }).moveTo([
+        (x0 + x1) / 2,
+        (y0 + y1) / 2,
+      ]);
     const HEADER_H = 0.6,
       ROW_H = 0.55;
     const outline = box(PAGE[0], PAGE[1], PAGE[2], PAGE[3], COLORS.free);
@@ -151,23 +156,33 @@ export default class PgPageExplainer extends Scene {
       PAGE[0] + pw / 2,
       PAGE[3] - HEADER_H / 2,
     ]);
-    const freeLabel = text(`${BLCKSZ - PAGE_HEADER} bytes free`, { color: s.soft }).moveTo([PAGE[0] + pw / 2, PAGE[1] + ph * 0.45]);
+    const freeLabel = text(`${BLCKSZ - PAGE_HEADER} bytes free`, { color: s.soft }).moveTo([
+      PAGE[0] + pw / 2,
+      PAGE[1] + ph * 0.45,
+    ]);
     const pageSize = text(`${BLCKSZ} bytes`, { size: SMALL, color: s.soft }).moveTo([PAGE[0] + pw / 2, PAGE[1] - 0.22]);
     const pageWords = () =>
       `An 8192-byte page drawn top to bottom, not to scale: a ${PAGE_HEADER}-byte header, then free space` +
-      (rowShown ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${t.stored}-byte tuple at the very end of the page.` : '.');
+      (rowShown
+        ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${t.stored}-byte tuple at the very end of the page.`
+        : '.');
     let rowShown = false;
+    await readerFirst(this, s, readerFrames(column, ff));
     await this.step('page', {
+      detail: true,
       title: 'An empty 8 KB page has 8168 bytes free',
       line: `pd_lower ${PAGE_HEADER} and pd_upper ${BLCKSZ} mark where free space starts and ends.`,
       // bufpage.h:121-122 "pd_lower - offset to start of free space", "pd_upper - offset to end of free space";
       // bufpage.c:55-57 PageInit sets pd_lower = SizeOfPageHeaderData and pd_upper = pageSize - specialSize (0 for a table).
       caption: `By default Postgres stores a table in pages of ${BLCKSZ} bytes, and every page starts with a ${PAGE_HEADER}-byte header. Two of its fields, pd_lower and pd_upper, mark where the free space starts and ends. On an empty page they are ${PAGE_HEADER} and ${BLCKSZ}, so ${BLCKSZ - PAGE_HEADER} bytes are free.`,
     });
+    await s.clear();
     await s.enter(outline, header, headerLabel, freeLabel, pageSize, { describe: pageWords });
     // pd_lower and pd_upper, said where they point: the free space's top and bottom edges.
-    const lowerAt = (x: number, y: number, value: number) => s.callout([x, y], `pd_lower ${value}`, { side: 'below', gap: 0.35, size: SMALL });
-    const upperAt = (x: number, y: number, value: number) => s.callout([x, y], `pd_upper ${value}`, { side: 'above', gap: 0.45, size: SMALL });
+    const lowerAt = (x: number, y: number, value: number) =>
+      s.callout([x, y], `pd_lower ${value}`, { side: 'below', gap: 0.35, size: SMALL });
+    const upperAt = (x: number, y: number, value: number) =>
+      s.callout([x, y], `pd_upper ${value}`, { side: 'above', gap: 0.45, size: SMALL });
     const mid = PAGE[0] + pw / 2;
     const emptyMarks = [await lowerAt(mid, PAGE[3] - HEADER_H, PAGE_HEADER), await upperAt(mid, PAGE[1], BLCKSZ)];
     this.state.empty = { lower: PAGE_HEADER, upper: BLCKSZ, free: BLCKSZ - PAGE_HEADER };
@@ -175,6 +190,7 @@ export default class PgPageExplainer extends Scene {
     // ------------------------------------------------------------------ one row
     const valueWords = isText ? `the int4, then ${TEXT_CHARS} characters after a 1-byte length` : `the ${c.label}`;
     await this.step('row', {
+      detail: true,
       title: `One ${c.label} row takes ${t.perRow} bytes of the page`,
       line: `A ${LINE_POINTER}-byte line pointer, plus a ${t.stored}-byte tuple at the page’s end.`,
       // heap_form_tuple (heaptuple.c:1151-1160); PageAddItemExtended (bufpage.c:310-316).
@@ -187,18 +203,29 @@ export default class PgPageExplainer extends Scene {
     // The pointer sits under the header; the tuple fills the last bytes of the page.
     // Widths in the two strips share one scale, so the pointer is an eighth of an int4 tuple.
     const perByte = (pw - 0.2) / 48;
-    const pointer = box(PAGE[0], PAGE[3] - HEADER_H - ROW_H, PAGE[0] + LINE_POINTER * perByte, PAGE[3] - HEADER_H, COLORS.pointers);
+    const pointer = box(
+      PAGE[0],
+      PAGE[3] - HEADER_H - ROW_H,
+      PAGE[0] + LINE_POINTER * perByte,
+      PAGE[3] - HEADER_H,
+      COLORS.pointers,
+    );
     const pointerLabel = text(`line pointer, ${LINE_POINTER} bytes`, { size: SMALL }).moveTo(
       [pointer.box()![2] + 0.15, PAGE[3] - HEADER_H - ROW_H / 2],
       [-1, 0],
     );
     const tupleW = t.stored * perByte;
     const tupleBox = box(PAGE[2] - tupleW, PAGE[1], PAGE[2], PAGE[1] + ROW_H, COLORS.data);
-    const tupleLabel = text(`tuple, ${t.stored} bytes`, { size: SMALL, color: s.palette.paper }).moveTo(tupleBox.center());
+    const tupleLabel = text(`tuple, ${t.stored} bytes`, { size: SMALL, color: s.palette.paper }).moveTo(
+      tupleBox.center(),
+    );
     const linkFrom: Vec = [PAGE[0] + (LINE_POINTER * perByte) / 2, PAGE[3] - HEADER_H - ROW_H - 0.05],
       linkTo: Vec = [PAGE[2] - tupleW + 0.3, PAGE[1] + ROW_H + 0.05];
     const link = new Arrow(linkFrom, linkTo, { stroke: ink, strokeWidth: 0.025, tipLength: 0.18 });
-    const free2 = text(`${BLCKSZ - PAGE_HEADER - t.perRow} bytes free`, { color: s.soft }).moveTo([PAGE[0] + pw / 2 + 0.5, PAGE[1] + ph * 0.42]);
+    const free2 = text(`${BLCKSZ - PAGE_HEADER - t.perRow} bytes free`, { color: s.soft }).moveTo([
+      PAGE[0] + pw / 2 + 0.5,
+      PAGE[1] + ph * 0.42,
+    ]);
     rowShown = true;
     // The tuple byte by byte, eight to a line: every row of the grid is one MAXALIGN unit.
     const CELL = 0.52,
@@ -219,7 +246,10 @@ export default class PgPageExplainer extends Scene {
     const key = (color: string, words: string, row: number) => {
       const y = GY - 0.25 - row * 0.62;
       return new Group(
-        new Rectangle({ width: 0.3, height: 0.3, fill: color, stroke: ink, strokeWidth: 0.015 }).moveTo([GX + 8 * CELL + 0.45, y]),
+        new Rectangle({ width: 0.3, height: 0.3, fill: color, stroke: ink, strokeWidth: 0.015 }).moveTo([
+          GX + 8 * CELL + 0.45,
+          y,
+        ]),
         text(words, { size: SMALL }).moveTo([GX + 8 * CELL + 0.75, y], [-1, 0]),
       );
     };
@@ -253,12 +283,21 @@ export default class PgPageExplainer extends Scene {
       gap: cells[t.hoff]!.box()![1] - (GY - (t.stored / 8) * CELL) + 0.35,
       size: SMALL,
     });
-    this.state.row = { lpOff: BLCKSZ - t.stored, lpLen: t.lpLen, hoff: t.hoff, stored: t.stored, perRow: t.perRow, lower: PAGE_HEADER + LINE_POINTER, upper: BLCKSZ - t.stored };
+    this.state.row = {
+      lpOff: BLCKSZ - t.stored,
+      lpLen: t.lpLen,
+      hoff: t.hoff,
+      stored: t.stored,
+      perRow: t.perRow,
+      lower: PAGE_HEADER + LINE_POINTER,
+      upper: BLCKSZ - t.stored,
+    };
 
     // ------------------------------------------------------------------ a full page
     const sh = c.share,
       p = c.page;
     await this.step('full', {
+      detail: true,
       title: `A full page holds ${p.rows} ${c.label} rows; ${percent(sh.data)} of it is data`,
       line: `Tuple headers take ${percent(sh.headers)} of the page${sh.headers > sh.data ? ', more than the data' : ''}.`,
       caption: `Inserts fill the page until the next row no longer fits: ${p.rows} rows at the default fillfactor. The pie splits the ${BLCKSZ} bytes, with each part’s bytes in brackets. The ${p.rows} tuple headers take ${percent(sh.headers)}, ${
@@ -280,6 +319,7 @@ export default class PgPageExplainer extends Scene {
     // ------------------------------------------------------------------ why that many
     const used = p.rows * t.perRow;
     await this.step('why', {
+      detail: true,
       title: `Row ${p.rows + 1} would need ${t.stored} bytes and a pointer; ${p.free} are left`,
       line: `Free space less a ${LINE_POINTER}-byte pointer is ${p.heapFree} bytes, too few.`,
       // hio.c:520, 553, 703 and bufpage.c:906-921 (PageGetFreeSpace subtracts one ItemIdData).
@@ -309,6 +349,7 @@ export default class PgPageExplainer extends Scene {
           ? `The 4 bytes saved become padding, because the page still rounds the 28-byte tuple up to 32.`
           : `Text needs no alignment, so after an int4 it starts at byte 28, in what would be padding; after an int8 it starts at 32, and the ${w.tuple.lpLen}-byte tuple rounds up to ${w.tuple.stored}.`;
     await this.step('swap', {
+      detail: true,
       title: same
         ? `An ${w.label} row takes the same ${w.tuple.perRow} bytes`
         : `As ${w.label}, a row takes ${w.tuple.perRow} bytes, not ${t.perRow}`,
@@ -319,7 +360,9 @@ export default class PgPageExplainer extends Scene {
             ? 'The 4 bytes saved become padding: the tuple still rounds to 32.'
             : `After an int8 the text starts at 32; the tuple rounds up to ${w.tuple.stored}.`,
       caption: `The same pie, edited to ${w.label}${isText ? '' : `: the data goes from ${t.data} to ${w.tuple.data} bytes a row`}. ${swapWhy} ${
-        same ? `The slices change size; the page still holds ${w.page.rows} rows.` : `A full page drops from ${c.page.rows} rows to ${w.page.rows}.`
+        same
+          ? `The slices change size; the page still holds ${w.page.rows} rows.`
+          : `A full page drops from ${c.page.rows} rows to ${w.page.rows}.`
       }`,
     });
     await s.clearOverlays();
@@ -335,11 +378,18 @@ export default class PgPageExplainer extends Scene {
       ],
       { at: RIGHT, fontSize: SIZE, title: 'Bytes' },
     );
-    this.state.swap = { from: column, to: w.column, rows: [c.page.rows, w.page.rows], perRow: [t.perRow, w.tuple.perRow], share: w.share };
+    this.state.swap = {
+      from: column,
+      to: w.column,
+      rows: [c.page.rows, w.page.rows],
+      perRow: [t.perRow, w.tuple.perRow],
+      share: w.share,
+    };
 
     // ------------------------------------------------------------------ fillfactor
     const r70 = caseOf(column, 70);
     await this.step('fillfactor', {
+      detail: true,
       title:
         ff === 100
           ? `Fillfactor 100, the default, holds nothing back: ${f.page.rows} rows`
@@ -356,7 +406,9 @@ export default class PgPageExplainer extends Scene {
     });
     await s.clearOverlays();
     await d.morph({ source: pie(f) }, { ops: pieOps(w, f) });
-    await d.mark([ff === 100 ? 'slice:Free space' : 'slice:Fillfactor reserve'], { as: ff === 100 ? 'nothing held back' : 'held back' });
+    await d.mark([ff === 100 ? 'slice:Free space' : 'slice:Fillfactor reserve'], {
+      as: ff === 100 ? 'nothing held back' : 'held back',
+    });
     await s.card(
       [
         ['Fillfactor', `${ff}`],
@@ -367,23 +419,38 @@ export default class PgPageExplainer extends Scene {
       ],
       { at: RIGHT, fontSize: SIZE, title: `${c.label}, fillfactor ${ff}` },
     );
-    this.state.fillfactor = { fillfactor: ff, reserve: f.page.reserve, target: f.page.target, rows: f.page.rows, free: f.page.free, share: f.share };
+    this.state.fillfactor = {
+      fillfactor: ff,
+      reserve: f.page.reserve,
+      target: f.page.target,
+      rows: f.page.rows,
+      free: f.page.free,
+      share: f.share,
+    };
 
     // ------------------------------------------------------------------ compare
     const all = (['int4', 'int8', 'int4-text', 'int8-text'] as Column[]).map((k) => caseOf(k, ff));
     const [i4, i8, i4t, i8t] = all as [Case, Case, Case, Case];
     await this.step('compare', {
+      detail: true,
       title: `int4 and int8 fill ${i4.pagesFor10000} pages alike; with text after them, ${i4t.pagesFor10000} and ${i8t.pagesFor10000}`,
       line: `Both integer rows take ${i4.tuple.perRow} bytes; with text, ${i4t.tuple.perRow} and ${i8t.tuple.perRow}.`,
       caption: `Each line is a table of 10 000 rows at fillfactor ${ff}, as measured on Postgres 18.6. int4 and int8 rows both take ${i4.tuple.perRow} bytes, so both tables take ${i4.pagesFor10000} pages. With an ${TEXT_CHARS}-character text column after the integer, the int8 table takes ${i8t.pagesFor10000} pages to the int4 table’s ${i4t.pagesFor10000}.`,
     });
     await s.clear();
     const compareCard = await s.card(
-      all.map((x) => [x.label, `${x.tuple.perRow} bytes a row, ${x.page.rows} a page, ${x.pagesFor10000} pages`] as [string, string]),
+      all.map(
+        (x) =>
+          [x.label, `${x.tuple.perRow} bytes a row, ${x.page.rows} a page, ${x.pagesFor10000} pages`] as [
+            string,
+            string,
+          ],
+      ),
       { at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: `10 000 rows at fillfactor ${ff}` },
     );
     await compareCard.mark(c.label, { as: 'this case' });
-    this.state.compare = Object.fromEntries(all.map((x) => [x.column, { perRow: x.tuple.perRow, rows: x.page.rows, pages: x.pagesFor10000 }]));
+    this.state.compare = Object.fromEntries(
+      all.map((x) => [x.column, { perRow: x.tuple.perRow, rows: x.page.rows, pages: x.pagesFor10000 }]),
+    );
   }
 }
-

@@ -101,7 +101,7 @@ test('`rayner see` prints a step: its resting picture as text, title, caption, p
       scene = join(ROOT, 'scenes/explainers/ring-buffer/scene.ts'),
       svg = join(folder, 'result.svg');
     const out = execFileSync(process.execPath, [cli, 'see', scene, 'result', '--out', svg], { encoding: 'utf8' });
-    assert.match(out, /^ring-buffer · step 4 of 4: result/m);
+    assert.match(out, /^ring-buffer · step 6 of 6: result/m);
     assert.match(out, /^Title: \S/m);
     assert.match(out, /^Caption: \S/m);
     // What the step changed, from the trace: the model's ring after the last pushes.

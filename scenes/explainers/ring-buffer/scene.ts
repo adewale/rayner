@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/ring-buffer.ts';
 import {
   Scene,
   Animation,
@@ -78,7 +80,7 @@ class Apply extends Animation {
 export default class RingBufferExplainer extends Scene {
   static meta = {
     id: 'ring-buffer',
-    title: 'A ring buffer reuses freed slots and refuses a push when full',
+    title: 'How does a ring buffer reuse storage?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json'],
   };
   static settings = [
@@ -102,7 +104,7 @@ export default class RingBufferExplainer extends Scene {
   override async construct() {
     const which = settingsOf(this).operations!,
       events = ringStory(which),
-      s = stage(this, { style: 'dusk' }),
+      s = stage(this, { headingSize: 0.6, style: 'dusk' }),
       ink = s.palette.ink,
       soft = s.soft,
       head = s.emphasis;
@@ -137,10 +139,7 @@ export default class RingBufferExplainer extends Scene {
         strokeWidth: 0.03,
         ...(refused ? { dashArray: '0.08 0.06' } : {}),
       });
-      return new Group(
-        ring,
-        new Text(String(v), { fontSize: 0.28, color: ink }).moveTo(ring.center()),
-      );
+      return new Group(ring, new Text(String(v), { fontSize: 0.28, color: ink }).moveTo(ring.center()));
     };
     const pointer = (name: 'head' | 'tail', i: number) => {
       const a = angle(i) + (name === 'head' ? 0.22 : -0.22),
@@ -153,11 +152,19 @@ export default class RingBufferExplainer extends Scene {
       const label = new Text(name, { fontSize: 0.24, font: 'mono', color, weight: 'bold' }).moveTo(
         polar(a + (name === 'head' ? 0.06 : -0.06), R + 1.42),
       );
-      return new Group(new Arrow(start, end, { stroke: color, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.14 }), label);
+      return new Group(
+        new Arrow(start, end, { stroke: color, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.14 }),
+        label,
+      );
     };
     /** An outline that stays on the slot an operation touched until the next operation. */
     const mark = (i: number, color: string) =>
-      new SurroundingRectangle(circles[i]!, { buff: 0.09, cornerRadius: SLOT + 0.09, stroke: color, strokeWidth: 0.045 });
+      new SurroundingRectangle(circles[i]!, {
+        buff: 0.09,
+        cornerRadius: SLOT + 0.09,
+        stroke: color,
+        strokeWidth: 0.045,
+      });
 
     // What the ring shows, in words: one description shared by every native piece of it
     // (slots, indices, cursors, the readout, values, outlines, push(v) and the tray).
@@ -180,12 +187,15 @@ export default class RingBufferExplainer extends Scene {
     };
     const keepRing = <T extends Mobject>(...mobs: [T, ...Mobject[]]): T => s.keep(...mobs, { describe: ringWords });
 
+    await readerFirst(this, s, readerFrames(which));
     await this.step('slots', {
+      detail: true,
       title: 'Two cursors and a length on five slots',
       line: 'Head and tail both start at slot 0; length tells empty from full.',
       caption:
         'Head is the next value to pop; tail is the next slot to write. Both start at slot 0 and meet again when the ring is full, so length is what tells empty from full. The middle of the ring shows the buffer’s own three fields.',
     });
+    await s.clear();
     let now: Snapshot = { head: 0, tail: 0, length: 0, data: Array(SLOTS).fill(null) };
     this.state = { ...now, operation: null, error: null, returned: null };
     const circles = Array.from({ length: SLOTS }, (_, i) => slotCircle(false).moveTo(polar(angle(i), R)));
@@ -293,6 +303,7 @@ export default class RingBufferExplainer extends Scene {
       marks: Mobject[] = [];
     for (let g = 0; g < groups.length; g++) {
       await this.step(['fill', 'next', 'result'][g]!, {
+        detail: true,
         title:
           g === 0
             ? 'Five pushes fill the ring'

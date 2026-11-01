@@ -185,10 +185,23 @@ try {
     ['font-metrics', join(ROOT, 'scenes/explainers/font-metrics')],
     ['layout-direction', join(ROOT, 'scenes/explainers/layout-direction')],
   ];
+  // Copy the real authoring examples and their shared drawing modules into the
+  // outside project. Engine imports use the installed package; lesson imports
+  // keep their relative paths, so missing author-owned dependencies still fail.
+  const copyAuthorSource = async (source: string, target: string) => {
+    const code = (await readFile(source, 'utf8')).replace(
+      /(['"])(?:\.\.\/)+(src|explain)\/index\.ts\1/g,
+      (_match, quote: string, area: string) => `${quote}${area === 'src' ? 'rayner' : 'rayner/explain'}${quote}`,
+    );
+    await writeFile(target, code);
+  };
+  await mkdir(join(folder, 'lib/readers'), { recursive: true });
+  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'readers/layout-direction.ts'])
+    await copyAuthorSource(join(ROOT, 'scenes/explainers/lib', file), join(folder, 'lib', file));
   for (const [name, source] of replayFixtures) {
     const target = join(folder, 'outline-' + name);
     await mkdir(target);
-    await copyFile(join(source, 'scene.ts'), join(target, 'scene.ts'));
+    await copyAuthorSource(join(source, 'scene.ts'), join(target, 'scene.ts'));
     if (name !== 'layout-direction') await copyFile(join(source, 'scene.lettering.json'), join(target, 'scene.lettering.json'));
     if (name === 'style' || name === 'font-metrics') {
       await cp(join(source, 'scene.snapshots'), join(target, 'scene.snapshots'), { recursive: true });

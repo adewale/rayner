@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/glyph.ts';
 import {
   Scene,
   Text,
@@ -113,7 +115,7 @@ function pairLines(pairs: Array<[Mobject, Mobject]>, ghostOf: (m: Mobject) => Mo
 export default class GlyphExplainer extends Scene {
   static meta = {
     id: 'glyph',
-    title: 'Why Rayner measures glyphs before drawing text',
+    title: 'Why does the same text take different space?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
   };
   static settings = [
@@ -130,19 +132,22 @@ export default class GlyphExplainer extends Scene {
   override async construct() {
     const font = settingsOf(this).font as FontName,
       other: FontName = font === 'sans' ? 'mono' : 'sans',
-      s = stage(this, { style: STYLE, headingSize: HEADING }),
+      s = stage(this, { style: STYLE, headingSize: 0.6 }),
       ink = s.palette.ink,
       hot = s.emphasis,
       soft = s.soft;
     const mine = shape(font, WORD),
       theirs = shape(other, WORD);
 
+    await readerFirst(this, s, readerFrames(font));
     await this.step('write', {
+      detail: true,
       title: 'A letter needs both an outline and a measured width',
       line: 'Write traces the contour; the next step measures its advance.',
       caption:
         'Why can the same word take different space in two fonts? Each letter is an outline from a font bundled with Rayner, with an advance that tells the next letter where to start. Write traces those contours here; the close-up shows points and handles. The next step compares the measured widths before later steps show what changes during a morph. No installed font is needed.',
     });
+    await s.clear();
     const text = new Text(WORD, { font, fontSize: font === 'sans' ? 1.5 : 1.15, color: ink, fillOpacity: 0 });
     text.setStroke(ink, 0.018);
     text.moveTo([0, 1.75]);
@@ -158,10 +163,13 @@ export default class GlyphExplainer extends Scene {
       color: soft,
     }).moveTo([-3.9, -4.0]);
     const underline = new Underline(text.children[oIndex]!, { buff: 0.12, stroke: hot, strokeWidth: 0.04 });
-    s.keep(big, underline, { describe: `“${WORD}” traced as outlines, its first “o” underlined and drawn large below` });
+    s.keep(big, underline, {
+      describe: `“${WORD}” traced as outlines, its first “o” underlined and drawn large below`,
+    });
     await this.play(new Create(big, { runTime: 1.2 }), new Create(underline, { runTime: 0.6 }));
     s.keep(net, {
-      describe: 'The large “o” with its control net: points on the outline as large dots, handles as small dots on thin lines',
+      describe:
+        'The large “o” with its control net: points on the outline as large dots, handles as small dots on thin lines',
     });
     s.keep(glyphNote);
     await this.play(new FadeIn(net, { runTime: 0.6 }), new FadeIn(glyphNote, { runTime: 0.6 }));
@@ -178,6 +186,7 @@ export default class GlyphExplainer extends Scene {
     );
 
     await this.step('measure', {
+      detail: true,
       title: 'Inter and JetBrains Mono give the same words different widths',
       line: 'Ticks mark each pen position; the brace spans the measured width.',
       caption:
@@ -246,10 +255,10 @@ export default class GlyphExplainer extends Scene {
     this.state = { font, width: advance(font), glyphs: measured.children.length };
 
     await this.step('letterforms', {
+      detail: true,
       title: 'The same letter is a different outline in each font',
       line: `Every glyph pairs with its ${SMALL * 100}% copy; across fonts, none pair.`,
-      caption:
-        `TransformMatchingShapes pairs glyphs whose outlines are the same path once each is centred and scaled to one size, so position and size do not count. Every glyph pairs with its own copy at ${SMALL * 100}% size; across the two fonts nothing pairs, not even the same letter.`,
+      caption: `TransformMatchingShapes pairs glyphs whose outlines are the same path once each is centred and scaled to one size, so position and size do not count. Every glyph pairs with its own copy at ${SMALL * 100}% size; across the two fonts nothing pairs, not even the same letter.`,
     });
     await s.clearOverlays();
     await this.play(measured.animate.moveTo([-wide / 2, 2.35], [-1, 0]), { runTime: 0.5 });
@@ -264,9 +273,12 @@ export default class GlyphExplainer extends Scene {
     const toSmaller = new TransformMatchingShapes(first, smaller, { runTime: 1.4 });
     await this.play(toSmaller);
     const sameFont = toSmaller.summary();
-    const links = s.keep(pairLines(toSmaller.pairs, (g) => measured.children[index.get(g)!]!, soft), {
-      describe: `Lines join each of the ${sameFont.matched} glyphs of the top row to its smaller copy; nothing joins the ${NAME[other]} row`,
-    });
+    const links = s.keep(
+      pairLines(toSmaller.pairs, (g) => measured.children[index.get(g)!]!, soft),
+      {
+        describe: `Lines join each of the ${sameFont.matched} glyphs of the top row to its smaller copy; nothing joins the ${NAME[other]} row`,
+      },
+    );
     await this.play(new Create(links, { runTime: 0.6, lagRatio: 0 }));
     const toOther = new TransformMatchingShapes(second, across, { runTime: 1.4 });
     await this.play(toOther);
@@ -278,6 +290,7 @@ export default class GlyphExplainer extends Scene {
     this.state.shapePairs = { sameFont: sameFont.matched, otherFont: otherFont.matched };
 
     await this.step('pipeline', {
+      detail: true,
       title: 'Rayner converts every font segment to a cubic',
       line: `${mine.quads + mine.lines + mine.cubics} font segments in, as many cubics out, for SVG and PNG.`,
       caption:
@@ -302,8 +315,7 @@ export default class GlyphExplainer extends Scene {
     const solid = glyphAlone(font, 'o', 3.6, [3.85, 1.95]);
     solid.setStyle({ fill: ink, fillOpacity: 1, stroke: 'none' });
     const o = solid as Pathed;
-    const fmt = (a: Float32Array, i: number, n: number) =>
-      Array.from(a.slice(i, i + n), (v) => v.toFixed(2)).join(' ');
+    const fmt = (a: Float32Array, i: number, n: number) => Array.from(a.slice(i, i + n), (v) => v.toFixed(2)).join(' ');
     const lines = ['<path d="'];
     o.subpaths.forEach((a, c) => {
       const curves = (a.length - 2) / 6;
@@ -314,9 +326,14 @@ export default class GlyphExplainer extends Scene {
     });
     lines.push('"/>');
     await s.enter(solid, { runTime: 0.5, describe: 'A solid “o”, the glyph whose path the code shows' });
-    await s.code(lines, { at: regionBox('right', { top: 0.7 }), title: `the 'o' as SVG path data (scene units)`, fontSize: 0.22 });
+    await s.code(lines, {
+      at: regionBox('right', { top: 0.7 }),
+      title: `the 'o' as SVG path data (scene units)`,
+      fontSize: 0.22,
+    });
 
     await this.step('morph', {
+      detail: true,
       title: 'A text diff becomes a glyph morph',
       line: 'Paired letters move down; m and s shrink away, h and t grow.',
       caption:
@@ -347,19 +364,44 @@ export default class GlyphExplainer extends Scene {
       ...morph.added.map((g) => new Underline(g, { buff: 0.14, stroke: hot, strokeWidth: 0.045 })),
     );
     s.keep(pairs, marks, {
-      describe: `Lines join the ${result.matched} paired letters of “cache miss” (${letters(before, morph.pairs.map(([a]) => a))}) to their places in “cache hit”; the dropped ${letters(before, morph.removed)} are crossed out and the new ${letters(after, morph.added)} underlined`,
+      describe: `Lines join the ${result.matched} paired letters of “cache miss” (${letters(
+        before,
+        morph.pairs.map(([a]) => a),
+      )}) to their places in “cache hit”; the dropped ${letters(before, morph.removed)} are crossed out and the new ${letters(after, morph.added)} underlined`,
     });
     await this.play(new Create(pairs, { runTime: 0.8, lagRatio: 0 }), new Create(marks, { runTime: 0.8, lagRatio: 0 }));
     // The counts, each beside the marks it counts: right of the crossed letters and of the paired lines, under the underlined ones.
     const around = (gs: Mobject[]) => {
       const bs = gs.map((g) => g.box()!);
-      return [Math.min(...bs.map((b) => b[0])), Math.min(...bs.map((b) => b[1])), Math.max(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3]))] as Box;
+      return [
+        Math.min(...bs.map((b) => b[0])),
+        Math.min(...bs.map((b) => b[1])),
+        Math.max(...bs.map((b) => b[2])),
+        Math.max(...bs.map((b) => b[3])),
+      ] as Box;
     };
-    await s.callout(around(morph.removed.map(ghostOf)), `${result.removed} shrink away: ${letters(before, morph.removed)}`, { side: 'right', gap: 0.3, color: hot, size: 0.26 });
-    await s.callout(pairs, `${result.matched} paired: ${letters(before, morph.pairs.map(([a]) => a))}`, { side: 'right', gap: 0.35, color: soft, size: 0.26 });
-    await s.callout(around(morph.added), `${result.added} grow in: ${letters(after, morph.added)}`, { side: 'below', gap: 0.45, color: hot, size: 0.26 });
+    await s.callout(
+      around(morph.removed.map(ghostOf)),
+      `${result.removed} shrink away: ${letters(before, morph.removed)}`,
+      { side: 'right', gap: 0.3, color: hot, size: 0.26 },
+    );
+    await s.callout(
+      pairs,
+      `${result.matched} paired: ${letters(
+        before,
+        morph.pairs.map(([a]) => a),
+      )}`,
+      { side: 'right', gap: 0.35, color: soft, size: 0.26 },
+    );
+    await s.callout(around(morph.added), `${result.added} grow in: ${letters(after, morph.added)}`, {
+      side: 'below',
+      gap: 0.45,
+      color: hot,
+      size: 0.26,
+    });
 
     await this.step('tradeoff', {
+      detail: true,
       title: 'This diagram fits Inter labels to recorded widths',
       line: 'Pen-and-ink does not request EB Garamond for this scene.',
       caption:
@@ -367,9 +409,7 @@ export default class GlyphExplainer extends Scene {
     });
     await s.clear();
     const again = await s.show({ source: pipeline(NAME[font]) }, { box: regionBox('full', { right: -1.4 }) });
-    const run = again.snapshot.parts
-      .flatMap((p) => p.shapes)
-      .find((sh) => sh.textRun?.text === 'PNG stills')!.textRun!;
+    const run = again.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === 'PNG stills')!.textRun!;
     const natural = new Text(run.text, { fontSize: run.size }).advance();
     const k = (run.width ?? natural) / natural;
     await again.mark(['PNG'], { color: hot });
