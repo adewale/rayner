@@ -67,6 +67,8 @@
     "tools/lettering-outline-fonts.sh",
     "tools/lettering-requirements.txt",
     "vendor/glyph.js",
+    "vendor/glyph.pin.json",
+    "vendor/font-data-sfnt.json",
     "vendor/glyph.d.ts",
     "vendor/lettering",
     "vendor/licenses",

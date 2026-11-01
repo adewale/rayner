@@ -39,3 +39,9 @@ Outside authors use `rayner review scene.ts --out public/example.html` and optio
 Keep one current validation record in CI and generated `out/` artifacts. Commit a representative screenshot or durable source oracle when it helps a reviewer; dated run transcripts and repeated receipts belong in CI or Git history. Older audit records remain historical context, not another release gate.
 
 When consolidating tests, move every assertion to a named keeper and prove it rejects a deliberate defect. Preserve independent values and endpoints, native paint, raster references, package checks and the full case inventory. [test/AGENTS.md](../test/AGENTS.md) records these rules. Test names describe what they actually assert; run counts cannot compensate for a missing input class or oracle.
+
+The compatibility matrix downloads the primary job's tested archive. Package smoke verifies its source commit and SHA-512 integrity before installation and checks integrity again afterwards. It does not repack on each platform.
+
+`test/fixtures/latest-search-view.ts` retains the four guarded/unguarded chart cases for the state/view oracle. The public Latest Search lesson has two completion-order cases and compares both guards in each, including the ticket decision. `test/explain-latest-search.test.ts` owns both boundaries.
+
+The catalog job reuses its checked build in `EXPLAIN_CATALOG=1 node --test test/explain-site.test.ts`. It exports two selected lessons to a temporary directory, checks the chosen entry and subset counts, and rejects publication of excluded lessons or implementation-step cards. This prepares local files only.

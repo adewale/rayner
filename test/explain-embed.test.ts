@@ -419,6 +419,12 @@ test('shared player chrome works in both languages, with and without settings', 
       const contract = { chrome: readerChrome(chromeFor(project.Scene.meta?.lang)), home: PRODUCT.home,
         cases: project.Scene.settings?.length ?? 0, steps: teachingSpecs(project, resolveSettings(project.Scene)).map(s => s.step) };
       assert.deepEqual(await page.evaluate(readerShellProblems, contract), [], id);
+      if (id === shellFixtures[0]) {
+        await page.locator('.lede').evaluate((el: HTMLElement) => { el.style.minHeight = '400px'; el.style.justifyContent = 'flex-end'; });
+        assert.ok((await page.evaluate(readerShellProblems, contract)).includes('empty space separates navigation from the step heading'));
+        await page.locator('.lede').evaluate((el: HTMLElement) => { el.style.minHeight = ''; el.style.justifyContent = ''; });
+        assert.deepEqual(await page.evaluate(readerShellProblems, contract), []);
+      }
       // A deliberate missing segment and footer must each be rejected by the keeper.
       if (id === shellFixtures[0]) {
         await page.locator('.step-bar button').first().evaluate(el => el.remove());
@@ -538,12 +544,11 @@ test('what changed: token-bucket\'s burst step lists its three watched changes u
     });
     // It follows the caption, inside the words.
     assert.equal(await page.locator('.caption + .changes').count(), 1);
-    // The comparison step changes nothing watched: no items, but the row keeps its room.
+    // A step with no watched changes does not leave an empty reserved row.
     await page.locator('.steps button[data-step=trace]').click();
     await page.waitForFunction(() => document.querySelector('.steps [aria-current=step]')?.getAttribute('data-step') === 'trace');
     const trace = await changesOf(page);
-    assert.deepEqual([trace!.hidden, trace!.label, trace!.changes], [false, null, []]);
-    assert.equal(trace!.height, burst!.height, 'the row keeps the room of its tallest step');
+    assert.deepEqual([trace!.hidden, trace!.label, trace!.changes], [true, null, []]);
     // French: the label and the values in French.
     await page.goto(`${embed}/quotient-familial.html?step=parts`);
     await page.waitForSelector('[data-ready=true]');
@@ -569,7 +574,7 @@ test('every keyed control names its key in its tooltip and aria-keyshortcuts, in
       await page.waitForSelector('[data-ready=true]');
       const keys = await page.evaluate(
         (names) => names.map((n) => {
-          const b = document.querySelector<HTMLButtonElement>(`.stepper button[aria-label="${n}"]`);
+          const b = document.querySelector<HTMLButtonElement>(`.player button[aria-label="${n}"]`);
           return b && [b.title, b.getAttribute('aria-keyshortcuts')];
         }),
         [t.previous, t.nextLabel, t.zoomIn, t.zoomOut, t.wholePicture],
@@ -679,7 +684,7 @@ test('right to left: the changes row reads from the right and the footer hint si
 const endOf = (page: Page) =>
   page.evaluate(() => {
     const next = document.querySelector<HTMLButtonElement>('.stepper .primary')!,
-      tries = [...document.querySelectorAll<HTMLButtonElement>('.stepper > .button.try')];
+      tries = [...document.querySelectorAll<HTMLButtonElement>('.player .button.try')];
     return {
       name: next.getAttribute('aria-label'),
       text: next.querySelector('span')!.textContent,
@@ -735,7 +740,7 @@ test('the last step: Next becomes Start again, back to step 1; Try ‘Cache miss
     await page.waitForSelector('[data-ready=true]');
     await page.locator('.step-bar button').last().click();
     await page.waitForFunction(() => document.querySelector('.stepper .primary')?.getAttribute('aria-label') === 'Start again from step 1');
-    assert.equal(await page.locator('.stepper > .button.try').count(), 0);
+    assert.equal(await page.locator('.player .button.try').count(), 0);
     // French: Recommencer, and Essayer « 2 » for quotient-familial's first setting.
     await page.goto(`${embed}/quotient-familial.html?step=revenus-2025`);
     await page.waitForSelector('[data-ready=true]');
@@ -1129,26 +1134,32 @@ test('one tile: the border is on .layout.tile alone, the rail pane runs its heig
   }
 });
 
-test('view tools share Next\'s row when wide and wrap below it when narrow', options, async () => {
+test('view tools share Next\'s row when wide and follow the explanation on phones', options, async () => {
   for (const [width, height] of [[1280, 800], [390, 844]] as const) {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
     try {
       await page.goto(`${embed}/mr-cache.html?step=after&request=hit`);
       await page.waitForSelector('[data-ready=true]');
-      const v = await boxesOf(page, { next: 'button[aria-label="Next step"]', tools: '.stepper .tools' });
+      const v = await boxesOf(page, { next: 'button[aria-label="Next step"]', tools: '.tools', caption: '.caption' });
       const { next, tools } = v.boxes, where = `at ${width}×${height}`;
-      assert.equal(await page.locator('.stepper .tools').getAttribute('role'), 'group');
-      assert.equal(await page.locator('.stepper .tools').getAttribute('aria-label'), 'View tools');
+      assert.equal(await page.locator('.tools').getAttribute('role'), 'group');
+      assert.equal(await page.locator('.tools').getAttribute('aria-label'), 'View tools');
       if (width >= 1280) {
         assert.ok(tools.top < next.bottom && tools.bottom > next.top, `${where}: the tools share Next's row ${JSON.stringify(v.boxes)}`);
         assert.ok(tools.left >= next.right, `${where}: the tools follow Next ${JSON.stringify(v.boxes)}`);
       } else {
-        assert.ok(tools.top >= next.bottom, `${where}: the tools wrap below Next ${JSON.stringify(v.boxes)}`);
+        assert.ok(tools.top >= v.boxes.caption.bottom, `${where}: secondary tools follow the caption ${JSON.stringify(v.boxes)}`);
         // Every control in the row, except the step bar's thin segments, is at least 44 px each way.
-        const small = await page.locator('.stepper > button:not([hidden]), .stepper .tools > button:not([hidden])').evaluateAll((bs) =>
+        const small = await page.locator('.stepper > button:not([hidden]), .tools > button:not([hidden])').evaluateAll((bs) =>
           bs.map((b) => [b.getAttribute('aria-label'), b.getBoundingClientRect().width, b.getBoundingClientRect().height] as const).filter(([, w, h]) => w < 44 || h < 44),
         );
         assert.deepEqual(small, [], where);
+        await page.getByRole('button', {name:'Zoom in',exact:true}).focus();
+        for (const target of [1280,390]) {
+          await page.setViewportSize({width:target,height:844});
+          await page.locator(target>640?'.stepper .tools':'.words .tools').waitFor();
+          assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Zoom in');
+        }
       }
     } finally { await page.close(); }
   }
@@ -1526,7 +1537,7 @@ test('known heights: mr-cache measures three heights above the floor, and the lo
   const { measureEmbed, embedSizeProblems } = await import('../tools/lib/explain-embed-size.ts');
   const size = await measureEmbed(browser, embed, 'mr-cache.html');
   assert.deepEqual(embedSizeProblems(size), [], JSON.stringify(size));
-  assert.ok(size.heights['390'] > size.heights['640'], `a phone's page is taller: ${JSON.stringify(size)}`);
+  // Natural captions can make a phone page shorter; the settled heights and loader agreement are the contract.
   // A different host on another origin, as a reader's would be.
   hostBody = `<!doctype html><style>body{margin:0}</style>${loader('a', 'mr-cache')}<p>After the embed.</p>`;
   const page = await browser.newPage({ viewport: { width: 640, height: 800 }, reducedMotion: 'reduce' });
@@ -1571,6 +1582,7 @@ test('Copy link gives the step\'s share page when site:export published one, els
     await copyFile(from + '.html.headers.json', join(site, id + '.html.headers.json'));
   };
   await publish('mr-cache', join(folder, 'mr-cache'), ['before', 'diff', 'after', 'request']);
+  await publish('restricted-cache', join(folder, 'mr-cache'), ['reader-request', 'reader-outcome']);
   // A scene whose second step has a name no share page can have.
   const odd = join(folder, 'odd-steps');
   await mkdir(odd, { recursive: true });
@@ -1613,6 +1625,10 @@ test('Copy link gives the step\'s share page when site:export published one, els
     await page.locator('.stepper button[aria-label="Next step"]').click();
     await page.waitForURL(/step=two/);
     assert.equal(await copied(), `${embed}/site/odd-steps.html?step=two+words`);
+    await open(`${embed}/site/restricted-cache.html?step=reader-request`);
+    assert.equal(await copied(), 'https://example.org/projects/rayner/restricted-cache/reader-request');
+    await open(`${embed}/site/restricted-cache.html?step=diff`);
+    assert.equal(await copied(), `${embed}/site/restricted-cache.html?step=diff&request=hit`);
     // Built without site:export: no share pages, so the player URL, as before.
     await open(`${embed}/mr-cache.html?step=diff`);
     assert.equal(await copied(), `${embed}/mr-cache.html?step=diff&request=hit`);
@@ -1620,7 +1636,7 @@ test('Copy link gives the step\'s share page when site:export published one, els
     await context.close();
   }
 });
-test('stepping within the teaching or source path keeps the heading line, Next, steps list and transcript in place', options, async () => {
+test('stepping keeps Next in place while headings and captions use their natural height', options, async () => {
   // Caption lengths and tour controls cannot shift a path while the reader steps.
   // Opening the separate source disclosure deliberately changes the page's height.
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
@@ -1655,14 +1671,14 @@ test('stepping within the teaching or source path keeps the heading line, Next, 
             path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY).toFixed(1)));
           path.places.add(
             await page.evaluate(() =>
-              ['.stepper', '.rail', '.transcript'].map((s) => (document.querySelector(s)!.getBoundingClientRect().top + scrollY).toFixed(1)).join(' '),
+              ['.stepper'].map((s) => (document.querySelector(s)!.getBoundingClientRect().top + scrollY).toFixed(1)).join(' '),
             ),
           );
         }
         for(const [name,path] of Object.entries(paths)){
           assert.ok(path.places.size, `${scene}: ${name} path was exercised`);
-          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: controls, steps and transcript tops per step ${[...path.places].join(' | ')}`);
-          if(width<600)assert.equal(path.lines.size,1,`${scene}/${name}: the line below the phone title stays at one height`);
+          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: navigation tops per step ${[...path.places].join(' | ')}`);
+
         }
       } finally {
         await page.close();
@@ -2066,7 +2082,7 @@ function observe(ids: string[]) {
     next: ((b) => ({ name: b.getAttribute('aria-label'), text: b.querySelector('span')!.textContent, disabled: b.disabled }))(
       document.querySelector<HTMLButtonElement>('.stepper .primary')!,
     ),
-    tryCase: [...document.querySelectorAll<HTMLButtonElement>('.stepper > .button.try')].map((b) => (b.hidden ? null : b.textContent)),
+    tryCase: [...document.querySelectorAll<HTMLButtonElement>('.player .button.try')].map((b) => (b.hidden ? null : b.textContent)),
     notice: document.querySelector('.notice')!.textContent,
     checked: Object.fromEntries(
       ids.map((id) => [id, document.querySelector<HTMLInputElement>(`input[name="${id}"]:checked`)?.value ?? null]),
@@ -2300,7 +2316,7 @@ async function reframe(m: PlayerModel, r: PlayerReal) {
   m.tourStop = 0;
   if (narrow && m.follow) m.k = (await tourOf(m, w, h))[0]!.k;
 }
-const button = (r: PlayerReal, name: string) => r.page.locator(`.stepper button[aria-label="${name}"]`);
+const button = (r: PlayerReal, name: string) => r.page.locator(`.player button[aria-label="${name}"]`);
 /** Show a step of this case: a history entry when the step changes, a fresh resting picture always. */
 function goTo(m: PlayerModel, index: number) {
   const step = steps(m)[index]!.step;
@@ -2327,7 +2343,7 @@ const TryCase = command(
   async (m, r) => {
     const s = settingsOfProject(m.project)[0]!,
       option = nextOption(m);
-    await r.page.locator('.stepper > .button', { hasText: `Try ‘${option.label}’` }).click();
+    await r.page.locator('.player .button.try', { hasText: `Try ‘${option.label}’` }).click();
     const { entry, notice } = resolveLoad(m.project, { ...current(m).values, [s.id]: option.value }, undefined);
     if (!sameCase(m.project, entry.values, current(m).values)) m.k = 1;
     push(m, entry);
@@ -2664,10 +2680,9 @@ test('Left at the first story step leaves its picture, URL and settle count unch
 });
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
   const {context, model, real} = await openPlayer('oauth-pkce', {
-    values: ['yes'], viewport: {width: 308, height: 400},
+    values: ['yes'], step: 'reader-redeem', viewport: {width: 308, height: 400},
   });
   try {
-    await fc.asyncModelRun(() => ({model, real}), [Next]);
     const {w, h} = await stageSize(real), tour = await tourOf(model, w, h);
     assert.ok(tour.length > 1 && tour[0]!.k !== tour[1]!.k, 'the fixture changes scale between the opening and first detail view');
     await fc.asyncModelRun(() => ({model, real}), [OverviewButton]);

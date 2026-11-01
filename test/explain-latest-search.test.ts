@@ -6,7 +6,7 @@ import { withSettings } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
-import LatestSearchExplainer from '../scenes/explainers/latest-search/scene.ts';
+import LatestSearchExplainer from './fixtures/latest-search-view.ts';
 import { createSearch, runSearch, SEARCH_CODE } from '../scenes/explainers/lib/latest-search.ts';
 
 test('controlled promises expose the stale overwrite and the latest-request guard in both completion orders', async () => {
@@ -29,14 +29,14 @@ test('the pictured ticket check and publish call match the executed handler', ()
   const compact = (text: string) => text.replace(/\s+/g, '');
   const source = compact(createSearch.toString());
   const pictured = compact(SEARCH_CODE.join('\n'));
-  for (const statement of ['const ticket = ++latest', 'if (!guarded || ticket === latest)', 'publish(result)']) {
+  for (const statement of ['let latest = 0', 'const ticket = ++latest', 'if (!guarded || ticket === latest)', 'publish(result)']) {
     assert.ok(source.includes(compact(statement)), `${statement} must execute`);
     assert.ok(pictured.includes(compact(statement)), `${statement} must appear on screen`);
   }
 });
 
-test('all four scene cases derive their final chart and caption from the real promise result', async () => {
-  const project = await collectProject('scenes/explainers/latest-search', { write: false });
+test('all four reference chart cases derive their final chart and caption from the real promise result', async () => {
+  const project = await collectProject('test/fixtures/latest-search-view.ts', { write: false });
   assert.equal(project.variants.length, 4);
   for (const { values, trace } of project.variants) {
     const guard = values.guard === 'on';
@@ -64,5 +64,21 @@ test('the chart/view on every case follows the state recorded at each resting st
       scene => (scene as LatestSearchExplainer).chart as View | null,
     );
     assert.equal(checked, 4, `${guard}/${order}: all four resting steps have a state-derived view`);
+  }
+});
+
+test('the public story compares both rules and shows each ticket decision in both finish orders', async () => {
+  const p = await collectProject('scenes/explainers/latest-search', {write:false});
+  assert.equal(p.variants.length,2);
+  for(const v of p.variants){
+    assert.deepEqual(v.trace.steps.map(s=>s.step),['reader-order','reader-first','reader-ticket','reader-guard']);
+    const order=v.values.order as 'new-first'|'old-first';
+    const off=await runSearch(false,order),on=await runSearch(true,order);
+    const result=v.trace.steps.at(-1)!.after!.reader as {off:unknown;on:unknown};
+    assert.deepEqual(result,{order,off:off.snapshots,on:on.snapshots});
+    for(const step of v.trace.steps.slice(1,3)){
+      const r=step.after!.reader as {ticket:number;latest:number;accepted:boolean};
+      assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
+    }
   }
 });

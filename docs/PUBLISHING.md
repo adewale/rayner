@@ -22,9 +22,27 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
    - The page that embeds it needs the artifact's origin in its own `frame-src`, and the loader's in `script-src` if it uses the loader.
    - The recipe's `Cache-Control` revalidates on every load. Long-lived caching is safe only for a URL that changes when the content does, such as one with the receipt's `artifactHash` in it.
 
-   For the demo collection, `npm run demos:build && npm run site:export -- <site-root>` copies every page, poster, the generated gallery and the loader into a site, updates its `_headers`, and writes a copy of the response-header recipe to `out/site-headers.txt`. For agents it also writes each explainer's [`describeExplainer`](REFERENCE.md#describe) object as `<id>.json` beside its page, and `llms.txt` at the site root listing every page and its JSON. `demos:build` writes that object as `out/explainers/<id>/describe.json`, and `site:export` copies it. Before it writes anything, `site:export` checks each explainer's `out/explainers/<id>/inputs.json`, where `demos:build` records the scene's code hash, the engine hash and a hash of the scene's folder. If any of them changed since the build, it fails and says to run `demos:build`. The versioned build fingerprint also covers the player, CSS, tools, dependencies and notices. Changes to those inputs require a rebuild. Export validates a staging directory before replacing the Rayner subtree, writes a deployment manifest with each file's SHA-256, and replaces the collection's existing `_headers` rules while preserving other host rules. It includes `index.html`, the generated gallery, and `evidence.json`; use those as the catalog's source of truth instead of maintaining a second list of counts and titles. To publish a curated subset without removing lessons from the Rayner source collection, pass `--only id,id` to `site:export`. All built inputs are still checked. The export contains only those pages, posters, step shares, JSON descriptions and header rules; its catalog, evidence and `llms.txt` have matching subset counts. The subset index lists only those lessons, and the two-embed demo is omitted because it can link an excluded lesson. Include the product's introductory entry among the selected ids. Re-export without `--only` to restore the full collection.
+## Export the collection
 
-4. Embed it with a plain iframe:
+Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Its gallery leads with six showcase lessons; the rest remain available as subject lessons and authoring recipes. The catalog records `showcase` separately from coverage counts.
+
+Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the showcase, use:
+
+```sh
+npm run site:export -- <site-root> --only python-dict,bloom-filter,git-branches,melody-rhythm,monty-hall,token-bucket --entry python-dict
+```
+
+`--entry` must name a selected lesson. If omitted, export keeps the catalog entry when selected, otherwise it uses the first requested id. No particular subject is mandatory. The exported catalog, evidence and `llms.txt` report only the selected lessons; complete collection checks remain separate.
+
+Export verifies source and built-file fingerprints before writing. It validates a staging directory, replaces the Rayner subtree, preserves other host header rules and writes a deployment manifest with file hashes. Each selected lesson gets HTML, a poster, JSON description and embed sizes. Public teaching steps get generated cards and, with `--origin https://example.org`, share pages. Detailed steps retain ordinary query links. Step cards are rendered during export, so excluded lessons incur no card-rendering work.
+
+Export prepares files in the directory you supply. Uploading or deploying those files is a separate step.
+
+For Oshineye.dev, the same six subject lessons can be accompanied by `font-metrics` and `pen-and-pencil` under “How these are made.” Add those ids to `--only`; their `toolchain` group remains in the exported catalog. The remaining examples stay available in the full collection and source repository.
+
+## Embed a page
+
+1. Embed it with a plain iframe:
 
    ```html
    <iframe src="/explainers/cache.html?step=request&request=miss&theme=light"

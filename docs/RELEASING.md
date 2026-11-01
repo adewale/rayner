@@ -60,6 +60,10 @@ The job reads every page of the release list, including drafts. It reuses a uniq
 
 After publication, confirm the version and dist-tag with `npm view rayner version dist-tags dist.integrity --json`, and try installation in a fresh author project. For a candidate, ask an outside author to follow the tutorial before promoting it with `npm dist-tag add rayner@<version> latest`. The README's install section reads the same before and after publication, because npm shows the README from the archive and a published archive cannot change; do not add or remove an "unpublished" note around a release. A published name/version pair cannot be reused, so correct mistakes in a new version.
 
+## Prepare the website collection
+
+Use the [curated export instructions](PUBLISHING.md#export-the-collection) to prepare the Oshineye.dev showcase. The full source collection remains the coverage inventory. Export and deployment are separate actions.
+
 ## Verify the deployed collection
 
 A git tag, dated changelog or successful validation job records preparation. Confirm npm publication in the registry and website publication on the public origin separately. A workflow waiting for an environment review has not deployed. The owner must review and approve the configured environment; do not bypass that gate to finish a checklist.

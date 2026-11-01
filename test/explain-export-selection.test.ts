@@ -9,7 +9,7 @@ const catalog = {
   scenes: [
     { id: 'old', group: 'topic', cases: 2 },
     { id: 'cache', group: 'topic', cases: 3 },
-    { id: 'small', group: 'toolchain', cases: 2 },
+    { id: 'small', group: 'toolchain', cases: 2, title: 'A small lesson', entry: { step: 'question', settings: { mode: 'one' } } },
   ],
 };
 const evidence = {
@@ -31,12 +31,20 @@ test('selection keeps catalog order, derives honest totals and removes unselecte
   assert.deepEqual(catalog.scenes.map(s => s.id), ['old', 'cache', 'small']);
 });
 
-test('selection rejects unknown, duplicate, empty and missing entry before exporting', () => {
+test('selection rejects unknown, duplicate and empty inputs before exporting', () => {
   for (const [ids, message] of [
     ['cache,ghost', /unknown explainer.*ghost/],
     ['cache,cache', /duplicate.*cache/],
     ['', /empty/],
-    ['old', /entry.*cache/],
   ] as const) assert.throws(() => selectExport(ids, catalog, evidence), message);
   assert.throws(() => selectExport('cache', catalog, { ...evidence, scenes: evidence.scenes.slice(0, 2) }), /mismatch/);
+});
+
+test('a subset can omit the catalog introduction and choose its own entry', () => {
+  const selected = selectExport('small,old', catalog, evidence);
+  assert.deepEqual(selected.ids, ['old', 'small']);
+  assert.deepEqual(selected.catalog.product.entry, { id: 'small', step: 'question', settings: { mode: 'one' }, label: 'A small lesson' });
+  assert.equal(selectExport('old,small', catalog, evidence, 'old').catalog.product.entry.id, 'old');
+  assert.throws(() => selectExport('old', catalog, evidence, 'cache'), /entry.*selected.*cache/);
+  assert.equal(catalog.product.entry.id, 'cache');
 });
