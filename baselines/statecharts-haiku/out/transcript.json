@@ -1,0 +1,104 @@
+{
+  "title": "What is a statechart?",
+  "viewport": "1280x720 (text captured from the same page at 1280 wide)",
+  "steps": [
+    {
+      "step": 1,
+      "id": "step-1",
+      "count": "Step 1 of 14",
+      "heading": "What a statechart is",
+      "text": "STEP 1 OF 14 · DEFINITION\n\nWhat a statechart is\nTHE DEFINITION\n\nA statechart is a state machine whose states can contain other states. It adds two things. A state can be a box of states, a parent, and any event its children don't handle goes to the parent. And a state can be split into regions, each in one state at the same time.\n\nA state machine is always in one of a set of named states, and an event can move it to another. The two additions are easiest to see in pictures.\n\nNESTING: A BOX HOLDS STATES\n\nOn\nPARENT\nIdle\nNOW\nGrinding\nBrewing\nReady\n\nThe four inside are children of On. An event none of them handles passes up to On.\n\nREGIONS: PARTS SIDE BY SIDE\n\nPlayer\nPlayback\nPlaying\nNOW\nPaused\nVolume\nUnmuted\nNOW\nMuted\n\nEach dashed part is in one state at a time. Both parts are active together.\n\nRead the pictures before the words. A box around states gives nesting. A dashed part gives a region."
+    },
+    {
+      "step": 2,
+      "id": "step-2",
+      "count": "Step 2 of 14",
+      "heading": "Four words, then a light",
+      "text": "STEP 2 OF 14 · VOCABULARY\n\nFour words, then a light\n\nFour words carry the whole lesson.\n\nState: a situation the machine can be in, such as Off.\nEvent: something that happens to the machine, such as a button press. Events are written in capitals, like SWITCH.\nTransition: an arrow from one state to another, labelled with the event that takes it.\nHandle: a state handles an event when it has an arrow for that event. Without an arrow, the state does not handle it.\nPREDICT A light is Off. SWITCH is pressed twice. Which state is it in?\nOff\nOn\nNeither: the second press is lost\nReveal\n\nTRY IT: A LIGHT\n\nLight\nOff\nNOW\nSWITCH → On\nOn\nSWITCH → Off\n\nNow in: Off\n\nSWITCH\nReset\n\nPress an event. The trace shows which state handles it."
+    },
+    {
+      "step": 3,
+      "id": "step-3",
+      "count": "Step 3 of 14",
+      "heading": "The problem: a flat coffee machine",
+      "text": "STEP 3 OF 14 · THE PROBLEM\n\nThe problem: a flat coffee machine\n\nA flat machine lists every state as its own box, with no boxes inside boxes. Here is a coffee machine drawn flat. Only its POWER_OFF arrows are shown.\n\nFLAT COFFEE MACHINE: POWER_OFF ARROWS\n\nOff\n\nNo POWER_OFF arrow here.\n\nIdle\nPOWER_OFF → Off\nGrinding\nPOWER_OFF → Off\nBrewing\nPOWER_OFF → Off\nReady\nPOWER_OFF → Off\n\nWhy that matters: in a plain state machine, behaviour shared by many states must be copied onto each of them. Give a coffee machine a power button, and idle, grinding, brewing and ready each need their own POWER_OFF arrow. Put the four in a box called on, and one POWER_OFF on the box does the job.\n\nPREDICT How many POWER_OFF arrows does the flat machine need?\nOne\nFour\nFive\nNone\nReveal"
+    },
+    {
+      "step": 4,
+      "id": "step-4",
+      "count": "Step 4 of 14",
+      "heading": "Put the four in a box called On",
+      "text": "STEP 4 OF 14 · THE FIX\n\nPut the four in a box called On\n\nA state can be a box. Idle, Grinding, Brewing and Ready now sit inside a box called On, and the box has one POWER_OFF arrow, to Off. None of the four has its own copy.\n\nPREDICT The machine is Brewing, and POWER_OFF arrives. Brewing has no POWER_OFF arrow of its own. What happens?\nThe event is lost\nThe machine goes to Off\nThe machine stays Brewing\nReveal\n\nTRY IT: THE COFFEE MACHINE (STARTS IN BREWING)\n\nCoffee machine\nOff\nPOWER_ON → Idle\nOn\nPOWER_OFF → Off\nIdle\nGRIND → Grinding\nGrinding\nGROUND → Brewing\nBrewing\nNOW\nBREWED → Ready\nReady\nSERVE → Idle\n\nNow in: On › Brewing\n\nPOWER_ON\nPOWER_OFF\nGRIND\nGROUND\nBREWED\nSERVE\nReset\n\nPress an event. The trace shows which state handles it.\n\nLook at the trace. Brewing is checked first, then On, and only then does the machine move."
+    },
+    {
+      "step": 5,
+      "id": "step-5",
+      "count": "Step 5 of 14",
+      "heading": "Events travel up, innermost first",
+      "text": "STEP 5 OF 14 · HOW EVENTS TRAVEL\n\nEvents travel up, innermost first\nTHE RULE\n\nAn event is offered to the innermost state first. Innermost means the smallest box around the state. If that state has no arrow for the event, the event moves up to the next box. The first state with an arrow handles the event, and the search stops there.\n\nCOMMON MISCONCEPTION\n\n“The outer box gets the event first, so the box always wins.” It is the other way round. The inner state looks first, so it can override the box for one event.\n\nPREDICT The machine is Brewing. TIMEOUT arrives, because nothing has happened for a while. Brewing has a TIMEOUT arrow to Ready, and On has a TIMEOUT arrow to Off. Where does the machine go?\nOff, because On is the bigger box\nReady, because Brewing is the innermost state\nBoth at once\nReveal\n\nTRY IT: TIMEOUT IN BREWING (RESET RETURNS TO BREWING)\n\nCoffee machine\nOff\nPOWER_ON → Idle\nOn\nPOWER_OFF → Off\nTIMEOUT → Off\nIdle\nGRIND → Grinding\nGrinding\nGROUND → Brewing\nBrewing\nNOW\nBREWED → Ready\nTIMEOUT → Ready\nReady\nSERVE → Idle\n\nNow in: On › Brewing\n\nTIMEOUT\nPOWER_OFF\nBREWED\nSERVE\nReset\n\nPress an event. The trace shows which state handles it.\n\nA child can override its parent for one event. The trace shows On has the arrow, but it is never asked."
+    },
+    {
+      "step": 6,
+      "id": "step-6",
+      "count": "Step 6 of 14",
+      "heading": "The same shape, somewhere else",
+      "text": "STEP 6 OF 14 · PATTERN\n\nThe same shape, somewhere else\n\nA box is useful whenever one rule covers many states. Here a phone app has a box called Signed in around its Home, Settings, Editor and Help screens. LOG_OUT is drawn once, on the box.\n\nPREDICT A Help screen is added inside Signed in. Does Help need its own LOG_OUT arrow?\nYes, every screen needs one\nNo, it inherits the box's arrow\nOnly if it is the first screen\nReveal\n\nTRY IT: THE PHONE APP (STARTS ON HOME)\n\nApp\nSigned out\nSIGN_IN → Home\nSigned in\nLOG_OUT → Signed out\nHome\nNOW\nOPEN_SETTINGS → Settings\nOPEN_EDITOR → Editor\nOPEN_HELP → Help\nSettings\nBACK → Home\nEditor\nBACK → Home\nHelp\nBACK → Home\n\nNow in: Signed in › Home\n\nLOG_OUT\nOPEN_SETTINGS\nOPEN_EDITOR\nOPEN_HELP\nBACK\nSIGN_IN\nReset\n\nPress an event. The trace shows which state handles it.\n\nTHE PATTERN IN THREE PLACES\n\nCoffee machine: POWER_OFF on the On box covers Idle, Grinding, Brewing and Ready.\nPhone call: HANG_UP on the In call box covers Ringing, Talking and On hold.\nGame: PAUSE on the Playing box covers Level 1, Level 2 and the Boss fight.\nRULE OF THUMB\n\nIf every state inside should react the same way, put the arrow on the box. If only one state should react, put the arrow on that state."
+    },
+    {
+      "step": 7,
+      "id": "step-7",
+      "count": "Step 7 of 14",
+      "heading": "Independent features multiply",
+      "text": "STEP 7 OF 14 · MULTIPLYING FEATURES\n\nIndependent features multiply\n\nIndependent features multiply. A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that.\n\nTHE PLAYER, FLAT: ONE STATE PER COMBINATION\n\nPlaying · Unmuted\nPAUSE → Paused · Unmuted\nMUTE → Playing · Muted\nPaused · Unmuted\nPLAY → Playing · Unmuted\nMUTE → Paused · Muted\nPlaying · Muted\nPAUSE → Paused · Muted\nUNMUTE → Playing · Unmuted\nPaused · Muted\nPLAY → Playing · Muted\nUNMUTE → Paused · Unmuted\n\nEach card lists the arrows that leave that state. Count them later; first, predict.\n\nPREDICT Add a Repeat on/off feature to the player. How many flat states does it need?\n5\n6\n8\n16\nReveal\n\nCOUNTING THE DRAWING\n\n\tDrawn with regions\tFlattened\nStates\t4\t4\nArrows\t4\t8\nHow many on/off features? \n\nWith 2 features: 4 flat states, or 2 small machines with 4 states drawn.\n\nFlat states\n4\nStates drawn with regions\n4"
+    },
+    {
+      "step": 8,
+      "id": "step-8",
+      "count": "Step 8 of 14",
+      "heading": "Booleans hide the same problem",
+      "text": "STEP 8 OF 14 · FLAGS\n\nBooleans hide the same problem\n\nBooleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible.\n\nA boolean is a yes-or-no flag, true or false. Two flags give four combinations, and nothing in the code stops the impossible one.\n\nPREDICT Press Play, then Pause. What do the two flags say?\nisPlaying true, isPaused false\nisPlaying false, isPaused true\nBoth true\nBoth false\nReveal\n\nTRY IT: TWO FLAGS, WRITTEN THE CARELESS WAY\n\nfunction play()  { isPlaying = true; }\nfunction pause() { isPaused = true; }\nPlay\nPause\nReset\n\nisPlaying = false, isPaused = false\n\nisPlaying true, isPaused false\nPlaying only\nisPlaying false, isPaused true\nPaused only\nisPlaying false, isPaused false\nNeither (not started)\nisPlaying true, isPaused true\nBoth: should be impossible\n\nFixing this by hand means writing both flags on every path that changes playback. That works, but it depends on everyone remembering. Step 9 shows a structure where the impossible combination cannot be written."
+    },
+    {
+      "step": 9,
+      "id": "step-9",
+      "count": "Step 9 of 14",
+      "heading": "Regions keep playback and volume apart",
+      "text": "STEP 9 OF 14 · REGIONS\n\nRegions keep playback and volume apart\n\nRegions keep playback and volume apart, as two small machines side by side, so the impossible combination can't be written.\n\nHere the player is one box with two regions. Playback holds one state, Playing or Paused. Volume holds one state, Unmuted or Muted. You draw four states, and the machine can be in four combinations.\n\nPREDICT Can the player be Playing and Paused at the same time?\nYes, like the two flags\nNo: Playback holds one state at a time\nOnly while it is muted\nReveal\n\nTRY IT: THE PLAYER (STARTS PLAYING AND UNMUTED)\n\nPlayer\nPlayback\nPlaying\nNOW\nPAUSE → Paused\nPaused\nPLAY → Playing\nVolume\nUnmuted\nNOW\nMUTE → Muted\nMuted\nUNMUTE → Unmuted\n\nNow in: Playback › Playing and Volume › Unmuted\n\nPLAY\nPAUSE\nMUTE\nUNMUTE\nReset\n\nPress an event. The trace shows which state handles it.\n\nTry PLAY while the player is already Playing. Nothing handles it, so nothing happens. PAUSE is handled by Playback alone, and Volume ignores it."
+    },
+    {
+      "step": 10,
+      "id": "step-10",
+      "count": "Step 10 of 14",
+      "heading": "Flattening: nothing new becomes possible",
+      "text": "STEP 10 OF 14 · FLATTENING\n\nFlattening: nothing new becomes possible\n\nNothing new becomes possible: flatten any statechart and you get an ordinary state machine with the same behaviour. What you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.\n\nTo flatten a statechart, list every combination the regions can be in, make each combination a state, and copy each arrow onto the states it applies to. The table below is made that way from the player you saw in step 9.\n\nPREDICT Will the flat table always do what the regions do?\nOnly for short sequences of events\nYes, for every sequence of events\nNo, it loses the muted state\nReveal\n\nTHE FLAT TABLE (MADE FROM THE REGIONS)\n\nFlat state\tPLAY\tPAUSE\tMUTE\tUNMUTE\nPlaying · Unmuted\tstays\tPaused · Unmuted\tPlaying · Muted\tstays\nPaused · Unmuted\tPlaying · Unmuted\tstays\tPaused · Muted\tstays\nPlaying · Muted\tstays\tPaused · Muted\tstays\tPlaying · Unmuted\nPaused · Muted\tPlaying · Muted\tstays\tstays\tPaused · Unmuted\n\nSEND AN EVENT TO BOTH\n\nPLAY\nPAUSE\nMUTE\nUNMUTE\nReset\n\nRegions say: Playback › Playing and Volume › Unmuted\n\nFlat table says: Playing · Unmuted\n\nAgree: yes. Same behaviour.\n\nSame behaviour, different drawing. The regions version is the size of the idea. The flat table is the size of every combination."
+    },
+    {
+      "step": 11,
+      "id": "step-11",
+      "count": "Step 11 of 14",
+      "heading": "A myth to clear up",
+      "text": "STEP 11 OF 14 · MYTH\n\nA myth to clear up\nMYTH\n\nA statechart can do things a state machine can't.\n\nPREDICT True or false?\nTrue: nesting and regions add new powers\nFalse: flattening gives an ordinary state machine that behaves the same\nReveal\n\nThe myth is wrong because flattening always works. Nesting and regions do not add behaviour. What they change is the size of the drawing, and that is their whole value.\n\nA RELATED IDEA\n\nRegions are not extra processors. The machine still handles one event at a time. Regions are parts that always hold one state each."
+    },
+    {
+      "step": 12,
+      "id": "step-12",
+      "count": "Step 12 of 14",
+      "heading": "Check yourself",
+      "text": "STEP 12 OF 14 · CHECK\n\nCheck yourself\n\nPredict each answer, then reveal it. The reveal explains every option, not just the right one.\n\nQUESTION 1 Four states all have the same EXIT arrow. What would a statechart do?\nDraw the EXIT arrow once, on a box that holds the four states.\nDraw four EXIT arrows, and hide three of them.\nMake EXIT impossible.\nReveal\nQUESTION 2 Why do two independent on/off features need four flat states but only two regions?\nEach feature is one region with two states, so you draw 2 + 2 states. A flat machine must write out every combination, which is 2 × 2 = 4.\nRegions hold fewer states, so they can store less.\nThe flat version has a bug, so it needs more states to cover both features.\nReveal\nQUESTION 3 Can a statechart do anything a state machine can't?\nYes, it can handle events that a state machine can't.\nNo. Flattening gives a state machine with the same behaviour.\nYes, regions make it faster.\nReveal"
+    },
+    {
+      "step": 13,
+      "id": "step-13",
+      "count": "Step 13 of 14",
+      "heading": "Transfer: a milk frother",
+      "text": "STEP 13 OF 14 · TRANSFER\n\nTransfer: a milk frother\n\nNow use the idea on something new. Add a milk frother to the coffee machine. The frother can be on or off at any time, whatever the coffee machine is doing. Where does it go?\n\nPREDICT Where should the frother's on and off go?\nA new state inside Brewing\nA copy of every machine state, one with the frother on and one with it off\nIts own region, beside the machine's region\nNowhere: regions only work for media players\nReveal\n\nTRY IT: THE COFFEE MACHINE WITH A FROTHER REGION\n\nCoffee machine\nMachine\nOff\nNOW\nPOWER_ON → Idle\nOn\nPOWER_OFF → Off\nIdle\nGRIND → Grinding\nGrinding\nGROUND → Brewing\nBrewing\nBREWED → Ready\nReady\nSERVE → Idle\nFrother\nFrother off\nNOW\nFROTH_ON → Frother on\nFrother on\nFROTH_OFF → Frother off\n\nNow in: Machine › Off and Frother › Frother off\n\nFROTH_ON\nFROTH_OFF\nPOWER_ON\nPOWER_OFF\nGRIND\nGROUND\nBREWED\nSERVE\nReset\n\nPress an event. The trace shows which state handles it.\n\nCOUNTING THE DRAWING\n\n\tDrawn with regions\tFlattened\nStates\t7\t10\nArrows\t8\t28\n\nLook at the arrows row. Drawn with a region, the frother adds two arrows. Flattened, every machine state needs a copy for the frother on and off, so the arrows multiply.\n\nIf the frother should also switch off when the machine is powered off, the frother region moves inside On. On would then hold two regions, and POWER_OFF on On takes both down."
+    },
+    {
+      "step": 14,
+      "id": "step-14",
+      "count": "Step 14 of 14",
+      "heading": "The sentence to remember",
+      "text": "STEP 14 OF 14 · REMEMBER\n\nThe sentence to remember\n\nA statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.\n\nNesting: put shared behaviour on the box. The innermost state gets each event first.\nRegions: give each independent part its own small machine, so you draw the parts, not the combinations.\nFlattening: the same behaviour, written out in full. It shows that nothing new is possible.\n\nStart again from step 1"
+    }
+  ]
+}

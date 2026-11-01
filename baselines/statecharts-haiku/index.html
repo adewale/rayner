@@ -1,0 +1,1303 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is a statechart?</title>
+<meta name="description" content="A step-by-step explainer: what a statechart is, why nesting and regions help, and how to check your understanding.">
+<style>
+:root{
+  --bg:#f6f5f1; --ink:#1c1d21; --muted:#4f5160; --card:#ffffff; --box:#eef2f9; --line:#7d8496;
+  --accent:#1d5bb8; --accent-soft:#dfe9fb; --on-accent:#ffffff;
+  --warn:#8a4300; --warn-soft:#fce7c8; --on-warn:#ffffff;
+  --ok:#17663a; --focus:#0b57d0;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131418; --ink:#f1f2f5; --muted:#c3c6d0; --card:#1c1e25; --box:#23283a; --line:#7d8496;
+    --accent:#8fb8ff; --accent-soft:#1f3152; --on-accent:#0b1220;
+    --warn:#ffbd73; --warn-soft:#3d2a10; --on-warn:#1a1000;
+    --ok:#8fe0ad; --focus:#8fb8ff; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131418; --ink:#f1f2f5; --muted:#c3c6d0; --card:#1c1e25; --box:#23283a; --line:#7d8496;
+  --accent:#8fb8ff; --accent-soft:#1f3152; --on-accent:#0b1220;
+  --warn:#ffbd73; --warn-soft:#3d2a10; --on-warn:#1a1000;
+  --ok:#8fe0ad; --focus:#8fb8ff; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;padding-bottom:132px;overflow-wrap:break-word}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+.skip{position:absolute;left:-9999px;top:8px;background:var(--card);color:var(--ink);padding:8px 12px;border-radius:8px;z-index:10}
+.skip:focus{left:8px}
+.masthead{padding-top:18px}
+.kicker{margin:0;font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{margin:4px 0 0;font-size:1.5rem;line-height:1.25}
+.progress{height:6px;margin:14px 0 0;background:var(--box);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.progress span{display:block;height:100%;width:7%;background:var(--accent);transition:width .3s}
+main{outline:none}
+.step{padding-top:2px}
+.eyebrow{margin:20px 0 0;font-size:.82rem;font-weight:700;color:var(--accent);letter-spacing:.05em;text-transform:uppercase}
+h2{font-size:1.75rem;line-height:1.2;margin:6px 0 14px;outline:none}
+@media (min-width:760px){ h2{font-size:2rem} }
+p{margin:0 0 14px}
+ul,ol{margin:0 0 14px;padding-left:1.25em}
+li{margin-bottom:6px}
+.lede{font-size:1.1rem}
+strong{font-weight:700}
+.callout{border-left:5px solid var(--accent);background:var(--accent-soft);padding:14px 16px;border-radius:0 10px 10px 0;margin:0 0 18px}
+.callout.myth{border-left-color:var(--warn);background:var(--warn-soft)}
+.callout .label{display:block;font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.callout p:last-child{margin-bottom:0}
+.callout.sentence{font-size:1.2rem;line-height:1.5;font-weight:600}
+.figure{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:18px 0;min-width:0}
+.figure.pair{display:grid;gap:16px}
+@media (min-width:640px){ .figure.pair{grid-template-columns:1fr 1fr} }
+.ftitle{margin:0 0 10px;font-size:.82rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.inpic{margin:10px 0 0;font-size:.9rem;color:var(--muted);font-style:italic}
+.sandbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:18px 0}
+.sandbox > .sandbox-title{margin:0 0 10px;font-size:.82rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.status{font-weight:700;margin:12px 0 4px}
+.ev-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.trace-box{margin-top:12px;background:var(--box);border-radius:10px;padding:10px 12px}
+.trace-head{font-weight:700;margin:0 0 6px;font-size:.95rem}
+.trace{margin:0;padding-left:1.25em;font-size:.93rem}
+.trace li{margin-bottom:4px}
+/* ---- states (nested boxes and leaves) ---- */
+.st{border:2px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--card);min-width:0}
+.st.box{background:var(--box)}
+.st .head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.st .name{font-weight:700}
+.kids{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.kids > .st.leaf{flex:1 1 120px}
+.kids > .st.box{flex:1 1 250px}
+.par{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.par > .st.region{flex:1 1 230px}
+.st.region{border-style:dashed;background:var(--card);margin-top:0}
+.st.region > .kids{margin-top:8px}
+.st.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.st.visited{outline:2px dotted var(--muted);outline-offset:3px}
+.st.handler{border:3px solid var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.tag{font-size:.7rem;font-weight:800;padding:2px 7px;border-radius:999px;background:var(--accent);color:var(--on-accent);text-transform:uppercase;letter-spacing:.04em}
+.tag.warn{background:var(--warn);color:var(--on-warn)}
+.tag.plain{background:var(--box);color:var(--ink);border:1px solid var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font:600 .78rem/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--accent-soft);color:var(--ink);padding:3px 7px;border-radius:6px}
+.none{margin:8px 0 0;font-size:.85rem;color:var(--muted)}
+.flat{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.flat .st{padding:10px}
+.flat .st .name{font-size:1rem}
+/* ---- predictions ---- */
+fieldset.predict{border:0;box-shadow:inset 0 0 0 2px var(--accent);border-radius:14px;padding:16px 16px 16px;margin:22px 0;background:var(--card);min-width:0}
+fieldset.predict legend{padding:0;margin-bottom:8px;width:100%;font-weight:700;font-size:1.02rem;line-height:1.4}
+.pl{display:inline-block;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;background:var(--accent);color:var(--on-accent);border-radius:999px;padding:2px 9px;margin-right:4px;vertical-align:1px}
+.opts{display:grid;gap:6px;margin:6px 0 10px}
+.opt{display:flex;gap:10px;align-items:flex-start;min-height:44px;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;background:var(--card)}
+.opt:hover{background:var(--box)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt input{margin:3px 0 0;width:18px;height:18px;flex:0 0 18px;accent-color:var(--accent)}
+.hint{color:var(--warn);font-weight:700;margin:0 0 8px}
+.reveal-box{margin-top:12px;border-radius:10px;padding:12px 14px;background:var(--box);border-left:5px solid var(--accent)}
+.verdict{font-weight:800;margin-bottom:6px}
+.verdict.right{color:var(--ok)}
+.verdict.notquite{color:var(--warn)}
+.answer{margin:10px 0 0}
+/* ---- controls ---- */
+.btn{font:600 1rem/1.2 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:44px;min-width:44px;padding:9px 16px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.ev{font:700 .86rem/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-height:44px;padding:9px 12px;border:1.5px solid var(--ink);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer}
+.ev:hover{background:var(--accent-soft)}
+button:focus-visible,input:focus-visible,.opt:focus-within{outline:3px solid var(--focus);outline-offset:2px}
+input[type=range]{width:100%;min-height:44px;accent-color:var(--accent)}
+.slider-row label{font-weight:700}
+.bars{margin-top:8px}
+.barrow{margin:10px 0}
+.barrow .bl{display:flex;justify-content:space-between;font-size:.95rem}
+.bar{height:16px;margin-top:4px;border-radius:8px;background:var(--box);border:1px solid var(--line);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--warn);transition:width .25s}
+.bar.drawn span{background:var(--accent)}
+/* ---- tables ---- */
+.table-wrap{overflow-x:auto;margin:10px 0}
+table.grid{width:100%;border-collapse:collapse;font-size:.9rem;background:var(--card)}
+.grid th,.grid td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.grid thead th{background:var(--box)}
+.grid tbody th{font-weight:700}
+.grid .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.82rem}
+.grid td,.grid th{overflow-wrap:normal;word-break:normal}
+@media (max-width:480px){
+  .grid th,.grid td{padding:5px 4px}
+  .grid .mono{font-size:.74rem}
+  .grid tbody th{font-size:.84rem}
+}
+.grid tr.current th,.grid tr.current td{background:var(--accent-soft)}
+.readouts{margin-top:12px;background:var(--box);border-radius:10px;padding:10px 12px}
+.readouts p{margin:0 0 4px}
+.readouts .strong{font-weight:800}
+.booleans{margin:12px 0}
+.combos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.combo{border:2px solid var(--line);border-radius:10px;padding:10px;background:var(--card);font-size:.92rem;min-height:72px}
+.combo.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.combo.bad{border-style:dashed;border-color:var(--warn)}
+.combo code{font-size:.85rem}
+.flags{font-weight:700;margin:8px 0 0}
+pre{background:var(--box);border-radius:10px;padding:10px 12px;overflow-x:auto;font:.88rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:10px 0}
+.patterns{margin:10px 0 4px;padding-left:1.25em}
+/* ---- bottom dock ---- */
+.dock{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);z-index:5}
+.dock-in{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;padding-bottom:10px}
+.count{margin:0;font-weight:700;font-size:.95rem;text-align:center}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+<a class="skip" href="#lesson">Skip to the lesson</a>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">A step-by-step explainer</p>
+    <h1>What is a statechart?</h1>
+    <div class="progress" role="progressbar" aria-label="Progress through the lesson" aria-valuemin="1" aria-valuemax="14" aria-valuenow="1"><span id="bar"></span></div>
+  </div>
+</header>
+
+<main id="lesson" class="wrap" tabindex="-1">
+
+<!-- ============ STEP 1 ============ -->
+<section class="step" id="step-1" aria-labelledby="t1">
+  <p class="eyebrow">Step 1 of 14 · Definition</p>
+  <h2 id="t1" tabindex="-1">What a statechart is</h2>
+  <div class="callout">
+    <span class="label">The definition</span>
+    <p>A statechart is a state machine whose states can contain other states. It adds two things. A state can be a box of states, a parent, and any event its children don't handle goes to the parent. And a state can be split into regions, each in one state at the same time.</p>
+  </div>
+  <p>A state machine is always in one of a set of named states, and an event can move it to another. The two additions are easiest to see in pictures.</p>
+
+  <div class="figure pair" role="group" aria-label="Left: a box called On holds four states. Right: a box called Player is split into two regions, Playback and Volume, each with one active state.">
+    <div>
+      <p class="ftitle">Nesting: a box holds states</p>
+      <div class="st box">
+        <div class="head"><span class="name">On</span><span class="tag plain">parent</span></div>
+        <div class="kids">
+          <div class="st leaf now"><div class="head"><span class="name">Idle</span><span class="tag">now</span></div></div>
+          <div class="st leaf"><div class="head"><span class="name">Grinding</span></div></div>
+          <div class="st leaf"><div class="head"><span class="name">Brewing</span></div></div>
+          <div class="st leaf"><div class="head"><span class="name">Ready</span></div></div>
+        </div>
+      </div>
+      <p class="inpic">The four inside are children of On. An event none of them handles passes up to On.</p>
+    </div>
+    <div>
+      <p class="ftitle">Regions: parts side by side</p>
+      <div class="st box">
+        <div class="head"><span class="name">Player</span></div>
+        <div class="par">
+          <div class="st box region">
+            <div class="head"><span class="name">Playback</span></div>
+            <div class="kids">
+              <div class="st leaf now"><div class="head"><span class="name">Playing</span><span class="tag">now</span></div></div>
+              <div class="st leaf"><div class="head"><span class="name">Paused</span></div></div>
+            </div>
+          </div>
+          <div class="st box region">
+            <div class="head"><span class="name">Volume</span></div>
+            <div class="kids">
+              <div class="st leaf now"><div class="head"><span class="name">Unmuted</span><span class="tag">now</span></div></div>
+              <div class="st leaf"><div class="head"><span class="name">Muted</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="inpic">Each dashed part is in one state at a time. Both parts are active together.</p>
+    </div>
+  </div>
+  <p>Read the pictures before the words. A box around states gives nesting. A dashed part gives a region.</p>
+</section>
+
+<!-- ============ STEP 2 ============ -->
+<section class="step" id="step-2" aria-labelledby="t2" hidden>
+  <p class="eyebrow">Step 2 of 14 · Vocabulary</p>
+  <h2 id="t2" tabindex="-1">Four words, then a light</h2>
+  <p>Four words carry the whole lesson.</p>
+  <ul>
+    <li><strong>State</strong>: a situation the machine can be in, such as Off.</li>
+    <li><strong>Event</strong>: something that happens to the machine, such as a button press. Events are written in capitals, like SWITCH.</li>
+    <li><strong>Transition</strong>: an arrow from one state to another, labelled with the event that takes it.</li>
+    <li><strong>Handle</strong>: a state handles an event when it has an arrow for that event. Without an arrow, the state does not handle it.</li>
+  </ul>
+
+  <fieldset class="predict" data-answer="a">
+    <legend><span class="pl">Predict</span> A light is Off. SWITCH is pressed twice. Which state is it in?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p2" value="a"><span>Off</span></label>
+      <label class="opt"><input type="radio" name="p2" value="b"><span>On</span></label>
+      <label class="opt"><input type="radio" name="p2" value="c"><span>Neither: the second press is lost</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>The first press moves the light to On, and the second moves it back to Off.</p>
+      <p class="why" data-opt="b" hidden>That is one press. The second press has an arrow in On as well, so it takes the light back to Off.</p>
+      <p class="why" data-opt="c" hidden>Nothing is lost. Each press has an arrow in the state the light is in at that moment.</p>
+      <p class="answer"><strong>Answer: Off.</strong> The machine answers each event with the arrow of the state it is in when the event arrives.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox" data-machine="light" data-events="SWITCH" data-label="Light">
+    <p class="sandbox-title">Try it: a light</p>
+  </div>
+</section>
+
+<!-- ============ STEP 3 ============ -->
+<section class="step" id="step-3" aria-labelledby="t3" hidden>
+  <p class="eyebrow">Step 3 of 14 · The problem</p>
+  <h2 id="t3" tabindex="-1">The problem: a flat coffee machine</h2>
+  <p>A flat machine lists every state as its own box, with no boxes inside boxes. Here is a coffee machine drawn flat. Only its POWER_OFF arrows are shown.</p>
+  <div class="figure">
+    <p class="ftitle">Flat coffee machine: POWER_OFF arrows</p>
+    <div class="flat" data-flat="coffee" data-events="POWER_ON POWER_OFF GRIND GROUND BREWED SERVE" data-show="POWER_OFF"></div>
+  </div>
+  <p>Why that matters: in a plain state machine, behaviour shared by many states must be copied onto each of them. Give a coffee machine a power button, and idle, grinding, brewing and ready each need their own POWER_OFF arrow. Put the four in a box called on, and one POWER_OFF on the box does the job.</p>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> How many POWER_OFF arrows does the flat machine need?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p3" value="a"><span>One</span></label>
+      <label class="opt"><input type="radio" name="p3" value="b"><span>Four</span></label>
+      <label class="opt"><input type="radio" name="p3" value="c"><span>Five</span></label>
+      <label class="opt"><input type="radio" name="p3" value="d"><span>None</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>One is what the boxed version needs. The flat version needs a copy on every state that can be on.</p>
+      <p class="why" data-opt="b" hidden>Idle, grinding, brewing and ready each need one. Off does not, because the machine is already off.</p>
+      <p class="why" data-opt="c" hidden>Off has no POWER_OFF arrow in the picture, because the machine is already off. That leaves four.</p>
+      <p class="why" data-opt="d" hidden>Without them, the machine could not be switched off from those states.</p>
+      <p class="answer"><strong>Answer: four.</strong> Every state that can be on needs its own copy. That copying is what a box removes.</p>
+    </div>
+  </fieldset>
+</section>
+
+<!-- ============ STEP 4 ============ -->
+<section class="step" id="step-4" aria-labelledby="t4" hidden>
+  <p class="eyebrow">Step 4 of 14 · The fix</p>
+  <h2 id="t4" tabindex="-1">Put the four in a box called On</h2>
+  <p>A state can be a box. Idle, Grinding, Brewing and Ready now sit inside a box called On, and the box has one POWER_OFF arrow, to Off. None of the four has its own copy.</p>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> The machine is Brewing, and POWER_OFF arrives. Brewing has no POWER_OFF arrow of its own. What happens?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p4" value="a"><span>The event is lost</span></label>
+      <label class="opt"><input type="radio" name="p4" value="b"><span>The machine goes to Off</span></label>
+      <label class="opt"><input type="radio" name="p4" value="c"><span>The machine stays Brewing</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Nothing is lost. An event a state cannot handle moves up to the box around it, and that box is checked next.</p>
+      <p class="why" data-opt="b" hidden>Brewing has no arrow, so the event moves up to On. On has the POWER_OFF arrow, so the machine goes to Off.</p>
+      <p class="why" data-opt="c" hidden>That would be true if no box had the arrow. On does have it, so the event is handled there.</p>
+      <p class="answer"><strong>Answer: Off.</strong> An event travels up the boxes until a state has an arrow for it.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox" data-machine="coffee" data-events="POWER_ON POWER_OFF GRIND GROUND BREWED SERVE" data-start="POWER_ON GRIND GROUND" data-label="Coffee machine">
+    <p class="sandbox-title">Try it: the coffee machine (starts in Brewing)</p>
+  </div>
+  <p>Look at the trace. Brewing is checked first, then On, and only then does the machine move.</p>
+</section>
+
+<!-- ============ STEP 5 ============ -->
+<section class="step" id="step-5" aria-labelledby="t5" hidden>
+  <p class="eyebrow">Step 5 of 14 · How events travel</p>
+  <h2 id="t5" tabindex="-1">Events travel up, innermost first</h2>
+  <div class="callout">
+    <span class="label">The rule</span>
+    <p>An event is offered to the innermost state first. Innermost means the smallest box around the state. If that state has no arrow for the event, the event moves up to the next box. The first state with an arrow handles the event, and the search stops there.</p>
+  </div>
+  <div class="callout myth">
+    <span class="label">Common misconception</span>
+    <p>&ldquo;The outer box gets the event first, so the box always wins.&rdquo; It is the other way round. The inner state looks first, so it can override the box for one event.</p>
+  </div>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> The machine is Brewing. TIMEOUT arrives, because nothing has happened for a while. Brewing has a TIMEOUT arrow to Ready, and On has a TIMEOUT arrow to Off. Where does the machine go?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p5" value="a"><span>Off, because On is the bigger box</span></label>
+      <label class="opt"><input type="radio" name="p5" value="b"><span>Ready, because Brewing is the innermost state</span></label>
+      <label class="opt"><input type="radio" name="p5" value="c"><span>Both at once</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>This is the common mistake. On is checked only after Brewing, and Brewing has already handled the event.</p>
+      <p class="why" data-opt="b" hidden>Brewing is offered TIMEOUT first. Its arrow handles it, so On never sees it.</p>
+      <p class="why" data-opt="c" hidden>One event gets one handler here. The search stops at the first arrow it finds.</p>
+      <p class="answer"><strong>Answer: Ready.</strong> The innermost state with an arrow wins. On still has its TIMEOUT arrow, but this event never reaches it.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox" data-machine="coffeeT" data-events="TIMEOUT POWER_OFF BREWED SERVE" data-start="POWER_ON GRIND GROUND" data-label="Coffee machine with timeout">
+    <p class="sandbox-title">Try it: TIMEOUT in Brewing (Reset returns to Brewing)</p>
+  </div>
+  <p>A child can override its parent for one event. The trace shows On has the arrow, but it is never asked.</p>
+</section>
+
+<!-- ============ STEP 6 ============ -->
+<section class="step" id="step-6" aria-labelledby="t6" hidden>
+  <p class="eyebrow">Step 6 of 14 · Pattern</p>
+  <h2 id="t6" tabindex="-1">The same shape, somewhere else</h2>
+  <p>A box is useful whenever one rule covers many states. Here a phone app has a box called Signed in around its Home, Settings, Editor and Help screens. LOG_OUT is drawn once, on the box.</p>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> A Help screen is added inside Signed in. Does Help need its own LOG_OUT arrow?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p6" value="a"><span>Yes, every screen needs one</span></label>
+      <label class="opt"><input type="radio" name="p6" value="b"><span>No, it inherits the box's arrow</span></label>
+      <label class="opt"><input type="radio" name="p6" value="c"><span>Only if it is the first screen</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>You would need one only if Help had to behave differently. Otherwise the box already covers it.</p>
+      <p class="why" data-opt="b" hidden>Help has no LOG_OUT arrow, so the event moves up to Signed in, which has one. A new screen inherits the box's arrows for free.</p>
+      <p class="why" data-opt="c" hidden>Position does not matter. Any screen inside the box is covered.</p>
+      <p class="answer"><strong>Answer: no.</strong> The box's arrows cover everything inside it, unless a screen has its own arrow for the same event.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox" data-machine="app" data-events="LOG_OUT OPEN_SETTINGS OPEN_EDITOR OPEN_HELP BACK SIGN_IN" data-start="SIGN_IN" data-label="Phone app">
+    <p class="sandbox-title">Try it: the phone app (starts on Home)</p>
+  </div>
+
+  <p class="ftitle">The pattern in three places</p>
+  <ul class="patterns">
+    <li><strong>Coffee machine:</strong> POWER_OFF on the On box covers Idle, Grinding, Brewing and Ready.</li>
+    <li><strong>Phone call:</strong> HANG_UP on the In call box covers Ringing, Talking and On hold.</li>
+    <li><strong>Game:</strong> PAUSE on the Playing box covers Level 1, Level 2 and the Boss fight.</li>
+  </ul>
+  <div class="callout">
+    <span class="label">Rule of thumb</span>
+    <p>If every state inside should react the same way, put the arrow on the box. If only one state should react, put the arrow on that state.</p>
+  </div>
+</section>
+
+<!-- ============ STEP 7 ============ -->
+<section class="step" id="step-7" aria-labelledby="t7" hidden>
+  <p class="eyebrow">Step 7 of 14 · Multiplying features</p>
+  <h2 id="t7" tabindex="-1">Independent features multiply</h2>
+  <p>Independent features multiply. A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that.</p>
+  <div class="figure">
+    <p class="ftitle">The player, flat: one state per combination</p>
+    <div class="flat" data-flat="player" data-events="PLAY PAUSE MUTE UNMUTE"></div>
+  </div>
+  <p>Each card lists the arrows that leave that state. Count them later; first, predict.</p>
+
+  <fieldset class="predict" data-answer="c">
+    <legend><span class="pl">Predict</span> Add a Repeat on/off feature to the player. How many flat states does it need?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p7" value="a"><span>5</span></label>
+      <label class="opt"><input type="radio" name="p7" value="b"><span>6</span></label>
+      <label class="opt"><input type="radio" name="p7" value="c"><span>8</span></label>
+      <label class="opt"><input type="radio" name="p7" value="d"><span>16</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Adding one feature does not add one state. Each existing state needs a copy for Repeat on and a copy for Repeat off.</p>
+      <p class="why" data-opt="b" hidden>That is adding, not doubling. Each of the four states splits into two.</p>
+      <p class="why" data-opt="c" hidden>Four states, each in two versions (repeat on and repeat off): 4 × 2 = 8.</p>
+      <p class="why" data-opt="d" hidden>16 is the count after two more on/off features (4 × 2 × 2), not one.</p>
+      <p class="answer"><strong>Answer: 8.</strong> Each new on/off feature doubles the count.</p>
+    </div>
+  </fieldset>
+
+  <div class="figure">
+    <p class="ftitle">Counting the drawing</p>
+    <div data-stats="player" data-events="PLAY PAUSE MUTE UNMUTE"></div>
+  </div>
+
+  <div class="figure">
+    <div class="slider-row">
+      <label for="feat">How many on/off features?</label>
+      <input type="range" id="feat" min="1" max="6" value="2">
+    </div>
+    <p id="featOut" aria-live="polite"></p>
+    <div class="bars">
+      <div class="barrow">
+        <div class="bl"><span>Flat states</span><b id="numFlat"></b></div>
+        <div class="bar"><span id="barFlat"></span></div>
+      </div>
+      <div class="barrow">
+        <div class="bl"><span>States drawn with regions</span><b id="numDrawn"></b></div>
+        <div class="bar drawn"><span id="barDrawn"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STEP 8 ============ -->
+<section class="step" id="step-8" aria-labelledby="t8" hidden>
+  <p class="eyebrow">Step 8 of 14 · Flags</p>
+  <h2 id="t8" tabindex="-1">Booleans hide the same problem</h2>
+  <p>Booleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible.</p>
+  <p>A boolean is a yes-or-no flag, true or false. Two flags give four combinations, and nothing in the code stops the impossible one.</p>
+
+  <fieldset class="predict" data-answer="c">
+    <legend><span class="pl">Predict</span> Press Play, then Pause. What do the two flags say?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p8" value="a"><span>isPlaying true, isPaused false</span></label>
+      <label class="opt"><input type="radio" name="p8" value="b"><span>isPlaying false, isPaused true</span></label>
+      <label class="opt"><input type="radio" name="p8" value="c"><span>Both true</span></label>
+      <label class="opt"><input type="radio" name="p8" value="d"><span>Both false</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>That is what you would expect after Play. But Pause ran last, and it did not clear isPlaying.</p>
+      <p class="why" data-opt="b" hidden>Pause set isPaused, but nothing set isPlaying back to false, so it is still true.</p>
+      <p class="why" data-opt="c" hidden>pause() sets isPaused to true and leaves isPlaying alone, so both are true. That is the impossible combination.</p>
+      <p class="why" data-opt="d" hidden>Nothing in this code sets a flag back to false, except Reset.</p>
+      <p class="answer"><strong>Answer: both true.</strong> Each function sets one flag and forgets the other.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox booleans" id="bool-demo">
+    <p class="sandbox-title">Try it: two flags, written the careless way</p>
+    <pre>function play()  { isPlaying = true; }
+function pause() { isPaused = true; }</pre>
+    <div class="ev-row">
+      <button type="button" class="btn" id="bool-play">Play</button>
+      <button type="button" class="btn" id="bool-pause">Pause</button>
+      <button type="button" class="btn" id="bool-reset">Reset</button>
+    </div>
+    <p class="flags" id="bool-flags" aria-live="polite"></p>
+    <div class="combos" id="bool-combos" role="list" aria-label="The four combinations of the two flags"></div>
+  </div>
+
+  <p>Fixing this by hand means writing both flags on every path that changes playback. That works, but it depends on everyone remembering. Step 9 shows a structure where the impossible combination cannot be written.</p>
+</section>
+
+<!-- ============ STEP 9 ============ -->
+<section class="step" id="step-9" aria-labelledby="t9" hidden>
+  <p class="eyebrow">Step 9 of 14 · Regions</p>
+  <h2 id="t9" tabindex="-1">Regions keep playback and volume apart</h2>
+  <p>Regions keep playback and volume apart, as two small machines side by side, so the impossible combination can't be written.</p>
+  <p>Here the player is one box with two regions. Playback holds one state, Playing or Paused. Volume holds one state, Unmuted or Muted. You draw four states, and the machine can be in four combinations.</p>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> Can the player be Playing and Paused at the same time?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p9" value="a"><span>Yes, like the two flags</span></label>
+      <label class="opt"><input type="radio" name="p9" value="b"><span>No: Playback holds one state at a time</span></label>
+      <label class="opt"><input type="radio" name="p9" value="c"><span>Only while it is muted</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>With two flags, yes. With regions, Playback is one small machine, and it can be in only one of its states.</p>
+      <p class="why" data-opt="b" hidden>Playback is one small machine, so it is in exactly one of Playing or Paused. The impossible combination cannot be written.</p>
+      <p class="why" data-opt="c" hidden>Muting belongs to the Volume region. It cannot change which state Playback is in.</p>
+      <p class="answer"><strong>Answer: no.</strong> A region is in one state at a time, and the two states of Playback are the only two it can take.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox" data-machine="player" data-events="PLAY PAUSE MUTE UNMUTE" data-label="Player" >
+    <p class="sandbox-title">Try it: the player (starts Playing and Unmuted)</p>
+  </div>
+  <p>Try PLAY while the player is already Playing. Nothing handles it, so nothing happens. PAUSE is handled by Playback alone, and Volume ignores it.</p>
+</section>
+
+<!-- ============ STEP 10 ============ -->
+<section class="step" id="step-10" aria-labelledby="t10" hidden>
+  <p class="eyebrow">Step 10 of 14 · Flattening</p>
+  <h2 id="t10" tabindex="-1">Flattening: nothing new becomes possible</h2>
+  <p>Nothing new becomes possible: flatten any statechart and you get an ordinary state machine with the same behaviour. What you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.</p>
+  <p>To flatten a statechart, list every combination the regions can be in, make each combination a state, and copy each arrow onto the states it applies to. The table below is made that way from the player you saw in step 9.</p>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> Will the flat table always do what the regions do?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p10" value="a"><span>Only for short sequences of events</span></label>
+      <label class="opt"><input type="radio" name="p10" value="b"><span>Yes, for every sequence of events</span></label>
+      <label class="opt"><input type="radio" name="p10" value="c"><span>No, it loses the muted state</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>The length of the sequence does not matter. The table has an entry for every state and every event.</p>
+      <p class="why" data-opt="b" hidden>The table is made from the regions, one state and one event at a time, so it agrees for every sequence.</p>
+      <p class="why" data-opt="c" hidden>Muted is one of the four combinations, so the table keeps it.</p>
+      <p class="answer"><strong>Answer: yes.</strong> Flattening copies the regions exactly, so the table and the regions always agree.</p>
+    </div>
+  </fieldset>
+
+  <div class="figure" data-compare="player" data-events="PLAY PAUSE MUTE UNMUTE" role="group" aria-label="Flat table for the player, with a panel that sends events to both versions"></div>
+
+  <p>Same behaviour, different drawing. The regions version is the size of the idea. The flat table is the size of every combination.</p>
+</section>
+
+<!-- ============ STEP 11 ============ -->
+<section class="step" id="step-11" aria-labelledby="t11" hidden>
+  <p class="eyebrow">Step 11 of 14 · Myth</p>
+  <h2 id="t11" tabindex="-1">A myth to clear up</h2>
+  <div class="callout myth">
+    <span class="label">Myth</span>
+    <p>A statechart can do things a state machine can't.</p>
+  </div>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Predict</span> True or false?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p11" value="a"><span>True: nesting and regions add new powers</span></label>
+      <label class="opt"><input type="radio" name="p11" value="b"><span>False: flattening gives an ordinary state machine that behaves the same</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Look at step 10. Every statechart flattens into a plain state machine with the same behaviour, so nothing new is possible.</p>
+      <p class="why" data-opt="b" hidden>Flattening always works, so whatever a statechart does, a plain state machine can also do. It just needs more drawing.</p>
+      <p class="answer"><strong>Answer: false.</strong> Nesting and regions are a shorter way to draw the same machine.</p>
+    </div>
+  </fieldset>
+
+  <p>The myth is wrong because flattening always works. Nesting and regions do not add behaviour. What they change is the size of the drawing, and that is their whole value.</p>
+  <div class="callout">
+    <span class="label">A related idea</span>
+    <p>Regions are not extra processors. The machine still handles one event at a time. Regions are parts that always hold one state each.</p>
+  </div>
+</section>
+
+<!-- ============ STEP 12 ============ -->
+<section class="step" id="step-12" aria-labelledby="t12" hidden>
+  <p class="eyebrow">Step 12 of 14 · Check</p>
+  <h2 id="t12" tabindex="-1">Check yourself</h2>
+  <p>Predict each answer, then reveal it. The reveal explains every option, not just the right one.</p>
+
+  <fieldset class="predict" data-answer="a">
+    <legend><span class="pl">Question 1</span> Four states all have the same EXIT arrow. What would a statechart do?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q1" value="a"><span>Draw the EXIT arrow once, on a box that holds the four states.</span></label>
+      <label class="opt"><input type="radio" name="q1" value="b"><span>Draw four EXIT arrows, and hide three of them.</span></label>
+      <label class="opt"><input type="radio" name="q1" value="c"><span>Make EXIT impossible.</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Put the four in a box and draw EXIT on it. A state with its own EXIT arrow would still win, because the innermost state is checked first.</p>
+      <p class="why" data-opt="b" hidden>Hidden arrows still count, and copies still need updating. Writing the arrow once is the point.</p>
+      <p class="why" data-opt="c" hidden>Nothing about nesting blocks an event. EXIT still works, and it is drawn in one place.</p>
+      <p class="answer"><strong>Answer: draw EXIT once, on the box.</strong> The four states inherit it.</p>
+    </div>
+  </fieldset>
+
+  <fieldset class="predict" data-answer="a">
+    <legend><span class="pl">Question 2</span> Why do two independent on/off features need four flat states but only two regions?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q2" value="a"><span>Each feature is one region with two states, so you draw 2 + 2 states. A flat machine must write out every combination, which is 2 × 2 = 4.</span></label>
+      <label class="opt"><input type="radio" name="q2" value="b"><span>Regions hold fewer states, so they can store less.</span></label>
+      <label class="opt"><input type="radio" name="q2" value="c"><span>The flat version has a bug, so it needs more states to cover both features.</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Regions draw each feature once. The flat machine needs one state for every combination, and combinations multiply.</p>
+      <p class="why" data-opt="b" hidden>Regions hold the same states. They just do not write out the combinations.</p>
+      <p class="why" data-opt="c" hidden>The flat version is correct. It is just longer, so it needs more drawing, not a fix.</p>
+      <p class="answer"><strong>Answer: the combinations.</strong> Two regions hold 2 + 2 states. The flat machine holds 2 × 2 = 4.</p>
+    </div>
+  </fieldset>
+
+  <fieldset class="predict" data-answer="b">
+    <legend><span class="pl">Question 3</span> Can a statechart do anything a state machine can't?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q3" value="a"><span>Yes, it can handle events that a state machine can't.</span></label>
+      <label class="opt"><input type="radio" name="q3" value="b"><span>No. Flattening gives a state machine with the same behaviour.</span></label>
+      <label class="opt"><input type="radio" name="q3" value="c"><span>Yes, regions make it faster.</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Any event a statechart handles can be written as a flat arrow, so no event is handled that a flat machine could not handle.</p>
+      <p class="why" data-opt="b" hidden>Flattening always gives an ordinary state machine that behaves the same. Statecharts are a shorter way to draw the same thing.</p>
+      <p class="why" data-opt="c" hidden>Regions are about the size of the drawing. They are not a speed feature.</p>
+      <p class="answer"><strong>Answer: no.</strong> What statecharts add is a smaller drawing.</p>
+    </div>
+  </fieldset>
+</section>
+
+<!-- ============ STEP 13 ============ -->
+<section class="step" id="step-13" aria-labelledby="t13" hidden>
+  <p class="eyebrow">Step 13 of 14 · Transfer</p>
+  <h2 id="t13" tabindex="-1">Transfer: a milk frother</h2>
+  <p>Now use the idea on something new. Add a milk frother to the coffee machine. The frother can be on or off at any time, whatever the coffee machine is doing. Where does it go?</p>
+
+  <fieldset class="predict" data-answer="c">
+    <legend><span class="pl">Predict</span> Where should the frother's on and off go?</legend>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="p13" value="a"><span>A new state inside Brewing</span></label>
+      <label class="opt"><input type="radio" name="p13" value="b"><span>A copy of every machine state, one with the frother on and one with it off</span></label>
+      <label class="opt"><input type="radio" name="p13" value="c"><span>Its own region, beside the machine's region</span></label>
+      <label class="opt"><input type="radio" name="p13" value="d"><span>Nowhere: regions only work for media players</span></label>
+    </div>
+    <p class="hint" hidden>Pick one answer first.</p>
+    <button type="button" class="btn primary reveal">Reveal</button>
+    <div class="reveal-box" hidden>
+      <p class="verdict"></p>
+      <p class="why" data-opt="a" hidden>Then the frother would exist only while brewing. Its on and off does not depend on brewing.</p>
+      <p class="why" data-opt="b" hidden>That is the flat answer. It works, but it doubles every state of the machine.</p>
+      <p class="why" data-opt="c" hidden>Its on and off does not depend on what the machine is doing, so it gets a region of its own, with FROTH_ON and FROTH_OFF arrows. It sits beside the machine's region, the way playback sits beside volume.</p>
+      <p class="why" data-opt="d" hidden>Regions work for any independent features. The frother is one.</p>
+      <p class="answer"><strong>Answer: its own region, beside the machine.</strong> The machine's states do not change, and the two regions run side by side.</p>
+    </div>
+  </fieldset>
+
+  <div class="sandbox" data-machine="frother" data-events="FROTH_ON FROTH_OFF POWER_ON POWER_OFF GRIND GROUND BREWED SERVE" data-label="Coffee machine with frother">
+    <p class="sandbox-title">Try it: the coffee machine with a frother region</p>
+  </div>
+
+  <div class="figure">
+    <p class="ftitle">Counting the drawing</p>
+    <div data-stats="frother" data-events="FROTH_ON FROTH_OFF POWER_ON POWER_OFF GRIND GROUND BREWED SERVE"></div>
+  </div>
+  <p>Look at the arrows row. Drawn with a region, the frother adds two arrows. Flattened, every machine state needs a copy for the frother on and off, so the arrows multiply.</p>
+  <p>If the frother should also switch off when the machine is powered off, the frother region moves inside On. On would then hold two regions, and POWER_OFF on On takes both down.</p>
+</section>
+
+<!-- ============ STEP 14 ============ -->
+<section class="step" id="step-14" aria-labelledby="t14" hidden>
+  <p class="eyebrow">Step 14 of 14 · Remember</p>
+  <h2 id="t14" tabindex="-1">The sentence to remember</h2>
+  <div class="callout sentence">
+    <p>A statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.</p>
+  </div>
+  <ul>
+    <li><strong>Nesting:</strong> put shared behaviour on the box. The innermost state gets each event first.</li>
+    <li><strong>Regions:</strong> give each independent part its own small machine, so you draw the parts, not the combinations.</li>
+    <li><strong>Flattening:</strong> the same behaviour, written out in full. It shows that nothing new is possible.</li>
+  </ul>
+  <p><button type="button" class="btn" id="restart">Start again from step 1</button></p>
+</section>
+
+</main>
+
+<nav class="dock" aria-label="Step navigation">
+  <div class="wrap dock-in">
+    <button type="button" class="btn" id="prev">Back</button>
+    <p class="count" id="count" aria-live="polite">Step 1 of 14</p>
+    <button type="button" class="btn primary" id="next">Next</button>
+  </div>
+</nav>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =====================================================================
+     1. A small statechart engine.
+     A machine is a tree of nodes. Each node is:
+       kind 'leaf' : a plain state
+       kind 'xor'  : a box with exactly one active child
+       kind 'and'  : a box whose children are regions, all active at once
+     A node can carry arrows: on = { EVENT: targetId }.
+     ===================================================================== */
+
+  function build(spec) {
+    var m = { root: spec.id, nodes: {}, parent: {}, order: [] };
+    (function walk(n, p) {
+      m.nodes[n.id] = n;
+      m.parent[n.id] = p;
+      m.order.push(n.id);
+      (n.children || []).forEach(function (c) { walk(c, n.id); });
+    })(spec, null);
+    return m;
+  }
+  function kids(m, id) { return (m.nodes[id].children || []).map(function (c) { return c.id; }); }
+  function nm(m, id) { return m.nodes[id].name || id; }
+  // the node, then its parent, up to the root
+  function chain(m, id) {
+    var out = [], c = id;
+    while (c !== null && c !== undefined) { out.push(c); c = m.parent[c]; }
+    return out;
+  }
+  // a lies strictly inside b
+  function under(m, a, b) { return chain(m, a).indexOf(b) > 0; }
+  function lca(m, a, b) {
+    var cb = chain(m, b);
+    return chain(m, a).filter(function (x) { return cb.indexOf(x) >= 0; })[0];
+  }
+  // switch a node on, and switch on its default children
+  function enter(m, cfg, id) {
+    cfg.add(id);
+    var n = m.nodes[id];
+    if (n.kind === 'xor') enter(m, cfg, n.initial);
+    else if (n.kind === 'and') kids(m, id).forEach(function (k) { enter(m, cfg, k); });
+  }
+  function start(m) { var cfg = new Set(); enter(m, cfg, m.root); return cfg; }
+  function leaves(m, cfg) {
+    return m.order.filter(function (id) { return cfg.has(id) && m.nodes[id].kind === 'leaf'; });
+  }
+  function keyOf(m, cfg) { return leaves(m, cfg).join('|'); }
+  // plain-English position: "On › Brewing", or two parts joined by "and"
+  function where(m, cfg) {
+    return leaves(m, cfg).map(function (l) {
+      return chain(m, l).filter(function (x) { return x !== m.root; }).reverse()
+        .map(function (x) { return nm(m, x); }).join(' › ');
+    }).join(' and ');
+  }
+
+  /* One event. Returns the new configuration plus a plain-English trace.
+     Each active leaf is checked from the inside out. The first arrow found
+     handles the event for that part. Arrows on boxes that sit above a handler
+     are never used for that event. */
+  function step(m, cfg, ev) {
+    var lines = [], seen = {}, visited = new Set(), handlers = new Map(), handled = false;
+    function say(t) { if (!seen[t]) { seen[t] = true; lines.push(t); } }
+
+    leaves(m, cfg).forEach(function (leaf) {
+      var ch = chain(m, leaf), h = null;
+      for (var i = 0; i < ch.length; i++) {
+        visited.add(ch[i]);
+        var on = m.nodes[ch[i]].on;
+        if (on && on[ev] !== undefined) { h = ch[i]; break; }
+      }
+      if (h === null) {
+        say(nm(m, leaf) + ': no ' + ev + ' arrow in this part, so it ignores the event.');
+        return;
+      }
+      ch.slice(0, ch.indexOf(h)).forEach(function (id) {
+        say(nm(m, id) + ': no ' + ev + ' arrow, so the event moves up to ' + nm(m, m.parent[id]) + '.');
+      });
+      var target = m.nodes[h].on[ev];
+      say(nm(m, h) + ': has a ' + ev + ' arrow to ' + nm(m, target) + '. It handles the event.');
+      chain(m, h).slice(1).forEach(function (a) {
+        var on = m.nodes[a].on;
+        if (on && on[ev] !== undefined) {
+          say(nm(m, a) + ' also has a ' + ev + ' arrow, but ' + nm(m, h) + ' handled it first, so ' + nm(m, a) + ' never sees the event.');
+        }
+      });
+      handlers.set(h, target);
+      handled = true;
+    });
+    if (!handled) lines.push('Nothing handles ' + ev + ', so nothing happens.');
+
+    // If one handler sits inside another, the inner one wins.
+    var all = Array.from(handlers.keys());
+    var srcs = all.filter(function (s) {
+      return !all.some(function (t) { return t !== s && under(m, t, s); });
+    });
+
+    var next = new Set(cfg);
+    srcs.forEach(function (s) {
+      var t = handlers.get(s);
+      var scope = (s === t) ? m.parent[s] : lca(m, s, t);
+      var cs = chain(m, s), top = cs[cs.indexOf(scope) - 1];
+      // leave: the part of the machine under the scope that holds the source
+      Array.from(next).forEach(function (id) {
+        if (id === top || under(m, id, top)) next.delete(id);
+      });
+      // enter: the path from the scope down to the target, then its defaults
+      var ct = chain(m, t);
+      ct.slice(0, ct.indexOf(scope)).reverse().forEach(function (id) { next.add(id); });
+      enter(m, next, t);
+    });
+
+    return { cfg: next, lines: lines, visited: visited, handlers: new Set(srcs), handled: handled };
+  }
+
+  // Flatten: visit every reachable combination and copy each arrow onto it.
+  function flatten(m, events) {
+    var byKey = {}, order = [], queue = [], s0 = start(m);
+    function add(cfg) {
+      var k = keyOf(m, cfg);
+      if (!byKey[k]) {
+        byKey[k] = {
+          key: k,
+          name: leaves(m, cfg).map(function (l) { return nm(m, l); }).join(' · '),
+          cfg: new Set(cfg),
+          next: {}
+        };
+        order.push(byKey[k]);
+        queue.push(k);
+      }
+      return k;
+    }
+    var startKey = add(s0);
+    while (queue.length) {
+      var st = byKey[queue.shift()];
+      events.forEach(function (ev) {
+        var nk = add(step(m, st.cfg, ev).cfg);
+        st.next[ev] = (nk === st.key) ? null : nk;
+      });
+    }
+    return { states: order, byKey: byKey, startKey: startKey };
+  }
+
+  function stats(m, events) {
+    var drawnStates = m.order.filter(function (id) { return m.nodes[id].kind === 'leaf'; }).length;
+    var drawnArrows = m.order.reduce(function (n, id) { return n + Object.keys(m.nodes[id].on || {}).length; }, 0);
+    var f = flatten(m, events);
+    var flatArrows = f.states.reduce(function (n, s) {
+      return n + Object.keys(s.next).filter(function (e) { return s.next[e]; }).length;
+    }, 0);
+    return { drawnStates: drawnStates, drawnArrows: drawnArrows, flatStates: f.states.length, flatArrows: flatArrows };
+  }
+
+  /* =====================================================================
+     2. The machines used in the lesson.
+     ===================================================================== */
+
+  function lightSpec() {
+    return { id: 'light', name: 'Light', kind: 'xor', initial: 'off', children: [
+      { id: 'off', name: 'Off', kind: 'leaf', on: { SWITCH: 'on' } },
+      { id: 'on', name: 'On', kind: 'leaf', on: { SWITCH: 'off' } }
+    ]};
+  }
+
+  // The coffee machine. With timeout = true, On and Brewing also react to TIMEOUT.
+  function coffeeSpec(timeout) {
+    var onArrows = { POWER_OFF: 'off' };
+    var brewArrows = { BREWED: 'ready' };
+    if (timeout) { onArrows.TIMEOUT = 'off'; brewArrows.TIMEOUT = 'ready'; }
+    return { id: 'machine', name: 'Coffee machine', kind: 'xor', initial: 'off', children: [
+      { id: 'off', name: 'Off', kind: 'leaf', on: { POWER_ON: 'idle' } },
+      { id: 'on', name: 'On', kind: 'xor', initial: 'idle', on: onArrows, children: [
+        { id: 'idle', name: 'Idle', kind: 'leaf', on: { GRIND: 'grinding' } },
+        { id: 'grinding', name: 'Grinding', kind: 'leaf', on: { GROUND: 'brewing' } },
+        { id: 'brewing', name: 'Brewing', kind: 'leaf', on: brewArrows },
+        { id: 'ready', name: 'Ready', kind: 'leaf', on: { SERVE: 'idle' } }
+      ]}
+    ]};
+  }
+
+  // The coffee machine with a frother region beside it.
+  function frotherSpec() {
+    var c = coffeeSpec(false);
+    c.name = 'Machine';
+    return { id: 'top', name: 'Coffee machine', kind: 'and', children: [
+      c,
+      { id: 'frother', name: 'Frother', kind: 'xor', initial: 'froff', children: [
+        { id: 'froff', name: 'Frother off', kind: 'leaf', on: { FROTH_ON: 'fron' } },
+        { id: 'fron', name: 'Frother on', kind: 'leaf', on: { FROTH_OFF: 'froff' } }
+      ]}
+    ]};
+  }
+
+  // The player: two regions side by side.
+  function playerSpec() {
+    return { id: 'player', name: 'Player', kind: 'and', children: [
+      { id: 'playback', name: 'Playback', kind: 'xor', initial: 'playing', children: [
+        { id: 'playing', name: 'Playing', kind: 'leaf', on: { PAUSE: 'paused' } },
+        { id: 'paused', name: 'Paused', kind: 'leaf', on: { PLAY: 'playing' } }
+      ]},
+      { id: 'volume', name: 'Volume', kind: 'xor', initial: 'unmuted', children: [
+        { id: 'unmuted', name: 'Unmuted', kind: 'leaf', on: { MUTE: 'muted' } },
+        { id: 'muted', name: 'Muted', kind: 'leaf', on: { UNMUTE: 'unmuted' } }
+      ]}
+    ]};
+  }
+
+  // A phone app: one box around the signed-in screens.
+  function appSpec() {
+    return { id: 'app', name: 'App', kind: 'xor', initial: 'out', children: [
+      { id: 'out', name: 'Signed out', kind: 'leaf', on: { SIGN_IN: 'home' } },
+      { id: 'in', name: 'Signed in', kind: 'xor', initial: 'home', on: { LOG_OUT: 'out' }, children: [
+        { id: 'home', name: 'Home', kind: 'leaf', on: { OPEN_SETTINGS: 'settings', OPEN_EDITOR: 'editor', OPEN_HELP: 'help' } },
+        { id: 'settings', name: 'Settings', kind: 'leaf', on: { BACK: 'home' } },
+        { id: 'editor', name: 'Editor', kind: 'leaf', on: { BACK: 'home' } },
+        { id: 'help', name: 'Help', kind: 'leaf', on: { BACK: 'home' } }
+      ]}
+    ]};
+  }
+
+  var MACH = {
+    light: build(lightSpec()),
+    coffee: build(coffeeSpec(false)),
+    coffeeT: build(coffeeSpec(true)),
+    frother: build(frotherSpec()),
+    player: build(playerSpec()),
+    app: build(appSpec())
+  };
+
+  /* =====================================================================
+     3. Drawing.
+     ===================================================================== */
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+
+  function chipsFor(m, id) {
+    var on = m.nodes[id].on || {}, evs = Object.keys(on);
+    if (!evs.length) return null;
+    var c = el('div', 'chips');
+    evs.forEach(function (e) { c.appendChild(el('span', 'chip', e + ' → ' + nm(m, on[e]))); });
+    return c;
+  }
+
+  // Draws a node and everything inside it. view = { cfg, visited, handlers }.
+  function pictureNode(m, id, view, inRegion) {
+    var n = m.nodes[id], box = n.kind !== 'leaf';
+    var cls = 'st ' + (box ? 'box' : 'leaf');
+    if (inRegion) cls += ' region';
+    if (view.cfg.has(id) && id !== m.root && !inRegion) cls += ' now';
+    if (view.visited && view.visited.has(id)) cls += ' visited';
+    if (view.handlers && view.handlers.has(id)) cls += ' handler';
+    var d = el('div', cls);
+    var head = el('div', 'head');
+    head.appendChild(el('span', 'name', nm(m, id)));
+    if (!box && view.cfg.has(id)) head.appendChild(el('span', 'tag', 'now'));
+    if (view.handlers && view.handlers.has(id)) head.appendChild(el('span', 'tag warn', 'handles'));
+    d.appendChild(head);
+    var c = chipsFor(m, id);
+    if (c) d.appendChild(c);
+    if (box) {
+      var wrap = el('div', n.kind === 'and' ? 'par' : 'kids');
+      kids(m, id).forEach(function (k) { wrap.appendChild(pictureNode(m, k, view, n.kind === 'and')); });
+      d.appendChild(wrap);
+    }
+    return d;
+  }
+
+  function flatCard(f, st, show) {
+    var d = el('div', 'st leaf');
+    var head = el('div', 'head');
+    head.appendChild(el('span', 'name', st.name));
+    d.appendChild(head);
+    var c = el('div', 'chips'), any = false;
+    Object.keys(st.next).forEach(function (e) {
+      var t = st.next[e];
+      if (t && (!show || show.indexOf(e) >= 0)) {
+        any = true;
+        c.appendChild(el('span', 'chip', e + ' → ' + f.byKey[t].name));
+      }
+    });
+    if (any) d.appendChild(c);
+    else d.appendChild(el('p', 'none', show ? 'No ' + show.join(' or ') + ' arrow here.' : 'No arrows here.'));
+    return d;
+  }
+
+  function renderFlat(host) {
+    var m = MACH[host.dataset.flat];
+    var f = flatten(m, host.dataset.events.split(/\s+/));
+    var show = host.dataset.show ? host.dataset.show.split(/\s+/) : null;
+    host.innerHTML = '';
+    f.states.forEach(function (st) { host.appendChild(flatCard(f, st, show)); });
+  }
+
+  // A live machine: buttons send events, the picture and trace update.
+  function sandbox(host) {
+    var m = MACH[host.dataset.machine];
+    var evs = host.dataset.events.split(/\s+/);
+    var base = start(m);
+    (host.dataset.start || '').split(/\s+/).filter(Boolean).forEach(function (e) {
+      base = step(m, base, e).cfg;
+    });
+    var cfg = new Set(base), last = null;
+
+    var pic = el('div', 'picture');
+    var status = el('p', 'status');
+    var row = el('div', 'ev-row');
+    var live = el('div', 'trace-box');
+    var head = el('p', 'trace-head');
+    var list = el('ol', 'trace');
+    live.setAttribute('aria-live', 'polite');
+    head.textContent = 'Press an event. The trace shows which state handles it.';
+    live.appendChild(head);
+    live.appendChild(list);
+
+    function draw() {
+      pic.innerHTML = '';
+      pic.appendChild(pictureNode(m, m.root, {
+        cfg: cfg,
+        visited: last ? last.visited : null,
+        handlers: last ? last.handlers : null
+      }, false));
+      status.textContent = 'Now in: ' + where(m, cfg);
+    }
+    function fire(e) {
+      last = step(m, cfg, e);
+      cfg = last.cfg;
+      head.textContent = 'Event ' + e + (last.handled ? ': handled.' : ': nothing handles it.');
+      list.innerHTML = '';
+      last.lines.forEach(function (t) { list.appendChild(el('li', null, t)); });
+      draw();
+    }
+
+    evs.forEach(function (e) {
+      var b = el('button', 'ev', e);
+      b.type = 'button';
+      b.addEventListener('click', function () { fire(e); });
+      row.appendChild(b);
+    });
+    var reset = el('button', 'btn', 'Reset');
+    reset.type = 'button';
+    reset.addEventListener('click', function () {
+      cfg = new Set(base);
+      last = null;
+      head.textContent = 'Reset to the starting state.';
+      list.innerHTML = '';
+      draw();
+    });
+
+    host.innerHTML = '';
+    host.appendChild(el('p', 'sandbox-title', host.getAttribute('data-title') || ''));
+    host.appendChild(pic);
+    host.appendChild(status);
+    host.appendChild(row);
+    var actions = el('div', 'actions');
+    actions.appendChild(reset);
+    host.appendChild(actions);
+    host.appendChild(live);
+    draw();
+  }
+
+  // Counts table: drawn with regions versus flattened.
+  function renderStats(host) {
+    var m = MACH[host.dataset.stats];
+    var s = stats(m, host.dataset.events.split(/\s+/));
+    host.innerHTML = '';
+    var t = el('table', 'grid');
+    var thead = el('thead'), hr = el('tr');
+    ['', 'Drawn with regions', 'Flattened'].forEach(function (h) { hr.appendChild(el('th', null, h)); });
+    thead.appendChild(hr);
+    t.appendChild(thead);
+    var tb = el('tbody');
+    [['States', s.drawnStates, s.flatStates], ['Arrows', s.drawnArrows, s.flatArrows]].forEach(function (r) {
+      var tr = el('tr');
+      tr.appendChild(el('th', null, r[0]));
+      tr.appendChild(el('td', null, String(r[1])));
+      tr.appendChild(el('td', null, String(r[2])));
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    var wrap = el('div', 'table-wrap');
+    wrap.appendChild(t);
+    host.appendChild(wrap);
+  }
+
+  // The flat table with a panel that sends the same events to both versions.
+  function renderCompare(host) {
+    var m = MACH[host.dataset.compare];
+    var evs = host.dataset.events.split(/\s+/);
+    var f = flatten(m, evs);
+    var cfg = start(m), fk = f.startKey;
+
+    var title = el('p', 'ftitle', 'The flat table (made from the regions)');
+    var wrap = el('div', 'table-wrap');
+    var table = el('table', 'grid');
+    var thead = el('thead'), hr = el('tr');
+    hr.appendChild(el('th', null, 'Flat state'));
+    evs.forEach(function (e) { hr.appendChild(el('th', 'mono', e)); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tbody = el('tbody');
+    var rowFor = {};
+    f.states.forEach(function (st) {
+      var r = el('tr');
+      r.appendChild(el('th', null, st.name));
+      evs.forEach(function (e) {
+        var t = st.next[e];
+        r.appendChild(el('td', 'mono', t ? f.byKey[t].name : 'stays'));
+      });
+      rowFor[st.key] = r;
+      tbody.appendChild(r);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+
+    var row = el('div', 'ev-row');
+    var panel = el('div', 'readouts');
+    panel.setAttribute('aria-live', 'polite');
+    var out1 = el('p'), out2 = el('p'), out3 = el('p', 'strong');
+    panel.appendChild(out1); panel.appendChild(out2); panel.appendChild(out3);
+
+    function draw() {
+      Object.keys(rowFor).forEach(function (k) { rowFor[k].className = (k === fk) ? 'current' : ''; });
+      out1.textContent = 'Regions say: ' + where(m, cfg);
+      out2.textContent = 'Flat table says: ' + f.byKey[fk].name;
+      out3.textContent = (keyOf(m, cfg) === fk) ? 'Agree: yes. Same behaviour.' : 'Agree: no.';
+    }
+    evs.forEach(function (e) {
+      var b = el('button', 'ev', e);
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        cfg = step(m, cfg, e).cfg;
+        fk = f.byKey[fk].next[e] || fk;
+        draw();
+      });
+      row.appendChild(b);
+    });
+    var reset = el('button', 'btn', 'Reset');
+    reset.type = 'button';
+    reset.addEventListener('click', function () { cfg = start(m); fk = f.startKey; draw(); });
+
+    host.innerHTML = '';
+    host.appendChild(title);
+    host.appendChild(wrap);
+    host.appendChild(el('p', 'ftitle', 'Send an event to both'));
+    host.appendChild(row);
+    var actions = el('div', 'actions');
+    actions.appendChild(reset);
+    host.appendChild(actions);
+    host.appendChild(panel);
+    draw();
+  }
+
+  function renderBooleans() {
+    var host = document.getElementById('bool-demo');
+    if (!host) return;
+    var flags = { isPlaying: false, isPaused: false };
+    var combosBox = document.getElementById('bool-combos');
+    var flagText = document.getElementById('bool-flags');
+    var defs = [
+      { p: true, q: false, label: 'Playing only' },
+      { p: false, q: true, label: 'Paused only' },
+      { p: false, q: false, label: 'Neither (not started)' },
+      { p: true, q: true, label: 'Both: should be impossible', bad: true }
+    ];
+    var cells = defs.map(function (d) {
+      var c = el('div', 'combo' + (d.bad ? ' bad' : ''));
+      c.setAttribute('role', 'listitem');
+      c.appendChild(el('code', null, 'isPlaying ' + d.p + ', isPaused ' + d.q));
+      c.appendChild(el('br'));
+      c.appendChild(el('span', null, d.label));
+      combosBox.appendChild(c);
+      return c;
+    });
+    function play() { flags.isPlaying = true; }
+    function pause() { flags.isPaused = true; }
+    function draw() {
+      flagText.textContent = 'isPlaying = ' + flags.isPlaying + ', isPaused = ' + flags.isPaused;
+      defs.forEach(function (d, i) {
+        var now = (d.p === flags.isPlaying && d.q === flags.isPaused);
+        cells[i].className = 'combo' + (d.bad ? ' bad' : '') + (now ? ' now' : '');
+      });
+    }
+    document.getElementById('bool-play').addEventListener('click', function () { play(); draw(); });
+    document.getElementById('bool-pause').addEventListener('click', function () { pause(); draw(); });
+    document.getElementById('bool-reset').addEventListener('click', function () {
+      flags.isPlaying = false; flags.isPaused = false; draw();
+    });
+    draw();
+  }
+
+  function renderFeatureSlider() {
+    var range = document.getElementById('feat');
+    if (!range) return;
+    function draw() {
+      var n = Number(range.value);
+      var flat = Math.pow(2, n), drawn = 2 * n;
+      document.getElementById('featOut').textContent =
+        'With ' + n + (n === 1 ? ' feature' : ' features') + ': ' + flat + ' flat states, or ' +
+        n + ' small ' + (n === 1 ? 'machine' : 'machines') + ' with ' + drawn + ' states drawn.';
+      document.getElementById('numFlat').textContent = String(flat);
+      document.getElementById('numDrawn').textContent = String(drawn);
+      document.getElementById('barFlat').style.width = (flat / 64 * 100) + '%';
+      document.getElementById('barDrawn').style.width = (drawn / 64 * 100) + '%';
+    }
+    range.addEventListener('input', draw);
+    draw();
+  }
+
+  /* =====================================================================
+     4. Predictions: pick an answer, then reveal the answer and every option.
+     ===================================================================== */
+
+  function setupPredictions() {
+    document.querySelectorAll('fieldset.predict').forEach(function (fs) {
+      var btn = fs.querySelector('.reveal');
+      var hint = fs.querySelector('.hint');
+      var box = fs.querySelector('.reveal-box');
+      var verdict = fs.querySelector('.verdict');
+      var correct = fs.getAttribute('data-answer');
+      btn.addEventListener('click', function () {
+        var sel = fs.querySelector('input[type=radio]:checked');
+        if (!sel) { hint.hidden = false; return; }
+        hint.hidden = true;
+        fs.querySelectorAll('input[type=radio]').forEach(function (r) { r.disabled = true; });
+        btn.disabled = true;
+        var right = sel.value === correct;
+        verdict.textContent = right ? 'You predicted correctly.' : 'Not this time.';
+        verdict.className = 'verdict ' + (right ? 'right' : 'notquite');
+        box.querySelectorAll('.why').forEach(function (p) {
+          p.hidden = p.getAttribute('data-opt') !== sel.value;
+        });
+        box.hidden = false;
+      });
+    });
+  }
+
+  /* =====================================================================
+     5. Step-through navigation.
+     ===================================================================== */
+
+  var steps = Array.prototype.slice.call(document.querySelectorAll('.step'));
+  var N = steps.length, cur = 0;
+  var prev = document.getElementById('prev'), next = document.getElementById('next');
+  var count = document.getElementById('count'), bar = document.getElementById('bar');
+  var progress = document.querySelector('.progress');
+
+  function go(i, moveFocus) {
+    cur = Math.max(0, Math.min(N - 1, i));
+    steps.forEach(function (s, k) { s.hidden = (k !== cur); });
+    count.textContent = 'Step ' + (cur + 1) + ' of ' + N;
+    bar.style.width = ((cur + 1) / N * 100) + '%';
+    progress.setAttribute('aria-valuenow', String(cur + 1));
+    prev.disabled = (cur === 0);
+    next.textContent = (cur === N - 1) ? 'Start again' : 'Next';
+    try { history.replaceState(null, '', '#step-' + (cur + 1)); } catch (e) { /* not essential */ }
+    window.scrollTo(0, 0);
+    if (moveFocus) {
+      var h = steps[cur].querySelector('h2');
+      if (h) h.focus({ preventScroll: true });
+    }
+  }
+
+  prev.addEventListener('click', function () { go(cur - 1, true); });
+  next.addEventListener('click', function () { go(cur === N - 1 ? 0 : cur + 1, true); });
+  document.getElementById('restart').addEventListener('click', function () { go(0, true); });
+
+  /* =====================================================================
+     6. Boot.
+     ===================================================================== */
+
+  document.querySelectorAll('[data-flat]').forEach(renderFlat);
+  document.querySelectorAll('[data-stats]').forEach(renderStats);
+  document.querySelectorAll('[data-compare]').forEach(renderCompare);
+  document.querySelectorAll('.sandbox[data-machine]').forEach(function (host) {
+    host.setAttribute('data-title', host.querySelector('.sandbox-title') ? host.querySelector('.sandbox-title').textContent : '');
+    sandbox(host);
+  });
+  renderBooleans();
+  renderFeatureSlider();
+  setupPredictions();
+
+  var fromHash = /^#step-(\d+)$/.exec(location.hash || '');
+  go(fromHash ? Number(fromHash[1]) - 1 : 0, false);
+})();
+</script>
+</body>
+</html>
