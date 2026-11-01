@@ -1,0 +1,220 @@
+[
+  {
+    "step": 1,
+    "kicker": "STEP 1 · DEFINITION",
+    "heading": "What is a statechart?",
+    "text": "A statechart is a state machine whose states can contain other states.\n\nFirst, the thing it builds on. A state machine is always in exactly one of a few named states (the rounded boxes). When an event happens, it follows the arrow labelled with that event. The dot marks where it starts.\n\nTry it: press TOGGLE and the lamp moves between its two states.\n\nA statechart adds two things. The next two steps show one each.",
+    "predict": "",
+    "figureText": "off\non\nTOGGLE\nTOGGLE\na state\na state\nan event moves it along an arrow\nstart\nSend an event:\nTOGGLE\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress TOGGLE. The highlighted box is the state the lamp is in now.\n\nNow in: off",
+    "figureDescriptions": [
+      "A lamp drawn as a state machine: two states, off and on, joined by TOGGLE arrows in both directions. A dot marks off as the start. Current state: off."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 2,
+    "kicker": "STEP 2 · ADDITION 1 · A PARENT",
+    "heading": "A state can be a box of states",
+    "text": "A state can be a box of states, a parent, and any event its children (the states inside it) don't handle goes to the parent.\n\nHere the lamp's on is a box holding dim and bright. TAP is drawn on the children. SWITCH is drawn once, on the box. Entering the box lands on the child its dot points to.\n\nPress SWITCH, TAP, then SWITCH again. The trace shows who is asked: the current state first, then its parent, until one has an arrow for that event. If none does, nothing happens.",
+    "predict": "",
+    "figureText": "on\noff\ndim\nbright\nTAP\nTAP\nSWITCH\nSWITCH\nSend an event:\nSWITCH\nTAP\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress an event button. The trace shows which state is asked, and which one handles it.\n\nNow in: off",
+    "figureDescriptions": [
+      "The lamp as a statechart: off on the left; on is a box containing dim and bright, which TAP switches between. One SWITCH arrow leaves the box for off, another goes from off into the box. Inside the box a dot marks dim as where the box starts. Current state: off."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 3,
+    "kicker": "STEP 3 · ADDITION 2 · REGIONS",
+    "heading": "A state can be split into regions",
+    "text": "And a state can be split into regions, each in one state at the same time.\n\nCaps Lock and Num Lock don't depend on each other, so a dashed line splits the keyboard into two regions. It is always in one state on each side: right now caps off and num off.\n\nEvery event is offered to every region. The region with a matching arrow moves; the other ignores it.\n\nCareful: side by side doesn't mean two programs running at once. It is one machine, handling one event at a time, that remembers one state per region.",
+    "predict": "",
+    "figureText": "keyboard\ncaps lock region\nnum lock region\ncaps off\ncaps on\nnum off\nnum on\nCAPS\nCAPS\nNUM\nNUM\nSend an event:\nCAPS\nNUM\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress an event button. The trace shows which state is asked, and which one handles it.\n\nNow in: caps off, num off",
+    "figureDescriptions": [
+      "A keyboard statechart split by a dashed line into two regions. Left region, caps lock: caps off and caps on, joined by CAPS arrows. Right region, num lock: num off and num on, joined by NUM arrows. Each region has its own start dot, on the off state. Current state: caps off, num off."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 4,
+    "kicker": "STEP 4 · WHY IT MATTERS · PREDICT",
+    "heading": "A coffee machine gets a power button",
+    "text": "Why that matters: in a plain state machine, behaviour shared by many states must be copied onto each of them.\n\nThis coffee machine goes idle → grinding → brewing → ready, and back to idle when you take the cup. Now add a power button: from any of those four, POWER_OFF must lead to off.",
+    "predict": "Predict: Drawn as a plain state machine, with no boxes, how many POWER_OFF arrows does it need?\n1\n2\n4\n5\n\nPick one, then press Reveal.",
+    "figureText": "idle\ngrinding\nbrewing\nready\noff\nSTART\nGROUND\nBREWED\nTAKE_CUP\nPOWER_ON\nPOWER_OFF\n?\nhow many?",
+    "figureDescriptions": [
+      "A coffee machine as a plain state machine: idle, grinding, brewing and ready in a loop joined by START, GROUND, BREWED and TAKE_CUP, plus an off state that POWER_ON leaves for idle. A dashed arrow asks how many POWER_OFF arrows are needed."
+    ],
+    "nextButton": "Reveal →"
+  },
+  {
+    "step": 5,
+    "kicker": "STEP 5 · ANSWER",
+    "heading": "Four copies of one arrow",
+    "text": "You said 2. Each of the four states needs its own arrow. The answer is 4.\n\nGive a coffee machine a power button, and idle, grinding, brewing and ready each need their own POWER_OFF arrow: four copies of the same idea.\n\nEach copy is a chance to forget one. Add a descaling state next year and someone must remember a fifth.\n\nTry POWER_OFF from different states: a different copy fires each time.",
+    "predict": "",
+    "figureText": "idle\ngrinding\nbrewing\nready\noff\nSTART\nGROUND\nBREWED\nTAKE_CUP\nPOWER_OFF\nPOWER_OFF\nPOWER_OFF\nPOWER_OFF\nPOWER_ON\n1\n2\n3\n4\n4 copies of\none arrow\nSend an event:\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE_CUP\nPOWER_OFF\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress an event button. The trace shows which state is asked, and which one handles it.\n\nNow in: off",
+    "figureDescriptions": [
+      "The coffee machine as a plain state machine with four separate POWER_OFF arrows, one from each of idle, grinding, brewing and ready, all leading to off. Current state: off."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 6,
+    "kicker": "STEP 6 · THE FIX",
+    "heading": "One arrow on the box",
+    "text": "Put the four in a box called on, and one POWER_OFF on the box does the job.\n\nNone of the four has its own POWER_OFF arrow, so the event goes up to their parent, which has one. Same behaviour, one arrow instead of four, and any state added to the box later gets power-off for free.\n\nTry it: press POWER_ON, START and GROUND to reach brewing, then POWER_OFF, and follow the trace.",
+    "predict": "",
+    "figureText": "on\nidle\ngrinding\nbrewing\nready\noff\nSTART\nGROUND\nBREWED\nTAKE_CUP\nPOWER_OFF\nPOWER_ON\none arrow\nfor all four\nSend an event:\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE_CUP\nPOWER_OFF\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress an event button. The trace shows which state is asked, and which one handles it.\n\nNow in: off",
+    "figureDescriptions": [
+      "The coffee machine as a statechart: idle, grinding, brewing and ready sit inside one box called on. A single POWER_OFF arrow leaves the box for off; POWER_ON goes from off into the box, whose dot starts at idle. Current state: off."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 7,
+    "kicker": "STEP 7 · THE PATTERN",
+    "heading": "Shared behaviour goes on the parent",
+    "text": "This isn't about coffee. Whenever several states react to an event the same way, a plain machine needs one arrow per state; a statechart needs one arrow on their parent.\n\na checkout where CANCEL works on every step\na phone call where HANG_UP works while ringing, talking or on hold\na game where PAUSE works in every level\n\nBoxes can sit inside boxes. An unhandled event keeps climbing, one parent at a time, until a state handles it or there are no parents left.",
+    "predict": "",
+    "figureText": "States that share CANCEL\n4\nstep 1\nstep 2\nstep 3\nstep 4\ncancelled\nplain machine\nCANCEL arrows: 4\nstep 1\nstep 2\nstep 3\nstep 4\ncancelled\nstatechart\nCANCEL arrows: 1\n\n4 states share CANCEL: a plain machine draws 4 arrows, a statechart draws 1.",
+    "figureDescriptions": [
+      "Plain state machine: 4 checkout steps, each with its own CANCEL arrow to cancelled.",
+      "Statechart: 4 checkout steps inside one box, with a single CANCEL arrow from the box to cancelled."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 8,
+    "kicker": "STEP 8 · SECOND PROBLEM · PREDICT",
+    "heading": "A player with two separate features",
+    "text": "A music player is playing or paused, and, separately, muted or unmuted. Either can change without touching the other.\n\nA plain state machine is in exactly one state, so each state has to describe both features at once, like “paused and unmuted”. Plain machines are often called flat: no boxes, no regions.",
+    "predict": "Predict: How many states does the flat machine need?\n2\n3\n4\n6\n\nPick one, then press Reveal.",
+    "figureText": "playback\npaused\nplaying\nvolume\nunmuted\nmuted\neither can change without the other\nplain machine: one state must say both\n?\n?\n?\n…",
+    "figureDescriptions": [
+      "Two independent features: playback can be paused or playing; volume can be unmuted or muted. Below, a plain state machine with an unknown number of states."
+    ],
+    "nextButton": "Reveal →"
+  },
+  {
+    "step": 9,
+    "kicker": "STEP 9 · ANSWER",
+    "heading": "One flat state per combination",
+    "text": "You said 4. Right.\n\nIndependent features multiply. A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that: 8, 16, 32…\n\nThe arrows double too: MUTE is drawn twice, once from each playback state. Try it.",
+    "predict": "",
+    "figureText": "pausedunmuted\nplayingunmuted\npausedmuted\nplayingmuted\nPLAY\nPAUSE\nPLAY\nPAUSE\nMUTE\nUNMUTE\nMUTE\nUNMUTE\n4 states · 8 arrows\nSend an event:\nPLAY\nPAUSE\nMUTE\nUNMUTE\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress an event button. The trace shows which state is asked, and which one handles it.\n\nNow in: paused unmuted",
+    "figureDescriptions": [
+      "A music player as a flat state machine: four states, one for each combination: paused unmuted, playing unmuted, paused muted, playing muted. PLAY and PAUSE arrows are drawn twice, once per row; MUTE and UNMUTE arrows are drawn twice, once per column. Current state: paused\nunmuted."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 10,
+    "kicker": "STEP 10 · THE SAME PROBLEM IN CODE",
+    "heading": "Booleans hide the impossible",
+    "text": "A boolean is a true-or-false variable. Programs often track a player with two of them: isPlaying and isPaused.\n\nBooleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible. Two booleans make four combinations, but the player only means two.\n\nFlip the switches and find the combinations nobody intended.",
+    "predict": "",
+    "figureText": "isPlaying\nisPaused\nisPlaying = false\nisPaused  = true\nEvery combination of the two booleans and what it means\n\tisPaused = false\tisPaused = true\nisPlaying = false\tneither\nnot a state the player has\tpaused ✓\nisPlaying = true\tplaying ✓\tplaying and paused\n✗ impossible\n\nPaused: a real state.\n\nplayback = \"paused\"   // one variable, one value:\n                      // \"both\" can't be written",
+    "figureDescriptions": [],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 11,
+    "kicker": "STEP 11 · THE FIX",
+    "heading": "Two small machines side by side",
+    "text": "Regions keep playback and volume apart, as two small machines side by side, so the impossible combination can't be written.\n\nThe playback region is always in exactly one of paused or playing. There is no state for “both”, so it can't happen, and no code has to prevent it.\n\nSend events: MUTE is drawn once, and the playback region simply ignores it.",
+    "predict": "",
+    "figureText": "player\nplayback region\nvolume region\npaused\nplaying\nunmuted\nmuted\nPLAY\nPAUSE\nMUTE\nUNMUTE\n4 states · 4 arrows\nSend an event:\nPLAY\nPAUSE\nMUTE\nUNMUTE\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nPress an event button. The trace shows which state is asked, and which one handles it.\n\nNow in: paused, unmuted",
+    "figureDescriptions": [
+      "The music player as a statechart with two regions side by side. Playback region: paused and playing, joined by PLAY and PAUSE. Volume region: unmuted and muted, joined by MUTE and UNMUTE. Each region starts at its own dot. Current state: paused, unmuted."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 12,
+    "kicker": "STEP 12 · THE PATTERN",
+    "heading": "Regions add; flat states multiply",
+    "text": "Each region adds its own few states; a flat machine needs every combination. With k on/off features, regions draw 2 × k states, a flat machine needs 2 × 2 × … (k times).\n\nDrag the slider and watch both drawings grow.\n\nIt holds for bigger features too. Add speed (1×, 1.5×, 2×) to the player: flat needs 2 × 2 × 3 = 12 states; regions need 2 + 2 + 3 = 7.\n\nSame shape elsewhere: a car's gear, headlights and wipers; text that is bold, italic and underlined.",
+    "predict": "",
+    "figureText": "On/off features\n2\nflat machine\n4 states · 8 arrows\neach square is one state\nstatechart regions\n4 states · 4 arrows\nplayback\npaused\nplaying\nvolume\nunmuted\nmuted\n\n2 on/off features: flat machine 4 states and 8 arrows; regions 4 states and 4 arrows.",
+    "figureDescriptions": [
+      "Flat machine with 2 features: 4 states, one square each.",
+      "Statechart with 2 regions: 4 states in total."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 13,
+    "kicker": "STEP 13 · PREDICT",
+    "heading": "Can a statechart do more?",
+    "text": "A common belief: statecharts are a more powerful kind of machine, able to describe behaviour a plain state machine can't.\n\nLook at the player statechart. Could some plain state machine behave exactly like it, for every sequence of events?",
+    "predict": "Predict: Can a statechart do anything a plain state machine can’t?\nYes: nesting and regions add new behaviour\nNo: it is the same behaviour, drawn smaller\n\nPick one, then press Reveal.",
+    "figureText": "player\nplayback region\nvolume region\npaused\nplaying\nunmuted\nmuted\nPLAY\nPAUSE\nMUTE\nUNMUTE\n4 states · 4 arrows\n?\na plain state machine that behaves the same?",
+    "figureDescriptions": [
+      "The music player as a statechart with two regions side by side. Playback region: paused and playing, joined by PLAY and PAUSE. Volume region: unmuted and muted, joined by MUTE and UNMUTE. Each region starts at its own dot. Current state: paused, unmuted.",
+      "A dashed empty box with a question mark: is there a plain state machine that behaves exactly like the statechart?"
+    ],
+    "nextButton": "Reveal →"
+  },
+  {
+    "step": 14,
+    "kicker": "STEP 14 · MISCONCEPTION, REFUTED",
+    "heading": "Same behaviour, smaller drawing",
+    "text": "You said yes. That is the misconception. The answer is no.\n\nNothing new becomes possible: flatten any statechart and you get an ordinary state machine with the same behaviour. To flatten, make one state per combination of region states, and copy each arrow on a box onto every state inside it.\n\nSend the same events to both machines: they always agree.\n\nWhat you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.",
+    "predict": "",
+    "figureText": "player\nplayback region\nvolume region\npaused\nplaying\nunmuted\nmuted\nPLAY\nPAUSE\nMUTE\nUNMUTE\n4 states · 4 arrows\npausedunmuted\nplayingunmuted\npausedmuted\nplayingmuted\nPLAY\nPAUSE\nPLAY\nPAUSE\nMUTE\nUNMUTE\nMUTE\nUNMUTE\n4 states · 8 arrows\nSend an event to both machines:\nPLAY\nPAUSE\nMUTE\nUNMUTE\n\nStatechart: paused, unmuted. Flat: paused, unmuted. They agree.",
+    "figureDescriptions": [
+      "The music player as a statechart with two regions side by side. Playback region: paused and playing, joined by PLAY and PAUSE. Volume region: unmuted and muted, joined by MUTE and UNMUTE. Each region starts at its own dot. Current state: paused, unmuted.",
+      "A music player as a flat state machine: four states, one for each combination: paused unmuted, playing unmuted, paused muted, playing muted. PLAY and PAUSE arrows are drawn twice, once per row; MUTE and UNMUTE arrows are drawn twice, once per column. Current state: paused\nunmuted."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 15,
+    "kicker": "STEP 15 · YOUR TURN · PREDICT",
+    "heading": "Add a milk frother",
+    "text": "The coffee machine gets a milk frother. While the machine is on, the frother can be switched on or off at any time, whatever the coffee is doing.",
+    "predict": "Predict: Where does it go in the statechart?\nA fifth loop state\nA region inside on\nA box around off and on\n\nPick one, then press Reveal.\n\nPredict: How many on-states does the flat machine need now?\n5\n6\n8\n16\n\nPick one, then press Reveal.",
+    "figureText": "on\nidle\ngrinding\nbrewing\nready\noff\nSTART\nGROUND\nBREWED\nTAKE_CUP\nPOWER_OFF\nPOWER_ON\none arrow\nfor all four\nnew: milk frother, any time the machine is on\nfroth off\nfroth on\n?",
+    "figureDescriptions": [
+      "The coffee machine as a statechart: idle, grinding, brewing and ready sit inside one box called on. A single POWER_OFF arrow leaves the box for off; POWER_ON goes from off into the box, whose dot starts at idle. Current state: off.",
+      "A new feature waiting to be placed: a milk frother with two states, froth off and froth on."
+    ],
+    "nextButton": "Reveal →"
+  },
+  {
+    "step": 16,
+    "kicker": "STEP 16 · ANSWER",
+    "heading": "A region inside on",
+    "text": "You said a new region inside on. Right.\n\nThe frother is independent of the coffee, so it is its own small machine: a region beside the coffee loop, two states, two arrows. POWER_OFF stays one arrow on the box and leaves both regions.\n\nYou said 6. Adding two states is what the regions do; flat states multiply. The answer is 8.\n\nThe flat machine doubles: every coffee state now comes with froth off and froth on, each needing its own POWER_OFF.",
+    "predict": "",
+    "figureText": "on\ncoffee region\nfrother region\nidle\ngrinding\nbrewing\nready\nfroth off\nfroth on\noff\nSTART\nGROUND\nBREWED\nTAKE_CUP\nFROTH_ON\nFROTH_OFF\nPOWER_OFF\nPOWER_ON\nidlefroth off\ngrindingfroth off\nbrewingfroth off\nreadyfroth off\nidlefroth on\ngrindingfroth on\nbrewingfroth on\nreadyfroth on\noff\nFlattened: 9 states · 25 arrows\n← 8 POWER_OFF copies\nSend an event:\nPOWER_ON\nSTART\nGROUND\nBREWED\nTAKE_CUP\nFROTH_ON\nFROTH_OFF\nPOWER_OFF\nReset\nTRACE: WHO HANDLES THE EVENT?\n\nTry POWER_ON, START, FROTH_ON, then POWER_OFF.\n\nNow in: off",
+    "figureDescriptions": [
+      "The coffee machine with a milk frother, as a statechart. The on box is split into two regions: a coffee region with idle, grinding, brewing and ready in a loop, and a frother region with froth off and froth on joined by FROTH_ON and FROTH_OFF. One POWER_OFF arrow leaves the on box for off; POWER_ON returns. Current state: off.",
+      "The same machine flattened: eight on-states, one for every coffee state paired with froth off or froth on, plus off. Every one of the eight has its own POWER_OFF arrow; the coffee loop is drawn twice and FROTH arrows are drawn four times each. 9 states and 25 arrows."
+    ],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 17,
+    "kicker": "STEP 17 · CHECK YOURSELF",
+    "heading": "Three questions",
+    "text": "Answer each in your head, or out loud, before opening its answer.\n\nIf one surprises you, go back to the step it came from: Back works at any time.",
+    "predict": "",
+    "figureText": "1. Four states all have the same EXIT arrow. What would a statechart do?\nShow answer\n2. Why do two independent on/off features need four flat states but only two regions?\nShow answer\n3. Can a statechart do anything a state machine can't?\nShow answer",
+    "figureDescriptions": [],
+    "nextButton": "Next →"
+  },
+  {
+    "step": 18,
+    "kicker": "STEP 18 · REMEMBER",
+    "heading": "The sentence to remember",
+    "text": "A statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.\n\nThe coffee machine shows both: one POWER_OFF on the on box, and a frother region that adds two states instead of doubling the rest.\n\nStart again from step 1",
+    "predict": "",
+    "figureText": "on\ncoffee region\nfrother region\nidle\ngrinding\nbrewing\nready\nfroth off\nfroth on\noff\nSTART\nGROUND\nBREWED\nTAKE_CUP\nFROTH_ON\nFROTH_OFF\nPOWER_OFF\nPOWER_ON\nside by side\n(regions)\nwritten once\n(on the parent)",
+    "figureDescriptions": [
+      "The coffee machine with a milk frother, as a statechart. The on box is split into two regions: a coffee region with idle, grinding, brewing and ready in a loop, and a frother region with froth off and froth on joined by FROTH_ON and FROTH_OFF. One POWER_OFF arrow leaves the on box for off; POWER_ON returns."
+    ],
+    "nextButton": "Next →"
+  }
+]

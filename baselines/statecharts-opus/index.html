@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statecharts, Step by Step</title>
+<meta name="description" content="A step-through explainer of statecharts: state machines that nest states and run parts side by side.">
+<style>
+:root{
+  --bg:#f5f4ef; --surface:#ffffff; --ink:#1b1d23; --muted:#545a68; --line:#6f7584; --faint:#e4e2db;
+  --accent:#2152c4; --accent-ink:#ffffff; --accent-soft:#e5ebfa;
+  --hit:#0d7650; --hit-soft:#e1f3ea; --miss:#9a5600; --miss-soft:#fbf0de;
+  --danger:#bd2f25; --danger-soft:#fbe8e5; --box:#eef2f9; --focus:#c2410c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14161b; --surface:#1d2027; --ink:#eceef2; --muted:#a6acb9; --line:#8a91a1; --faint:#2c3039;
+    --accent:#7aa2ff; --accent-ink:#0b1022; --accent-soft:#232c42;
+    --hit:#45d39b; --hit-soft:#173328; --miss:#f2ab45; --miss-soft:#3a2c14;
+    --danger:#ff7d70; --danger-soft:#3b1d1a; --box:#232836; --focus:#fb923c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14161b; --surface:#1d2027; --ink:#eceef2; --muted:#a6acb9; --line:#8a91a1; --faint:#2c3039;
+  --accent:#7aa2ff; --accent-ink:#0b1022; --accent-soft:#232c42;
+  --hit:#45d39b; --hit-soft:#173328; --miss:#f2ab45; --miss-soft:#3a2c14;
+  --danger:#ff7d70; --danger-soft:#3b1d1a; --box:#232836; --focus:#fb923c;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;height:100dvh}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:12px;top:8px;z-index:10;background:var(--surface);padding:6px 10px}
+header.top{display:flex;align-items:center;gap:16px;padding:10px 28px;border-bottom:1px solid var(--faint)}
+header.top h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.01em;white-space:nowrap}
+.progress{flex:1;height:6px;background:var(--faint);border-radius:3px;overflow:hidden;max-width:520px;margin-left:auto}
+.progress i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+main#stage{overflow:auto;outline:none}
+.step{display:grid;grid-template-columns:minmax(300px,430px) minmax(0,1fr);gap:36px;max-width:1220px;margin:0 auto;padding:22px 32px 24px;align-items:start}
+.step > .text{grid-column:1;grid-row:1}
+.step > .predicts{grid-column:1;grid-row:2}
+.step > .figure{grid-column:2;grid-row:1 / span 2}
+.step{grid-template-rows:auto 1fr;row-gap:0}
+.kicker{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+.step h2{font-size:28px;line-height:1.2;margin:0 0 12px;outline:none}
+.text p{margin:0 0 12px}
+.text ul{margin:0 0 12px;padding-left:20px}
+.text li{margin:2px 0}
+.def{font-size:20px;line-height:1.4;padding:12px 14px;background:var(--accent-soft);border-left:4px solid var(--accent);border-radius:4px}
+kbd,code{font:600 .82em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--faint);padding:1px 5px;border-radius:4px;white-space:nowrap}
+.aside{font-size:15px;background:var(--miss-soft);border-left:4px solid var(--miss);padding:8px 12px;border-radius:4px}
+.myth{font-size:16px;background:var(--danger-soft);border-left:4px solid var(--danger);padding:8px 12px;border-radius:4px}
+.fb{padding:8px 12px;border-radius:4px;font-weight:500}
+.fb.ok{background:var(--hit-soft);border-left:4px solid var(--hit)}
+.fb.no{background:var(--miss-soft);border-left:4px solid var(--miss)}
+.fb.none{background:var(--faint);border-left:4px solid var(--line)}
+fieldset.predict{border:2px solid var(--accent);border-radius:8px;padding:10px 14px 12px;margin:4px 0 12px}
+fieldset.predict legend{font-weight:700;padding:0 6px}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.opt span{display:inline-block;min-height:44px;min-width:44px;padding:9px 14px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);line-height:1.3}
+.opt input:checked + span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.opt input:focus-visible + span{outline:3px solid var(--focus);outline-offset:2px}
+.opts.col{flex-direction:column}
+.opts.col .opt span{display:block}
+.locked{font-size:14px;color:var(--muted);margin:8px 0 0;min-height:1.4em}
+.figure{background:var(--surface);border:1px solid var(--faint);border-radius:12px;padding:14px;min-width:0}
+.chart{display:block;width:100%;height:auto;max-height:min(calc(100vh - 290px),420px);margin:0 auto}
+.live{display:block}
+@media (min-width:1100px){
+  .live.side{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(230px,1fr);gap:18px;align-items:center}
+  .live.side .ctrl{margin-top:0}
+  .live .below{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  .live .below .trace{margin-top:10px;border-top:0;border-left:1px solid var(--faint);padding:0 0 0 14px}
+}
+.rgh{margin:4px 0 0;font-style:italic;color:var(--muted)}
+.pair{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.pair > *{flex:1 1 300px;min-width:0}
+.duo{display:flex;gap:10px}
+.duo > *{flex:1 1 0;min-width:0}
+.duo .chart{max-height:min(calc(100vh - 330px),380px)}
+.pair .chart{max-height:min(calc(100vh - 400px),360px)}
+.ctrl{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.ctrl .lbl{font-size:13px;color:var(--muted);margin-right:2px;width:100%}
+button{font:inherit;color:inherit}
+.evbtn{font:600 13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-height:44px;padding:8px 11px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--ink);cursor:pointer}
+.evbtn:hover{background:var(--accent);color:var(--accent-ink)}
+.ghost{font-size:14px;min-height:44px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--line);background:transparent;cursor:pointer;color:var(--muted)}
+button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.trace{margin-top:10px;font-size:14px;line-height:1.45;border-top:1px solid var(--faint);padding-top:8px;min-height:5.2em}
+.trace h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 4px;color:var(--muted)}
+.trace ol{margin:0;padding-left:22px}
+.trace li{margin:1px 0}
+.trace li.miss::marker{color:var(--miss)}
+.trace li .tag{font-size:12px;font-weight:700;border-radius:3px;padding:0 4px;margin-right:4px}
+.trace li.miss .tag{background:var(--miss-soft);color:var(--miss)}
+.trace li.hit .tag{background:var(--hit-soft);color:var(--hit)}
+.trace li.ign .tag{background:var(--faint);color:var(--muted)}
+.trace .res{margin:4px 0 0;font-weight:600}
+.trace .hint{color:var(--muted);margin:0}
+.trace li.pending{visibility:hidden}
+/* svg */
+.chart text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;fill:var(--ink)}
+.st rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5;transition:fill .25s,stroke .25s}
+.st text{font-size:14px;font-weight:600}
+.st.small text{font-size:11px;font-weight:600}
+.st.active rect{fill:var(--accent);stroke:var(--accent)}
+.st.active text{fill:var(--accent-ink)}
+.bx > rect{fill:var(--box);stroke:var(--line);stroke-width:1.5}
+.bx.active > rect{stroke:var(--accent);stroke-width:2.5}
+.bx text{font-size:15px;font-weight:700}
+.rg{font-size:12px;font-style:italic;fill:var(--muted)!important}
+.divider{stroke:var(--line);stroke-width:1.5;stroke-dasharray:6 5}
+.st.probe-miss rect,.bx.probe-miss > rect{stroke:var(--miss);stroke-width:3;stroke-dasharray:6 4}
+.st.probe-hit rect,.bx.probe-hit > rect{stroke:var(--hit);stroke-width:4;stroke-dasharray:none}
+.arr path{fill:none;stroke:var(--line);stroke-width:1.6}
+.arr.fired path{stroke:var(--hit);stroke-width:3.2}
+.arr.dup path{stroke:var(--danger);stroke-width:2.2}
+.arr.q path{stroke-dasharray:5 4}
+.arr text{font:600 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.arr.inbox text{stroke:var(--box)}
+.arr.dup text{fill:var(--danger)}
+.arr.fired text{fill:var(--hit)}
+.mk{fill:var(--line)} .mk-hit{fill:var(--hit)} .mk-dup{fill:var(--danger)}
+.init circle{fill:var(--ink)} .init path{stroke:var(--ink);stroke-width:1.6;fill:none}
+.note{font-size:12px;fill:var(--muted)!important;font-style:italic}
+.note.mono{font:600 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:var(--ink)!important}
+.note.huge{font-size:30px;font-style:normal;font-weight:800;fill:var(--danger)!important}
+.note.big{font-size:14px;font-style:normal;font-weight:700;fill:var(--ink)!important}
+.note.red{fill:var(--danger)!important;font-style:normal;font-weight:700}
+.note.green{fill:var(--hit)!important;font-style:normal;font-weight:700}
+.badge circle{fill:var(--danger)} .badge text{fill:var(--surface);font-size:11px;font-weight:700}
+.chip rect{fill:var(--surface);stroke:var(--line);stroke-width:1.2}
+.chip text{font-size:11px;font-weight:600}
+.chip.dash rect{stroke-dasharray:4 3;fill:none}
+.cell{fill:var(--danger-soft);stroke:var(--danger);stroke-width:1}
+/* booleans */
+.bools{display:grid;gap:12px}
+.switches{display:flex;gap:10px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px;border:1.5px solid var(--line);border-radius:8px;cursor:pointer;font:600 15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.sw input{width:22px;height:22px;accent-color:var(--accent);margin:0}
+table.truth{border-collapse:separate;border-spacing:6px;width:100%;table-layout:fixed;font-size:14px}
+table.truth th{font:600 13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted);text-align:center}
+table.truth th[scope=row]{text-align:right;padding-right:4px;width:30%}
+table.truth td{border:1.5px solid var(--faint);border-radius:8px;padding:10px 8px;text-align:center;vertical-align:middle;line-height:1.3;height:84px}
+table.truth td.okc{background:var(--hit-soft)}
+table.truth td.bad{background:var(--danger-soft)}
+table.truth td.odd{background:var(--miss-soft)}
+table.truth td.cur{border:3px solid var(--accent);font-weight:700}
+.verdict{font-weight:600;margin:0;min-height:3em}
+pre.code{margin:0;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--faint);padding:8px 12px;border-radius:6px;overflow-x:auto}
+/* slider */
+.slider{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 10px}
+.slider label{font-weight:600}
+.slider input[type=range]{flex:1;min-width:160px;accent-color:var(--accent);height:32px}
+.slider output{font:700 18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-width:2ch}
+.counts{font-size:15px;margin:8px 0 0}
+.agree{font-weight:600;margin:8px 0 0;padding:6px 10px;border-radius:6px;background:var(--hit-soft)}
+/* check */
+.qs{display:grid;gap:12px}
+.q{border:1.5px solid var(--faint);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.q h3{font-size:16px;margin:0 0 8px;line-height:1.35}
+.q summary{cursor:pointer;font-weight:600;color:var(--accent);min-height:32px;display:list-item}
+.q details p{margin:8px 0 0;font-size:15px}
+.remember{font-size:24px;line-height:1.4;font-weight:600;margin:0 0 16px;padding:16px 18px;border-left:5px solid var(--accent);background:var(--accent-soft);border-radius:6px}
+footer.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 28px;border-top:1px solid var(--faint);background:var(--bg)}
+.nav button{min-height:46px;min-width:110px;padding:10px 18px;border-radius:10px;font-weight:700;cursor:pointer;font-size:16px}
+#back{background:transparent;border:1.5px solid var(--line)}
+#next{background:var(--accent);border:1.5px solid var(--accent);color:var(--accent-ink)}
+.nav button:disabled{opacity:.4;cursor:default}
+#count{font-size:14px;color:var(--muted);text-align:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:860px){
+  body{font-size:16px}
+  .app{display:block;height:auto}
+  header.top{padding:10px 16px}
+  main#stage{overflow:visible}
+  .step{grid-template-columns:1fr;grid-template-rows:none;gap:16px;padding:16px 16px 100px}
+  .step > .text,.step > .predicts,.step > .figure{grid-column:auto;grid-row:auto}
+  .step h2{font-size:24px}
+  .def{font-size:18px}
+  .figure{padding:10px}
+  .chart,.pair .chart{max-height:none}
+  footer.nav{position:fixed;left:0;right:0;bottom:0;padding:8px 16px calc(8px + env(safe-area-inset-bottom));z-index:5}
+  .nav button{min-width:96px}
+  .remember{font-size:20px}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#stage">Skip to the lesson</a>
+<div class="app">
+  <header class="top">
+    <h1>Statecharts, step by step</h1>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+  </header>
+  <main id="stage" tabindex="-1"></main>
+  <footer class="nav">
+    <button id="back" type="button">&larr; Back</button>
+    <div id="count" aria-hidden="true"></div>
+    <button id="next" type="button">Next &rarr;</button>
+  </footer>
+</div>
+<div id="announce" class="sr" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PROBE_MS = reduced ? 0 : 520;
+let uid = 0;
+
+/* ------------------------------------------------------------------
+   A tiny statechart engine.
+   Nodes: {id, label?, name?, children?, initial?, parallel?, on:{EV: targetId}}
+   - Only nodes with a `label` are reported in traces (region nodes use `name`).
+   - An event is offered to every current innermost state; each walks up
+     its parents until one has an arrow for the event.
+------------------------------------------------------------------- */
+function Machine(def){
+  const nodes = {}, parent = {}, order = [];
+  (function walk(n, p){ nodes[n.id] = n; parent[n.id] = p; order.push(n.id); (n.children||[]).forEach(c => walk(c, n.id)); })(def, null);
+  const isLeaf = id => !(nodes[id].children && nodes[id].children.length);
+  const ancestors = id => { const a = []; let p = parent[id]; while (p) { a.push(p); p = parent[p]; } return a; };
+  let active = new Set();
+  function enter(id){
+    active.add(id);
+    const n = nodes[id];
+    if (isLeaf(id)) return;
+    if (n.parallel) n.children.forEach(c => enter(c.id));
+    else enter(n.initial || n.children[0].id);
+  }
+  function reset(){ active = new Set(); enter(def.id); }
+  function leaves(){ return order.filter(id => active.has(id) && isLeaf(id)); }
+  function transition(src, tgt){
+    const tAnc = ancestors(tgt);
+    let lca = def.id;
+    for (const a of ancestors(src)) { if (tAnc.includes(a)) { lca = a; break; } }
+    const chain = [src, ...ancestors(src)];
+    const exitRoot = chain[chain.indexOf(lca) - 1];
+    for (const id of [...active]) if (id === exitRoot || ancestors(id).includes(exitRoot)) active.delete(id);
+    const path = [tgt, ...tAnc];
+    path.length = path.indexOf(lca);
+    path.reverse();
+    for (const id of path.slice(0, -1)) {
+      active.add(id);
+      const n = nodes[id];
+      if (n.parallel) n.children.forEach(c => { if (!path.includes(c.id)) enter(c.id); });
+    }
+    enter(tgt);
+  }
+  function send(ev){
+    const walks = [], claimed = new Map();
+    for (const leaf of leaves()) {
+      const steps = []; let s = leaf;
+      while (s) {
+        const n = nodes[s];
+        if (claimed.has(s)) { steps.push({id:s, shared:true}); break; }
+        if (n.on && n.on[ev] !== undefined) { steps.push({id:s, hit:true, target:n.on[ev]}); claimed.set(s, n.on[ev]); break; }
+        if (n.label) steps.push({id:s, hit:false});
+        s = parent[s];
+      }
+      const region = ancestors(leaf).map(a => nodes[a]).find(n => n.name);
+      walks.push({leaf, steps, region: region ? region.name : null});
+    }
+    const fired = [];
+    for (const [src, tgt] of claimed) { if (!active.has(src)) continue; transition(src, tgt); fired.push({src, tgt, ev}); }
+    return {ev, walks, fired};
+  }
+  function describe(){
+    const ls = leaves();
+    let firstPath = null;
+    return ls.map((id, i) => {
+      const path = [...ancestors(id)].reverse().filter(a => nodes[a].label).map(a => nodes[a].label);
+      if (i === 0) { firstPath = path; return [...path, nodes[id].label].join(' › '); }
+      return nodes[id].label;
+    }).join(', ');
+  }
+  reset();
+  return {send, reset, describe, leaves, nodes, get active(){ return active; }, label: id => nodes[id].label || nodes[id].name || id};
+}
+
+/* ------------------------------------------------------------------
+   SVG drawing helpers
+------------------------------------------------------------------- */
+function el(tag, attrs, parentEl, text){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parentEl) parentEl.appendChild(e);
+  return e;
+}
+function clip(r, tx, ty){
+  const cx = r.x + r.w/2, cy = r.y + r.h/2, dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return [cx, cy];
+  const s = Math.min(dx ? (r.w/2)/Math.abs(dx) : Infinity, dy ? (r.h/2)/Math.abs(dy) : Infinity);
+  return [cx + dx*s, cy + dy*s];
+}
+function newSvg(vb, alt){
+  const id = 'c' + (++uid);
+  const svg = el('svg', {viewBox:`0 0 ${vb[0]} ${vb[1]}`, class:'chart', role:'img', 'aria-label':alt||''});
+  const defs = el('defs', {}, svg);
+  [['', 'mk'], ['-hit','mk-hit'], ['-dup','mk-dup']].forEach(([suf, cls]) => {
+    const m = el('marker', {id:id+'-m'+suf, viewBox:'0 0 10 10', refX:'9', refY:'5', markerWidth:'9', markerHeight:'9', markerUnits:'userSpaceOnUse', orient:'auto-start-reverse'}, defs);
+    el('path', {d:'M0,0 L10,5 L0,10 z', class:cls}, m);
+  });
+  svg._id = id;
+  return svg;
+}
+function drawLines(g, x, y, text, size){
+  const lines = String(text).split('\n');
+  const lh = size * 1.18;
+  const t = el('text', {x, y: y - (lines.length-1)*lh/2, 'text-anchor':'middle', 'dominant-baseline':'central'}, g);
+  lines.forEach((ln, i) => el('tspan', {x, dy: i ? lh : 0}, t, ln));
+  return t;
+}
+function drawNote(svg, n){
+  if (n.badge) {
+    const g = el('g', {class:'badge'}, svg);
+    el('circle', {cx:n.x, cy:n.y, r:9}, g);
+    el('text', {x:n.x, y:n.y, 'text-anchor':'middle', 'dominant-baseline':'central'}, g, n.text);
+    return g;
+  }
+  if (n.line) el('path', {d:n.line, class:'', stroke:'var(--muted)', 'stroke-width':1, fill:'none', 'stroke-dasharray':'2 2'}, svg);
+  return el('text', {x:n.x, y:n.y, class:'note ' + (n.cls||''), 'text-anchor':n.anchor||'middle', 'dominant-baseline':'central'}, svg, n.text);
+}
+/* layout: {vb, alt, boxes:[{id,x,y,w,h,label}], regions:[{x,y,text}], dividers:[[x1,y1,x2,y2]],
+            states:[{id,x,y,w,h,label,small}], arrows:[{from,ev,to?,d?,pts?,bend?,lx,ly,anchor,cls,inbox,label}],
+            inits:[[x1,y1,x2,y2]], notes:[...] } */
+function drawChart(layout){
+  const svg = newSvg(layout.vb, layout.alt);
+  const rects = {}, groups = {}, arrows = {};
+  (layout.boxes||[]).forEach(b => {
+    const g = el('g', {class:'bx', 'data-id':b.id}, svg);
+    el('rect', {x:b.x, y:b.y, width:b.w, height:b.h, rx:16}, g);
+    if (b.label) el('text', {x:b.x+12, y:b.y+20, 'dominant-baseline':'central'}, g, b.label);
+    rects[b.id] = b; groups[b.id] = g;
+  });
+  (layout.dividers||[]).forEach(d => el('line', {x1:d[0], y1:d[1], x2:d[2], y2:d[3], class:'divider'}, svg));
+  (layout.regions||[]).forEach(r => el('text', {x:r.x, y:r.y, class:'rg', 'dominant-baseline':'central'}, svg, r.text));
+  (layout.states||[]).forEach(s => {
+    const g = el('g', {class:'st' + (s.small ? ' small' : ''), 'data-id':s.id}, svg);
+    el('rect', {x:s.x, y:s.y, width:s.w, height:s.h, rx:10}, g);
+    drawLines(g, s.x + s.w/2, s.y + s.h/2, s.label, s.small ? 11 : 14);
+    rects[s.id] = s; groups[s.id] = g;
+  });
+  (layout.arrows||[]).forEach(a => {
+    const g = el('g', {class:'arr ' + (a.cls||'') + (a.inbox ? ' inbox' : '')}, svg);
+    let d, lx, ly;
+    if (a.d) { d = a.d; }
+    else if (a.pts) { const p = a.pts; d = `M${p[0]},${p[1]} L${p[2]},${p[3]}`; lx = (p[0]+p[2])/2; ly = (p[1]+p[3])/2; }
+    else {
+      const A = rects[a.from], B = rects[a.to];
+      const ac = [A.x+A.w/2, A.y+A.h/2], bc = [B.x+B.w/2, B.y+B.h/2];
+      if (a.bend) {
+        const mx = (ac[0]+bc[0])/2, my = (ac[1]+bc[1])/2, dx = bc[0]-ac[0], dy = bc[1]-ac[1], L = Math.hypot(dx, dy);
+        const cx = mx - dy/L*a.bend, cy = my + dx/L*a.bend;
+        const p1 = clip(A, cx, cy), p2 = clip(B, cx, cy);
+        d = `M${p1[0]},${p1[1]} Q${cx},${cy} ${p2[0]},${p2[1]}`;
+        lx = .25*p1[0] + .5*cx + .25*p2[0]; ly = .25*p1[1] + .5*cy + .25*p2[1];
+      } else {
+        const p1 = clip(A, bc[0], bc[1]), p2 = clip(B, ac[0], ac[1]);
+        d = `M${p1[0]},${p1[1]} L${p2[0]},${p2[1]}`; lx = (p1[0]+p2[0])/2; ly = (p1[1]+p2[1])/2;
+      }
+    }
+    const marker = a.cls && a.cls.includes('dup') ? '-dup' : '';
+    const path = el('path', {d, 'marker-end':`url(#${svg._id}-m${marker})`}, g);
+    const label = a.label != null ? a.label : a.ev;
+    if (label) el('text', {x: a.lx != null ? a.lx : lx, y: a.ly != null ? a.ly : ly, 'text-anchor': a.anchor || 'middle', 'dominant-baseline':'central'}, g, label);
+    g._path = path; g._marker = marker;
+    if (a.from && a.ev) arrows[a.from + '|' + a.ev] = g;
+  });
+  (layout.inits||[]).forEach(p => {
+    const g = el('g', {class:'init'}, svg);
+    el('circle', {cx:p[0], cy:p[1], r:5}, g);
+    el('path', {d:`M${p[0]},${p[1]} L${p[2]},${p[3]}`, 'marker-end':`url(#${svg._id}-m)`}, g);
+  });
+  (layout.notes||[]).forEach(n => drawNote(svg, n));
+  return {
+    svg, groups, arrows,
+    setActive(set){ for (const id in groups) groups[id].classList.toggle('active', set.has(id)); },
+    clearProbes(){
+      for (const id in groups) groups[id].classList.remove('probe-miss', 'probe-hit');
+      for (const k in arrows) { arrows[k].classList.remove('fired'); arrows[k]._path.setAttribute('marker-end', `url(#${svg._id}-m${arrows[k]._marker})`); }
+    },
+    probe(id, kind){ if (groups[id]) groups[id].classList.add(kind); },
+    fire(src, ev){ const a = arrows[src + '|' + ev]; if (a) { a.classList.add('fired'); a._path.setAttribute('marker-end', `url(#${svg._id}-m-hit)`); } }
+  };
+}
+
+/* ------------------------------------------------------------------
+   Live machine widget: chart + event buttons + visible trace
+------------------------------------------------------------------- */
+const timers = new Set();
+function later(fn, ms){ const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); return t; }
+function clearTimers(){ timers.forEach(clearTimeout); timers.clear(); }
+
+function attachMachine(chart, machine, altBase){
+  const update = () => {
+    chart.setActive(machine.active);
+    chart.svg.setAttribute('aria-label', altBase + ' Current state: ' + machine.describe() + '.');
+  };
+  update();
+  return update;
+}
+
+function liveWidget(host, opts){
+  const m = Machine(opts.def);
+  const chart = drawChart(opts.layout);
+  const box = document.createElement('div');
+  box.className = 'live' + (opts.beside ? '' : ' side');
+  host.appendChild(box);
+  const wrap = document.createElement('div');
+  wrap.appendChild(chart.svg);
+  if (opts.beside) { const pr = document.createElement('div'); pr.className = 'pair'; pr.appendChild(wrap); const b2 = document.createElement('div'); b2.appendChild(opts.beside); pr.appendChild(b2); box.appendChild(pr); }
+  else box.appendChild(wrap);
+  const side = document.createElement('div');
+  if (opts.beside) side.className = 'below';
+  box.appendChild(side);
+  const update = attachMachine(chart, m, opts.layout.alt);
+  let pending = [];
+  const ctrl = document.createElement('div');
+  ctrl.className = 'ctrl'; ctrl.setAttribute('role', 'group'); ctrl.setAttribute('aria-label', 'Send an event');
+  ctrl.innerHTML = '<span class="lbl">Send an event:</span>';
+  opts.events.forEach(ev => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'evbtn'; b.textContent = ev;
+    b.addEventListener('click', () => send(ev));
+    ctrl.appendChild(b);
+  });
+  const rb = document.createElement('button');
+  rb.type = 'button'; rb.className = 'ghost'; rb.textContent = 'Reset';
+  rb.addEventListener('click', () => { flush(); m.reset(); chart.clearProbes(); update(); trace.innerHTML = hint; say('Reset. Current state: ' + m.describe()); if (opts.onChange) opts.onChange(m); });
+  ctrl.appendChild(rb);
+  side.appendChild(ctrl);
+  const trace = document.createElement('div');
+  trace.className = 'trace';
+  const hint = `<h3>Trace: who handles the event?</h3><p class="hint">${opts.hint || 'Press an event button. The trace shows which state is asked, and which one handles it.'}</p><p class="res">Now in: ${m.describe()}</p>`;
+  trace.innerHTML = hint;
+  if (!opts.noTrace) side.appendChild(trace);
+
+  function flush(){ pending.forEach(fn => fn()); pending = []; clearTimers(); }
+  function send(ev){
+    flush();
+    chart.clearProbes();
+    const r = m.send(ev);
+    const maxLen = Math.max(...r.walks.map(w => w.steps.length));
+    let html = `<h3>Trace: ${ev}</h3>`;
+    r.walks.forEach(w => {
+      if (r.walks.length > 1 && w.region) html += `<p class="rgh pending" data-s="0">${w.region} region</p>`;
+      html += '<ol>';
+      w.steps.forEach((s, i) => {
+        const lab = m.label(s.id);
+        const last = i === w.steps.length - 1;
+        let cls, body;
+        if (s.hit) { cls = 'hit'; body = `<span class="tag">handles it</span><b>${lab}</b> has a ${ev} arrow → go to <b>${m.label(s.target)}</b>`; }
+        else if (s.shared) { cls = 'hit'; body = `<span class="tag">same</span>its parent <b>${lab}</b> is already handling it`; }
+        else if (last) { cls = 'ign'; body = `<span class="tag">ignored</span><b>${lab}</b> has no ${ev} arrow, and nothing above it has one`; }
+        else { cls = 'miss'; body = `<span class="tag">no arrow</span><b>${lab}</b> has no ${ev} arrow → ask its parent`; }
+        if (s.shared) { cls = 'hit'; }
+        html += `<li class="${cls} pending" data-s="${i}">${body}</li>`;
+      });
+      html += '</ol>';
+    });
+    html += `<p class="res pending" data-s="${maxLen}">Now in: ${m.describe()}</p>`;
+    trace.innerHTML = html;
+    const reveal = i => {
+      trace.querySelectorAll(`[data-s="${i}"]`).forEach(x => x.classList.remove('pending'));
+      r.walks.forEach(w => { const s = w.steps[i]; if (s) chart.probe(s.id, s.hit || s.shared ? 'probe-hit' : 'probe-miss'); });
+    };
+    const finish = () => {
+      r.fired.forEach(f => chart.fire(f.src, f.ev));
+      trace.querySelectorAll(`[data-s="${maxLen}"]`).forEach(x => x.classList.remove('pending'));
+      update();
+      if (opts.onChange) opts.onChange(m);
+    };
+    for (let i = 0; i < maxLen; i++) { const f = () => reveal(i); if (PROBE_MS) { later(f, i*PROBE_MS); pending.push(f); } else f(); }
+    if (PROBE_MS) { later(() => { pending = []; finish(); }, maxLen*PROBE_MS); pending.push(finish); } else finish();
+    const summary = r.fired.length ? r.fired.map(f => `${m.label(f.src)} handled ${ev}`).join('; ') : `No state handles ${ev}; ignored`;
+    say(`${ev}: ${summary}. Now in ${m.describe()}.`);
+  }
+  return {m, chart, send, flush};
+}
+function say(t){ const a = document.getElementById('announce'); a.textContent = ''; setTimeout(() => { a.textContent = t; }, 30); }
+
+/* ------------------------------------------------------------------
+   Machines and layouts
+------------------------------------------------------------------- */
+const DEF = {
+  lamp: {id:'root', initial:'off', children:[
+    {id:'off', label:'off', on:{TOGGLE:'on'}},
+    {id:'on', label:'on', on:{TOGGLE:'off'}}]},
+  lampNested: {id:'root', initial:'off', children:[
+    {id:'off', label:'off', on:{SWITCH:'on'}},
+    {id:'on', label:'on', initial:'dim', on:{SWITCH:'off'}, children:[
+      {id:'dim', label:'dim', on:{TAP:'bright'}},
+      {id:'bright', label:'bright', on:{TAP:'dim'}}]}]},
+  keyboard: {id:'root', parallel:true, children:[
+    {id:'caps', name:'caps lock', children:[
+      {id:'capsOff', label:'caps off', on:{CAPS:'capsOn'}},
+      {id:'capsOn', label:'caps on', on:{CAPS:'capsOff'}}]},
+    {id:'num', name:'num lock', children:[
+      {id:'numOff', label:'num off', on:{NUM:'numOn'}},
+      {id:'numOn', label:'num on', on:{NUM:'numOff'}}]}]},
+  coffeeFlat: {id:'root', initial:'off', children:[
+    {id:'off', label:'off', on:{POWER_ON:'idle'}},
+    {id:'idle', label:'idle', on:{START:'grinding', POWER_OFF:'off'}},
+    {id:'grinding', label:'grinding', on:{GROUND:'brewing', POWER_OFF:'off'}},
+    {id:'brewing', label:'brewing', on:{BREWED:'ready', POWER_OFF:'off'}},
+    {id:'ready', label:'ready', on:{TAKE_CUP:'idle', POWER_OFF:'off'}}]},
+  coffee: {id:'root', initial:'off', children:[
+    {id:'off', label:'off', on:{POWER_ON:'on'}},
+    {id:'on', label:'on', initial:'idle', on:{POWER_OFF:'off'}, children:[
+      {id:'idle', label:'idle', on:{START:'grinding'}},
+      {id:'grinding', label:'grinding', on:{GROUND:'brewing'}},
+      {id:'brewing', label:'brewing', on:{BREWED:'ready'}},
+      {id:'ready', label:'ready', on:{TAKE_CUP:'idle'}}]}]},
+  playerFlat: {id:'root', initial:'PU', children:[
+    {id:'PU', label:'paused\nunmuted', on:{PLAY:'YU', MUTE:'PM'}},
+    {id:'YU', label:'playing\nunmuted', on:{PAUSE:'PU', MUTE:'YM'}},
+    {id:'PM', label:'paused\nmuted', on:{PLAY:'YM', UNMUTE:'PU'}},
+    {id:'YM', label:'playing\nmuted', on:{PAUSE:'PM', UNMUTE:'YU'}}]},
+  player: {id:'root', parallel:true, children:[
+    {id:'playback', name:'playback', children:[
+      {id:'paused', label:'paused', on:{PLAY:'playing'}},
+      {id:'playing', label:'playing', on:{PAUSE:'paused'}}]},
+    {id:'volume', name:'volume', children:[
+      {id:'unmuted', label:'unmuted', on:{MUTE:'muted'}},
+      {id:'muted', label:'muted', on:{UNMUTE:'unmuted'}}]}]},
+  frother: {id:'root', initial:'off', children:[
+    {id:'off', label:'off', on:{POWER_ON:'on'}},
+    {id:'on', label:'on', parallel:true, on:{POWER_OFF:'off'}, children:[
+      {id:'coffeeR', name:'coffee', children:[
+        {id:'idle', label:'idle', on:{START:'grinding'}},
+        {id:'grinding', label:'grinding', on:{GROUND:'brewing'}},
+        {id:'brewing', label:'brewing', on:{BREWED:'ready'}},
+        {id:'ready', label:'ready', on:{TAKE_CUP:'idle'}}]},
+      {id:'frothR', name:'frother', children:[
+        {id:'frothOff', label:'froth off', on:{FROTH_ON:'frothOn'}},
+        {id:'frothOn', label:'froth on', on:{FROTH_OFF:'frothOff'}}]}]}]}
+};
+
+const L = {};
+L.lamp = {vb:[360,170], alt:'A lamp drawn as a state machine: two states, off and on, joined by TOGGLE arrows in both directions. A dot marks off as the start.',
+  states:[{id:'off',x:46,y:64,w:100,h:44,label:'off'},{id:'on',x:224,y:64,w:100,h:44,label:'on'}],
+  arrows:[{from:'off',ev:'TOGGLE',pts:[146,76,224,76],ly:62},{from:'on',ev:'TOGGLE',pts:[224,96,146,96],ly:110}],
+  inits:[[18,86,46,86]],
+  notes:[{x:96,y:46,text:'a state'},{x:274,y:46,text:'a state'},{x:185,y:134,text:'an event moves it along an arrow'},{x:24,y:112,text:'start',anchor:'middle'}]};
+
+L.lampNested = {vb:[360,240], alt:'The lamp as a statechart: off on the left; on is a box containing dim and bright, which TAP switches between. One SWITCH arrow leaves the box for off, another goes from off into the box. Inside the box a dot marks dim as where the box starts.',
+  boxes:[{id:'on',x:150,y:10,w:202,h:220,label:'on'}],
+  states:[{id:'off',x:8,y:98,w:84,h:44,label:'off'},{id:'dim',x:200,y:50,w:120,h:40,label:'dim'},{id:'bright',x:200,y:162,w:120,h:40,label:'bright'}],
+  arrows:[
+    {from:'dim',ev:'TAP',pts:[252,90,252,162],lx:246,ly:126,anchor:'end',inbox:true},
+    {from:'bright',ev:'TAP',pts:[268,162,268,90],lx:274,ly:126,anchor:'start',inbox:true},
+    {from:'off',ev:'SWITCH',pts:[92,110,150,110],lx:121,ly:98},
+    {from:'on',ev:'SWITCH',pts:[150,132,92,132],lx:121,ly:146}],
+  inits:[[174,70,200,70],[50,182,50,142]]};
+
+L.keyboard = {vb:[360,240], alt:'A keyboard statechart split by a dashed line into two regions. Left region, caps lock: caps off and caps on, joined by CAPS arrows. Right region, num lock: num off and num on, joined by NUM arrows. Each region has its own start dot, on the off state.',
+  boxes:[{id:'root',x:8,y:8,w:344,h:224,label:'keyboard'}],
+  dividers:[[180,40,180,226]], regions:[{x:24,y:52,text:'caps lock region'},{x:196,y:52,text:'num lock region'}],
+  states:[{id:'capsOff',x:52,y:76,w:110,h:40,label:'caps off'},{id:'capsOn',x:52,y:172,w:110,h:40,label:'caps on'},
+          {id:'numOff',x:224,y:76,w:110,h:40,label:'num off'},{id:'numOn',x:224,y:172,w:110,h:40,label:'num on'}],
+  arrows:[
+    {from:'capsOff',ev:'CAPS',pts:[99,116,99,172],lx:93,ly:144,anchor:'end',inbox:true},
+    {from:'capsOn',ev:'CAPS',pts:[115,172,115,116],lx:121,ly:144,anchor:'start',inbox:true},
+    {from:'numOff',ev:'NUM',pts:[271,116,271,172],lx:265,ly:144,anchor:'end',inbox:true},
+    {from:'numOn',ev:'NUM',pts:[287,172,287,116],lx:293,ly:144,anchor:'start',inbox:true}],
+  inits:[[32,96,52,96],[204,96,224,96]]};
+
+function coffeeBase(){
+  const SX = 96, SW = 104, SH = 40, rows = [44,120,196,272];
+  const names = ['idle','grinding','brewing','ready'];
+  const states = names.map((n, i) => ({id:n, x:SX, y:rows[i], w:SW, h:SH, label:n}));
+  states.push({id:'off', x:282, y:170, w:70, h:44, label:'off'});
+  const cx = SX + SW/2;
+  const arrows = [
+    {from:'idle',ev:'START',pts:[cx,84,cx,120],lx:cx+8,ly:102,anchor:'start'},
+    {from:'grinding',ev:'GROUND',pts:[cx,160,cx,196],lx:cx+8,ly:178,anchor:'start'},
+    {from:'brewing',ev:'BREWED',pts:[cx,236,cx,272],lx:cx+8,ly:254,anchor:'start'},
+    {from:'ready',ev:'TAKE_CUP',d:`M${SX},292 C50,292 50,64 ${SX},64`,lx:60,ly:178}
+  ];
+  return {states, arrows, rows, SX, SW, cx};
+}
+function coffeeFlatLayout(mode){
+  const b = coffeeBase();
+  const ends = [178,186,198,206];
+  const lab = [121,163,207,249];
+  if (mode === 'q') {
+  } else {
+    b.rows.forEach((y, i) => b.arrows.push({from:b.states[i].id, ev:'POWER_OFF', cls:'dup', pts:[200,y+20,282,ends[i]], lx:241, ly:lab[i]}));
+  }
+  b.arrows.push({from:'off',ev:'POWER_ON',d:'M317,170 C317,14 210,14 180,44',lx:262,ly:37});
+  const notes = mode === 'q' ? [{x:241,y:158,text:'POWER_OFF',cls:'mono'},{x:241,y:192,text:'?',cls:'huge'},{x:241,y:226,text:'how many?'}] :
+    [{badge:true,x:200,y:b.rows[0]+2,text:'1'},{badge:true,x:200,y:b.rows[1]+2,text:'2'},{badge:true,x:200,y:b.rows[2]+2,text:'3'},{badge:true,x:200,y:b.rows[3]+2,text:'4'},
+     {x:300,y:290,text:'4 copies of',cls:'red'},{x:300,y:306,text:'one arrow',cls:'red'}];
+  return {vb:[360,340], alt: mode === 'q'
+    ? 'A coffee machine as a plain state machine: idle, grinding, brewing and ready in a loop joined by START, GROUND, BREWED and TAKE_CUP, plus an off state that POWER_ON leaves for idle. A dashed arrow asks how many POWER_OFF arrows are needed.'
+    : 'The coffee machine as a plain state machine with four separate POWER_OFF arrows, one from each of idle, grinding, brewing and ready, all leading to off.',
+    states:b.states, arrows:b.arrows, inits:[[317,250,317,214]], notes};
+}
+function coffeeLayout(){
+  const b = coffeeBase();
+  b.arrows.forEach(a => a.inbox = true);
+  b.arrows.push({from:'on',ev:'POWER_OFF',cls:'',pts:[214,222,282,200],lx:250,ly:232});
+  b.arrows.push({from:'off',ev:'POWER_ON',d:'M317,170 C317,62 270,62 214,62',lx:272,ly:76});
+  return {vb:[360,340], alt:'The coffee machine as a statechart: idle, grinding, brewing and ready sit inside one box called on. A single POWER_OFF arrow leaves the box for off; POWER_ON goes from off into the box, whose dot starts at idle.',
+    boxes:[{id:'on',x:24,y:6,w:190,h:326,label:'on'}], states:b.states, arrows:b.arrows,
+    inits:[[180,24,180,44],[317,250,317,214]], notes:[{x:250,y:258,text:'one arrow',cls:'green'},{x:250,y:274,text:'for all four',cls:'green'}]};
+}
+L.playerFlat = {vb:[360,264], alt:'A music player as a flat state machine: four states, one for each combination: paused unmuted, playing unmuted, paused muted, playing muted. PLAY and PAUSE arrows are drawn twice, once per row; MUTE and UNMUTE arrows are drawn twice, once per column.',
+  states:[{id:'PU',x:16,y:40,w:120,h:50,label:'paused\nunmuted'},{id:'YU',x:224,y:40,w:120,h:50,label:'playing\nunmuted'},
+          {id:'PM',x:16,y:190,w:120,h:50,label:'paused\nmuted'},{id:'YM',x:224,y:190,w:120,h:50,label:'playing\nmuted'}],
+  arrows:[
+    {from:'PU',ev:'PLAY',pts:[136,58,224,58],ly:46},{from:'YU',ev:'PAUSE',pts:[224,74,136,74],ly:87},
+    {from:'PM',ev:'PLAY',pts:[136,208,224,208],ly:196},{from:'YM',ev:'PAUSE',pts:[224,224,136,224],ly:237},
+    {from:'PU',ev:'MUTE',pts:[68,90,68,190],lx:62,ly:140,anchor:'end'},{from:'PM',ev:'UNMUTE',pts:[84,190,84,90],lx:90,ly:140,anchor:'start'},
+    {from:'YU',ev:'MUTE',pts:[276,90,276,190],lx:270,ly:140,anchor:'end'},{from:'YM',ev:'UNMUTE',pts:[292,190,292,90],lx:298,ly:140,anchor:'start'}],
+  inits:[[76,14,76,40]], notes:[{x:180,y:256,text:'4 states · 8 arrows',cls:'big'}]};
+L.playerFlat.notes[0].y = 258;
+L.playerFlat.vb = [360,270];
+
+L.player = {vb:[360,270], alt:'The music player as a statechart with two regions side by side. Playback region: paused and playing, joined by PLAY and PAUSE. Volume region: unmuted and muted, joined by MUTE and UNMUTE. Each region starts at its own dot.',
+  boxes:[{id:'root',x:8,y:8,w:344,h:232,label:'player'}],
+  dividers:[[180,40,180,234]], regions:[{x:24,y:52,text:'playback region'},{x:196,y:52,text:'volume region'}],
+  states:[{id:'paused',x:52,y:76,w:110,h:40,label:'paused'},{id:'playing',x:52,y:178,w:110,h:40,label:'playing'},
+          {id:'unmuted',x:224,y:76,w:110,h:40,label:'unmuted'},{id:'muted',x:224,y:178,w:110,h:40,label:'muted'}],
+  arrows:[
+    {from:'paused',ev:'PLAY',pts:[99,116,99,178],lx:93,ly:147,anchor:'end',inbox:true},
+    {from:'playing',ev:'PAUSE',pts:[115,178,115,116],lx:121,ly:147,anchor:'start',inbox:true},
+    {from:'unmuted',ev:'MUTE',pts:[271,116,271,178],lx:265,ly:147,anchor:'end',inbox:true},
+    {from:'muted',ev:'UNMUTE',pts:[287,178,287,116],lx:293,ly:147,anchor:'start',inbox:true}],
+  inits:[[32,96,52,96],[204,96,224,96]], notes:[{x:180,y:258,text:'4 states · 4 arrows',cls:'big'}]};
+
+function frotherLayout(){
+  const SX = 76, SW = 104, rows = [56,128,200,272], cx = SX + SW/2;
+  const names = ['idle','grinding','brewing','ready'];
+  const states = names.map((n, i) => ({id:n, x:SX, y:rows[i], w:SW, h:40, label:n}));
+  states.push({id:'frothOff', x:238, y:110, w:88, h:40, label:'froth off'}, {id:'frothOn', x:238, y:214, w:88, h:40, label:'froth on'}, {id:'off', x:150, y:366, w:80, h:40, label:'off'});
+  const arrows = [
+    {from:'idle',ev:'START',pts:[cx,96,cx,128],lx:cx+8,ly:112,anchor:'start',inbox:true},
+    {from:'grinding',ev:'GROUND',pts:[cx,168,cx,200],lx:cx+8,ly:184,anchor:'start',inbox:true},
+    {from:'brewing',ev:'BREWED',pts:[cx,240,cx,272],lx:cx+8,ly:256,anchor:'start',inbox:true},
+    {from:'ready',ev:'TAKE_CUP',d:`M${SX},292 C30,292 30,76 ${SX},76`,lx:44,ly:184,inbox:true},
+    {from:'frothOff',ev:'FROTH_ON',pts:[274,150,274,214],lx:268,ly:182,anchor:'end',inbox:true},
+    {from:'frothOn',ev:'FROTH_OFF',pts:[290,214,290,150],lx:296,ly:182,anchor:'start',inbox:true},
+    {from:'on',ev:'POWER_OFF',pts:[172,330,172,366],lx:166,ly:348,anchor:'end'},
+    {from:'off',ev:'POWER_ON',pts:[208,366,208,330],lx:214,ly:348,anchor:'start'}];
+  return {vb:[372,414], alt:'The coffee machine with a milk frother, as a statechart. The on box is split into two regions: a coffee region with idle, grinding, brewing and ready in a loop, and a frother region with froth off and froth on joined by FROTH_ON and FROTH_OFF. One POWER_OFF arrow leaves the on box for off; POWER_ON returns.',
+    boxes:[{id:'on',x:8,y:6,w:356,h:324,label:'on'}], dividers:[[204,36,204,322]],
+    regions:[{x:60,y:26,text:'coffee region'},{x:216,y:48,text:'frother region'}],
+    states, arrows, inits:[[150,40,150,56],[282,92,282,110],[262,386,230,386]]};
+}
+function frotherFlatSvg(){
+  const svg = newSvg([380,400], 'The same machine flattened: eight on-states, one for every coffee state paired with froth off or froth on, plus off. Every one of the eight has its own POWER_OFF arrow; the coffee loop is drawn twice and FROTH arrows are drawn four times each. 9 states and 25 arrows.');
+  const cols = [14, 236], rows = [44,118,192,266], W = 130, H = 38;
+  const coffee = ['idle','grinding','brewing','ready'];
+  const off = {x:150, y:350, w:80, h:36};
+  const R = [];
+  const arr = (d, cls) => { const g = el('g', {class:'arr ' + (cls||'')}, svg); el('path', {d, 'marker-end':`url(#${svg._id}-m${cls==='dup'?'-dup':''})`, style:'stroke-width:1.2'}, g); };
+  cols.forEach((x, c) => rows.forEach((y, r) => R.push({x, y, w:W, h:H, label: coffee[r] + '\n' + (c ? 'froth on' : 'froth off'), c, r})));
+  // power off fan
+  R.forEach(s => { const sx = s.c ? s.x : s.x + s.w, sy = s.y + s.h/2; const tx = off.x + (s.c ? off.w - 8 : 8) , ty = off.y; arr(`M${s.c ? s.x + 20 : s.x + s.w - 20},${s.y + s.h} L${tx},${ty}`, 'dup'); });
+  // coffee loops
+  cols.forEach((x, c) => {
+    for (let r = 0; r < 3; r++) arr(`M${x + W/2},${rows[r] + H} L${x + W/2},${rows[r+1]}`);
+    const ox = c ? x + W : x; const bx = c ? x + W + 10 : x - 10;
+    arr(`M${ox},${rows[3] + H/2} C${bx},${rows[3]+H/2} ${bx},${rows[0]+H/2} ${ox},${rows[0]+H/2}`);
+  });
+  // froth arrows
+  rows.forEach(y => { arr(`M${cols[0]+W},${y+12} L${cols[1]},${y+12}`); arr(`M${cols[1]},${y+H-12} L${cols[0]+W},${y+H-12}`); });
+  // power on
+  arr(`M${off.x},${off.y + 18} C40,${off.y + 18} 0,${rows[0] + 6} ${cols[0]},${rows[0] + 6}`);
+  R.forEach(s => { const g = el('g', {class:'st small'}, svg); el('rect', {x:s.x, y:s.y, width:s.w, height:s.h, rx:8}, g); drawLines(g, s.x + s.w/2, s.y + s.h/2, s.label, 11); });
+  const g = el('g', {class:'st'}, svg); el('rect', {x:off.x, y:off.y, width:off.w, height:off.h, rx:8}, g); drawLines(g, off.x + off.w/2, off.y + off.h/2, 'off', 14);
+  drawNote(svg, {x:190, y:16, text:'Flattened: 9 states · 25 arrows', cls:'big'});
+  drawNote(svg, {x:238, y:368, text:'← 8 POWER_OFF copies', cls:'red', anchor:'start'});
+  return svg;
+}
+
+/* ------------------------------------------------------------------
+   Small generated figures
+------------------------------------------------------------------- */
+function chipRow(svg, x, y, labels, w, cls){
+  labels.forEach((t, i) => { const g = el('g', {class:'chip ' + (cls||'')}, svg); el('rect', {x:x + i*(w+6), y, width:w, height:22, rx:6}, g); el('text', {x:x + i*(w+6) + w/2, y:y + 11, 'text-anchor':'middle', 'dominant-baseline':'central'}, g, t); });
+}
+function shareFigure(host){
+  host.innerHTML = `<div class="slider"><label for="nshare">States that share <kbd>CANCEL</kbd></label><input id="nshare" type="range" min="2" max="10" value="4"><output id="nshareOut" for="nshare">4</output></div><div class="duo" id="sharePair"></div><p class="counts" id="shareCounts" aria-live="polite"></p>`;
+  const inp = host.querySelector('#nshare'), out = host.querySelector('#nshareOut'), pair = host.querySelector('#sharePair'), counts = host.querySelector('#shareCounts');
+  function draw(){
+    const n = +inp.value; out.textContent = n; pair.innerHTML = '';
+    [false, true].forEach(nested => {
+      const H = Math.max(150, 50 + n*Math.min(24, 230 / n) + 14);
+      const svg = newSvg([200, H], nested ? `Statechart: ${n} checkout steps inside one box, with a single CANCEL arrow from the box to cancelled.` : `Plain state machine: ${n} checkout steps, each with its own CANCEL arrow to cancelled.`);
+      const top = 50, gap = Math.min(24, 230 / n), ty = top + (n*gap)/2 - 14;
+      if (nested) { const g = el('g', {class:'bx'}, svg); el('rect', {x:6, y:top - 10, width:98, height:n*gap + 14, rx:10}, g); }
+      for (let i = 0; i < n; i++) {
+        const y = top + i*gap;
+        const g = el('g', {class:'chip'}, svg); el('rect', {x:16, y, width:78, height:Math.min(20, gap - 3), rx:5}, g);
+        el('text', {x:55, y:y + Math.min(20, gap - 3)/2, 'text-anchor':'middle', 'dominant-baseline':'central', style:`font-size:${gap < 20 ? 9 : 11}px`}, g, 'step ' + (i+1));
+        if (!nested) { const a = el('g', {class:'arr dup'}, svg); el('path', {d:`M94,${y + Math.min(20, gap-3)/2} L132,${ty + 14}`, 'marker-end':`url(#${svg._id}-m-dup)`}, a); }
+      }
+      if (nested) { const a = el('g', {class:'arr'}, svg); el('path', {d:`M104,${ty + 14} L132,${ty + 14}`, 'marker-end':`url(#${svg._id}-m)`}, a); }
+      const g = el('g', {class:'chip'}, svg); el('rect', {x:132, y:ty, width:62, height:28, rx:6}, g); el('text', {x:163, y:ty + 14, 'text-anchor':'middle', 'dominant-baseline':'central'}, g, 'cancelled');
+      drawNote(svg, {x:100, y:14, text: nested ? 'statechart' : 'plain machine', cls:''});
+      drawNote(svg, {x:100, y:32, text: nested ? 'CANCEL arrows: 1' : `CANCEL arrows: ${n}`, cls: nested ? 'green' : 'red'});
+      const d = document.createElement('div'); d.appendChild(svg); pair.appendChild(d);
+    });
+    counts.textContent = `${n} states share CANCEL: a plain machine draws ${n} arrows, a statechart draws 1.`;
+  }
+  inp.addEventListener('input', draw); draw();
+}
+function multiplyFigure(host){
+  const feats = [['playback','paused','playing'],['volume','unmuted','muted'],['shuffle','off','on'],['repeat','off','on'],['captions','off','on'],['lyrics','off','on'],['crossfade','off','on'],['sleep timer','off','on']];
+  host.innerHTML = `<div class="slider"><label for="kf">On/off features</label><input id="kf" type="range" min="1" max="8" value="2"><output id="kfOut" for="kf">2</output></div><div class="duo" id="mulPair"></div><p class="counts" id="mulCounts" aria-live="polite"></p>`;
+  const inp = host.querySelector('#kf'), out = host.querySelector('#kfOut'), pair = host.querySelector('#mulPair'), counts = host.querySelector('#mulCounts');
+  function draw(){
+    const k = +inp.value, N = 2**k; out.textContent = k; pair.innerHTML = '';
+    // flat grid
+    const s1 = newSvg([200, 240], `Flat machine with ${k} features: ${N} states, one square each.`);
+    const cols = 2**Math.ceil(k/2), rws = 2**Math.floor(k/2), cell = Math.min(160/cols, 160/rws);
+    const ox = 100 - cols*cell/2, oy = 62;
+    for (let r = 0; r < rws; r++) for (let c = 0; c < cols; c++) el('rect', {x:ox + c*cell + 1, y:oy + r*cell + 1, width:cell - 2, height:cell - 2, rx:Math.min(4, cell/4), class:'cell'}, s1);
+    drawNote(s1, {x:100, y:14, text:'flat machine'});
+    drawNote(s1, {x:100, y:32, text:`${N} states · ${k*N} arrows`, cls:'red'});
+    drawNote(s1, {x:100, y:232, text:'each square is one state'});
+    // regions
+    const s2 = newSvg([200, 240], `Statechart with ${k} regions: ${2*k} states in total.`);
+    drawNote(s2, {x:100, y:14, text:'statechart regions'});
+    drawNote(s2, {x:100, y:32, text:`${2*k} states · ${2*k} arrows`, cls:'green'});
+    const g = el('g', {class:'bx'}, s2); el('rect', {x:4, y:48, width:192, height:k*22 + 10, rx:8}, g);
+    for (let i = 0; i < k; i++) {
+      const y = 54 + i*22;
+      if (i) el('line', {x1:10, y1:y - 2, x2:190, y2:y - 2, class:'divider', style:'stroke-width:1'}, s2);
+      el('text', {x:12, y:y + 9, class:'rg', 'dominant-baseline':'central', style:'font-size:10px'}, s2, feats[i][0]);
+      chipRow(s2, 78, y, [feats[i][1], feats[i][2]], 54);
+      [s2.lastChild, s2.lastChild.previousSibling].forEach(c => c.querySelector('text').style.fontSize = '10px');
+      s2.lastChild.querySelector('rect').setAttribute('height', 18); s2.lastChild.previousSibling.querySelector('rect').setAttribute('height', 18);
+      s2.lastChild.querySelector('text').setAttribute('y', y + 9); s2.lastChild.previousSibling.querySelector('text').setAttribute('y', y + 9);
+    }
+    [s1, s2].forEach(s => { const d = document.createElement('div'); d.appendChild(s); pair.appendChild(d); });
+    counts.textContent = `${k} on/off feature${k > 1 ? 's' : ''}: flat machine ${N} states and ${k*N} arrows; regions ${2*k} states and ${2*k} arrows.`;
+  }
+  inp.addEventListener('input', draw); draw();
+}
+function featuresQuestionSvg(){
+  const svg = newSvg([360, 230], 'Two independent features: playback can be paused or playing; volume can be unmuted or muted. Below, a plain state machine with an unknown number of states.');
+  drawNote(svg, {x:20, y:26, text:'playback', anchor:'start', cls:'big'});
+  chipRow(svg, 130, 15, ['paused','playing'], 96);
+  drawNote(svg, {x:20, y:70, text:'volume', anchor:'start', cls:'big'});
+  chipRow(svg, 130, 59, ['unmuted','muted'], 96);
+  drawNote(svg, {x:180, y:112, text:'either can change without the other'});
+  drawNote(svg, {x:180, y:146, text:'plain machine: one state must say both', cls:''});
+  for (let i = 0; i < 3; i++) { const g = el('g', {class:'chip dash'}, svg); el('rect', {x:42 + i*96, y:166, width:80, height:44, rx:10}, g); el('text', {x:82 + i*96, y:188, 'text-anchor':'middle', 'dominant-baseline':'central', style:'font-size:20px'}, g, '?'); }
+  drawNote(svg, {x:338, y:188, text:'…', cls:'big'});
+  return svg;
+}
+function flatQuestionSvg(){
+  const svg = newSvg([360, 150], 'A dashed empty box with a question mark: is there a plain state machine that behaves exactly like the statechart?');
+  const g = el('g', {class:'chip dash'}, svg); el('rect', {x:40, y:40, width:280, height:90, rx:14}, g);
+  el('text', {x:180, y:85, 'text-anchor':'middle', 'dominant-baseline':'central', style:'font-size:32px;font-weight:700'}, g, '?');
+  drawNote(svg, {x:180, y:20, text:'a plain state machine that behaves the same?'});
+  return svg;
+}
+function frotherQuestionSvg(){
+  const svg = newSvg([360, 96], 'A new feature waiting to be placed: a milk frother with two states, froth off and froth on.');
+  drawNote(svg, {x:180, y:16, text:'new: milk frother, any time the machine is on', cls:'big'});
+  const g = el('g', {class:'chip dash'}, svg); el('rect', {x:60, y:32, width:240, height:56, rx:12}, g);
+  chipRow(svg, 80, 49, ['froth off','froth on'], 96);
+  drawNote(svg, {x:330, y:60, text:'?', cls:'big'});
+  return svg;
+}
+
+/* ------------------------------------------------------------------
+   Steps
+------------------------------------------------------------------- */
+const guesses = {};
+function feedback(key, correct, notes){
+  const g = guesses[key];
+  if (g == null) return `<p class="fb none">No guess made. The answer is <b>${notes.answer}</b>.</p>`;
+  if (g === correct) return `<p class="fb ok">You said <b>${notes.labels[g]}</b>. Right.</p>`;
+  return `<p class="fb no">You said <b>${notes.labels[g]}</b>. ${notes[g] || ''} The answer is <b>${notes.answer}</b>.</p>`;
+}
+const K = s => `<kbd>${s}</kbd>`;
+
+const STEPS = [
+{ kicker:'Definition', title:'What is a statechart?',
+  body:()=>`<p class="def"><strong>A statechart is a state machine whose states can contain other states.</strong></p>
+  <p>First, the thing it builds on. A <em>state machine</em> is always in exactly one of a few named <em>states</em> (the rounded boxes). When an <em>event</em> happens, it follows the arrow labelled with that event. The dot marks where it starts.</p>
+  <p>Try it: press ${K('TOGGLE')} and the lamp moves between its two states.</p>
+  <p>A statechart adds two things. The next two steps show one each.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.lamp, layout:L.lamp, events:['TOGGLE'], hint:'Press TOGGLE. The highlighted box is the state the lamp is in now.'}) },
+
+{ kicker:'Addition 1 · a parent', title:'A state can be a box of states',
+  body:()=>`<p>A state can be a box of states, a <em>parent</em>, and any event its <em>children</em> (the states inside it) don't handle goes to the parent.</p>
+  <p>Here the lamp's <b>on</b> is a box holding <b>dim</b> and <b>bright</b>. ${K('TAP')} is drawn on the children. ${K('SWITCH')} is drawn once, on the box. Entering the box lands on the child its dot points to.</p>
+  <p>Press ${K('SWITCH')}, ${K('TAP')}, then ${K('SWITCH')} again. The trace shows who is asked: the current state first, then its parent, until one has an arrow for that event. If none does, nothing happens.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.lampNested, layout:L.lampNested, events:['SWITCH','TAP']}) },
+
+{ kicker:'Addition 2 · regions', title:'A state can be split into regions',
+  body:()=>`<p>And a state can be split into <em>regions</em>, each in one state at the same time.</p>
+  <p>Caps Lock and Num Lock don't depend on each other, so a dashed line splits the keyboard into two regions. It is always in one state on each side: right now <b>caps off</b> <em>and</em> <b>num off</b>.</p>
+  <p>Every event is offered to every region. The region with a matching arrow moves; the other ignores it.</p>
+  <p class="aside"><b>Careful:</b> side by side doesn't mean two programs running at once. It is one machine, handling one event at a time, that remembers one state per region.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.keyboard, layout:L.keyboard, events:['CAPS','NUM']}) },
+
+{ kicker:'Why it matters · predict', title:'A coffee machine gets a power button', next:'Reveal',
+  body:()=>`<p>Why that matters: in a plain state machine, behaviour shared by many states must be copied onto each of them.</p>
+  <p>This coffee machine goes <b>idle → grinding → brewing → ready</b>, and back to idle when you take the cup. Now add a power button: from <em>any</em> of those four, ${K('POWER_OFF')} must lead to <b>off</b>.</p>`,
+  predict:[{key:'power', q:'Drawn as a plain state machine, with no boxes, how many POWER_OFF arrows does it need?', options:[['1','1'],['2','2'],['4','4'],['5','5']]}],
+  fig:h=>{ const c = drawChart(coffeeFlatLayout('q')); h.appendChild(c.svg); } },
+
+{ kicker:'Answer', title:'Four copies of one arrow',
+  body:()=>`${feedback('power','4',{answer:'4', labels:{1:'1',2:'2',4:'4',5:'5'}, 1:'One is what we want to draw, but a plain state machine has no way to say “from any of these”.', 2:'Each of the four states needs its own arrow.', 5:'Close, but POWER_ON is a different event going the other way.'})}
+  <p>Give a coffee machine a power button, and idle, grinding, brewing and ready each need their own ${K('POWER_OFF')} arrow: four copies of the same idea.</p>
+  <p>Each copy is a chance to forget one. Add a <b>descaling</b> state next year and someone must remember a fifth.</p>
+  <p>Try ${K('POWER_OFF')} from different states: a different copy fires each time.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.coffeeFlat, layout:coffeeFlatLayout('a'), events:['POWER_ON','START','GROUND','BREWED','TAKE_CUP','POWER_OFF']}) },
+
+{ kicker:'The fix', title:'One arrow on the box',
+  body:()=>`<p>Put the four in a box called <b>on</b>, and one ${K('POWER_OFF')} on the box does the job.</p>
+  <p>None of the four has its own POWER_OFF arrow, so the event goes up to their parent, which has one. Same behaviour, one arrow instead of four, and any state added to the box later gets power-off for free.</p>
+  <p>Try it: press ${K('POWER_ON')}, ${K('START')} and ${K('GROUND')} to reach brewing, then ${K('POWER_OFF')}, and follow the trace.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.coffee, layout:coffeeLayout(), events:['POWER_ON','START','GROUND','BREWED','TAKE_CUP','POWER_OFF']}) },
+
+{ kicker:'The pattern', title:'Shared behaviour goes on the parent',
+  body:()=>`<p>This isn't about coffee. Whenever several states react to an event the same way, a plain machine needs one arrow per state; a statechart needs one arrow on their parent.</p>
+  <ul><li>a checkout where ${K('CANCEL')} works on every step</li><li>a phone call where ${K('HANG_UP')} works while ringing, talking or on hold</li><li>a game where ${K('PAUSE')} works in every level</li></ul>
+  <p>Boxes can sit inside boxes. An unhandled event keeps climbing, one parent at a time, until a state handles it or there are no parents left.</p>`,
+  fig:h=>shareFigure(h) },
+
+{ kicker:'Second problem · predict', title:'A player with two separate features', next:'Reveal',
+  body:()=>`<p>A music player is <b>playing or paused</b>, and, separately, <b>muted or unmuted</b>. Either can change without touching the other.</p>
+  <p>A plain state machine is in exactly one state, so each state has to describe both features at once, like “paused and unmuted”. Plain machines are often called <em>flat</em>: no boxes, no regions.</p>`,
+  predict:[{key:'flat', q:'How many states does the flat machine need?', options:[['2','2'],['3','3'],['4','4'],['6','6']]}],
+  fig:h=>h.appendChild(featuresQuestionSvg()) },
+
+{ kicker:'Answer', title:'One flat state per combination',
+  body:()=>`${feedback('flat','4',{answer:'4', labels:{2:'2',3:'3',4:'4',6:'6'}, 2:'Two states can only describe one feature.', 3:'Every pairing is possible, including paused and muted.', 6:'There are only 2 × 2 pairings.'})}
+  <p>Independent features multiply. A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that: 8, 16, 32…</p>
+  <p>The arrows double too: ${K('MUTE')} is drawn twice, once from each playback state. Try it.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.playerFlat, layout:L.playerFlat, events:['PLAY','PAUSE','MUTE','UNMUTE']}) },
+
+{ kicker:'The same problem in code', title:'Booleans hide the impossible',
+  body:()=>`<p>A <em>boolean</em> is a true-or-false variable. Programs often track a player with two of them: <code>isPlaying</code> and <code>isPaused</code>.</p>
+  <p>Booleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible. Two booleans make four combinations, but the player only means two.</p>
+  <p>Flip the switches and find the combinations nobody intended.</p>`,
+  fig:h=>boolFigure(h) },
+
+{ kicker:'The fix', title:'Two small machines side by side',
+  body:()=>`<p>Regions keep playback and volume apart, as two small machines side by side, so the impossible combination can't be written.</p>
+  <p>The playback region is always in exactly one of <b>paused</b> or <b>playing</b>. There is no state for “both”, so it can't happen, and no code has to prevent it.</p>
+  <p>Send events: ${K('MUTE')} is drawn once, and the playback region simply ignores it.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.player, layout:L.player, events:['PLAY','PAUSE','MUTE','UNMUTE']}) },
+
+{ kicker:'The pattern', title:'Regions add; flat states multiply',
+  body:()=>`<p>Each region adds its own few states; a flat machine needs every combination. With <i>k</i> on/off features, regions draw 2 × <i>k</i> states, a flat machine needs 2 × 2 × … (<i>k</i> times).</p>
+  <p>Drag the slider and watch both drawings grow.</p>
+  <p>It holds for bigger features too. Add speed (1×, 1.5×, 2×) to the player: flat needs 2 × 2 × 3 = 12 states; regions need 2 + 2 + 3 = 7.</p>
+  <p>Same shape elsewhere: a car's gear, headlights and wipers; text that is bold, italic and underlined.</p>`,
+  fig:h=>multiplyFigure(h) },
+
+{ kicker:'Predict', title:'Can a statechart do more?', next:'Reveal',
+  body:()=>`<p>A common belief: statecharts are a more powerful kind of machine, able to describe behaviour a plain state machine can't.</p>
+  <p>Look at the player statechart. Could some plain state machine behave exactly like it, for every sequence of events?</p>`,
+  predict:[{key:'power2', q:'Can a statechart do anything a plain state machine can’t?', col:true, options:[['yes','Yes: nesting and regions add new behaviour'],['no','No: it is the same behaviour, drawn smaller']]}],
+  fig:h=>{ const c = drawChart(L.player); attachMachine(c, Machine(DEF.player), L.player.alt); pairUp(h, c.svg, flatQuestionSvg()); } },
+
+{ kicker:'Misconception, refuted', title:'Same behaviour, smaller drawing',
+  body:()=>`${feedback('power2','no',{answer:'no', labels:{yes:'yes',no:'no'}, yes:'That is the misconception.'})}
+  <p>Nothing new becomes possible: <em>flatten</em> any statechart and you get an ordinary state machine with the same behaviour. To flatten, make one state per combination of region states, and copy each arrow on a box onto every state inside it.</p>
+  <p>Send the same events to both machines: they always agree.</p>
+  <p>What you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.</p>`,
+  fig:h=>flattenFigure(h) },
+
+{ kicker:'Your turn · predict', title:'Add a milk frother', next:'Reveal',
+  body:()=>`<p>The coffee machine gets a milk frother. While the machine is on, the frother can be switched on or off at any time, whatever the coffee is doing.</p>`,
+  predict:[
+    {key:'where', q:'Where does it go in the statechart?', options:[['loop','A fifth loop state'],['region','A region inside on'],['outer','A box around off and on']]},
+    {key:'count', q:'How many on-states does the flat machine need now?', options:[['5','5'],['6','6'],['8','8'],['16','16']]}],
+  fig:h=>{ const c = drawChart(coffeeLayout()); attachMachine(c, Machine(DEF.coffee), coffeeLayout().alt); pairUp(h, c.svg, frotherQuestionSvg()); } },
+
+{ kicker:'Answer', title:'A region inside on',
+  body:()=>`${feedback('where','region',{answer:'a new region inside on', labels:{loop:'a fifth loop state',region:'a new region inside on',outer:'a box around off and on'}, loop:'A loop state would mean frothing replaces brewing; the frother can run during any coffee state.', outer:'The frother only works while the machine is on, so it belongs inside on.'})}
+  <p>The frother is independent of the coffee, so it is its own small machine: a region beside the coffee loop, two states, two arrows. ${K('POWER_OFF')} stays one arrow on the box and leaves both regions.</p>
+  ${feedback('count','8',{answer:'8', labels:{5:'5',6:'6',8:'8',16:'16'}, 5:'One extra state can’t say “froth on” for every coffee state.', 6:'Adding two states is what the regions do; flat states multiply.', 16:'Four coffee states times two frother states.'})}
+  <p>The flat machine doubles: every coffee state now comes with froth off and froth on, each needing its own POWER_OFF.</p>`,
+  fig:h=>liveWidget(h, {def:DEF.frother, layout:frotherLayout(), beside:frotherFlatSvg(), events:['POWER_ON','START','GROUND','BREWED','TAKE_CUP','FROTH_ON','FROTH_OFF','POWER_OFF'], hint:'Try POWER_ON, START, FROTH_ON, then POWER_OFF.'}) },
+
+{ kicker:'Check yourself', title:'Three questions',
+  body:()=>`<p>Answer each in your head, or out loud, before opening its answer.</p>
+  <p>If one surprises you, go back to the step it came from: Back works at any time.</p>`,
+  fig:h=>{ h.innerHTML = `<div class="qs">
+    <div class="q"><h3>1. Four states all have the same ${K('EXIT')} arrow. What would a statechart do?</h3><details><summary>Show answer</summary><p>Put the four states in one parent box and draw a single EXIT arrow on the box. None of the four handles EXIT itself, so the event goes up to the parent, which does. (Steps 5–7.)</p></details></div>
+    <div class="q"><h3>2. Why do two independent on/off features need four flat states but only two regions?</h3><details><summary>Show answer</summary><p>A flat state must name both features at once, so it needs one state per combination: 2 × 2 = 4. A statechart gives each feature its own region, each in one state at the same time, so it is two small machines of two states each. Each extra feature doubles the flat count but adds just one region. (Steps 8–12.)</p></details></div>
+    <div class="q"><h3>3. Can a statechart do anything a state machine can't?</h3><details><summary>Show answer</summary><p>No. Flatten any statechart and you get an ordinary state machine with the same behaviour. What you gain is a smaller, more readable drawing, not new behaviour. (Steps 13–14.)</p></details></div></div>`; } },
+
+{ kicker:'Remember', title:'The sentence to remember', last:true,
+  body:()=>`<p class="remember">A statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.</p>
+  <p>The coffee machine shows both: one ${K('POWER_OFF')} on the <b>on</b> box, and a frother region that adds two states instead of doubling the rest.</p>
+  <p><button type="button" class="ghost" id="restart">Start again from step 1</button></p>`,
+  fig:h=>{ const lay = frotherLayout(); lay.notes = [{x:268,y:290,text:'side by side',cls:'green'},{x:268,y:306,text:'(regions)',cls:'green'},{x:84,y:380,text:'written once',cls:'green'},{x:84,y:396,text:'(on the parent)',cls:'green'}]; lay.vb=[372,414];
+    const c = drawChart(lay); h.appendChild(c.svg); } }
+];
+
+function pairUp(h, a, b){ const p = document.createElement('div'); p.className = 'pair'; p.style.alignItems = 'center'; [a, b].forEach(x => { const d = document.createElement('div'); d.appendChild(x); p.appendChild(d); }); h.appendChild(p); }
+function boolFigure(h){
+  h.innerHTML = `<div class="bools">
+    <div class="switches" role="group" aria-label="Boolean variables">
+      <label class="sw"><input type="checkbox" role="switch" id="bP"> isPlaying</label>
+      <label class="sw"><input type="checkbox" role="switch" id="bQ" checked> isPaused</label>
+    </div>
+    <pre class="code" id="bCode" aria-hidden="true"></pre>
+    <table class="truth"><caption class="sr">Every combination of the two booleans and what it means</caption>
+      <thead><tr><td style="border:0;height:auto"></td><th scope="col">isPaused = false</th><th scope="col">isPaused = true</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">isPlaying = false</th><td id="c00" class="odd">neither<br><small>not a state the player has</small></td><td id="c01" class="okc">paused ✓</td></tr>
+        <tr><th scope="row">isPlaying = true</th><td id="c10" class="okc">playing ✓</td><td id="c11" class="bad">playing <i>and</i> paused<br><small>✗ impossible</small></td></tr>
+      </tbody></table>
+    <p class="verdict" id="bV" aria-live="polite"></p>
+    <pre class="code">playback = "paused"   // one variable, one value:
+                      // "both" can't be written</pre></div>`;
+  const P = h.querySelector('#bP'), Q = h.querySelector('#bQ'), code = h.querySelector('#bCode'), v = h.querySelector('#bV');
+  const msg = {'00':'Neither playing nor paused: the code allows it, but it means nothing we designed.', '01':'Paused: a real state.', '10':'Playing: a real state.', '11':'Both true: playing and paused at once. Nothing in the code stops this.'};
+  function upd(){
+    const k = (P.checked ? '1' : '0') + (Q.checked ? '1' : '0');
+    code.textContent = `isPlaying = ${P.checked}\nisPaused  = ${Q.checked}`;
+    ['00','01','10','11'].forEach(x => { const c = h.querySelector('#c' + x); c.classList.toggle('cur', x === k); if (x === k) c.setAttribute('aria-current', 'true'); else c.removeAttribute('aria-current'); });
+    v.textContent = msg[k];
+    v.style.color = k === '11' ? 'var(--danger)' : k === '00' ? 'var(--miss)' : 'var(--hit)';
+  }
+  P.addEventListener('change', upd); Q.addEventListener('change', upd); upd();
+}
+function flattenFigure(h){
+  const pair = document.createElement('div'); pair.className = 'pair'; h.appendChild(pair);
+  const ms = Machine(DEF.player), mf = Machine(DEF.playerFlat);
+  const cs = drawChart(L.player), cf = drawChart(L.playerFlat);
+  const us = attachMachine(cs, ms, L.player.alt), uf = attachMachine(cf, mf, L.playerFlat.alt);
+  [cs, cf].forEach(c => { const d = document.createElement('div'); d.appendChild(c.svg); pair.appendChild(d); });
+  const ctrl = document.createElement('div'); ctrl.className = 'ctrl'; ctrl.setAttribute('role', 'group'); ctrl.setAttribute('aria-label', 'Send an event to both machines');
+  ctrl.innerHTML = '<span class="lbl">Send an event to both machines:</span>';
+  const agree = document.createElement('p'); agree.className = 'agree'; agree.setAttribute('aria-live', 'polite');
+  const show = () => {
+    const a = ms.describe(), b = mf.describe().replace('\n', ', ');
+    agree.textContent = `Statechart: ${a}.  Flat: ${b}.  ${a === b ? 'They agree.' : 'They differ!'}`;
+  };
+  ['PLAY','PAUSE','MUTE','UNMUTE'].forEach(ev => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'evbtn'; b.textContent = ev;
+    b.addEventListener('click', () => {
+      cs.clearProbes(); cf.clearProbes();
+      const r1 = ms.send(ev), r2 = mf.send(ev);
+      r1.fired.forEach(f => cs.fire(f.src, ev)); r2.fired.forEach(f => cf.fire(f.src, ev));
+      us(); uf(); show();
+    });
+    ctrl.appendChild(b);
+  });
+  h.appendChild(ctrl); h.appendChild(agree); show();
+}
+
+/* ------------------------------------------------------------------
+   Step rendering and navigation
+------------------------------------------------------------------- */
+const stage = document.getElementById('stage');
+const back = document.getElementById('back'), next = document.getElementById('next');
+const count = document.getElementById('count'), bar = document.getElementById('bar');
+let cur = 0;
+
+function render(i, announce){
+  clearTimers();
+  cur = Math.max(0, Math.min(STEPS.length - 1, i));
+  const s = STEPS[cur];
+  const sec = document.createElement('section');
+  sec.className = 'step';
+  sec.setAttribute('aria-labelledby', 'stepTitle');
+  const text = document.createElement('div'); text.className = 'text';
+  text.innerHTML = `<p class="kicker">Step ${cur+1} · ${s.kicker}</p><h2 id="stepTitle" tabindex="-1">${s.title}</h2>${s.body()}`;
+  const preds = document.createElement('div'); preds.className = 'predicts';
+  (s.predict || []).forEach(p => {
+    const fs = document.createElement('fieldset'); fs.className = 'predict';
+    fs.innerHTML = `<legend>Predict: ${p.q}</legend><div class="opts ${p.col ? 'col' : ''}">` +
+      p.options.map(([v, lab]) => `<label class="opt"><input type="radio" name="${p.key}" value="${v}" ${guesses[p.key] === v ? 'checked' : ''}><span>${lab}</span></label>`).join('') +
+      `</div><p class="locked" aria-live="polite"></p>`;
+    const locked = fs.querySelector('.locked');
+    const showLocked = () => { locked.textContent = guesses[p.key] != null ? `Your guess is in. Press Reveal to check it.` : 'Pick one, then press Reveal.'; };
+    fs.addEventListener('change', e => { guesses[p.key] = e.target.value; showLocked(); });
+    showLocked();
+    preds.appendChild(fs);
+  });
+  const fig = document.createElement('div'); fig.className = 'figure';
+  sec.appendChild(text); sec.appendChild(fig); if (s.predict) sec.appendChild(preds);
+  stage.innerHTML = ''; stage.appendChild(sec);
+  if (s.fig) s.fig(fig);
+  back.disabled = cur === 0;
+  next.disabled = cur === STEPS.length - 1;
+  next.innerHTML = (s.next || 'Next') + ' &rarr;';
+  count.textContent = `${cur+1} / ${STEPS.length}`;
+  bar.style.width = ((cur+1) / STEPS.length * 100) + '%';
+  const rs = document.getElementById('restart'); if (rs) rs.addEventListener('click', () => go(0, true));
+  if (location.hash !== '#' + (cur+1)) history.replaceState(null, '', '#' + (cur+1));
+  stage.scrollTop = 0; window.scrollTo(0, 0);
+  if (announce) say(`Step ${cur+1} of ${STEPS.length}: ${s.title}`);
+  document.title = `Statecharts, Step by Step`;
+}
+function go(i, focusTitle){ render(i, true); if (focusTitle) document.getElementById('stepTitle').focus(); }
+back.addEventListener('click', () => go(cur - 1));
+next.addEventListener('click', () => go(cur + 1));
+document.addEventListener('keydown', e => {
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (e.key === 'ArrowRight' && cur < STEPS.length - 1) { go(cur + 1); }
+  if (e.key === 'ArrowLeft' && cur > 0) { go(cur - 1); }
+});
+window.addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== cur) render(n - 1, true); });
+const start = parseInt(location.hash.slice(1), 10);
+render(start ? start - 1 : 0, false);
+window.__steps = STEPS.length;
+window.__go = i => render(i, false);
+window.__engine = {Machine, DEF};
+})();
+</script>
+</body>
+</html>
