@@ -31,3 +31,23 @@ What the plain pages had that the Rayner pages lacked, in the reviewer's words o
 Changes made in response: arrow keys work from load; the stage leaves room for the caption's first two lines; the rail names a step only once reached; `meta.answer` and `meta.checks`, with the check questions asked after the last step; `rayner quiz`; reader action scored in the rubric.
 
 **Quiz, Rayner statecharts page:** the packet's reader answered all three check questions right; the control's reader, with no explainer, also answered all three right. None of the three questions tests the explainer: a model reader knows what statecharts are. The skill now asks for check questions only the explainer answers.
+
+### Round 2: statecharts, 1 November 2026
+
+Same script, same plain pages and the same reviewer brief as round 1. The Rayner pages were the round-1 scenes rebuilt on the changed player, each given the script's `meta.answer` and `meta.checks`; nothing else in them changed. New blinding (seed 20261101).
+
+| Author | Preferred | How decisively |
+| --- | --- | --- |
+| A | Plain | Clearly |
+| B | Plain | Clearly |
+| C | Plain | Clearly, by less than A and B |
+
+What changed: the reviewer no longer raised the caption below the fold, keys that needed a click, or rail spoilers, and credited the Rayner pages with arrow-key navigation, deep links, a text alternative for every picture, steady pacing and shorter length. Every verdict still turned on the same thing: on the plain pages the learner commits to predictions, sends events to a live machine and watches which state handles each, and runs the statechart and its flat machine side by side; on the Rayner pages the learner only reads and presses Next. The reviewer's one change for every Rayner page was the same: committed predictions and live event sending with a trace.
+
+Other problems the review found in the Rayner pages:
+- On a phone the stage shows a cropped, panned strip of the picture, the worst phone experience of the six.
+- Count and trace cards overlap or crowd the diagram (authors A and C).
+- A "What changed" chip switched examples between steps without saying so (author B).
+- Author B's last step printed the check answers above the player's "Show the answer" disclosures: adding `meta.checks` to a scene that already ended on its answers spoiled them. A scene with `meta.checks` should not also print the answers.
+
+Conclusion: the player fixes removed the defects round 1 found, but not the reason Rayner loses. Rayner needs reader interaction (committed predictions and a live machine driven from the scene's own model) before it can beat a hand-made page, and phone close-ups that show the whole picture.
