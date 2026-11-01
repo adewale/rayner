@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Give phones a taller stage. A stage under 600 px wide grows from 16:9 towards 4:5 where the screen has room, so each close-up shows the picture's full height below the heading and most steps need fewer views; on a 390 × 844 phone the statecharts explainer's stage goes from 358 × 201 to 358 × 385 px and most of its steps from four or five views to two or three. The margin around the picture is the case's paper, and `check` measures the phone at this shape.
 - `check` fails a declared answer only when no step states it, and reports where it first appears; whether that is early enough is a reader's judgement. It no longer reports `words` or `cardsAtRest`, estimates of good writing and layout rather than measures of them. The tutorial's principles say which ones Rayner checks; the benchmark's briefs no longer prescribe how to teach; [What belongs in Rayner](docs/ENGINE.md#what-belongs-in-rayner) sorts feature requests.
 - Rewrite the authoring skill around what an explainer must achieve and how each part is checked, and drop technique rules no check or reader would miss. Replace the rubric's scored dimensions with a judgement: would a newcomer learn the answer, and is it better than the alternative? The README now says what Rayner checks and where it stands against hand-made pages.
 - Arrow keys step through a standalone page as soon as it loads, before the reader clicks anything. Frames still take keys only once focused.

@@ -565,7 +565,10 @@ test('the phone report measures the stage heading in close-ups that show it, not
     const below = by('below');
     assert.equal(below.labelsUnder12PxAt390, 0);
     assert.equal(below.labelsOutsideCloseUpsAt390, 0);
-    assert.equal(below.minLabelPx390, 12);
+    // At least the floor: the phone's taller stage (NARROW_ASPECT) zooms a little further so its
+    // close-ups stay under the heading, which reads the box labels larger, never smaller. Measured
+    // at that zoom, the heading's number would read under 12 px; it is not measured.
+    assert.ok(below.minLabelPx390 >= 12, `box labels at the close-up's zoom: ${below.minLabelPx390}`);
     // A frame drawn into the heading brings it into the close-ups. There it is still
     // measured, and it sets the smallest size: the box labels alone read near 19 px.
     const into = by('into');

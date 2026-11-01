@@ -32,6 +32,14 @@ import type { Zoom } from './embed-zoom.ts';
 export const READ_PX = 12;
 /** Stages narrower than this get close-ups; wider ones (a tablet, a laptop) keep the whole picture. */
 export const NARROW_PX = 600;
+/**
+ * A narrow stage's height over its width, at most: taller than the picture's 16:9, so each
+ * close-up shows the picture's full height or close to it, and a phone needs fewer views to
+ * cover a change. The stage never gets shorter than 16:9, and on a standalone page never so
+ * tall that Next leaves the screen (app/embed.css, .stage.narrow). `rayner check` measures a
+ * 390 px phone's 358 px stage at this ratio.
+ */
+export const NARROW_ASPECT = 5 / 4;
 /** Room left around the changed region, in stage units, so a mark's outline is not cut. */
 const PAD = 0.2;
 const FRAME: Box = [-8, -4.5, 8, 4.5];
@@ -502,14 +510,34 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   const painted = layout.painted ?? layout.parts;
   const ceiling = Math.min(FRAME[3], Math.max(layout.top ?? FRAME[3], ...painted.map((p) => p[3])));
   const bounds: Box = [FRAME[0], FRAME[1], FRAME[2], ceiling];
-  const short = h / (reading * s) < FRAME[3] - FRAME[1] - 1e-9;
-  const fit = short && ceiling < FRAME[3] ? h / ((ceiling - FRAME[1]) * s) : 1;
+  // A view keeps below the ceiling when its height fits between the ceiling and the lowest
+  // point the stage can show: the frame's bottom, plus the paper margin under it on a stage
+  // taller than the picture (oy / s units; none on a 16:9 stage).
+  const short = h / (reading * s) < FRAME[3] - FRAME[1] + (2 * oy) / s - 1e-9;
+  const fit = short && ceiling < FRAME[3] ? h / ((ceiling - FRAME[1] + oy / s) * s) : 1;
   const k = Math.min(max, Math.max(reading, fit));
   const vw = w / (k * s),
     vh = h / (k * s);
-  // The stage point that shows a region's top-left corner at 1× goes to the stage's top-left corner.
+  // The stage point that shows a region's top-left corner at 1× goes to the stage's top-left
+  // corner. On a stage taller than the picture (a phone, NARROW_ASPECT), the whole of the
+  // picture below the heading can fit a view at this scale; the view's top then sits at the
+  // heading's lower edge, so every close-up shows that whole height, the heading stays above
+  // it as on a 16:9 stage, and the margin under the frame shows more paper. Across, on a stage
+  // wider than the picture, the picture is centred.
+  const below = (ceiling - FRAME[1]) * s,
+    fitsTall = k * below <= h + 1e-9,
+    fitsWide = k * 16 * s <= w + 1e-9;
   const zoomOn = ([left, , , top]: Box) =>
-    clampZoom({ k, x: -k * (ox + (left + 8) * s), y: -k * (oy + (4.5 - top) * s) }, w, h, max);
+    clampZoom(
+      {
+        k,
+        x: fitsWide ? (w - k * 16 * s) / 2 - k * ox : -k * (ox + (left + 8) * s),
+        y: -k * (oy + (4.5 - (fitsTall ? ceiling : top)) * s),
+      },
+      w,
+      h,
+      max,
+    );
   // Clamping at the frame's edge can move a region; what a close-up shows is the view it lands on.
   const views = tourRegions(painted, vw, vh, bounds).map((r) => {
     const zoom = zoomOn(r);

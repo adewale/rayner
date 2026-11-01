@@ -7,7 +7,7 @@ import { bindSnapshots, withSettings, resolveSettings } from '../explain/index.t
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { restingTime, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';
-import { paletteOf } from '../explain/stage.ts';
+import { paletteOf, paperOf } from '../explain/stage.ts';
 import { connectHost, reportHeight } from './embed-protocol.ts';
 import { icon } from './embed-icons.ts';
 import type { IconName } from './embed-icons.ts';
@@ -67,7 +67,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     selected = 0,
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
-  type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
+  type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; paper?: string; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
   type CaseHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
   type CasePhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
   let casePhase: CasePhase = { kind: 'loading', scope: new StateScope() };
@@ -290,7 +290,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   player.append(head, frame, stepper, words, notice, transcript, foot, summary, ledeRuler);
   // A frame the loader sizes to its content has no viewport height to fit: the card takes
   // the page's width, and the host page scrolls (embed.css, --player-reserve).
-  if (window.parent !== window && params.has('parentOrigin')) root.style.setProperty('--player-reserve', '0px');
+  if (window.parent !== window && params.has('parentOrigin')) {
+    root.style.setProperty('--player-reserve', '0px');
+    // The frame's height follows the content, so a narrow stage's height must not follow the frame's.
+    root.style.setProperty('--stage-narrow-max', '100000px');
+  }
   // The header's height depends on how the title wraps in the reader's fonts, so the stage's cap
   // takes the measured header rather than a guess: a title that wraps to two lines makes the stage
   // smaller, not the step heading fall off the screen. Written in the next frame, outside
@@ -485,6 +489,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // Whole picture is the author's own frame. Close-ups are reader zooms over that frame too.
   const reader = new ReaderView(stage),
     readerView = (author: string) => reader.view(author);
+  /**
+   * A sink's options for a case: its paper as the SVG's background. A narrow stage is taller
+   * than the picture, so the whole picture, and a close-up near its top or bottom edge, shows
+   * past the frame; that margin should read as more paper, not as the engine's dark default.
+   */
+  const sinkOptions = (at: Entry, realtime: boolean) => ({
+    realtime,
+    ...(at.paper && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(at.paper) ? { background: at.paper } : {}),
+  });
   const zoom = new StageZoom(
     stage,
     () => {
@@ -709,7 +722,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const kept = at.resting.get(step.step);
       const container = el('div');
       const [, target] = yield* wait(Promise.all([
-        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, { realtime: false }, readerView, scope.signal)),
+        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal)),
         framing(step, scope, at),
       ]));
       if (!kept) at.resting.set(step.step, clones(container.childNodes));
@@ -770,7 +783,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const aimAt = (index: number) => {
       const step = at.trace.steps[index]!,
         container = el('div'), scope = new StateScope(),
-        sink = new ReaderSink(container, {}, readerView, scope.signal);
+        sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal);
       return {
         index, scope, sink,
         start: step.t0,
@@ -812,7 +825,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         return go.scope.run(function* () {
           if (scene.time > aim.end + 1e-8) {
             if (scene.time + 1e-9 < aim.rest) return;
-            yield* wait(new ReaderSink(aim.container, { realtime: false }, readerView, go.scope.signal).frame(scene, 0));
+            yield* wait(new ReaderSink(aim.container, sinkOptions(at, false), readerView, go.scope.signal).frame(scene, 0));
             attach(go, true);
             finish(true);
             throw new StopScene();
@@ -909,7 +922,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (!entry) {
         const Scene = withSettings(Bound, next),
           { trace, scene } = yield* wait(traceRun(Scene));
-        entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
+        entry = { Scene, trace, palette: paletteOf(scene), paper: paperOf(scene), resting: new Map() };
         cache.set(key, entry);
       }
       const name = history.kind === 'first' ? undefined : history.name;

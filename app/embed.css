@@ -5,7 +5,7 @@
 *{box-sizing:border-box}
 ::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
 body{margin:0;background:var(--bg);color:var(--fg);accent-color:var(--accent)}
-#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px + var(--caption-start,3.6rem));--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
+#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px + var(--caption-start,3.6rem));--stage-narrow-max:calc(100dvh - var(--player-reserve) - 52px);--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
 #content:focus{outline:none}
 /* In a frame the page is the tile alone: the host's background shows around it and at its corners.
    The tile keeps 1px off the frame's edges, so its own edge is drawn inside the frame, and #content holds
@@ -57,7 +57,14 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
    against the viewports in specs/player-redesign.md R2. */
 .player{position:relative;min-width:0}
-.frame{position:relative}
+.frame{position:relative;container-type:inline-size}
+/* A narrow stage (a phone) is taller than the picture's 16:9, up to 4:5 (NARROW_ASPECT in
+   app/embed-closeup.ts), so its close-ups show more of the picture at the same readable size.
+   It is never shorter than 16:9, and on a standalone page never so tall that the stepper row
+   and the caption's first lines leave the screen (--stage-narrow-max, which also leaves the 52 px
+   view row a narrow stage adds under the stepper). Under the loader, which
+   sizes the frame to its content, the cap is lifted (app/embed.ts) so height cannot feed back. */
+.stage.narrow{aspect-ratio:auto;height:clamp(calc(100cqw * 9 / 16),var(--stage-narrow-max),calc(100cqw * 5 / 4))}
 .stage{position:relative;min-width:0;aspect-ratio:16/9;overflow:hidden;background:var(--surface);touch-action:pan-y}
 .stage svg{width:100%;height:100%;display:block}
 .stage svg.glide{transition:transform 220ms var(--ease-out)}

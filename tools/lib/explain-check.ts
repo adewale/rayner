@@ -22,7 +22,7 @@ import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
 import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
+import { NARROW_ASPECT, closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
@@ -190,13 +190,15 @@ export function restingTextProblems(scene: Viewed): string[] {
 }
 
 /**
- * The phone the legibility report measures: a 390 px page, whose stage (inside the
- * page's 16 px gutters) is 358 × 201 px. The player opens each step there on its
- * close-up (app/embed-closeup.ts), so a label's phone size is its size at that zoom.
+ * The phone the legibility report measures: a 390 × 844 page, whose stage (inside the
+ * page's 16 px gutters) is 358 px wide and, being narrow, NARROW_ASPECT tall: 358 × 448 px.
+ * The picture still draws at the stage's width, so a label's size at 1× is as on a 16:9
+ * stage; the taller stage lets each close-up show more of it. The player opens each step
+ * there on its close-up (app/embed-closeup.ts), so a label's phone size is its size at that zoom.
  */
 const PHONE_PAGE = 390,
   PHONE_W = PHONE_PAGE - 32,
-  PHONE_H = Math.round((PHONE_W * 9) / 16);
+  PHONE_H = Math.round(PHONE_W * NARROW_ASPECT);
 /** One label across a case: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;
