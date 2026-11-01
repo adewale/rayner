@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-series",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Mon 2 Nov"
+        },
+        {
+          "text": "Mon 9 Nov"
+        },
+        {
+          "text": "Mon 7 Dec"
+        }
+      ]
+    },
+    {
+      "step": "reader-copies",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Alice"
+        },
+        {
+          "text": "Bob"
+        }
+      ]
+    }
+  ]
+}

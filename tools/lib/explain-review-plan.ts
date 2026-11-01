@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
+import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
 
 export interface ReviewScope {
@@ -55,6 +56,7 @@ function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps
 }
 export interface ReviewReceipt {
   scope: ReviewScope;
+  collectionChecks: boolean;
   catalogHash: string;
   reviewCodeHash: string;
   cases: number;
@@ -72,19 +74,24 @@ export function reviewScope(args: readonly string[]): ReviewScope {
   assert.ok(Number.isSafeInteger(part) && Number.isSafeInteger(total) && part <= total, 'invalid story shard');
   return { part, total };
 }
-export function inReviewScope(index: number, scope: ReviewScope) {
-  return index % scope.total === scope.part - 1;
+/** Assign each whole scene once, balancing its independently built step inventory. */
+export function reviewCases(cases: PlannedCase[], scope: ReviewScope): PlannedCase[] {
+  const weights = new Map<string, number>();
+  for (const c of cases) weights.set(c.scene, (weights.get(c.scene) ?? 0) +
+    Math.max(1, c.steps.length * 2 + c.narrowOpenings.filter(o => o.reviewed).length));
+  const loads = Array<number>(scope.total).fill(0), owners = new Map<string, number>();
+  for (const [scene, weight] of [...weights].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) {
+    const part = loads.indexOf(Math.min(...loads));
+    owners.set(scene, part + 1);
+    loads[part]! += weight;
+  }
+  return cases.filter(c => owners.get(c.scene) === scope.part);
 }
-export async function readStoryPlan(directory: string) {
+export async function readStoryPlan(directory: string, expectedScenes?: readonly string[]) {
   const raw = await readFile(join(directory, 'evidence.json'), 'utf8');
-  const catalog = JSON.parse(raw) as {
-    scenes: {
-      id: string;
-      cases: Record<string, string>[];
-      narrowOpenings: { settings: Record<string, string>; steps: NarrowOpeningObligation[] }[];
-    }[];
-  };
+  const catalog = catalogEvidence(JSON.parse(raw));
   const cases: PlannedCase[] = [];
+  if (expectedScenes) assert.deepEqual(catalog.scenes.map(scene => scene.id), expectedScenes, 'complete source scene inventory');
   for (const scene of catalog.scenes) {
     const description = JSON.parse(await readFile(join(directory, scene.id, 'describe.json'), 'utf8')) as {
       cases: { values: Record<string, string>; steps: { step: string }[] }[];
@@ -95,14 +102,15 @@ export async function readStoryPlan(directory: string) {
       `${scene.id}: description/case inventory differs`,
     );
     assert.ok(Array.isArray(scene.narrowOpenings), `${scene.id}: rebuild catalog without a narrow-opening inventory`);
+    const openings = scene.narrowOpenings;
     assert.deepEqual(
-      scene.narrowOpenings.map((c) => c.settings),
+      openings.map((c) => c.settings),
       scene.cases,
       `${scene.id}: exact narrow-opening case inventory`,
     );
     for (const [index, c] of description.cases.entries())
       validateNarrowObligations(
-        scene.narrowOpenings[index]!.steps,
+        openings[index]!.steps,
         c.steps.map((s) => s.step),
         scene.id,
       );
@@ -111,13 +119,13 @@ export async function readStoryPlan(directory: string) {
         scene: scene.id,
         settings: c.values,
         steps: c.steps.map((s) => s.step),
-        narrowOpenings: scene.narrowOpenings[index]!.steps,
+        narrowOpenings: openings[index]!.steps,
       })),
     );
   }
-  return { cases, catalogHash: createHash('sha256').update(raw).digest('hex') };
+  return { scenes: catalog.scenes.map(scene => scene.id), cases, catalogHash: createHash('sha256').update(raw).digest('hex') };
 }
-export async function reviewCodeHash(root: string) {
+export async function reviewCodeHash(root: string, buildHash?: string) {
   const files = [
     'tools/explain-review.ts',
     'tools/explain-review-merge.ts',
@@ -159,7 +167,7 @@ export async function reviewCodeHash(root: string) {
   // complete runtime/build inputs as the artifacts so old shards cannot vouch
   // for changed CSS, player helpers or page generation.
   return createHash('sha256')
-    .update(JSON.stringify({ inputs, buildHash: (await buildInputs(root)).hash }))
+    .update(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }))
     .digest('hex');
 }
 export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedCase[]) {
@@ -245,9 +253,10 @@ export function mergeStoryReviews(
     );
     assert.deepEqual(p.consoleErrors, []);
     assert.deepEqual(p.runtimeConnections, []);
+    assert.equal(p.collectionChecks, i === 0, 'shared collection checks belong to exactly the first shard');
     validateReviewedCases(
       p.results,
-      expected.filter((_, n) => inReviewScope(n, p.scope)),
+      reviewCases(expected, p.scope),
     );
   }
   const byKey = new Map(ordered.flatMap((p) => p.results).map((c) => [caseKey(c), c]));
@@ -256,6 +265,7 @@ export function mergeStoryReviews(
   validateReviewedCases(results, expected);
   return {
     scope: { part: 1, total: 1 },
+    collectionChecks: true,
     catalogHash,
     reviewCodeHash: codeHash,
     cases: results.length,

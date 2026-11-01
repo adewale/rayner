@@ -2,18 +2,150 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-burst",
+      "opening": true,
+      "targets": [
+        {
+          "key": "burst:0:200"
+        },
+        {
+          "key": "burst:1:200"
+        },
+        {
+          "key": "burst:2:200"
+        },
+        {
+          "key": "burst:3:200"
+        },
+        {
+          "key": "burst:4:200"
+        },
+        {
+          "key": "burst:5:429"
+        }
+      ]
+    },
+    {
+      "step": "balance",
+      "targets": [
+        {
+          "text": "bucket"
+        },
+        {
+          "text": "Tokens left"
+        }
+      ]
+    },
+    {
+      "step": "trace",
+      "opening": true,
+      "targets": [
+        {
+          "text": "1 / s"
+        },
+        {
+          "text": "2 / s"
+        },
+        {
+          "text": "4 / s"
+        },
+        {
+          "key": "result:1:R6:429",
+          "paint": "stroke"
+        },
+        {
+          "key": "result:1:R7:429",
+          "paint": "stroke"
+        },
+        {
+          "key": "result:1:R9:429",
+          "paint": "stroke"
+        },
+        {
+          "key": "result:2:R6:429",
+          "paint": "stroke"
+        },
+        {
+          "key": "result:2:R9:429",
+          "paint": "stroke"
+        },
+        {
+          "key": "result:4:R6:429",
+          "paint": "stroke"
+        }
+      ]
+    },
+    {
+      "step": "reader-burst",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "R1"
+        },
+        {
+          "text": "R6"
+        },
+        {
+          "text": "200"
+        },
+        {
+          "text": "429"
+        }
+      ]
+    },
+    {
+      "step": "reader-refill",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Before the wait"
+        },
+        {
+          "text": "On arrival: add elapsed × rate"
+        }
+      ]
+    },
+    {
       "step": "later",
       "targets": [
-        { "key": "request:R9" },
-        { "key": "arrival:R9" },
-        { "key": "request:R10" },
-        { "key": "arrival:R10" },
-        { "key": "balance:refill:R10", "paint": "stroke" },
-        { "key": "balance:found:R10" },
-        { "key": "balance:spend:R10", "paint": "stroke" },
-        { "key": "balance:cap" },
-        { "key": "balance:label" },
-        { "key": "balance:value" }
+        {
+          "key": "request:R9"
+        },
+        {
+          "key": "arrival:R9"
+        },
+        {
+          "key": "request:R10"
+        },
+        {
+          "key": "arrival:R10"
+        },
+        {
+          "key": "balance:refill:R10",
+          "paint": "stroke"
+        },
+        {
+          "key": "balance:found:R10"
+        },
+        {
+          "key": "balance:spend:R10",
+          "paint": "stroke"
+        },
+        {
+          "key": "balance:cap"
+        },
+        {
+          "key": "balance:label"
+        },
+        {
+          "key": "balance:value"
+        }
       ]
     }
   ]

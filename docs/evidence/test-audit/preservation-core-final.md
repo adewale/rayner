@@ -1,7 +1,0 @@
-# Final cubic and arc-length preservation review
-
-Root reviewed the final oracle repair independently of its author after the earlier lane review. The greedy first-equal-endpoint choice is gone. The search consumes every output piece, visits every original curve in order and requires an independently evaluated equal-parameter span at five points per piece. Ambiguous coincident anchors can choose any geometrically equivalent partition; the untouched Manim fixtures separately pin allocation. First/last anchors stay exact, and the separate splitCurve property retains untouched neighboring controls. Both deterministic degenerate tapes supplement all 200 generated draws. The existing 1e-5 Float32 budget was not widened.
-
-The arc-length generator now covers zero through four curves per subpath and zero through five subpaths. Its expected total sums independently evaluated eight-segment lengths for every curve and excludes jumps between subpaths. This resolves the earlier review's single-curve-per-subpath limitation. The final focused green and repeated assertion-killed mutations are recorded in core-mutations.md; full-suite evidence is recorded separately.
-
-Root also inspected the reader callback repair: each applied controller operation now checks paint and callback counts independently before comparing the state received. Removing callback dispatch no longer skips the test's assertions. The reader mutation evidence records the killed control.

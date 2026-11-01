@@ -1,3 +1,5 @@
+import {ambientTextContext} from './text-context.ts';
+import type {TextShaping} from './text-context.ts';
 // Coordinate systems: NumberLine and Axes, and the graphs they map data into
 // (function plots, line graphs, bars, dots, guide lines, shaded areas).
 //
@@ -28,6 +30,7 @@ import type { Vec } from './vec.ts';
 export type AxisRange = readonly [min: number, max: number, step?: number];
 
 export interface NumberLineOpts extends Style {
+  shaping?: TextShaping;
   range: AxisRange;
   /** Scene units from min to max. */
   length?: number;
@@ -73,7 +76,7 @@ export class NumberLine extends Group {
 
   constructor({
     range, length = 8, includeTicks = true, tickSize = 0.1, includeNumbers = false, numbersToInclude, numbersToExclude = [], labelFontSize = 0.24,
-    labelColor, decimals, labelDirection, labelBuff = 0.12, includeTip = false, tipLength = 0.22, tipWidth = 0.18, rotation = 0, ...style
+    labelColor, decimals, labelDirection, labelBuff = 0.12, includeTip = false, tipLength = 0.22, tipWidth = 0.18, rotation = 0, shaping, ...style
   }: NumberLineOpts) {
     super();
     const [min, max, step = 1] = range;
@@ -107,7 +110,7 @@ export class NumberLine extends Group {
       const places = decimals ?? decimalsOf(step);
       for (const x of numbersToInclude ?? this.tickValues()) {
         if (numbersToExclude.some((e) => Math.abs(e - x) < 1e-9 * this.step)) continue;
-        const t = new Text(x.toFixed(places).replace(/^-(0\.?0*)$/, '$1'), { fontSize: labelFontSize, color: labelColor ?? stroke });
+        const t = new Text(x.toFixed(places).replace(/^-(0\.?0*)$/, '$1'), { fontSize: labelFontSize, color: labelColor ?? stroke, shaping });
         // The label's edge facing the line sits just past the tick's end
         t.moveTo(V.add(this.n2p(x), V.mul(dir, (includeTicks ? tickSize : 0) + labelBuff)), V.mul(dir, -1));
         numbers.add(t);
@@ -147,6 +150,7 @@ export class NumberLine extends Group {
 export type AxisStyle = Omit<NumberLineOpts, 'range' | 'length' | 'rotation'>;
 
 export interface AxesOpts {
+  shaping?: TextShaping;
   xRange?: AxisRange;
   yRange?: AxisRange;
   /** Scene units spanned by the x range. */
@@ -205,6 +209,7 @@ export interface GuideLineOpts extends Style {
  * { lagRatio: 0.1 } (at 1 s each label pops in over a frame or two).
  */
 export class Axes extends Group {
+  readonly shaping: TextShaping | undefined;
   /** The x and y values where the axes cross. */
   crossX: number;
   crossY: number;
@@ -213,18 +218,19 @@ export class Axes extends Group {
 
   constructor({
     xRange = [0, 10, 1], yRange = [0, 5, 1], width = 8, height = 4.5, axisStyle = {}, xAxisStyle = {}, yAxisStyle = {},
-    tips = false, xLabel, yLabel, axisLabelFontSize = 0.28,
+    tips = false, xLabel, yLabel, axisLabelFontSize = 0.28, shaping = ambientTextContext(),
   }: AxesOpts = {}) {
     super();
+    this.shaping = shaping;
     const [x0, x1] = xRange, [y0, y1] = yRange;
     this.crossX = clamp(0, x0, x1);
     this.crossY = clamp(0, y0, y1);
     // A crossing label sits on the other axis when that axis runs past the crossing
     const x = new NumberLine({
-      includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, ...xAxisStyle, range: xRange, length: width,
+      includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, ...xAxisStyle, range: xRange, length: width,
     });
     const y = new NumberLine({
-      includeTip: tips, labelDirection: V.LEFT, numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, ...yAxisStyle,
+      includeTip: tips, labelDirection: V.LEFT, numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
       range: yRange, length: height, rotation: Math.PI / 2,
     });
     // Both lines are centered on the origin: slide each across so they meet
@@ -237,12 +243,12 @@ export class Axes extends Group {
     const color = axisStyle.labelColor ?? axisStyle.stroke ?? WHITE;
     if (xLabel != null) {
       const end = x.tip ? x.tip.right() : x.n2p(x.max);
-      this.add(new Text(xLabel, { fontSize: axisLabelFontSize, color }).moveTo(V.add(end, [0.15, 0]), V.LEFT));
+      this.add(new Text(xLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0.15, 0]), V.LEFT));
       this.xLabelIdx = this.children.length - 1;
     }
     if (yLabel != null) {
       const end = y.tip ? y.tip.top() : y.n2p(y.max);
-      this.add(new Text(yLabel, { fontSize: axisLabelFontSize, color }).moveTo(V.add(end, [0, 0.15]), V.DOWN));
+      this.add(new Text(yLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0, 0.15]), V.DOWN));
       this.yLabelIdx = this.children.length - 1;
     }
   }
@@ -330,7 +336,7 @@ export class Axes extends Group {
       const depth = nb ? Math.max(0, ...[[nb[0], nb[1]], [nb[2], nb[1]], [nb[0], nb[3]], [nb[2], nb[3]]].map((c) => V.dot(V.sub(c as Vec, base), down))) : 0;
       labels.forEach((s, i) => {
         const at = V.add(this.c2p(x?.[i] ?? i + 0.5, this.yAxis.min), V.mul(down, depth + 0.15));
-        g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? this.xAxis.line.style.stroke }).moveTo(at, V.mul(down, -1)));
+        g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? this.xAxis.line.style.stroke, shaping: this.shaping }).moveTo(at, V.mul(down, -1)));
       });
     }
     return g;

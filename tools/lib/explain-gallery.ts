@@ -8,18 +8,12 @@ export function galleryTile(item: { id: string; title: string; lang: string }, l
   return `<li${lead ? ' class="lead"' : ''}><a href="${htmlEscape(href)}"${hreflang}><img src="${htmlEscape(item.id)}.png" width="960" height="540" alt="" loading="${lead ? 'eager' : 'lazy'}"><span${lang}>${htmlEscape(item.title)}</span></a></li>`;
 }
 
-interface GalleryCatalog {
-  product: {
-    entry: { id: string; step?: string; settings?: Record<string, string>; label?: string };
-    [key: string]: unknown;
-  };
-  scenes: { id: string; title?: string; lang?: string; group?: unknown; showcase?: unknown }[];
-}
+type GalleryCatalog = Pick<import('./explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('./explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'showcase'>[]};
 /** Full collections lead with the showcase; an explicit subset shows its selected cards. */
 export function galleryPage(catalog: GalleryCatalog, tokens: string, collection = true): string {
   const { product, scenes } = catalog,
     entry = product.entry;
-  const text = (key: string) => (typeof product[key] === 'string' ? (product[key] as string) : '');
+  const text = (key: keyof GalleryCatalog['product']) => (typeof product[key] === 'string' ? (product[key] as string) : '');
   const tile = (item: GalleryCatalog['scenes'][number], lead = false) =>
     galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en' }, lead);
   const featured = collection

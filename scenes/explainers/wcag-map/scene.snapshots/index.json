@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "importer": "11d0423eb190709f",
+  "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "d3b5be73f2ddb0f766a98b2944973c1ac369356483fc797cec2c534c40693837",
+  "sourceHash": "8cbd9b9f3e80c197eaa7b148a39e7c0fd9aa3cb3efe5bf649d1715a1356b871e",
   "diagrams": {
     "[\"---\\nconfig:\\n  mindmap:\\n    padding: 4\\n    maxNodeWidth: 300\\n---\\nmindmap\\n  g1_4((1.4 Distinguishable · 13))\\n    c1_4_1[1.4.1 Use of Color · A, 2.0]\\n    c1_4_2[1.4.2 Audio Control · A, 2.0]\\n    c1_4_3[1.4.3 Contrast (Minimum) · AA, 2.0]\\n    c1_4_4[1.4.4 Resize Text · AA, 2.0]\\n    c1_4_5[1.4.5 Images of Text · AA, 2.0]\\n    c1_4_6[1.4.6 Contrast (Enhanced) · AAA, 2.0]\\n    c1_4_7[1.4.7 Low or No Background Audio · AAA, 2.0]\\n    c1_4_8[1.4.8 Visual Presentation · AAA, 2.0]\\n    c1_4_9[1.4.9 Images of Text (No Exception) · AAA, 2.0]\\n    c1_4_10[1.4.10 Reflow · AA, 2.1]\\n    c1_4_11[1.4.11 Non-text Contrast · AA, 2.1]\\n    c1_4_12[1.4.12 Text Spacing · AA, 2.1]\\n    c1_4_13[1.4.13 Content on Hover or Focus · AA, 2.1]\",\"github-light\"]": "5aed8927dcd0e9ad.json",
     "[\"---\\nconfig:\\n  mindmap:\\n    padding: 4\\n    maxNodeWidth: 300\\n---\\nmindmap\\n  g1_4((1.4 Distinguishable · 2))\\n    c1_4_1[1.4.1 Use of Color · A, 2.0]\\n    c1_4_2[1.4.2 Audio Control · A, 2.0]\",\"github-light\"]": "648095772bc019ce.json",

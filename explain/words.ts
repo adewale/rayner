@@ -216,7 +216,7 @@ const FR: Partial<Words> = {
     pie: ['Diagramme circulaire', 'secteur'],
     architecture: ['Diagramme d’architecture', 'service', 'lien'],
     journey: ['Parcours utilisateur', 'tâche'],
-    // LibreOffice's French name for the chart type; "radar" reads as English to test/explain-lang.test.ts.
+    // LibreOffice's French name for the chart type; "radar" reads as English to test/browser/explain-lang.test.ts.
     radar: ['Graphique en toile', 'courbe'],
   },
   separator: `${NB}; `,

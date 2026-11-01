@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-edge",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "100% = sRGB edge"
+        }
+      ]
+    },
+    {
+      "step": "reader-display",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Written chroma"
+        },
+        {
+          "text": "Mapped sRGB preview"
+        }
+      ]
+    }
+  ]
+}

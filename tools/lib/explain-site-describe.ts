@@ -7,6 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describeExplainer } from '../../explain/describe.ts';
 import type { ExplainerDescription } from '../../explain/describe.ts';
+import {sceneInputs as parseSceneInputs} from './explain-artifacts.ts';
 import { loadScene, sceneInputs } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 
@@ -37,11 +38,11 @@ const CHANGED: Record<string, string> = { version: 'the build manifest format', 
  * `scene` as the checkout has it now (see sceneInputs for what that covers). demos:build records what
  * it built from in <folder>/inputs.json, after the folder's other files and its checks.
  */
-export async function checkBuilt(folder: string, scene: string): Promise<void> {
+export async function checkBuilt(folder: string, scene: string, buildHash?: string): Promise<void> {
   const record = join(folder, 'inputs.json'),
-    was = JSON.parse((await readBuilt(record)).toString('utf8')) as Record<string, string>,
-    now = await sceneInputs(await loadScene(scene)),
-    changed = Object.keys(now).filter((k) => was[k] !== now[k]);
+    was = parseSceneInputs(JSON.parse((await readBuilt(record)).toString('utf8'))),
+    now = await sceneInputs(await loadScene(scene), buildHash),
+    changed = (Object.keys(now) as (keyof typeof now)[]).filter((k) => was[k] !== now[k]);
   if (changed.length)
     throw new Error(`${folder} is stale: ${changed.map((k) => CHANGED[k] ?? k).join(', ')} changed since it was built. Run npm run demos:build`);
 }

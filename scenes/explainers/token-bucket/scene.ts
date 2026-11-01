@@ -19,7 +19,7 @@ import {
   Circle,
   Cross,
 } from '../../../src/index.ts';
-import type { Animation, Mobject, SceneState, SyncOpts, View } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, Mobject, SceneState, SyncOpts, View } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { TokenBucket } from '../lib/models.ts';
 

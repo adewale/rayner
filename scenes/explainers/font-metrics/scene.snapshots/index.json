@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "importer": "11d0423eb190709f",
+  "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "ad610593581781bcff7a8ecafb836d5902e81b7ffebef6da320566bc55ce3f7b",
+  "sourceHash": "da510cacde9ad0d1d0ef05b1313cdc9916a02310ff6ab52a0d87767b4903c46d",
   "diagrams": {
     "[\"graph LR\\nA[\\\"Ink\\\"] --> B[\\\"Paper\\\"]\",\"pen-and-ink\",\"natural\"]": "4ee0d75a90dc9b78.json"
   }

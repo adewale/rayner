@@ -20,8 +20,7 @@ import {
 import { Card } from '../../explain/panels.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
-import { restingFrame, undescribed, stepWords, watchedChanges } from '../../explain/trace.ts';
-import { wordsReport } from './explain-words.ts';
+import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject } from '../../src/index.ts';
@@ -436,8 +435,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       legibility: legibilityReport([...labels.values(), ...staticLabels.values()]),
       // Cards in each step's resting picture: values said in a panel rather than on the drawing.
       cardsAtRest,
-      // Each step's words on a phone, estimated, and the steps whose length sets the room for the rest.
-      words: wordsReport(v.trace.steps.map((s) => ({ step: s.step, ...stepWords(s) }))),
       // What each step changed of the state the author watches (meta.watch), as readers see it, and
       // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch

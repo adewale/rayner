@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "day",
+      "settings": {
+        "date": "2007-06-09"
+      },
+      "targets": [
+        {
+          "text": "AAMV1, route 50"
+        },
+        {
+          "text": "AAMV2, route 50"
+        },
+        {
+          "text": "AAMV3, route 50"
+        },
+        {
+          "text": "AAMV4, route 50"
+        }
+      ]
+    },
+    {
+      "step": "reader-date",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Route"
+        },
+        {
+          "text": "Trip"
+        },
+        {
+          "text": "Service"
+        },
+        {
+          "text": "date"
+        },
+        {
+          "text": "FULLW"
+        }
+      ]
+    },
+    {
+      "step": "reader-stop",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Fixed times"
+        },
+        {
+          "text": "Headway patterns"
+        }
+      ]
+    }
+  ]
+}

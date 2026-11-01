@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-threads",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Thread A"
+        },
+        {
+          "text": "Thread B"
+        }
+      ]
+    },
+    {
+      "step": "reader-requirements",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Wrapper"
+        },
+        {
+          "text": "Needs from T"
+        },
+        {
+          "text": "Met?"
+        }
+      ]
+    },
+    {
+      "step": "reader-wrappers",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Type"
+        },
+        {
+          "text": "Send"
+        },
+        {
+          "text": "Sync"
+        }
+      ]
+    }
+  ]
+}

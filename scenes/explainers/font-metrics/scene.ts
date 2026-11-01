@@ -8,6 +8,7 @@ export default class FontMetrics extends Scene {
     id: 'font-metrics',
     title: 'Why must font measurement match the drawn face?',
     sources: ['https://github.com/googlefonts/ebgaramond'],
+    textContext: 'explicit' as const,
     lettering: { faces: { sans: 'eb-garamond' }, styles: ['bold', 'italic'] as const },
   };
 
@@ -22,18 +23,18 @@ export default class FontMetrics extends Scene {
     });
     const comparison = new Group();
     comparison.key = 'font-layout';
-    const wrong = new Text(SAMPLE, { font: 'mono', fontSize: 0.9 }).advance();
+    const wrong = this.text(SAMPLE, { font: 'mono', fontSize: 0.9 }).advance();
     for (const [i, name] of ['Measured as Mono', 'Measured as Garamond'].entries()) {
       const y = 1.4 - i * 3.0;
-      const word = new Text(SAMPLE, { fontSize: 0.9, color }).moveTo([-5.3, y], [-1, 0]);
+      const word = this.text(SAMPLE, { fontSize: 0.9, color }).moveTo([-5.3, y], [-1, 0]);
       const width = i === 0 ? wrong : word.advance();
       comparison.add(
         word,
         new Circle({ radius: 0.22, fill: s.emphasis, stroke: 'none' }).moveTo([-5.3 + width + 0.5, y]),
-        new Text(name, { fontSize: 0.7, color }).moveTo([-5.3, y + 1.1], [-1, 0]),
+        this.text(name, { fontSize: 0.7, color }).moveTo([-5.3, y + 1.1], [-1, 0]),
       );
     }
-    this.state.layout = { wrong, actual: new Text(SAMPLE, { fontSize: 0.9 }).advance() };
+    this.state.layout = { wrong, actual: this.text(SAMPLE, { fontSize: 0.9 }).advance() };
     s.reading(comparison);
     await s.enter(comparison);
     await this.step('advance', {
@@ -43,7 +44,7 @@ export default class FontMetrics extends Scene {
         '“Ink on paper” advances 5.88 units at size 1.2 in EB Garamond. The ruler includes internal spaces and ends after the final glyph’s advance. A following word needs an extra space. EB Garamond is requested explicitly; pen-and-ink sets the paper and colours.',
     });
     await s.clear();
-    const text = new Text(SAMPLE, { fontSize: 1.2, color }).moveTo([0, 0.8]);
+    const text = this.text(SAMPLE, { fontSize: 1.2, color }).moveTo([0, 0.8]);
     await s.enter(text);
     const start = text.anchorPoint()[0] - text.advance() / 2;
     await s.dimension([start, -0.4], [start + text.advance(), -0.4], `${text.advance().toFixed(2)} units`, {
@@ -64,15 +65,15 @@ export default class FontMetrics extends Scene {
     for (const [index, cut] of ['Regular', 'Bold', 'Italic'].entries()) {
       const word =
         cut === 'Italic'
-          ? new ItalicText(SAMPLE, { fontSize: 0.9, color })
-          : new Text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal' });
+          ? new ItalicText(SAMPLE, {fontSize: 0.9, color, shaping: this.textShaping})
+          : this.text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal' });
       const y = 2.0 - index * 2.0;
       word.moveTo([0, y]);
       advances[cut] = word.advance();
       rows.add(
-        new Text(cut, { fontSize: 0.7, color }).moveTo([-5.6, y]),
+        this.text(cut, { fontSize: 0.7, color }).moveTo([-5.6, y]),
         word,
-        new Text(word.advance().toFixed(2), { fontSize: 0.7, color }).moveTo([5.2, y]),
+        this.text(word.advance().toFixed(2), { fontSize: 0.7, color }).moveTo([5.2, y]),
       );
     }
     this.state.advances = advances;

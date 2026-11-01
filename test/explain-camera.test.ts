@@ -57,7 +57,7 @@ function fixture(): DiagramSnapshot {
     ],
   };
 }
-const bound = (S: typeof Scene) => bindSnapshots(S, { [diagramKey(spec)]: fixture() });
+const bound = (S: import('../src/index.ts').SceneClass) => bindSnapshots(S, { [diagramKey(spec)]: fixture() });
 /** Every point of every part, as plain numbers, to compare before and after. */
 const pointsOf = (mobs: Mobject[]) => mobs.flatMap((m) => m.family().flatMap((f) => f.pointArrays().map((a) => [...a])));
 const near = (a: readonly number[], b: readonly number[]) => a.every((v, i) => Math.abs(v - b[i]!) < 1e-6);

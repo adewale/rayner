@@ -192,11 +192,12 @@ export function view<M extends Mobject>(build: () => M, opts?: ViewOpts): View<M
  * A View of the scene's state: `render(scene.state)` at each sync. Keeps
  * `render`, so the picture can be checked against a trace (see viewMismatch).
  */
-export function view<M extends Mobject>(scene: Scene, render: (state: SceneState) => M, opts?: ViewOpts): View<M>;
-export function view<M extends Mobject>(a: (() => M) | Scene, b?: ((state: SceneState) => M) | ViewOpts, c?: ViewOpts): View<M> {
+export function view<S extends object, M extends Mobject>(scene: Scene<S>, render: (state: S) => M, opts?: ViewOpts): View<M>;
+export function view<S extends object, M extends Mobject>(a: (() => M) | Scene<S>, b?: ((state: S) => M) | ViewOpts, c?: ViewOpts): View<M> {
   if (typeof a === 'function') return new View(a, b as ViewOpts | undefined);
-  const render = b as (state: SceneState) => M;
-  return new View(() => render(a.state), c, render);
+  const render = b as (state: S) => M;
+  // Fidelity replay supplies a snapshot of this same scene's state.
+  return new View(() => render(a.state), c, state => render(state as S));
 }
 
 export interface StateViewOpts extends ViewOpts {
@@ -211,8 +212,8 @@ export interface StateViewOpts extends ViewOpts {
  * A StateReadout of `keys` from the scene's state, as a View: `key: value`
  * rows rebuilt at each sync, placed by their left edge (so the keys stay put).
  */
-export function stateView(scene: Scene, keys: readonly string[], { fontSize = 0.3, at = [0, 0], gap = 0.5, format = formatValue, place = 'left' }: StateViewOpts = {}): View<StateReadout> {
-  return view(scene, (s) => new StateReadout(keys.map((k) => [k, format(s[k])] as const), { fontSize, at, gap }), { place });
+export function stateView<S extends object>(scene: Scene<S>, keys: readonly (keyof S & string)[], { fontSize = 0.3, at = [0, 0], gap = 0.5, format = formatValue, place = 'left' }: StateViewOpts = {}): View<StateReadout> {
+  return view(scene, (s) => new StateReadout(keys.map((k) => [k, format(s[k])] as const), {fontSize, at, gap, shaping: scene.textShaping}), {place});
 }
 
 const formatValue = (v: unknown): string => (typeof v === 'string' ? v : JSON.stringify(v) ?? String(v));

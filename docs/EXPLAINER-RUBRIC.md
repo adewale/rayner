@@ -20,7 +20,7 @@ Score six dimensions from 0 to 4 (24 total). Apply the same anchors to each: **0
 **Checks from the player redesign** (unscored, but cite them in V and E):
 
 - *Crop test* (V). Open each step from a direct link at phone width and cover the caption. The resting picture should still say which step it is, what it is about and which values matter. A picture that needs its caption to be read at all loses V.
-- *Even steps* (E). `rayner check` reports `words` per case. A step in `caption.outliers` makes every other step show empty space, `caption.slackLines` lines of it at a median step. Record it as an E improvement: shorten the caption or split the step.
+- *Step length* (E). Captions use their natural height. Keep the reasoning needed to connect the visible evidence to its consequence; cut repetition and split a step when it introduces a new idea or decision.
 - *Roles* (E). The title states what the picture proves, the line says what to notice, the caption gives the reasoning. A line that reads as a second caption, or a caption that repeats the title, is duplication.
 - *Layout* (V, E). The step's change is the strongest mark; a mark means the same thing in every step; regions share edges; labels sit by their referents.
 

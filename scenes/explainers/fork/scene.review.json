@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-build",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Author"
+        },
+        {
+          "text": "scene"
+        },
+        {
+          "text": "Build"
+        },
+        {
+          "text": "diagrams"
+        },
+        {
+          "text": "Portable"
+        },
+        {
+          "text": "page"
+        }
+      ]
+    },
+    {
+      "step": "reader-cost",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Policy A"
+        },
+        {
+          "text": "Policy B"
+        },
+        {
+          "text": "case 1"
+        },
+        {
+          "text": "case 6"
+        }
+      ]
+    }
+  ]
+}

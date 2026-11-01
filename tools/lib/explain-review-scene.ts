@@ -14,13 +14,13 @@ import { reviewStoryVariant } from './explain-story-review.ts';
 import type { StoryClaim } from './explain-story-review.ts';
 
 /** Independent caption expectations belong beside the author's scene, outside its runtime. */
-export async function reviewClaims(project: Project, file?: string, builtIn: readonly StoryClaim[] = []): Promise<StoryClaim[]> {
+export async function reviewClaims(project: Project, file?: string): Promise<StoryClaim[]> {
   const path = file ? resolve(file) : project.file.replace(/\.[^.]+$/, '.review.json');
   const raw = await readFile(path, 'utf8').catch((error: NodeJS.ErrnoException) => {
     if (!file && error.code === 'ENOENT') return undefined;
     throw error;
   });
-  if (raw === undefined) return [...builtIn];
+  if (raw === undefined) return [];
   const value = JSON.parse(raw);
   const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
   assert.ok(object(value) && value.version === 1 && Array.isArray(value.claims), `${path}: expected { version: 1, claims: [...] }`);
@@ -40,7 +40,7 @@ export async function reviewClaims(project: Project, file?: string, builtIn: rea
     for (const variant of applicable)
       assert.ok(variant.trace.steps.some(s => s.step === claim.step), `${path}: ${claim.step} is missing from a selected case`);
   }
-  return [...builtIn, ...value.claims as StoryClaim[]];
+  return value.claims as StoryClaim[];
 }
 
 /** The same served-paint reviewer used by the catalog, for any installed author's scene. */
@@ -51,7 +51,7 @@ export async function reviewScene(project: Project, directory: string, claimsFil
   await rm(receiptFile, { force: true });
   const claims = await reviewClaims(project, claimsFile);
   const inputs = await buildInputs(ROOT);
-  const reviewer = await reviewCodeHash(ROOT);
+  const reviewer = await reviewCodeHash(ROOT, inputs.hash);
   await checkProject(project, join(directory, 'checks'));
   const temporary = await mkdtemp(join(tmpdir(), 'rayner-review-'));
   let server: Awaited<ReturnType<typeof serve>> | undefined;
@@ -83,8 +83,9 @@ export async function reviewScene(project: Project, directory: string, claimsFil
       await writeFile(join(directory, 'failure.json'), JSON.stringify({ error: String(error), errors, connections }, null, 2));
       throw error;
     }
-    assert.equal((await buildInputs(ROOT)).hash, inputs.hash, 'build inputs changed during review');
-    assert.equal(await reviewCodeHash(ROOT), reviewer, 'review inputs changed during review');
+    const after = await buildInputs(ROOT);
+    assert.equal(after.hash, inputs.hash, 'build inputs changed during review');
+    assert.equal(await reviewCodeHash(ROOT, after.hash), reviewer, 'review inputs changed during review');
     assert.equal((await loadScene(project.file)).sourceHash, project.sourceHash, 'scene changed during review');
     assert.deepEqual(await reviewClaims(project, claimsFile), claims, 'caption claims changed during review');
     const retained = resolve(artifact ?? join(directory, 'scene.html'));

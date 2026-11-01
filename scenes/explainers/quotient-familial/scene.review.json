@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-quotient",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Revenu"
+        },
+        {
+          "text": "÷ parts"
+        },
+        {
+          "text": "Barème"
+        },
+        {
+          "text": "× parts"
+        }
+      ]
+    },
+    {
+      "step": "reader-cap",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Calcul brut"
+        },
+        {
+          "text": "Après plafond"
+        },
+        {
+          "text": "Après décote"
+        }
+      ]
+    }
+  ]
+}

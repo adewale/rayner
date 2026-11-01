@@ -4,11 +4,11 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const rootFiles = ['loader.js', 'index.html', 'embed-lab.html', 'catalog.json', 'evidence.json'];
+const rootFiles = ['loader.js', 'index.html', 'catalog.json', 'evidence.json'];
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 
-async function outputNames(dir: string, ids: readonly string[]): Promise<string[]> {
-  const paths = [...rootFiles];
+async function outputNames(dir: string, ids: readonly string[], collection: boolean): Promise<string[]> {
+  const paths = [...rootFiles, ...(collection ? ['embed-lab.html'] : [])];
   for (const id of ids) {
     if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Invalid explainer id: ${id}`);
     paths.push(`${id}.html`, `${id}.html.headers.json`, `${id}.png`, `${id}/inputs.json`, `${id}/describe.json`, `${id}/steps.json`, `${id}/embed.json`);
@@ -22,20 +22,20 @@ async function outputNames(dir: string, ids: readonly string[]): Promise<string[
   return paths.sort();
 }
 
-export async function builtOutputHashes(dir: string, ids: readonly string[]): Promise<Record<string, string>> {
+export async function builtOutputHashes(dir: string, ids: readonly string[], collection = true): Promise<Record<string, string>> {
   const pins: Record<string, string> = {};
-  for (const path of await outputNames(dir, ids)) pins[path] = digest(await readFile(join(dir, path)));
+  for (const path of await outputNames(dir, ids, collection)) pins[path] = digest(await readFile(join(dir, path)));
   return pins;
 }
 
-export async function checkBuiltOutput(dir: string, ids: readonly string[]): Promise<void> {
+export async function checkBuiltOutput(dir: string, ids: readonly string[], { collection = true, subset = false } = {}): Promise<void> {
   const file = join(dir, 'output-hashes.json');
   const expected = JSON.parse(await readFile(file, 'utf8').catch(error => {
     if (error.code === 'ENOENT') throw new Error(`${file} is missing: run npm run demos:build`);
     throw error;
   })) as Record<string, string>;
-  const names = await outputNames(dir, ids);
-  if (Object.keys(expected).sort().join('\n') !== names.join('\n')) throw new Error('Built output manifest differs from catalog');
+  const names = await outputNames(dir, ids, collection);
+  if (!subset && Object.keys(expected).sort().join('\n') !== names.join('\n')) throw new Error('Built output manifest differs from catalog');
   for (const path of names) {
     if (digest(await readFile(join(dir, path))) !== expected[path]) throw new Error(`Built output changed: ${path}; run npm run demos:build`);
   }

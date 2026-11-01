@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-row",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Grey: header  ·  Pale: padding  ·  Orange: data"
+        }
+      ]
+    },
+    {
+      "step": "reader-page",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Type"
+        },
+        {
+          "text": "Rows/page"
+        },
+        {
+          "text": "10,000 rows"
+        }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "importer": "11d0423eb190709f",
+  "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "b04c84c9596c69ecd4f45f93c2954d470b088e7abbf7ade5216ba08d62805958",
+  "sourceHash": "5c2c701df9fa644a72031d80a4627b8ab72aeed38cdc4ee61269be5a5dc88704",
   "diagrams": {
     "[\"graph LR\\nHEAD([HEAD])\\nMain([main])\\nC2[\\\"commit<br/>7edf38a\\\"]\\nC1[\\\"commit<br/>161f392\\\"]\\nT2[\\\"tree 88e3870<br/>hello.txt, world.txt\\\"]\\nT1[\\\"tree aaa96ce<br/>hello.txt\\\"]\\nNew[\\\"blob<br/>cc628cc\\\"]\\nHello[\\\"blob<br/>ce01362\\\"]\\nC1 --> T1\\nT1 --> Hello\\nC2 --> C1\\nC2 --> T2\\nT2 --> Hello\\nT2 --> New\\nHEAD --> Main\\nMain --> C2\",\"catppuccin-mocha\"]": "4d322ce3cf668ddf.json",
     "[\"graph LR\\nHEAD([HEAD])\\nMain([main])\\nC2[\\\"commit<br/>dfef583\\\"]\\nC1[\\\"commit<br/>161f392\\\"]\\nT2[\\\"tree a3424b7<br/>hello.txt\\\"]\\nT1[\\\"tree aaa96ce<br/>hello.txt\\\"]\\nNew[\\\"blob<br/>13ab7f7\\\"]\\nHello[\\\"blob<br/>ce01362\\\"]\\nC1 --> T1\\nT1 --> Hello\\nC2 --> C1\\nC2 --> T2\\nT2 --> New\\nHEAD --> Main\\nMain --> C2\",\"catppuccin-mocha\"]": "a6ba4cf6955bf814.json",

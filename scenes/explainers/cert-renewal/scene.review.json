@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-due",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Fixed: 30 days before"
+        },
+        {
+          "text": "Default: lifetime fraction"
+        }
+      ]
+    },
+    {
+      "step": "reader-retries",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Time before renewal is due"
+        },
+        {
+          "text": "Time left to retry"
+        }
+      ]
+    }
+  ]
+}

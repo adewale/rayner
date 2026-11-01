@@ -1,3 +1,4 @@
+import type {TextShaping} from '../src/text-context.ts';
 import {
   Group,
   VMobject,
@@ -253,7 +254,7 @@ class ImportedLabel extends Group implements LabelInfo {
   emRatio: number;
   private basis: Float32Array = new Float32Array();
 
-  constructor(paths: VMobject[], shape: SnapshotShape) {
+  constructor(paths: VMobject[], shape: SnapshotShape, shaping?: TextShaping) {
     super(...paths);
     this.text = shape.text!;
     this.fontSize = shape.fontSize!;
@@ -261,7 +262,7 @@ class ImportedLabel extends Group implements LabelInfo {
     const run = shape.textRun;
     let [a, b, c, d] = [this.fontSize, 0, 0, this.fontSize];
     if (run) {
-      const advance = !run.natural && run.width != null ? new Text(run.text, { fontSize: run.size }).advance() : 0;
+      const advance = !run.natural && run.width != null ? new Text(run.text, {fontSize: run.size, shaping}).advance() : 0;
       const width = advance ? run.width! / advance : 1;
       // outlineText maps SVG's downward y axis into the scene's upward y axis.
       a = run.matrix[0]! * run.size * width / SVG_PX_PER_UNIT;
@@ -454,13 +455,13 @@ export class Diagram {
       mob.key = info.id;
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
       for (const shape of info.shapes) {
-        const paths = shape.textRun ? outlineText(shape.textRun, shape.style) : [new VMobject(shape.style)];
+        const paths = shape.textRun ? outlineText(shape.textRun, shape.style, scene.textShaping) : [new VMobject(shape.style)];
         if (!shape.textRun) {
           paths[0]!.subpaths = shape.subpaths.map((a) => new Float32Array(a));
           paths[0]!.closed = [...shape.closed];
         }
         // A text run is one label of many outlines: it moves and checks as a unit.
-        const drawn = shape.text != null ? new ImportedLabel(paths, shape) : paths[0]!;
+        const drawn = shape.text != null ? new ImportedLabel(paths, shape, scene.textShaping) : paths[0]!;
         if (shape.textRun) drawn.mergeLeaves = true;
         mob.add(drawn);
       }
@@ -930,7 +931,7 @@ export class Diagram {
     { side = 'above', color = this.accent, size = 0.22 }: { side?: NoteSide; color?: string; size?: number } = {},
   ): Promise<Group> {
     const anchor = this.get(id);
-    const label = new Text(text, { fontSize: size, color });
+    const label = this.scene.text(text, {fontSize: size, color});
     const bg = new Rectangle({
       width: label.width() + size * 1.4,
       height: size * 1.85,

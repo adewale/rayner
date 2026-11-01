@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "choice",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-doors"
+        },
+        {
+          "key": "monty-rule"
+        },
+        {
+          "key": "monty-result"
+        }
+      ]
+    },
+    {
+      "step": "host",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-doors"
+        },
+        {
+          "key": "monty-rule"
+        },
+        {
+          "key": "monty-result"
+        }
+      ]
+    },
+    {
+      "step": "reveal",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-doors"
+        },
+        {
+          "key": "monty-rule"
+        },
+        {
+          "key": "monty-result"
+        }
+      ]
+    },
+    {
+      "step": "worlds",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-worlds"
+        }
+      ]
+    },
+    {
+      "step": "odds",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-stay"
+        },
+        {
+          "key": "monty-switch"
+        }
+      ]
+    },
+    {
+      "step": "many",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-removed"
+        },
+        {
+          "key": "monty-stay"
+        },
+        {
+          "key": "monty-switch"
+        }
+      ]
+    },
+    {
+      "step": "rules",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-rules"
+        }
+      ]
+    },
+    {
+      "step": "predict",
+      "opening": true,
+      "targets": [
+        {
+          "key": "monty-doors"
+        },
+        {
+          "key": "monty-result"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "question",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    },
+    {
+      "step": "insert",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    },
+    {
+      "step": "shared",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    },
+    {
+      "step": "absent",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    },
+    {
+      "step": "present",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    },
+    {
+      "step": "false-positive",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    },
+    {
+      "step": "pipeline",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-pipeline"
+        },
+        {
+          "key": "bloom-checks"
+        }
+      ]
+    },
+    {
+      "step": "hashes",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-hash-mapping"
+        }
+      ]
+    },
+    {
+      "step": "predict",
+      "opening": true,
+      "targets": [
+        {
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-answer"
+        }
+      ]
+    }
+  ]
+}

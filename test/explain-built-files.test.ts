@@ -24,6 +24,13 @@ test('site export rejects tampered built HTML, pictures and a missing output pin
     }
     await writeFile(join(dir, 'output-hashes.json'), JSON.stringify({ ...pinned, 'old.html': '0'.repeat(64) }));
     await assert.rejects(checkBuiltOutput(dir, ['cache']), /[Bb]uilt output manifest differs/);
+    await checkBuiltOutput(dir, ['cache'], {collection: false, subset: true});
+    await writeFile(join(dir, 'loader.js'), 'damaged common loader');
+    await assert.rejects(checkBuiltOutput(dir, ['cache'], {collection: false, subset: true}), /Built output changed: loader/);
+    await writeFile(join(dir, 'loader.js'), 'loader.js');
+    const {['cache.html']: omitted, ...missing} = pinned;
+    await writeFile(join(dir, 'output-hashes.json'), JSON.stringify(missing));
+    await assert.rejects(checkBuiltOutput(dir, ['cache'], {collection: false, subset: true}), /Built output changed: cache.html/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 

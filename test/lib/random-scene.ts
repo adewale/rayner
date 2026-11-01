@@ -87,7 +87,7 @@ export function place<M extends Mobject>(r: Rng, m: M): M {
   return m;
 }
 
-function randomAnimation(r: Rng, pool: Mobject[]): Animation | AnimateBuilder<Mobject> {
+function randomAnimation(r: Rng, pool: Mobject[]): import('../../src/index.ts').ScheduledAnimation | AnimateBuilder<Mobject> {
   const m = r.pick(pool);
   switch (r.int(0, 9)) {
     case 0: return new FadeIn(m, { shift: r.bool() ? [r(-1, 1), r(-1, 1)] : null, scale: r(0.5, 1.5) });

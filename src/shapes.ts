@@ -1,3 +1,4 @@
+import type {TextShaping} from './text-context.ts';
 // Shapes: VMobjects built from cubic Béziers (Rectangle, Circle, Arc, Line, ...),
 // and small groups with named parts (Arrow, CurvedArrow, Labeled).
 import { VMobject } from './vmobject.ts';
@@ -351,7 +352,8 @@ export class Brace extends VMobject {
   }
 }
 
-export interface BraceLabelOpts { fontSize?: number; color?: string; buff?: number; labelBuff?: number }
+export interface BraceLabelOpts {
+  shaping?: TextShaping; fontSize?: number; color?: string; buff?: number; labelBuff?: number }
 
 /**
  * A brace and a text label beyond its tip: "this span is n bytes". Children:
@@ -359,10 +361,10 @@ export interface BraceLabelOpts { fontSize?: number; color?: string; buff?: numb
  * `buff` is the brace's gap to the box, `labelBuff` the label's to the tip.
  */
 export class BraceLabel extends Group {
-  constructor(target: Mobject | Box, text: string, direction: Readonly<Vec> = V.DOWN, { fontSize = 0.3, color = WHITE, buff = 0.1, labelBuff = 0.15 }: BraceLabelOpts = {}) {
+  constructor(target: Mobject | Box, text: string, direction: Readonly<Vec> = V.DOWN, { fontSize = 0.3, color = WHITE, buff = 0.1, labelBuff = 0.15, shaping }: BraceLabelOpts = {}) {
     super();
     const brace = new Brace(target, direction, { buff, stroke: color });
-    const label = new Text(text, { fontSize, color });
+    const label = new Text(text, {fontSize, color, shaping});
     brace.putAtTip(label, labelBuff);
     this.add(brace, label);
   }

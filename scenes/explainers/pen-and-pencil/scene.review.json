@@ -2,10 +2,42 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-separate",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Fixed route + simulated stroke"
+        }
+      ]
+    },
+    {
+      "step": "reader-labels",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Midnight"
+        },
+        {
+          "text": "Reserved for the label"
+        }
+      ]
+    },
+    {
       "step": "marks",
       "targets": [
-        { "key": "construction:marks", "paint": "stroke" },
-        { "key": "construction:tally" }
+        {
+          "key": "construction:marks",
+          "paint": "stroke"
+        },
+        {
+          "key": "construction:tally"
+        }
       ]
     }
   ]

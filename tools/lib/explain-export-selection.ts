@@ -1,40 +1,17 @@
-// The complete build remains checked; --only selects the public artifacts, not the source collection.
-export interface ExportTotals {
-  explainers: number;
-  cases: number;
-  diagrams: number;
-  styles: number;
-  families: number;
+import type {Catalog as ExportCatalog, CatalogEvidence as ExportEvidence} from './explain-artifacts.ts';
+export type {CatalogTotals as ExportTotals, Catalog as ExportCatalog, CatalogEvidence as ExportEvidence} from './explain-artifacts.ts';
+// Builds and exports select from the same declared ids; no unrelated page is required.
+export function selectedIds(only: string | undefined, known: readonly string[]): string[] {
+  const requested = only === undefined ? [...known] : only.split(',');
+  if (!requested.length || requested.some(id => !id)) throw new Error('--only cannot be empty');
+  const seen = new Set<string>();
+  for (const id of requested) {
+    if (seen.has(id)) throw new Error(`--only has duplicate explainer: ${id}`);
+    if (!known.includes(id)) throw new Error(`--only has unknown explainer: ${id}`);
+    seen.add(id);
+  }
+  return requested;
 }
-export interface ExportCatalog {
-  version: number;
-  product: {
-    entry: { id: string; step?: string; settings?: Record<string, string>; label?: string };
-    [key: string]: unknown;
-  };
-  totals: ExportTotals;
-  scenes: {
-    id: string;
-    cases: number;
-    title?: string;
-    entry?: { step: string; settings: Record<string, string> };
-    [key: string]: unknown;
-  }[];
-}
-export interface ExportEvidence {
-  version: number;
-  checked: boolean;
-  totals: ExportTotals;
-  scenes: {
-    id: string;
-    cases: Record<string, string>[];
-    diagrams: number;
-    styles: string[];
-    families: string[];
-    [key: string]: unknown;
-  }[];
-}
-
 export function selectExport(
   only: string | undefined,
   catalog: ExportCatalog,
@@ -53,14 +30,8 @@ export function selectExport(
     JSON.stringify(catalog.totals) !== JSON.stringify(evidence.totals)
   )
     throw new Error('Catalog and checked evidence mismatch');
-  const requested = only === undefined ? catalog.scenes.map((s) => s.id) : only.split(',');
-  if (!requested.length || requested.some((id) => !id)) throw new Error('--only cannot be empty');
-  const seen = new Set<string>();
-  for (const id of requested) {
-    if (seen.has(id)) throw new Error(`--only has duplicate explainer: ${id}`);
-    if (!catalog.scenes.some((s) => s.id === id)) throw new Error(`--only has unknown explainer: ${id}`);
-    seen.add(id);
-  }
+  const requested = selectedIds(only, catalog.scenes.map(s => s.id));
+  const seen = new Set(requested);
   const entryId = entry ?? (seen.has(catalog.product.entry.id) ? catalog.product.entry.id : requested[0]!);
   if (!seen.has(entryId)) throw new Error(`--entry must name a selected explainer: ${entryId}`);
   const scenes = catalog.scenes.filter((s) => seen.has(s.id));

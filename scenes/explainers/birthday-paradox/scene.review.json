@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "question",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-people"
+        }
+      ]
+    },
+    {
+      "step": "pairs",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-growth"
+        }
+      ]
+    },
+    {
+      "step": "count",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-n"
+        },
+        {
+          "key": "birthday-pairs"
+        }
+      ]
+    },
+    {
+      "step": "avoid",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-factors"
+        }
+      ]
+    },
+    {
+      "step": "chance",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-no"
+        },
+        {
+          "key": "birthday-yes"
+        }
+      ]
+    },
+    {
+      "step": "sample",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-trials"
+        },
+        {
+          "key": "birthday-observed"
+        },
+        {
+          "key": "birthday-theory"
+        }
+      ]
+    },
+    {
+      "step": "questions",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-questions"
+        }
+      ]
+    },
+    {
+      "step": "occupied",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-days"
+        }
+      ],
+      "settings": {
+        "question": "any"
+      }
+    },
+    {
+      "step": "occupied",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-days"
+        }
+      ],
+      "settings": {
+        "question": "one"
+      }
+    }
+  ]
+}

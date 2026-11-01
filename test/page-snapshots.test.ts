@@ -5,18 +5,13 @@ import {decodeSnapshotPayload} from '../app/embed-snapshot-codec.ts';
 import {inflateSnapshots} from '../app/embed-snapshots.ts';
 import {gzipSync} from 'node:zlib';
 import type {SnapshotStore} from '../integrations/agentic-mermaid/snapshot.ts';
-import {RENDERER} from '../integrations/agentic-mermaid/snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
 import {collectProject} from '../tools/lib/explain-project.ts';
 import {bindSnapshots} from '../explain/index.ts';
 import {toSvgString} from '../src/index.ts';
 import type {SceneClass} from '../src/index.ts';
 
-const fixture = (points: number[]): SnapshotStore => ({
-  diagram: {version: 1, renderer: RENDERER, spec: {source: 'graph LR\nA[Example]'}, family: 'flowchart', width: 123.4567890123, height: 100,
-    palette: {paper: '#ffffff', ink: '#000000', accent: '#ff0000', muted: '#808080'},
-    parts: [{id: 'A', role: 'node', kind: 'node', shapes: [{subpaths: [points], closed: [false], style: {fill: 'none', stroke: '#000000', strokeWidth: 0.1234567890123}}]}], findings: {ok: true, warnings: []}},
-});
+import { fixture } from './lib/page-snapshot-fixture.ts';
 
 test('page path compaction preserves exact float32 bytes through JSON, including signed underflow', () => {
   const check = (points: number[]) => {
@@ -104,32 +99,6 @@ test('packed transport rejects invalid references and malformed dictionary entri
   const sparse = packPageSnapshots(fixture([0, 1]));
   sparse.store.diagram!.parts[0]!.shapes[0]!.subpaths = Array(1);
   assert.throws(() => decodeSnapshotPayload(sparse), /Invalid packed diagram snapshots/);
-});
-
-test('Chromium expands both legacy gzip and packed gzip with exact values and independent paths', {skip: process.env.EXPLAIN_BROWSER ? false : 'set EXPLAIN_BROWSER=1 for the native browser gzip boundary'}, async () => {
-  const {build} = await import('esbuild');
-  const {launch} = await import('../tools/lib/browser.ts');
-  const bundle = await build({entryPoints: ['app/embed-snapshots.ts'], bundle: true, write: false, format: 'iife', globalName: 'SnapshotCodec', platform: 'browser'});
-  const long = Array.from({length: 20}, (_, i) => i / 13), store = fixture(long);
-  store.diagram!.parts[0]!.shapes[0]!.subpaths.push([...long]);
-  const expected = JSON.stringify(store);
-  const browser = await launch();
-  try {
-    const page = await browser.newPage();
-    await page.addScriptTag({content: bundle.outputFiles[0]!.text});
-    for (const payload of [store, packPageSnapshots(store)]) {
-      const actual = await page.evaluate(async encoded => {
-        const codec = (globalThis as unknown as {SnapshotCodec: {inflateSnapshots(input: string): Promise<SnapshotStore>}}).SnapshotCodec;
-        const restored = await codec.inflateSnapshots(encoded);
-        const paths = restored.diagram!.parts[0]!.shapes[0]!.subpaths;
-        return {json: JSON.stringify(restored), separate: paths[0] !== paths[1]};
-      }, gzipSync(JSON.stringify(payload)).toString('base64'));
-      assert.equal(actual.json, expected);
-      assert.equal(actual.separate, true);
-    }
-  } finally {
-    await browser.close();
-  }
 });
 
 test('compacted real flowchart, timeline and XY snapshots render byte-identical resting SVGs', async () => {

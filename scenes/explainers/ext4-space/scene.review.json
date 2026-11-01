@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-allocation",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        }
+      ]
+    },
+    {
+      "step": "reader-reserve",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Users at 5% reserve"
+        }
+      ]
+    }
+  ]
+}

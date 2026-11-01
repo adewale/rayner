@@ -1,8 +1,8 @@
 import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform } from '../src/index.ts';
-import type { Scene, Vec, Box } from '../src/index.ts';
+import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
-import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasises } from './look.ts';
-import type { Region } from './look.ts';
+import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource } from './look.ts';
+import type { Region, Emphasis } from './look.ts';
 import type { Seen } from './trace.ts';
 import { wordsOf } from './words.ts';
 import { layoutDirection } from './layout-direction.ts';
@@ -134,13 +134,13 @@ export class Card extends Group {
     for (const [label, ...vs] of rows)
       if (vs.length !== 1 && vs.length !== n)
         throw new Error(n ? `Card row ${label} has ${vs.length} values for ${n} columns: give one per column, or one to span them` : `Card row ${label} has ${vs.length} values; pass columns to show more than one`);
-    const valueText = (v: unknown) => new Text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor });
-    const labels = rows.map(([l]) => new Text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor }));
+    const valueText = (v: unknown) => this.scene.text(String(v), { fontSize: size * 1.04, font: 'mono', color: colors.ink, anchor: valueAnchor });
+    const labels = rows.map(([l]) => this.scene.text(l, { fontSize: size, color: soft(colors), anchor: labelAnchor }));
     const cells = rows.map(([, ...vs]) => vs.map(valueText));
     const spans = (i: number) => cells[i]!.length === 1 && n !== 1;
-    const headings = this.columns.map((c) => new Text(c, { fontSize: size, color: colors.accent, weight: 'bold', anchor: valueAnchor }));
+    const headings = this.columns.map((c) => this.scene.text(c, { fontSize: size, color: colors.accent, weight: 'bold', anchor: valueAnchor }));
     const titleText = options.title
-      ? new Text(options.title, { fontSize: size * 1.05, color: colors.accent, weight: 'bold', anchor: labelAnchor })
+      ? this.scene.text(options.title, { fontSize: size * 1.05, color: colors.accent, weight: 'bold', anchor: labelAnchor })
       : null;
     const gap = size * COLUMN_GAP;
     // A column is as wide as its heading or its widest value (at least a glyph), plus the gap before it.
@@ -163,7 +163,6 @@ export class Card extends Group {
     this.panel = panelRect(colors, width, height);
     this.bar = tint(emphasis(colors), width - 0.12, pitch * 0.92).setOpacity(0);
     this.add(this.panel, this.bar);
-    emphasises(scene, () => (this.lit ? [[this.bar, `row ${this.lit.label}`]] : []));
     const left = edge * (-width / 2 + PAD);
     this.valueEdge = edge * (width / 2 - PAD);
     let y = height / 2 - PAD - size * 0.5;
@@ -247,6 +246,24 @@ export class Card extends Group {
     place(this, at, height, options.align);
   }
 
+  [emphasisSource](): Emphasis { return this.lit ? [[this.bar, `row ${this.lit.label}`]] : []; }
+
+  override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
+    const from = source as Card;
+    const text = (m: Text) => (copies.get(m) ?? m) as Text;
+    const cells = new Map(from.rows.map(row => [row.cells, row.cells.map(text)]));
+    Object.assign(this, {
+      panel: copies.get(from.panel) ?? from.panel,
+      bar: copies.get(from.bar) ?? from.bar,
+      values: new Map([...from.values].map(([key, value]) => [key, text(value)])),
+      labels: new Map([...from.labels].map(([key, value]) => [key, text(value)])),
+      cells: new Map([...from.cells].map(([key, row]) => [key, cells.get(row) ?? row.map(text)])),
+    });
+    this.rows = from.rows.map(row => ({...row, cells: cells.get(row.cells)!}));
+    this.columnRoom = [...from.columnRoom];
+    this.panelAxes = {...from.panelAxes};
+  }
+
   /** The rows as a reader sees them, the lit one with its word. */
   describe(): Seen {
     const w = wordsOf(this.scene);
@@ -317,7 +334,7 @@ export class Card extends Group {
     // Recover the card's affine basis from its nondegenerate panel.
     // A replacement therefore follows moved, scaled or rotated panels too.
     const { ex, ey } = this.basis();
-    const next = new Text(String(value), {
+    const next = this.scene.text(String(value), {
       fontSize: this.fontSize * 1.04,
       font: 'mono',
       color: this.colors.ink,
@@ -402,7 +419,7 @@ export class CodeBlock extends Group {
     this.colors = colors;
     const fontSize = (this.fontSize = options.fontSize ?? 0.25);
     if (!lines.length) throw new Error('A code block needs at least one line');
-    this.code = new Code(lines, { fontSize, color: colors.ink });
+    this.code = new Code(lines, {fontSize, color: colors.ink, shaping: scene.textShaping});
     const at = typeof options.at === 'string' ? regionBox(options.at) : (options.at ?? [0, 0]);
     const box = at.length === 4 ? (at as Box) : null;
     this.region = box ? [...box] : regionBox('full');
@@ -418,7 +435,7 @@ export class CodeBlock extends Group {
     }
     const pad = 0.3;
     const head = options.title
-      ? new Text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start' })
+      ? this.scene.text(options.title, { fontSize: 0.2, color: soft(colors), anchor: 'start' })
       : null;
     const width = this.code.width() + 2 * pad + 0.1,
       height = this.code.height() + 2 * pad + (head ? 0.42 : 0);
@@ -430,10 +447,6 @@ export class CodeBlock extends Group {
     this.head = head;
     this.bar = tint(emphasis(colors), width - 0.14, 0.1).setOpacity(0);
     this.add(this.panel);
-    emphasises(scene, () => [
-      ...(this.focused ? [[this.bar, `lines ${this.focused.lines.join('-')}`] as const] : []),
-      ...this.marks.map((m) => [m.mob, `${m.kind} ${m.line}`] as const),
-    ]);
     if (options.diff)
       lines.forEach((line, i) => {
         if (!/^[+-] /.test(line)) return;
@@ -444,6 +457,25 @@ export class CodeBlock extends Group {
     this.add(this.bar, this.code);
     if (head) this.add(head);
     place(this, at, height, options.align);
+  }
+
+  [emphasisSource](): Emphasis {
+    return [
+      ...(this.focused ? [[this.bar, `lines ${this.focused.lines.join('-')}`] as const] : []),
+      ...this.marks.map((m) => [m.mob, `${m.kind} ${m.line}`] as const),
+    ];
+  }
+
+  override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
+    const from = source as CodeBlock;
+    Object.assign(this, {
+      code: copies.get(from.code) ?? from.code,
+      panel: copies.get(from.panel) ?? from.panel,
+      bar: copies.get(from.bar) ?? from.bar,
+    });
+    this.head = from.head ? (copies.get(from.head) ?? from.head) as Text : null;
+    this.marks = from.marks.map(mark => ({...mark, mob: (copies.get(mark.mob) ?? mark.mob) as Rectangle}));
+    this.region = [...from.region];
   }
 
   /** The lines as a reader sees them, with the focused, added and removed ones named. */
@@ -517,7 +549,7 @@ export class CodeBlock extends Group {
   async morph(next: readonly string[], { runTime = 0.9, markAdded = false } = {}): Promise<void> {
     if (!next.length) throw new Error('A code block needs at least one line');
     const old = this.code.lines;
-    const target = new Code(next, { fontSize: this.fontSize, color: this.colors.ink });
+    const target = new Code(next, {fontSize: this.fontSize, color: this.colors.ink, shaping: this.scene.textShaping});
     // Pair lines as Code shows them (tabs expanded), the form the old lines carry.
     const keep = matchLines(
       old.map((l) => l.text),

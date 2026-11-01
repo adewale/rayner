@@ -2,6 +2,24 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-electrons",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        }
+      ]
+    },
+    {
+      "step": "reader-filling",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        }
+      ]
+    },
+    {
       "step": "column",
       "opening": true,
       "targets": [

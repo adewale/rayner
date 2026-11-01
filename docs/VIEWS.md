@@ -52,7 +52,7 @@ middle of a sync (`test/view.test.ts`).
 
 ```ts
 view(build: () => M, opts?): View<M>                                    // build reads whatever it closes over
-view(scene, render: (state: SceneState) => M, opts?): View<M>           // render(scene.state); kept for fidelity checks
+view(scene: Scene<S>, render: (state: S) => M, opts?): View<M>           // render(scene.state); kept for fidelity checks
 stateView(scene, keys, { fontSize, at, gap, format, place }?): View<StateReadout>
 
 view.current            // the picture on screen (the View's one child)
@@ -239,3 +239,10 @@ its demo receipts would need regenerating when it does.
   values), which suit a dark stage such as the token bucket's github-dark. A scene on
   another palette builds `view(this, (st) => new StateReadout(...))` and recolours the
   rows in `render`, as the ring buffer does for dusk.
+
+Copying a composite preserves references to its own copied children. Custom
+`Mobject` subclasses that keep named child references implement
+`rebindReferences(source, copies)`; it runs after copying and restoring the tree.
+Use the supplied map for child references and retain external services such as
+the owning scene. `Card`, `CodeBlock` and `Code` use this contract. Updating or
+marking a copied panel leaves the original panel unchanged.

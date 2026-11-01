@@ -23,6 +23,7 @@ import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
 import { replaceHeaderBlocks } from './lib/site-headers.ts';
 import { buildInputs } from './lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
+import {readArtifact, catalog as parseCatalog, catalogEvidence} from './lib/explain-artifacts.ts';
 import { selectExport } from './lib/explain-export-selection.ts';
 import type { ExportCatalog, ExportEvidence } from './lib/explain-export-selection.ts';
 import { cardPng } from './lib/explain-shots.ts';
@@ -37,12 +38,13 @@ const { values, positionals } = parseArgs({
     origin: { type: 'string' },
     only: { type: 'string' },
     entry: { type: 'string' },
+    from: { type: 'string' },
   },
 });
 const root = positionals[0];
 if (!root)
   throw new Error(
-    'usage: npm run site:export -- <site-root> [--path /projects/rayner] [--origin https://example.org] [--only id,id] [--entry id]',
+    'usage: npm run site:export -- <site-root> [--path /projects/rayner] [--origin https://example.org] [--only id,id] [--entry id] [--from built-directory]',
   );
 const origin = values.origin;
 // Link previews need absolute https URLs: crawlers fetch the pictures from the public site.
@@ -52,7 +54,8 @@ const path = values.path.replace(/\/$/, '');
 if (!/^\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+$/.test(path))
   throw new Error('--path must be an absolute URL path without dot segments');
 const destination = resolve(root);
-const built = join(ROOT, 'out/explainers');
+const built = resolve(values.from ?? join(ROOT, 'out/explainers'));
+const inputs = await buildInputs(ROOT);
 const exists = (file: string) =>
   access(file).then(
     () => true,
@@ -60,8 +63,8 @@ const exists = (file: string) =>
   );
 const selected = selectExport(
   values.only,
-  JSON.parse(await readFile(join(built, 'catalog.json'), 'utf8')) as ExportCatalog,
-  JSON.parse(await readFile(join(built, 'evidence.json'), 'utf8')) as ExportEvidence,
+  await readArtifact(join(built, 'catalog.json'), parseCatalog),
+  await readArtifact(join(built, 'evidence.json'), catalogEvidence),
   values.entry,
 );
 const items = EXPLAINERS.filter((item) => selected.ids.includes(item.id));
@@ -69,11 +72,13 @@ if (items.length !== selected.ids.length || items.some((item, i) => item.id !== 
   throw new Error('Built catalog and checkout explainers mismatch');
 
 // Refuse an explainer whose scene, scene folder or engine changed since demos:build built it;
-// check them all before copying any.
-for (const { id } of EXPLAINERS) await checkBuilt(join(built, id), join(ROOT, 'scenes/explainers', id));
+// check selected pages before staging and again before replacement.
+const collection = items.length === EXPLAINERS.length;
+for (const { id } of items) await checkBuilt(join(built, id), join(ROOT, 'scenes/explainers', id), inputs.hash);
 await checkBuiltOutput(
   built,
-  EXPLAINERS.map((e) => e.id),
+  items.map((e) => e.id),
+  { collection, subset: true },
 );
 
 // Validate an isolated copy before changing any of the host's files.
@@ -125,12 +130,12 @@ try {
     blocks.push(`${path}/${id}\n${lines}\n\n${path}/${id}.html\n${lines}`);
   }
   await copyFile(join(built, 'loader.js'), join(target, 'loader.js'));
-  if (values.only === undefined)
+  if (collection)
     await copyFile(join(built, 'embed-lab.html'), join(target, 'embed-lab.html'));
   const css = await readFile(join(ROOT, 'app/embed.css'), 'utf8');
   await writeFile(
     join(target, 'index.html'),
-    galleryPage(selected.catalog, css.slice(0, css.indexOf('\nbody{')), values.only === undefined),
+    galleryPage(selected.catalog, css.slice(0, css.indexOf('\nbody{')), collection),
   );
   await writeFile(join(target, 'evidence.json'), JSON.stringify(selected.evidence, null, 2) + '\n');
   await writeFile(join(target, 'catalog.json'), JSON.stringify(selected.catalog, null, 2) + '\n');
@@ -176,13 +181,17 @@ try {
     JSON.stringify(
       {
         version: 1,
-        build: await buildInputs(ROOT),
+        build: inputs,
         files: manifestFiles.sort((a, b) => a.path.localeCompare(b.path)),
       },
       null,
       2,
     ) + '\n',
   );
+
+  if ((await buildInputs(ROOT)).hash !== inputs.hash) throw new Error('Build inputs changed during export');
+  for (const { id } of items) await checkBuilt(join(built, id), join(ROOT, 'scenes/explainers', id), inputs.hash);
+  await checkBuiltOutput(built, items.map(item => item.id), {collection, subset: true});
 
   // Replace the dedicated subtree, then its host-level sidecars. Roll back on an I/O failure.
   await mkdir(dirname(join(destination, path)), { recursive: true });
