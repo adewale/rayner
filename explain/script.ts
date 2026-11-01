@@ -9,7 +9,7 @@ export interface ScriptMeta {
   answer?: unknown;
   checks?: unknown;
 }
-/** The most check questions a scene may ask: more is a quiz, not a check. */
+/** The most check questions a scene may ask: more is a test, not a check. */
 export const CHECKS_MAX = 6;
 /** The teaching steps an answer must arrive within. */
 export const ANSWER_BY_STEP = 2;
