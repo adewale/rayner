@@ -82,9 +82,10 @@ export function playerCss(cues?: Cues, palette?: Palette): string {
   const width = cues?.minStageWidth;
   if (typeof width !== 'number' || !Number.isFinite(width) || width <= 0) return colors;
   const floor = Math.min(width, 4096);
-  // The rail needs 300px beside the stage, inside the page's 16px side paddings.
-  const beside = Math.max(1100, Math.ceil(floor + 332));
-  const page = Math.max(1240, beside);
-  return colors + `:root:not([data-framed]) #content{--player-floor:${floor}px;--player-rail-breakpoint:${beside}px;max-width:${page}px}\n` +
-    (beside > 1100 ? `@media(1100px <= width < ${beside}px){:root:not([data-framed]) .layout{width:min(100%,var(--player-cap));grid-template-columns:none}}\n` : '');
+  // A wide page can hold the stage, a 300px rail and its 16px side paddings.
+  const page = Math.max(1240, Math.ceil(floor + 332));
+  return colors + `:root:not([data-framed]) #content{--player-floor:${floor}px;max-width:${page}px}\n` +
+    `:root:not([data-framed]) .layout:not(:has(>aside.rail)){width:min(100%,var(--player-cap));grid-template-columns:none}\n` +
+    // Reparenting a long rail must not toggle the page scrollbar and oscillate its fit.
+    `@media(min-width:1100px){:root:not([data-framed]){scrollbar-gutter:stable}}\n`;
 }

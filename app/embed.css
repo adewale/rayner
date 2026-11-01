@@ -184,7 +184,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 /* Enlarge: the card alone, its children sized to the screen. The stage keeps within 100dvh - 180px and
    leaves room for the header above it and the step heading below the stepper row (300px, as at load). */
 .player:fullscreen{display:flex;flex-direction:column;justify-content:safe center;padding:16px;background:var(--tile);overflow:auto}
-.player:fullscreen>*{width:min(100%,calc((100dvh - 300px)*16/9));margin-inline:auto}
+.player:fullscreen>*{width:min(100%,max(var(--player-floor,0px),calc((100dvh - 300px)*16/9)));margin-inline:auto}
 
 @media(max-width:480px){.caption{font-size:1.0625rem}.stepper{gap:6px}}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
