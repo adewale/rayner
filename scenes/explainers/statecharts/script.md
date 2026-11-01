@@ -12,17 +12,22 @@ Nothing new becomes possible: flatten any statechart and you get an ordinary sta
 
 **Sentence to remember:** a statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.
 
-**Check questions** (asked in steps 2, 4 and 5; answered in the step after each):
+**Check questions**, each asked in a step's line and answered by the next step:
 
-1. Given four states that all have the same EXIT arrow, what would a statechart do?
-2. Why do two independent on/off features need four flat states but only two regions?
-3. Can a statechart do anything a state machine can't?
+1. Given four states that all have the same EXIT arrow, what would a statechart do? (asked in copies, answered in parent)
+2. Why do two independent on/off features need four flat states but only two regions? (asked in booleans, answered in regions; growth answers "how many with a third feature?", asked in multiply)
+3. Can a statechart do anything a state machine can't? (asked in regions, answered in flatten)
+
+**Transfer:** the last two steps ask the reader to place a milk frother in the coffee machine, then show it as a region.
 
 | Step | Script |
 | --- | --- |
 | what | paragraph 1 |
-| copies | paragraph 2, first two sentences; asks question 1 |
-| parent | paragraph 2, last sentence, and the parent rule from paragraph 1; answers question 1 |
-| multiply | paragraph 3, first three sentences; asks question 2 |
-| regions | paragraph 3, last sentence; answers question 2; asks question 3 |
-| flatten | paragraph 4; answers question 3 |
+| copies | paragraph 2, first two sentences |
+| parent | paragraph 2, last sentence, and the parent rule from paragraph 1, drawn as a trace |
+| multiply | paragraph 3, first sentence |
+| growth | paragraph 3, "each new on/off feature doubles that", for one to five features |
+| booleans | paragraph 3, the boolean sentences |
+| regions | paragraph 3, last sentence |
+| flatten | paragraph 4, with the same events traced through both machines |
+| question, frother | transfer; the last caption ends on the sentence to remember |

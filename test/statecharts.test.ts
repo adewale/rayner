@@ -64,7 +64,7 @@ test('a child that handles an event itself preempts its parent, as in XState, an
 
 test('charts that break the model’s rules are refused', () => {
   assert.throws(() => player(0), RangeError);
-  assert.throws(() => player(3), RangeError);
+  assert.throws(() => player(6), RangeError);
   assert.throws(() => initial({ id: 'r', type: 'compound', initial: 'x', children: [{ id: 'a', type: 'atomic' }] }), /initial is not a child/);
   assert.throws(() => initial({ id: 'r', type: 'compound', initial: 'a', children: [{ id: 'a', type: 'atomic', on: { GO: 'z' } }] }), /unknown state z/);
   assert.throws(() => initial({ id: 'r', type: 'compound', initial: 'a', children: [{ id: 'a', type: 'atomic' }, { id: 'a', type: 'atomic' }] }), /Duplicate/);

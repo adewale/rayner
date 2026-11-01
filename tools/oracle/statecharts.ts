@@ -9,7 +9,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { player, coffee, boxed, RUNS } from '../../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, coffeeWithFrother, boxed, RUNS } from '../../scenes/explainers/lib/statecharts.ts';
 import type { StateNode } from '../../scenes/explainers/lib/statecharts.ts';
 
 export const XSTATE_VERSION = '5.33.3';
@@ -19,6 +19,7 @@ export const CHARTS: Readonly<Record<string, { chart: StateNode; run: readonly s
   coffee: { chart: coffee(), run: RUNS.coffee },
   player: { chart: player(2), run: RUNS.player },
   boxedPlayer: { chart: boxed(player(2)), run: RUNS.player },
+  coffeeWithFrother: { chart: coffeeWithFrother(), run: RUNS.frother },
 };
 
 /** A chart XState explored: every reachable configuration and where each event it takes leads. */

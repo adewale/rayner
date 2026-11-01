@@ -26,6 +26,9 @@ export interface Control {
 export const CONTROLS: readonly Control[] = [
   { region: 'playback', states: ['paused', 'playing'], events: ['PLAY', 'PAUSE'] },
   { region: 'volume', states: ['unmuted', 'muted'], events: ['MUTE', 'UNMUTE'] },
+  { region: 'subtitles', states: ['hidden', 'shown'], events: ['SHOW', 'HIDE'] },
+  { region: 'repeat', states: ['once', 'looping'], events: ['LOOP', 'ONCE'] },
+  { region: 'shuffle', states: ['ordered', 'shuffled'], events: ['SHUFFLE', 'UNSHUFFLE'] },
 ];
 
 /** The events the explainer sends each chart; tools/oracle/statecharts.ts sends XState the same. */
@@ -34,6 +37,8 @@ export const RUNS = {
   coffee: ['POWER_ON', 'START', 'GROUND', 'POWER_OFF'],
   /** Switch on, play, mute, then switch off. */
   player: ['POWER', 'PLAY', 'MUTE', 'POWER'],
+  /** Switch on, start a brew, froth while grinding, then switch off. */
+  frother: ['POWER_ON', 'START', 'FROTH', 'POWER_OFF'],
 } as const;
 
 const region = (c: Control): StateNode => ({
@@ -84,6 +89,21 @@ export function coffee(): StateNode {
         children: steps.map(([id, event], i) => ({ id, type: 'atomic' as const, on: { [event]: steps[(i + 1) % steps.length]![0] } })),
       },
     ],
+  };
+}
+
+/** The frother added to the coffee machine: off or on at any time while the machine is on. */
+export const FROTHER: Control = { region: 'frother', states: ['still', 'frothing'], events: ['FROTH', 'STOP'] };
+
+/** The coffee machine with a frother: on is split into two regions, the brewing cycle and the frother. */
+export function coffeeWithFrother(): StateNode {
+  const base = coffee(),
+    on = base.children!.find((c) => c.id === 'on')!;
+  return {
+    ...base,
+    children: base.children!.map((c) =>
+      c.id !== 'on' ? c : { id: 'on', type: 'parallel' as const, on: on.on, children: [{ ...on, id: 'cycle', on: undefined }, region(FROTHER)] },
+    ),
   };
 }
 

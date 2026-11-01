@@ -366,6 +366,218 @@
      ]
     }
    ]
+  },
+  "coffeeWithFrother": {
+   "events": [
+    "POWER_ON",
+    "POWER_OFF",
+    "START",
+    "GROUND",
+    "BREWED",
+    "TAKE",
+    "FROTH",
+    "STOP"
+   ],
+   "initial": [
+    "off"
+   ],
+   "configurations": [
+    [
+     "off"
+    ],
+    [
+     "idle",
+     "still"
+    ],
+    [
+     "grinding",
+     "still"
+    ],
+    [
+     "idle",
+     "frothing"
+    ],
+    [
+     "brewing",
+     "still"
+    ],
+    [
+     "grinding",
+     "frothing"
+    ],
+    [
+     "ready",
+     "still"
+    ],
+    [
+     "brewing",
+     "frothing"
+    ],
+    [
+     "ready",
+     "frothing"
+    ]
+   ],
+   "transitions": [
+    [
+     0,
+     "POWER_ON",
+     1
+    ],
+    [
+     1,
+     "POWER_OFF",
+     0
+    ],
+    [
+     1,
+     "START",
+     2
+    ],
+    [
+     1,
+     "FROTH",
+     3
+    ],
+    [
+     2,
+     "POWER_OFF",
+     0
+    ],
+    [
+     2,
+     "GROUND",
+     4
+    ],
+    [
+     2,
+     "FROTH",
+     5
+    ],
+    [
+     3,
+     "POWER_OFF",
+     0
+    ],
+    [
+     3,
+     "START",
+     5
+    ],
+    [
+     3,
+     "STOP",
+     1
+    ],
+    [
+     4,
+     "POWER_OFF",
+     0
+    ],
+    [
+     4,
+     "BREWED",
+     6
+    ],
+    [
+     4,
+     "FROTH",
+     7
+    ],
+    [
+     5,
+     "POWER_OFF",
+     0
+    ],
+    [
+     5,
+     "GROUND",
+     7
+    ],
+    [
+     5,
+     "STOP",
+     2
+    ],
+    [
+     6,
+     "POWER_OFF",
+     0
+    ],
+    [
+     6,
+     "TAKE",
+     1
+    ],
+    [
+     6,
+     "FROTH",
+     8
+    ],
+    [
+     7,
+     "POWER_OFF",
+     0
+    ],
+    [
+     7,
+     "BREWED",
+     8
+    ],
+    [
+     7,
+     "STOP",
+     4
+    ],
+    [
+     8,
+     "POWER_OFF",
+     0
+    ],
+    [
+     8,
+     "TAKE",
+     3
+    ],
+    [
+     8,
+     "STOP",
+     6
+    ]
+   ],
+   "follow": [
+    {
+     "event": "POWER_ON",
+     "can": true,
+     "config": [
+      "idle",
+      "still"
+     ]
+    },
+    {
+     "event": "START",
+     "can": true,
+     "config": [
+      "grinding",
+      "still"
+     ]
+    },
+    {
+     "event": "FROTH",
+     "can": true,
+     "config": [
+      "grinding",
+      "frothing"
+     ]
+    },
+    {
+     "event": "POWER_OFF",
+     "can": true,
+     "config": [
+      "off"
+     ]
+    }
+   ]
   }
  },
  "preempt": {
