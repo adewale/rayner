@@ -1,4 +1,4 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, FadeIn, view } from 'rayner';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view } from 'rayner';
 import type { Mobject, MatchKey, Vec, Box } from 'rayner';
 import { stage, settingsOf, regionBox } from 'rayner/explain';
 import type { Stage } from 'rayner/explain';
@@ -83,6 +83,15 @@ function emptyBox(s: Stage, f: Fit, prefix: string, cell: Cell, center: Vec) {
   const label = keyed(new Text('never reached', { fontSize: L * f.k, color: s.soft }).moveTo(f.at([center[0], center[1] + CELL[1] / 2 + 0.25])), `${prefix}never:${k}`);
   return [...stateBox(s, f, `${prefix}cell:${k}`, center, CELL, words.map((t, i) => ({ key: `${prefix}ghost:${k}:${i}`, text: t })), false, true), label];
 }
+/** A start dot and its short arrow into a box: the state a compound state enters first. */
+function start(s: Stage, f: Fit, key: string, target: Place, from: 'left' | 'above') {
+  const edge: Vec = from === 'left' ? [target.center[0] - target.size[0] / 2 - 0.07, target.center[1]] : [target.center[0], target.center[1] + target.size[1] / 2 + 0.07];
+  const dot: Vec = from === 'left' ? [edge[0] - 0.62, edge[1]] : [edge[0], edge[1] + 0.62];
+  return [
+    keyed(new Circle({ radius: 0.09 * f.k, fill: s.palette.ink, stroke: 'none' }).moveTo(f.at(dot)), key),
+    keyed(new Arrow(f.at([dot[0] + (from === 'left' ? 0.1 : 0), dot[1] - (from === 'left' ? 0 : 0.1)]), f.at(edge), arrowStyle(s, f, false)), `${key}|arrow`),
+  ];
+}
 /** Where a ray from inside a box leaves it. */
 function exit(center: Vec, half: Vec, from: Vec, dir: Vec): Vec {
   const t = Math.min(...[0, 1].map((i) => (dir[i] === 0 ? Infinity : ((dir[i]! > 0 ? center[i]! + half[i]! : center[i]! - half[i]!) - from[i]!) / dir[i]!)));
@@ -126,7 +135,7 @@ function curved(s: Stage, f: Fit, key: string, start: Vec, end: Vec, angle: numb
 }
 const note = (s: Stage, f: Fit, bounds: Box, text: string) =>
   keyed(new Text(text, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([(bounds[0] + bounds[2]) / 2, bounds[1] + 0.22])), 'note');
-const counted = (n: { states: number; transitions: number }) => `${n.states} states · ${n.transitions} transitions`;
+const counted = (n: { states: number; transitions: number }) => `${n.states} boxes · ${n.transitions} transitions`;
 const flatLabel = (chart: StateNode, flat: FlatMachine, name: string) => (name === flat.initial ? 'off' : wordsOf(chart, flat.configurations[name]!).join(' · '));
 
 /**
@@ -143,7 +152,8 @@ function flatPicture(s: Stage, chart: StateNode, f: Fit, look: Look): Drawn {
   const place = (cell: Cell): Place => ({ center: [FLAT.cols[cell[1]]!, FLAT.rows[cell[0]]!], size: CELL });
   const offPlace: Place = { center: FLAT.off, size: OFF_BOX };
   parts.push(...stateBox(s, f, 'off', FLAT.off, OFF_BOX, [{ key: 'off|w', text: 'off' }], look.follow.includes('off')));
-  words.push(`off${look.follow.includes('off') ? ' (followed)' : ''}`);
+  words.push(`off${look.follow.includes('off') ? ' (followed)' : ''}`, 'start → off');
+  parts.push(...start(s, f, 'start:off', offPlace, 'above'));
   for (const [name, cell] of cells) {
     const k = cellKey(cell),
       w = wordsOf(chart, flat.configurations[name]!);
@@ -286,6 +296,14 @@ function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look
     parts.push(...stateBox(s, f, key, p.center, p.size, wordKeys.get(id)!, followed));
     words.push(wordKeys.get(id)!.map((w) => w.text).join(' · ') + (followed ? ' (followed)' : ''));
   }
+  // A start dot for every compound state: the root enters off; on, each region and playing enter their initial child.
+  const compounds = (n: StateNode): StateNode[] => [...(n.type === 'compound' ? [n] : []), ...(n.children ?? []).flatMap(compounds)];
+  for (const n of compounds(chart)) {
+    const target = n.initial === 'off' ? { center: CHART.off, size: OFF_BOX } : places.get(n.initial!);
+    if (!target) throw new Error(`No place for ${n.initial}, where ${n.id} starts`);
+    parts.push(...start(s, f, `r:start:${n.id}`, target, 'left'));
+    words.push(`start of ${n.id === chart.id ? 'the chart' : n.id} → ${wordKeys.get(n.initial!)?.map((w) => w.text).join(' · ') ?? n.initial}`);
+  }
   // Every transition the chart writes, except POWER on off and on (drawn above), between the places of its ends.
   const written: { from: string; event: string; to: string }[] = [];
   const collect = (n: StateNode) => {
@@ -362,8 +380,8 @@ export default class Statecharts extends Scene {
     const powerOff = flat.transitions.filter((t) => t.event === 'POWER' && t.to === flat.initial).length;
 
     const FULL = regionBox('full', { top: 3.05 }),
-      LEFT = regionBox('left', { top: 3.05, right: -0.1 }),
-      RIGHT = regionBox('right', { top: 3.05, left: 0.1 });
+      LEFT = regionBox('left', { top: 3.05, right: -0.45 }),
+      RIGHT = regionBox('right', { top: 3.05, left: 0.45 });
     const half = Math.min(scaleFor(FLAT.bounds, LEFT), scaleFor(CHART.bounds, RIGHT));
     const fullFit = fit(FLAT.bounds, FULL, scaleFor(FLAT.bounds, FULL, 0.95)),
       leftFit = fit(FLAT.bounds, LEFT, half),
@@ -385,8 +403,8 @@ export default class Statecharts extends Scene {
     // 1. The small machine before the button.
     await this.step('player', {
       title: 'Three states. What will a mute button add?',
-      line: always ? 'Mute will work while paused or while playing.' : 'Mute will work only while playing.',
-      caption: `The player is off, paused or playing. PLAY and PAUSE move between paused and playing, and each of those already needs its own POWER arrow back to off: ${before.states} states and ${before.transitions} transitions.`,
+      line: 'Both paused and playing need their own POWER arrow to off.',
+      caption: `The player starts off and is then paused or playing: ${before.states} boxes and ${before.transitions} transitions. Next it gains a mute button that ${always ? 'works whether paused or playing' : 'works only while playing, and pausing unmutes'}.`,
     });
     s.keep(left, { describe: said(() => flatDrawn, 'Flat state machine') });
     await this.play(new FadeIn(left, { runTime: 0.6 }));
@@ -400,10 +418,10 @@ export default class Statecharts extends Scene {
       .filter((k) => k.startsWith('arrow:') && !oldKeys.has(k) && oldEvents.has(k.split(':')[2]!));
     await this.step('mute', {
       title: always ? 'Mute splits both states and copies their arrows' : 'Mute splits only playing',
-      line: always ? `${after.states} states now; every arrow out of paused or playing has a marked copy.` : 'paused · muted never happens, so that box stays empty.',
+      line: always ? `${after.states} boxes now; every arrow out of paused or playing has a marked copy.` : 'paused · muted is greyed: no event leads there.',
       caption: always
-        ? `A flat machine needs one state per combination, so paused and playing each split into an unmuted and a muted copy. The copies keep every arrow, marked: PLAY and PAUSE appear in both columns and ${powerOff} POWER arrows return to off. ${after.states} states and ${after.transitions} transitions, up from ${before.states} and ${before.transitions}.`
-        : `Because mute works only while playing, only playing splits, into unmuted and muted copies. paused · muted is a combination this player never reaches. The copies keep their arrows, marked: PAUSE now leaves both playing states and POWER all ${powerOff}. ${after.states} states and ${after.transitions} transitions, up from ${before.states} and ${before.transitions}.`,
+        ? `A flat machine needs one state per combination, so paused and playing each split into an unmuted and a muted copy. The copies keep every arrow, marked: PLAY and PAUSE appear in both columns and ${powerOff} POWER arrows return to off. ${after.states} boxes and ${after.transitions} transitions, up from ${before.states} and ${before.transitions}.`
+        : `Only playing splits, into unmuted and muted copies. Pausing unmutes, so PAUSE from playing · muted lands on paused, and paused · muted is never reached. The copies keep their arrows, marked: PAUSE leaves both playing states and POWER all ${powerOff}. ${after.states} boxes and ${after.transitions} transitions, up from ${before.states} and ${before.transitions}.`,
     });
     flatChart = chart;
     flatLook = { follow: [], lit: copies };
@@ -441,7 +459,7 @@ export default class Statecharts extends Scene {
             title: 'Volume goes inside playing, not beside it',
             line: 'Regions side by side would allow paused with muted.',
             caption:
-              'Separate regions would let paused and muted be active together, the combination this player never reaches. Instead unmuted and muted go inside playing, the only place mute works, and one PAUSE arrow from the playing box replaces two. The marked playing · muted is muted inside playing.',
+              'Side-by-side regions, with no guards between them, would let paused and muted be active together, which this player never allows. Instead unmuted and muted go inside playing, and one PAUSE arrow from the playing box replaces two; leaving playing forgets volume, so it restarts unmuted. The marked playing · muted is muted inside playing.',
           },
     );
     kind = always ? 'regions' : 'nested';
@@ -456,11 +474,11 @@ export default class Statecharts extends Scene {
     // 5. Same behaviour: POWER from the followed state reaches off in both drawings.
     const last = run(chart, FOLLOW).at(-1)!;
     await this.step('power', {
-      title: `Same behaviour, ${final.transitions} transitions instead of ${after.transitions}`,
+      title: `Both reach off: ${final.transitions} transitions instead of ${after.transitions}`,
       line: `POWER leaves playing · muted by its own arrow, or by ${last.sources.join(', ')}’s.`,
       caption: always
-        ? `From playing and muted, POWER reaches off by that state’s own arrow on the left and by on’s one arrow on the right, leaving both regions. XState reaches the same state after every event in both. The statechart pays one extra state, on, for ${after.transitions - final.transitions} fewer transitions, because mute and play never constrain each other.`
-        : `From playing and muted, POWER reaches off by that state’s own arrow on the left and by on’s one arrow on the right. XState reaches the same state after every event in both. The statechart pays ${final.states - after.states} extra states, on and playing, for ${after.transitions - final.transitions} fewer transitions. Because mute depends on playing, nesting, not regions, removed the copies.`,
+        ? `From playing and muted, POWER reaches off by that box’s own arrow on the left and by on’s one arrow on the right, leaving both regions. Run on every event from every state, XState reaches the same state in both. The statechart draws one more box, on, and ${after.transitions - final.transitions} fewer transitions, because mute and play never constrain each other.`
+        : `From playing and muted, POWER reaches off by that box’s own arrow on the left and by on’s one arrow on the right. Run on every event from every state, XState reaches the same state in both. The statechart draws ${final.states - after.states} more boxes, on and playing around its two volume states, and ${after.transitions - final.transitions} fewer transitions. A history state could remember mute across a pause; this model has none.`,
     });
     flatLook = { follow: ['off'], lit: [`arrow:${followCell}:POWER:off`] };
     chartLook = { follow: ['off'], lit: ['r:power:off'] };
