@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "importer": "11d0423eb190709f",
+  "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "cf941217591adc6f74f26a9f71488390cb7e7f250fb585c5a9333fa25f75b304",
+  "sourceHash": "60ee5c46143bc8c98acd7510e214132746f6fde1bcaa8ff4c7b4fffcefc008e6",
   "diagrams": {
     "[\"architecture-beta\\n  group internet(internet)[Internet]\\n  service client(internet)[Client] in internet\\n  service attacker(internet)[Attacker] in internet\\n  group cdn(cloud)[CDN]\\n  service edge(server)[CDN edge] in cdn\\n  group yours(cloud)[Your network]\\n  service balancer(server)[Load balancer] in yours\\n  service express(server)[Express] in yours\\n  client:R --> L:edge\\n  attacker:R --> B:edge\\n  edge:R --> L:balancer\\n  attacker:B --> B:balancer\\n  balancer:R --> L:express\",\"pen-and-ink\"]": "2212dea2e7e45876.json"
   }

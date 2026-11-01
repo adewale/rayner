@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
+import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
 
 export interface ReviewScope {
@@ -88,13 +89,7 @@ export function reviewCases(cases: PlannedCase[], scope: ReviewScope): PlannedCa
 }
 export async function readStoryPlan(directory: string, expectedScenes?: readonly string[]) {
   const raw = await readFile(join(directory, 'evidence.json'), 'utf8');
-  const catalog = JSON.parse(raw) as {
-    scenes: {
-      id: string;
-      cases: Record<string, string>[];
-      narrowOpenings: { settings: Record<string, string>; steps: NarrowOpeningObligation[] }[];
-    }[];
-  };
+  const catalog = catalogEvidence(JSON.parse(raw));
   const cases: PlannedCase[] = [];
   if (expectedScenes) assert.deepEqual(catalog.scenes.map(scene => scene.id), expectedScenes, 'complete source scene inventory');
   for (const scene of catalog.scenes) {
@@ -107,14 +102,15 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
       `${scene.id}: description/case inventory differs`,
     );
     assert.ok(Array.isArray(scene.narrowOpenings), `${scene.id}: rebuild catalog without a narrow-opening inventory`);
+    const openings = scene.narrowOpenings;
     assert.deepEqual(
-      scene.narrowOpenings.map((c) => c.settings),
+      openings.map((c) => c.settings),
       scene.cases,
       `${scene.id}: exact narrow-opening case inventory`,
     );
     for (const [index, c] of description.cases.entries())
       validateNarrowObligations(
-        scene.narrowOpenings[index]!.steps,
+        openings[index]!.steps,
         c.steps.map((s) => s.step),
         scene.id,
       );
@@ -123,7 +119,7 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
         scene: scene.id,
         settings: c.values,
         steps: c.steps.map((s) => s.step),
-        narrowOpenings: scene.narrowOpenings[index]!.steps,
+        narrowOpenings: openings[index]!.steps,
       })),
     );
   }

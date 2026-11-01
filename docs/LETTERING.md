@@ -4,28 +4,29 @@ Plain `Latn`, `Grek`, and `Cyrl` requests retain the subset workflow introduced
 in PR #10. Requests containing `faces`, `styles`, `math`, or another script use the
 outline snapshot workflow described here; the existing snapshot schema remains supported.
 
-Existing scenes keep their embedded Inter/JetBrains Mono lettering and their
-page bytes and receipts. Nothing is downloaded for them. Do not regenerate
+Scenes that request no lettering use the embedded Inter/JetBrains Mono fonts.
+They need no additional font download or lettering capture. Do not regenerate
 `src/font-data.ts` to add a language to one scene.
 
 Request the work on the scene class:
 
 ```ts
-import { Scene, Text, Math as Formula } from 'rayner';
+import { Scene, Math as Formula } from 'rayner';
 import { stage } from 'rayner/explain';
 
 export default class Example extends Scene {
   static meta = {
     id: 'joining', title: 'Arabic and maths',
+    textContext: 'explicit' as const,
     lettering: { scripts: ['Arab'], math: true },
   };
   override async construct() {
     const s = stage(this, { heading: false });
     await this.step('joining', { caption: 'Arabic joining and vowel marks.' });
-    await s.enter(new Text('السَّلَامُ عَلَيْكُمْ', { color: s.palette.ink }));
+    await s.enter(this.text('السَّلَامُ عَلَيْكُمْ', { color: s.palette.ink }));
     await this.step('fraction', { caption: 'A fraction and a superscript.' });
     await s.clear();
-    await s.enter(new Formula('\\frac{1}{2}+x^2', { color: s.palette.ink }));
+    await s.enter(new Formula('\\frac{1}{2}+x^2', {color: s.palette.ink, shaping: this.textShaping}));
   }
 }
 ```
@@ -36,6 +37,18 @@ there is no browser font request, system-font lookup, HarfBuzz or TeX runtime.
 `Math` (also exported as `MathTex`) uses glyph's TeX-subset/OpenType MATH
 layout at build time. `{ display: true }` selects display layout. Invalid TeX,
 unavailable glyphs, and `Math` without `math: true` fail the build.
+
+`textContext: 'explicit'` makes shaping belong to the objects the scene creates.
+Use `this.text(...)` for ordinary text; pass `shaping: this.textShaping` to
+`Code`, `ItalicText`, `MathTex`, axes or other text-bearing primitives. Stage
+headings, cards, code blocks, annotations and diagram labels receive the scene's
+service automatically. A copied text retains its service, including when edited
+after the scene finishes. Explicit scenes with different faces can run together.
+
+Existing scenes without `textContext` keep ambient `new Text(...)` authoring.
+That compatibility path serializes conflicting scene contexts across awaits.
+It no longer patches prototypes or replaces the embedded font table. New code
+should use the explicit form above.
 
 ## macOS setup
 

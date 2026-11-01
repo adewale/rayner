@@ -23,6 +23,7 @@ import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
 import { replaceHeaderBlocks } from './lib/site-headers.ts';
 import { buildInputs } from './lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
+import {readArtifact, catalog as parseCatalog, catalogEvidence} from './lib/explain-artifacts.ts';
 import { selectExport } from './lib/explain-export-selection.ts';
 import type { ExportCatalog, ExportEvidence } from './lib/explain-export-selection.ts';
 import { cardPng } from './lib/explain-shots.ts';
@@ -62,8 +63,8 @@ const exists = (file: string) =>
   );
 const selected = selectExport(
   values.only,
-  JSON.parse(await readFile(join(built, 'catalog.json'), 'utf8')) as ExportCatalog,
-  JSON.parse(await readFile(join(built, 'evidence.json'), 'utf8')) as ExportEvidence,
+  await readArtifact(join(built, 'catalog.json'), parseCatalog),
+  await readArtifact(join(built, 'evidence.json'), catalogEvidence),
   values.entry,
 );
 const items = EXPLAINERS.filter((item) => selected.ids.includes(item.id));

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { selectExport } from '../tools/lib/explain-export-selection.ts';
 
-const catalog = {
+const catalog: import('../tools/lib/explain-artifacts.ts').Catalog = {
   version: 1,
   product: { entry: { id: 'cache' } },
   totals: { explainers: 3, cases: 7, diagrams: 5, styles: 2, families: 2 },
@@ -12,7 +12,7 @@ const catalog = {
     { id: 'small', group: 'toolchain', cases: 2, title: 'A small lesson', entry: { step: 'question', settings: { mode: 'one' } } },
   ],
 };
-const evidence = {
+const evidence: import('../tools/lib/explain-artifacts.ts').CatalogEvidence = {
   version: 2, checked: true, totals: catalog.totals,
   scenes: [
     { id: 'old', cases: [{}, {}], diagrams: 2, styles: ['a'], families: ['flowchart'] },

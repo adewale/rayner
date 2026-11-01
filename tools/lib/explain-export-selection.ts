@@ -1,3 +1,5 @@
+import type {Catalog as ExportCatalog, CatalogEvidence as ExportEvidence} from './explain-artifacts.ts';
+export type {CatalogTotals as ExportTotals, Catalog as ExportCatalog, CatalogEvidence as ExportEvidence} from './explain-artifacts.ts';
 // Builds and exports select from the same declared ids; no unrelated page is required.
 export function selectedIds(only: string | undefined, known: readonly string[]): string[] {
   const requested = only === undefined ? [...known] : only.split(',');
@@ -10,42 +12,6 @@ export function selectedIds(only: string | undefined, known: readonly string[]):
   }
   return requested;
 }
-export interface ExportTotals {
-  explainers: number;
-  cases: number;
-  diagrams: number;
-  styles: number;
-  families: number;
-}
-export interface ExportCatalog {
-  version: number;
-  product: {
-    entry: { id: string; step?: string; settings?: Record<string, string>; label?: string };
-    [key: string]: unknown;
-  };
-  totals: ExportTotals;
-  scenes: {
-    id: string;
-    cases: number;
-    title?: string;
-    entry?: { step: string; settings: Record<string, string> };
-    [key: string]: unknown;
-  }[];
-}
-export interface ExportEvidence {
-  version: number;
-  checked: boolean;
-  totals: ExportTotals;
-  scenes: {
-    id: string;
-    cases: Record<string, string>[];
-    diagrams: number;
-    styles: string[];
-    families: string[];
-    [key: string]: unknown;
-  }[];
-}
-
 export function selectExport(
   only: string | undefined,
   catalog: ExportCatalog,

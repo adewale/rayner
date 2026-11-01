@@ -1,3 +1,4 @@
+import type {TextShaping} from '../src/text-context.ts';
 // Annotations that sit on the picture instead of in a panel: a dimension line, a pin, a callout
 // with a leader line, and a drawing tool that rides the tip of a stroke as it is drawn. They are
 // native mobjects, so they seek, trace and check like everything else.
@@ -16,6 +17,7 @@ const unit = (v: Vec): Vec => {
 };
 
 export interface AnnotationLook {
+  shaping?: TextShaping;
   /** Line and text colour. */
   color: string;
   /** Text size in scene units; 0.24 is about 19 px on a 1280 px stage. */
@@ -28,7 +30,7 @@ export interface AnnotationLook {
  * A dimension line between `a` and `b`, set off to one side by `offset` (positive: to the left
  * of a→b), with ticks at both ends and `label` at its middle, outside the line.
  */
-export function dimension(a: Vec, b: Vec, label: string, { color, background, size = 0.24, offset = 0.3 }: AnnotationLook & { offset?: number }): Group {
+export function dimension(a: Vec, b: Vec, label: string, { color, background, size = 0.24, shaping, offset = 0.3 }: AnnotationLook & { offset?: number }): Group {
   const d = unit(sub(b, a)),
     n: Vec = [-d[1], d[0]];
   const o: Vec = [n[0] * offset, n[1] * offset];
@@ -43,7 +45,7 @@ export function dimension(a: Vec, b: Vec, label: string, { color, background, si
     new Polygon([p, [p[0] + d[0] * 0.14 + n[0] * 0.05, p[1] + d[1] * 0.14 + n[1] * 0.05], [p[0] + d[0] * 0.14 - n[0] * 0.05, p[1] + d[1] * 0.14 - n[1] * 0.05]], { fill: color, stroke: 'none' }),
     new Polygon([q, [q[0] - d[0] * 0.14 + n[0] * 0.05, q[1] - d[1] * 0.14 + n[1] * 0.05], [q[0] - d[0] * 0.14 - n[0] * 0.05, q[1] - d[1] * 0.14 - n[1] * 0.05]], { fill: color, stroke: 'none' }),
   );
-  const t = new Text(label, { fontSize: size, color });
+  const t = new Text(label, { fontSize: size, color, shaping });
   const mid: Vec = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2],
     side = Math.sign(offset || 1),
     gap = 0.08 + (Math.abs(n[0]) * t.width() + Math.abs(n[1]) * t.height()) / 2;
@@ -54,13 +56,13 @@ export function dimension(a: Vec, b: Vec, label: string, { color, background, si
 }
 
 /** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head. */
-export function pin(at: Vec, { color, size = 0.24, label }: AnnotationLook & { label?: string }): Group {
+export function pin(at: Vec, { color, size = 0.24, shaping, label }: AnnotationLook & { label?: string }): Group {
   const head: Vec = [at[0], at[1] + 0.32];
   const g = new Group(
     new Line(at, [head[0], head[1] - 0.07], { stroke: color, strokeWidth: 0.025 }),
     new Circle({ radius: 0.075, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(head),
   );
-  if (label) g.add(new Text(label, { fontSize: size, color, anchor: 'start' }).moveTo([head[0] + 0.14, head[1]], [-1, 0]));
+  if (label) g.add(new Text(label, { fontSize: size, color, anchor: 'start', shaping }).moveTo([head[0] + 0.14, head[1]], [-1, 0]));
   return g;
 }
 
@@ -79,12 +81,12 @@ const boxOf = (target: Vec | Box | Mobject): Box => {
 export function callout(
   target: Vec | Box | Mobject,
   text: string,
-  { color, background, size = 0.24, side = 'right', gap = 0.55 }: AnnotationLook & { side?: Side; gap?: number },
+  { color, background, size = 0.24, shaping, side = 'right', gap = 0.55 }: AnnotationLook & { side?: Side; gap?: number },
 ): Group {
   const b = boxOf(target),
     cx = (b[0] + b[2]) / 2,
     cy = (b[1] + b[3]) / 2;
-  const t = new Text(text, { fontSize: size, color });
+  const t = new Text(text, { fontSize: size, color, shaping });
   const edge: Vec = side === 'right' ? [b[2], cy] : side === 'left' ? [b[0], cy] : side === 'above' ? [cx, b[3]] : [cx, b[1]];
   const dir: Vec = side === 'right' ? [1, 0] : side === 'left' ? [-1, 0] : side === 'above' ? [0, 1] : [0, -1];
   const textAt: Vec = [

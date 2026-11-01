@@ -22,7 +22,7 @@ export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts,
 
 // Motion
 export { Animation, Transform, FadeIn, FadeOut, Create, Write, Indicate, Flash, MoveAlongPath, AnimationGroup, LaggedStart } from './animation.ts';
-export type { AnimOpts, PlayOpts, Playable, TransformOpts, FadeOpts, IndicateOpts, MoveAlongPathOpts } from './animation.ts';
+export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, FadeOpts, IndicateOpts, MoveAlongPathOpts } from './animation.ts';
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOpts } from './animation.ts';
 export { Restore, TransformFromCopy, Succession } from './animation.ts';
@@ -67,5 +67,8 @@ export type { MotionEvent, MotionOptions } from './verify.ts';
 // Optional lettering: tree-shaken from scenes which do not request it.
 export { MathTex, MathTex as Math } from './math.ts';
 export { ItalicText } from './italic.ts';
-export type { LetteringRequest, LetteringSnapshot, LetteringStyle } from './lettering-outlines.ts';
+export type { LetteringRequest, LetteringSnapshot, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringStyle } from './lettering-outlines.ts';
 // End optional lettering.
+
+export type {JsonValue, JsonObject} from './json.ts';
+export type {TextShaping} from './text-context.ts';

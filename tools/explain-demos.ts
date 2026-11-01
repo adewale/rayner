@@ -38,20 +38,7 @@ await mkdir(directory, { recursive: true });
 // An interrupted rebuild must not leave an old output pin vouching for changed bytes.
 await rm(join(directory, 'output-hashes.json'), { force: true });
 // What the gallery and docs point at, with source and snapshot fingerprints.
-const evidence: {
-  id: string;
-  title: string;
-  lang: string;
-  cases: Record<string, string>[];
-  narrowOpenings: { settings: Record<string, string>; steps: NarrowOpeningObligation[] }[];
-  diagrams: number;
-  styles: string[];
-  families: string[];
-  sourceHash: string;
-  engineHash: string;
-  snapshotHashes: string[];
-  entry: { step: string; settings: Record<string, string> };
-}[] = [];
+const evidence: import('./lib/explain-artifacts.ts').EvidenceScene[] = [];
 for (const item of items) {
   // Remove the record of what this explainer's files were built from now and write it last (below),
   // so a build that stops part way leaves no record for site:export to trust.
@@ -163,8 +150,8 @@ const totals = {
   styles: styles.size,
   families: families.size,
 };
-const evidenceDocument = { version: 2, checked: !!check, totals, scenes: evidence };
-const catalog = {
+const evidenceDocument: import('./lib/explain-artifacts.ts').CatalogEvidence = { version: 2, checked: !!check, totals, scenes: evidence };
+const catalog: import('./lib/explain-artifacts.ts').Catalog = {
   version: 1,
   product: PRODUCT,
   totals,

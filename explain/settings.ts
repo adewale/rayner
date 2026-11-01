@@ -20,6 +20,8 @@ export type ExplainerClass = SceneClass & {
     lang?: string;
     sources?: readonly string[];
     lettering?: LetteringRequest;
+    /** Use Scene.text()/TextOpts.shaping instead of ambient lettering constructors. */
+    textContext?: 'explicit';
     /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
     caseNavigation?: 'first';
     /** Visual cues from this case's stage palette; absent means neutral chrome. */

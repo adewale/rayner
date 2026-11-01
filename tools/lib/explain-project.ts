@@ -1,3 +1,4 @@
+import {textContextOf} from '../../src/text-context.ts';
 import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { bindLettering, usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
@@ -16,16 +17,6 @@ import { checkWatch } from '../../explain/trace.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
 import type { Trace } from '../../src/index.ts';
 
-// Outline lettering leases every scene run once it is installed, and swaps the shared font shapers
-// while a lettered scene holds its lease. A run that began before installation is not leased, so
-// its text could be shaped by a lettered scene's outlines ("Lettering snapshot has no run for …").
-// The tools run many projects in one process, so they install lettering before any scene runs, by
-// binding a class that never runs. Every catalog build reached this state anyway once its first
-// lettered project was collected; now it holds from the start, whatever the order.
-bindLettering(class LetteringInstalled extends Scene {}, {
-  shape: (_font, text, size, fallback) => fallback(text, size),
-  math: () => { throw new Error('LetteringInstalled never runs'); },
-});
 import { variantsOf, withSettings, bindSnapshots, caseName, resolveSettings } from '../../explain/index.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
@@ -200,7 +191,7 @@ export const IMPORTER = await (async () => {
  * The shared build fingerprint also covers player, tools, dependencies and notices.
  * Needs only `loadScene`, not a run.
  */
-export async function sceneInputs(p: { file: string; sourceHash: string; engineHash: string }, buildHash?: string): Promise<Record<string, string>> {
+export async function sceneInputs(p: { file: string; sourceHash: string; engineHash: string }, buildHash?: string): Promise<import('./explain-artifacts.ts').SceneInputs> {
   const folder = dirname(p.file),
     files: string[] = [];
   for (const entry of await readdir(folder, { recursive: true, withFileTypes: true })) {
@@ -305,6 +296,7 @@ export async function collectProject(
     async diagram(spec) {
       const key = diagramKey(spec);
       const metricOptions = spec.lettering === 'natural' ? {
+        shaping: textContextOf(Source),
         ...(outline ? { measurementHash: outline.measurementHash } : subsetMetrics ? { measurementHash: subsetMetrics } : {}),
         styles: outline?.snapshot.request.styles,
       } : undefined;

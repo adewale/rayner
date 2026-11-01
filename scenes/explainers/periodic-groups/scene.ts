@@ -13,7 +13,7 @@ import {
   view,
   linear,
 } from '../../../src/index.ts';
-import type { SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
+import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { lerpColor } from '../../../src/color.ts';
 import {
@@ -648,7 +648,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       )[choice],
     });
     {
-      const seq: Animation[] = [];
+      const seq: ScheduledAnimation[] = [];
       runs.forEach((run, i) => {
         seq.push(
           apply({ ...base, note: 'fill', band: true, lit: run.to, filling: configText(filling.slice(0, i + 1)) }),
@@ -696,7 +696,7 @@ export default class PeriodicGroupsExplainer extends Scene {
         listedCount: counted(actual, z),
         ghost: choice === 'he',
       };
-      const seq: Animation[] = [apply({ ...counting, badges: 0 }), both(0.6)];
+      const seq: ScheduledAnimation[] = [apply({ ...counting, badges: 0 }), both(0.6)];
       for (let k = 1; k <= z - core; k++) seq.push(apply({ ...counting, badges: k }), both(0.22));
       await this.play(new Succession(seq));
       this.state = { ...counting, badges: z - core };

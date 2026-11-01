@@ -20,7 +20,7 @@ import {
   view,
   linear,
 } from '../../../src/index.ts';
-import type { Vec, Mobject, SceneState, View } from '../../../src/index.ts';
+import type { ScheduledAnimation, Vec, Mobject, SceneState, View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Card } from '../../../explain/panels.ts';
 import { ringStory } from '../lib/models.ts';
@@ -53,7 +53,7 @@ const CODE = [
 const angle = (i: number) => Math.PI / 2 - (i * 2 * Math.PI) / SLOTS;
 const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1] + Math.sin(a) * r];
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
-const together = (anims: Animation[]) => new AnimationGroup(anims, { rateFunc: linear });
+const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
 /** The value a push hands the buffer, read back from the operation the model ran ("push 6" -> 6). */
 const pushArg = (operation: unknown): number | null =>
   typeof operation === 'string' && operation.startsWith('push ') ? Number(operation.slice(5)) : null;
@@ -339,7 +339,7 @@ export default class RingBufferExplainer extends Scene {
       await code.focus(first.error ? 1 : first.operation.startsWith('pop') ? [8, 12] : [2, 4]);
       // Every operation of the step, in order, in one play. The model already ran:
       // each Apply puts its answer in this.state at its turn, and the syncs after it show it.
-      const members: Animation[] = [];
+      const members: ScheduledAnimation[] = [];
       if (g === 0) members.push(new FadeIn(argLabel, { runTime: 0.3 }));
       for (const event of groups[g]!) {
         const r = event.result,
@@ -418,7 +418,7 @@ export default class RingBufferExplainer extends Scene {
             ]),
           );
         }
-        const moves: Animation[] = [];
+        const moves: ScheduledAnimation[] = [];
         if (r.head !== now.head) moves.push(new Transform(headPtr, pointer('head', r.head), { runTime: 0.45 }));
         if (r.tail !== now.tail) moves.push(new Transform(tailPtr, pointer('tail', r.tail), { runTime: 0.45 }));
         members.push(together([...moves, syncAll()]));

@@ -248,7 +248,7 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
       {step: 'details', reviewed: false as const, reason: 'detail-step' as const},
     ];
     const scene = {id: 'example', cases: [{}], narrowOpenings: [{settings: {}, steps: narrowOpenings}]};
-    const writeCatalog = (s: unknown) => writeFile(join(root, 'evidence.json'), JSON.stringify({scenes: [s]}));
+    const writeCatalog = (s: unknown) => writeFile(join(root, 'evidence.json'), JSON.stringify({version: 2, checked: true, totals: {explainers: 1, cases: 1, diagrams: 0, styles: 0, families: 0}, scenes: [{diagrams: 0, styles: [], families: [], ...(s as object)}]}));
     await writeFile(join(root, 'example/describe.json'), JSON.stringify({cases: [{values: {}, steps: [{step: 'picture'}, {step: 'details'}]}]}));
     await writeCatalog(scene);
     await assert.rejects(readStoryPlan(root, ['fixture', 'missing']), /complete source scene inventory/);

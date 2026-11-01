@@ -9,16 +9,13 @@
 // shapes text. An explainer that asks for nothing never loads this module, so its
 // page and receipt are what they were before lettering existed.
 //
-// Nothing in the engine imports this file, and fonts.ts does not know about it.
-// That is deliberate: esbuild names minified identifiers by how often each
-// character occurs across every bundled file's whole source, types and dead
-// code included: a first draft with useLettering in fonts.ts, left out of every
-// page that did not call it, still renamed an identifier in exgit's page. Instead, useLettering() swaps the shapers in the
-// record loadFonts() resolves to, which is the record shaperFor() reads.
+// Optional compatibility API: it selects defaults for newly constructed text.
+// Existing text retains its service; the embedded font table is never changed.
 import { loadFont } from '../vendor/glyph.js';
 import type { Font, Run } from '../vendor/glyph.js';
-import { loadFonts, shapeChain, takeMissingGlyphs as takeEmbeddedMissing } from './fonts.ts';
+import { loadFonts, setDefaultShapers, shapeChain, takeMissingGlyphs as takeEmbeddedMissing } from './fonts.ts';
 import type { FontName, Shaper } from './fonts.ts';
+import {setDefaultTextContext} from './text-context.ts';
 import { SANS, MONO, FALLBACK } from './font-data.ts';
 
 /** Writing systems an explainer can ask for, by ISO 15924 code. `Latn` is Latin beyond Latin-1. */
@@ -39,7 +36,7 @@ const SHAPE_MEMO_MAX = 8192;
 const missing = new Map<string, string>();
 /** Code points each requested face drew since the last takeLetteringUse(), by family. */
 const drawn: Record<FontName, Set<number>> = { sans: new Set(), mono: new Set() };
-/** The shapers loadFonts() made, to put back when the request is taken away. */
+/** Embedded fallback shapers, retained independently of compatibility selections. */
 let embedded: Record<FontName, Shaper> | null = null;
 /** The embedded faces, decoded once for the lettered chains. */
 let decoded: Promise<{ sans: Font; mono: Font; fallback: Font[] }> | null = null;
@@ -129,7 +126,8 @@ export async function useLettering(faces: LetteringFaces | null): Promise<void> 
   const shapers = await loadFonts();
   embedded ??= { ...shapers };
   if (!key) {
-    Object.assign(shapers, embedded);
+    setDefaultShapers(undefined);
+    setDefaultTextContext(undefined);
     current = '';
     return;
   }
@@ -146,8 +144,12 @@ export async function useLettering(faces: LetteringFaces | null): Promise<void> 
   const sans = faces!.sans ? [await decode(faces!.sans, 'lettering for sans')] : [];
   const mono = faces!.mono ? [await decode(faces!.mono, 'lettering for mono')] : [];
   const requested = new Map<Font, FontName>([...sans.map((f) => [f, 'sans'] as const), ...mono.map((f) => [f, 'mono'] as const)]);
-  shapers.sans = shaper([base.sans, ...sans, ...base.fallback], 'sans', requested, embedded.sans);
-  shapers.mono = shaper([base.mono, ...mono, base.sans, ...sans, ...base.fallback], 'mono', requested, embedded.mono);
+  const selected = Object.freeze({
+    sans: shaper([base.sans, ...sans, ...base.fallback], 'sans', requested, embedded.sans),
+    mono: shaper([base.mono, ...mono, base.sans, ...sans, ...base.fallback], 'mono', requested, embedded.mono),
+  });
+  setDefaultShapers(selected);
+  setDefaultTextContext({shape: (owner, text, size) => selected[owner.font](text, size)});
   current = key;
 }
 

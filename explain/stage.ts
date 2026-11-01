@@ -107,14 +107,14 @@ export function stage(scene: Scene, options: StageOptions = {}) {
    * heading they belong to the stage, not the picture a step leaves.
    */
   const makeChrome = (text: string, line: string, number: number | null, step: string) => {
-    const t = new Text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold' });
+    const t = scene.text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold' });
     t.key = '__heading';
     const y = line ? HEADING_Y_WITH_LINE : HEADING_Y;
     const parts: Mobject[] = [];
     let badge: Group | null = null;
     if (number != null && text) {
       const r = headingSize * 0.62;
-      const digit = new Text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold' });
+      const digit = scene.text(String(number), { fontSize: headingSize * 0.72, color: emphasis(colors), weight: 'bold' });
       badge = new Group(
         new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }),
         digit,
@@ -130,7 +130,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       parts.push(badge);
     }
     if (line) {
-      const l = new Text(line, { fontSize: LINE_SIZE, color: soft(colors) });
+      const l = scene.text(line, { fontSize: LINE_SIZE, color: soft(colors) });
       if (l.width() > CHROME_WIDTH)
         throw new Error(
           `Step "${step}": its line is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
@@ -398,7 +398,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /** A plain line of supporting text in the stage's secondary colour. */
     async note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Promise<Text> {
-      const t = new Text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
+      const t = scene.text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
       if (t.width() > 15) t.setWidth(15);
       return enterPanel(t, {}, { runTime: 0.3 });
     },
@@ -481,7 +481,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       const g = onScreen(
         dimension(toScreen(a), toScreen(b), label, {
           color: opts.color ?? emphasis(colors),
-          background: colors.paper,
+          background: colors.paper, shaping: scene.textShaping,
           ...opts,
         }),
       );
@@ -491,7 +491,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /** A pin stuck in at `at`, with an optional label; drawn in, and kept. */
     async pin(at: Vec, opts: { label?: string; color?: string; size?: number } = {}) {
-      const g = onScreen(pin(toScreen(at), { color: opts.color ?? emphasis(colors), ...opts }));
+      const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
       keepAll([g], { describe: () => (opts.label ? `A pin marked “${opts.label}”` : 'A pin') });
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
       return g;
@@ -510,7 +510,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       if (!box) throw new Error('callout(): the target has no extent');
       const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
       const g = onScreen(
-        callout([a[0], a[1], b[0], b[1]], text, { color: opts.color ?? colors.ink, background: colors.paper, ...opts }),
+        callout([a[0], a[1], b[0], b[1]], text, { color: opts.color ?? colors.ink, background: colors.paper, shaping: scene.textShaping, ...opts }),
       );
       keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
