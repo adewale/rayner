@@ -73,18 +73,19 @@ export function playerProperties(
   out['--player-tile-radius'] = cues.corners === 'square' ? '0px' : 'initial';
   out['--player-control-radius'] =
     cues.corners === 'square' ? '0px' : 'initial';
-  out['--player-stage-width'] =
-    typeof cues.minStageWidth === 'number' &&
-    Number.isFinite(cues.minStageWidth) &&
-    cues.minStageWidth > 0
-      ? `${Math.min(cues.minStageWidth, 4096)}px`
-      : 'initial';
-  out['--player-stage-overflow'] =
-    out['--player-stage-width'] === 'initial' ? 'initial' : 'auto';
   return out;
 }
 export function playerCss(cues?: Cues, palette?: Palette): string {
-  return `:root{${Object.entries(playerProperties(cues, palette))
+  const colors = `:root{${Object.entries(playerProperties(cues, palette))
     .map(([k, v]) => `${k}:${v}`)
     .join(';')}}\n`;
+  const width = cues?.minStageWidth;
+  if (typeof width !== 'number' || !Number.isFinite(width) || width <= 0) return colors;
+  const floor = Math.min(width, 4096);
+  // A wide page can hold the stage, a 300px rail and its 16px side paddings.
+  const page = Math.max(1240, Math.ceil(floor + 332));
+  return colors + `:root:not([data-framed]) #content{--player-floor:${floor}px;max-width:${page}px}\n` +
+    `:root:not([data-framed]) .layout:not(:has(>aside.rail)){width:min(100%,var(--player-cap));grid-template-columns:none}\n` +
+    // Reparenting a long rail must not toggle the page scrollbar and oscillate its fit.
+    `@media(min-width:1100px){:root:not([data-framed]){scrollbar-gutter:stable}}\n`;
 }

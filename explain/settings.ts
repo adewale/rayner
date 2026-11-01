@@ -24,7 +24,7 @@ export type ExplainerClass = SceneClass & {
     textContext?: 'explicit';
     /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
     caseNavigation?: 'first';
-    /** Visual cues from this case's stage palette; absent means neutral chrome. */
+    /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
     player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number };
     watch?: Readonly<Record<string, string>>;
   };

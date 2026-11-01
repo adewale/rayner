@@ -129,6 +129,7 @@ export default class PeriodicGroupsExplainer extends Scene {
   static meta = {
     id: 'periodic-groups',
     title: 'What puts an element in its group?',
+    player: { minStageWidth: 880 },
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Group_(periodic_table)&oldid=1381612279',
       'https://physics.nist.gov/PhysRefData/ASD/ionEnergy.html',

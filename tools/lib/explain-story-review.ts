@@ -458,10 +458,47 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
       new DOMPoint(b[0], b[1]).matrixTransform(matrix),
       new DOMPoint(b[2], b[3]).matrixTransform(matrix),
     ];
-    // Match the existing PKCE screen-space contract: one CSS pixel for
-    // antialias/stroke-edge rounding. Rectangle union itself remains exact.
+    // Overflow clips to the client box (padding included, borders and scrollbars
+    // excluded). Measure it in screen space before undoing the SVG transform.
+    const screen = rect(stage);
+    let aligned = true;
+    for (let a = svg.parentElement; a; a = a.parentElement) {
+      const style = getComputedStyle(a);
+      if (style.transform !== 'none') {
+        const m = new DOMMatrix(style.transform);
+        aligned &&= m.is2D && m.a > 0 && m.d > 0 && m.b === 0 && m.c === 0;
+      }
+      aligned &&= (!style.rotate || style.rotate === 'none' || style.rotate === '0deg') &&
+        style.perspective === 'none' &&
+        (!style.scale || style.scale === 'none' || style.scale.split(/\s+/).every(n => parseFloat(n) > 0));
+      // The document may scroll to reveal below-fold ink. Its viewport is not a
+      // permanent clip; an element scrollport, including fullscreen, still is.
+      if (a !== document.body && a !== document.documentElement) {
+        const x = style.overflowX !== 'visible', y = style.overflowY !== 'visible';
+        if (x || y) {
+          const box = a.getBoundingClientRect();
+          const sx = a.offsetWidth ? box.width / a.offsetWidth : 1,
+            sy = a.offsetHeight ? box.height / a.offsetHeight : 1;
+          const left = box.left + a.clientLeft * sx, top = box.top + a.clientTop * sy;
+          if (x) { screen[0] = Math.max(screen[0], left); screen[2] = Math.min(screen[2], left + a.clientWidth * sx); }
+          if (y) { screen[1] = Math.max(screen[1], top); screen[3] = Math.min(screen[3], top + a.clientHeight * sy); }
+        }
+      }
+      // Fullscreen is in the top layer: its DOM ancestors cannot clip it.
+      if (a === document.fullscreenElement) break;
+    }
+    if (!document.fullscreenElement) {
+      const root = getComputedStyle(document.documentElement), body = getComputedStyle(document.body);
+      const x = root.overflowX === 'visible' ? body.overflowX : root.overflowX,
+        y = root.overflowY === 'visible' ? body.overflowY : root.overflowY;
+      if (x === 'hidden' || x === 'clip') { screen[0] = Math.max(screen[0], 0); screen[2] = Math.min(screen[2], innerWidth); }
+      if (y === 'hidden' || y === 'clip') { screen[1] = Math.max(screen[1], 0); screen[3] = Math.min(screen[3], innerHeight); }
+    }
+    // Rotated/perspective clips need polygon geometry; do not credit their
+    // bounding rectangles as proof. Allow one screen pixel at supported edges.
+    const open = aligned && screen[2] > screen[0] && screen[3] > screen[1];
     const viewportPoints = points(
-      [stage.left - 1, stage.top - 1, stage.right + 1, stage.bottom + 1],
+      open ? [screen[0] - 1, screen[1] - 1, screen[2] + 1, screen[3] + 1] : [screen[0], screen[1], screen[0], screen[1]],
       svg.getScreenCTM()!.inverse(),
     );
     const viewport: [number, number, number, number] = [
@@ -497,8 +534,9 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
           const effective = /^url\(["']?([^"')]+)["']?\)$/.exec(s.clipPath)?.[1]?.split('#').at(-1);
           if (a !== e || !declared || effective !== declared) visible = false;
         }
+        if (a === document.fullscreenElement) break;
       }
-      visible &&= opacity > 0.01;
+      visible &&= open && opacity > 0.01;
       // A target clipped by its own viewport must not earn coverage for the missing ink.
       const clip = e.getAttribute('clip-path');
       let complete = true,
