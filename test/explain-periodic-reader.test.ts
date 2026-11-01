@@ -102,3 +102,34 @@ test('count-step labels stay at least 12 CSS pixels in actual short laptop stage
   }
   assert.equal(stages,30);
 });
+
+test('all 118 atomic numbers and the block strip read at least 12 CSS pixels in short standalone windows',options,async()=>{
+  let stages=0,labels=0;
+  for(const variant of project.variants){
+    const frame=(await storyFrames(variant.Scene)).get('blocks')!;
+    const small=frame.labels.filter(label=>label.size<.23);
+    assert.equal(small.length,124,'118 atomic numbers and six block-strip labels');
+    assert.deepEqual(small.filter(label=>/^\d+$/.test(label.text)).map(label=>Number(label.text)).sort((a,b)=>a-b),
+      Array.from({length:118},(_,i)=>i+1),'the complete periodic table must be present');
+    for(const viewport of [{width:1280,height:720},{width:1366,height:768}]){
+      const page=await browser.newPage({viewport,reducedMotion:'reduce'});
+      try{
+        await page.goto(`${server.url}/periodic.html?element=${variant.values.element}&step=blocks`);
+        await page.waitForSelector('[data-ready=true]');
+        await page.waitForFunction(()=>!document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
+        const seen=await inspectStoryFrame(page,frame);
+        for(const label of small){
+          const ink=label.indices.map(index=>seen.ink.find(p=>p.index===index)!);
+          assert.ok(ink.length>0&&ink.every(p=>p.visible&&p.complete&&covered(p.box,[seen.viewport])),`${label.text}: complete visible ink`);
+          const pixels=label.size*Math.min(...ink.map(p=>p.scale));
+          assert.ok(pixels>=12-1e-6,`${variant.values.element}/${viewport.width}×${viewport.height}: ${label.text} reads at ${pixels}px`);
+          labels++;
+        }
+        assert.ok(seen.stage[2]-seen.stage[0]>=880-1,'the served stage respects the per-page floor');
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+        stages++;
+      }finally{await page.close();}
+    }
+  }
+  assert.equal(stages,10);assert.equal(labels,1240);
+});

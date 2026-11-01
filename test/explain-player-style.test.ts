@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { playerProperties } from '../app/embed-style.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
-import { buildExplainer } from '../tools/lib/explain-build.ts';
+import { buildExplainer, buildLoader } from '../tools/lib/explain-build.ts';
 import { serve } from '../tools/lib/explain-serve.ts';
 import { launch } from '../tools/lib/browser.ts';
 
@@ -70,7 +70,7 @@ test('palette cues validate all thirteen palettes in both themes and reject unsa
 });
 
 test(
-  'served player isolates cues, changes them by case and keeps forced-colour markers after blur',
+  'served player isolates cues, keeps width floors out of frames and preserves forced-colour markers',
   {
     skip: process.env.EXPLAIN_BROWSER
       ? false
@@ -143,12 +143,6 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
                 ? 'rgb(154, 52, 18)'
                 : 'rgb(32, 32, 32)'
               : 'rgb(240, 240, 240)',
-          );
-          assert.equal(
-            await page
-              .locator('.stage')
-              .evaluate((e) => getComputedStyle(e).minWidth),
-            name === 'cued' ? '880px' : '0px',
           );
           assert.equal(
             await page.locator('.case legend').textContent(),
@@ -255,6 +249,62 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
           );
           await page.close();
         }
+      const geometry = (root: HTMLElement) => {
+        const stage = root.querySelector('.stage')!.getBoundingClientRect();
+        return {
+          width: stage.width, height: stage.height,
+          next: root.querySelector('.primary')!.getBoundingClientRect().bottom,
+          side: root.querySelectorAll('aside.rail').length,
+          under: root.querySelectorAll('details.rail').length,
+          overflow: document.documentElement.scrollWidth > innerWidth,
+        };
+      };
+      for (const name of ['cued', 'neutral']) {
+        const page = await browser.newPage({reducedMotion:'reduce'});
+        try {
+          await page.goto(`${server.url}/${name}.html?step=middle`);
+          await page.waitForSelector('[data-ready=true]');
+          // Resize the same reader through both rail breakpoints, not just fresh loads.
+          for (const viewport of [390,1100,1211,1212,1280,1600,1100].map(width=>({width,height:400}))) {
+            await page.setViewportSize(viewport);
+            await page.evaluate(async()=>{for(let n=0;n<4;n++)await new Promise<void>(r=>requestAnimationFrame(()=>r()));});
+            const seen = await page.locator('#content').evaluate(geometry);
+            const side = viewport.width >= (name === 'cued' ? 1212 : 1100);
+            assert.equal(seen.side,Number(side),`${name}/${viewport.width}: side rail`);
+            assert.equal(seen.under,Number(!side),`${name}/${viewport.width}: steps disclosure`);
+            assert.equal(seen.overflow,false,`${name}/${viewport.width}: no horizontal page scroll`);
+            if (name === 'cued') {
+              assert.ok(seen.width >= Math.min(880,viewport.width-32)-1,`${viewport.width}: width floor`);
+              if (viewport.width >= 1100) assert.ok(seen.next > viewport.height,'the width floor can put Next below a short window');
+            } else assert.ok(Math.abs(seen.width-320)<1,'unconfigured pages retain the 20rem short-window floor');
+          }
+        } finally { await page.close(); }
+      }
+      await buildLoader(join(folder,'loader.js'));
+      for (const loader of [false,true]) {
+        const host = `<!doctype html><style>body{margin:0}</style>` + ['cued','neutral'].map(name=>
+          `<div id="${name}">${loader ?
+            `<script src="/loader.js" data-src="/${name}.html?step=middle" data-target="${name}" data-title="${name}"></script>` :
+            `<iframe title="${name}" src="/${name}.html?step=middle" style="width:100%;height:720px;border:0;display:block"></iframe>`}</div>`).join('');
+        await writeFile(join(folder,'host.html'),host);
+        for (const width of [390,1280]) {
+          const page = await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'});
+          try {
+            await page.goto(`${server.url}/host.html`);
+            const seen = [];
+            for (const name of ['cued','neutral']) {
+              const frame = page.frameLocator(`#${name} iframe`);
+              await frame.locator('[data-ready=true]').waitFor();
+              await frame.locator('#content').evaluate(async()=>{for(let n=0;n<4;n++)await new Promise<void>(r=>requestAnimationFrame(()=>r()));});
+              seen.push(await frame.locator('#content').evaluate(geometry));
+            }
+            assert.deepEqual(seen[0],seen[1],`${loader?'loader':'raw frame'}/${width}: opted-in sizing must not affect a frame`);
+            assert.equal(seen[0]!.overflow,false);
+            const heights = await page.locator('iframe').evaluateAll(frames=>frames.map(f=>f.getBoundingClientRect().height));
+            assert.equal(heights[0],heights[1],'the loader reports the same height with or without the setting');
+          } finally { await page.close(); }
+        }
+      }
     } finally {
       await browser?.close();
       server?.close();

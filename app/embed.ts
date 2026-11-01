@@ -319,8 +319,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // The tile: everything the page shows, on one surface inside one edge.
   const layout = el('div', undefined, 'layout tile');
   layout.append(player);
-  // The width embed.css puts the rail beside the card at.
-  const wide = matchMedia('(min-width: 1100px)');
+  // A page's width floor can defer the rail so it does not squeeze the picture.
+  const railWidth = getComputedStyle(root).getPropertyValue('--player-rail-breakpoint').trim() || '1100px';
+  const wide = matchMedia(`(min-width: ${railWidth})`);
   const placeRail = () => {
     if (wide.matches) {
       if (steps.parentElement !== railBody) railBody.append(steps, detailDisclosure);

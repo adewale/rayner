@@ -73,18 +73,18 @@ export function playerProperties(
   out['--player-tile-radius'] = cues.corners === 'square' ? '0px' : 'initial';
   out['--player-control-radius'] =
     cues.corners === 'square' ? '0px' : 'initial';
-  out['--player-stage-width'] =
-    typeof cues.minStageWidth === 'number' &&
-    Number.isFinite(cues.minStageWidth) &&
-    cues.minStageWidth > 0
-      ? `${Math.min(cues.minStageWidth, 4096)}px`
-      : 'initial';
-  out['--player-stage-overflow'] =
-    out['--player-stage-width'] === 'initial' ? 'initial' : 'auto';
   return out;
 }
 export function playerCss(cues?: Cues, palette?: Palette): string {
-  return `:root{${Object.entries(playerProperties(cues, palette))
+  const colors = `:root{${Object.entries(playerProperties(cues, palette))
     .map(([k, v]) => `${k}:${v}`)
     .join(';')}}\n`;
+  const width = cues?.minStageWidth;
+  if (typeof width !== 'number' || !Number.isFinite(width) || width <= 0) return colors;
+  const floor = Math.min(width, 4096);
+  // The rail needs 300px beside the stage, inside the page's 16px side paddings.
+  const beside = Math.max(1100, Math.ceil(floor + 332));
+  const page = Math.max(1240, beside);
+  return colors + `:root:not([data-framed]) #content{--player-floor:${floor}px;--player-rail-breakpoint:${beside}px;max-width:${page}px}\n` +
+    (beside > 1100 ? `@media(1100px <= width < ${beside}px){:root:not([data-framed]) .layout{width:min(100%,var(--player-cap));grid-template-columns:none}}\n` : '');
 }
