@@ -530,6 +530,22 @@ export default class Statecharts extends Scene {
       'https://www.npmjs.com/package/xstate/v/5.33.3',
     ],
     watch: { current: 'Current states' },
+    // The script's answer and check questions (script.md); check holds step 1 to the answer.
+    answer: 'A statechart is a state machine whose states can contain other states',
+    checks: [
+      {
+        question: 'Four states all have the same EXIT arrow. What would a statechart do?',
+        answer: 'Put the four in one parent box and draw EXIT once, on the box. None of the four handles EXIT, so the event goes to their parent, which does.',
+      },
+      {
+        question: 'Why do two independent on/off features need four flat states but only two regions?',
+        answer: 'A flat state must name both features at once, so it needs one per combination: 2 × 2 = 4. Regions give each feature its own small machine, so they add instead of multiply.',
+      },
+      {
+        question: 'Can a statechart do anything a state machine can’t?',
+        answer: 'No. Flatten any statechart and you get an ordinary state machine with the same behaviour. What changes is the size of the drawing.',
+      },
+    ],
   };
 
   override async construct() {

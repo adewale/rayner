@@ -23,8 +23,25 @@ export type ExplainerClass = SceneClass & {
     /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
     caseNavigation?: 'first';
     /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
-    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number };
+    /**
+     * Palette/corner cues, an optional standalone stage-width floor in CSS pixels (at most 4096), and
+     * `outline`: show every step's title in the steps rail from the start. By default the rail names
+     * only the steps the reader has reached, so a later step's title cannot answer an earlier question.
+     */
+    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number; outline?: boolean };
     watch?: Readonly<Record<string, string>>;
+    /**
+     * The script's answer to the reader's question, in one sentence. `check` requires the title, line
+     * or caption of one of the first two teaching steps to contain it, so the explanation answers
+     * before it elaborates.
+     */
+    answer?: string;
+    /**
+     * Questions a reader should be able to answer afterwards, each with its answer (at most six). The
+     * player asks them after the last step, with each answer behind a disclosure; the transcript and
+     * `describeExplainer` carry them too.
+     */
+    checks?: readonly { question: string; answer: string }[];
   };
   settings?: readonly Setting[];
 };

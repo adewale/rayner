@@ -1,3 +1,4 @@
+import { scriptReport } from '../../explain/script.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
 import { isHeading } from '../../explain/stage.ts';
@@ -423,6 +424,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     assert.deepEqual(JSON.parse(JSON.stringify(result.state)), v.trace.steps.at(-1)!.after, bare);
     assert.ok(result.svg.includes('<path'), bare);
+    const script = scriptReport(project.Scene.meta, v.trace.steps);
+    assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
     variants.push({
       settings: v.values,
       trace: v.trace,
@@ -438,6 +441,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       cardsAtRest,
       // Each step's words on a phone, estimated, and the steps whose length sets the room for the rest.
       words: wordsReport(v.trace.steps.map((s) => ({ step: s.step, ...stepWords(s) }))),
+      // The script gate (explain/script.ts): a declared meta.answer stated by step 2, and how many
+      // check questions the page asks. Undeclared parts are reported as missing.
+      script,
       // What each step changed of the state the author watches (meta.watch), as readers see it, and
       // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch

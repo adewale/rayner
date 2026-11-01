@@ -224,9 +224,26 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Spaces between the items keep them apart for assistive technology; flex layout drops them.
     row.replaceChildren(...(said.length ? [el('span', t.changed), ...said.flatMap((c) => [' ', el('span', c, 'change')])] : []));
   };
+  // The scene's check questions (meta.checks), asked after its last teaching step: each question
+  // in view, its answer behind a disclosure, so the reader answers before looking.
+  const checks = Source.meta?.checks?.length ? el('section', undefined, 'checks') : undefined;
+  if (checks) {
+    const heading = el('h2', t.checkYourself);
+    heading.id = 'check-yourself';
+    checks.setAttribute('aria-labelledby', heading.id);
+    const list = el('ol');
+    for (const c of Source.meta!.checks!) {
+      const item = el('li'), answer = el('details');
+      answer.append(el('summary', t.showAnswer), el('p', c.answer));
+      item.append(el('p', c.question, 'question'), answer);
+      list.append(item);
+    }
+    checks.append(heading, el('p', t.checkHint, 'hint'), list);
+    checks.hidden = true;
+  }
   // The step's words, under the controls, so a long caption never moves Next.
   const words = el('div', undefined, 'words');
-  words.append(lede, caption, ...(changes ? [changes] : []), described);
+  words.append(lede, caption, ...(changes ? [changes] : []), ...(checks ? [checks] : []), described);
   // Measure the tallest heading for the stage cap without reserving empty space in the prose.
   const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
@@ -539,6 +556,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
     else lastStory = selected;
     endControls(atEnd(), atEnd() ? tryLabel() : '');
+    if (checks) checks.hidden = selected !== mainIndices().at(-1);
+    reached.add(step.step);
+    nameSteps();
     // Done, current, to do, in the rail and on the step bar. Only the current segment is a Tab
     // stop, full at rest and empty as its step starts.
     for (const list of [steps, detailSteps, bar]) for (const b of list.querySelectorAll<HTMLButtonElement>('button')) {
@@ -560,6 +580,32 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     summary.textContent = pictureSummary(step.after);
     picture.innerHTML = pictureHtml(step.after);
     described.hidden = !picture.innerHTML;
+  }
+  // The steps the reader has reached, by name, across cases. The rail and the step bar name a
+  // teaching step only once it is reached (or an earlier step's later one is), so a later title
+  // such as "Answer: …" cannot give away a prediction; meta.player.outline names them all.
+  const reached = new Set<string>(),
+    outline = Source.meta?.player?.outline === true;
+  function nameSteps() {
+    let furthest = selected;
+    trace.steps.forEach((s, i) => { if (reached.has(s.step) && i > furthest) furthest = i; });
+    const main = mainIndices();
+    for (const b of steps.querySelectorAll<HTMLButtonElement>('button')) {
+      const i = Number(b.dataset.index), shown = outline || i <= furthest;
+      if (b.dataset.shown === String(shown)) continue;
+      b.dataset.shown = String(shown);
+      const words = stepWords(trace.steps[i]!), title = b.querySelector<HTMLElement>('.title')!, line = b.querySelector<HTMLElement>('.line');
+      title.textContent = shown ? words.title : t.notYet(main.indexOf(i) + 1);
+      b.classList.toggle('unseen', !shown);
+      if (line) line.hidden = !shown;
+    }
+    main.forEach((i, ordinal) => {
+      const b = bar.querySelector<HTMLButtonElement>(`button[data-index="${i}"]`);
+      if (!b) return;
+      const shown = outline || i <= furthest, label = stepWords(trace.steps[i]!).title;
+      b.title = shown ? label : t.notYet(ordinal + 1);
+      b.setAttribute('aria-label', shown ? t.stepOf(ordinal + 1, main.length, label) : t.stepOf(ordinal + 1, main.length));
+    });
   }
   /** Beside the card, scroll the rail, never the page, so the current step is in view in it. */
   function keepInRail() {
@@ -991,7 +1037,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       notice.textContent = share;
     }
   };
-  root.addEventListener('keydown', (e) => {
+  const onKey = (e: KeyboardEvent) => {
     if (casePhase.kind === 'loading') return;
     const tag = (e.target as HTMLElement).tagName;
     if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SUMMARY'].includes(tag) || e.ctrlKey || e.metaKey) return;
@@ -1018,6 +1064,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (!action) return;
     e.preventDefault();
     action();
+  };
+  root.addEventListener('keydown', onKey);
+  // Before the reader clicks anything, keys go to the body, outside the tile: the arrows step from
+  // the moment the page loads. In a frame the frame only receives keys once it has focus, so this
+  // never takes a key from the host page.
+  document.addEventListener('keydown', (e) => {
+    if (e.target === document.body || e.target === document.documentElement) onKey(e);
   });
   // Focusable for the arrow keys once clicked, but not a Tab stop: its focus is not drawn.
   root.tabIndex = -1;

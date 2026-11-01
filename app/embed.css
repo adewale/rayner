@@ -5,7 +5,7 @@
 *{box-sizing:border-box}
 ::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
 body{margin:0;background:var(--bg);color:var(--fg);accent-color:var(--accent)}
-#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px);--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
+#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px + var(--caption-start,3.6rem));--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
 #content:focus{outline:none}
 /* In a frame the page is the tile alone: the host's background shows around it and at its corners.
    The tile keeps 1px off the frame's edges, so its own edge is drawn inside the frame, and #content holds
@@ -50,8 +50,9 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 }
 
 /* Player: one card. Its header, the picture, one stepper row straight under it, then the step's words.
-   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
-   of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings). The card, not
+   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, 115px, and --caption-start) is the room the header, the stepper row and the first lines
+   of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings + the caption's first two lines,
+   3.6rem at 1.125rem × 1.6), so a reader sees the picture and the start of what it means without scrolling. The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
    against the viewports in specs/player-redesign.md R2. */
@@ -117,6 +118,16 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .tools .share{margin-inline-start:12px}
 .words>.tools{margin:8px 0 0;padding:10px 0 0;border:0;border-top:1px solid var(--line);justify-content:flex-start}.words>.tools .try{margin-inline-end:auto}
 @media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.button.try{font-size:.9375rem}.stepper .button,.tools .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
+/* The scene's check questions after its last step: each question in view, its answer behind a disclosure. */
+.checks{margin:10px 0 2px;padding:12px 14px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px)}
+.checks[hidden]{display:none}
+.checks h2{margin:0;font-size:1.0625rem}
+.checks .hint{margin:2px 0 6px;font-size:.875rem;color:var(--muted)}
+.checks ol{margin:0;padding-left:1.25rem;display:grid;gap:8px}
+.checks .question{margin:0;font-weight:600}
+.checks details{font-size:.9375rem}
+.checks summary{padding:4px 0;cursor:pointer;color:var(--muted)}
+.checks details p{margin:2px 0 0}
 .described{margin:2px 0 0;max-width:68ch;font-size:.9375rem;color:var(--muted)}
 .described summary{padding:6px 0;cursor:pointer}
 .described ul,.transcript li ul{margin:4px 0;padding-left:1.25rem;overflow-wrap:anywhere}
@@ -156,6 +167,8 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .steps .title{font-size:.9375rem;line-height:1.35}
 .steps .line{font-size:.8125rem;line-height:1.4;color:var(--muted)}
 .steps [data-state=done]::before{border-color:var(--accent);color:var(--accent)}
+/* A step not yet reached shows its number only, so its title cannot answer an earlier question. */
+.steps .unseen .title{color:var(--muted)}
 .steps [aria-current=step]{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .steps [aria-current=step]::before{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 

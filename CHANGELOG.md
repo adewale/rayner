@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Arrow keys step through a standalone page as soon as it loads, before the reader clicks anything. Frames still take keys only once focused.
+- Reserve the caption's first two lines in the stage's height cap, so at 1280 × 800 and 1366 × 768 a reader sees the picture and the start of its explanation without scrolling.
+- Name a teaching step in the steps rail and step bar only once the reader reaches it; until then the rail shows its number. A later title such as "Answer: …" no longer gives away an earlier prediction. `meta.player.outline` shows every title from the start.
+- Add `meta.answer` and `meta.checks`. `check` fails a declared answer that the first two teaching steps do not state; the player asks the check questions after the last step with answers behind disclosures; the transcript and `describeExplainer` include both.
+- Add `rayner quiz`: the explainer as text with its check questions and no answers, a control with the questions alone, and an answer key, for testing with fresh readers whether the explainer teaches what its script says.
+- `rayner init` writes `script.md` first, and the tutorial explains how the script reaches the scene.
 - Add a statecharts explainer, written from a short script that answers what a statechart is and why to use one: a coffee machine's four POWER_OFF arrows become one on a parent state, and a player's playback and volume become regions that rule out the impossible boolean combination. Its model is checked against XState 5.33.3.
 - Write the script first: the authoring skill now asks for the reader's questions, a 150 to 250 word answer-first script, a sentence to remember and check questions before planning steps, and the rubric fails an explainer whose transcript does not state its answer by step 2.
 - Lead the gallery with six showcase lessons while retaining the complete coverage catalog. Subset exports can choose their own introductory lesson.

@@ -89,6 +89,14 @@ export interface Chrome {
   /** The footer's one quiet line on how to move: with a keyboard and pointer, or by touch. */
   hintKeys: string;
   hintTouch: string;
+  /** A rail entry for a step the reader has not reached: its title stays hidden until then. */
+  notYet: (i: number) => string;
+  /** The heading over the scene's check questions after the last step, and in the transcript. */
+  checkYourself: string;
+  /** Under the check questions' heading: answer before opening. */
+  checkHint: string;
+  /** The disclosure that holds a check question's answer. */
+  showAnswer: string;
 }
 
 const EN: Chrome = {
@@ -140,6 +148,10 @@ const EN: Chrome = {
   tryCase: (label) => `Try ‘${label}’`,
   hintKeys: '← → to step · click a segment to jump',
   hintTouch: 'Tap a segment to jump; tap the current one to finish it',
+  notYet: (i) => `Step ${i}`,
+  checkYourself: 'Check yourself',
+  checkHint: 'Answer each one before you open it.',
+  showAnswer: 'Show the answer',
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
@@ -197,6 +209,10 @@ const FR: Chrome = {
   tryCase: (label) => `Essayer «\u202f${label}\u202f»`,
   hintKeys: '← → pour changer d’étape · cliquez un segment pour y aller',
   hintTouch: 'Touchez un segment pour y aller\u202f; touchez celui en cours pour le terminer',
+  notYet: (i) => `Étape ${i}`,
+  checkYourself: 'Vérifiez vos connaissances',
+  checkHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
+  showAnswer: 'Voir la réponse',
 };
 export const CHROME: Readonly<Record<string, Chrome>> = { en: EN, fr: FR };
 

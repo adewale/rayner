@@ -13,6 +13,7 @@ import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
+import { checkScriptMeta } from '../../explain/script.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
 import type { Trace } from '../../src/index.ts';
 
@@ -404,6 +405,8 @@ export async function collectProject(
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);
     // The state readers follow must be state the scene keeps, in some step of some case.
     checkWatch(Source.meta?.watch, variants.flatMap((v) => v.trace.steps));
+    // The script's answer and check questions must be usable before any case is checked against them.
+    checkScriptMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store, loaded.sourceHash);
     return { ...loaded, Scene: Source, store, variants, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };

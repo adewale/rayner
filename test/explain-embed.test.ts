@@ -853,8 +853,9 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       assert.equal(await page.locator('details.supporting').evaluate((d) => (d as HTMLDetailsElement).open), false, `${where}: source details start closed`);
       assert.ok(seen.box.left >= seen.card.right, `${where}: the rail is beside the card ${JSON.stringify(seen)}`);
       assert.ok(Math.abs(seen.box.top - seen.card.top) <= 2, `${where}: the rail's top is the card's ${JSON.stringify(seen)}`);
-      // Every item shows its title and its line; none is bold, current or not.
-      const items = await page.locator('.steps:not(.supporting-steps) button').evaluateAll((bs) =>
+      // A reached step shows its title and its line; a step not yet reached shows only its number,
+      // so a later title cannot answer an earlier question. None is bold, current or not.
+      const items = () => page.locator('.steps:not(.supporting-steps) button').evaluateAll((bs) =>
         bs.map((b) => ({
           title: b.querySelector('.title')?.textContent,
           line: b.querySelector('.line')?.textContent,
@@ -862,7 +863,12 @@ test('the rail is a pane beside the card when wide and a closed details row insi
           weight: getComputedStyle(b.querySelector('.title')!).fontWeight,
         })),
       );
-      assert.deepEqual(items, list.map((s) => ({ title: s.title, line: s.line, shown: true, weight: '400' })), where);
+      const expected = (reached: number) =>
+        list.map((s, i) => (i < reached ? { title: s.title, line: s.line, shown: true, weight: '400' } : { title: `Step ${i + 1}`, line: s.line, shown: false, weight: '400' }));
+      assert.equal(list.length, 2, 'mr-cache has two teaching steps');
+      assert.deepEqual(await items(), expected(1), `${where}: only the first step is named at load`);
+      const segment = (i: number) => page.locator('.step-bar button').nth(i).evaluate((b) => [b.getAttribute('title'), b.getAttribute('aria-label')]);
+      assert.deepEqual(await segment(1), ['Step 2', 'Step 2 of 2'], `${where}: the unreached segment does not name its step`);
       // Changing step moves neither the page nor the card.
       const place = () => page.evaluate(() => [scrollY, document.querySelector('.player')!.getBoundingClientRect().top, document.querySelector('.rail')!.getBoundingClientRect().top]);
       const before = await place();
@@ -875,6 +881,9 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       await page.getByRole('button', { name: 'Next step', exact: true }).click();
       await page.waitForFunction((step) => document.querySelector('.steps [aria-current=step]')?.getAttribute('data-step') === step, list[1]!.step);
       assert.deepEqual(await place(), before, `${where}: Next kept the page and the card in place`);
+      // Reaching a step names it, and going back keeps it named.
+      assert.deepEqual(await items(), expected(2), `${where}: both steps are named once reached`);
+      assert.deepEqual(await segment(1), [list[1]!.title, `Step 2 of 2: ${list[1]!.title}`], `${where}: the reached segment names its step`);
     });
   }
   for (const [width, height] of [[390, 844], [768, 1024]] as const) {
@@ -1743,6 +1752,8 @@ interface PlayerModel {
   follow: boolean;
   /** The selected close-up ordinal; comparison openings and later details may use different scales. */
   tourStop: number;
+  /** Every step shown so far, by name: the rail and step bar name a teaching step once it, or a later one, is reached. */
+  reached: Set<string>;
 }
 interface PlayerReal {
   page: Page;
@@ -1979,7 +1990,12 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   eq('step list', seen.list, presentedSteps(list).map(s => s.step));
   const main = teachingSteps(list);
   eq('step bar', seen.bar, main.map(j => [list[j]!.step, j < i ? 'done' : j === i ? 'current' : 'todo', j === i ? 'step' : 'false']));
-  eq('step bar names and Tab stops', seen.barNames, main.map((j,index)=>[`Step ${index+1} of ${main.length}: ${list[j]!.title}`,list[j]!.title,j===i?0:-1]));
+  // The step on show is reached; a teaching step is named once it, or a later step, has been reached.
+  m.reached.add(entry.step);
+  const furthest = Math.max(i, ...list.flatMap((s, j) => (m.reached.has(s.step) ? [j] : [])));
+  eq('step bar names and Tab stops', seen.barNames, main.map((j,index)=> j <= furthest
+    ? [`Step ${index+1} of ${main.length}: ${list[j]!.title}`,list[j]!.title,j===i?0:-1]
+    : [`Step ${index+1} of ${main.length}`,`Step ${index+1}`,j===i?0:-1]));
   eq('step bar label', seen.barLabel, 'Step progress');
   eq('current segment is full at rest', seen.barProgress, main.includes(i)?'1':null);
   eq('aria-current', seen.current, [entry.step]);
@@ -2420,7 +2436,7 @@ async function openPlayer(name: string, initial: { values: (string | undefined)[
     const {page,errors}=await counted(context,`${embed}/${name}.html${query.size ? '?' + query : ''}`);
     const base = (await page.evaluate(() => history.length)) - 1;
     const parsed = (await page.evaluate(() => (window as unknown as { __attaches: number }).__attaches)) - 1;
-    const model: PlayerModel = { project: p, entries: [entry], index: 0, notice, k: 1, transcript: false, settles: 1, follow: true, tourStop: 0 };
+    const model: PlayerModel = { project: p, entries: [entry], index: 0, notice, k: 1, transcript: false, settles: 1, follow: true, tourStop: 0, reached: new Set() };
     const real: PlayerReal = { page, errors, base, parsed };
     await reframe(model, real);
     await verify(model, real, `opening ${page.url()}`);

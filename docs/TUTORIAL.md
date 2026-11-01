@@ -46,13 +46,46 @@ The limit line keeps the explainer inside what it tests. It counts hits, so it c
 
 Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version earns its place by isolating the one decision where the policies differ before it shows what that decision costs over the whole sequence.
 
+Then turn the plan into a script: the 150 to 250 words you would say to a newcomer, answer first, with a sentence to remember and the questions they should be able to answer afterwards. `rayner init` writes this one as `script.md`:
+
+<!-- lru-mru/script.md -->
+```md
+# Script: what is the difference between LRU and MRU?
+
+Write this before any code. Read it aloud to someone who doesn't know the topic, with no pictures: if they can't answer the check questions afterwards, fix the script, not the drawing. See "Script first" in the Rayner explainers skill.
+
+**Questions the reader brings:** What is the difference between LRU and MRU? When does it matter?
+
+**Script** (150 to 250 words, answer first):
+
+On a miss in a full cache, a replacement policy chooses which item to evict. LRU evicts the item used longest ago. MRU evicts the item used most recently. Which one gets more hits depends on the order of requests.
+
+Take a cache with three slots. Requests for A, B and C fill it in both policies, so both hold the same items. The next request, D, misses in both and forces an eviction. LRU drops A, the oldest. MRU drops C, the newest.
+
+Now repeat A, B, C and D. LRU always evicted the item the loop needs next, so every request misses. MRU evicted C to make room for D, so A, B and D hit on the second pass. A loop over more items than the cache holds favours MRU.
+
+Change only what follows: C and D alternate instead. LRU still holds both, so every repeat hits. MRU evicts the item requested just before, which is always the next one requested, so every repeat misses. Reuse of recent items favours LRU.
+
+These counts cover eight requests through three slots. They leave out what tracking recency costs.
+
+**Sentence to remember:** LRU evicts the oldest item and MRU the newest, so a loop larger than the cache favours MRU and reuse of recent items favours LRU.
+
+**Check questions** (they go in the scene's `meta.checks`; `meta.answer` holds the script's first answer):
+
+1. A full cache misses. Which item does each policy evict?
+2. Why does LRU miss every request when a loop is one item larger than the cache?
+3. Which policy should manage a buffer for a file scanned over and over that does not fit in memory?
+```
+
+The scene carries two parts of it, so the tools can hold the explainer to the script: `meta.answer`, which `rayner check` requires the title, line or caption of step 1 or 2 to contain, and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure.
+
 ## 2. Generate the explainer
 
 ```sh
 npx rayner init lru-mru
 ```
 
-This writes three files into `lru-mru/`: the model, the model's test and the scene. Together they are the finished explainer for the plan above, and the same files are in this repository at [`scenes/tutorial/lru-mru/`](../scenes/tutorial/lru-mru/). The rest of the tutorial reads them against the plan, then breaks the scene on purpose twice: once to see what `rayner check` catches, and once to see what it cannot.
+This writes four files into `lru-mru/`: the script, the model, the model's test and the scene. Together they are the finished explainer for the plan above, and the same files are in this repository at [`scenes/tutorial/lru-mru/`](../scenes/tutorial/lru-mru/). The rest of the tutorial reads them against the plan, then breaks the scene on purpose twice: once to see what `rayner check` catches, and once to see what it cannot.
 
 ## 3. Read the model
 
@@ -136,6 +169,13 @@ export default class LruMru extends Scene {
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
+    ],
+    // From script.md: check holds the first two steps to the answer; the player asks the questions at the end.
+    answer: 'LRU evicts the item used longest ago',
+    checks: [
+      { question: 'A full cache misses. Which item does each policy evict?', answer: 'LRU evicts the item used longest ago; MRU evicts the item used most recently.' },
+      { question: 'Why does LRU miss every request when a loop is one item larger than the cache?', answer: 'Each miss evicts the oldest item, which is exactly the item the loop asks for next.' },
+      { question: 'Which policy should manage a buffer for a file scanned over and over that does not fit in memory?', answer: 'MRU: it keeps most of the loop in the cache, while LRU evicts each item just before it is needed again.' },
     ],
   };
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];

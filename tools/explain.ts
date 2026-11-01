@@ -20,7 +20,7 @@ const HELP = `Rayner ${pkg.version} (Node 24+)
 Usage: rayner <command> <scene.ts | directory> [options]
 
 Commands:
-  init <directory>    Write the tutorial's LRU/MRU explainer: scene, model, test
+  init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test
   preview <scene>     Build and serve on localhost
   snapshots <scene>   Run every case, capture/verify diagrams and replay morph edits
   check <scene>       Every case: seek, motion, skipped trace, bare runtime, step
@@ -35,6 +35,9 @@ Commands:
   see <scene> [step]  One step's resting picture as text, with its caption, its
                       picture in words and what it changed in scene.state
                       (the last step by default; --out file.svg also writes it)
+  quiz <scene>        The explainer as text for a reader who has not seen it, with
+                      its check questions (meta.checks) and no answers, plus the
+                      answer key: out/quiz/<id>/packet.md, control.md, key.json
   version             Print the version (also --version)
 
 Every command fails on text the embedded fonts cannot draw, unless the scene
@@ -86,10 +89,10 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     await mkdir(dir, { recursive: false });
     for (const file of STARTER_FILES)
       await writeFile(join(dir, file), packageImports(await readFile(join(STARTER, file), 'utf8')));
-    console.log(`Created ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
+    console.log(`Created ${join(dir, 'script.md')}, the script to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
-  if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))
+  if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see', 'quiz'].includes(command!))
     throw new Error(`Unknown command: ${command}`);
   const collection = { refresh: flags.refresh, captureLettering: command === 'snapshots' || command === 'preview' };
   const project = await collectProject(input, collection);
@@ -139,6 +142,18 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
     return defaultVariant(project, values);
+  }
+  if (command === 'quiz') {
+    // The packet goes to a reader who has not seen the scene; the key stays with the grader.
+    const { quiz } = await import('./lib/explain-quiz.ts');
+    const { packet, control, key } = await quiz(project, selectedVariant().values);
+    const base = flags.out ?? resolve('out/quiz', slug);
+    await mkdir(base, { recursive: true });
+    await writeFile(join(base, 'packet.md'), packet);
+    await writeFile(join(base, 'control.md'), control);
+    await writeFile(join(base, 'key.json'), JSON.stringify(key, null, 2) + '\n');
+    console.log(`Wrote ${join(base, 'packet.md')} for a reader who has not seen the scene, ${join(base, 'control.md')} (the questions without the explainer) for a second such reader, and ${join(base, 'key.json')} for the grader (${key.questions.length} questions)`);
+    return;
   }
   if (command === 'see') {
     const { see } = await import('./lib/explain-see.ts');
