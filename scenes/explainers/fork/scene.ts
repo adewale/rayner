@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/fork.ts';
 import { Scene, Rectangle, Text, Group } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 const STYLE = 'github-light';
@@ -24,7 +26,7 @@ const ABOVE = regionBox('top', { bottom: -1.1 }),
 export default class ForkExplainer extends Scene {
   static meta = {
     id: 'fork',
-    title: 'What changes when Lantern’s live player becomes a prebuilt page?',
+    title: 'Why build the page before readers open it?',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/README.md',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/app/worker.ts',
@@ -33,15 +35,18 @@ export default class ForkExplainer extends Scene {
     ],
   };
   override async construct() {
-    const s = stage(this, { style: STYLE });
+    const s = stage(this, { headingSize: 0.6, style: STYLE });
     const ink = s.palette.ink;
 
+    await readerFirst(this, s, readerFrames());
     await this.step('lantern', {
+      detail: true,
       title: 'Lantern runs each scene for its player and Worker',
       line: 'The same fixed clock feeds both live readers.',
       caption:
         'What must change to send a scene as one HTML page instead of running it for each request? At commit 2c7bad5, Lantern’s development player reads a Scene on a fixed clock, while a Cloudflare Worker serves frames, text and traces on demand. We will keep the scene and its clock but replace that delivery path with a build, then count what readers gain and lose.',
     });
+    await s.clear();
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
     await flow.walk([['Scene', 'Clock']], { trail: true });
     await flow.walk(
@@ -62,6 +67,7 @@ export default class ForkExplainer extends Scene {
     );
 
     await this.step('engine', {
+      detail: true,
       title: 'The fork keeps the engine',
       line: 'Bézier points, fixed endpoints and seek by replay all stay.',
       caption:
@@ -82,6 +88,7 @@ export default class ForkExplainer extends Scene {
     );
 
     await this.step('removed', {
+      detail: true,
       title: 'Four parts of Lantern are deleted',
       line: 'The JSON doc, parser, dev player and Worker are gone.',
       caption:
@@ -97,6 +104,7 @@ export default class ForkExplainer extends Scene {
     await flow.note('Worker', 'no replacement', { side: 'right' });
 
     await this.step('fork', {
+      detail: true,
       title: 'The fork puts a build between the scene and the reader',
       line: 'Diagrams are captured once; the page runs no renderer.',
       caption:
@@ -116,6 +124,7 @@ export default class ForkExplainer extends Scene {
     await flow.note('Page', 'no diagram renderer, still no dependencies', { side: 'above' });
 
     await this.step('settings', {
+      detail: true,
       title: 'A reader setting is a case built ahead of time',
       line: 'Each option of the refill rate is a case, checked in advance.',
       caption:
@@ -134,6 +143,7 @@ export default class ForkExplainer extends Scene {
     const motion = (shown.hold ?? shown.t1!) - shown.t0,
       held = shown.hold == null ? 0 : shown.t1! - shown.hold;
     await this.step('timing', {
+      detail: true,
       title: 'The page holds each resting picture for its caption',
       line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
       caption: `The scene advances automatically; the page waits for the reader. Its clock gives the fork step ${motion.toFixed(1)} seconds of motion and ${held.toFixed(1)} seconds at rest, allowing its ${words}-word caption to be read at ${Scene.captionWpm} words a minute.`,
@@ -154,7 +164,11 @@ export default class ForkExplainer extends Scene {
       return new Group(bar, text);
     };
     await s.enter(
-      new Text(`Step 'fork' on the page: ${(motion + held).toFixed(1)} s`, { fontSize: 0.26, color: ink, weight: 'bold' }).moveTo([0, -1.85]),
+      new Text(`Step 'fork' on the page: ${(motion + held).toFixed(1)} s`, {
+        fontSize: 0.26,
+        color: ink,
+        weight: 'bold',
+      }).moveTo([0, -1.85]),
       phase(0, motion, s.emphasis, `moving: ${motion.toFixed(1)} s`),
       phase(motion, held, s.soft, `still, caption of ${words} words: ${held.toFixed(1)} s`),
       {
@@ -164,6 +178,7 @@ export default class ForkExplainer extends Scene {
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };
 
     await this.step('checks', {
+      detail: true,
       title: 'Every case passes rayner check before it ships',
       line: 'Two checks come from Lantern; the fork adds four.',
       caption:
@@ -186,6 +201,7 @@ export default class ForkExplainer extends Scene {
     );
 
     await this.step('cost', {
+      detail: true,
       title: 'A prebuilt page no longer exposes Lantern’s Worker endpoints',
       line: 'The Worker endpoints are gone; Inter is the default face.',
       caption:

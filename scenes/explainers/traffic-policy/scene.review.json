@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "compare",
+      "targets": [
+        {
+          "key": "traffic-compare:cluster"
+        },
+        {
+          "key": "traffic-compare:cluster:hop"
+        },
+        {
+          "key": "traffic-compare:cluster:source"
+        },
+        {
+          "key": "traffic-compare:local"
+        },
+        {
+          "key": "traffic-compare:local:hop"
+        },
+        {
+          "key": "traffic-compare:local:source"
+        }
+      ]
+    },
+    {
+      "step": "compare",
+      "settings": {
+        "pods": "3-1-0"
+      },
+      "targets": [
+        {
+          "key": "traffic-compare:cluster:pods:Pods a, b, c and d"
+        },
+        {
+          "key": "traffic-compare:cluster:share:Pods a, b, c and d"
+        },
+        {
+          "key": "traffic-compare:local:pods:Pod d"
+        },
+        {
+          "key": "traffic-compare:local:share:Pod d"
+        },
+        {
+          "key": "traffic-compare:local:pods:Pods a, b and c"
+        },
+        {
+          "key": "traffic-compare:local:share:Pods a, b and c"
+        }
+      ]
+    },
+    {
+      "step": "compare",
+      "settings": {
+        "pods": "2-2-0"
+      },
+      "targets": [
+        {
+          "key": "traffic-compare:cluster:pods:Pods a, b, c and d"
+        },
+        {
+          "key": "traffic-compare:cluster:share:Pods a, b, c and d"
+        },
+        {
+          "key": "traffic-compare:local:pods:Pods a, b, c and d"
+        },
+        {
+          "key": "traffic-compare:local:share:Pods a, b, c and d"
+        }
+      ]
+    },
+    {
+      "step": "compare",
+      "settings": {
+        "pods": "1-1-1"
+      },
+      "targets": [
+        {
+          "key": "traffic-compare:cluster:pods:Pods a, b and c"
+        },
+        {
+          "key": "traffic-compare:cluster:share:Pods a, b and c"
+        },
+        {
+          "key": "traffic-compare:local:pods:Pods a, b and c"
+        },
+        {
+          "key": "traffic-compare:local:share:Pods a, b and c"
+        }
+      ]
+    }
+  ]
+}

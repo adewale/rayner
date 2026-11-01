@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/ical-recurrence.ts';
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -37,12 +39,16 @@ const STYLE = 'github-light';
 // Code on the left, the meeting list on the right; the ER diagram takes the whole stage.
 const CODE: Box = [-7.55, -4.1, -0.05, 3.1];
 const LIST: Box = [0.25, -4.1, 7.55, 3.1];
-const FULL: Box = [-7.55, -4.1, 7.55, 3.15];
+const FULL: Box = [-7.8, -4.3, 7.8, 3.3];
 const CODE_SIZE = 0.28;
 const LIST_SIZE = 0.3;
 const LIST_WIDTH = 7.3;
 
-const CHANGES: Record<Change, string> = { none: 'No other change', move: 'Move the second meeting', skip: 'Skip Bob’s meeting' };
+const CHANGES: Record<Change, string> = {
+  none: 'No other change',
+  move: 'Move the second meeting',
+  skip: 'Skip Bob’s meeting',
+};
 const COPIES: Record<Copy, string> = { organiser: 'Alice’s, the organiser', guest: 'Bob’s, a guest at one meeting' };
 
 const RULE_STARTS = occurrences(DTSTART, parseRule(MASTER.rrules[0]!));
@@ -60,7 +66,11 @@ function rows(components: readonly VEvent[]): [string, string][] {
     const m = meetings.get(slot);
     if (!m) return [week(slot), 'skipped, EXDATE'];
     const c = components.find((v) => v.recurrenceId === slot);
-    const notes = [m.start !== slot && 'moved', c?.attendees.includes(GUEST) && 'with Bob', m.cancelled && 'cancelled'].filter(Boolean);
+    const notes = [
+      m.start !== slot && 'moved',
+      c?.attendees.includes(GUEST) && 'with Bob',
+      m.cancelled && 'cancelled',
+    ].filter(Boolean);
     return [week(slot), [short(m.start), ...notes].join(', ')];
   });
 }
@@ -71,7 +81,7 @@ const guestRows = (components: readonly VEvent[]): [string, string][] =>
 export default class IcalRecurrenceExplainer extends Scene {
   static meta = {
     id: 'ical-recurrence',
-    title: 'Changing one meeting of a weekly series stores another VEVENT with the same UID',
+    title: 'What changes when a recurring meeting moves?',
     sources: [
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1',
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10',
@@ -107,22 +117,37 @@ export default class IcalRecurrenceExplainer extends Scene {
     const values = settingsOf(this);
     const change = values.change as Change,
       copy = values.copy as Copy;
-    const s = stage(this, { style: STYLE, headingSize: 0.46 });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const after = organiserCopy(change);
 
     // ------------------------------------------------------------------ series
+    await readerFirst(this, s, readerFrames(change, copy));
     await this.step('series', {
+      detail: true,
       title: 'A weekly stand-up is stored as one VEVENT',
       line: 'DTSTART is the first meeting; RRULE with COUNT=6 makes six.',
       // RFC 5545 §3.3.10, lines 2272–2274: COUNT; DTSTART counts as the first occurrence.
       caption: `Alice’s calendar app saves her stand-up as one VEVENT. DTSTART is the first meeting, ${long(DTSTART)} 2026 at 09:00 UTC. RRULE repeats it weekly, and COUNT=6 stops after six meetings, with DTSTART counting as the first. The list shows the meetings a calendar computes from those two lines.`,
     });
-    const code: CodeBlock = await s.code(lines(SERIES), { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out' });
-    const list: Card = await s.card(rows(SERIES), { at: LIST, align: 'top', width: LIST_WIDTH, fontSize: LIST_SIZE, title: 'Meetings Alice’s calendar shows' });
+    await s.clear();
+    const code: CodeBlock = await s.code(lines(SERIES), {
+      at: CODE,
+      align: 'top',
+      fontSize: CODE_SIZE,
+      title: 'Alice’s stored object, some lines left out',
+    });
+    const list: Card = await s.card(rows(SERIES), {
+      at: LIST,
+      align: 'top',
+      width: LIST_WIDTH,
+      fontSize: LIST_SIZE,
+      title: 'Meetings Alice’s calendar shows',
+    });
     this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start) };
 
     // ------------------------------------------------------------------ invite
     await this.step('invite', {
+      detail: true,
       title: 'Inviting Bob to one meeting stores a second VEVENT',
       line: `Same UID, and RECURRENCE-ID ${GUEST_MEETING} names the third meeting.`,
       // RFC 5545 §3.8.4.4, lines 6294–6306: UID names the set, RECURRENCE-ID one instance, by its original start.
@@ -136,6 +161,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     // ------------------------------------------------------------------ change
     const moved = expand(after).find((m) => m.slot === MOVED_FROM)!;
     await this.step('change', {
+      detail: true,
       title:
         change === 'move'
           ? 'Moving the second meeting stores a third VEVENT'
@@ -163,7 +189,9 @@ export default class IcalRecurrenceExplainer extends Scene {
     } else {
       await code.morph(lines(after), { markAdded: true });
       await list.set(Object.fromEntries(rows(after)));
-      await list.mark(week(change === 'move' ? MOVED_FROM : GUEST_MEETING), { as: change === 'move' ? 'moved' : 'skipped' });
+      await list.mark(week(change === 'move' ? MOVED_FROM : GUEST_MEETING), {
+        as: change === 'move' ? 'moved' : 'skipped',
+      });
     }
     this.state.change = {
       change,
@@ -174,6 +202,7 @@ export default class IcalRecurrenceExplainer extends Scene {
 
     // ------------------------------------------------------------------ schema
     await this.step('schema', {
+      detail: true,
       title: 'One UID: at most one master, any number of overrides',
       line: 'At a line’s end, a bar is one, a circle zero, a crow’s foot many.',
       // RFC 4791 §4.1, lines 479–487.
@@ -191,6 +220,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     const parts = `${n.masters ? `one master with ${plural(n.rrules, 'RRULE')} and ${plural(n.exdates, 'EXDATE')}` : 'no master'}, and ${plural(n.overrides, 'override')}`;
     if (copy === 'organiser') {
       await this.step('copy', {
+        detail: true,
         title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
         line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${number(expand(mine).length)} meetings.`,
         caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes count each part in her copy, and parts her copy lacks are dimmed. Her calendar shows ${number(expand(mine).length)} meetings.`,
@@ -203,7 +233,8 @@ export default class IcalRecurrenceExplainer extends Scene {
         ...(n.exdates ? ['entity:EXDATE'] : []),
       ];
       await er.dim(present);
-      const count = (k: number, word: string) => (k ? plural(k, word).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`);
+      const count = (k: number, word: string) =>
+        k ? plural(k, word).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
       await er.note('entity:MASTER', count(n.masters, 'master'), { side: 'above' });
       await er.note('entity:OVERRIDE', count(n.overrides, 'override'), { side: 'above' });
       await er.note('entity:RRULE', count(n.rrules, 'RRULE'), { side: 'above' });
@@ -211,8 +242,13 @@ export default class IcalRecurrenceExplainer extends Scene {
     } else {
       const [first, second] = bob.messages;
       await this.step('copy', {
+        detail: true,
         title:
-          change === 'skip' ? 'Bob’s copy keeps the meeting, marked cancelled' : change === 'move' ? 'Alice’s move leaves Bob’s copy as it was' : 'Bob’s copy is one override and no master',
+          change === 'skip'
+            ? 'Bob’s copy keeps the meeting, marked cancelled'
+            : change === 'move'
+              ? 'Alice’s move leaves Bob’s copy as it was'
+              : 'Bob’s copy is one override and no master',
         line:
           change === 'skip'
             ? 'Delivering the CANCEL sets STATUS:CANCELLED and deletes nothing.'
@@ -228,17 +264,32 @@ export default class IcalRecurrenceExplainer extends Scene {
               : `The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His calendar shows ${plural(expand(mine).length, 'meeting')}.`,
       });
       await s.clear();
-      await s.code(lines(mine), { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Bob’s stored object, some lines left out' });
-      await s.card(guestRows(mine), { at: LIST, align: 'top', width: LIST_WIDTH, fontSize: LIST_SIZE, title: 'Meetings Bob’s calendar shows' });
+      await s.code(lines(mine), {
+        at: CODE,
+        align: 'top',
+        fontSize: CODE_SIZE,
+        title: 'Bob’s stored object, some lines left out',
+      });
+      await s.card(guestRows(mine), {
+        at: LIST,
+        align: 'top',
+        width: LIST_WIDTH,
+        fontSize: LIST_SIZE,
+        title: 'Meetings Bob’s calendar shows',
+      });
       this.state.messages = [first, second].filter(Boolean).map((m) => m!.method);
     }
     this.state.copy = { copy, stored: counts(mine), meetings: expand(mine).map((m) => [m.start, m.cancelled]) };
 
     // ------------------------------------------------------------------ server
     const refused = Object.fromEntries(
-      (['two masters', 'two RRULEs', 'override only'] as const).map((k) => [k, validate(SERVER_CASES[k]).map((r) => r.message)]),
+      (['two masters', 'two RRULEs', 'override only'] as const).map((k) => [
+        k,
+        validate(SERVER_CASES[k]).map((r) => r.message),
+      ]),
     );
     await this.step('server', {
+      detail: true,
       title: 'The server refuses a second master or a second RRULE',
       line: 'It answers 415; RFC 5545 only says RRULE SHOULD NOT repeat.',
       // sabre/dav Plugin.php:843–874; sabre/vobject VCalendar.php:448–455, Component.php:626–647.
@@ -250,7 +301,14 @@ export default class IcalRecurrenceExplainer extends Scene {
     const ops = [
       // erSource puts the RRULE relationship last.
       { kind: 'remove_relation', index: schema('rfc').length - 1 },
-      { kind: 'add_relation', from: 'MASTER', to: 'RRULE', leftCard: 'one-only', rightCard: 'zero-or-one', label: 'repeats by' },
+      {
+        kind: 'add_relation',
+        from: 'MASTER',
+        to: 'RRULE',
+        leftCard: 'one-only',
+        rightCard: 'zero-or-one',
+        label: 'repeats by',
+      },
     ] as const;
     let rules = er;
     if (copy === 'guest') {

@@ -278,8 +278,9 @@ test('state-machine: its Session card shows the traced state at every step, in e
       variant.Scene,
       (scene) => (scene as unknown as { readout?: StateView }).readout,
     );
-    // The card appears in the first step, so every step is checked.
-    assert.equal(checked, variant.trace.steps.length, `${JSON.stringify(variant.values)}: every step checked`);
+    const expected=variant.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
+    assert.deepEqual(variant.trace.steps.filter(s=>s.meta.detail===true).map(s=>s.step),expected);
+    assert.equal(checked, expected.length, `${JSON.stringify(variant.values)}: the Session card is checked at every program-walkthrough step`);
   }
 });
 test('ring-buffer views show the traced state at every step, in both cases', async () => {

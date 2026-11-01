@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "ranges",
+      "targets": [
+        { "key": "ranges-current" },
+        { "key": "ranges-alternative" },
+        { "key": "service:edge" },
+        { "key": "service:balancer" }
+      ]
+    }
+  ]
+}

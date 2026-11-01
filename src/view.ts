@@ -258,7 +258,7 @@ function hasText(m: Mobject): boolean { return m.family().some((x) => x instance
 function layoutBox(m: Mobject): Box | null {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   const walk = (x: Mobject): void => {
-    for (const a of x.pointArrays()) {
+    for (const a of x.boundingPointArrays()) {
       for (let i = 0; i < a.length; i += 2) {
         const px = a[i]!, py = a[i + 1]!;
         if (px < minX) minX = px; if (px > maxX) maxX = px;

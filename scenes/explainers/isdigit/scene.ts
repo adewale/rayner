@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/isdigit.ts';
 import { Scene, Text, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -36,7 +38,8 @@ const BOTTOM = -4.25;
 
 const q = (c: Char) => `'${c.char}'`;
 const MASKS = ['DECIMAL_MASK', 'DIGIT_MASK', 'NUMERIC_MASK'] as const;
-const list = (xs: readonly string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
+const list = (xs: readonly string[]) =>
+  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 const TF = (b: boolean) => (b ? 'True' : 'False');
 
 /** The row as three lines: fields 0 to 4, fields 5 to 9 (the numeric ones in the middle), fields 10 to 14. */
@@ -66,7 +69,7 @@ const SPOT: Record<CharId, [number, number]> = {
 export default class IsDigitExplainer extends Scene {
   static meta = {
     id: 'isdigit',
-    title: `str.isdigit() accepts ${accepts('isdigit')} characters that int() rejects`,
+    title: 'Does isdigit guarantee int can parse it?',
     sources: [
       CPY + 'Doc/builtins/stdtypes.rst#L2432-L2523',
       CPY + 'Doc/builtins/functions.rst#L1050-L1086',
@@ -87,11 +90,11 @@ export default class IsDigitExplainer extends Scene {
       label: 'Character',
       default: 'super',
       options: [
-        { value: 'arabic', label: '٣ Arabic-Indic three' },
-        { value: 'super', label: '² superscript two' },
-        { value: 'half', label: '½ one half' },
-        { value: 'roman', label: 'Ⅻ Roman twelve' },
-        { value: 'han', label: '三 Chinese three' },
+        { value: 'arabic', label: '٣ Arabic-Indic' },
+        { value: 'super', label: '² superscript' },
+        { value: 'half', label: '½ fraction' },
+        { value: 'roman', label: 'Ⅻ Roman' },
+        { value: 'han', label: '三 Chinese' },
       ],
     },
     {
@@ -107,7 +110,7 @@ export default class IsDigitExplainer extends Scene {
     const id = values.char as CharId,
       guard = values.guard as Predicate;
     const c = CHARS[id];
-    const s = stage(this, { style: STYLE, headingSize: SIZE });
+    const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
     const type = numericType(c),
       f = fields(c),
@@ -124,18 +127,37 @@ export default class IsDigitExplainer extends Scene {
         const [x0, y0, x1, y1] = set.box;
         const on = set.p === lit;
         mobs.push(
-          new Rectangle({ width: x1 - x0, height: y1 - y0, cornerRadius: 0.2, fill: 'none', stroke: ink, strokeWidth: on ? 0.09 : 0.03 }).moveTo([
-            (x0 + x1) / 2,
-            (y0 + y1) / 2,
-          ]),
-          new Text(set.label, { fontSize: SIZE, font: 'mono', color: ink, weight: on ? 'bold' : 'normal', anchor: 'start' }).moveTo([x0 + 0.25, y1 - 0.4], [-1, 0]),
+          new Rectangle({
+            width: x1 - x0,
+            height: y1 - y0,
+            cornerRadius: 0.2,
+            fill: 'none',
+            stroke: ink,
+            strokeWidth: on ? 0.09 : 0.03,
+          }).moveTo([(x0 + x1) / 2, (y0 + y1) / 2]),
+          new Text(set.label, {
+            fontSize: SIZE,
+            font: 'mono',
+            color: ink,
+            weight: on ? 'bold' : 'normal',
+            anchor: 'start',
+          }).moveTo([x0 + 0.25, y1 - 0.4], [-1, 0]),
         );
       }
       for (const k of LINEUP) {
         const mine = k === id;
         mobs.push(new Text(CHARS[k].char, { fontSize: 1.1, color: mine ? mark : ink }).moveTo(SPOT[k]));
         if (mine)
-          mobs.push(new Rectangle({ width: 1.6, height: 1.5, cornerRadius: 0.15, fill: 'none', stroke: mark, strokeWidth: 0.06 }).moveTo(SPOT[k]));
+          mobs.push(
+            new Rectangle({
+              width: 1.6,
+              height: 1.5,
+              cornerRadius: 0.15,
+              fill: 'none',
+              stroke: mark,
+              strokeWidth: 0.06,
+            }).moveTo(SPOT[k]),
+          );
       }
       const inside = (t: string) =>
         LINEUP.filter((k) => numericType(CHARS[k]) === t)
@@ -149,12 +171,15 @@ export default class IsDigitExplainer extends Scene {
     };
 
     // ------------------------------------------------------------------ the lineup
+    await readerFirst(this, s, readerFrames(values.char as CharId, guard));
     await this.step('lineup', {
+      detail: true,
       title: 'Eight numerals; int() accepts only the top four',
       line: 'Four ways to write 3 on top; isnumeric() is True for all eight.',
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
       caption: `The Unicode Character Database gives each of these a numeric value. The top row is four ways to write 3; below are superscript two, one half, Roman twelve and the Chinese numeral three. isnumeric() is True for all eight; int() accepts only the top row. This case follows ${c.char}: the next steps ask which Python predicate lets it through, and whether int() can actually parse it.`,
     });
+    await s.clear();
     const cells = LINEUP.map((cid, i) => {
       const ch = CHARS[cid];
       const x = -5.4 + (i % 4) * 3.6,
@@ -170,10 +195,14 @@ export default class IsDigitExplainer extends Scene {
       };
     });
     const mine = cells.find((k) => k.cid === id)!;
-    const ring = new Rectangle({ width: 2.9, height: 2.85, cornerRadius: 0.15, stroke: s.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
-      mine.x,
-      mine.y - 0.05,
-    ]);
+    const ring = new Rectangle({
+      width: 2.9,
+      height: 2.85,
+      cornerRadius: 0.15,
+      stroke: s.emphasis,
+      strokeWidth: 0.05,
+      fill: 'none',
+    }).moveTo([mine.x, mine.y - 0.05]);
     const named = (ks: readonly CharId[]) => ks.map((k) => `${CHARS[k].char} ${CHARS[k].code}`).join(', ');
     await s.enter(...cells.flatMap((k) => k.mobs), ring, {
       describe: `Eight characters in two rows, each over its code point. Top: ${named(LINEUP.slice(0, 4))}. Bottom: ${named(LINEUP.slice(4))}. ${c.char} is circled.`,
@@ -182,6 +211,7 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ its row in the database
     await this.step('ucd', {
+      detail: true,
       title:
         id === 'han'
           ? '三 gets its value, 3, from Unihan'
@@ -207,7 +237,12 @@ export default class IsDigitExplainer extends Scene {
     await s.clear();
     const row = await s.code(
       id === 'han'
-        ? [`# UnicodeData.txt:${c.ucdLine}, 4E00 to 9FFF`, c.ucd, `# Unihan_NumericValues.txt:${c.unihan!.line}`, `U+4E09  ${c.unihan!.tag}  ${c.unihan!.value}`]
+        ? [
+            `# UnicodeData.txt:${c.ucdLine}, 4E00 to 9FFF`,
+            c.ucd,
+            `# Unihan_NumericValues.txt:${c.unihan!.line}`,
+            `U+4E09  ${c.unihan!.tag}  ${c.unihan!.value}`,
+          ]
         : [`# UnicodeData.txt:${c.ucdLine}`, ...rowLines(c)],
       { at: [-WIDE, -0.05, WIDE, TOP], fontSize: SIZE },
     );
@@ -227,6 +262,7 @@ export default class IsDigitExplainer extends Scene {
     // ------------------------------------------------------------------ flags
     const set = MASKS.filter((m) => fl[m]);
     await this.step('flags', {
+      detail: true,
       title: set.length === 3 ? `CPython gives ${c.char} all three flags` : `CPython gives ${c.char} ${list(set)}`,
       line: 'Each filled field sets one flag; each predicate tests one flag.',
       // makeunicodedata.py:595-603; lines 998-1000 name fields 6, 7 and 8; lines 1210-1222 copy Unihan's
@@ -249,19 +285,26 @@ export default class IsDigitExplainer extends Scene {
       { at: [-7.55, -2.75, 7.55, TOP], fontSize: SIZE },
     );
     const first = MASKS.findIndex((m) => fl[m]);
-    await make.focus([1 + 2 * first, 6], { as: set.length === 1 ? 'the flag this character gets' : 'the flags this character gets' });
+    await make.focus([1 + 2 * first, 6], {
+      as: set.length === 1 ? 'the flag this character gets' : 'the flags this character gets',
+    });
     await s.note(`${q(c)}: ${PREDICATES.map((k) => `${k}() ${TF(p[k])}`).join(', ')}`, { at: [0, -3.55], size: SIZE });
     this.state.flags = fl;
     this.state.predicates = p;
 
     // ------------------------------------------------------------------ the nested sets
     await this.step('sets', {
+      detail: true,
       title: 'Decimals sit inside digits, inside numerics',
       line: `${c.char} sits in ${type === 'Decimal' ? 'the innermost set' : type === 'Digit' ? 'the middle set, not the innermost' : 'the outer set only'}.`,
       caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
         COUNTS.isnumeric,
       )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest. ${c.char} is in ${
-        type === 'Decimal' ? 'the innermost set' : type === 'Digit' ? 'the middle set, not the innermost' : 'the outer set only'
+        type === 'Decimal'
+          ? 'the innermost set'
+          : type === 'Digit'
+            ? 'the middle set, not the innermost'
+            : 'the outer set only'
       }.`,
     });
     await s.clear();
@@ -270,16 +313,24 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ the guard
     await this.step('guard', {
-      title: run.passes ? `${q(c)}.${guard}() is True, so int() runs` : `${q(c)}.${guard}() is False, so int() never runs`,
+      detail: true,
+      title: run.passes
+        ? `${q(c)}.${guard}() is True, so int() runs`
+        : `${q(c)}.${guard}() is False, so int() never runs`,
       line: run.passes
         ? `The code checks s.${guard}() first and calls int() only on True.`
         : 'The code skips int() and treats the text as not a number.',
       caption: `This code checks the text first and calls int() only if the check passes. The check here is ${guard}(). For ${q(c)} it returns ${
-        run.passes ? 'True, so the next line calls int()' : 'False, so the code skips int() and treats the text as not a number'
+        run.passes
+          ? 'True, so the next line calls int()'
+          : 'False, so the code skips int() and treats the text as not a number'
       }.`,
     });
     await s.clear();
-    const prog = await s.code([`s = "${c.char}"`, `if s.${guard}():`, '    n = int(s)'], { at: [-7.55, 0.2, 7.55, TOP], fontSize: SIZE * 1.2 });
+    const prog = await s.code([`s = "${c.char}"`, `if s.${guard}():`, '    n = int(s)'], {
+      at: [-7.55, 0.2, 7.55, TOP],
+      fontSize: SIZE * 1.2,
+    });
     await prog.focus(run.passes ? [1, 2] : 1, { as: run.passes ? 'run' : 'the check that fails' });
     // What the check returns, said at the end of its line, just outside the panel.
     const check = prog.code.lines[1]!.box()!;
@@ -293,7 +344,10 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ int()
     await this.step('int', {
-      title: parsed ? `int() reads field 6, so int(${q(c)}) is ${int.value}` : `int() reads only field 6, so int(${q(c)}) fails`,
+      detail: true,
+      title: parsed
+        ? `int() reads field 6, so int(${q(c)}) is ${int.value}`
+        : `int() reads only field 6, so int(${q(c)}) fails`,
       line: `${q(c)} becomes '${asciiFor(c)}' before parsing${parsed ? '' : `, and no number contains '?'`}.`,
       // longobject.c:3193 calls _PyUnicode_TransformDecimalAndSpaceToASCII before parsing;
       // unicodeobject.c:9538-9552 rewrites each character; longobject.c:3209 is the error message.
@@ -315,11 +369,15 @@ export default class IsDigitExplainer extends Scene {
       { at: [-WIDE, -2.75, WIDE, TOP], fontSize: SIZE },
     );
     await transform.focus(parsed ? 6 : 5, { as: 'the branch this character takes' });
-    await s.note(`int(${q(c)})  ${parsed ? `returns ${int.value}` : 'raises ValueError'}`, { at: [0, -3.55], size: SIZE });
+    await s.note(`int(${q(c)})  ${parsed ? `returns ${int.value}` : 'raises ValueError'}`, {
+      at: [0, -3.55],
+      size: SIZE,
+    });
     this.state.int = int;
 
     // ------------------------------------------------------------------ the outcome
     await this.step('outcome', {
+      detail: true,
       title:
         run.outcome === 'parsed'
           ? `${guard}() and int() agree on ${c.char}`
@@ -343,12 +401,17 @@ export default class IsDigitExplainer extends Scene {
     await sets(
       guard,
       run.outcome === 'raised' ? s.bad : s.good,
-      run.outcome === 'raised' ? 'marked as passing the check and failing int()' : run.outcome === 'parsed' ? 'marked as parsed' : 'marked as turned away',
+      run.outcome === 'raised'
+        ? 'marked as passing the check and failing int()'
+        : run.outcome === 'parsed'
+          ? 'marked as parsed'
+          : 'marked as turned away',
     );
     this.state.outcome = run.outcome;
 
     // ------------------------------------------------------------------ the check that matches int()
     await this.step('match', {
+      detail: true,
       title: 'For one character, only isdecimal() matches int()',
       line: 'To test a whole string, call int() and catch ValueError.',
       // UAX #44 rev. 38, field 7: no character encoded since Unicode 6.3.0 gets Numeric_Type=Digit.
@@ -363,7 +426,10 @@ export default class IsDigitExplainer extends Scene {
       { at: [-7.55, -0.75, 7.55, TOP], fontSize: SIZE, width: 11 },
     );
     await counts.mark(`${guard}() but not int()`, { as: 'this case’s check' });
-    await s.code(['try: n = int(s)', 'except ValueError: n = None'], { at: [-7.55, BOTTOM, 7.55, -1.25], fontSize: SIZE });
+    await s.code(['try: n = int(s)', 'except ValueError: n = None'], {
+      at: [-7.55, BOTTOM, 7.55, -1.25],
+      fontSize: SIZE,
+    });
     this.state.accepts = Object.fromEntries(PREDICATES.map((k) => [k, accepts(k)]));
   }
 }

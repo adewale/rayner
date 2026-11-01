@@ -312,7 +312,7 @@ test('quotient-familial: every English word in its descriptions is one its autho
     const generated = englishIn(`${s.summary} ${text(s.html)}`).filter((w) => !authored.has(w));
     assert.deepEqual(generated, [], `${s.step}: ${s.summary}`);
   }
-  assert.ok(described(project)[0]!.summary.startsWith(`Logigramme${NB}: 8 nœuds, 8 liens${NB}; «${NB}Ce foyer${NB}», 4 valeurs étiquetées`));
+  assert.ok(described(project).find(s=>s.step==='revenu')!.summary.startsWith(`Logigramme${NB}: 8 nœuds, 8 liens${NB}; «${NB}Ce foyer${NB}», 4 valeurs étiquetées`));
 });
 
 // Golden descriptions of shipped English explainers, pinned from this branch's output: a change
