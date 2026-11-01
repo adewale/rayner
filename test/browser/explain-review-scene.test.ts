@@ -150,6 +150,6 @@ test('public review discovers all eight Python dictionary phone-opening claims b
   for (const variant of project.variants) {
     const openings = await narrowOpeningPlan(variant, claims);
     assert.deepEqual(openings.filter(o => o.reviewed).map(o => o.step),
-      ['question', 'hash', 'collision', 'lookup', 'broken', 'marker', 'missing', 'predict']);
+      ['question', 'hash', 'collision', 'lookup', 'predict', 'broken', 'marker', 'missing']);
   }
 });
