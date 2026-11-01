@@ -1,6 +1,6 @@
 // The host-page API's messages (specs/player-guidance.md G4), in Node: which step reports the
 // loader accepts, which goto requests the page accepts, and from whom. The real cross-origin
-// behaviour is tested in test/explain-embed.test.ts.
+// behaviour is tested in test/browser/explain-embed.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';

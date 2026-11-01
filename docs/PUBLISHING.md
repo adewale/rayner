@@ -32,6 +32,15 @@ Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the
 npm run site:export -- <site-root> --only python-dict,bloom-filter,git-branches,melody-rhythm,monty-hall,token-bucket --entry python-dict
 ```
 
+You can also build just the selected pages in an isolated directory:
+
+```sh
+npm run demos:check -- --only python-dict,bloom-filter --out out/showcase
+npm run site:export -- <site-root> --from out/showcase --only python-dict,bloom-filter --entry python-dict
+```
+
+The exporter checks shared files and selected page bytes against their build pins. Unselected pages need not exist. Full catalog CI still requires every source lesson, case, resting step and reading width.
+
 `--entry` must name a selected lesson. If omitted, export keeps the catalog entry when selected, otherwise it uses the first requested id. No particular subject is mandatory. The exported catalog, evidence and `llms.txt` report only the selected lessons; complete collection checks remain separate.
 
 Export verifies source and built-file fingerprints before writing. It validates a staging directory, replaces the Rayner subtree, preserves other host header rules and writes a deployment manifest with file hashes. Each selected lesson gets HTML, a poster, JSON description and embed sizes. Public teaching steps get generated cards and, with `--origin https://example.org`, share pages. Detailed steps retain ordinary query links. Step cards are rendered during export, so excluded lessons incur no card-rendering work.

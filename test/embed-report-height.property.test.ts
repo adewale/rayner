@@ -1,7 +1,7 @@
 // Property tests for the embed protocol (app/embed-protocol.ts) in Node: which
 // origins count as exact, which messages the host accepts, and, on fake browser
 // globals, which heights reportHeight sends, to whom, and when it stops. The
-// real cross-origin behaviour is tested in test/explain-embed.test.ts.
+// real cross-origin behaviour is tested in test/browser/explain-embed.test.ts.
 // Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

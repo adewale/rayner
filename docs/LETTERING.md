@@ -266,7 +266,7 @@ pictures in Arabic, Hebrew, Hindi or Chinese is outside lettering on request.
 ```sh
 node --test test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts
 EXPLAIN_LETTERING=1 node --test test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts
-EXPLAIN_BROWSER=1 node --test test/lettering-browser.test.ts
+EXPLAIN_BROWSER=1 node --test test/browser/lettering-browser.test.ts
 ```
 
 The first command uses the committed Arabic, Devanagari, Hebrew, maths, serif,

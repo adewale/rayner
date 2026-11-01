@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "attack",
+      "settings": {
+        "attacker": "yes"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "message:S->X#0",
+          "paint": "stroke"
+        },
+        {
+          "key": "message:X->S#0",
+          "paint": "stroke"
+        },
+        {
+          "key": "message:S->X#1",
+          "paint": "stroke"
+        }
+      ]
+    },
+    {
+      "step": "secret",
+      "targets": [
+        {
+          "key": "V"
+        },
+        {
+          "key": "H"
+        },
+        {
+          "key": "C"
+        },
+        {
+          "text": "code_verifier"
+        },
+        {
+          "text": "code_challenge"
+        }
+      ]
+    },
+    {
+      "step": "authorize",
+      "targets": [
+        {
+          "key": "message:C->S#0",
+          "paint": "stroke"
+        },
+        {
+          "text": "challenge + S256; verifier not sent"
+        }
+      ]
+    },
+    {
+      "step": "exchange",
+      "targets": [
+        {
+          "key": "message:C->S#1",
+          "paint": "stroke"
+        },
+        {
+          "key": "message:S->C#1",
+          "paint": "stroke"
+        }
+      ]
+    },
+    {
+      "step": "reader-bind",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Client"
+        },
+        {
+          "text": "Auth server"
+        },
+        {
+          "text": "Code"
+        },
+        {
+          "text": "issued"
+        }
+      ]
+    },
+    {
+      "step": "reader-check",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Saved challenge"
+        },
+        {
+          "text": "Client hash"
+        },
+        {
+          "text": "Prefix (8)"
+        }
+      ]
+    },
+    {
+      "step": "reader-redeem",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Caller"
+        },
+        {
+          "text": "S256 matches?"
+        },
+        {
+          "text": "Result"
+        },
+        {
+          "text": "Client"
+        },
+        {
+          "text": "token"
+        }
+      ]
+    }
+  ]
+}

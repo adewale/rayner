@@ -1,4 +1,4 @@
-// glyph's own maths results, from upstream source, for test/lettering-math.test.ts.
+// glyph's own maths results, from upstream source, for test/browser/lettering-math.test.ts.
 //   node tools/oracle/glyph-math.ts <glyph checkout> <latinmodern-math.otf> [--check]
 // The checkout must be the pinned commit, with `node scripts/fetch.js --runtime` run in it
 // (that generates the two data modules glyph does not commit). This imports glyph's

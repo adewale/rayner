@@ -2,65 +2,216 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-tilt",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Sun"
+        },
+        {
+          "text": "June"
+        },
+        {
+          "text": "December"
+        }
+      ]
+    },
+    {
+      "step": "reader-solstices",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "June daylight"
+        },
+        {
+          "text": "December daylight"
+        }
+      ]
+    },
+    {
+      "step": "reader-year",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Jan"
+        },
+        {
+          "text": "Dec"
+        },
+        {
+          "text": "Hours of daylight"
+        }
+      ]
+    },
+    {
       "step": "noon",
       "targets": [
-        { "key": "june-horizon", "paint": "stroke" },
-        { "key": "june-place" },
-        { "key": "june-noon-ray", "paint": "stroke" },
-        { "key": "noon-notes" }
+        {
+          "key": "june-horizon",
+          "paint": "stroke"
+        },
+        {
+          "key": "june-place"
+        },
+        {
+          "key": "june-noon-ray",
+          "paint": "stroke"
+        },
+        {
+          "key": "noon-notes"
+        }
       ]
     },
     {
       "step": "december",
       "targets": [
-        { "key": "june-latitude", "paint": "stroke" },
-        { "key": "december-latitude", "paint": "stroke" },
-        { "key": "june-north" },
-        { "key": "december-north" },
-        { "key": "solstice-months" },
-        { "key": "june-daylight-callout" },
-        { "key": "december-daylight-callout" },
-        { "key": "december-noon-ray", "paint": "stroke" }
+        {
+          "key": "june-latitude",
+          "paint": "stroke"
+        },
+        {
+          "key": "december-latitude",
+          "paint": "stroke"
+        },
+        {
+          "key": "june-north"
+        },
+        {
+          "key": "december-north"
+        },
+        {
+          "key": "solstice-months"
+        },
+        {
+          "key": "june-daylight-callout"
+        },
+        {
+          "key": "december-daylight-callout"
+        },
+        {
+          "key": "december-noon-ray",
+          "paint": "stroke"
+        }
       ]
     },
     {
       "step": "latitude",
       "targets": [
-        { "key": "june-latitude", "paint": "stroke" },
-        { "key": "december-latitude", "paint": "stroke" },
-        { "key": "latitude-circles", "paint": "stroke" },
-        { "key": "june-daylight-table" },
-        { "key": "december-daylight-table" }
+        {
+          "key": "june-latitude",
+          "paint": "stroke"
+        },
+        {
+          "key": "december-latitude",
+          "paint": "stroke"
+        },
+        {
+          "key": "latitude-circles",
+          "paint": "stroke"
+        },
+        {
+          "key": "june-daylight-table"
+        },
+        {
+          "key": "december-daylight-table"
+        }
       ]
     },
     {
       "step": "distance",
       "targets": [
-        { "key": "distance-orbit", "paint": "stroke" },
-        { "key": "daylight-curve", "paint": "stroke" },
-        { "key": "january-point" },
-        { "key": "january-value" }
+        {
+          "key": "distance-orbit",
+          "paint": "stroke"
+        },
+        {
+          "key": "daylight-curve",
+          "paint": "stroke"
+        },
+        {
+          "key": "january-point"
+        },
+        {
+          "key": "january-value"
+        }
       ]
     },
     {
       "step": "distance",
-      "settings": { "place": "quito" },
-      "targets": [{ "key": "july-point" }, { "key": "july-value" }]
+      "settings": {
+        "place": "quito"
+      },
+      "targets": [
+        {
+          "key": "july-point"
+        },
+        {
+          "key": "july-value"
+        }
+      ]
     },
     {
       "step": "distance",
-      "settings": { "place": "tromso" },
-      "targets": [{ "key": "mirror-daylight-curve", "paint": "stroke" }, { "key": "mirror-january-point" }, { "key": "mirror-january-value" }]
+      "settings": {
+        "place": "tromso"
+      },
+      "targets": [
+        {
+          "key": "mirror-daylight-curve",
+          "paint": "stroke"
+        },
+        {
+          "key": "mirror-january-point"
+        },
+        {
+          "key": "mirror-january-value"
+        }
+      ]
     },
     {
       "step": "distance",
-      "settings": { "place": "london" },
-      "targets": [{ "key": "mirror-daylight-curve", "paint": "stroke" }, { "key": "mirror-january-point" }, { "key": "mirror-january-value" }]
+      "settings": {
+        "place": "london"
+      },
+      "targets": [
+        {
+          "key": "mirror-daylight-curve",
+          "paint": "stroke"
+        },
+        {
+          "key": "mirror-january-point"
+        },
+        {
+          "key": "mirror-january-value"
+        }
+      ]
     },
     {
       "step": "distance",
-      "settings": { "place": "sydney" },
-      "targets": [{ "key": "mirror-daylight-curve", "paint": "stroke" }, { "key": "mirror-january-point" }, { "key": "mirror-january-value" }]
+      "settings": {
+        "place": "sydney"
+      },
+      "targets": [
+        {
+          "key": "mirror-daylight-curve",
+          "paint": "stroke"
+        },
+        {
+          "key": "mirror-january-point"
+        },
+        {
+          "key": "mirror-january-value"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-width",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Inter"
+        },
+        {
+          "text": "JetBrains Mono"
+        }
+      ]
+    },
+    {
+      "step": "reader-shape",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "a"
+        },
+        {
+          "text": "Same character"
+        }
+      ]
+    }
+  ]
+}

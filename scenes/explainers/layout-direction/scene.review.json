@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "columns",
+      "opening": true,
+      "targets": [
+        {
+          "text": "RTL at start"
+        },
+        {
+          "text": "LTR at end"
+        },
+        {
+          "text": "Field"
+        },
+        {
+          "text": "123"
+        }
+      ]
+    },
+    {
+      "step": "updates",
+      "opening": true,
+      "targets": [
+        {
+          "text": "RTL at start"
+        },
+        {
+          "text": "LTR at end"
+        },
+        {
+          "text": "Field"
+        },
+        {
+          "text": "456"
+        }
+      ]
+    },
+    {
+      "step": "reader-place",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Start"
+        },
+        {
+          "text": "End"
+        }
+      ]
+    },
+    {
+      "step": "reader-fields",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "RTL columns"
+        },
+        {
+          "text": "LTR override"
+        },
+        {
+          "text": "123"
+        },
+        {
+          "text": "Field"
+        }
+      ]
+    }
+  ]
+}

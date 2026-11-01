@@ -2,12 +2,53 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-path",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Express"
+        }
+      ]
+    },
+    {
+      "step": "reader-answer",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Order"
+        },
+        {
+          "text": "Address"
+        },
+        {
+          "text": "Decision"
+        },
+        {
+          "text": "req.ip"
+        }
+      ]
+    },
+    {
       "step": "ranges",
       "targets": [
-        { "key": "ranges-current" },
-        { "key": "ranges-alternative" },
-        { "key": "service:edge" },
-        { "key": "service:balancer" }
+        {
+          "key": "ranges-current"
+        },
+        {
+          "key": "ranges-alternative"
+        },
+        {
+          "key": "service:edge"
+        },
+        {
+          "key": "service:balancer"
+        }
       ]
     }
   ]

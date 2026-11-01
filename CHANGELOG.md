@@ -2,49 +2,19 @@
 
 ## Unreleased
 
-- Lead the gallery with six showcase lessons while retaining the complete coverage catalog. Subset exports can choose their own introductory lesson.
-- Explain the search ticket check, PKCE verifier hash comparison and Rust wrapper requirements on the main reading paths. Compare both search guards and both shell values without redundant selectors.
-- Put secondary phone controls after the explanation and let headings and captions use their natural height.
-- Use equivalent SFNT copies of default fonts in portable pages to omit the Brotli decoder; requested lettering keeps its existing loader.
-- Render public step cards only for exported lessons and test one package archive across the compatibility matrix.
-- Save reviewed HTML directly in the README publishing path and archive repeated design captures through Git history.
-
-- Include visible stroke width and newly focused context in phone tours, keeping unrelated labels out of the reading-scale decision. Preserve backing-stroke rasterization when checking letter visibility in WebKit, while rejecting covered glyphs.
-
-- Retain the exact reviewed HTML with `rayner review --out page.html`, including its header recipe and loader.
-- Reuse catalog visits for shared player checks and keep minimum-Node browser coverage focused on compatibility. Reviewer-only edits invalidate review receipts without rebuilding unchanged source pages.
-- Replace overlapping PR audit logs with current testing guidance and four representative screenshots.
-
-- Keep authored comparison labels readable when they are unchanged, dimmed, rotated or compressed, and frame headings completely or leave them outside a close-up. Use one affine font metric for native and imported lettering; imported metrics survive copying, morphs and matching without changing layout bounds.
-- Treat backing strokes beneath filled letters as halos in the glyph mask, while retaining outline-only and covered-letter checks. Enlarge source-diagram views whose labels fell below the existing 14px floor.
-- Check independently claimed teaching openings at 320 pixels, including visible paint, and reject incomplete review receipts. Covers cannot hide required words; unsupported masks, paint servers, CSS path replacements and rounded clips fail review.
-- Let Next view advance from a whole-frame authored opening into its detail tour instead of repeatedly resetting to the opening.
-- Expire story-review receipts when player CSS, runtime helpers or build inputs change. Check retained detail tours against independently named facts and make the token-cap, proxy and seasonal labels reachable at readable size.
-- Explain GNOME study outcomes with semantic labels and keep the traffic-share caption within its pictured evidence. Invalid step links return to the explanation's first step.
-- Require visible paint changes for reordered or repeated drawing layers, including artwork revealed by removing a cover. Match periodic-table descriptions to the block fills actually shown.
-- Give the catalog’s longer lessons a short main reading path with complete phone comparisons. Retain implementation walkthroughs under Details and sources, with direct links and full verification.
-- Let authors name a comparison with `s.reading(before, after)`. Keep its subjects together when they fit at a readable scale, while retaining close-ups for smaller details.
-- Add prediction steps to the dictionary, Bloom-filter, Git, Monty Hall and music lessons. Draw birthday comparisons and occupied dates, and show how a wrong font measurement changes placement.
-- Rewrite main captions around causes and case results. Align comparison tables and bars, strengthen question headings, pair token-bucket requests with their responses, and keep font measurements beside their labels.
-
-- Open the gallery with a periodic-table explainer: follow sodium, chlorine, iron, copper or helium from atomic number to group, with configurations checked against NIST's tabulated ground states for elements 1–108. The table uses Atlas’s block colours.
-- Add explanations of Python dictionary deletion markers, insert-only Bloom filters, Git merges, Monty Hall host rules, the birthday paradox, and melody with rhythm. Each uses a separately tested model and compares an expected result with a case that challenges it.
-- Shrink the phone view row to its one line of controls: the sentence on how Next view differs from Next moves to the footer's hint, on steps with more than one view. Install outline lettering when the build tools load, before any scene runs, so every run is leased and concurrent collection never shapes text with another scene's outlines.
-- Guide the reader through the player. A scene may name the state readers follow in `meta.watch`; each step then shows what it changed of it under the caption, in the transcript, in `describeExplainer` (`watched`) and in the `check` report (`watch`), and collection refuses an unknown key. At rest on the last step Next becomes Start again, and a scene with settings offers its first setting's next case. Keyed controls name their key in their tooltip and `aria-keyshortcuts`, and the footer carries one quiet hint on how to move. Framed pages post `rayner:step` to the host and accept `rayner:goto` from it under the resize message's rules; the loader dispatches `rayner:step` on the iframe, calls `onStep` and returns `goTo` on its dispose function.
-
-- Report each case's words in `check`: estimated phone lines for every title, line and caption, and the outlier steps whose length leaves the others empty space. Add the crop test, the three word roles and layout by contrast, repetition, alignment and proximity to the authoring skill and the editorial rubric.
-- Tidy the tile by contrast, repetition, alignment and proximity. Every row of the card shares one inset, with Previous and the last tool pulled onto it; the case legend, step kicker, rail heading and view count share one label style; controls share one inner radius; the step's title and line stay together, set apart from the caption, with the line a size smaller; and the zoom tools are grouped apart from Copy link and Enlarge.
-- Make the explainer one tile. The title and case picker are the card's header; the steps rail is a pane of the same tile on wide pages and a closed row in the card on narrow ones; the transcript is a closed row in the card; and a footer carries the Rayner mark and, in any frame, "Open the explainer". The loader no longer adds a link of its own. In a frame the page draws only the tile, on the host's background, and the loader passes the host page's colour scheme as `?theme=`. The tile's chrome takes a 10% tint from the case's paper, checked for contrast against every palette. `demos:build` records each page's framed height at 390, 640 and 900 px as `<id>/embed.json`, and `site:export --origin` writes an oEmbed response and discovery link per explainer.
-- Put the player in one card: the picture, one stepper row and the step's words. The row keeps Previous and Next at its start, adds a step bar with one segment per step that fills as the current step plays, and sets the view tools apart behind a rule. The card fits the window's height, so Next is on screen when the page opens. Every width shows "Step 3 of 4" with the step's title and line. The steps list is a rail beside the card on wide pages and a closed disclosure under it on narrow ones. Replay, Stop and the duplicate Next are gone (Previous then Next plays a step again), and Fit stage is named Whole picture.
-- Add optional, user-triggered score audio with Play A/B, Pulse, Stop and a synchronized piano-roll playhead. Notes are synthesized locally; ordinary pages omit the audio module.
-- Add opt-in natural-width diagram lettering. Capture measures the requested font before layout, so labels retain their proportions; existing diagrams keep their fitted widths.
-- Upgrade build-time Agentic Mermaid to 0.5.1 for its supported font-measurement hook and recapture the catalog with that renderer.
-- Add explicit LTR/RTL card fields and logical `start`/`end` stage regions. Text shaping, code, numbers and authored Mermaid flow keep their own order.
-- Demonstrate measured EB Garamond diagram labels and panel direction in the public gallery. Document the separate controls for text, panels and graph flow.
-- Add `columns` to cards: values side by side under headings, with rows that span them, so one card can compare two cases and a phone close-up shows the comparison whole.
-- `rayner init` writes the tutorial's LRU/MRU explainer, its model and the model's test, in place of the cache starter. The starter draws no diagram, so it checks and builds without a browser.
-- Rewrite the tutorial around eight principles for planning, writing and checking an explainer, shared with the authoring skill and the editorial rubric. It builds an LRU versus MRU explainer whose model is tested against Wikipedia's worked examples; the finished scene is in `scenes/tutorial/lru-mru/`.
-- Verify a deployed collection against the reviewed export, including file hashes, reader response headers and loader caching. Refuse ambiguous release records before archiving an existing npm version.
+- Lead the gallery with six showcase lessons while keeping the full subject and authoring collection available. Add cited lessons on Python dictionary deletion, Bloom filters, Git merges, Monty Hall, birthdays, music and periodic-table groups.
+- Add prediction steps and causal comparisons. Put search tickets, PKCE verifier hashes and Rust wrapper requirements on the main paths; retain technical walkthroughs under Details and sources. Remove selectors when a lesson already compares both outcomes.
+- Keep phone captions near their pictures, with secondary tools after the explanation. Headings and captions use natural heights, and single-view steps expose no tour controls. Preserve view scale and pan when a tour resizes.
+- Use explicit case, playback and gesture scopes so interrupted work cannot change a later case. Preserve keyboard, history, embedding and loading behavior.
+- Keep the reader in one neutral tile, with a teaching-step bar, transcript, named state changes and host step/goto messages. Authors can opt into checked palette cues, square corners and wider pictures.
+- Add optional offline score audio with Play A/B, Pulse, Stop and a synchronized playhead. Pages without audio omit its code.
+- Use equivalent SFNT default fonts in ordinary pages to omit the Brotli decoder. Requested lettering keeps its existing loader. Support natural-width diagram lettering, LTR/RTL card fields and logical panel regions with Agentic Mermaid 0.5.1.
+- Start new authors with the diagram-free LRU/MRU lesson, its cited model and tests. Expand the tutorial, feature recipes and engine guides.
+- Retain exact reviewed HTML with `rayner review --out page.html`, including headers, receipt and loader. Keep independent caption claims beside scenes so public and catalog review use the same expectations.
+- Check actual painted subjects, readable labels, route strokes, clipping and authored comparison openings. Cover unsupported paint, reordered layers and retained detail tours with independent defect controls.
+- Render teaching-step cards during export, choose each export's entry and produce matching catalog, descriptions, embedding metadata and deployment hashes. Test the same package archive on Linux and both Mac architectures, including native Safari and WebKit.
+- Build and validate selected lessons without requiring the rest of the catalog. Partition story review by scene, run shared publication checks once, and snapshot shared build inputs per operation. Use focused prose checks and reuse recent successful validation for identical merged trees; releases always run fresh validation.
+- Remove obsolete reserved-space estimates and historical design/run transcripts. Keep current authoring guidance, durable source oracles and release provenance.
 
 ## 0.1.1 (2026-10-29)
 

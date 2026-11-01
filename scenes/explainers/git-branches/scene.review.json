@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "start",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "branch",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "feature",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "switch",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "main",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "merge",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "countercase",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    },
+    {
+      "step": "predict",
+      "opening": true,
+      "targets": [
+        {
+          "key": "git-history"
+        },
+        {
+          "key": "git-head"
+        },
+        {
+          "key": "git-files"
+        }
+      ]
+    }
+  ]
+}

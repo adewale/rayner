@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-objects",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "commit"
+        },
+        {
+          "text": "tree"
+        },
+        {
+          "text": "blob"
+        }
+      ]
+    },
+    {
+      "step": "reader-change",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "parent"
+        }
+      ]
+    }
+  ]
+}

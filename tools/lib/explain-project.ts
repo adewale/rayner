@@ -200,7 +200,7 @@ export const IMPORTER = await (async () => {
  * The shared build fingerprint also covers player, tools, dependencies and notices.
  * Needs only `loadScene`, not a run.
  */
-export async function sceneInputs(p: { file: string; sourceHash: string; engineHash: string }): Promise<Record<string, string>> {
+export async function sceneInputs(p: { file: string; sourceHash: string; engineHash: string }, buildHash?: string): Promise<Record<string, string>> {
   const folder = dirname(p.file),
     files: string[] = [];
   for (const entry of await readdir(folder, { recursive: true, withFileTypes: true })) {
@@ -208,7 +208,7 @@ export async function sceneInputs(p: { file: string; sourceHash: string; engineH
     if (entry.isFile() && !path.split(sep).some((part) => part.startsWith('.')) && !entry.name.endsWith('~'))
       files.push(path + '\n' + hash(await readFile(join(folder, path))));
   }
-  return { version: '2', sourceHash: p.sourceHash, engineHash: p.engineHash, importer: IMPORTER, files: hash(files.sort().join('\n')), buildHash: (await buildInputs(ROOT)).hash };
+  return { version: '2', sourceHash: p.sourceHash, engineHash: p.engineHash, importer: IMPORTER, files: hash(files.sort().join('\n')), buildHash: buildHash ?? (await buildInputs(ROOT)).hash };
 }
 /** File name for one diagram's snapshot: a short hash of its cache key. */
 export const snapshotFileName = (key: string) => hash(key).slice(0, 16) + '.json';

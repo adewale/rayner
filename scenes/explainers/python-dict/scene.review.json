@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "question",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-entries"
+        },
+        {
+          "key": "dict-result"
+        }
+      ]
+    },
+    {
+      "step": "hash",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-hashes"
+        }
+      ]
+    },
+    {
+      "step": "collision",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-entries"
+        },
+        {
+          "text": "d[16]"
+        }
+      ]
+    },
+    {
+      "step": "lookup",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-entries"
+        },
+        {
+          "key": "dict-result"
+        }
+      ]
+    },
+    {
+      "step": "broken",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-entries"
+        },
+        {
+          "key": "dict-result"
+        }
+      ]
+    },
+    {
+      "step": "marker",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-entries"
+        },
+        {
+          "key": "dict-result"
+        }
+      ]
+    },
+    {
+      "step": "missing",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-result"
+        }
+      ]
+    },
+    {
+      "step": "predict",
+      "opening": true,
+      "targets": [
+        {
+          "key": "dict-index"
+        },
+        {
+          "key": "dict-result"
+        }
+      ]
+    }
+  ]
+}

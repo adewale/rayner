@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-boundary",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Agent"
+        },
+        {
+          "text": "op CLI"
+        },
+        {
+          "text": "Application"
+        }
+      ]
+    },
+    {
+      "step": "reader-auth",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Agent"
+        },
+        {
+          "text": "op CLI"
+        },
+        {
+          "text": "Application"
+        },
+        {
+          "text": "Service token"
+        },
+        {
+          "text": "Resolved key"
+        }
+      ]
+    }
+  ]
+}

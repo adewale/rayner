@@ -2,6 +2,63 @@
   "version": 1,
   "claims": [
     {
+      "step": "local-path",
+      "settings": {
+        "policy": "local"
+      },
+      "targets": [
+        {
+          "key": "service:k1"
+        },
+        {
+          "key": "service:a"
+        },
+        {
+          "key": "edge:k1->a#0",
+          "paint": "stroke"
+        },
+        {
+          "text": "from 198.51.100.79"
+        }
+      ]
+    },
+    {
+      "step": "reader-nodes",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Node 1"
+        },
+        {
+          "text": "Node 2"
+        },
+        {
+          "text": "Node 3"
+        }
+      ]
+    },
+    {
+      "step": "reader-shares",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Pod"
+        },
+        {
+          "text": "Cluster"
+        },
+        {
+          "text": "Local"
+        }
+      ]
+    },
+    {
       "step": "compare",
       "targets": [
         {

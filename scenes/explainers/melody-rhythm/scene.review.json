@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "listen",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "pulse",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "rhythm",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "contour",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "timing",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "bar",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "phrase",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    },
+    {
+      "step": "predict",
+      "opening": true,
+      "targets": [
+        {
+          "key": "score-a"
+        },
+        {
+          "key": "score-b"
+        }
+      ]
+    }
+  ]
+}

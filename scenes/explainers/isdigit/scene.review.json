@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-predict",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        }
+      ]
+    },
+    {
+      "step": "reader-result",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Guard"
+        },
+        {
+          "text": "Passes?"
+        },
+        {
+          "text": "Then int"
+        }
+      ]
+    }
+  ]
+}

@@ -2,21 +2,115 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-ticket",
-      "settings": { "order": "new-first" },
+      "step": "reader-order",
       "opening": true,
-      "targets": [{ "text": "Ticket 1" }, { "text": "Latest 2" }, { "text": "Discard A" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "A then B"
+        },
+        {
+          "text": "Latest intent: B"
+        }
+      ]
     },
     {
       "step": "reader-first",
-      "settings": { "order": "old-first" },
       "opening": true,
-      "targets": [{ "text": "Ticket 1" }, { "text": "Latest 2" }, { "text": "Discard A" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Latest 2"
+        }
+      ]
+    },
+    {
+      "step": "reader-ticket",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Latest 2"
+        }
+      ]
     },
     {
       "step": "reader-guard",
       "opening": true,
-      "targets": [{ "text": "No guard" }, { "text": "Guard on" }, { "text": "A" }, { "text": "B" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "After"
+        },
+        {
+          "text": "No guard"
+        },
+        {
+          "text": "Guard on"
+        }
+      ]
+    },
+    {
+      "step": "reader-ticket",
+      "settings": {
+        "order": "new-first"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "text": "Ticket 1"
+        },
+        {
+          "text": "Latest 2"
+        },
+        {
+          "text": "Discard A"
+        }
+      ]
+    },
+    {
+      "step": "reader-first",
+      "settings": {
+        "order": "old-first"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "text": "Ticket 1"
+        },
+        {
+          "text": "Latest 2"
+        },
+        {
+          "text": "Discard A"
+        }
+      ]
+    },
+    {
+      "step": "reader-guard",
+      "opening": true,
+      "targets": [
+        {
+          "text": "No guard"
+        },
+        {
+          "text": "Guard on"
+        },
+        {
+          "text": "A"
+        },
+        {
+          "text": "B"
+        }
+      ]
     }
   ]
 }

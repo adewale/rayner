@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-branches",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Cached?"
+        },
+        {
+          "text": "Reply"
+        },
+        {
+          "text": "Database"
+        }
+      ]
+    },
+    {
+      "step": "reader-repair",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Cached?"
+        },
+        {
+          "text": "Reply"
+        },
+        {
+          "text": "Database"
+        },
+        {
+          "text": "yes"
+        },
+        {
+          "text": "no"
+        }
+      ]
+    }
+  ]
+}
