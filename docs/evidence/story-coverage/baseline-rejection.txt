@@ -1,2 +1,0 @@
-AssertionError [ERR_ASSERTION]: focus-visible at 390px: c2_4_7 is missing from the opening: {"box":[2988.9999999999995,2651.9999999999995,7354.999999999999,3480.9999999999995],"views":[[-7654.748456049231,-2786.0146303656384,1254.6957216742321,2247.2026186468884]]}
-Old production WCAG opening rejected by the independent criterion claim.

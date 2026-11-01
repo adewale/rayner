@@ -26,7 +26,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .case{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
 .case legend{float:left;padding:0}
 /* One label style: the case legend, the step kicker, the rail heading and the view count. */
-.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child,.changes-ruler>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
+.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
 .case legend+*{clear:left}
 .segments{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:var(--player-control-radius,11px);background:color-mix(in srgb,var(--line) 55%,transparent)}
 .segments label{position:relative;display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:var(--player-control-radius,8px);font-size:.9375rem;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease}
@@ -50,7 +50,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 }
 
 /* Player: one card. Its header, the picture, one stepper row straight under it, then the step's words.
-   --player-reserve (on #content: the header's measured height, --head-h, the step heading's reserved height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
+   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
    of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings). The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
@@ -80,17 +80,17 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 @keyframes leave{to{opacity:0}}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
-.caption,.ruler{margin:0;max-width:52ch;min-height:3.2em;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
-.ruler,.lede-ruler,.changes-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
+.caption{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
+.lede-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
 /* The step's heading on every width: "Step 3 of 4", the title, then the line. */
 .lede,.lede-ruler{max-width:68ch;font-size:1rem;line-height:1.45;text-wrap:pretty}
-.lede{margin:0 0 6px;display:flex;flex-direction:column;justify-content:flex-end}
+.lede{margin:0 0 6px;display:flex;flex-direction:column;justify-content:flex-start}
 .lede>*,.lede-ruler>*{display:block}
 .lede strong,.lede-ruler strong{font-size:1.0625rem;font-weight:650}
 .lede .line,.lede-ruler .line{font-size:.9375rem;color:var(--muted)}
-.lede [hidden]{display:none}
+.lede [hidden],.lede-ruler [hidden]{display:none}
 /* What the step changed of the state its author watches: a quiet label, then each change in a ring. */
-.changes,.changes-ruler{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
+.changes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
 .changes[hidden]{display:none}
 .change{padding:1px 8px;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);font-variant-numeric:tabular-nums}
 .stepper{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:8px;padding:10px var(--inset);border-top:1px solid var(--line)}
@@ -115,7 +115,8 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 /* View tools stand apart from step navigation, behind a rule; on a narrow row, on their own row. */
 .tools{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:2px;margin-inline:auto -12px;padding-inline-start:10px;border-inline-start:1px solid var(--line)}
 .tools .share{margin-inline-start:12px}
-@media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.end .tools{flex-basis:auto}.end .step-bar{flex-basis:0;min-width:64px}.button.try{font-size:.9375rem}.stepper .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
+.words>.tools{margin:8px 0 0;padding:10px 0 0;border:0;border-top:1px solid var(--line);justify-content:flex-start}.words>.tools .try{margin-inline-end:auto}
+@media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.button.try{font-size:.9375rem}.stepper .button,.tools .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
 .described{margin:2px 0 0;max-width:68ch;font-size:.9375rem;color:var(--muted)}
 .described summary{padding:6px 0;cursor:pointer}
 .described ul,.transcript li ul{margin:4px 0;padding-left:1.25rem;overflow-wrap:anywhere}
@@ -185,7 +186,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .player:fullscreen{display:flex;flex-direction:column;justify-content:safe center;padding:16px;background:var(--tile);overflow:auto}
 .player:fullscreen>*{width:min(100%,calc((100dvh - 300px)*16/9));margin-inline:auto}
 
-@media(max-width:480px){.caption,.ruler{font-size:1.0625rem}.stepper{gap:6px}}
+@media(max-width:480px){.caption{font-size:1.0625rem}.stepper{gap:6px}}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
 
 /* Source notes remain a separate disclosure beneath the teaching path. */

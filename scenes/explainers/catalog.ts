@@ -18,10 +18,10 @@ export const PRODUCT = {
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
   skill: 'https://github.com/adewale/rayner/blob/main/skills/rayner-explainers/SKILL.md',
   entry: {
-    id: 'periodic-groups',
-    step: 'reader-electrons',
-    settings: { element: 'na' },
-    label: 'Step through what puts an element in its group',
+    id: 'python-dict',
+    step: 'question',
+    settings: { key: '8' },
+    label: 'See why deleting a dictionary entry needs a marker',
   },
 } as const;
 
@@ -65,3 +65,6 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'layout-direction', step: 'updates', group: 'toolchain' },
   { id: 'pen-and-pencil', step: 'reader-labels', group: 'toolchain' },
 ];
+
+/** Public selection; the complete collection above remains the coverage inventory. */
+export const SHOWCASE = ['python-dict', 'bloom-filter', 'git-branches', 'melody-rhythm', 'monty-hall', 'token-bucket'] as const;

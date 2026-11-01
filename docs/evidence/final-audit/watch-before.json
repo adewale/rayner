@@ -1,5 +1,0 @@
-{
-  "initialPreviewPassed": true,
-  "log": "Built /tmp/rayner-project-audit-source/out/audit-watch/page.html (513 KiB; 1 cases)\nPreview http://127.0.0.1:40573/ (Ctrl-C to stop; rebuilds on save)\nrayner: Missing or stale lettering snapshot; run rayner snapshots /tmp/rayner-project-audit-source/out/audit-watch/scene.ts (still serving the last good build)\n",
-  "pageUnchangedAfterCaptionEdit": true
-}

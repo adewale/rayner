@@ -8,7 +8,7 @@
 import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { htmlEscape } from '../../explain/trace.ts';
-import { HOME, SHARE_META, shareable } from '../../app/embed-share.ts';
+import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from '../../app/embed-share.ts';
 import type { EmbedSize } from './explain-embed-size.ts';
 
 export { shareable };
@@ -122,6 +122,7 @@ export function publishedPage(html: string, m: ShareManifest, origin: string, pa
   const tags =
     cardTags(card(m, cover, origin, m.title, `${folder(origin, path)}/${m.id}`, path)) +
     `\n<meta name="${SHARE_META}" content="${htmlEscape(`${folder(origin, path)}/${m.id}/`)}">` +
+    `\n<meta name="${SHARE_STEPS_META}" content="${htmlEscape(m.steps.map(s => s.step).join(' '))}">` +
     `\n${oembedLink(m, origin, path)}`;
   return html.slice(0, at) + tags + html.slice(at);
 }

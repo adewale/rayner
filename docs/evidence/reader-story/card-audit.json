@@ -1,9 +1,0 @@
-{
-  "cases": 142,
-  "cardAppearances": 512,
-  "missingFullValuesInDescriptions": [],
-  "ellipsisValues": [],
-  "labelShorthandFound": "trust-proxy: app.set('trust proxy', \u2026)",
-  "replacementLabel": "trust proxy setting",
-  "method": "Run every catalog variant through its resting steps; inspect Card.values and compare each full value with Card.describe().parts. This inspects authored strings and descriptions, not browser clipping. Repeated cards across steps count as separate appearances."
-}

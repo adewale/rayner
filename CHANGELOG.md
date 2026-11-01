@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Lead the gallery with six showcase lessons while retaining the complete coverage catalog. Subset exports can choose their own introductory lesson.
+- Explain the search ticket check, PKCE verifier hash comparison and Rust wrapper requirements on the main reading paths. Compare both search guards and both shell values without redundant selectors.
+- Put secondary phone controls after the explanation and let headings and captions use their natural height.
+- Use equivalent SFNT copies of default fonts in portable pages to omit the Brotli decoder; requested lettering keeps its existing loader.
+- Render public step cards only for exported lessons and test one package archive across the compatibility matrix.
+- Save reviewed HTML directly in the README publishing path and archive repeated design captures through Git history.
+
 - Include visible stroke width and newly focused context in phone tours, keeping unrelated labels out of the reading-scale decision. Preserve backing-stroke rasterization when checking letter visibility in WebKit, while rejecting covered glyphs.
 
 - Retain the exact reviewed HTML with `rayner review --out page.html`, including its header recipe and loader.

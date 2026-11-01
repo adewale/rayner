@@ -16,7 +16,7 @@ import type { Zoom } from './embed-zoom.ts';
 import { NARROW_PX, closeUps, stageScale, stepLayouts } from './embed-closeup.ts';
 import type { StepLayout } from './embed-closeup.ts';
 import { changeText, chromeFor, descriptionsLang, settingsProblem } from './embed-strings.ts';
-import { HOME, SHARE_META, shareable } from './embed-share.ts';
+import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string): HTMLElementTagNameMap[K] => {
@@ -174,8 +174,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       next.querySelector('svg')!.replaceWith(icon(end ? 'restart' : 'next'));
     }
     tryCase.hidden = !end || !firstSetting;
-    // On a narrow row Try takes the step bar's place beside Next, and the bar, narrower, joins the
-    // tools' row, so the end needs no more rows than any other step (embed.css, .end).
+    // On phones Try lives with the secondary tools after the explanation.
     stepper.classList.toggle('end', !tryCase.hidden);
     if (tryCase.textContent !== tryLabel) tryCase.textContent = tryLabel;
   }
@@ -216,26 +215,20 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // What the step changed of the state its author names for readers (meta.watch), under the
   // caption: plain text, read with the words. A scene that watches nothing has no such row.
   const watch = Source.meta?.watch,
-    changes = watch ? el('p', undefined, 'changes') : undefined,
-    changesRuler = el('p', undefined, 'changes-ruler');
-  changesRuler.setAttribute('aria-hidden', 'true');
+    changes = watch ? el('p', undefined, 'changes') : undefined;
   if (changes) changes.hidden = true;
   /** Fill `row` with step `s`'s watched changes: the quiet label, then "Label: before → after" each. */
   const fillChanges = (row: HTMLElement, s: Trace['steps'][number]) => {
     const said = watchedChanges(s, watch, lang).map((c) => changeText(t, c));
+    row.hidden = !said.length;
     // Spaces between the items keep them apart for assistive technology; flex layout drops them.
     row.replaceChildren(...(said.length ? [el('span', t.changed), ...said.flatMap((c) => [' ', el('span', c, 'change')])] : []));
   };
   // The step's words, under the controls, so a long caption never moves Next.
   const words = el('div', undefined, 'words');
   words.append(lede, caption, ...(changes ? [changes] : []), described);
-  // Unseen copies of the caption and the lede, at their width and in their type, measure
-  // every step's words so each keeps the room its case's longest needs: the steps list and
-  // the transcript then stay put as the reader steps. They are not a .caption or a .lede,
-  // so the page still has one of each.
-  const ruler = el('p', undefined, 'ruler'),
-    ledeRuler = el('p', undefined, 'lede-ruler');
-  ruler.setAttribute('aria-hidden', 'true');
+  // Measure the tallest heading for the stage cap without reserving empty space in the prose.
+  const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
   // The page's transcript holds every case; the player shows the current one, and its links move
   // the player. It is a closed row of the card, under the words (and the steps, on a narrow page).
@@ -277,7 +270,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   if (window.parent !== window) foot.append(wayOut);
   // One card: its header (the title and the cases), the picture mounted under it, the stepper
   // row, the words, the rows that open under them, then the footer.
-  player.append(head, frame, stepper, words, notice, transcript, foot, summary, ruler, ledeRuler, ...(changes ? [changesRuler] : []));
+  player.append(head, frame, stepper, words, notice, transcript, foot, summary, ledeRuler);
   // A frame the loader sizes to its content has no viewport height to fit: the card takes
   // the page's width, and the host page scrolls (embed.css, --player-reserve).
   if (window.parent !== window && params.has('parentOrigin')) root.style.setProperty('--player-reserve', '0px');
@@ -319,6 +312,22 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // The tile: everything the page shows, on one surface inside one edge.
   const layout = el('div', undefined, 'layout tile');
   layout.append(player);
+  // Secondary controls follow the explanation on phones; Next stays beside its step bar.
+  const compactTools = matchMedia('(max-width:640px)');
+  const placeTools = () => {
+    const active = document.activeElement;
+    const focused = active instanceof HTMLElement && (tools.contains(active) || active === tryCase) ? active : undefined;
+    if (compactTools.matches) {
+      words.append(tools);
+      if (firstSetting) tools.prepend(tryCase);
+    } else {
+      stepper.append(tools);
+      if (firstSetting) next.after(tryCase);
+    }
+    focused?.focus({preventScroll:true});
+  };
+  compactTools.addEventListener('change', placeTools);
+  placeTools();
   // The width embed.css puts the rail beside the card at.
   const wide = matchMedia('(min-width: 1100px)');
   const placeRail = () => {
@@ -383,7 +392,6 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   let shownLayout: StepLayout | undefined,
     caseLayouts: Map<string, StepLayout> | undefined,
     tourSize = '',
-    caseHasTour = false,
     // The close-ups of the step on show, where it opened first; `stop` is the one last visited.
     tour: Zoom[] = [],
     stop = 0;
@@ -393,7 +401,6 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
     stop = Math.min(stop, tour.length - 1);
-    caseHasTour = [...caseLayouts.values()].some(layout => closeUps(layout, w, h, zoom.max).length > 1);
   }
   // An authored opening can be the whole frame while its later detail stops
   // zoom in. Whole picture opts out of that tour; manually zooming out from a
@@ -408,12 +415,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     player.classList.toggle('narrow', narrow());
     const multiple = tour.length > 1;
     overview.hidden = !on || !multiple;
-    // Reserve the toolbar across a case that needs it, keeping Next and the
-    // transcript still. A single-view step exposes no toolbar or instructions.
-    views.hidden = !narrow() || !caseHasTour;
-    views.style.visibility = multiple ? '' : 'hidden';
-    if (touring !== (narrow() && caseHasTour && multiple)) {
-      touring = !touring;
+    // Next is above this row. A single-view step needs neither controls nor reserved space.
+    const activeTour = narrow() && multiple;
+    views.hidden = !activeTour;
+    if (touring !== activeTour) {
+      touring = activeTour;
       sayHint();
     }
     nextView.disabled = tour.length < 2;
@@ -564,15 +570,12 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     span.textContent = words.line;
     span.hidden = !words.line;
   }
-  // The step's heading has room for its case's tallest, and that room is part of the stage's cap
-  // (embed.css, --player-reserve): a heading that wraps to more lines in the reader's fonts makes the
-  // stage smaller, rather than pushing the heading off the screen. A smaller cap can narrow the card
-  // and wrap the heading again, so measure until the card's width holds, before the step is drawn.
+  // The tallest heading sets the stage cap; the displayed words keep their natural height.
+  // Recheck when the cap changes the card width, which can wrap the heading again.
   function reserve() {
     for (let pass = 0; pass < 3; pass++) {
       if (!reserveOnce()) return;
       const width = lede.clientWidth;
-      root.style.setProperty('--lede-h', lede.style.minHeight);
       measureHead();
       if (lede.clientWidth === width) return;
     }
@@ -584,61 +587,22 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const key = `${caption.clientWidth} ${lede.clientWidth} ${shownCase} ${detail}`;
     if (key === reservedFor) return false;
     reservedFor = key;
-    ruler.style.width = `${caption.clientWidth}px`;
     ledeRuler.style.width = `${lede.clientWidth}px`;
     const kicker = el('span', undefined, 'kicker'),
       strong = el('strong'),
       span = el('span', undefined, 'line');
     ledeRuler.replaceChildren(kicker, strong, span);
-    changesRuler.style.width = `${lede.clientWidth}px`;
-    let tallest = 0,
-      tallestTitle = 0,
-      tallestLine = 0,
-      tallestChanges = 0;
-    for (const [i, s] of trace.steps.entries()) {
+    let tallest = 0;
+    for (const [i, step] of trace.steps.entries()) {
       if (isDetail(i) !== detail) continue;
-      const words = stepWords(s);
-      ruler.textContent = words.caption;
-      fillLede(kicker, strong, span, i, words);
-      // The exact height: offsetHeight rounds, and a 115.2 px caption would still move the steps list by a fraction.
-      tallest = Math.max(tallest, ruler.getBoundingClientRect().height);
-      tallestTitle = Math.max(tallestTitle, strong.getBoundingClientRect().height);
-      tallestLine = Math.max(tallestLine, span.getBoundingClientRect().height);
-      if (changes) {
-        fillChanges(changesRuler, s);
-        tallestChanges = Math.max(tallestChanges, changesRuler.getBoundingClientRect().height);
-      }
+      fillLede(kicker, strong, span, i, stepWords(step));
+      tallest = Math.max(tallest, ledeRuler.getBoundingClientRect().height);
     }
-    ruler.textContent = '';
-    changesRuler.replaceChildren();
-    // The changes row keeps the room its case's tallest needs, so a step with no change keeps it
-    // empty; a case none of whose steps changes a watched value has no row at all.
-    if (changes) {
-      changes.style.minHeight = `${tallestChanges}px`;
-      changes.hidden = !tallestChanges;
-    }
-    // The stepper row keeps the room its taller face needs, Next or the case's Start again and Try,
-    // so reaching the last step never wraps the row onto another line and moves what follows.
-    stepper.style.minHeight = '';
-    let tallestRow = 0;
-    for (const end of [false, true]) {
-      endControls(end, end ? tryLabel() : '');
-      tallestRow = Math.max(tallestRow, stepper.getBoundingClientRect().height);
-    }
-    endControls(atEnd(), atEnd() ? tryLabel() : '');
-    stepper.style.minHeight = `${tallestRow}px`;
-    // The kicker is one line at every step; measured once, it keeps the lede's total when a step has no line.
-    const kickerHeight = kicker.getBoundingClientRect().height;
     ledeRuler.replaceChildren();
-    caption.style.minHeight = `${tallest}px`;
-    // The line keeps its own room, so its top never moves; the title does not, so it stays with the
-    // line under it. The lede sits at the bottom of its room (embed.css), so the slack a short title
-    // leaves falls above the kicker, between the controls and the words, not inside the heading.
-    ledeLine.style.minHeight = `${tallestLine}px`;
-    lede.style.minHeight = `${kickerHeight + tallestTitle + tallestLine}px`;
+    root.style.setProperty('--lede-h', `${tallest}px`);
     return true;
   }
-  // Reserving caption height changes the observed layout. Write in the next
+  // Measuring the heading changes the observed layout. Write in the next
   // frame, outside ResizeObserver delivery (WebKit otherwise reports a loop).
   new ResizeObserver(() => requestAnimationFrame(reserve)).observe(player);
   /**
@@ -1002,12 +966,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // A page `site:export --origin` published names <origin><path>/<id>/ here: each step of the
   // default case with a path-safe name has a share page there, whose link preview is that step.
   const shared = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_META}"]`)?.content;
+  const sharedSteps = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_STEPS_META}"]`)?.content.split(/\s+/);
   copy.onclick = async () => {
     if (casePhase.kind==='loading') return;
     const url = urlFor();
     url.searchParams.delete('parentOrigin');
     const step = currentStep().step,
-      share = shared && shareable(step) && JSON.stringify(values) === JSON.stringify(resolveSettings(Source)) ? shared + step : url.href;
+      share = shared && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && JSON.stringify(values) === JSON.stringify(resolveSettings(Source)) ? shared + step : url.href;
     try {
       await navigator.clipboard.writeText(share);
       notice.textContent = t.copied;

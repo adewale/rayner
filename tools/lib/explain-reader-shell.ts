@@ -35,6 +35,20 @@ export function readerShellProblems(e: ReaderShell): string[] {
   say('guidance', [...document.querySelectorAll<HTMLElement>('.foot .hint')].map(h =>
     [h.textContent, h.previousElementSibling?.classList.contains('mark'), h.checkVisibility()]), [[touring ? t.viewHelp : t.hintKeys, true, true]]);
   if (e.cases && !document.querySelector('.player .case input')) problems.push('case picker is missing from the card');
+  const lede = document.querySelector<HTMLElement>('.lede');
+  const caption = document.querySelector<HTMLElement>('.caption');
+  const stepper = document.querySelector<HTMLElement>('.stepper');
+  const kicker = lede?.querySelector<HTMLElement>('.kicker');
+  if (lede && caption && stepper && kicker) {
+    const boundary = controls && controls.getBoundingClientRect().height > 0 ? controls : stepper;
+    if (kicker.getBoundingClientRect().top - boundary.getBoundingClientRect().bottom > 24)
+      problems.push('empty space separates navigation from the step heading');
+    if (caption.getBoundingClientRect().top - lede.getBoundingClientRect().bottom > 18)
+      problems.push('empty space separates the step heading from its caption');
+    const tools = document.querySelector('.tools');
+    if (innerWidth <= 640 && tools && !(caption.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING))
+      problems.push('phone tools must follow the explanation');
+  }
   say('teaching steps', [...document.querySelectorAll('.step-bar button')].map(b => b.getAttribute('data-step')), e.steps);
   return problems;
 }

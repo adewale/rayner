@@ -49,3 +49,5 @@ b64() { base64 < "$1" | tr -d '\n'; }
   echo "];"
 } > src/font-data.ts
 ls -l "$tmp"/*.woff2 | awk '{print $5, $9}'
+
+node tools/fonts-sfnt.ts

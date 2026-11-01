@@ -2,11 +2,11 @@
 
 Rayner turns a TypeScript model into a step-through explanation. Readers can change a setting and see how the result changes; authors publish the cases as a portable HTML page with a transcript. It is for engineers and technical educators explaining protocols, algorithms and code changes.
 
-[![A cache hit follows the cache-to-reply path and reads the database zero times.](https://raw.githubusercontent.com/adewale/rayner/8d344c16fab72d2fa52554f905cd97bf840c553c/docs/images/cache-hit.png)](https://oshineye.dev/projects/rayner/mr-cache?request=hit&step=request)
+[![A deleted dictionary slot keeps a marker so lookup can still reach key 8.](docs/images/dictionary-deletion.png)](https://oshineye.dev/projects/rayner/python-dict)
 
 ## Start with a question
 
-[Why does a cache hit skip the database?](https://oshineye.dev/projects/rayner/mr-cache?request=hit&step=request) Follow the request, then [switch to a miss](https://oshineye.dev/projects/rayner/mr-cache?request=miss&step=request). The two cases show zero versus one D1 read. [Read the scene](scenes/explainers/mr-cache/scene.ts) to see how the code and diagram stay in step.
+[Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) Follow a lookup, try deleting a slot, and see why clearing it can make an existing key disappear. [Read the scene](scenes/explainers/python-dict/scene.ts) to see how the model supplies the picture and caption.
 
 [Browse the subject lessons](https://oshineye.dev/projects/rayner/) · [Write your first scene](docs/TUTORIAL.md) · [API and CLI reference](docs/REFERENCE.md)
 
@@ -26,14 +26,13 @@ npx rayner preview my-explainer/scene.ts --watch
 
 Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
 
-When your explanation is ready, check every case and review the served page before building the file to publish:
+When your explanation is ready, review every case and save the page to publish:
 
 ```sh
-npx rayner review my-explainer/scene.ts
-npx rayner build my-explainer/scene.ts --out public/my-explainer.html
+npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 ```
 
-`review` checks cases and opens each resting step at phone and desktop widths, saving screenshots and a receipt. `build` writes HTML, its receipt, a response-header recipe and an optional iframe loader; it does **not** repeat validation. Check the model against its sources and read the pictures yourself: automated checks cannot establish that an explanation is true. [The tutorial](docs/TUTORIAL.md) plans, writes and checks a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it.
+`review --out` checks every case, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, header recipe and loader. Check the model against its sources and inspect the screenshots: automated checks cannot establish that an explanation is true. [The tutorial](docs/TUTORIAL.md) develops a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it.
 
 ## Look up an authoring feature
 
