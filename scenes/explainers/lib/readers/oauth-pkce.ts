@@ -43,7 +43,7 @@ export function frames(attacker: boolean): ReaderFrame[] {
               : []),
           ],
           s,
-          { xs: [-4.8, 0.4, 5.5], y: 2.5, gap: 1.5, size: 0.6 },
+          { xs: [-4.2, 0.4, 4.6], y: 2.5, gap: 1.5, size: 0.6 },
         ),
     },
     {

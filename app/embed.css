@@ -26,7 +26,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .case{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
 .case legend{float:left;padding:0}
 /* One label style: the case legend, the step kicker, the rail heading and the view count. */
-.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child,.changes-ruler>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
+.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
 .case legend+*{clear:left}
 .segments{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:var(--player-control-radius,11px);background:color-mix(in srgb,var(--line) 55%,transparent)}
 .segments label{position:relative;display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:var(--player-control-radius,8px);font-size:.9375rem;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease}
@@ -50,7 +50,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 }
 
 /* Player: one card. Its header, the picture, one stepper row straight under it, then the step's words.
-   --player-reserve (on #content: the header's measured height, --head-h, the step heading's reserved height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
+   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
    of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings). The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
@@ -90,7 +90,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .lede .line,.lede-ruler .line{font-size:.9375rem;color:var(--muted)}
 .lede [hidden],.lede-ruler [hidden]{display:none}
 /* What the step changed of the state its author watches: a quiet label, then each change in a ring. */
-.changes,.changes-ruler{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
+.changes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
 .changes[hidden]{display:none}
 .change{padding:1px 8px;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);font-variant-numeric:tabular-nums}
 .stepper{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:8px;padding:10px var(--inset);border-top:1px solid var(--line)}

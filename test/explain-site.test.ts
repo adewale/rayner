@@ -8,10 +8,10 @@ import { promisify } from 'node:util';
 import { ROOT } from '../tools/lib/explain-project.ts';
 
 test(
-  'checked catalog export selects its own entry and renders only public cards for the selected lessons',
+  'catalog export selects its own entry and renders only public cards for the selected lessons',
   {
     skip:
-      !process.env.EXPLAIN_CATALOG && 'set EXPLAIN_CATALOG=1 after demos:check; reuses that canonical build',
+      !process.env.EXPLAIN_CATALOG && 'set EXPLAIN_CATALOG=1 after demos:build; reuses that canonical build',
   },
   async () => {
     const folder = await mkdtemp(join(tmpdir(), 'rayner-site-export-'));

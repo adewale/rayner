@@ -51,9 +51,9 @@ export function frames(wrapper: Wrapper, inner: Inner): ReaderFrame[] {
       values: { layers, requirements },
       draw: (s) =>
         new Group(
-          label(`Start: ${layers[0]!.name}`, 0, 2.8, s.emphasis, 0.7),
-          label(`Input Send: ${layers[0]!.send ? 'yes' : 'no'}`, -3.8, 1.7, s.palette.ink, 0.65),
-          label(`Input Sync: ${layers[0]!.sync ? 'yes' : 'no'}`, 3.8, 1.7, s.palette.ink, 0.65),
+          label(`Start: ${layers[0]!.name}`, 0, 2.3, s.emphasis, 0.7),
+          label(`Input Send: ${layers[0]!.send ? 'yes' : 'no'}`, -3.8, 1.25, s.palette.ink, 0.65),
+          label(`Input Sync: ${layers[0]!.sync ? 'yes' : 'no'}`, 3.8, 1.25, s.palette.ink, 0.65),
           table(
             ['Wrapper', 'Needs from T', 'Met?'],
             WRAPS[wrapper].map((ctor, i) => [
@@ -64,12 +64,12 @@ export function frames(wrapper: Wrapper, inner: Inner): ReaderFrame[] {
                 : 'no',
             ]),
             s,
-            { xs: [-5, 0, 5.2], y: 0.3, gap: 1.5 },
+            { xs: [-5, 0, 5.2], y: 0.1, gap: 1 },
           ),
           label(
             `Result Send: ${last.send ? 'yes' : 'no'} · Sync: ${last.sync ? 'yes' : 'no'}`,
             0,
-            -3.8,
+            -2.9,
             s.palette.ink,
             0.65,
           ),
