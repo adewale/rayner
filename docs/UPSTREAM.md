@@ -14,7 +14,7 @@ The layout checks are adapted rather than copied wholesale: Rayner's diagram lab
 
 The Worker/JSON service, Cloudflare tooling and Lantern's fixed portrait-camera API are not included. Its blanket crossfade and phone composition policies would reject deliberate Rayner effects and teaching diagrams, so they are not adopted. Local SVG export retains widths above 4096px; that service-oriented ceiling is not needed here. SVG option formats are documented in the [reference](REFERENCE.md#engine-output-and-admission).
 
-[The testing follow-up](evidence/upstream-backport/README.md) records why the earlier tests missed these bugs, the corrected contracts and the validation limits. WebKit's stroke fix is present; actual Safari execution remains separate platform evidence.
+[The testing follow-up](https://github.com/adewale/rayner/blob/d3db60dc14124472903c0366ef64a819d57f2fe7/docs/evidence/upstream-backport/README.md) records why the earlier tests missed these bugs, the corrected contracts and the validation limits. WebKit's stroke fix is present; actual Safari execution remains separate platform evidence.
 
 ## Merging
 

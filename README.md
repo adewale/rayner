@@ -21,10 +21,6 @@ An explainer written by hand, or by a language model, can look right and be wron
 
 The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
 
-## Where it stands
-
-Readers can step through an explanation and switch between prebuilt cases, but they cannot yet act inside a step. That matters. In a [blind benchmark](bench/explainers/README.md) where the same models built one statecharts script with Rayner and as a hand-made page, the reviewer preferred the hand-made page in all three pairs, in two rounds, because those let the reader commit to predictions and send events to a live machine. Rayner's pages were credited with cleaner diagrams, a text alternative for every picture, keyboard navigation and deep links. [The live machine](https://github.com/adewale/rayner/issues/88), in which readers drive the scene's own tested model and `check` tests every picture they can reach, is the proposed answer. Until a benchmark round says otherwise, do not assume a Rayner explainer teaches better than a careful hand-made one.
-
 ## Write your first scene
 
 Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported. In an empty directory, install the published package and start the tutorial's two-case explainer of LRU and MRU cache replacement:
