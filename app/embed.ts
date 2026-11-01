@@ -328,10 +328,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   };
   compactTools.addEventListener('change', placeTools);
   placeTools();
-  // The width embed.css puts the rail beside the card at.
   const wide = matchMedia('(min-width: 1100px)');
+  const rootStyle = getComputedStyle(root);
+  const floor = parseFloat(rootStyle.getPropertyValue('--player-floor')) || 0;
   const placeRail = () => {
-    if (wide.matches) {
+    // A viewport query includes the scrollbar; the rail must fit the actual content box.
+    const beside = wide.matches && (!floor || root.getBoundingClientRect().width - parseFloat(rootStyle.paddingLeft) - parseFloat(rootStyle.paddingRight) >= floor + 300);
+    if (steps.parentElement === (beside ? railBody : railUnder)) return;
+    const active = document.activeElement;
+    const focused = active === railSummary
+      ? detailSteps.querySelector<HTMLButtonElement>('[aria-current=step]') ?? steps.querySelector<HTMLButtonElement>('[aria-current=step]') ?? steps.querySelector<HTMLButtonElement>('button')
+      : active instanceof HTMLElement && (steps.contains(active) || detailDisclosure.contains(active)) ? active : undefined;
+    if (beside) {
       if (steps.parentElement !== railBody) railBody.append(steps, detailDisclosure);
       railUnder.remove();
       // Appended after the card, never by moving the card, which would end full screen.
@@ -340,11 +348,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (steps.parentElement !== railUnder) railUnder.append(steps, detailDisclosure);
       railBeside.remove();
       if (railUnder.nextElementSibling !== transcript) transcript.before(railUnder);
+      if (focused || detailSteps.querySelector('[aria-current=step]')) railUnder.open = true;
     }
+    focused?.focus({preventScroll:true});
     keepInRail();
   };
   placeRail();
   wide.addEventListener('change', placeRail);
+  if (floor) new ResizeObserver(() => requestAnimationFrame(placeRail)).observe(root);
   transcript.addEventListener('click', (e) => {
     const a = (e.target as Element).closest<HTMLAnchorElement>('section a'),
       step = a && new URLSearchParams(a.search).get('step');
@@ -524,7 +535,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     sayHint();
     if (isDetail(selected)) {
       detailDisclosure.open = true;
-      if (!wide.matches) railUnder.open = true;
+      if (railUnder.isConnected) railUnder.open = true;
     }
     else lastStory = selected;
     endControls(atEnd(), atEnd() ? tryLabel() : '');

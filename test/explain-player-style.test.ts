@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { chromium, type Page } from 'playwright-core';
 import { playerProperties } from '../app/embed-style.ts';
 import { PALETTES } from '../explain/palettes.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
-import { buildExplainer } from '../tools/lib/explain-build.ts';
+import { buildExplainer, buildLoader } from '../tools/lib/explain-build.ts';
 import { serve } from '../tools/lib/explain-serve.ts';
 import { launch } from '../tools/lib/browser.ts';
 
@@ -70,7 +71,7 @@ test('palette cues validate all thirteen palettes in both themes and reject unsa
 });
 
 test(
-  'served player isolates cues, changes them by case and keeps forced-colour markers after blur',
+  'served player isolates cues, preserves width floors and focus, and keeps forced-colour markers',
   {
     skip: process.env.EXPLAIN_BROWSER
       ? false
@@ -80,21 +81,23 @@ test(
     const folder = await mkdtemp(join(tmpdir(), 'rayner-style-'));
     const source = (
       cues: boolean,
+      long = false,
     ) => `import {Scene,Text} from '${ROOT}/src/index.ts';
 import {stage,settingsOf} from '${ROOT}/explain/index.ts';
 export default class Demo extends Scene {
 static meta={title:'Arc<T>',${cues ? "player:{accent:true,paper:true,corners:'square',minStageWidth:880}," : ''}};
 static settings=[{id:'mode',label:'isdigit()',default:'a',options:[{value:'a',label:'-m'},{value:'b',label:'-M'}]}];
-async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff7ed',ink:'#202020',muted:'#595959',accent:'#9a3412'} : {paper:'#888888',ink:'#202020',muted:'#595959',accent:'#777777'}});this.add(new Text('Hello'));for(const name of ['first','middle','last']){await this.step(name,{title:name,caption:'Hello'});await this.wait(.1)}}}`;
+async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff7ed',ink:'#202020',muted:'#595959',accent:'#9a3412'} : {paper:'#888888',ink:'#202020',muted:'#595959',accent:'#777777'}});this.add(new Text('Hello'));for(const name of ${long ? "Array.from({length:40},(_,i)=>'s'+i)" : "['first','middle','last','note']"}){await this.step(name,{title:name,caption:'Hello',detail:name==='note'});await this.wait(.1)}}}`;
     let server: Awaited<ReturnType<typeof serve>> | undefined;
     let browser: Awaited<ReturnType<typeof launch>> | undefined;
     try {
       for (const [name, cues] of [
         ['cued', true],
         ['neutral', false],
+        ['long', true],
       ] as const) {
         const file = join(folder, name + '.ts');
-        await writeFile(file, source(cues));
+        await writeFile(file, source(cues, name === 'long'));
         const project = await collectProject(file, { write: false });
         await buildExplainer(project, join(folder, name + '.html'));
       }
@@ -143,12 +146,6 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
                 ? 'rgb(154, 52, 18)'
                 : 'rgb(32, 32, 32)'
               : 'rgb(240, 240, 240)',
-          );
-          assert.equal(
-            await page
-              .locator('.stage')
-              .evaluate((e) => getComputedStyle(e).minWidth),
-            name === 'cued' ? '880px' : '0px',
           );
           assert.equal(
             await page.locator('.case legend').textContent(),
@@ -255,6 +252,149 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
           );
           await page.close();
         }
+      const geometry = (root: HTMLElement) => {
+        const stage = root.querySelector('.stage')!.getBoundingClientRect();
+        const style = getComputedStyle(root);
+        return {
+          width: stage.width, height: stage.height,
+          content: root.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+          viewportHeight: innerHeight,
+          next: root.querySelector('.primary')!.getBoundingClientRect().bottom,
+          side: root.querySelectorAll('aside.rail').length,
+          under: root.querySelectorAll('details.rail').length,
+          overflow: document.documentElement.scrollWidth > innerWidth,
+        };
+      };
+      const settle = async () => {
+        for (let n = 0; n < 4; n++) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      };
+      for (const name of ['cued', 'neutral']) {
+        const page: Page = await browser.newPage({reducedMotion:'reduce'});
+        try {
+          await page.goto(`${server.url}/${name}.html?step=middle`);
+          await page.waitForSelector('[data-ready=true]');
+          // Resize the same reader through both rail breakpoints, not just fresh loads.
+          for (const viewport of [390,1100,1211,1212,1226,1227,1280,1600,1100].map(width=>({width,height:400}))) {
+            await page.setViewportSize(viewport);
+            await page.evaluate(settle);
+            const seen = await page.locator('#content').evaluate(geometry);
+            const side = viewport.width >= 1100 && (name === 'neutral' || seen.content >= 1180);
+            assert.equal(seen.side,Number(side),`${name}/${viewport.width}: side rail`);
+            assert.equal(seen.under,Number(!side),`${name}/${viewport.width}: steps disclosure`);
+            assert.equal(seen.overflow,false,`${name}/${viewport.width}: no horizontal page scroll`);
+            if (name === 'cued') {
+              assert.ok(seen.width >= Math.min(880,seen.content)-1,`${viewport.width}: width floor`);
+              if (viewport.width >= 1100) assert.ok(seen.next > viewport.height,'the width floor can put Next below a short window');
+            } else assert.ok(Math.abs(seen.width-320)<1,'unconfigured pages retain the 20rem short-window floor');
+          }
+          await page.setViewportSize({width:1280,height:720});
+          await page.evaluate(settle);
+          await page.getByRole('button',{name:/Enlarge/}).click();
+          await page.waitForFunction(()=>!!document.fullscreenElement);
+          await page.evaluate(settle);
+          const full = await page.locator('#content').evaluate(geometry);
+          assert.ok(Math.abs(full.width-(name === 'cued' ? 880 : (full.viewportHeight-300)*16/9))<1,
+            `${name}: fullscreen retains the opt-in floor and the neutral height cap`);
+          await page.evaluate(()=>document.exitFullscreen());
+          await page.waitForFunction(()=>!document.fullscreenElement);
+        } finally { await page.close(); }
+      }
+      await buildLoader(join(folder,'loader.js'));
+      for (const loader of [false,true]) {
+        const host = `<!doctype html><style>body{margin:0}</style>` + ['cued','neutral'].map(name=>
+          `<div id="${name}">${loader ?
+            `<script src="/loader.js" data-src="/${name}.html?step=middle" data-target="${name}" data-title="${name}"></script>` :
+            `<iframe title="${name}" allowfullscreen src="/${name}.html?step=middle" style="width:100%;height:720px;border:0;display:block"></iframe>`}</div>`).join('');
+        await writeFile(join(folder,'host.html'),host);
+        for (const width of [390,1280]) {
+          const page = await browser.newPage({viewport:{width,height:900},reducedMotion:'reduce'});
+          try {
+            await page.goto(`${server.url}/host.html`);
+            const seen = [];
+            for (const name of ['cued','neutral']) {
+              const frame = page.frameLocator(`#${name} iframe`);
+              await frame.locator('[data-ready=true]').waitFor();
+              await frame.locator('#content').evaluate(settle);
+              seen.push(await frame.locator('#content').evaluate(geometry));
+            }
+            assert.deepEqual(seen[0],seen[1],`${loader?'loader':'raw frame'}/${width}: opted-in sizing must not affect a frame`);
+            assert.equal(seen[0]!.overflow,false);
+            const heights = await page.locator('iframe').evaluateAll(frames=>frames.map(f=>f.getBoundingClientRect().height));
+            assert.equal(heights[0],heights[1],'the loader reports the same height with or without the setting');
+            if (!loader && width === 1280) {
+              await page.setViewportSize({width,height:600});
+              const frame = page.frameLocator('#cued iframe');
+              await frame.getByRole('button',{name:/Enlarge/}).click();
+              await page.waitForFunction(()=>!!document.fullscreenElement);
+              await frame.locator('#content').evaluate(settle);
+              const full = await frame.locator('#content').evaluate(geometry);
+              assert.ok(full.viewportHeight<795,'framed fullscreen must exercise a cap below the opt-in floor');
+              assert.ok(Math.abs(full.width-(full.viewportHeight-300)*16/9)<1,'a framed fullscreen keeps host-driven sizing');
+              await page.evaluate(()=>document.exitFullscreen());
+              await page.waitForFunction(()=>!document.fullscreenElement);
+            }
+          } finally { await page.close(); }
+        }
+      }
+      // Playwright normally hides scrollbars. Use the native classic gutter for the fit boundary.
+      await browser.close();
+      browser = await chromium.launch({
+        executablePath:process.env.CHROMIUM_EXECUTABLE_PATH,
+        ignoreDefaultArgs:['--hide-scrollbars'],
+        args:['--disable-features=OverlayScrollbar'],
+      });
+      const page: Page = await browser.newPage({viewport:{width:1212,height:720},reducedMotion:'reduce'});
+      try {
+        const errors: string[] = [];
+        page.on('pageerror',error=>errors.push(error.message));
+        await page.goto(`${server.url}/cued.html?step=middle`);
+        await page.waitForSelector('[data-ready=true]');
+        assert.ok(await page.evaluate(()=>document.documentElement.clientWidth<innerWidth),'classic scrollbars are active');
+        for (const width of [1211,1212,1213,1226,1227,1280]) {
+          await page.setViewportSize({width,height:720});
+          await page.evaluate(settle);
+          const seen = await page.locator('#content').evaluate(geometry);
+          assert.ok(seen.width>=880-1,`${width}: the gutter must not squeeze the stage`);
+          assert.equal(seen.side,Number(seen.content>=1180),`${width}: rail follows actual space`);
+        }
+        await page.setViewportSize({width:1212,height:720});
+        await page.evaluate(settle);
+        await page.locator('details.rail > summary').click();
+        await page.locator('.steps button[data-step=middle]').focus();
+        for (const width of [1227,1212]) {
+          await page.setViewportSize({width,height:720});
+          await page.evaluate(settle);
+          assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('data-step')),'middle','the focused step survives reparenting');
+        }
+        await page.goto(`${server.url}/cued.html?step=note`);
+        await page.waitForSelector('[data-ready=true]');
+        await page.evaluate(settle);
+        assert.ok(await page.locator('details.rail').evaluate(e=>(e as HTMLDetailsElement).open),'a direct source step opens the actual under-card rail');
+        await page.locator('.supporting button[data-step=note]').focus();
+        for (const width of [1280,1212]) {
+          await page.setViewportSize({width,height:720});
+          await page.evaluate(settle);
+          assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute('data-step')),'note','the focused source step survives reparenting');
+        }
+        assert.ok(await page.locator('details.rail').evaluate(e=>(e as HTMLDetailsElement).open),'the source step remains visible after moving below the card');
+        await page.goto(`${server.url}/long.html?step=s1`);
+        await page.waitForSelector('[data-ready=true]');
+        await page.setViewportSize({width:1212,height:1200});
+        await page.evaluate(settle);
+        const samples = await page.locator('#content').evaluate(async root => {
+          const rows = [];
+          for(let n=0;n<12;n++) {
+            await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+            rows.push([root.getBoundingClientRect().width,root.querySelector('.stage')!.getBoundingClientRect().width,root.querySelectorAll('aside.rail').length]);
+          }
+          return rows;
+        });
+        assert.equal(samples.length,12);
+        assert.ok(samples.every(row=>JSON.stringify(row)===JSON.stringify(samples[0])),'a long rail must not oscillate the scrollbar and width');
+        assert.ok(samples[0]![1]!>=880-1);
+        assert.equal(samples[0]![2],0);
+        assert.deepEqual(errors,[],'fit changes produce no observer-loop or page errors');
+      } finally { await page.close(); }
     } finally {
       await browser?.close();
       server?.close();
