@@ -59,7 +59,7 @@ for (const entry of EXPLAINERS)
         );
       switch (entry.id) {
         case 'statecharts':
-          statecharts(values, trace, project.store);
+          statecharts(values, trace);
           break;
         case 'python-dict': case 'bloom-filter': case 'git-branches':
         case 'monty-hall': case 'birthday-paradox': case 'melody-rhythm':

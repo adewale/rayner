@@ -2,11 +2,6 @@
   "version": 2,
   "importer": "11d0423eb190709f",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "0e1eb56697b8d48c02670937ef687b35c38976dfd33e91c60afc9d81607620c3",
-  "diagrams": {
-    "[\"---\\nconfig:\\n  state:\\n    fontSize: 18\\n    compositTitleSize: 18\\n    nodeSpacing: 24\\n    rankSpacing: 36\\n---\\nstateDiagram-v2\\n  direction LR\\n  [*] --> off\\n  off --> on: POWER\\n  on --> off: POWER\\n  state on {\\n    [*] --> paused\\n    paused --> playing: PLAY\\n    playing --> paused: PAUSE\\n    --\\n    [*] --> unmuted\\n    unmuted --> muted: MUTE\\n    muted --> unmuted: UNMUTE\\n  }\",\"github-light\"]": "958ba3fd24d4d81b.json",
-    "[\"---\\nconfig:\\n  state:\\n    fontSize: 18\\n    compositTitleSize: 18\\n    nodeSpacing: 24\\n    rankSpacing: 36\\n---\\nstateDiagram-v2\\n  direction LR\\n  [*] --> off\\n  off --> on: POWER\\n  on --> off: POWER\\n  state on {\\n    [*] --> paused\\n    paused --> playing: PLAY\\n    playing --> paused: PAUSE\\n  }\",\"github-light\"]": "6547827ff07d3b90.json",
-    "[\"---\\nconfig:\\n  state:\\n    fontSize: 18\\n    compositTitleSize: 18\\n    nodeSpacing: 24\\n    rankSpacing: 36\\n---\\nstateDiagram-v2\\n  direction LR\\n  [*] --> off\\n  off --> paused: POWER\\n  paused --> playing: PLAY\\n  playing --> paused: PAUSE\\n  paused --> off: POWER\\n  playing --> off: POWER\",\"github-light\"]": "ae377a7a9933fb1c.json",
-    "[\"---\\nconfig:\\n  state:\\n    fontSize: 18\\n    compositTitleSize: 18\\n    nodeSpacing: 24\\n    rankSpacing: 36\\n---\\nstateDiagram-v2\\n  direction LR\\n  state \\\"paused + unmuted\\\" as paused_unmuted\\n  state \\\"playing + unmuted\\\" as playing_unmuted\\n  state \\\"paused + muted\\\" as paused_muted\\n  state \\\"playing + muted\\\" as playing_muted\\n  [*] --> off\\n  off --> paused_unmuted: POWER\\n  paused_unmuted --> playing_unmuted: PLAY\\n  paused_unmuted --> paused_muted: MUTE\\n  playing_unmuted --> paused_unmuted: PAUSE\\n  playing_unmuted --> playing_muted: MUTE\\n  paused_muted --> playing_muted: PLAY\\n  paused_muted --> paused_unmuted: UNMUTE\\n  playing_muted --> paused_muted: PAUSE\\n  playing_muted --> playing_unmuted: UNMUTE\\n  paused_unmuted --> off: POWER\\n  playing_unmuted --> off: POWER\\n  paused_muted --> off: POWER\\n  playing_muted --> off: POWER\",\"github-light\"]": "4e61c36cec4c8672.json"
-  }
+  "sourceHash": "2ce28bce17b14ef6f8c31a1880f68d79715bae0cbc3e8b5af8b8eefd26639b88",
+  "diagrams": {}
 }

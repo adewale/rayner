@@ -1,8 +1,7 @@
 {
  "xstate": "5.33.3",
- "players": [
-  {
-   "controls": 1,
+ "charts": {
+  "play": {
    "events": [
     "POWER",
     "PLAY",
@@ -49,7 +48,7 @@
      1
     ]
    ],
-   "run": [
+   "follow": [
     {
      "event": "POWER",
      "can": true,
@@ -65,6 +64,13 @@
      ]
     },
     {
+     "event": "MUTE",
+     "can": false,
+     "config": [
+      "playing"
+     ]
+    },
+    {
      "event": "POWER",
      "can": true,
      "config": [
@@ -73,8 +79,7 @@
     }
    ]
   },
-  {
-   "controls": 2,
+  "mute": {
    "events": [
     "POWER",
     "PLAY",
@@ -173,7 +178,7 @@
      2
     ]
    ],
-   "run": [
+   "follow": [
     {
      "event": "POWER",
      "can": true,
@@ -207,16 +212,13 @@
     }
    ]
   },
-  {
-   "controls": 3,
+  "muteWhilePlaying": {
    "events": [
     "POWER",
     "PLAY",
     "PAUSE",
     "MUTE",
-    "UNMUTE",
-    "SHOW",
-    "HIDE"
+    "UNMUTE"
    ],
    "initial": [
     "off"
@@ -226,44 +228,13 @@
      "off"
     ],
     [
-     "paused",
-     "unmuted",
-     "hidden"
+     "paused"
     ],
     [
-     "playing",
-     "unmuted",
-     "hidden"
+     "unmuted"
     ],
     [
-     "paused",
-     "muted",
-     "hidden"
-    ],
-    [
-     "paused",
-     "unmuted",
-     "shown"
-    ],
-    [
-     "playing",
-     "muted",
-     "hidden"
-    ],
-    [
-     "playing",
-     "unmuted",
-     "shown"
-    ],
-    [
-     "paused",
-     "muted",
-     "shown"
-    ],
-    [
-     "playing",
-     "muted",
-     "shown"
+     "muted"
     ]
    ],
    "transitions": [
@@ -283,16 +254,6 @@
      2
     ],
     [
-     1,
-     "MUTE",
-     3
-    ],
-    [
-     1,
-     "SHOW",
-     4
-    ],
-    [
      2,
      "POWER",
      0
@@ -305,169 +266,44 @@
     [
      2,
      "MUTE",
-     5
-    ],
-    [
-     2,
-     "SHOW",
-     6
-    ],
-    [
-     3,
-     "POWER",
-     0
-    ],
-    [
-     3,
-     "PLAY",
-     5
-    ],
-    [
-     3,
-     "UNMUTE",
-     1
-    ],
-    [
-     3,
-     "SHOW",
-     7
-    ],
-    [
-     4,
-     "POWER",
-     0
-    ],
-    [
-     4,
-     "PLAY",
-     6
-    ],
-    [
-     4,
-     "MUTE",
-     7
-    ],
-    [
-     4,
-     "HIDE",
-     1
-    ],
-    [
-     5,
-     "POWER",
-     0
-    ],
-    [
-     5,
-     "PAUSE",
      3
     ],
     [
-     5,
+     3,
+     "POWER",
+     0
+    ],
+    [
+     3,
+     "PAUSE",
+     1
+    ],
+    [
+     3,
      "UNMUTE",
      2
-    ],
-    [
-     5,
-     "SHOW",
-     8
-    ],
-    [
-     6,
-     "POWER",
-     0
-    ],
-    [
-     6,
-     "PAUSE",
-     4
-    ],
-    [
-     6,
-     "MUTE",
-     8
-    ],
-    [
-     6,
-     "HIDE",
-     2
-    ],
-    [
-     7,
-     "POWER",
-     0
-    ],
-    [
-     7,
-     "PLAY",
-     8
-    ],
-    [
-     7,
-     "UNMUTE",
-     4
-    ],
-    [
-     7,
-     "HIDE",
-     3
-    ],
-    [
-     8,
-     "POWER",
-     0
-    ],
-    [
-     8,
-     "PAUSE",
-     7
-    ],
-    [
-     8,
-     "UNMUTE",
-     6
-    ],
-    [
-     8,
-     "HIDE",
-     5
     ]
    ],
-   "run": [
+   "follow": [
     {
      "event": "POWER",
      "can": true,
      "config": [
-      "paused",
-      "unmuted",
-      "hidden"
+      "paused"
      ]
     },
     {
      "event": "PLAY",
      "can": true,
      "config": [
-      "playing",
-      "unmuted",
-      "hidden"
+      "unmuted"
      ]
     },
     {
      "event": "MUTE",
      "can": true,
      "config": [
-      "playing",
-      "muted",
-      "hidden"
-     ]
-    },
-    {
-     "event": "SHOW",
-     "can": true,
-     "config": [
-      "playing",
-      "muted",
-      "shown"
+      "muted"
      ]
     },
     {
@@ -479,18 +315,13 @@
     }
    ]
   },
-  {
-   "controls": 4,
+  "boxedMute": {
    "events": [
     "POWER",
     "PLAY",
-    "PAUSE",
     "MUTE",
-    "UNMUTE",
-    "SHOW",
-    "HIDE",
-    "LOOP",
-    "ONCE"
+    "PAUSE",
+    "UNMUTE"
    ],
    "initial": [
     "off"
@@ -500,100 +331,16 @@
      "off"
     ],
     [
-     "paused",
-     "unmuted",
-     "hidden",
-     "once"
+     "paused_unmuted"
     ],
     [
-     "playing",
-     "unmuted",
-     "hidden",
-     "once"
+     "playing_unmuted"
     ],
     [
-     "paused",
-     "muted",
-     "hidden",
-     "once"
+     "paused_muted"
     ],
     [
-     "paused",
-     "unmuted",
-     "shown",
-     "once"
-    ],
-    [
-     "paused",
-     "unmuted",
-     "hidden",
-     "looping"
-    ],
-    [
-     "playing",
-     "muted",
-     "hidden",
-     "once"
-    ],
-    [
-     "playing",
-     "unmuted",
-     "shown",
-     "once"
-    ],
-    [
-     "playing",
-     "unmuted",
-     "hidden",
-     "looping"
-    ],
-    [
-     "paused",
-     "muted",
-     "shown",
-     "once"
-    ],
-    [
-     "paused",
-     "muted",
-     "hidden",
-     "looping"
-    ],
-    [
-     "paused",
-     "unmuted",
-     "shown",
-     "looping"
-    ],
-    [
-     "playing",
-     "muted",
-     "shown",
-     "once"
-    ],
-    [
-     "playing",
-     "muted",
-     "hidden",
-     "looping"
-    ],
-    [
-     "playing",
-     "unmuted",
-     "shown",
-     "looping"
-    ],
-    [
-     "paused",
-     "muted",
-     "shown",
-     "looping"
-    ],
-    [
-     "playing",
-     "muted",
-     "shown",
-     "looping"
+     "playing_muted"
     ]
    ],
    "transitions": [
@@ -618,19 +365,14 @@
      3
     ],
     [
-     1,
-     "SHOW",
-     4
-    ],
-    [
-     1,
-     "LOOP",
-     5
-    ],
-    [
      2,
      "POWER",
      0
+    ],
+    [
+     2,
+     "MUTE",
+     4
     ],
     [
      2,
@@ -638,21 +380,6 @@
      1
     ],
     [
-     2,
-     "MUTE",
-     6
-    ],
-    [
-     2,
-     "SHOW",
-     7
-    ],
-    [
-     2,
-     "LOOP",
-     8
-    ],
-    [
      3,
      "POWER",
      0
@@ -660,7 +387,7 @@
     [
      3,
      "PLAY",
-     6
+     4
     ],
     [
      3,
@@ -668,390 +395,144 @@
      1
     ],
     [
-     3,
-     "SHOW",
-     9
-    ],
-    [
-     3,
-     "LOOP",
-     10
-    ],
-    [
      4,
      "POWER",
      0
     ],
     [
      4,
-     "PLAY",
-     7
-    ],
-    [
-     4,
-     "MUTE",
-     9
-    ],
-    [
-     4,
-     "HIDE",
-     1
-    ],
-    [
-     4,
-     "LOOP",
-     11
-    ],
-    [
-     5,
-     "POWER",
-     0
-    ],
-    [
-     5,
-     "PLAY",
-     8
-    ],
-    [
-     5,
-     "MUTE",
-     10
-    ],
-    [
-     5,
-     "SHOW",
-     11
-    ],
-    [
-     5,
-     "ONCE",
-     1
-    ],
-    [
-     6,
-     "POWER",
-     0
-    ],
-    [
-     6,
      "PAUSE",
      3
     ],
     [
-     6,
+     4,
      "UNMUTE",
      2
-    ],
-    [
-     6,
-     "SHOW",
-     12
-    ],
-    [
-     6,
-     "LOOP",
-     13
-    ],
-    [
-     7,
-     "POWER",
-     0
-    ],
-    [
-     7,
-     "PAUSE",
-     4
-    ],
-    [
-     7,
-     "MUTE",
-     12
-    ],
-    [
-     7,
-     "HIDE",
-     2
-    ],
-    [
-     7,
-     "LOOP",
-     14
-    ],
-    [
-     8,
-     "POWER",
-     0
-    ],
-    [
-     8,
-     "PAUSE",
-     5
-    ],
-    [
-     8,
-     "MUTE",
-     13
-    ],
-    [
-     8,
-     "SHOW",
-     14
-    ],
-    [
-     8,
-     "ONCE",
-     2
-    ],
-    [
-     9,
-     "POWER",
-     0
-    ],
-    [
-     9,
-     "PLAY",
-     12
-    ],
-    [
-     9,
-     "UNMUTE",
-     4
-    ],
-    [
-     9,
-     "HIDE",
-     3
-    ],
-    [
-     9,
-     "LOOP",
-     15
-    ],
-    [
-     10,
-     "POWER",
-     0
-    ],
-    [
-     10,
-     "PLAY",
-     13
-    ],
-    [
-     10,
-     "UNMUTE",
-     5
-    ],
-    [
-     10,
-     "SHOW",
-     15
-    ],
-    [
-     10,
-     "ONCE",
-     3
-    ],
-    [
-     11,
-     "POWER",
-     0
-    ],
-    [
-     11,
-     "PLAY",
-     14
-    ],
-    [
-     11,
-     "MUTE",
-     15
-    ],
-    [
-     11,
-     "HIDE",
-     5
-    ],
-    [
-     11,
-     "ONCE",
-     4
-    ],
-    [
-     12,
-     "POWER",
-     0
-    ],
-    [
-     12,
-     "PAUSE",
-     9
-    ],
-    [
-     12,
-     "UNMUTE",
-     7
-    ],
-    [
-     12,
-     "HIDE",
-     6
-    ],
-    [
-     12,
-     "LOOP",
-     16
-    ],
-    [
-     13,
-     "POWER",
-     0
-    ],
-    [
-     13,
-     "PAUSE",
-     10
-    ],
-    [
-     13,
-     "UNMUTE",
-     8
-    ],
-    [
-     13,
-     "SHOW",
-     16
-    ],
-    [
-     13,
-     "ONCE",
-     6
-    ],
-    [
-     14,
-     "POWER",
-     0
-    ],
-    [
-     14,
-     "PAUSE",
-     11
-    ],
-    [
-     14,
-     "MUTE",
-     16
-    ],
-    [
-     14,
-     "HIDE",
-     8
-    ],
-    [
-     14,
-     "ONCE",
-     7
-    ],
-    [
-     15,
-     "POWER",
-     0
-    ],
-    [
-     15,
-     "PLAY",
-     16
-    ],
-    [
-     15,
-     "UNMUTE",
-     11
-    ],
-    [
-     15,
-     "HIDE",
-     10
-    ],
-    [
-     15,
-     "ONCE",
-     9
-    ],
-    [
-     16,
-     "POWER",
-     0
-    ],
-    [
-     16,
-     "PAUSE",
-     15
-    ],
-    [
-     16,
-     "UNMUTE",
-     14
-    ],
-    [
-     16,
-     "HIDE",
-     13
-    ],
-    [
-     16,
-     "ONCE",
-     12
     ]
    ],
-   "run": [
+   "follow": [
     {
      "event": "POWER",
      "can": true,
      "config": [
-      "paused",
-      "unmuted",
-      "hidden",
-      "once"
+      "paused_unmuted"
      ]
     },
     {
      "event": "PLAY",
      "can": true,
      "config": [
-      "playing",
-      "unmuted",
-      "hidden",
-      "once"
+      "playing_unmuted"
      ]
     },
     {
      "event": "MUTE",
      "can": true,
      "config": [
-      "playing",
-      "muted",
-      "hidden",
-      "once"
+      "playing_muted"
      ]
     },
     {
-     "event": "SHOW",
+     "event": "POWER",
      "can": true,
      "config": [
-      "playing",
-      "muted",
-      "shown",
-      "once"
+      "off"
+     ]
+    }
+   ]
+  },
+  "boxedMuteWhilePlaying": {
+   "events": [
+    "POWER",
+    "PLAY",
+    "PAUSE",
+    "MUTE",
+    "UNMUTE"
+   ],
+   "initial": [
+    "off"
+   ],
+   "configurations": [
+    [
+     "off"
+    ],
+    [
+     "paused"
+    ],
+    [
+     "unmuted"
+    ],
+    [
+     "muted"
+    ]
+   ],
+   "transitions": [
+    [
+     0,
+     "POWER",
+     1
+    ],
+    [
+     1,
+     "POWER",
+     0
+    ],
+    [
+     1,
+     "PLAY",
+     2
+    ],
+    [
+     2,
+     "POWER",
+     0
+    ],
+    [
+     2,
+     "PAUSE",
+     1
+    ],
+    [
+     2,
+     "MUTE",
+     3
+    ],
+    [
+     3,
+     "POWER",
+     0
+    ],
+    [
+     3,
+     "PAUSE",
+     1
+    ],
+    [
+     3,
+     "UNMUTE",
+     2
+    ]
+   ],
+   "follow": [
+    {
+     "event": "POWER",
+     "can": true,
+     "config": [
+      "paused"
      ]
     },
     {
-     "event": "LOOP",
+     "event": "PLAY",
      "can": true,
      "config": [
-      "playing",
-      "muted",
-      "shown",
-      "looping"
+      "unmuted"
+     ]
+    },
+    {
+     "event": "MUTE",
+     "can": true,
+     "config": [
+      "muted"
      ]
     },
     {
@@ -1063,7 +544,7 @@
     }
    ]
   }
- ],
+ },
  "preempt": {
   "events": [
    "GO"

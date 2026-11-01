@@ -26,17 +26,10 @@ export interface Control {
 export const CONTROLS: readonly Control[] = [
   { region: 'playback', states: ['paused', 'playing'], events: ['PLAY', 'PAUSE'] },
   { region: 'volume', states: ['unmuted', 'muted'], events: ['MUTE', 'UNMUTE'] },
-  { region: 'subtitles', states: ['hidden', 'shown'], events: ['SHOW', 'HIDE'] },
-  { region: 'repeat', states: ['once', 'looping'], events: ['LOOP', 'ONCE'] },
 ];
 
-/** The events the explainer sends, by number of controls; tools/oracle/statecharts.ts sends XState the same. */
-export const RUNS: Readonly<Record<number, readonly string[]>> = {
-  1: ['POWER', 'PLAY', 'POWER'],
-  2: ['POWER', 'PLAY', 'MUTE', 'POWER'],
-  3: ['POWER', 'PLAY', 'MUTE', 'SHOW', 'POWER'],
-  4: ['POWER', 'PLAY', 'MUTE', 'SHOW', 'LOOP', 'POWER'],
-};
+/** The events the explainer sends: on, play, mute, then off again. tools/oracle/statecharts.ts sends XState the same. */
+export const FOLLOW: readonly string[] = ['POWER', 'PLAY', 'MUTE', 'POWER'];
 
 const region = (c: Control): StateNode => ({
   id: c.region,
@@ -47,26 +40,63 @@ const region = (c: Control): StateNode => ({
     { id: c.states[1], type: 'atomic', on: { [c.events[1]]: c.states[0] } },
   ],
 });
+const withPower = (on: StateNode): StateNode => ({
+  id: 'player',
+  type: 'compound',
+  initial: 'off',
+  children: [{ id: 'off', type: 'atomic', on: { POWER: 'on' } }, { ...on, id: 'on', on: { POWER: 'off' } }],
+});
 
 /**
- * The media player of "Statecharts in 2 minutes": off, and on holding `controls` controls.
- * POWER is written once, on `on`. With one control, `on` is a compound state holding it
- * directly; with more, `on` is parallel and each control is a region.
+ * The media player of "Statecharts in 2 minutes": off, and on holding `controls` controls, with POWER
+ * written once, on `on`. With one control, `on` holds paused and playing directly; with two, `on` is
+ * parallel and each control is a region.
  */
 export function player(controls: number): StateNode {
   if (!Number.isInteger(controls) || controls < 1 || controls > CONTROLS.length)
     throw new RangeError(`controls must be 1 to ${CONTROLS.length}`);
   const used = CONTROLS.slice(0, controls);
-  const on: StateNode =
-    controls === 1
-      ? { ...region(used[0]!), id: 'on', on: { POWER: 'off' } }
-      : { id: 'on', type: 'parallel', children: used.map(region), on: { POWER: 'off' } };
-  return {
-    id: 'player',
+  return withPower(controls === 1 ? region(used[0]!) : { id: 'on', type: 'parallel', children: used.map(region) });
+}
+
+/**
+ * The same player when mute works only while playing: the volume states live inside playing, so
+ * pausing leaves them and playing starts unmuted again. One PAUSE on playing covers both.
+ */
+export function muteWhilePlaying(): StateNode {
+  const [playback, volume] = CONTROLS as [Control, Control];
+  return withPower({
+    id: 'on',
     type: 'compound',
-    initial: 'off',
-    children: [{ id: 'off', type: 'atomic', on: { POWER: 'on' } }, on],
-  };
+    initial: playback.states[0],
+    children: [
+      { id: playback.states[0], type: 'atomic', on: { [playback.events[0]]: playback.states[1] } },
+      { ...region(volume), id: playback.states[1], on: { [playback.events[1]]: playback.states[0] } },
+    ],
+  });
+}
+
+/**
+ * The flat machine with one change: its combined states inside a box `on` that carries POWER once,
+ * in place of each combined state's own POWER arrow to off. Every other transition is the flat one.
+ */
+export function boxed(chart: StateNode): StateNode {
+  const flat = flatten(chart),
+    combos = flat.states.filter((s) => s !== flat.initial);
+  const powerOn = flat.transitions.find((t) => t.from === flat.initial && t.event === 'POWER')!;
+  for (const c of combos)
+    if (!flat.transitions.some((t) => t.from === c && t.event === 'POWER' && t.to === flat.initial))
+      throw new Error(`${c} has no POWER arrow to ${flat.initial}`);
+  return withPower({
+    id: 'on',
+    type: 'compound',
+    initial: powerOn.to,
+    children: combos.map((c) => ({
+      id: c,
+      type: 'atomic',
+      on: Object.fromEntries(flat.transitions.filter((t) => t.from === c && t.to !== flat.initial).map((t) => [t.event, t.to])),
+    })),
+  });
 }
 
 interface Indexed {
@@ -133,6 +163,19 @@ export type Configuration = string[];
 export function initial(chart: StateNode): Configuration {
   const nodes = index(chart);
   return sortByOrder(nodes, enterDefault(chart));
+}
+
+/**
+ * Every state a configuration is in, ancestors included, in document order: not the chart's root,
+ * and not the regions a parallel state is divided into, which are drawn as partitions, not boxes.
+ */
+export function activeStates(chart: StateNode, config: Configuration): string[] {
+  const nodes = index(chart);
+  const all = config.flatMap((id) => [id, ...ancestors(nodes, id).map((a) => a.id)]);
+  return sortByOrder(nodes, all).filter((id) => {
+    const { parent } = nodes.get(id)!;
+    return parent && parent.type !== 'parallel';
+  });
 }
 
 const sortByOrder = (nodes: Map<string, Indexed>, ids: string[]) =>
@@ -216,6 +259,8 @@ export interface FlatMachine {
   initial: string;
   /** One transition per configuration and event that some active state handles. */
   transitions: { from: string; event: string; to: string }[];
+  /** The configuration each state stands for. */
+  configurations: Record<string, Configuration>;
 }
 
 /**
@@ -241,7 +286,7 @@ export function flatten(chart: StateNode): FlatMachine {
       transitions.push({ from: flatName(config), event, to });
     }
   }
-  return { states: [...seen.keys()], initial: flatName(start), transitions };
+  return { states: [...seen.keys()], initial: flatName(start), transitions, configurations: Object.fromEntries(seen) };
 }
 
 export interface Counts {

@@ -1,7 +1,7 @@
-// XState's own answers for the statecharts explainer's media players, for test/statecharts.test.ts.
+// XState's own answers for every chart the statecharts explainer draws, for test/statecharts.test.ts.
 //   node tools/oracle/statecharts.ts <directory holding node_modules/xstate> [--check]
 // Install the pinned release there first: npm install --prefix <directory> xstate@5.33.3
-// It builds each player chart (scenes/explainers/lib/statecharts.ts) as an XState machine, then
+// It builds each chart in CHARTS (scenes/explainers/lib/statecharts.ts) as an XState machine, then
 // explores it with XState alone: from the initial snapshot, every event XState says the machine
 // takes, breadth first, recording each reachable configuration, what `can` reports and where each
 // event leads. Rayner's model is not run here; the test compares it with this file.
@@ -9,11 +9,19 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { player, CONTROLS, RUNS } from '../../scenes/explainers/lib/statecharts.ts';
+import { player, muteWhilePlaying, boxed, FOLLOW } from '../../scenes/explainers/lib/statecharts.ts';
 import type { StateNode } from '../../scenes/explainers/lib/statecharts.ts';
 
 export const XSTATE_VERSION = '5.33.3';
 export const FIXTURE = new URL('../../test/fixtures/statecharts-xstate.json', import.meta.url);
+/** Every chart the explainer draws, by name: the one-button player, both two-button players, and each boxed flat machine. */
+export const CHARTS: Readonly<Record<string, StateNode>> = {
+  play: player(1),
+  mute: player(2),
+  muteWhilePlaying: muteWhilePlaying(),
+  boxedMute: boxed(player(2)),
+  boxedMuteWhilePlaying: boxed(muteWhilePlaying()),
+};
 
 /** A chart XState explored: every reachable configuration and where each event it takes leads. */
 export interface Explored {
@@ -28,11 +36,8 @@ export interface Explored {
 
 export interface Expected {
   xstate: string;
-  players: (Explored & {
-    controls: number;
-    /** Each event of RUNS[controls] in turn, and the active atomic states after it. */
-    run: { event: string; can: boolean; config: string[] }[];
-  })[];
+  /** Each chart in CHARTS, explored, with FOLLOW sent in turn and the active atomic states after each event. */
+  charts: Record<string, Explored & { follow: { event: string; can: boolean; config: string[] }[] }>;
   /** PREEMPT, where a child and its parent both handle GO. */
   preempt: Explored;
 }
@@ -98,19 +103,19 @@ export async function expected(xstateDir: string): Promise<Expected> {
     }
     return { machine, start, events, initial: leaves(start.value), configurations, transitions };
   };
-  const players: Expected['players'] = [];
-  for (let controls = 1; controls <= CONTROLS.length; controls++) {
-    const { machine, start, ...explored } = explore(player(controls));
+  const charts: Expected['charts'] = {};
+  for (const [name, chart] of Object.entries(CHARTS)) {
+    const { machine, start, ...explored } = explore(chart);
     let snapshot = start;
-    const run = RUNS[controls]!.map((type) => {
+    const follow = FOLLOW.map((type) => {
       const can = snapshot.can({ type });
       [snapshot] = x.transition(machine, snapshot, { type });
       return { event: type, can, config: leaves(snapshot.value) };
     });
-    players.push({ controls, ...explored, run });
+    charts[name] = { ...explored, follow };
   }
   const { machine: _m, start: _s, ...preempt } = explore(PREEMPT);
-  return { xstate: version, players, preempt };
+  return { xstate: version, charts, preempt };
 }
 
 if (import.meta.main) {

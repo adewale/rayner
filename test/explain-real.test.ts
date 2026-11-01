@@ -92,21 +92,6 @@ test('a diagram is described by the counts its source declares, and bare names n
   assert.equal(seq.get('X'), seq.get('actor:X'));
 });
 
-test('a state diagram names its start dots and counts its composite states, but not the dots or their arrows', async () => {
-  // The statecharts chart draws off, on and its four inner states, six transitions, and three [*] dots:
-  // one before off and one in each of on's two regions.
-  const chart = await shown(pinned('statecharts', 'state on {\n    [*] --> paused\n    paused --> playing: PLAY\n    playing --> paused: PAUSE\n    --'));
-  const seen = chart.describe();
-  assert.equal(seen.what, 'State diagram: 6 states, 6 transitions');
-  assert.equal(seen.blank, undefined);
-  const names = seen.parts.map((p) => p.name);
-  for (const name of ['start', 'start → off', 'start → paused', 'start → unmuted', 'on', 'on → off: POWER'])
-    assert.ok(names.includes(name), name);
-  assert.equal(names.filter((n) => n === 'start').length, 3);
-  // Its flattened machine has one start dot and no composite state.
-  assert.equal((await shown(pinned('statecharts', 'paused_unmuted'))).describe().what, 'State diagram: 5 states, 13 transitions');
-});
-
 test('the current verifier’s raw warnings name captured edge parts per endpoint pair', async () => {
   const s = pinned('agentic-mermaid', 'A{Cached} --> B[Reply]');
   assert.deepEqual(s.findings.warnings.map((w) => w.edge), ['A->B#0', 'A->C#0']);
