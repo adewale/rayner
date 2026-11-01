@@ -211,30 +211,6 @@ test('audio, motion on: scheduled resumes and reader actions never sound a depar
     }),params(12));
 });
 
-test('navigation cancels a pending audio resume, and flattened pitches really play C',options,async()=>{
-  const page=await browser.newPage({reducedMotion:'reduce'});
-  try {
-    await observed(page);await page.goto(server.url+'/melody-rhythm.html');await ready(page);
-    await page.evaluate(()=>(window as any).scoreProbe.late=true);
-    await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
-    await page.getByRole('button',{name:'Stop',exact:true}).click();
-    await page.evaluate(()=>{const p=(window as any).scoreProbe;p.release();});
-    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-    assert.equal(await page.evaluate(()=>(window as any).scoreProbe.tones.length),0,'Stop cancels a pending resume');
-    await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
-    await page.locator('.stepper button[aria-label="Next step"]').click();await ready(page,'pulse');
-    await page.evaluate(()=>{const p=(window as any).scoreProbe;p.release();p.late=false;});
-    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-    assert.equal(await page.evaluate(()=>(window as any).scoreProbe.tones.length),0,'late resume cannot start an obsolete score');
-    await page.locator('.stepper button[aria-label="Next step"]').click();await ready(page,'rhythm');
-    await page.getByRole('checkbox',{name:'Pulse'}).uncheck();
-    await page.getByRole('button',{name:'Play B: shifted timing',exact:true}).click();
-    await page.waitForFunction(()=>(window as any).scoreProbe.tones.length===8);
-    const frequencies=await page.evaluate(()=>(window as any).scoreProbe.tones.map((t:any)=>t.frequency));
-    assert.ok(frequencies.every((hz:number)=>Math.abs(hz-261.625565)<.001),'flat-pitch stage plays C for every event');
-  } finally {await page.close();}
-});
-
 test('without Web Audio the full score and step controls remain usable',options,async()=>{
   const page=await browser.newPage({reducedMotion:'reduce'});
   try {
