@@ -56,6 +56,26 @@ export function send(c: Chart, state: string, event: string): { handledBy: strin
   return null;
 }
 
+/** One state checked for an event: whether it has an arrow for it. */
+export interface Hop {
+  state: string;
+  handles: boolean;
+}
+
+/**
+ * The checks `send` makes, in order: from `state` up through its parents, stopping at
+ * the first that handles the event. The last hop is the one that handles it, if any does.
+ */
+export function dispatchTrace(c: Chart, state: string, event: string): Hop[] {
+  const hops: Hop[] = [];
+  for (const owner of ancestors(c, state)) {
+    const handles = c.arrows.some((a) => a.from === owner && a.event === event);
+    hops.push({ state: owner, handles });
+    if (handles) break;
+  }
+  return hops;
+}
+
 /** The states with no children. */
 export function leaves(c: Chart): string[] {
   const parents = new Set(Object.values(c.parent));
@@ -111,6 +131,31 @@ export const PLAYER: Record<string, Region> = {
   },
 };
 
+/**
+ * A coffee machine whose brewing cycle is one region, beside a milk frother that
+ * switches on or off whatever the coffee is doing.
+ */
+export const FROTHER: Record<string, Region> = {
+  coffee: {
+    states: ['idle', 'grinding', 'brewing', 'ready'],
+    start: 'idle',
+    arrows: [
+      { from: 'idle', event: 'START', to: 'grinding' },
+      { from: 'grinding', event: 'GROUND', to: 'brewing' },
+      { from: 'brewing', event: 'BREWED', to: 'ready' },
+      { from: 'ready', event: 'TAKE', to: 'idle' },
+    ],
+  },
+  frother: {
+    states: ['off', 'on'],
+    start: 'off',
+    arrows: [
+      { from: 'off', event: 'FROTH_ON', to: 'on' },
+      { from: 'on', event: 'FROTH_OFF', to: 'off' },
+    ],
+  },
+};
+
 /** One state per region, by region name. */
 export type Config = Record<string, string>;
 
@@ -149,6 +194,37 @@ export function flattenRegions(rs: Record<string, Region>): Chart {
   return { parent: Object.fromEntries(combos.map((c) => [nameOf(c), null])), arrows };
 }
 
+/** `n` independent on/off features, each a region of two states. */
+export function onOffFeatures(n: number): Record<string, Region> {
+  return Object.fromEntries(
+    Array.from({ length: n }, (_, i) => {
+      const k = i + 1;
+      const on = `on${k}`,
+        off = `off${k}`;
+      return [
+        `feature${k}`,
+        {
+          states: [off, on],
+          start: off,
+          arrows: [
+            { from: off, event: `TURN_ON${k}`, to: on },
+            { from: on, event: `TURN_OFF${k}`, to: off },
+          ],
+        },
+      ];
+    }),
+  );
+}
+
+/** Flat states against region states, for `n` on/off features. */
+export function growthOf(n: number): { flat: number; regions: number } {
+  const rs = onOffFeatures(n);
+  return {
+    flat: Object.keys(flattenRegions(rs).parent).length,
+    regions: Object.values(rs).reduce((sum, r) => sum + r.states.length, 0),
+  };
+}
+
 // ---- Booleans: the flat, two-flag version with a bug ----
 
 export interface Flags {
@@ -174,3 +250,22 @@ export function booleanRun(events: string[]): Flags {
 
 /** Playing and paused at once: the combination the regions cannot hold. */
 export const bothTrue = (f: Flags) => f.isPlaying && f.isPaused;
+
+/** What a pair of playback flags says. Neither flag set names no state the player has. */
+export type Reading = 'playing' | 'paused' | 'impossible' | 'neither';
+
+export function readingOf(f: { isPlaying: boolean; isPaused: boolean }): Reading {
+  if (f.isPlaying) return f.isPaused ? 'impossible' : 'playing';
+  return f.isPaused ? 'paused' : 'neither';
+}
+
+/** All four pairs of the two flags, in the order a table lists them. */
+export function flagRows(): { isPlaying: boolean; isPaused: boolean; reading: Reading }[] {
+  const pairs: [boolean, boolean][] = [
+    [true, false],
+    [false, true],
+    [true, true],
+    [false, false],
+  ];
+  return pairs.map(([isPlaying, isPaused]) => ({ isPlaying, isPaused, reading: readingOf({ isPlaying, isPaused }) }));
+}
