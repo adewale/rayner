@@ -8,7 +8,7 @@ import { builtOutputHashes, checkBuiltOutput } from '../tools/lib/explain-built-
 test('site export rejects tampered built HTML, pictures and a missing output pin', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'rayner-built-output-'));
   const paths = ['loader.js', 'index.html', 'embed-lab.html', 'catalog.json', 'evidence.json',
-    'cache.html', 'cache.html.headers.json', 'cache.png', 'cache/describe.json', 'cache/embed.json', 'cache/inputs.json', 'cache/steps.json', 'cache/one.png'];
+    'cache.html', 'cache.html.headers.json', 'cache.png', 'cache/describe.json', 'cache/embed.json', 'cache/inputs.json', 'cache/steps.json'];
   try {
     await mkdir(join(dir, 'cache'), { recursive: true });
     for (const path of paths) await writeFile(join(dir, path), path === 'cache/steps.json' ? JSON.stringify({ steps: [{ step: 'one' }] }) : path);
@@ -16,7 +16,7 @@ test('site export rejects tampered built HTML, pictures and a missing output pin
     const pinned = await builtOutputHashes(dir, ['cache']);
     await writeFile(join(dir, 'output-hashes.json'), JSON.stringify(pinned));
     await checkBuiltOutput(dir, ['cache']);
-    for (const path of ['cache.html', 'cache.html.headers.json', 'cache/one.png', 'cache/describe.json', 'cache/embed.json']) {
+    for (const path of ['cache.html', 'cache.html.headers.json', 'cache.png', 'cache/describe.json', 'cache/embed.json']) {
       const before = await readFile(join(dir, path));
       await writeFile(join(dir, path), 'changed');
       await assert.rejects(checkBuiltOutput(dir, ['cache']), /Built output changed/);

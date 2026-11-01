@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/2password.ts';
 import { Scene, Text, Arrow, Group, Line, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import {
@@ -16,14 +18,13 @@ import {
 const STYLE = 'excalidraw';
 const QUERIES = ['cloud api', 'databse'] as const;
 const TOKEN = 'OP_SERVICE_ACCOUNT_TOKEN';
-const BOUNDARY =
-  'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
+const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
 export default class PasswordExplainer extends Scene {
   static meta = {
     id: '2password',
-    title: 'How 2password finds a secret without showing it to the agent',
+    title: 'How does a secret reach the application?',
     sources: [
       `${SOURCE}/src/discover.ts`,
       `${SOURCE}/src/op.ts`,
@@ -46,18 +47,21 @@ export default class PasswordExplainer extends Scene {
   override async construct() {
     const auth = settingsOf(this).auth as 'desktop' | 'service',
       service = auth === 'service',
-      s = stage(this, { style: STYLE }),
+      s = stage(this, { headingSize: 0.6, style: STYLE }),
       hot = s.emphasis;
     const found = find(QUERIES),
       [hitQuery, missQuery] = QUERIES,
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
+    await readerFirst(this, s, readerFrames(auth));
     await this.step('boundary', {
+      detail: true,
       title: 'The agent searches item titles, not secret values',
       line: `find asks op for the titles of ${ITEMS.length} sample items.`,
       caption: `The agent needs to choose a secret without receiving its value. 2password first asks op for item titles: it can search those names and return a reference, then let op pass the value to the launched app. Here find searches ${hitQuery} and the typo ${missQuery} among three sample items from 2password’s own tests.`,
     });
+    await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
     await boundary.walk(
       [
@@ -77,6 +81,7 @@ export default class PasswordExplainer extends Scene {
     await listing.focus([1, ITEMS.length]);
 
     await this.step('match', {
+      detail: true,
       title: 'A title matches when it contains every query word',
       line: `${match.title} contains “${hitQuery}”; no title contains “${missQuery}”.`,
       caption: `find lowercases each query and keeps a title only if it contains every word; tags and fields are not searched. Cloud API matches ${hitQuery}. No title contains ${missQuery}, so that query is a miss.`,
@@ -101,6 +106,7 @@ export default class PasswordExplainer extends Scene {
       edits = distance(missQuery, word),
       longer = Math.max(missQuery.length, word.length);
     await this.step('suggest', {
+      detail: true,
       title: `A miss returns titles that score at least ${SUGGESTION_THRESHOLD}`,
       line: `${near.title} is ${edits} edit${edits === 1 ? '' : 's'} from ${missQuery}: 1 − ${edits}/${longer} = ${closeness(terms(missQuery), near.title)}.`,
       caption: `For a query with no match, find scores each query word against each title word: 1 if one contains the other, otherwise 1 − edit distance ÷ the longer word’s length. A title scores the average of each query word’s best. ${near.title} is ${edits} edit${edits === 1 ? '' : 's'} from ${missQuery}, so it scores 1 − ${edits}/${longer} = ${closeness(terms(missQuery), near.title)} and comes back as a suggestion.`,
@@ -109,15 +115,14 @@ export default class PasswordExplainer extends Scene {
       pad('title', W) + pad(`closeness to ${missQuery}`, 24) + `≥ ${SUGGESTION_THRESHOLD}`,
       ...ITEMS.map((i) => {
         const score = closeness(terms(missQuery), i.title);
-        return (
-          pad(i.title, W) + pad(score.toFixed(3), 24) + (score >= SUGGESTION_THRESHOLD ? 'suggested' : '–')
-        );
+        return pad(i.title, W) + pad(score.toFixed(3), 24) + (score >= SUGGESTION_THRESHOLD ? 'suggested' : '–');
       }),
     ]);
     await listing.focus(1 + ITEMS.indexOf(near));
     this.state.found = found;
 
     await this.step('fetch', {
+      detail: true,
       title: 'One op item get fetches the match and the suggestion',
       line: `Item list, then one item get for ${found.fetched.join(' and ')}; ${service ? 'no approval' : 'one approval'}.`,
       caption: service
@@ -153,6 +158,7 @@ export default class PasswordExplainer extends Scene {
     this.state.auth = auth;
 
     await this.step('reference', {
+      detail: true,
       title: 'find returns references but does not print secret values',
       line: 'A reference names vault, item and field; no secret value is printed.',
       caption:
@@ -180,11 +186,16 @@ export default class PasswordExplainer extends Scene {
     });
     // Each reference find printed, with the query it answers above it.
     const answers = (text: string, under: Text) =>
-      new Text(text, { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo([under.box()![0], under.box()![3] + 0.3], [-1, 0]);
+      new Text(text, { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo(
+        [under.box()![0], under.box()![3] + 0.3],
+        [-1, 0],
+      );
     const matchFor = answers(`match for “${hitQuery}”`, refText);
     await s.enter(refText, matchFor, { runTime: 0.5 });
     await this.play(new Create(s.keep(anatomy), { lagRatio: 0 }));
-    const suggestionText = new Text(suggestion.ref, { fontSize: 0.44, font: 'mono', color: s.palette.ink }).moveTo([0, -0.9]),
+    const suggestionText = new Text(suggestion.ref, { fontSize: 0.44, font: 'mono', color: s.palette.ink }).moveTo([
+        0, -0.9,
+      ]),
       suggestionFor = answers(`suggestion for “${missQuery}”`, suggestionText);
     await s.enter(suggestionText, suggestionFor, { runTime: 0.5 });
     const values = ITEMS.flatMap((i) => i.fields.map((f) => f.value));
@@ -194,9 +205,8 @@ export default class PasswordExplainer extends Scene {
 
     const launched = run(auth, { API_KEY: ref }, ['app']);
     await this.step('run', {
-      title: service
-        ? 'env -u keeps the service token out of the app'
-        : 'op run starts the app with the secret',
+      detail: true,
+      title: service ? 'env -u keeps the service token out of the app' : 'op run starts the app with the secret',
       line: service
         ? 'The app gets PATH and the API_KEY value, not the service token.'
         : 'op resolves the API_KEY reference; the app gets its value and PATH.',
@@ -205,16 +215,25 @@ export default class PasswordExplainer extends Scene {
         : 'run hands op the reference, and op puts the secret into the app’s environment. With desktop approval op holds no token, so it starts the app directly. The app inherits the environment 2password started with, shown here as PATH, plus the secret.',
     });
     // The match's reference is carried into the run command that hands it to op; the rest goes.
-    await this.play(...[anatomy, matchFor, suggestionText, suggestionFor, none].map((m) => new FadeOut(m, { runTime: 0.4 })));
-    const command = await s.code(
-      [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`],
-      { at: regionBox('top', { bottom: 1.2 }), fontSize: 0.3, enter: false },
+    await this.play(
+      ...[anatomy, matchFor, suggestionText, suggestionFor, none].map((m) => new FadeOut(m, { runTime: 0.4 })),
     );
+    const command = await s.code([`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
+      at: regionBox('top', { bottom: 1.2 }),
+      fontSize: 0.3,
+      enter: false,
+    });
     await s.carry(refText, command.code.token(0, ref).box()!);
     await this.play(new FadeIn(command, { runTime: 0.4 }), new FadeOut(refText, { runTime: 0.4 }));
     const before = await s.code(
       Object.entries(launched.opEnv).map(([k, v]) => (k === TOKEN ? '- ' : '  ') + `${k}=${v}`),
-      { at: regionBox('full', { right: -0.75, top: 0.7 }), title: "op's environment", fontSize: 0.26, diff: true, enter: false },
+      {
+        at: regionBox('full', { right: -0.75, top: 0.7 }),
+        title: "op's environment",
+        fontSize: 0.26,
+        diff: true,
+        enter: false,
+      },
     );
     const child = await s.code(
       Object.entries(launched.childEnv).map(([k, v]) => `${k}=${v}`),
@@ -228,7 +247,10 @@ export default class PasswordExplainer extends Scene {
       tipWidth: 0.18,
     });
     await s.enter(before);
-    await this.play(new Create(s.keep(pass, { describe: 'An arrow from op’s environment to the app’s' })), new FadeIn(child));
+    await this.play(
+      new Create(s.keep(pass, { describe: 'An arrow from op’s environment to the app’s' })),
+      new FadeIn(child),
+    );
     await command.focus(1);
     this.state.argv = launched.argv;
     this.state.childEnv = launched.childEnv;

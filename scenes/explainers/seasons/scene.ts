@@ -1,3 +1,5 @@
+import { readerFirst } from '../lib/reader-drawing.ts';
+import { frames as readerFrames } from '../lib/readers/seasons.ts';
 import {
   Scene,
   Circle,
@@ -116,7 +118,7 @@ function sideView(center: Vec, radius: number, side: 1 | -1) {
 export default class SeasonsExplainer extends Scene {
   static meta = {
     id: 'seasons',
-    title: 'Why June brings polar day to Tromsø and winter to Sydney',
+    title: 'Why do seasons change with latitude?',
     sources: [
       'https://spaceplace.nasa.gov/seasons/en/',
       'https://gml.noaa.gov/grad/solcalc/calcdetails.html',
@@ -139,7 +141,7 @@ export default class SeasonsExplainer extends Scene {
   override async construct() {
     const key = settingsOf(this).place!,
       place = PLACES[key]!,
-      s = stage(this, { style: 'tokyo-night' });
+      s = stage(this, { headingSize: 0.6, style: 'tokyo-night' });
     const ink = s.palette.ink,
       soft = s.soft;
     const label = (text: string, at: Vec, opts: { size?: number; color?: string; edge?: Vec } = {}) =>
@@ -149,12 +151,15 @@ export default class SeasonsExplainer extends Scene {
       }).moveTo(at, opts.edge ?? [0, 0]);
 
     // ---------------------------------------------------------------- tilt
+    await readerFirst(this, s, readerFrames(place));
     await this.step('tilt', {
+      detail: true,
       title: 'The axis keeps its direction all year',
       line: 'At 23.44°, north leans sunward in June and away in December.',
       caption:
         'Earth’s axis is tilted 23.44° from the normal to its orbit and points the same way all year, so the north end leans toward the Sun in June and away from it in December. Sizes and distances are not to scale.',
     });
+    await s.clear();
     // The orbit's Sun and Earths: the Sun is carried on into the next step, and June's Earth grows into its side view.
     const tilt = (() => {
       const c: Vec = [0, -0.45],
@@ -179,11 +184,10 @@ export default class SeasonsExplainer extends Scene {
             fill: bright ? '#7aa2f7' : EARTH,
             stroke: 'none',
           }).moveTo([x, y]),
-          new Line(
-            [x + len * Math.sin(e), y - len * Math.cos(e)],
-            [x - len * Math.sin(e), y + len * Math.cos(e)],
-            { stroke: AXIS, strokeWidth: 0.04 },
-          ),
+          new Line([x + len * Math.sin(e), y - len * Math.cos(e)], [x - len * Math.sin(e), y + len * Math.cos(e)], {
+            stroke: AXIS,
+            strokeWidth: 0.04,
+          }),
           label('N', [x - (len + 0.16) * Math.sin(e), y + (len + 0.16) * Math.cos(e)], {
             size: 0.2,
             color: AXIS,
@@ -201,14 +205,18 @@ export default class SeasonsExplainer extends Scene {
         march = earth(c[0], c[1] - ry, 'March', true, false);
       return { orbit, sun, june, december, september, march };
     })();
-    await this.play(new Create(s.keep(tilt.orbit, tilt.sun, { describe: 'An orbit around the Sun, not to scale' })), new FadeIn(tilt.sun));
+    await this.play(
+      new Create(s.keep(tilt.orbit, tilt.sun, { describe: 'An orbit around the Sun, not to scale' })),
+      new FadeIn(tilt.sun),
+    );
     await s.enter(tilt.june, tilt.december, tilt.september, tilt.march, {
-      describe: 'Earth in June (right), September (top), December (left) and March (bottom), its axis tilted the same way each time',
+      describe:
+        'Earth in June (right), September (top), December (left) and March (bottom), its axis tilted the same way each time',
     });
 
     // ---------------------------------------------------------------- june
     const R = 1.7,
-      CY = 0.95,
+      CY = 0.7,
       JUNE_C: Vec = [4.3, CY],
       DEC_C: Vec = [-4.3, CY];
     const june = sunlight(place.lat, TILT),
@@ -221,6 +229,7 @@ export default class SeasonsExplainer extends Scene {
         fill: EARTH,
         stroke: 'none',
       }).moveTo(center);
+      ball.key = `${month.toLowerCase()}-globe`;
       const half: Vec[] = [];
       for (let i = 0; i <= 40; i++) {
         const th = -Math.PI / 2 + (Math.PI * i) / 40;
@@ -237,10 +246,12 @@ export default class SeasonsExplainer extends Scene {
         [center[0] + tip * v.a[0], center[1] + tip * v.a[1]],
         { stroke: AXIS, strokeWidth: 0.035 },
       );
+      axis.key = `${month.toLowerCase()}-axis`;
       const north = label('N', [center[0] + (tip + 0.18) * v.a[0], center[1] + (tip + 0.18) * v.a[1]], {
         size: 0.22,
         color: AXIS,
       });
+      north.key = `${month.toLowerCase()}-north`;
       const equator = new Line(v.at(-1, 0), v.at(1, 0), {
         stroke: s.palette.muted,
         strokeWidth: 0.02,
@@ -251,10 +262,12 @@ export default class SeasonsExplainer extends Scene {
         stroke: SUN,
         strokeWidth: 0.07,
       });
+      dayLine.key = `${month.toLowerCase()}-daylight-latitude`;
       const nightLine = new Line(ch.night[0], ch.night[1], {
         stroke: DIMLINE,
         strokeWidth: 0.05,
       });
+      nightLine.key = `${month.toLowerCase()}-night-latitude`;
       const p = v.noon(place.lat);
       const zen: Vec = [(p[0] - center[0]) / R, (p[1] - center[1]) / R];
       const tangent: Vec = [-zen[1], zen[0]];
@@ -263,9 +276,14 @@ export default class SeasonsExplainer extends Scene {
         [p[0] + 0.55 * tangent[0], p[1] + 0.55 * tangent[1]],
         { stroke: ink, strokeWidth: 0.025 },
       );
+      horizon.key = `${month.toLowerCase()}-horizon`;
       const dot = new Dot({ radius: 0.09, color: PLACE }).moveTo(p);
-      const drawing = new Group(ball, night, equator, nightLine, dayLine, axis, north, horizon, dot);
+      dot.key = `${month.toLowerCase()}-place`;
+      const latitude = new Group(nightLine, dayLine);
+      latitude.key = `${month.toLowerCase()}-latitude`;
+      const drawing = new Group(ball, night, equator, latitude, axis, north, horizon, dot);
       const ray = new Group();
+      ray.key = `${month.toLowerCase()}-noon-ray`;
       if (result.altitude > 0) {
         // The noon ray arrives parallel to the Sun direction; its angle to the
         // local horizon is the model's altitude (90° − |latitude − declination|).
@@ -321,7 +339,21 @@ export default class SeasonsExplainer extends Scene {
         result.altitude > 0
           ? `${month}’s noon Sun ray, ${degrees(result.altitude)} above ${place.name}’s horizon`
           : `${month}’s noon Sun ray, stopped by the globe: below ${place.name}’s horizon`;
-      return { view: v, drawing, ray, dayLine, nightLine, daySpan: ch.day, drawn, noon, place: p, zenith: zen, tangent };
+      return {
+        month,
+        view: v,
+        drawing,
+        latitude,
+        ray,
+        dayLine,
+        nightLine,
+        daySpan: ch.day,
+        drawn,
+        noon,
+        place: p,
+        zenith: zen,
+        tangent,
+      };
     };
     // The orbit's Sun, carried here; the side views draw it at the same size.
     const sun = tilt.sun;
@@ -330,15 +362,26 @@ export default class SeasonsExplainer extends Scene {
      * place's circle to just under the globe. The angle already labels a noon Sun above the
      * horizon; one below it, which has no angle, is said here too.
      */
-    const daylightCallout = (S: ReturnType<typeof season>, r: { altitude: number; daylight: number }) => {
+    const daylightCallout = async (S: ReturnType<typeof season>, r: { altitude: number; daylight: number }) => {
       const [a, b] = S.daySpan;
       const mid: Vec = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      const text =
-        r.altitude > 0 ? `${hours(r.daylight)} of daylight` : `${hours(r.daylight)} of daylight; noon Sun ${degrees(r.altitude)}, below the horizon`;
-      return s.callout(mid, text, { side: 'below', gap: mid[1] - (CY - R - 0.3), color: SUN, size: 0.24 });
+      const callout = await s.callout(mid, `${hours(r.daylight)} of daylight`, {
+        side: 'below', gap: mid[1] - (CY - R - 0.3), color: SUN, size: 0.24,
+      });
+      callout.key = `${S.month.toLowerCase()}-daylight-callout`;
+      if (r.altitude <= 0) {
+        const value = callout.children.at(-1)!;
+        const below = label(`Noon Sun ${degrees(r.altitude)}, below the horizon`, [value.center()[0], value.center()[1] - 0.4], {
+          size: 0.24, color: SUN,
+        });
+        callout.add(below);
+        await this.play(new FadeIn(below, { runTime: 0.2 }));
+      }
+      return callout;
     };
 
     await this.step('june', {
+      detail: true,
       title: `June: ${place.name}’s noon Sun at ${degrees(june.altitude)}`,
       line: `The lit part of ${place.name}’s circle gives ${hours(june.daylight)} of daylight.`,
       caption:
@@ -351,7 +394,9 @@ export default class SeasonsExplainer extends Scene {
               : `In June the north end leans toward the Sun. London’s noon Sun is high, and most of its latitude circle, the line through the dot, is on the day side, which gives ${hours(june.daylight)} of daylight.`,
     });
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
-    await this.play(...[tilt.orbit, tilt.december, tilt.september, tilt.march].map((m) => new FadeOut(m, { runTime: 0.4 })));
+    await this.play(
+      ...[tilt.orbit, tilt.december, tilt.september, tilt.march].map((m) => new FadeOut(m, { runTime: 0.4 })),
+    );
     // Described apart, so the close-up, which fades the Sun, is not said to show it.
     s.keep(sun, { describe: 'The Sun, not to scale' });
     await s.carry(sun, [0, CY]);
@@ -370,11 +415,13 @@ export default class SeasonsExplainer extends Scene {
     // The camera zooms onto the red dot, twice as close, so the horizon, the
     // noon ray and the angle between them fill the stage.
     await this.step('noon', {
+      detail: true,
       title: `June noon: the Sun stands ${degrees(june.altitude)} above ${place.name}’s horizon`,
       line: `The angle is 90° − |${exactly(place.lat)} − ${exactly(TILT)}| = ${exactly(june.altitude)}.`,
       caption: `Zoomed in on the red dot. The white line is ${place.name}’s horizon, and noon sunlight arrives parallel to the Sun’s direction. The angle between them is 90° minus the gap between the latitude, ${exactly(place.lat)}, and the latitude where the June Sun is overhead, ${exactly(TILT)}.`,
     });
     const notes = new Group();
+    notes.key = 'noon-notes';
     // The noon altitude as the reader can check it: operands as given, to the hundredth, and
     // their result, exact to the hundredth too, which the heading rounds to a tenth.
     const formula = `90° − |${exactly(place.lat)} − ${exactly(TILT)}| = ${exactly(june.altitude)}`;
@@ -423,6 +470,7 @@ export default class SeasonsExplainer extends Scene {
 
     // ------------------------------------------------------------ december
     await this.step('december', {
+      detail: true,
       title: `December: the same axis, ${place.name}’s Sun at ${degrees(december.altitude)}`,
       line:
         Math.abs(june.daylight - december.daylight) > 0.05
@@ -440,10 +488,17 @@ export default class SeasonsExplainer extends Scene {
     await s.enter(D.drawing, { describe: D.drawn });
     await s.enter(D.ray, { describe: D.noon });
     const decSaid = await daylightCallout(D, december);
+    const monthsSaid = new Group(
+      label('June', [JUNE_C[0] + R, 2.65], { size: 0.24, color: ink, edge: [1, 0] }),
+      label('December', [DEC_C[0] + R, 2.65], { size: 0.24, color: ink, edge: [1, 0] }),
+    );
+    monthsSaid.key = 'solstice-months';
+    await s.enter(monthsSaid, { describe: 'June on the right; December on the left' });
     this.state.december = december;
 
     // ------------------------------------------------------------ latitude
     await this.step('latitude', {
+      detail: true,
       title: 'Latitude sets how much of each circle is lit',
       line: 'Tromsø’s circle is all lit in June; the equator’s is half lit.',
       caption:
@@ -452,6 +507,7 @@ export default class SeasonsExplainer extends Scene {
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const others = ORDER.filter((k) => k !== key);
     const extra = new Group();
+    extra.key = 'latitude-circles';
     for (const [center, side] of [
       [JUNE_C, -1],
       [DEC_C, 1],
@@ -484,6 +540,11 @@ export default class SeasonsExplainer extends Scene {
           );
         }
     }
+    await this.play(
+      J.latitude.animate.setStyle({ strokeWidth: 0.09 }),
+      D.latitude.animate.setStyle({ strokeWidth: 0.09 }),
+      { runTime: 0.3 },
+    );
     await s.enter(extra, {
       describe: 'The other places’ latitude circles on both views, yellow where lit',
     });
@@ -495,9 +556,10 @@ export default class SeasonsExplainer extends Scene {
     // Four places in two months: a table, one under each globe.
     const juneTable = await table('June', TILT, [1.7, -4.2, 7.3, -1.05]);
     const decTable = await table('December', -TILT, [-7.3, -4.2, -1.7, -1.05]);
+    juneTable.key = 'june-daylight-table';
+    decTable.key = 'december-daylight-table';
     await juneTable.mark(place.name);
     await decTable.mark(place.name);
-
 
     // ---------------------------------------------------------------- year
     // A native chart of the model itself: `plot` samples daylightAt for this
@@ -510,6 +572,7 @@ export default class SeasonsExplainer extends Scene {
       shortest = Math.min(...days);
     const flat = Math.abs(june.daylight - december.daylight) < 0.05;
     await this.step('year', {
+      detail: true,
       title: `A computed year of daylight in ${place.name}`,
       line: polarDay
         ? `24 h for ${polarDay} days, 0 h for ${polarNight}; 12 h at the equinoxes.`
@@ -563,6 +626,7 @@ export default class SeasonsExplainer extends Scene {
         (longest - shortest < 0.05 ? `flat at ${hours(longest)}` : `from ${hours(shortest)} to ${hours(longest)}`) +
         (polarDay ? `, flat at 24 h for ${polarDay} days and at 0 h for ${polarNight}` : ''),
     });
+    drawnCurve.key = 'daylight-curve';
     // Solstices and equinoxes: a guide, a name, and the model's day length there.
     const guides = new Group(),
       marks = new Group(),
@@ -586,7 +650,9 @@ export default class SeasonsExplainer extends Scene {
         }),
       );
     }
-    s.keep(guides, { describe: 'Dashed lines at the March and September equinoxes and the June and December solstices' });
+    s.keep(guides, {
+      describe: 'Dashed lines at the March and September equinoxes and the June and December solstices',
+    });
     s.keep(marks, { describe: `The curve’s value on those days: ${atEvents.join(', ')}` });
     await this.play(new FadeIn(guides));
     await this.play(new FadeIn(marks));
@@ -597,28 +663,50 @@ export default class SeasonsExplainer extends Scene {
       const lit = days.flatMap((d, i) => (d >= 24 ? [i] : [])),
         top = axes.c2p(0, 24)[1];
       said.push(
-        await s.dimension([axes.c2p(xOn(lit[0]!), 24)[0], top], [axes.c2p(xOn(lit.at(-1)!), 24)[0], top], `${polarDay} days`, {
-          offset: -0.6,
-          size: 0.22,
-        }),
+        await s.dimension(
+          [axes.c2p(xOn(lit[0]!), 24)[0], top],
+          [axes.c2p(xOn(lit.at(-1)!), 24)[0], top],
+          `${polarDay} days`,
+          {
+            offset: -0.6,
+            size: 0.22,
+          },
+        ),
       );
       if (polarNight)
-        said.push(await s.callout(axes.c2p(xOn(EVENTS[3].day), 0), `${polarNight} days at 0 h`, { side: 'above', gap: 1.1, size: 0.22 }));
+        said.push(
+          await s.callout(axes.c2p(xOn(EVENTS[3].day), 0), `${polarNight} days at 0 h`, {
+            side: 'above',
+            gap: 1.1,
+            size: 0.22,
+          }),
+        );
     } else if (longest - shortest >= 0.05) {
       // From the hours as printed, so the label is the difference the reader can take.
       const spread = hours(tenths(longest) - tenths(shortest)),
         X = 13.1,
         at = (h: number) => days.findIndex((d) => d === h);
       const levels = new Group(
-        ...[shortest, longest].map((h) => axes.horizontalLine(h, { from: xOn(at(h)), to: X, stroke: soft, strokeWidth: 0.018, dashArray: '0.06 0.06' })),
+        ...[shortest, longest].map((h) =>
+          axes.horizontalLine(h, { from: xOn(at(h)), to: X, stroke: soft, strokeWidth: 0.018, dashArray: '0.06 0.06' }),
+        ),
       );
-      await s.enter(levels, { describe: `Dashed lines from the shortest day, ${hours(shortest)}, and the longest, ${hours(longest)}, to the right of the chart` });
-      said.push(levels, await s.dimension(axes.c2p(X, shortest), axes.c2p(X, longest), `longest − shortest: ${spread}`, { offset: -0.05, size: 0.22 }));
+      await s.enter(levels, {
+        describe: `Dashed lines from the shortest day, ${hours(shortest)}, and the longest, ${hours(longest)}, to the right of the chart`,
+      });
+      said.push(
+        levels,
+        await s.dimension(axes.c2p(X, shortest), axes.c2p(X, longest), `longest − shortest: ${spread}`, {
+          offset: -0.05,
+          size: 0.22,
+        }),
+      );
     }
 
     // ------------------------------------------------------------ distance
     const mirror = daylightYear(-place.lat);
     await this.step('distance', {
+      detail: true,
       title: 'Earth is nearest the Sun in January, during the northern winter',
       line:
         place.lat !== 0
@@ -636,6 +724,7 @@ export default class SeasonsExplainer extends Scene {
       axes.verticalLine(0.5, { stroke: SUN, strokeWidth: 0.025, dashArray: '0.1 0.08' }),
       new Dot({ radius: 0.09, color: SUN }).moveTo(jan),
     );
+    marker.children[1]!.key = 'january-point';
     await s.enter(marker, { describe: `15 January marked on the chart at ${hours(year[0]!)}` });
     // The same model at the mirrored latitude: the other hemisphere on the same days.
     const end = (lat: number) => axes.c2p(12, daylightAt(lat)(12));
@@ -648,6 +737,7 @@ export default class SeasonsExplainer extends Scene {
     const second = new Group(own);
     if (place.lat !== 0) {
       const other = axes.plot(daylightAt(-place.lat), { samples: 145, color: MIRROR, strokeWidth: 0.035 });
+      other.key = 'mirror-daylight-curve';
       second.add(
         other,
         new Dot({ radius: 0.09, color: MIRROR }).moveTo(axes.c2p(0.5, mirror[0]!)),
@@ -657,6 +747,7 @@ export default class SeasonsExplainer extends Scene {
           edge: [-1, 0],
         }),
       );
+      second.children[2]!.key = 'mirror-january-point';
       s.keep(own, ...second.children.slice(1), {
         describe: `The same model at latitude ${degrees(-place.lat)}, ${place.name}’s curve turned upside down: ${hours(mirror[0]!)} on 15 January`,
       });
@@ -668,6 +759,7 @@ export default class SeasonsExplainer extends Scene {
     }
     // Exaggerated eccentric orbit: Sun off-centre, Earth nearest at one end.
     const sketch = new Group();
+    sketch.key = 'distance-orbit';
     {
       const oc: Vec = [5.1, 1.35],
         orx = 1.9,
@@ -721,7 +813,17 @@ export default class SeasonsExplainer extends Scene {
     const janSaid: Mobject[] =
       place.lat !== 0
         ? [tag(0.5, year[0]!, hours(year[0]!), CURVE), tag(0.5, mirror[0]!, hours(mirror[0]!), MIRROR)]
-        : [tag(0.5, year[0]!, `15 January: ${hours(year[0]!)}`, CURVE), tag(6.5, year[6]!, `15 July: ${hours(year[6]!)}`, CURVE)];
+        : [
+            tag(0.5, year[0]!, `15 January: ${hours(year[0]!)}`, CURVE),
+            tag(6.5, year[6]!, `15 July: ${hours(year[6]!)}`, CURVE),
+          ];
+    janSaid[0]!.key = 'january-value';
+    janSaid[1]!.key = place.lat === 0 ? 'july-value' : 'mirror-january-value';
+    if (place.lat === 0) {
+      const julyPoint = new Dot({ radius: 0.09, color: CURVE }).moveTo(axes.c2p(6.5, year[6]!));
+      julyPoint.key = 'july-point';
+      janSaid.push(julyPoint);
+    }
     await s.enter(...janSaid, {
       describe:
         place.lat !== 0
@@ -731,6 +833,7 @@ export default class SeasonsExplainer extends Scene {
 
     // ------------------------------------------------------------- compare
     await this.step('compare', {
+      detail: true,
       title: 'The same formula draws all four daylight curves',
       line: 'London and Sydney peak six months apart; Quito stays at 12 h.',
       caption:

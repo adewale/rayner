@@ -41,7 +41,7 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
     assert.ok(llms.indexOf('## Explainers') < llms.indexOf('## How these are made'));
     assert.match(
       llms,
-      /^- \[A ring buffer reuses freed slots and refuses a push when full\]\(\/projects\/rayner\/ring-buffer\): Head is the next value to pop; tail is the next slot to write\. JSON: \[ring-buffer\.json\]\(\/projects\/rayner\/ring-buffer\.json\)$/m,
+      /^- \[How does a ring buffer reuse storage\?\]\(\/projects\/rayner\/ring-buffer\): After five pushes, all slots hold values and both pointers return to slot 0\. JSON: \[ring-buffer\.json\]\(\/projects\/rayner\/ring-buffer\.json\)$/m,
     );
     assert.match(llms, /^## How these are made\n\n- \[[^\]]+\]\(\/projects\/rayner\/glyph\): .+ JSON: \[glyph\.json\]\(\/projects\/rayner\/glyph\.json\)$/m);
     // A second export replaces its own llms.txt, with absolute links given --origin; a site's own

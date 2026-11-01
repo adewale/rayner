@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { Scene, NullSink } from '../../src/index.ts';
 import { traceRun } from '../../src/trace.ts';
-import { paperOf } from '../../explain/stage.ts';
+import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
+import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
 import type { Trace } from '../../src/index.ts';
@@ -173,8 +174,8 @@ export interface Project {
   sourceHash: string;
   engineHash: string;
   store: SnapshotStore;
-  /** Each case: its scene, its trace and the stage's paper when the run ends (none without a stage). */
-  variants: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string }[];
+  /** Each case: its scene, trace and final stage colours (absent without a stage). */
+  variants: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -397,7 +398,7 @@ export async function collectProject(
 
         }
       }));
-      variants.push({ values, Scene: Bound, trace, ...(paper ? { paper } : {}) });
+      variants.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });
     }
     if (undrawable.length)
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);

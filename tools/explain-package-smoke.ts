@@ -2,22 +2,34 @@
 // Explicit distribution gate: pack, install in a fresh author project, run the installed CLI.
 import { mkdtemp, mkdir, writeFile, readFile, copyFile, cp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { parseArgs } from 'node:util';
 import { existsSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { ROOT } from './lib/explain-project.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
 try {
-  const { values } = parseArgs({ options: { archive: { type: 'string' } } });
-  const packed = values.archive ? undefined : await run('npm', ['pack', '--json', '--pack-destination', folder], {
+  const { values } = parseArgs({ options: { archive: { type: 'string' }, manifest: { type: 'string' } } });
+  if (values.archive && values.manifest) throw new Error('Choose --archive or --manifest');
+  let candidate: { filename: string; integrity: string; sourceCommit: string } | undefined;
+  if (values.manifest) {
+    candidate = JSON.parse(await readFile(resolve(values.manifest), 'utf8'));
+    assert.ok(candidate && typeof candidate.filename === 'string' && basename(candidate.filename) === candidate.filename && candidate.filename.endsWith('.tgz'), 'invalid candidate filename');
+    const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
+    assert.equal(candidate.sourceCommit, commit, 'candidate comes from another source commit');
+  }
+  const selectedArchive = candidate ? join(dirname(resolve(values.manifest!)), candidate.filename) : values.archive;
+  const packed = selectedArchive ? undefined : await run('npm', ['pack', '--json', '--pack-destination', folder], {
     cwd: ROOT,
     maxBuffer: 4 * 1024 * 1024,
   });
-  const archive = values.archive ? resolve(values.archive) : join(folder, JSON.parse(packed!.stdout)[0].filename);
+  const archive = selectedArchive ? resolve(selectedArchive) : join(folder, JSON.parse(packed!.stdout)[0].filename);
+  const archiveIntegrity = async () => 'sha512-' + createHash('sha512').update(await readFile(archive)).digest('base64');
+  if (candidate) assert.equal(await archiveIntegrity(), candidate.integrity, 'candidate archive integrity mismatch');
   await writeFile(
     join(folder, 'package.json'),
     JSON.stringify({ name: 'outside-author', private: true, type: 'module' }),
@@ -185,10 +197,23 @@ try {
     ['font-metrics', join(ROOT, 'scenes/explainers/font-metrics')],
     ['layout-direction', join(ROOT, 'scenes/explainers/layout-direction')],
   ];
+  // Copy the real authoring examples and their shared drawing modules into the
+  // outside project. Engine imports use the installed package; lesson imports
+  // keep their relative paths, so missing author-owned dependencies still fail.
+  const copyAuthorSource = async (source: string, target: string) => {
+    const code = (await readFile(source, 'utf8')).replace(
+      /(['"])(?:\.\.\/)+(src|explain)\/index\.ts\1/g,
+      (_match, quote: string, area: string) => `${quote}${area === 'src' ? 'rayner' : 'rayner/explain'}${quote}`,
+    );
+    await writeFile(target, code);
+  };
+  await mkdir(join(folder, 'lib/readers'), { recursive: true });
+  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'readers/layout-direction.ts'])
+    await copyAuthorSource(join(ROOT, 'scenes/explainers/lib', file), join(folder, 'lib', file));
   for (const [name, source] of replayFixtures) {
     const target = join(folder, 'outline-' + name);
     await mkdir(target);
-    await copyFile(join(source, 'scene.ts'), join(target, 'scene.ts'));
+    await copyAuthorSource(join(source, 'scene.ts'), join(target, 'scene.ts'));
     if (name !== 'layout-direction') await copyFile(join(source, 'scene.lettering.json'), join(target, 'scene.lettering.json'));
     if (name === 'style' || name === 'font-metrics') {
       await cp(join(source, 'scene.snapshots'), join(target, 'scene.snapshots'), { recursive: true });
@@ -296,6 +321,7 @@ try {
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',
   );
+  if (candidate) assert.equal(await archiveIntegrity(), candidate.integrity, 'candidate changed during package checks');
 } finally {
   await rm(folder, { recursive: true, force: true });
 }

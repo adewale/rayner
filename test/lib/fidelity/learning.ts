@@ -14,7 +14,8 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
 /** Models have native/exhaustive oracles in learning-models.test.ts. This boundary
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
-  assert.equal(trace.steps.length,7);
+  const expected:Record<string,number>={'python-dict':8,'bloom-filter':9,'git-branches':8,'monty-hall':8,'birthday-paradox':8,'melody-rhythm':8};
+  assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     assertStepState(trace,step.step,{phase:step.step});
   }
@@ -25,7 +26,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assertStepState(trace,'broken',{dict:m.wrong,result:m.broken,policy:'incorrect-clear'});
     assertStepState(trace,'marker',{dict:m.correct,result:m.repaired});
     assertStepState(trace,'missing',{dict:m.correct,result:m.missing});
-    assert.match(String(trace.steps[4]!.meta.caption),/Suppose deletion/);
+    assert.match(String(trace.steps.find(s=>s.step==='broken')!.meta.caption),/Suppose deletion/);
   } else if(id==='bloom-filter') {
     const m=bloomStory(Number(values.bits) as 16|32);
     assertStepState(trace,'question',{bits:Array(m.size).fill(0),stored:[]});
@@ -33,7 +34,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     for(const name of ['shared','absent','present','false-positive','pipeline']) assertStepState(trace,name,{bits:m.bits,stored:m.words});
     for(const [i,name] of ['absent','present','false-positive'].entries()) assertStepState(trace,name,{query:m.queries[i]});
     assertStepState(trace,'pipeline',{queries:m.queries,exactLookups:2,sampleSize:100,sampleFalsePositives:m.sampleFalsePositives});
-    assert.ok(String(trace.steps[5]!.meta.caption).includes(m.queries[2]!.word));
+    assert.ok(String(trace.steps.find(s=>s.step==='false-positive')!.meta.caption).includes(m.queries[2]!.word));
   } else if(id==='git-branches') {
     const advanced=values.history==='diverged',frames=gitStory(advanced);
     for(const [i,name] of ['start','branch','feature','switch','main','merge'].entries())
@@ -47,7 +48,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assertStepState(trace,'odds',{odds:monty(3,host)});assertStepState(trace,'many',{odds:monty(100,host)});
     assertStepState(trace,'rules',{informed:monty(3,'informed'),random:monty(3,'random')});
     if(host==='random') assert.match(String(trace.steps[1]!.meta.caption),/happened to reveal a goat/);
-    assert.ok(String(trace.steps[2]!.meta.caption).includes(`you ${example.won?'win':'lose'}`));
+    assert.ok(String(trace.steps.find(s=>s.step==='reveal')!.meta.caption).includes(`you ${example.won?'win':'lose'}`));
   } else if(id==='birthday-paradox') {
     const m=birthdayStory(Number(values.people),values.question as BirthdayQuestion);
     assertStepState(trace,'question',{people:m.people,question:m.question,sample:m.sample.first});

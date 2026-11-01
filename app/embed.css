@@ -1,11 +1,11 @@
-:root{color-scheme:light dark;--bg:#f6f7f9;--surface:#fff;--fg:#14202b;--muted:#536170;--line:#d9dfe6;--line-strong:#b7c2cd;--accent:#176166;--accent-fg:#fff;--ease-out:cubic-bezier(.23,1,.32,1);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-size-adjust:100%}
-:root[data-theme=dark]{--bg:#0f161d;--surface:#17212b;--fg:#e9eff5;--muted:#9fb0c0;--line:#2a3845;--line-strong:#41546a;--accent:#86d3c8;--accent-fg:#0f161d;color-scheme:dark}
+:root{color-scheme:light dark;--bg:var(--player-light-bg,#f7f7f7);--surface:var(--player-light-surface,#fff);--fg:#202020;--muted:#595959;--line:#ddd;--line-strong:#bbb;--accent:var(--player-light-accent,#202020);--accent-fg:var(--player-light-accent-fg,#fff);--ease-out:cubic-bezier(.23,1,.32,1);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-size-adjust:100%}
+:root[data-theme=dark]{--bg:var(--player-dark-bg,#141414);--surface:var(--player-dark-surface,#202020);--fg:#f0f0f0;--muted:#b0b0b0;--line:#383838;--line-strong:#555;--accent:var(--player-dark-accent,#f0f0f0);--accent-fg:var(--player-dark-accent-fg,#141414);color-scheme:dark}
 :root[data-theme=light]{color-scheme:light}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f161d;--surface:#17212b;--fg:#e9eff5;--muted:#9fb0c0;--line:#2a3845;--line-strong:#41546a;--accent:#86d3c8;--accent-fg:#0f161d}}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:var(--player-dark-bg,#141414);--surface:var(--player-dark-surface,#202020);--fg:#f0f0f0;--muted:#b0b0b0;--line:#383838;--line-strong:#555;--accent:var(--player-dark-accent,#f0f0f0);--accent-fg:var(--player-dark-accent-fg,#141414)}}
 *{box-sizing:border-box}
 ::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
 body{margin:0;background:var(--bg);color:var(--fg);accent-color:var(--accent)}
-#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px);--player-cap:max(20rem,calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
+#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px);--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
 #content:focus{outline:none}
 /* In a frame the page is the tile alone: the host's background shows around it and at its corners.
    The tile keeps 1px off the frame's edges, so its own edge is drawn inside the frame, and #content holds
@@ -26,10 +26,10 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .case{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
 .case legend{float:left;padding:0}
 /* One label style: the case legend, the step kicker, the rail heading and the view count. */
-.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child,.changes-ruler>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
+.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
 .case legend+*{clear:left}
-.segments{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:11px;background:color-mix(in srgb,var(--line) 55%,transparent)}
-.segments label{position:relative;display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:8px;font-size:.9375rem;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease}
+.segments{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:var(--player-control-radius,11px);background:color-mix(in srgb,var(--line) 55%,transparent)}
+.segments label{position:relative;display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:var(--player-control-radius,8px);font-size:.9375rem;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease}
 .segments input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
 .segments label:has(input:checked){background:var(--surface);color:var(--fg);font-weight:600;box-shadow:0 1px 2px rgb(0 0 0/.08),0 0 0 1px rgb(0 0 0/.04)}
 .segments label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:1px}
@@ -38,11 +38,10 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    background. The card is its first pane; on a wide page the rail is the second, beside it behind a
    rule that runs the tile's height, taking the width the card's cap leaves. The rail's body stays in
    view as the page scrolls, and scrolls on its own. */
-/* The tile's chrome takes a tint from the case's paper (--paper, set by the player and, for the default
-   case, the build): the same mix for every palette, as strong as the weakest palette's contrast allows
-   (test/embed-tint.test.ts reads --tint here). Buttons keep the plain surface and lift off it; rules
-   inside the tile use --line, its edge and the rail's rule --tile-line. */
-.tile{--tint:10%;--tile:color-mix(in srgb,var(--paper,var(--surface)) var(--tint),var(--surface));--tile-line:color-mix(in srgb,var(--paper,var(--line)) 30%,var(--line));--inset:16px;background:var(--tile);box-shadow:0 0 0 1px var(--tile-line);border-radius:12px;overflow:clip;transition:background-color 200ms}
+/* The tile uses the neutral or contrast-checked per-page surface. The optional --paper mix remains
+   bounded by test/embed-tint.test.ts; the default player never assigns paper automatically.
+   Rules inside the tile use --line, its edge and the rail's rule --tile-line. */
+.tile{--tint:10%;--tile:color-mix(in srgb,var(--paper,var(--surface)) var(--tint),var(--surface));--tile-line:color-mix(in srgb,var(--paper,var(--line)) 30%,var(--line));--inset:16px;background:var(--tile);box-shadow:0 0 0 1px var(--tile-line);border-radius:var(--player-tile-radius,12px);overflow:clip;transition:background-color 200ms}
 .layout{display:grid;align-items:start;width:min(100%,var(--player-cap));margin-inline:auto}
 @media(min-width:1100px){
   .layout{width:auto;grid-template-columns:minmax(0,var(--player-cap)) minmax(300px,1fr)}
@@ -51,14 +50,14 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 }
 
 /* Player: one card. Its header, the picture, one stepper row straight under it, then the step's words.
-   --player-reserve (on #content: the header's measured height, --head-h, the step heading's reserved height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
+   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
    of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings). The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
    against the viewports in specs/player-redesign.md R2. */
 .player{position:relative;min-width:0}
 .frame{position:relative}
-.stage{position:relative;aspect-ratio:16/9;overflow:hidden;background:var(--surface);touch-action:pan-y}
+.stage{position:relative;min-width:0;aspect-ratio:16/9;overflow:hidden;background:var(--surface);touch-action:pan-y}
 .stage svg{width:100%;height:100%;display:block}
 .stage svg.glide{transition:transform 220ms var(--ease-out)}
 .stage.zoomed{touch-action:none;cursor:grab}
@@ -81,19 +80,19 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 @keyframes leave{to{opacity:0}}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
-.caption,.ruler{margin:0;max-width:52ch;min-height:3.2em;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
-.ruler,.lede-ruler,.changes-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
+.caption{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
+.lede-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
 /* The step's heading on every width: "Step 3 of 4", the title, then the line. */
 .lede,.lede-ruler{max-width:68ch;font-size:1rem;line-height:1.45;text-wrap:pretty}
-.lede{margin:0 0 6px;display:flex;flex-direction:column;justify-content:flex-end}
+.lede{margin:0 0 6px;display:flex;flex-direction:column;justify-content:flex-start}
 .lede>*,.lede-ruler>*{display:block}
 .lede strong,.lede-ruler strong{font-size:1.0625rem;font-weight:650}
 .lede .line,.lede-ruler .line{font-size:.9375rem;color:var(--muted)}
-.lede [hidden]{display:none}
+.lede [hidden],.lede-ruler [hidden]{display:none}
 /* What the step changed of the state its author watches: a quiet label, then each change in a ring. */
-.changes,.changes-ruler{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
+.changes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
 .changes[hidden]{display:none}
-.change{padding:1px 8px;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}
+.change{padding:1px 8px;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);font-variant-numeric:tabular-nums}
 .stepper{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:8px;padding:10px var(--inset);border-top:1px solid var(--line)}
 /* Icon buttons draw their glyph inside a 40 px (44 px narrow) hit box: pull Previous and the tools out so the
    chevron's point and the last glyph sit on the card's inset, the line the title, the words and the rows share. */
@@ -103,6 +102,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    height; the mark is a thin bar. Done segments are the accent, the current one is taller and fills
    with --progress (0 to 1, 1 at rest), the rest are quiet (at least 3:1 on the card in both themes). */
 .step-bar{list-style:none;margin:0;padding:0;flex:1 1 120px;min-width:0;display:flex;gap:3px;align-self:stretch}
+.step-bar[hidden]{display:none}
 .step-bar li{flex:1 1 0;min-width:0;display:flex}
 .step-bar button{position:relative;flex:1 1 0;min-width:0;min-height:40px;margin:0;padding:0;border:0;border-radius:4px;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .step-bar button:focus-visible{outline-offset:-2px}
@@ -115,7 +115,8 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 /* View tools stand apart from step navigation, behind a rule; on a narrow row, on their own row. */
 .tools{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:2px;margin-inline:auto -12px;padding-inline-start:10px;border-inline-start:1px solid var(--line)}
 .tools .share{margin-inline-start:12px}
-@media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.end .tools{flex-basis:auto}.end .step-bar{flex-basis:0;min-width:64px}.button.try{font-size:.9375rem}.stepper .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
+.words>.tools{margin:8px 0 0;padding:10px 0 0;border:0;border-top:1px solid var(--line);justify-content:flex-start}.words>.tools .try{margin-inline-end:auto}
+@media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.button.try{font-size:.9375rem}.stepper .button,.tools .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
 .described{margin:2px 0 0;max-width:68ch;font-size:.9375rem;color:var(--muted)}
 .described summary{padding:6px 0;cursor:pointer}
 .described ul,.transcript li ul{margin:4px 0;padding-left:1.25rem;overflow-wrap:anywhere}
@@ -123,7 +124,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .notice:empty{display:none}
 
 /* Buttons: one shape; Next is the one primary action. */
-.button{font:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;min-height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;transition:transform 160ms var(--ease-out),background-color 150ms ease,border-color 150ms ease,color 150ms ease}
+.button{font:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;min-height:40px;padding:0 10px;border-radius:var(--player-control-radius,8px);border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer;transition:transform 160ms var(--ease-out),background-color 150ms ease,border-color 150ms ease,color 150ms ease}
 .button:active:not(:disabled){transform:scale(.97)}
 .button:disabled{opacity:.4;cursor:default}
 .button[hidden]{display:none}
@@ -150,7 +151,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .player>details>summary{padding:11px 0;font-weight:600;cursor:pointer}
 .steps{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:step}
 .steps li{counter-increment:step}
-.steps button{font:inherit;position:relative;display:grid;gap:1px;width:100%;min-height:44px;padding-block:8px 9px;padding-inline:40px 12px;border:0;border-radius:8px;background:none;color:var(--fg);text-align:start;text-wrap:pretty;cursor:pointer;transition:background-color 150ms ease}
+.steps button{font:inherit;position:relative;display:grid;gap:1px;width:100%;min-height:44px;padding-block:8px 9px;padding-inline:40px 12px;border:0;border-radius:var(--player-control-radius,8px);background:none;color:var(--fg);text-align:start;text-wrap:pretty;cursor:pointer;transition:background-color 150ms ease}
 .steps button::before{content:counter(step);content:counter(step)/"";position:absolute;inset-inline-start:10px;top:11px;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--muted);color:var(--muted);display:grid;place-items:center;font-size:.75rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
 .steps .title{font-size:.9375rem;line-height:1.35}
 .steps .line{font-size:.8125rem;line-height:1.4;color:var(--muted)}
@@ -183,7 +184,23 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 /* Enlarge: the card alone, its children sized to the screen. The stage keeps within 100dvh - 180px and
    leaves room for the header above it and the step heading below the stepper row (300px, as at load). */
 .player:fullscreen{display:flex;flex-direction:column;justify-content:safe center;padding:16px;background:var(--tile);overflow:auto}
-.player:fullscreen>*{width:min(100%,calc((100dvh - 300px)*16/9));margin-inline:auto}
+.player:fullscreen>*{width:min(100%,max(var(--player-floor,0px),calc((100dvh - 300px)*16/9)));margin-inline:auto}
 
-@media(max-width:480px){.caption,.ruler{font-size:1.0625rem}.stepper{gap:6px}}
+@media(max-width:480px){.caption{font-size:1.0625rem}.stepper{gap:6px}}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
+
+/* Source notes remain a separate disclosure beneath the teaching path. */
+.supporting{border-block-start:1px solid var(--line);padding:12px var(--inset)}
+.supporting>summary{cursor:pointer;min-height:44px;display:list-item;padding-block:10px;color:var(--muted)}
+.supporting .steps{margin:0;padding-block-start:4px;border:0}
+.supporting[hidden]{display:none}
+
+@media(forced-colors:active){
+  .segments label:has(input:checked){forced-color-adjust:none;background:Highlight;color:HighlightText;outline:2px solid CanvasText;outline-offset:-2px}
+  .steps [aria-current=step]{outline:2px solid Highlight;outline-offset:-2px}
+  .steps [aria-current=step]::before{forced-color-adjust:none;background:Highlight;border-color:Highlight;color:HighlightText}
+  .step-bar button::before{forced-color-adjust:none;background:Canvas;border:1px solid ButtonText}
+  .step-bar [data-state=done]::before{background:ButtonText}
+  .step-bar [data-state=current]::before{height:10px;border:3px solid Highlight;background:Canvas}
+  .step-bar [data-state=current] .fill{display:none}
+}

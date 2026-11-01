@@ -91,13 +91,17 @@ for (const entry of EXPLAINERS)
           await seasonsArithmetic(trace, variant.Scene);
           break;
         }
-        case 'oauth-pkce':
+        case 'oauth-pkce': {
           assertStepState(trace, 'exchange', {
             challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
             accepted: true,
           });
           if (values.attacker === 'yes') assertStepState(trace, 'attack', { attackerAccepted: false });
+          const pictured = textOf(pictureHtml(trace.steps.find(s => s.step === 'reader-check')!.after));
+          assert.match(pictured, /Saved challenge.*E9Melhoa.*Client hash.*E9Melhoa/s);
+          assert.equal(pictured.includes('Attacker hash'), values.attacker === 'yes');
           break;
+        }
         case 'mr-cache':
           assertStepState(trace, 'request', {
             request: values.request,
@@ -110,18 +114,30 @@ for (const entry of EXPLAINERS)
           // Independent expectation for the two controlled completions: when B
           // finishes first the unguarded old A overwrites it; when A finishes
           // first the guarded page stays empty until the latest B arrives.
-          const guarded = values.guard === 'on', newFirst = values.order === 'new-first';
-          const first = newFirst ? 'B' : 'A';
-          assertStepState(trace, 'start', { active: 'B', shown: null, completed: [], writes: [] });
-          assertStepState(trace, 'first', {
-            completed: [first], shown: newFirst ? 'B' : guarded ? null : 'A',
-          });
-          assertStepState(trace, 'second', {
-            completed: [first, newFirst ? 'A' : 'B'],
-            shown: newFirst && !guarded ? 'A' : 'B',
-            writes: newFirst ? guarded ? ['B'] : ['B', 'A'] : guarded ? ['B'] : ['A', 'B'],
-          });
-          assertStepState(trace, 'compare', { unguarded: newFirst ? 'A' : 'B', guarded: 'B' });
+          const newFirst = values.order === 'new-first', first = newFirst ? 'B' : 'A';
+          const reading = (step: string) => trace.steps.find(s => s.step === step)!.after!.reader as {
+            query: string; ticket: number; latest: number; accepted: boolean;
+            off: {shown: string | null; completed: string[]; writes: string[]} | {shown: string | null; completed: string[]; writes: string[]}[];
+            on: {shown: string | null; completed: string[]; writes: string[]} | {shown: string | null; completed: string[]; writes: string[]}[];
+          };
+          for (const [id, query] of [['reader-first', first], ['reader-ticket', newFirst ? 'A' : 'B']] as const) {
+            const r = reading(id);
+            assert.equal(r.query, query);
+            assert.equal(r.ticket, query === 'A' ? 1 : 2);
+            assert.equal(r.latest, 2);
+            assert.equal(r.accepted, query === 'B');
+          }
+          const before = reading('reader-first');
+          assert.equal((before.off as {shown:unknown}).shown, first);
+          assert.equal((before.on as {shown:unknown}).shown, newFirst ? 'B' : null);
+          const end = reading('reader-guard');
+          const off = end.off as {shown:string;completed:string[];writes:string[]}[], on = end.on as {shown:string;completed:string[];writes:string[]}[];
+          assert.equal(off.length, 3);assert.equal(on.length, 3);
+          assert.equal(off[2]!.shown, newFirst ? 'A' : 'B');assert.equal(on[2]!.shown, 'B');
+          assert.deepEqual(off[2]!.completed, [first, newFirst ? 'A' : 'B']);
+          assert.deepEqual(on[2]!.completed, off[2]!.completed);
+          assert.deepEqual(off[2]!.writes, newFirst ? ['B','A'] : ['A','B']);
+          assert.deepEqual(on[2]!.writes, ['B']);
           break;
         }
         case 'feature-tour':
@@ -272,7 +288,7 @@ for (const entry of EXPLAINERS)
               ],
               'shout.txt',
             ),
-            cat = exec(values.shell === 'new' ? run.shell : original, [['cat', 'shout.txt']]);
+            cat = exec(run.shell, [['cat', 'shout.txt']]);
           assertStepState(trace, 'cat', { oldShell: original, newShell: run.shell, cat: cat.stdout });
           break;
         }
@@ -311,6 +327,7 @@ for (const entry of EXPLAINERS)
           await new variant.Scene({
             async frame() {},
             async stepEnd(scene, step) {
+              if (step.name !== 'columns' && step.name !== 'updates') return;
               const cards = scene.familyMembers().filter((m): m is Card => m instanceof Card);
               assert.equal(cards.length, 2);
               const [left, right] = cards.sort((a, b) => a.center()[0] - b.center()[0]);
@@ -432,7 +449,7 @@ for (const entry of EXPLAINERS)
  * two code texts, its line counts are git's, and every line git leaves alone ends exactly
  * on its line of the after block.
  */
-async function mrCacheDiff(trace: { steps: { step: string; evidence?: { kind: string }[] }[] }, Bound: new (sink: Sink) => Scene) {
+async function mrCacheDiff(trace: { steps: { step: string; meta: Record<string,unknown>; evidence?: { kind: string }[] }[] }, Bound: new (sink: Sink) => Scene) {
   const { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } = mrCache;
   // The syntax colours lie inside their lines.
   for (const [code, spans] of [
@@ -452,10 +469,10 @@ async function mrCacheDiff(trace: { steps: { step: string; evidence?: { kind: st
   assert.equal(recorded.lines.changed + recorded.lines.removed, count('-'));
   assert.equal(recorded.lines.changed + recorded.lines.added, count('+'));
   assert.equal(recorded.lines.unchanged, BEFORE_CODE.length - count('-'));
-  // The title counts the lines as the callouts beside the code do, from the transform's plan.
+  // The diff step’s title counts the lines as its callouts do; the page title asks the reader’s question.
   const word = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
   const counted = `${word[recorded.lines.added]} added lines and ${word[recorded.lines.changed]} rewritten`;
-  const title = (Bound as unknown as { meta: { title: string } }).meta.title;
+  const title = String(trace.steps.find(s=>s.step==='diff')!.meta.title);
   assert.ok(title.toLowerCase().startsWith(counted), `${title} / ${counted}`);
   // Together they are git's insertions.
   assert.equal(recorded.lines.added + recorded.lines.changed, count('+'));

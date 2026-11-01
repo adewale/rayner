@@ -27,6 +27,6 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assert.ok(title('share').endsWith(`${sum.mostOfSrgb.value.toFixed(1)}%`), title('share'));
   assert.deepEqual(
     trace.steps.map((s) => s.step),
-    ['oklch', 'srgb-edge', 'palette', 'share', 'p3-edge', screen === 'srgb' ? 'srgb-screen' : 'p3-screen'],
+    ['reader-edge', 'reader-display', 'oklch', 'srgb-edge', 'palette', 'share', 'p3-edge', screen === 'srgb' ? 'srgb-screen' : 'p3-screen'],
   );
 }

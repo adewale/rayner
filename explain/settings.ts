@@ -22,6 +22,8 @@ export type ExplainerClass = SceneClass & {
     lettering?: LetteringRequest;
     /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
     caseNavigation?: 'first';
+    /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
+    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number };
     watch?: Readonly<Record<string, string>>;
   };
   settings?: readonly Setting[];

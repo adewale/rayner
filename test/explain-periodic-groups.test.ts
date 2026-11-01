@@ -145,7 +145,7 @@ test('the table and note text follow the recorded state at every resting step', 
   }
 });
 
-test('reader descriptions match core shading and complete block fills at every resting step', async () => {
+test('reader descriptions match core shading and complete block fills in every periodic-table phase', async () => {
   await loadFonts();
   // Independent table/configuration facts and authored colours, not model or renderer answers.
   const cases: Array<{
@@ -182,6 +182,7 @@ test('reader descriptions match core shading and complete block fills at every r
     await new Source({
       async frame() {},
       async stepEnd(scene, step) {
+        if (!phases.includes(step.name)) return;
         const label = `${expected.element}/${step.name}`;
         const blocks = ['blocks', 'family', 'names', 'limit'].includes(step.name);
         assert.equal(scene.state.note, step.name, label);

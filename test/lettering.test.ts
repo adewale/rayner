@@ -9,7 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectProject, defaultVariant, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultVariant, ROOT, loadScene } from '../tools/lib/explain-project.ts';
 import type { Project } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
@@ -35,23 +35,14 @@ const embedded = { sans: shaperFor('sans'), mono: shaperFor('mono') };
 /** What a build of `project` gives a reader: the page and its receipt. */
 const built = (project: Project, name: string) => buildExplainer(project, join(folder, name + '.html'));
 
-// Every catalog page, built: only explicitly lettered examples carry requested lettering, and
-// each receipt reports the page it describes. Whether lettering code reaches a page that asked
-// for nothing is owned by the fingerprint and leak tests below, not by whole-page hashes.
-test('catalog pages carry lettering only where requested, and receipts report actual page bytes', async () => {
+// Catalog policy is metadata; actual page/receipt assertions run in demos:build.
+test('only the requested-face catalog example opts into lettering', async () => {
   for (const { id } of EXPLAINERS) {
-    const project = await collectProject(join(ROOT, 'scenes/explainers', id), { write: false });
+    const { Scene } = await loadScene(join(ROOT, 'scenes/explainers', id));
     if (id === 'font-metrics') {
-      assert.equal(project.outlineLettering?.request.faces?.sans, 'eb-garamond');
-      assert.deepEqual(project.outlineLettering?.request.styles, ['bold', 'italic']);
-    } else {
-      assert.equal(project.lettering, undefined, id);
-      assert.equal(project.outlineLettering, undefined, id);
-    }
-    const { html, receipt } = await built(project, id);
-    assert.equal('lettering' in receipt, false, `${id}: only a lettered page reports lettering`);
-    assert.equal('letteringHash' in receipt, id === 'font-metrics', `${id}: only a requested page has an outline hash`);
-    assert.equal(Buffer.byteLength(html), receipt.bytes, `${id}: receipt reports actual page bytes`);
+      assert.equal(Scene.meta?.lettering?.faces?.sans, 'eb-garamond');
+      assert.deepEqual(Scene.meta?.lettering?.styles, ['bold', 'italic']);
+    } else assert.equal(Scene.meta?.lettering, undefined, id);
   }
 });
 

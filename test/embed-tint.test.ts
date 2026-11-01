@@ -10,8 +10,8 @@ import { PALETTES } from '../explain/palettes.ts';
 const css = await readFile(new URL('../app/embed.css', import.meta.url), 'utf8');
 /** The page's tokens, as embed.css declares them for each theme. */
 const THEMES = {
-  light: { surface: '#fff', fg: '#14202b', muted: '#536170', accent: '#176166' },
-  dark: { surface: '#17212b', fg: '#e9eff5', muted: '#9fb0c0', accent: '#86d3c8' },
+  light: { surface: '#fff', fg: '#202020', muted: '#595959', accent: '#202020' },
+  dark: { surface: '#202020', fg: '#f0f0f0', muted: '#b0b0b0', accent: '#f0f0f0' },
 } as const;
 const MINIMUM = { fg: 7, muted: 4.5, accent: 3 } as const;
 
@@ -39,10 +39,10 @@ test('embed.css declares the page tokens this gate checks, and one --tint on .ti
   assert.match(css, /\.tile\{--tint:[\d.]+%;--tile:color-mix\(in srgb,var\(--paper,var\(--surface\)\) var\(--tint\),var\(--surface\)\)/);
   // The light tokens on :root, the dark ones on [data-theme=dark] and under prefers-color-scheme: dark.
   const root = css.match(/:root\{[^}]*\}/)![0];
-  for (const [k, v] of Object.entries(THEMES.light).filter(([k]) => k !== 'surface')) assert.ok(root.includes(`--${k}:${v}`), `light --${k}`);
-  assert.ok(root.includes('--surface:#fff'), 'light --surface');
+  for (const [k, v] of Object.entries(THEMES.light).filter(([k]) => k !== 'surface')) assert.ok(root.includes(`--${k}:${v}`) || root.includes(`--${k}:var(--player-light-${k},${v})`), `light --${k}`);
+  assert.ok(root.includes('--surface:var(--player-light-surface,#fff)'), 'light --surface');
   for (const rule of [css.match(/:root\[data-theme=dark\]\{[^}]*\}/)![0], css.match(/@media\(prefers-color-scheme:dark\)\{[^\n]*/)![0]])
-    for (const [k, v] of Object.entries(THEMES.dark)) assert.ok(rule.includes(`--${k}:${v}`), `dark --${k} in ${rule.slice(0, 40)}`);
+    for (const [k, v] of Object.entries(THEMES.dark)) assert.ok(rule.includes(`--${k}:${v}`) || rule.includes(`--${k}:var(--player-dark-${k},${v})`), `dark --${k} in ${rule.slice(0, 40)}`);
 });
 
 test('the tint keeps text 7:1, secondary text 4.5:1 and the accent 3:1 on the tinted chrome, for every palette in both themes', () => {

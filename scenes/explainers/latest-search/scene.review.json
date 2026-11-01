@@ -2,15 +2,21 @@
   "version": 1,
   "claims": [
     {
-      "step": "compare",
-      "settings": { "guard": "off", "order": "new-first" },
+      "step": "reader-ticket",
+      "settings": { "order": "new-first" },
       "opening": true,
-      "targets": [{ "text": "No guard: A" }, { "text": "Guard: B" }]
+      "targets": [{ "text": "Ticket 1" }, { "text": "Latest 2" }, { "text": "Discard A" }]
     },
     {
-      "step": "first",
-      "settings": { "guard": "on", "order": "old-first" },
-      "targets": [{ "text": "0 none    1 A (older)    2 B (latest)" }]
+      "step": "reader-first",
+      "settings": { "order": "old-first" },
+      "opening": true,
+      "targets": [{ "text": "Ticket 1" }, { "text": "Latest 2" }, { "text": "Discard A" }]
+    },
+    {
+      "step": "reader-guard",
+      "opening": true,
+      "targets": [{ "text": "No guard" }, { "text": "Guard on" }, { "text": "A" }, { "text": "B" }]
     }
   ]
 }
