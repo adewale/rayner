@@ -151,7 +151,7 @@ export default class MelodyRhythm extends Scene {
       },
       {
         id: 'pulse',
-        title: 'Count 1 2 3 4: each bar leans on its 1',
+        title: 'Count 1 2 3 4: the 1 that opens each bar is the strong beat',
         line: 'Predict: in B, which note starts on the 1 of bar 2?',
         caption: `The pulse clicks once per beat, with a different click on each bar’s first beat; the large 1s mark those strong beats. A listener expects the 1 that opens bar 2 to bring a new note, and in A it does: E starts exactly there, as C did at the start of bar 1. Both are outlined. Every note in A starts on a click.`,
         clips: m.clips,
@@ -159,13 +159,13 @@ export default class MelodyRhythm extends Scene {
       },
       {
         id: 'bar',
-        title: different ? 'Answer: none. G arrives half a beat before the 1' : 'Answer: E, on the 1. Nothing crosses the bar line',
+        title: different ? 'In B, no new note starts on the 1 of bar 2' : 'E starts on the 1 in both versions; nothing crosses the bar line',
         line: different
           ? 'The red outline: G starts halfway through beat 4 and holds through the 1.'
           : 'The red outline: G ends exactly as bar 2 begins.',
         caption: different
-          ? `In B, G starts halfway through beat 4, ${ms(lead * m.beatMs)} before the bar line at ${m.bpm} BPM, and is still sounding when the 1 arrives, so the strongest beat of bar 2 brings no new note; E follows half a beat later. That early G is where B leans forward. ${answer} Musicians call this syncopation: a note that would normally start on a strong beat starts on a weak part of a beat instead.`
-          : `In this control case G fills beat 4 and ends at the bar line, and E starts on the 1 of bar 2, as in A, so neither version leans forward. ${answer} The shifted version of B does that; this one does not.`,
+          ? `G starts ${ms(lead * m.beatMs)} before the bar line at ${m.bpm} BPM and is still sounding when the 1 arrives; E follows half a beat later. That early G is where B leans forward. ${answer} Musicians call this syncopation: a note that would normally start on a strong beat starts on a weak part of a beat instead.`
+          : `In this control case G fills beat 4 and ends at the bar line, and E starts on the 1 of bar 2, as in A, so neither version leans forward. ${answer} Only the shifted version of B starts G early enough to hold it across the bar line.`,
         clips: m.clips,
         look: {
           accent: true,
@@ -179,7 +179,7 @@ export default class MelodyRhythm extends Scene {
         title: different ? 'With every pitch C, B still skips the 1' : 'With every pitch C, A and B play one rhythm',
         line: 'Same starts and lengths, one pitch: what is left is timing.',
         caption: different
-          ? 'Every note now plays C, and each version keeps its own starts and lengths. B still has no note starting on the 1 of bar 2, so the lean comes from timing alone, not from the climb to G.'
+          ? 'Every note now plays C, and each version keeps its own starts and lengths. With the climb to G gone, B still has no note starting on the 1 of bar 2, so the lean comes from timing alone.'
           : 'Every note now plays C, and each version keeps its own starts and lengths. With the pitches gone, A and B play the identical rhythm, every note on a beat.',
         clips: m.flat,
         look: {
@@ -194,7 +194,7 @@ export default class MelodyRhythm extends Scene {
           : 'No start moves and no length changes',
         line: different ? 'B holds the first E longer, then cuts the next E short.' : 'A and B share every start and length.',
         caption: different
-          ? `B holds the first E for one and a half beats instead of one, which pushes G half a beat later. The E after G lasts half a beat, so D starts on beat 2 of bar 2, as in A, and the rest lines up again. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}, so G starts ${ms(half)} before the bar line. At any tempo it starts half a beat before it: the score is counted in beats, so the tempo changes the milliseconds, not the picture.`
+          ? `B holds the first E for one and a half beats instead of one, which pushes G half a beat later. The E after G lasts half a beat, so D starts on beat 2 of bar 2, as in A, and the rest lines up again. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}, so G starts ${ms(half)} before the bar line. The score is counted in beats, so at any tempo G starts half a beat early and the picture stays the same; only the milliseconds change.`
           : `B has not moved any start or changed any length, so its piano roll matches A’s. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}, and at any tempo every note starts on a beat.`,
         clips: m.clips,
         look: {

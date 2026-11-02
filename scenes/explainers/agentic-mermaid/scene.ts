@@ -113,7 +113,7 @@ export default class MermaidExplainer extends Scene {
           : missing
             ? 'An agent drew a cache lookup with two routes out of Cached, one to Reply and one to Database, but did not say which means yes.'
             : 'An agent drew a cache lookup with two routes out of Cached: yes to Reply, no to Database.'
-      } Agentic Mermaid parses the Mermaid source into a snapshot with an id for each node and edge, so a check can name the part it means. The verifier runs at build time, not in the reader.`,
+      } Agentic Mermaid parses the Mermaid source into a snapshot with an id for each node and edge, so a check can name the part it means. The verifier ran when this page was built, and the reader shows the findings it recorded.`,
     });
     const d = await s.show({ source: first }, { box: 'main' });
     const source = await code(first.split('\n'));
@@ -126,17 +126,17 @@ export default class MermaidExplainer extends Scene {
       });
 
     await this.step('verify', {
-      title: missing ? 'Answer: ok: true, with two warnings' : 'Answer: ok: true, with no warnings',
+      title: missing ? 'verify(flow) returns ok: true, with two warnings' : 'verify(flow) returns ok: true, with no warnings',
       line: missing
         ? 'One DECISION_BRANCH_UNLABELED warning per unlabelled edge, named by its id.'
         : swapped
           ? 'The token follows yes out of Cached, and it reaches Database.'
-          : 'Both edges carry a label, so nothing is flagged.',
+          : 'Would the report change if the labels were the wrong way round?',
       caption: missing
-        ? `verify(flow) returns ok: true with two DECISION_BRANCH_UNLABELED warnings, one per marked edge, each named by the id the snapshot gave it: Cached is a decision, drawn as a diamond, and each of its exits needs a label. ${ANSWER}, so the warnings say a label is missing and nothing about which label belongs where.`
+        ? `Cached is a decision, drawn as a diamond, and each of its exits needs a label, so each unlabelled exit is marked and gets its own warning. ${ANSWER}, so the warnings say a label is missing and nothing about which label belongs where.`
         : swapped
-          ? `verify(flow) returns ok: true with no warnings: Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. Follow yes and the token walks a real edge from Cached to Database. ${ANSWER}.`
-          : `Both exits of the decision Cached, drawn as a diamond, carry a label, so verify(flow) returns ok: true with no warnings. ${ANSWER}: this diagram happens to be right, and the next step shows what the report says when it is not.`,
+          ? `Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. Follow yes and the token walks a real edge from Cached to Database. ${ANSWER}.`
+          : `Cached is a decision, drawn as a diamond, and both of its exits carry a label, so nothing is flagged. ${ANSWER}. This diagram happens to be right; the next step swaps its labels and runs the verifier again.`,
     });
     await d.clearNotes();
     const warnings = d.findings();
@@ -164,10 +164,10 @@ export default class MermaidExplainer extends Scene {
 
     if (swapped) {
       await this.step('flagged', {
-        title: 'Delete both labels, and the verifier objects',
-        line: 'Two DECISION_BRANCH_UNLABELED warnings, each naming an edge by its id.',
+        title: 'With both labels deleted, the verifier warns twice',
+        line: 'Is the verifier checking anything at all?',
         caption:
-          'So the verifier is looking. Take both labels off and verify(flow) returns two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision, named A->B#0 and A->C#0 by the snapshot’s ids. It still returns ok: true, because this check is advice, and advice never turns ok false. A missing label is structure, and structure is what it can see.',
+          'Take both labels off and verify(flow) returns two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision, named A->B#0 and A->C#0 by the snapshot’s ids. A missing label is part of the diagram’s structure, so the verifier can see it. It still returns ok: true, because this check is advice, and advice never turns ok false.',
       });
       await s.clearOverlays();
       await d.unmark();
@@ -241,7 +241,7 @@ export default class MermaidExplainer extends Scene {
 
     await this.step('history', {
       detail: true,
-      title: 'The snapshot keeps the findings; a reviewer reads the meaning',
+      title: 'What the commit history keeps for a reviewer',
       line: 'Three commits in order; the renderer stays pinned at 0.5.1.',
       caption: `The git graph shows the original Mermaid source, the agent’s edit${missing || swapped ? ', repaired by two set_label operations,' : ''} and its checked snapshot as three commits in order. The snapshot stores the verifier’s findings for the right diagram, ${committed} warnings, with the renderer pinned at ${renderer}, so an upgrade is a deliberate change whose snapshot diff gets reviewed. Whether yes belongs on the edge to Reply is for the person reading that diff, or for the application’s tests.`,
     });

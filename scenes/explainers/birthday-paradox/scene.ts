@@ -144,12 +144,14 @@ export default class BirthdayParadox extends Scene {
         title: shared.length
           ? `This room of ${n} already has ${words[shared.length] ?? shared.length} shared birthdays`
           : `No shared birthday in this room of ${n}`,
-        line: shared.length ? `Outlined: ${list(shared)}, each on more than one card.` : 'Every date in this room is different.',
+        line: `Is that luck, or usual for a room of ${n}?`,
         caption: `${
           shared.length
-            ? `${list(m.shared.map((d) => `${d.date} belongs to ${words[d.people] ?? d.people} people`))}.`
-            : `All ${n} dates differ.`
-        } ${m.chance < 0.5 ? `Most rooms of ${n} have no match` : `Rooms of ${n} often match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${pct(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
+            ? m.shared.every((d) => d.people === m.shared[0]!.people)
+              ? `The outlined cards repeat ${list(shared)}, each on ${words[m.shared[0]!.people] ?? m.shared[0]!.people} cards. `
+              : `The outlined cards repeat dates: ${list(m.shared.map((d) => `${d.date} is on ${words[d.people] ?? d.people} cards`))}. `
+            : ''
+        }${m.chance < 0.5 ? `Most rooms of ${n} have no match` : `Rooms of ${n} often match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${pct(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
         state: {
           people: n,
           shared: m.shared,
@@ -168,11 +170,11 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'pairs',
-        title: `Any two can match: ${n} people make ${m.pairs} pairs`,
+        title: `Every pair drawn: ${n} people make ${m.pairs} pairs`,
         line:
           n === m.even
-            ? `The same ${m.pairs} comparisons you would need ${m.evenOthers} other people to make.`
-            : `${m.even} people make ${m.evenPairs} pairs: the ${m.evenOthers} you would need alone.`,
+            ? `How many others would you need to make ${m.pairs} comparisons on your own?`
+            : `What size of room makes the ${m.evenOthers} comparisons you would need alone?`,
         caption: `A shared birthday doesn’t have to include you. Each of the ${n} people pairs with ${n - 1} others, and that counts every pair twice, so there are ${n} × ${n - 1} / 2 = ${m.pairs} pairs, ${n / 2} times your ${m.others}. ${
           n === m.even
             ? `That is the ${m.evenPairs} comparisons you would need ${m.evenOthers} other people to make on your own.`
@@ -188,7 +190,7 @@ export default class BirthdayParadox extends Scene {
         caption: (() => {
           const [two, three, five, ten] = m.growth,
             last = m.growth.at(-1)!;
-          return `Two people make ${two!.pairs} pair, three make ${three!.pairs}, five make ${five!.pairs}: each newcomer adds a pair with everyone already in the room. People grow one at a time, pairs by the size of the room, so doubling ${five!.people} people to ${ten!.people} takes the pairs from ${five!.pairs} to ${ten!.pairs}. The bars share one scale: at ${last.people} people the pairs bar is ${last.pairs / last.people} times as long as the people bar. The outlined row is this room.`;
+          return `Two people make ${two!.pairs} pair, three make ${three!.pairs}, five make ${five!.pairs}. Because people arrive one at a time but each brings a pair for everyone already there, doubling ${five!.people} people to ${ten!.people} takes the pairs from ${five!.pairs} to ${ten!.pairs}. The bars share one scale: at ${last.people} people the pairs bar is ${last.pairs / last.people} times as long as the people bar. The outlined row is this room.`;
         })(),
         state: { people: n, growth: m.growth },
         draw: (s: Stage) => {
