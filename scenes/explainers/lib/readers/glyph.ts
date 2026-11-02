@@ -1,19 +1,25 @@
-import { Group, Text, Line, shaperFor } from '../../../../src/index.ts';
+import { Group, Text, Line, Rectangle, shaperFor } from '../../../../src/index.ts';
 import type { FontName } from '../../../../src/index.ts';
 import { label } from '../reader-drawing.ts';
 import type { ReaderFrame } from '../reader-drawing.ts';
 const word = 'Hello, outlines',
   size = 0.9;
+const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
+/** The glyph's advance in `f` at the size the rows use. */
+const advanceOf = (f: FontName, ch: string) => shaperFor(f)(ch, size).width;
+
+/** The opening question, and the two l's that set up the shape-matching prediction. */
 export function frames(font: FontName): ReaderFrame[] {
-  const other: FontName = font === 'sans' ? 'mono' : 'sans',
-    name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
+  const other: FontName = font === 'sans' ? 'mono' : 'sans';
   const widths = [font, other].map((f) => shaperFor(f)(word, size).width);
+  const w = Object.fromEntries([font, other].map((f, i) => [f, widths[i]!])) as Record<FontName, number>;
+  const l = { sans: advanceOf('sans', 'l'), mono: advanceOf('mono', 'l') };
   return [
     {
       id: 'reader-width',
-      title: 'Same letters, same width?',
-      line: 'Measure the selected face before placing the next object.',
-      caption: `At the same font size, “${word}” advances ${widths[0]!.toFixed(2)} units in the first face and ${widths[1]!.toFixed(2)} in the second. Both phrases start at the same left position. Each ruler measures advance, including spacing; glyph ink can extend beyond it.`,
+      title: `Same words, same size: ${w.sans.toFixed(2)} or ${w.mono.toFixed(2)} units wide`,
+      line: `Predict: which letters make up the ${Math.abs(w.mono - w.sans).toFixed(2)}-unit difference?`,
+      caption: `At size ${size}, “${word}” is ${widths[0]!.toFixed(2)} units wide in ${name(font)} and ${widths[1]!.toFixed(2)} in ${name(other)}. Both rows start from the same left edge, and each ruler ends where the next word would start. The characters and the size are the same, so the difference comes from the fonts. Which letters does it come from?`,
       values: { font, other, word, widths },
       draw: (s) => {
         const g = new Group();
@@ -34,21 +40,34 @@ export function frames(font: FontName): ReaderFrame[] {
     },
     {
       id: 'reader-shape',
-      title: 'Can one character have two outlines?',
-      line: 'Character identity and outline geometry give different matches.',
-      caption:
-        'Both drawings are the character a, with different contours. Text matching pairs them by character identity. Shape matching requires equal geometry. The source walkthrough shows the curve conversion and the matches each rule finds.',
-      values: { font, other },
+      title: 'To fill its wider cell, JetBrains Mono draws a different l',
+      line: 'Predict: will shape matching pair any Inter glyph with a JetBrains Mono one?',
+      caption: `The dashed boxes are each l’s advance. Inter’s l is a bare stem that advances ${l.sans.toFixed(3)} at size ${size}; JetBrains Mono gives it ${l.mono.toFixed(3)}, like every other glyph, and adds a flag on top and a foot turned right so it fills that cell. Same character, different outline. Shape matching pairs two glyphs only when their outlines are the same path once each is centred and scaled to one size.`,
+      values: { font, other, l },
       draw: (s) => {
-        const a = new Text('a', { font, fontSize: 3.8, color: s.palette.ink }).moveTo([-4.2, 0.3]),
-          b = new Text('a', { font: other, fontSize: 3.8, color: s.palette.ink }).moveTo([4.2, 0.3]);
-        return new Group(
-          a,
-          b,
-          label(name(font), -4.2, -2.6, s.soft, 0.7),
-          label(name(other), 4.2, -2.6, s.soft, 0.7),
-          label('Same character', 0, 2.7, s.palette.ink, 0.7),
-        );
+        const big = 3.4,
+          g = new Group();
+        [font, other].forEach((f, i) => {
+          const x = i ? 3.6 : -3.6;
+          const t = new Text('l', { font: f, fontSize: big, color: s.palette.ink }).moveTo([x, 0.75]);
+          t.key = `l:${f}`;
+          const [x0, y0, x1, y1] = t.box()!;
+          const cell = new Rectangle({
+            width: x1 - x0,
+            height: y1 - y0 + 0.3,
+            fill: 'none',
+            stroke: s.emphasis,
+            strokeWidth: 0.03,
+          }).moveTo([(x0 + x1) / 2, (y0 + y1) / 2]);
+          cell.style.dashArray = '0.12 0.08';
+          g.add(
+            cell,
+            t,
+            label(name(f), x, -2.3, s.palette.ink, 0.65),
+            label(`advance ${l[f].toFixed(3)}`, x, -3.1, s.emphasis, 0.6),
+          );
+        });
+        return g;
       },
     },
   ];

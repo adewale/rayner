@@ -353,14 +353,15 @@ for (const entry of EXPLAINERS)
             width: new Text('Hello, outlines', { font, fontSize: 0.9 }).advance(),
           });
           const evidenceOf = (step: string) => trace.steps.find((s) => s.step === step)!.evidence ?? [];
-          // The morph pairs the letters the two words share, longest common runs first;
-          // a space has no glyph, so it is not a part.
-          const [a, b] = ['cache miss', 'cache hit'].map((w) => w.replaceAll(' ', ''));
-          const shared = commonRuns(a!, b!);
-          assert.equal(shared, 6); // "cache" and the i
-          assert.deepEqual(evidenceOf('morph'), [
-            { kind: 'match', matched: shared, morphed: 0, removed: a!.length - shared, added: b!.length - shared },
-          ]);
+          // The measure step's caption adds the line up: JetBrains Mono gives each of the line's
+          // characters one advance, and the l gains most from it.
+          const advances = (f: 'sans' | 'mono') => [...'Hello, outlines'].map((c) => new Text(c, { font: f, fontSize: 0.9 }).advance());
+          const [sansAdv, monoAdv] = [advances('sans'), advances('mono')];
+          assert.ok(monoAdv.every((a) => Math.abs(a - monoAdv[0]!) < 1e-4), 'JetBrains Mono: one advance for every character');
+          const caption = String(trace.steps.find((s) => s.step === 'measure')!.meta.caption);
+          assert.ok(caption.includes(`all 15 characters ${monoAdv[0]!.toFixed(3)}, so its line is 15 × ${monoAdv[0]!.toFixed(3)} = 8.10`), caption);
+          const gains = sansAdv.map((a, i) => monoAdv[i]! - a);
+          assert.equal('Hello, outlines'[gains.indexOf(Math.max(...gains))], 'l', 'the l gains most');
           // Outline shapes, compared point by point once each glyph is centred and scaled
           // to one size: each glyph pairs with itself at 60%, and the other font's pairs
           // only where an outline really is the same.

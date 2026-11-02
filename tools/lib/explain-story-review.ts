@@ -350,7 +350,7 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-quotient': ['Revenu', '÷ parts', 'Barème', '× parts'],
     'reader-cap': ['Calcul brut', 'Après plafond', 'Après décote'],
   },
-  glyph: { 'reader-width': ['Inter', 'JetBrains Mono'], 'reader-shape': ['a', 'Same character'] },
+  glyph: { 'reader-width': ['Inter', 'JetBrains Mono'], 'reader-shape': ['l', 'advance 0.218', 'advance 0.540'] },
   'pen-and-pencil': {
     'reader-separate': ['Fixed route + simulated stroke'],
     'reader-labels': ['Midnight', 'Reserved for the label'],
