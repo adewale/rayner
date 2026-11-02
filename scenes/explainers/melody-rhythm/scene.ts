@@ -83,7 +83,7 @@ const ms = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)} ms`;
 export default class MelodyRhythm extends Scene {
   static meta = {
     id: 'melody-rhythm',
-    title: 'Why does one version of a tune lean forward?',
+    title: 'Why does one version of a tune sound off the beat?',
     sources: [
       'https://learningmusic.ableton.com/make-beats/make-beats.html',
       'https://learningmusic.ableton.com/melodies/melodies.html',
@@ -91,22 +91,24 @@ export default class MelodyRhythm extends Scene {
       'https://www.w3.org/TR/2021/REC-webaudio-20210617/#OscillatorNode',
     ],
     // The script's answer and check questions (script.md); check holds the bar step to stating the answer.
-    answer: 'A tune leans forward when a note starts before the bar line and holds across it, so the strongest beat gets no new note',
+    answer: 'The shifted B sounds off the beat because its G starts halfway through beat 4 and holds across the bar line, so the 1 of bar 2 brings no new note',
     checks: [
       {
-        question: 'Where does the shifted version of B lean forward, and why does the 1 of bar 2 bring no new note?',
+        question:
+          'A version C starts from A, cuts the first D to half a beat and holds the E after it for one and a half beats, so G is back on beat 4. Which beat now brings no new note, and does any note cross the bar line?',
         answer:
-          'At the bar line. G starts halfway through beat 4 of bar 1, half a beat early, and is still sounding when the 1 arrives, so nothing new starts on the strongest beat; the next E starts half a beat later.',
+          'Beat 3 of bar 1: E starts halfway through beat 2 and is still sounding on beat 3. Nothing crosses the bar line, so the 1 of bar 2 brings E, as in A.',
       },
       {
-        question: 'Which two notes of B change length, and why must both change?',
+        question:
+          'Another version keeps the first E at one beat and leaves half a beat of silence before G, which still lasts one beat, with the rest as in B. Does the 1 of bar 2 bring a new note?',
         answer:
-          'The first E is held for one and a half beats, which pushes G half a beat later. The E after G is cut to half a beat, so D starts on beat 2 of bar 2 again and the phrase still fills eight beats.',
+          'No. G still starts halfway through beat 4 and is sounding when the 1 arrives. What matters is where G starts and that it holds across the bar line, whether a longer E or a rest fills the gap before it.',
       },
       {
-        question: 'Play B at 80 BPM. How long before the bar line does G start, and does the piano roll change?',
+        question: 'Play B at 80 BPM. How long before the bar line does G start, and for how many milliseconds does it sound?',
         answer:
-          '375 ms: a beat lasts 750 ms at 80 BPM, and G starts half a beat early. The piano roll does not change, because it is counted in beats; only the milliseconds do.',
+          '375 ms: a beat lasts 750 ms at 80 BPM, and G starts half a beat before the bar line. It sounds for one beat, 750 ms, of which 375 ms fall in each bar.',
       },
     ],
   };
@@ -116,7 +118,7 @@ export default class MelodyRhythm extends Scene {
       label: 'Version B',
       default: 'syncopated',
       options: [
-        { value: 'syncopated', label: 'Shift two note starts' },
+        { value: 'syncopated', label: 'Start two notes half a beat later' },
         { value: 'straight', label: 'Keep the same timing as A' },
       ],
     },
@@ -139,13 +141,13 @@ export default class MelodyRhythm extends Scene {
       half = m.beatMs / 2;
     // B's notes that start on bar 2's 1, by index: none when G holds across the bar line.
     const onTheOne = (clip: AudioClip) => clip.notes.flatMap((n, i) => (n.at === 4 ? [`${clip.id}-${i}`] : []));
-    const answer = 'A tune leans forward when a note starts before the bar line and holds across it, so the strongest beat gets no new note.';
+    const answer = 'The shifted B sounds off the beat because its G starts halfway through beat 4 and holds across the bar line, so the 1 of bar 2 brings no new note.';
     const steps = [
       {
         id: 'listen',
-        title: 'Same notes, same order: which version leans forward?',
-        line: different ? 'Listen to both. Predict: where does B push ahead of A?' : 'Listen to both: in this case B is the control.',
-        caption: `Each rectangle is a note: left to right is time, counted in beats, height is pitch and width is how long it sounds. Both versions play C D E G E D C C on the same instrument at ${m.bpm} BPM, over two bars of four beats; the strong line marks where bar 2 begins. ${different ? 'Play A, then B. Does one of them seem to push ahead somewhere? Where?' : 'Here B’s starts and lengths match A’s exactly; the shifted version of B moves two of them.'}`,
+        title: 'Eight notes in one order: which version sounds off the beat?',
+        line: different ? 'Listen to both. Predict: where does B pull against the beat?' : 'Listen to both: in this case B is the control.',
+        caption: `Each rectangle is a note: left to right is time, counted in beats, height is pitch and width is how long it sounds. Both versions play C D E G E D C C on the same instrument at ${m.bpm} BPM, over two bars of four beats; the strong line marks where bar 2 begins. ${different ? 'Play A, then B. Does one of them seem to pull against the beat somewhere? Where?' : 'Here B’s starts and lengths match A’s exactly; the shifted version of B moves two starts later.'}`,
         clips: m.clips,
         look: {},
       },
@@ -161,25 +163,25 @@ export default class MelodyRhythm extends Scene {
         id: 'bar',
         title: different ? 'In B, no new note starts on the 1 of bar 2' : 'E starts on the 1 in both versions; nothing crosses the bar line',
         line: different
-          ? 'The red outline: G starts halfway through beat 4 and holds through the 1.'
+          ? 'The red outline is G, the note still sounding when bar 2 begins.'
           : 'The red outline: G ends exactly as bar 2 begins.',
         caption: different
-          ? `G starts ${ms(lead * m.beatMs)} before the bar line at ${m.bpm} BPM and is still sounding when the 1 arrives; E follows half a beat later. That early G is where B leans forward. ${answer} Musicians call this syncopation: a note that would normally start on a strong beat starts on a weak part of a beat instead.`
-          : `In this control case G fills beat 4 and ends at the bar line, and E starts on the 1 of bar 2, as in A, so neither version leans forward. ${answer} Only the shifted version of B starts G early enough to hold it across the bar line.`,
+          ? `G starts ${ms(lead * m.beatMs)} before the bar line at ${m.bpm} BPM, later than A’s G, and is still sounding when the 1 arrives; E follows half a beat after the 1. ${answer} Musicians call this syncopation: a note that would normally start on a strong beat starts on a weak part of a beat instead. Here that note is E, which A starts on the 1.`
+          : `In this control case G fills beat 4 and ends at the bar line, and E starts on the 1 of bar 2, as in A, so neither version sounds off the beat. ${answer} Only that version starts G late enough to hold it across the bar line.`,
         clips: m.clips,
         look: {
           accent: true,
           marked: ['b-3'],
           lit: [...onTheOne(m.clips[0]!), ...onTheOne(m.clips[1]!)],
-          footer: different ? 'G starts ½ beat early and holds over the 1' : 'G ends at the bar line; E starts on the 1',
+          footer: different ? 'G starts mid-beat 4 and holds over the 1' : 'G ends at the bar line; E starts on the 1',
         },
       },
       {
         id: 'rhythm',
         title: different ? 'With every pitch C, B still skips the 1' : 'With every pitch C, A and B play one rhythm',
-        line: 'Same starts and lengths, one pitch: what is left is timing.',
+        line: 'Each version keeps its own starts and lengths; only the pitches go.',
         caption: different
-          ? 'Every note now plays C, and each version keeps its own starts and lengths. With the climb to G gone, B still has no note starting on the 1 of bar 2, so the lean comes from timing alone.'
+          ? 'Every note now plays C, and each version keeps its own starts and lengths. With the climb to G gone, B still has no note starting on the 1 of bar 2, so the off-beat feel comes from timing alone.'
           : 'Every note now plays C, and each version keeps its own starts and lengths. With the pitches gone, A and B play the identical rhythm, every note on a beat.',
         clips: m.flat,
         look: {
@@ -190,11 +192,13 @@ export default class MelodyRhythm extends Scene {
       {
         id: 'timing',
         title: different
-          ? `Two lengths change, so ${['no', 'one', 'two', 'three'][m.movedStarts] ?? m.movedStarts} starts move`
+          ? 'B holds the first E longer and cuts the next E short'
           : 'No start moves and no length changes',
-        line: different ? 'B holds the first E longer, then cuts the next E short.' : 'A and B share every start and length.',
+        line: different
+          ? `${m.movedStarts === 2 ? 'Two' : m.movedStarts} notes start half a beat later than in A; D is back on beat 2.`
+          : 'A and B share every start and length.',
         caption: different
-          ? `B holds the first E for one and a half beats instead of one, which pushes G half a beat later. The E after G lasts half a beat, so D starts on beat 2 of bar 2, as in A, and the rest lines up again. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}, so G starts ${ms(half)} before the bar line. The score is counted in beats, so at any tempo G starts half a beat early and the picture stays the same; only the milliseconds change.`
+          ? `B holds the first E for one and a half beats instead of one, so G and the E after it each start half a beat later than in A. That E lasts half a beat, so D starts on beat 2 of bar 2, as in A, and the remaining notes line up again. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}, so G starts ${ms(half)} before the bar line. The piano roll is counted in beats, so it looks the same at any tempo; a faster or slower tempo changes only the milliseconds.`
           : `B has not moved any start or changed any length, so its piano roll matches A’s. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}, and at any tempo every note starts on a beat.`,
         clips: m.clips,
         look: {
@@ -205,11 +209,11 @@ export default class MelodyRhythm extends Scene {
       },
       {
         id: 'phrase',
-        title: different ? 'The same tune, half a beat early at the bar line' : 'Matching pitches and timing give the same phrase',
+        title: different ? 'Two of B’s starts fall between beats, either side of the bar line' : 'Matching pitches and timing give the same phrase',
         line: different ? 'A dot marks each start; red dots fall between beats.' : 'A dot marks each start; every one falls on a beat.',
         caption: different
-          ? 'A and B keep all eight notes, their order, instrument, loudness and tempo, and the rise and fall of the melody. Every start in A falls on a beat. In B two starts fall between beats, either side of the bar line, so the melody reaches bar 2 ahead of the beat and leaves its 1 to the held G. Play them again and listen for the lean into bar 2.'
-          : 'All pitches, their order, starts and lengths match, so A and B play the same phrase, and every start falls on a beat. Choose “Shift two note starts” to hear a note start before the bar line.',
+          ? 'A and B keep all eight notes, their order, instrument, loudness and tempo, and the rise and fall of the melody. Every start in A falls on a beat. In B, G starts on the half beat before the bar line and E on the half beat after it, so the 1 of bar 2 passes under the held G.'
+          : 'All pitches, their order, starts and lengths match, so A and B play the same phrase, and every start falls on a beat. Choose “Start two notes half a beat later” to hear a note hold across the bar line.',
         clips: m.clips,
         look: {
           accent: true,

@@ -329,6 +329,14 @@ test('the music comparison preserves pitches and total beats while moving exactl
   // The third check question's transfer tempo, which no case shows: G starts half a beat, 375 ms, before the bar line at 80 BPM.
   assert.equal((4-phrase('syncopated')[3]!.at)*beatMs(80),375);
   assert.match(MelodyRhythm.meta.checks[2]!.question,/80 BPM/);assert.match(MelodyRhythm.meta.checks[2]!.answer,/^375 ms: a beat lasts 750 ms/);
+  // ...and G sounds for one beat, 750 ms, half of it on each side of the bar line.
+  {const g=phrase('syncopated')[3]!;assert.equal(g.duration*beatMs(80),750);assert.equal((4-g.at)*beatMs(80),(g.at+g.duration-4)*beatMs(80));}
+  // The first check's version C, which no case shows: D cut to half a beat, the next E held 1.5, so beat 3 (index 2) gets no new start and nothing crosses the bar line.
+  {const durations=[1,.5,1.5,1,1,1,1,1];let at=0;const c=durations.map(duration=>{const n={at,duration};at+=duration;return n;});
+    assert.deepEqual(c.map(n=>n.at),[0,1,1.5,3,4,5,6,7]);assert.ok(!c.some(n=>n.at===2)&&c.some(n=>n.at<2&&n.at+n.duration>2));
+    assert.ok(!c.some(n=>n.at<4&&n.at+n.duration>4));assert.match(MelodyRhythm.meta.checks[0]!.answer,/^Beat 3 of bar 1/);}
+  // The second check's version: a half-beat rest replaces the longer E, so G still starts at 3.5 and holds across beat 4 (the bar line).
+  {const g={at:2+1+.5,duration:1};assert.equal(g.at,phrase('syncopated')[3]!.at);assert.ok(g.at<4&&g.at+g.duration>4);assert.match(MelodyRhythm.meta.checks[1]!.answer,/^No\./);}
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     assert.equal(m.movedStarts,timing==='straight'?0:2);assert.equal(m.movedDurations,m.movedStarts);
