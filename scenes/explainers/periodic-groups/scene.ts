@@ -113,7 +113,7 @@ const samePlace: MatchKey = (part: Mobject) => {
 };
 
 /** The script's one-sentence answer (meta.answer), which the blocks step states. */
-const ANSWER = 'An element’s group is the column where its last electron lands, in rows of 2 s, 10 d and 6 p columns';
+const ANSWER = 'Except for helium, an element’s group is the column where its last electron lands, in rows of 2 s, 10 d and 6 p columns';
 
 /** A jump down a column as the row it adds: 8 = 2 + 6, from the subshell capacities. */
 function rowSum(jump: number): string {
@@ -690,7 +690,7 @@ export default class PeriodicGroupsExplainer extends Scene {
 
     // ---- 3. the blocks: the answer ----------------------------------------------------
     await this.step('blocks', {
-      title: 'Answer: the column where its last electron lands',
+      title: 'Answer: the column where its last electron lands, helium apart',
       line: 'The 18 columns are 2 for s, 10 for d and 6 for p.',
       caption: (
         {
@@ -698,7 +698,7 @@ export default class PeriodicGroupsExplainer extends Scene {
           cl: `${ANSWER}. Chlorine’s last electron is the fifth in 3p. Rows 2 and 3 have no d subshell, but the p block still starts after the 10 d columns that open in row 4, so the fifth p column is 2 + 10 + 5 = 17.`,
           fe: `${ANSWER}. Iron’s last electron is the sixth in 3d, after 4s²: past the 2 s columns, the sixth d column is 2 + 6 = 8.`,
           cu: `${ANSWER}. By the filling rule copper’s last electron is the ninth in 3d, after 4s²: past the 2 s columns, the ninth d column is 2 + 9 = 11.`,
-          he: `${ANSWER}, for every element but helium. Its last electron is the second in 1s, column 2 by that rule; but 1s² completes the first shell, as 2s² 2p⁶ completes neon’s second, and the table puts helium with the full shells.`,
+          he: `${ANSWER}. Helium’s last electron is the second in 1s, column 2 by that rule; but 1s² completes the first shell, as 2s² 2p⁶ completes neon’s second, and the table puts helium with the full shells.`,
         } satisfies Record<Choice, string>
       )[choice],
     });

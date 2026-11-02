@@ -140,7 +140,7 @@ export default class LanternExplainer extends Scene {
     await this.step('clock', {
       title: `Every sink gets the same frames, 1/${this.fps} s apart`,
       line: 'The browser waits for display ticks; the trace takes all at once.',
-      caption: `Scene time advances by a fixed step, 1/${this.fps} s, per frame, whatever receives the frames. Whatever receives them is a sink. The browser sink waits for a display tick before each frame, and the trace sink takes them all at once, so both see the same scene times on the ruler. A replay reaches t = ${SEEK_T} s on frame ${run.playedAt}, as playback did.`,
+      caption: `Scene time advances by a fixed step, 1/${this.fps} s, per frame, whatever receives the frames. Whatever receives them is a sink. The browser sink waits for a display tick before each frame, and the trace sink takes them all at once, so on a wall clock the browser’s frames spread out and the trace’s bunch together; each frame still carries the scene time above it. A replay reaches t = ${SEEK_T} s on frame ${run.playedAt}, as playback did.`,
     });
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: regionBox('top', { bottom: -0.55 }) });
@@ -161,8 +161,8 @@ export default class LanternExplainer extends Scene {
       new Text(label, { fontSize: 0.22, color: s.soft, anchor: 'start' }).moveTo([-7.3, y], [-1, 0]);
     ruler.add(
       lane('scene time (ms)', -1.75),
-      lane('browser sink', -2.75),
-      lane('trace sink', -3.6),
+      lane('browser sink, wall clock', -2.75),
+      lane('trace sink, wall clock', -3.6),
       new Line([x0 - 0.2, -1.5], [x0 + pitch * (frames - 1) + 0.2, -1.5], { stroke: ink, strokeWidth: 0.02 }),
     );
     for (let n = 0; n < frames; n++) {
@@ -231,9 +231,9 @@ export default class LanternExplainer extends Scene {
 
     await this.step('inspect', {
       title: 'The trace records each walk; rayner check compares played and seeked',
-      line: 'Recorded walks, and four checks run on every case.',
+      line: 'Recorded walks, and four of the checks run on every case.',
       caption:
-        'The third output, the trace, records what each step did: each walk lists the edges it travelled, and trace.json holds this scene’s own clock walks. rayner check runs the four tests on the card for every case. Its seek test compares played and seeked frames, as this page did with its tiny scene, and a frame that jumps or text under 14 px fails the check.',
+        'The third output, the trace, records what each step did: each walk lists the edges it travelled, and trace.json holds this scene’s own clock walks. rayner check runs every case through all its checks; four of them are on the card. Its seek test compares played and seeked frames, as this page did with its tiny scene, and a frame that jumps or text under 14 px fails the check.',
     });
     await s.clear();
     const walks = (this.state.walks ?? []) as { step: string; from: string; to: string }[];

@@ -4,7 +4,7 @@ Questions the reader brings: I formatted a new disk and df already shows less th
 
 Start from a real run. mkfs.ext4 1.47.3 with no options on an empty 1 TiB disk, mounted and asked with statfs (what df reads): a user other than root can write 250,514,330 of its 268,435,456 blocks, 93.3%. 68.4 GiB is gone before a single file is written. Ask the reader to guess where.
 
-Most readers guess metadata: inode tables, the journal. The answer is the reserve. Without -m, mke2fs reserves 5% of the blocks for root, 13,421,772 blocks, which only root may fill: 3.0 times all the metadata (4,495,258 blocks, 1.7%). The kernel holds back 4,096 more once mounted. Free blocks less both reserves is exactly what statfs reports. The default 5% reserve for root takes as much space as all the metadata, or more: about the same at 1 GiB, 3.0 times at 1 TiB, 12.4 times at 20 TiB.
+Most readers guess metadata: inode tables, the journal. The answer is the reserve. Without -m, mke2fs reserves 5% of the blocks for root, 13,421,772 blocks, which only root may fill: 3.0 times all the metadata (4,495,258 blocks, 1.7%). The kernel holds back 4,096 more once mounted. Free blocks less both reserves is exactly what statfs reports. On a disk of 1 GiB or more, the default 5% reserve for root takes as much space as all the metadata, or more: about the same at 1 GiB, 3.0 times at 1 TiB, 12.4 times at 20 TiB. Below 512 MiB mke2fs uses 1 KiB blocks and more inodes, and the metadata outgrows the reserve.
 
 Then the metadata itself, as a pie of its own. Inode tables are most of it: an inode records one file, and mke2fs sets a fixed number aside by the disk's size type (default: one 256-byte inode per 16 KiB of disk), 93.3% of the metadata on 1 TiB. The journal doubles with disk size and stops at 1 GiB, 5.8%. The rest is superblock copies in a sparse set of groups, two bitmaps a group and the first few files.
 
@@ -12,7 +12,7 @@ The settings are the lever. -m 1 or -m 0 shrinks only the root reserve; the meta
 
 **The aha:** the opening pie's grey "Not available" slice splits, and most of it turns out to be the red root reserve, not metadata.
 
-**Sentence to remember:** on a new ext4 disk the default 5% reserve for root takes as much space as all the metadata, or more, and -m changes it without touching the metadata.
+**Sentence to remember:** on a new ext4 disk of 1 GiB or more, the default 5% reserve for root takes as much space as all the metadata, or more, and -m changes it without touching the metadata.
 
 **Check questions**, in `meta.checks`, asked after the last step:
 

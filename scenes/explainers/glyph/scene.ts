@@ -339,7 +339,7 @@ export default class GlyphExplainer extends Scene {
     const w0 = plain.advance(),
       w1 = w0 * k;
     await again.mark(['PNG'], { color: hot });
-    await again.note('PNG', `stretched ×${k.toFixed(3)}`, { side: 'below', color: hot });
+    await again.note('PNG', `squeezed ×${k.toFixed(3)}`, { side: 'below', color: hot });
     const plainRule = ruler(plain, [0], `Inter's own advance: ${w0.toFixed(3)}`, soft, 0.22);
     const fitRule = ruler(fitted, [0], `textLength width: ${w1.toFixed(3)}`, hot, 0.22);
     s.keep(plain, fitted, plainRule, fitRule);

@@ -461,34 +461,6 @@ function growthPicture(s: Stage, f: Fit, mark: number): Drawn {
   return { group: new Group(...parts), words };
 }
 
-/** Two booleans for playback, every combination, and what each means for this player. */
-function booleanPicture(s: Stage, f: Fit): Drawn {
-  const rows: [string, string, string, 'ok' | 'odd' | 'bad'][] = [
-    ['true', 'false', 'playing', 'ok'],
-    ['false', 'true', 'paused', 'ok'],
-    ['false', 'false', 'neither?', 'odd'],
-    ['true', 'true', 'both: impossible', 'bad'],
-  ];
-  const xs = [-3.2, -0.6, 2.6],
-    top = 2.0,
-    gap = 0.95;
-  const parts: Mobject[] = ['isPlaying', 'isPaused', 'means'].map((h, i) =>
-    keyed(new Text(h, { fontSize: L * f.k, color: s.soft, font: i < 2 ? 'mono' : 'sans' }).moveTo(f.at([xs[i]!, top])), `b:head:${i}`),
-  );
-  rows.forEach(([a, b, m, kind], r) => {
-    const y = top - (r + 1) * gap,
-      color = kind === 'bad' ? s.bad : kind === 'odd' ? s.soft : s.palette.ink;
-    parts.push(
-      keyed(new Text(a, { fontSize: F * f.k, color, font: 'mono' }).moveTo(f.at([xs[0]!, y])), `b:${r}:0`),
-      keyed(new Text(b, { fontSize: F * f.k, color, font: 'mono' }).moveTo(f.at([xs[1]!, y])), `b:${r}:1`),
-      keyed(new Text(m, { fontSize: F * f.k, color }).moveTo(f.at([xs[2]!, y])), `b:${r}:2`),
-    );
-  });
-  parts.push(keyed(new Text('two booleans, four combinations; the player has two playback states', { fontSize: L * f.k, color: s.soft }).moveTo(f.at([-0.3, top - 5 * gap - 0.1])), 'b:sum'));
-  return { group: new Group(...parts), words: ['isPlaying and isPaused', ...rows.map(([a, b, m]) => `${a}, ${b}: ${m}`), 'two booleans, four combinations; the player has two playback states'] };
-}
-const BOOLEANS: Box = [-4.6, -3.1, 4.4, 2.5];
-
 /** The same events through the statechart and its flat machine, row by row. */
 function tracePicture(s: Stage, f: Fit): Drawn {
   const chart = player(2),
@@ -534,6 +506,7 @@ const COUNTS = {
   threeFeatures: flatCounts(flatten(player(3))).states - 1,
   frotherFlat: flatCounts(flatten(coffeeWithFrother())),
   frotherChart: chartCounts(coffeeWithFrother()),
+  frotherPowerOff: flatten(coffeeWithFrother()).transitions.filter((t) => t.event === 'POWER_OFF').length,
 };
 
 export default class Statecharts extends Scene {
@@ -560,8 +533,8 @@ export default class Statecharts extends Scene {
         answer: `${COUNTS.threeFeatures} flat states, one per combination, since each feature doubles them; the statechart gains just two, the new feature’s own region of two states.`,
       },
       {
-        question: 'After the milk frother is added, how big is the coffee machine as a flat machine, and as a statechart?',
-        answer: `Flat: ${COUNTS.frotherFlat.states} states and ${COUNTS.frotherFlat.transitions} transitions. Statechart: ${COUNTS.frotherChart.states} states and ${COUNTS.frotherChart.transitions} transitions, with the frother as a second region inside on.`,
+        question: 'After the milk frother is added, how many POWER_OFF arrows does the statechart draw, and how many would the flat machine need?',
+        answer: `One, on the box on, which covers both regions. The flat machine needs ${COUNTS.frotherPowerOff}, one from each combination of a brewing state and a frother state.`,
       },
     ],
   };
@@ -580,7 +553,7 @@ export default class Statecharts extends Scene {
     const FULL = regionBox('full', { top: 3.05 });
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
 
-    type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'growth' | 'booleans' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
+    type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'growth' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
     let phase: Phase = 'machine';
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
@@ -603,8 +576,6 @@ export default class Statecharts extends Scene {
           return flatPicture(s, playerChart, big(FLAT.bounds), { follow: [], lit: [] });
         case 'growth':
           return growthPicture(s, big([-6.4, -3.6, 6.2, 2.8]), 3);
-        case 'booleans':
-          return booleanPicture(s, big(BOOLEANS));
         case 'grid':
           return chartPicture(s, playerChart, 'boxed', big(CHART.bounds), { follow: [followCell], lit: [] }, false);
         case 'regions':
@@ -673,32 +644,24 @@ export default class Statecharts extends Scene {
     // 5. The pattern: each feature doubles.
     await this.step('growth', {
       title: `Answer: ${combos(3)}. Each feature doubles the flat machine`,
-      line: 'Combinations for one to five on/off features.',
+      line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
       caption: `Each new on/off feature doubles the flat machine: ${CONTROLS.map((_, i) => combos(i + 1)).join(', ')} combinations, and every combination needs its own copy of every shared arrow. A third feature means ${combos(3)}.`,
     });
     await fresh('growth');
 
-    // 6. Booleans hide the same problem.
-    await this.step('booleans', {
-      title: 'The usual escape, booleans, lets impossible states in',
-      line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
-      caption:
-        'The usual escape from the grid is to drop the states and keep booleans. But isPlaying and isPaused can both be true, which should be impossible: two booleans make four combinations, the player has only two playback states, and “neither” is one more case the code must decide.',
-    });
-    await fresh('booleans');
 
-    // 7. Regions: the grid's own words move into two small machines.
+    // 6. Regions: the grid's own words move into two small machines.
     await this.step('regions', {
       title: 'Answer: split the box into two machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
       caption:
-        'Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. The impossible combination can’t be written, and each new feature adds a region of two states instead of doubling everything.',
+        'Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own. So each new feature adds a region of two states instead of doubling everything.',
     });
     await fresh('grid');
     await morph('regions');
     this.state = { current: ACTIVE };
 
-    // 8. Same behaviour, smaller drawing.
+    // 7. Same behaviour, smaller drawing.
     await this.step('flatten', {
       title: 'Answer: no. It draws less, it doesn’t do more',
       line: 'The same events reach the same states in both machines.',
@@ -708,7 +671,7 @@ export default class Statecharts extends Scene {
     await fresh('flatten');
     this.state = { current: null };
 
-    // 9. Transfer: the reader places a new feature.
+    // 8. Transfer: the reader places a new feature.
     await this.step('question', {
       title: 'Your turn: add a milk frother',
       line: 'Predict: where does the frother go, and how big is the flat machine?',
@@ -717,7 +680,7 @@ export default class Statecharts extends Scene {
     });
     await fresh('question');
 
-    // 10. The answer, and the sentence to remember.
+    // 9. The answer, and the sentence to remember.
     await this.step('frother', {
       title: 'Answer: a region beside the brewing cycle',
       line: `Flat: ${frotherFlat.states} states, ${frotherFlat.transitions} transitions. Statechart: ${frotherChart.states} and ${frotherChart.transitions}.`,

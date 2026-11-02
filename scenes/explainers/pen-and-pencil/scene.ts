@@ -205,7 +205,7 @@ export default class PenAndPencil extends Scene {
       title: 'Agentic Mermaid fixes every box, marker and label before any ink',
       line: 'The engine places every box; the drawing never moves one.',
       caption:
-        'On its page, pele lays each chart out itself and sizes the boxes with Hershey letter widths. Hershey letters are a public-domain alphabet that A. V. Hershey drew for plotters at the U.S. National Bureau of Standards, each letter a few single pen strokes rather than a filled outline. Here Agentic Mermaid does the layout, with Inter’s widths, and the Hershey letters are fitted into its boxes at the end. The dimension gives one event box’s width.',
+        'On its page, pele lays each chart out itself and sizes the boxes with Hershey letter widths. Hershey letters are a public-domain alphabet that A. V. Hershey drew for plotters at the U.S. Naval Weapons Laboratory in 1967, each letter a few single pen strokes rather than a filled outline. Here Agentic Mermaid does the layout, with Inter’s widths, and the Hershey letters are fitted into its boxes at the end. The dimension gives one event box’s width.',
     });
     await s.clear();
     // The timeline's text stays in view in a corner while the layout it became arrives.

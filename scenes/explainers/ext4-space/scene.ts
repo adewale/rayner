@@ -58,7 +58,7 @@ const pie = (names: readonly string[], title: string, slices: readonly Slice[]) 
 
 const SIZE = 0.34;
 /** The script's one-sentence answer (script.md); the reserve step's caption states it. */
-const ANSWER = 'The default 5% reserve for root takes as much space as all the metadata, or more';
+const ANSWER = 'On a disk of 1 GiB or more, the default 5% reserve for root takes as much space as all the metadata, or more';
 // The pie on the left, a card on the right: wider than the 'side' region so that 13-digit counts
 // fit beside their labels at full size.
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
