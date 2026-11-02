@@ -125,10 +125,9 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
   'melody-rhythm': [
     { step: 'listen', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
     { step: 'pulse', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
-    { step: 'bar', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
-    { step: 'rhythm', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
-    { step: 'timing', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }, { key: 'score-footer' }] },
-    { step: 'phrase', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
+    // timing merged into bar, which keeps its footer; phrase is cut, and its onset dots moved to rhythm.
+    { step: 'bar', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }, { key: 'score-footer' }] },
+    { step: 'rhythm', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }, { key: 'score-footer' }] },
   ],
   'oauth-pkce': [
     {

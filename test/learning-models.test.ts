@@ -305,7 +305,7 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     // The shortcut is exact for comparisons against one fixed birthday.
     close(pairShortcut(n-1),birthdayChance(n,'one'));
   }
-  assert.equal(birthdayAnswer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs`);
+  assert.equal(birthdayAnswer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs, each a chance to match`);
   assert.equal(BirthdayParadox.meta.answer,birthdayAnswer);
   // Dates of a 365-day year, checked against the calendar of a non-leap year.
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -327,17 +327,24 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     assert.ok(story.chance-story.shortcut>0&&story.chance-story.shortcut<.01);
   }
   assert.equal(room.matchedPairs.length,2);
-  // The check questions' transfers, none of which a step shows.
-  const [merge,planet,planetOne]=BirthdayParadox.meta.checks;
+  // Transfers that were check questions (no longer asked; the claims stand): two rooms of 23 merged, and a 100-day year.
   assert.equal(pairCount(46),1035);assert.equal(pairCount(46)-2*pairCount(23),23*23);assert.ok(23*23>2*pairCount(23));
-  assert.match(merge!.answer,/^1,035 pairs\. Each room keeps its 253, and the 23 × 23 = 529 pairs/);
   assert.equal(evenOdds('any',100),13);assert.equal(pairCount(13),78);
   assert.equal((100*birthdayChance(13,'any',100)).toFixed(1),'55.7');assert.equal((100*birthdayChance(12,'any',100)).toFixed(1),'49.7');
-  assert.match(planet!.answer,/^13\. Thirteen people make 78 pairs.*55\.7%; twelve people give 49\.7%/);
-  // The planet's one-person threshold: 69 others, the shortcut being exact for comparisons with one birthday.
   assert.equal(evenOdds('one',100)-1,69);close(pairShortcut(69,100),birthdayChance(70,'one',100));
   assert.equal((100*birthdayChance(70,'one',100)).toFixed(1),'50.0');assert.equal((100*birthdayChance(69,'one',100)).toFixed(1),'49.5');
-  assert.match(planetOne!.answer,/^69\. .*50\.0% for a match, and 68 others give 49\.5%\. Thirteen people already make 78 pairs/);
+  // The check questions, about this room of 23, which no step works through.
+  const [arrival,newcomer]=BirthdayParadox.meta.checks;
+  // The first card, in reading order, whose date an earlier card already took: the 18th (index 17), 31 Jan, first taken by
+  // the 14th; 17 distinct dates were taken when it arrived, a 17-in-365 chance, 4.7%.
+  {const first=room.sample.first;const repeat=first.findIndex((d,i)=>first.slice(0,i).includes(d));
+    assert.equal(repeat,17);assert.equal(dateOf(first[repeat]!),'31 Jan');assert.equal(first.indexOf(first[repeat]!),13);
+    assert.equal(new Set(first.slice(0,repeat)).size,17);assert.equal((100*17/365).toFixed(1),'4.7');
+    assert.match(arrival!.answer,/^The 18th card, 31 Jan, a date the 14th card already took\. Seventeen dates .* 17 in 365, about 4\.7%\.$/);}
+  // A 24th person born on 26 Apr: 276 pairs, and 26 Apr on three cards makes three matching pairs, plus the 31 Jan pair.
+  {const first=[...room.sample.first,116];assert.equal(dateOf(116),'26 Apr');assert.equal(pairCount(24),276);
+    const matching=first.flatMap((d,i)=>first.slice(i+1).filter(e=>e===d)).length;assert.equal(matching,4);
+    assert.match(newcomer!.answer,/^276 pairs, .* Four of them match: 26 Apr is now on three cards/);}
 });
 
 test('the music comparison preserves pitches and total beats while moving exactly two starts and durations',()=>{
@@ -345,17 +352,27 @@ test('the music comparison preserves pitches and total beats while moving exactl
   assert.deepEqual(phrase('straight').map(n=>n.midi),expected);
   assert.deepEqual(phrase('syncopated').map(n=>n.at),[0,1,2,3.5,4.5,5,6,7]);
   assert.deepEqual(phrase('syncopated').map(n=>n.duration),[1,1,1.5,1,.5,1,1,1]);
-  // The third check question's transfer tempo, which no case shows: G starts half a beat, 375 ms, before the bar line at 80 BPM.
+  // A tempo no case shows (no longer a check question; the claim stands): G starts half a beat, 375 ms, before the bar line at 80 BPM...
   assert.equal((4-phrase('syncopated')[3]!.at)*beatMs(80),375);
-  assert.match(MelodyRhythm.meta.checks[2]!.question,/80 BPM/);assert.match(MelodyRhythm.meta.checks[2]!.answer,/^375 ms: a beat lasts 750 ms/);
   // ...and G sounds for one beat, 750 ms, half of it on each side of the bar line.
   {const g=phrase('syncopated')[3]!;assert.equal(g.duration*beatMs(80),750);assert.equal((4-g.at)*beatMs(80),(g.at+g.duration-4)*beatMs(80));}
   // The first check's version C, which no case shows: D cut to half a beat, the next E held 1.5, so beat 3 (index 2) gets no new start and nothing crosses the bar line.
   {const durations=[1,.5,1.5,1,1,1,1,1];let at=0;const c=durations.map(duration=>{const n={at,duration};at+=duration;return n;});
     assert.deepEqual(c.map(n=>n.at),[0,1,1.5,3,4,5,6,7]);assert.ok(!c.some(n=>n.at===2)&&c.some(n=>n.at<2&&n.at+n.duration>2));
     assert.ok(!c.some(n=>n.at<4&&n.at+n.duration>4));assert.match(MelodyRhythm.meta.checks[0]!.answer,/^Beat 3 of bar 1/);}
-  // The second check's version: a half-beat rest replaces the longer E, so G still starts at 3.5 and holds across beat 4 (the bar line).
-  {const g={at:2+1+.5,duration:1};assert.equal(g.at,phrase('syncopated')[3]!.at);assert.ok(g.at<4&&g.at+g.duration>4);assert.match(MelodyRhythm.meta.checks[1]!.answer,/^No\./);}
+  // A half-beat rest in place of the longer E (no longer a check question; the claim stands): G still starts at 3.5 and holds across beat 4 (the bar line).
+  {const g={at:2+1+.5,duration:1};assert.equal(g.at,phrase('syncopated')[3]!.at);assert.ok(g.at<4&&g.at+g.duration>4);}
+  // The second check: B counted in threes, bar lines at beats 3 and 6. The first E (index 2) holds across the line at 3, G starts
+  // half a beat after it, and the line at 6, the seventh beat, opens with a C.
+  {const b=phrase('syncopated'),across=(t:number)=>b.filter(n=>n.at<t&&n.at+n.duration>t);
+    assert.deepEqual(across(3),[b[2]]);assert.equal(b[2]!.midi,64);assert.equal(b[2]!.at,2);assert.equal(b[3]!.at,3.5);
+    assert.deepEqual(across(6),[]);assert.deepEqual(b.filter(n=>n.at===6).map(n=>n.midi),[60]);
+    assert.match(MelodyRhythm.meta.checks[1]!.answer,/^The first E\. It starts on beat 3 of bar 1 .* brings a C that starts exactly there\.$/);}
+  // The third check: the E after G at a full beat, later notes straight after it. D and both Cs start at 5.5, 6.5 and 7.5,
+  // none on a beat of bar 2, and the last C ends at 8.5, half a beat past the end of bar 2.
+  {const durations=phrase('syncopated').map((n,i)=>i===4?1:n.duration);let at=0;const v=durations.map(duration=>{const n={at,duration};at+=duration;return n;});
+    assert.deepEqual(v.slice(5).map(n=>n.at),[5.5,6.5,7.5]);assert.ok(!v.some(n=>n.at>=4&&n.at<8&&Number.isInteger(n.at)));
+    assert.equal(v.at(-1)!.at+v.at(-1)!.duration,8.5);assert.match(MelodyRhythm.meta.checks[2]!.answer,/^None\. D and both Cs/);}
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     assert.equal(m.movedStarts,timing==='straight'?0:2);assert.equal(m.movedDurations,m.movedStarts);

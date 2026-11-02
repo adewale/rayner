@@ -1,4 +1,4 @@
-import { Scene, Group, Circle, Line, Rectangle, Text } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
@@ -34,7 +34,8 @@ const pct2 = (p: number) => (100 * p).toFixed(2) + '%';
 const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 const words = ['no', 'one', 'two', 'three', 'four', 'five'];
 /** The script's one-sentence answer; test/learning-models.test.ts holds its numbers to the model. */
-export const ANSWER = 'A room of 23 people gives a better than even chance that two share a birthday, because 23 people make 253 pairs';
+export const ANSWER =
+  'A room of 23 people gives a better than even chance that two share a birthday, because 23 people make 253 pairs, each a chance to match';
 
 export default class BirthdayParadox extends Scene {
   static meta = {
@@ -45,19 +46,16 @@ export default class BirthdayParadox extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: 'Two rooms of 23 open into one room of 46. How many pairs does it hold, and how many of them are new?',
+        question:
+          'Read the room of 23 as people arriving one at a time, card by card along each row from the top, and apply the person-by-person count. Who is the first arrival who fails to miss every date already taken, and what chance did that person have of landing on one?',
         answer:
-          '1,035 pairs. Each room keeps its 253, and the 23 × 23 = 529 pairs that join someone from one room to someone from the other are new, more than the two rooms held between them.',
+          'The 18th card, 31 Jan, a date the 14th card already took. Seventeen dates were taken when the 18th person arrived, so the chance of landing on one was 17 in 365, about 4.7%.',
       },
       {
-        question: 'On a planet with a 100-day year, how many people make a shared birthday more likely than not?',
+        question:
+          'A 24th person, born on 26 Apr, joins the room of 23. How many pairs does the room hold now, and how many of them are matches?',
         answer:
-          '13. Thirteen people make 78 pairs, each a 1-in-100 chance, and the exact chance of a shared birthday is 55.7%; twelve people give 49.7%.',
-      },
-      {
-        question: 'On that planet, how many other people would you need for an even chance that one of them shares your birthday?',
-        answer:
-          '69. Your comparisons are independent, so 99/100 multiplied 69 times leaves 50.0% for a match, and 68 others give 49.5%. Thirteen people already make 78 pairs, more than your 69.',
+          '276 pairs, since the newcomer pairs with all 23 people already there. Four of them match: 26 Apr is now on three cards, and three people make three pairs, all matching, while the 31 Jan pair still matches too.',
       },
     ],
   };
@@ -92,47 +90,44 @@ export default class BirthdayParadox extends Scene {
       cards.key = 'birthday-people';
       return new Group(cards, label(footer, 0, big ? -3.85 : -3.6, s.palette.ink, 0.62, 'birthday-footer'));
     };
-    /** n people on a circle, joined by every pair (or, with `you`, only the pairs with person 0). */
-    const web = (you: boolean) => (s: Stage) => {
-      const r = 2.6,
-        cy = -0.45,
-        points = Array.from(
-          { length: n },
-          (_, i) => [Math.cos(Math.PI / 2 + (i * 2 * Math.PI) / n) * r, cy + Math.sin(Math.PI / 2 + (i * 2 * Math.PI) / n) * r] as const,
-        );
-      const lines = new Group(),
-        width = n > 30 ? 0.012 : n > 15 ? 0.016 : 0.025;
-      for (let i = 0; i < n; i++)
-        for (let j = i + 1; j < n; j++)
-          if (!you || i === 0)
-            lines.add(new Line([...points[i]!], [...points[j]!], { stroke: s.emphasis, strokeWidth: you ? 0.025 : width, strokeOpacity: 0.75 }));
-      lines.key = you ? 'birthday-you-lines' : 'birthday-pair-lines';
-      // The pairs whose sampled birthdays are the same date, drawn over the web in red.
-      const matched = new Group(
-        ...(you ? [] : m.matchedPairs).map(([i, j]) => new Line([...points[i]!], [...points[j]!], { stroke: s.bad, strokeWidth: 0.07 })),
-      );
+    /**
+     * Every pair as one square of a triangle: row k is the (k + 1)th card, with one square for each card before it,
+     * so a newcomer adds a row as long as the room already is. With `you`, only the first column: the first card's pairs.
+     */
+    const pairGrid = (you: boolean) => (s: Stage) => {
+      const cell = Math.min(0.32, 5.3 / (n - 1)),
+        x0 = -((n - 1) * cell) / 2,
+        y0 = 2.25;
+      const at = (row: number, col: number): [number, number] => [x0 + (col + 0.5) * cell, y0 - (row - 0.5) * cell];
+      const square = (row: number, col: number, fill: string, opacity: number, size = 0.82) =>
+        new Rectangle({ width: cell * size, height: cell * size, fill, fillOpacity: opacity, stroke: 'none' }).moveTo(at(row, col));
+      const squares = new Group();
+      for (let row = 1; row < n; row++) for (let col = 0; col < (you ? 1 : row); col++) squares.add(square(row, col, s.emphasis, 0.55));
+      squares.key = you ? 'birthday-you-lines' : 'birthday-pair-lines';
+      // With `you`, the rest of the room's pairs, faint: the column is one part of the triangle the next step fills.
+      const rest = new Group();
+      if (you) for (let row = 2; row < n; row++) for (let col = 1; col < row; col++) rest.add(square(row, col, s.soft, 0.18));
+      rest.key = 'birthday-other-pairs';
+      // The pairs whose sampled birthdays are the same date, in red.
+      const matched = new Group(...(you ? [] : m.matchedPairs).map(([i, j]) => square(j, i, s.bad, 1, 1.3)));
       matched.key = 'birthday-matched-pairs';
-      const dots = new Group(
-        ...points.map((p, i) =>
-          new Circle({ radius: n > 30 ? 0.11 : 0.15, fill: you && i === 0 ? s.bad : s.palette.ink, stroke: 'none' }).moveTo([...p]),
-        ),
-      );
-      dots.key = 'birthday-dots';
-      const g = new Group(lines, matched, dots);
-      if (you) g.add(label('You', 0, cy + r + 0.45, s.bad, 0.6, 'birthday-you'));
+      const g = new Group(rest, squares, matched);
       g.add(
+        label(you ? 'You: card 1' : 'card 1', x0, y0 + 0.28, you ? s.bad : s.soft, 0.42, 'birthday-you').moveTo([x0, y0 + 0.28], [-1, 0]),
+        label('card 2', x0 - 0.15, at(1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
+        label(`card ${n}`, x0 - 0.15, at(n - 1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
         you ? stat(s, 'Comparisons', m.others, -5.4, 0.2, 'birthday-comparisons') : stat(s, 'Pairs', m.pairs, -5.4, 0.2, 'birthday-pairs'),
         stat(s, 'Chance', pct(you ? m.one : m.chance), 5.4, 0.2, 'birthday-chance'),
         label(
           you
-            ? `An even chance would take ${m.evenOthers} others`
+            ? `Your ${m.others} comparisons, one square each`
             : m.matchedPairs.length
-              ? `${m.pairs} pairs; red: ${list(shared)}`
-              : `${n} × ${n - 1} / 2 = ${m.pairs} pairs`,
+              ? `One square per pair: ${m.pairs}. Red: ${list(shared)}`
+              : `One square per pair: ${n} × ${n - 1} / 2 = ${m.pairs}`,
           0,
           -3.75,
           s.palette.ink,
-          0.62,
+          0.58,
           'birthday-footer',
         ),
       );
@@ -142,9 +137,9 @@ export default class BirthdayParadox extends Scene {
     const frames: (LessonFrame & { detail?: boolean })[] = [
       {
         id: 'room',
-        title: 'How many people make a shared birthday likely?',
-        line: 'Predict: how many people make a shared birthday an even bet?',
-        caption: `Each card is one person in a room of ${n}, with a birthday drawn at random. Like the Pudding’s explainer, the model gives every day of a 365-day year the same chance and leaves out 29 February. A year has 365 days, so a match can seem to need a crowd: half of 365 is about 183. Make a guess, then look for a date that appears twice in this room.`,
+        title: 'Do two of these people share a birthday?',
+        line: 'Predict: what is the chance that a room this size holds a shared birthday?',
+        caption: `Each card is one person, with a birthday drawn at random. The model, like the Pudding’s explainer, gives every day of a 365-day year the same chance and leaves out 29 February. A year has 365 days, so a match can seem to need a crowd: half of 365 is about 183. Count the cards and guess the chance before looking for a date that appears twice.`,
         state: { people: n, sample: m.sample.first, dates: m.dates },
         draw: room(false, `${n} people, ${n} random birthdays`),
       },
@@ -160,7 +155,7 @@ export default class BirthdayParadox extends Scene {
               ? `The outlined cards repeat ${list(shared)}, each on ${words[m.shared[0]!.people] ?? m.shared[0]!.people} cards. `
               : `The outlined cards repeat dates: ${list(m.shared.map((d) => `${d.date} is on ${words[d.people] ?? d.people} cards`))}. `
             : ''
-        }${m.chance < 0.5 ? `Most rooms of ${n} have no match` : `Rooms of ${n} often match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${pct(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
+        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${pct(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
         state: {
           people: n,
           shared: m.shared,
@@ -173,26 +168,26 @@ export default class BirthdayParadox extends Scene {
         id: 'you',
         title: `Your own birthday: only ${m.others} chances to match`,
         line: 'Predict: how many comparisons does the whole room make?',
-        caption: `The Pudding’s explainer notes that we usually picture this by comparing ourselves with 365 possible days. Mark one person as you. You make ${m.others} comparisons, one with each other person, each a 1-in-365 chance. The chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people.`,
+        caption: `Mark the first card as you. You make ${m.others} comparisons, one with each other person, each a 1-in-365 chance; each square in the column is one of them. The chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people.`,
         state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
-        draw: web(true),
+        draw: pairGrid(true),
       },
       {
         id: 'pairs',
         title: `Every pair drawn: ${n} people make ${m.pairs} pairs`,
         line:
           n === m.even
-            ? `How many others would you need to make ${m.pairs} comparisons on your own?`
-            : `What size of room makes the ${m.evenOthers} comparisons you would need alone?`,
-        caption: `A shared birthday doesn’t have to include you. Each of the ${n} people pairs with ${n - 1} others, and that counts every pair twice, so there are ${n} × ${n - 1} / 2 = ${m.pairs} pairs, ${n / 2} times your ${m.others}. ${
-          n === m.even
-            ? `That is as many comparisons as your even chance needed in the last step, when you had to make all ${m.evenPairs} yourself against ${m.evenOthers} others; here ${n} people share the work.`
-            : `At ${m.even} people the room makes ${m.evenPairs} pairs, the ${m.evenOthers} comparisons you would need ${m.evenOthers} other people to make on your own.`
-        } ${
+            ? `${m.pairs} squares: the number of comparisons your own even chance needed.`
+            : `Which size of room makes the ${m.evenOthers} comparisons you would need alone?`,
+        caption: `A shared birthday doesn’t have to include you. Each card adds a row with one square for every card before it, and the rows hold ${n} × ${n - 1} / 2 = ${m.pairs} pairs, ${n / 2} times your ${m.others}. ${
           m.matchedPairs.length
-            ? `The ${words[m.matchedPairs.length] ?? m.matchedPairs.length} red lines are this room’s matches, the pairs that drew ${list(shared)}: ${words[m.matchedPairs.length] ?? m.matchedPairs.length} of ${m.pairs} chances came up.`
-            : `None of the ${m.pairs} lines joins two people with the same date in this room.`
-        } Across all rooms of ${n}, the chance that at least one pair matches is ${pct(m.chance)}.`,
+            ? `The ${words[m.matchedPairs.length] ?? m.matchedPairs.length} red squares are this room’s matches, the pairs that drew ${list(shared)}.`
+            : `No square pairs two cards with the same date in this room.`
+        } Across all rooms of ${n}, at least one pair matches with chance ${pct(m.chance)}. ${
+          n === m.even
+            ? `And ${m.pairs} is the number of comparisons your own even chance needed in the last step, when you had to make all ${m.evenPairs} yourself against ${m.evenOthers} others; here ${n} people share the work.`
+            : `At ${m.even} people the rows hold ${m.evenPairs} squares, the ${m.evenOthers} comparisons your own even chance needed you to make with ${m.evenOthers} other people.`
+        }`,
         state: {
           people: n,
           pairs: m.pairs,
@@ -203,10 +198,11 @@ export default class BirthdayParadox extends Scene {
           evenPairs: m.evenPairs,
           matchedPairs: m.matchedPairs,
         },
-        draw: web(false),
+        draw: pairGrid(false),
       },
       {
         id: 'growth',
+        detail: true,
         title: 'Each newcomer pairs with everyone already in the room',
         line: 'The thick bars outrun the thin ones as the room fills.',
         caption: (() => {
@@ -254,6 +250,7 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'exact',
+        detail: true,
         title: `Counting exactly: person ${n} must miss ${n - 1} dates already taken`,
         line: `Predict: do ${m.pairs} pairs at 1 in 365 each give the same chance?`,
         caption: `To count the chance exactly, add people one at a time and ask each to miss every date taken so far. Person 2 avoids one date, 364/365; if that succeeds, person 3 avoids two, 363/365; person ${n} avoids ${n - 1}, ${365 - (n - 1)}/365. Multiplying all ${n - 1} fractions gives ${pct2(m.noMatch)} for no match at all, so the chance of at least one shared birthday is ${pct2(m.chance)}.`,
@@ -278,8 +275,9 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'estimate',
+        detail: true,
         title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,
-        line: `Within a percentage point of the exact ${pct2(m.chance)}: pairs that share people are not independent.`,
+        line: `Within a percentage point of the exact ${pct2(m.chance)}; the gap comes from pairs that share a person.`,
         caption: `Each pair shares a birthday with chance 1 in 365, so it misses with chance 364/365. If the ${m.pairs} pairs missed independently, all of them would miss with chance 364/365 multiplied ${m.pairs} times, ${pct2(1 - m.shortcut)}, leaving ${pct2(m.shortcut)} for a match. The exact count gave ${pct2(m.chance)}. The gap is there because pairs share people, so they are not independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. Your own ${m.others} comparisons are independent, since each sets a different person against your one birthday, so for them the same product, 364/365 multiplied ${m.others} times, gives the exact ${pct(m.one)}.`,
         state: { people: n, pairs: m.pairs, shortcut: m.shortcut, chance: m.chance, one: m.one },
         draw: (s: Stage) =>

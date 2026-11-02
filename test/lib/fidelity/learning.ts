@@ -14,7 +14,7 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':8,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':7,'melody-rhythm':6};
+  const expected:Record<string,number>={'python-dict':6,'bloom-filter':8,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':7,'melody-rhythm':4};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     assertStepState(trace,step.step,{phase:step.step});

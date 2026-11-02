@@ -36,7 +36,7 @@
     {
       "step": "distance",
       "targets": [
-        { "key": "distance-orbit", "paint": "stroke" },
+        { "key": "effect-bars" },
         { "key": "daylight-curve", "paint": "stroke" },
         { "key": "january-point" },
         { "key": "january-value" }

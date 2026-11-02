@@ -36,6 +36,8 @@ const SUN = '#e0af68',
 const RAD = Math.PI / 180;
 const hours = (h: number) => h.toFixed(1) + ' h';
 const degrees = (d: number) => d.toFixed(1) + '°';
+/** A latitude as a reader names it: 51.5° N, 33.9° S. */
+const latitudeName = (lat: number) => `${Math.abs(lat).toFixed(1)}° ${lat < 0 ? 'S' : 'N'}`;
 /** A share of overhead sunlight as a whole percentage. */
 const percent = (x: number) => Math.round(x * 100) + '%';
 /** A latitude or angle to the hundredth it is given in, trailing zeros dropped: the noon formula's operands. */
@@ -129,21 +131,15 @@ export default class SeasonsExplainer extends Scene {
     checks: [
       {
         question:
-          'Suppose Earth’s axis were tilted 45° instead of 23.44°. At the June solstice, would London (51.5° N) get midnight sun, and how high would its noon Sun stand?',
+          'At the December solstice London’s noon Sun gives 26% of overhead sunlight at Earth’s average distance. Earth is then near its nearest point. Taking the distance into account, what share does London’s ground actually get?',
         answer:
-          'Yes. Every latitude circle above 90° − 45° = 45° would lie wholly on the day side, and London’s is at 51.5°. Its noon Sun would stand at 90° − |51.5° − 45°| = 83.5°, nearly overhead.',
+          'About 27%. On the solstice Earth is about 0.984 of its average distance, so sunlight is about 3% stronger than average, and 26% × 1.03 is just under 27%: the distance adds one point to a share the tilt has cut from 88%.',
       },
       {
         question:
-          'If Earth’s orbit were a perfect circle, which of this explainer’s numbers for London would change: its June and December day lengths, its noon sunlight per square metre, or January’s extra sunlight?',
+          'Suppose Earth’s axis kept its 23.44° tilt but swung round each year so that its north end always leaned toward the Sun. What would London get at the December solstice?',
         answer:
-          'Only January’s extra sunlight, which would drop to nothing. The day lengths and the noon shares come from London’s latitude and the Sun’s declination alone, and distance appears in neither formula.',
-      },
-      {
-        question:
-          'With a tilt of 80°, how many hours of daylight would Quito, on the equator, get at the June solstice, and what share of overhead sunlight would reach its ground at noon?',
-        answer:
-          'Still 12 hours: tan 0° = 0, so the equator’s circle is always cut in half. But the noon Sun would stand only 90° − 80° = 10° up, and sin 10° = 0.17, about 17% of overhead sunlight.',
+          'The same as in June: 16.4 h of daylight and 88% of overhead sunlight at noon. The real seasons swap because the axis keeps pointing the same way while Earth moves to the far side of the Sun; an axis that followed the Sun would keep London at its June values all year.',
       },
     ],
   };
@@ -499,7 +495,7 @@ export default class SeasonsExplainer extends Scene {
         // stage above y = 3.25), so the view may reach that much higher, a band's depth at this
         // zoom, and still show nothing from above y = 3.25 except under the band.
         start = Math.min(1.45, p[0] - 0.9),
-        cx = JUNE_C[0] - 0.9,
+        cx = JUNE_C[0] - 1.7,
         cy = Math.min(p[1], 3.25 - h / 2 + 1.25 / ZOOM);
       const view: Box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
       // Labels that read at 14 px even judged without the zoom, which doubles them.
@@ -573,7 +569,7 @@ export default class SeasonsExplainer extends Scene {
             (december.altitude > 0
               ? `Its noon Sun ${december.altitude > june.altitude ? 'rises' : 'falls'} from ${degrees(june.altitude)} to ${degrees(december.altitude)}, so a square metre of ground gets ${percent(decShare)} of overhead sunlight at noon instead of ${percent(juneShare)}. `
               : `Its noon Sun stays below the horizon, so the ground gets no direct sunlight at all, against ${percent(juneShare)} of overhead at June noon. `) +
-            `Both the longer days and the stronger sunlight fall in ${december.daylight > june.daylight ? 'December' : 'June'}, so ${december.daylight > june.daylight ? 'December' : 'June'} is ${place.name}’s summer.`
+            `Both the longer days and the stronger sunlight fall in ${december.daylight > june.daylight ? 'December' : 'June'}, so ${place.name} receives the most sunlight around then.`
           : `${place.name}’s noon Sun stands at the same ${degrees(december.altitude)}, now to the south, so its noon sunlight stays at ${percent(decShare)} of overhead; its daylight stays at ${hours(december.daylight)}.`),
     });
     // Back to the whole stage: the same Sun and June Earth, with June's daylight again.
@@ -612,7 +608,7 @@ export default class SeasonsExplainer extends Scene {
       title: `Tromsø swings from ${hours(tromsoJune)} to ${hours(tromsoDec)}; Quito stays at ${hours(quitoJune)}`,
       line: 'Latitude sets how much of each circle is lit.',
       caption:
-        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The model’s day length in hours is the sunrise equation, acos(−tan latitude × tan declination) in degrees, divided by 7.5: the time the Sun’s centre is above a flat horizon. An almanac times the Sun’s top edge and adds the air’s bending of sunlight, so its June day at London is about a quarter of an hour longer, and polar night is a little shorter.',
+        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The hours are the sunrise equation’s, the time the Sun’s centre is above a flat horizon; an almanac, which times the Sun’s top edge and adds the air’s bending of light, gives London’s June day about a quarter of an hour more.',
     });
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const others = ORDER.filter((k) => k !== key);
@@ -682,7 +678,7 @@ export default class SeasonsExplainer extends Scene {
       shortest = Math.min(...days);
     const flat = Math.abs(june.daylight - december.daylight) < 0.05;
     await this.step('year', {
-      title: `A computed year of daylight in ${place.name}`,
+      title: `${place.name}’s daylight through the year`,
       line: polarDay
         ? `24 h for ${polarDay} days, 0 h for ${polarNight}; 12 h at the equinoxes.`
         : flat
@@ -691,7 +687,7 @@ export default class SeasonsExplainer extends Scene {
             ? `Shortest ${hours(shortest)} in June, longest ${hours(longest)} in December.`
             : `From ${hours(shortest)} in December to ${hours(longest)} in June.`,
       caption:
-        'The curve samples the same model through the year, with the Sun’s declination on each day. ' +
+        'The curve runs the same model on every day of the year. ' +
         (polarDay
           ? `It stays flat at 24 hours for ${polarDay} days around the June solstice, the span the dimension marks, when ${place.name}’s whole circle is lit, and at 0 for ${polarNight} days around December; both counts run the model on all 365 days.`
           : flat
@@ -700,7 +696,7 @@ export default class SeasonsExplainer extends Scene {
                 ? `${place.name}’s curve is upside down from a northern one: its shortest day, ${hours(shortest)}, falls at the June solstice and its longest, ${hours(longest)}, in December.`
                 : `${place.name}’s day grows from ${hours(shortest)} at the December solstice to ${hours(longest)} at the June solstice.`) +
               ` The dimension on the right measures the gap, ${hours(tenths(longest) - tenths(shortest))}.`) +
-        ' In the model every place off the poles gets 12 hours at the two equinoxes; an almanac’s equinox day is a little longer, for the reasons the latitude step gave.',
+        ' Earth is nearest the Sun in early January, two weeks after the December solstice.',
     });
     await s.clear();
     this.state.daylight = year;
@@ -826,16 +822,16 @@ export default class SeasonsExplainer extends Scene {
     await this.step('distance', {
       title:
         place.lat !== 0
-          ? `15 January, near the nearest point: ${place.name} ${hours(year[0]!)}, latitude ${degrees(-place.lat)} ${hours(mirror[0]!)}`
+          ? `15 January: ${hours(year[0]!)} of daylight in ${place.name}, ${hours(mirror[0]!)} at ${latitudeName(-place.lat)}`
           : `Nearest or farthest from the Sun, Quito gets ${hours(year[0]!)}`,
       line:
         place.lat !== 0
-          ? 'Purple: the same model at the opposite latitude. Grey: the other three places. Both dots are 15 January.'
+          ? `Purple: the same model at ${latitudeName(-place.lat)}. The bars set the two causes side by side.`
           : `Earth is ${farther}% farther from the Sun in July; ${place.name} still gets ${hours(year[6]!)}.`,
       caption:
         place.lat !== 0
-          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${percent(shares[0]!)} and ${percent(shares[1]!)} of overhead. On 15 January, near the nearest point, ${place.name} gets ${hours(year[0]!)} of daylight and latitude ${degrees(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}. The grey curves, the same formula at the other places, give ${others.map((k) => `${PLACES[k]!.name} ${hours(daylightYear(PLACES[k]!.lat)[0]!)}`).join(', ').replace(/, ([^,]*)$/, ' and $1')} that day. Every place is the same distance from the Sun on a given day, so the opposite seasons come from the tilt.`
-          : `Back to the opening question. ${distanceSaid} That reaches both hemispheres at once, yet on 15 January London, a grey curve, gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} of daylight in its winter and Sydney gets ${hours(daylightYear(PLACES.sydney!.lat)[0]!)} in its summer. Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${percent(juneShare)} of overhead.`,
+          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${percent(shares[0]!)} and ${percent(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
+          : `Back to the opening question. ${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${percent(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
     });
     await this.play(...[...said, marks, guides].map((m) => new FadeOut(m, { runTime: 0.3 })));
     // 15 January is the first month's sample day, x = 0.5.
@@ -861,7 +857,7 @@ export default class SeasonsExplainer extends Scene {
       second.add(
         other,
         new Dot({ radius: 0.09, color: MIRROR }).moveTo(axes.c2p(0.5, mirror[0]!)),
-        label(degrees(-place.lat), [end(-place.lat)[0] + 0.15, end(-place.lat)[1]], {
+        label(latitudeName(-place.lat), [end(-place.lat)[0] + 0.15, end(-place.lat)[1]], {
           size: 0.2,
           color: MIRROR,
           edge: [-1, 0],
@@ -869,7 +865,7 @@ export default class SeasonsExplainer extends Scene {
       );
       second.children[2]!.key = 'mirror-january-point';
       s.keep(own, ...second.children.slice(1), {
-        describe: `The same model at latitude ${degrees(-place.lat)}, ${place.name}’s curve turned upside down: ${hours(mirror[0]!)} on 15 January`,
+        describe: `The same model at ${latitudeName(-place.lat)}, ${place.name}’s curve turned upside down: ${hours(mirror[0]!)} on 15 January`,
       });
       await this.play(new Create(other), new FadeIn(own), { runTime: 1.5 });
       await this.play(...second.children.slice(2).map((m) => new FadeIn(m)));
@@ -877,66 +873,64 @@ export default class SeasonsExplainer extends Scene {
       s.keep(own, { describe: `${place.name}’s curve named at its end` });
       await this.play(new FadeIn(own));
     }
-    // The same formula at the other places, in grey under the January tags: on one day, at one
-    // distance from the Sun, each latitude gets its own daylight.
-    const greys = others.map((k) =>
-      axes.plot(daylightAt(PLACES[k]!.lat), { samples: 145, color: soft, strokeWidth: 0.03 }).setStyle({
-        strokeOpacity: 0.75,
-      }),
-    );
-    const greyNames = new Group(
-      ...others.map((k) => {
-        const p = end(PLACES[k]!.lat);
-        return label(PLACES[k]!.name, [p[0] + 0.15, p[1]], { size: 0.2, color: soft, edge: [-1, 0] });
-      }),
-    );
-    greyNames.key = 'other-places';
-    s.keep(greys[0]!, ...greys.slice(1), greyNames, {
-      describe: `The same model’s curves for ${others.map((k) => PLACES[k]!.name).join(', ')} in grey, each named at its end`,
-    });
-    await this.play(...greys.map((o) => new Create(o)), new FadeIn(greyNames), { runTime: 1.2 });
-    // Exaggerated eccentric orbit: Sun off-centre, Earth nearest at the left end, as in the opening.
-    const sketch = new Group();
-    sketch.key = 'distance-orbit';
+    // The two causes on one scale, beside the chart: how far the tilt moves this place's noon sunlight between
+    // the solstices, and how far the distance moves an overhead Sun's between July and January. Both in
+    // percent of an overhead Sun at Earth's average distance; sunlight falls off as 1 / distance².
+    const bars = new Group();
+    bars.key = 'effect-bars';
     {
-      const oc: Vec = [5.1, 1.35],
-        orx = 1.9,
-        ory = 1.0,
-        sunX = oc[0] - 0.85;
-      const orbit = new Circle({
-        radius: 1,
-        stroke: s.palette.muted,
-        strokeWidth: 0.02,
-      })
-        .stretch(orx, 0)
-        .stretch(ory, 1)
-        .moveTo(oc);
-      const near = new Group(
-        new Circle({ radius: 0.16, fill: '#7aa2f7', stroke: 'none' }).moveTo([oc[0] - orx, oc[1]]),
-        label('January', [oc[0] - orx - 0.2, oc[1] - 0.5], {
-          size: 0.22,
-          color: ink,
-          edge: [-1, 0],
-        }),
+      const left = 2.6,
+        right = 6.9,
+        top = 1.0,
+        full = 1.05,
+        x = (share: number) => left + ((right - left) * share) / full;
+      const july = 1 / farthest ** 2,
+        january = 1 / nearest ** 2;
+      const [low, high] = shares as [number, number],
+        lowMonth = juneShare <= decShare ? 'June' : 'December',
+        highMonth = juneShare <= decShare ? 'December' : 'June';
+      const bar = (from: number, to: number, y: number, color: string) =>
+        new Rectangle({ width: Math.max(0.05, x(to) - x(from)), height: 0.4, fill: color, stroke: 'none' }).moveTo(
+          [(x(from) + x(to)) / 2, y],
+        );
+      const track = (y: number) => new Line([x(0), y], [x(full), y], { stroke: s.palette.muted, strokeWidth: 0.02 });
+      const row = (heading: string, from: number, to: number, fromName: string, toName: string, y: number, color: string) => {
+        const g = new Group(
+          label(heading, [left, y + 0.6], { size: 0.26, color: ink, edge: [-1, 0] }),
+          track(y),
+          bar(from, to, y, color),
+        );
+        if (to - from < 0.01) g.add(label(`${fromName} and ${toName}`, [x(to), y - 0.45], { size: 0.24, color }));
+        else
+          g.add(
+            label(fromName, [x(from), y - 0.45], { size: 0.24, color, edge: [1, 0] }),
+            label(toName, [x(to), y - 0.45], { size: 0.24, color, edge: [-1, 0] }),
+          );
+        return g;
+      };
+      const ticks = new Group(
+        ...[0, 0.5, 1].map((t) => label(`${t * 100}%`, [x(t), top - 2.6], { size: 0.22 })),
+        ...[0, 0.5, 1].map((t) => new Line([x(t), top - 2.38], [x(t), top - 2.28], { stroke: s.palette.muted, strokeWidth: 0.02 })),
       );
-      const far = new Group(
-        new Circle({ radius: 0.16, fill: EARTH, stroke: 'none' }).moveTo([oc[0] + orx, oc[1]]),
-        label('July', [oc[0] + orx + 0.15, oc[1] - 0.5], {
-          size: 0.22,
-          color: soft,
-          edge: [1, 0],
-        }),
+      bars.add(
+        label('Sunlight per m², % of an overhead Sun', [left, top + 1.45], { size: 0.24, color: soft, edge: [-1, 0] }),
+        row(
+          percent(low) === percent(high) ? `Tilt: ${place.name}’s noon, ${percent(high)} at both` : `Tilt: ${place.name}’s noon, ${percent(low)} to ${percent(high)}`,
+          low,
+          high,
+          lowMonth,
+          highMonth,
+          top,
+          SUN,
+        ),
+        row(`Distance: overhead Sun, ${percent(july)} to ${percent(january)}`, july, january, 'July', 'January', top - 1.5, CURVE),
+        ticks,
       );
-      const gap = new Group(
-        label(`Distance ÷ average: January ${nearest.toFixed(3)}, July ${farthest.toFixed(3)}`, [oc[0], oc[1] - 1.4], { size: 0.22, color: ink }),
-        label(`July ${farther}% farther; January ${stronger}% more sunlight`, [oc[0], oc[1] - 1.8], { size: 0.22, color: ink }),
-      );
-      gap.key = 'distance-gap';
-      sketch.add(orbit, new Circle({ radius: 0.28, fill: SUN, stroke: 'none' }).moveTo([sunX, oc[1]]), near, far, gap);
-      await s.enter(sketch, {
-        describe: `An exaggerated orbit: Earth nearest the Sun in January, ${nearest.toFixed(3)} of its average distance, and farthest in July, ${farthest.toFixed(3)}: ${farther}% farther, so January gets ${stronger}% more sunlight`,
+      await s.enter(bars, {
+        describe: `Two bars on one scale of sunlight per square metre, in percent of an overhead Sun: the tilt moves ${place.name}’s noon sunlight from ${percent(low)} in ${lowMonth} to ${percent(high)} in ${highMonth}; the distance moves an overhead Sun’s from ${percent(july)} in July to ${percent(january)} in January, ${stronger}% more`,
       });
       this.state.distance = { nearest, farthest };
+      this.state.bars = { tilt: [low, high], distance: [july, january] };
     }
     // The January values, said beside their dots on tags that read over the curves. On the
     // equator both months give the same day, so 15 July is said there too.
@@ -971,7 +965,7 @@ export default class SeasonsExplainer extends Scene {
     await s.enter(...janSaid, {
       describe:
         place.lat !== 0
-          ? `Beside the 15 January dots: ${place.name} ${hours(year[0]!)}, latitude ${degrees(-place.lat)} ${hours(mirror[0]!)}`
+          ? `Beside the 15 January dots: ${place.name} ${hours(year[0]!)}, ${latitudeName(-place.lat)} ${hours(mirror[0]!)}`
           : `${place.name} on 15 January, ${hours(year[0]!)}, and on 15 July, ${hours(year[6]!)}`,
     });
   }

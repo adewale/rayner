@@ -113,7 +113,7 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
     const r = verifyMermaid(source);
     return { ok: r.ok, warnings: (r.warnings ?? []).map((w) => `${w.code} ${(w as { edge?: string }).edge}`) };
   };
-  const [undeclared, third, rectangle, header] = MermaidExplainer.meta.checks;
+  const [undeclared, second, rectangle, single] = MermaidExplainer.meta.checks;
   // Both edges labelled yes: the verifier does not compare what labels say (no longer a check question; the claim stands).
   assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|yes| C[Database]'), { ok: true, warnings: [] });
   // A node used only as an edge's target: Mermaid creates it as a rectangle labelled with its id.
@@ -121,17 +121,27 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
   const d = verifyMermaid('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| D').layout.nodes.find((n) => n.id === 'D');
   assert.deepEqual([d?.shape, d?.label], ['rectangle', 'D']);
   assert.match(undeclared!.answer, /^ok: true and no warnings\. Mermaid creates D where it is first used, as a rectangle labelled D/);
+  // A third, unlabelled route out of Cached (no longer a check question; the claim stands).
   assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]\nA --> D[Stale]'), {
     ok: true,
     warnings: ['DECISION_BRANCH_UNLABELED A->D#0'],
   });
-  assert.match(third!.answer, /^One DECISION_BRANCH_UNLABELED warning, naming the new edge A->D#0/);
+  // A second edge between the same two nodes takes the next count: A->C#1.
+  assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]\nA --> C'), {
+    ok: true,
+    warnings: ['DECISION_BRANCH_UNLABELED A->C#1'],
+  });
+  assert.match(second!.answer, /^A->C#1\. .*One DECISION_BRANCH_UNLABELED warning, and ok stays true\.$/);
   assert.deepEqual(report('graph LR\nA[Cached] --> B[Reply]\nA --> C[Database]'), { ok: true, warnings: [] });
   assert.match(rectangle!.answer, /^No: ok: true with no warnings/);
+  // A decision with one exit: its unlabelled exit is not flagged, since the warning needs two or more exits.
+  assert.deepEqual(report('graph LR\nA{Cached} --> B[Reply]'), { ok: true, warnings: [] });
+  assert.match(single!.answer, /^None: ok: true with no warnings\. The warning is for a decision with two or more exits/);
+  // A bare graph header: Agentic Mermaid's renderer rejects it (no longer a check question, since what mermaid-js
+  // accepts cannot be tested here; the claim about the pinned verifier stands).
   const headless = verifyMermaid('graph\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]');
   assert.equal(headless.ok, false);
   assert.deepEqual(headless.warnings.map((w) => [w.code, WARNING_SEVERITY[w.code]]), [['RENDER_FAILED', 'error']]);
-  assert.match(header!.answer, /^ok: false, with a RENDER_FAILED error/);
 });
 
 test('the Mermaid explainer’s broken step shows what the pinned verifier reports for an edge with no end, in every case', () => {

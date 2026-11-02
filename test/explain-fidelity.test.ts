@@ -77,6 +77,21 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'december', { noonShare: { june: noonShare(lat, 23.44), december: noonShare(lat, -23.44) } });
           const orbit = Array.from({ length: 365 }, (_, d) => sunDistance(d));
           assertStepState(trace, 'distance', { distance: { nearest: Math.min(...orbit), farthest: Math.max(...orbit) } });
+          // The first check question: London's December-solstice noon share, 26% at average distance, is about 27% once
+          // the solstice's distance (day 355, the model's declination minimum) is counted, about 3% stronger sunlight.
+          if (values.place === 'london') {
+            const solstice = sunDistance(365 - 10), share = noonShare(51.5, -23.44);
+            assert.equal(Math.round(share * 100), 26);
+            assert.equal(solstice.toFixed(3), '0.984');
+            assert.equal(Math.round((1 / solstice ** 2 - 1) * 100), 3);
+            assert.equal(Math.round((share / solstice ** 2) * 100), 27);
+            const { checks } = (variant.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
+            assert.match(checks[0]!.answer, /^About 27%\. On the solstice Earth is about 0\.984 of its average distance/);
+            // The second: an axis that always leans north toward the Sun gives December June's values, 16.4 h and 88%.
+            assert.equal(sunlight(51.5, 23.44).daylight.toFixed(1), '16.4');
+            assert.equal(Math.round(noonShare(51.5, 23.44) * 100), 88);
+            assert.match(checks[1]!.answer, /^The same as in June: 16\.4 h of daylight and 88% of overhead sunlight at noon\./);
+          }
           assertStepState(trace, 'year', { daylight: daylightYear(lat) });
           // The chart samples the model through the year, and its counts of polar days run it on every day, with
           // daylightYear's own declination, δ = −23.44° × cos(360° × (day + 10) / 365), which the scene restates
