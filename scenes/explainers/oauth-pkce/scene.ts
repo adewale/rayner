@@ -97,6 +97,8 @@ export default class OAuthExplainer extends Scene {
     await theft.reveal(thief);
     await theft.mark(thief, { color: s.bad, as: 'theft' });
     await theft.note('message:S->M#1', 'a token for the wrong app', { side: 'below', color: s.bad });
+    // A phone opens on the theft, not on the sign-in above it.
+    s.reading(...thief.map((id) => theft.get(id)));
     this.state = { stolenAccepted: true };
 
     // 2. The fix: a secret the code is bound to, sent ahead only as its hash.

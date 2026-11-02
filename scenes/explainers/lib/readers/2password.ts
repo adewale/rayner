@@ -21,9 +21,10 @@ export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
       draw: (s) =>
         new Group(
           flow(s, ['Agent', '?', 'Application']),
-          label('needs API_KEY', 5.15, -0.3, s.palette.ink, 0.55),
-          label('must not read', -5.15, -0.3, s.bad, 0.55),
-          label('the value', -5.15, -1.05, s.bad, 0.55),
+          // As large as the tiles' names and no wider than the tiles, so a phone opens on all of it.
+          label('needs API_KEY', 4.8, -0.3, s.palette.ink, 0.62),
+          label('must not read', -4.8, -0.3, s.bad, 0.62),
+          label('the value', -4.8, -1.15, s.bad, 0.62),
         ),
     },
     {

@@ -919,7 +919,9 @@ async function reviewNarrowOpening(
           .filter((index) => indices.has(index))
           .map((index) => opening.ink.find((ink) => ink.index === index)!.scale),
       );
-    assert.ok(pixels >= 12 - 1e-6, `${step} at 320px: ${label.text} reads at ${pixels}px, below 12px`);
+    // The player zooms until the smallest label lands exactly on 12px; the browser reports that
+    // scale in single precision, a few millionths of a pixel either side (as explain-phone-summary allows).
+    assert.ok(pixels >= 12 - 1e-5, `${step} at 320px: ${label.text} reads at ${pixels}px, below 12px`);
     minimumLabelPx = minimumLabelPx === null ? pixels : Math.min(minimumLabelPx, pixels);
   }
   assert.ok(verified.size, `${step} at 320px: no opening subject is painted`);

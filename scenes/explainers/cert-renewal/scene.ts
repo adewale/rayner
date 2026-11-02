@@ -388,7 +388,8 @@ export default class CertRenewalExplainer extends Scene {
       }`,
     });
     await s.clear();
-    await s.enter(axisLine, strip(rule, 1.2), {
+    const upperStrip = strip(rule, 1.2);
+    await s.enter(axisLine, upperStrip, {
       describe: () => `A ${span} axis from 1 March 2028 with one strip of ticks. ${words(rule)}`,
     });
     this.state.year = {
@@ -421,7 +422,10 @@ export default class CertRenewalExplainer extends Scene {
           : `Over 365 days ${RULES.fixed30.short} renews ${f30.renewalsPerYear} times and ${RULES.fraction.short} ${frac.renewalsPerYear}: ${compare}.`
       }`,
     });
-    await s.enter(strip(other, -0.55), { describe: () => `A second strip. ${words(other)}` });
+    const lowerStrip = strip(other, -0.55);
+    await s.enter(lowerStrip, { describe: () => `A second strip. ${words(other)}` });
+    // The step compares the two rules, so a phone's tour reads both strips, not only the new one.
+    s.reading(upperStrip, lowerStrip);
     this.state.otherRule = {
       rule: other,
       issued: perWindow(other).issued,
