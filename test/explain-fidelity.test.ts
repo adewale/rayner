@@ -154,11 +154,33 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'recipe', { feature: values.feature, phase: 'recipe' });
           assertStepState(trace, 'result', { feature: values.feature, phase: 'result' });
           if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
+          // The camera case says how much of the 16-unit stage its closer view frames.
+          if (values.feature === 'camera') {
+            const camera = trace.steps.find((s) => s.step === 'result')!.after!.camera as { before: number; after: number };
+            assert.equal(camera.before, 16);
+            assert.ok(camera.after > 1.2 && camera.after < 8, `the view frames ${camera.after} units`);
+          }
           break;
-        case 'lantern':
+        case 'lantern': {
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Browser'));
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Trace'));
+          // Independent expectation for the tiny scene: a 0.5 s fade (frames 1-15), then a 1 s move
+          // (frames 16-45). Blending matches playback at every frame; the nudge moves once per
+          // computed frame, so playback has made 15 nudges at t = 1 s and the seek has made one, and
+          // only the fade's frames and the move's first frame match.
+          const nudge = values.motion === 'nudge';
+          assertStepState(trace, 'seek', {
+            seek: {
+              ...(trace.steps.find((s) => s.step === 'seek')!.after!.seek as object),
+              motion: values.motion,
+              match: !nudge,
+              playedMoves: nudge ? 15 : 0,
+              seekedMoves: nudge ? 1 : 0,
+            },
+          });
+          assertStepState(trace, 'check', { check: { frames: 45, matched: { blend: 45, nudge: 16 } } });
           break;
+        }
         case 'agentic-mermaid': {
           const warnings = trace.steps.find((s) => s.step === 'verify')!.after!.warnings as unknown[];
           assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
@@ -427,6 +449,20 @@ for (const entry of EXPLAINERS)
             timing: { motion: +(fork.hold - fork.t0).toFixed(2), held: +(fork.t1 - fork.hold).toFixed(2), words },
           });
           assert.ok(Math.abs(fork.t1 - fork.t0 - (words / Scene.captionWpm) * 60) <= 1 / trace.fps + 1e-9);
+          // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
+          // token-bucket case whose trace answers R10 as the fork scene says, and its last step says
+          // R10 is accepted at every rate.
+          const bucketProject = await collectProject('scenes/explainers/token-bucket', { write: false });
+          const offered = bucketProject.variants.map((v) => ({
+            rate: Number(v.values.rate),
+            r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
+          }));
+          assertStepState(trace, 'sentence', { offered: offered.sort((a, b) => a.rate - b.rate) });
+          for (const v of bucketProject.variants)
+            assert.match(String(v.trace.steps.find((s) => s.step === 'trace')!.meta.caption), /R10 is accepted at every rate/);
+          // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
+          // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.
+          assertStepState(trace, 'untested', { unbuilt: { rate: 0.1, r10: 429, found: 0.5 } });
           break;
         }
         case 'cert-renewal':
@@ -715,6 +751,9 @@ test('fork: what it says Lantern had and the fork deleted matches both trees', a
   const show = (path: string) => git('show', `${BASE}:${path}`);
   const worker = show('app/worker.ts');
   for (const route of ['/frame.svg', '/text', '/trace.json', '/llms.txt']) assert.ok(worker.includes(`'${route}'`), route);
+  // The fork scene's opening: the Worker rendered any step or time on request and cached nothing.
+  assert.match(worker, /url\.searchParams\.has\('t'\)/);
+  assert.match(worker, /Seeking re-runs the scene to the requested time \(~10ms\), so nothing is\n\/\/ cached here/);
   assert.match(show('src/mermaid.ts'), /expected "flowchart <dir>" or "graph <dir>"/);
   const scenes = git('ls-tree', '--name-only', `${BASE}:scenes`)
     .split('\n')

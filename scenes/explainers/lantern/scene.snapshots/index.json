@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "11d0423eb190709f",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "37671b831a04ffb56a6e8a7efa02512a4e294ad7595605794d1470c16f5f1a6c",
+  "sourceHash": "d8f9168e42dbaf19fb8e79cd353f2bef0ca3c3d1a1eb54a7ab0355dea23f2198",
   "diagrams": {
     "[\"classDiagram\\n direction LR\\n class Scene {\\n construct()\\n play()\\n step()\\n }\\n class Mobject {\\n points\\n style\\n }\\n class Animation {\\n interpolate()\\n }\\n class Sink {\\n frame()\\n }\\n Scene --> Mobject : owns\\n Scene --> Animation : plays\\n Scene --> Sink : emits\",\"hand-drawn\"]": "29736f122149eed1.json",
     "[\"graph LR\\nAuthor[Native Scene] --> Clock[Fixed dt loop]\\nClock --> Browser[Browser sink]\\nClock --> SVG[SVG frames]\\nClock --> Trace[State trace]\\nSVG --> PNG[PNG stills]\",\"hand-drawn\"]": "b33745ff638eb98c.json"
