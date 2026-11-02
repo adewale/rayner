@@ -6,7 +6,7 @@ import type { LessonFrame } from '../lib/lesson-drawing.ts';
 import { label, tile, table, stat } from '../lib/lesson-drawing.ts';
 
 /** lesson() from lesson-drawing, with frames that can be detail steps after the ending. */
-async function lesson(scene: Scene, frames: readonly (LessonFrame & { detail?: boolean })[]) {
+async function lesson(scene: Scene, frames: readonly (LessonFrame & { detail?: boolean; reading?: readonly string[] })[]) {
   const s = stage(scene, { style: 'github-light', headingSize: 0.6 });
   for (const frame of frames) {
     await scene.step(frame.id, {
@@ -18,7 +18,8 @@ async function lesson(scene: Scene, frames: readonly (LessonFrame & { detail?: b
     await s.clear({ runTime: 0.18 });
     scene.state = { ...JSON.parse(JSON.stringify(frame.state)), phase: frame.id };
     const drawing = frame.draw(s);
-    s.reading(drawing);
+    // What the step is about, when that is less than the whole drawing: a phone opens on it.
+    s.reading(...(frame.reading ? drawing.family().filter((m) => frame.reading!.includes(m.key ?? '')) : [drawing]));
     // Describe actual drawn labels, not the state object or the authored caption.
     const words = drawing
       .family()
@@ -94,7 +95,7 @@ export default class BirthdayParadox extends Scene {
       // A phone opening shows about 13.8 units across, so the widest row stays inside that.
       const big = n > 30,
         cols = 5,
-        dx = big ? 2.6 : 2.7,
+        dx = 2.6,
         dy = big ? 0.8 : 1.05;
       const cards = new Group(
         ...m.sample.first.map((day, i) =>
@@ -134,8 +135,8 @@ export default class BirthdayParadox extends Scene {
         label(you ? 'You: card 1' : 'card 1', x0, y0 + 0.28, you ? s.bad : s.soft, 0.42, 'birthday-you').moveTo([x0, y0 + 0.28], [-1, 0]),
         label('card 2', x0 - 0.15, at(1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
         label(`card ${n}`, x0 - 0.15, at(n - 1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
-        you ? stat(s, 'Comparisons', m.others, -5.4, 0.2, 'birthday-comparisons') : stat(s, 'Pairs', m.pairs, -5.4, 0.2, 'birthday-pairs'),
-        stat(s, 'Chance', pct(you ? m.one : m.chance), 5.4, 0.2, 'birthday-chance'),
+        you ? stat(s, 'Comparisons', m.others, -4.9, 0.2, 'birthday-comparisons') : stat(s, 'Pairs', m.pairs, -4.9, 0.2, 'birthday-pairs'),
+        stat(s, 'Chance', pct(you ? m.one : m.chance), 4.9, 0.2, 'birthday-chance'),
         label(
           you
             ? `Your ${m.others} comparisons, one square each`
@@ -152,7 +153,7 @@ export default class BirthdayParadox extends Scene {
       return g;
     };
     const shared = m.shared.map((d) => d.date);
-    const frames: (LessonFrame & { detail?: boolean })[] = [
+    const frames: (LessonFrame & { detail?: boolean; reading?: readonly string[] })[] = [
       {
         id: 'room',
         title: 'Do two of these people share a birthday?',
@@ -181,6 +182,7 @@ export default class BirthdayParadox extends Scene {
           sample: { seed: m.sample.seed, trials: m.sample.trials, matched: m.sample.matched, observed: m.sample.observed },
         },
         draw: room(true, `${shared.length ? `Shared: ${list(shared)}` : 'No shared date'}. Chance: ${pct(m.chance)}`),
+        reading: ['birthday-people', 'birthday-footer'],
       },
       {
         id: 'you',
@@ -189,6 +191,7 @@ export default class BirthdayParadox extends Scene {
         caption: `Mark the first card as you. You make ${m.others} comparisons, one with each other person, each a 1-in-365 chance; each square in the column is one of them. The chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people.`,
         state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
         draw: pairGrid(true),
+        reading: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
       },
       {
         id: 'pairs',
@@ -217,6 +220,7 @@ export default class BirthdayParadox extends Scene {
           matchedPairs: m.matchedPairs,
         },
         draw: pairGrid(false),
+        reading: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
       },
       {
         id: 'growth',
