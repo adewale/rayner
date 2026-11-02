@@ -709,7 +709,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('stack', {
       title: 'Stack runs of one length in the same columns',
       line: 'Runs of 2 at the left, 10 in the middle, 6 at the right, 14 in two rows below.',
-      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. The result is the 18-column table that puts lutetium in group 3, as IUPAC endorsed, except for one cell: helium, which that table puts over neon. ${ANSWER}. ${
+      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. The result is the 18-column table that puts lutetium in group 3, as an IUPAC project recommended in 2021, except for one cell: helium, which that table puts over neon. ${ANSWER}. ${
         (
           {
             na: 'Sodium’s 11th electron starts a run of 2, so it lands in column 1.',

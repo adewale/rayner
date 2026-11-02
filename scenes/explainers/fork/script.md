@@ -4,7 +4,7 @@ Questions the reader brings: Rayner pages are built ahead of time, with a fixed 
 
 Rayner's token bucket explainer sends ten requests through a bucket that refills at 1, 2 or 4 tokens a second, the only rates its reader can choose. Its last step says R10 is accepted at every rate. On the page that is true: at each offered rate R10 arrives after a four-second wait and finds at least one token. A page could instead take any rate a reader types and show the same sentence. The reader predicts: is it true at 0.1 tokens a second?
 
-No. The same model at 0.1 tokens a second refuses R7, R8 and R9, and five seconds after the burst only 0.5 tokens have come back, so R10 gets 429. The author ran and read all three offered cases, but nobody can do that for every rate a reader might type. The answer: Rayner builds every case before anyone reads it, so the author can check each one, and a reader can open only a case that was checked.
+No. The same model at 0.1 tokens a second refuses R7, R8 and R9, and five seconds after the burst only 0.5 tokens have come back, so R10 gets 429. The author ran and read all three offered cases, but nobody can do that for every rate a reader might type. The answer: Rayner builds every case before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a case the build made.
 
 Lantern, the animation engine Rayner was forked from, rendered on request: its Cloudflare Worker re-ran a scene to whatever step or time a client asked for and served the frame, caching nothing. Rayner deleted the Worker. The bottom row broke because 0.1 is a rate nobody listed, so nobody ran it, and a page built ahead would break the same way if it let readers type a rate. The token bucket's one setting lists three rates, the build runs one case for each, and the page offers no box for typing another.
 
@@ -14,7 +14,7 @@ After the ending, two details: for each case the build captures every diagram on
 
 **The aha:** a fourth row slides in under the three offered rates, and R10's circle, accepted in every built row, is a cross at 0.1 tokens a second.
 
-**Sentence to remember:** every combination of settings is a case the build makes, and the author checks, before anyone opens the page.
+**Sentence to remember:** every combination of settings is a case the build makes and rayner check tests before anyone opens the page.
 
 **Check questions**, in `meta.checks`, asked after the last step:
 

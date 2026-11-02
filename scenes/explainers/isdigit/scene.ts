@@ -330,7 +330,7 @@ export default class IsDigitExplainer extends Scene {
       caption:
         id === 'han'
           ? 'UnicodeData.txt covers 三 only with a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty. Its value comes from the Unihan database: kPrimaryNumeric 3, which CPython copies into field 8 when it builds its tables, so isnumeric() is True. isdigit() reads field 7 and int() reads field 6, and both are empty.'
-          : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, 7 the digit value and 8 the numeric value. int() and isdecimal() read field 6, isdigit() field 7 and isnumeric() field 8. ${c.char} fills ${
+          : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, 7 the digit value and 8 the numeric value. int() and isdecimal() read field 6, isdigit() field 7 and isnumeric() field 8, which CPython fills from Unihan for ideographs. ${c.char} fills ${
               type === 'Decimal' ? 'all three' : type === 'Digit' ? 'only 7 and 8' : 'only 8'
             }, so its Numeric_Type is ${type}${type === 'Digit' ? ', and isdigit() and int() disagree on it' : ''}.`,
     });

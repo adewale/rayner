@@ -123,7 +123,7 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
 }
 /** The script's one-sentence answer, stated in the seek step. */
 const ANSWER =
-  'A still re-runs the scene on the same fixed clock and skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
+  'A still re-runs the scene on the same fixed clock and, unless the scene has updaters, skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
 
 export default class LanternExplainer extends Scene {
   static meta = {
@@ -347,7 +347,7 @@ export default class LanternExplainer extends Scene {
     await this.step('check', {
       title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
       line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-      caption: `Each of the tiny scene’s ${total} frames is made as a still and compared with the played frame. With blending, all ${total} match. With the nudge, the frames before the dot moves match, and so does the first frame of the move, where both runs have made one nudge; from frame ${firstMiss} on, none does. rayner check makes this comparison for every page: it seeks two frames in every step of every case, the middle and the last, and fails on any difference, so a scene that nudges fails rayner check with a seek mismatch.`,
+      caption: `Each of the tiny scene’s ${total} frames is made as a still and compared with the played frame. With blending, all ${total} match. With the nudge, the frames before the dot moves match, and so does the first frame of the move, where both runs have made one nudge; from frame ${firstMiss} on, none does. rayner check makes this comparison for every page: it seeks two frames in every step of every case, the middle and the last, and fails on any difference, so a scene that nudges inside an animation, as this one does, fails rayner check with a seek mismatch. A nudge written as an updater would pass: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
     const cell = 0.27,

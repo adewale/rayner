@@ -4,7 +4,7 @@ Question the reader brings: an agent edits my Mermaid diagrams and Agentic Merma
 
 An agent drew a cache lookup and got it backwards. Out of the decision Cached, yes leads to Database and no leads to Reply, so a cache hit would query the database the cache exists to spare. Agentic Mermaid's verify(flow) checks a diagram's source and returns a report. Will the verifier accept this diagram?
 
-It does: verify returns ok: true with no warnings, and a dot following the yes edge as drawn goes from Cached to Database. The report's last line, taskCorrectness: not-checked, is the verifier's own note that it did not judge whether the diagram does its job. That is the answer: verify fails a diagram that Agentic Mermaid's renderer cannot draw, warns about an unlabelled branch out of a decision, and leaves what the labels mean unchecked.
+It does: verify returns ok: true with no warnings, and a dot following the yes edge as drawn goes from Cached to Database. The report's last line, taskCorrectness: not-checked, is the verifier's own note that it did not judge whether the diagram does its job. That is the answer: verify fails a diagram that Agentic Mermaid's renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked.
 
 What does fail? Cut the end off the edge to Database, so the last line stops at its arrow. Agentic Mermaid's renderer cannot draw that, and verify returns ok: false with RENDER_FAILED, the error for a source that cannot be drawn, an UNSUPPORTED_SYNTAX warning naming the dangling edge, and renderability: failed. Errors are the findings that turn ok false (AGENT_NATIVE.md: "a clean verify proves the diagram actually renders"). Capture refuses a diagram that fails verify, so this step shows the source and the report, and `test/explain-real.test.ts` runs the pinned verifier on each case's broken source.
 
@@ -14,7 +14,7 @@ Now label the edges the right way round. set_label is an Agentic Mermaid edit th
 
 **The aha:** the right diagram's report sits beside the wrong one's, and they are identical, ok: true and no warnings, while the dot now takes yes to Reply instead of Database.
 
-**Sentence to remember:** verify fails a diagram that Agentic Mermaid's renderer cannot draw, warns about an unlabelled branch out of a decision, and leaves what the labels mean unchecked.
+**Sentence to remember:** verify fails a diagram that Agentic Mermaid's renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked.
 
 **Detail after the ending:** the history keeps the source, the agent's edit and a checked snapshot as three commits. The snapshot is the diagram as parsed and drawn, saved with the verifier's findings, including taskCorrectness: not-checked and the renderer version.
 

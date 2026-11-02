@@ -215,7 +215,7 @@ export default class BloomFilter extends Scene {
         id: 'full',
         title: `After ${full.words.length} names, all ${size} bits are 1 and every lookup says maybe`,
         line: `Keep taking names and the row only fills: ${absent.word}, turned away earlier, now gets maybe too.`,
-        caption: `Each name taken sets up to three more bits, and nothing clears them. With ${size} bits, the ${full.words.length}th name, ${full.words.at(-1)}, sets the last 0. From then on every name finds three 1s: all ${thousands(full.sampleSize)} untaken names get maybe, and every lookup goes to the database, so the filter saves no reads. A ${otherFull.size}-bit row took ${otherFull.words.length} names to fill. The row’s length decides how many names it can hold before it stops saying “definitely not”.`,
+        caption: `Each name taken sets up to three more bits, and nothing clears them. With ${size} bits, the ${full.words.length}th name, ${full.words.at(-1)}, sets the last 0. From then on every name finds three 1s: all ${thousands(full.sampleSize)} untaken names get maybe, and every lookup goes to the database, so the filter saves no reads. A ${otherFull.size}-bit row took ${otherFull.words.length} names to fill. With three hashes, a longer row holds more names before it stops saying “definitely not”; how many depends on where those names’ bits land.`,
       },
     ];
 

@@ -680,7 +680,7 @@ export default class SeasonsExplainer extends Scene {
     await this.step('year', {
       title: `${place.name}’s daylight through the year`,
       line: polarDay
-        ? `24 h for ${polarDay} days, 0 h for ${polarNight}; 12 h at the equinoxes.`
+        ? `By the model, 24 h for ${polarDay} days and 0 h for ${polarNight}; an almanac’s polar night is shorter.`
         : flat
           ? 'Flat at 12 hours all year, solstices and equinoxes alike.'
           : june.daylight < december.daylight

@@ -150,7 +150,7 @@ export default class MelodyRhythm extends Scene {
         id: 'listen',
         title: 'Eight notes in one order: which version sounds off the beat?',
         line: different ? 'Listen to both. Predict: where does B pull against the beat?' : 'Listen to both: in this case B is the control.',
-        caption: `Each rectangle is a note: left to right is time, height is pitch and width is how long it sounds. Both versions play C D E G E D C C on the same instrument at ${m.bpm} BPM. ${different ? 'Play A, then B. Does one of them seem to pull against the beat somewhere? Where?' : 'Here B’s starts and lengths match A’s exactly; the shifted version of B starts two notes later.'}`,
+        caption: `Each rectangle is a note: left to right is time, height is pitch and width is how long it sounds. Both versions play C D E G E D C C on the same instrument at ${m.bpm} BPM. ${different ? 'Play A, then B. Does one of them seem to pull against the beat somewhere? Where?' : 'Here B’s starts and lengths match A’s exactly; the shifted version of B starts two notes half a beat later.'}`,
         clips: m.clips,
         look: { bare: true, footer: 'Left to right: time. Higher: a higher pitch.' },
       },

@@ -39,7 +39,7 @@ const SIDE = REGIONS.side,
   GAP = 0.3;
 /** The script's one-sentence answer, stated in the verify step of every case. */
 const ANSWER =
-  'Verify fails a diagram that Agentic Mermaid’s renderer cannot draw, warns about an unlabelled branch out of a decision, and leaves what the labels mean unchecked';
+  'Verify fails a diagram that Agentic Mermaid’s renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked';
 /** How Agentic Mermaid names an edge, said in the first step whose findings or edits name one. */
 const NAMING =
   'Agentic Mermaid names an edge by its two ends and a count: A->C#0 is the first edge from A, Cached, to C, Database.';

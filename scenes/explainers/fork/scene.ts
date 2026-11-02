@@ -48,7 +48,7 @@ const perSecond = (r: number) => `${r} token${r === 1 ? '' : 's'} a second`;
 
 /** The script's one-sentence answer (meta.answer), which the untested step states. */
 const ANSWER =
-  'Rayner builds every case before anyone reads it, so the author can check each one, and a reader can open only a case that was checked';
+  'Rayner builds every case before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a case the build made';
 
 export default class ForkExplainer extends Scene {
   static meta = {
@@ -187,7 +187,7 @@ export default class ForkExplainer extends Scene {
     // 4. The price, the ending: every combination of settings is a case to build and check.
     await this.step('cases', {
       title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${CASES} cases to build`,
-      line: 'Every combination of options is a case the build makes and the author checks.',
+      line: 'Every combination of options is a case the build makes and rayner check tests.',
       caption: `Building every case first has a price: settings multiply. Rayner’s traffic-policy explainer has two settings, externalTrafficPolicy with ${POLICIES.length} options and the placement of pods on its three nodes with ${PODS.length}, so its build makes ${POLICIES.length} × ${PODS.length} = ${CASES} cases, and a third setting would multiply that again. A reader of that page switches among those ${CASES} and no others.`,
     });
     await s.clear();
