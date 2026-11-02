@@ -1,34 +1,34 @@
 # Script: why build the page before readers open it?
 
-Questions the reader brings: Rayner pages are prebuilt HTML; why not run the scene live? What does a reader's setting cost? What did forking Lantern give up?
+Questions the reader brings: Rayner pages are built ahead of time, with a fixed list of cases. Lantern, which Rayner forks, rendered whatever it was asked for. Why give that up?
 
-The token bucket explainer lets the reader choose a refill rate of 1, 2 or 4 tokens a second. Choosing one starts no computation: the build already ran the scene once per option, captured its diagrams and checked it. Each choice is a case made before anyone reads. The reader is asked: add a policy setting with two options; how many cases then?
+Lantern's Cloudflare Worker re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner deleted it. Its token bucket explainer offers a refill rate of 1, 2 or 4 tokens a second and nothing else. What does a fixed list buy?
 
-Six. That is the answer: every combination of settings is a case the build runs, draws and checks before anyone opens the page. Three rates and two policies make six, and every further setting multiplies again. The reader can switch among those cases and no others; an input with no fixed options would need the model running in the page and checks for values nobody tried.
+The token bucket sends ten requests, and its last step says R10 is accepted at every rate. On the page that is true: at each offered rate R10 arrives after a four-second wait and finds at least one token. A page that took any rate would show the same sentence for rates nobody tried. The reader predicts: is it true at 0.1 tokens a second?
 
-For each case, Agentic Mermaid draws each diagram in Chromium at build time and the snapshot is stored beside the scene, so the page runs no diagram renderer and has no runtime dependency. The cost lands on the author, who needs Chromium to capture a new diagram.
+No. The same model at 0.1 tokens a second refuses R7, R8 and R9, and five seconds after the burst only 0.5 tokens have come back, so R10 gets 429. That is the answer: Rayner builds every case before anyone reads it so that every case can be checked; a reader can reach only a case that has been run, drawn and checked. Three cases can all be run, read and checked; every rate a reader might type cannot.
 
-Each case must then pass rayner check's 13 checks: motion and clock (motion, still during the caption, seek equals play, skipped trace), resting pictures (each step changes, text collisions, routes over labels, legibility), words (descriptions, glyphs, the stated answer) and code (catch lint, bare runtime). Six cases means 78 checks; another two-option setting doubles it.
+The price is that settings multiply. A second setting with two options makes six cases, and each further setting multiplies again. For each case the build draws every diagram once: Agentic Mermaid captures it in Chromium and the snapshot is stored beside the scene, so the page runs no diagram renderer. Lantern's JSON document, parser, development player and Worker are gone.
 
-What building first gave up: Lantern, which Rayner forks, ran each scene live, with a development player and a Cloudflare Worker serving frames, text and traces on request. The fork deleted that path. The player and parser have replacements; the JSON format and the Worker's endpoints have none, so a page cannot answer for a case nobody built.
+Each case must then pass rayner check's 13 checks, and rayner describe prints every caption of every case. None of that can be done for a case nobody built, which is why Rayner gave up the live input.
 
-**The aha:** the three-row card of cases becomes a three-by-two grid: settings multiply, and everything the build does is multiplied with them.
+**The aha:** a fourth row slides in under the three offered rates, and R10's circle, accepted in every built row, is a cross at 0.1 tokens a second.
 
 **Sentence to remember:** every combination of settings is a case the build runs, draws and checks before anyone opens the page.
 
 **Check questions**, in `meta.checks`, asked after the last step:
 
-1. The token bucket's refill rate has 3 options. Add a policy setting with 2: how many cases does the build make, and how many checks run?
-2. What could a reader get from Lantern's Worker that a built page cannot give?
-3. Which part of the build needs Chromium, and does the page?
+1. Below what refill rate would the token bucket's R10 be refused, and why can no reader of that page see it? (Below 0.2 tokens a second, where 5 × rate is under one token; the page offers only the three rates it built.)
+2. A reader wants 3 tokens a second. What does the page give them, and what must its author do to offer it? (Nothing; add a '3' option, and the build runs, draws and checks that case.)
 
-**Cases:** one. The internal contrast is the token bucket's one setting against a hypothetical second, and Lantern's live path against the build. The engine itself (Bézier points, the clock, seeking by replay) is the lantern explainer's subject and is not repeated here.
+**Cases:** one. The contrast is inside the story: the offered rates against one the page never built, and Lantern's live Worker against the build. The engine itself (the clock, seeking by replay) is the lantern explainer's subject.
 
 | Step | Script | Reader predicts |
 | --- | --- | --- |
-| settings | paragraph 1: three options, three cases | how many cases a second setting makes |
-| cases | paragraph 2: the answer, the 3 × 2 grid | |
-| fork | paragraph 3: diagrams captured per case, no renderer in the page | |
-| checks | paragraph 4: 13 checks per case | |
-| timing (detail) | the page holds each picture for its caption, from the fork step's own timing | |
-| removed | paragraph 5: what building first deleted | |
+| live | paragraph 1: Lantern's Worker against three fixed rates | what a fixed list buys |
+| sentence | paragraph 2: "R10 is accepted at every rate", true at 1, 2 and 4 | whether it holds at 0.1 |
+| untested | paragraph 3: R10 refused at 0.1, and the answer (the aha) | |
+| cases | paragraph 4: the price, a 3 × 2 grid | |
+| fork | paragraph 4: diagrams captured per case; Lantern's parts morph into the fork's | |
+| checks | paragraph 5: 13 checks per case; the sentence to remember | |
+| timing (detail, after the ending) | the page holds each picture for its caption, from the fork step's own timing | |
