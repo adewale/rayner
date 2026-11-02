@@ -2,40 +2,46 @@
 
 Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence, not a score. Earlier editions scored six, then seven, dimensions from 0 to 4; those totals measured adherence to a list, and explainers that scored well could still fail to say what they taught. Totals from those editions, such as the /24 scores in the dated assessments preserved in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), are on a retired scale and are not comparable with anything here.
 
-## The question
+The criteria come from the communities that make the best explainers. 3Blue1Brown's Summer of Math Exposition judged thousands of entries on motivation, clarity, novelty and memorability ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice adds the craft behind them: concrete before abstract, names the reader has seen the need for, a story of a problem being solved, and the feeling of having invented the idea ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). The skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first) says how to write for them.
 
-Read the explanation as a newcomer: the gallery title, every resting step and caption of the declared default case (from `settings[].default` in `describe.json`, not the first case listed), at least one other case where there is one, the ending, and the source and test trail. Use the page itself at 1280 × 800 and on a phone, from the first step and from fresh links to later steps.
+## How to read
 
-Then answer, citing steps:
+Read the explanation as a newcomer: the gallery title, every resting step and caption of the declared default case (from `settings[].default` in `describe.json`, not the first case listed), at least one other case where there is one, the ending, and the source and test trail. Use the page itself at 1280 × 800 and on a phone, from the first step and from fresh links to later steps. Keep the guiding question in mind: how valuable is this compared with the typical explanation of the same thing a reader could find?
 
-1. **Would a newcomer learn the answer?** Could they answer the scene's check questions (`meta.checks`) afterwards, and apply them to a new case? Questions a reader who knows the topic would answer anyway do not count.
-2. **Is it better than the alternative?** A still, a short code diff, or a page the same author would write without Rayner. Say which and why. For changes to Rayner itself, the [benchmark](../bench/explainers/README.md) makes this comparison blind.
-3. **What is the one change that would help most?**
+## The criteria
+
+For each, say how well it is met (strong, adequate or weak) and cite the steps that show it.
+
+- **Motivation.** Is it clear early why the topic matters and why someone should want the answer? A problem the reader feels, or a surprising result, before the machinery.
+- **Concrete before abstract.** Does it start from a specific case and let the general idea emerge, or open on a definition, a taxonomy or an inventory of parts and fill it in later?
+- **Earned names and discovery.** Does each term arrive after the reader has seen why it is needed? Could the reader nearly see each next idea before it is shown, or are ideas handed down?
+- **Story.** Do the steps solve a problem, each following from the last, or list facts in a sensible order?
+- **Clarity.** Is jargon explained when it arrives, is the goal easy to follow, and does each resting picture teach on its own (opened from a direct link with the caption hidden, it still says what it shows and which values matter)? Does each step fit one screen, with its point in the caption's first lines, on a phone too?
+- **Novelty.** Does the presentation feel fresh: a better example, an angle the usual explanations miss, an obscure idea brought into the light? Or is it the standard treatment, redrawn?
+- **Memorability.** Is there a moment that would stick months later, an aha or shift in perspective, and does the explainer build up to it? Does motion earn its place there?
+- **The reader's own work.** Does the reader commit to a prediction, choose a case that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Questions a reader who knows the topic would answer anyway do not count.
+- **Grounding.** Does every claimed value, path or comparison trace to a model tested against the real thing, with a case that could prove a tempting generalisation wrong?
 
 ## Fix first
 
 These are failures, not shortcomings to weigh:
 
-- **No answer.** The transcript (titles, lines and captions) does not state the answer to the title's question before it starts elaborating: before the mechanism, the cases or the taxonomy. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears; whether that is early enough is your judgement. Write the script first (the skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first)) and rebuild. Clarity ratings do not show learning ([Muller 2008](https://thejournal.com/articles/2015/05/05/watching-videos-does-not-necessarily-lead-to-learning.aspx)).
+- **No answer.** The explainer never makes clear what it is answering, or names the answer only after the details: the reader should know what the explainer is about within the first few steps. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears.
 - **Untrue.** A known false claim, a picture that misleads, a sentence that a setting makes false, or a claim beyond what the model and its sources support.
 - **Broken.** A failing build or check, a step or case that restores wrongly from a fresh link, or a continuation a keyboard or screen-reader user cannot reach.
 
-Mark each separately, repair and judge again. `rayner check` and `rayner review` give rendering and navigation evidence; they do not establish truth or learning. For a consequential claim, inspect the model's tests against its source, and commission domain review where an error would be costly.
+`rayner check` and `rayner review` give rendering and navigation evidence; they do not establish truth or learning. For a consequential claim, inspect the model's tests against its source.
 
-## What to look at
+## Verdict
 
-These are where good and poor explainers differ in practice. They are prompts for the report, not a checklist to satisfy.
+End with one of these, and the one change that would help most:
 
-- **The reader's own work.** Does the reader commit to a prediction, choose a case that changes the outcome, or answer the check questions, or do they only read and press Next? Watching a clear sequence teaches less than doing.
-- **Pictures that teach on their own.** Opened from a direct link with the caption hidden, does the resting picture say which step it is, what it shows and which values matter? Is the decisive before and after visible, rather than jumped?
-- **Evidence and grounding.** Does every claimed value, path or comparison appear in the picture or an identified source, and trace to a model tested against the real thing, not a box labelled "verified"?
-- **A case that could prove it wrong.** Is there a case or comparison that tests a plausible wrong generalisation, with the changed input and the result visible?
-- **The reader's time.** Does the opening give a reason to continue? Does each step fit one screen, with its point in the caption's first lines? Does the phone show the whole picture or a fragment?
-- **No answer before its question.** Does a prediction step already give away its answer in its words or picture?
+- **Good.** It meets most of the criteria strongly and has no fix-first failure.
+- **Improve.** The subject and the model are worth it, and a rewrite of the script, a reordering of steps or a few pictures would make it good. Say whether that is easy (the existing pictures can be reused) or a rebuild.
+- **Keep for coverage.** As a lesson it is weak or redundant, but it is the only scene exercising an engine feature, diagram family, language or check, so it stays in the collection as a test, out of the gallery.
+- **Delete.** Weak as a lesson, and anything it covers is covered elsewhere.
 
-## Reporting
-
-Give the three answers, the fix-first findings, the assessed commit or export, and the limits of the review. When several explainers must be ordered, compare them in pairs, blind where possible, rather than adding up scores. If you try a prediction on an unfamiliar reader, record what they actually said.
+When several explainers must be ordered, compare them in pairs, blind where possible, rather than adding up judgements.
 
 ## Choosing a hero
 

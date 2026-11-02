@@ -4,7 +4,7 @@ The question this answers: does an explainer an author builds with Rayner teach 
 
 ## A round
 
-1. **One script.** Write and approve a script first (the reader's questions, a short answer-first script, a sentence to remember, check questions only the explainer answers, and a transfer exercise), as the skill's "Script first" describes. Every builder gets the same one.
+1. **One script.** Write and approve a script first (the reader's questions, a short script that starts from a concrete problem and names the answer as its payoff, a sentence to remember, check questions only the explainer answers, and a transfer exercise), as the skill's "Script first" describes. Every builder gets the same one.
 2. **Two pages per author.** Each author (a model, or a person) builds the explainer twice, in separate worktrees, from [`prompts/build-rayner.md`](prompts/build-rayner.md) and [`prompts/build-plain.md`](prompts/build-plain.md). The briefs share the script and the same two requirements, correct and usable on a phone, word for word, and neither says how to teach: a brief that prescribes technique steers both builders and caps what the comparison can find. Only the method differs. A plain builder must not read this repository.
 3. **Evidence per page.** For a Rayner page: `rayner build` for the html, `rayner shots` for the contact sheet, `rayner describe` (drawings removed) for the transcript. For a plain page: the html, contact sheet and transcript its brief asks for.
 4. **Blind pairs.** List the pages in a manifest and run `node tools/bench-explainers.ts pair manifest.json <dir>`. It writes `pairN-X.*` and `pairN-Y.*`, with the author order and sides drawn from the manifest's seed, and the key beside the directory.

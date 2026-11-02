@@ -13,13 +13,26 @@ This skill says what a finished explainer must achieve and how each part is chec
 
 ## Script first
 
-Write the script the explainer exists to show before you draw anything. Explainers grown from a model without one explain their own mechanics and never answer the reader's question.
+Write the script the explainer exists to show before you draw anything: the story a reader follows, in plain prose. Explainers grown from a model without one explain their own mechanics and never answer the reader's question. Explainers that open on a definition answer it in a way the reader cannot yet use.
 
-- **Questions and answer.** Write the questions the reader brings, in their words, and answer them in a short piece of plain prose, answer first. For a concept, the first sentence says what it is and what sets it apart.
-- **Check questions.** Write the questions a reader should be able to answer afterwards and that only this explainer answers: its own example's outcome, or a transfer to a new case. A reader who already knows the topic recites definitions anyway; a model reader answered every statecharts question from prior knowledge alone. On a topic that well known, only people new to it can tell you whether the explainer teaches.
-- **Test it alone.** If a newcomer who reads only the script cannot answer the check questions, fix the script before drawing.
+The communities that make the best explainers have converged on what makes one work. 3Blue1Brown's Summer of Math Exposition judged thousands of entries on four criteria ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice to entrants adds the craft behind them ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). Write the script against them:
 
-Keep the script beside the scene as `script.md` (`rayner init` starts one). Put its one-sentence answer in `meta.answer`, which `rayner check` requires some step to state (it reports which; state it before you elaborate), and the check questions with their answers in `meta.checks`, which the player asks after the last step. Do not also print the answers in the last step: the disclosures exist so the reader answers first. The script decides what the explainer says; the model and its tests decide whether it is true.
+- **Motivation.** Early on, the reader should see why the topic matters and want to know the answer: a problem they feel, a result that surprises them, a cost they would pay without it.
+- **Concrete before abstract.** Start from a specific case and let the general idea emerge from it. Do not open on the definition and then fill it in with examples; that builds "from the top floor down".
+- **Names are earned.** Give a thing its name once the reader has seen why it is needed, and show why it is defined the way it is.
+- **The reader discovers it.** Set up each step so the reader can nearly see the next idea before it is shown: pose the problem, let its pain show, then reveal the move that removes it. "It's easiest to remember a piece of math if you feel like you invented it yourself."
+- **A story, not a list.** The steps are a problem being solved, each one following from the last, not facts in a sensible order.
+- **One deliberate aha.** Decide which moment should stick months later, usually a shift in perspective, and build up to it. Motion earns its place there, by showing that two pictures are the same thing.
+- **Clarity.** Explain every term when it arrives, keep the goal visible, and care for someone new to the topic.
+- **Novelty.** The idea need not be new, but the presentation should feel fresh: a better example, an angle the usual explanations miss.
+- **One genre.** Decide whether you are an expert showing the way, a fellow learner discovering it, or a worked example, and keep to it.
+
+The answer still comes early, as the payoff of the first concrete problem, within the first few steps: the reader should know what the explainer is about before the details, and recognise the definition when it arrives rather than be handed it cold.
+
+- **Check questions.** Write the questions a reader should be able to answer afterwards and that only this explainer answers: its own example's outcome, or a transfer to a new case. A reader who already knows the topic recites definitions anyway; a model reader answered every statecharts question from prior knowledge alone.
+- **Test it alone.** Read the script back as a newcomer would: does each step make the next one feel inevitable, and could they answer the check questions?
+
+Keep the script beside the scene as `script.md` (`rayner init` starts one). Put its one-sentence answer in `meta.answer`, which `rayner check` requires some step to state (it reports which), and the check questions with their answers in `meta.checks`, which the player asks after the last step. Do not also print the answers in the last step: the disclosures exist so the reader answers first. The script decides what the explainer says; the model and its tests decide whether it is true.
 
 ## What must be true
 
@@ -28,7 +41,8 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | The explainer… | Checked by |
 | --- | --- |
 | Draws every value from a model, tested against the real source | A fidelity test per case and step ([Test the model](#test-the-model)) |
-| States its answer before it elaborates | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether that is early enough |
+| Motivates the question early, starts from a concrete case, earns each name and builds to one aha | Reading it against [Script first](#script-first) and the [rubric](../../docs/EXPLAINER-RUBRIC.md) |
+| Names its answer within the first few steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` |
 | Works as served: every step from a fresh link, every case, phone and desktop | `rayner review` |
