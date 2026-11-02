@@ -1,7 +1,7 @@
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { bloomStory, locations } from '../lib/bloom-filter.ts';
+import { bloomStory, locations, makeFilter, membership, TAKEN } from '../lib/bloom-filter.ts';
 import { lerpColor } from '../../../src/color.ts';
 import { lesson, label, table, stat } from '../lib/lesson-drawing.ts';
 
@@ -12,6 +12,14 @@ const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
 const thousands = (n: number) => n.toLocaleString('en-US');
 const percent = (x: number) => `${(100 * x).toFixed(x < 0.01 ? 2 : 1)}%`;
 
+// Check 1: a third name, eel, taken in the 32-bit row. Its hashes, and what wolf and owl then get.
+const EEL = (() => {
+  const bits = makeFilter([...TAKEN, 'eel'], 32);
+  return { at: locations('eel', 32), wolf: membership(bits, 'wolf'), owl: membership(bits, 'owl'), owlZeros: locations('owl', 32).filter((i) => !bits[i]) };
+})();
+if (!EEL.wolf || EEL.owl || membership(makeFilter([...TAKEN], 32), 'wolf')) throw new Error('eel must turn wolf, and only wolf, into a maybe at 32 bits');
+// Check 3: a quarter of the bits set, which (4/16) and (8/32) both are.
+const quarter = (4 / 16) ** 3;
 const count = (n: number) => ['none', 'one', 'two', 'three'][n] ?? String(n);
 const list = (items: readonly (string | number)[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
@@ -29,16 +37,16 @@ export default class BloomFilter extends Scene {
     answer: 'A set bit says some name set it, not which',
     checks: [
       {
-        question: 'In the 16-bit filter, suppose only one of cat and dog had been taken. Would wolf still get “maybe”?',
-        answer: 'No, whichever one it was. wolf needs bit 7, which only dog set, and bit 6, which only cat set; with either name missing, one of them is 0 and wolf is turned away.',
+        question: `In the 32-bit filter, someone also takes eel, whose hashes are ${list(EEL.at)}. What does the filter now say about wolf, and about owl?`,
+        answer: `wolf gets ${EEL.wolf ? 'maybe' : 'definitely not'}, a false positive: bit 23 now comes from eel, 22 from cat and 1 from dog and eel. owl still gets ${EEL.owl ? 'maybe' : 'definitely not'}: eel set bit 20, but bits ${list(EEL.owlZeros)} are still 0.`,
       },
       {
         question: 'A third taken name sets three bits nobody had set, so 8 of the 16 bits are 1. About what share of untaken names would now get “maybe”?',
         answer: 'About (8/16)³ = 1/8, or 12.5%: a name passes only if all three of its bits are set. That is four times the 3.1% with 5 of 16 set.',
       },
       {
-        question: 'dog’s account is deleted, and someone clears dog’s bits 7, 0 and 1 in the 16-bit filter. What does the filter now say when a person types cat?',
-        answer: '“Definitely not taken”, which is wrong: bit 1 was cat’s too, so cat now finds a 0. A bit cannot be cleared without knowing who else set it, and the filter does not keep that.',
+        question: 'Two filters use the same three hashes. One has 4 of its 16 bits set; the other has 8 of its 32 bits set. Which says maybe to more untaken names?',
+        answer: `Neither: a quarter of the bits are set in each, so in both about (1/4)³ = ${percent(quarter)} of untaken names get maybe. A longer row helps only because the same names fill a smaller share of it.`,
       },
     ],
   };
@@ -67,6 +75,11 @@ export default class BloomFilter extends Scene {
     const whoSet = (owners: string[]) => (owners.length > 1 ? 'both' : owners[0] ?? 'no name');
     const sources = (story: typeof m, locs: readonly number[]) =>
       locs.map((j) => (story.owners[j]!.length ? `${j} from ${whoSet(story.owners[j]!)}` : `${j} still 0`));
+    // The pipeline caption says the measured rates sit a little below the formula at both sizes.
+    for (const story of [s16, s32]) {
+      const rate = story.sampleFalsePositives / story.sampleSize;
+      if (!(rate < story.passChance && rate > 0.8 * story.passChance)) throw new Error(`${story.size} bits: ${rate} is not a little below ${story.passChance}`);
+    }
     const zeros = (q: typeof absent) => q.locations.filter((j) => m.bits[j] === 0);
     const skipped = m.queries.filter((q) => !q.maybe).length,
       wasted = m.queries.filter((q) => q.maybe && !q.stored).length;
@@ -127,7 +140,7 @@ export default class BloomFilter extends Scene {
         id: 'question',
         title: 'Is this name taken? Can we skip the database?',
         line: `cat and dog are taken. ${size} bits in memory will try to answer first.`,
-        caption: `A sign-up form checks every name a person types against the accounts database, and each check is a disk read. Most names typed are not taken, so most reads find nothing. A row of ${size} bits kept in memory, all 0 to start, will sit in front of the database and try to answer “not taken” without the read.`,
+        caption: `A sign-up form checks every name a person types against the accounts database, one database read per check. Most names typed are not taken, so most of those reads find nothing. A row of ${size} bits kept in memory, all 0 to start, will sit in front of the database and try to answer “not taken” without the read.`,
       },
       {
         id: 'insert',
@@ -143,7 +156,7 @@ export default class BloomFilter extends Scene {
         line: 'A set bit says some name set it, not which.',
         caption: shared.length
           ? `dog’s bits ${list(dog)} are filled brown. Bit ${list(shared)} was already 1 from cat, so it stays 1; its fill shows both names, but the row records only the 1. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`
-          : `dog’s bits ${list(dog)} are filled brown, and none of them was already set by cat. The fills tell the names apart for us, but the row records only the 1s. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
+          : `dog’s bits ${list(dog)} are filled brown, and none of them was already set by cat. The fills tell the names apart for us; the row itself holds ${m.setBits} identical 1s, and nothing in it says which name set bit ${dog[0]} or bit ${cat[0]}. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
       },
       {
         id: 'absent',
@@ -172,14 +185,14 @@ export default class BloomFilter extends Scene {
           ? `Each of ${probe.word}’s three bits was set by another name.`
           : `With ${other.size} bits, ${probe.word} finds ${list(otherProbe.locations)}, all set by cat and dog.`,
         caption: probe.maybe
-          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: the filter is never wrong when it says no, and sometimes wrong when it says maybe. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
-          : `With ${size} bits, ${probe.word} lands on ${list(probe.locations)}: bit ${list(sources(m, probe.locations))}. No name set bit ${list(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. In the ${other.size}-bit row the same name finds ${list(otherProbe.locations)}, set by ${list(otherProbe.locations.map((j) => whoSet(other.owners[j]!)))}: there the filter says maybe and the database answers not taken, a false positive. More bits leave more of them 0.`,
+          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: a maybe for a name nobody took. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
+          : `With ${size} bits, ${probe.word} lands on ${list(probe.locations)}: bit ${list(sources(m, probe.locations))}. No name set bit ${list(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. Only ${m.setBits} of these ${size} bits are set, against ${other.setBits} of ${other.size} in the shorter row, so an untaken name is more likely to land on a 0 here.`,
       },
       {
         id: 'pipeline',
         title: `The filter skips ${count(skipped)} read${skipped === 1 ? '' : 's'} and wastes ${count(wasted)}`,
         line: `Over ${thousands(m.sampleSize)} untaken names, ${percent(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${percent(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
-        caption: `Of these ${m.queries.length} lookups the filter answered ${list(m.queries.filter((q) => !q.maybe).map((q) => q.word))} alone and sent ${m.exactLookups} to the database${wasted ? `, one of them wasted on ${probe.word}` : ''}; every final answer is correct. An untaken name wastes a read only if all three of its bits are already set. ${s16.setBits} of the 16 bits are set, so about (${s16.setBits}/16)³ = ${percent(s16.passChance)} of untaken names should pass; with 32 bits, ${s32.setBits} are set, and (${s32.setBits}/32)³ = ${percent(s32.passChance)}. Run ${thousands(s16.sampleSize)} untaken names through each row: ${thousands(s16.sampleFalsePositives)} pass at 16 bits and ${thousands(s32.sampleFalsePositives)} at 32. Because the share of set bits is cubed, doubling the row cuts the passes by much more than half.`,
+        caption: `Of these ${m.queries.length} lookups the filter answered ${list(m.queries.filter((q) => !q.maybe).map((q) => q.word))} alone and sent ${m.exactLookups} to the database${wasted ? `, one of them wasted on ${probe.word}` : ''}. An untaken name gets through only when all three of its bits are already set: with ${s16.setBits} of 16 set, about (${s16.setBits}/16)³ = ${percent(s16.passChance)} of untaken names should, and with ${s32.setBits} of 32, (${s32.setBits}/32)³ = ${percent(s32.passChance)}. The formula assumes each hash picks a bit at random, independently of the others; the measured rates sit close to it, a little below at both sizes.`,
       },
     ];
 

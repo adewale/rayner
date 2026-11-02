@@ -79,6 +79,10 @@ test('insert-only filters never reject an inserted word; concrete false positive
   }
   // At this sample size the 16-bit row passes several times as many untaken names as the 32-bit one.
   assert.ok(bloomStory(16).sampleFalsePositives>3*bloomStory(32).sampleFalsePositives);
+  // Check 1: taking eel (23, 20 and 1 at 32 bits) fills wolf's missing bit 23, while owl keeps two 0 bits.
+  assert.deepEqual(locations('eel',32),[23,20,1]);
+  const withEel=makeFilter(['cat','dog','eel'],32);
+  assert.equal(membership(withEel,'wolf'),true);assert.equal(membership(withEel,'owl'),false);
 });
 
 test('branch labels, parents and checked-out files match real Git through both merge histories',()=>{
@@ -253,6 +257,11 @@ test('each round’s chance and the odds after a seen door match a host simulate
   }
   close(oddsAfter(0,'leftmost','C').switchChance,1);close(oddsAfter(0,'leftmost','B').switchChance,1/2);
   close(monty(4,'informed').switchChance,3/4);close(monty(100,'random').switchChance,1/2);
+  // Check 2's coin-tossed host, by Bayes: (1/2·1/3 + 1/2·1/6) / (1/2·1/2 + 1/2·1/3) = 3/5, from the sixths the scene sums.
+  {
+    const i=oddsAfter(0,'informed','B'),r=oddsAfter(0,'random','B');
+    close((i.swapSixths+r.swapSixths)/(i.sixths+r.sixths),3/5);
+  }
   assert.throws(()=>threeDoorCells(0,'psychic' as never),/Unknown host rule/);
 });
 

@@ -18,6 +18,7 @@ import {
   accepts,
   grouped,
   UNSHOWN,
+  UNSHOWN_DECIMAL,
 } from '../scenes/explainers/lib/isdigit.ts';
 import type { Char, CharId } from '../scenes/explainers/lib/isdigit.ts';
 
@@ -151,10 +152,20 @@ test('python3, run now, gives the frozen answers', { skip: !PY && 'no python3 wi
   assert.equal(got.nested, true);
 });
 
-// The check questions' cases, which no step shows: ⑤ from its row alone, and int() on '٣4'.
-// UnicodeData.txt 17.0.0 line 8433, fetched 2026-11-02.
+// The check questions' cases, which no step shows: ⑤ and 𝟗 from their rows alone, and the rewrite of '٣4²'
+// (the model's rewrite of '٣4', an earlier question, is kept). UnicodeData.txt 17.0.0 lines 8433 and 35286, fetched 2026-11-02.
 const UNSHOWN_LINE = [8433, '2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;'] as const;
-test('the check questions’ unshown cases follow from the model: ⑤’s row and the rewrite of ٣4', () => {
+const UNSHOWN_DECIMAL_LINE = [35286, '1D7D7;MATHEMATICAL BOLD DIGIT NINE;Nd;0;EN;<font> 0039;9;9;9;N;;;;;'] as const;
+test('the check questions’ unshown cases follow from the model: ⑤’s and 𝟗’s rows and the rewrite of ٣4²', () => {
+  assert.equal(UNSHOWN_DECIMAL.ucd, UNSHOWN_DECIMAL_LINE[1]);
+  assert.equal(UNSHOWN_DECIMAL.ucdLine, UNSHOWN_DECIMAL_LINE[0]);
+  assert.equal(UNSHOWN_DECIMAL.code, 'U+1D7D7');
+  assert.deepEqual(fields(UNSHOWN_DECIMAL), { decimal: '9', digit: '9', numeric: '9' });
+  assert.deepEqual(predicates(UNSHOWN_DECIMAL), { isdecimal: true, isdigit: true, isnumeric: true });
+  assert.deepEqual(intOf(UNSHOWN_DECIMAL), { value: 9 });
+  // ٣4²: every character passes isdigit(), and int() sees '34?'.
+  assert.ok(predicates(CHARS.arabic).isdigit && predicates(CHARS.super).isdigit);
+  assert.equal(asciiFor(CHARS.arabic) + '4' + asciiFor(CHARS.super), '34?');
   assert.equal(UNSHOWN.ucd, UNSHOWN_LINE[1]);
   assert.equal(UNSHOWN.ucdLine, UNSHOWN_LINE[0]);
   assert.equal(UNSHOWN.code, 'U+2464');
@@ -165,7 +176,7 @@ test('the check questions’ unshown cases follow from the model: ⑤’s row an
   // int() rewrites character by character: ٣ becomes '3' and the ASCII 4 is kept.
   assert.equal(asciiFor(CHARS.arabic) + '4', '34');
 });
-// ⑤ and ٣ have had these values since Unicode 1.1, so any python3 answers as CPython 3.15.1 would.
+// ⑤, ² and ٣ have had these values since Unicode 1.1 and 𝟗 since 3.1, so any python3 answers as CPython 3.15.1 would.
 const ANY_PY = spawnSync(process.env.PYTHON ?? 'python3', ['-I', '-c', 'pass']).status === 0 ? (process.env.PYTHON ?? 'python3') : null;
 test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
   const script = [
@@ -173,11 +184,17 @@ test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY
     "c = chr(0x2464)",
     "try: n = int(c)\nexcept ValueError as e: n = str(e)",
     "print(json.dumps([c.isdecimal(), c.isdigit(), c.isnumeric(), n, int(chr(0x663) + '4')], ensure_ascii=False))",
+    "b = chr(0x1D7D7); m = chr(0x663) + '4' + chr(0xB2)",
+    "try: k = int(m)\nexcept ValueError as e: k = str(e)",
+    "print(json.dumps([b.isdecimal(), b.isdigit(), b.isnumeric(), int(b), m.isdigit(), k], ensure_ascii=False))",
   ].join('\n');
   const r = spawnSync(ANY_PY!, ['-I', '-c', script], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const p = predicates(UNSHOWN), int = intOf(UNSHOWN);
-  assert.deepEqual(JSON.parse(r.stdout), [p.isdecimal, p.isdigit, p.isnumeric, 'error' in int ? int.error : int.value, Number(asciiFor(CHARS.arabic) + '4')]);
+  const [first, second] = r.stdout.trim().split('\n');
+  assert.deepEqual(JSON.parse(first!), [p.isdecimal, p.isdigit, p.isnumeric, 'error' in int ? int.error : int.value, Number(asciiFor(CHARS.arabic) + '4')]);
+  const b = predicates(UNSHOWN_DECIMAL), bold = intOf(UNSHOWN_DECIMAL) as { value: number };
+  assert.deepEqual(JSON.parse(second!), [b.isdecimal, b.isdigit, b.isnumeric, bold.value, true, "invalid literal for int() with base 10: '٣4²'"]);
 });
 
 // ------------------------------------------------------------------ properties over synthetic rows

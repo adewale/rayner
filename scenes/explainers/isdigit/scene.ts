@@ -17,6 +17,7 @@ import {
   grouped,
   valueOf,
   UNSHOWN,
+  UNSHOWN_DECIMAL,
 } from '../lib/isdigit.ts';
 import type { Char, CharId, Predicate } from '../lib/isdigit.ts';
 
@@ -44,6 +45,11 @@ const TF = (b: boolean) => (b ? 'True' : 'False');
 /** The lineup's characters that isdigit() passes and int() rejects: ² alone. */
 const LET_THROUGH = LINEUP.filter((k) => predicates(CHARS[k]).isdigit && !('value' in intOf(CHARS[k])));
 if (LET_THROUGH.join() !== 'super') throw new Error(`isdigit() lets through ${LET_THROUGH.join()}, not super`);
+/** Check 2's text: ٣, an ASCII 4 and ². Every character has a digit value; int() rewrites it one character at a time. */
+const MIXED = [CHARS.arabic, null, CHARS.super] as const;
+const mixedText = MIXED.map((c) => (c ? c.char : '4')).join(''),
+  mixedAscii = MIXED.map((c) => (c ? asciiFor(c) : '4')).join(''),
+  mixedIsdigit = MIXED.every((c) => !c || predicates(c).isdigit);
 /** The script's one-sentence answer, stated in the lineup step of every case. */
 const ANSWER = `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
 
@@ -92,12 +98,12 @@ export default class IsDigitExplainer extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: 'Which field of a UnicodeData.txt line must a character fill for int() to parse it?',
-        answer: `Field 6, the decimal digit value. int() rewrites a character with field 6 empty as '?', so int('${CHARS.super.char}') raises ValueError although ${CHARS.super.char} has ${fields(CHARS.super).digit} in fields 7 and 8.`,
+        question: `${UNSHOWN_DECIMAL.char}, ${UNSHOWN_DECIMAL.code}, is a bold nine from the mathematical alphabets, with this line in UnicodeData.txt: ${UNSHOWN_DECIMAL.ucd}. What do '${UNSHOWN_DECIMAL.char}'.isdigit() and int('${UNSHOWN_DECIMAL.char}') do?`,
+        answer: `isdigit() returns ${TF(predicates(UNSHOWN_DECIMAL).isdigit)}, and int('${UNSHOWN_DECIMAL.char}') returns ${(intOf(UNSHOWN_DECIMAL) as { value: number }).value}. Field 6 holds ${fields(UNSHOWN_DECIMAL).decimal}, so CPython sets DECIMAL_MASK as well as the other two, and int() rewrites ${UNSHOWN_DECIMAL.char} as '${asciiFor(UNSHOWN_DECIMAL)}'. The styling doesn’t matter; field 6 does.`,
       },
       {
-        question: `What does int('${CHARS.arabic.char}4') return? The text is an Arabic-Indic three followed by an ASCII 4.`,
-        answer: `${Number(asciiFor(CHARS.arabic) + '4')}. int() rewrites each character on its own before parsing: ${CHARS.arabic.char} has the decimal digit value ${fields(CHARS.arabic).decimal}, so it becomes '${asciiFor(CHARS.arabic)}', the 4 stays, and '${asciiFor(CHARS.arabic)}4' parses. Mixing scripts in one number doesn’t matter.`,
+        question: `What do '${mixedText}'.isdigit() and int('${mixedText}') do? The text is an Arabic-Indic three, an ASCII 4 and a superscript two.`,
+        answer: `isdigit() returns ${TF(mixedIsdigit)}, because every character has a digit value in field 7. int() raises ValueError: it rewrites the text one character at a time as '${mixedAscii}', which it cannot parse.`,
       },
       {
         question: `${UNSHOWN.char}, ${UNSHOWN.code}, has this line in UnicodeData.txt: ${UNSHOWN.ucd}. What do '${UNSHOWN.char}'.isdigit() and int('${UNSHOWN.char}') do?`,
@@ -193,16 +199,14 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ the guard
     await this.step('guard', {
-      title: run.passes
-        ? `${q(c)}.${guard}() is True, so int() runs`
-        : `${q(c)}.${guard}() is False, so int() never runs`,
+      title: `A guard: ${guard}() checks ${q(c)} before int()`,
       line: run.passes
         ? `Predict: does int(${q(c)}) return a number, or raise ValueError?`
-        : `Predict: had it run, would int(${q(c)}) return a number, or raise ValueError?`,
-      caption: `A common guard checks the text first and calls int() only if the check passes, so that int() never sees text it cannot parse. The check here is ${guard}(). For ${q(c)}, a numeral whose Unicode value is ${valueOf(c)}, it returns ${
+        : `Predict: had int() run, would int(${q(c)}) return a number, or raise ValueError?`,
+      caption: `One way to keep int() from raising is a guard: check the text first, and call int() only if the check passes. The check here is ${guard}(). ${q(c)} is a numeral whose Unicode value is ${valueOf(c)}, and ${guard}() returns ${
         run.passes
-          ? 'True, so the next line calls int()'
-          : 'False, so the code skips int() and treats the text as not a number'
+          ? 'True for it, so the next line calls int()'
+          : 'False for it, so the code skips int() and treats the text as not a number'
       }.`,
     });
     await s.clear();
@@ -227,7 +231,7 @@ export default class IsDigitExplainer extends Scene {
       line: `${q(c)} becomes '${asciiFor(c)}' before parsing${parsed ? '' : `, and no number contains '?'`}.`,
       // longobject.c:3193 calls _PyUnicode_TransformDecimalAndSpaceToASCII before parsing;
       // unicodeobject.c:9538-9552 rewrites each character; longobject.c:3209 is the error message.
-      caption: `Before parsing, int() rewrites each non-ASCII character: a space becomes ' ', a character with a decimal digit value becomes that ASCII digit, and anything else becomes '?', so the parse fails. ${c.char} ${
+      caption: `Before parsing, int() rewrites each non-ASCII character: any character Python counts as whitespace becomes ' ', a character with a decimal digit value becomes that ASCII digit, and anything else becomes '?', so the parse fails. ${c.char} ${
         f.decimal ? `has the decimal digit value ${f.decimal}` : 'has no decimal digit value'
       }, so it becomes '${asciiFor(c)}' and int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}. ${
         run.outcome === 'raised'
@@ -390,25 +394,10 @@ export default class IsDigitExplainer extends Scene {
     this.state.flags = fl;
     this.state.predicates = p;
 
-    // ------------------------------------------------------------------ the nested sets
-    await this.step('sets', {
-      title: 'Decimals sit inside digits, inside numerics',
-      line: `Which of the three sets holds ${c.char}?`,
-      caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
-        COUNTS.isnumeric,
-      )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest. ${c.char} is in ${
-        type === 'Decimal'
-          ? 'the innermost set'
-          : type === 'Digit'
-            ? 'the middle set but outside the innermost'
-            : 'the outer set only'
-      }.`,
-    });
-    await s.clear();
-    await sets(null, s.emphasis, 'this case’s character');
-    this.state.counts = COUNTS;
-
-    // ------------------------------------------------------------------ the outcome
+    // ------------------------------------------------------------------ the nested sets, and where the check leaves this character
+    // One step: the counts, the nesting, and the check's own box drawn heavy with this case's character marked.
+    const where =
+      type === 'Decimal' ? 'in the innermost box' : type === 'Digit' ? 'in the middle box but outside the innermost' : 'in the outer box only';
     await this.step('outcome', {
       title:
         run.outcome === 'parsed'
@@ -422,12 +411,15 @@ export default class IsDigitExplainer extends Scene {
           : run.outcome === 'raised'
             ? `${c.char} is inside the ${guard}() box but outside the innermost.`
             : `${c.char} is outside the ${guard}() box and has no decimal value.`,
-      caption:
+      caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
+        COUNTS.isnumeric,
+      )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest, and the innermost holds the only single characters int() accepts. ${c.char} is ${where}. ${
         run.outcome === 'parsed'
-          ? `int() returns ${parsed ? int.value : ''} for ${c.char} too. The innermost box holds the decimal characters, the only single characters int() accepts.`
+          ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() returns ${parsed ? int.value : ''}.`
           : run.outcome === 'raised'
-            ? `The innermost box holds the only single characters int() accepts. The check passes ${c.char}, and int() raises ValueError: invalid literal for int() with base 10.`
-            : `The check fails on ${c.char}, and the code never calls int(); had it run, int() would have raised ValueError too, because ${c.char} has no decimal value.`,
+            ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() raises ValueError: invalid literal for int() with base 10.`
+            : `The check fails on ${c.char}, so the code never calls int(); had it run, int() would have raised ValueError too.`
+      }`,
     });
     await s.clear();
     await sets(
@@ -439,6 +431,7 @@ export default class IsDigitExplainer extends Scene {
           ? 'marked as parsed'
           : 'marked as turned away',
     );
+    this.state.counts = COUNTS;
     this.state.outcome = run.outcome;
 
     // ------------------------------------------------------------------ the check that matches int()

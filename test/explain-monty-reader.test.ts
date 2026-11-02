@@ -32,7 +32,7 @@ const targets: StoryClaim['targets'] = [
 before(async () => {
   if (!enabled) return;
   project = await collectProject('scenes/explainers/monty-hall', { write: false });
-  assert.equal(project.variants.length, 6);
+  assert.equal(project.variants.length, 2);
   folder = await mkdtemp(join(tmpdir(), 'rayner-monty-reader-'));
   await buildExplainer(project, join(folder, 'monty.html'));
   server = await serve(folder, 0, 'monty.html');
@@ -45,7 +45,7 @@ after(async () => {
   if (folder) await rm(folder, { recursive: true, force: true });
 });
 
-test('every host and first choice opens with all three readable doors and the complete host rule', options, async () => {
+test('every host rule opens with all three readable doors and the complete host rule', options, async () => {
   let openings = 0, checkedTargets = 0;
   for (const variant of project.variants) {
     const claims = steps.map((step) => ({ step, opening: true, targets }));
@@ -96,6 +96,7 @@ test('every host and first choice opens with all three readable doors and the co
       }
     }
   }
-  assert.equal(openings, 24);
-  assert.equal(checkedTargets, 192);
+  // Two host rules, two steps, two phone widths; the first-pick setting, which only relabelled the doors, is gone.
+  assert.equal(openings, 8);
+  assert.equal(checkedTargets, 64);
 });

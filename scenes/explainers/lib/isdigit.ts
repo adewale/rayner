@@ -68,6 +68,11 @@ export const UNSHOWN: Char = {
   ...row('super', '⑤', 'CIRCLED DIGIT FIVE', '2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;', 8433),
   id: 'unshown',
 };
+/** A second unshown character, for a check question: a styled digit whose row fills field 6. */
+export const UNSHOWN_DECIMAL: Char = {
+  ...row('ascii', '𝟗', 'MATHEMATICAL BOLD DIGIT NINE', '1D7D7;MATHEMATICAL BOLD DIGIT NINE;Nd;0;EN;<font> 0039;9;9;9;N;;;;;', 35286),
+  id: 'unshown',
+};
 
 /** UnicodeData.txt fields 6, 7 and 8 for the character, with Unihan's value in field 8 as CPython puts it. */
 export function fields(c: Char): { decimal: string; digit: string; numeric: string } {

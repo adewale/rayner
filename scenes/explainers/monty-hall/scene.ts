@@ -83,6 +83,12 @@ const heads = (s: Stage, y: number) =>
     new Group(...[0, 1, 2].map((i) => label(`Car behind ${door(i)}`, X0 + (i + 0.5) * 2 * SIX, y, s.soft, 0.5))),
     'monty-heads',
   );
+// Check 2: a host chosen by a coin toss, after a goat behind B. Each host's rounds that show it, in sixths.
+const mixed = (() => {
+  const informed = oddsAfter(0, 'informed', 'B'),
+    random = oddsAfter(0, 'random', 'B');
+  return { informed, random, sixths: informed.sixths + random.sixths, swap: informed.swapSixths + random.swapSixths };
+})();
 const sum = (cells: readonly Cell[], f: (c: Cell) => boolean) => cells.filter(f).reduce((n, c) => n + c.sixths, 0);
 
 export default class MontyHall extends Scene {
@@ -91,7 +97,8 @@ export default class MontyHall extends Scene {
     title: 'Why does the host’s rule change the odds of switching?',
     sources: ['https://mathigon.org/course/probability/monty-hall', 'https://doi.org/10.1080/00031305.1975.10479121'],
     // The script's answer and check questions (script.md); `worlds` states the answer.
-    answer: 'Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat',
+    answer:
+      'Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat',
     checks: [
       {
         question:
@@ -99,8 +106,9 @@ export default class MontyHall extends Scene {
         answer: `Switch: you win ${pct(oddsAfter(0, 'leftmost', 'C').switchChance)} of the time. He opens C only when he can’t open B, so B hides the car. Had he opened B, switching would win ${pct(oddsAfter(0, 'leftmost', 'B').switchChance)}: he opens B whether the car is behind A or C.`,
       },
       {
-        question: 'Four doors. A host who knows where the car is opens two goats among the three you didn’t pick. How often does switching to the last closed door win?',
-        answer: `${pct(monty(4, 'informed').switchChance)}. Your first pick is right 1 time in 4; in the other 3 he leaves the car behind the one door he doesn’t open.`,
+        question:
+          'Before the game a coin is tossed: heads, the host knows where the car is and picks at random between two goats; tails, he opens a random door. You don’t see the coin. You pick A, and he opens B to a goat. How often does switching win?',
+        answer: `${pct(mixed.swap / mixed.sixths)}. Count sixths of a round for each host. The host who knows shows a goat behind B in ${mixed.informed.sixths} sixths, and switching wins ${mixed.informed.swapSixths} of them; the random host shows one in ${mixed.random.sixths}, and switching wins ${mixed.random.swapSixths}. Together switching wins ${mixed.swap} of ${mixed.sixths}.`,
       },
       {
         question: 'With 100 doors and a random host who opens 98 of them, how often does the game reach a switch offer, and what are the odds then?',
@@ -114,22 +122,17 @@ export default class MontyHall extends Scene {
       label: 'Host rule',
       default: 'informed',
       options: [
-        { value: 'informed', label: 'Knows the prize; always reveals goats' },
+        { value: 'informed', label: 'Knows where the car is; opens a goat at random' },
         { value: 'random', label: 'Opens a random unchosen door' },
       ],
-    },
-    {
-      id: 'choice',
-      label: 'First choice',
-      default: 'A',
-      options: ['A', 'B', 'C'].map((value) => ({ value, label: value })),
     },
   ];
   override async construct() {
     const settings = settingsOf(this),
       host = settings.host as Host,
       other: Host = host === 'informed' ? 'random' : 'informed',
-      choice = 'ABC'.indexOf(settings.choice!),
+      // The first pick is A: picking B or C only relabels the doors.
+      choice = 0,
       example = montyExample(choice, 'switch'),
       m = monty(3, host),
       informed = monty(3, 'informed'),
@@ -174,7 +177,7 @@ export default class MontyHall extends Scene {
         g,
         label(`You picked ${X}; he opened ${B}; ${C} is offered`, 0, -1.0, s.palette.ink, 0.62),
         label(
-          host === 'informed' ? 'Knows where the car is; always opens a goat' : 'Opens a random door; this time a goat',
+          host === 'informed' ? 'Knows where the car is; opens a goat at random' : 'Opens a random door; this time a goat',
           0,
           -2.25,
           s.soft,
@@ -264,8 +267,8 @@ export default class MontyHall extends Scene {
       line: `Should you switch? That depends on what the host knew when he opened ${B}.`,
       caption:
         host === 'informed'
-          ? `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host knows where the car is; he opens ${B}, shows a goat, and offers you ${C}. Tellings of the puzzle often leave out what the host knew, yet whether you should switch depends on it.`
-          : `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host doesn’t know where the car is; he opened ${B} at random and happened to reveal a goat. Had he opened the car, the round would be over. He offers you ${C}. Tellings of the puzzle often leave out what the host knew, yet whether you should switch depends on it.`,
+          ? `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host knows where the car is; he opens ${B}, shows a goat, and offers you ${C}. With two doors still closed, the odds look even.`
+          : `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host doesn’t know where the car is; he opened ${B} at random and happened to reveal a goat. Had he opened the car, the round would be over. He offers you ${C}. With two doors still closed, the odds look even.`,
     });
     main.rebuild();
     s.keep(main, describe);
@@ -284,12 +287,12 @@ export default class MontyHall extends Scene {
     at('predict', { example, host, revealed: false });
 
     await this.step('odds', {
-      title: host === 'informed' ? 'With a host who knows, switching wins 2 in 3' : 'With a random host, switching wins 1 in 2',
+      title: host === 'informed' ? 'He knows and picks goats at random: switching wins 2 in 3' : 'With a random host, switching wins 1 in 2',
       line: 'Each cell is a round, as wide as its chance: door opened, what it shows, who wins.',
       caption:
         host === 'informed'
-          ? `The car is behind each door a third of the time. When it is behind ${X}, he opens ${others.join(' or ')} with equal chance, and staying wins. When it is behind either other door, he must open the one goat you didn’t pick, so the car is behind the door he leaves closed: switching wins ${pct(m.switchChance)}.`
-          : `The car is behind each door a third of the time, and he opens ${others.join(' or ')} with equal chance, so each round is a sixth. In ${ends} of them he opens the car and the game ends. Of the ${goat} that show a goat, staying wins ${randomStay} and switching wins ${randomSwitch}: ${pct(m.switchChance)} each.`,
+          ? `First count every round for a pick of ${X}, including those where he opens ${C}; the last step keeps only the ones that match the goat you saw. The car is behind each door a third of the time. When it is behind ${X}, he opens ${others.join(' or ')} with equal chance, and staying wins. When it is behind either other door, he must open the one goat you didn’t pick, so the car is behind the door he leaves closed: switching wins ${pct(m.switchChance)}.`
+          : `First count every round for a pick of ${X}, including those where he opens ${C}; the last step keeps only the ones that match the goat you saw. The car is behind each door a third of the time, and he opens ${others.join(' or ')} with equal chance, so each round is a sixth. In ${ends} of them he opens the car and the game ends. Of the ${goat} that show a goat, staying wins ${randomStay} and switching wins ${randomSwitch}: ${pct(m.switchChance)} each.`,
     });
     await fresh('odds');
     at('odds', { odds: m, cells: cells[host] });
@@ -300,7 +303,7 @@ export default class MontyHall extends Scene {
         host === 'informed'
           ? 'Each wrong-pick third splits, and in one half the random host opens the car.'
           : 'Each round where he opens the car becomes a switching win for the host who knows.',
-      caption: `The random host opens ${others.join(' or ')} with equal chance, so each third where your pick is wrong splits in two; in one half he opens the car and the game ends. The host who knows never opens the car, so he turns those halves into switching wins. Staying keeps its third under either host. Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.`,
+      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. The two strips hold the same rounds. The random host opens ${others.join(' or ')} with equal chance, so in half of each third where your pick is wrong he opens the car and the game ends; the host who knows never opens the car, so those halves are switching wins for him. Staying keeps its third under either host.`,
     });
     await morph('copy', 0.8);
     await morph('worlds', 1.3);

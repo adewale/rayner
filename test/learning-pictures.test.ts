@@ -46,15 +46,16 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
 
 test('Monty Hall paints every round at its chance and the host-conditioned percentages beside the correct strategies in every case', async () => {
   const project = await collectProject('scenes/explainers/monty-hall', { write: false });
-  // Two host rules by three first picks: the strategy setting went with the step that played one round out.
-  assert.equal(project.variants.length, 6);
+  // Two host rules; the first pick is A (the strategy setting went with the step that played one round out, and the
+  // first-pick setting, which only relabelled the doors, is gone).
+  assert.equal(project.variants.length, 2);
   let pictures = 0,
     readouts = 0,
     comparisons = 0,
     cells = 0;
   for (const variant of project.variants) {
     const visited: string[] = [];
-    const choice = 'ABC'.indexOf(variant.values.choice!);
+    assert.equal(variant.values.choice, undefined);
     await new variant.Scene(
       {
         async frame() {},
@@ -79,7 +80,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
               const box = cell.children.find((m): m is Rectangle => m instanceof Rectangle)!;
               return Math.round((box.width() / (10 / 6)) * 100) / 100;
             });
-            assert.deepEqual(sixths, host === 'informed' ? (choice === 0 ? [1, 1, 2, 2] : choice === 1 ? [2, 1, 1, 2] : [2, 2, 1, 1]) : [1, 1, 1, 1, 1, 1], `${step.name}: ${host} widths`);
+            assert.deepEqual(sixths, host === 'informed' ? [1, 1, 2, 2] : [1, 1, 1, 1, 1, 1], `${step.name}: ${host} widths`);
             cells += sixths.length;
           }
           if (step.name === 'odds') {
@@ -109,9 +110,9 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
     ).run();
     assert.deepEqual(visited, ['odds', 'worlds', 'rules']);
   }
-  assert.equal(pictures, 18);
-  assert.equal(readouts, 30);
-  assert.equal(comparisons, 6);
+  assert.equal(pictures, 6);
+  assert.equal(readouts, 10);
+  assert.equal(comparisons, 2);
   // Per case: one strip in odds (4 or 6 cells), two in worlds and rules (10 each).
-  assert.equal(cells, 3 * (4 + 6) + 6 * 20);
+  assert.equal(cells, 4 + 6 + 2 * 20);
 });

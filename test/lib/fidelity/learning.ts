@@ -57,7 +57,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     const other=gitStory(!advanced).at(-1)!;
     assertStepState(trace,'countercase',{advanced:!advanced,frame:other,files:currentFiles(other)});
   } else if(id==='monty-hall') {
-    const host=values.host as Host,choice='ABC'.indexOf(values.choice!),example=montyExample(choice,'switch');
+    const host=values.host as Host,choice=0,example=montyExample(choice,'switch');
     // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed.
     for(const name of ['choice','predict']) assertStepState(trace,name,{example,host,revealed:false});
     const cells={informed:threeDoorCells(choice,'informed'),random:threeDoorCells(choice,'random')};

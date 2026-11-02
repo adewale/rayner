@@ -24,7 +24,8 @@ export function check(trace: Trace, values: Record<string, string>): void {
   });
   assertStepState(trace, 'ucd', { fields: fields(c), numericType: numericType(c) });
   assertStepState(trace, 'flags', { flags: flags(c), predicates: predicates(c) });
-  assertStepState(trace, 'sets', { counts: COUNTS });
+  // The sets step merged into outcome, which now draws the nested sets with their counts.
+  assertStepState(trace, 'outcome', { counts: COUNTS });
   assertStepState(trace, 'guard', { guard: { predicate: guard, passes: predicates(c)[guard] } });
   assertStepState(trace, 'int', { int: intOf(c) });
   assertStepState(trace, 'outcome', { outcome: guarded(c, guard).outcome });
