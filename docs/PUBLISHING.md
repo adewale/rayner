@@ -29,7 +29,7 @@ Run `npm run demos:check` and `npm run demos:review` to build and review the com
 Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the showcase, use:
 
 ```sh
-npm run site:export -- <site-root> --only python-dict,git-branches,monty-hall,send-sync,pg-page,isdigit,trust-proxy --entry python-dict
+npm run site:export -- <site-root> --only monty-hall,statecharts,bloom-filter,periodic-groups,agentic-mermaid,seasons,melody-rhythm,lantern,pen-and-pencil,fork,birthday-paradox,isdigit,feature-tour --entry monty-hall
 ```
 
 `--entry` must name a selected lesson. If omitted, export keeps the catalog entry when selected, otherwise it uses the first requested id. No particular subject is mandatory. The exported catalog, evidence and `llms.txt` report only the selected lessons; complete collection checks remain separate.
