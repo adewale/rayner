@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/ext4-space.ts';
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -59,6 +57,8 @@ const pie = (names: readonly string[], title: string, slices: readonly Slice[]) 
   `${head(names)}\npie\n  title ${title}\n` + slices.map((s) => `  "${s.label}" : ${s.value}\n`).join('');
 
 const SIZE = 0.34;
+/** The script's one-sentence answer (script.md); the reserve step's caption states it. */
+const ANSWER = 'The default 5% reserve for root takes as much space as all the metadata, or more';
 // The pie on the left, a card on the right: wider than the 'side' region so that 13-digit counts
 // fit beside their labels at full size.
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
@@ -89,6 +89,24 @@ export default class Ext4SpaceExplainer extends Scene {
       LINUX + 'super.c#L4255-L4283',
       LINUX + 'super.c#L6807-L6829',
       LINUX + 'balloc.c#L620-L666',
+    ],
+    // The script's answer and check questions (script.md); check holds a step (reserve) to stating the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'A new 1 TiB ext4 disk shows 93.3% available. What takes most of the missing 6.7%?',
+        answer:
+          'The 5% of blocks mke2fs reserves for root by default: 13,421,772 blocks, 3.0 times the 4,495,258 blocks of metadata. The kernel holds back 4,096 more.',
+      },
+      {
+        question: 'Of the 1 TiB disk’s metadata, what is the biggest part?',
+        answer: 'The inode tables: one 256-byte inode for every 16 KiB of disk, 4,194,304 blocks, 93.3% of the metadata. The journal is 1 GiB, 5.8%.',
+      },
+      {
+        question: 'Would formatting the 1 TiB disk with -m 0 free any of the metadata?',
+        answer:
+          'No. -m 0 only stops reserving blocks for root; the inode tables, journal and other metadata stay. Users could then write all but the metadata and the kernel’s 4,096 blocks.',
+      },
     ],
   };
   static settings = [
@@ -136,47 +154,92 @@ export default class Ext4SpaceExplainer extends Scene {
     const wholeTitle = `Every 4 KiB block of ${name}`;
     const whole = (x: Space, st: WholeStage) => pie(wholeNames, wholeTitle, wholePie(x, st));
 
-    // ------------------------------------------------------------------ the whole
-    await readerFirst(this, s, readerFrames(size, m));
-    await this.step('blocks', {
-      detail: true,
-      title: `mkfs.ext4 makes ${name} into ${count(l.blocks)} blocks of 4 KiB`,
-      line: `${of(l.metadata)} of the blocks hold metadata before any file is written.`,
-      // mke2fs.conf.in:5 blocksize = 4096; initialize.c:266 blocks per group = blocksize * 8.
-      caption: `mke2fs.conf sets ${BLOCK}-byte blocks, so ${name} is ${count(l.blocks)} blocks in ${count(l.groups)} groups of ${count(
-        BLOCKS_PER_GROUP,
-      )}. Before any file is written, ${count(l.metadata)} blocks, ${of(l.metadata)}, already hold metadata: the filesystem’s own structures. The pie counts blocks as dumpe2fs reports them after a real mkfs.ext4 run. The question is how much of this new disk a regular user can write: metadata consumes blocks now, while the root and kernel reserves hold back some of the remaining free blocks.`,
+    // ------------------------------------------------------------------ the question: df on a new disk
+    const gone = l.blocks - sp.users;
+    const gib = (blocks: number) => `${((blocks * BLOCK) / 2 ** 30).toFixed(1)} GiB`;
+    // The opening pie names only what df shows: what users can write, and what they cannot.
+    const openPie: Slice[] = [
+      { label: 'Not available', value: gone },
+      { label: 'Users can write', value: sp.users },
+    ];
+    // One config colours both pies (a morph keeps its config): Not available, in slice 1, takes
+    // Metadata's grey, and becomes Metadata.
+    const answerNames = ['Metadata', 'Users can write', 'Kernel reserve', 'Root reserve'].filter((n) =>
+      ['Metadata', 'Users can write'].includes(n) || wholePie(sp, 'users').some((x) => x.label === n),
+    );
+    await this.step('df', {
+      title: `A new ${name} disk: users can write only ${of(sp.users)} of it`,
+      line: `Predict: no file is written yet. Where did ${size === '1g' ? bytesOf(gone) : gib(gone)} go?`,
+      // Linux super.c:6807-6831 ext4_statfs; measured with statfs on the mounted filesystem.
+      caption: `We ran mkfs.ext4 1.47.3 with no options on an empty ${name} disk, ${count(l.blocks)} blocks of ${BLOCK} bytes, mounted it and asked the kernel’s statfs, which df reads. A user other than root can write ${count(sp.users)} blocks, which df shows as Avail: ${of(sp.users)} of the disk. The other ${count(gone)} blocks, ${of(gone)}, are gone before a single file is written. Predict where they went.`,
     });
     await s.clear();
-    await s.show({ source: whole(sp, 'free') }, { box: PIE });
+    const d3: Diagram = await s.show({ source: pie(answerNames, `Every 4 KiB block of ${name}`, openPie) }, { box: PIE });
     await s.card(
       [
-        ['Size', name],
-        ['Size type', l.type],
-        ['Block size', `${BLOCK} bytes`],
-        ['Blocks', count(l.blocks)],
-        ['Block groups', count(l.groups)],
-        ['Metadata', count(l.metadata)],
-        ['Free', count(l.free)],
+        ['Disk', `${name}, ${count(l.blocks)} blocks`],
+        ['df Avail', `${count(sp.users)} blocks`],
+        ['Users can write', of(sp.users)],
+        ['Not available', `${count(gone)} blocks`],
       ],
-      { at: CARD, fontSize: SIZE, title: 'After mkfs.ext4' },
+      { at: CARD, fontSize: SIZE, title: 'statfs after mkfs.ext4' },
     );
-    this.state.blocks = {
-      blocks: l.blocks,
-      groups: l.groups,
+    this.state.df = { blocks: l.blocks, users: sp.users, gone, pie: openPie };
+
+    // ------------------------------------------------------------------ the answer: the reserve
+    const kernelDrawn = wholePie(sp, 'users').some((x) => x.label === 'Kernel reserve');
+    const ratio = times(sp.root, l.metadata);
+    await this.step('reserve', {
+      title: `Answer: 5% is held back for root, ${ratio} all the metadata`,
+      line: `Predict: what fills the ${count(l.metadata)} blocks of metadata?`,
+      // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283, balloc.c:620-665.
+      caption: `${ANSWER}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, which only root may fill; its manual gives two reasons, less fragmentation and room for root’s daemons once other users are stopped. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
+        kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
+      }. Free blocks less both reserves is what users can write.`,
+    });
+    await s.clearOverlays();
+    // Not available splits into its three parts, re-coloured from the answer's own config.
+    await d3.morph(
+      { source: pie(answerNames, `Every 4 KiB block of ${name}`, wholePie(sp, 'users')) },
+      {
+        ops: [
+          { kind: 'rename_slice', from: 'Not available', to: 'Metadata' },
+          { kind: 'set_slice_value', label: 'Metadata', value: l.metadata },
+          ...wholePie(sp, 'users')
+            .slice(2)
+            .map((x) => ({ kind: 'add_slice', label: x.label, value: x.value })),
+        ],
+      },
+    );
+    await d3.mark(['slice:Root reserve'], { as: 'the answer' });
+    await s.card(
+      [
+        ['Blocks', count(l.blocks)],
+        ['Metadata', `- ${count(l.metadata)}`],
+        ['Free', count(l.free)],
+        ['Root, 5%', `- ${count(sp.root)}`],
+        ['Kernel', `- ${count(sp.kernel)}`],
+        ['Users can write', count(sp.users)],
+        ['Root / metadata', ratio],
+      ],
+      { at: CARD, fontSize: SIZE, title: 'Where the blocks go' },
+    );
+    this.state.reserve = {
+      root: sp.root,
+      kernel: sp.kernel,
       metadata: l.metadata,
       free: l.free,
-      pie: wholePie(sp, 'free'),
+      users: sp.users,
+      pie: wholePie(sp, 'users'),
     };
 
     // ------------------------------------------------------------------ inode tables
     const perInode = l.inodeRatio / 1024;
     await this.step('inodes', {
-      detail: true,
       title: `Inode tables are ${ofMeta(l.inodeTables)} of the metadata`,
       line: `One ${INODE_SIZE}-byte inode per ${perInode} KiB of disk: ${count(l.inodes)} inodes.`,
       // mke2fs.c:1433-1443 size types; mke2fs.conf.in:7, 24-29 inode_ratio; mke2fs.c:2811-2812.
-      caption: `This pie’s whole is the ${count(l.metadata)} metadata blocks. mke2fs makes one inode per 16 KiB of disk from 512 MiB to under 4 TiB, per 32 KiB to under 16 TiB, and per 64 KiB above. ${name} gets ${count(
+      caption: `This pie’s whole is the ${count(l.metadata)} metadata blocks. An inode records one file, so mke2fs sets aside a fixed number up front, by the disk’s size type: one inode per 16 KiB of disk for the default type, 512 MiB to under 4 TiB; per 32 KiB for big, under 16 TiB; and per 64 KiB for huge, above that. ${name}, of the ${l.type} type, gets ${count(
         l.inodes,
       )} inodes of ${INODE_SIZE} bytes, in tables set aside now: ${count(l.inodeTables)} blocks, ${of(l.inodeTables)} of the disk.`,
     });
@@ -213,7 +276,6 @@ export default class Ext4SpaceExplainer extends Scene {
 
     // ------------------------------------------------------------------ journal
     await this.step('journal', {
-      detail: true,
       title:
         l.journal === 262144
           ? `The journal stops growing at 1 GiB`
@@ -237,7 +299,6 @@ export default class Ext4SpaceExplainer extends Scene {
     // ------------------------------------------------------------------ the rest
     const perCopy = 1 + l.descBlocks + l.reservedGdt;
     await this.step('other', {
-      detail: true,
       title: `The other ${count(l.other)} blocks: copies, bitmaps and the first files`,
       line: `Superblock copies in ${l.superGroups} of ${count(l.groups)} groups; two bitmaps in every group.`,
       // closefs.c:23-55 (sparse_super); initialize.c:58-86 (reserved GDT); mke2fs.c:475-555, 3656-3667.
@@ -263,6 +324,7 @@ export default class Ext4SpaceExplainer extends Scene {
       { at: CARD, fontSize: SIZE, title: 'Other metadata' },
     );
     this.state.other = {
+      groups: l.groups,
       superGroups: l.superGroups,
       superCopies: l.superCopies,
       reservedGdt: l.reservedGdt,
@@ -271,75 +333,11 @@ export default class Ext4SpaceExplainer extends Scene {
       other: l.other,
     };
 
-    // ------------------------------------------------------------------ the reserves
-    const kernelDrawn = wholePie(sp, 'reserves').some((x) => x.label === 'Kernel reserve');
-    const reserveOps = [
-      { kind: 'set_slice_value', label: 'Free', value: sp.users },
-      ...wholePie(sp, 'reserves')
-        .slice(2)
-        .map((x) => ({ kind: 'add_slice', label: x.label, value: x.value })),
-    ];
-    await this.step('reserve', {
-      detail: true,
-      title: `The default 5% reserve is ${count(sp.root)} blocks, ${times(sp.root, l.metadata)} the metadata`,
-      line: `The kernel holds back ${count(sp.kernel)} more blocks; both come out of free blocks.`,
-      // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283.
-      caption: `Without -m, mke2fs reserves 5% of the blocks for root: ${count(
-        sp.root,
-      )}. Its manual gives two reasons: less fragmentation, and root’s daemons keep working after other users are stopped. Once mounted, the kernel holds back ${count(sp.kernel)} more blocks${
-        kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
-      }. Both come out of the free blocks.`,
-    });
-    await s.clear();
-    const d3: Diagram = await s.show({ source: whole(sp, 'free') }, { box: PIE });
-    await d3.morph({ source: whole(sp, 'reserves') }, { ops: reserveOps });
-    await d3.mark(['slice:Root reserve'], { as: 'this step' });
-    await s.card(
-      [
-        ['Blocks', count(l.blocks)],
-        ['Root, 5%', count(sp.root)],
-        ['Kernel', count(sp.kernel)],
-        ['Metadata', count(l.metadata)],
-        ['Root / metadata', times(sp.root, l.metadata)],
-      ],
-      { at: CARD, fontSize: SIZE, title: 'Reserves' },
-    );
-    this.state.reserve = { root: sp.root, kernel: sp.kernel, pie: wholePie(sp, 'reserves') };
-
-    // ------------------------------------------------------------------ what users can write
-    await this.step('users', {
-      detail: true,
-      title: `Users can write ${of(sp.users)} of ${name}: ${count(sp.users)} blocks`,
-      line: 'statfs f_bavail: the free blocks less the root and kernel reserves.',
-      // Linux balloc.c:620-665, super.c:6807-6831; measured with statfs on the mounted filesystem.
-      caption: `A user other than root can allocate blocks until only the two reserves are left: ${count(l.free)} - ${count(sp.root)} - ${count(
-        sp.kernel,
-      )} = ${count(sp.users)}. statfs on the mounted filesystem reports exactly that as f_bavail, which df shows as Avail.`,
-    });
-    await s.clearOverlays();
-    await d3.morph(
-      { source: whole(sp, 'users') },
-      { ops: [{ kind: 'rename_slice', from: 'Free', to: 'Users can write' }] },
-    );
-    await d3.mark(['slice:Users can write'], { as: 'this step' });
-    await s.card(
-      [
-        ['Free', count(l.free)],
-        ['Root', `- ${count(sp.root)}`],
-        ['Kernel', `- ${count(sp.kernel)}`],
-        ['Users', count(sp.users)],
-        ['Of the disk', of(sp.users)],
-      ],
-      { at: CARD, fontSize: SIZE, title: 'statfs f_bavail' },
-    );
-    this.state.users = { free: l.free, users: sp.users, pie: wholePie(sp, 'users') };
-
     // ------------------------------------------------------------------ the chosen reserve
     if (m !== DEFAULT_RESERVE) {
       const gained = chosen.users - sp.users;
       await this.step('chosen', {
-        detail: true,
-        title: `With -m ${m}, users can write ${of(chosen.users)}`,
+          title: `With -m ${m}, users can write ${of(chosen.users)}`,
         line:
           m === 0
             ? `Only the kernel’s ${count(chosen.kernel)} blocks are held back; users gain ${bytesOf(gained)}.`
@@ -354,7 +352,8 @@ export default class Ext4SpaceExplainer extends Scene {
                 gained,
               )} more than at the default, ${bytesOf(gained)}. tune2fs -m changes the reserve later without reformatting.`,
       });
-      await s.clearOverlays();
+      await s.clear();
+      const whole3: Diagram = await s.show({ source: whole(sp, 'users') }, { box: PIE });
       const ops =
         m === 0
           ? [
@@ -365,8 +364,8 @@ export default class Ext4SpaceExplainer extends Scene {
               { kind: 'set_slice_value', label: 'Users can write', value: chosen.users },
               { kind: 'set_slice_value', label: 'Root reserve', value: chosen.root },
             ];
-      await d3.morph({ source: whole(chosen, 'users') }, { ops });
-      await d3.mark(['slice:Users can write'], { as: 'changed' });
+      await whole3.morph({ source: whole(chosen, 'users') }, { ops });
+      await whole3.mark(['slice:Users can write'], { as: 'changed' });
       await s.card(
         [
           [`Root, ${m}%`, count(chosen.root)],
@@ -390,7 +389,6 @@ export default class Ext4SpaceExplainer extends Scene {
     const all = (Object.keys(SIZES) as Size[]).map((k) => ({ k, label: SIZES[k].label, x: space(SIZES[k].bytes, m) }));
     const share = (x: Space, n: number) => percent(n, x.layout.blocks);
     await this.step('sizes', {
-      detail: true,
       title: `At -m ${m}, users can write ${all.map((a) => share(a.x, a.x.users)).join(', ')} of ${all.map((a) => a.label).join(', ')}`,
       line: `Metadata falls from ${all.map((a) => share(a.x, a.x.layout.metadata)).join(' to ')} of the disk as disks grow.`,
       caption: `Metadata shrinks as a share of the disk, from ${all.map((a) => share(a.x, a.x.layout.metadata)).join(' to ')}, because the journal stops at 1 GiB and larger disks get fewer inodes per byte. ${

@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/traffic-policy.ts';
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -117,6 +115,8 @@ const shareRows = (s: Record<string, Q>) =>
 const DIAGRAM: Box = [-8, -1.25, 8, 3.2];
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
+/** The script's one-sentence answer (script.md); the shares step's caption states it. */
+const ANSWER = 'The load balancer weighs nodes, not pods';
 
 export default class TrafficPolicyExplainer extends Scene {
   static meta = {
@@ -134,6 +134,24 @@ export default class TrafficPolicyExplainer extends Scene {
       K8S + 'pkg/proxy/ipvs/proxier.go#L91-L92',
       WEB + 'tutorials/services/source-ip.md',
       WEB + 'tasks/access-application-cluster/create-external-load-balancer.md#preserving-the-client-source-ip',
+    ],
+    // The script's answer and check questions (script.md); check holds a step (shares) to stating the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'With pods placed 3, 1, 0 on three nodes and externalTrafficPolicy Local, why does pod d get three times the requests of pod a?',
+        answer:
+          'Node 3 runs no pod and fails the health check, so the load balancer gives Node 1 and Node 2 half each. Node 1 splits its half three ways (1/6 per pod); Node 2 gives all of its half to pod d.',
+      },
+      {
+        question: 'A node’s iptables chain lists three pods. With what probabilities do its rules match, and what share does each pod get?',
+        answer: '1/3, then 1/2, then always: rule i of n matches with probability 1/(n−i), so each pod gets 1/3 of what the node receives.',
+      },
+      {
+        question: 'With pods placed 2, 2, 0, are Local’s shares even?',
+        answer:
+          'Yes. Node 1 and Node 2 each get half and each splits it two ways, so every pod gets 1/4: Local is even when every node with pods runs the same number.',
+      },
     ],
   };
   static settings = [
@@ -165,15 +183,12 @@ export default class TrafficPolicyExplainer extends Scene {
       ids = pods.map((p) => p.id);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const groups = counts.map((_, j) => `group:n${j + 1}`);
-    const nodeParts = (j: number) => [groups[j]!, `k${j + 1}`, ...pods.filter((p) => p.node === j).map((p) => p.id)];
 
     // ------------------------------------------------------------------ topology
-    await readerFirst(this, s, readerFrames(key, policy));
     await this.step('topology', {
-      detail: true,
       title: `${n} pods on three nodes behind one load balancer`,
-      line: 'The load balancer sends to nodes; each node’s rules pick a pod.',
-      caption: `A Service of type LoadBalancer: a cloud load balancer sends outside requests to the nodes, and rules that kube-proxy writes on each node hand every request to a pod. ${placementWords(counts)}. The setting chooses externalTrafficPolicy: ${POLICY[policy]}.`,
+      line: `Predict: with externalTrafficPolicy ${POLICY[policy]}, which pod gets the most requests?`,
+      caption: `A Service of type LoadBalancer: a cloud load balancer sends outside requests to the nodes, and rules that kube-proxy writes on each node hand every request to a pod. ${placementWords(counts)}. The Service’s externalTrafficPolicy sets which pods a node may pick: under Cluster, the default, any pod in the cluster; under Local, only the pods on that node. This one is set to ${POLICY[policy]}.`,
     });
     await s.clear();
     const d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
@@ -198,7 +213,6 @@ export default class TrafficPolicyExplainer extends Scene {
       .map((r) => (r.probability ? `1/${Math.round(1 / Number(r.probability))}` : 'always'))
       .join(', ');
     await this.step('rules', {
-      detail: true,
       title:
         policy === 'cluster'
           ? `Each node’s rules pick one of all ${n} pods`
@@ -217,11 +231,8 @@ export default class TrafficPolicyExplainer extends Scene {
             : `Under Local Node 1 lists only its ${chainPods.length} pods: ${spelled}, so each gets ${frac(each[0]!)} of what Node 1 receives.`),
     });
     await s.clearOverlays();
-    if (policy === 'cluster') await d.mark(['k1', 'k2', 'k3'], { as: 'chain shown' });
-    else {
-      await d.focus(nodeParts(0), { zoom: 0.9 });
-      await d.mark(['k1'], { as: 'chain shown' });
-    }
+    // The whole cluster stays in view, so Node 2 and Node 3 are never cut off at the edge.
+    await d.mark(policy === 'cluster' ? ['k1', 'k2', 'k3'] : ['k1'], { as: 'chain shown' });
     // The real chain lists KUBE-SEP-<hash> targets; here each target is named by its pod.
     const code = await s.code(
       [
@@ -248,7 +259,6 @@ export default class TrafficPolicyExplainer extends Scene {
         target = hopTarget(counts);
       const leave = counts.map((c) => q(n - c, n));
       await this.step('second-hop', {
-        detail: true,
         title: `Under Cluster, ${inN(hop)} requests leave the node they reach`,
         line: `Node 3 sends this request on to pod ${target} on Node 2.`,
         // source-ip.md:204-209: the node that receives the packet sends it on to the node with the endpoint.
@@ -258,7 +268,6 @@ export default class TrafficPolicyExplainer extends Scene {
       });
       await s.clearOverlays();
       await d.unmark();
-      await d.focus(['lb', 'k3', 'k2', target], { zoom: 0.95 });
       await d.walk(
         [
           ['lb', 'k3'],
@@ -266,29 +275,15 @@ export default class TrafficPolicyExplainer extends Scene {
         ],
         { trail: true },
       );
-      // The two nodes in view say how many of the requests they get they send on (Node 1's share is in the caption).
+      // Nodes 2 and 3 say how many of the requests they get they send on (Node 1's share is in the caption).
       for (const j of [1, 2]) await d.note(`k${j + 1}`, `${inN(leave[j]!)} leave`, { side: 'below', size: SIZE });
       this.state.secondHop = frac(hop);
 
-      // ---------------------------------------------------------------- snat
-      await this.step('snat', {
-        detail: true,
-        title: 'The pod sees the node’s address, not the client’s',
-        line: `Node 3 swaps ${CLIENT_IP} for its own address, ${nodeIp(2)}.`,
-        // proxier.go:1104-1110: under Cluster every packet in the external chain is marked for masquerade,
-        // "in case we cross nodes"; source-ip.md:205 "node2 replaces the source IP address (SNAT)".
-        caption: `Under Cluster, kube-proxy marks every outside request for source NAT, in case it crosses nodes. Node 3 replaces the client’s address, ${CLIENT_IP}, with its own, ${nodeIp(2)}, and pod ${target} sees that. Requests that stay on their node are rewritten too.`,
-      });
-      await s.clearOverlays();
-      await d.note('lb', `from ${CLIENT_IP}`, { side: 'below', size: SIZE });
-      await d.note(target, `from ${seenSource('cluster', 2)}`, { side: 'above', size: SIZE });
-      this.state.seen = seenSource('cluster', 2);
     } else {
       // ---------------------------------------------------------------- health check
       const failing = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [] : [j])),
         healthy = counts.flatMap((c, j) => (passes(counts, 'local', j) ? [j] : []));
       await this.step('health', {
-        detail: true,
         title: failing.length
           ? `${nodeList(failing)} runs no pod, so it fails the health check`
           : 'Every node runs a pod, so every node passes the health check',
@@ -316,27 +311,6 @@ export default class TrafficPolicyExplainer extends Scene {
         );
       this.state.passes = counts.map((_, j) => passes(counts, 'local', j));
 
-      // ---------------------------------------------------------------- local path
-      await this.step('local-path', {
-        detail: true,
-        title: 'The request stays on its node and keeps the client’s address',
-        line: `Pod a sees ${CLIENT_IP}: no source NAT and no second hop.`,
-        // proxier.go:1104-1146: under Local no masquerade rule applies to outside traffic, which goes to
-        // the local chain; source-ip.md:219-222 "kube-proxy only proxies proxy requests to local endpoints".
-        caption: `Node 1’s rules list only its own pods, so the request never leaves Node 1, and kube-proxy adds no source NAT for it. Pod a sees the client’s address, ${CLIENT_IP}. Under Local no outside request takes a second hop.`,
-      });
-      await s.clearOverlays();
-      await d.unmark();
-      await d.focus(nodeParts(0), { zoom: 0.9 });
-      await d.walk(
-        [
-          ['lb', 'k1'],
-          ['k1', 'a'],
-        ],
-        { trail: true },
-      );
-      await d.note('a', `from ${seenSource('local', 0)}`, { side: 'above', size: SIZE });
-      this.state.seen = seenSource('local', 0);
     }
 
     // ------------------------------------------------------------------ shares
@@ -346,18 +320,17 @@ export default class TrafficPolicyExplainer extends Scene {
       low = ranked.at(-1)!;
     const ratio = value(top[0]) / value(low[0]);
     await this.step('shares', {
-      detail: true,
       title: even
-        ? `Each pod gets ${frac(top[0])} of the requests`
-        : `${podList(top[1]).replace(/^p/, 'P')} ${top[1].length > 1 ? 'get' : 'gets'} ${frac(top[0])} of the requests; ${podList(low[1])} ${low[1].length > 1 ? `get ${frac(low[0])} each` : `gets ${frac(low[0])}`}`,
+        ? `Answer: none. Each pod gets ${frac(top[0])} of the requests`
+        : `Answer: ${podList(top[1])} ${top[1].length > 1 ? 'get' : 'gets'} ${frac(top[0])} of the requests; ${podList(low[1])} ${low[1].length > 1 ? `get ${frac(low[0])} each` : `gets ${frac(low[0])}`}`,
       line:
         policy === 'cluster'
           ? `Each node splits its 1/3 among all ${n} pods.`
           : `Split by node, not pod: each node with pods gets ${frac(node[0]!)}.`,
       caption:
         policy === 'cluster'
-          ? `The load balancer gives each node 1/3, and each node’s rules give each of the ${n} pods 1/${n} of that. Summed over the three nodes, each pod gets 1/${n} of all requests, wherever it runs.`
-          : `The load balancer splits by node, not by pod: ${nodeList(counts.flatMap((_, j) => (passes(counts, policy, j) ? [j] : [])))} each get ${frac(node[0]!)}. ` +
+          ? `${ANSWER}: it gives each node 1/3, and under Cluster each node’s rules give each of the ${n} pods 1/${n} of that. Summed over the three nodes, each pod gets 1/${n} of all requests, wherever it runs.`
+          : `${ANSWER}: ${nodeList(counts.flatMap((_, j) => (passes(counts, policy, j) ? [j] : [])))} each get ${frac(node[0]!)}. ` +
             (counts.every((c) => c <= 1)
               ? 'Each sends all of its share to its one pod'
               : counts
@@ -389,7 +362,6 @@ export default class TrafficPolicyExplainer extends Scene {
     const lTop = byShare(local)[0]!,
       lLow = byShare(local).at(-1)!;
     await this.step('compare', {
-      detail: true,
       title: uneven
         ? `With ${counts.join(', ')} pods, Local trades even load for the client’s address`
         : `With ${counts.join(', ')} pods, Local keeps both even load and the client’s address`,
@@ -431,7 +403,6 @@ export default class TrafficPolicyExplainer extends Scene {
 
     // ------------------------------------------------------------------ caveats
     await this.step('caveats', {
-      detail: true,
       title: 'What these shares leave out',
       line: 'Shares are iptables-mode averages; IPVS defaults to round robin.',
       // ipvs/proxier.go:91-92 defaultScheduler "rr"; service_health.go:255 the weight header;
@@ -440,7 +411,6 @@ export default class TrafficPolicyExplainer extends Scene {
         'The shares are long-run averages for kube-proxy’s iptables mode; IPVS mode defaults to round robin. kube-proxy’s health check reports each node’s pod count in a header, but the docs warn that some cloud load balancers cannot weight nodes. Topology-aware routing and session affinity are left out.',
     });
     await s.clearOverlays();
-    await d.dim(null);
     await s.card(
       [
         ['Mode', 'iptables; IPVS uses round robin'],
@@ -451,5 +421,50 @@ export default class TrafficPolicyExplainer extends Scene {
       ],
       { at: BELOW, fontSize: SIZE },
     );
+
+    // ------------------------------------------------------------------ the client's address
+    if (policy === 'cluster') {
+      // ---------------------------------------------------------------- snat
+      const target = hopTarget(counts);
+      await this.step('snat', {
+        title: 'The pod sees the node’s address, not the client’s',
+        line: `Node 3 swaps ${CLIENT_IP} for its own address, ${nodeIp(2)}.`,
+        // proxier.go:1104-1110: under Cluster every packet in the external chain is marked for masquerade,
+        // "in case we cross nodes"; source-ip.md:205 "node2 replaces the source IP address (SNAT)".
+        caption: `Under Cluster, kube-proxy marks every outside request for source NAT, in case it crosses nodes. Node 3 replaces the client’s address, ${CLIENT_IP}, with its own, ${nodeIp(2)}, and pod ${target} sees that. Requests that stay on their node are rewritten too.`,
+      });
+      await s.clearOverlays();
+      await d.unmark();
+      await d.walk(
+        [
+          ['lb', 'k3'],
+          ['k3', target],
+        ],
+        { trail: true },
+      );
+      await d.note('lb', `from ${CLIENT_IP}`, { side: 'below', size: SIZE });
+      await d.note(target, `from ${seenSource('cluster', 2)}`, { side: 'above', size: SIZE });
+      this.state.seen = seenSource('cluster', 2);
+    } else {
+      // ---------------------------------------------------------------- local path
+      await this.step('local-path', {
+        title: 'The request stays on its node and keeps the client’s address',
+        line: `Pod a sees ${CLIENT_IP}: no source NAT and no second hop.`,
+        // proxier.go:1104-1146: under Local no masquerade rule applies to outside traffic, which goes to
+        // the local chain; source-ip.md:219-222 "kube-proxy only proxies proxy requests to local endpoints".
+        caption: `Node 1’s rules list only its own pods, so the request never leaves Node 1, and kube-proxy adds no source NAT for it. Pod a sees the client’s address, ${CLIENT_IP}. Under Local no outside request takes a second hop.`,
+      });
+      await s.clearOverlays();
+      await d.unmark();
+      await d.walk(
+        [
+          ['lb', 'k1'],
+          ['k1', 'a'],
+        ],
+        { trail: true },
+      );
+      await d.note('a', `from ${seenSource('local', 0)}`, { side: 'above', size: SIZE });
+      this.state.seen = seenSource('local', 0);
+    }
   }
 }

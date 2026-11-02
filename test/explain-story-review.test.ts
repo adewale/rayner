@@ -1070,7 +1070,7 @@ test('traffic policy reviews every case and step while binding its comparison to
         compared++;
       }
     }
-    assert.equal(reviewed, 108, 'six cases, nine steps each, at both production review widths');
+    assert.equal(reviewed, 84, 'six cases, seven steps each, at both production review widths');
     assert.equal(compared, 12, 'all six comparisons at both widths');
     assert.ok(readableLabels >= 96, 'both policy cards checked at every width');
     await page.close();

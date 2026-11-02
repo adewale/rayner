@@ -2,7 +2,7 @@
   "version": 1,
   "renderer": "agentic-mermaid@0.5.1",
   "spec": {
-    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.3\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\nquadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n  quadrant-1 Send and Sync\n  quadrant-2 Sync only\n  quadrant-3 Neither\n  quadrant-4 Send only\n  i32: [0.52, 0.625]\n  Rc<i32>: [0.02, 0.125]\n  Cell<i32>: [0.52, 0.125]\n  MutexGuard<i32>: [0.02, 0.625]\n",
+    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.4\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\nquadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n  quadrant-1 Send and Sync\n  quadrant-2 Sync only\n  quadrant-3 Neither\n  quadrant-4 Send only\n  x is Arc<Cell<i32>>: [0.52, 0.125]\n",
     "style": "hand-drawn"
   },
   "family": "quadrant",
@@ -1396,203 +1396,7 @@
       }
     },
     {
-      "id": "point:i32",
-      "role": "point",
-      "kind": "shape",
-      "shapes": [
-        {
-          "subpaths": [
-            [
-              3.928800106048584,
-              -2.373800039291382,
-              3.928800106048584,
-              -2.4069371223449707,
-              3.955662727355957,
-              -2.433799982070923,
-              3.988800048828125,
-              -2.433799982070923,
-              4.021936893463135,
-              -2.433799982070923,
-              4.048799991607666,
-              -2.4069371223449707,
-              4.048799991607666,
-              -2.373800039291382,
-              4.048799991607666,
-              -2.340662956237793,
-              4.021936893463135,
-              -2.313800096511841,
-              3.988800048828125,
-              -2.313800096511841,
-              3.955662727355957,
-              -2.313800096511841,
-              3.928800106048584,
-              -2.340662956237793,
-              3.928800106048584,
-              -2.373800039291382
-            ]
-          ],
-          "closed": [
-            true
-          ],
-          "style": {
-            "fill": "#26262b",
-            "stroke": "#f7f5ef",
-            "strokeWidth": 0.01,
-            "fillOpacity": 1,
-            "strokeOpacity": 1,
-            "opacity": 1,
-            "lineCap": "butt",
-            "lineJoin": "miter",
-            "fillRule": "nonzero",
-            "miterLimit": 4,
-            "paintOrder": "normal"
-          }
-        }
-      ]
-    },
-    {
-      "id": "point:i32:label",
-      "role": "label",
-      "kind": "text",
-      "shapes": [
-        {
-          "subpaths": [],
-          "closed": [],
-          "style": {
-            "fill": "#1a1a1e",
-            "stroke": "#f7f5ef",
-            "strokeWidth": 0.03,
-            "fillOpacity": 1,
-            "strokeOpacity": 1,
-            "opacity": 1,
-            "lineCap": "round",
-            "lineJoin": "round",
-            "fillRule": "nonzero",
-            "miterLimit": 4,
-            "paintOrder": "stroke"
-          },
-          "text": "i32",
-          "fontSize": 0.203,
-          "textRun": {
-            "text": "i32",
-            "x": 408.88,
-            "y": 244.48499999999999,
-            "size": 20.3,
-            "anchor": "start",
-            "baseline": "middle",
-            "matrix": [
-              1,
-              0,
-              0,
-              1,
-              0,
-              0
-            ],
-            "width": 30.8154
-          }
-        }
-      ]
-    },
-    {
-      "id": "point:Rc<i32>",
-      "role": "point",
-      "kind": "shape",
-      "shapes": [
-        {
-          "subpaths": [
-            [
-              1.083799958229065,
-              -5.218800067901611,
-              1.083799958229065,
-              -5.251937389373779,
-              1.1106629371643066,
-              -5.278800010681152,
-              1.1438000202178955,
-              -5.278800010681152,
-              1.1769371032714844,
-              -5.278800010681152,
-              1.2037999629974365,
-              -5.251937389373779,
-              1.2037999629974365,
-              -5.218800067901611,
-              1.2037999629974365,
-              -5.185662746429443,
-              1.1769371032714844,
-              -5.15880012512207,
-              1.1438000202178955,
-              -5.15880012512207,
-              1.1106629371643066,
-              -5.15880012512207,
-              1.083799958229065,
-              -5.185662746429443,
-              1.083799958229065,
-              -5.218800067901611
-            ]
-          ],
-          "closed": [
-            true
-          ],
-          "style": {
-            "fill": "#26262b",
-            "stroke": "#f7f5ef",
-            "strokeWidth": 0.01,
-            "fillOpacity": 1,
-            "strokeOpacity": 1,
-            "opacity": 1,
-            "lineCap": "butt",
-            "lineJoin": "miter",
-            "fillRule": "nonzero",
-            "miterLimit": 4,
-            "paintOrder": "normal"
-          }
-        }
-      ]
-    },
-    {
-      "id": "point:Rc<i32>:label",
-      "role": "label",
-      "kind": "text",
-      "shapes": [
-        {
-          "subpaths": [],
-          "closed": [],
-          "style": {
-            "fill": "#1a1a1e",
-            "stroke": "#f7f5ef",
-            "strokeWidth": 0.03,
-            "fillOpacity": 1,
-            "strokeOpacity": 1,
-            "opacity": 1,
-            "lineCap": "round",
-            "lineJoin": "round",
-            "fillRule": "nonzero",
-            "miterLimit": 4,
-            "paintOrder": "stroke"
-          },
-          "text": "Rc<i32>",
-          "fontSize": 0.203,
-          "textRun": {
-            "text": "Rc<i32>",
-            "x": 124.38,
-            "y": 528.985,
-            "size": 20.3,
-            "anchor": "start",
-            "baseline": "middle",
-            "matrix": [
-              1,
-              0,
-              0,
-              1,
-              0,
-              0
-            ],
-            "width": 79.4136
-          }
-        }
-      ]
-    },
-    {
-      "id": "point:Cell<i32>",
+      "id": "point:x is Arc<Cell<i32>>",
       "role": "point",
       "kind": "shape",
       "shapes": [
@@ -1647,7 +1451,7 @@
       ]
     },
     {
-      "id": "point:Cell<i32>:label",
+      "id": "point:x is Arc<Cell<i32>>:label",
       "role": "label",
       "kind": "text",
       "shapes": [
@@ -1667,13 +1471,13 @@
             "miterLimit": 4,
             "paintOrder": "stroke"
           },
-          "text": "Cell<i32>",
-          "fontSize": 0.203,
+          "text": "x is Arc<Cell<i32>>",
+          "fontSize": 0.204,
           "textRun": {
-            "text": "Cell<i32>",
+            "text": "x is Arc<Cell<i32>>",
             "x": 408.88,
-            "y": 528.985,
-            "size": 20.3,
+            "y": 529.02,
+            "size": 20.4,
             "anchor": "start",
             "baseline": "middle",
             "matrix": [
@@ -1684,105 +1488,7 @@
               0,
               0
             ],
-            "width": 88.6704
-          }
-        }
-      ]
-    },
-    {
-      "id": "point:MutexGuard<i32>",
-      "role": "point",
-      "kind": "shape",
-      "shapes": [
-        {
-          "subpaths": [
-            [
-              1.083799958229065,
-              -2.373800039291382,
-              1.083799958229065,
-              -2.4069371223449707,
-              1.1106629371643066,
-              -2.433799982070923,
-              1.1438000202178955,
-              -2.433799982070923,
-              1.1769371032714844,
-              -2.433799982070923,
-              1.2037999629974365,
-              -2.4069371223449707,
-              1.2037999629974365,
-              -2.373800039291382,
-              1.2037999629974365,
-              -2.340662956237793,
-              1.1769371032714844,
-              -2.313800096511841,
-              1.1438000202178955,
-              -2.313800096511841,
-              1.1106629371643066,
-              -2.313800096511841,
-              1.083799958229065,
-              -2.340662956237793,
-              1.083799958229065,
-              -2.373800039291382
-            ]
-          ],
-          "closed": [
-            true
-          ],
-          "style": {
-            "fill": "#26262b",
-            "stroke": "#f7f5ef",
-            "strokeWidth": 0.01,
-            "fillOpacity": 1,
-            "strokeOpacity": 1,
-            "opacity": 1,
-            "lineCap": "butt",
-            "lineJoin": "miter",
-            "fillRule": "nonzero",
-            "miterLimit": 4,
-            "paintOrder": "normal"
-          }
-        }
-      ]
-    },
-    {
-      "id": "point:MutexGuard<i32>:label",
-      "role": "label",
-      "kind": "text",
-      "shapes": [
-        {
-          "subpaths": [],
-          "closed": [],
-          "style": {
-            "fill": "#1a1a1e",
-            "stroke": "#f7f5ef",
-            "strokeWidth": 0.03,
-            "fillOpacity": 1,
-            "strokeOpacity": 1,
-            "opacity": 1,
-            "lineCap": "round",
-            "lineJoin": "round",
-            "fillRule": "nonzero",
-            "miterLimit": 4,
-            "paintOrder": "stroke"
-          },
-          "text": "MutexGuard<i32>",
-          "fontSize": 0.203,
-          "textRun": {
-            "text": "MutexGuard<i32>",
-            "x": 124.38,
-            "y": 244.48499999999999,
-            "size": 20.3,
-            "anchor": "start",
-            "baseline": "middle",
-            "matrix": [
-              1,
-              0,
-              0,
-              1,
-              0,
-              0
-            ],
-            "width": 168.5103
+            "width": 182.1312
           }
         }
       ]
@@ -1962,20 +1668,8 @@
       {
         "code": "UNSUPPORTED_SYNTAX",
         "syntax": "quadrant_unquoted_text",
-        "line": 20,
-        "message": "Quadrant point label \"Rc<i32>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
-      },
-      {
-        "code": "UNSUPPORTED_SYNTAX",
-        "syntax": "quadrant_unquoted_text",
-        "line": 21,
-        "message": "Quadrant point label \"Cell<i32>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
-      },
-      {
-        "code": "UNSUPPORTED_SYNTAX",
-        "syntax": "quadrant_unquoted_text",
-        "line": 22,
-        "message": "Quadrant point label \"MutexGuard<i32>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
+        "line": 19,
+        "message": "Quadrant point label \"x is Arc<Cell<i32>>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
       }
     ],
     "layout": {
@@ -1983,74 +1677,20 @@
       "kind": "quadrant",
       "nodes": [
         {
-          "id": "point#0:i32",
-          "x": 393,
-          "y": 231,
-          "w": 12,
-          "h": 12,
-          "shape": "circle",
-          "label": "i32",
-          "role": "labelled-mark",
-          "labelVisibility": "visible",
-          "labelBounds": {
-            "x": 408.88,
-            "y": 224.19,
-            "w": 30.819999999999993,
-            "h": 26.390000000000015
-          },
-          "labelContainer": {
-            "x": 0,
-            "y": 0,
-            "w": 696,
-            "h": 680
-          },
-          "dataPosition": {
-            "x": 0.52,
-            "y": 0.625
-          }
-        },
-        {
-          "id": "point#1:Rc<i32>",
-          "x": 108,
-          "y": 516,
-          "w": 12,
-          "h": 12,
-          "shape": "circle",
-          "label": "Rc<i32>",
-          "role": "labelled-mark",
-          "labelVisibility": "visible",
-          "labelBounds": {
-            "x": 124.38,
-            "y": 508.69,
-            "w": 79.41,
-            "h": 26.390000000000043
-          },
-          "labelContainer": {
-            "x": 0,
-            "y": 0,
-            "w": 696,
-            "h": 680
-          },
-          "dataPosition": {
-            "x": 0.02,
-            "y": 0.125
-          }
-        },
-        {
-          "id": "point#2:Cell<i32>",
+          "id": "point#0:x is Arc<Cell<i32>>",
           "x": 393,
           "y": 516,
           "w": 12,
           "h": 12,
           "shape": "circle",
-          "label": "Cell<i32>",
+          "label": "x is Arc<Cell<i32>>",
           "role": "labelled-mark",
           "labelVisibility": "visible",
           "labelBounds": {
             "x": 408.88,
-            "y": 508.69,
-            "w": 88.67000000000002,
-            "h": 26.390000000000043
+            "y": 508.62,
+            "w": 182.13,
+            "h": 26.519999999999982
           },
           "labelContainer": {
             "x": 0,
@@ -2061,33 +1701,6 @@
           "dataPosition": {
             "x": 0.52,
             "y": 0.125
-          }
-        },
-        {
-          "id": "point#3:MutexGuard<i32>",
-          "x": 108,
-          "y": 231,
-          "w": 12,
-          "h": 12,
-          "shape": "circle",
-          "label": "MutexGuard<i32>",
-          "role": "labelled-mark",
-          "labelVisibility": "visible",
-          "labelBounds": {
-            "x": 124.38,
-            "y": 224.19,
-            "w": 168.51,
-            "h": 26.390000000000015
-          },
-          "labelContainer": {
-            "x": 0,
-            "y": 0,
-            "w": 696,
-            "h": 680
-          },
-          "dataPosition": {
-            "x": 0.02,
-            "y": 0.625
           }
         }
       ],
@@ -2099,9 +1712,7 @@
           "y": 24,
           "w": 285,
           "h": 285,
-          "members": [
-            "point#3:MutexGuard<i32>"
-          ],
+          "members": [],
           "label": "Sync only"
         },
         {
@@ -2110,9 +1721,7 @@
           "y": 24,
           "w": 285,
           "h": 285,
-          "members": [
-            "point#0:i32"
-          ],
+          "members": [],
           "label": "Send and Sync"
         },
         {
@@ -2121,9 +1730,7 @@
           "y": 309,
           "w": 285,
           "h": 285,
-          "members": [
-            "point#1:Rc<i32>"
-          ],
+          "members": [],
           "label": "Neither"
         },
         {
@@ -2133,7 +1740,7 @@
           "w": 285,
           "h": 285,
           "members": [
-            "point#2:Cell<i32>"
+            "point#0:x is Arc<Cell<i32>>"
           ],
           "label": "Send only"
         }
@@ -2162,18 +1769,18 @@
       "attempts": 1,
       "repairs": [],
       "coverage": {
-        "measured": 23,
+        "measured": 17,
         "unmeasured": 0,
-        "preparedText": 12,
+        "preparedText": 9,
         "fallbackText": 0,
         "conditional": 0
       },
       "checks": {
-        "primitives": 25,
-        "labels": 4,
-        "occlusionPairs": 88,
+        "primitives": 19,
+        "labels": 1,
+        "occlusionPairs": 40,
         "maxOcclusionPairs": 100000,
-        "operations": 166,
+        "operations": 87,
         "maxOperations": 400000,
         "markers": 0
       },

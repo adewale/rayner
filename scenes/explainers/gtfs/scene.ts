@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/gtfs.ts';
 import { Scene, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -93,8 +91,11 @@ erDiagram
     enum exception_type
   }`;
 
+/** The script's one-sentence answer (script.md); the service step's caption states it. */
+const ANSWER = 'A route has departures only on dates its trips’ service runs';
+
 // The diagram takes the left of the stage, words the right; the day's chart takes the whole stage.
-const LEFT: Box = [-7.55, -4.25, 1.75, 3.25];
+const LEFT: Box = [-7.55, -4.25, 1.75, 2.95];
 const RIGHT: Box = [2.05, -4.25, 7.55, 3.05];
 const FULL: Box = [-7.8, -4.25, 7.8, 3.25];
 const ZOOM = 1.2;
@@ -136,6 +137,24 @@ export default class GtfsExplainer extends Scene {
       TRANSIT + 'examples/sample-feed-1',
       'https://github.com/google/transit/blob/3c9e7b904b5035349622f03e11851e25c16d1d99/LICENSE',
     ],
+    // The script's answer and check questions (script.md); check holds a step (service) to stating the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'calendar.txt says FULLW runs every day of the week. Why does no trip run on Monday 4 June 2007?',
+        answer:
+          'calendar_dates.txt has the row FULLW,20070604,2: exception_type 2 removes FULLW for that one date, overriding the weekly pattern. The other service, WE, runs only on Saturdays and Sundays.',
+      },
+      {
+        question: 'Why do the four route 50 trips run on Saturday 9 June but not on Tuesday 5 June?',
+        answer: 'Their service_id is WE, whose calendar.txt row has 1 only under saturday and sunday.',
+      },
+      {
+        question: 'If calendar_dates.txt also had the row FULLW,20070605,2, what would Tuesday 5 June look like?',
+        answer:
+          'Like Monday: FULLW would be removed for the day and WE does not run on Tuesdays, so none of the 11 trips would run, though every route stays in routes.txt.',
+      },
+    ],
   };
   static settings = [
     {
@@ -166,31 +185,6 @@ export default class GtfsExplainer extends Scene {
       stopKey = values.stop as StopKey,
       stopId = STOPS[stopKey];
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-
-    // ------------------------------------------------------------------ files
-    const tables: [string, number, string][] = [
-      ['routes.txt', FEED.routes.length, 'routes'],
-      ['trips.txt', FEED.trips.length, 'trips'],
-      ['stop_times.txt', FEED.stopTimes.length, 'stops made by trips'],
-      ['stops.txt', FEED.stops.length, 'stops'],
-      ['frequencies.txt', FEED.frequencies.length, 'headway periods'],
-      ['calendar.txt', FEED.calendar.length, 'weekly services'],
-      ['calendar_dates.txt', FEED.calendarDates.length, 'dated exception'],
-    ];
-    await readerFirst(this, s, readerFrames(date, stopId));
-    await this.step('files', {
-      detail: true,
-      title: 'A route row does not promise a departure',
-      line: 'Seven CSV files decide which trips can actually leave a stop.',
-      caption:
-        'The Demo Transit Authority’s sample feed contains routes even on dates when none of their trips run. To find departures at the selected stop, we must join trips to stops and check each trip’s service against the selected date. The GTFS Schedule reference publishes 11 CSV files; these seven contain the rows needed for that question, counted below each header.',
-    });
-    await s.clear();
-    await s.card(
-      tables.map(([file, n, what]) => [file, `${n} ${what}`] as [string, string]),
-      { at: [-7.55, -4.0, 7.55, 3.0], width: 9.5, fontSize: 0.3 },
-    );
-    this.state.tables = Object.fromEntries(tables.map(([file, n]) => [file, n]));
 
     /** Lines of text in the right column, wrapped to its width, from its top down; heads in bold. */
     const column = async (rows: readonly (string | { head: string })[]) => {
@@ -223,80 +217,82 @@ export default class GtfsExplainer extends Scene {
       await s.enter(...out);
     };
 
-    // ------------------------------------------------------------------ schema
-    await this.step('schema', {
-      detail: true,
-      title: 'Seven tables joined by shared IDs',
-      line: 'Each line joins two files by the ID column named on it.',
-      caption:
-        'Each box is one file, with the columns this explainer uses. Each line joins two files by the column named on it. The marks at a line’s ends say how many rows of the table at that end can match one row at the other end; the list on the right reads them.',
+    // ------------------------------------------------------------------ day-before
+    const tripsToday = tripsOn(FEED, date);
+    const was = tripsOn(FEED, before);
+    const wasServices = servicesOn(FEED, before)
+      .filter((x) => x.runs)
+      .map((x) => x.serviceId);
+    const of = (n: number) =>
+      n === FEED.trips.length
+        ? `all ${n} trips`
+        : n
+          ? `${n} of the ${FEED.trips.length} trips`
+          : `none of the ${FEED.trips.length} trips`;
+    await this.step('day-before', {
+      title: `On ${longDate(before)}, the sample feed runs ${of(was.length)}`,
+      line: `Predict: which of these bars still run the next day, ${longDate(date)}?`,
+      caption: `Google publishes a sample GTFS feed, the CSV files a transit agency gives trip planners, for an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the feed’s name for the timetable a trip follows: FULLW or WE. A trip that runs once spans its first departure to its last arrival; a trip that repeats on a fixed gap spans the hours its vehicles leave the first stop. Grey bars, marked “no service”, do not run that day. On ${shortDate(before)} ${
+        wasServices.length === 2 ? 'both timetables run' : wasServices.length ? `only ${wasServices[0]} runs` : 'neither runs'
+      }.`,
     });
-    await s.clear();
-    const er = await s.show({ source: ER }, { box: LEFT });
-    await column([
-      { head: 'Marks at a line’s end' },
-      'Two bars: exactly one',
-      'Circle and bar: zero or one',
-      'Bar and crow’s foot: one or more',
-      'Circle and crow’s foot: zero or more',
-    ]);
-    this.state.schema = { entities: 7, relationships: 6 };
+    const chart = await s.show({ source: ganttSource(FEED, before) }, { box: FULL });
+    this.state.dayBefore = { date: before, running: was.map((t) => t.trip_id) };
+
+    // ------------------------------------------------------------------ day
+    const edits = ganttEdits(FEED, before, date);
+    const started = tripsToday.filter((t) => !was.includes(t)),
+      stopped = was.filter((t) => !tripsToday.includes(t));
+    const routesOf = (trips: readonly Row[]) =>
+      FEED.routes.filter((r) => trips.some((t) => t.route_id === r.route_id)).map((r) => r.route_short_name!);
+    const services2 = (trips: readonly Row[]) => [...new Set(trips.map((t) => t.service_id!))];
+    await this.step('day', {
+      title: `${longDate(date)} runs ${of(tripsToday.length)}`,
+      line: tripsToday.length
+        ? 'Predict: nothing in routes.txt changed overnight. What decides which trips run?'
+        : `Predict: all ${FEED.routes.length} routes are still in routes.txt. Why does none run?`,
+      caption: `The same chart, edited for ${shortDate(date)}: each trip that starts or stops running gets a new label and colour, ${edits.length} edits in all. ${
+        started.length
+          ? `${upper(number(started.length))} trips under ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
+          : ''
+      }${
+        stopped.length
+          ? `${upper(number(stopped.length))} trips under ${list(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
+          : ''
+      } To see why, follow one trip, AB1, from its route to its dates.`,
+    });
+    await chart.morph({ source: ganttSource(FEED, date) }, { ops: edits });
+    this.state.day = { date, running: tripsToday.map((t) => t.trip_id), edits: edits.length };
 
     // ------------------------------------------------------------------ route-trip
     const tripsByRoute = FEED.routes.map(
       (r) => [r.route_id!, FEED.trips.filter((t) => t.route_id === r.route_id).map((t) => t.trip_id!)] as const,
     );
+    const ab1Row = FEED.trips.find((t) => t.trip_id === 'AB1')!;
     await this.step('route-trip', {
-      detail: true,
       title: 'A route has no times; its trips do',
-      line: 'Each row of trips.txt names one route in route_id.',
+      line: `Follow AB1: route ${route(ab1Row.route_id!).route_short_name}’s trip ${ab1Row.trip_headsign}, service_id ${ab1Row.service_id}.`,
       // reference.md:120 and :260.
       caption:
-        'routes.txt gives a route its names, vehicle type, colours and web page, and nothing about when it runs. Each row of trips.txt names one route in route_id, so a route has zero or more trips. The reference defines a route as “a group of trips that are displayed to riders as a single service”.',
+        'routes.txt gives a route its names, vehicle type, colours and web page, and nothing about when it runs. Each row of trips.txt names one route in route_id, so a route has zero or more trips, and names in service_id the timetable the trip follows. The reference defines a route as “a group of trips that are displayed to riders as a single service”. The diagram shows the feed’s tables and the ID columns that join them; the marks at a line’s ends say how many rows can match.',
     });
-    await s.clearOverlays();
-    await er.focus(['entity:ROUTE', 'entity:TRIP'], { zoom: ZOOM });
+    await s.clear();
+    const er = await s.show({ source: ER }, { box: LEFT });
+    // The calendar the trip's service_id points to is in view too, whole, for the next step.
+    await er.focus(['entity:ROUTE', 'entity:TRIP', 'entity:CALENDAR'], { zoom: ZOOM });
     await er.mark(['rel:ROUTE-TRIP#0']);
     await column([
+      { head: 'AB1 in trips.txt' },
+      `route_id ${ab1Row.route_id}, service_id ${ab1Row.service_id}`,
       { head: 'Trips by route_id' },
       ...tripsByRoute.map(
         ([id, trips]) =>
           `Route ${route(id).route_short_name}: ${trips.length > 3 ? `${trips[0]} to ${trips.at(-1)}` : list(trips)}`,
       ),
+      { head: 'Line ends' },
+      'Bar: one; circle: or none; crow’s foot: many',
     ]);
     this.state.tripsByRoute = Object.fromEntries(tripsByRoute);
-
-    // ------------------------------------------------------------------ trip-stops
-    const ab1 = stopTimesOf(FEED, 'AB1'),
-      city1 = stopTimesOf(FEED, 'CITY1');
-    const ab1First = ab1[0]!,
-      ab1Last = ab1.at(-1)!;
-    const city1Bands = bandsOf(FEED, 'CITY1'),
-      stbaBands = bandsOf(FEED, 'STBA');
-    await this.step('trip-stops', {
-      detail: true,
-      title: 'A trip’s times are rows of stop_times.txt',
-      line: 'One row per stop a trip makes, in stop_sequence order.',
-      // reference.md:121, :306, :309; frequencies :657, :664-667.
-      caption: `stop_times.txt joins trips to stops: one row for each stop a trip makes, in stop_sequence order, with its times. AB1 leaves ${stopName(ab1First.stop_id!)} at ${clock(seconds(ab1First.departure_time!))} and reaches ${stopName(ab1Last.stop_id!)} at ${clock(seconds(ab1Last.arrival_time!))}. A trip listed in frequencies.txt repeats through the day on a headway.`,
-    });
-    await s.clearOverlays();
-    await er.unmark();
-    await er.focus(['entity:TRIP', 'entity:STOP_TIME', 'entity:STOP', 'entity:FREQUENCY'], { zoom: ZOOM });
-    await er.mark(['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0']);
-    await column([
-      { head: 'AB1 in stop_times.txt' },
-      `1: ${stopName(ab1First.stop_id!)}, leaves ${clock(seconds(ab1First.departure_time!))}`,
-      `2: ${stopName(ab1Last.stop_id!)}, arrives ${clock(seconds(ab1Last.arrival_time!))}`,
-      { head: 'In frequencies.txt' },
-      `STBA: ${headwayWords(stbaBands)}, ${clock(stbaBands[0]!.start)} to ${clock(stbaBands.at(-1)!.end)}`,
-      `CITY1: ${headwayWords(city1Bands)}, in ${city1Bands.length} periods`,
-    ]);
-    this.state.stopTimes = {
-      AB1: ab1.map((r) => [r.stop_id, r.arrival_time, r.departure_time]),
-      CITY1: city1.length,
-      frequencyRows: { STBA: stbaBands.length, CITY1: city1Bands.length },
-    };
 
     // ------------------------------------------------------------------ service
     const services = [...new Set(FEED.trips.map((t) => t.service_id!))].map((id) => ({
@@ -312,11 +308,10 @@ export default class GtfsExplainer extends Scene {
           ? 'calendar.txt only'
           : 'calendar_dates.txt only';
     await this.step('service', {
-      detail: true,
-      title: 'A trip’s service_id may point into either of two tables',
-      line: 'calendar.txt sets weekdays; calendar_dates.txt changes single dates.',
+      title: `AB1 runs only on the dates its service, ${ab1Row.service_id}, runs`,
+      line: `Predict: which rows of the two tables decide ${longDate(date)}?`,
       // reference.md:261, :356-357, :361, :363.
-      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt sets weekdays between a start and an end date; calendar_dates.txt adds or removes single dates. Here ${services
+      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt sets weekdays between a start and an end date; calendar_dates.txt adds or removes single dates. ${ANSWER}: a route row promises nothing by itself. Here ${services
         .map((x) => `${x.id} (${x.trips} trips) is in ${where(x).replace(' only', ' alone')}`)
         .join(', and ')}.`,
     });
@@ -330,11 +325,9 @@ export default class GtfsExplainer extends Scene {
     // ------------------------------------------------------------------ evaluate
     const today = servicesOn(FEED, date);
     const running = today.filter((x) => x.runs).map((x) => x.serviceId);
-    const tripsToday = tripsOn(FEED, date);
     const day = weekday(date);
     const removed = today.filter((x) => x.exception === 2);
     await this.step('evaluate', {
-      detail: true,
       title: running.length
         ? `On ${longDate(date)}, ${list(running)} ${running.length > 1 ? 'run' : 'runs'}`
         : `On ${longDate(date)}, no service runs`,
@@ -373,63 +366,36 @@ export default class GtfsExplainer extends Scene {
     );
     this.state.today = today;
 
-    // ------------------------------------------------------------------ day-before
-    const was = tripsOn(FEED, before);
-    const wasServices = servicesOn(FEED, before)
-      .filter((x) => x.runs)
-      .map((x) => x.serviceId);
-    const of = (n: number) =>
-      n === FEED.trips.length
-        ? `all ${n} trips`
-        : n
-          ? `${n} of the ${FEED.trips.length} trips`
-          : `none of the ${FEED.trips.length} trips`;
-    await this.step('day-before', {
-      detail: true,
-      title: `The day before, ${longDate(before)}, runs ${of(was.length)}`,
-      line:
-        was.length < FEED.trips.length
-          ? 'One bar per trip, grouped by service_id; grey bars do not run.'
-          : 'One bar per trip, grouped by service_id; every bar runs.',
-      caption: `One bar per trip, grouped by service_id and labelled with its route. A trip that runs once spans its first departure to its last arrival; a trip in frequencies.txt spans the hours its vehicles leave the first stop. Grey bars, marked “no service”, do not run that day. On ${shortDate(before)} ${
-        wasServices.length ? `${list(wasServices)} ${wasServices.length > 1 ? 'run' : 'runs'}` : 'no service runs'
-      }.`,
+    // ------------------------------------------------------------------ trip-stops
+    const ab1 = stopTimesOf(FEED, 'AB1'),
+      city1 = stopTimesOf(FEED, 'CITY1');
+    const ab1First = ab1[0]!,
+      ab1Last = ab1.at(-1)!;
+    const city1Bands = bandsOf(FEED, 'CITY1'),
+      stbaBands = bandsOf(FEED, 'STBA');
+    await this.step('trip-stops', {
+      title: 'What leaves a stop: rows of stop_times.txt',
+      line: 'One row per stop a trip makes, in stop_sequence order.',
+      // reference.md:121, :306, :309; frequencies :657, :664-667.
+      caption: `Which of the running trips leave a given stop? stop_times.txt joins trips to stops: one row for each stop a trip makes, in stop_sequence order, with its times. AB1 leaves ${stopName(ab1First.stop_id!)} at ${clock(seconds(ab1First.departure_time!))} and reaches ${stopName(ab1Last.stop_id!)} at ${clock(seconds(ab1Last.arrival_time!))}. A trip listed in frequencies.txt repeats through the day on a headway.`,
     });
     await s.clear();
-    const chart = await s.show({ source: ganttSource(FEED, before) }, { box: FULL });
-    this.state.dayBefore = { date: before, running: was.map((t) => t.trip_id) };
-
-    // ------------------------------------------------------------------ day
-    const edits = ganttEdits(FEED, before, date);
-    const started = tripsToday.filter((t) => !was.includes(t)),
-      stopped = was.filter((t) => !tripsToday.includes(t));
-    const routesOf = (trips: readonly Row[]) =>
-      FEED.routes.filter((r) => trips.some((t) => t.route_id === r.route_id)).map((r) => r.route_short_name!);
-    const services2 = (trips: readonly Row[]) => [...new Set(trips.map((t) => t.service_id!))];
-    await this.step('day', {
-      detail: true,
-      title: `${longDate(date)} runs ${of(tripsToday.length)}`,
-      line:
-        started.length || stopped.length
-          ? `${upper(
-              [
-                ...(started.length ? [`${number(started.length)} ${list(services2(started))} trips start`] : []),
-                ...(stopped.length ? [`${number(stopped.length)} ${list(services2(stopped))} trips stop`] : []),
-              ].join(' and '),
-            )}; each gets a new label and colour.`
-          : 'No trip starts or stops, so the chart is unchanged.',
-      caption: `The same chart, edited for ${shortDate(date)}: each trip that starts or stops running gets a new label and colour, ${edits.length} edits in all. ${
-        started.length
-          ? `${upper(number(started.length))} trips with service_id ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
-          : ''
-      }${
-        stopped.length
-          ? `${upper(number(stopped.length))} trips with service_id ${list(services2(stopped))} stop. All ${FEED.routes.length} routes are still in routes.txt; none has a trip running.`
-          : ''
-      }`,
-    });
-    await chart.morph({ source: ganttSource(FEED, date) }, { ops: edits });
-    this.state.day = { date, running: tripsToday.map((t) => t.trip_id), edits: edits.length };
+    const er2 = await s.show({ source: ER }, { box: LEFT });
+    await er2.focus(['entity:TRIP', 'entity:STOP_TIME', 'entity:STOP', 'entity:FREQUENCY'], { zoom: ZOOM });
+    await er2.mark(['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0']);
+    await column([
+      { head: 'AB1 in stop_times.txt' },
+      `1: ${stopName(ab1First.stop_id!)}, leaves ${clock(seconds(ab1First.departure_time!))}`,
+      `2: ${stopName(ab1Last.stop_id!)}, arrives ${clock(seconds(ab1Last.arrival_time!))}`,
+      { head: 'In frequencies.txt' },
+      `STBA: ${headwayWords(stbaBands)}, ${clock(stbaBands[0]!.start)} to ${clock(stbaBands.at(-1)!.end)}`,
+      `CITY1: ${headwayWords(city1Bands)}, in ${city1Bands.length} periods`,
+    ]);
+    this.state.stopTimes = {
+      AB1: ab1.map((r) => [r.stop_id, r.arrival_time, r.departure_time]),
+      CITY1: city1.length,
+      frequencyRows: { STBA: stbaBands.length, CITY1: city1Bands.length },
+    };
 
     // ------------------------------------------------------------------ departures
     const at = stopDay(FEED, stopId, date);
@@ -452,7 +418,6 @@ export default class GtfsExplainer extends Scene {
     const shown = leaving.length ? at : usual;
     const removedBy = today.filter((x) => x.exception === 2).map((x) => x.serviceId);
     await this.step('departures', {
-      detail: true,
       title: !leaving.length
         ? `Nothing leaves ${name} on ${shortDate(date)}`
         : at.headways.length && !at.departures.length
@@ -460,7 +425,7 @@ export default class GtfsExplainer extends Scene {
           : `${upper(number(at.departures.length))} departure${at.departures.length > 1 ? 's' : ''} from ${name} on ${shortDate(date)}`,
       line: !leaving.length
         ? removedBy.length
-          ? `The card shows what calendar.txt alone would send; ${list(removedBy)} ${removedBy.length > 1 ? 'are' : 'is'} removed.`
+          ? 'The card shows what calendar.txt alone would have sent from here.'
           : 'No trip runs that day, so no stop_times row counts.'
         : at.headways.length
           ? 'Headways with exact_times empty: the card gives gaps, not times.'
@@ -470,7 +435,7 @@ export default class GtfsExplainer extends Scene {
       caption: !leaving.length
         ? `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} no trip runs, so no row counts.${
             removedBy.length
-              ? ` The card lists what calendar.txt alone would send from ${name} on a ${upper(day)}; calendar_dates.txt removes ${list(removedBy)} for the day.`
+              ? ` The card lists what calendar.txt alone would have sent from ${name} on a ${upper(day)}, each marked removed.`
               : ''
           }`
         : at.headways.length

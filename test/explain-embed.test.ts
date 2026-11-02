@@ -200,7 +200,6 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
   let openings = 0;
   try {
     for (const [id, names] of [
-      ['gtfs', ['reader-date', 'reader-stop']],
       ['token-bucket', ['refill']],
       ['latest-search', ['reader-guard']],
     ] as const) {
@@ -244,7 +243,7 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
         openings++;
       }
     }
-    assert.equal(openings, 4);
+    assert.equal(openings, 2);
   } finally {
     await page.close();
   }

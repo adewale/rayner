@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
-import { RULES, INNERS, WRAPS, SINGLES, t, isSend, isSync, nameOf, build, threads, quadrantOf } from '../scenes/explainers/lib/send-sync.ts';
+import { RULES, INNERS, WRAPS, SINGLES, OPENING, OPENING_TYPE, OPENING_ERROR, t, isSend, isSync, nameOf, build, threads, quadrantOf } from '../scenes/explainers/lib/send-sync.ts';
 import type { Ctor, Inner, Needs, RustType, Wrapper } from '../scenes/explainers/lib/send-sync.ts';
 
 // Copied verbatim from rust-lang/rust at tag 1.99.1 (commit 213cfbe66a6da4e4b41bde365643286371af6e5a),
@@ -337,4 +337,28 @@ test('T is Sync exactly when &T is Send; Rc is never either; Cell and a MutexGua
     }),
     params(),
   );
+});
+
+test('rustc refuses the opening program with the error lines the explainer shows', { skip: rustcSkip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'send-sync-opening-'));
+  try {
+    const source = ['use std::{cell::Cell, sync::Arc, thread};', 'pub fn opening() {', ...OPENING, '}'].join('\n') + '\n';
+    const errors = compile(RUSTC_BIN, dir, 'opening', source);
+    assert.equal(errors.length, 1, errors.map((e) => e.rendered).join('\n'));
+    const [error] = errors as [Diagnostic];
+    assert.equal(error.code?.code, 'E0277');
+    // The error's primary span is the closure on the spawn line.
+    assert.equal(error.spans.find((s) => s.is_primary)!.line_start, 4);
+    for (const line of OPENING_ERROR) assert.ok(plain(error.rendered).includes(line), `${line}:\n${error.rendered}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // And the model agrees: the opening's x is neither Send nor Sync.
+  assert.equal(nameOf(OPENING_TYPE), 'Arc<Cell<i32>>');
+  assert.deepEqual([isSend(OPENING_TYPE), isSync(OPENING_TYPE)], [false, false]);
+});
+
+test('the check question’s transfer type, Arc<MutexGuard<i32>>, is neither Send nor Sync', () => {
+  const type = t('Arc', t('MutexGuard', INNERS.i32));
+  assert.deepEqual([isSend(type), isSync(type), quadrantOf(type)], [false, false, 3]);
 });

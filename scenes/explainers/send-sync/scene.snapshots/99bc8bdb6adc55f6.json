@@ -2,7 +2,7 @@
   "version": 1,
   "renderer": "agentic-mermaid@0.5.1",
   "spec": {
-    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.3\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\nquadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n  quadrant-1 Send and Sync\n  quadrant-2 Sync only\n  quadrant-3 Neither\n  quadrant-4 Send only\n  x is Arc<Cell<i32>>: [0.52, 0.125]\n",
+    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.4\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\nquadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n  quadrant-1 Send and Sync\n  quadrant-2 Sync only\n  quadrant-3 Neither\n  quadrant-4 Send only\n  x is Mutex<Cell<i32>>: [0.52, 0.125]\n",
     "style": "hand-drawn"
   },
   "family": "quadrant",
@@ -1396,7 +1396,7 @@
       }
     },
     {
-      "id": "point:x is Arc<Cell<i32>>",
+      "id": "point:x is Mutex<Cell<i32>>",
       "role": "point",
       "kind": "shape",
       "shapes": [
@@ -1451,7 +1451,7 @@
       ]
     },
     {
-      "id": "point:x is Arc<Cell<i32>>:label",
+      "id": "point:x is Mutex<Cell<i32>>:label",
       "role": "label",
       "kind": "text",
       "shapes": [
@@ -1471,13 +1471,13 @@
             "miterLimit": 4,
             "paintOrder": "stroke"
           },
-          "text": "x is Arc<Cell<i32>>",
-          "fontSize": 0.203,
+          "text": "x is Mutex<Cell<i32>>",
+          "fontSize": 0.204,
           "textRun": {
-            "text": "x is Arc<Cell<i32>>",
+            "text": "x is Mutex<Cell<i32>>",
             "x": 408.88,
-            "y": 528.985,
-            "size": 20.3,
+            "y": 529.02,
+            "size": 20.4,
             "anchor": "start",
             "baseline": "middle",
             "matrix": [
@@ -1488,7 +1488,7 @@
               0,
               0
             ],
-            "width": 181.2384
+            "width": 204.2244
           }
         }
       ]
@@ -1669,7 +1669,7 @@
         "code": "UNSUPPORTED_SYNTAX",
         "syntax": "quadrant_unquoted_text",
         "line": 19,
-        "message": "Quadrant point label \"x is Arc<Cell<i32>>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
+        "message": "Quadrant point label \"x is Mutex<Cell<i32>>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
       }
     ],
     "layout": {
@@ -1677,20 +1677,20 @@
       "kind": "quadrant",
       "nodes": [
         {
-          "id": "point#0:x is Arc<Cell<i32>>",
+          "id": "point#0:x is Mutex<Cell<i32>>",
           "x": 393,
           "y": 516,
           "w": 12,
           "h": 12,
           "shape": "circle",
-          "label": "x is Arc<Cell<i32>>",
+          "label": "x is Mutex<Cell<i32>>",
           "role": "labelled-mark",
           "labelVisibility": "visible",
           "labelBounds": {
             "x": 408.88,
-            "y": 508.69,
-            "w": 181.24,
-            "h": 26.390000000000043
+            "y": 508.62,
+            "w": 204.22000000000003,
+            "h": 26.519999999999982
           },
           "labelContainer": {
             "x": 0,
@@ -1740,7 +1740,7 @@
           "w": 285,
           "h": 285,
           "members": [
-            "point#0:x is Arc<Cell<i32>>"
+            "point#0:x is Mutex<Cell<i32>>"
           ],
           "label": "Send only"
         }

@@ -11,15 +11,31 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const sp = space(SIZES[size].bytes, DEFAULT_RESERVE),
     chosen = space(SIZES[size].bytes, m),
     l = sp.layout;
-  assertStepState(trace, 'blocks', {
-    blocks: { blocks: l.blocks, groups: l.groups, metadata: l.metadata, free: l.free, pie: wholePie(sp, 'free') },
+  // The opening: what statfs says users can write, and the rest; the opening pie is those two numbers.
+  assertStepState(trace, 'df', {
+    df: {
+      blocks: l.blocks,
+      users: sp.users,
+      gone: l.blocks - sp.users,
+      pie: [
+        { label: 'Not available', value: l.blocks - sp.users },
+        { label: 'Users can write', value: sp.users },
+      ],
+    },
   });
+  // The answer: the not-available blocks split into metadata and the two reserves (the free-blocks pie
+  // of the old opening and the separate users step are folded in here).
+  assertStepState(trace, 'reserve', {
+    reserve: { root: sp.root, kernel: sp.kernel, metadata: l.metadata, free: l.free, users: sp.users, pie: wholePie(sp, 'users') },
+  });
+  assert.equal(l.free - sp.root - sp.kernel, sp.users);
   assertStepState(trace, 'inodes', {
     inodes: { type: l.type, inodeRatio: l.inodeRatio, inodes: l.inodes, inodeTables: l.inodeTables, pie: metadataPie(l) },
   });
   assertStepState(trace, 'journal', { journal: { journal: l.journal } });
   assertStepState(trace, 'other', {
     other: {
+      groups: l.groups,
       superGroups: l.superGroups,
       superCopies: l.superCopies,
       reservedGdt: l.reservedGdt,
@@ -28,8 +44,6 @@ export function check(trace: Trace, values: Record<string, string>): void {
       other: l.other,
     },
   });
-  assertStepState(trace, 'reserve', { reserve: { root: sp.root, kernel: sp.kernel, pie: wholePie(sp, 'reserves') } });
-  assertStepState(trace, 'users', { users: { free: l.free, users: sp.users, pie: wholePie(sp, 'users') } });
   // The chosen reserve has its own step only when it is not the default.
   const hasChosen = trace.steps.some((s) => s.step === 'chosen');
   assert.equal(hasChosen, m !== DEFAULT_RESERVE);

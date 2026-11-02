@@ -2,11 +2,11 @@
   "version": 1,
   "renderer": "agentic-mermaid@0.5.1",
   "spec": {
-    "source": "---\nconfig:\n  pie:\n    legendPosition: right\n    textPosition: 0.68\n  themeVariables:\n    pie1: '#6e7781'\n    pie2: '#4ac26b'\n    pie3: '#fb8f44'\n    pie4: '#cf222e'\n    pieLegendTextSize: 17px\n    pieSectionTextSize: 15px\n    pieTitleTextSize: 18px\n---\npie\n  title Every 4 KiB block of 1 GiB\n  \"Metadata\" : 13019\n  \"Free\" : 249125\n",
+    "source": "---\nconfig:\n  pie:\n    legendPosition: right\n    textPosition: 0.68\n  themeVariables:\n    pie1: '#6e7781'\n    pie2: '#4ac26b'\n    pie3: '#cf222e'\n    pieLegendTextSize: 17px\n    pieSectionTextSize: 15px\n    pieTitleTextSize: 18px\n---\npie\n  title Every 4 KiB block of 1 TiB\n  \"Not available\" : 17921126\n  \"Users can write\" : 250514330\n",
     "style": "github-light"
   },
   "family": "pie",
-  "width": 416.16,
+  "width": 471.88,
   "height": 281.4,
   "palette": {
     "paper": "#ffffff",
@@ -23,31 +23,31 @@
         {
           "subpaths": [
             [
+              8.67361718601358e-21,
               0,
+              1.572933316230774,
               0,
-              1.3871999979019165,
+              3.145866632461548,
               0,
-              2.774399995803833,
+              4.718800067901611,
               0,
-              4.161600112915039,
-              0,
-              4.161600112915039,
+              4.718800067901611,
               -0.9380000233650208,
-              4.161600112915039,
+              4.718800067901611,
               -1.8760000467300415,
-              4.161600112915039,
+              4.718800067901611,
               -2.813999891281128,
-              2.774399995803833,
+              3.145866632461548,
               -2.813999891281128,
-              1.3871999979019165,
+              1.572933316230774,
               -2.813999891281128,
-              0,
+              8.67361718601358e-21,
               -2.813999891281128,
-              0,
+              8.67361718601358e-21,
               -1.875999927520752,
-              0,
+              8.67361718601358e-21,
               -0.937999963760376,
-              0,
+              8.67361718601358e-21,
               0
             ]
           ],
@@ -71,7 +71,7 @@
       ]
     },
     {
-      "id": "slice:Metadata",
+      "id": "slice:Not available",
       "role": "pie-slice",
       "kind": "shape",
       "shapes": [
@@ -86,16 +86,16 @@
               -0.9906666278839111,
               1.190000057220459,
               -0.6740000247955322,
-              1.2890313863754272,
-              -0.6740025281906128,
-              1.3874534368515015,
-              -0.6894896030426025,
-              1.4816999435424805,
-              -0.7198999524116516,
-              1.3844666481018066,
-              -1.0212665796279907,
-              1.2872332334518433,
-              -1.3226333856582642,
+              1.323319911956787,
+              -0.6740142703056335,
+              1.455143928527832,
+              -0.7020894885063171,
+              1.5769000053405762,
+              -0.7563999891281128,
+              1.447933316230774,
+              -1.0455999374389648,
+              1.3189666271209717,
+              -1.3348000049591064,
               1.190000057220459,
               -1.6239999532699585
             ]
@@ -119,12 +119,12 @@
         }
       ],
       "channels": {
-        "category": "Metadata",
-        "value": 0.049663543701171875
+        "category": "Not available",
+        "value": 0.06676139682531357
       }
     },
     {
-      "id": "slice:Free",
+      "id": "slice:Users can write",
       "role": "pie-slice",
       "kind": "shape",
       "shapes": [
@@ -133,34 +133,34 @@
             [
               1.190000057220459,
               -1.6239999532699585,
-              1.2872332334518433,
-              -1.3226333856582642,
-              1.3844666481018066,
-              -1.0212665796279907,
-              1.4816999435424805,
-              -0.7198999524116516,
-              1.9536899328231812,
-              -0.8721961975097656,
-              2.229107141494751,
-              -1.3619424104690552,
-              2.114063262939453,
-              -1.8443670272827148,
-              1.9990196228027344,
-              -2.326791763305664,
-              1.5322307348251343,
-              -2.6395440101623535,
-              1.042306661605835,
-              -2.562453031539917,
-              0.5523827075958252,
-              -2.4853618144989014,
-              0.204197958111763,
-              -2.044370174407959,
-              0.2428676038980484,
-              -1.5499279499053955,
-              0.281537264585495,
-              -1.055485725402832,
-              0.6940478682518005,
-              -0.6739872097969055,
+              1.3189666271209717,
+              -1.3348000049591064,
+              1.447933316230774,
+              -1.0455999374389648,
+              1.5769000053405762,
+              -0.7563999891281128,
+              2.0209052562713623,
+              -0.9544529914855957,
+              2.2437305450439453,
+              -1.4557631015777588,
+              2.0932414531707764,
+              -1.9180601835250854,
+              1.9427523612976074,
+              -2.380357265472412,
+              1.4675202369689941,
+              -2.654432773590088,
+              0.9920103549957275,
+              -2.5531609058380127,
+              0.5165004134178162,
+              -2.4518892765045166,
+              0.19418612122535706,
+              -2.0079567432403564,
+              0.24512779712677002,
+              -1.5244582891464233,
+              0.29606950283050537,
+              -1.0409600734710693,
+              0.7038255333900452,
+              -0.6739479899406433,
               1.190000057220459,
               -0.6740000247955322,
               1.190000057220459,
@@ -190,12 +190,12 @@
         }
       ],
       "channels": {
-        "category": "Free",
-        "value": 0.9503364562988281
+        "category": "Users can write",
+        "value": 0.9332386031746864
       }
     },
     {
-      "id": "slice-label:Free",
+      "id": "slice-label:Not available",
       "role": "label",
       "kind": "text",
       "shapes": [
@@ -215,12 +215,12 @@
             "miterLimit": 4,
             "paintOrder": "normal"
           },
-          "text": "95%",
+          "text": "7%",
           "fontSize": 0.15,
           "textRun": {
-            "text": "95%",
-            "x": 108.96,
-            "y": 231.47,
+            "text": "7%",
+            "x": 132.45,
+            "y": 104.47,
             "size": 15,
             "anchor": "middle",
             "baseline": "middle",
@@ -229,7 +229,54 @@
               0,
               0,
               1,
+              8.673617379884035e-19,
+              0
+            ],
+            "width": 21.06
+          }
+        }
+      ],
+      "channels": {
+        "category": "Not available",
+        "value": 0.06676139682531357
+      }
+    },
+    {
+      "id": "slice-label:Users can write",
+      "role": "label",
+      "kind": "text",
+      "shapes": [
+        {
+          "subpaths": [],
+          "closed": [],
+          "style": {
+            "fill": "#000000",
+            "stroke": "none",
+            "strokeWidth": 0.01,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          },
+          "text": "93%",
+          "fontSize": 0.15,
+          "textRun": {
+            "text": "93%",
+            "x": 105.55,
+            "y": 230.83,
+            "size": 15,
+            "anchor": "middle",
+            "baseline": "middle",
+            "matrix": [
+              1,
               0,
+              0,
+              1,
+              8.673617379884035e-19,
               0
             ],
             "width": 29.61
@@ -237,12 +284,12 @@
         }
       ],
       "channels": {
-        "category": "Free",
-        "value": 0.9503364562988281
+        "category": "Users can write",
+        "value": 0.9332386031746864
       }
     },
     {
-      "id": "legend:Metadata",
+      "id": "legend:Not available",
       "role": "legend",
       "kind": "shape",
       "shapes": [
@@ -320,12 +367,12 @@
         }
       ],
       "channels": {
-        "category": "Metadata",
-        "value": 0.049663543701171875
+        "category": "Not available",
+        "value": 0.06676139682531357
       }
     },
     {
-      "id": "legend-label:Metadata",
+      "id": "legend-label:Not available",
       "role": "legend",
       "kind": "text",
       "shapes": [
@@ -345,10 +392,10 @@
             "miterLimit": 4,
             "paintOrder": "normal"
           },
-          "text": "Metadata (5.0%)",
+          "text": "Not available (6.7%)",
           "fontSize": 0.17,
           "textRun": {
-            "text": "Metadata (5.0%)",
+            "text": "Not available (6.7%)",
             "x": 268,
             "y": 153.29999999999998,
             "size": 17,
@@ -359,20 +406,20 @@
               0,
               0,
               1,
-              0,
+              8.673617379884035e-19,
               0
             ],
-            "width": 124.1595
+            "width": 147.9
           }
         }
       ],
       "channels": {
-        "category": "Metadata",
-        "value": 0.049663543701171875
+        "category": "Not available",
+        "value": 0.06676139682531357
       }
     },
     {
-      "id": "legend:Free",
+      "id": "legend:Users can write",
       "role": "legend",
       "kind": "shape",
       "shapes": [
@@ -450,12 +497,12 @@
         }
       ],
       "channels": {
-        "category": "Free",
-        "value": 0.9503364562988281
+        "category": "Users can write",
+        "value": 0.9332386031746864
       }
     },
     {
-      "id": "legend-label:Free",
+      "id": "legend-label:Users can write",
       "role": "legend",
       "kind": "text",
       "shapes": [
@@ -475,10 +522,10 @@
             "miterLimit": 4,
             "paintOrder": "normal"
           },
-          "text": "Free (95.0%)",
+          "text": "Users can write (93.3%)",
           "fontSize": 0.17,
           "textRun": {
-            "text": "Free (95.0%)",
+            "text": "Users can write (93.3%)",
             "x": 268,
             "y": 183.39999999999998,
             "size": 17,
@@ -489,16 +536,16 @@
               0,
               0,
               1,
-              0,
+              8.673617379884035e-19,
               0
             ],
-            "width": 98.481
+            "width": 179.877
           }
         }
       ],
       "channels": {
-        "category": "Free",
-        "value": 0.9503364562988281
+        "category": "Users can write",
+        "value": 0.9332386031746864
       }
     },
     {
@@ -522,11 +569,11 @@
             "miterLimit": 4,
             "paintOrder": "normal"
           },
-          "text": "Every 4 KiB block of 1 GiB",
+          "text": "Every 4 KiB block of 1 TiB",
           "fontSize": 0.18,
           "textRun": {
-            "text": "Every 4 KiB block of 1 GiB",
-            "x": 208.08,
+            "text": "Every 4 KiB block of 1 TiB",
+            "x": 235.94,
             "y": 42,
             "size": 18,
             "anchor": "middle",
@@ -536,7 +583,7 @@
               0,
               0,
               1,
-              0,
+              8.673617379884035e-19,
               0
             ],
             "width": 214.38
@@ -553,44 +600,44 @@
       "kind": "pie",
       "nodes": [
         {
-          "id": "slice#0:Metadata",
+          "id": "slice#0:Not available",
           "x": 246,
           "y": 136,
-          "w": 146,
+          "w": 170,
           "h": 14,
           "shape": "rectangle",
-          "label": "Metadata (5.0%)",
+          "label": "Not available (6.7%)",
           "labelBounds": {
             "x": 268,
             "y": 136.29999999999998,
-            "w": 124.15949999999998,
+            "w": 147.9,
             "h": 22.1
           },
           "labelContainer": {
             "x": 0,
             "y": 0,
-            "w": 416.16,
+            "w": 471.88,
             "h": 281.4
           }
         },
         {
-          "id": "slice#1:Free",
+          "id": "slice#1:Users can write",
           "x": 246,
           "y": 166,
-          "w": 120,
+          "w": 202,
           "h": 14,
           "shape": "rectangle",
-          "label": "Free (95.0%)",
+          "label": "Users can write (93.3%)",
           "labelBounds": {
             "x": 268,
             "y": 166.39999999999998,
-            "w": 98.48099999999998,
+            "w": 179.877,
             "h": 22.1
           },
           "labelContainer": {
             "x": 0,
             "y": 0,
-            "w": 416.16,
+            "w": 471.88,
             "h": 281.4
           }
         }
@@ -598,7 +645,7 @@
       "edges": [],
       "groups": [],
       "bounds": {
-        "w": 416,
+        "w": 472,
         "h": 281
       }
     },
@@ -615,24 +662,24 @@
       "viewport": {
         "x": 0,
         "y": 0,
-        "width": 416.16,
+        "width": 471.88,
         "height": 281.4
       },
       "attempts": 1,
       "repairs": [],
       "coverage": {
-        "measured": 8,
+        "measured": 9,
         "unmeasured": 0,
-        "preparedText": 4,
+        "preparedText": 5,
         "fallbackText": 0,
         "conditional": 0
       },
       "checks": {
-        "primitives": 10,
+        "primitives": 11,
         "labels": 2,
-        "occlusionPairs": 4,
+        "occlusionPairs": 8,
         "maxOcclusionPairs": 100000,
-        "operations": 28,
+        "operations": 35,
         "maxOperations": 400000,
         "markers": 0
       },
