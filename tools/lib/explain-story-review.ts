@@ -167,14 +167,54 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
     },
   ],
   gtfs: [
+    // The answer: the one calendar_dates.txt row that removes FULLW, beside the verdict for each service.
+    // Not opening claims: on a phone these comparisons span the close-up tour, not its first view.
+    {
+      step: 'evaluate',
+      settings: { date: '2007-06-04' },
+      targets: [{ text: 'FULLW,20070604,2' }, { text: 'Trips that run' }],
+    },
     {
       step: 'day',
       settings: { date: '2007-06-09' },
       targets: [1, 2, 3, 4].map((n) => ({ text: `AAMV${n}, route 50` })),
     },
   ],
+  // The refused program and the two traits rustc names in its error.
+  'send-sync': [
+    {
+      step: 'spawn',
+      targets: [
+        { text: 'thread::spawn(move || x.set(1));' },
+        { text: '= help: the trait `Sync` is not implemented' },
+        { text: '= note: required for `Arc<Cell<i32>>` to' },
+      ],
+    },
+  ],
+  // The answer: the int4 and int8 tuples' byte grids side by side.
+  'pg-page': [
+    {
+      step: 'swap',
+      settings: { column: 'int4' },
+      targets: [{ text: 'int4: 32-byte tuple' }, { text: 'int8: 32-byte tuple' }, { text: 'padding here' }, { text: 'int8’s value here' }],
+    },
+  ],
+  // The answer: the root reserve's slice beside its ratio to the metadata.
+  'ext4-space': [
+    {
+      step: 'reserve',
+      settings: { size: '1t', reserve: '5' },
+      targets: [{ text: 'Root reserve (5.0%)' }, { text: 'Root / metadata' }],
+    },
+  ],
   lantern: [{ step: 'objects', targets: [{ text: 'owns' }, { text: 'plays' }, { text: 'emits' }] }],
   'traffic-policy': [
+    // The answer to "which pod gets the most?": the per-pod shares, said over the pods.
+    {
+      step: 'shares',
+      settings: { policy: 'local', pods: '3-1-0' },
+      targets: [{ text: 'Pod d' }, { text: '50%' }, { text: 'Pod a' }],
+    },
     {
       step: 'local-path',
       settings: { policy: 'local' },
@@ -267,7 +307,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'just-bash': ['reader-pipeline', 'reader-values'],
   'cert-renewal': ['reader-due', 'reader-retries'],
   'ical-recurrence': ['reader-series', 'reader-copies'],
-  gtfs: ['reader-date', 'reader-stop'],
   'tailwind-gamut': ['reader-edge', 'reader-display'],
   fork: ['reader-build', 'reader-cost'],
   'gnome-files': ['reader-task', 'reader-sample'],
@@ -275,9 +314,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'layout-direction': ['reader-place', 'reader-fields'],
   seasons: ['reader-tilt', 'reader-solstices', 'reader-year'],
   'trust-proxy': ['reader-path', 'reader-answer'],
-  'traffic-policy': ['reader-nodes', 'reader-shares'],
-  'ext4-space': ['reader-allocation', 'reader-reserve'],
-  'send-sync': ['reader-threads', 'reader-requirements', 'reader-wrappers'],
   'quotient-familial': ['reader-quotient', 'reader-cap'],
   glyph: ['reader-width', 'reader-shape'],
   'pen-and-pencil': ['reader-separate', 'reader-labels'],
@@ -289,7 +325,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   isdigit: ['reader-predict', 'reader-result'],
   'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
   'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
-  'pg-page': ['reader-row', 'reader-page'],
   'periodic-groups': ['reader-electrons', 'reader-filling'],
 };
 // These labels name the comparison’s roles independently of its drawing group.
@@ -316,10 +351,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-series': ['Mon 2 Nov', 'Mon 9 Nov', 'Mon 7 Dec'],
     'reader-copies': ['Alice', 'Bob'],
   },
-  gtfs: {
-    'reader-date': ['Route', 'Trip', 'Service', 'date', 'FULLW'],
-    'reader-stop': ['Fixed times', 'Headway patterns'],
-  },
   'tailwind-gamut': {
     'reader-edge': ['100% = sRGB edge'],
     'reader-display': ['Written chroma', 'Mapped sRGB preview'],
@@ -343,9 +374,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-year': ['Jan', 'Dec', 'Hours of daylight'],
   },
   'trust-proxy': { 'reader-path': ['Express'], 'reader-answer': ['Order', 'Address', 'Decision', 'req.ip'] },
-  'traffic-policy': { 'reader-nodes': ['Node 1', 'Node 2', 'Node 3'], 'reader-shares': ['Pod', 'Cluster', 'Local'] },
-  'ext4-space': { 'reader-reserve': ['Users at 5% reserve'] },
-  'send-sync': { 'reader-threads': ['Thread A', 'Thread B'], 'reader-requirements': ['Wrapper', 'Needs from T', 'Met?'], 'reader-wrappers': ['Type', 'Send', 'Sync'] },
   'quotient-familial': {
     'reader-quotient': ['Revenu', '÷ parts', 'Barème', '× parts'],
     'reader-cap': ['Calcul brut', 'Après plafond', 'Après décote'],
@@ -376,10 +404,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-bind': ['Client', 'Auth server', 'Code', 'issued'],
     'reader-check': ['Saved challenge', 'Client hash', 'Prefix (8)'],
     'reader-redeem': ['Caller', 'S256 matches?', 'Result', 'Client', 'token'],
-  },
-  'pg-page': {
-    'reader-row': ['Grey: header  ·  Pale: padding  ·  Orange: data'],
-    'reader-page': ['Type', 'Rows/page', '10,000 rows'],
   },
 };
 export const STORY_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>> = Object.fromEntries(

@@ -401,6 +401,27 @@ export default class TrafficPolicyExplainer extends Scene {
       local: Object.fromEntries(ids.map((id) => [id, frac(local[id]!)])),
     };
 
+    // ------------------------------------------------------------------ caveats
+    await this.step('caveats', {
+      title: 'What these shares leave out',
+      line: 'Shares are iptables-mode averages; IPVS defaults to round robin.',
+      // ipvs/proxier.go:91-92 defaultScheduler "rr"; service_health.go:255 the weight header;
+      // create-external-load-balancer.md:161 "some cloud providers do not let you configure different weights".
+      caption:
+        'The shares are long-run averages for kube-proxy’s iptables mode; IPVS mode defaults to round robin. kube-proxy’s health check reports each node’s pod count in a header, but the docs warn that some cloud load balancers cannot weight nodes. Topology-aware routing and session affinity are left out.',
+    });
+    await s.clearOverlays();
+    await s.card(
+      [
+        ['Mode', 'iptables; IPVS uses round robin'],
+        ['Load balancer', 'equal share per healthy node'],
+        ['Health check header', 'X-Load-Balancing-Endpoint-Weight'],
+        ['Topology-aware routing', 'not modelled'],
+        ['Session affinity', 'not modelled'],
+      ],
+      { at: BELOW, fontSize: SIZE },
+    );
+
     // ------------------------------------------------------------------ the client's address
     if (policy === 'cluster') {
       // ---------------------------------------------------------------- snat
@@ -445,27 +466,5 @@ export default class TrafficPolicyExplainer extends Scene {
       await d.note('a', `from ${seenSource('local', 0)}`, { side: 'above', size: SIZE });
       this.state.seen = seenSource('local', 0);
     }
-
-    // ------------------------------------------------------------------ caveats
-    await this.step('caveats', {
-      title: 'What these shares leave out',
-      line: 'Shares are iptables-mode averages; IPVS defaults to round robin.',
-      // ipvs/proxier.go:91-92 defaultScheduler "rr"; service_health.go:255 the weight header;
-      // create-external-load-balancer.md:161 "some cloud providers do not let you configure different weights".
-      caption:
-        'The shares are long-run averages for kube-proxy’s iptables mode; IPVS mode defaults to round robin. kube-proxy’s health check reports each node’s pod count in a header, but the docs warn that some cloud load balancers cannot weight nodes. Topology-aware routing and session affinity are left out.',
-    });
-    await s.clearOverlays();
-    await d.dim(null);
-    await s.card(
-      [
-        ['Mode', 'iptables; IPVS uses round robin'],
-        ['Load balancer', 'equal share per healthy node'],
-        ['Health check header', 'X-Load-Balancing-Endpoint-Weight'],
-        ['Topology-aware routing', 'not modelled'],
-        ['Session affinity', 'not modelled'],
-      ],
-      { at: BELOW, fontSize: SIZE },
-    );
   }
 }

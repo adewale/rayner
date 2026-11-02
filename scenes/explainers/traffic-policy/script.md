@@ -10,7 +10,7 @@ Then how the load balancer picks a node. Under Local, kube-proxy answers its hea
 
 The answer: the load balancer weighs nodes, not pods. Node 1 splits its half three ways, 1/6 per pod; Node 2 gives all of its half to pod d, three times pod a's load. Under Cluster (the setting) every node lists all four pods and each gets 1/4, but two requests in three cross to another node first.
 
-The comparison makes the trade explicit: Cluster evens the load but sends requests across nodes and rewrites their source address; Local keeps each request on its node with the client's address and gives uneven load whenever nodes run different numbers of pods (2, 2, 0 and 1, 1, 1 are even). Then the address itself: under Local, pod a sees 198.51.100.79; under Cluster, the pod sees the forwarding node's address. The last step names what the shares leave out.
+The comparison makes the trade explicit: Cluster evens the load but sends requests across nodes and rewrites their source address; Local keeps each request on its node with the client's address and gives uneven load whenever nodes run different numbers of pods (2, 2, 0 and 1, 1, 1 are even). A step names what the shares leave out (IPVS, weighted load balancers, topology and affinity). Last, the address itself: under Local, pod a sees 198.51.100.79; under Cluster, the pod sees the forwarding node's address.
 
 **The aha:** the per-pod percentages land on the diagram: 16.7% over each pod on Node 1, 50% over pod d.
 
@@ -29,5 +29,5 @@ The comparison makes the trade explicit: Cluster evens the load but sends reques
 | health (Local) / second-hop (Cluster) | paragraph 3: how the load balancer picks a node | |
 | shares | paragraph 4: the answer, on the diagram | |
 | compare | paragraph 5: Cluster against Local | |
-| local-path (Local) / snat (Cluster) | paragraph 5: the address the pod sees | |
-| caveats | paragraph 5: what the model leaves out | |
+| caveats | paragraph 5: what the shares leave out | |
+| local-path (Local) / snat (Cluster) | paragraph 5: the address the pod sees, the other half of the trade | |
