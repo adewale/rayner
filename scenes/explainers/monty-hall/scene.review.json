@@ -33,9 +33,6 @@
           "key": "monty-switch"
         },
         {
-          "key": "monty-note"
-        },
-        {
           "key": "monty-key"
         }
       ]
@@ -55,9 +52,6 @@
         },
         {
           "key": "monty-switch"
-        },
-        {
-          "key": "monty-note"
         },
         {
           "key": "monty-key"

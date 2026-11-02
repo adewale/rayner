@@ -105,7 +105,10 @@ export class ReaderView {
   }
   /** The viewBox for an author's frame at the zoom on screen, on this stage. */
   view(author: string): string {
-    return readerViewBox(author, this.shown, this.stage.clientWidth, this.stage.clientHeight);
+    // clientHeight rounds CSS pixels. A rounded viewBox can letterbox the SVG and
+    // shrink a label below the close-up's readability floor on a fractional stage.
+    const { width, height } = this.stage.getBoundingClientRect();
+    return readerViewBox(author, this.shown, width, height);
   }
   private show(z: Zoom): void {
     this.shown = { k: z.k, x: z.x, y: z.y };

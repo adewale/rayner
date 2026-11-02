@@ -47,15 +47,15 @@ export default class BirthdayParadox extends Scene {
     checks: [
       {
         question:
-          'Read the room of 23 as people arriving one at a time, card by card along each row from the top, and apply the person-by-person count. Who is the first arrival who fails to miss every date already taken, and what chance did that person have of landing on one?',
+          'Two separate rooms each hold 23 people. When everyone joins one room, how many new pairs become possible, and why can’t you just add the two rooms’ match probabilities?',
         answer:
-          'The 18th card, 31 Jan, a date the 14th card already took. Seventeen dates were taken when the 18th person arrived, so the chance of landing on one was 17 in 365, about 4.7%.',
+          '529 new pairs: each of the 23 people in one room can now match each of the 23 in the other. The combined room has 1,035 pairs, compared with 506 within the two separate rooms. Adding the old probabilities misses the cross-room pairs and counts overlapping match events twice.',
       },
       {
         question:
-          'A 24th person, born on 26 Apr, joins the room of 23. How many pairs does the room hold now, and how many of them are matches?',
+          'On a planet with 100 equally likely birthdays, would 23 people still be needed for a better than even chance of a shared birthday? Use the person-by-person calculation to find the smallest room.',
         answer:
-          '276 pairs, since the newcomer pairs with all 23 people already there. Four of them match: 26 Apr is now on three cards, and three people make three pairs, all matching, while the 31 Jan pair still matches too.',
+          'No: 13 people suffice. Multiply the chances of avoiding earlier birthdays, 100/100 × 99/100 × … × 88/100, and subtract from 1: about 55.7%. With 12 people it is about 49.7%. A smaller calendar makes each new pair more likely to match.',
       },
     ],
     // Sentences that reach past the rooms on screen, and the tests that hold them; the rest speak of their own step's squares.

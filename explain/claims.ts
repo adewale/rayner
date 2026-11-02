@@ -1,19 +1,9 @@
 import { stepWords } from './trace.ts';
 import { normalise } from './script.ts';
 
-/**
- * Claims a scene makes and the tests that hold them, after the statechart skill's rule that each
- * rule a reader accepts becomes a checked invariant, and is never weakened to make it hold.
- *
- * A sentence with a scope word ("every", "never", "only", …) claims more than one case shows. Each
- * such sentence should be backed by a declared claim, `meta.claims: [{ says, test }]`, whose `says`
- * is a phrase of the sentence and whose `test` names the test that holds it ("file: test name"), or
- * else narrowed until it says only what the explainer shows. `check` reports the scope sentences
- * no claim backs; it fails a declared claim that no step states, and one whose test is not there.
- *
- * Code names (identifiers, calls, edge ids) that reach a title, line or caption are reported with
- * the step that first uses them, so an author can introduce each where it first appears or say it
- * in the reader's words, as the statechart skill's view module does for its labels.
+/** Optional evidence links and editorial lint over step titles, lines and captions.
+ * Matching a phrase to a named test is not proof of truth or of what that test asserts.
+ * Stage labels and check answers need separate review. See docs/REFERENCE.md, meta.claims.
  */
 export interface Claim {
   /** A phrase of the sentence the claim backs, matched as a reader reads it (case and quotes ignored). */
@@ -31,7 +21,7 @@ export interface ClaimsMeta {
   claims?: unknown;
 }
 
-/** Words that make a sentence claim more than one case shows. */
+/** English scope words worth inspecting; this is not a complete claim detector. */
 export const SCOPE_WORDS = /\b(every|never|only|always|whenever|nobody|no one|impossible)\b/i;
 /** Text that reads as code rather than as a reader's word: an identifier, a call, an edge id. */
 const CODE = /`[^`]+`|\b[a-z]+[A-Z][A-Za-z0-9]*\b|\b[A-Za-z]+_[A-Za-z0-9_]+\b|\b[\w$.]+\(\)|\b\w+->\w+(?:#\d+)?|\b[A-Za-z]+\.[a-z]+[A-Za-z]*\(/g;
@@ -83,8 +73,9 @@ export function claimsReport(meta: ClaimsMeta | undefined, steps: readonly Step[
     for (const text of [w.title, w.line, w.caption]) {
       for (const sentence of sentences(text)) {
         const n = normalise(sentence);
-        const backing = claims.find((c) => n.includes(normalise(c.says)));
-        if (backing) stated.add(backing.says);
+        const matches = claims.filter((c) => n.includes(normalise(c.says)));
+        for (const claim of matches) stated.add(claim.says);
+        const backing = matches[0];
         if (SCOPE_WORDS.test(sentence)) scope.push({ step: s.step, sentence, ...(backing ? { backedBy: backing.test ?? 'shown' } : {}) });
       }
       for (const m of text.matchAll(CODE)) if (!code.has(m[0])) code.set(m[0], s.step);

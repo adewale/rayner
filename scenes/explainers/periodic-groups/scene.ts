@@ -174,7 +174,7 @@ const samePlace: MatchKey = (part: Mobject) => {
 
 /** The script's one-sentence answer (meta.answer), which the stack step states. */
 const ANSWER =
-  'Apart from helium and the f block, an element’s group is the column where the filling rule puts its last electron, with the runs of 2, 10 and 6 stacked left to right';
+  'The table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below';
 
 // Check 2: lanthanum, whose last electron the filling rule puts in a run of 14 and NIST in a run of 10.
 const LA = (() => {
@@ -211,7 +211,7 @@ interface Member {
 export default class PeriodicGroupsExplainer extends Scene {
   static meta = {
     id: 'periodic-groups',
-    title: 'What puts an element in its group?',
+    title: 'Why does the periodic table have this shape?',
     player: { minStageWidth: 880 },
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Group_(periodic_table)&oldid=1381612279',
@@ -718,7 +718,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('stack', {
       title: 'Stack runs of one length in the same columns',
       line: 'Runs of 2 at the left, 10 in the middle, 6 at the right, 14 in two rows below.',
-      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. The result is the 18-column table that puts lutetium in group 3, as an IUPAC project recommended in 2021, except for one cell: helium, which that table puts over neon. ${ANSWER}. ${
+      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. This builds an 18-column table, using the layout with lutetium in group 3. Helium needs one further move: over neon. ${ANSWER}. ${
         (
           {
             na: 'Sodium’s 11th electron starts a run of 2, so it lands in column 1.',

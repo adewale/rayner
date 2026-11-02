@@ -2,8 +2,48 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { claimsReport, checkClaimsMeta, sentences } from '../explain/claims.ts';
 import { declaredClaimProblems } from '../tools/lib/explain-check.ts';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const step = (step: string, caption: string, title = '', line = '') => ({ step, meta: { title, line, caption } });
+
+test('all declared phrases in one sentence are stated, including overlapping phrases', () => {
+  const claims = ['Every input', 'always yields one output', 'Every input always'].map(says => ({ says, shown: true }));
+  const report = claimsReport({ claims }, [step('one', 'Every input always yields one output.')]);
+  assert.deepEqual(report.stated, claims.map(c => c.says));
+});
+
+test('claim evidence resolves in an external author project and requires a node:test declaration', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'rayner-claims-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await mkdir(join(directory, 'tests'));
+  const file = join(directory, 'tests/model.test.ts');
+  const claim = { says: 'Every input', test: 'tests/model.test.ts: backs the claim' };
+  for (const source of [
+    '// backs the claim',
+    "const name = 'backs the claim';",
+    "import test from 'node:test'; test('backs the claim', {});",
+    "import test from 'node:test'; test.skip('backs the claim', () => {});",
+    "import {test} from 'node:test'; test('backs the claim', {skip: true}, () => {});",
+    "import {it} from 'node:test'; it('backs the claim', {todo: 'later'}, () => {});",
+    "import {test,describe} from 'node:test'; describe.skip('suite', () => { test('backs the claim', () => {}); });",
+    "import {test,suite as group} from 'node:test'; group('suite', {skip:true}, () => { test('backs the claim', () => {}); });",
+    "function test() {} test('backs the claim', () => {});",
+  ]) {
+    await writeFile(file, source);
+    assert.match((await declaredClaimProblems([claim], [claim.says], directory)).join(), /there is none/, source);
+  }
+  for (const source of [
+    "import test from 'node:test'; test('model backs the claim', () => {});",
+    "import test from 'node:test'; test.only('model backs the claim', () => {});",
+    "import {it as check} from 'node:test'; check('model backs the claim', () => {});",
+    "import * as tests from 'node:test'; tests.test('model backs the claim', {skip:false}, () => {});",
+  ]) {
+    await writeFile(file, source);
+    assert.deepEqual(await declaredClaimProblems([claim], [claim.says], directory), [], source);
+  }
+});
 
 test('sentences split where one ends and the next begins, and keep decimals and abbreviations whole', () => {
   assert.deepEqual(sentences('London gets 16.4 h. Every place gets 12 h at the equinoxes! Why?'), ['London gets 16.4 h.', 'Every place gets 12 h at the equinoxes!', 'Why?']);

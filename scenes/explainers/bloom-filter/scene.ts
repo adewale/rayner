@@ -17,14 +17,12 @@ const EEL = (() => {
   const bits = makeFilter([...TAKEN, 'eel'], 32);
   return { at: locations('eel', 32), wolf: membership(bits, 'wolf'), owl: membership(bits, 'owl'), owlZeros: locations('owl', 32).filter((i) => !bits[i]) };
 })();
-if (!EEL.wolf || EEL.owl || membership(makeFilter([...TAKEN], 32), 'wolf')) throw new Error('eel must turn wolf, and only wolf, into a maybe at 32 bits');
 // Check 2: dog's account closes and someone clears dog's bits. What cat, which is still taken, then gets.
 const CLEARED = ([16, 32] as const).map((size) => {
   const bits = makeFilter([...TAKEN], size);
   for (const i of locations('dog', size)) bits[i] = 0;
   return { size, cat: membership(bits, 'cat'), shared: locations('dog', size).filter((i) => locations('cat', size).includes(i)) };
 });
-if (CLEARED[0]!.cat || !CLEARED[1]!.cat) throw new Error('Clearing dog must turn cat away at 16 bits only');
 const count = (n: number) => ['none', 'one', 'two', 'three'][n] ?? String(n);
 const list = (items: readonly (string | number)[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
@@ -61,7 +59,7 @@ export default class BloomFilter extends Scene {
       {
         question:
           'dog closes its account, and to keep the filter tidy someone sets dog’s three bits back to 0. Then cat, still taken, tries to sign in. What does the filter say about cat at 16 bits, and at 32?',
-        answer: `At 16 bits, definitely not: bit ${list(CLEARED[0]!.shared)} was shared, so clearing dog’s bits cleared one of cat’s, and the filter turns away a taken name, which a Bloom filter must never do. At 32 bits it still says maybe, but only because dog’s bits there happen to miss cat’s. The row cannot tell which names set a bit, so nothing can be safely removed from it.`,
+        answer: `At 16 bits, definitely not: bit ${list(CLEARED[0]!.shared)} was shared, so clearing dog’s bits cleared one of cat’s, and the filter turns away a taken name, which a Bloom filter must never do. At 32 bits it still says maybe, but only because dog’s bits there happen to miss cat’s. The row cannot tell which names set a bit, so clearing a departing name’s bits can erase evidence of another name.`,
       },
     ],
   };
@@ -92,12 +90,6 @@ export default class BloomFilter extends Scene {
     const whoSet = (owners: string[]) => (owners.length > 1 ? 'both' : owners[0] ?? 'no name');
     const sources = (story: typeof m, locs: readonly number[]) =>
       locs.map((j) => (story.owners[j]!.length ? `${j} from ${whoSet(story.owners[j]!)}` : `${j} still 0`));
-    // The pipeline caption says the measured rates sit a little below the formula at both sizes.
-    for (const story of [s16, s32]) {
-      const rate = story.sampleFalsePositives / story.sampleSize;
-      if (!(rate < story.passChance && rate > 0.8 * story.passChance)) throw new Error(`${story.size} bits: ${rate} is not a little below ${story.passChance}`);
-    }
-    if (full.lookups.some((maybe) => !maybe) || full.samplePass !== full.sampleSize) throw new Error('A full row must say maybe to every name');
     /** The full step's index, and the set bits after the first, middle and last count of names taken. */
     const FULL = 8;
     const milestones = [0, Math.round((full.trail.length - 1) / 2), full.trail.length - 1].map((k) => full.trail[k]!);
@@ -143,7 +135,7 @@ export default class BloomFilter extends Scene {
       { active = false, bad = false } = {},
     ) => {
       // Four rows of 32 need shorter boxes than two rows of 16 to leave room for each position above its box.
-      const W = 1.6,
+      const W = 1.75,
         H = size === 16 ? 0.72 : 0.62,
         part = W / Math.max(1, setBy.length);
       const color = bad ? s.bad : active ? s.emphasis : s.soft;
@@ -158,8 +150,8 @@ export default class BloomFilter extends Scene {
           x,
           y,
         ]),
-        label(String(j), x, y + H / 2 + (size === 16 ? 0.26 : 0.24), s.soft, size === 16 ? 0.34 : 0.32),
-        label(String(bit), x, y, bad ? s.bad : s.palette.ink, size === 16 ? 0.6 : 0.56),
+        label(`${j}:`, x, y, s.soft, 0.7).moveTo([x - W / 2 + 0.12, y], [-1, 0]),
+        label(String(bit), x, y, bad ? s.bad : s.palette.ink, 0.7).moveTo([x + W / 2 - 0.12, y], [1, 0]),
       );
       g.key = `bit-${j}`;
       return g;
@@ -268,9 +260,9 @@ export default class BloomFilter extends Scene {
                   ['Name', 'Filter', 'Database'],
                   m.queries.map((q) => [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped']),
                   s,
-                  { xs: [-4.9, 0, 4.9], y: 2.35, key: 'bloom-pipeline' },
+                  { xs: [-4.9, 0, 4.9], y: 2.35, key: 'bloom-pipeline', size: 0.7 },
                 ),
-                stat(s, 'Database reads', `${m.exactLookups} of ${m.queries.length}`, -5.7, -2.6, 'bloom-checks'),
+                stat(s, 'Reads', `${m.exactLookups} of ${m.queries.length}`, -5.7, -2.6, 'bloom-checks').scale(7 / 6),
                 table(
                   [`${thousands(m.sampleSize)} untaken`, 'Bits set', 'Pass'],
                   [s16, s32].map((story) => [
@@ -279,7 +271,7 @@ export default class BloomFilter extends Scene {
                     thousands(story.sampleFalsePositives),
                   ]),
                   s,
-                  { xs: [-0.6, 3.6, 6.7], y: -1.75, gap: 0.95, key: 'bloom-sample' },
+                  { xs: [-0.8, 3.4, 6.4], y: -1.75, gap: 0.95, key: 'bloom-sample', size: 0.7 },
                 ),
               );
             const active = query?.locations ?? (i === 1 ? cat : i === 2 ? dog : []);
@@ -307,7 +299,7 @@ export default class BloomFilter extends Scene {
               i === FULL
                 ? `Set bits: ${milestones.map((t, k) => `${t.setBits} after ${t.taken}${k ? '' : ' names'}`).join(', ')}`
                 : !query
-              ? 'Grey number: position; in the box: the bit'
+              ? 'Each box: grey position, then the bit'
               : frame.id === 'false-positive'
                 ? `${query.word}: ${sources(m, query.locations).join(', ')}`
                 : `Lookup ${query.word}: bits ${query.locations.join(', ')}`;

@@ -36,8 +36,8 @@ export const NARROW_PX = 600;
  * A narrow stage's height over its width, at most: taller than the picture's 16:9, so each
  * close-up shows the picture's full height or close to it, and a phone needs fewer views to
  * cover a change. The stage never gets shorter than 16:9, and on a standalone page never so
- * tall that Next leaves the screen (app/embed.css, .stage.narrow). `rayner check` measures a
- * 390 px phone's 358 px stage at this ratio.
+ * tall that Next leaves the screen (app/embed.css, .stage.narrow). `rayner check` estimates phone legibility at the minimum 16:9 geometry;
+ * served-page review measures the actual stage.
  */
 export const NARROW_ASPECT = 5 / 4;
 /** Room left around the changed region, in stage units, so a mark's outline is not cut. */

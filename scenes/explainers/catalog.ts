@@ -18,28 +18,29 @@ export const PRODUCT = {
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
   skill: 'https://github.com/adewale/rayner/blob/main/skills/rayner-explainers/SKILL.md',
   entry: {
-    id: 'python-dict',
+    id: 'bloom-filter',
     step: 'question',
-    settings: { key: '8' },
-    label: 'See why deleting a dictionary entry needs a marker',
+    settings: { bits: '16' },
+    label: 'See why a Bloom filter answers “maybe”',
   },
 } as const;
 
 /**
- * Where an explainer is shown, from its verdict under docs/EXPLAINER-RUBRIC.md. `showcase`: graded
- * Good, and leads the gallery. `gallery`: worth reading, behind "More". `coverage`: kept because it is
+ * Where an explainer is shown. `showcase`: the selected subject exemplars, leading the
+ * gallery. Selection is editorial; it is not evidence of learning or benchmark superiority.
+ * `gallery`: worth reading, behind "More". `coverage`: kept because it is
  * the only scene exercising some engine feature, diagram family or check (or until it is rebuilt);
  * its page is built and tested but not listed in the gallery or llms.txt.
  */
 export type Tier = 'showcase' | 'gallery' | 'coverage';
 
 export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain'; tier: Tier }[] = [
-  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'showcase' },
+  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'gallery' },
   { id: 'python-dict', step: 'marker', group: 'topic', tier: 'gallery' },
   { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
   { id: 'git-branches', step: 'merge', group: 'topic', tier: 'gallery' },
   { id: 'monty-hall', step: 'worlds', group: 'topic', tier: 'showcase' },
-  { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'showcase' },
+  { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'gallery' },
   { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'showcase' },
   { id: 'seasons', step: 'latitude', group: 'topic', tier: 'showcase' },
   { id: 'oauth-pkce', step: 'attack', group: 'topic', tier: 'gallery' },
@@ -65,14 +66,14 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'tailwind-gamut', step: 'reader-display', group: 'topic', tier: 'gallery' },
   { id: 'gnome-files', step: 'reader-sample', group: 'topic', tier: 'coverage' },
   { id: 'wcag-map', step: 'reader-levels', group: 'topic', tier: 'coverage' },
-  { id: 'feature-tour', step: 'result', group: 'toolchain', tier: 'showcase' },
-  { id: 'lantern', step: 'seek', group: 'toolchain', tier: 'showcase' },
-  { id: 'fork', step: 'untested', group: 'toolchain', tier: 'showcase' },
-  { id: 'agentic-mermaid', step: 'meaning', group: 'toolchain', tier: 'showcase' },
+  { id: 'feature-tour', step: 'result', group: 'toolchain', tier: 'gallery' },
+  { id: 'lantern', step: 'seek', group: 'toolchain', tier: 'gallery' },
+  { id: 'fork', step: 'untested', group: 'toolchain', tier: 'gallery' },
+  { id: 'agentic-mermaid', step: 'meaning', group: 'toolchain', tier: 'gallery' },
   { id: 'glyph', step: 'letterforms', group: 'toolchain', tier: 'gallery' },
   { id: 'font-metrics', step: 'diagram', group: 'toolchain', tier: 'gallery' },
   { id: 'layout-direction', step: 'updates', group: 'toolchain', tier: 'coverage' },
-  { id: 'pen-and-pencil', step: 'plate', group: 'toolchain', tier: 'showcase' },
+  { id: 'pen-and-pencil', step: 'plate', group: 'toolchain', tier: 'gallery' },
 ];
 
 /** The showcase tier, in gallery order; the complete collection above remains the coverage inventory. */

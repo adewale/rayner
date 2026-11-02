@@ -15,7 +15,9 @@ export interface CatalogProduct {
 }
 export interface CatalogScene {
   id: string; cases: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
-  step?: string; entry?: SceneEntry; showcase?: boolean;
+  step?: string; entry?: SceneEntry;
+  /** Accepted when reading older catalogs; new catalogs use tier alone. */
+  showcase?: boolean;
   /** Where the gallery lists it (scenes/explainers/catalog.ts): showcase cards, the gallery behind "More", or no card for coverage. */
   tier?: 'showcase' | 'gallery' | 'coverage';
 }

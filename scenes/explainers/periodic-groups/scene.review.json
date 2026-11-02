@@ -13,6 +13,16 @@
     {
       "step": "fill",
       "targets": [
+        { "text": "run of 2" },
+        { "text": "run of 6" },
+        { "text": "run of 10" },
+        { "text": "run of 14" },
+        { "text": "Every full run is 2, 6, 10 or 14 cells" }
+      ]
+    },
+    {
+      "step": "stack",
+      "targets": [
         {
           "text": "2 columns"
         },
@@ -21,9 +31,6 @@
         },
         {
           "text": "6 columns"
-        },
-        {
-          "text": "Every full run is 2, 6, 10 or 14 cells"
         }
       ]
     },

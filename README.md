@@ -2,11 +2,9 @@
 
 Rayner turns a TypeScript model into a step-through explanation. Readers can change a setting and see how the result changes; authors publish the cases as a portable HTML page with a transcript. It is for engineers and technical educators explaining protocols, algorithms and code changes.
 
-[![A deleted dictionary slot keeps a marker so lookup can still reach key 8.](docs/images/dictionary-deletion.png)](https://oshineye.dev/projects/rayner/python-dict)
-
 ## Start with a question
 
-[Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) Follow a lookup, try deleting a slot, and see why clearing it can make an existing key disappear. [Read the scene](scenes/explainers/python-dict/scene.ts) to see how the model supplies the picture and caption.
+[Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) See whose names set the bits, predict whether wolf gets through, then double the memory and compare the outcome. [Read the scene](scenes/explainers/bloom-filter/scene.ts) to see how the model supplies the picture and caption.
 
 [Browse the subject lessons](https://oshineye.dev/projects/rayner/) · [Write your first scene](docs/TUTORIAL.md) · [API and CLI reference](docs/REFERENCE.md)
 
@@ -15,11 +13,11 @@ Rayner turns a TypeScript model into a step-through explanation. Readers can cha
 An explainer written by hand, or by a language model, can look right and be wrong. Rayner's job is to check what an author, human or model, cannot easily check by eye:
 
 - **Every value comes from a model, and the model is tested against the real thing.** A scene draws numbers, paths and outcomes from a separate TypeScript model; its test compares the model with the program, library or published vectors it describes (CPython, Git, XState and others in the gallery), and a fidelity test asserts that every step of every case shows what the model computed.
-- **Pictures are measured as painted.** `rayner check` runs every case and fails on labels a reader would see under 12 px on a phone, text that collides, connectors that cross labels, a picture that moves after its caption starts, a jump to a step that draws differently from playing to it, and a drawing with no description in words. It also fails an explanation that never states its declared answer (`meta.answer`), and reports the step where the answer first appears.
+- **Pictures are measured as painted.** `rayner check` runs every case and fails on undersized desktop labels, text that collides, connectors that cross labels, a picture that moves after its caption starts, a jump to a step that draws differently from playing to it, and a drawing with no description in words. It also fails an explanation that never states its declared answer (`meta.answer`), and reports the step where the answer first appears.
 - **The page is reviewed as served.** `rayner review` opens the built page at phone and desktop widths, visits every resting step of every case, and checks what is actually painted.
 - **Agents can read it.** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 
-The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
+Phone label estimates use the minimum stage geometry; `rayner review` checks the actual served layout. Claims metadata links prose to named tests, but does not run them or verify their assertions. The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
 
 ## Write your first scene
 

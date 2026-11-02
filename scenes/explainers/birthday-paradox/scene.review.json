@@ -81,30 +81,6 @@
           "key": "birthday-exact"
         }
       ]
-    },
-    {
-      "step": "occupied",
-      "opening": true,
-      "targets": [
-        {
-          "key": "birthday-days"
-        }
-      ],
-      "settings": {
-        "question": "any"
-      }
-    },
-    {
-      "step": "occupied",
-      "opening": true,
-      "targets": [
-        {
-          "key": "birthday-days"
-        }
-      ],
-      "settings": {
-        "question": "one"
-      }
     }
   ]
 }

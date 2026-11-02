@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { galleryTile } from '../tools/lib/explain-gallery.ts';
-import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
+import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 
 test('catalog tiles open the beginning of every lesson without changing curated posters', () => {
   for (const item of EXPLAINERS) {
@@ -17,7 +17,7 @@ test('gallery entries and subset cards come from the selected catalog', async ()
   const {galleryPage}=await import('../tools/lib/explain-gallery.ts');
   const catalog={product:{entry:{id:'other',step:'question',settings:{case:'two'},label:'Start here'}},scenes:[
     {id:'featured',title:'Featured',lang:'en',group:'topic' as const,tier:'showcase' as const},
-    {id:'other',title:'Other',lang:'en',group:'topic' as const,tier:'gallery' as const},
+    {id:'other',title:'Other',lang:'en',group:'topic' as const,tier:'showcase' as const},
     {id:'recipe',title:'Recipe',lang:'en',group:'toolchain' as const,tier:'gallery' as const},
     {id:'probe',title:'Probe',lang:'en',group:'topic' as const,tier:'coverage' as const},
   ]};
@@ -30,4 +30,12 @@ test('gallery entries and subset cards come from the selected catalog', async ()
   assert.equal((subset.match(/<li/g)??[]).length,2,'one selected card and the evidence link');
   assert.ok(!subset.includes('featured.png')&&!subset.includes('recipe.png'));
   assert.ok(!subset.includes('<details')&&!subset.includes('embed-lab.html'));
+});
+
+
+test('the product entry is a showcase subject and authoring lessons stay in their own collection', () => {
+  const entry = EXPLAINERS.find(scene => scene.id === PRODUCT.entry.id)!;
+  assert.equal(entry.group, 'topic');
+  assert.equal(entry.tier, 'showcase');
+  assert.ok(EXPLAINERS.filter(scene => scene.group === 'toolchain').every(scene => scene.tier !== 'showcase'));
 });

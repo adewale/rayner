@@ -50,3 +50,9 @@ Other problems the review found in the Rayner pages:
 - Author B's last step printed the check answers above the player's "Show the answer" disclosures: adding `meta.checks` to a scene that already ended on its answers spoiled them. A scene with `meta.checks` should not also print the answers.
 
 Conclusion: the player fixes removed the defects round 1 found, but not the reason Rayner loses. Rayner needs reader interaction (committed predictions and a live machine driven from the scene's own model) before it can beat a hand-made page, and phone close-ups that show the whole picture.
+
+## Status after the final script rebuild
+
+The two rounds above evaluated earlier statecharts pages, not the final rebuilt scene in this PR. They establish neither success nor failure for that final page. No subsequent blind comparison or newcomer learning study is recorded. Gallery selection, passing rendering checks and evidence-link lint must not be reported as a benchmark win.
+
+A new round must retain its pages, transcript, screenshots, manifest and reviewer report so it can be replayed. Compare the final statecharts page with a page built from the same script and author under the plain brief. Include phone use and unseen transfer reasoning. A knowledgeable model answering without the lesson is a prior-knowledge control, not a reason to replace transfer questions with instance trivia.

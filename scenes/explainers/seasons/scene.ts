@@ -16,7 +16,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { sunlight, daylightYear, noonShare, sunDistance } from '../lib/models.ts';
+import { sunlight, daylightYear, noonShare, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
 
 const PLACES: Record<string, { name: string; lat: number }> = {
   tromso: { name: 'Tromsø', lat: 69.65 },
@@ -44,15 +44,6 @@ const percent = (x: number) => Math.round(x * 100) + '%';
 const exactly = (d: number) => +d.toFixed(2) + '°';
 /** Hours as the year's dimension prints them, rounded to a tenth. */
 const tenths = (h: number) => Math.round(h * 10) / 10;
-/**
- * The Sun's declination on a day of the year (0 = 1 January), as `daylightYear`
- * computes it: −23.44° × cos(360° × (day + 10) / 365). lib/models.ts keeps this
- * and its sample days private, so the scene restates them; the fidelity test
- * holds the two to the same twelve values.
- */
-const declinationOn = (day: number) => -TILT * Math.cos((2 * Math.PI * (day + 10)) / 365);
-/** Day of the year of each month's 15th, the days `daylightYear` samples. */
-const MID_MONTH = [14, 45, 73, 104, 134, 165, 195, 226, 257, 287, 318, 348];
 /** The 15ths with the year's ends wrapped on: the December before and the January after. */
 const KNOTS = [MID_MONTH[11]! - 365, ...MID_MONTH, MID_MONTH[0]! + 365];
 /**

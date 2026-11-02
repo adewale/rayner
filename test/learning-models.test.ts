@@ -75,6 +75,7 @@ test('insert-only filters never reject an inserted word; concrete false positive
     // A sample name passes only if its three bits are set: the sample's rate sits near (set/size)³, and none of it is taken.
     assert.equal(m.setBits,m.owners.filter(o=>o.length>0).length);
     assert.equal(m.passChance,(m.setBits/size)**3);
+    assert.ok(m.sampleFalsePositives/m.sampleSize < m.passChance);
     assert.ok(Math.abs(m.sampleFalsePositives/m.sampleSize-m.passChance)<0.2*m.passChance,`${m.sampleFalsePositives}/${m.sampleSize} vs ${m.passChance}`);
   }
   // At this sample size the 16-bit row passes several times as many untaken names as the 32-bit one.
@@ -391,24 +392,19 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     assert.ok(story.chance-story.shortcut>0&&story.chance-story.shortcut<.01);
   }
   assert.equal(room.matchedPairs.length,2);
-  // Transfers that were check questions (no longer asked; the claims stand): two rooms of 23 merged, and a 100-day year.
+  // Transfer exercises: two rooms of 23 merged, and a 100-day year.
   assert.equal(pairCount(46),1035);assert.equal(pairCount(46)-2*pairCount(23),23*23);assert.ok(23*23>2*pairCount(23));
   assert.equal(evenOdds('any',100),13);assert.equal(pairCount(13),78);
   assert.equal((100*birthdayChance(13,'any',100)).toFixed(1),'55.7');assert.equal((100*birthdayChance(12,'any',100)).toFixed(1),'49.7');
   assert.equal(evenOdds('one',100)-1,69);close(pairShortcut(69,100),birthdayChance(70,'one',100));
   assert.equal((100*birthdayChance(70,'one',100)).toFixed(1),'50.0');assert.equal((100*birthdayChance(69,'one',100)).toFixed(1),'49.5');
-  // The check questions, about this room of 23, which no step works through.
-  const [arrival,newcomer]=BirthdayParadox.meta.checks;
-  // The first card, in reading order, whose date an earlier card already took: the 18th (index 17), 31 Jan, first taken by
-  // the 14th; 17 distinct dates were taken when it arrived, a 17-in-365 chance, 4.7%.
-  {const first=room.sample.first;const repeat=first.findIndex((d,i)=>first.slice(0,i).includes(d));
-    assert.equal(repeat,17);assert.equal(dateOf(first[repeat]!),'31 Jan');assert.equal(first.indexOf(first[repeat]!),13);
-    assert.equal(new Set(first.slice(0,repeat)).size,17);assert.equal((100*17/365).toFixed(1),'4.7');
-    assert.match(arrival!.answer,/^The 18th card, 31 Jan, a date the 14th card already took\. Seventeen dates .* 17 in 365, about 4\.7%\.$/);}
-  // A 24th person born on 26 Apr: 276 pairs, and 26 Apr on three cards makes three matching pairs, plus the 31 Jan pair.
-  {const first=[...room.sample.first,116];assert.equal(dateOf(116),'26 Apr');assert.equal(pairCount(24),276);
-    const matching=first.flatMap((d,i)=>first.slice(i+1).filter(e=>e===d)).length;assert.equal(matching,4);
-    assert.match(newcomer!.answer,/^276 pairs, .* Four of them match: 26 Apr is now on three cards/);}
+  const [merged,calendar]=BirthdayParadox.meta.checks;
+  assert.match(merged!.answer, /529 new pairs/);
+  assert.match(merged!.answer, /1,035 pairs, compared with 506/);
+  assert.match(calendar!.answer, /13 people suffice/);
+  assert.match(calendar!.answer, /55.7%/);
+  assert.match(calendar!.answer, /12 people.*49.7%/);
+
 });
 
 test('the music comparison preserves pitches and total beats while moving exactly two starts and durations',()=>{

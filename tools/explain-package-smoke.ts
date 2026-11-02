@@ -56,6 +56,11 @@ try {
   // and it draws no diagram, so it checks without a browser.
   await run(process.execPath, ['--test', 'first/model.test.ts'], { cwd: folder });
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
+  // Evidence references must resolve in the author's project, not the installed package.
+  const starter = join(folder, 'first/scene.ts');
+  await writeFile(starter, (await readFile(starter, 'utf8')).replace('static meta = {',
+    `static meta = { claims: [{ says: 'LRU evicts the item used longest ago', test: "first/model.test.ts: LRU matches Wikipedia" }],`));
+  await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // Diagram capture and PNG tools ship in the default authoring install.
   assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
   if (process.env.EXPLAIN_BROWSER) {

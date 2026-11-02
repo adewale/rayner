@@ -6,7 +6,7 @@ import { isHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {
@@ -23,7 +23,7 @@ import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
 import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { NARROW_ASPECT, closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
+import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
@@ -191,15 +191,13 @@ export function restingTextProblems(scene: Viewed): string[] {
 }
 
 /**
- * The phone the legibility report measures: a 390 × 844 page, whose stage (inside the
- * page's 16 px gutters) is 358 px wide and, being narrow, NARROW_ASPECT tall: 358 × 448 px.
- * The picture still draws at the stage's width, so a label's size at 1× is as on a 16:9
- * stage; the taller stage lets each close-up show more of it. The player opens each step
- * there on its close-up (app/embed-closeup.ts), so a label's phone size is its size at that zoom.
+ * Conservative preflight at the narrow stage's minimum height (16:9). Actual height
+ * depends on the served page's headings and viewport; only browser review measures it.
+ * Do not duplicate the player's CSS/DOM height calculation here or assume its 4:5 maximum.
  */
 const PHONE_PAGE = 390,
   PHONE_W = PHONE_PAGE - 32,
-  PHONE_H = Math.round(PHONE_W * NARROW_ASPECT);
+  PHONE_H = PHONE_W * 9 / 16;
 /** One label across a case: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;
@@ -213,9 +211,8 @@ interface LabelSizes {
 }
 const round1 = (n: number) => Math.round(n * 10) / 10;
 /**
- * Smallest label sizes at a 1280 px stage, and on a 390 px phone as the player shows
- * each resting picture there (its close-up); the whole-stage phone size is what the
- * reader would get without close-ups.
+ * Desktop label sizes and phone estimates at the minimum stage geometry.
+ * Actual phone sizes and visible coverage belong to served-page review.
  */
 function legibilityReport(records: LabelSizes[]) {
   const sizes = records.filter((r) => r.px > 0),
@@ -224,6 +221,7 @@ function legibilityReport(records: LabelSizes[]) {
     phoneMin = atRest.length ? Math.min(...atRest.map((r) => r.phone)) : null;
   const whole = stageScale(PHONE_W, PHONE_H).s / STAGE_PX_PER_UNIT;
   return {
+    phoneEstimate: { stageWidth: PHONE_W, stageHeight: PHONE_H, geometry: 'minimum-stage' },
     minLabelPx1280: min == null ? null : round1(min),
     minLabelPx390: phoneMin == null ? null : round1(phoneMin),
     labelsUnder12PxAt390: atRest.filter((r) => round1(r.phone) < 12).length,
@@ -498,17 +496,67 @@ export async function checkProject(project: Project, out: string): Promise<Recor
  * What is wrong with a scene's declared claims: one no case states, or one whose test file is not
  * there or holds no test whose name contains the given part.
  */
-export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[]): Promise<string[]> {
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
   const problems: string[] = [];
+  const files = new Map<string, string[] | null>();
   for (const c of claims) {
     if (!stated.includes(c.says)) problems.push(`no step states the claim "${c.says}"`);
     if (!c.test) continue;
     const at = c.test.indexOf(': '),
       file = c.test.slice(0, at),
       name = c.test.slice(at + 2);
-    const source = await readFile(join(ROOT, file), 'utf8').catch(() => null);
-    if (source == null) problems.push(`the claim "${c.says}" names ${file}, which is not there`);
-    else if (!source.includes(name)) problems.push(`the claim "${c.says}" names a test in ${file} called "${name}", and there is none`);
+    if (!files.has(file)) {
+      const source = await readFile(resolve(directory, file), 'utf8').catch(() => null);
+      files.set(file, source === null ? null : testNames(source));
+    }
+    const names = files.get(file);
+    if (names == null) problems.push(`the claim "${c.says}" names ${file}, which is not there`);
+    else if (!names.some((test) => test.includes(name))) problems.push(`the claim "${c.says}" names a test in ${file} called "${name}", and there is none`);
   }
   return problems;
+}
+
+/** Evidence-link lint: static node:test declarations, not comments or arbitrary strings.
+ * This neither runs a test nor proves that its assertions support the sentence.
+ */
+function testNames(source: string): string[] {
+  const file = ts.createSourceFile('claim.test.ts', source, ts.ScriptTarget.Latest, true);
+  const functions = new Set<string>(), suites = new Set<string>(), namespaces = new Set<string>(), names: string[] = [];
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== 'node:test') continue;
+    const clause = statement.importClause;
+    if (clause?.isTypeOnly) continue;
+    if (clause?.name) functions.add(clause.name.text);
+    const bindings = clause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) namespaces.add(bindings.name.text);
+    if (bindings && ts.isNamedImports(bindings)) for (const specifier of bindings.elements) {
+      if (specifier.isTypeOnly) continue;
+      const imported = (specifier.propertyName ?? specifier.name).text;
+      if (['test', 'it'].includes(imported)) functions.add(specifier.name.text);
+      if (['describe', 'suite'].includes(imported)) suites.add(specifier.name.text);
+    }
+  }
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node)) {
+      let call = node.expression;
+      let modifier = '';
+      if (ts.isPropertyAccessExpression(call) && ['skip', 'todo', 'only'].includes(call.name.text)) {
+        modifier = call.name.text;
+        call = call.expression;
+      }
+      const [name, options] = node.arguments;
+      const isTest = ts.isIdentifier(call) ? functions.has(call.text)
+        : ts.isPropertyAccessExpression(call) && ts.isIdentifier(call.expression) && namespaces.has(call.expression.text) && ['test', 'it'].includes(call.name.text);
+      const isSuite = ts.isIdentifier(call) ? suites.has(call.text)
+        : ts.isPropertyAccessExpression(call) && ts.isIdentifier(call.expression) && namespaces.has(call.expression.text) && ['describe', 'suite'].includes(call.name.text);
+      const skipped = options && ts.isObjectLiteralExpression(options) && options.properties.some((property) =>
+        ts.isPropertyAssignment(property) && ['skip', 'todo'].includes(property.name.getText(file).replace(/['"]/g, '')) && property.initializer.kind !== ts.SyntaxKind.FalseKeyword);
+      if ((isTest || isSuite) && (skipped || modifier === 'skip' || modifier === 'todo')) return;
+      const callback = node.arguments.at(-1);
+      if (isTest && callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && name && (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name))) names.push(name.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return names;
 }

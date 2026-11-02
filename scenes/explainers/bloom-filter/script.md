@@ -2,7 +2,7 @@
 
 Questions the reader brings: What is a Bloom filter? Why can it say “definitely not” but only “maybe” for yes? What does more memory change?
 
-A sign-up form checks each name a person types against the accounts database, one database read per check, and a read for a free name finds nothing. cat and dog are taken, and the picture says they are not yet in the filter. A row of 16 bits in memory, all 0, will sit in front of the database and try to answer “not taken” without the read. Each box shows its bit, with its position in small grey type above it.
+A sign-up form checks each name a person types against the accounts database, one database read per check, and a read for a free name finds nothing. cat and dog are taken, and the picture says they are not yet in the filter. A row of 16 bits in memory, all 0, will sit in front of the database and try to answer “not taken” without the read. Each box shows its position in grey on the left, then its bit on the right. Both numbers stay readable in the phone opening.
 
 
 Taking a name runs it through the explainer’s three hash functions. Each turns the name into a position in the row, and that bit becomes 1: cat sets 1, 6 and 15. The picture fills each set bit in the colour of the name that set it, purple for cat and brown for dog, and says that the row itself keeps only the 1s. dog sets 7, 0 and 1, and bit 1 was already 1 from cat: it stays 1, its fill is half purple and half brown, and nothing in the row records that two names set it. A set bit says some name set it, not which, so when a name finds all its bits set, the filter can only say maybe.

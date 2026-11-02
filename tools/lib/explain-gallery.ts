@@ -17,7 +17,7 @@ export function galleryPage(catalog: GalleryCatalog, tokens: string, collection 
   const tile = (item: GalleryCatalog['scenes'][number], lead = false) =>
     galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en' }, lead);
   const featured = collection
-    ? scenes.filter((scene) => scene.tier === 'showcase' || scene.id === entry.id)
+    ? scenes.filter((scene) => scene.group === 'topic' && scene.tier === 'showcase')
     : scenes;
   const topics = [
     ...featured.filter((scene) => scene.id === entry.id),

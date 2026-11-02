@@ -20,12 +20,12 @@ But a match doesn't have to include you. Each card adds a row with one square fo
 
 **Sentence to remember:** a room of 23 people gives a better than even chance that two share a birthday, because 23 people make 253 pairs, each a chance to match.
 
-**Check questions**, in `meta.checks`, asked after the last step. Each needs this explainer's own room, and `test/learning-models.test.ts` checks its numbers against the model:
+**Check questions**, in `meta.checks`, ask the reader to transfer the mechanism to unseen conditions:
 
-1. Read the room as people arriving card by card, and apply the person-by-person count. Who is the first arrival who fails to miss every date already taken, and with what chance? (The 18th card, 31 Jan, first taken by the 14th; 17 dates taken, 17 in 365, about 4.7%.)
-2. A 24th person born on 26 Apr joins. How many pairs, and how many matches? (276; four: 26 Apr on three cards makes three matching pairs, plus 31 Jan.)
+1. Two rooms of 23 merge. How many new pairs become possible, and why can’t their old match probabilities simply be added? (529 cross-room pairs; 1,035 total compared with 506 before. The old probabilities omit cross-room matches and overlap.)
+2. On a planet with 100 equally likely birthdays, what is the smallest room with a better than even chance of a match? (13 people: 55.7%, against 49.7% for 12. Apply the person-by-person product to the smaller calendar.)
 
-The old checks (two rooms merged, a 100-day year, 69 others on that planet) were textbook variants; their numbers stay asserted in the test.
+An experienced reader may solve these without the lesson. That does not invalidate them: the question is whether a newcomer can explain and apply the mechanism after reading. The seeded cards illustrate one room; recalling their dates is not the learning objective. `test/learning-models.test.ts` checks the transfer calculations.
 
 **Settings:** the room holds 10, 23 (the default) or 40 people. The 10-person room has no shared date, so no red square, and an 11.7% chance; the 40-person room shares the same two dates and has an 89.1% chance. The rooms come from one seeded sample, so the larger rooms begin with the smaller rooms' people, and `test/fixtures/learning-models.json` checks each sample against an independent Python oracle.
 

@@ -89,11 +89,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
             const expected = variant.values.host === 'random' ? ['50.0%', '50.0%'] : ['33.3%', '66.7%'];
             assert.deepEqual(words('monty-stay'), ['Stay', expected[0]]);
             assert.deepEqual(words('monty-switch'), ['Switch', expected[1]]);
-            // The strip now counts only the rounds that show a goat behind B (the old rules step): the host who knows
-            // opens B in three sixths, two of them switching wins; the random host in two, one a switching win.
-            // The old note on all goat reveals went with the uncounted rounds, which are greyed.
-            assert.deepEqual(words('monty-note'), [variant.values.host === 'random' ? 'Left: 2 sixths; switching wins 1 of them.' : 'Left: 3 sixths; switching wins 2 of them.']);
-            readouts += 3;
+            readouts += 2;
             comparisons++;
           } else {
             // The old summary table's switch-wins column, now beside each host's strip; counting only the rounds that
@@ -103,7 +99,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
             readouts += 2;
           }
           // Each strip picture carries the key to its cells.
-          assert.deepEqual(words('monty-key'), ['Each cell: the door he opens, what it shows, who wins']);
+          assert.deepEqual(words('monty-key'), ['Each cell: opens · shows · wins']);
           pictures++;
           visited.push(step.name);
         },
@@ -113,7 +109,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
     assert.deepEqual(visited, ['odds', 'worlds']);
   }
   assert.equal(pictures, 4);
-  assert.equal(readouts, 10);
+  assert.equal(readouts, 8);
   assert.equal(comparisons, 2);
   // Per case: one strip in odds (4 or 6 cells), two in worlds (10).
   assert.equal(cells, 4 + 6 + 2 * 10);

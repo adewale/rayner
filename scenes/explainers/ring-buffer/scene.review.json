@@ -15,10 +15,10 @@
           "text": "slot 4"
         },
         {
-          "text": "before"
+          "key": "array:0"
         },
         {
-          "text": "after pop()"
+          "key": "array-after:0"
         },
         {
           "text": "pop() returned 1 and moved 4 values"

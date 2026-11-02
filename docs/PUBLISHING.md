@@ -24,13 +24,15 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
 
 ## Export the collection
 
-Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Each explainer in `scenes/explainers/catalog.ts` has a tier from its verdict under the [rubric](EXPLAINER-RUBRIC.md): the gallery leads with the `showcase` tier (graded Good), lists the `gallery` tier behind "More", and gives the `coverage` tier (kept as the only scene exercising some feature, or until it is rebuilt) no card and no `llms.txt` line, though its page is still built and checked. The exported catalog records each explainer's `tier`.
+Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Each explainer in `scenes/explainers/catalog.ts` has a tier from its verdict under the [rubric](EXPLAINER-RUBRIC.md): the gallery leads with the `showcase` tier (selected subject exemplars), lists the `gallery` tier behind "More", and gives the `coverage` tier (kept as the only scene exercising some feature, or until it is rebuilt) no card and no `llms.txt` line, though its page is still built and checked. The exported catalog records each explainer's `tier`.
 
 Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the showcase, use:
 
 ```sh
-npm run site:export -- <site-root> --only monty-hall,statecharts,bloom-filter,periodic-groups,agentic-mermaid,seasons,melody-rhythm,lantern,pen-and-pencil,fork,birthday-paradox,isdigit,feature-tour --entry monty-hall
+npm run site:export -- <site-root> --only showcase
 ```
+
+`--only showcase` derives its selection from catalog tiers and keeps the declared product entry. The same alias works for `demos:check`; no hand-maintained list of showcase IDs is needed. Toolchain lessons stay under “Authoring recipes and how Rayner works” in a full export.
 
 You can also build and review just the selected pages in an isolated directory:
 
@@ -48,7 +50,7 @@ Export verifies source and built-file fingerprints before writing. It validates 
 
 Export prepares files in the directory you supply. Uploading or deploying those files is a separate step.
 
-For Oshineye.dev, the same six subject lessons can be accompanied by `font-metrics` and `pen-and-pencil` under “How these are made.” Add those ids to `--only`; their `toolchain` group remains in the exported catalog. The remaining examples stay available in the full collection and source repository.
+For a custom selection, pass explicit IDs to `--only`. Their `toolchain` groups remain in the exported catalog. The complete collection remains available in the repository.
 
 ## Embed a page
 

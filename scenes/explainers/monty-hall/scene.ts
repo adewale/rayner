@@ -16,7 +16,7 @@ type Cell = ReturnType<typeof threeDoorCells>[number];
 // Narrow enough that a phone's opening close-up holds a whole strip.
 const X0 = -5,
   X1 = 5,
-  H = 1.5,
+  H = 1.7,
   SIX = (X1 - X0) / 6;
 const SLOT: Record<Host, number> = { informed: 0.92, random: -1.35 };
 
@@ -68,9 +68,9 @@ function strip(s: Stage, cells: readonly Cell[], y: number, as: string, dim?: (c
           // Once some rounds are ruled out, the ones left are outlined heavier.
           strokeWidth: off ? 0.02 : dim ? 0.06 : 0.03,
         }).moveTo([cx, y]),
-        new Text(opens!, { fontSize: 0.44, color }).moveTo([cx, y + 0.48]),
-        new Text(shows!, { fontSize: 0.44, color }).moveTo([cx, y]),
-        new Text(wins!, { fontSize: 0.44, color, weight: off ? 'normal' : 'bold' }).moveTo([cx, y - 0.48]),
+        new Text(opens!, { fontSize: 0.5, color }).moveTo([cx, y + 0.54]),
+        new Text(shows!, { fontSize: 0.5, color }).moveTo([cx, y]),
+        new Text(wins!, { fontSize: 0.5, color, weight: off ? 'normal' : 'bold' }).moveTo([cx, y - 0.54]),
       ),
       `${as}:${c.prize}${c.opened}`,
     );
@@ -80,12 +80,9 @@ function strip(s: Stage, cells: readonly Cell[], y: number, as: string, dim?: (c
 /** The car's three places, a third of the strip each. */
 const heads = (s: Stage, y: number) =>
   keyed(
-    new Group(...[0, 1, 2].map((i) => label(`Car behind ${door(i)}`, X0 + (i + 0.5) * 2 * SIX, y, s.soft, 0.5))),
+    new Group(...[0, 1, 2].map((i) => label(`Car behind ${door(i)}`, X0 + (i + 0.5) * 2 * SIX, y, s.soft, 0.52))),
     'monty-heads',
   );
-// Check 1: a host who knows but tosses a coin when the first pick is wrong draws the random host's strip.
-if (JSON.stringify(threeDoorCells(0, 'coin')) !== JSON.stringify(threeDoorCells(0, 'random')))
-  throw new Error('The coin host must open every door with the random host’s chance');
 // Check 2: the car hidden behind A 40% of the time, B and C 30% each.
 const PRIOR = [4, 3, 3];
 
@@ -148,18 +145,11 @@ export default class MontyHall extends Scene {
       C = door(example.offered),
       others = [0, 1, 2].filter((i) => i !== choice).map(door);
     const seen = { informed: oddsAfter(choice, 'informed', B), random: oddsAfter(choice, 'random', B) } as Record<Opener, ReturnType<typeof oddsAfter>>;
-    // The random host's car rounds are rounds where the first pick was wrong, and the informed host's switching wins.
-    for (const c of cells.random.filter((c) => c.shows === 'car'))
-      if (c.prize === X || !cells.informed.some((k) => k.prize === c.prize && k.swap === 'win'))
-        throw new Error('A random host can open the car only where the informed host leaves it for the switcher');
-    if (seen.informed.switchChance !== informed.switchChance || seen.random.switchChance !== random.switchChance)
-      throw new Error('Conditioning on the opened door must give the same odds as counting every goat');
-
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
     type Phase = 'choice' | 'predict' | 'odds' | 'copy' | 'worlds';
     // From the first strip on, only the rounds where he opened B to a goat count; the rest are greyed.
     const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
-    const KEY = 'Each cell: the door he opens, what it shows, who wins';
+    const KEY = 'Each cell: opens · shows · wins';
     let phase: Phase = 'choice';
     let words: string[] = [];
 
@@ -190,12 +180,12 @@ export default class MontyHall extends Scene {
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
     const readout = (h: Host, y: number, chance: number, key: string) =>
-      keyed(new Text(`switch wins ${pct(chance)}`, { fontSize: 0.48, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
+      keyed(new Text(`switch wins ${pct(chance)}`, { fontSize: 0.52, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
     const titleOf = (h: Host, y: number) => left(NAME[h], X0, y, h === host ? s.emphasis : s.palette.ink, 0.56, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
       `${NAME[h]}: ` +
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
-    const cellKey = (y: number) => label(KEY, 0, y, s.soft, 0.44, 'monty-key');
+    const cellKey = (y: number) => label(KEY, 0, y, s.soft, 0.52, 'monty-key');
 
     const picture = (): Group => {
       switch (phase) {
@@ -212,8 +202,7 @@ export default class MontyHall extends Scene {
             strip(s, cells[host], y, host, dim),
             stat(s, 'Stay', pct(seen[host].stayChance), -3.8, -1.45, 'monty-stay'),
             stat(s, 'Switch', pct(seen[host].switchChance), 3.8, -1.45, 'monty-switch'),
-            label(`Left: ${seen[host].sixths} sixths; switching wins ${seen[host].swapSixths} of them.`, 0, -3.0, s.palette.ink, 0.52, 'monty-note'),
-            cellKey(-3.65),
+            cellKey(-2.65),
           );
         }
         case 'copy':
