@@ -25,7 +25,7 @@ const openingClaims=(element:string):StoryClaim[]=>{
   const members=families[element]!;
   const familyTargets=[...members.map(symbol=>({key:`periodic-member:${symbol}`})),
     ...members.slice(1).map((symbol,i)=>({key:`periodic-jump:${members[i]}:${symbol}`}))];
-  // The blocks step follows fill, whose table already shows every atomic number, so those labels no
+  // The blocks step follows stack, whose table already shows every atomic number, so those labels no
   // longer count as changed there; name them, and the block strip, as the step's subjects instead.
   const blockTargets=[...Array.from({length:118},(_,i)=>({text:String(i+1)})),
     ...['s: 2 columns','d: 10 columns','p: 6 columns','f: 14 columns,','no group','number'].map(text=>({text}))];

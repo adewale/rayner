@@ -34,7 +34,7 @@ export const PRODUCT = {
 export type Tier = 'showcase' | 'gallery' | 'coverage';
 
 export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain'; tier: Tier }[] = [
-  { id: 'periodic-groups', step: 'blocks', group: 'topic', tier: 'showcase' },
+  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'showcase' },
   { id: 'python-dict', step: 'marker', group: 'topic', tier: 'gallery' },
   { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
   { id: 'git-branches', step: 'merge', group: 'topic', tier: 'gallery' },

@@ -144,7 +144,8 @@ test(
         // detail step. Before the subject declarations it rejects the noon
         // globe revealed incidentally when the old callout disappears.
         const reviewed = await reviewStoryVariant(page, `${server.url}/seasons.html`, variant, claims);
-        assert.equal(reviewed.length, 18);
+        // Eight steps, each reviewed on two stages; the compare step's curves now sit in distance.
+        assert.equal(reviewed.length, 16);
         formalRows += reviewed.length;
         const applicable = claims.filter((claim) => Object.entries(claim.settings ?? {}).every(([key, value]) => variant.values[key] === value));
         const frames = await storyFrames(variant.Scene, applicable);
@@ -172,7 +173,7 @@ test(
           const expectedKeys = step === 'noon'
             ? ['june-horizon', 'june-place', 'june-noon-ray', 'noon-notes']
             : step === 'december'
-              ? ['june-latitude', 'december-latitude', 'june-north', 'december-north', 'solstice-months', 'june-daylight-callout', 'december-daylight-callout', 'december-noon-ray']
+              ? ['june-daylight-latitude', 'december-latitude', 'june-north', 'december-north', 'solstice-months', 'june-daylight-callout', 'december-daylight-callout', 'december-noon-ray']
               : step === 'latitude'
                 ? ['june-latitude', 'december-latitude', 'latitude-circles', 'june-daylight-table', 'december-daylight-table', `emphasis: row ${values.name}`, `emphasis: row ${values.name}`]
                 : ['distance-orbit', 'daylight-curve', 'january-point', 'january-value', ...(variant.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
@@ -185,7 +186,7 @@ test(
             });
             assert.ok(eligible.length, `${variant.values.place}/${step}/320: ${target.name} needs complete native paint`);
             const paint = eligible[0]!.ink.find((ink) => ink.index === index)!;
-            assert.ok(covered(paint.box, eligible.map((view) => view.viewport)), `${target.name}: the reachable tour must cover all claimed ink`);
+            assert.ok(covered(paint.box, eligible.map((view) => view.viewport)), `${variant.values.place}/${step}/320: ${target.name}: the reachable tour must cover all claimed ink (${JSON.stringify(paint.box)} in ${JSON.stringify(eligible.map((view) => view.viewport))})`);
           }
           const labels = frame.labels.filter((label) => label.indices.some((index) => indices.has(index)));
           const words = step === 'noon' ? ['horizon', 'noon sunlight', values.formula]
@@ -208,7 +209,7 @@ test(
           phoneRows++;
         }
       }
-      assert.equal(formalRows, 72);
+      assert.equal(formalRows, 64);
       assert.equal(phoneRows, 16);
     } finally {
       await browser?.close();
