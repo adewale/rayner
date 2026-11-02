@@ -333,10 +333,9 @@ const GOLDEN_DESCRIPTIONS = [
   },
   {
     id: "glyph",
-    step: "morph",
-    summary:
-      "Code “label.txt”, 2 lines; Lines join the 6 paired letters of “cache miss” (c a c h e i) to their places in “cache hit”; the dropped m s s are crossed out and the new h t underlined; 5 labels. Removed: 1: - cache miss; added: 2: + cache hit.",
-    html: "<ul><li>Code “label.txt”, 2 lines:<ul><li>1: - cache miss (removed);</li><li>2: + cache hit (added).</li></ul></li><li>Lines join the 6 paired letters of “cache miss” (c a c h e i) to their places in “cache hit”; the dropped m s s are crossed out and the new h t underlined;</li><li>5 labels:<ul><li>cache miss;</li><li>cache hit;</li><li>3 shrink away: m s s;</li><li>6 paired: c a c h e i;</li><li>2 grow in: h t.</li></ul></li></ul>",
+    step: "letterforms",
+    summary: "Lines join each of the 14 glyphs of the top row to its smaller copy; nothing joins the JetBrains Mono row; 5 labels.",
+    html: "<ul><li>Lines join each of the 14 glyphs of the top row to its smaller copy; nothing joins the JetBrains Mono row;</li><li>5 labels:<ul><li>Hello, outlines;</li><li>Hello, outlines;</li><li>Hello, outlines;</li><li>14 of 14 paired;</li><li>0 of 14 paired.</li></ul></li></ul>",
   },
   {
     id: "exgit",
