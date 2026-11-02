@@ -2,12 +2,11 @@ import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, SEEDS, GREY, px } from '../lib/readers/pen-and-pencil.ts';
 import { Scene, VMobject, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
+import { stage, settingsOf, Diagram } from '../../../explain/index.ts';
+import { diagramsOf } from '../../../integrations/agentic-mermaid/snapshot.ts';
 import {
   WORLD,
   TITLE,
-  PLATES,
   HAND,
   FREEHAND,
   freehand,
@@ -138,6 +137,7 @@ export default class PenAndPencil extends Scene {
       'https://github.com/rheos/secondunit-videos/blob/main/references/pele-diagrams/README.md',
       'https://pele.run',
       'https://paulbourke.net/dataformats/hershey/',
+      'https://github.com/rough-stuff/rough/wiki',
     ],
     // The script's answer and check questions (script.md); reader-separate states the answer.
     answer:
@@ -145,15 +145,15 @@ export default class PenAndPencil extends Scene {
     checks: [
       {
         question:
-          'Suppose the free hand lifted its pen after every box and set it down exactly on the next box’s laid-out corner before drawing it. Would the boxes still drift apart from Dusk to Dawn?',
+          'Give the spring hand of the third step the opening’s route instead: a point that moves corner to corner as the opening’s hand did, each line starting where the last one stopped and up to 2° and 3% off. Would words still poke out of their boxes?',
         answer:
-          'No. Each box would still be a little out of shape, off by the errors of its own four sides, but no box would start from the end of the boxes before it, so the error would stop growing along the row. Fixing where each stroke starts is half of the layout’s job.',
+          'Yes. The spring keeps the ink close to whatever route it chases, but that route has wandered just as the opening’s boxes did, so the boxes still end up far from where the layout put them. The opening’s drawing was made exactly this way. What keeps the words inside is a route laid out before any ink; the spring only keeps each stroke near its route.',
       },
       {
         question:
-          'Rename Midnight’s event ‘Wick trimmed twice’ and draw both plates again. What changes, and do the two drawings still agree on where every box goes?',
+          'Lower the spring hand’s damping to a quarter of its value, so the pen overshoots at every corner before settling. Would a second drawing then move any box?',
         answer:
-          'Agentic Mermaid sizes the event box to its longer words, so that tag’s marks change, and the layout may move its neighbours to make room. Both drawings trace the new marks, so they still put every box in the same place and differ only in their wobble.',
+          'No. The ink would stray further from its marks, about 0.02 units instead of 0.005 in this model. But each stroke still starts at rest on its own laid-out mark and chases only that mark, so the overshoot never carries into the next stroke, and every box stays where the layout put it.',
       },
     ],
   };
@@ -175,51 +175,15 @@ export default class PenAndPencil extends Scene {
     const facts = timelineFacts(WORLD);
     const drop = (...mobs: Mobject[]) => this.play(...mobs.map((m) => new FadeOut(m, { runTime: 0.3 })));
 
-    // 1. The puzzle: a hand that wobbles, and labels that must not move.
-    await this.step('text', {
-      title: 'Can a wobbling hand draw this timeline twice without moving its labels?',
-      line: 'Predict: draw it again with another seed. What moves?',
-      caption:
-        'pele-art-diagrams is a web page that draws four charts, listed on the right, as ink-and-pencil plates, every stroke a little unsteady, as a hand’s would be. This explainer rebuilds its method without its code, on the timeline at left: four periods with an event in each, and no positions. A simulated hand makes every stroke slightly different, and a seed decides how.',
-    });
-    await s.clear();
-    const source = await s.code(WORLD.split('\n'), {
-      at: regionBox('top', { right: -0.4, bottom: 0.9, top: 2.75 }),
-      fontSize: 0.3,
-      enter: false,
-    });
-    const plates = await s.card(PLATES, {
-      at: regionBox('top', { left: 0.2, bottom: 0.9, top: 2.75 }),
-      title: 'The page’s four plates',
-      enter: false,
-    });
-    await s.enter(source, plates);
-    this.state.periods = facts.length;
 
-    // 2. The answer in miniature: the route is fixed first, and the hand only follows it.
-    await readerFirst(this, s, readerFrames(seed));
-
-    // 3. The layout comes first.
-    await this.step('layout', {
-      title: 'For the real timeline, Agentic Mermaid fixes every box first',
-      line: 'Every box, marker and label has its place before any ink.',
-      caption:
-        'Agentic Mermaid is the Mermaid layout library Rayner draws its diagrams with. Given the four lines of timeline text, it places every period box, marker and event box, sizing each box to its words with Inter’s letter widths, before the hand draws anything. The dimension under Midnight’s event box gives that box’s width.',
-    });
-    await s.clear();
-    // The timeline's text stays in view in a corner while the layout it became arrives.
-    const corner = await s.code(WORLD.split('\n'), { at: [-7.55, 1.5, -2.95, 2.75], fontSize: 0.3, enter: false });
-    await s.enter(corner);
-    const d = await s.show({ source: WORLD }, { box: CHART_BOX });
-    // Read every mark before anything restyles the diagram.
-    const parts = facts.map((_, i) => anatomy(d, i));
-    const railMob = d.get('rail').family().find(pathed)!;
+    // The layout, read back as marks before the first step: the opening already draws on it.
+    const spec = { source: WORLD, style: STYLE };
+    const plan = new Diagram(this, spec, await diagramsOf(this).diagram(spec), { box: CHART_BOX });
+    const parts = facts.map((_, i) => anatomy(plan, i));
+    const railMob = plan.get('rail').family().find(pathed)!;
     const rail = railMob.box()! as Box;
     const chart = union([...parts.flatMap((p) => [p.period.box, p.event.box]), rail]);
     const focus = parts[FOCUS]!;
-    await d.mark([`period:period-${FOCUS}`], { as: 'measured' });
-    const [ex0, ey0, ex1] = focus.event.box;
-    const width = await s.dimension([ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 });
 
     // ---- Everything the plate needs, worked out from the marks before anything is drawn.
     const outlineCount = parts.reduce((n, p) => n + p.outlines, 0),
@@ -337,54 +301,6 @@ export default class PenAndPencil extends Scene {
     ];
     const letterCount = letters.reduce((n, l) => n + l.length, 0);
 
-    await this.step('marks', {
-      title: 'The hand is given the layout’s marks and nothing else',
-      line: 'Blue pencil: the route every later stroke follows.',
-      caption: `The drawing reads the layout back as marks, the way the pele page flattens its SVG into marks a script can select: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. Every later stroke follows them, and they are the same in both drawings.`,
-    });
-    await drop(width);
-    await d.hide();
-    const traced = await s.draw(construction, {
-      tool: 'pencil',
-      color: CONSTRUCTION,
-      runTime: 3,
-      describe: `The timeline’s layout traced in thin blue construction pencil: ${facts.length} period boxes, ${facts.length} event boxes, their markers and strings, the rail and an empty box where each word will go`,
-    });
-    traced.key = 'construction:marks';
-    const tally = await s.callout(
-      parts[2]!.period.box,
-      `${outlineCount} outlines · ${filledCount} filled shapes · ${wordCount} words`,
-      { side: 'above', gap: 0.45 },
-    );
-    tally.key = 'construction:tally';
-    s.reading(traced, tally);
-    this.state.marks = { outlines: outlineCount, filled: filledCount, words: wordCount };
-
-    const INK_WIDTH = 0.006;
-    await this.step('hand', {
-      title: 'Close on Midnight’s marker, the ink lies on the blue ring',
-      line:
-        ringStray < INK_WIDTH
-          ? `Its largest stray, ${fmt(ringStray)} units, is less than the ink line’s own width, ${INK_WIDTH}.`
-          : `Its largest stray is ${fmt(ringStray)} units, against an ink line ${INK_WIDTH} wide.`,
-      caption: `The camera has closed on the Midnight marker, with the rest of the blue construction set aside. The spring hand from the third step, here at ${HAND.frequency} Hz with damping ${HAND.damping}, its point moving ${HAND.speed} units a second and its tremor up to ${HAND.tremor} units, inked this ring no more than ${fmt(ringStray)} units from it: ${px(ringStray)} on a page 1280 px wide, against an ink line ${INK_WIDTH} units wide. Over all ${chartInk.length + 1} ink strokes of the chart, the largest stray is ${fmt(chartStray)} units.`,
-    });
-    await drop(corner, tally);
-    // Midnight's marker stays in blue; the rest of the construction is set aside so no line crosses the heading.
-    const ring = polylines([focus.ring], CONSTRUCTION, 0.014, { opacity: 0.85 });
-    await s.enter(ring, polylines([focus.string, focus.dot], CONSTRUCTION, 0.014, { opacity: 0.85 }), {
-      runTime: 0.2,
-      describe: 'Midnight’s marker in blue construction pencil: its ring, the dot inside and the string below',
-    });
-    await this.play(traced.animate.setOpacity(0), { runTime: 0.3 });
-    await s.focus(ring, { margin: 0.55 });
-    await s.draw(polylines([ringInk], INK, INK_WIDTH), {
-      tool: 'pen',
-      runTime: 2,
-      describe: 'Close on the Midnight marker: the pen’s ink lying on the blue ring it follows',
-    });
-    this.state.hand = { stray: Number(fmt(ringStray)) };
-
     const pressure = pressures(
       scenery([-7.55, chart[3] - 0.3, 7.55, 3.15], owned, rng(seed + 2)).reduce((n, l) => n + l.pen.length, 0) +
         chartInk.length,
@@ -459,6 +375,157 @@ export default class PenAndPencil extends Scene {
       ...parts.flatMap((p) => [p.period.box, p.event.box]).map((b) => polylines([[...boxPolygon(b), [b[0], b[1]]]], TINTS.bands!, 0.018)),
     );
     for (const m of sharedBoxes.family()) m.style.dashArray = '0.08 0.06';
+    // ---- The free hand, which the opening shows and the ending sets above the traced chart.
+    // It draws the rail and every box, marker ring and string itself, each line starting where the
+    // last one ended; the words keep the places the layout gave them.
+    const closed = (poly: readonly Pt[]): Pt[] => [...poly, poly[0]!];
+    // The rail first, as a hand drawing a timeline would, then each period's box, string, ring and tag.
+    const meant: Pt[][] = [
+      [
+        [rail[0], ry],
+        [rail[2], ry],
+      ],
+    ];
+    const holders: { line: number; label: Box }[] = [];
+    for (const p of parts) {
+      holders.push({ line: meant.length, label: p.period.label });
+      meant.push(closed(boxPolygon(p.period.box)), p.string, p.ring);
+      holders.push({ line: meant.length, label: p.event.label });
+      meant.push(closed(tag(p.event.box)));
+    }
+    const moves: Pt[] = [];
+    meant.forEach((l, j) => {
+      if (j) moves.push([l[0]![0] - meant[j - 1]!.at(-1)![0], l[0]![1] - meant[j - 1]!.at(-1)![1]]);
+      for (let i = 1; i < l.length; i++) moves.push([l[i]![0] - l[i - 1]![0], l[i]![1] - l[i - 1]![1]]);
+    });
+    const corners = freehand(meant[0]![0]!, moves, FREEHAND, rng(seed + 5));
+    let at = 0;
+    const drifted = meant.map((l, j) => {
+      if (j) at++; // the pen-up move lands on this line's first corner
+      const out = corners.slice(at, at + l.length);
+      at += l.length - 1;
+      return out;
+    });
+    const freeInk = drifted.map((l) => hand(l, HAND, rng(seed + 6)));
+    // How far each laid-out corner of a box ended up, and which words poke out of the box drawn round them.
+    const maxOff = Math.max(
+      ...holders.map(({ line }) =>
+        Math.max(...meant[line]!.map((q, i) => Math.hypot(drifted[line]![i]![0] - q[0], drifted[line]![i]![1] - q[1]))),
+      ),
+    );
+    const outside = (poly: readonly Pt[], label: Box) => {
+      const b = boundsOf([poly]);
+      return !(inside([label[0], label[1]], b) && inside([label[2], label[3]], b));
+    };
+    const misses = holders.filter(({ line, label }) => outside(drifted[line]!, label));
+    if (holders.some(({ line, label }) => outside(meant[line]!, label)))
+      throw new Error('Every laid-out word must sit inside its laid-out box; the first and last steps say so');
+    const chartWords = letters.slice(0, -1);
+    // Both charts at one scale, the free one above the traced one.
+    const k = Math.min(14.8 / (chart[2] - chart[0]), 2.8 / (chart[3] - chart[1]));
+    const [cx, cy] = [(chart[0] + chart[2]) / 2, (chart[1] + chart[3]) / 2];
+    const place = (g: Group, y: number) => {
+      g.scale(k, { aboutPoint: [cx, cy] });
+      for (const m of g.family()) m.style.strokeWidth *= k;
+      return g.shift([-cx, y - cy]);
+    };
+    const freeDrawing = (y: number) =>
+      place(
+        new Group(
+          ...freeInk.map((l) => polylines([l], INK, 0.022)),
+          ...chartWords.map((l) => polylines(l, INK, 0.02)),
+          ...misses.map(({ label }) => polylines([closed(boxPolygon(grow(label, 0.04)))], TINTS.bands!, 0.03)),
+        ),
+        y,
+      );
+    const wordCountFree = holders.length;
+
+
+    // 1. The failure on the real timeline: a hand that places its own strokes pushes words out of their boxes.
+    await this.step('text', {
+      title: 'Can a wobbling hand draw this timeline and keep every word in its box?',
+      line: 'Predict: what must be fixed before any ink?',
+      caption: `The timeline in the corner is four periods with an event in each, and no positions. A simulated hand drew it below, wobbling a little on every line as a person’s hand would: first the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and ${misses.length} of the ${wordCountFree}, outlined in red, poke out of the box drawn round them.`,
+    });
+    await s.clear();
+    const source = await s.code(WORLD.split('\n'), { at: [-7.55, 1.2, -2.95, 2.75], fontSize: 0.3, enter: false });
+    const opening = freeDrawing(-1.5);
+    const tallyLine = new Text(`${misses.length} of ${wordCountFree} words outside the box drawn round them`, {
+      fontSize: 0.34,
+      color: s.palette.ink,
+    }).moveTo([2.4, 1.95]);
+    await s.enter(source, opening, tallyLine, {
+      describe: `The timeline’s four lines of text, and below them the timeline drawn by a hand that sets off each line from where the last stopped: its boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes.`,
+    });
+    s.reading(opening);
+    this.state.periods = facts.length;
+
+    // 2. Why the boxes wander, and the fix in miniature: the route is fixed first, and the hand only follows it.
+    await readerFirst(this, s, readerFrames(seed));
+
+    // 3. For the real timeline, the layout comes first.
+
+    await this.step('layout', {
+      title: 'For the real timeline, Agentic Mermaid fixes every box first',
+      line: 'Every box, marker and label has its place before any ink.',
+      caption:
+        'Agentic Mermaid is the Mermaid layout library Rayner draws its diagrams with. Given the four lines of timeline text, it places every period box, marker and event box, sizing each box to its words with Inter’s letter widths, before the hand draws anything; the dimension gives Midnight’s event box width. rough.js, a library for sketchy drawings, takes the same order: rectangle(x, y, width, height) gets its corner and size from the caller, and a roughness and a seed set how the lines wobble. Its documentation does not say what the other order costs, which the first two steps showed.',
+    });
+    await s.clear();
+    // The timeline's text stays in view in a corner while the layout it became arrives.
+    const corner = await s.code(WORLD.split('\n'), { at: [-7.55, 1.5, -2.95, 2.75], fontSize: 0.3, enter: false });
+    await s.enter(corner);
+    const d = await s.show({ source: WORLD }, { box: CHART_BOX });
+    await d.mark([`period:period-${FOCUS}`], { as: 'measured' });
+    const [ex0, ey0, ex1] = focus.event.box;
+    const width = await s.dimension([ex0, ey0], [ex1, ey0], `${fmt(ex1 - ex0, 2)} units`, { offset: -0.3 });
+
+    await this.step('marks', {
+      title: 'The hand is given the layout’s marks and nothing else',
+      line: 'Blue pencil: the route every later stroke follows.',
+      caption: `The drawing reads the layout back as marks: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. Every later stroke follows them, and they are the same in both drawings.`,
+    });
+    await drop(width);
+    await d.hide();
+    const traced = await s.draw(construction, {
+      tool: 'pencil',
+      color: CONSTRUCTION,
+      runTime: 3,
+      describe: `The timeline’s layout traced in thin blue construction pencil: ${facts.length} period boxes, ${facts.length} event boxes, their markers and strings, the rail and an empty box where each word will go`,
+    });
+    traced.key = 'construction:marks';
+    const tally = await s.callout(
+      parts[2]!.period.box,
+      `${outlineCount} outlines · ${filledCount} filled shapes · ${wordCount} words`,
+      { side: 'above', gap: 0.45 },
+    );
+    tally.key = 'construction:tally';
+    s.reading(traced, tally);
+    this.state.marks = { outlines: outlineCount, filled: filledCount, words: wordCount };
+
+    const INK_WIDTH = 0.006;
+    await this.step('hand', {
+      title: 'Close on Midnight’s marker, the ink lies on the blue ring',
+      line: 'Pale blue band: the ring as laid out. Dark line: the spring hand’s ink.',
+      caption: `The camera has closed on the Midnight marker, with the rest of the construction set aside. The spring hand from the third step inked this ring no more than ${fmt(ringStray)} units from it, ${px(ringStray)} on a page 1280 px wide${ringStray < INK_WIDTH ? `, less than the ink line’s own width of ${INK_WIDTH}` : ''}. Over all ${chartInk.length + 1} ink strokes of the chart, the largest stray is ${fmt(chartStray)} units.`,
+    });
+    await drop(corner, tally);
+    // Midnight's marker stays in blue; the rest of the construction is set aside so no line crosses the heading.
+    // The ring as a pale band several ink widths wide, so the blue still shows either side of the ink.
+    const ring = polylines([focus.ring], CONSTRUCTION, INK_WIDTH * 6, { opacity: 0.35 });
+    await s.enter(ring, polylines([focus.string, focus.dot], CONSTRUCTION, 0.014, { opacity: 0.85 }), {
+      runTime: 0.2,
+      describe: 'Midnight’s marker in blue construction pencil: its ring as a pale band, the dot inside and the string below',
+    });
+    await this.play(traced.animate.setOpacity(0), { runTime: 0.3 });
+    await s.focus(ring, { margin: 0.55 });
+    await s.draw(polylines([ringInk], INK, INK_WIDTH), {
+      tool: 'pen',
+      runTime: 2,
+      describe: 'Close on the Midnight marker: the pen’s ink lying on the blue ring it follows',
+    });
+    this.state.hand = { stray: Number(fmt(ringStray)) };
+
     await this.step('plate', {
       title:
         which === 'first'
@@ -470,8 +537,8 @@ export default class PenAndPencil extends Scene {
           : 'Grey: the first drawing’s sea and gulls. Dashed red: the shared boxes.',
       caption:
         which === 'first'
-          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last, in single-stroke Hershey letters fitted into the boxes the layout gave. Around the chart the seed also places the sea’s pencil strokes and the gulls, and the scenery is cut away from the paper the chart owns. Choose ‘Second drawing’ to draw the plate again with another seed.`
-          : `With another seed, the sea’s strokes and the gulls land elsewhere (grey marks where the first drawing put them), and every stroke wobbles differently. The chart is traced on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, with no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark.`,
+          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last, in single-stroke Hershey letters fitted into the boxes the layout gave. Around the chart the seed also places the sea’s pencil strokes and the gulls, and the scenery is cut away from the paper the chart owns. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts. Choose ‘Second drawing’ to draw the plate again with another seed.`
+          : `With another seed, the sea’s strokes and the gulls land elsewhere (grey marks where the first drawing put them), and every stroke wobbles differently. The chart is traced on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, with no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts.`,
     });
     await s.focus('all');
     await this.play(traced.animate.setOpacity(1), { runTime: 0.3 });
@@ -516,85 +583,23 @@ export default class PenAndPencil extends Scene {
     this.state.scene = { layers: layers.map((l) => l.name), trespass };
     this.state.plate = { objects, stray: Number(fmt(chartStray)), letters: letterCount, sharpenings };
 
-    // ---- The ending: the free hand of the second step on this plate, above the traced chart.
-    // It draws the rail and every box, marker ring and string itself, each line starting where the
-    // last one ended; the words keep the places the layout gave them.
-    const closed = (poly: readonly Pt[]): Pt[] => [...poly, poly[0]!];
-    // The rail first, as a hand drawing a timeline would, then each period's box, string, ring and tag.
-    const meant: Pt[][] = [
-      [
-        [rail[0], ry],
-        [rail[2], ry],
-      ],
-    ];
-    const holders: { line: number; label: Box }[] = [];
-    for (const p of parts) {
-      holders.push({ line: meant.length, label: p.period.label });
-      meant.push(closed(boxPolygon(p.period.box)), p.string, p.ring);
-      holders.push({ line: meant.length, label: p.event.label });
-      meant.push(closed(tag(p.event.box)));
-    }
-    const moves: Pt[] = [];
-    meant.forEach((l, j) => {
-      if (j) moves.push([l[0]![0] - meant[j - 1]!.at(-1)![0], l[0]![1] - meant[j - 1]!.at(-1)![1]]);
-      for (let i = 1; i < l.length; i++) moves.push([l[i]![0] - l[i - 1]![0], l[i]![1] - l[i - 1]![1]]);
-    });
-    const corners = freehand(meant[0]![0]!, moves, FREEHAND, rng(seed + 5));
-    let at = 0;
-    const drifted = meant.map((l, j) => {
-      if (j) at++; // the pen-up move lands on this line's first corner
-      const out = corners.slice(at, at + l.length);
-      at += l.length - 1;
-      return out;
-    });
-    const freeInk = drifted.map((l) => hand(l, HAND, rng(seed + 6)));
-    // How far each laid-out corner of a box ended up, and which words poke out of the box drawn round them.
-    const maxOff = Math.max(
-      ...holders.map(({ line }) =>
-        Math.max(...meant[line]!.map((q, i) => Math.hypot(drifted[line]![i]![0] - q[0], drifted[line]![i]![1] - q[1]))),
-      ),
-    );
-    const outside = (poly: readonly Pt[], label: Box) => {
-      const b = boundsOf([poly]);
-      return !(inside([label[0], label[1]], b) && inside([label[2], label[3]], b));
-    };
-    const misses = holders.filter(({ line, label }) => outside(drifted[line]!, label));
-    if (holders.some(({ line, label }) => outside(meant[line]!, label)))
-      throw new Error('Every laid-out word must sit inside its laid-out box; the last step says so');
-    const chartWords = letters.slice(0, -1);
-    // Both charts at one scale, the free one above the traced one.
-    const k = Math.min(14.8 / (chart[2] - chart[0]), 2.8 / (chart[3] - chart[1]));
-    const [cx, cy] = [(chart[0] + chart[2]) / 2, (chart[1] + chart[3]) / 2];
-    const place = (g: Group, y: number) => {
-      g.scale(k, { aboutPoint: [cx, cy] });
-      for (const m of g.family()) m.style.strokeWidth *= k;
-      return g.shift([-cx, y - cy]);
-    };
-    const freePanel = place(
-      new Group(
-        ...freeInk.map((l) => polylines([l], INK, 0.022)),
-        ...chartWords.map((l) => polylines(l, INK, 0.02)),
-        ...misses.map(({ label }) => polylines([closed(boxPolygon(grow(label, 0.04)))], TINTS.bands!, 0.03)),
-      ),
-      1.15,
-    );
-    const tracedPanel = place(new Group(tints.copy(), inked.copy(), polylines([ringInk], INK, 0.022), ...chartWords.map((l) => polylines(l, INK, 0.02))), -2.6);
-    const wordCountFree = holders.length;
     await this.step('freehand', {
-      title: `Drawn freehand, ${misses.length} of the ${wordCountFree} words fall outside their boxes`,
-      line: 'Top: each line starts where the last ended. Bottom: each stroke traces its mark.',
-      caption: `Here the free hand of the second step draws this plate: the rail first, then every box, ring and string from left to right, each line starting where the last one ended, while the words keep the places the layout gave them. Its boxes end up as much as ${fmt(maxOff, 2)} units, ${px(maxOff)}, from where the layout put them, and ${misses.length} of the ${wordCountFree} words, outlined in red, poke out of the box drawn round them. Below is the same chart traced on its marks, where every word sits inside its box.`,
+      title: `Traced on fixed marks, all ${wordCountFree} words stay in their boxes`,
+      line: 'Top: the opening’s drawing. Bottom: the finished plate.',
+      caption: `The opening’s drawing returns above the finished plate. Its boxes ended up as much as ${fmt(maxOff, 2)} units, ${px(maxOff)}, from where the layout put them, because every error rode along into the lines after it. Every stroke of the plate below wobbles too, but each one chased a mark fixed before any ink, so all ${wordCountFree} words sit inside their boxes.`,
     });
     await s.clear();
+    const freePanel = freeDrawing(1.15);
+    const tracedPanel = place(new Group(tints.copy(), inked.copy(), polylines([ringInk], INK, 0.022), ...chartWords.map((l) => polylines(l, INK, 0.02))), -2.6);
     const heads = new Group(
-      new Text('Free hand', { fontSize: 0.3, color: s.palette.ink, weight: 'bold', anchor: 'start' }).moveTo([-7.4, 2.75], [-1, 0]),
+      new Text('Each line begun at the end of the last', { fontSize: 0.3, color: s.palette.ink, weight: 'bold', anchor: 'start' }).moveTo([-7.4, 2.75], [-1, 0]),
       new Text('Traced on the layout’s marks', { fontSize: 0.3, color: s.palette.ink, weight: 'bold', anchor: 'start' }).moveTo(
         [-7.4, -0.85],
         [-1, 0],
       ),
     );
     await s.enter(heads, freePanel, tracedPanel, {
-      describe: `Two drawings of the timeline. Above, drawn freehand: the boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes. Below, the same chart traced on the layout’s marks, every word inside its box.`,
+      describe: `Two drawings of the timeline. Above, drawn by a hand that sets off each line from where the last stopped: the boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes. Below, the same chart traced on the layout’s marks, every word inside its box.`,
     });
     s.reading(freePanel, tracedPanel);
     this.state.freehand = { misses: misses.length, words: wordCountFree, maxOff: Number(fmt(maxOff)) };

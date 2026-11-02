@@ -29,14 +29,6 @@ const UNBUILT = 0.1;
 const POLICIES = ['Local', 'Cluster'];
 const PODS = Object.keys(PLACEMENTS);
 const CASES = PODS.length * POLICIES.length;
-/** What rayner check fails a case on (tools/lib/explain-check.ts checkProject, and the glyph check every command runs). */
-const CHECKS: readonly (readonly [string, readonly string[]])[] = [
-  ['Motion and clock', ['motion', 'still during the caption', 'seek equals play', 'skipped trace']],
-  ['Resting pictures', ['each step changes', 'text collisions', 'routes over labels', 'legibility']],
-  ['Words', ['descriptions', 'glyphs', 'the stated answer']],
-  ['Code', ['catch lint', 'bare runtime']],
-];
-const CHECK_COUNT = CHECKS.reduce((n, [, items]) => n + items.length, 0);
 /** The diagram families the explainers name and describe (explain/words.ts). */
 const FAMILIES = Object.keys(VOCABULARY.en!.families!).length;
 const GONE = ['Doc', 'Parser', 'Player', 'Worker'];
@@ -73,15 +65,16 @@ export default class ForkExplainer extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: 'Below what refill rate would the token bucket’s R10 be refused, and why can no reader of that page see it?',
+        question:
+          'On the token bucket page, R8 and R9 arrive together at 1 s. If its author moved R10 from 5 s to 1.5 s, at which offered rate would ‘R10 is accepted at every rate’ become false, and could a reader see the false sentence?',
         answer:
-          'Below 0.2 tokens a second. At such rates R7 to R9 are refused, so nothing is spent after the burst, and R10 at 5 s finds 5 × rate tokens: under one below 0.2. The page offers only 1, 2 and 4 tokens a second, the cases it built and checked.',
+          'At 1 token a second. There R8 spends the one token that has come back by 1 s, so at 1.5 s the bucket holds half a token and R10 gets 429; at 2 and 4 tokens a second it is still accepted. A reader could see it only if the author published without reading that case, because 1 token a second is a case the build makes and the author can run and read.',
       },
       {
         question:
-          'A link can open any step of the token bucket page, at any of its three rates. Why is opening a step from a link safe when a typed rate of 0.1 would not be?',
+          'Someone shares a link to the token bucket page that ends in ?rate=0.1. What does the reader see, and do they meet the false sentence about R10?',
         answer:
-          'A step link picks a step inside a case the build made, and rayner check went through every step of every built case, so the picture it opens was checked. A rate of 0.1 asks for a case nobody built, where the page’s sentence about R10 is false.',
+          'The player looks for 0.1 among the rates the scene lists, finds none, and opens the default case, 2 tokens a second, with the notice “Unknown rate option: 0.1. Showing the default case.” The reader sees a case the author ran, where R10 is accepted; the 0.1 row exists only in this explainer.',
       },
     ],
   };
@@ -173,9 +166,9 @@ export default class ForkExplainer extends Scene {
 
     // 3. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
     await this.step('live', {
-      title: 'Lantern, which Rayner forks, rendered any frame on request',
-      line: 'Rayner deleted that Worker; its pages offer only the cases listed in the scene.',
-      caption: `Lantern is the animation engine Rayner was forked from, at commit 2c7bad5. Its Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner deleted the Worker. Below is the token bucket’s one setting as its scene declares it: the three rates in that list are the cases its build made, and the page has no others.`,
+      title: 'Lantern, the engine Rayner was forked from, rendered frames on request',
+      line: 'A reader can choose only a rate the scene lists, and each listed rate is a case the build runs.',
+      caption: `Lantern’s Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner, forked from Lantern at commit 2c7bad5, deleted the Worker. The bottom row broke because 0.1 is a rate nobody listed, so nobody ran it, and a page built ahead would break the same way if it let readers type a rate. Below is the token bucket’s one setting as its scene declares it; the build runs one case per listed rate, and the page offers no box for typing another.`,
     });
     await s.clear();
     const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
@@ -234,25 +227,9 @@ export default class ForkExplainer extends Scene {
     await flow.note('Page', 'no diagram renderer', { side: 'above' });
     this.state.families = FAMILIES;
 
-    // What the build checks for each case.
-    await this.step('checks', {
-      detail: true,
-      title: `Each case must pass ${CHECK_COUNT} checks before it ships`,
-      line: 'Each added case is run through every check again.',
-      caption: `rayner check runs every case and fails the build on any of ${CHECK_COUNT} problems, from a seeked frame that differs from the played one to text under 14 px or a step that never states the scene’s answer. rayner describe prints every caption of every case for the author to read. Both commands work only on cases the build has made.`,
-    });
-    await s.clearOverlays();
-    await flow.focus('all');
-    await flow.dim(['Settings', 'Scene', 'Clock', 'Check']);
-    await flow.walk([['Clock', 'Check']], { trail: true });
-    await s.card(
-      CHECKS.map(([group, items]) => [`${group} (${items.length})`, items.join(', ')]),
-      { at: BELOW, fontSize: 0.22 },
-    );
-    this.state.checks = CHECK_COUNT;
-
     // A detail after the ending: the page holds each resting picture for its caption. It reads the
-    // timing of the 'fork' step, which has ended by now.
+    // timing of the 'fork' step, so that step ends here, holding for its caption as any step does.
+    await this.endCurrentStep();
     const shown = this.steps.find((st) => st.name === 'fork')!;
     const words = String(shown.meta.caption).trim().split(/\s+/).length;
     const motion = (shown.hold ?? shown.t1!) - shown.t0,

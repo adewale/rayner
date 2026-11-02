@@ -38,7 +38,7 @@ type Feature =
 // These are author-side excerpts, not the implementation of the reader player.
 // The complete, runnable version of each example is this scene's construct() below.
 // `recipe` is the recipe step's caption: what the lines do, and what the result step draws besides them.
-export const RECIPES: Record<Feature, { title: string; result: string; code: string[]; recipe: string; caption: string }> = {
+export const RECIPES: Record<Feature, { title: string; result: string; code: string[]; recipe: string; caption: string; point: string }> = {
   steps: {
     title: 'Name a step, then draw its resting picture',
     result: 'An empty step, then the greeting',
@@ -55,6 +55,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'this.step opens a step and gives it a name, a title and a caption; whatever is entered after it, here one Text, becomes that step’s picture. Next, beside the greeting, the page draws an empty frame for the step before anything is entered, and prints the step’s address under it.',
     caption:
       'The greeting is the step’s whole picture and the caption sits under it. The name passed to this.step, hello, becomes the step’s address, so a link can open this picture without playing anything before it.',
+    point: 'This picture and its caption are all a reader gets from a link ending ?step=hello.',
   },
   settings: {
     title: 'Declare a setting; each option becomes a case',
@@ -73,6 +74,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'These are two of the fifteen options of this page’s own setting. The build runs construct() once per option before anyone reads the page, and settingsOf(this) tells each run which option it is making. The result compares two of those cases with cards.',
     caption:
       'The feature picker on this page is the setting in the recipe, with all fifteen options. Each option is a case built ahead of time, and choosing another feature loads that case with its own two steps.',
+    point: 'The default case is Animations; this page is the Settings case.',
   },
   diagram: {
     title: 'Capture a diagram, then follow one of its edges',
@@ -87,6 +89,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       's.show draws Mermaid source as a diagram captured when the page is built, and d.walk names each edge it travels by the ids of its two nodes. Next to the walked flowchart the page draws it once more, bare.',
     caption:
       'Both flowcharts were captured at build time. walk throws on an edge the diagram does not have, so the trail on the right lies on the captured Start → Finish link.',
+    point: 'The trail stays on Start → Finish after the walk ends.',
   },
   code: {
     title: 'Show the author’s code, then focus a line',
@@ -100,7 +103,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       's.code draws the lines on a code panel, and block.focus puts a bar on one of them with a label saying what it is. In the result an unmarked copy of the panel sits on the left.',
     caption:
-      'block.focus marks the second line as the update, and the mark stays after the motion ends. code.span and code.token mark smaller parts of a line.',
+      'block.focus marks the second line as the update, and the mark stays after the motion ends.',
+    point: 'The update bar stays on count += 1 after the motion stops.',
   },
   'code-diff': {
     title: 'Morph edited code by its surviving lines',
@@ -115,7 +119,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       'block.morph is given the panel’s new lines and keeps any old line that survives unchanged; markAdded flags the lines that are new. The panel as it was before the edit is drawn again beside the morphed one.',
     caption:
-      'morph keeps the first line in place, moves the changed line in and marks it as added. For a full diff of a native Code object, use TransformDiff.',
+      'morph keeps the first line in place, moves the changed line in and marks it as added.',
+    point: 'Only count += 2 carries the added mark; let count = 0 kept its place.',
   },
   animation: {
     title: 'Animate one object into another',
@@ -130,6 +135,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'Transform takes the shape already on stage and a target, and moves the shape’s outline onto the target’s. The result runs these lines on the right; the circle on its left is a second circle the page draws first.',
     caption:
       'Only the square comes from the recipe: Transform reshaped the circle in place, so the object the step entered is now a square, and a link to this step shows no circle of its own. The circle on the left was drawn separately so that a reader who arrives by link can see what the motion did.',
+    point: 'From a link, these lines leave a square; the circle is a separate drawing.',
   },
   matching: {
     title: 'Match text by shared characters',
@@ -146,6 +152,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'TransformMatchingText pairs letters of the old text with equal letters of the new one, moves each pair, and fades the leftovers. On the next step the old label stays on the left, and a list under the new one says which letters moved and which faded.',
     caption:
       'The list under cache hit comes from the pairs the animation made. It matched characters only, so a shared letter moves even when the words around it mean something else.',
+    point: 'The shared letters slid into place, and the others faded.',
   },
   restore: {
     title: 'Save a look, then animate back to it',
@@ -161,6 +168,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'saveState records the circle’s points and style, and Restore animates the same circle back to that record. The result adds a dashed outline that none of these lines draws, at the place the circle visited.',
     caption:
       'Left alone, these lines end with the circle where it started, and a reader arriving by link would see no sign that it moved. The dashed outline was drawn separately to mark where the circle went before Restore brought it back.',
+    point: 'Without the dashed outline, the resting picture would hide the circle’s trip.',
   },
   emphasis: {
     title: 'Leave emphasis in the resting picture',
@@ -177,7 +185,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       'Circumscribe draws an outline round its target and normally removes it when the play ends; keep: true changes that. s.keep gives the outline words for a screen reader. An unmarked 42 is set beside it for comparison.',
     caption:
-      'With keep: true, Circumscribe leaves its rectangle round 42 when the motion ends. s.keep gave that outline a description, so a screen reader can say what the wordless box marks. Pass shape: ‘circle’ for a ring.',
+      'With keep: true, Circumscribe leaves its rectangle round 42 when the motion ends. s.keep gave that outline a description, so a screen reader can say what the wordless box marks.',
+    point: 'The box round 42 is still drawn once the motion ends.',
   },
   camera: {
     title: 'Frame the subject without moving its points',
@@ -192,6 +201,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       's.focus moves the camera until the subject fills the stage below the heading. A moved camera frames everything on stage, so the result has no room for a before panel: it lays a ruler across the stage under the circle first, and labels the closer view with its numbers.',
     caption:
       'The ruler that spanned the stage from −7 to 7 now shows only its middle, and the label gives the numbers: s.focus changed what the camera frames and left the circle’s coordinates alone.',
+    point: 'The view moved in; the circle kept its coordinates.',
   },
   chart: {
     title: 'Plot the model’s numbers',
@@ -206,7 +216,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       'Axes maps values to places on the stage, and lineGraph joins the points it is given through that map. The same three values also appear as a card beside the plot.',
     caption:
-      'lineGraph places each point by its value on the axes, so nothing in the line is positioned by hand. Axes can also plot a function or draw bars and guides.',
+      'lineGraph places each point by its value on the axes, so nothing in the line is positioned by hand.',
+    point: 'The line passes through 0, 2 and 1, each placed by the axes.',
   },
   state: {
     title: 'Derive the picture from scene.state',
@@ -224,6 +235,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'The trace records every value set on this.state, and view(this, …) builds the label from that state again each time its sync is played. In the result the label at count 0 stands on the left, and each label has its state printed under it.',
     caption:
       'The label is built by a view of this.state. Setting count to 1 and playing sync rebuilt the label from the recorded value, so the picture and the trace both say 1.',
+    point: 'Label and trace both read 1, because the view rebuilt the label from state.',
   },
   annotations: {
     title: 'Put an explanation beside its subject',
@@ -236,7 +248,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       's.pin takes a point in stage units and a label, and draws the label with a short leader to that point. A bare circle sits on the left of the result.',
     caption:
-      's.pin attaches the word ‘centre’ to the point it names. s.callout labels a box, and s.dimension measures between two points.',
+      's.pin attaches the word ‘centre’ to the point it names.',
+    point: 'The word centre sits at the end of a leader to the circle’s centre.',
   },
   direction: {
     title: 'Place a card at the logical start',
@@ -249,6 +262,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       'direction: ‘rtl’ mirrors the stage’s named regions, while a card’s own direction sets the order of what is inside it. For comparison, an outline marks where start would be in a left-to-right stage.',
     caption: 'A right-to-left stage mirrors its regions, so the card placed at start sits on the right. Its own direction: ‘ltr’ keeps Count and 3 in left-to-right order.',
+    point: 'Start is on the right in this stage, yet the card still reads Count, 3.',
   },
   drawing: {
     title: 'Draw a native path with a tool',
@@ -262,6 +276,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       's.draw reveals the path along its own length with a pen at the tip, and describe is what a screen reader says in place of the motion. Two dots on the left of the result mark where the path will start and end.',
     caption:
       's.draw moved a pen along the line as it appeared, and the line stays when the pen lifts. Its description, ‘A rising line’, gives the same fact to a reader who never sees the motion.',
+    point: 'Of the pen’s motion, only the finished line is left at rest.',
   },
 };
 
@@ -302,9 +317,9 @@ const PREDICT: Record<Feature, string> = {
   drawing: 'Predict: opened from a link, what is left of the pen’s motion?',
 };
 
-/** The script's one-sentence answer, the line of every case's result step. */
+/** The script's one-sentence answer, which opens every case's recipe caption. */
 const ANSWER =
-  'From a link, a reader sees only the picture a step leaves at rest, so it must show what changed';
+  'Each feature takes a few lines of the scene, and the picture they leave at rest is what a reader who opens the step from a link sees';
 
 // The result step's two panels: what the reader would have seen before the feature ran, and after.
 const BEFORE: [number, number, number, number] = [-7.4, -3.5, -2.5, 2.1],
@@ -323,26 +338,26 @@ export default class FeatureTour extends Scene {
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/mr-cache',
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/layout-direction',
     ],
-    // The script's answer and check questions (script.md); every case's result step states the answer.
+    // The script's answer and check questions (script.md); every case's recipe step states the answer.
     answer: ANSWER,
     checks: [
       {
         question:
-          'Your step removes a warning with FadeOut, then holds for its caption. What does a reader who opens that step from a link see of the warning, and what could the step leave instead?',
+          'Run the code-edits recipe twice in one step: count += 1 becomes count += 2, then count += 3, each morph with markAdded. What does a reader who opens that step from a link see, and is there any sign of count += 2?',
         answer:
-          'Nothing: the link shows the picture after the fade, so the warning is simply absent. Leave a sign of what happened, such as a dimmed or struck-through copy where the warning was, or a label saying it was removed.',
+          'Two lines, let count = 0 and count += 3, with count += 3 marked as added. The second morph fades count += 2 out along with its mark, so nothing in the resting picture shows that it existed; to keep it, draw the earlier panel beside the result, as the before panels on this page do.',
       },
       {
         question:
-          'This page has one setting with fifteen options. Add a second setting, a light or a dark theme. How many cases does the build make, and which of them can a reader open?',
+          'In the camera case, the author also enters a second circle at (5, 0) before calling s.focus(subject). Is it in the result picture, and where is it?',
         answer:
-          'Thirty: every feature meets every theme, and the build makes each combination before anyone reads the page. A reader can open any of the thirty and nothing else.',
+          'It is out of the picture. The closer view frames 6 of the stage’s 16 units around the first circle, roughly x = −3 to 3, so a circle at x = 5 falls outside it. It is still at (5, 0), because s.focus moves only the camera, and s.focus(‘all’) would bring it back into view.',
       },
       {
         question:
-          'In the state case, a later step sets this.state.count = 5 but never plays label.sync(). What does the trace record, and what does the label show?',
+          'An author wants the chart case to plot numbers that each reader types into a box. Can a Rayner page do that, and what can the author offer instead?',
         answer:
-          'The trace records count 5, but the label still shows 1: a view builds its picture from the state only when its sync is played, so the two disagree until a sync.',
+          'No. A reader can only choose among the options a setting declares, and the build makes one case per option before anyone reads the page. The author can declare a setting whose options are a few prepared data sets, so each one is a case the build makes and the author can read.',
       },
     ],
   };
@@ -388,7 +403,7 @@ export default class FeatureTour extends Scene {
     await this.step('recipe', {
       title: QUESTIONS[feature],
       line: PREDICT[feature],
-      caption: example.recipe,
+      caption: `${ANSWER}. ${example.recipe}`,
     });
     await s.code(example.code, { at: 'full', fontSize: 0.6 });
     this.state.feature = feature;
@@ -406,7 +421,7 @@ export default class FeatureTour extends Scene {
       await s.enter(heads, ...before, { describe: `Before: ${describe}` });
     };
     // Each result names its own before and after; the camera case has no before panel.
-    await this.step('result', { title: example.result, line: `${ANSWER}.`, caption: example.caption });
+    await this.step('result', { title: example.result, line: example.point, caption: example.caption });
     this.state.phase = 'result';
     await s.clear();
     const [ax, ay] = centre(AFTER),
