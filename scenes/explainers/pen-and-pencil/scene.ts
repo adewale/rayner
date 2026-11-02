@@ -142,6 +142,34 @@ export default class PenAndPencil extends Scene {
     // The script's answer and check questions (script.md); reader-separate states the answer.
     answer:
       'Lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it',
+    // Sentences about every line, box or stroke: the test that holds each, or "shown" where the sentence
+    // speaks only of the drawing on screen in its own step. The hand is the explainer's own model.
+    claims: [
+      { says: 'every line setting off from where the previous one stopped', shown: true as const },
+      {
+        says: 'so every error is carried into every later corner',
+        test: 'test/explain-pen-and-pencil.test.ts: with error, each corner carries the ones before',
+      },
+      {
+        says: 'leaves every box where the layout put it',
+        test: 'test/explain-pen-and-pencil.test.ts: traced on its laid-out marks, a drawing with any seed leaves every box where the layout put it',
+      },
+      { says: 'Agentic Mermaid fixes every box first', shown: true as const },
+      { says: 'Every box, marker and label has its place before any ink', shown: true as const },
+      { says: 'it places every period box, marker and event box', shown: true as const },
+      {
+        says: 'they are the same in both drawings',
+        test: 'test/explain-pen-and-pencil.test.ts: both drawings trace the same marks',
+      },
+      {
+        says: 'every plank, tag and word lands in the dashed boxes the first drawing used',
+        test: 'test/explain-pen-and-pencil.test.ts: both drawings trace the same marks',
+      },
+      {
+        says: 'every error rode along into the lines after it',
+        test: 'test/explain-pen-and-pencil.test.ts: with error, each corner carries the ones before',
+      },
+    ],
     checks: [
       {
         question:
@@ -443,9 +471,9 @@ export default class PenAndPencil extends Scene {
 
     // 1. The failure on the real timeline: a hand that places its own strokes pushes words out of their boxes.
     await this.step('text', {
-      title: 'Can a wobbling hand draw this timeline and keep every word in its box?',
+      title: 'Can a wobbling hand draw this timeline and keep its words in their boxes?',
       line: 'Predict: what must be fixed before any ink?',
-      caption: `The timeline in the corner is four periods with an event in each, and no positions. A simulated hand drew it below, wobbling a little on every line as a person’s hand would: first the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and ${misses.length} of the ${wordCountFree}, outlined in red, poke out of the box drawn round them.`,
+      caption: `The timeline in the corner is four periods with an event in each, and no positions. A simulated hand drew it below, wobbling a little on every line, as this explainer models a person’s hand: first the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and ${misses.length} of the ${wordCountFree}, outlined in red, poke out of the box drawn round them.`,
     });
     await s.clear();
     const source = await s.code(WORLD.split('\n'), { at: [-7.55, 1.2, -2.95, 2.75], fontSize: 0.3, enter: false });
@@ -482,8 +510,8 @@ export default class PenAndPencil extends Scene {
 
     await this.step('marks', {
       title: 'The hand is given the layout’s marks and nothing else',
-      line: 'Blue pencil: the route every later stroke follows.',
-      caption: `The drawing reads the layout back as marks: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. Every later stroke follows them, and they are the same in both drawings.`,
+      line: 'Blue pencil: the route the chart’s ink follows.',
+      caption: `The drawing reads the layout back as marks: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. The chart’s ink follows them, and they are the same in both drawings.`,
     });
     await drop(width);
     await d.hide();
@@ -538,7 +566,7 @@ export default class PenAndPencil extends Scene {
       caption:
         which === 'first'
           ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last, in single-stroke Hershey letters fitted into the boxes the layout gave. Around the chart the seed also places the sea’s pencil strokes and the gulls, and the scenery is cut away from the paper the chart owns. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts. Choose ‘Second drawing’ to draw the plate again with another seed.`
-          : `With another seed, the sea’s strokes and the gulls land elsewhere (grey marks where the first drawing put them), and every stroke wobbles differently. The chart is traced on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, with no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts.`,
+          : `With another seed, the sea’s strokes and the gulls land elsewhere (grey marks where the first drawing put them), and the strokes wobble differently. The chart is traced on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, with no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts.`,
     });
     await s.focus('all');
     await this.play(traced.animate.setOpacity(1), { runTime: 0.3 });
@@ -586,7 +614,7 @@ export default class PenAndPencil extends Scene {
     await this.step('freehand', {
       title: `Traced on fixed marks, all ${wordCountFree} words stay in their boxes`,
       line: 'Top: the opening’s drawing. Bottom: the finished plate.',
-      caption: `The opening’s drawing returns above the finished plate. Its boxes ended up as much as ${fmt(maxOff, 2)} units, ${px(maxOff)}, from where the layout put them, because every error rode along into the lines after it. Every stroke of the plate below wobbles too, but each one chased a mark fixed before any ink, so all ${wordCountFree} words sit inside their boxes.`,
+      caption: `The opening’s drawing returns above the finished plate. Its boxes ended up as much as ${fmt(maxOff, 2)} units, ${px(maxOff)}, from where the layout put them, because every error rode along into the lines after it. The plate’s ink below wobbles too, but each stroke chased a mark fixed before any ink, so all ${wordCountFree} words sit inside their boxes.`,
     });
     await s.clear();
     const freePanel = freeDrawing(1.15);

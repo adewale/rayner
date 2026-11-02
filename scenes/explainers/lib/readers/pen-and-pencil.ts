@@ -118,7 +118,7 @@ export function frames(seed: number): ReaderFrame[] {
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
-      caption: `The blue band is a route fixed before any ink, its corners and ends. The pen is now a mass on a damped spring that chases a point moving along the route, so each stroke is pulled back to its route and no error reaches the next. Neither drawing strays more than ${stray.toFixed(3)} units from the band, and the circle magnifies ${ZOOM} times the spot where they differ most. The fix, then: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
+      caption: `The blue band is a route fixed before any ink, its corners and ends. The pen is now a mass on a damped spring that chases a point moving along the route, so each stroke is pulled back to its route and no error reaches the next. Neither drawing strays more than ${stray.toFixed(3)} units from the band, and the circle magnifies ${ZOOM} times the spot where they differ most. The fix, in this hand model: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
       values: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
       draw: (s) => {
         const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);

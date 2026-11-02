@@ -71,7 +71,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'const choice = settingsOf(this).feature;',
     ],
     recipe:
-      'These are two of the fifteen options of this page’s own setting. The build runs construct() once per option before anyone reads the page, and settingsOf(this) tells each run which option it is making. The result compares two of those cases with cards.',
+      'These are two of the fifteen options of this page’s own setting. The build runs the scene’s construct() method once per option before anyone reads the page, and the helper settingsOf(this) tells each run which option it is making. The result compares two of those cases with cards.',
     caption:
       'The feature picker on this page is the setting in the recipe, with all fifteen options. Each option is a case built ahead of time, and choosing another feature loads that case with its own two steps.',
     point: 'The default case is Animations; this page is the Settings case.',
@@ -117,7 +117,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  'count += 2;'], {markAdded: true});",
     ],
     recipe:
-      'block.morph is given the panel’s new lines and keeps any old line that survives unchanged; markAdded flags the lines that are new. The panel as it was before the edit is drawn again beside the morphed one.',
+      'block.morph is given the panel’s new lines and keeps any old line that survives unchanged; its markAdded option flags the lines that are new. The panel as it was before the edit is drawn again beside the morphed one.',
     caption:
       'morph keeps the first line in place, moves the changed line in and marks it as added.',
     point: 'Only count += 2 carries the added mark; let count = 0 kept its place.',
@@ -151,7 +151,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       'TransformMatchingText pairs letters of the old text with equal letters of the new one, moves each pair, and fades the leftovers. On the next step the old label stays on the left, and a list under the new one says which letters moved and which faded.',
     caption:
-      'The list under cache hit comes from the pairs the animation made. It matched characters only, so a shared letter moves even when the words around it mean something else.',
+      'The list under cache hit comes from the pairs the animation made. It pairs equal characters without reading the words, so a shared letter moves even when the words around it mean something else.',
     point: 'The shared letters slid into place, and the others faded.',
   },
   restore: {
@@ -165,7 +165,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(new Restore(circle));',
     ],
     recipe:
-      'saveState records the circle’s points and style, and Restore animates the same circle back to that record. The result adds a dashed outline that none of these lines draws, at the place the circle visited.',
+      'The saveState method records the circle’s points and style, and Restore animates the same circle back to that record. The result adds a dashed outline that none of these lines draws, at the place the circle visited.',
     caption:
       'Left alone, these lines end with the circle where it started, and a reader arriving by link would see no sign that it moved. The dashed outline was drawn separately to mark where the circle went before Restore brought it back.',
     point: 'Without the dashed outline, the resting picture would hide the circle’s trip.',
@@ -214,7 +214,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await s.enter(axes, line, {describe: 'Plot'});",
     ],
     recipe:
-      'Axes maps values to places on the stage, and lineGraph joins the points it is given through that map. The same three values also appear as a card beside the plot.',
+      'Axes maps values to places on the stage, and its lineGraph method joins the points it is given through that map. The same three values also appear as a card beside the plot.',
     caption:
       'lineGraph places each point by its value on the axes, so nothing in the line is positioned by hand.',
     point: 'The line passes through 0, 2 and 1, each placed by the axes.',
@@ -232,7 +232,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(label.sync());',
     ],
     recipe:
-      'The trace records every value set on this.state, and view(this, …) builds the label from that state again each time its sync is played. In the result the label at count 0 stands on the left, and each label has its state printed under it.',
+      'The trace records this.state at the start and end of each step, and view(this, …) builds the label from that state again each time its sync is played. In the result the label at count 0 stands on the left, and each label has its state printed under it.',
     caption:
       'The label is built by a view of this.state. Setting count to 1 and playing sync rebuilt the label from the recorded value, so the picture and the trace both say 1.',
     point: 'Label and trace both read 1, because the view rebuilt the label from state.',
@@ -275,7 +275,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     recipe:
       's.draw reveals the path along its own length with a pen at the tip, and describe is what a screen reader says in place of the motion. Two dots on the left of the result mark where the path will start and end.',
     caption:
-      's.draw moved a pen along the line as it appeared, and the line stays when the pen lifts. Its description, ‘A rising line’, gives the same fact to a reader who never sees the motion.',
+      's.draw moved a pen along the line as it appeared, and the line stays when the pen lifts. Its description, ‘A rising line’, gives the same fact to a reader who does not see the motion.',
     point: 'Of the pen’s motion, only the finished line is left at rest.',
   },
 };
@@ -340,6 +340,16 @@ export default class FeatureTour extends Scene {
     ],
     // The script's answer and check questions (script.md); every case's recipe step states the answer.
     answer: ANSWER,
+    // "Only" sentences: the result's picture is the evidence where they speak of it; the drawing tool's rule has a test.
+    claims: [
+      { says: 'Only count += 2 carries the added mark', shown: true as const },
+      { says: 'Only the square comes from the recipe', shown: true as const },
+      { says: 'now shows only its middle', shown: true as const },
+      {
+        says: 'Of the pen’s motion, only the finished line is left at rest',
+        test: 'test/explain-stage-tools.test.ts: draw: the tool rides the tip without jumps, leaves no trace',
+      },
+    ],
     checks: [
       {
         question:

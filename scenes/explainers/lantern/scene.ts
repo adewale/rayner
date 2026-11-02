@@ -137,6 +137,33 @@ export default class LanternExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the seek step states the answer.
     answer: ANSWER,
+    // Each rule the steps state about every run, frame, sink or page, and the test that holds it.
+    claims: [
+      {
+        says: 'unless the scene has updaters, skips computing the frames before t',
+        test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+      },
+      {
+        says: 'Frame 30 is t = 1.00 s in every run',
+        test: 'test/explain-lantern.test.ts: clock: frame k is t = k / fps in every run, whatever the sink’s pace',
+      },
+      {
+        says: 'Rayner’s sinks only read the frame',
+        test: 'test/explain-lantern.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
+      },
+      {
+        says: 'by an amount set only by how far through its run time the animation is',
+        test: 'test/explain-lantern.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
+      },
+      {
+        says: 'in every step of every case it seeks one frame midway and one just before the step ends',
+        test: 'test/explain-gates.test.ts: rayner check seeks two frames in each step of every case',
+      },
+      {
+        says: 'in a scene with updaters, a still computes every frame before t',
+        test: 'test/explain-lantern.test.ts: seek: in a scene with updaters a still computes every frame before t',
+      },
+    ],
     checks: [
       {
         question:
@@ -215,13 +242,13 @@ export default class LanternExplainer extends Scene {
       seekedLabel = `seeked: frames 1–${run.seekAt - 1} only counted`;
     const how =
       motion === 'blend'
-        ? 'animate.moveTo moves the dot by blending its start and end.'
-        : `A nudge moves the dot 1/${FPS} of the track on every frame the scene computes, as a game loop would.`;
+        ? 'Rayner’s animate.moveTo moves the dot by blending its start and end.'
+        : `A nudge, as a game loop would make it, shifts the dot 1/${FPS} of the track per computed frame.`;
 
     await this.step('played', {
       title: `Played, the dot is halfway at t = ${t} s`,
-      line: `Predict: a still at t = ${SEEK_T} s never computes frames 1–${run.seekAt - 1}. Where is its dot?`,
-      caption: `Open a Rayner page from a link to its fifth step and the player draws that step without playing the four before it; renderAt, which saves one moment of a scene as an image, works the same way. Here a tiny scene grows a box and moves a dot along a track. ${how} Left: frame ${run.seekAt} as played, the dot halfway. Right: the still at t = ${SEEK_T} s, which re-runs the scene but only counts frames 1 to ${run.seekAt - 1}.`,
+      line: `Predict: a still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
+      caption: `Open a Rayner page from a link to its fifth step and the player draws that step without playing the four before it; renderAt, which saves one moment of a scene as an image, works the same way. Here a tiny scene grows a box and moves a dot along a track. ${how} Left: frame ${run.seekAt} as played, the dot halfway. Right: the still at t = ${SEEK_T} s, which re-runs the scene and counts frames 1 to ${run.seekAt - 1} without computing them.`,
     });
     const left = thumb(run.playedFrame, -3.6, playedLabel, run.played);
     const pending = thumb(null, 3.6, seekedLabel, null);
@@ -294,7 +321,7 @@ export default class LanternExplainer extends Scene {
     await this.step('objects', {
       title: 'A frame is the shapes on stage, as the playing animations left them',
       line: `Once the still reaches frame ${run.seekAt}, the playing animation decides where the dot is.`,
-      caption: `In the diagram, a Scene owns mobjects, Rayner’s name for the shapes and text on stage; it plays animations, which change them; and it emits each frame to a sink, which only reads them. So the dot in frame ${run.seekAt} is wherever the playing animation put it. When that place depends on how many frames ran before, as the nudge’s does, a still that skips them can put the dot somewhere else.`,
+      caption: `In the diagram, a Scene owns mobjects, Rayner’s name for the shapes and text on stage; it plays animations, which change them; and it emits each frame to a sink. Rayner’s sinks only read the frame. So the dot in frame ${run.seekAt} is wherever the playing animation put it. When that place depends on how many frames ran before, as the nudge’s does, a still that skips them can put the dot somewhere else.`,
     });
     await s.clear();
     const classes = await s.show({ source: CLASSES }, { box: 'main' });
@@ -347,7 +374,7 @@ export default class LanternExplainer extends Scene {
     await this.step('check', {
       title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
       line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-      caption: `Each of the tiny scene’s ${total} frames is made as a still and compared with the played frame. With blending, all ${total} match. With the nudge, the frames before the dot moves match, and so does the first frame of the move, where both runs have made one nudge; from frame ${firstMiss} on, none does. rayner check makes this comparison for every page: it seeks two frames in every step of every case, the middle and the last, and fails on any difference, so a scene that nudges inside an animation, as this one does, fails rayner check with a seek mismatch. A nudge written as an updater would pass: in a scene with updaters, a still computes every frame before t.`,
+      caption: `Each of the tiny scene’s ${total} frames is made as a still and compared with the played frame. With blending, all ${total} match. With the nudge, the frames before the dot moves match, and so does the first frame of the move, where both runs have made one nudge; from frame ${firstMiss} on, none does. On each page it checks, rayner check makes this comparison: in every step of every case it seeks one frame midway and one just before the step ends, and fails on any difference, so a page whose scene nudges like this one fails with a seek mismatch. A nudge written as an updater would pass: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
     const cell = 0.27,

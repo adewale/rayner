@@ -63,6 +63,37 @@ export default class ForkExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the untested step states the answer.
     answer: ANSWER,
+    // Sentences about every rate, case or combination, and the test that holds each.
+    claims: [
+      {
+        says: 'R10 is accepted at every rate',
+        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+      },
+      {
+        says: 'the only rates its reader can choose',
+        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+      },
+      {
+        says: 'The sentence holds at every rate the page built',
+        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+      },
+      {
+        says: 'tokens have come back, so R10 gets 429',
+        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+      },
+      {
+        says: 'Rayner builds every case before anyone reads it',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+      },
+      {
+        says: 'A reader can choose only a rate the scene lists',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+      },
+      {
+        says: 'Every combination of options is a case the build makes and rayner check tests',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+      },
+    ],
     checks: [
       {
         question:
@@ -153,7 +184,7 @@ export default class ForkExplainer extends Scene {
     await this.step('untested', {
       title: `At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} tokens and is refused`,
       line: 'The sentence holds at every rate the page built and fails at one it never built.',
-      caption: `In the new bottom row, the same model at ${perSecond(UNBUILT)} refuses R7, R8 and R9, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The page’s author ran and read all three offered cases; nobody can do that for every rate a reader might type. ${ANSWER}.`,
+      caption: `In the new bottom row, the same model at ${perSecond(UNBUILT)} refuses R7, R8 and R9, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. An author can run and read the three offered cases; the rates a reader might type have no end. ${ANSWER}.`,
     });
     const slowRow = row(UNBUILT, 3, false);
     slowRow.shift([0, -0.25]);
@@ -168,7 +199,7 @@ export default class ForkExplainer extends Scene {
     await this.step('live', {
       title: 'Lantern, the engine Rayner was forked from, rendered frames on request',
       line: 'A reader can choose only a rate the scene lists, and each listed rate is a case the build runs.',
-      caption: `Lantern’s Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner, forked from Lantern at commit 2c7bad5, deleted the Worker. The bottom row broke because 0.1 is a rate nobody listed, so nobody ran it, and a page built ahead would break the same way if it let readers type a rate. Below is the token bucket’s one setting as its scene declares it; the build runs one case per listed rate, and the page offers no box for typing another.`,
+      caption: `Lantern’s Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner, forked from Lantern at commit 2c7bad5, deleted the Worker. The bottom row broke at 0.1, a rate the scene does not list, so the build did not run it; a page built ahead would break the same way if it let readers type a rate. Below is the token bucket’s one setting as its scene declares it; the build runs one case per listed rate, and the page offers no box for typing another.`,
     });
     await s.clear();
     const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
@@ -188,7 +219,7 @@ export default class ForkExplainer extends Scene {
     await this.step('cases', {
       title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${CASES} cases to build`,
       line: 'Every combination of options is a case the build makes and rayner check tests.',
-      caption: `Building every case first has a price: settings multiply. Rayner’s traffic-policy explainer has two settings, externalTrafficPolicy with ${POLICIES.length} options and the placement of pods on its three nodes with ${PODS.length}, so its build makes ${POLICIES.length} × ${PODS.length} = ${CASES} cases, and a third setting would multiply that again. A reader of that page switches among those ${CASES} and no others.`,
+      caption: `Building the cases first has a price: settings multiply. Rayner’s traffic-policy explainer has two settings, the service’s traffic policy with ${POLICIES.length} options and the placement of pods on its three nodes with ${PODS.length}, so its build makes ${POLICIES.length} × ${PODS.length} = ${CASES} cases, and a third setting would multiply that again. A reader of that page switches among those ${CASES} and no others.`,
     });
     await s.clear();
     const grid = table(
@@ -205,7 +236,7 @@ export default class ForkExplainer extends Scene {
     // Details after the ending: what the build does for each case, and what replaced Lantern's live parts.
     await this.step('fork', {
       detail: true,
-      title: 'For each case the build draws every diagram once',
+      title: 'The build draws the diagrams ahead of the page',
       line: 'Diagrams are captured at build time, so the page runs no diagram renderer.',
       caption: `The four parts marked deleted, Lantern’s JSON document, flowchart parser, development player and Worker, are gone. The embed page replaces the player, and capture replaces the parser: Agentic Mermaid, the Mermaid layout library Rayner uses, draws each diagram in Chromium at build time and stores the snapshot beside the scene. The author pays for that: capturing a new diagram needs Chromium, though building a page from stored snapshots does not.`,
     });
