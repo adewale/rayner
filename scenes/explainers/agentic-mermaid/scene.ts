@@ -1,6 +1,7 @@
-import { Scene, FadeOut } from '../../../src/index.ts';
+import { Scene } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
+import type { Diagram } from '../../../explain/index.ts';
 const STYLE = 'blueprint';
 const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';
 const GOOD = 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]';
@@ -15,16 +16,35 @@ const SWAP = [
   { kind: 'set_label', target: 'A->B#0', label: 'no' },
   { kind: 'set_label', target: 'A->C#0', label: 'yes' },
 ];
+type Edit = 'missing' | 'complete' | 'swapped';
+const FIRST: Record<Edit, string> = { missing: BAD, swapped: SWAPPED, complete: GOOD };
+/** Each case's first edit with the edge to Database cut off after its arrow: an edge with no node at its end. */
+export const BROKEN: Record<Edit, string> = Object.fromEntries(
+  Object.entries(FIRST).map(([edit, source]) => [edit, source.replace(/ C\[Database\]$/, '')]),
+) as Record<Edit, string>;
+/**
+ * What the pinned verifier, agentic-mermaid 0.5.1, returns for every BROKEN source. A diagram that fails verify
+ * cannot be captured, so this report is written here, and test/explain-real.test.ts runs verifyMermaid on each
+ * BROKEN source and requires exactly this.
+ */
+export const BROKEN_REPORT = {
+  ok: false,
+  warnings: [
+    { code: 'RENDER_FAILED', severity: 'error' },
+    { code: 'UNSUPPORTED_SYNTAX', severity: 'warning', syntax: 'flowchart_dangling_edge' },
+  ],
+  checks: { renderability: 'failed', taskCorrectness: 'not-checked' },
+} as const;
 const SIDE = REGIONS.side,
   GAP = 0.3;
 /** The script's one-sentence answer, stated in the verify step of every case. */
-const ANSWER = 'The verifier checks structure, such as a label on every branch, not whether the labels mean the right thing';
-type Edit = 'missing' | 'complete' | 'swapped';
+const ANSWER =
+  'Verify fails a diagram that Mermaid cannot draw, warns about gaps in its structure such as an unlabelled branch, and leaves what the labels mean unchecked';
 
 export default class MermaidExplainer extends Scene {
   static meta = {
     id: 'agentic-mermaid',
-    title: 'What can a Mermaid verifier prove?',
+    title: 'What does a Mermaid verifier check?',
     sources: [
       'https://github.com/adewale/agentic-mermaid',
       'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',
@@ -35,9 +55,10 @@ export default class MermaidExplainer extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: 'The agent labels both edges out of Cached yes. What does verify(flow) report?',
+        question:
+          'The agent writes the second edge as A -->|no| D, and D appears nowhere else in the source. What does verify(flow) report?',
         answer:
-          'ok: true and no warnings. Each exit of the decision carries a label, which is what the verifier checks; it does not compare what the two labels say.',
+          'ok: true and no warnings. Mermaid creates D where it is first used, as a rectangle labelled D, so the diagram draws and both exits of the decision carry labels. That the agent meant Database is the kind of thing verify leaves unchecked.',
       },
       {
         question:
@@ -49,6 +70,11 @@ export default class MermaidExplainer extends Scene {
         question: 'Draw Cached as a rectangle, A[Cached], and leave both edges unlabelled. Does the verifier warn?',
         answer:
           'No: ok: true with no warnings. DECISION_BRANCH_UNLABELED is about the exits of a decision diamond, and a rectangle is not a decision, so there is nothing for it to flag.',
+      },
+      {
+        question: 'The agent writes the first line as graph, with no direction after it. What does verify(flow) report?',
+        answer:
+          'ok: false, with a RENDER_FAILED error: Mermaid rejects a graph header with no direction, so the diagram cannot be drawn, however right its labels are.',
       },
     ],
   };
@@ -69,8 +95,9 @@ export default class MermaidExplainer extends Scene {
       missing = edit === 'missing',
       swapped = edit === 'swapped',
       s = stage(this, { headingSize: 0.6, style: STYLE });
-    const first = missing ? BAD : swapped ? SWAPPED : GOOD;
-    const code = (lines: readonly string[], fontSize = 0.24) => s.code(lines, { at: SIDE, fontSize, enter: false });
+    const first = FIRST[edit],
+      broken = BROKEN[edit];
+    const code = (lines: readonly string[], fontSize = 0.3) => s.code(lines, { at: SIDE, fontSize, enter: false });
     // Side panels share one left edge and one gap, stacked and centred beside the diagram.
     const column = async (...panels: Mobject[]) => {
       const total = panels.reduce((h, p) => h + p.height(), 0) + GAP * (panels.length - 1);
@@ -81,13 +108,21 @@ export default class MermaidExplainer extends Scene {
       }
       await s.enter(...panels, { runTime: 0.35 });
     };
+    let d: Diagram;
+    /** The verifier's own scope line, read from the snapshot of the diagram on show. */
+    const scope = () => {
+      const checks = (d.snapshot.findings as { checks?: { renderability?: string; taskCorrectness?: string } }).checks;
+      if (!checks?.taskCorrectness || !checks.renderability) throw new Error('The pinned verifier must report its check scope');
+      return checks as { renderability: string; taskCorrectness: string };
+    };
+    const taskCorrectness = () => scope().taskCorrectness;
     /** The verifier's report on each version of the diagram, read from its snapshot while that version is shown. */
     const reports = new Map<string, { ok: boolean; warnings: number }>();
     const record = () => reports.set(d.spec.source!, { ok: d.snapshot.findings.ok, warnings: d.findings().length });
     const reportLines = (heading: string, source: string) => {
       const r = reports.get(source);
       if (!r) throw new Error(`No report recorded for ${heading}`);
-      return [heading, `verify(flow).ok: ${r.ok}`, `warnings: ${r.warnings}`];
+      return [heading, `ok: ${r.ok}`, `warnings: ${r.warnings}`];
     };
     const flaggedParts = (warnings: { part?: string; edge?: string }[]) =>
       warnings.map((w) => {
@@ -97,7 +132,8 @@ export default class MermaidExplainer extends Scene {
     const reportOf = (warnings: { code: string; node?: string; edge?: string }[]) => [
       `verify(flow).ok: ${d.snapshot.findings.ok}`,
       `warnings: ${warnings.length}`,
-      ...warnings.flatMap((w) => [`  ${w.code}`, `    node ${w.node}, edge ${w.edge}`]),
+      ...warnings.flatMap((w) => [`  ${w.code}`, `    edge ${w.edge}`]),
+      `taskCorrectness: ${taskCorrectness()}`,
     ];
 
     await this.step('source', {
@@ -113,11 +149,13 @@ export default class MermaidExplainer extends Scene {
           : missing
             ? 'An agent drew a cache lookup with two routes out of Cached, one to Reply and one to Database, but did not say which means yes.'
             : 'An agent drew a cache lookup with two routes out of Cached: yes to Reply, no to Database.'
-      } Agentic Mermaid parses the Mermaid source into a snapshot with an id for each node and edge, so a check can name the part it means. The verifier ran when this page was built, and the reader shows the findings it recorded.`,
+      } Agentic Mermaid reads the source and names each part: a node by its Mermaid id, A for Cached, and an edge by its two ends and a count, so A->C#0 is the first edge from A to C. The verifier’s findings use these names.`,
     });
-    const d = await s.show({ source: first }, { box: 'main' });
+    d = await s.show({ source: first }, { box: 'main' });
     const source = await code(first.split('\n'));
-    await column(source);
+    // Near the top of the side, leaving room under it for the report the next step adds.
+    source.moveTo([SIDE[0], SIDE[3] - 0.5], [-1, 1]);
+    await s.enter(source, { runTime: 0.35 });
     // Each part's id, said on the part: Reply and the edge to it above, the rest below.
     const parts = d.snapshot.parts.filter((p) => p.role === 'node' || p.role === 'edge');
     for (const p of parts)
@@ -130,17 +168,18 @@ export default class MermaidExplainer extends Scene {
       line: missing
         ? 'One DECISION_BRANCH_UNLABELED warning per unlabelled edge, named by its id.'
         : swapped
-          ? 'The token follows yes out of Cached, and it reaches Database.'
+          ? 'The dot follows the yes edge as drawn: from Cached to Database.'
           : 'Would the report change if the labels were the wrong way round?',
       caption: missing
-        ? `Cached is a decision, drawn as a diamond, and each of its exits needs a label, so each unlabelled exit is marked and gets its own warning. ${ANSWER}, so the warnings say a label is missing and nothing about which label belongs where.`
+        ? `Cached is a decision, drawn as a diamond, and each of its exits needs a label, so each unlabelled exit is marked and gets its own warning. A warning is advice: ok stays true. The report’s last line, taskCorrectness: not-checked, says the verifier never asked what the diagram is for. ${ANSWER}.`
         : swapped
-          ? `Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. Follow yes and the token walks a real edge from Cached to Database. ${ANSWER}.`
-          : `Cached is a decision, drawn as a diamond, and both of its exits carry a label, so nothing is flagged. ${ANSWER}. This diagram happens to be right; the next step swaps its labels and runs the verifier again.`,
+          ? `Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. The report’s last line, taskCorrectness: not-checked, is the verifier’s own note that it did not judge whether the diagram does its job. ${ANSWER}.`
+          : `Cached is a decision, drawn as a diamond, and both of its exits carry a label, so nothing is flagged. The last line, taskCorrectness: not-checked, means the verifier did not test the diagram against its purpose. ${ANSWER}. This diagram happens to be right; a later step swaps its labels and runs the verifier again.`,
     });
     await d.clearNotes();
     const warnings = d.findings();
     this.state.warnings = warnings;
+    this.state.taskCorrectness = taskCorrectness();
     record();
     if (swapped) {
       this.state.swappedWarnings = warnings.length;
@@ -158,57 +197,87 @@ export default class MermaidExplainer extends Scene {
         { as: warnings.length ? 'flagged' : 'checked' },
       );
     // The verifier's report sits under the source it checked.
-    const report = await code(reportOf(warnings), 0.22);
+    const report = await code(reportOf(warnings));
     report.moveTo([SIDE[0], source.box()![1] - GAP], [-1, 1]);
     await s.enter(report, { runTime: 0.35 });
 
+    await this.step('broken', {
+      title: 'Cut the end off an edge, and verify returns ok: false',
+      line: 'Predict: with no node at the end of its last arrow, can this source be drawn at all?',
+      caption: `Here the edge to Database stops at its arrow: the last line ends ${broken.split('\n').at(-1)} with no node after it. Mermaid rejects that, so the verifier reports RENDER_FAILED, an error, and errors are the findings that turn ok false. It adds an UNSUPPORTED_SYNTAX warning that names the problem, a dangling edge, and its scope lines read renderability: failed and taskCorrectness: not-checked. With no drawing, there is nothing to point a dot or a label at.`,
+    });
+    await s.clear();
+    const brokenSource = await s.code(broken.split('\n'), { at: REGIONS.main, fontSize: 0.42, enter: false });
+    const brokenReport = await code([
+      `verify(flow).ok: ${BROKEN_REPORT.ok}`,
+      `warnings: ${BROKEN_REPORT.warnings.length}`,
+      ...BROKEN_REPORT.warnings.map((w) => `  ${w.code} (${w.severity})`),
+      `renderability: ${BROKEN_REPORT.checks.renderability}`,
+      `taskCorrectness: ${BROKEN_REPORT.checks.taskCorrectness}`,
+    ]);
+    await s.enter(brokenSource, { runTime: 0.35 });
+    await column(brokenReport);
+    await brokenSource.focus(2, { as: 'an edge with no end' });
+    await s.note('Mermaid cannot draw this source, so there is no picture', { at: [-2.6, -2.6], size: 0.3 });
+    this.state.broken = { source: broken, ...BROKEN_REPORT };
+
     if (swapped) {
       await this.step('flagged', {
-        title: 'With both labels deleted, the verifier warns twice',
-        line: 'Is the verifier checking anything at all?',
+        title: 'Delete both labels, and the verifier warns twice',
+        line: 'Predict: does a missing label turn ok false too?',
         caption:
-          'Take both labels off and verify(flow) returns two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision, named A->B#0 and A->C#0 by the snapshot’s ids. A missing label is part of the diagram’s structure, so the verifier can see it. It still returns ok: true, because this check is advice, and advice never turns ok false.',
+          'Back to a diagram that draws, now with both labels taken off. verify(flow) returns two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision, named A->B#0 and A->C#0. A missing label is part of the diagram’s structure, so the verifier can see it. Each is a warning, advice for the author, so ok stays true.',
       });
-      await s.clearOverlays();
-      await d.unmark();
-      await d.morph({ source: BAD });
+      await s.clear();
+      d = await s.show({ source: BAD }, { box: 'main' });
       const flagged = d.findings();
       this.state.flaggedWarnings = flagged.length;
       record();
       await d.mark(['A', ...flaggedParts(flagged)], { as: 'flagged' });
-      await column(await code(BAD.split('\n')), await code(reportOf(flagged), 0.22));
+      await column(await code(BAD.split('\n')), await code(reportOf(flagged)));
     }
 
     if (missing) {
       await this.step('repair', {
         title: 'Two set_label operations clear both warnings',
-        line: 'Replaying the ops on the first edit must give the next diagram.',
+        line: 'Each operation names the edge it changes by its id.',
         caption:
-          'Two set_label operations add yes and no to the edges, by their ids. The build replays them on the parsed first edit and throws unless the result serializes to the same Mermaid as the next diagram. Verified again, the diagram has no warnings.',
+          'Back to the unlabelled diagram. set_label is an Agentic Mermaid edit that names one edge by its id and sets that edge’s label, so the agent changes those two edges and nothing else in the source. One puts yes on A->B#0 and the other puts no on A->C#0. Verified again, the diagram has no warnings.',
       });
-      await this.play(new FadeOut(source, { runTime: 0.3 }));
+      await s.clear();
+      d = await s.show({ source: BAD }, { box: 'main' });
       const ops = await code(
         OPS.flatMap((op) => [`{ kind: '${op.kind}',`, `  target: '${op.target}',`, `  label: '${op.label}' }`]),
       );
-      ops.moveTo([SIDE[0], report.box()![3] + GAP], [-1, -1]);
-      await s.enter(ops, { runTime: 0.35 });
+      await column(ops);
       await ops.focus([0, OPS.length * 3 - 1]);
       await d.morph({ source: GOOD }, { ops: OPS });
       await d.mark(OPS.map((op) => `edge:${op.target}`));
       record();
-      // The same report, rerun on the repaired diagram.
-      await report.morph([`verify(flow).ok: ${d.snapshot.findings.ok}`, `warnings: ${d.findings().length}`]);
+      const rerun = await code([`verify(flow).ok: ${d.snapshot.findings.ok}`, `warnings: ${d.findings().length}`]);
+      rerun.moveTo([SIDE[0], ops.box()![1] - GAP], [-1, 1]);
+      await s.enter(rerun, { runTime: 0.35 });
     }
 
     await this.step('meaning', {
       title: swapped ? 'Label them the right way round: the report does not change' : 'Swap the labels, and the report does not change',
       line: 'The wrong diagram and the right one get the same report.',
       caption: swapped
-        ? 'Two set_label operations put yes on A->B#0 and no on A->C#0; the build replays them on the unlabelled diagram and throws unless the result serializes to this one. Now a cache hit replies from the cache. verify(flow) returns ok: true with no warnings, exactly what it said when yes led to Database. Which label belongs on which branch is the author’s decision, and the cache policy needs its own tests.'
-        : 'Swap the two labels with two more set_label operations, so yes leads to Database and a cache hit would query the database. verify(flow) still returns ok: true with no warnings, the same report as the right diagram, and the token walks a real edge from Cached to Database. Which label belongs on which branch is the author’s decision, and the cache policy needs its own tests.',
+        ? 'set_label is an Agentic Mermaid edit that names one edge by its id and sets that edge’s label. Two of them put yes on A->B#0 and no on A->C#0, and now a cache hit replies from the cache. verify(flow) returns ok: true with no warnings, the report it gave when yes led to Database. Only someone who knows what the cache is for can tell the two apart.'
+        : `${missing ? 'Two more set_label edits' : 'Two set_label edits, Agentic Mermaid operations that each name one edge by its id and set its label,'} swap the labels, so yes leads to Database and a cache hit would query the database. verify(flow) still returns ok: true with no warnings, the right diagram’s report, while the dot now follows yes from Cached to Database. ${
+            missing
+              ? 'The two set_label edits that repaired the diagram could just as well have written the labels this way round.'
+              : 'The agent’s first edit was right, and the verifier had no way to say so.'
+          }`,
     });
-    await s.clearOverlays();
-    await d.unmark();
+    // The swapped and missing cases still show a diagram that draws; the complete case left it at the broken step.
+    if (edit === 'complete') {
+      await s.clear();
+      d = await s.show({ source: GOOD }, { box: 'main' });
+    } else {
+      await s.clearOverlays();
+      await d.unmark();
+    }
     if (swapped) {
       await d.morph({ source: GOOD }, { ops: OPS });
       record();
@@ -231,19 +300,21 @@ export default class MermaidExplainer extends Scene {
     // The two reports side by side: the wrong diagram's and the right one's.
     await column(
       await code(d.spec.source!.split('\n')),
-      await code(reportLines('yes to Database (wrong):', SWAPPED), 0.22),
-      await code(reportLines('yes to Reply (right):', GOOD), 0.22),
+      await code(reportLines('yes to Database (wrong):', SWAPPED)),
+      await code(reportLines('yes to Reply (right):', GOOD)),
     );
     this.state.reports = { wrong: reports.get(SWAPPED), right: reports.get(GOOD) };
     // What the agent's work leaves for the history: the right diagram, repaired if it had to be.
     const committed = reports.get(GOOD)!.warnings,
       renderer = d.snapshot.renderer;
+    // Every diagram that reaches the history drew, and none had its task checked: the caption says so.
+    if (scope().renderability !== 'passed' || taskCorrectness() !== 'not-checked') throw new Error('Unexpected verifier scope');
 
     await this.step('history', {
       detail: true,
-      title: 'What the commit history keeps for a reviewer',
-      line: 'Three commits in order; the renderer stays pinned at 0.5.1.',
-      caption: `The git graph shows the original Mermaid source, the agent’s edit${missing || swapped ? ', repaired by two set_label operations,' : ''} and its checked snapshot as three commits in order. The snapshot stores the verifier’s findings for the right diagram, ${committed} warnings, with the renderer pinned at ${renderer}, so an upgrade is a deliberate change whose snapshot diff gets reviewed. Whether yes belongs on the edge to Reply is for the person reading that diff, or for the application’s tests.`,
+      title: 'What the commit history keeps',
+      line: 'Three commits in order, the last with the verifier’s findings.',
+      caption: `The git graph shows the Mermaid source, the agent’s edit${missing || swapped ? ', made with two set_label operations,' : ''} and a checked snapshot as three commits in order. A snapshot is the diagram as Agentic Mermaid parsed and drew it, saved with the verifier’s findings: here ${committed} warnings, renderability: passed and taskCorrectness: not-checked, from ${renderer}. Anyone reading that commit can see which question the verifier left open.`,
     });
     await s.clear();
     const git = await s.show(
