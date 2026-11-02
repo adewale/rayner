@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/trust-proxy.ts';
 import { Scene, Text, Rectangle } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -88,6 +86,27 @@ const NUMBER = ['none', 'one', 'two', 'three', 'four'] as const;
 /** "one address", "two addresses". */
 const count = (n: number, noun: string) => `${NUMBER[n] ?? n} ${n === 1 ? noun : `${noun}es`}`;
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
+/** The script's one-sentence answer, stated in the read step of every case. */
+const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
+/** The request, as the opening question puts it. */
+const ASKED: Record<RequestKey, string> = {
+  client: 'a client comes through the CDN',
+  forged: 'an attacker comes through the CDN',
+  direct: 'an attacker skips the CDN',
+};
+/** The setting's branch of compileTrust (express 5.3.0 lib/utils.js:197-213), as the code step shows it. */
+const COMPILE: Record<'true' | 'number' | 'list', string[]> = {
+  true: ['if (val === true) {', '  // Support plain true/false', '  return function(){ return true };', '}'],
+  number: ["if (typeof val === 'number') {", '  // Support trusting hop count', '  return function(a, i){ return i < val };', '}'],
+  list: [
+    "if (typeof val === 'string') {",
+    '  // Support comma-separated values',
+    "  val = val.split(',')",
+    '    .map(function (v) { return v.trim() })',
+    '}',
+    'return proxyaddr.compile(val || []);',
+  ],
+};
 
 /** Who an address in the header belongs to, in this story. */
 function owner(addr: string, index: number): string {
@@ -118,6 +137,24 @@ export default class TrustProxyExplainer extends Scene {
       PROXY_ADDR + '#L55-L75',
       PROXY_ADDR + '#L222-L235',
       FORWARDED + '#L24-L36',
+    ],
+    // The script's answer and check questions (script.md); the read step states the answer in every case.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'Why does trust proxy 2 report an address the attacker wrote when the attacker skips the CDN?',
+        answer: `That path has one proxy, not two. Express trusts the first two addresses by position, the load balancer’s ${ADDR.balancer} and the attacker’s real ${ADDR.attacker}, so the next one, the ${ADDR.forged} the attacker wrote into X-Forwarded-For, becomes req.ip.`,
+      },
+      {
+        question: 'Which address does Express never test, and why does that matter with trust proxy true?',
+        answer:
+          'The farthest one, the left-most entry of X-Forwarded-For: the loop stops one short of it. With true every other address is trusted, so whatever the first sender wrote there becomes req.ip, unless the last trusted proxy removes or overwrites the header.',
+      },
+      {
+        question: `What must hold for the address list ${TRUST_CODE.list} to keep req.ip right?`,
+        answer:
+          'Every trusted range must hold only your own proxies. The list trusts machines by address, not positions, so path length no longer matters, but an attacker inside a trusted range would be skipped like a proxy.',
+      },
     ],
   };
   static settings = [
@@ -170,13 +207,17 @@ export default class TrustProxyExplainer extends Scene {
     };
 
     // ------------------------------------------------------------------ paths
-    await readerFirst(this, s, readerFrames(trustKey, reqKey));
+    // behind-proxies.mdx:31 (true), :53 (addresses), :60-63 (a number counts hops from Express).
+    const meaning =
+      trustKey === 'true'
+        ? 'Setting trust proxy to true tells Express to trust every proxy in front of it.'
+        : trustKey === 'list'
+          ? `Set to the address list ${TRUST_CODE.list}, trust proxy tells Express to trust the load balancer’s network and the CDN edge’s range.`
+          : `Setting trust proxy to ${trustKey} tells Express that ${trustKey === '1' ? 'one proxy stands' : 'two proxies stand'} in front of it; the path through the CDN has two.`;
     await this.step('paths', {
-      detail: true,
-      title: 'Two ways into one app',
-      line: 'The load balancer also accepts connections from the internet.',
-      caption:
-        'Requests are meant to reach Express through a CDN and then a load balancer, but the load balancer also accepts connections from the internet, so an attacker can skip the CDN. The addresses are examples. Assumed throughout: each proxy appends the address its connection came from to X-Forwarded-For. When the CDN is skipped, does Express report the sender’s address or one the attacker wrote? Follow the header entries to see how the trust setting decides.',
+      title: trustKey === 'list' ? 'With trust proxy set to an address list, what is req.ip?' : `With trust proxy ${trustKey}, what is req.ip?`,
+      line: `Predict: ${ASKED[reqKey]}. Whose address does Express report?`,
+      caption: `Requests are meant to reach Express through a CDN and then a load balancer, so every connection Express sees comes from the load balancer, ${ADDR.balancer}. req.ip is meant to be the sender’s address instead. ${meaning} But the load balancer also accepts connections from the internet, so an attacker can skip the CDN. The addresses are examples. Here ${ASKED[reqKey]}: is req.ip the ${req.sender.name}’s real address, ${req.sender.addr}?`,
     });
     await s.clear();
     const d = await s.show({ source: NETWORK }, { box: DIAGRAM });
@@ -196,38 +237,37 @@ export default class TrustProxyExplainer extends Scene {
       ],
       { at: regionBox(BELOW, { left: 0.15 }), align: 'top', fontSize: SIZE, title: 'This case', enter: false },
     );
-    // The proxies' behaviour is this explainer's assumption; Express's guide does not describe it.
-    const assumed = wrap(
-      'Assumed: each proxy appends the address its connection came from to X-Forwarded-For.',
-      [chosen.box()![0] + 0.1, chosen.box()![1] - 0.2],
-      chosen.box()![2] - chosen.box()![0] - 0.2,
-      SIZE,
-    );
-    await s.enter(addresses, chosen, ...assumed);
+    await s.enter(addresses, chosen);
     this.state.addresses = { ...ADDR };
 
     // ------------------------------------------------------------------ follow
     const hops = arrivals(req);
     const sent = req.sent ? `X-Forwarded-For: ${req.sent}` : 'no X-Forwarded-For';
     const entries = ['no', 'one', 'two', 'three', 'four'][got.xff ? got.xff.split(',').length : 0];
+    const settingName = trustKey === 'list' ? 'the address list' : `trust proxy ${trustKey}`;
     await this.step('follow', {
-      detail: true,
       title:
-        reqKey === 'client'
-          ? 'The client’s request gains one address at each proxy'
-          : reqKey === 'forged'
-            ? 'The attacker writes its own X-Forwarded-For and goes through the CDN'
-            : 'The attacker writes its own X-Forwarded-For and skips the CDN',
-      line:
-        reqKey === 'direct'
-          ? `One proxy, not two, appends: ${entries} entries reach Express.`
-          : `Each of two proxies appends one: ${entries} entries reach Express.`,
+        mine.outcome === 'sender'
+          ? `Answer: ${mine.ip}, the ${req.sender.name}’s real address`
+          : mine.outcome === 'proxy'
+            ? `Answer: ${mine.ip}, the CDN edge’s address`
+            : `Answer: ${mine.ip}, an address the attacker wrote`,
+      line: `Beyond its own connection, Express sees only X-Forwarded-For: ${got.xff}.`,
+      // The proxies' behaviour is this explainer's assumption; Express's guide does not describe it.
       caption:
-        reqKey === 'client'
-          ? `The client sends ${sent}. The CDN edge appends the client’s address, ${ADDR.client}, and the load balancer appends the edge’s, ${ADDR.edge}. Express receives that header on a connection from the load balancer, so its socket address is ${ADDR.balancer}.`
+        `Express’s own connection comes from the load balancer, ${ADDR.balancer}. All it learns about the machines before that comes from the X-Forwarded-For header: each proxy appends the address its connection came from, as assumed throughout, and nothing stops a sender writing entries of its own first. ` +
+        (reqKey === 'client'
+          ? `The client sends ${sent}. The CDN edge appends the client’s address, ${ADDR.client}, and the load balancer appends the edge’s, ${ADDR.edge}. `
           : reqKey === 'forged'
-            ? `The attacker sends ${sent}, an address it made up. The CDN edge appends the attacker’s real address, ${ADDR.attacker}, and the load balancer appends the edge’s. Express receives ${entries} entries on a connection from the load balancer, ${ADDR.balancer}.`
-            : `The attacker sends ${sent} straight to the load balancer, which appends the attacker’s real address, ${ADDR.attacker}. Express receives ${entries} entries, one fewer than through the CDN, on a connection from the load balancer, ${ADDR.balancer}.`,
+            ? `The attacker sends ${sent}, an address it made up. The CDN edge appends the attacker’s real address, ${ADDR.attacker}, and the load balancer appends the edge’s. `
+            : `The attacker sends ${sent}, an address it made up, straight to the load balancer, which appends the attacker’s real address, ${ADDR.attacker}: ${entries} entries, one fewer than through the CDN. `) +
+        `From these, ${settingName} picks ${mine.ip}, ${
+          mine.outcome === 'sender'
+            ? `the ${req.sender.name}’s real address.`
+            : mine.outcome === 'proxy'
+              ? `the CDN edge’s, and the ${req.sender.name}’s address is lost.`
+              : 'the entry the attacker made up.'
+        }`,
     });
     await s.clearOverlays();
     await d.walk(PATH[reqKey], { trail: true });
@@ -239,75 +279,6 @@ export default class TrustProxyExplainer extends Scene {
       { at: BELOW, fontSize: SIZE, title: 'X-Forwarded-For at each machine', width: 11 },
     );
     this.state.arrivals = hops.map((h) => [h.at.id, h.socket, h.xff]);
-
-    // ------------------------------------------------------------------ code
-    // utils.js:197-213 compileTrust; proxy-addr index.js:57, 68-74 (alladdrs) and 231-232 (proxyaddr).
-    // forwarded index.js:30-32: addrs is the socket address, then the header's entries right to left.
-    await this.step('code', {
-      detail: true,
-      title:
-        trustKey === 'true'
-          ? 'trust proxy true trusts every address'
-          : trustKey === 'list'
-            ? 'An address list trusts addresses inside its ranges'
-            : `trust proxy ${trustKey} trusts the first ${trustKey === '1' ? 'address, whatever it is' : `${trustKey} addresses, whatever they are`}`,
-      line:
-        trustKey === 'true'
-          ? 'Every address passes the check, so the loop never stops early.'
-          : trustKey === 'list'
-            ? 'The loop stops at the first address outside the ranges.'
-            : `Only position counts: the loop trusts index i while i < ${trustKey}.`,
-      caption:
-        `Express turns the setting into a trust function. ` +
-        (trustKey === 'true'
-          ? 'true trusts every address. '
-          : trustKey === 'list'
-            ? `A string is split on commas into ranges, and an address is trusted when it falls in one. `
-            : `A number n trusts the first n addresses by their position alone. `) +
-        `proxy-addr lists the socket address, then X-Forwarded-For from right to left, and stops at the first address it does not trust. req.ip is the last address in its list.`,
-    });
-    await d.hide();
-    await s.clearOverlays();
-    const left = regionBox(FULL, { right: -0.1 }),
-      right = regionBox(FULL, { left: 0.1 });
-    const compile = await s.code(
-      [
-        'if (val === true) {',
-        '  // Support plain true/false',
-        '  return function(){ return true };',
-        '}',
-        "if (typeof val === 'number') {",
-        '  // Support trusting hop count',
-        '  return function(a, i){ return i < val };',
-        '}',
-        "if (typeof val === 'string') {",
-        '  // Support comma-separated values',
-        "  val = val.split(',')",
-        '    .map(function (v) { return v.trim() })',
-        '}',
-        'return proxyaddr.compile(val || []);',
-      ],
-      { at: left, align: 'top', fontSize: 0.28, title: 'express 5.3.0, lib/utils.js, compileTrust', enter: false },
-    );
-    const read = await s.code(
-      [
-        '// alladdrs',
-        'var addrs = forwarded(req)',
-        'for (var i = 0; i < addrs.length - 1; i++) {',
-        '  if (trust(addrs[i], i)) continue',
-        '  addrs.length = i + 1',
-        '}',
-        'return addrs',
-        '// proxyaddr',
-        'var addrs = alladdrs(req, trust)',
-        'var addr = addrs[addrs.length - 1]',
-      ],
-      { at: right, align: 'top', fontSize: 0.28, title: 'proxy-addr 2.0.8, index.js', enter: false },
-    );
-    await s.enter(compile, read);
-    await compile.focus(trustKey === 'true' ? [0, 3] : trustKey === 'list' ? [8, 13] : [4, 7], { as: 'this setting' });
-    await read.focus([2, 5], { as: 'stops at the first untrusted address' });
-    this.state.trust = TRUST_CODE[trustKey];
 
     // ------------------------------------------------------------------ read
     // proxy-addr index.js:68-72: the loop tests every address but the last, so the last one, if reached,
@@ -335,18 +306,18 @@ export default class TrustProxyExplainer extends Scene {
           ? `That is the CDN edge, an honest proxy, so the ${req.sender.name}’s address is lost.`
           : `The attacker wrote that address, and Express trusted its real one, ${ADDR.attacker}, as if it were a proxy.`;
     await this.step('read', {
-      detail: true,
       title:
-        mine.outcome === 'sender'
-          ? `req.ip is ${mine.ip}, the ${req.sender.name}’s real address`
-          : mine.outcome === 'proxy'
-            ? `req.ip is ${mine.ip}, the CDN edge’s address`
-            : `req.ip is ${mine.ip}, an address the attacker wrote`,
+        trustKey === 'true'
+          ? `req.ip is ${mine.ip}, because true trusts every address before it`
+          : trustKey === 'list'
+            ? `req.ip is ${mine.ip}, the nearest address outside the trusted ranges`
+            : `req.ip is ${mine.ip}, because ${trustKey} trusts the first ${trustKey === '1' ? 'address' : `${NUMBER[Number(trustKey)]} addresses`} by position`,
       line: last
         ? `Express trusts ${count(trusted.length, 'address')} and reaches the end of the list.`
         : `Express trusts ${count(trusted.length, 'address')}, then stops at the next.`,
-      caption: `${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
+      caption: `Express reads the addresses from its own connection outward: the socket address, then X-Forwarded-For from right to left. It skips each address it trusts, and ${ANSWER}. ${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
     });
+    await d.hide();
     await s.clearOverlays();
     const order = await s.card(readingRows(reading), {
       at: regionBox(FULL, { right: 1.2, top: 2.6 }),
@@ -377,11 +348,65 @@ export default class TrustProxyExplainer extends Scene {
     this.state.read = reading.map((r) => [r.addr, r.verdict]);
     this.state.ip = mine.ip;
 
+    // ------------------------------------------------------------------ code
+    // utils.js:197-213 compileTrust; proxy-addr index.js:57, 68-74 (alladdrs) and 231-232 (proxyaddr).
+    // forwarded index.js:30-32: addrs is the socket address, then the header's entries right to left.
+    await this.step('code', {
+      title:
+        trustKey === 'true'
+          ? 'In the source, true becomes a function that trusts every address'
+          : trustKey === 'list'
+            ? 'In the source, the list becomes a test of each address against its ranges'
+            : `In the source, ${trustKey} becomes i < ${trustKey}: a position, not an address`,
+      line:
+        trustKey === 'true'
+          ? 'Every address passes the check, so the loop never stops early.'
+          : trustKey === 'list'
+            ? 'The loop stops at the first address outside the ranges.'
+            : `Only position counts: the loop trusts index i while i < ${trustKey}.`,
+      caption:
+        `Express turns the setting into a trust function, called with each address and its index. ` +
+        (trustKey === 'true'
+          ? 'true returns a function that trusts everything. '
+          : trustKey === 'list'
+            ? 'A string is split on commas and compiled into ranges; an address is trusted when it falls in one. '
+            : 'A number returns function(a, i){ return i < val }, which never looks at the address a, only at its index. ') +
+        'proxy-addr’s loop tests every address but the last and cuts the list after the first one the function rejects; req.ip is the last address left.',
+    });
+    await s.clearOverlays();
+    const left = regionBox(FULL, { right: -0.1 }),
+      right = regionBox(FULL, { left: 0.1 });
+    const compile = await s.code(COMPILE[trustKey === 'true' || trustKey === 'list' ? trustKey : 'number'], {
+      at: left,
+      align: 'top',
+      fontSize: 0.3,
+      title: 'express 5.3.0, lib/utils.js, compileTrust',
+      enter: false,
+    });
+    const loop = await s.code(
+      [
+        '// alladdrs',
+        'var addrs = forwarded(req)',
+        'for (var i = 0; i < addrs.length - 1; i++) {',
+        '  if (trust(addrs[i], i)) continue',
+        '  addrs.length = i + 1',
+        '}',
+        'return addrs',
+        '// proxyaddr',
+        'var addrs = alladdrs(req, trust)',
+        'var addr = addrs[addrs.length - 1]',
+      ],
+      { at: right, align: 'top', fontSize: 0.3, title: 'proxy-addr 2.0.8, index.js', enter: false },
+    );
+    await s.enter(compile, loop);
+    await compile.focus(trustKey === 'list' ? [0, 5] : 2, { as: 'this setting' });
+    await loop.focus([2, 5], { as: 'stops at the first untrusted address' });
+    this.state.trust = TRUST_CODE[trustKey];
+
     // ------------------------------------------------------------------ requests
     const row = TABLE[trustKey];
     const wrong = REQUEST_KEYS.filter((q) => row[q].outcome !== 'sender');
     await this.step('requests', {
-      detail: true,
       title:
         wrong.length === 0
           ? `With ${setting(trustKey)}, req.ip is the real sender on every path`
@@ -448,7 +473,6 @@ export default class TrustProxyExplainer extends Scene {
       list: '“the untrusted IP address nearest to the application server is determined as the client’s IP address.”',
     };
     await this.step('why', {
-      detail: true,
       title:
         trustKey === 'true'
           ? 'true trusts whatever the sender wrote first'
@@ -496,7 +520,6 @@ export default class TrustProxyExplainer extends Scene {
     // ------------------------------------------------------------------ ranges
     const other: TrustKey = trustKey === 'list' ? '2' : 'list';
     await this.step('ranges', {
-      detail: true,
       title:
         trustKey === 'list'
           ? 'Counting two hops instead gives the attacker the short path'
@@ -547,7 +570,6 @@ export default class TrustProxyExplainer extends Scene {
       t === 'list' ? 'the address list' : `trust proxy ${t}`,
     );
     await this.step('table', {
-      detail: true,
       title: 'Twelve answers from real Express 5.3.0',
       line: `Green is the real sender; ${allRight.length ? `only ${allRight.join(' and ')} ${allRight.length === 1 ? 'gets' : 'get'} all three` : 'no setting gets all three'}.`,
       caption: `Each row is a setting and each column a request; green marks the real sender’s address. Out of three requests, true gets ${rights[0]} right, 1 gets ${rights[1]}, 2 gets ${rights[2]} and the address list gets ${rights[3]}. This case, ${TRUST_LABEL[trustKey]} with ${lowerFirst(REQUEST_LABEL[reqKey])}, is outlined.`,
