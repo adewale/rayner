@@ -51,6 +51,9 @@ before(async () => {
     projects.set(name, project);
     await buildExplainer(project, join(folder, name + '.html'));
   }
+  const comparison = await collectProject('test/fixtures/reading-comparison', {write: false});
+  projects.set('reading-comparison', comparison);
+  await buildExplainer(comparison, join(folder, 'reading-comparison.html'));
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
@@ -1915,6 +1918,7 @@ const paintedView = (page: Page | Frame): Promise<Painted> =>
   page.locator('.stage svg:not(.leaving)').evaluate((svg) => ({
     view: svg.getAttribute('viewBox')!,
     camera: svg.getAttribute('data-camera') ?? svg.getAttribute('viewBox')!,
+    // Invert actual SVG fitting geometry, including fractional CSS pixels.
     w: svg.parentElement!.getBoundingClientRect().width,
     h: svg.parentElement!.getBoundingClientRect().height,
   }));
@@ -2484,10 +2488,10 @@ test('crossing the narrow width redraws the resting picture in place, including 
   });
 });
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
-  // mr-cache's request opens on its comparison at one scale, then its smaller labels need a closer
-  // one; on a 288 px stage (a 320 px page) the two differ.
-  await playerScenario('mr-cache', {
-    values: ['hit'], step: 'reader-request', viewport: {width: 320, height: 400},
+  // Explicit comparison labels and a smaller implementation note require different
+  // scales regardless of incidental wording or heading placement in a subject lesson.
+  await playerScenario('reading-comparison', {
+    values: [], step: 'compare', viewport: {width: 320, height: 400},
   }, async (model,real) => {
     const {w, h} = await stageSize(real), tour = await tourOf(model, w, h);
     assert.ok(tour.length > 1 && tour[0]!.k !== tour[1]!.k, 'the fixture changes scale between the opening and first detail view');

@@ -1,38 +1,37 @@
 # Script: why does the periodic table have this shape?
 
-Questions the reader brings: Why are there gaps in the periodic table? Why is it 18 columns wide, with two detached rows? How do electron-filling runs make that shape? This lesson explains a layout, not chemical reactivity.
+For a reader who recognises the periodic table but does not know electron configurations. The question is about its gaps, widths and detached rows, not why elements react alike.
 
-Sodium reacts with water much as lithium and potassium do, and chemists put such look-alikes in one column. Take sodium's: hydrogen 1, lithium 3, sodium 11, potassium 19, rubidium 37, caesium 55, francium 87. The jumps between neighbours are 2, 8, 8, 18, 18 and 32. Nothing in those numbers says "group 1", and the jumps are not a fixed step, so no simple count from the atomic number gives the column. The reader is asked what makes those particular jumps.
+Follow one column. Sodium is element 11, potassium 19 and rubidium 37: the jumps are 8, then 18. The gaps change because the rows have different lengths. What makes those lengths?
 
-Forget the table. Give each element a cell and add electrons one at a time, in order of atomic number. By the filling rule (which step 4 names and sources) they fill runs, and every full run is 2, 6, 10 or 14 long. Sodium's 11 are runs of 2, 2 and 6, then 1 into a run of 2. Lay each run beside the last and start a new row at each run of 2, which is where the table starts a row, after each noble gas. The rows hold 2, 8, 8, 18, 18, 32 and 32 cells, and every jump down the opening's column is one of those lengths. The reader is asked what shape appears if runs of one length share columns.
+Build the rows before drawing the table. For a neutral atom, the atomic number also counts electrons. A useful filling rule puts them into runs with capacities 2, 6, 10 and 14. Lay the runs beside one another and start a row at each new run of 2. The first rows are short; later rows contain additional runs. Sodium's 11 electrons stop one cell into a new run of 2. Ask the reader what shape appears when runs of the same width share columns.
 
-Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave the gap. This builds an 18-column table, using the layout with lutetium in group 3. Helium needs one further move: over neon. The answer follows: the table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below. Sodium's 11th electron starts a run of 2: column 1. Chlorine's 17th is the 5th in a run of 6: 2 + 10 + 5 = 17.
+Slide the runs of 6 to the right and the runs of 10 into the middle. Rows with no run of 10 leave a ten-column gap. Put the runs of 14 below the main table, and the longest rows now fit into 18 numbered columns. The table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below. The motion matters here: the cells keep their identity while their alignment changes.
 
-Now the names. Each run is a subshell, named by its shell n and a letter for its length: s for 2, p for 6, d for 10, f for 14, so sodium's runs read 1s² 2s² 2p⁶ 3s¹. A subshell holds at most that many electrons. The order, 4s before 3d, is Madelung's empirical rule (lowest n + l first, lower n on a tie; Wikipedia's Aufbau principle article), and NIST's reference configurations follow it for 88 of the first 108 elements. Chlorine has 7 electrons after neon but sits in group 17 because rows 2 and 3 have no d run; boron to argon are all 10 short this way, and since rows 1 and 2 hold 10 electrons, aluminium to argon have atomic number equal to group. Copper is one of the 20 exceptions: NIST's 3d¹⁰ 4s¹ is still 11 after argon. The table moves helium over neon because 1s² fills its shell as 2s² 2p⁶ fills neon's.
+Only now name the runs: subshells, called s, p, d and f for capacities 2, 6, 10 and 14. Helium needs one correction to stacking by width alone. Its two electrons fill its first shell, so it belongs above neon rather than above beryllium. End on the table's shape and that visible correction.
 
-Back to the opening jumps. Every member of a column ends the same way, one row further on, so each jump is a whole row: 8 = 2 + 6, 18 = 2 + 10 + 6, 32 = 2 + 14 + 10 + 6.
+**Remember:** the table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below.
 
-**The aha:** the stack: the rows of runs, laid side by side, turn into the periodic table when runs of one length share columns. The table's gap, its 18 columns and its two detached rows are what stacking does to rows of 2, 8, 18 and 32. The motion that matters is the slide; its resting picture keeps dashed outlines where rows 2 and 3's runs of 6 started, with arrows to where they went.
+**Transfer questions:**
 
-**Sentence to remember:** the table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below.
+1. Keep the runs of 14 inline. How wide are the longest rows? (32 = 2 + 14 + 10 + 6. Detaching those runs saves 14 columns; it does not remove their elements.)
+2. Stack a row containing just 2 + 6 into the 18-column table. Which columns stay empty? (3 through 12: the six-cell run starts at column 13.)
 
-**Check questions**, in `meta.checks`, asked after the last step. Each changes a condition no step shows:
+The default sodium case supplies the short worked example. Chlorine, iron, copper and helium remain selectable, with the same complete model and table; their detailed configurations are optional.
 
-1. If each shell filled completely before the next (a run of 10 straight after a row's run of 6), where would potassium land, and would it stay under sodium? (Column 2 + 1 = 3; it would leave group 1.)
-2. Lanthanum is element 57. Where does the filling rule put it, and where would NIST's [Xe] 5d¹ 6s² put it? (The rule's last electron is the 1st of a run of 14: the f rows, no group. NIST's would be the 1st of a run of 10: column 3, which is why many textbooks put lanthanum in group 3.)
+| Main step | What it contributes |
+| --- | --- |
+| column | Uneven jumps create the question |
+| fill | Runs explain the different row lengths |
+| stack | Aligning runs produces gaps and detached rows |
+| names | Vocabulary labels the visible structure; helium moves above neon |
 
-**Cases:** sodium (the plain case), chlorine (rows 2 and 3 skip the d columns; aluminium to argon), iron (the d block; 4s before 3d; ruthenium's different ending still counts 8), copper (one of NIST's 20 exceptions, same group) and helium (stacking puts it over beryllium; the full shell moves it over neon; its family title says neon to radon end in s² p⁶ and helium in 1s², since argon's shell 3 is not full).
+## Optional reference, after the story
 
-Cut from an earlier version: the shared recap sentence that ended every case's family step. The lutetium caveat is back as a clause in the stack step, because "the periodic table" is true only of the layout with lutetium in group 3 (the model's comment and test keep that table, the arrangement the Group article reports IUPAC endorsed).
+`blocks` retains shell notation, Madelung's empirical filling order, the NIST comparison (88 of the first 108 configurations agree), and each case's column arithmetic. `family` retains the aligned configurations, exception counts and explanations of the jumps. These are available as detail steps; the main story does not require learning n + l, a noble-gas core and configuration exceptions at once.
 
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| column | paragraph 1: why groups matter, the column and its uneven jumps | what makes the jumps 8, 18 and 32 |
-| fill | paragraph 2: every electron in order, runs laid side by side in rows of 2, 8, 8, 18, 18, 32, 32; no table yet | what shape appears when runs of one length share columns |
-| stack | paragraph 3: the slide into the table (the aha's motion), the answer, the case's landing column in run widths | |
-| blocks | paragraph 4: runs named as subshells, at most, Madelung's order and its source, the case's count, helium moved | |
-| family | paragraph 5: each member's ending and count; each jump is one row | |
+The depicted 18-column layout puts lutetium in group 3; the cited group-layout source discusses that convention. Alternative group-3 arrangements are not consequences of stacking alone. This convention and the empirical filling rule's exceptions belong to the reference discussion, not the first payoff.
 
 ## Limits
 
-The model (`scenes/explainers/lib/periodic-groups.ts`) places elements by Madelung's filling rule and keeps NIST's ground configurations for elements 1 to 108, with the 20 elements where they differ stored as exceptions. It leaves out everything chemical beyond the configuration: energies, ionisation, why look-alikes react alike, and relativistic effects in the heaviest elements. Elements 109 to 118 have no NIST configuration here, so tennessine's ending in the halogen family comes from the filling rule alone. The table is one layout, the 18-column table with lutetium in group 3; the lanthanum layout appears only in the second check question, and the 32-column table nowhere. The five cases are sodium, chlorine, iron, copper and helium; no case follows an f-block element, a d-block exception other than copper, or an element past 108. The sentences about every run, row, jump and group member are tested over all 118 elements in `test/explain-periodic-groups.test.ts`.
+The model uses the filling rule for placement and NIST ground configurations through element 108. It does not derive the rule from quantum mechanics or explain chemical reactivity, ionisation energies or relativistic effects. Configurations for 109–118 are predictions here. No offered case follows an f-block element; the transfer questions concern the displayed run widths, not specialist configurations. The model and all 118 placements retain their existing tests and sources.

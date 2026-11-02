@@ -1,32 +1,35 @@
 # Script: why does a deleted dictionary slot need a marker?
 
-Questions the reader brings: What happens inside a Python dict when I delete a key? Why can't it just empty the slot? What is the "dummy" or "tombstone" people mention?
+For a Python user who knows what a dictionary does but has not seen its storage. Explain one deletion failure and its repair; hash arithmetic is reference material.
 
-Take a real CPython 3.12 dict with three keys, 0, 8 and 16, mapped to apple, pear and plum. Its index has eight slots; each holds the number of an entry, or nothing yet. Key 8 is entry 1 and sits in slot 1, nowhere in slot 0. Now delete key 0. The obvious way is to empty its slot, so ask the reader: would `d[8]` still find pear?
+The dict holds 0 → apple, 8 → pear and 16 → plum. An index slot points to an entry in the separate table below. Key 8 is reached through slot 1. Delete key 0 from slot 0: surely emptying that slot cannot affect pear? Ask the reader to predict what a lookup of 8 will return.
 
-It would not. Empty slot 0 and `d[8]` raises KeyError, although pear is still stored. The search for 8 does not start at slot 1: it starts at slot 0, and a slot that was never used ends a search. That is the answer, as the payoff of the surprise: an emptied slot would end the search early, so deletion leaves a marker that says keep looking.
+It would fail. These three keys start at the same slot; occupied slots made 8 and 16 move on when they were stored. A lookup retraces that route. “Never used” means there cannot be a matching key farther along it, so clearing slot 0 ends the search before pear. An emptied slot would end the search early, so deletion leaves a marker that says keep looking.
 
-Why does 8 start at slot 0? A small int hashes to itself, and an eight-slot index keeps only the hash's low three bits. 0, 8 and 16 all end in 000, so all three start at slot 0. Key 0 was stored first and took it; 8 found it taken and moved on to slot 1; 16 found both taken and moved on to slot 6. A lookup retraces that path, so anything that looks never used on the path cuts it.
+Change just that slot to D, meaning deleted. The entry for apple is gone, but D keeps the lookup moving: through slot 0 to slot 1 for pear, or on to slot 6 for plum. The same lookup that failed now succeeds. The distinction is between “never used” and “used, then deleted”, not between occupied and empty storage.
 
-CPython's fix is the marker: `del d[0]` writes a deleted marker, D, into slot 0 and empties entry 0. A search treats D as taken and moves on, so 8 is found at slot 1 again. The reader predicts the last piece: a key that was never stored, 24, also starts at 0. Where does its search end? At slot 7, the first never-used slot on its path; D alone never ends a search.
+Now look for key 24, which was never inserted and also starts at slot 0. Ask where its lookup stops. It passes D and the occupied slots, then finds a genuinely unused slot at 7. The marker preserves searches for existing keys; the unused slot still proves absence.
 
-**The aha:** the same table with one character changed in slot 0: – loses pear, D finds it.
+**Remember:** an emptied slot would end the search early, so deletion leaves a marker that says keep looking.
 
-**Sentence to remember:** an emptied slot would end the search early, so deletion leaves a marker that says keep looking.
+**Transfer questions:**
 
-**Check questions**, in `meta.checks`, asked after the last step:
+1. Delete key 8 from slot 1 while keeping key 0. Can key 16 still be found if slot 1 is cleared? What if it holds D? (Clearing breaks the 0 → 1 → 6 lookup; D preserves it.)
+2. Replace every never-used slot with D. Can an absent-key lookup use this stopping rule? (No: D says continue. The real table needs unused space or a rebuild; the fixed-size teaching model refuses a table without an unused stopping slot.)
 
-1. Key 8 is stored in slot 1. Why does a search for it start at slot 0?
-2. If `del d[0]` emptied slot 0, which of the remaining keys, 8 and 16, could Python no longer find?
-3. After `del d[0]`, the search for key 8 reads slot 0. What does it find there, and what does it do?
+The `key` setting compares an early and a later key on the same probe path. It is useful for seeing that the marker preserves more than the first key beyond the deletion; it is not a different repair.
 
-The `key` setting follows 16 instead of 8 through the same story: its search is longer (0, 1, 6) and fails the same way.
+| Main step | What it contributes |
+| --- | --- |
+| question | Predict whether clearing slot 0 can lose another key |
+| broken | The lookup stops early while the value still exists |
+| marker | A one-character change repairs the same lookup |
+| missing | A never-used slot still terminates an absent-key lookup |
 
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| question | paragraph 1: the concrete dict and the obvious deletion | whether `d[8]` still finds pear |
-| broken | paragraph 2: KeyError, and the answer | why the search starts at slot 0 |
-| hash | paragraph 3: hashes and the low three bits | |
-| collision | paragraph 3: the paths 0 > 1 and 0 > 1 > 6, retraced on lookup | |
-| marker | paragraph 4: D in slot 0, the search goes on | where a search for 24 ends |
-| missing | paragraph 4: slot 7 ends it; the scope (no resizing) | |
+## Optional reference
+
+`hash` explains why these keys start at 0: their hashes are 0, 8 and 16, and an eight-slot index uses the low three bits. `collision` follows the complete probe paths, 0 → 1 and 0 → 1 → 6. Both remain directly reachable detail steps. The main story needs the shared starting slot and retraced path, not binary arithmetic.
+
+## Limits
+
+This is CPython 3.12.14's compact combined table, with capacity fixed at eight and three nonnegative integer keys. Those keys hash to themselves; that is not a rule for every Python integer (`hash(-1)` is -2). The lesson omits resizing, insertion after deletion, split instance dictionaries and custom equality/hash methods. The model is checked against captured CPython storage; the deliberately cleared table is a counterfactual bug, not Python's actual deletion behavior.

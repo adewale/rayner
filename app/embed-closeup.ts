@@ -53,8 +53,6 @@ export interface LayoutLabel {
 export interface StepLayout {
   /** Authored comparison, independent of incidental changed code or notes. */
   reading?: { box: Box; labels: LayoutLabel[] };
-  /** Complete visible stage chrome, so an opening never shows half a heading. */
-  heading?: Box;
   /**
    * What changed or received fresh helper emphasis, in the camera's view units, as
    * separate parts in reading order (rows top to bottom, each left to right); empty
@@ -74,12 +72,7 @@ export interface StepLayout {
    * step emphasised nothing new.
    */
   stress?: Box[];
-  /**
-   * The top of the content area, in the camera's view units: the lowest edge of the heading
-   * the stage draws, which stays put on screen. A close-up keeps below it, since cutting
-   * through the heading shows half a line of text. Absent without a heading.
-   */
-  top?: number;
+
 }
 /** Changed boxes closer than this, in stage units, read as one part. */
 const GAP = 0.5;
@@ -210,28 +203,6 @@ function emphasised(leaves: readonly Leaf[]): {box: Box; painted: Box}[] {
   return [...boxes.values()];
 }
 
-/**
- * The lowest edge of the heading the stage draws, in the camera's view units, or undefined
- * when nothing of it is drawn. The heading is pinned to the screen, so it lands in the same
- * place whatever the camera does.
- */
-function headingBox(scene: Scene): Box | undefined {
-  const view = viewOf(scene);
-  let bounds: Box | null = null;
-  const walk = (m: Mobject, opacity: number) => {
-    const o = opacity * (m.style.opacity ?? 1);
-    if (o < 0.05) return;
-    // A label's own box, which can reach below its glyphs, or a painted leaf's.
-    if (labelOf(m) || (!m.children.length && painted(m))) {
-      const b = m.box();
-      if (b) bounds = union(bounds, toView(b, view));
-    }
-    for (const child of m.children) walk(child, o);
-  };
-  for (const top of scene.mobjects) if (isHeading(top)) walk(top, 1);
-  return bounds ?? undefined;
-}
-
 /** Every readable label in the camera's view, in its units: a label's size grows with the camera's zoom. */
 function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
   const out: LayoutLabel[] = [];
@@ -256,7 +227,7 @@ function labelsOf(scene: Scene, only?: ReadonlySet<Mobject>): LayoutLabel[] {
     }
     for (const child of m.children) walk(child, o, c);
   };
-  for (const top of scene.mobjects) walk(top, 1, view);
+  for (const top of scene.mobjects) if (!isHeading(top)) walk(top, 1, view);
   return out;
 }
 
@@ -361,9 +332,7 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
       // Changes are found in the world (a camera move alone changes no leaf), then framed as the camera shows them.
       const changes = changed(leaves, before).map((c) => ({ ...c, box: toView(c.box, view), painted: toView(c.painted!, view) }));
       const intent = emphasised(leaves).map(c => ({box: toView(c.box, view), painted: toView(c.painted, view), text: false})),
-        stress = intent.map(c => c.box),
-        heading = headingBox(scene),
-        top = heading?.[1];
+        stress = intent.map(c => c.box);
       const subjects = new Set(readingOf(scene).flatMap((m) => m.family()));
       const subjectLeaves = leaves.filter((l) => subjects.has(l.m));
       for (const subject of readingOf(scene)) {
@@ -379,10 +348,8 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
         // in the tour even when only a nearby label changed this step.
         ...partsOf([...changes, ...intent]),
         labels,
-        ...(heading ? { heading } : {}),
         ...(box ? { reading: { box: toView(box, view), labels: subjectLabels } } : {}),
         ...(stress.length ? { stress } : {}),
-        ...(top == null ? {} : { top }),
       });
       before = leaves;
     },
@@ -489,8 +456,8 @@ export function stressStarts(layout: StepLayout): [number, number][] {
  * readable scale when its complete subjects fit; smaller details retain their stops. When every such label already reads at
  * READ_PX, there is one: the whole picture. Any label under it is enlarged, however
  * little it needs: a label at 11 px is still under the floor `rayner check` measures.
- * Close-ups keep below the heading the stage draws (`layout.top`), zooming a little further
- * when that is what it takes for a view to fit under it.
+ * A narrow ReaderSink leaves the stage heading out, so the whole authored frame is
+ * available to the picture; no close-up reserves space for the undrawn heading.
  */
 export function closeUps(layout: StepLayout | undefined, w: number, h: number, max = ZOOM_MAX): Zoom[] {
   const whole = [clampZoom(IDENTITY, w, h, max)];
@@ -504,35 +471,21 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   const smallest = Math.min(...read.map((l) => l.size));
   const reading = Math.min(max, Math.max(1, READ_PX / (smallest * s)));
   if (reading < 1 + 1e-9) return whole;
-  // Below the heading, unless a change reaches into it. A view shorter than the frame would
-  // cut the heading somewhere, so it zooms a little further, until it fits under it (as far
-  // as the zoom cap allows); a view as tall as the frame shows the heading whole.
-  const painted = layout.painted ?? layout.parts;
-  const ceiling = Math.min(FRAME[3], Math.max(layout.top ?? FRAME[3], ...painted.map((p) => p[3])));
-  const bounds: Box = [FRAME[0], FRAME[1], FRAME[2], ceiling];
-  // A view keeps below the ceiling when its height fits between the ceiling and the lowest
-  // point the stage can show: the frame's bottom, plus the paper margin under it on a stage
-  // taller than the picture (oy / s units; none on a 16:9 stage).
-  const short = h / (reading * s) < FRAME[3] - FRAME[1] + (2 * oy) / s - 1e-9;
-  const fit = short && ceiling < FRAME[3] ? h / ((ceiling - FRAME[1] + oy / s) * s) : 1;
-  const k = Math.min(max, Math.max(reading, fit));
+  const bounds = FRAME,
+    painted = layout.painted ?? layout.parts,
+    k = reading;
   const vw = w / (k * s),
     vh = h / (k * s);
-  // The stage point that shows a region's top-left corner at 1× goes to the stage's top-left
-  // corner. On a stage taller than the picture (a phone, NARROW_ASPECT), the whole of the
-  // picture below the heading can fit a view at this scale; the view's top then sits at the
-  // heading's lower edge, so every close-up shows that whole height, the heading stays above
-  // it as on a 16:9 stage, and the margin under the frame shows more paper. Across, on a stage
-  // wider than the picture, the picture is centred.
-  const below = (ceiling - FRAME[1]) * s,
-    fitsTall = k * below <= h + 1e-9,
+  // Centre the full picture in any dimension where it fits; otherwise put the
+  // region's top-left corner at the stage's top-left before clamping.
+  const fitsTall = k * 9 * s <= h + 1e-9,
     fitsWide = k * 16 * s <= w + 1e-9;
   const zoomOn = ([left, , , top]: Box) =>
     clampZoom(
       {
         k,
         x: fitsWide ? (w - k * 16 * s) / 2 - k * ox : -k * (ox + (left + 8) * s),
-        y: -k * (oy + (4.5 - (fitsTall ? ceiling : top)) * s),
+        y: fitsTall ? (h - k * 9 * s) / 2 - k * oy : -k * (oy + (4.5 - top) * s),
       },
       w,
       h,
@@ -594,42 +547,16 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
     const box = intersect(padded(layout.reading.box), FRAME) ?? layout.reading.box,
       size = layout.reading.labels.length ? Math.min(...layout.reading.labels.map((l) => l.size)) : Infinity,
       minimum = Math.max(1, READ_PX / (size * s)),
-      heading =
-        layout.heading ?? (layout.top == null ? undefined : ([FRAME[0], layout.top, FRAME[2], FRAME[3]] as Box));
-    const contains = (outer: Box, inner: Box) => inside(inner[0], inner[1], outer) && inside(inner[2], inner[3], outer);
-    const completeChrome = (shown: Box) =>
-      !heading || shown[3] <= heading[1] + 1e-6 || shown[1] >= heading[3] - 1e-6 || contains(shown, heading);
-    const tryOpening = (focus: Box, scale: number, top?: number) => {
-      if (opening.length || scale > max) return;
-      const fit = Math.min(w / ((focus[2] - focus[0]) * s), h / ((focus[3] - focus[1]) * s));
-      if (scale > fit + 1e-9) return;
-      const x = ox + ((focus[0] + focus[2]) / 2 + 8) * s,
-        y = oy + (4.5 - (focus[1] + focus[3]) / 2) * s;
-      const zoom = clampZoom(
-          { k: scale, x: w / 2 - scale * x, y: top == null ? h / 2 - scale * y : -scale * (oy + (4.5 - top) * s) },
-          w,
-          h,
-          max,
-        ),
+      fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s));
+    if (minimum <= Math.min(max, fit) + 1e-9) {
+      const x = ox + ((box[0] + box[2]) / 2 + 8) * s,
+        y = oy + (4.5 - (box[1] + box[3]) / 2) * s,
+        zoom = clampZoom({ k: minimum, x: w / 2 - minimum * x, y: h / 2 - minimum * y }, w, h, max),
         shown = viewBox(zoom, w, h);
-      if (contains(shown, box) && completeChrome(shown)) opening.push(zoom);
-    };
-    tryOpening(box, minimum);
-    if (heading) {
-      const ceiling = Math.min(FRAME[3], heading[1]),
-        scale = Math.max(minimum, h / ((ceiling - FRAME[1]) * s)),
-        height = h / (scale * s),
-        low = Math.max(box[3], FRAME[1] + height),
-        high = Math.min(ceiling, box[1] + height);
-      if (low <= high + 1e-9) {
-        const top = Math.max(low, Math.min(high, (box[1] + box[3] + height) / 2));
-        tryOpening(box, scale, top);
-      }
-      // A wide comparison may not fit below the heading. Keep the complete
-      // heading with it instead, at the subject's readable scale.
-      tryOpening(union(box, padded(heading, 0.04)), minimum);
+      if (inside(box[0], box[1], shown) && inside(box[2], box[3], shown)) opening.push(zoom);
     }
   }
+
   const zooms: Zoom[] = [];
   // Clamping can land two views in one place; the tour visits it once.
   for (const z of [...opening, views[open]!.zoom, ...first, ...rest])

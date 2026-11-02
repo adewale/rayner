@@ -445,7 +445,7 @@ test('a readable label that fits a permitted view is whole in some close-up', ()
           offsetY = (h - 9 * scale) / 2,
           viewWidth = w / (k * scale),
           viewHeight = h / (k * scale),
-          ceiling = Math.min(4.5, Math.max(layout.top ?? 4.5, ...layout.parts.map((p) => p[3])));
+          ceiling = 4.5;
         // Relevance is the documented 0.2-unit padding, not the production selector.
         const near = layout.labels.filter((label) => layout.parts.some((part) =>
           label.box[0] <= part[2] + 0.2 && label.box[2] >= part[0] - 0.2 &&
@@ -474,70 +474,53 @@ test('a readable label that fits a permitted view is whole in some close-up', ()
   );
 });
 
-test('with a heading, no close-up cuts through it: each stays below its bottom edge unless a change reaches above it', () => {
+test('hidden stage headings do not change a narrow close-up or add zoom beyond reading', () => {
   fc.assert(
     fc.property(headedArb, stageArb, (layout, { w, h }) => {
-      fc.pre(w < NARROW_PX);
-      const tour = closeUps(layout, w, h);
-      if (tour[0]!.k === 1) return; // the whole picture shows the heading whole
-      const ceiling = Math.min(4.5, Math.max(layout.top!, ...layout.parts.map((p) => p[3])));
-      // A view's top edge is under the heading or above all of it, never in it (unless the zoom cap leaves no room).
-      for (const z of tour) {
-        if (z.k === ZOOM_MAX) continue;
-        const v = viewBox(z, w, h);
-        // 1e-4 units: the zoom is clamped in pixels, which rounds a view's edge by far less than a pixel.
-        assert.ok(v[3] <= ceiling + 1e-4 || v[3] >= 4.5 - 1e-4, `view ${v} cuts the heading at ${ceiling}`);
-      }
-    }),
-    params(500),
+      const { top: ignoredTop, heading: ignoredHeading, ...plain } = layout as StepLayout & {top?: number; heading?: Box};
+      assert.deepEqual(closeUps(layout, w, h), closeUps(plain, w, h));
+      if (w >= NARROW_PX) return;
+      const { k } = closeUp(layout, w, h), { s } = stageScale(w, h), read = labelsToRead(layout);
+      if (!read.length) return;
+      const reading = Math.min(ZOOM_MAX, Math.max(1, READ_PX / (Math.min(...read.map(l => l.size)) * s)));
+      assert.ok(Math.abs(k - reading) < 1e-9, `k=${k}, reading ${reading}`);
+    }), params(500),
   );
 });
 
-test('with a heading, a close-up zooms no further than reading, or fitting under the heading, needs', () => {
-  fc.assert(
-    fc.property(headedArb, stageArb, (layout, { w, h }) => {
-      fc.pre(w < NARROW_PX);
-      const { k } = closeUp(layout, w, h),
-        { s, oy } = stageScale(w, h),
-        read = labelsToRead(layout);
-      if (!read.length || k === 1 || k === ZOOM_MAX) return;
-      const ceiling = Math.min(4.5, Math.max(layout.top!, ...layout.parts.map((p) => p[3])));
-      // A view fits under the heading when it is no taller than the space from the ceiling to
-      // the lowest point the stage shows: the frame's bottom plus, on a stage taller than the
-      // picture, the paper margin under it (oy / s units).
-      const margin = oy / s,
-        reading = READ_PX / (Math.min(...read.map((l) => l.size)) * s),
-        fit = ceiling < 4.5 && h / (reading * s) < 9 + 2 * margin - 1e-9 ? h / ((ceiling + 4.5 + margin) * s) : 1;
-      assert.ok(Math.abs(k - Math.max(reading, fit)) < 1e-9, `k=${k}, reading ${reading}, fit ${fit}`);
-      // Every label near the changes still reads at READ_PX.
-      for (const l of read) assert.ok(l.size * s * k >= READ_PX - 1e-9);
-    }),
-    params(500),
-  );
+test('a complete comparison fits the opening across hidden stage heading metadata', () => {
+  const box: Box = [-7.075, -3.884, 7.075, 2.547];
+  const layout = {
+    parts: [box], lead: 0, labels: [{box, size: 0.62}],
+    reading: {box, labels: [{box, size: 0.62}]},
+    top: 3.174, heading: [-6.3, 3.174, 6.3, 4.352] as Box,
+  };
+  const w = 288, h = 162, opening = closeUp(layout, w, h), shown = viewBox(opening, w, h);
+  assert.ok(shown[0] <= box[0] && shown[1] <= box[1] && shown[2] >= box[2] && shown[3] >= box[3],
+    `comparison ${box} is cropped by opening ${shown}`);
+  assert.ok(0.62 * stageScale(w, h).s * opening.k >= READ_PX - 1e-9);
 });
 
-test('stepLayouts records where the stage heading ends, and a phone close-up of a change just under it stays below it', async () => {
-  const { stage } = await import('../explain/index.ts');
+test('stepLayouts leaves the undrawn stage heading out of narrow framing metadata', async () => {
   class Headed extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one', { title: 'A title over the picture', line: 'A line under the title.' });
-      const small = new Text('a small label near the top', { fontSize: 0.2 }).moveTo([-4, 2.9]);
-      await s.enter(small, { describe: 'a label' });
+      await s.enter(new Text('a small label near the top', { fontSize: 0.2 }).moveTo([-4, 2.9]), { describe: 'a label' });
     }
   }
   const layout = (await stepLayouts(Headed)).get('one')!;
-  assert.ok(layout.top! > 3 && layout.top! < 3.8, `top ${layout.top}`);
-  // A 16:9 phone stage, and the taller one a phone gets (NARROW_ASPECT): either way no close-up cuts the heading.
-  for (const [w, h] of [[358, 201], [358, Math.round(358 * NARROW_ASPECT)]] as const)
-    for (const z of closeUps(layout, w, h)) {
-      assert.ok(z.k > 1);
-      const v = viewBox(z, w, h);
-      assert.ok(v[3] <= layout.top! + 1e-6, `${w}×${h}: view ${v} cuts the heading at ${layout.top}`);
-    }
+  assert.ok(!('heading' in layout) && !('top' in layout));
+  assert.equal(layout.labels.length, 1, 'only the picture label sets the reading floor');
+  for (const [w, h] of [[358, 201], [358, Math.round(358 * NARROW_ASPECT)]] as const) {
+    const opening = closeUp(layout, w, h);
+    assert.ok(layout.labels[0]!.size * stageScale(w, h).s * opening.k >= READ_PX - 1e-9);
+    const shown = viewBox(opening, w, h), box = layout.labels[0]!.box;
+    assert.ok(shown[0] <= box[0] && shown[1] <= box[1] && shown[2] >= box[2] && shown[3] >= box[3]);
+  }
 });
 
-test('on a phone stage taller than the picture, each close-up shows the full height of the picture below the heading when it fits, with fewer views than a 16:9 stage needs', async () => {
+test('a taller phone stage shows the full picture height when it fits, with no extra zoom and fewer views than a 16:9 stage needs', async () => {
   const { stage } = await import('../explain/index.ts');
   class Wide extends Scene {
     override async construct() {
@@ -553,7 +536,7 @@ test('on a phone stage taller than the picture, each close-up shows the full hei
   assert.ok(tall.length > 0 && tall.length <= flat.length, `tall ${tall.length} views, 16:9 ${flat.length}`);
   for (const z of tall) {
     const v = viewBox(z, 358, Math.round(358 * NARROW_ASPECT));
-    assert.ok(v[3] <= layout.top! + 1e-6 && v[1] <= -4.5 + 1e-6, `view ${v} should run from the heading's edge past the frame's bottom`);
+    assert.ok(v[3] >= 4.5 - 1e-6 && v[1] <= -4.5 + 1e-6, `view ${v} should show the full frame height`);
   }
   // The taller stage shows more without shrinking anything: every label near the change still reads at READ_PX.
   const { s } = stageScale(358, Math.round(358 * NARROW_ASPECT));

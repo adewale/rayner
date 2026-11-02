@@ -12,6 +12,7 @@ export interface LessonFrame {
   state: Record<string, unknown>;
   draw: (s: Stage) => Group;
   audio?: StepAudio;
+  detail?: boolean;
 }
 export function label(text: string | number, x: number, y: number, color: string, size = 0.6, key?: string): Text {
   const t = new Text(String(text), { fontSize: size, color }).moveTo([x, y]);
@@ -99,7 +100,7 @@ export type NarrativeFrame = Omit<LessonFrame, 'state'>;
 /** Present the common caption, drawing, readable subjects and description sequence. */
 export async function presentFrame(scene: Scene, s: Stage, frame: NarrativeFrame, setState: () => void, reader = false) {
   await scene.step(frame.id, {title: frame.title, line: frame.line, caption: frame.caption,
-    ...(frame.audio ? {audio: frame.audio} : {}), ...(reader ? {reader: true} : {})});
+    ...(frame.audio ? {audio: frame.audio} : {}), ...(frame.detail ? {detail: true} : {}), ...(reader ? {reader: true} : {})});
   await s.clear({runTime: 0.18});
   setState();
   const drawing = frame.draw(s);

@@ -82,18 +82,12 @@ export default class PythonDict extends Scene {
     answer: 'An emptied slot would end the search early, so deletion leaves a marker that says keep looking',
     checks: [
       {
-        question: 'Key 8 is stored in slot 1. Why does a search for it start at slot 0?',
-        answer:
-          'An eight-slot index uses only the low three bits of the hash. 8 hashes to 8, binary 01000, whose low three bits are 000, so its search starts at slot 0. Key 0 already held slot 0 when 8 was stored, so 8 moved on to slot 1.',
+        question: 'Keep key 0, but delete key 8 from slot 1. What happens to the lookup of key 16 if slot 1 is cleared, and if it is marked D?',
+        answer: 'Clearing slot 1 makes key 16 unreachable: its lookup visits slots 0, 1 and 6, so it stops at 1 before reaching plum. A D in slot 1 keeps the search moving to slot 6. A deletion marker matters in the middle of a probe path too.',
       },
       {
-        question: 'If del d[0] emptied slot 0, which of the remaining keys, 8 and 16, could Python no longer find?',
-        answer:
-          'Both. All three keys start at slot 0, so each search would read “never used” there and stop, although pear and plum are still stored.',
-      },
-      {
-        question: 'After del d[0], the search for key 8 reads slot 0. What does it find there, and what does it do?',
-        answer: 'D, the deleted marker. It treats D as a taken slot whose key doesn’t match and moves on to slot 1, where it finds pear.',
+        question: 'After deleting key 0 correctly, someone replaces every never-used slot with D. Could a lookup of absent key 24 still use the stopping rule this lesson shows?',
+        answer: 'No. It would have no never-used slot at which to stop. D means keep looking, not absent. A real dict must preserve an unused slot or rebuild its table; this fixed-size model refuses a table with no unused stopping slot.',
       },
     ],
   };
@@ -132,7 +126,7 @@ export default class PythonDict extends Scene {
         id: 'question',
         title: `Delete key 0. Can Python still find key ${key}?`,
         line: `Predict: if del d[0] just empties slot 0, what does d[${key}] give?`,
-        caption: `This CPython 3.12.14 dict maps 0 to apple, 8 to pear and 16 to plum. Its eight index slots hold entry numbers, and – marks a slot that has never been used. Key ${key} is entry ${entry}, in slot ${home}, not slot 0. Now delete key 0 the obvious way: put slot 0 back to never used and empty entry 0. Would d[${key}] still find ${value}?`,
+        caption: `This CPython 3.12.14 dict maps 0 to apple, 8 to pear and 16 to plum. Its eight index slots hold entry numbers, and – marks a slot that has never been used. Key ${key} is stored through slot ${home}, which points to entry ${entry} in the table below. Now delete key 0 the obvious way: put slot 0 back to never used and empty entry 0. Would d[${key}] still find ${value}?`,
         state: { dict: m.original, result: m.before, key, policy: 'prediction' },
         view: {
           dict: m.original,
@@ -149,7 +143,7 @@ export default class PythonDict extends Scene {
         id: 'broken',
         title: `Empty slot 0, and key ${key} vanishes`,
         line: `The search for ${key} starts at slot 0, reads never used, and stops.`,
-        caption: `Suppose deletion emptied slot 0 like this. d[${key}] would raise KeyError, although ${value} is still stored in entry ${entry}: the search for ${key} begins at slot 0, not slot ${home}, and a slot that was never used ends a search. An emptied slot would end the search early, so deletion leaves a marker that says keep looking.`,
+        caption: `Suppose deletion emptied slot 0 like this. d[${key}] would raise KeyError, although ${value} is still stored in entry ${entry}: these three keys all start their searches at slot 0. When 0 occupied it, the other keys went into later slots. A lookup retraces that route, and a never-used slot tells it to stop. An emptied slot would end the search early, so deletion leaves a marker that says keep looking.`,
         state: { dict: m.wrong, result: m.broken, key, policy: 'incorrect-clear' },
         view: {
           dict: m.wrong,
@@ -159,40 +153,6 @@ export default class PythonDict extends Scene {
           found: false,
           bad: [0],
           note: `${value} is still stored, in entry ${entry}.`,
-        },
-      },
-      {
-        id: 'hash',
-        title: 'Why slot 0: all three keys start there',
-        line: 'An eight-slot index keeps only the hash’s low three bits.',
-        caption: `A small int hashes to itself, so the hashes are ${m.starts.map((s) => s.hash).join(', ')}. With eight slots, Python keeps only the last three bits of the hash, and all three end in 000 in binary, so all three keys start at slot 0. Key 0 was stored first and took it.`,
-        state: { dict: m.original, result: m.before, key, policy: 'CPython marker' },
-        view: {
-          dict: m.original,
-          query: m.before,
-          path: false,
-          outcome: '',
-          found: null,
-          bad: [],
-          lit: [0],
-          note: 'Start slot: the last three bits of the hash.',
-          hashes: m.starts,
-        },
-      },
-      {
-        id: 'collision',
-        title: 'A taken slot sends the search on',
-        line: `Key 16 passes taken slots ${list(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
-        caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${list(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,
-        state: { dict: m.original, result: sixteen, key, policy: 'CPython marker' },
-        view: {
-          dict: m.original,
-          query: sixteen,
-          path: true,
-          outcome: sixteen.value!,
-          found: true,
-          bad: [],
-          note: `Key 16 visits ${sixteen.slots.join(' > ')}; key 8 visits ${eight.slots.join(' > ')}.`,
         },
       },
       {
@@ -215,7 +175,7 @@ export default class PythonDict extends Scene {
         id: 'missing',
         title: `Answer: at slot ${missingStop}, the first never-used slot`,
         line: 'D and taken slots send a search on; a never-used slot stops it.',
-        caption: `Key 24’s search passes ${list(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. D never ends a search, so here a lookup ends at its key or at a never-used slot. This example keeps eight slots throughout and does not cover resizing.`,
+        caption: `Key 24’s search passes ${list(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. A deleted marker keeps the path open; a never-used slot is the evidence that this key is absent. This example keeps eight slots throughout and does not cover resizing.`,
         state: { dict: m.correct, result: m.missing, key, policy: 'CPython marker' },
         view: {
           dict: m.correct,
@@ -225,6 +185,42 @@ export default class PythonDict extends Scene {
           found: false,
           bad: [],
           note: `Slot ${missingStop} has never been used, so key 24 is absent.`,
+        },
+      },
+      {
+        id: 'hash',
+        detail: true,
+        title: 'Why slot 0: all three keys start there',
+        line: 'An eight-slot index keeps only the hash’s low three bits.',
+        caption: `For these keys, Python uses the integer itself as its hash, so the hashes are ${m.starts.map((s) => s.hash).join(', ')}. With eight slots, Python keeps only the last three bits of the hash, and all three end in 000 in binary, so all three keys start at slot 0. Key 0 was stored first and took it.`,
+        state: { dict: m.original, result: m.before, key, policy: 'CPython marker' },
+        view: {
+          dict: m.original,
+          query: m.before,
+          path: false,
+          outcome: '',
+          found: null,
+          bad: [],
+          lit: [0],
+          note: 'Start slot: the last three bits of the hash.',
+          hashes: m.starts,
+        },
+      },
+      {
+        id: 'collision',
+        detail: true,
+        title: 'A taken slot sends the search on',
+        line: `Key 16 passes taken slots ${list(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
+        caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${list(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,
+        state: { dict: m.original, result: sixteen, key, policy: 'CPython marker' },
+        view: {
+          dict: m.original,
+          query: sixteen,
+          path: true,
+          outcome: sixteen.value!,
+          found: true,
+          bad: [],
+          note: `Key 16 visits ${sixteen.slots.join(' > ')}; key 8 visits ${eight.slots.join(' > ')}.`,
         },
       },
     ];

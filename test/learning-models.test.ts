@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {fc,params} from './lib/pbt.ts';
-import {dictionary,deleteFirst,lookup,probeSlots} from '../scenes/explainers/lib/python-dict.ts';
+import {dictionary,deleteFirst,lookup,probeSlots,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
 import {fnv1a,locations,makeFilter,membership,bloomStory,saturation} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
 import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter} from '../scenes/explainers/lib/monty-hall.ts';
@@ -32,6 +32,26 @@ test('dictionary slots and deleted entries match captured CPython 3.12 storage',
     assert.equal(lookup(deleteFirst('marker'),key).value,reference.get(key)??null);
     assert.equal(new Set(probeSlots(key).slice(-8)).size,8,'zero-perturb tail covers all eight slots');
   }),params());
+});
+
+test('a middle deletion needs the marker too, and absent lookups need unused space', async () => {
+  for (const marker of [EMPTY, DELETED]) {
+    const table = dictionary();
+    table.indices[1] = marker;
+    table.entries[1] = { key: null, value: null };
+    const result = lookup(table, 16);
+    assert.equal(result.found, marker === DELETED);
+    assert.deepEqual(result.slots, marker === DELETED ? [0, 1, 6] : [0, 1]);
+  }
+  const full = deleteFirst('marker');
+  full.indices = full.indices.map(index => index === EMPTY ? DELETED : index);
+  assert.throws(() => lookup(full, 24), /needs an unused slot/);
+  const { collectProject } = await import('../tools/lib/explain-project.ts');
+  const project = await collectProject('scenes/explainers/python-dict', { write: false });
+  for (const variant of project.variants) {
+    assert.equal(variant.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
+    assert.deepEqual(variant.trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['question', 'broken', 'marker', 'missing']);
+  }
 });
 
 test('native CPython storage and exact arithmetic reproduce the recorded vectors',t=>{
@@ -189,7 +209,7 @@ test('moving only the main label to feature drops C exactly when real Git would 
   }
 });
 
-test('after M, merging main into feature fast-forwards, as M’s history holding B predicts (the explainer’s check)',()=>{
+test('after M, real Git repeats a merge without changes, reverses it by fast-forward, and honours --no-ff',()=>{
   const dir=mkdtempSync(join(tmpdir(),'rayner-git-back-'));
   const git=(...args:string[])=>execFileSync('git',args,{cwd:dir,encoding:'utf8',env:{...process.env,GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null',GIT_AUTHOR_NAME:'Lesson',GIT_AUTHOR_EMAIL:'lesson@example.invalid',GIT_COMMITTER_NAME:'Lesson',GIT_COMMITTER_EMAIL:'lesson@example.invalid',GIT_AUTHOR_DATE:'2026-01-01T00:00:00Z',GIT_COMMITTER_DATE:'2026-01-01T00:00:00Z'}}).trim();
   const commit=(name:string)=>{git('add','.');git('-c','commit.gpgsign=false','commit','-m',name);};
@@ -200,10 +220,21 @@ test('after M, merging main into feature fast-forwards, as M’s history holding
     git('-c','merge.ff=true','-c','commit.gpgsign=false','merge','--no-edit','-m','M','feature');
     const merged=gitStory(true)[5]!;
     assert.ok(history(merged,merged.main).includes(merged.feature!),'feature’s commit is in M’s history');
+    const mergedSha=git('rev-parse','main'),featureSha=git('rev-parse','feature');
+    assert.match(git('-c','merge.ff=true','merge','--no-edit','feature'),/Already up to date/);
+    assert.equal(git('rev-parse','main'),mergedSha,'merging an ancestor again leaves main at M');
+    assert.equal(git('rev-list','--all','--count'),String(merged.commits.length),'repeated merge creates nothing');
     git('switch','-q','feature');
     git('-c','merge.ff=true','-c','commit.gpgsign=false','merge','--no-edit','main');
     assert.equal(git('log','-1','--format=%s','feature'),'M');
     assert.equal(git('rev-list','--all','--count'),String(merged.commits.length),'no new commit');
+    // Return to the same B -> M relation and request a merge commit explicitly.
+    git('reset','-q','--hard',featureSha);
+    git('-c','commit.gpgsign=false','merge','--no-ff','--no-edit','-m','forced','main');
+    assert.deepEqual(git('show','-s','--format=%P','feature').split(' '),[featureSha,mergedSha]);
+    assert.equal(git('rev-list','--all','--count'),String(merged.commits.length+1),'--no-ff makes a commit despite the possible fast-forward');
+    assert.equal(readFileSync(join(dir,'colour.txt'),'utf8').trim(),'green');
+    assert.equal(readFileSync(join(dir,'title.txt'),'utf8').trim(),'Home');
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
 

@@ -13,11 +13,21 @@
     {
       "step": "fill",
       "targets": [
-        { "text": "run of 2" },
-        { "text": "run of 6" },
-        { "text": "run of 10" },
-        { "text": "run of 14" },
-        { "text": "Every full run is 2, 6, 10 or 14 cells" }
+        {
+          "text": "run of 2"
+        },
+        {
+          "text": "run of 6"
+        },
+        {
+          "text": "run of 10"
+        },
+        {
+          "text": "run of 14"
+        },
+        {
+          "text": "Every full run is 2, 6, 10 or 14 cells"
+        }
       ]
     },
     {
@@ -31,6 +41,23 @@
         },
         {
           "text": "6 columns"
+        }
+      ]
+    },
+    {
+      "step": "names",
+      "targets": [
+        {
+          "text": "s: 2 columns"
+        },
+        {
+          "text": "d: 10 columns"
+        },
+        {
+          "text": "p: 6 columns"
+        },
+        {
+          "key": "periodic-symbol:2"
         }
       ]
     },
@@ -55,10 +82,10 @@
       },
       "targets": [
         {
-          "text": "Sodium: 1s² 2s² 2p⁶ 3s¹"
+          "text": "Sodium: 1s\u00b2 2s\u00b2 2p\u2076 3s\u00b9"
         },
         {
-          "text": "3s¹ starts a run of 2: s column 1, group 1."
+          "text": "3s\u00b9 starts a run of 2: s column 1, group 1."
         }
       ]
     },
@@ -69,7 +96,7 @@
       },
       "targets": [
         {
-          "text": "Chlorine: 1s² 2s² 2p⁶ 3s² 3p⁵"
+          "text": "Chlorine: 1s\u00b2 2s\u00b2 2p\u2076 3s\u00b2 3p\u2075"
         },
         {
           "text": "5th p column, after 2 s and 10 d: 2 + 10 + 5 = 17."
@@ -86,7 +113,7 @@
       },
       "targets": [
         {
-          "text": "Iron: 1s² 2s² 2p⁶ 3s² 3p⁶ 4s² 3d⁶"
+          "text": "Iron: 1s\u00b2 2s\u00b2 2p\u2076 3s\u00b2 3p\u2076 4s\u00b2 3d\u2076"
         },
         {
           "text": "6th d column, after 2 s: 2 + 6 = 8."
@@ -100,10 +127,10 @@
       },
       "targets": [
         {
-          "text": "Filling rule: [Ar] 4s² 3d⁹, so 2 + 9 = 11."
+          "text": "Filling rule: [Ar] 4s\u00b2 3d\u2079, so 2 + 9 = 11."
         },
         {
-          "text": "NIST lists [Ar] 3d¹⁰ 4s¹: still 11 after [Ar]."
+          "text": "NIST lists [Ar] 3d\u00b9\u2070 4s\u00b9: still 11 after [Ar]."
         }
       ]
     },
@@ -114,10 +141,10 @@
       },
       "targets": [
         {
-          "text": "Helium: 1s², column 2 by its run (He?),"
+          "text": "Helium: 1s\u00b2, column 2 by its run (He?),"
         },
         {
-          "text": "but 1s² fills shell 1, as 2s² 2p⁶ fills neon’s shell 2."
+          "text": "but 1s\u00b2 fills shell 1, as 2s\u00b2 2p\u2076 fills neon\u2019s shell 2."
         },
         {
           "text": "He?"
@@ -131,10 +158,10 @@
       },
       "targets": [
         {
-          "text": "4d⁷ 5s¹"
+          "text": "4d\u2077 5s\u00b9"
         },
         {
-          "text": "3d⁶ 4s²"
+          "text": "3d\u2076 4s\u00b2"
         },
         {
           "text": "Ru"

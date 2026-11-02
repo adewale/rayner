@@ -36,9 +36,10 @@ export type Tier = 'showcase' | 'gallery' | 'coverage';
 
 export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain'; tier: Tier }[] = [
   { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'gallery' },
-  { id: 'python-dict', step: 'marker', group: 'topic', tier: 'gallery' },
+  { id: 'python-dict', step: 'marker', group: 'topic', tier: 'showcase' },
   { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
-  { id: 'git-branches', step: 'merge', group: 'topic', tier: 'gallery' },
+  { id: 'git-branches', step: 'merge', group: 'topic', tier: 'showcase' },
+  { id: 'latest-search', step: 'reader-guard', group: 'topic', tier: 'showcase' },
   { id: 'monty-hall', step: 'worlds', group: 'topic', tier: 'showcase' },
   { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'gallery' },
   { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'showcase' },
@@ -47,7 +48,6 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'exgit', step: 'change', group: 'topic', tier: 'gallery' },
   { id: 'token-bucket', step: 'later', group: 'topic', tier: 'gallery' },
   { id: 'mr-cache', step: 'reader-outcome', group: 'topic', tier: 'coverage' },
-  { id: 'latest-search', step: 'reader-guard', group: 'topic', tier: 'gallery' },
   { id: 'state-machine', step: 'reader-reject', group: 'topic', tier: 'coverage' },
   { id: 'statecharts', step: 'regions', group: 'topic', tier: 'showcase' },
   { id: 'ring-buffer', step: 'result', group: 'topic', tier: 'gallery' },

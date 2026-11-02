@@ -19,16 +19,12 @@ export default class LatestSearchExplainer extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: 'The user types “ca”, then “cat”, and “cat” answers first. Without a guard, which results does the page end on?',
-        answer: '“ca”. It lands last, and an unguarded handler publishes whatever lands last.',
+        question: 'The user types “ca”, then “cat”, then “ca” again, starting requests with tickets 1, 2 and 3. Request 3 finishes first; request 1 finishes last. Should request 1 be published because its query text matches the current input?',
+        answer: 'No. The current request is ticket 3. Ticket 1 is an older request even though its text is also “ca”; it may contain older data. Compare request tickets, not query strings, and leave request 3’s result on the page.',
       },
       {
-        question: 'With the ticket guard, “ca” answers first. What does the page show before “cat” answers?',
-        answer: 'Nothing yet. “ca” carries ticket 1 while latest is 2, so its results are dropped; the page stays empty until “cat” lands.',
-      },
-      {
-        question: 'Does the guard stop the “ca” search from running?',
-        answer: 'No. The search still runs to the end; the guard only refuses to publish a result whose ticket is no longer the latest.',
+        question: 'Suppose the newest request fails, then an older successful request arrives. Does the ticket guard publish the older result as a fallback?',
+        answer: 'No. Its ticket is still stale. The guard enforces which request may publish; it does not choose a fallback or handle the newest request’s error. An application needs an explicit error or fallback policy.',
       },
     ],
   };

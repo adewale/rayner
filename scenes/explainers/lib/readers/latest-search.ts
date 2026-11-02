@@ -59,7 +59,7 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
-      caption: `Each keystroke starts a search, so ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. The network decides which answers first; here ${q(first)} answers before ${q(last)}. The handler publishes each result when its promise resolves. The model resolves real promises in this order, with no clock or network.`,
+      caption: `Each keystroke starts a search, so ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. The requests can finish in a different order from the one they started in; here ${q(first)} finishes first. The page starts empty and publishes each successful result as it arrives.`,
       values: { order, completion: done },
       draw: (s) =>
         new Group(
@@ -104,7 +104,7 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       id: 'tickets',
       title: 'Answer: number each search, and publish only the latest',
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,
-      caption: `Give each search a ticket from a counter as it starts: ${q('A')} gets 1, ${q('B')} gets 2, and latest is now 2. Finishing changes neither. When a result lands, publish it only if its ticket is still the latest. The model runs these lines, with the guard switched on.`,
+      caption: `Give each search a ticket from a counter as it starts: ${q('A')} gets 1, ${q('B')} gets 2, and latest is now 2. Finishing changes neither. When a result lands, publish it only if its ticket is still the latest. Starting a newer request makes every older ticket stale; arrival order cannot make an old ticket current again.`,
       values: { tickets: { A: TICKET.A, B: TICKET.B }, latest },
       draw: (s) =>
         new Group(

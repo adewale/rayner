@@ -12,7 +12,8 @@ const CHOSEN: Record<string, Symbol> = { na: 'Na', cl: 'Cl', fe: 'Fe', cu: 'Cu',
 export function check(trace: Trace, values: Record<string, string>): void {
   const symbol = CHOSEN[values.element!]!;
   const z = atomicNumber(symbol), p = position(z), group = p.group!, core = coreOf(z);
-  assert.deepEqual(trace.steps.map((s) => s.step), ['column', 'fill', 'stack', 'blocks', 'family']);
+  assert.deepEqual(trace.steps.map((s) => s.step), ['column', 'fill', 'stack', 'names', 'blocks', 'family']);
+  assert.deepEqual(trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['column', 'fill', 'stack', 'names']);
   assertStepState(trace, 'column', { element: symbol, z, group, members: membersOf(group).map((m) => m.z), gaps: gaps(group) });
   // The fill step runs the filling rule over all 118 cells; its note is the element's own runs.
   // Laid side by side, a new row at each run of 2, its rows are the periods: 2, 8, 8, 18, 18, 32, 32.
@@ -25,6 +26,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   // The stack step stacks runs of one length into the table, every cell in its block colour, the
   // run widths measured but unnamed, with helium still over beryllium where its run puts it.
   assertStepState(trace, 'stack', { lit: 118, blocks: true, strip: 'runs', helium: 'over-be', slid: true });
+  assertStepState(trace, 'names', { blocks: true, strip: 'named', helium: 'over-ne', capacity: { s: 2, p: 6, d: 10, f: 14 } });
   // The blocks step names the runs and shows the element's own cells; it carries the old count step's
   // answers. NIST lists 88 of its 108 elements as the filling rule predicts: the other 20 are the
   // exceptions the NIST-ground test finds.

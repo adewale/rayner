@@ -2,10 +2,11 @@
 
 ## Unreleased
 
+- Shorten the main periodic-table story to runs, stacking, names and helium; keep filling-order machinery and configuration exceptions as optional reference. Give dictionary deletion and search-race readers unseen transfer exercises, distinguish all three ordinary Git merge outcomes, and promote the three engineering lessons after reviewing their scripts and source checks.
 - Rebuild explainer scripts around concrete problems, consequential cases and tested models. Add statecharts with an independent XState comparison, plus external model checks against Git, rustc and Go’s rate limiter.
 - Add `meta.answer` and disclosed transfer questions (`meta.checks`). The answer gate checks that the declared phrase appears; editorial review and newcomer evaluation determine whether the explanation teaches.
 - Add optional `meta.claims` evidence-link lint. Paths resolve in the author’s working directory; static node:test declarations are checked. Multiple claim phrases in one sentence are retained. This does not run tests or verify prose truth.
-- Curate six subject exemplars from catalog tiers, with Bloom filter as the entry. Keep authoring lessons in their own collection and periodic groups/birthday paradox as secondary examples. `--only showcase` derives build/export selection from the catalog. No benchmark result establishes that the final rebuilt pages outperform plain pages.
+- Curate subject exemplars from catalog tiers, with Bloom filter as the entry. Keep authoring lessons in their own collection and periodic groups/birthday paradox as secondary examples. `--only showcase` derives build/export selection from the catalog. No benchmark result establishes that the final rebuilt pages outperform plain pages.
 - Ask birthday readers to reason about merged rooms and a smaller calendar rather than recall seeded cards. Share seasons’ calendar calculation with its model and keep model invariants in tests instead of scene construction.
 - Improve phone stage height, remove duplicated headings from close-ups, enable arrow keys from load and conceal future step titles. Phone preflight uses the minimum stage geometry; browser review measures the actual served page.
 - File Agentic Mermaid state-edit reports [#596](https://github.com/adewale/agentic-mermaid/issues/596) and [#597](https://github.com/adewale/agentic-mermaid/issues/597), and remove temporary drafts.
@@ -15,7 +16,7 @@
 - Add retained text-shaping services and explicit scene authoring. Keep existing ambient constructors behind a compatibility adapter; remove font-table replacement, prototype patches and the dummy installation scene. Pass the service through diagram measurement and SVG lowering.
 - Share narrative-frame presentation and generated catalog, evidence and scene-input contracts. Validate serialized artifacts before consumers use them.
 
-- Lead the gallery with six showcase lessons while keeping the full subject and authoring collection available. Add cited lessons on Python dictionary deletion, Bloom filters, Git merges, Monty Hall, birthdays, music and periodic-table groups.
+- Lead the gallery with selected subject lessons while keeping the full subject and authoring collection available. Add cited lessons on Python dictionary deletion, Bloom filters, Git merges, Monty Hall, birthdays, music and periodic-table groups.
 - Add prediction steps and causal comparisons. Put search tickets, PKCE verifier hashes and Rust wrapper requirements on the main paths; retain technical walkthroughs under Details and sources. Remove selectors when a lesson already compares both outcomes.
 - Keep phone captions near their pictures, with secondary tools after the explanation. Headings and captions use natural heights, and single-view steps expose no tour controls. Preserve view scale and pan when a tour resizes.
 - Use explicit case, playback and gesture scopes so interrupted work cannot change a later case. Preserve keyboard, history, embedding and loading behavior.

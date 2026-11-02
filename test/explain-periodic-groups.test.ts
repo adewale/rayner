@@ -183,8 +183,8 @@ test('the table and note text follow the recorded state at every resting step', 
   await loadFonts();
   for (const element of ['na', 'cl', 'fe', 'cu', 'he']) {
     const Scene = withSettings(PeriodicGroupsExplainer, { element });
-    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).table as View | null), 5, `${element}: table`);
-    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).notes as View | null), 5, `${element}: notes`);
+    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).table as View | null), 6, `${element}: table`);
+    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).notes as View | null), 6, `${element}: notes`);
   }
 });
 
@@ -213,7 +213,7 @@ test('reader descriptions match the run fills and complete block fills in every 
     }
     return out;
   };
-  const phases = ['column', 'fill', 'stack', 'blocks', 'family'];
+  const phases = ['column', 'fill', 'stack', 'names', 'blocks', 'family'];
   let checked = 0;
   for (const expected of cases) {
     const Source = withSettings(PeriodicGroupsExplainer, { element: expected.element });
@@ -223,13 +223,13 @@ test('reader descriptions match the run fills and complete block fills in every 
       async stepEnd(scene, step) {
         if (!phases.includes(step.name)) return;
         const label = `${expected.element}/${step.name}`;
-        const blocks = ['stack', 'family'].includes(step.name);
+        const blocks = ['stack', 'names', 'family'].includes(step.name);
         assert.equal(scene.state.note, step.name, label);
         assert.equal(scene.state.element, expected.symbol, label);
         assert.equal(scene.state.z, expected.z, label);
         assert.equal(scene.state.group, expected.group, label);
         assert.equal(scene.state.lit, step.name === 'column' ? undefined : step.name === 'family' ? expected.z : 118, label);
-        assert.equal(scene.state.core, ['column', 'fill', 'stack'].includes(step.name) ? undefined : expected.core, label);
+        assert.equal(scene.state.core, ['column', 'fill', 'stack', 'names'].includes(step.name) ? undefined : expected.core, label);
         assert.equal(Boolean(scene.state.blocks), blocks, label);
         const colours = step.name === 'column' ? { '#f7f2e8': 118 } : step.name === 'family' ? expected.family
           : step.name === 'blocks' ? trailColours(expected.trail) : allBlocks;
@@ -258,12 +258,12 @@ test('reader descriptions match the run fills and complete block fills in every 
           for (const w of ['2 columns', '10 columns', '6 columns', '14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
           assert.ok(!words.some((w) => /^[spdf]: /.test(w)), `${label}: no block named before the blocks step`);
         }
-        if (step.name === 'blocks')
+        if (step.name === 'names' || step.name === 'blocks')
           for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
         const state = scene.describe();
         for (const description of [pictureSummary(state), pictureHtml(state)]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
-          if (step.name === 'stack') {
+          if (step.name === 'stack' || step.name === 'names') {
             assert.ok(description.includes('All 118 element cells are filled in by block colour.'), label);
             assert.ok(!description.includes('Cells 1 to'), `${label}: no partial-fill claim`);
           } else if (step.name === 'blocks') {
@@ -283,7 +283,7 @@ test('reader descriptions match the run fills and complete block fills in every 
     }, { skipUntil: Infinity }).run();
     assert.deepEqual(visited, phases, `${expected.element}: complete phase inventory`);
   }
-  assert.equal(checked, 25);
+  assert.equal(checked, 30);
 });
 
 test('the opening comparison and the answer note show the independently expected family, jumps and landing columns', async () => {

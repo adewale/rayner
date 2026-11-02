@@ -9,6 +9,31 @@ import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
 import { createSearch, runSearch, SEARCH_CODE } from '../scenes/explainers/lib/latest-search.ts';
 
+test('tickets distinguish repeated query text and do not invent an error fallback', async () => {
+  const deferred = () => {
+    let resolve!: (value: 'A' | 'B') => void;
+    const promise = new Promise<'A' | 'B'>(done => { resolve = done; });
+    return { promise, resolve };
+  };
+  const first = deferred(), second = deferred(), third = deferred();
+  const writes: string[] = [];
+  const start = createSearch(true, result => writes.push(result));
+  const pending = [start(first.promise), start(second.promise), start(third.promise)];
+  third.resolve('A'); await pending[2];
+  assert.deepEqual(writes, ['A']);
+  second.resolve('B'); await pending[1];
+  first.resolve('A'); await pending[0];
+  assert.deepEqual(writes, ['A'], 'the first A must not publish again after the third request');
+
+  const old = deferred();
+  const fallbackWrites: string[] = [];
+  const withFailure = createSearch(true, result => fallbackWrites.push(result));
+  const oldCompletion = withFailure(old.promise);
+  await assert.rejects(withFailure(Promise.reject(new Error('newest failed'))), /newest failed/);
+  old.resolve('A'); await oldCompletion;
+  assert.deepEqual(fallbackWrites, [], 'an older success remains stale after the latest request fails');
+});
+
 test('controlled promises expose the stale overwrite and the latest-request guard in both completion orders', async () => {
   const cases = [
     { guard: false, order: 'new-first', first: 'B', final: 'A', writes: ['B', 'A'] },
