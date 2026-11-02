@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/seasons.ts';
 import {
   Scene,
   Circle,
@@ -124,6 +122,22 @@ export default class SeasonsExplainer extends Scene {
       'https://gml.noaa.gov/grad/solcalc/calcdetails.html',
       'https://en.wikipedia.org/wiki/Position_of_the_Sun#Declination_of_the_Sun_as_seen_from_Earth',
     ],
+    // The script's answer and check questions (script.md); check holds the tilt step to stating the answer.
+    answer: 'The tilt of Earth’s axis, not its distance from the Sun, makes the seasons',
+    checks: [
+      {
+        question: 'When is Earth nearest the Sun, and what is London’s daylight on 15 January?',
+        answer: 'In early January, in the northern winter. London gets 8.0 h of daylight on 15 January, while latitude −51.5°, the same distance from the Sun, gets 16.0 h.',
+      },
+      {
+        question: 'London gets 16.4 h of daylight at the June solstice. Why does Sydney get only 9.7 h that day?',
+        answer: 'Sydney is south of the equator. In June the north end of the axis leans toward the Sun, so most of Sydney’s latitude circle is on the night side.',
+      },
+      {
+        question: 'London’s June noon Sun stands 90° − |51.5° − 23.44°| above the horizon. What is the 23.44°?',
+        answer: 'The latitude where the June noon Sun is overhead: the Sun’s declination at the June solstice, set by the tilt of the axis.',
+      },
+    ],
   };
   static settings = [
     {
@@ -150,14 +164,49 @@ export default class SeasonsExplainer extends Scene {
         color: opts.color ?? soft,
       }).moveTo(at, opts.edge ?? [0, 0]);
 
-    // ---------------------------------------------------------------- tilt
-    await readerFirst(this, s, readerFrames(place));
-    await this.step('tilt', {
-      detail: true,
-      title: 'The axis keeps its direction all year',
-      line: 'At 23.44°, north leans sunward in June and away in December.',
+    // ------------------------------------------------------------- nearest
+    // The common guess, as a prediction: if nearness made summer, the north would be nearest in July.
+    await this.step('nearest', {
+      title: 'Earth’s distance from the Sun changes through the year',
+      line: 'Predict: if being nearer made summer, in which month would Earth be nearest?',
       caption:
-        'Earth’s axis is tilted 23.44° from the normal to its orbit and points the same way all year, so the north end leans toward the Sun in June and away from it in December. Sizes and distances are not to scale.',
+        'Earth’s orbit is slightly oval, so it passes nearest the Sun once a year and farthest half a year later. A common guess is that summer comes when Earth is nearest. If so, the northern summer, around July, would be the nearest time. The oval is drawn far more stretched than it is.',
+    });
+    const guess = (() => {
+      const oc: Vec = [0, -0.55],
+        orx = 4.6,
+        ory = 2.3,
+        sunX = oc[0] - 1.9;
+      const orbit = new Circle({ radius: 1, stroke: s.palette.muted, strokeWidth: 0.025 })
+        .stretch(orx, 0)
+        .stretch(ory, 1)
+        .moveTo(oc);
+      const at = (x: number, word: string, edge: Vec) =>
+        new Group(
+          new Circle({ radius: 0.3, fill: '#7aa2f7', stroke: 'none' }).moveTo([x, oc[1]]),
+          label(word, [x + edge[0] * 0.5, oc[1] - 0.75], { size: 0.3, color: ink, edge }),
+          label('which month?', [x + edge[0] * 0.5, oc[1] - 1.2], { size: 0.26, color: SUN, edge }),
+        );
+      const near = at(oc[0] - orx, 'nearest', [-1, 0]),
+        far = at(oc[0] + orx, 'farthest', [1, 0]);
+      const sun = new Group(
+        new Circle({ radius: 0.45, fill: SUN, stroke: 'none' }).moveTo([sunX, oc[1]]),
+        label('Sun', [sunX, oc[1] + 0.75], { size: 0.26, color: ink }),
+      );
+      const g = new Group(orbit, sun, near, far);
+      g.key = 'nearest-orbit';
+      return g;
+    })();
+    await s.enter(guess, {
+      describe: 'An exaggerated oval orbit with the Sun off centre: Earth nearest the Sun at one end and farthest at the other, each asking which month',
+    });
+
+    // ---------------------------------------------------------------- tilt
+    await this.step('tilt', {
+      title: 'Answer: early January, in the northern winter. The tilt makes the seasons',
+      line: `Predict: in June, does ${place.name} get more or less than 12 hours of daylight?`,
+      caption:
+        'Earth is nearest the Sun in early January, close to its December place here, when the north has winter and the south summer. So distance cannot make the seasons. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the axis is tilted 23.44° from upright to the orbit and points the same way all year, so the north end leans toward the Sun in June and away from it in December. The latitude where the noon Sun is overhead, called the Sun’s declination, swings from 23.44° north in June to 23.44° south in December. Sizes and distances are not to scale.',
     });
     await s.clear();
     // The orbit's Sun and Earths: the Sun is carried on into the next step, and June's Earth grows into its side view.
@@ -213,6 +262,12 @@ export default class SeasonsExplainer extends Scene {
       describe:
         'Earth in June (right), September (top), December (left) and March (bottom), its axis tilted the same way each time',
     });
+    const nearestNote = new Group(
+      label('nearest the Sun:', [-5.6, 1.05], { size: 0.24, color: SUN }),
+      label('early January', [-5.6, 0.72], { size: 0.24, color: SUN }),
+    );
+    nearestNote.key = 'nearest-note';
+    await s.enter(nearestNote, { describe: 'Beside December’s Earth: nearest the Sun in early January' });
 
     // ---------------------------------------------------------------- june
     const R = 1.7,
@@ -381,9 +436,8 @@ export default class SeasonsExplainer extends Scene {
     };
 
     await this.step('june', {
-      detail: true,
-      title: `June: ${place.name}’s noon Sun at ${degrees(june.altitude)}`,
-      line: `The lit part of ${place.name}’s circle gives ${hours(june.daylight)} of daylight.`,
+      title: `Answer: ${hours(june.daylight)} of June daylight in ${place.name}, noon Sun at ${degrees(june.altitude)}`,
+      line: `The yellow part of the line through the red dot is ${place.name}’s daylight.`,
       caption:
         place.lat < 0
           ? `In June the north end of the axis leans toward the Sun. Sydney is south of the equator, so its noon Sun is low and most of its latitude circle, the line through the dot, is on the night side: ${hours(june.daylight)} of daylight in its winter.`
@@ -395,7 +449,7 @@ export default class SeasonsExplainer extends Scene {
     });
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
     await this.play(
-      ...[tilt.orbit, tilt.december, tilt.september, tilt.march].map((m) => new FadeOut(m, { runTime: 0.4 })),
+      ...[tilt.orbit, tilt.december, tilt.september, tilt.march, nearestNote].map((m) => new FadeOut(m, { runTime: 0.4 })),
     );
     // Described apart, so the close-up, which fades the Sun, is not said to show it.
     s.keep(sun, { describe: 'The Sun, not to scale' });
@@ -415,7 +469,6 @@ export default class SeasonsExplainer extends Scene {
     // The camera zooms onto the red dot, twice as close, so the horizon, the
     // noon ray and the angle between them fill the stage.
     await this.step('noon', {
-      detail: true,
       title: `June noon: the Sun stands ${degrees(june.altitude)} above ${place.name}’s horizon`,
       line: `The angle is 90° − |${exactly(place.lat)} − ${exactly(TILT)}| = ${exactly(june.altitude)}.`,
       caption: `Zoomed in on the red dot. The white line is ${place.name}’s horizon, and noon sunlight arrives parallel to the Sun’s direction. The angle between them is 90° minus the gap between the latitude, ${exactly(place.lat)}, and the latitude where the June Sun is overhead, ${exactly(TILT)}.`,
@@ -470,12 +523,11 @@ export default class SeasonsExplainer extends Scene {
 
     // ------------------------------------------------------------ december
     await this.step('december', {
-      detail: true,
-      title: `December: the same axis, ${place.name}’s Sun at ${degrees(december.altitude)}`,
-      line:
+      title:
         Math.abs(june.daylight - december.daylight) > 0.05
-          ? `The south end leans sunward; daylight goes ${hours(june.daylight)} to ${hours(december.daylight)}.`
-          : `The south end leans sunward; daylight stays ${hours(december.daylight)}.`,
+          ? `December: the same axis, and ${place.name}’s daylight goes ${hours(june.daylight)} to ${hours(december.daylight)}`
+          : `December: the same axis, and ${place.name}’s daylight stays ${hours(december.daylight)}`,
+      line: 'Predict: of Tromsø, London, Quito and Sydney, whose daylight changes most?',
       caption:
         'Half an orbit later Earth is on the far side of the Sun, but the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
         (Math.abs(june.daylight - december.daylight) > 0.05
@@ -497,10 +549,12 @@ export default class SeasonsExplainer extends Scene {
     this.state.december = december;
 
     // ------------------------------------------------------------ latitude
+    const swing = (k: string) => [sunlight(PLACES[k]!.lat, TILT).daylight, sunlight(PLACES[k]!.lat, -TILT).daylight] as const;
+    const [tromsoJune, tromsoDec] = swing('tromso'),
+      [quitoJune] = swing('quito');
     await this.step('latitude', {
-      detail: true,
-      title: 'Latitude sets how much of each circle is lit',
-      line: 'Tromsø’s circle is all lit in June; the equator’s is half lit.',
+      title: `Answer: Tromsø, ${hours(tromsoJune)} to ${hours(tromsoDec)}; Quito stays at ${hours(quitoJune)}`,
+      line: 'Latitude sets how much of each circle is lit.',
       caption:
         'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The model’s day length in hours is acos(−tan latitude × tan declination) in degrees, divided by 7.5.',
     });
@@ -572,7 +626,6 @@ export default class SeasonsExplainer extends Scene {
       shortest = Math.min(...days);
     const flat = Math.abs(june.daylight - december.daylight) < 0.05;
     await this.step('year', {
-      detail: true,
       title: `A computed year of daylight in ${place.name}`,
       line: polarDay
         ? `24 h for ${polarDay} days, 0 h for ${polarNight}; 12 h at the equinoxes.`
@@ -611,6 +664,7 @@ export default class SeasonsExplainer extends Scene {
       axisLabelFontSize: 0.2,
     });
     axes.shift([-6.6 - axes.c2p(0, 0)[0], -3.5 - axes.c2p(0, 0)[1]]);
+    axes.key = 'daylight-axes';
     const months = new Group(
       ...MONTHS.map((m, i) => label(m, [axes.c2p(i + 0.5, 0)[0], axes.c2p(0, 0)[1] - 0.3], { size: 0.2 })),
     );
@@ -706,16 +760,18 @@ export default class SeasonsExplainer extends Scene {
     // ------------------------------------------------------------ distance
     const mirror = daylightYear(-place.lat);
     await this.step('distance', {
-      detail: true,
-      title: 'Earth is nearest the Sun in January, during the northern winter',
+      title:
+        place.lat !== 0
+          ? `15 January, near the nearest point: ${place.name} ${hours(year[0]!)}, latitude ${degrees(-place.lat)} ${hours(mirror[0]!)}`
+          : `Nearest or farthest from the Sun, Quito gets ${hours(year[0]!)}`,
       line:
         place.lat !== 0
-          ? `15 January: ${place.name} gets ${hours(year[0]!)}, latitude ${degrees(-place.lat)} gets ${hours(mirror[0]!)}.`
+          ? 'The second curve is the same model at the opposite latitude; both dots are 15 January.'
           : `${place.name} gets ${hours(year[0]!)} in January and July: no distance term.`,
       caption:
         place.lat !== 0
-          ? `Earth is nearest the Sun in early January. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and latitude ${degrees(-place.lat)}, the second curve, gets ${hours(mirror[0]!)}. Both are the same distance from the Sun that day, so the opposite seasons must come from the tilt.`
-          : `Earth is nearest the Sun in early January, yet the chart shows Quito with ${hours(year[0]!)} of daylight in January and in July. The model has no distance term: day length depends only on latitude and the Sun’s declination, which the tilt sets.`,
+          ? `Back to the opening question, with the model. Earth is nearest the Sun in early January. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and latitude ${degrees(-place.lat)}, the second curve, gets ${hours(mirror[0]!)}. Both are the same distance from the Sun that day, so their opposite seasons must come from the tilt.`
+          : `Back to the opening question, with the model. Earth is nearest the Sun in early January, yet the chart shows Quito with ${hours(year[0]!)} of daylight in January and in July. The model has no distance term: day length depends only on latitude and the Sun’s declination, which the tilt sets.`,
     });
     await this.play(...[...said, marks, guides].map((m) => new FadeOut(m, { runTime: 0.3 })));
     // 15 January is the first month's sample day, x = 0.5.
@@ -757,14 +813,14 @@ export default class SeasonsExplainer extends Scene {
       s.keep(own, { describe: `${place.name}’s curve named at its end` });
       await this.play(new FadeIn(own));
     }
-    // Exaggerated eccentric orbit: Sun off-centre, Earth nearest at one end.
+    // Exaggerated eccentric orbit: Sun off-centre, Earth nearest at the left end, as in the opening.
     const sketch = new Group();
     sketch.key = 'distance-orbit';
     {
       const oc: Vec = [5.1, 1.35],
         orx = 1.9,
         ory = 1.0,
-        sunX = oc[0] + 0.85;
+        sunX = oc[0] - 0.85;
       const orbit = new Circle({
         radius: 1,
         stroke: s.palette.muted,
@@ -774,19 +830,19 @@ export default class SeasonsExplainer extends Scene {
         .stretch(ory, 1)
         .moveTo(oc);
       const near = new Group(
-        new Circle({ radius: 0.16, fill: '#7aa2f7', stroke: 'none' }).moveTo([oc[0] + orx, oc[1]]),
-        label('January', [oc[0] + orx + 0.2, oc[1] - 0.5], {
+        new Circle({ radius: 0.16, fill: '#7aa2f7', stroke: 'none' }).moveTo([oc[0] - orx, oc[1]]),
+        label('January', [oc[0] - orx - 0.2, oc[1] - 0.5], {
           size: 0.22,
           color: ink,
-          edge: [1, 0],
+          edge: [-1, 0],
         }),
       );
       const far = new Group(
-        new Circle({ radius: 0.16, fill: EARTH, stroke: 'none' }).moveTo([oc[0] - orx, oc[1]]),
-        label('July', [oc[0] - orx - 0.15, oc[1] - 0.5], {
+        new Circle({ radius: 0.16, fill: EARTH, stroke: 'none' }).moveTo([oc[0] + orx, oc[1]]),
+        label('July', [oc[0] + orx + 0.15, oc[1] - 0.5], {
           size: 0.22,
           color: soft,
-          edge: [-1, 0],
+          edge: [1, 0],
         }),
       );
       sketch.add(orbit, new Circle({ radius: 0.28, fill: SUN, stroke: 'none' }).moveTo([sunX, oc[1]]), near, far);
@@ -833,7 +889,6 @@ export default class SeasonsExplainer extends Scene {
 
     // ------------------------------------------------------------- compare
     await this.step('compare', {
-      detail: true,
       title: 'The same formula draws all four daylight curves',
       line: 'London and Sydney peak six months apart; Quito stays at 12 h.',
       caption:

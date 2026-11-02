@@ -2470,7 +2470,7 @@ test('crossing the narrow width redraws the resting picture in place, including 
 });
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
   await playerScenario('oauth-pkce', {
-    values: ['yes'], step: 'reader-redeem', viewport: {width: 308, height: 400},
+    values: ['yes'], step: 'stolen', viewport: {width: 308, height: 400},
   }, async (model,real) => {
     const {w, h} = await stageSize(real), tour = await tourOf(model, w, h);
     assert.ok(tour.length > 1 && tour[0]!.k !== tour[1]!.k, 'the fixture changes scale between the opening and first detail view');
@@ -2531,7 +2531,7 @@ test('reader model fixed scenarios: teaching and source navigation, segments, ca
 });
 
 test('phone tours cross the actual 600 px stage boundary and retain every resized view’s scale and pan', options, async () => {
-  for (const height of [400,1200]) for (const width of [200,390,632]) for (const step of ['reader-bind','secret']) {
+  for (const height of [400,1200]) for (const width of [200,390,632]) for (const step of ['stolen','secret']) {
     await playerScenario('oauth-pkce', {values:[undefined],step,viewport:{width,height}}, async (model,real) => {
       if(width===632&&height===1200) assert.ok((await stageSize(real)).w>=NARROW_PX,'the tall desktop stage crosses the actual 600 px boundary');
       const commands = width === 632
@@ -2897,10 +2897,10 @@ const earlyControls = (page: Page, actions: string[]) => page.addInitScript((act
 test('pre-ready Previous, Left and Next retain the first teaching permalink', options, async () => {
   await readerContext({reducedMotion:'reduce',permissions:['clipboard-read','clipboard-write']}, async context => {
     const actions=['Previous step','ArrowLeft','Next step'];
-    const {page,errors}=await counted(context,`${embed}/oauth-pkce.html?step=reader-bind`,page=>earlyControls(page,actions));
+    const {page,errors}=await counted(context,`${embed}/oauth-pkce.html?step=stolen`,page=>earlyControls(page,actions));
     assert.equal(await page.evaluate(()=>(window as unknown as {__early:number}).__early),actions.length);
     assert.deepEqual(errors,[]);
-    assert.equal(new URL(page.url()).searchParams.get('step'),'reader-bind');
+    assert.equal(new URL(page.url()).searchParams.get('step'),'stolen');
   });
 });
 

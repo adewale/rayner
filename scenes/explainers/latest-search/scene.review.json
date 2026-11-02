@@ -2,21 +2,27 @@
   "version": 1,
   "claims": [
     {
+      "step": "overwrite",
+      "settings": { "order": "new-first" },
+      "opening": true,
+      "targets": [{ "text": "Page shows, no check" }, { "text": "“ca” lands" }, { "text": "stale" }]
+    },
+    {
       "step": "reader-ticket",
       "settings": { "order": "new-first" },
       "opening": true,
-      "targets": [{ "text": "Ticket 1" }, { "text": "Latest 2" }, { "text": "Discard A" }]
+      "targets": [{ "text": "“ca”: ticket 1" }, { "text": "latest = 2" }, { "text": "Drop “ca”" }]
     },
     {
       "step": "reader-first",
       "settings": { "order": "old-first" },
       "opening": true,
-      "targets": [{ "text": "Ticket 1" }, { "text": "Latest 2" }, { "text": "Discard A" }]
+      "targets": [{ "text": "“ca”: ticket 1" }, { "text": "latest = 2" }, { "text": "Drop “ca”" }]
     },
     {
       "step": "reader-guard",
       "opening": true,
-      "targets": [{ "text": "No guard" }, { "text": "Guard on" }, { "text": "A" }, { "text": "B" }]
+      "targets": [{ "text": "No guard" }, { "text": "Guard on" }, { "text": "“ca”" }, { "text": "“cat”" }]
     }
   ]
 }

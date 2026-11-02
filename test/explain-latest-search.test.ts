@@ -71,12 +71,14 @@ test('the public story compares both rules and shows each ticket decision in bot
   const p = await collectProject('scenes/explainers/latest-search', {write:false});
   assert.equal(p.variants.length,2);
   for(const v of p.variants){
-    assert.deepEqual(v.trace.steps.map(s=>s.step),['reader-order','reader-first','reader-ticket','reader-guard']);
+    assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard']);
     const order=v.values.order as 'new-first'|'old-first';
     const off=await runSearch(false,order),on=await runSearch(true,order);
     const result=v.trace.steps.at(-1)!.after!.reader as {off:unknown;on:unknown};
     assert.deepEqual(result,{order,off:off.snapshots,on:on.snapshots});
-    for(const step of v.trace.steps.slice(1,3)){
+    // The unguarded run comes first: the overwrite step shows the model's no-guard snapshots.
+    assert.deepEqual(v.trace.steps.find(s=>s.step==='overwrite')!.after!.reader,{order,off:off.snapshots});
+    for(const step of v.trace.steps.filter(s=>s.step==='reader-first'||s.step==='reader-ticket')){
       const r=step.after!.reader as {ticket:number;latest:number;accepted:boolean};
       assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
     }

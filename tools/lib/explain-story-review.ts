@@ -138,6 +138,15 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
   ],
   'oauth-pkce': [
     {
+      step: 'stolen',
+      opening: true,
+      targets: [
+        { key: 'message:S->M#0', paint: 'stroke' },
+        { key: 'message:M->S#0', paint: 'stroke' },
+        { key: 'message:S->M#1', paint: 'stroke' },
+      ],
+    },
+    {
       step: 'attack',
       settings: { attacker: 'yes' },
       opening: true,
@@ -259,7 +268,7 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
 // This inventory is authored independently of reading() and the close-up planner.
 const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'token-bucket': ['reader-burst', 'reader-refill'],
-  'ring-buffer': ['reader-capacity', 'reader-reuse'],
+  'ring-buffer': ['shift'],
   'state-machine': ['reader-path', 'reader-reject'],
   'just-bash': ['reader-pipeline', 'reader-values'],
   'cert-renewal': ['reader-due', 'reader-retries'],
@@ -270,7 +279,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'gnome-files': ['reader-task', 'reader-sample'],
   'wcag-map': ['reader-focus', 'reader-levels'],
   'layout-direction': ['reader-place', 'reader-fields'],
-  seasons: ['reader-tilt', 'reader-solstices', 'reader-year'],
   'traffic-policy': ['reader-nodes', 'reader-shares'],
   'ext4-space': ['reader-allocation', 'reader-reserve'],
   'send-sync': ['reader-threads', 'reader-requirements', 'reader-wrappers'],
@@ -278,9 +286,8 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'pen-and-pencil': ['reader-separate'],
   exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
-  '2password': ['reader-boundary', 'reader-auth'],
-  'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
-  'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
+  '2password': ['ask', 'reader-boundary'],
+  'latest-search': ['race', 'overwrite', 'tickets', 'reader-first', 'reader-ticket', 'reader-guard'],
   'pg-page': ['reader-row', 'reader-page'],
   'periodic-groups': ['reader-electrons', 'reader-filling'],
 };
@@ -291,7 +298,7 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-burst': ['R1', 'R6', '200', '429'],
     'reader-refill': ['Before the wait', 'On arrival: add elapsed × rate'],
   },
-  'ring-buffer': { 'reader-capacity': ['head = tail = 0', 'Occupied: 5 / 5'], 'reader-reuse': ['slot 0', 'slot 4'] },
+  'ring-buffer': { shift: ['slot 0', 'slot 4', 'before', 'after pop()', 'pop() returned 1 and moved 4 values'] },
   'state-machine': {
     'reader-path': ['idle', 'connecting', 'CONNECT'],
     'reader-reject': ['InvalidTransition', 'State stays closed'],
@@ -328,11 +335,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-place': ['Start', 'End'],
     'reader-fields': ['RTL columns', 'LTR override', '123', 'Field'],
   },
-  seasons: {
-    'reader-tilt': ['Sun', 'June', 'December'],
-    'reader-solstices': ['June daylight', 'December daylight'],
-    'reader-year': ['Jan', 'Dec', 'Hours of daylight'],
-  },
   'traffic-policy': { 'reader-nodes': ['Node 1', 'Node 2', 'Node 3'], 'reader-shares': ['Pod', 'Cluster', 'Local'] },
   'ext4-space': { 'reader-reserve': ['Users at 5% reserve'] },
   'send-sync': { 'reader-threads': ['Thread A', 'Thread B'], 'reader-requirements': ['Wrapper', 'Needs from T', 'Met?'], 'reader-wrappers': ['Type', 'Send', 'Sync'] },
@@ -343,18 +345,15 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   exgit: { 'reader-objects': ['commit', 'tree', 'blob'], 'reader-change': ['parent'] },
   'mr-cache': { 'reader-request': ['Request', 'Database', 'Response'] },
   '2password': {
-    'reader-boundary': ['Agent', 'op CLI', 'Application'],
-    'reader-auth': ['Agent', 'op CLI', 'Application', 'Service token', 'Resolved key'],
+    ask: ['Agent', 'Application', 'needs API_KEY', 'must not read'],
+    'reader-boundary': ['Agent', 'op CLI', 'Application', 'op:// reference', 'secret value'],
   },
   'latest-search': {
-    'reader-order': ['A then B', 'Latest intent: B'],
-    'reader-first': ['Latest 2'], 'reader-ticket': ['Latest 2'],
+    race: ['Search', 'Starts', 'Answers', 'The user wants “cat”'],
+    overwrite: ['After', 'Page shows, no check'],
+    tickets: ['latest = 2', 'const ticket = ++latest'],
+    'reader-first': ['latest = 2'], 'reader-ticket': ['latest = 2'],
     'reader-guard': ['After', 'No guard', 'Guard on'],
-  },
-  'oauth-pkce': {
-    'reader-bind': ['Client', 'Auth server', 'Code', 'issued'],
-    'reader-check': ['Saved challenge', 'Client hash', 'Prefix (8)'],
-    'reader-redeem': ['Caller', 'S256 matches?', 'Result', 'Client', 'token'],
   },
   'pg-page': {
     'reader-row': ['Grey: header  ·  Pale: padding  ·  Orange: data'],

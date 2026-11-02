@@ -2,10 +2,11 @@
   "version": 2,
   "importer": "11d0423eb190709f",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "8a0c543d68f9f471d0c159c8f07647e6558a3863f6ffab15b039219945e08c19",
+  "sourceHash": "45b78afb1ab2ceb3bef95dd307bfe6af029d7cbc90f66093f0cba0ee8b1f6f74",
   "diagrams": {
     "[\"graph LR\\nV[code_verifier] -->|SHA-256| H[32-byte digest]\\nH -->|base64url| C[code_challenge]\",\"github-light\"]": "1f4ad8136c46ab15.json",
     "[\"sequenceDiagram\\n participant C as Client\\n participant S as Auth server\\n C->>S: Authorize request + code_challenge\\n S-->>C: Redirect with code\\n C->>S: Token request: code + code_verifier\\n S-->>C: Access token\",\"github-light\"]": "4e627967b7070cfb.json",
+    "[\"sequenceDiagram\\n participant C as Client\\n participant S as Auth server\\n participant M as Malicious app\\n C->>S: Authorize request\\n S-->>C: Redirect with code\\n S-->>M: Redirect via the shared URI scheme\\n M->>S: Token request: code\\n S-->>M: Access token\",\"github-light\"]": "32be0a15d8a64038.json",
     "[\"sequenceDiagram\\n participant C as Client\\n participant S as Auth server\\n participant X as Malicious app\\n C->>S: Authorize request + code_challenge\\n S-->>C: Redirect with code\\n S-->>X: Redirect via the shared URI scheme\\n X->>S: Token request: code + a guess\\n S-->>X: invalid_grant\\n C->>S: Token request: code + code_verifier\\n S-->>C: Access token\",\"github-light\"]": "adc2aaae86556d29.json"
   }
 }
