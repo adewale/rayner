@@ -177,7 +177,7 @@ export default class MermaidExplainer extends Scene {
           ? 'The dot follows the yes edge as drawn: from Cached to Database.'
           : 'Would the report change if the labels were the wrong way round?',
       caption: missing
-        ? `Cached is a decision, drawn as a diamond. ${UNLABELED}, so each unlabelled exit is marked and gets its own warning. ${NAMING} A warning is advice: ok stays true. The report’s last line, taskCorrectness: not-checked, says the verifier never asked what the diagram is for. ${ANSWER}.`
+        ? `Cached is a decision, drawn as a diamond. ${UNLABELED}, so each unlabelled exit is marked and gets its own warning. ${NAMING} A warning is advice: ok stays true. The report’s last line, taskCorrectness: not-checked, is the verifier’s own note that it did not judge whether the diagram does its job. ${ANSWER}.`
         : swapped
           ? `Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. The report’s last line, taskCorrectness: not-checked, is the verifier’s own note that it did not judge whether the diagram does its job. ${ANSWER}.`
           : `Cached is a decision, drawn as a diamond, and both of its exits carry a label, so nothing is flagged. The last line, taskCorrectness: not-checked, means the verifier did not test the diagram against its purpose. ${ANSWER}. This diagram happens to be right; a later step swaps its labels and runs the verifier again.`,
@@ -233,7 +233,7 @@ export default class MermaidExplainer extends Scene {
         title: 'Delete both labels, and the verifier warns twice',
         line: 'Predict: does a missing label turn ok false too?',
         caption:
-          `Back to a diagram that draws, now with both labels taken off. ${UNLABELED}, and verify(flow) returns two of them, one for each exit, named A->B#0 and A->C#0. ${NAMING} A missing label is part of the diagram’s structure, so the verifier can see it. Each is a warning, advice for the author, so ok stays true.`,
+          `Back to a diagram that draws, now with both labels taken off. ${UNLABELED}, and verify(flow) returns two of them, one for each exit. ${NAMING} The two warnings name A->B#0, the edge to Reply, and A->C#0. A missing label is part of the diagram’s structure, so the verifier can see it. Each is a warning, advice for the author, so ok stays true.`,
       });
       await s.clear();
       d = await s.show({ source: BAD }, { box: 'main' });

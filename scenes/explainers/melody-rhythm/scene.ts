@@ -115,6 +115,33 @@ export default class MelodyRhythm extends Scene {
           'None. D and both Cs would each start half a beat late, halfway through beats 2, 3 and 4, and the last C would run half a beat past the end of bar 2. Cutting that E to half a beat is what lets B land back on the beat.',
       },
     ],
+    // Sentences about every note or every beat, held at both tempos and in both versions of B.
+    claims: [
+      {
+        says: 'a new note starts on every click',
+        test: 'test/learning-models.test.ts: A starts a note on every beat',
+      },
+      {
+        says: 'B still skips the 1',
+        test: 'test/learning-models.test.ts: the shifted B starts none on the 1 of bar 2',
+      },
+      {
+        says: 'keeps its own starts and lengths',
+        test: 'test/learning-models.test.ts: the music comparison preserves pitches and total beats',
+      },
+      {
+        says: 'A and B play one rhythm',
+        test: 'test/learning-models.test.ts: the control B starts every note on a beat',
+      },
+      {
+        says: 'every start on a beat',
+        test: 'test/learning-models.test.ts: the control B starts every note on a beat',
+      },
+      {
+        says: 'Only that version starts G late enough',
+        test: 'test/learning-models.test.ts: the shifted B starts none on the 1 of bar 2',
+      },
+    ],
   };
   static settings = [
     {
@@ -184,7 +211,7 @@ export default class MelodyRhythm extends Scene {
         title: different ? 'With every pitch C, B still skips the 1' : 'With every pitch C, A and B play one rhythm',
         line: 'Each version keeps its own starts and lengths; only the pitches go.',
         caption: different
-          ? 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts, red when that falls between beats. Play both. With the climb to G gone, B still has no note starting on the 1 of bar 2, and its two red dots sit either side of the bar line, so timing by itself is enough to put B off the beat.'
+          ? 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts, red when that falls between beats. Play both. With the climb to G gone, B still has no note starting on the 1 of bar 2, and its two red dots sit either side of the bar line. By this page’s own measure, a 1 that brings no new note, timing by itself is enough to put B off the beat.'
           : 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts. With the pitches gone, A and B play the identical rhythm, every start on a beat. Choose “Start two notes half a beat later” to hear a note hold across the bar line.',
         clips: m.flat,
         look: {

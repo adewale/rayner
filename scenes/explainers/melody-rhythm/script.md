@@ -8,7 +8,7 @@ Count along: 1 2 3 4, 1 2 3 4. The pulse clicks on every beat, with a different 
 
 None. B holds the first E for one and a half beats, so G starts halfway through beat 4, 312.5 ms before the bar line at 96 BPM, and is still sounding when the 1 arrives. The E after G is cut to half a beat, which puts D back on beat 2. That is the answer: the shifted B sounds off the beat because its G starts halfway through beat 4 and holds across the bar line, so the 1 of bar 2 brings no new note. Open Music Theory calls this syncopation: notes that would typically start on strong beats or strong parts of beats start on weak parts instead. Here G and E start on half beats, and the held G sounds through the 1 where A starts E.
 
-Is it the timing, or the climb to G? Flatten every pitch to C and keep each note's start and length, with a dot under each start, red between beats. B still has no note starting on the 1 of bar 2, and its two red dots sit either side of the bar line, so timing by itself is enough to put B off the beat. That is the ending. The control case, B with A's timing, plays the identical rhythm, every dot on a beat.
+Is it the timing, or the climb to G? Flatten every pitch to C and keep each note's start and length, with a dot under each start, red between beats. B still has no note starting on the 1 of bar 2, and its two red dots sit either side of the bar line. By this page's own measure, a 1 that brings no new note, timing by itself is enough to put B off the beat. That is the ending. The control case, B with A's timing, plays the identical rhythm, every dot on a beat.
 
 **The aha:** hearing the all-C version of B still skip the 1 of bar 2, with its two red dots either side of the bar line.
 
@@ -30,3 +30,9 @@ Is it the timing, or the climb to G? Flatten every pitch to C and keep each note
 | pulse | paragraph 2: the beat, and the strong 1 that opens each bar | every beat line strong, the 1s large, A's notes on the 1s outlined | which note in B starts on the 1 of bar 2 |
 | bar | paragraph 3: how B was made, the answer, then the name syncopation | B's G in red, A's E on the 1 outlined | |
 | rhythm | paragraph 4: flattened pitches; timing is enough: the ending | every note a C, a dot under every start, red between beats | |
+
+## Limits
+
+The model is two eight-note versions over four pitches, C D E G, counted as two bars of four beats, with lengths in half beats and no rests. Every note plays at one loudness from a Web Audio oscillator, so there are no accents, no articulation and no swing, and syncopation made by accents or rests does not appear. "Off the beat" is this page's measure of the score, whether the 1 of bar 2 brings a new note and whether starts fall between beats; no listening test backs it, and how strongly a listener hears the pull is not modelled.
+
+No case shows a tempo other than 96 and 120 BPM (80 BPM appears only in a test), a count other than four beats to a bar (the second check counts in threes), or a shift other than B's two half-beat starts (the first and third checks ask about two more).

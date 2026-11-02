@@ -58,6 +58,24 @@ export default class BirthdayParadox extends Scene {
           '276 pairs, since the newcomer pairs with all 23 people already there. Four of them match: 26 Apr is now on three cards, and three people make three pairs, all matching, while the 31 Jan pair still matches too.',
       },
     ],
+    // Sentences that reach past the rooms on screen, and the tests that hold them; the rest speak of their own step's squares.
+    claims: [
+      {
+        says: 'gives every day of a 365-day year the same chance',
+        test: 'test/learning-models.test.ts: birthday formulas match exhaustive small calendars',
+      },
+      {
+        says: 'an even chance would take',
+        test: 'test/learning-models.test.ts: the birthday story: thresholds, pairs',
+      },
+      {
+        says: 'ask each to miss every date taken so far',
+        test: 'test/learning-models.test.ts: birthday formulas match exhaustive small calendars',
+      },
+      { says: 'Your own birthday: only', shown: true as const },
+      { says: 'Every pair drawn', shown: true as const },
+      { says: 'one square for every card before it', shown: true as const },
+    ],
   };
   static settings = [
     {

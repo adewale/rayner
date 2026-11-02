@@ -142,6 +142,21 @@ export default class SeasonsExplainer extends Scene {
           'The same as in June: 16.4 h of daylight and 88% of overhead sunlight at noon. The real seasons swap because the axis keeps pointing the same way while Earth moves to the far side of the Sun; an axis that followed the Sun would keep London at its June values all year.',
       },
     ],
+    // Sentences that reach past the two solstices on screen, and the tests that hold them.
+    claims: [
+      {
+        says: 'Tromsø never enters the night half',
+        test: 'test/explain-models.test.ts: sunlight follows the sunrise equation',
+      },
+      {
+        says: 'the equator’s is always cut in half',
+        test: 'test/explain-models.test.ts: on the equator the day–night line cuts the circle in half',
+      },
+      {
+        says: 'the day–night line always cuts the circle in half',
+        test: 'test/explain-models.test.ts: on the equator the day–night line cuts the circle in half',
+      },
+    ],
   };
   static settings = [
     {
@@ -687,7 +702,7 @@ export default class SeasonsExplainer extends Scene {
             ? `Shortest ${hours(shortest)} in June, longest ${hours(longest)} in December.`
             : `From ${hours(shortest)} in December to ${hours(longest)} in June.`,
       caption:
-        'The curve runs the same model on every day of the year. ' +
+        'The curve runs the same model through the year. ' +
         (polarDay
           ? `It stays flat at 24 hours for ${polarDay} days around the June solstice, the span the dimension marks, when ${place.name}’s whole circle is lit, and at 0 for ${polarNight} days around December; both counts run the model on all 365 days.`
           : flat

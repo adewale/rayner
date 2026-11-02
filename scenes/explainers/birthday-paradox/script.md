@@ -40,3 +40,9 @@ The old checks (two rooms merged, a 100-day year, 69 others on that planet) were
 | growth | detail: each newcomer pairs with everyone there | a table of people, pairs and chance, with bars on one scale | |
 | exact | detail: the person-by-person product | 365 days, 22 taken | do 253 pairs at 1 in 365 give the same chance? |
 | estimate | detail: the shortcut against the exact chance, exact for your own comparisons | the shortcut and the exact chance | |
+
+## Limits
+
+The model gives every day of a 365-day year the same chance, leaves out 29 February and draws each birthday independently, so twins, seasons of births and real calendars' uneven days are out. The cards come from one seeded sample of 1,000 rooms (seed 137); another seed would show other dates and another count of matching rooms near the same exact chance.
+
+No case shows a room other than 10, 23 or 40 people (the growth table lists 2, 3, 5, 10, 23 and 40), a year other than 365 days (the old 100-day check is asserted in the test only), or three people on one date (the second check adds one). The 253 other people an even chance of matching your birthday takes is computed and tested, not drawn.

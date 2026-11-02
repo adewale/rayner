@@ -38,3 +38,7 @@ The old fourth check, a bare graph header, rested on what Mermaid itself accepts
 | repair | the labels-missing case only: two set_label operations clear both warnings | |
 | meaning | paragraph 5: the right labels, the same report beside the wrong one's: the aha | |
 | history | detail after the ending: three commits and the snapshot's findings | |
+
+## Limits
+
+Each report is the pinned verifier's, agentic-mermaid 0.5.1, run on a three-node flowchart with two edges; the broken step's report is written into the scene and held to the verifier's output by `test/explain-real.test.ts`. No case shows another diagram type, a larger flowchart, a warning code other than DECISION_BRANCH_UNLABELED, RENDER_FAILED and UNSUPPORTED_SYNTAX, or a broken source other than the edge cut off at its arrow. What mermaid-js itself accepts is not tested here, and the test that knows a cache hit should reach Reply is named in the last step but not built.

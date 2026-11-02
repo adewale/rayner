@@ -10,7 +10,7 @@ Look at London in June from the side. As Earth turns, London travels round its l
 
 Whose daylight changes most? Draw the four places' circles on both globes. Tromsø's circle is all day in June and all night in December, 24 h to 0 h; Quito's, on the equator, is always cut in half, 12 h in both. The day lengths are the sunrise equation's, the hours the Sun's centre is above a flat horizon; an almanac times the Sun's top edge and adds refraction, so its June day at London is about a quarter of an hour longer.
 
-Run the same model on every day of the year and London's daylight traces a curve from 7.6 h in December to 16.4 h in June. Earth is nearest the Sun in early January, two weeks after the December solstice, which sets up the ending.
+Run the same model through the year and London's daylight traces a curve from 7.6 h in December to 16.4 h in June. Earth is nearest the Sun in early January, two weeks after the December solstice, which sets up the ending.
 
 Back to the opening question, with numbers, and the ending. The orbit formula on the Position of the Sun page puts Earth at 0.983 of its average distance in early January and 1.017 in early July, so January's sunlight is about 7% stronger. The tilt moves London's noon sunlight between 26% and 88% of overhead. Two bars on one scale, sunlight per square metre as a percentage of an overhead Sun at average distance, set the two causes side by side: the tilt bar runs from 26% (December) to 88% (June), and the distance bar, an overhead Sun from July to January, runs from 97% to 103%. On the chart, 15 January gives London 8.0 h and 51.5° S, the purple curve, 16.0 h; both are the same distance from the Sun that day, so the gap between them comes from the tilt. In Quito's case the tilt bar has no length (92% at both solstices) and the caption gives London's 8.0 h and Sydney's 14.0 h on 15 January.
 
@@ -39,3 +39,9 @@ Cut from the earlier version: the compare step, and then the grey curves for the
 | latitude | paragraph 4, all four circles on both globes; the sunrise equation and the almanac | |
 | year | paragraph 5, the model through the year, and the nearest point two weeks after the December solstice | |
 | distance | paragraph 6, the ending: the opening question answered with the orbit formula, the two curves on 15 January, and the distance bar beside the tilt bar | |
+
+## Limits
+
+The model times the Sun's centre over a flat, bare horizon: no refraction, no Sun's disc, no hills or buildings, so an almanac's day is longer and its polar night shorter than the year step's counts. Declination comes from a cosine approximation over a 365-day year with no leap day, the tilt is held at 23.44°, and the orbit is the Position of the Sun page's distance formula. The noon share leaves out the air. Nothing models temperature or weather, so "makes the seasons" here means daylight and noon sunlight.
+
+No case shows a latitude other than Tromsø, London, Quito and Sydney and their mirror latitudes on the distance chart, a day the globes or dots do not mark (the curve between the twelve 15ths is the model sampled, not checked against an almanac), or a tilt other than 23.44°. The equator's 12 hours at every declination is held by a test, not drawn.

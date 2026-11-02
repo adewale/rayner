@@ -233,6 +233,17 @@ test('sunlight follows the sunrise equation: bounded, hemisphere-symmetric, pola
   // ω = acos(2.1445 × 0.0580) = 82.86° and the day at 65°N is 11.0 h (a day's shift gives 11.2).
   assert.equal(daylightYear(65)[2], 11);
 });
+test('on the equator the day–night line cuts the circle in half: 12 hours at every declination and on every day of the year', () => {
+  // The seasons page says the equator's circle is always cut in half; it draws only the two solstices.
+  fc.assert(fc.property(
+    fc.double({ min: -23.44, max: 23.44, noNaN: true }),
+    (declination) => assert.ok(Math.abs(sunlight(0, declination).daylight - 12) < 1e-12, `${declination}°`),
+  ), params(300));
+  // daylightYear's declination, δ = −23.44° × cos(360° × (day + 10) / 365), on each of the 365 days.
+  const declination = (day: number) => -23.44 * Math.cos((2 * Math.PI * (day + 10)) / 365);
+  for (let day = 0; day < 365; day++) assert.ok(Math.abs(sunlight(0, declination(day)).daylight - 12) < 1e-12, `day ${day}`);
+  assert.deepEqual(daylightYear(0), Array(12).fill(12));
+});
 test('blob ids are SHA-1 of the typed bytes, across the hash\'s padding boundaries and in UTF-8', () => {
   // With the 8-byte header "blob NN\0", 47, 48 and 56 bytes of content make 55, 56 and 64-byte
   // messages, SHA-1's one- and two-block padding edges.
