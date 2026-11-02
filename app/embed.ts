@@ -11,7 +11,7 @@ import { paletteOf, paperOf } from '../explain/stage.ts';
 import { connectHost, reportHeight } from './embed-protocol.ts';
 import { icon } from './embed-icons.ts';
 import type { IconName } from './embed-icons.ts';
-import { ReaderSink, ReaderView, StageZoom } from './embed-zoom.ts';
+import { ReaderSink, ReaderView, StageZoom, stageSize } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 import { NARROW_PX, closeUps, stageScale, stepLayouts } from './embed-closeup.ts';
 import type { StepLayout } from './embed-closeup.ts';
@@ -453,7 +453,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tour: Zoom[] = [],
     stop = 0;
   function refreshTour() {
-    const w = stage.clientWidth, h = stage.clientHeight, key = `${w} ${h}`;
+    const [w, h] = stageSize(stage), key = `${w} ${h}`;
     if (!caseLayouts || w <= 0 || h <= 0 || key === tourSize) return;
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
@@ -465,8 +465,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const showingWhole = () => zoom.k <= 1 && !(follow && tour[stop]?.k === 1);
   function drawOverview() {
     refreshTour();
-    const w = stage.clientWidth,
-      h = stage.clientHeight,
+    const [w, h] = stageSize(stage),
       on = narrow() && zoom.k > 1;
     stage.classList.toggle('narrow', narrow());
     player.classList.toggle('narrow', narrow());
@@ -1083,7 +1082,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Zoom keys act only on the focused stage, so they never take a key from the page; once
     // zoomed, the focused stage's arrows pan, a tenth of the stage at a time.
     const onStage = e.target === stage,
-      pan = (dx: number, dy: number) => () => zoom.pan((dx * stage.clientWidth) / 10, (dy * stage.clientHeight) / 10);
+      pan = (dx: number, dy: number) => () => zoom.pan((dx * stageSize(stage)[0]) / 10, (dy * stageSize(stage)[1]) / 10);
     const keys: Record<string, () => void> =
       onStage && zoom.k > 1
         ? { ArrowLeft: pan(1, 0), ArrowRight: pan(-1, 0), ArrowUp: pan(0, 1), ArrowDown: pan(0, -1) }

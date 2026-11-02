@@ -252,7 +252,8 @@ function fakeStage(w: number, h: number) {
     addEventListener(name: string, f: Handler) {
       (handlers[name] ??= []).push(f);
     },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h }),
+    // A resize assigns clientWidth and clientHeight; the box follows them, as a real element's does.
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: stage.clientWidth, height: stage.clientHeight }),
     classList: { toggle: (c: string, on: boolean) => (on ? classes.add(c) : classes.delete(c)) },
     setPointerCapture() {},
   };

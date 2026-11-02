@@ -156,7 +156,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
   const project = await collectProject(source, {write: false});
   await buildExplainer(project, join(folder, 'identity-opening.html'));
   await readerPage({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'}, `${embed}/identity-opening.html`, async page => {
-    const [w, h] = await page.locator('.stage').evaluate(e => [e.clientWidth, e.clientHeight]);
+    const [w, h] = await page.locator('.stage').evaluate(e => { const b = e.getBoundingClientRect(); return [b.width, b.height]; });
     const tour = closeUps((await stepLayouts(project.Scene)).get('compare'), w!, h!);
     assert.ok(tour.length > 1 && tour[0]!.k === 1 && tour[1]!.k > 1,
       'large comparison labels need the whole frame while smaller implementation labels need detail stops');
@@ -1511,7 +1511,7 @@ test(
       // 12 px or more, and the overview over the stage's corner steps through the rest of the change.
       const project = projects.get('mr-cache')!,
         values = resolveSettings(project.Scene, { request: 'miss' });
-      const size = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+      const size = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
       const layout = (await stepLayouts(project.variants.find((v) => v.values.request === values.request)!.Scene)).get('after')!;
       const tour = closeUps(layout, size.w, size.h);
       const painted = () => settledZoom(page);
@@ -1869,8 +1869,9 @@ function observe(ids: string[]) {
       const svg = stage.querySelector('svg');
       return svg && { view: svg.getAttribute('viewBox')!, camera: svg.getAttribute('data-camera') ?? svg.getAttribute('viewBox')! };
     })(),
-    stageW: stage.clientWidth,
-    stageH: stage.clientHeight,
+    stageClientW: stage.clientWidth,
+    stageW: stage.getBoundingClientRect().width,
+    stageH: stage.getBoundingClientRect().height,
     zoomOutDisabled: button('Zoom out')!.disabled,
     zoomInDisabled: button('Zoom in')!.disabled,
     // Unseen, whether removed or holding its place (Whole picture keeps its place so the controls do not wrap).
@@ -1914,8 +1915,8 @@ const paintedView = (page: Page | Frame): Promise<Painted> =>
   page.locator('.stage svg:not(.leaving)').evaluate((svg) => ({
     view: svg.getAttribute('viewBox')!,
     camera: svg.getAttribute('data-camera') ?? svg.getAttribute('viewBox')!,
-    w: svg.parentElement!.clientWidth,
-    h: svg.parentElement!.clientHeight,
+    w: svg.parentElement!.getBoundingClientRect().width,
+    h: svg.parentElement!.getBoundingClientRect().height,
   }));
 /** The reader's zoom painted over the author's frame; null when the stage shows the author's frame (Whole picture). */
 function zoomOf(p: Painted | null) {
@@ -2043,7 +2044,7 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   eq('Zoom out disabled', seen.zoomOutDisabled, m.k <= 1);
   eq('Zoom in disabled', seen.zoomInDisabled, m.k >= ZOOM_MAX);
   eq('Whole picture hidden', seen.wholeHidden, m.k <= 1);
-  const narrow = seen.stageW > 0 && seen.stageW < NARROW_PX;
+  const narrow = seen.stageClientW > 0 && seen.stageClientW < NARROW_PX;
   eq('Close-up hidden', seen.closeUpHidden, !(narrow && !m.follow));
   const tour = await tourOf(m, seen.stageW, seen.stageH),
     multipleViews = narrow && tour.length > 1;
@@ -2088,7 +2089,9 @@ const command = (
 /** The stage's size now, and whether it is narrow enough for close-ups. */
 /** The stage's size once it holds: after a resize the header and the heading settle within a frame or two. */
 async function stageSize(r: PlayerReal) {
-  const read = () => r.page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+  // The player plans close-ups at the stage's fractional size and calls it narrow by its rounded
+  // clientWidth (app/embed.ts), so the model reads both.
+  const read = () => r.page.locator('.stage').evaluate((s) => { const b = s.getBoundingClientRect(); return { w: b.width, h: b.height, cw: s.clientWidth }; });
   let last = await read();
   for (let i = 0; i < 30; i++) {
     await r.page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
@@ -2096,7 +2099,7 @@ async function stageSize(r: PlayerReal) {
     if (now.w === last.w && now.h === last.h) break;
     last = now;
   }
-  return { w: last.w, h: last.h, narrow: last.w > 0 && last.w < NARROW_PX };
+  return { w: last.w, h: last.h, narrow: last.cw > 0 && last.cw < NARROW_PX };
 }
 const layoutCache = new Map<string, Promise<Map<string, StepLayout>>>();
 /** A case's step layouts, worked out in Node as the page works them out. */
@@ -2751,7 +2754,7 @@ test(
             }
             await quiet(a.page);
             await quiet(d.page);
-            const size = await a.page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+            const size = await a.page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
             assert.ok(size.w < NARROW_PX);
             const tour = closeUps(layouts.get(step), size.w, size.h), want = tour[0]!;
             const t = await settledZoom(a.page);
@@ -2801,7 +2804,7 @@ test('phone: one press of Next view shows what PKCE\'s captions point at, emphas
 
     const { page, errors } = await counted(context, `${embed}/oauth-pkce.html?attacker=yes&step=secret`);
     await quiet(page);
-    const { w, h } = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+    const { w, h } = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
     const count = page.locator('.view-controls>span'),
       nextView = page.getByRole('button', { name: 'Next view', exact: true });
     const near = (a: ReturnType<typeof zoomOf>, b: { k: number; x: number; y: number }) =>
@@ -2952,10 +2955,12 @@ for (const motion of ['reduce', 'no-preference'] as const)
         fc.constant([{ action: { kind: 'next' as const }, gap: 250 }, { action: { kind: 'next' as const }, gap: 0 }]),
         fc.constant([{ action: { kind: 'next' as const }, gap: 0 }]), burstArb(choices.get(start.name)!))));
       await fc.assert(
-        fc.asyncProperty(inputs, early, fc.scheduler(), async ([start, burst], earlyActions, scheduler) => {
+        // A phone-sized page as well as Playwright's default: whether 1280 × 720 gives a narrow stage
+        // depends on the fonts, which wrap the header differently on CI.
+        fc.asyncProperty(inputs, early, fc.constantFrom(undefined, { width: 390, height: 844 }), fc.scheduler(), async ([start, burst], earlyActions, viewport, scheduler) => {
           const { name, values: initialValues, step } = start, p = choices.get(name)!, ids = settingsOfProject(p).map(s => s.id);
           const actions=name==='playback-probe'?[{action:{kind:'next' as const},gap:250},{action:{kind:'next' as const},gap:0},...burst]:burst;
-          await readerContext({ reducedMotion: motion }, async context => {
+          await readerContext({ reducedMotion: motion, ...(viewport && { viewport }) }, async context => {
 
             // Schedule the player's zero-delay yields (preloading and step boundaries),
             // retaining the browser's native animation clock and paint timing.
@@ -2974,6 +2979,9 @@ for (const motion of ['reduce', 'no-preference'] as const)
             assert.deepEqual(errors, []);
             assert.equal(new URL(page.url()).searchParams.get('step'), step, 'early controls keep the requested step');
             const whole=page.getByRole('button',{name:'Whole picture',exact:true});
+            // On a narrow stage Whole picture also turns close-ups off for the steps that follow,
+            // so the fresh link compared below gets the same press.
+            const closeUpsOff = await whole.isVisible() && await page.locator('.stage.narrow').count() > 0;
             if(await whole.isVisible()) await whole.click();
             await scheduler.waitFor(page.evaluate(
               async ({ burst, settings, paths }) => {
@@ -3055,6 +3063,11 @@ for (const motion of ['reduce', 'no-preference'] as const)
             // Ledger P5: include post-hold additions in the resting picture a fresh link shows.
             const fresh = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, values, seen.urlStep!)}`));
             assert.deepEqual(fresh.errors,[]);
+            const freshWhole = fresh.page.getByRole('button', { name: 'Whole picture', exact: true });
+            if (closeUpsOff && await freshWhole.isVisible()) {
+              await freshWhole.click();
+              await settledZoom(fresh.page);
+            }
             assert.equal(await stagePicture(page), await stagePicture(fresh.page), 'stage picture');
   });
         }),
@@ -3296,7 +3309,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         assert.equal(await page.getByRole('button', {name: 'Next view', exact: true}).getAttribute('aria-describedby'),
           await page.locator('.view-help').getAttribute('id'), 'view navigation announces how it differs from step navigation');
         assert.match(await page.locator('.view-help').innerText(), /Next step continues the explanation/);
-        const size = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+        const size = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
         const count = Number((await page.locator('.view-controls>span').innerText()).match(/of (\d+)/)![1]);
         assert.ok(count > 1);
         const evidence = targets.get(step)!;
