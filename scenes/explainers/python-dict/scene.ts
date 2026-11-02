@@ -1,19 +1,40 @@
-import { Scene, Group, Text } from '../../../src/index.ts';
+import { Scene, Group } from '../../../src/index.ts';
 import { settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { dictStory, EMPTY, DELETED } from '../lib/python-dict.ts';
 import type { DictTable, DictLookup } from '../lib/python-dict.ts';
 import { lesson, label, tile, table } from '../lib/lesson-drawing.ts';
 
-function picture(s: Stage, dict: DictTable, query: DictLookup, phase: number) {
+/** What one resting picture shows beside the index: the entries and a lookup, or the start-slot table. */
+interface View {
+  dict: DictTable;
+  query: DictLookup;
+  /** Mark the slots the lookup visits and print its path. */
+  path: boolean;
+  /** The lookup's last line, and whether it reads as found, missing or still open. */
+  outcome: string;
+  found: boolean | null;
+  /** Slots drawn in the emphasis colour without a lookup path. */
+  lit?: number[];
+  /** Slots drawn in the warning colour. */
+  bad: number[];
+  /** The line under the picture. */
+  note: string;
+  /** Show the keys' hashes and start slots instead of the entries. */
+  hashes?: { key: number; hash: number; slot: number }[];
+  /** The lookup's middle line when the path is hidden. */
+  ask?: string;
+}
+
+function picture(s: Stage, v: View) {
   const slots = new Group(
-    ...dict.indices.flatMap((entry, i) => {
+    ...v.dict.indices.flatMap((entry, i) => {
       const x = -6.3 + i * 1.8;
       return [
         label(i, x, 2.3, s.soft, 0.66),
         tile(entry === EMPTY ? '–' : entry === DELETED ? 'D' : entry, x, 1.55, 1.55, 0.85, s, {
-          active: phase >= 2 && query.slots.includes(i),
-          bad: phase === 4 && i === 0,
+          active: (v.path && v.query.slots.includes(i)) || !!v.lit?.includes(i),
+          bad: v.bad.includes(i),
           key: `slot-${i}`,
           size: 0.66,
         }),
@@ -21,48 +42,33 @@ function picture(s: Stage, dict: DictTable, query: DictLookup, phase: number) {
     }),
   );
   slots.key = 'dict-index';
-  if (phase === 1)
+  const note = label(v.note, 0, -3.65, s.palette.ink, 0.62);
+  if (v.hashes)
     return new Group(
       slots,
       table(
-        ['Key', 'Hash', 'Start slot'],
-        [0, 8, 16].map((k) => [k, k, k & 7]),
+        ['Key', 'Hash', 'In binary', 'Start slot'],
+        v.hashes.map((h) => [h.key, h.hash, h.hash.toString(2).padStart(5, '0'), h.slot]),
         s,
-        { xs: [-5, 0, 5], y: 0.25, key: 'dict-hashes', size: 0.66 },
+        { xs: [-5.4, -2.0, 1.6, 5.2], y: 0.3, gap: 0.8, key: 'dict-hashes', size: 0.62 },
       ),
-      label('The slot uses only the hash’s low three bits.', 0, -3.65, s.palette.ink, 0.66),
+      note,
     );
   const entries = table(
     ['Entry', 'Key', 'Value'],
-    dict.entries.map((e, i) => [i, e.key ?? '–', e.value ?? '–']),
+    v.dict.entries.map((e, i) => [i, e.key ?? '–', e.value ?? '–']),
     s,
     { xs: [-5.8, -3.5, -0.8], y: 0.1, gap: 0.85, key: 'dict-entries', size: 0.66 },
   );
   const result = new Group(
-    label(`d[${query.key}]`, 4.6, 0.25, s.palette.ink, 0.8),
-    label(phase === 0 ? 'Where does it look?' : `Visit: ${query.slots.join(' > ')}`, 4.4, -0.8, s.soft, 0.66),
-    label(
-      phase >= 3 ? (query.found ? query.value! : 'not found') : 'Follow the slots',
-      4.4,
-      -1.75,
-      query.found ? s.good : s.bad,
-      0.66,
-    ),
+    label(`d[${v.query.key}]`, 4.6, 0.25, s.palette.ink, 0.8),
+    label(v.path ? `Visit: ${v.query.slots.join(' > ')}` : (v.ask ?? ''), 4.4, -0.8, s.soft, 0.66),
+    label(v.outcome, 4.4, -1.75, v.found === null ? s.palette.ink : v.found ? s.good : s.bad, 0.66),
   );
   result.key = 'dict-result';
-  return new Group(
-    slots,
-    entries,
-    result,
-    label(
-      phase === 2 ? 'Key 16 probes 0 > 1 > 6.' : '– means never used; D means deleted.',
-      0,
-      -3.55,
-      s.palette.ink,
-      0.66,
-    ),
-  );
+  return new Group(slots, entries, result, note);
 }
+
 export default class PythonDict extends Scene {
   static meta = {
     id: 'python-dict',
@@ -71,6 +77,24 @@ export default class PythonDict extends Scene {
       'https://github.com/python/cpython/blob/v3.12.14/Objects/dictobject.c',
       'https://github.com/python/cpython/blob/v3.12.14/Include/internal/pycore_dict.h',
       'https://just-taking-a-ride.com/inside_python_dict/',
+    ],
+    // The script's answer and check questions (script.md); `broken` states the answer.
+    answer: 'An emptied slot would end the search early, so deletion leaves a marker that says keep looking',
+    checks: [
+      {
+        question: 'Key 8 is stored in slot 1. Why does a search for it start at slot 0?',
+        answer:
+          'An eight-slot index uses only the low three bits of the hash. 8 hashes to 8, binary 01000, whose low three bits are 000, so its search starts at slot 0. Key 0 already held slot 0 when 8 was stored, so 8 moved on to slot 1.',
+      },
+      {
+        question: 'If del d[0] emptied slot 0, which of the remaining keys, 8 and 16, could Python no longer find?',
+        answer:
+          'Both. All three keys start at slot 0, so each search would read “never used” there and stop, although pear and plum are still stored.',
+      },
+      {
+        question: 'After del d[0], the search for key 8 reads slot 0. What does it find there, and what does it do?',
+        answer: 'D, the deleted marker. It treats D as a taken slot whose key doesn’t match and moves on to slot 1, where it finds pear.',
+      },
     ],
   };
   static settings = [
@@ -86,86 +110,127 @@ export default class PythonDict extends Scene {
   ];
   override async construct() {
     const key = Number(settingsOf(this).key),
-      m = dictStory(key);
-    const phases = [
-      [
-        'question',
-        `How will Python find key ${key}?`,
-        'The index points into an ordered list of entries.',
-        `This CPython 3.12.14 example holds three integer keys in an eight-slot index. To find ${key}, Python first chooses a slot, then checks the entry it points to.`,
-        m.original,
-        m.before,
-      ],
-      [
-        'hash',
-        'Three hashes start at slot 0',
-        'Different hashes can choose the same starting slot.',
-        'The integer hashes are 0, 8 and 16. Masking each hash to an eight-slot index gives slot 0, so the keys need a way to continue when that slot is occupied.',
-        m.original,
-        m.before,
-      ],
-      [
-        'collision',
-        'A collision continues the search',
-        'Key 16 passes occupied slots 0 and 1 before reaching 6.',
-        'The index stores entry numbers. Key 0 uses slot 0, key 8 continues to slot 1, and key 16 reaches slot 6. Their entries retain insertion order.',
-        m.original,
-        dictStory(16).before,
-      ],
-      [
-        'lookup',
-        'The matching key decides the result',
-        `Follow the visited slots to ${m.before.value}.`,
-        `The search for ${key} visits ${m.before.slots.join(', ')}. Python compares the stored key at each occupied slot and returns ${m.before.value} when the key matches.`,
-        m.original,
-        m.before,
-      ],
-      [
-        'broken',
-        `An incorrect clear loses key ${key}`,
-        'This deliberately broken rule treats a deleted slot as never used.',
-        `Suppose deletion replaced slot 0 with the never-used marker. The search would stop there and report ${key} missing, although its entry still exists.`,
-        m.wrong,
-        m.broken,
-      ],
-      [
-        'marker',
-        'D keeps the search going',
-        'The deleted entry is empty; its index slot still carries a marker.',
-        `D denotes CPython’s deleted-slot marker. The search skips slot 0, continues through ${m.repaired.slots.join(', ')}, and finds ${m.repaired.value}.`,
-        m.correct,
-        m.repaired,
-      ],
-      [
-        'missing',
-        'An unused slot ends the search',
-        'Key 24 reaches slot 7, which has never held an entry.',
-        'Key 24 visits slots 0, 1, 6 and 7. D preserves the path through slot 0; the never-used slot 7 finally proves the key is absent. This example keeps capacity fixed and does not cover resizing.',
-        m.correct,
-        m.missing,
-      ],
-    ] as const;
-    const frames = phases.map(([id, title, line, caption, dict, result], i) => ({
-      id: String(id),
-      title: String(title),
-      line: String(line),
-      caption: String(caption),
-      state: { dict, result, key, policy: i === 4 ? 'incorrect-clear' : 'CPython marker' },
-      draw: (s: Stage) => picture(s, dict, result, i),
-    }));
-    frames.splice(4, 0, {
-      id: 'predict',
-      title: `Delete key 0: can the search still reach ${key}?`,
-      line: 'Decide whether slot 0 can become a never-used slot.',
-      caption: `Key ${key} starts at slot 0, where key 0 currently lives. Suppose deletion replaces it with “never used”. Would the lookup stop or continue to the next slot?`,
-      state: { dict: m.original, result: m.before, key, policy: 'prediction' },
-      draw: (s) => {
-        const g = picture(s, m.original, m.before, 4);
-        (g.children[2]!.children[2] as Text).setText('Keep probing?');
-        (g.children.at(-1) as Text).setText('Proposed edit: slot 0 becomes unused.');
-        return g;
+      m = dictStory(key),
+      sixteen = dictStory(16).before,
+      eight = dictStory(8).before;
+    const value = m.before.value!,
+      entry = m.original.entries.findIndex((e) => e.key === key),
+      home = m.original.indices.indexOf(entry);
+    /** What a search finds in each slot it passes, read from the table. */
+    const passes = (dict: DictTable, slots: number[]) =>
+      slots.map((i) => {
+        const at = dict.indices[i]!;
+        return at === DELETED ? `D at ${i}` : at === EMPTY ? `never used at ${i}` : `key ${dict.entries[at]!.key} at ${i}`;
+      });
+    const onward = m.repaired.slots.slice(1);
+    const missingPasses = passes(m.correct, m.missing.slots.slice(0, -1)),
+      missingStop = m.missing.slots.at(-1)!;
+    const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+
+    const frames = [
+      {
+        id: 'question',
+        title: `Delete key 0. Can Python still find key ${key}?`,
+        line: `Predict: if del d[0] just empties slot 0, what does d[${key}] give?`,
+        caption: `This CPython 3.12.14 dict maps 0 to apple, 8 to pear and 16 to plum. Its eight index slots hold entry numbers, and – marks a slot that has never been used. Key ${key} is entry ${entry}, in slot ${home}, not slot 0. Now delete key 0 the obvious way: put slot 0 back to never used and empty entry 0. Would d[${key}] still find ${value}?`,
+        state: { dict: m.original, result: m.before, key, policy: 'prediction' },
+        view: {
+          dict: m.original,
+          query: m.before,
+          path: false,
+          ask: `now: ${value}`,
+          outcome: 'after del d[0]?',
+          found: null,
+          bad: [0],
+          note: '– marks a slot that has never been used.',
+        },
       },
-    });
-    await lesson(this, frames);
+      {
+        id: 'broken',
+        title: `Empty slot 0, and key ${key} vanishes`,
+        line: `The search for ${key} starts at slot 0, reads never used, and stops.`,
+        caption: `Suppose deletion emptied slot 0 like this. d[${key}] would raise KeyError, although ${value} is still stored in entry ${entry}: the search for ${key} begins at slot 0, not slot ${home}, and a slot that was never used ends a search. An emptied slot would end the search early, so deletion leaves a marker that says keep looking.`,
+        state: { dict: m.wrong, result: m.broken, key, policy: 'incorrect-clear' },
+        view: {
+          dict: m.wrong,
+          query: m.broken,
+          path: true,
+          outcome: 'KeyError',
+          found: false,
+          bad: [0],
+          note: `${value} is still stored, in entry ${entry}.`,
+        },
+      },
+      {
+        id: 'hash',
+        title: 'Why slot 0: all three keys start there',
+        line: 'An eight-slot index keeps only the hash’s low three bits.',
+        caption: `A small int hashes to itself, so the hashes are ${m.starts.map((s) => s.hash).join(', ')}. With eight slots, Python keeps only the last three bits of the hash, and all three end in 000 in binary, so all three keys start at slot 0. Key 0 was stored first and took it.`,
+        state: { dict: m.original, result: m.before, key, policy: 'CPython marker' },
+        view: {
+          dict: m.original,
+          query: m.before,
+          path: false,
+          outcome: '',
+          found: null,
+          bad: [],
+          lit: [0],
+          note: 'Start slot: the last three bits of the hash.',
+          hashes: m.starts,
+        },
+      },
+      {
+        id: 'collision',
+        title: 'A taken slot sends the search on',
+        line: `Key 16 passes taken slots ${list(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
+        caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${list(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,
+        state: { dict: m.original, result: sixteen, key, policy: 'CPython marker' },
+        view: {
+          dict: m.original,
+          query: sixteen,
+          path: true,
+          outcome: sixteen.value!,
+          found: true,
+          bad: [],
+          note: `Key 16 visits ${sixteen.slots.join(' > ')}; key 8 visits ${eight.slots.join(' > ')}.`,
+        },
+      },
+      {
+        id: 'marker',
+        title: 'CPython leaves D in slot 0, and the search goes on',
+        line: 'Predict: key 24 was never stored and also starts at slot 0. Where does its search stop?',
+        caption: `In CPython, del d[0] writes a deleted marker, drawn here as D, into slot 0 and empties entry 0. A search treats D as a taken slot whose key never matches: the search for ${key} reads D at slot 0, moves on to slot ${onward.join(', then ')}, and finds ${m.repaired.value}.`,
+        state: { dict: m.correct, result: m.repaired, key, policy: 'CPython marker' },
+        view: {
+          dict: m.correct,
+          query: m.repaired,
+          path: true,
+          outcome: m.repaired.value!,
+          found: true,
+          bad: [],
+          note: 'D marks a deleted slot: taken, so keep looking.',
+        },
+      },
+      {
+        id: 'missing',
+        title: `Answer: at slot ${missingStop}, the first never-used slot`,
+        line: 'D and taken slots send a search on; a never-used slot stops it.',
+        caption: `Key 24’s search passes ${list(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. D never ends a search, so here a lookup ends at its key or at a never-used slot. This example keeps eight slots throughout and does not cover resizing.`,
+        state: { dict: m.correct, result: m.missing, key, policy: 'CPython marker' },
+        view: {
+          dict: m.correct,
+          query: m.missing,
+          path: true,
+          outcome: 'not found',
+          found: false,
+          bad: [],
+          note: `Slot ${missingStop} has never been used, so key 24 is absent.`,
+        },
+      },
+    ];
+    await lesson(
+      this,
+      frames.map(({ view, ...frame }) => ({ ...frame, draw: (s: Stage) => picture(s, view as View) })),
+    );
   }
 }
