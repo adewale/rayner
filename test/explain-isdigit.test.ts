@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fc, params } from './lib/pbt.ts';
 import {
   CHARS,
@@ -287,6 +288,34 @@ test('a check lets a character through to a ValueError exactly when it passes an
     }),
     params(),
   );
+});
+
+// The match step: UAX #44 says no character encoded since Unicode 6.3.0 has a digit value without a
+// decimal one. The fixture lists every such character in UnicodeData.txt 17.0.0 with its DerivedAge.txt
+// version; together they must be the isdigit() row's characters, all from before 6.3.0.
+const DIGIT_AGES = JSON.parse(readFileSync(new URL('./fixtures/isdigit-digit-ages.json', import.meta.url), 'utf8')) as { byAge: Record<string, string[]> };
+const version = (v: string) => v.split('.').map(Number).reduce((n, part, i) => n + part / 100 ** i, 0);
+test('every character in the isdigit() row was encoded before Unicode 6.3.0', () => {
+  const listed = Object.values(DIGIT_AGES.byAge).flat();
+  assert.equal(listed.length, accepts('isdigit'), 'the fixture lists the isdigit() row, character for character');
+  assert.equal(new Set(listed).size, listed.length);
+  for (const age of Object.keys(DIGIT_AGES.byAge)) assert.ok(version(age) < version('6.3'), `${DIGIT_AGES.byAge[age]!.length} encoded in ${age}`);
+  // The shown and unshown digits are in it; the shown decimals are not.
+  const hex = (c: Char) => c.char.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0');
+  for (const c of [CHARS.super, UNSHOWN]) assert.ok(listed.includes(hex(c)), c.name);
+  for (const id of LINEUP) assert.equal(listed.includes(hex(CHARS[id])), numericType(CHARS[id]) === 'Digit', id);
+});
+test('python3, run now, finds the isdigit() row the fixture lists, up to its own Unicode version', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
+  const script = [
+    'import json, unicodedata',
+    'cps = ["%04X" % cp for cp in range(0x110000) if not 0xD800 <= cp <= 0xDFFF and chr(cp).isdigit() and not chr(cp).isdecimal()]',
+    'print(json.dumps(dict(unidata=unicodedata.unidata_version, cps=cps)))',
+  ].join('\n');
+  const r = spawnSync(ANY_PY!, ['-I', '-c', script], { encoding: 'utf8', timeout: 120_000 });
+  assert.equal(r.status, 0, r.stderr);
+  const got = JSON.parse(r.stdout) as { unidata: string; cps: string[] };
+  const known = Object.entries(DIGIT_AGES.byAge).flatMap(([age, cps]) => (version(age) <= version(got.unidata) ? cps : []));
+  assert.deepEqual([...got.cps].sort(), [...known].sort(), `python3 with Unicode ${got.unidata}`);
 });
 
 test('counts print with thousands separators', () => {

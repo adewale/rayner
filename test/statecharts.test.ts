@@ -2,9 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { player, coffee, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, coffeeWithFrother, FROTHER, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from '../tools/oracle/statecharts.ts';
 import type { Expected, Explored } from '../tools/oracle/statecharts.ts';
+import type { StateNode } from '../scenes/explainers/lib/statecharts.ts';
 
 // Captured by `node tools/oracle/statecharts.ts <dir>` with the pinned XState; see that file.
 const xstate = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Expected;
@@ -48,6 +49,44 @@ test('in every configuration XState reaches, a region is in at most one state, s
   // While on, the player is in one playback and one volume state.
   for (const config of xstate.charts.player!.configurations.filter((c) => !c.includes('off')))
     for (const c of CONTROLS.slice(0, 2)) assert.equal(config.filter((s) => c.states.includes(s)).length, 1, flatName(config));
+});
+
+test('the coffee machine is always in exactly one state, and each of its four on states is reachable', () => {
+  const cycle = ['idle', 'grinding', 'brewing', 'ready'];
+  // The model's flat machine, and the configurations XState reaches for the same chart.
+  for (const configs of [Object.values(flatten(coffee()).configurations), xstate.charts.coffee!.configurations]) {
+    for (const config of configs) assert.equal(config.length, 1, flatName(config));
+    assert.deepEqual(configs.map(flatName).filter((n) => n !== 'off').sort(), [...cycle].sort());
+  }
+});
+
+/** The states of each region inside on, for the charts whose on is split into regions. */
+type Regions = readonly (readonly string[])[];
+const REGIONS: [string, StateNode, Regions][] = [
+  ...[2, 3, 4, 5].map((n): [string, StateNode, Regions] => [`player(${n})`, player(n), CONTROLS.slice(0, n).map((c) => c.states)]),
+  ['coffeeWithFrother', coffeeWithFrother(), [['idle', 'grinding', 'brewing', 'ready'], FROTHER.states]],
+];
+test('every flat state while on names one state per region, every pair is reachable, and every arrow between them changes one word and keeps the other', () => {
+  const words = (config: readonly string[], regions: Regions) => regions.map((r) => config.filter((s) => r.includes(s)));
+  const changed = (a: string[][], b: string[][]) => a.filter((w, i) => w[0] !== b[i]![0]).length;
+  for (const [name, chart, regions] of REGIONS) {
+    const flat = flatten(chart),
+      on = flat.states.filter((s) => s !== 'off');
+    // One word per region in every state while on, and every combination of words reached.
+    for (const s of on) assert.deepEqual(words(flat.configurations[s]!, regions).map((w) => w.length), regions.map(() => 1), `${name}: ${s}`);
+    assert.equal(on.length, regions.reduce((n, r) => n * r.length, 1), `${name}: every combination reachable`);
+    // Every arrow between two on states changes exactly one region's word.
+    for (const t of flat.transitions.filter((t) => t.from !== 'off' && t.to !== 'off'))
+      assert.equal(changed(words(flat.configurations[t.from]!, regions), words(flat.configurations[t.to]!, regions)), 1, `${name}: ${t.from} ${t.event} ${t.to}`);
+  }
+  // The same holds for the configurations XState reaches for the charts the explainer draws.
+  for (const [name, regions] of [['player', REGIONS[0]![2]], ['coffeeWithFrother', REGIONS.at(-1)![2]]] as const) {
+    const x = xstate.charts[name]!,
+      on = (i: number) => !x.configurations[i]!.includes('off');
+    for (const config of x.configurations.filter((c) => !c.includes('off'))) assert.ok(words(config, regions).every((w) => w.length === 1), `${name}: ${flatName(config)}`);
+    for (const [from, event, to] of x.transitions.filter(([f, , t]) => on(f) && on(t)))
+      assert.equal(changed(words(x.configurations[from]!, regions), words(x.configurations[to]!, regions)), 1, `${name}: XState ${event}`);
+  }
 });
 
 test('each on/off feature adds a region of two states to the statechart, and doubles the flat machine', () => {

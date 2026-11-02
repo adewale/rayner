@@ -95,6 +95,20 @@ export default class IsDigitExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the lineup step states the answer in every case.
     answer: ANSWER,
+    // Sentences that reach past the eight characters on screen, and the test that holds each.
+    claims: [
+      { says: 'call int() only if the check passes', shown: true as const },
+      { says: 'Eight numerals; int() accepts only the first four', shown: true as const },
+      { says: 'int() and isdecimal() accept only the first four', shown: true as const },
+      { says: 'has a value only in field 8', shown: true as const },
+      { says: 'fills only', shown: true as const },
+      { says: 'is in the innermost box, so every check passes it', test: 'test/explain-isdigit.test.ts: the model gives CPython 3.15.1' },
+      { says: 'A scan of every code point in CPython 3.15.1', test: 'test/explain-isdigit.test.ts: the model gives CPython 3.15.1' },
+      { says: 'Every decimal also has a digit value, and every digit has a numeric value', test: 'test/explain-isdigit.test.ts: the three predicates nest, whatever the row' },
+      { says: 'The innermost box holds the only single characters int() accepts', test: 'test/explain-isdigit.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
+      { says: 'For one character, only isdecimal() matches int()', test: 'test/explain-isdigit.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
+      { says: 'every character in the isdigit() row is older than that', test: 'test/explain-isdigit.test.ts: every character in the isdigit() row was encoded before Unicode 6.3.0' },
+    ],
     checks: [
       {
         question: `s is two characters: ${SPACE.code}, IDEOGRAPHIC SPACE, then an ASCII 7. Its line in UnicodeData.txt is ${SPACE.ucd}. Does the isdigit() guard let s through, and what would int(s) do?`,
@@ -198,7 +212,7 @@ export default class IsDigitExplainer extends Scene {
       line: run.passes
         ? `Predict: does int(${q(c)}) return a number, or raise ValueError?`
         : `Predict: had int() run, would int(${q(c)}) return a number, or raise ValueError?`,
-      caption: `One way to keep int() from raising is a guard: check the text first, and call int() only if the check passes. The check here is ${guard}(). ${q(c)} is a numeral whose Unicode value is ${valueOf(c)}, and ${guard}() returns ${
+      caption: `Python’s int() turns text into a whole number and raises ValueError when it cannot. One way to keep it from raising is a guard: check the text first, and call int() only if the check passes. The check here is the string method ${guard}(). ${q(c)} is a numeral whose Unicode value is ${valueOf(c)}, and ${guard}() returns ${
         run.passes
           ? 'True for it, so the next line calls int()'
           : 'False for it, so the code skips int() and treats the text as not a number'
@@ -261,7 +275,7 @@ export default class IsDigitExplainer extends Scene {
       title: 'Eight numerals; int() accepts only the first four',
       line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `The Unicode Character Database gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets mark what each call returns: int() accepts only the first four, isdigit() reaches ${CHARS.super.char} as well, and isnumeric() all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
+      caption: `The Unicode Character Database gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets over the row mark what the three string checks, isdecimal(), isdigit() and isnumeric(), return, and those under it what int() does: int() and isdecimal() accept only the first four, isdigit() reaches ${CHARS.super.char} as well, and isnumeric() all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
     });
     await s.clear();
     // One row in lineup order; a bracket spans the characters each call accepts, which the model
@@ -320,7 +334,7 @@ export default class IsDigitExplainer extends Scene {
               : `${c.char} has a value only in field 8: ${valueOf(c)}`,
       line:
         id === 'han'
-          ? 'Fields 6, 7 and 8 are empty; Unihan’s kPrimaryNumeric gives 3.'
+          ? 'Fields 6, 7 and 8 are empty; Unihan’s kPrimaryNumeric, its main numeric value, gives 3.'
           : `isdigit() reads field 7 and int() reads field 6: ${c.char} fills ${
               type === 'Decimal' ? 'both' : type === 'Digit' ? 'field 7 but not field 6' : 'neither'
             }.`,
@@ -329,10 +343,10 @@ export default class IsDigitExplainer extends Scene {
       // from which fields are filled, and gives Numeric_Type=Numeric to Unihan's numeric ideographs.
       caption:
         id === 'han'
-          ? 'UnicodeData.txt covers 三 only with a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty. Its value comes from the Unihan database: kPrimaryNumeric 3, which CPython copies into field 8 when it builds its tables, so isnumeric() is True. isdigit() reads field 7 and int() reads field 6, and both are empty.'
+          ? 'In UnicodeData.txt, 三 falls under a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty. Its value comes from the Unihan database: kPrimaryNumeric 3, which CPython copies into field 8 when it builds its tables, so isnumeric() is True. isdigit() reads field 7 and int() reads field 6, and both are empty.'
           : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, 7 the digit value and 8 the numeric value. int() and isdecimal() read field 6, isdigit() field 7 and isnumeric() field 8, which CPython fills from Unihan for ideographs. ${c.char} fills ${
               type === 'Decimal' ? 'all three' : type === 'Digit' ? 'only 7 and 8' : 'only 8'
-            }, so its Numeric_Type is ${type}${type === 'Digit' ? ', and isdigit() and int() disagree on it' : ''}.`,
+            }, so its numeric type in Unicode is ${type}${type === 'Digit' ? ', and isdigit() and int() disagree on it' : ''}.`,
     });
     await s.clear();
     const row = await s.code(
@@ -381,12 +395,12 @@ export default class IsDigitExplainer extends Scene {
             : `${c.char} is outside the ${guard}() box and has no decimal value.`,
       caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
         COUNTS.isnumeric,
-      )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest, and the innermost holds the only single characters int() accepts. ${c.char} is ${where}. ${
+      )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest. The innermost box holds the only single characters int() accepts. ${c.char} is ${where}. ${
         run.outcome === 'parsed'
           ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() returns ${parsed ? int.value : ''}.`
           : run.outcome === 'raised'
             ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() raises ValueError: invalid literal for int() with base 10.`
-            : `The check fails on ${c.char}, so the code never calls int(); had it run, int() would have raised ValueError too.`
+            : `The check fails on ${c.char}, so the code does not call int(); had it run, int() would have raised ValueError too.`
       }`,
     });
     await s.clear();
@@ -410,7 +424,7 @@ export default class IsDigitExplainer extends Scene {
       // functions.rst:1078-1082: int() takes a sign, surrounding whitespace and single underscores.
       caption: `Each row counts the single characters a check accepts and int() rejects; isdecimal() accepts exactly the ${grouped(
         COUNTS.int,
-      )} int() takes. No character encoded since Unicode 6.3.0 gets Numeric_Type=Digit, so every character in the isdigit() row is older than that. Because int() also takes signs, surrounding spaces and underscores, no character check can match it on a whole string, so the code below calls int() and catches ValueError.`,
+      )} int() takes. Unicode’s own rules (UAX #44) give no character encoded since Unicode 6.3.0 a digit value without a decimal one, and every character in the isdigit() row is older than that. Because int() also takes signs, surrounding spaces and underscores, no character check can match it on a whole string, so the code below calls int() and catches ValueError.`,
     });
     await s.clear();
     const counts = await s.card(

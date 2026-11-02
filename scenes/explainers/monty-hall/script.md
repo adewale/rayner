@@ -25,3 +25,7 @@ Then the other host, on the same strip, with motion. Step 4's caption opens with
 | predict | paragraph 1: the two questions | stay or switch; whether the host's knowledge matters |
 | odds | paragraph 2: your host's strip, greyed to the rounds that open B, and his odds | |
 | worlds | paragraph 3: the answer; the other host's strip, morphed from yours, and the aha | |
+
+## Limits
+
+The model is three doors, one car, a first pick fixed at A, and a car hidden behind each door a third of the time. It leaves out more doors, a player who picks B or C (that only relabels the doors), and any host whose rule is neither of the two settings. No case draws an uneven hiding place, the coin-tossing host or the host who always opens the leftmost goat: the uneven prior and the coin host appear only in the check questions, and the leftmost host only in the model's tests. The sentences about each host's rule ("always opens", "the only goat", "in only one of them") hold for every first pick in `test/learning-models.test.ts`, not only for A.

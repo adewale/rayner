@@ -148,6 +148,21 @@ test('the filling rule fills runs of 2, 6, 10 and 14 that stack into the s, d, p
   assert.equal(runs, 19);
 });
 
+test('every group 1 element ends in one s electron, and every halogen in two s and five p electrons', () => {
+  // The family step's titles, for every member of the two groups: NIST's configuration up to
+  // element 108, and the filling rule for tennessine (117), which the caption says NIST does not reach.
+  const outermost = (z: number) => {
+    const config = z <= NIST_UP_TO ? listed(z) : predicted(z),
+      n = Math.max(...config.map((s) => s.n));
+    return config.filter((s) => s.n === n).map((s) => `${s.l}${s.electrons}`).join(' ');
+  };
+  const group1 = membersOf(1), halogens = membersOf(17);
+  assert.deepEqual(group1.map((p) => p.symbol), ['H', 'Li', 'Na', 'K', 'Rb', 'Cs', 'Fr']);
+  assert.deepEqual(halogens.map((p) => p.symbol), ['F', 'Cl', 'Br', 'I', 'At', 'Ts']);
+  for (const p of group1) assert.equal(outermost(p.z), 's1', p.symbol);
+  for (const p of halogens) assert.equal(outermost(p.z), 's2 p5', p.symbol);
+});
+
 test('group names follow the IUPAC 1 to 18 order with the CAS and old IUPAC letters', () => {
   assert.deepEqual(GROUP_NAMES.map((g) => g.group), Array.from({ length: 18 }, (_, i) => i + 1));
   const at = (g: number) => GROUP_NAMES[g - 1]!;

@@ -40,6 +40,19 @@ export default class BloomFilter extends Scene {
     ],
     // The script's answer and check questions (script.md); check holds the shared step to stating the answer.
     answer: 'A set bit says some name set it, not which',
+    // Sentences that reach past the three lookups on screen, and the test that holds each for any names and row length.
+    claims: [
+      { says: 'the row itself stores only the 1s and keeps no trace of the name', test: 'test/learning-models.test.ts: insert-only filters never reject an inserted word' },
+      { says: 'its fill shows both names, but the row records only the 1', test: 'test/learning-models.test.ts: insert-only filters never reject an inserted word' },
+      { says: 'other names may have set every one of them, so the filter can only say maybe', test: 'test/learning-models.test.ts: concrete false positives still need storage' },
+      { says: 'A taken name always finds its bits set, so the filter never wrongly says “not taken”', test: 'test/learning-models.test.ts: insert-only filters never reject an inserted word' },
+      { says: 'could have been set by other names, so it can only say maybe', test: 'test/learning-models.test.ts: concrete false positives still need storage' },
+      { says: 'Only cat and dog are taken', shown: true as const },
+      { says: 'An untaken name gets through only when all three of its bits are already set', test: 'test/learning-models.test.ts: a name gets through only when all three of its bits are set' },
+      { says: 'bits are 1 and every lookup says maybe', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
+      { says: 'Keep taking names and the row only fills', test: 'test/learning-models.test.ts: the row only fills' },
+      { says: 'From then on every name finds three 1s', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
+    ],
     checks: [
       {
         question: `In the 32-bit filter, someone also takes eel, whose hashes are ${list(EEL.at)}. What does the filter now say about wolf, and about owl?`,
@@ -157,13 +170,13 @@ export default class BloomFilter extends Scene {
         id: 'question',
         title: 'Is this name taken? Can we skip the database?',
         line: `cat and dog are taken. ${size} bits in memory will try to answer first.`,
-        caption: `A sign-up form checks every name a person types against the accounts database, one database read per check, and a read for a free name finds nothing. A row of ${size} bits kept in memory, all 0 to start, will sit in front of the database and try to answer “not taken” without the read.`,
+        caption: `A sign-up form checks each name a person types against the accounts database, one database read per check, and a read for a free name finds nothing. A row of ${size} bits kept in memory, all 0 to start, will sit in front of the database and try to answer “not taken” without the read.`,
       },
       {
         id: 'insert',
         title: `Taking cat sets bits ${list(cat)}`,
         line: 'Three hash functions each turn the name into a position.',
-        caption: `Each hash gives a number from 0 to ${size - 1}; for cat they give ${list(cat)}, and those bits become 1. The purple fill marks them as cat’s for us, but the row itself stores only the 1s and keeps no trace of the name.`,
+        caption: `Each of this explainer’s three hashes gives a number from 0 to ${size - 1}; for cat they give ${list(cat)}, and those bits become 1. The purple fill marks them as cat’s for us, but the row itself stores only the 1s and keeps no trace of the name.`,
       },
       {
         id: 'shared',
@@ -179,7 +192,7 @@ export default class BloomFilter extends Scene {
         id: 'absent',
         title: `${absent.word} finds a 0: definitely not taken`,
         line: `No database read: had ${absent.word} been taken, all three of its bits would be 1.`,
-        caption: `Looking up ${absent.word} runs the same three hashes: bits ${list(absent.locations)}. Taking a name sets all its bits and nothing clears them, so a taken ${absent.word} would find three 1s. Bit${zeros(absent).length > 1 ? 's' : ''} ${list(zeros(absent))} ${zeros(absent).length > 1 ? 'are' : 'is'} 0, so ${absent.word} is definitely free and the database is never asked. This row of bits and its hash functions is a Bloom filter.`,
+        caption: `Looking up ${absent.word} runs the same three hashes: bits ${list(absent.locations)}. Taking a name sets all its bits and nothing clears them, so a taken ${absent.word} would find three 1s. Bit${zeros(absent).length > 1 ? 's' : ''} ${list(zeros(absent))} ${zeros(absent).length > 1 ? 'are' : 'is'} 0, so ${absent.word} is definitely free and the database is not asked. This row of bits and its hash functions is a Bloom filter.`,
       },
       {
         id: 'present',
@@ -189,7 +202,7 @@ export default class BloomFilter extends Scene {
       },
       {
         id: 'predict',
-        title: `${probe.word} was never taken. What does the filter say?`,
+        title: `${probe.word} is not taken. What does the filter say?`,
         line: `Predict: ${probe.word} hashes to ${list(probe.locations)}. Maybe, or definitely not?`,
         caption: `Only cat and dog are taken. Find bits ${list(probe.locations)} in the row. Will the filter answer “definitely not”, or say maybe and ask the database?`,
       },
@@ -202,8 +215,8 @@ export default class BloomFilter extends Scene {
           ? `Each of ${probe.word}’s three bits was set by another name.`
           : `With ${other.size} bits, ${probe.word} finds ${list(otherProbe.locations)}, all set by cat and dog.`,
         caption: probe.maybe
-          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: a maybe for a name nobody took. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
-          : `With ${size} bits, ${probe.word} lands on ${list(probe.locations)}: bit ${list(sources(m, probe.locations))}. No name set bit ${list(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. Only ${m.setBits} of these ${size} bits are set, against ${other.setBits} of ${other.size} in the shorter row, so an untaken name is more likely to land on a 0 here.`,
+          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: a maybe for a name that is not taken. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
+          : `With ${size} bits, ${probe.word} lands on ${list(probe.locations)}: bit ${list(sources(m, probe.locations))}. No name set bit ${list(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. ${m.setBits} of these ${size} bits are set, against ${other.setBits} of ${other.size} in the shorter row, so an untaken name is more likely to land on a 0 here.`,
       },
       {
         id: 'pipeline',

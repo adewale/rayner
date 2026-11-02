@@ -543,6 +543,16 @@ export default class Statecharts extends Scene {
     watch: { current: 'Current states' },
     // The script's answer and check questions (script.md); check holds a step (parent) to stating the answer.
     answer: 'A statechart is a state machine whose states can contain other states, active one at a time or several at once',
+    // Sentences that reach past the charts on screen, and the test that holds each against the model and XState.
+    claims: [
+      { says: 'is always in exactly one of four boxes', test: 'test/statecharts.test.ts: the coffee machine is always in exactly one state' },
+      { says: 'A POWER_OFF copied onto every state, and one copy missed', shown: true as const },
+      { says: 'playback and volume never affect each other', test: 'test/statecharts.test.ts: every arrow between them changes one word and keeps the other' },
+      { says: 'Every name is two words, one per feature', test: 'test/statecharts.test.ts: every flat state while on names one state per region' },
+      { says: 'a further feature adds a region of two states where the flat machine doubles', test: 'test/statecharts.test.ts: each on/off feature adds a region of two states' },
+      { says: 'Only the drawing changes', test: 'test/statecharts.test.ts: flattening each drawn chart reaches the configurations and transitions XState reaches' },
+      { says: 'every state while on would pair one of the four brewing states with still or frothing', test: 'test/statecharts.test.ts: every pair is reachable' },
+    ],
     // Questions that change this explainer's frother or replay its last machine, none of which a step shows.
     checks: [
       {
@@ -628,7 +638,7 @@ export default class Statecharts extends Scene {
     await this.step('machine', {
       title: 'A coffee machine, one box at a time',
       line: 'Predict: a power button must switch it off from any state. How many arrows does that add?',
-      caption: `This coffee machine is always in exactly one of four boxes: idle, grinding, brewing or ready. Each event moves it along one of ${coffeePlain} arrows: START, GROUND, BREWED and TAKE. The boxes are called states, the arrows transitions, and the whole drawing a state machine. Now give it a power button that switches it off from whichever state it is in.`,
+      caption: `This coffee machine is always in exactly one of four boxes: idle, grinding, brewing or ready. Each event moves it along one of ${coffeePlain} arrows: START, GROUND, BREWED and TAKE. The boxes are called states, the arrows transitions, and the whole drawing a state machine. Now give it a power button: the event POWER_OFF switches it off from whichever state it is in, and POWER_ON switches it back on.`,
     });
     main.rebuild();
     s.keep(main, describe);
@@ -639,7 +649,7 @@ export default class Statecharts extends Scene {
     await this.step('copies', {
       title: 'A POWER_OFF copied onto every state, and one copy missed',
       line: 'Predict: the marked arrows all do the same thing. How could one arrow do the job?',
-      caption: `In a plain state machine an arrow leaves exactly one state, so idle, grinding, brewing and ready each need their own POWER_OFF, and off needs a POWER_ON: ${coffeeFlat.transitions - coffeePlain} more arrows, ${coffeeFlat.transitions} in all. Copied by hand, one is easy to miss. Here brewing’s is missing, so pressing the power button while brewing does nothing until the brew is done, and every state added later needs its own copy. The same event leading from several states to the same place is the first of two signs to look for in a flat machine.`,
+      caption: `In a plain state machine an arrow leaves exactly one state, so idle, grinding, brewing and ready each need their own POWER_OFF, and off needs a POWER_ON: ${coffeeFlat.transitions - coffeePlain} more arrows, ${coffeeFlat.transitions} in all. Copied by hand, one is easy to miss. In this hand-copied machine brewing’s is missing, so pressing the power button while brewing does nothing until the brew is done, and a state added later would need a copy of its own. The same event leading from several states to the same place is the first of two signs to look for in a flat machine.`,
     });
     await morph('copies');
     this.state = { current: null };

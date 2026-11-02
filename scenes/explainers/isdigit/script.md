@@ -33,3 +33,7 @@ test/explain-isdigit.test.ts holds both to the model, to the UnicodeData.txt lin
 | ucd | paragraph 4: ²'s line, fields 6, 7 and 8, and which call reads each | |
 | outcome | paragraph 5 and the aha: the nested sets, counted over every code point, with ² inside the heavy isdigit() box and outside the innermost | |
 | match | sentence to remember | |
+
+## Limits
+
+The model (`scenes/explainers/lib/isdigit.ts`) answers for one character at a time: the three string checks, the numeric fields of its UnicodeData.txt line (and Unihan's value for 三), and `int()`'s rewrite of that character. It leaves out what `int()` does with whole strings (signs, surrounding spaces, underscores, bases other than 10), `float()` beyond the second check question, `str.isascii()`, locale, and every Python and Unicode version but CPython 3.15.1 with Unicode 17.0.0 (3.14.9 with Unicode 16.0.0 is recorded only in a test comment). The page draws eight characters; the counts 770, 898 and 2,023 come from a scan of every code point recorded from that CPython, which `test/explain-isdigit.test.ts` reruns when a python3 with Unicode 17.0.0 is on the path. No case shows a whitespace character, a multi-character string, or a digit that is neither ² nor in the lineup: ⑤ and 𝟗 are tested but never drawn. The claim that every character in the `isdigit()` row predates Unicode 6.3.0 rests on UAX #44 and on a fixture of UnicodeData.txt and DerivedAge.txt 17.0.0, which a local python3 cross-checks up to its own Unicode version.
