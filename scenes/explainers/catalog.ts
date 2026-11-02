@@ -38,7 +38,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'python-dict', step: 'marker', group: 'topic', tier: 'showcase' },
   { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
   { id: 'git-branches', step: 'merge', group: 'topic', tier: 'showcase' },
-  { id: 'monty-hall', step: 'odds', group: 'topic', tier: 'showcase' },
+  { id: 'monty-hall', step: 'worlds', group: 'topic', tier: 'showcase' },
   { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'coverage' },
   { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'showcase' },
   { id: 'seasons', step: 'reader-year', group: 'topic', tier: 'gallery' },
