@@ -2,11 +2,11 @@
 
 Questions the reader brings: How do "hand-drawn" chart styles avoid wrecking the chart? If every stroke is random, why don't the labels drift? What does the hand actually get to decide?
 
-The opening is the failure on the real chart. A timeline of four periods, an event in each, and no positions is drawn by a simulated hand that wobbles a little on every line: the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and 5 of the 8 (2 in the first drawing) poke out of the box drawn round them. The reader predicts what has to be settled before any ink.
+The opening is the failure on the real chart. A timeline of four periods, an event in each, and no positions is drawn by a simulated hand that wobbles a little on every line, as this explainer models a person's hand: the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and 5 of the 8 (2 in the first drawing) poke out of the box drawn round them. The reader predicts what has to be settled before any ink.
 
 Then why, on four plain boxes. Each side begins at the end of the side before, up to 2° and 3% off, and the pen moves on from where it lifted, so every error is carried into every later corner. Two drawings with different seeds put the same box up to half a unit apart, about 40 px on a page 1280 px wide.
 
-The remedy is to fix the route first, the corners and the ends, and let the hand only trace it. The pen is a mass on a damped spring chasing a point along the route, so each stroke is pulled back to its route and no error reaches the next. Two drawings stay within 0.005 units of the blue band, and a ×36 magnifier shows them 0.003 apart where they differ most. The answer: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke's wobble and leaves every box where the layout put it.
+The remedy is to fix the route first, the corners and the ends, and let the hand only trace it. The pen is a mass on a damped spring chasing a point along the route, so each stroke is pulled back to its route and no error reaches the next. Two drawings stay within 0.005 units of the blue band, and a ×36 magnifier shows them 0.003 apart where they differ most. The answer, in this hand model: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke's wobble and leaves every box where the layout put it.
 
 For the real timeline the route comes from Agentic Mermaid, the Mermaid layout library Rayner draws its diagrams with, which places every box with Inter's letter widths before any ink. rough.js takes the same order (`rectangle(x, y, width, height)` gets its corner and size from the caller; roughness and a seed set the wobble, per its wiki), but its documentation does not say what the other order costs, which the first two steps showed. The drawing reads the layout back as marks, 40 outlines, 13 filled shapes and 8 words, and a blue construction pencil traces them.
 
@@ -37,3 +37,13 @@ The ending sets the opening's drawing above the finished plate: boxes up to half
 | hand | paragraph 5: close on one marker; the largest stray over the whole chart | |
 | plate | paragraph 6: the chart, the scenery, the second drawing over the first (default); pele credited | |
 | freehand | paragraph 7: the opening's drawing above the finished plate (the ending) | |
+
+**Claims:** the drift of a free hand ("every error is carried into every later corner") and the answer's "leaves every box where the layout put it" are held by `test/explain-pen-and-pencil.test.ts`, the second as a property over random boxes and seeds; "the same in both drawings" by a test that compares the two cases' construction strokes path for path. The opening's line-by-line drawing and the layout step's boxes are marked shown: those sentences speak of the drawing on screen.
+
+## Limits
+
+- The hand is this explainer's own model: a mass on a damped spring with low-passed tremor, and a free hand that turns each move by up to 2° and stretches it by up to 3%, an assumption rather than pele's method. No real hand or pen was measured.
+- Two seeds are drawn, 1967 and 7. That any seed leaves each box in place rests on the property test of the model, with its tolerance of 2√2 times the tremor, and on no further drawings.
+- One timeline is laid out: four periods with one event each. Longer labels, more periods and other diagram families are not shown.
+- rough.js is cited from its wiki and was not run; no step draws rough.js output.
+- No case draws the two check questions' variants: the opening's route under the spring hand, or the damping lowered to a quarter.
