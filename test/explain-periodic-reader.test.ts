@@ -20,21 +20,17 @@ const families:Record<string,string[]>={
   na:['H','Li','Na','K','Rb','Cs','Fr'],cl:['F','Cl','Br','I','At','Ts'],
   fe:['Fe','Ru','Os','Hs'],cu:['Cu','Ag','Au','Rg'],he:['He','Ne','Ar','Kr','Xe','Rn','Og'],
 };
-const counted:Record<string,string[]>={na:['Na'],cl:['Na','Mg','Al','Si','P','S','Cl'],fe:['K','Ca','Sc','Ti','V','Cr','Mn','Fe']};
 const frameCache=new Map<Project['variants'][number],ReturnType<typeof storyFrames>>();
 const openingClaims=(element:string):StoryClaim[]=>{
   const members=families[element]!;
   const familyTargets=[...members.map(symbol=>({key:`periodic-member:${symbol}`})),
     ...members.slice(1).map((symbol,i)=>({key:`periodic-jump:${members[i]}:${symbol}`}))];
-  const countTargets:StoryClaim['targets']=element==='cu'?
-    [{text:'[Ar] 4s² 3d⁹'},{text:'[Ar] 3d¹⁰ 4s¹'},{text:'11 counted either way = group 11'}]:
-    element==='he'?[{key:'periodic-helium:2'},{key:'periodic-helium:18'}]:
-    counted[element]!.map(symbol=>({key:`periodic-count:${symbol}`}));
   // The blocks step follows fill, whose table already shows every atomic number, so those labels no
   // longer count as changed there; name them, and the block strip, as the step's subjects instead.
   const blockTargets=[...Array.from({length:118},(_,i)=>({text:String(i+1)})),
     ...['s: 2 columns','d: 10 columns','p: 6 columns','f: 14 columns,','no group','number'].map(text=>({text}))];
-  return [{step:'column',opening:true,targets:familyTargets},{step:'count',opening:true,targets:countTargets},{step:'blocks',targets:blockTargets}];
+  // The count step's compact comparison is gone: its answers are said beside the full table in blocks.
+  return [{step:'column',opening:true,targets:familyTargets},{step:'blocks',targets:blockTargets}];
 };
 function framesFor(variant:Project['variants'][number]){
   let frames=frameCache.get(variant);
@@ -55,7 +51,7 @@ after(async()=>{
   await browser?.close();server?.close();if(folder)await rm(folder,{recursive:true,force:true});
 });
 
-test('phone openings show each complete family and the count/group comparison without a close-up tour',options,async()=>{
+test('phone openings show each complete family comparison without a close-up tour',options,async()=>{
   let openings=0,targets=0;
   for(const variant of project.variants){
     const element=variant.values.element!;
@@ -63,7 +59,7 @@ test('phone openings show each complete family and the count/group comparison wi
     for(const viewport of [{width:320,height:568},{width:390,height:844}]){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{
-        for(const step of ['column','count']){
+        for(const step of ['column']){
           await page.goto(`${server.url}/periodic.html?element=${element}&step=${step}`);
           await page.waitForSelector('[data-ready=true]');
           await page.waitForFunction(()=>!document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
@@ -84,15 +80,15 @@ test('phone openings show each complete family and the count/group comparison wi
       }finally{await page.close();}
     }
   }
-  assert.equal(openings,20);assert.equal(targets,144);
+  assert.equal(openings,10);assert.equal(targets,102);
 });
 
-test('count-step labels stay at least 12 CSS pixels in actual short laptop stages',options,async()=>{
+test('opening-comparison labels stay at least 12 CSS pixels in actual short laptop stages',options,async()=>{
   let stages=0;
   for(const variant of project.variants){
     let minimum=Infinity;
     await new variant.Scene({async frame(){},async stepEnd(scene,step){
-      if(step.name!=='count')return;
+      if(step.name!=='column')return;
       const labels=scene.familyMembers().filter((m):m is Text=>m instanceof Text&&!!m.text.trim());
       assert.ok(labels.length>0);
       minimum=Math.min(...labels.map(m=>m.textSize()));
@@ -101,13 +97,13 @@ test('count-step labels stay at least 12 CSS pixels in actual short laptop stage
     for(const viewport of [1100,1212,1280].flatMap(width=>[720,800].map(height=>({width,height})))){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{
-        await page.goto(`${server.url}/periodic.html?element=${variant.values.element}&step=count`);
+        await page.goto(`${server.url}/periodic.html?element=${variant.values.element}&step=column`);
         await page.waitForSelector('[data-ready=true]');
         await page.waitForFunction(()=>!document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
         const scale=await page.locator('.stage svg:not(.leaving)').evaluate(svg=>{
           const matrix=(svg as SVGSVGElement).getScreenCTM()!;return Math.hypot(matrix.a,matrix.b)*1000;
         });
-        assert.ok(minimum*scale>=12-1e-6,`${variant.values.element}/${viewport.width}×${viewport.height}: smallest count-step label is ${minimum*scale}px`);
+        assert.ok(minimum*scale>=12-1e-6,`${variant.values.element}/${viewport.width}×${viewport.height}: smallest opening-comparison label is ${minimum*scale}px`);
         stages++;
       }finally{await page.close();}
     }
