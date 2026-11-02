@@ -3,7 +3,7 @@ import type {Trace} from '../../../src/trace.ts';
 import {assertStepState} from '../explainer-state.ts';
 import {dictStory} from '../../../scenes/explainers/lib/python-dict.ts';
 import {bloomStory} from '../../../scenes/explainers/lib/bloom-filter.ts';
-import {gitStory,currentFiles} from '../../../scenes/explainers/lib/git-branches.ts';
+import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
 import {monty,montyExample,threeDoorWorlds} from '../../../scenes/explainers/lib/monty-hall.ts';
 import type {Host} from '../../../scenes/explainers/lib/monty-hall.ts';
 import {birthdayStory} from '../../../scenes/explainers/lib/birthday-paradox.ts';
@@ -14,14 +14,16 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
 /** Models have native/exhaustive oracles in learning-models.test.ts. This boundary
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
-  const expected:Record<string,number>={'python-dict':8,'bloom-filter':9,'git-branches':8,'monty-hall':8,'birthday-paradox':8,'melody-rhythm':8};
+  // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
+  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':8,'birthday-paradox':8,'melody-rhythm':8};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     assertStepState(trace,step.step,{phase:step.step});
   }
   if(id==='python-dict') {
     const key=Number(values.key),m=dictStory(key);
-    for(const name of ['question','hash','lookup']) assertStepState(trace,name,{key,dict:m.original,result:m.before});
+    // The question step now carries the old lookup step's state: the intact dict and d[key]'s result.
+    for(const name of ['question','hash']) assertStepState(trace,name,{key,dict:m.original,result:m.before});
     assertStepState(trace,'collision',{dict:m.original,result:dictStory(16).before});
     assertStepState(trace,'broken',{dict:m.wrong,result:m.broken,policy:'incorrect-clear'});
     assertStepState(trace,'marker',{dict:m.correct,result:m.repaired});
@@ -37,14 +39,23 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assert.ok(String(trace.steps.find(s=>s.step==='false-positive')!.meta.caption).includes(m.queries[2]!.word));
   } else if(id==='git-branches') {
     const advanced=values.history==='diverged',frames=gitStory(advanced);
-    for(const [i,name] of ['start','branch','feature','switch','main','merge'].entries())
+    // The opening question shows the history just before the merge (the old main and predict steps);
+    // the branch-basics steps start, branch, feature and switch were folded into its caption.
+    for(const [i,name] of [[4,'question'],[5,'merge']] as const)
       assertStepState(trace,name,{advanced,frame:frames[i],files:currentFiles(frames[i]!)});
+    assert.deepEqual(trace.steps.map(s=>s.step),advanced?['question','lost','merge','countercase']:['question','merge','countercase']);
+    if(advanced) {
+      const moved=moveMainToFeature(frames[4]!);
+      assertStepState(trace,'lost',{advanced,frame:moved,files:currentFiles(moved),lost:['C']});
+    }
     const other=gitStory(!advanced).at(-1)!;
     assertStepState(trace,'countercase',{advanced:!advanced,frame:other,files:currentFiles(other)});
   } else if(id==='monty-hall') {
     const host=values.host as Host,choice='ABC'.indexOf(values.choice!),example=montyExample(choice,values.strategy as 'stay'|'switch');
     for(const name of ['choice','host','reveal']) assertStepState(trace,name,{example,host,revealed:name==='reveal'});
     assertStepState(trace,'worlds',{choice,host,worlds:threeDoorWorlds(choice,host),odds:monty(3,host)});
+    // Whichever host is in play, the count sets both hosts' rows side by side.
+    assertStepState(trace,'worlds',{informedWorlds:threeDoorWorlds(choice,'informed'),randomWorlds:threeDoorWorlds(choice,'random')});
     assertStepState(trace,'odds',{odds:monty(3,host)});assertStepState(trace,'many',{odds:monty(100,host)});
     assertStepState(trace,'rules',{informed:monty(3,'informed'),random:monty(3,'random')});
     if(host==='random') assert.match(String(trace.steps[1]!.meta.caption),/happened to reveal a goat/);

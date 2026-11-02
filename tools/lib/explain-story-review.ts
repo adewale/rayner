@@ -34,11 +34,6 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
     { step: 'hash', opening: true, targets: [{ key: 'dict-index' }, { key: 'dict-hashes' }] },
     { step: 'collision', opening: true, targets: [{ key: 'dict-index' }, { key: 'dict-entries' }, { text: 'd[16]' }] },
     {
-      step: 'lookup',
-      opening: true,
-      targets: [{ key: 'dict-index' }, { key: 'dict-entries' }, { key: 'dict-result' }],
-    },
-    {
       step: 'broken',
       opening: true,
       targets: [{ key: 'dict-index' }, { key: 'dict-entries' }, { key: 'dict-result' }],
@@ -84,11 +79,13 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
     { step: 'pipeline', opening: true, targets: [{ key: 'bloom-pipeline' }, { key: 'bloom-checks' }] },
   ],
   'git-branches': [
-    { step: 'start', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
-    { step: 'branch', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
-    { step: 'feature', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
-    { step: 'switch', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
-    { step: 'main', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
+    { step: 'question', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
+    {
+      step: 'lost',
+      settings: { history: 'diverged' },
+      opening: true,
+      targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }, { text: 'no branch' }],
+    },
     { step: 'merge', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
     {
       step: 'countercase',
@@ -401,22 +398,10 @@ export const STORY_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>> = Obj
             },
           ]
         : []),
-      ...(id === 'python-dict'
-        ? [{ step: 'predict', opening: true, targets: [{ key: 'dict-index' }, { key: 'dict-result' }] }]
-        : []),
       ...(id === 'bloom-filter'
         ? [
             { step: 'hashes', opening: true, targets: [{ key: 'bloom-hash-mapping' }] },
             { step: 'predict', opening: true, targets: [{ key: 'bloom-bits' }, { key: 'bloom-answer' }] },
-          ]
-        : []),
-      ...(id === 'git-branches'
-        ? [
-            {
-              step: 'predict',
-              opening: true,
-              targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }],
-            },
           ]
         : []),
       ...(id === 'monty-hall'
