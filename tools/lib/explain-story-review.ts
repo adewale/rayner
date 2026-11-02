@@ -277,7 +277,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'traffic-policy': ['reader-nodes', 'reader-shares'],
   'ext4-space': ['reader-allocation', 'reader-reserve'],
   'send-sync': ['reader-threads', 'reader-requirements', 'reader-wrappers'],
-  'quotient-familial': ['reader-quotient', 'reader-cap'],
   glyph: ['reader-width', 'reader-shape'],
   'pen-and-pencil': ['reader-separate', 'reader-labels'],
   exgit: ['reader-objects', 'reader-change'],
@@ -343,10 +342,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   'traffic-policy': { 'reader-nodes': ['Node 1', 'Node 2', 'Node 3'], 'reader-shares': ['Pod', 'Cluster', 'Local'] },
   'ext4-space': { 'reader-reserve': ['Users at 5% reserve'] },
   'send-sync': { 'reader-threads': ['Thread A', 'Thread B'], 'reader-requirements': ['Wrapper', 'Needs from T', 'Met?'], 'reader-wrappers': ['Type', 'Send', 'Sync'] },
-  'quotient-familial': {
-    'reader-quotient': ['Revenu', '÷ parts', 'Barème', '× parts'],
-    'reader-cap': ['Calcul brut', 'Après plafond', 'Après décote'],
-  },
   glyph: { 'reader-width': ['Inter', 'JetBrains Mono'], 'reader-shape': ['a', 'Same character'] },
   'pen-and-pencil': {
     'reader-separate': ['Fixed route + simulated stroke'],
