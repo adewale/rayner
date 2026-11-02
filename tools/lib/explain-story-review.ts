@@ -280,7 +280,7 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'send-sync': ['reader-threads', 'reader-requirements', 'reader-wrappers'],
   'quotient-familial': ['reader-quotient', 'reader-cap'],
   glyph: ['reader-width', 'reader-shape'],
-  'pen-and-pencil': ['reader-separate', 'reader-labels'],
+  'pen-and-pencil': ['reader-separate'],
   exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
   '2password': ['reader-boundary', 'reader-auth'],
@@ -352,8 +352,7 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   },
   glyph: { 'reader-width': ['Inter', 'JetBrains Mono'], 'reader-shape': ['l', 'advance 0.218', 'advance 0.540'] },
   'pen-and-pencil': {
-    'reader-separate': ['Fixed route + simulated stroke'],
-    'reader-labels': ['Midnight', 'Reserved for the label'],
+    'reader-separate': ['Blue: the route the layout fixed'],
   },
   exgit: { 'reader-objects': ['commit', 'tree', 'blob'], 'reader-change': ['parent'] },
   'mr-cache': { 'reader-request': ['Request', 'Database', 'Response'] },
