@@ -69,10 +69,10 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'lantern', step: 'reader-outputs', group: 'toolchain', tier: 'gallery' },
   { id: 'fork', step: 'reader-cost', group: 'toolchain', tier: 'gallery' },
   { id: 'agentic-mermaid', step: 'reader-repair', group: 'toolchain', tier: 'gallery' },
-  { id: 'glyph', step: 'reader-shape', group: 'toolchain', tier: 'gallery' },
+  { id: 'glyph', step: 'letterforms', group: 'toolchain', tier: 'gallery' },
   { id: 'font-metrics', step: 'diagram', group: 'toolchain', tier: 'gallery' },
   { id: 'layout-direction', step: 'updates', group: 'toolchain', tier: 'coverage' },
-  { id: 'pen-and-pencil', step: 'reader-labels', group: 'toolchain', tier: 'gallery' },
+  { id: 'pen-and-pencil', step: 'plate', group: 'toolchain', tier: 'gallery' },
 ];
 
 /** The showcase tier, in gallery order; the complete collection above remains the coverage inventory. */
