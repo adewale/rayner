@@ -104,6 +104,26 @@ test('insert-only filters never reject an inserted word; concrete false positive
   }
 });
 
+// The scene's rules for every name, not only its three lookups: a name gets through only when all
+// three of its bits are set; taking names only fills the row; and a full row says maybe to every name.
+test('a name gets through only when all three of its bits are set, the row only fills, and a full row says maybe to every name',()=>{
+  fc.assert(fc.property(fc.array(utf16,{maxLength:30}),utf16,fc.integer({min:8,max:512}),(words,probe,size)=>{
+    const bits=makeFilter(words,size);
+    assert.equal(membership(bits,probe),locations(probe,size).every(i=>bits[i]===1),'maybe exactly when all three bits are 1');
+    // Each name taken keeps every bit already set.
+    for(let k=1;k<=words.length;k++) {
+      const before=makeFilter(words.slice(0,k-1),size),after=makeFilter(words.slice(0,k),size);
+      assert.ok(before.every((b,i)=>b<=after[i]!),`taking ${JSON.stringify(words[k-1])} cleared a bit`);
+    }
+    assert.equal(membership(Array(size).fill(1),probe),true,'a full row says maybe');
+  }),params(300));
+  // The scene's two full rows: every one of the sample's untaken names, and any other name, gets maybe.
+  for(const size of [16,32] as const) {
+    const full=saturation(size);
+    fc.assert(fc.property(utf16,word=>membership(full.bits,word)),params(200));
+  }
+});
+
 test('branch labels, parents and checked-out files match real Git through both merge histories',()=>{
   for(const advanced of [false,true]) {
     const dir=mkdtempSync(join(tmpdir(),'rayner-git-lesson-'));
@@ -292,6 +312,21 @@ test('each round’s chance and the odds after a seen door match a host simulate
   for(const c of threeDoorCells(0,'informed',[4,3,3])) if(c.prize==='C') assert.equal(c.opened,'B');
   assert.throws(()=>threeDoorCells(0,'informed',[1,-1,1]),/non-negative/);
   assert.throws(()=>threeDoorCells(0,'psychic' as never),/Unknown host rule/);
+});
+
+// The scene's sentences about each host's rule, over every first pick: with the car behind one
+// unchosen door, the host who knows always opens the other one, the only goat left to him; the
+// random host opens that door in only half of those rounds and the car in the rest; and the host
+// who knows never opens the car.
+test('the host who knows always opens the only goat left when your pick is wrong, and the random host opens it in only half those rounds',()=>{
+  for(const choice of [0,1,2]) for(const prize of [0,1,2].filter(d=>d!==choice)) {
+    const goat=[0,1,2].find(d=>d!==choice&&d!==prize)!,car='ABC'[prize]!,other='ABC'[goat]!;
+    const round=(host:'informed'|'random')=>threeDoorCells(choice,host).filter(c=>c.prize===car);
+    assert.deepEqual(round('informed').map(c=>[c.opened,c.shows,c.sixths]),[[other,'goat',2]],`host who knows, pick ${'ABC'[choice]}, car ${car}`);
+    assert.deepEqual(round('random').map(c=>[c.opened,c.shows,c.sixths]).sort(),[[car,'car',1],[other,'goat',1]].sort(),`random host, pick ${'ABC'[choice]}, car ${car}`);
+  }
+  for(const choice of [0,1,2]) for(const prior of [[1,1,1],[4,3,3],[1,0,5]])
+    assert.ok(threeDoorCells(choice,'informed',prior).every(c=>c.shows==='goat'),'the host who knows never opens the car');
 });
 
 test('birthday formulas match exhaustive small calendars and independent exact Python fractions',()=>{

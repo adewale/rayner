@@ -97,6 +97,14 @@ export default class MontyHall extends Scene {
     // The script's answer and check questions (script.md); `worlds` states the answer.
     answer:
       'Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat',
+    // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
+    claims: [
+      { says: 'The strip lays out every round for a pick of', shown: true as const },
+      { says: 'is the only goat you didn’t pick', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
+      { says: 'the host who knows always opens', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
+      { says: 'in only one of them and opens the car in the other', test: 'test/learning-models.test.ts: the random host opens it in only half those rounds' },
+      { says: 'had known where the car was and always shown a goat', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
+    ],
     checks: [
       {
         question:

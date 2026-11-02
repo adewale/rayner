@@ -37,3 +37,7 @@ The scene computes every count and state from the model, and throws if the froth
 | regions | paragraph 3, the split: the aha | whether a statechart can do more |
 | flatten | paragraph 4, with the same events traced through both machines | |
 | question, frother | paragraph 5, the transfer | where the frother goes |
+
+## Limits
+
+The model (`scenes/explainers/lib/statecharts.ts`) has compound and parallel states and event transitions, run with the SCXML selection rules this subset needs. It leaves out guards, actions, history, final states and delays, so a region always restarts at its start dot (the third check question) and nothing waits on a timer. Its conflict rule is XState's and SCXML's, where the inner state is asked first; Statemate's outer-first priority is named in paragraph 2 but never drawn. The machine with brewing's POWER_OFF missing is the explainer's own hand copy, not taken from any source. The counts for more features (a region of two states each, the flat machine doubling) are tested for up to five features; the page draws one and two. No step draws the frother with its own power or the steam frother; those appear only in the check questions.

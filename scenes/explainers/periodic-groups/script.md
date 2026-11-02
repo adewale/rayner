@@ -32,3 +32,7 @@ Cut from an earlier version: the shared recap sentence that ended every case's f
 | stack | paragraph 3: the slide into the table (the aha's motion), the answer, the case's landing column in run widths | |
 | blocks | paragraph 4: runs named as subshells, at most, Madelung's order and its source, the case's count, helium moved | |
 | family | paragraph 5: each member's ending and count; each jump is one row | |
+
+## Limits
+
+The model (`scenes/explainers/lib/periodic-groups.ts`) places elements by Madelung's filling rule and keeps NIST's ground configurations for elements 1 to 108, with the 20 elements where they differ stored as exceptions. It leaves out everything chemical beyond the configuration: energies, ionisation, why look-alikes react alike, and relativistic effects in the heaviest elements. Elements 109 to 118 have no NIST configuration here, so tennessine's ending in the halogen family comes from the filling rule alone. The table is one layout, the 18-column table with lutetium in group 3; the lanthanum layout appears only in the second check question, and the 32-column table nowhere. The five cases are sodium, chlorine, iron, copper and helium; no case follows an f-block element, a d-block exception other than copper, or an element past 108. The sentences about every run, row, jump and group member are tested over all 118 elements in `test/explain-periodic-groups.test.ts`.
