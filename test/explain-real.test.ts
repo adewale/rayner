@@ -16,7 +16,8 @@ import { pictureSummary, pictureHtml } from '../explain/trace.ts';
 import { collectProject, readSnapshots } from '../tools/lib/explain-project.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { verifyMermaid } from 'agentic-mermaid/agent';
-import MermaidExplainer from '../scenes/explainers/agentic-mermaid/scene.ts';
+import MermaidExplainer, { BROKEN, BROKEN_REPORT } from '../scenes/explainers/agentic-mermaid/scene.ts';
+import { WARNING_SEVERITY } from 'agentic-mermaid/agent';
 
 await loadFonts();
 
@@ -112,9 +113,14 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
     const r = verifyMermaid(source);
     return { ok: r.ok, warnings: (r.warnings ?? []).map((w) => `${w.code} ${(w as { edge?: string }).edge}`) };
   };
-  const [bothYes, third, rectangle] = MermaidExplainer.meta.checks;
+  const [undeclared, third, rectangle, header] = MermaidExplainer.meta.checks;
+  // Both edges labelled yes: the verifier does not compare what labels say (no longer a check question; the claim stands).
   assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|yes| C[Database]'), { ok: true, warnings: [] });
-  assert.match(bothYes!.answer, /^ok: true and no warnings/);
+  // A node used only as an edge's target: Mermaid creates it as a rectangle labelled with its id.
+  assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| D'), { ok: true, warnings: [] });
+  const d = verifyMermaid('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| D').layout.nodes.find((n) => n.id === 'D');
+  assert.deepEqual([d?.shape, d?.label], ['rectangle', 'D']);
+  assert.match(undeclared!.answer, /^ok: true and no warnings\. Mermaid creates D where it is first used, as a rectangle labelled D/);
   assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]\nA --> D[Stale]'), {
     ok: true,
     warnings: ['DECISION_BRANCH_UNLABELED A->D#0'],
@@ -122,6 +128,29 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
   assert.match(third!.answer, /^One DECISION_BRANCH_UNLABELED warning, naming the new edge A->D#0/);
   assert.deepEqual(report('graph LR\nA[Cached] --> B[Reply]\nA --> C[Database]'), { ok: true, warnings: [] });
   assert.match(rectangle!.answer, /^No: ok: true with no warnings/);
+  const headless = verifyMermaid('graph\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]');
+  assert.equal(headless.ok, false);
+  assert.deepEqual(headless.warnings.map((w) => [w.code, WARNING_SEVERITY[w.code]]), [['RENDER_FAILED', 'error']]);
+  assert.match(header!.answer, /^ok: false, with a RENDER_FAILED error/);
+});
+
+test('the Mermaid explainer’s broken step shows what the pinned verifier reports for an edge with no end, in every case', () => {
+  // These sources cannot be captured (capture refuses ok: false), so the step's report is written in the scene and held here.
+  assert.deepEqual(Object.keys(BROKEN).sort(), ['complete', 'missing', 'swapped']);
+  for (const [edit, source] of Object.entries(BROKEN)) {
+    assert.match(source, /-->(\|(yes|no)\|)?$/, `${edit}: the last edge stops at its arrow`);
+    const r = verifyMermaid(source);
+    const got = {
+      ok: r.ok,
+      warnings: r.warnings.map((w) => ({
+        code: w.code,
+        severity: WARNING_SEVERITY[w.code],
+        ...((w as { syntax?: string }).syntax ? { syntax: (w as { syntax?: string }).syntax } : {}),
+      })),
+      checks: { renderability: r.checks?.renderability, taskCorrectness: r.checks?.taskCorrectness },
+    };
+    assert.deepEqual(got, BROKEN_REPORT, edit);
+  }
 });
 
 /** Each step's state in an explainer's default case, by step name. */

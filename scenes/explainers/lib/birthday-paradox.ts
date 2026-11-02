@@ -74,6 +74,8 @@ export function birthdayStory(people: number) {
     dates: sample.first.map(dateOf),
     /** Dates the first sampled room repeats, in the order they first appear. */
     shared: [...counts].filter(([, n]) => n > 1).map(([day, n]) => ({ day, date: dateOf(day), people: n })),
+    /** The pairs of people, by index in the room, whose sampled birthdays are the same date. */
+    matchedPairs: sample.first.flatMap((day, i) => sample.first.flatMap((other, j) => (j > i && other === day ? [[i, j] as [number, number]] : []))),
     even,
     evenPairs: pairCount(even),
     /** Other people one person needs for an even chance that someone shares their birthday. */

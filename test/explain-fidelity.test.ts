@@ -192,6 +192,24 @@ for (const entry of EXPLAINERS)
           });
           // The default case deletes the swapped labels to show what the verifier does flag.
           if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
+          // Every case shows an error turning ok false: the edge to Database cut off at its arrow.
+          assertStepState(trace, 'broken', {
+            broken: {
+              source: {
+                swapped: 'graph LR\nA{Cached} -->|no| B[Reply]\nA -->|yes|',
+                missing: 'graph LR\nA{Cached} --> B[Reply]\nA -->',
+                complete: 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no|',
+              }[values.edit!],
+              ok: false,
+              warnings: [
+                { code: 'RENDER_FAILED', severity: 'error' },
+                { code: 'UNSUPPORTED_SYNTAX', severity: 'warning', syntax: 'flowchart_dangling_edge' },
+              ],
+              checks: { renderability: 'failed', taskCorrectness: 'not-checked' },
+            },
+          });
+          // The verifier's own scope line, read from the snapshot of the first edit.
+          assertStepState(trace, 'verify', { taskCorrectness: 'not-checked' });
           assertStepState(trace, 'history', { finalWarnings: 0 });
           break;
         }

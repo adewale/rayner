@@ -305,7 +305,7 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     // The shortcut is exact for comparisons against one fixed birthday.
     close(pairShortcut(n-1),birthdayChance(n,'one'));
   }
-  assert.equal(birthdayAnswer,`Just ${evenOdds('any')} people give a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs`);
+  assert.equal(birthdayAnswer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs`);
   assert.equal(BirthdayParadox.meta.answer,birthdayAnswer);
   // Dates of a 365-day year, checked against the calendar of a non-leap year.
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -318,16 +318,26 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
   assert.deepEqual(room.shared,[{day:116,date:'26 Apr',people:2},{day:31,date:'31 Jan',people:2}]);
   assert.equal((100*room.shortcut).toFixed(2),'50.05');assert.equal((100*room.chance).toFixed(2),'50.73');
   assert.deepEqual(birthdayStory(10).shared,[]);
+  // The pairs step draws the room's matched pairs: one pair per repeated date in the rooms of 23 and 40, none in the room of 10.
+  for(const n of [10,23,40]){
+    const story=birthdayStory(n);
+    assert.equal(story.matchedPairs.length,story.shared.reduce((sum,d)=>sum+pairCount(d.people),0));
+    for(const [i,j] of story.matchedPairs) assert.ok(i<j&&story.sample.first[i]===story.sample.first[j]);
+    // The estimate step says the pair shortcut is within a percentage point of the exact chance.
+    assert.ok(story.chance-story.shortcut>0&&story.chance-story.shortcut<.01);
+  }
+  assert.equal(room.matchedPairs.length,2);
   // The check questions' transfers, none of which a step shows.
-  const [joins,thirty,planet]=BirthdayParadox.meta.checks;
-  assert.equal(pairCount(24)-pairCount(23),23);assert.equal(pairCount(24),276);
-  assert.match(joins!.answer,/^23 new pairs.*276 pairs in all/);
-  assert.equal(pairCount(30),435);
-  assert.equal((100*birthdayChance(30,'any')).toFixed(1),'70.6');assert.equal((100*pairShortcut(435)).toFixed(1),'69.7');
-  assert.match(thirty!.answer,/435 pairs\. Yes: the exact chance is 70\.6%, and the pair shortcut gives 69\.7%/);
+  const [merge,planet,planetOne]=BirthdayParadox.meta.checks;
+  assert.equal(pairCount(46),1035);assert.equal(pairCount(46)-2*pairCount(23),23*23);assert.ok(23*23>2*pairCount(23));
+  assert.match(merge!.answer,/^1,035 pairs\. Each room keeps its 253, and the 23 × 23 = 529 pairs/);
   assert.equal(evenOdds('any',100),13);assert.equal(pairCount(13),78);
   assert.equal((100*birthdayChance(13,'any',100)).toFixed(1),'55.7');assert.equal((100*birthdayChance(12,'any',100)).toFixed(1),'49.7');
   assert.match(planet!.answer,/^13\. Thirteen people make 78 pairs.*55\.7%; twelve people give 49\.7%/);
+  // The planet's one-person threshold: 69 others, the shortcut being exact for comparisons with one birthday.
+  assert.equal(evenOdds('one',100)-1,69);close(pairShortcut(69,100),birthdayChance(70,'one',100));
+  assert.equal((100*birthdayChance(70,'one',100)).toFixed(1),'50.0');assert.equal((100*birthdayChance(69,'one',100)).toFixed(1),'49.5');
+  assert.match(planetOne!.answer,/^69\. .*50\.0% for a match, and 68 others give 49\.5%\. Thirteen people already make 78 pairs/);
 });
 
 test('the music comparison preserves pitches and total beats while moving exactly two starts and durations',()=>{
@@ -338,6 +348,14 @@ test('the music comparison preserves pitches and total beats while moving exactl
   // The third check question's transfer tempo, which no case shows: G starts half a beat, 375 ms, before the bar line at 80 BPM.
   assert.equal((4-phrase('syncopated')[3]!.at)*beatMs(80),375);
   assert.match(MelodyRhythm.meta.checks[2]!.question,/80 BPM/);assert.match(MelodyRhythm.meta.checks[2]!.answer,/^375 ms: a beat lasts 750 ms/);
+  // ...and G sounds for one beat, 750 ms, half of it on each side of the bar line.
+  {const g=phrase('syncopated')[3]!;assert.equal(g.duration*beatMs(80),750);assert.equal((4-g.at)*beatMs(80),(g.at+g.duration-4)*beatMs(80));}
+  // The first check's version C, which no case shows: D cut to half a beat, the next E held 1.5, so beat 3 (index 2) gets no new start and nothing crosses the bar line.
+  {const durations=[1,.5,1.5,1,1,1,1,1];let at=0;const c=durations.map(duration=>{const n={at,duration};at+=duration;return n;});
+    assert.deepEqual(c.map(n=>n.at),[0,1,1.5,3,4,5,6,7]);assert.ok(!c.some(n=>n.at===2)&&c.some(n=>n.at<2&&n.at+n.duration>2));
+    assert.ok(!c.some(n=>n.at<4&&n.at+n.duration>4));assert.match(MelodyRhythm.meta.checks[0]!.answer,/^Beat 3 of bar 1/);}
+  // The second check's version: a half-beat rest replaces the longer E, so G still starts at 3.5 and holds across beat 4 (the bar line).
+  {const g={at:2+1+.5,duration:1};assert.equal(g.at,phrase('syncopated')[3]!.at);assert.ok(g.at<4&&g.at+g.duration>4);assert.match(MelodyRhythm.meta.checks[1]!.answer,/^No\./);}
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     assert.equal(m.movedStarts,timing==='straight'?0:2);assert.equal(m.movedDurations,m.movedStarts);

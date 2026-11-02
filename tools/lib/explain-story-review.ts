@@ -119,8 +119,8 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
     { step: 'you', opening: true, targets: [{ key: 'birthday-you-lines' }, { key: 'birthday-comparisons' }, { key: 'birthday-chance' }] },
     { step: 'pairs', opening: true, targets: [{ key: 'birthday-pair-lines' }, { key: 'birthday-pairs' }, { key: 'birthday-chance' }] },
     { step: 'growth', opening: true, targets: [{ key: 'birthday-growth' }] },
-    { step: 'estimate', opening: true, targets: [{ key: 'birthday-shortcut' }, { key: 'birthday-exact' }] },
     { step: 'exact', opening: true, targets: [{ key: 'birthday-days' }] },
+    { step: 'estimate', opening: true, targets: [{ key: 'birthday-shortcut' }, { key: 'birthday-exact' }] },
   ],
   'melody-rhythm': [
     { step: 'listen', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
