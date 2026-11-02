@@ -30,7 +30,11 @@ const openingClaims=(element:string):StoryClaim[]=>{
     [{text:'[Ar] 4s² 3d⁹'},{text:'[Ar] 3d¹⁰ 4s¹'},{text:'11 counted either way = group 11'}]:
     element==='he'?[{key:'periodic-helium:2'},{key:'periodic-helium:18'}]:
     counted[element]!.map(symbol=>({key:`periodic-count:${symbol}`}));
-  return [{step:'column',opening:true,targets:familyTargets},{step:'count',opening:true,targets:countTargets}];
+  // The blocks step follows fill, whose table already shows every atomic number, so those labels no
+  // longer count as changed there; name them, and the block strip, as the step's subjects instead.
+  const blockTargets=[...Array.from({length:118},(_,i)=>({text:String(i+1)})),
+    ...['s: 2 columns','d: 10 columns','p: 6 columns','f: 14 columns,','no group','number'].map(text=>({text}))];
+  return [{step:'column',opening:true,targets:familyTargets},{step:'count',opening:true,targets:countTargets},{step:'blocks',targets:blockTargets}];
 };
 function framesFor(variant:Project['variants'][number]){
   let frames=frameCache.get(variant);

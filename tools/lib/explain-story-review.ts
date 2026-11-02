@@ -252,6 +252,33 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
       targets: [{ text: 'Ink' }, { text: 'Paper' }, { key: 'edge:A->B#0', paint: 'stroke' }],
     },
   ],
+  // The reader frames these replaced: the bytes a blob id names, and both commits' rows with the parent link.
+  exgit: [
+    { step: 'blob', targets: [{ text: 'header' }, { text: 'content' }] },
+    { step: 'change', targets: [{ text: 'commit one' }, { text: 'commit two' }, { text: 'parent' }] },
+  ],
+  // The reader frames these replaced: when each rule falls due, side by side, and the time left to retry.
+  'cert-renewal': [
+    { step: 'other-rule', targets: [{ text: '30 days before expiry' }, { text: 'Certbot 4.1+ default' }] },
+    { step: 'slack', targets: [{ text: 'Retry window, the default rule' }, { text: 'Retry window, the 30-day rule' }] },
+  ],
+  // The reader frames these replaced: the series' dated meetings, and the copy Bob keeps.
+  'ical-recurrence': [
+    { step: 'series', targets: [{ text: 'Mon 2 Nov, 09:00' }, { text: 'Mon 9 Nov, 09:00' }, { text: 'Mon 7 Dec, 09:00' }] },
+    {
+      step: 'copy',
+      settings: { copy: 'guest', change: 'skip' },
+      targets: [{ text: 'Mon 16 Nov, 09:00, cancelled' }, { text: 'STATUS:CANCELLED' }],
+    },
+  ],
+  // The reader frame this replaced: every combination of two settings is a case.
+  fork: [
+    {
+      step: 'cases',
+      opening: true,
+      targets: [{ key: 'fork-cases' }, { text: 'Policy A' }, { text: 'Policy B' }, { text: 'case 1' }, { text: 'case 6' }],
+    },
+  ],
   'layout-direction': [
     {
       step: 'columns',
@@ -278,11 +305,8 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'ring-buffer': ['shift'],
   'state-machine': ['reader-path', 'reader-reject'],
   'just-bash': ['reader-pipeline', 'reader-values'],
-  'cert-renewal': ['reader-due', 'reader-retries'],
-  'ical-recurrence': ['reader-series', 'reader-copies'],
   gtfs: ['reader-date', 'reader-stop'],
   'tailwind-gamut': ['reader-display'],
-  fork: ['reader-build', 'reader-cost'],
   'gnome-files': ['reader-task', 'reader-sample'],
   'wcag-map': ['reader-focus', 'reader-levels'],
   'layout-direction': ['reader-place', 'reader-fields'],
@@ -291,12 +315,10 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'send-sync': ['reader-threads', 'reader-requirements', 'reader-wrappers'],
   glyph: ['reader-width', 'reader-shape'],
   'pen-and-pencil': ['reader-separate'],
-  exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
   '2password': ['ask', 'reader-boundary'],
   'latest-search': ['race', 'overwrite', 'tickets', 'reader-first', 'reader-ticket', 'reader-guard'],
   'pg-page': ['reader-row', 'reader-page'],
-  'periodic-groups': ['reader-electrons', 'reader-filling'],
 };
 // These labels name the comparison’s roles independently of its drawing group.
 // Hiding a role cannot be excused by the group’s remaining border or background.
@@ -310,24 +332,12 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-pipeline': ['echo hello', 'tr → HELLO', 'shout.txt'],
     'reader-values': ['original', 'returned', 'missing', 'HELLO'],
   },
-  'cert-renewal': {
-    'reader-due': ['Fixed: 30 days before', 'Default: lifetime fraction'],
-    'reader-retries': ['Time before renewal is due', 'Time left to retry'],
-  },
-  'ical-recurrence': {
-    'reader-series': ['Mon 2 Nov', 'Mon 9 Nov', 'Mon 7 Dec'],
-    'reader-copies': ['Alice', 'Bob'],
-  },
   gtfs: {
     'reader-date': ['Route', 'Trip', 'Service', 'date', 'FULLW'],
     'reader-stop': ['Fixed times', 'Headway patterns'],
   },
   'tailwind-gamut': {
     'reader-display': ['As written', 'On an sRGB screen'],
-  },
-  fork: {
-    'reader-build': ['Author', 'scene', 'Build', 'diagrams', 'Portable', 'page'],
-    'reader-cost': ['Policy A', 'Policy B', 'case 1', 'case 6'],
   },
   'gnome-files': { 'reader-sample': ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] },
   'wcag-map': {
@@ -345,7 +355,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   'pen-and-pencil': {
     'reader-separate': ['Blue: the route the layout fixed'],
   },
-  exgit: { 'reader-objects': ['commit', 'tree', 'blob'], 'reader-change': ['parent'] },
   'mr-cache': { 'reader-request': ['Request', 'Database', 'Response'] },
   '2password': {
     ask: ['Agent', 'Application', 'needs API_KEY', 'must not read'],

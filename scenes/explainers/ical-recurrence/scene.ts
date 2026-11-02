@@ -1,9 +1,7 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/ical-recurrence.ts';
 import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Card, CodeBlock } from '../../../explain/index.ts';
+import type { Card, CodeBlock, Diagram } from '../../../explain/index.ts';
 import {
   DTSTART,
   GUEST,
@@ -55,6 +53,11 @@ const RULE_STARTS = occurrences(DTSTART, parseRule(MASTER.rrules[0]!));
 const week = (slot: string) => `Week ${RULE_STARTS.indexOf(slot) + 1}`;
 const number = (n: number) => ['no', 'one', 'two', 'three', 'four', 'five', 'six'][n] ?? String(n);
 const plural = (n: number, word: string) => `${number(n)} ${word}${n === 1 ? '' : 's'}`;
+const upperFirst = (t: string) => t[0]!.toUpperCase() + t.slice(1);
+
+/** The script's one-sentence answer (meta.answer), which the copy step states in every case. */
+const ANSWER =
+  'a guest’s calendar keeps only the meetings it was sent, and a cancellation marks one CANCELLED instead of deleting it';
 
 /**
  * Alice's meeting list, one row per week of the rule: the start her calendar shows, with what makes
@@ -81,7 +84,7 @@ const guestRows = (components: readonly VEvent[]): [string, string][] =>
 export default class IcalRecurrenceExplainer extends Scene {
   static meta = {
     id: 'ical-recurrence',
-    title: 'What changes when a recurring meeting moves?',
+    title: 'What does a guest’s calendar keep when one meeting of a series changes?',
     sources: [
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1',
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10',
@@ -97,18 +100,34 @@ export default class IcalRecurrenceExplainer extends Scene {
       DAV + 'Plugin.php#L843-L874',
       DAV + 'Schedule/Plugin.php#L407-L530',
     ],
+    // The script's answer and check questions (script.md); the copy step states the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'Alice skips the meeting Bob was invited to. What does each calendar show for that week?',
+        answer: `Alice’s shows nothing: her app adds EXDATE:${GUEST_MEETING} to the master and deletes Bob’s override. Bob’s still lists ${long(GUEST_MEETING)}, marked cancelled: delivering the iTIP CANCEL sets STATUS:CANCELLED and deletes nothing.`,
+      },
+      {
+        question: 'Alice moves the second meeting, which Bob does not attend. What changes in Bob’s copy?',
+        answer: 'Nothing. The iTIP REQUEST the server sends him holds only the VEVENTs he attends, the third meeting’s override, so his copy keeps that one VEVENT.',
+      },
+      {
+        question: 'Bob’s copy is an override with RECURRENCE-ID and no master. Does the server accept it, and what does it refuse?',
+        answer: 'It accepts it: RFC 4791 allows overrides stored without their master. Baïkal (sabre/dav) answers 415 to a second VEVENT without RECURRENCE-ID or a second RRULE in one VEVENT, which RFC 5545 only says SHOULD NOT happen.',
+      },
+    ],
   };
   static settings = [
     {
       id: 'change',
       label: 'Alice’s change',
-      default: 'move',
+      default: 'skip',
       options: (Object.keys(CHANGES) as Change[]).map((value) => ({ value, label: CHANGES[value] })),
     },
     {
       id: 'copy',
       label: 'Whose copy',
-      default: 'organiser',
+      default: 'guest',
       options: (Object.keys(COPIES) as Copy[]).map((value) => ({ value, label: COPIES[value] })),
     },
   ];
@@ -121,9 +140,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     const after = organiserCopy(change);
 
     // ------------------------------------------------------------------ series
-    await readerFirst(this, s, readerFrames(change, copy));
     await this.step('series', {
-      detail: true,
       title: 'A weekly stand-up is stored as one VEVENT',
       line: 'DTSTART is the first meeting; RRULE with COUNT=6 makes six.',
       // RFC 5545 §3.3.10, lines 2272–2274: COUNT; DTSTART counts as the first occurrence.
@@ -147,11 +164,10 @@ export default class IcalRecurrenceExplainer extends Scene {
 
     // ------------------------------------------------------------------ invite
     await this.step('invite', {
-      detail: true,
       title: 'Inviting Bob to one meeting stores a second VEVENT',
       line: `Same UID, and RECURRENCE-ID ${GUEST_MEETING} names the third meeting.`,
       // RFC 5545 §3.8.4.4, lines 6294–6306: UID names the set, RECURRENCE-ID one instance, by its original start.
-      caption: `Alice invites Bob to the third meeting only. The app keeps the first VEVENT as it was and adds a second with the same UID, an override. Its RECURRENCE-ID, ${GUEST_MEETING}, is the start the rule gave that meeting. RFC 5545 keeps that value even when the meeting is moved.`,
+      caption: `Alice invites Bob to the third meeting only. The app keeps the first VEVENT as it was and adds a second with the same UID, an override. Its RECURRENCE-ID, ${GUEST_MEETING}, is the start the rule gave that meeting, kept even if the meeting moves. Bob is sent this override and nothing else.`,
     });
     await code.morph(lines(INVITED), { markAdded: true });
     await list.set(Object.fromEntries(rows(INVITED)));
@@ -161,7 +177,6 @@ export default class IcalRecurrenceExplainer extends Scene {
     // ------------------------------------------------------------------ change
     const moved = expand(after).find((m) => m.slot === MOVED_FROM)!;
     await this.step('change', {
-      detail: true,
       title:
         change === 'move'
           ? 'Moving the second meeting stores a third VEVENT'
@@ -169,11 +184,13 @@ export default class IcalRecurrenceExplainer extends Scene {
             ? `Skipping Bob’s meeting adds an EXDATE; ${number(expand(after).length)} meetings remain`
             : 'Five meetings come from the rule, one from the override',
       line:
-        change === 'move'
-          ? 'RECURRENCE-ID keeps the rule’s start; DTSTART holds the new one.'
-          : change === 'skip'
-            ? 'COUNT=6 still counts the excluded start; the override is deleted.'
-            : 'The override replaces the start that equals its RECURRENCE-ID.',
+        copy === 'guest'
+          ? 'Predict: what does Bob’s calendar show now?'
+          : change === 'move'
+            ? 'RECURRENCE-ID keeps the rule’s start; DTSTART holds the new one.'
+            : change === 'skip'
+              ? 'COUNT=6 still counts the excluded start; the override is deleted.'
+              : 'The override replaces the start that equals its RECURRENCE-ID.',
       caption:
         change === 'move'
           ? `Alice moves the second meeting to ${long(MOVED_TO)} at 14:00. The first VEVENT does not change, and its rule still gives ${long(MOVED_FROM)}. A third VEVENT, an override with RECURRENCE-ID ${MOVED_FROM}, that original start, carries the new DTSTART, and calendars show it in the Monday’s place.`
@@ -201,29 +218,35 @@ export default class IcalRecurrenceExplainer extends Scene {
     };
 
     // ------------------------------------------------------------------ schema
-    await this.step('schema', {
-      detail: true,
-      title: 'One UID: at most one master, any number of overrides',
-      line: 'At a line’s end, a bar is one, a circle zero, a crow’s foot many.',
-      // RFC 4791 §4.1, lines 479–487.
-      caption:
-        'The same storage as a schema. Marks at a line’s ends say how many: a bar is one, a circle zero, a crow’s foot many. RFC 4791 puts every VEVENT with one UID in one calendar object: the master, which it defines as the one without RECURRENCE-ID, and the overrides, which may be stored without it.',
-    });
-    await s.clear();
-    const er = await s.show({ source: erSource('rfc') }, { box: FULL });
-    this.state.schema = { relations: schema('rfc') };
+    // A detail step: before Alice's copy, which counts its parts on the schema, or after Bob's.
+    const schemaStep = async () => {
+      await this.step('schema', {
+        detail: true,
+        title: 'One UID: at most one master, any number of overrides',
+        line: 'At a line’s end, a bar is one, a circle zero, a crow’s foot many.',
+        // RFC 4791 §4.1, lines 479–487.
+        caption:
+          'The same storage as a schema. Marks at a line’s ends say how many: a bar is one, a circle zero, a crow’s foot many. RFC 4791 puts every VEVENT with one UID in one calendar object: the master, which it defines as the one without RECURRENCE-ID, and the overrides, which may be stored without it, as Bob’s is.',
+      });
+      await s.clear();
+      const drawn = await s.show({ source: erSource('rfc') }, { box: FULL });
+      this.state.schema = { relations: schema('rfc') };
+      return drawn;
+    };
 
     // ------------------------------------------------------------------ copy
+    // The prediction's answer, and the end of the story: the copy the reader chose to inspect.
     const mine = copyOf(change, copy),
       n = counts(mine),
       bob = guestCopy(change);
     const parts = `${n.masters ? `one master with ${plural(n.rrules, 'RRULE')} and ${plural(n.exdates, 'EXDATE')}` : 'no master'}, and ${plural(n.overrides, 'override')}`;
+    let er: Diagram | undefined;
     if (copy === 'organiser') {
+      er = await schemaStep();
       await this.step('copy', {
-        detail: true,
         title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
         line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${number(expand(mine).length)} meetings.`,
-        caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes count each part in her copy, and parts her copy lacks are dimmed. Her calendar shows ${number(expand(mine).length)} meetings.`,
+        caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. In the schema, a bar at a line’s end means one, a circle zero and a crow’s foot many; the notes count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${ANSWER}.`,
       });
       const present = [
         'entity:CALENDAR_OBJECT',
@@ -242,12 +265,11 @@ export default class IcalRecurrenceExplainer extends Scene {
     } else {
       const [first, second] = bob.messages;
       await this.step('copy', {
-        detail: true,
         title:
           change === 'skip'
-            ? 'Bob’s copy keeps the meeting, marked cancelled'
+            ? 'Answer: Bob’s copy keeps the meeting, marked cancelled'
             : change === 'move'
-              ? 'Alice’s move leaves Bob’s copy as it was'
+              ? 'Answer: Alice’s move leaves Bob’s copy as it was'
               : 'Bob’s copy is one override and no master',
         line:
           change === 'skip'
@@ -258,10 +280,10 @@ export default class IcalRecurrenceExplainer extends Scene {
         // Broker.php:459–620 (what each attendee is sent), :269–317 (how it is stored).
         caption:
           change === 'skip'
-            ? `Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL. Delivering it, sabre/vobject sets STATUS:CANCELLED on the VEVENT Bob holds and deletes nothing, so his calendar still lists ${long(GUEST_MEETING)}, marked cancelled.`
+            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting; Bob’s still lists ${long(GUEST_MEETING)}, marked cancelled.`
             : change === 'move'
-              ? 'Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the Tuesday meeting never appears in it.'
-              : `The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His calendar shows ${plural(expand(mine).length, 'meeting')}.`,
+              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
+              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His calendar shows ${plural(expand(mine).length, 'meeting')}.`,
       });
       await s.clear();
       await s.code(lines(mine), {
@@ -280,6 +302,8 @@ export default class IcalRecurrenceExplainer extends Scene {
       this.state.messages = [first, second].filter(Boolean).map((m) => m!.method);
     }
     this.state.copy = { copy, stored: counts(mine), meetings: expand(mine).map((m) => [m.start, m.cancelled]) };
+    // Bob's copy comes first, then the schema as a detail; Alice's copy was drawn on it.
+    er ??= await schemaStep();
 
     // ------------------------------------------------------------------ server
     const refused = Object.fromEntries(
@@ -310,17 +334,13 @@ export default class IcalRecurrenceExplainer extends Scene {
         label: 'repeats by',
       },
     ] as const;
-    let rules = er;
-    if (copy === 'guest') {
-      await s.clear();
-      rules = await s.show({ source: erSource('rfc') }, { box: FULL });
-    } else {
+    if (copy === 'organiser') {
       await er.clearNotes();
       await er.dim(null);
     }
-    await rules.morph({ source: erSource('sabre') }, { ops });
-    await rules.note('entity:MASTER', 'a second one: 415', { side: 'above' });
-    await rules.note('entity:RRULE', 'a second one: 415', { side: 'above' });
+    await er.morph({ source: erSource('sabre') }, { ops });
+    await er.note('entity:MASTER', 'a second one: 415', { side: 'above' });
+    await er.note('entity:RRULE', 'a second one: 415', { side: 'above' });
     this.state.server = { relations: schema('sabre'), refused };
   }
 }
