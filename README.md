@@ -47,7 +47,7 @@ npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 
 ## Look up an authoring feature
 
-The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) is an **API demo**, not a lesson or a complete inventory. Choose a feature to start at **Recipe**, where the code an author writes appears; then advance to **Result**. Its excerpts need the surrounding scene to run; the [feature guide](docs/FEATURE-TOUR.md) links the full source and specialized setup. Direct links to a Result step still work.
+The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers an author's question, how do I write that?, for 15 features. Choose a feature to start at **Recipe**, which shows the lines an author writes and asks what they will draw; then advance to **Result**, which shows the picture before and after those lines run. Its excerpts need the surrounding scene to run; the [feature guide](docs/FEATURE-TOUR.md) links the full source and specialized setup. Direct links to a Result step still work.
 
 ## Work from this repository
 
