@@ -223,11 +223,11 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ int()
     await this.step('int', {
-      title: parsed ? `Answer: int(${q(c)}) returns ${int.value}` : `Answer: int(${q(c)}) raises ValueError`,
+      title: parsed ? `int(${q(c)}) returns ${int.value}` : `int(${q(c)}) raises ValueError`,
       line: `${q(c)} becomes '${asciiFor(c)}' before parsing${parsed ? '' : `, and no number contains '?'`}.`,
       // longobject.c:3193 calls _PyUnicode_TransformDecimalAndSpaceToASCII before parsing;
       // unicodeobject.c:9538-9552 rewrites each character; longobject.c:3209 is the error message.
-      caption: `Before parsing, int() rewrites each non-ASCII character: a space as ' ', a character with a decimal digit value as that ASCII digit, anything else as '?', which no number contains. ${c.char} ${
+      caption: `Before parsing, int() rewrites each non-ASCII character: a space becomes ' ', a character with a decimal digit value becomes that ASCII digit, and anything else becomes '?', so the parse fails. ${c.char} ${
         f.decimal ? `has the decimal digit value ${f.decimal}` : 'has no decimal digit value'
       }, so it becomes '${asciiFor(c)}' and int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}. ${
         run.outcome === 'raised'
@@ -262,7 +262,7 @@ export default class IsDigitExplainer extends Scene {
       title: 'Eight numerals; int() accepts only the first four',
       line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `The Unicode Character Database gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets mark what each call returns. int() accepts only the first four, yet isdigit() is True for ${CHARS.super.char} as well, and isnumeric() for all eight. The answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
+      caption: `The Unicode Character Database gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets mark what each call returns: int() accepts only the first four, isdigit() reaches ${CHARS.super.char} as well, and isnumeric() all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
     });
     await s.clear();
     // One row in lineup order; a bracket spans the characters each call accepts, which the model
@@ -317,7 +317,7 @@ export default class IsDigitExplainer extends Scene {
           : type === 'Decimal'
             ? `${c.char} has a value in fields 6, 7 and 8`
             : type === 'Digit'
-              ? `${c.char} has a value in fields 7 and 8, not 6`
+              ? `${c.char} has a value in fields 7 and 8; field 6 is empty`
               : `${c.char} has a value only in field 8: ${valueOf(c)}`,
       line:
         id === 'han'
@@ -393,14 +393,14 @@ export default class IsDigitExplainer extends Scene {
     // ------------------------------------------------------------------ the nested sets
     await this.step('sets', {
       title: 'Decimals sit inside digits, inside numerics',
-      line: `${c.char} sits in ${type === 'Decimal' ? 'the innermost set' : type === 'Digit' ? 'the middle set, not the innermost' : 'the outer set only'}.`,
+      line: `Which of the three sets holds ${c.char}?`,
       caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
         COUNTS.isnumeric,
       )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest. ${c.char} is in ${
         type === 'Decimal'
           ? 'the innermost set'
           : type === 'Digit'
-            ? 'the middle set, not the innermost'
+            ? 'the middle set but outside the innermost'
             : 'the outer set only'
       }.`,
     });
@@ -424,10 +424,10 @@ export default class IsDigitExplainer extends Scene {
             : `${c.char} is outside the ${guard}() box and has no decimal value.`,
       caption:
         run.outcome === 'parsed'
-          ? `${c.char} is in the innermost box, so every check passes it, and int() returns ${parsed ? int.value : ''}. The decimal characters are the only single characters int() accepts.`
+          ? `int() returns ${parsed ? int.value : ''} for ${c.char} too. The innermost box holds the decimal characters, the only single characters int() accepts.`
           : run.outcome === 'raised'
-            ? `${c.char} is inside the ${guard}() box but outside the innermost one, which holds the only characters int() accepts. The check passes, and int() raises ValueError: invalid literal for int() with base 10.`
-            : `${c.char} is outside the ${guard}() box, so the check fails and the code never calls int(). int() would have raised ValueError anyway, because ${c.char} has no decimal value.`,
+            ? `The innermost box holds the only single characters int() accepts. The check passes ${c.char}, and int() raises ValueError: invalid literal for int() with base 10.`
+            : `The check fails on ${c.char}, and the code never calls int(); had it run, int() would have raised ValueError too, because ${c.char} has no decimal value.`,
     });
     await s.clear();
     await sets(
@@ -449,7 +449,7 @@ export default class IsDigitExplainer extends Scene {
       // functions.rst:1078-1082: int() takes a sign, surrounding whitespace and single underscores.
       caption: `Each row counts the single characters a check accepts and int() rejects; isdecimal() accepts exactly the ${grouped(
         COUNTS.int,
-      )} int() takes. Since Unicode 6.3.0 no new character gets Numeric_Type=Digit. int() also takes signs, spaces and underscores, so to test a whole string, call int() and catch ValueError.`,
+      )} int() takes. No character encoded since Unicode 6.3.0 gets Numeric_Type=Digit, so every character in the isdigit() row is older than that. Because int() also takes signs, surrounding spaces and underscores, no character check can match it on a whole string, so the code below calls int() and catches ValueError.`,
     });
     await s.clear();
     const counts = await s.card(

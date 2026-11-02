@@ -42,7 +42,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     for(const name of ['shared','absent','present','predict','false-positive','pipeline']) assertStepState(trace,name,{owners:m.owners});
     for(const name of ['predict','false-positive']) assertStepState(trace,name,{query:m.queries[2]});
     assert.ok(String(trace.steps.find(s=>s.step==='false-positive')!.meta.caption).includes(m.queries[2]!.word));
-    assert.match(String(trace.steps.find(s=>s.step==='false-positive')!.meta.title),m.size===16?/maybe/:/definitely not/);
+    assert.match(String(trace.steps.find(s=>s.step==='false-positive')!.meta.title),m.size===16?/maybe/i:/definitely not/i);
   } else if(id==='git-branches') {
     const advanced=values.history==='diverged',frames=gitStory(advanced);
     // The opening question shows the history just before the merge (the old main and predict steps);

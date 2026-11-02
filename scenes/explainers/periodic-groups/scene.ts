@@ -533,7 +533,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       ? `${Name}’s ${z} are runs of ${list(full.map(String))}, then ${last.electrons} into a run of ${CAPACITY[last.l]}.`
       : `${Name}’s ${z} fill ${full.length === 1 ? `one run of ${full[0]}` : `runs of ${list(full.map(String))}`}.`;
     await this.step('fill', {
-      title: 'One electron per cell: they fill runs of 2, 6, 10 and 14',
+      title: 'One electron per cell, filling runs of 2, 6, 10 and 14',
       line: `${Name}’s ${z} electron${z > 1 ? 's' : ''}: ${own.length === 1 ? 'one run' : 'runs'} of ${list(own.map(String))}.`,
       caption: `Read the cells in order of atomic number. By the filling rule chemists use to predict where electrons go, each cell adds one electron, and the electrons fill runs, one colour for each run length. Every full run is 2, 6, 10 or 14 cells long. ${ownRuns} ${
         (
@@ -603,9 +603,9 @@ export default class PeriodicGroupsExplainer extends Scene {
       } satisfies Record<Choice, string[]>
     )[choice];
     await this.step('blocks', {
-      title: 'Answer: the column where its last electron lands, helium apart',
+      title: 'The last electron’s column sets the group, helium apart',
       line: 'Each run is a subshell: s holds 2, p 6, d 10 and f 14.',
-      caption: `Chemists call each run a subshell and name it by its shell and its length, s for 2, p for 6, d for 10 and f for 14, so ${name}’s runs read ${configText(filling)}. A subshell holds exactly that many electrons, so each block is as wide as its subshell holds. ${ANSWER}. ${
+      caption: `Chemists call each run a subshell and name it by its shell and its length, s for 2, p for 6, d for 10 and f for 14, so ${name}’s runs read ${configText(filling)}. A subshell holds exactly that many electrons, so each block is one column per electron its subshell holds. ${ANSWER}. ${
         (
           {
             na: `Sodium’s last electron starts the run of 2 in row 3, 3s, so it lands in the first s column: group 1.`,

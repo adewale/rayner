@@ -96,7 +96,7 @@ export default class MontyHall extends Scene {
       {
         question:
           'A host who knows where the car is always opens B when B hides a goat. You pick A, and he opens C. Should you switch, and how sure can you be?',
-        answer: `Switch: you win ${pct(oddsAfter(0, 'leftmost', 'C').switchChance)} of the time. He opens C only when he can’t open B, which means B hides the car. Had he opened B, switching would win ${pct(oddsAfter(0, 'leftmost', 'B').switchChance)}: he opens B whether the car is behind A or C.`,
+        answer: `Switch: you win ${pct(oddsAfter(0, 'leftmost', 'C').switchChance)} of the time. He opens C only when he can’t open B, so B hides the car. Had he opened B, switching would win ${pct(oddsAfter(0, 'leftmost', 'B').switchChance)}: he opens B whether the car is behind A or C.`,
       },
       {
         question: 'Four doors. A host who knows where the car is opens two goats among the three you didn’t pick. How often does switching to the last closed door win?',
@@ -261,11 +261,11 @@ export default class MontyHall extends Scene {
 
     await this.step('choice', {
       title: `You pick ${X}; the host opens ${B}: a goat`,
-      line: 'Should you switch? It depends on something the picture doesn’t show.',
+      line: `Should you switch? That depends on what the host knew when he opened ${B}.`,
       caption:
         host === 'informed'
-          ? `A car is behind one of three doors and goats are behind the other two. You pick ${X}. The host knows where the car is; he opens ${B}, shows a goat, and offers you ${C}. People have argued for decades about whether to switch, and the answer turns on a question the puzzle is often told without: did the host know where the car was?`
-          : `A car is behind one of three doors and goats are behind the other two. You pick ${X}. The host doesn’t know where the car is; he opened ${B} at random and happened to reveal a goat. Had he opened the car, the round would be over. He offers you ${C}. People have argued for decades about whether to switch, and the answer turns on a question the puzzle is often told without: did the host know where the car was?`,
+          ? `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host knows where the car is; he opens ${B}, shows a goat, and offers you ${C}. Tellings of the puzzle often leave out what the host knew, yet whether you should switch depends on it.`
+          : `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host doesn’t know where the car is; he opened ${B} at random and happened to reveal a goat. Had he opened the car, the round would be over. He offers you ${C}. Tellings of the puzzle often leave out what the host knew, yet whether you should switch depends on it.`,
     });
     main.rebuild();
     s.keep(main, describe);
@@ -284,23 +284,23 @@ export default class MontyHall extends Scene {
     at('predict', { example, host, revealed: false });
 
     await this.step('odds', {
-      title: host === 'informed' ? 'With this host, switching wins 2 in 3' : 'With this host, switching wins 1 in 2',
+      title: host === 'informed' ? 'With a host who knows, switching wins 2 in 3' : 'With a random host, switching wins 1 in 2',
       line: 'Each cell is a round, as wide as its chance: door opened, what it shows, who wins.',
       caption:
         host === 'informed'
-          ? `The car is behind each door a third of the time. Behind ${X}, he opens ${others.join(' or ')}, either with equal chance, and staying wins. Behind either other door, he must open the one goat you didn’t pick, so the car is behind the door he leaves closed: switching wins ${pct(m.switchChance)}.`
+          ? `The car is behind each door a third of the time. When it is behind ${X}, he opens ${others.join(' or ')} with equal chance, and staying wins. When it is behind either other door, he must open the one goat you didn’t pick, so the car is behind the door he leaves closed: switching wins ${pct(m.switchChance)}.`
           : `The car is behind each door a third of the time, and he opens ${others.join(' or ')} with equal chance, so each round is a sixth. In ${ends} of them he opens the car and the game ends. Of the ${goat} that show a goat, staying wins ${randomStay} and switching wins ${randomSwitch}: ${pct(m.switchChance)} each.`,
     });
     await fresh('odds');
     at('odds', { odds: m, cells: cells[host] });
 
     await this.step('worlds', {
-      title: 'Same rounds, other host',
+      title: 'The same rounds with the other host',
       line:
         host === 'informed'
-          ? 'Each wrong-pick third splits; in one half he opens the car.'
-          : 'Each car round merges into a switching win.',
-      caption: `The random host opens ${others.join(' or ')} with equal chance, so each third where your pick is wrong splits in two, and in one half he opens the car and the game ends. Those halves are rounds the host who knows turns into switching wins, because he never opens the car. Staying keeps its third either way. Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.`,
+          ? 'Each wrong-pick third splits, and in one half the random host opens the car.'
+          : 'Each round where he opens the car becomes a switching win for the host who knows.',
+      caption: `The random host opens ${others.join(' or ')} with equal chance, so each third where your pick is wrong splits in two; in one half he opens the car and the game ends. The host who knows never opens the car, so he turns those halves into switching wins. Staying keeps its third under either host. Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.`,
     });
     await morph('copy', 0.8);
     await morph('worlds', 1.3);
@@ -308,8 +308,8 @@ export default class MontyHall extends Scene {
 
     await this.step('rules', {
       title: `The goat you saw was behind ${B}`,
-      line: `Rounds without a goat behind ${B} are greyed. Compare what is left.`,
-      caption: `With the car behind ${X}, either host opens ${B} half the time. With it behind ${C}, the host who knows must open ${B}, so in his rounds ${C} is twice as likely as ${X}: switching wins ${pct(seen.informed.switchChance)}. The random host opens ${B} half the time wherever the car is, so ${X} and ${C} stay equally likely: ${pct(seen.random.switchChance)}. What sets the odds is how likely the host was to open exactly the door you saw.`,
+      line: `Rounds where he did not open ${B} to a goat are greyed. Compare what is left.`,
+      caption: `With the car behind ${X}, either host opens ${B} half the time. With it behind ${C}, the host who knows must open ${B}, so in his rounds ${C} is twice as likely as ${X}: switching wins ${pct(seen.informed.switchChance)}. The random host opens ${B} half the time wherever the car is, so ${X} and ${C} stay equally likely, and switching wins ${pct(seen.random.switchChance)}. The odds come from how likely each host was to open ${B}, the door you saw.`,
     });
     await morph('rules', 0.9);
     at('rules', { opened: B, seen: { informed: seen.informed, random: seen.random }, cells, informed, random });
