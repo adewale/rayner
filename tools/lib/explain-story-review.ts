@@ -282,7 +282,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
   '2password': ['reader-boundary', 'reader-auth'],
-  'agentic-mermaid': ['reader-branches', 'reader-repair'],
   lantern: ['reader-object', 'reader-outputs'],
   'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
   'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
@@ -352,10 +351,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   '2password': {
     'reader-boundary': ['Agent', 'op CLI', 'Application'],
     'reader-auth': ['Agent', 'op CLI', 'Application', 'Service token', 'Resolved key'],
-  },
-  'agentic-mermaid': {
-    'reader-branches': ['Cached?', 'Reply', 'Database'],
-    'reader-repair': ['Cached?', 'Reply', 'Database', 'yes', 'no'],
   },
   lantern: { 'reader-object': ['0 s', '0.5 s', '1 s'], 'reader-outputs': ['Scene', 'Fixed clock', 'Sink'] },
   'latest-search': {
