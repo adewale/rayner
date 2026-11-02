@@ -268,7 +268,7 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'cert-renewal': ['reader-due', 'reader-retries'],
   'ical-recurrence': ['reader-series', 'reader-copies'],
   gtfs: ['reader-date', 'reader-stop'],
-  'tailwind-gamut': ['reader-edge', 'reader-display'],
+  'tailwind-gamut': ['reader-display'],
   fork: ['reader-build', 'reader-cost'],
   'gnome-files': ['reader-task', 'reader-sample'],
   'wcag-map': ['reader-focus', 'reader-levels'],
@@ -321,8 +321,7 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-stop': ['Fixed times', 'Headway patterns'],
   },
   'tailwind-gamut': {
-    'reader-edge': ['100% = sRGB edge'],
-    'reader-display': ['Written chroma', 'Mapped sRGB preview'],
+    'reader-display': ['As written', 'On an sRGB screen'],
   },
   fork: {
     'reader-build': ['Author', 'scene', 'Build', 'diagrams', 'Portable', 'page'],
