@@ -1,35 +1,17 @@
-# Script: how does a token bucket let a burst through but refuse a flood?
+# How can a server allow a burst but refuse a flood?
 
-Questions the reader brings: Why would a server refuse a request? What is a token bucket? Why does it accept five requests at once and refuse the sixth?
+An API server needs to stop one client from consuming all its work, but a short burst can be useful: loading a page may require five requests at once. Requests the server accepts get 200, OK. Those refused by this limit get 429, Too Many Requests. How can one rule allow the short burst and still bound what follows?
 
-An API server shares its work among many clients. If one client sends requests as fast as it can, everyone else waits. So the server limits each client. It answers a request it will serve with 200, OK, and one it refuses with 429, Too Many Requests: slow down and try later. The limit should still let a client send a short burst, such as a page loading five things at once.
+Give the client a balance of five tokens. An accepted request spends one; a request that finds less than one is refused. Refill the balance as time passes, but never above five. This balance is the token bucket: its capacity sets the saved burst, while its refill rate sets how quickly the client can earn another request.
 
-A token bucket does both with one number. The server keeps a balance of tokens for the client, at most five: the bucket. Each accepted request spends one token, and a request that finds less than one gets 429. Ten requests from one client are coming: six at the same instant, then three within the next second, then one after a long quiet spell.
+Six requests arrive at the same instant. The first five spend the saved tokens. The sixth finds zero and gets 429. Raising the refill rate cannot help that sixth request: no time has passed in which to earn a token.
 
-Six arrive at once. The first five each spend a token and get 200. The sixth finds none and gets 429. No time passed between them, and tokens come back only with time: each call adds the time since the last call multiplied by the refill rate, two tokens a second here. Nothing runs between calls. That is the answer: a burst can spend only the tokens saved up, and only elapsed time adds more.
+At the default rate of two tokens a second, a half-second wait earns one token. R7 arrives then, spends it and succeeds. At one token a second, the same wait earns only half a token, so R7 is refused. At four a second, it earns two. Fractional balances matter even though each request spends a whole token.
 
-So whether R7, half a second later, gets through depends on the rate. Half a second buys one token at two a second, so R7 finds exactly one and gets 200. At one token a second it buys half a token and R7 gets 429; at four it buys two. R8 at one second finds what another half second added; R9 arrives at the same instant as R8, so it finds what R8 left.
+Another half second passes before R8. At two tokens a second that restores one token, which R8 spends. R9 arrives at the same instant as R8 and finds what R8 left, with no additional refill. At this rate R8 succeeds and R9 fails. Arrival order matters when requests compete for the last token.
 
-A client that goes quiet cannot save up a flood. R10 waits four seconds. At two tokens a second that would bring the balance to eight, but min(5, …) stops it at five: the chart's line climbs, then runs flat along the top, and the tokens that would have come are thrown away. At four a second the line reaches five even sooner. At one a second the same wait brings only four, under the cap: the cap matters once the wait is long enough for the rate.
+R10 arrives after four quiet seconds. At two tokens a second, the empty balance could have gained eight tokens, but the capacity stops it at five. The line rises to the cap and then stays flat. Waiting longer does not buy a larger saved burst. At one token a second, these four seconds earn only four tokens, so this particular wait does not yet reach the cap.
 
-Last, the same ten requests at one, two and four tokens a second. R6 is refused at every rate and R10 accepted at every rate; in between, a slower refill refuses more of the requests that follow a burst.
+The balance need not be updated by a background timer. When a request arrives, the server adds elapsed time multiplied by the rate, caps the result at five, then decides whether it can spend a token. The rising line shows the credit available at each time, even while no request is running.
 
-**The aha:** R10's line climbs to five and runs flat. Waiting longer buys nothing, so the bucket's size, not the length of the wait, bounds the next burst.
-
-**Sentence to remember:** a burst can spend only the tokens saved up, and only elapsed time adds more, never past the bucket's five.
-
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. At 4 tokens a second, R9 leaves 1 token and R10 arrives four seconds later. How many tokens does R10 find, and why not 17?
-2. At 2 tokens a second, R8 and R9 arrive at the same instant. Why does R8 get 200 and R9 get 429?
-3. At 1 token a second, what does R7 find half a second after the burst?
-
-**Grounding:** the model (`TokenBucket` in `scenes/explainers/lib/models.ts`) is compared with `golang.org/x/time/rate` v0.15.0 on this schedule at every rate (`tools/oracle/token-bucket`, `test/fixtures/token-bucket-xtime.json`). 429 is defined in RFC 6585, section 4.
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| balance | paragraphs 1 and 2: why limit, 200 and 429, the bucket of five, the ten requests | how many of six simultaneous requests get 200 |
-| burst | paragraph 3: five 200s, a 429, refill only with time, and the answer | R7 at 0.5 s: 200 or 429? |
-| refill | paragraph 4: the rate decides R7; R8 and R9 | |
-| later | paragraph 5: the cap clips a long wait: the aha | |
-| trace | paragraph 6: the same requests at three rates | |
+Compare the same ten arrival times at one, two and four tokens a second. All three rates refuse R6 because the initial burst exhausts the same five-token capacity. All three accept R10 after its wait. Between those moments, the refill rate decides how quickly the client can resume sending requests.

@@ -1,34 +1,15 @@
-# Script: what does a guest's calendar keep when one meeting of a series changes?
+# Why can a cancelled meeting remain in a guest's calendar?
 
-Questions the reader brings: How does a calendar store a repeating meeting? If I cancel one meeting, what do the people invited to it see? Why do cancelled meetings linger in other people's calendars?
+Alice's calendar shows six weekly stand-ups, but it need not store six separate meeting records. One VEVENT describes the series. DTSTART supplies the first start, Monday 2 November 2026 at 09:00 UTC. RRULE:FREQ=WEEKLY;COUNT=6 tells the calendar to generate six starts, counting that first one.
 
-Alice's calendar app saves her weekly stand-up as one VEVENT: DTSTART is the first meeting, Monday 2 November 2026 at 09:00 UTC, and RRULE:FREQ=WEEKLY;COUNT=6 makes six. Her calendar computes the six Mondays from those two lines.
+Alice invites Bob to the third meeting only. The app needs to describe something special about that occurrence without replacing the weekly rule. It adds another VEVENT with the same UID, the series identifier. This record is an override. Its RECURRENCE-ID is 20261116T090000Z, the start the rule originally assigned to the third meeting. That identifier continues to name the occurrence even if its actual start changes.
 
-She invites Bob to the third meeting only. The app keeps the first VEVENT and adds a second with the same UID: an override, whose RECURRENCE-ID, 20261116T090000Z, is the start the rule gave that meeting. Bob is sent that override and nothing else.
+Bob receives that override, not Alice's whole series. His calendar therefore holds a different object: one occurrence with a recurrence identifier, but no master rule from which to generate the other five meetings.
 
-Then Alice skips that meeting. Her app adds EXDATE:20261116T090000Z to the first VEVENT and deletes Bob's override; COUNT=6 still counts the excluded start, so five meetings remain. The reader is asked: what does Bob's calendar show now?
+Now Alice skips the third meeting. Her app excludes its start by adding EXDATE:20261116T090000Z to the master and removes the override from her stored object. COUNT remains six; the excluded occurrence is one of those six, so Alice's calendar now generates five meetings. Does Bob's copy simply disappear as well?
 
-Bob's copy keeps the meeting, marked cancelled. The server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds; it deletes nothing. That is the answer: a guest's calendar keeps only the meetings it was sent, and a cancellation marks one CANCELLED instead of deleting it. Alice's calendar has no third meeting; Bob's still lists Monday 16 November, cancelled.
+On the server shown, it does not. The server sends Bob an iTIP CANCEL, a scheduling message about the occurrence he was invited to. Delivering that message sets STATUS:CANCELLED on his existing VEVENT rather than deleting it. Alice's generated list has no meeting that week; Bob still has the third meeting's record, marked cancelled. The two calendars differ because they received different records and applied different changes to them.
 
-As details: the storage as a schema (RFC 4791 puts every VEVENT with one UID in one object, at most one master and any number of overrides, which may be stored without their master, as Bob's is), and the server's own rule: sabre answers 415 to a second master or a second RRULE, stricter than RFC 5545's SHOULD NOT.
+Move the second meeting instead. Alice's object gains an override for that occurrence, but Bob was not invited to it. The update sent to Bob contains the meeting he attends, so his copy does not acquire the moved second meeting. A guest's calendar is not a complete replica of the organizer's stored series.
 
-**The aha:** Alice's list says "skipped, EXDATE" for week 3 while Bob's list still shows Mon 16 Nov, cancelled: one change, two different stored objects.
-
-**Sentence to remember:** a guest's calendar keeps only the meetings it was sent, and a cancellation marks one CANCELLED instead of deleting it.
-
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. Alice skips the meeting Bob was invited to. What does each calendar show for that week?
-2. Alice moves the second meeting, which Bob does not attend. What changes in Bob's copy?
-3. Bob's copy is an override with RECURRENCE-ID and no master. Does the server accept it, and what does it refuse?
-
-**Cases:** Alice's change (skip Bob's meeting, the default; move the second meeting; no other change) and whose copy to inspect (Bob's, the default, or Alice's, which shows her object as a schema with each part counted). The model is held to RFC 5545's examples and to sabre/vobject 4.5.7 with sabre/dav 4.7.0.
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| series | paragraph 1: Alice's lines and the meetings they make | |
-| invite | paragraph 2: the override, and what Bob is sent | |
-| change | paragraph 3: the EXDATE and the deleted override | what Bob's calendar shows now |
-| copy | paragraph 4: the answer, Bob's cancelled meeting (or Alice's counted copy) | |
-| schema (detail) | paragraph 5: the storage rules as a schema (before the copy step when the copy is Alice’s, since her copy is counted on it) | |
-| server (detail) | paragraph 5: sabre's 415 | |
+The storage rules allow this distinction. Related VEVENTs share one UID, with at most one master and overrides identified by RECURRENCE-ID. An override may be stored without its master, as in Bob's copy. The server also validates what it accepts: this implementation refuses a second master or a second RRULE with status 415. Generating occurrences, storing overrides and delivering scheduling messages are separate operations; understanding one does not by itself predict the other two.

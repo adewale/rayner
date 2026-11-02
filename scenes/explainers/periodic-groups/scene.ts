@@ -728,7 +728,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('names', {
       title: 'The runs have names; helium needs one move',
       line: 's holds 2, p holds 6, d holds 10 and f holds 14 electrons.',
-      caption: 'Each run is a subshell: s for 2, p for 6, d for 10 and f for 14. Those widths give the table its blocks and its gaps; the changing row lengths explain the jumps down the opening column. Helium is the exception to stacking by width alone: its two electrons fill its first shell, so it moves above neon instead of staying over beryllium. The detailed filling rule and its exceptions are in the optional notes.',
+      caption: 'Each run is a subshell: s for 2, p for 6, d for 10 and f for 14. Those widths give the table its blocks and its gaps; the changing row lengths explain the jumps down the opening column. Widths alone leave helium over beryllium. The table groups helium with neon: helium’s two electrons complete its first shell, while neon has a complete outer shell of eight. That grouping is information we bring to the table, not something sliding cells proves. The detailed filling rule and its exceptions are in the optional notes.',
     });
     this.state = { ...base, note: 'names', blocks: true, lit: POSITIONS.length, strip: 'named', helium: 'over-ne', capacity: CAPACITY };
     await this.play(both(1.2));

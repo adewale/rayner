@@ -1,0 +1,18 @@
+# Henge script proposal
+
+This is an alternative explanation for [henge.nyc](https://henge.nyc/), not an implemented Rayner scene or a change to that site. It addresses a reader who knows sunset and the seasons but has not connected the sky to a street's direction. It explains the annual geometry and the two event conventions; it does not compute visiting times.
+
+The important visual change is to connect three views. Establish the street-level question, use a globe and the observer's daily sky arcs to connect tilt to the changing horizon direction, then return to a top-down street sightline for the two annual crossings. Keep the observer, north and Sun identifiable across those views. The globe must keep its axis direction fixed through the orbit. A tilted globe alone is insufficient evidence for a claim about the sunset point: show the local horizon and where the daily arc meets it.
+
+For half versus full Sun, return to the street-level view with a visible horizon and a disc. Compare neighbouring dates at the same street bearing, not at a fixed clock time or a silently changing definition of sunset. Mark the centre and bottom edge. The vertical comparison supplies information the top-down map cannot show. Keep daily descent distinct from the change in alignment height across dates.
+
+The proposed reader lever rotates the street toward due west while keeping the observer and astronomical model fixed. It needs both predicted alignment seasons visible. A date scrubber can support this comparison, but does not replace an explicit question about what changes and why. A published scene should keep its ending questions and disclosed answers in `meta.checks`; useful transfers include explaining why a due-west street changes the dates and why a horizontal alignment alone cannot determine half versus full Sun.
+
+## Sources and scope
+
+- [AMNH Manhattanhenge explanation and event definitions](https://www.amnh.org/research/hayden-planetarium/manhattanhenge): observed half/full geometry and the May/July seasons. Exact dates and times are year-specific; the script intentionally does not copy them.
+- [NASA/JPL explanation of Earth's fixed axis direction and seasons](https://www.nesdis.noaa.gov/about/k-12-education/understanding-our-planet/why-does-earth-have-seasons): the cause of the seasonal sky-path change. Do not exaggerate the elliptical orbit to illustrate it.
+- [NASA's Manhattanhenge explanation](https://science.nasa.gov/image-article/apod-2014-july-6-manhattanhenge-a-new-york-city-sunset/): the due-west/equinox counterfactual.
+- [Henge's map implementation](https://github.com/ivarvong/henge/blob/main/apps/web/app/components/sunset-map.tsx): the current map samples one apparent altitude normally, but switches to the street bearing on named event dates. A rebuild should explicitly distinguish the fixed-altitude annual sweep from the event-specific altitude. It should not silently snap between definitions.
+
+The script describes Manhattan, where this street direction lies inside the annual range of low-Sun directions. It does not claim every street or latitude has two alignments, or that exact intervals are symmetric around the solstice. A finite disc and the width of a street allow a viewing window; the named events select particular positions within it. Actual obstructions, observer elevation, atmospheric refraction and weather affect visibility. Before implementing numerical dates, choose an explicit observer and visible horizon, define the apparent disc positions and compare the computed events with independent observations or published values. No numerical model or new reader study has been run for this proposal.

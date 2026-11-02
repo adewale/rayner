@@ -33,7 +33,7 @@ npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the script the scene shows, `script.md`, the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
+Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the reader-facing script, `script.md`, the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
 
 When your explanation is ready, review every case and save the page to publish:
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Rewrite the 33 explainer scripts and the starter as reader-facing causal explanations. Keep construction choices and model scope in optional notes, ending quizzes in scene metadata, and verification in tests. Update the tutorial and editorial guidance to use the same division; include an alternative Henge script and its visual requirements.
 - Shorten the main periodic-table story to runs, stacking, names and helium; keep filling-order machinery and configuration exceptions as optional reference. Give dictionary deletion and search-race readers unseen transfer exercises, distinguish all three ordinary Git merge outcomes, and promote the three engineering lessons after reviewing their scripts and source checks.
 - Rebuild explainer scripts around concrete problems, consequential cases and tested models. Add statecharts with an independent XState comparison, plus external model checks against Git, rustc and Go’s rate limiter.
 - Add `meta.answer` and disclosed transfer questions (`meta.checks`). The answer gate checks that the declared phrase appears; editorial review and newcomer evaluation determine whether the explanation teaches.

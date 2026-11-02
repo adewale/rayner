@@ -1,25 +1,11 @@
-# Script: what is the difference between LRU and MRU?
+# What is the difference between LRU and MRU?
 
-Write this before any code. Read it aloud to someone who doesn't know the topic, with no pictures: if they can't answer the check questions afterwards, fix the script, not the drawing. See "Script first" in the Rayner explainers skill.
+A cache has three slots. Requests for A, B and C have filled them, in that order. Now D arrives. It is missing, and there is no spare slot. Which item should make room: A, which has waited longest, or C, which was just used?
 
-**Questions the reader brings:** What is the difference between LRU and MRU? When does it matter?
+LRU evicts the item used longest ago: A. Its name means least recently used. MRU, most recently used, evicts C instead. Both put D in the freed slot. Keeping the recent item sounds sensible, but the next requests decide whether it helps.
 
-**Script** (150 to 250 words, answer first):
+Suppose A, B, C and D repeat. LRU has just evicted A, the next item needed. Bringing A back evicts B, which comes next. The same mistake repeats: all eight requests miss. MRU kept A and B when it made room for D. On the second pass, A, B and D hit; C misses. Evicting the newest item preserved more of this loop.
 
-On a miss in a full cache, a replacement policy chooses which item to evict. LRU evicts the item used longest ago. MRU evicts the item used most recently. Which one gets more hits depends on the order of requests.
+Change only the last four requests: C, D, C, D. LRU kept both, so all four repeats hit. MRU dropped C for D. Bringing C back now drops D, then bringing D back drops C. All four repeats miss.
 
-Take a cache with three slots. Requests for A, B and C fill it in both policies, so both hold the same items. The next request, D, misses in both and forces an eviction. LRU drops A, the oldest. MRU drops C, the newest.
-
-Now repeat A, B, C and D. LRU always evicted the item the loop needs next, so every request misses. MRU evicted C to make room for D, so A, B and D hit on the second pass. A loop over more items than the cache holds favours MRU.
-
-Change only what follows: C and D alternate instead. LRU still holds both, so every repeat hits. MRU evicts the item requested just before, which is always the next one requested, so every repeat misses. Reuse of recent items favours LRU.
-
-These counts cover eight requests through three slots. They leave out what tracking recency costs.
-
-**Sentence to remember:** LRU evicts the oldest item and MRU the newest, so a loop larger than the cache favours MRU and reuse of recent items favours LRU.
-
-**Check questions** (they go in the scene's `meta.checks`; `meta.answer` holds the script's first answer):
-
-1. A full cache misses. Which item does each policy evict?
-2. Why does LRU miss every request when a loop is one item larger than the cache?
-3. Which policy should manage a buffer for a file scanned over and over that does not fit in memory?
+The eviction rule has stayed the same; the useful choice has reversed. Recency records the past. Whether it predicts the next request depends on the access pattern. These two examples count eight requests through three slots; they do not measure the cost of maintaining the cache.

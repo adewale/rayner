@@ -6,7 +6,24 @@ The criteria come from the communities that make the best explainers. 3Blue1Brow
 
 ## How to read
 
-Read the explanation as a newcomer: the gallery title, every resting step and caption of the declared default case (from `settings[].default` in `describe.json`, not the first case listed), at least one other case where there is one, the ending, and the source and test trail. Use the page itself at 1280 × 800 and on a phone, from the first step and from fresh links to later steps. Keep the guiding question in mind: how valuable is this compared with the typical explanation of the same thing a reader could find?
+Read `script.md` straight through first. Identify the observation being explained, the rule or mechanism that accounts for it, and a changed condition whose result the reader could now predict. Point to the sentences that connect those three. A numbered sequence and a correct answer are insufficient if the causal bridge is missing. Distinguish a rule being explained from an input the lesson assumes, and ask whether the reader has been told which is which.
+
+Then read the explanation as a newcomer: the gallery title, every resting step and caption of the declared default case (from `settings[].default` in `describe.json`, not the first case listed), at least one other case where there is one, the ending, and the source and test trail. Use the page itself at 1280 × 800 and on a phone, from the first step and from fresh links to later steps. Check that the page supports the script's reasoning: each new inference has visible evidence, a useful comparison or an explicit premise. Keep the guiding question in mind: how valuable is this compared with the typical explanation of the same thing a reader could find?
+
+## Working documents
+
+Keep each fact where it can be maintained:
+
+| Where | What belongs there |
+| --- | --- |
+| `script.md` | The explanation addressed to the reader, including predictions and the scope needed to interpret the conclusion. No implementation directions, revision history, verification report or copied ending quiz. |
+| `scene.ts` metadata and steps | The published captions, cases, one-sentence answer, ending questions and disclosed answers. Read or describe the scene to inspect them; do not maintain a parallel step inventory in Markdown. |
+| Optional `notes.md` | Non-obvious visual decisions, source interpretation and model limits useful to the next author. Link to the owning source or test rather than copying its assertions. Omit this file when it adds nothing. |
+| Models, tests and review receipts | Computation and evidence for correctness, picture fidelity and served behavior. They do not establish reader comprehension. |
+
+The script is an editorial draft of the explanation, not a generated transcript. If a rewrite changes the reasoning, update the corresponding scene prose and check its offered cases. Do not leave a stronger promise in the script than the page fulfills. Source links belong in `meta.sources`; notes can explain why a source or convention was chosen. Revision history belongs in Git.
+
+Use the ending questions from `meta.checks` to challenge the script. Can its reasoning answer a changed case, or does it merely reveal the quiz answer? This editorial judgment can expose a weak explanation before reader testing. A newcomer study is still needed to measure what readers actually understand.
 
 ## The criteria
 
@@ -45,6 +62,6 @@ When several explainers must be ordered, compare them in pairs, blind where poss
 
 ## Choosing a hero
 
-A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), the Rayner leverage (what the coordinated model, code and picture reveal that a still or diff would not, with an independent check behind it), and the consequential other case (one changed condition that changes the outcome, with both results inspectable). None of this measures reader demand or shows that Rayner beats another tool; only the benchmark speaks to that.
+A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), the Rayner leverage (what the coordinated model, code and picture reveal that a still or diff would not, with an independent check behind it), and the consequential other case (one changed condition that changes the outcome, with both results inspectable). These are editorial reasons to select a lesson. The benchmark records comparative reviewer preferences for the pages it tested; it does not measure reader demand or newcomer learning.
 
 The showcase tier selects subject examples to study, not a measured learning outcome. Prefer a small set of complementary mechanisms and consequential alternative cases over broad engine coverage. Keep authoring recipes in their own collection. The catalog is the source of truth for the current selection. A lesson’s benchmark status must remain explicit; selection alone does not demonstrate that it beats another tool.

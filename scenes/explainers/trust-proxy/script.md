@@ -1,34 +1,17 @@
-# Script: which address should Express call the client?
+# Which address should Express call the client?
 
-Question the reader brings: my Express app sits behind a CDN and a load balancer. I set `trust proxy` so `req.ip` is the visitor's address, not the load balancer's. Which setting is right, and can a visitor lie?
+Your Express app sits behind a CDN and a load balancer. Every connection reaching the app comes from the load balancer, so the socket address identifies that machine rather than the visitor. The trust proxy setting tells Express how to look past it.
 
-An app reaches the internet through a CDN and then a load balancer, so it sees every connection come from the load balancer. Express's guide says to set `trust proxy` to the number of proxies, here 2. But the load balancer also accepts connections from the internet, so an attacker can skip the CDN. With trust proxy 2, what is `req.ip` for the attacker's request?
+There appear to be two proxies, so you choose trust proxy 2. But the load balancer also accepts requests directly from the internet. An attacker skips the CDN and sends a request with X-Forwarded-For: 1.2.3.4, an address they invented. Will Express report the attacker's actual address?
 
-It is 1.2.3.4, an address the attacker made up. The only way Express learns about anything beyond the load balancer is the X-Forwarded-For header: each proxy appends the address its connection came from, and nothing stops the sender writing entries of its own first. The attacker sends `X-Forwarded-For: 1.2.3.4` to the load balancer, which appends the attacker's real address, 198.51.100.9.
+The load balancer appends the address it really saw, 198.51.100.9. Express receives the header 1.2.3.4, 198.51.100.9 over a connection from 10.0.0.5. The header is a list of reported addresses, not a certificate that each address is genuine. A sender can supply its own entries before the proxies add theirs.
 
-Express reads the addresses from its own connection outward: the socket's 10.0.0.5, then the header's entries right to left. It skips each address it trusts, and req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others. A number n trusts the first n addresses by position alone, whatever they are. On this path the second address is the attacker's own, so Express trusts it as if it were the CDN, and the next entry, the one the attacker wrote, is req.ip. The source says so in one line: a number becomes `function(a, i){ return i < val }`.
+Express reads outward from the connection it can observe: first 10.0.0.5, then the header from right to left. It skips trusted addresses and stops at the first one it does not trust. If it reaches the farthest entry, that entry becomes req.ip without another trust check.
 
-The same setting is right for the client through the CDN and for the attacker through the CDN: both paths have two proxies. It fails only on the path with one proxy fewer, which is what Express's guide warns about: a hop count assumes every path has the same length. An address list that trusts the load balancer's network and the CDN edge's range trusts machines, not positions, and gets all three requests right, provided those ranges hold only your proxies.
+A numeric setting trusts positions. With 2, the load balancer occupies the first trusted position and the attacker's real address occupies the second. Express treats that second position as another proxy even though no CDN handled this request. The next entry is 1.2.3.4, so the attacker chooses req.ip. The source implements the numeric setting by comparing the address's index with the configured number; it does not inspect which machine occupies that index.
 
-**The aha:** on the short path, the count of two lands on the attacker's own address, and the address after it is one the attacker typed.
+Follow the same request through the CDN instead. The two trusted positions now contain the load balancer and CDN, and the next address is the real sender. The hop count succeeds on this route and fails on the shorter one. Choosing a count requires knowing every route into the app, not just the intended route.
 
-**Sentence to remember:** a hop count trusts positions; trust your proxies by address, or an attacker on a shorter path chooses req.ip.
+An address list makes a different decision: trust the load balancer's network and the CDN's range, rather than the first two positions. On the direct route it skips the load balancer but stops at the attacker's actual address. On the CDN route it skips both proxies. That gives the right sender for the three requests shown, provided the trusted ranges contain only trusted proxies and those proxies preserve an accurate forwarding chain.
 
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. Why does trust proxy 2 report an address the attacker wrote when the attacker skips the CDN?
-2. Which address does Express never test, and why does that matter with trust proxy true?
-3. What must hold for the address list to stay right?
-
-**The reader's lever:** two settings, the trust setting and the request. Each of the twelve combinations is checked against real Express 5.3.0.
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| paths | paragraph 1: two ways in, the question | req.ip for this setting and request |
-| follow | paragraph 2: the answer, and X-Forwarded-For as each machine sees it | why Express picks that entry |
-| read | paragraph 3: the walk outward, trusted by position, and the answer sentence | |
-| code | paragraph 3, last sentence: the setting's branch and the loop in the source | |
-| requests | paragraph 4: the same setting against all three requests | |
-| why | paragraph 4: the short path, and the guide's warning | |
-| ranges | paragraph 4: the address list | |
-| table | all twelve answers from real Express | |
+Compare all twelve combinations of request and trust setting. The setting true walks to the farthest reported address; a smaller hop count stops too soon on the longer route; the count of two goes too far on the shorter route. The address list works across these routes because the trust decision follows the proxy's identity rather than its position.

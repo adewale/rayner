@@ -1,32 +1,15 @@
-# Script: why can int4 and int8 rows take the same space?
+# Why can int4 and int8 rows take the same space?
 
-Questions the reader brings: Does choosing int4 over bigint save disk space? How does Postgres lay a row out on a page? Where do the bytes go?
+An int4 value needs four bytes; an int8, also called bigint, needs eight. It seems that choosing int4 should fit more rows into a Postgres table. Before counting, predict how many more will fit on one page.
 
-A Postgres table lives in 8192-byte pages, each starting with a 24-byte header, so an empty page has 8168 bytes free. A common way to save space is to declare an integer column int4 instead of int8: 4 bytes a value instead of 8. Ask the reader to commit: how many more int4 rows than int8 rows fit on this page?
+The page holds 8192 bytes. Its 24-byte header leaves 8168 bytes for rows and their bookkeeping. Adding a row creates two things: a four-byte line pointer near the beginning of the page, and the row itself, called a tuple, near the end. The line pointer tells Postgres where to find that tuple.
 
-Put one int4 row on the page. It costs a 4-byte line pointer under the header and a tuple at the end of the page: a 23-byte header padded to 24, then the 4-byte value, 28 bytes. The page gives every tuple a multiple of 8 bytes on a 64-bit build, so the tuple takes 32, and the row 36. The byte grid, eight bytes to a line, shows it: three lines of header, then a line that is half value, half padding.
+An int4 tuple begins with a 23-byte header, padded to 24 bytes before the value. Add four bytes of data and the tuple is 28 bytes long. On this 64-bit build, the page allocates tuple space in multiples of eight bytes, so those 28 bytes occupy 32. Include the line pointer and the row consumes 36 bytes of the page.
 
-Now the answer, as the payoff of that grid: draw the int8 tuple beside it. Its 4 extra bytes land exactly where the int4 tuple had padding, and it is 32 bytes too. So none more: both fill a page at 226 rows.
+Now replace int4 with int8. The value gains four bytes, but those bytes occupy the four that were padding at the end of the int4 allocation. The tuple reaches 32 bytes exactly. Both rows therefore cost 36 bytes including their pointer, and both fit 226 rows on a page. The value became wider without crossing the next allocation boundary.
 
-Why does 4 bytes a row change so little? A full page of int4 rows is 63.5% tuple headers and only 11.0% values: most of a row is overhead, and row 227 fails because 28 bytes, not 32, are left once a pointer is set aside. The last step measures 10 000-row tables on Postgres 18.6: int4 and int8 both take 45 pages. Add an 11-character text column after the integer and the result flips: text needs no alignment, so after an int4 it starts in what was padding (a 40-byte tuple), while after an int8 the tuple is 44 bytes and rounds up to 48: 55 pages against 64.
+The full-page breakdown reveals another reason the type width can be a small part of the bill. For int4 rows, tuple headers occupy 63.5% of the page and the values only 11.0%. After 226 rows, 32 bytes remain free. A new line pointer would consume four, leaving 28 for a tuple that needs 32 allocated bytes. Row 227 cannot fit.
 
-**The aha:** the two byte grids side by side, the int8's last four orange cells sitting in the int4's four padding cells.
+Does this mean int4 never saves space? Add an eleven-character text column after the integer. Its stored form needs twelve bytes and, in this case, can begin immediately after int4, at byte 28. The tuple then ends at byte 40, an allocation boundary. After int8, the text begins at byte 32 and ends at byte 44, which rounds up to 48. The narrower integer now saves eight allocated bytes per tuple.
 
-**Sentence to remember:** on a 64-bit build, Postgres gives every tuple a multiple of 8 bytes, so a narrower type saves space only when it moves the tuple below an 8-byte boundary.
-
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. An int4 row and an int8 row both take 36 bytes of the page. Where do int8's 4 extra bytes go?
-2. On a full page of int4 rows, which takes more room: the values or the tuple headers?
-3. With an 11-character text column after the integer, why does int8 cost more than int4?
-
-The column setting is the countercase: int4 + text gives the same question a different answer (28 more rows a page). Fillfactor, which the earlier edition explained in a step of its own, is left out: it holds space back for updates and does not bear on the question.
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| page | paragraph 1: the empty page and the choice | how many more int4 rows fit |
-| row | paragraph 2: one row, its pointer and its byte grid | how big the int8 tuple is |
-| swap | paragraph 3: the two grids side by side, the answer and the aha | |
-| full | paragraph 4: a full page's pie | |
-| why | paragraph 4: why row 227 does not fit | |
-| compare | paragraph 4: 10 000-row tables, and the text column that flips the result | |
+The measured 10,000-row tables follow the same pattern. Integer-only int4 and int8 tables both use 45 pages. With the text column, they use 55 and 64 pages respectively. Saving bytes in a value saves page space when it changes the surrounding layout enough to cross an allocation boundary.

@@ -1,43 +1,13 @@
-# Script: why build the page before readers open it?
+# Why build the page before readers open it?
 
-Questions the reader brings: Rayner pages are built ahead of time, with a fixed list of cases. Why can't a reader type any value they like? What does the fixed list buy, and what does it cost?
+A token bucket page offers refill rates of 1, 2 and 4 tokens a second. Its last request, R10, succeeds at all three, so a caption says it is accepted at every rate. Would that sentence survive a reader typing 0.1?
 
-Rayner's token bucket explainer sends ten requests through a bucket that refills at 1, 2 or 4 tokens a second, the only rates its reader can choose. Its last step says R10 is accepted at every rate. On the page that is true: at each offered rate R10 arrives after a four-second wait and finds at least one token. A page could instead take any rate a reader types and show the same sentence. The reader predicts: is it true at 0.1 tokens a second?
+At 0.1 tokens a second, the same request schedule ends differently. Five seconds after the burst the bucket has recovered only half a token, and R10 needs one. It is refused. The sentence was true across the page’s offered cases, but the model did not make it true across arbitrary rates.
 
-No. The same model at 0.1 tokens a second refuses R7, R8 and R9, and five seconds after the burst only 0.5 tokens have come back, so R10 gets 429. An author can run and read the three offered cases; the rates a reader might type have no end. The answer: Rayner builds every case before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a case the build made.
+Rayner prepares a fixed set of cases before publishing. The build runs the combinations of declared options, so their pictures and captions can be checked together. The reader chooses among those cases. A rate outside the list does not silently become another supported case.
 
-Lantern, the animation engine Rayner was forked from, rendered on request: its Cloudflare Worker re-ran a scene to whatever step or time a client asked for and served the frame, caching nothing. Rayner deleted the Worker. The bottom row broke at 0.1, a rate the scene does not list, so the build did not run it; a page built ahead would break the same way if it let readers type a rate. The token bucket's one setting lists three rates, the build runs one case for each, and the page offers no box for typing another.
+This makes review finite. An author can inspect whether a caption holds for the three offered rates and correct it before readers see the page. A program accepting arbitrary input would need a rule that remains valid across that wider input space. Building ahead does not supply that rule, and a false caption can still be published if its prepared cases are not read.
 
-The price is that settings multiply. Rayner's traffic-policy explainer has two settings, the service's traffic policy with 2 options and the placement of pods on its three nodes with 3, so its build makes 6 cases, and a third setting would multiply that again.
+The restriction also has a cost. Two traffic-policy options combined with three pod placements make six cases. Adding another setting multiplies the combinations again. Prepared cases trade some freedom of input for a bounded collection of outcomes that can be inspected.
 
-After the ending, two details: the build draws the diagrams ahead of the page (Agentic Mermaid in Chromium, the snapshot stored beside the scene, so the page runs no diagram renderer); and the page holds each resting picture for its caption, timed from the fork step. The earlier `checks` detail, with its hand-kept count of 13 checks, is cut. `fork` and `timing` stay as details because `test/explain-fidelity.test.ts` holds the timing step to the fork step's own trace timing.
-
-**The aha:** a fourth row slides in under the three offered rates, and R10's circle, accepted in every built row, is a cross at 0.1 tokens a second.
-
-**Sentence to remember:** every combination of settings is a case the build makes and rayner check tests before anyone opens the page.
-
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. R8 and R9 arrive together at 1 s. If the author moved R10 from 5 s to 1.5 s, at which offered rate would "R10 is accepted at every rate" become false, and could a reader see it? (At 1 token a second, where R8 spends the token back by 1 s and R10 finds half a token; only if the author published without reading that built case.)
-2. A shared link ends in `?rate=0.1`. What does the reader see? (The player finds no such option and opens the default case, 2 tokens a second, with "Unknown rate option: 0.1. Showing the default case." from `app/embed-strings.ts`.)
-
-**Cases:** one. The contrast is inside the story: the offered rates against one the page never built, and Lantern's live Worker against the build. The engine itself (the clock, seeking by replay) is the lantern explainer's subject.
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| sentence | paragraph 1: "R10 is accepted at every rate", true at 1, 2 and 4 | whether it holds at 0.1 |
-| untested | paragraph 2: R10 refused at 0.1, and the answer (the aha) | |
-| live | paragraph 3: Lantern's Worker rendered any frame; the risk is a rate nobody listed | |
-| cases | paragraph 4: the price, traffic-policy's 3 × 2 cases (the ending) | |
-| fork (detail) | paragraph 5: diagrams captured per case; Lantern's parts morph into the fork's | |
-| timing (detail) | paragraph 5: the page holds each picture for its caption, from the fork step's own timing | |
-
-**Claims:** the quoted sentence, "the only rates its reader can choose" and the 0.5 tokens at 0.1 are held by the fork branch of `test/explain-fidelity.test.ts`, which builds the token bucket's own cases and reads R10 from each; the answer and "every combination of options is a case" by a test in `test/explain-gates.test.ts` that builds a 2 × 3 scene, checks each case and refuses an unlisted option.
-
-## Limits
-
-- The rows come from the token bucket model in `scenes/explainers/lib/models.ts`, not from a deployed rate limiter.
-- Four rates are run: the three offered and 0.1. No other rate, burst size or request timing is shown.
-- Lantern's Worker is described from its source at commit 2c7bad5; it was not run.
-- The traffic-policy count, 6 cases, is read from that scene's settings; its cases are not drawn here.
-- The timing detail holds for the fork step's caption at the default reading speed, `Scene.captionWpm`; no other speed is shown.
+The fork from Lantern reflects that choice. Lantern’s Worker rendered requested scene times on demand; Rayner prepares the page and its diagrams ahead of reading. The important boundary is the declared input set: prebuilding a page helps make its evidence reviewable, but it does not turn a statement about those inputs into a statement about all possible inputs.

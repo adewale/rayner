@@ -57,7 +57,7 @@ export default class FontMetrics extends Scene {
     await this.step('layout', {
       title: `Measure the wrong face and the marker lands ${(wrong - actual).toFixed(2)} units too far`,
       line: `Same phrase, size and ${GAP}-unit gap; only the measurement changes.`,
-      caption: `Both rows draw “${SAMPLE}” in EB Garamond at size 0.9, and each puts its marker ${GAP} units after the width it measured for the phrase. The upper row measured the phrase as JetBrains Mono, ${wrong.toFixed(2)} units, so its marker floats ${(wrong - actual).toFixed(2)} units past the words. The lower row measured EB Garamond, ${actual.toFixed(2)}, and its marker sits where it was meant to. Where does a phrase’s width come from?`,
+      caption: `Both rows draw “${SAMPLE}” in EB Garamond at size 0.9, and each puts its marker ${GAP} units after the width it measured for the phrase. The upper row measured the phrase as JetBrains Mono, ${wrong.toFixed(2)} units, so its marker sits ${(wrong - actual).toFixed(2)} units farther from the words than intended. The lower row measured EB Garamond, ${actual.toFixed(2)}, and its marker sits where it was meant to. Where does a phrase’s width come from?`,
     });
     const comparison = new Group();
     comparison.key = 'font-layout';
@@ -142,7 +142,8 @@ export default class FontMetrics extends Scene {
     });
     await s.clear();
     const d = await s.show(widths === 'natural' ? { source: DIAGRAM, lettering: 'natural' } : { source: DIAGRAM });
-    const stretch: Record<string, number> = {};
+    const stretch: Record<string, number> = {},
+      annotations: Group[] = [];
     for (const [id, text] of [
       ['A', 'Ink'],
       ['B', 'Paper'],
@@ -150,8 +151,9 @@ export default class FontMetrics extends Scene {
       const run = d.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === text)!.textRun!;
       const natural = this.text(text, { fontSize: run.size }).advance();
       stretch[text] = (run.width ?? natural) / natural;
-      await d.note(id, `stretched ×${stretch[text]!.toFixed(3)}`, { side: 'below', color: s.emphasis });
+      annotations.push(await d.note(id, `stretched ×${stretch[text]!.toFixed(3)}`, { side: 'below', color: s.emphasis, size: 0.66 }));
     }
+    s.reading(d.get('A'), d.get('B'), d.get('edge:A->B#0'), ...annotations);
     this.state.stretch = stretch;
   }
 }

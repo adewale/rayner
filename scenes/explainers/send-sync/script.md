@@ -1,36 +1,15 @@
-# Script: can this Rust value cross a thread boundary?
+# Why will Rust not send this Arc to another thread?
 
-Questions the reader brings: Why did rustc refuse my thread? Isn't Arc the thread-safe pointer? What do Send and Sync actually mean?
+The value x is an Arc<Cell<i32>>. Arc is Rust's reference-counted pointer for sharing ownership between threads, so moving x into thread::spawn seems reasonable. Yet rustc refuses the program. The error says Cell<i32> lacks Sync, which prevents Arc<Cell<i32>> from being Send. Why does moving a pointer require its contents to be shareable?
 
-Start from a program a Rust programmer writes on day two. `x` is an `Arc<Cell<i32>>`, and `thread::spawn(move || x.set(1))` hands it to a new thread. rustc refuses with E0277. Arc is the pointer the standard library offers for sharing between threads, so why? The error itself holds the clue: it says `Cell<i32>` cannot be shared between threads safely, that `Sync` is not implemented for it, and that this was required for `Arc<Cell<i32>>` to implement `Send`.
+Send asks whether ownership of a value can move to another thread. Sync asks whether shared references to that value can cross threads: T is Sync when &T is Send. Ownership and shared access impose different demands, so the two properties form four possible combinations.
 
-Those are the two questions the compiler asks of every type. Send: can a value move to another thread? Sync: can several threads hold a shared `&T` at once (T is Sync exactly when `&T` is Send)? Two yes-or-no questions make four quadrants. Cell<i32> lands in "Send only": `Cell::set` writes through `&self` with no synchronisation, so it cannot be shared, but a whole Cell can move.
+Cell<i32> can move. Once ownership has moved, the new thread can use that Cell without another thread accessing it through the old owner. But Cell::set writes through a shared reference, &self, without synchronization. Sharing such references between threads would allow unsynchronized access to the same value. Cell<i32> is therefore Send but not Sync.
 
-Now wrap it in Arc. Every clone of an Arc reaches the same T, and Arc adds no locking, so Arc<T> is Send only when T is both Send and Sync. Cell<i32> is not Sync, so the point leaves "Send only" for "Neither": wrapping made it less movable, not more. Arc makes its count thread-safe, not the value inside.
+An Arc changes the ownership situation. Cloning it gives another owner access to the same contents. Moving one clone to another thread can leave another clone behind, so moving an Arc can also share its contents. Arc<T> requires T to be both Send and Sync to cross threads. Its atomic reference count protects ownership bookkeeping; it does not lock access to T. Wrapping Cell<i32> in Arc moves the point from Send only to neither.
 
-The other quadrants fill out the map. Rc<i32> is neither, whatever it holds: it is the single-threaded Arc, with a plain integer count. i32 is both: Send and Sync are auto traits. And the odd one, MutexGuard<i32>, is Sync but not Send: dropping it unlocks the mutex, and a POSIX lock must be released on the thread that took it. Every combination occurs, so the two questions really are separate.
+The remaining types show why these are separate questions. Rc<i32> has a reference count without atomic synchronization, so it is neither Send nor Sync. An i32 has both properties. MutexGuard<i32> is Sync but not Send: a shared reference can be used safely, but moving the guard could cause it to be dropped on another thread. Dropping unlocks the mutex, and Rust must support platforms where the unlocking thread must be the one that locked it.
 
-So how do you share a Cell? Put it behind a Mutex: Mutex<T> needs only T: Send, and its lock makes it Sync. Mutex<Cell<i32>> is both, Arc<Mutex<Cell<i32>>> is both, and both thread APIs accept it. The setting builds any of nine types from the inside out; Arc<T> with Cell<i32> rebuilds the refused x.
+A Mutex addresses the access problem that Arc alone leaves open. It allows access to its contents while holding a lock. For Mutex<T> to be Send and Sync, its contents must be Send; T need not itself be Sync, because the mutex controls access. Cell<i32> meets that requirement. Mutex<Cell<i32>> is therefore Send and Sync, and wrapping it in Arc preserves both properties while allowing shared ownership.
 
-**The aha:** the Cell<i32> point, renamed x is Arc<Cell<i32>>, slides from "Send only" to "Neither".
-
-**Sentence to remember:** Arc<T> is Send only when T is both Send and Sync, so Arc shares a value between threads but never makes the value itself safe to share.
-
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. Why does rustc refuse `thread::spawn(move || x.set(1))` when x is an `Arc<Cell<i32>>`?
-2. Which type here is Sync but not Send, and why can't it move?
-3. Is `Arc<MutexGuard<i32>>` Send? (A transfer: no case builds it.)
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| spawn | paragraph 1: the refused program and rustc's error | why Arc, the thread-safe pointer, is refused |
-| questions | paragraph 2: the two questions, named from the error, and the empty 2 × 2 | which quadrant holds Cell<i32> |
-| cell | paragraph 2, Cell's quadrant and why | where Arc<Cell<i32>> lands |
-| arc-cell | paragraph 3: Arc's rule, the answer and the aha | |
-| rc | paragraph 4, Rc: the count Arc makes atomic | |
-| i32 | paragraph 4, auto traits | what could be Sync but not Send |
-| guard | paragraph 4, MutexGuard | what could make the Cell safe to share |
-| rules | paragraph 5, Mutex's rule beside Arc's | |
-| wrap-mutex, wrap-arc | paragraph 5, the chosen type built inside out (one step per wrapper) | |
-| threads | paragraph 5, what spawn and scope accept for x | |
+Build the selected type from the inside out, applying each wrapper's requirements to what it actually contains. Then compare the thread APIs. A move closure that owns x needs x to be Send. A scoped thread borrowing &x needs x to be Sync; the scope keeps the borrow from outliving x. The type's name is less informative than those ownership and access requirements.

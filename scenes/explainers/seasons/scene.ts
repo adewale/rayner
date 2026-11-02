@@ -483,8 +483,8 @@ export default class SeasonsExplainer extends Scene {
       decShare = noonShare(place.lat, -TILT);
     await this.step('noon', {
       title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${percent(juneShare)} of overhead sunlight per m²`,
-      line: `The angle is 90° − |${exactly(place.lat)} − ${exactly(TILT)}| = ${exactly(june.altitude)}, and sin ${degrees(june.altitude)} = ${juneShare.toFixed(2)}.`,
-      caption: `Zoomed in on the red dot: the white line is ${place.name}’s horizon, and noon sunlight arrives along the Sun’s direction. The angle between them is 90° minus the gap between ${place.name}’s latitude, ${exactly(place.lat)}, and the June declination, ${exactly(TILT)}. A lower Sun spreads the same beam over more ground: the yellow band would light one square metre from overhead, and at ${degrees(june.altitude)} it covers 1 ÷ sin ${exactly(june.altitude)} = ${(1 / juneShare).toFixed(2)} m², so each square metre gets ${percent(juneShare)} of an overhead Sun’s light, before the air takes its share.`,
+      line: 'The yellow band shows how one beam spreads across the ground.',
+      caption: `The white line is ${place.name}’s horizon. A lower Sun spreads the same beam over more ground, sharing its light across a larger patch. A higher Sun concentrates that light. Here each square metre receives ${percent(juneShare)} of what it would under an overhead Sun, before the air takes its share. The angle and its calculation are shown beside the beam.`,
     });
     const notes = new Group();
     notes.key = 'noon-notes';
@@ -824,7 +824,7 @@ export default class SeasonsExplainer extends Scene {
       farther = Math.round((farthest / nearest - 1) * 1000) / 10,
       stronger = Math.round(((farthest / nearest) ** 2 - 1) * 100);
     const shares = [juneShare, decShare].sort((a, b) => a - b);
-    const distanceSaid = `By the orbit formula Earth is ${nearest.toFixed(3)} of its average distance from the Sun in early January and ${farthest.toFixed(3)} in early July, so January’s sunlight is about ${stronger}% stronger.`;
+    const distanceSaid = `By the orbit formula Earth is ${nearest.toFixed(3)} of its average distance from the Sun in early January and ${farthest.toFixed(3)} in early July, so an equally oriented surface receives about ${stronger}% stronger sunlight in January, before atmospheric absorption.`;
     await this.step('distance', {
       title:
         place.lat !== 0

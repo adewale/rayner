@@ -658,7 +658,7 @@ export default class Statecharts extends Scene {
     await this.step('parent', {
       title: 'A box around the four states takes the one POWER_OFF',
       line: 'In XState and SCXML, the current state is asked first, then the box around it.',
-      caption: `Put the four in a box called on, and give the box the one POWER_OFF: the ${coffeeFlat.transitions} transitions a complete flat machine needs become ${coffeeChart.transitions}, and none can be forgotten. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. The box is half of the answer: a statechart is a state machine whose states can contain other states, active one at a time or several at once. Inside on, one state is active at a time; the next machine needs several at once.`,
+      caption: `Put the four in a box called on, and give the box the one POWER_OFF: the ${coffeeFlat.transitions} transitions a complete flat machine needs become ${coffeeChart.transitions}. The shared rule is written once on the parent rather than copied onto each child. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. The box is half of the answer: a statechart is a state machine whose states can contain other states, active one at a time or several at once. Inside on, one state is active at a time; the next machine needs several at once.`,
     });
     await morph('parent');
     this.state = { current: activeStates(coffee(), brewing) };

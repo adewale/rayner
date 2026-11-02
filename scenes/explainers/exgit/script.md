@@ -1,32 +1,13 @@
-# Script: what does Git store when a file changes?
+# What does Git store when a file changes?
 
-Questions the reader brings: Does Git keep a copy of every file in every commit? Does it store diffs? What actually changes on disk when I commit?
+The first commit contains hello.txt with the bytes for hello and a newline. Git prefixes those bytes with a type and length, then hashes the result. The resulting identifier, beginning ce01362, names a blob: an object holding the file’s contents. If another commit adds world.txt, must Git store hello again?
 
-Start with the bytes. The first commit holds one file, hello.txt, containing `hello` and a newline. Git puts a short header in front, the type `blob`, the length 6 and a zero byte, and hashes the 13 bytes with SHA-1. That id, ce013625…, is the object's name: Git calls the object a blob, and ce01362 names it from here on. The reader is asked: if a second commit adds world.txt, does Git store these bytes again? (In the edit case: if hello.txt becomes "hello again", what must Git write?)
+The name hello.txt is not inside the blob. A tree associates that name and its mode with the blob’s identifier. A commit names a tree and records its own metadata; the branch main holds the commit’s identifier. Following these references leads from a branch to a commit, then to a named file and its contents.
 
-The blob has no file name. A tree stores the name: mode, hello.txt, and the blob's id, and the tree is hashed into an id of its own. A commit's first line is its tree's id, and the branch main is a reference holding the commit's id. Each object holds the id of the one below it.
+Adding world.txt creates its new blob, a new tree listing both files, and a new commit naming that tree. The new tree still names hello’s original blob. The unchanged content can be shared because its identifier already describes the bytes needed.
 
-Now the second commit. Adding world.txt writes three objects: world's blob, a new tree and a new commit. The new tree lists hello.txt with the very same id, ce01362: Git does not store hello again. That is the answer: Git writes only the objects whose bytes are new, and names unchanged content again by its id. Editing hello.txt instead gives new bytes, so a new blob id; the tree naming it changes, so its id changes, and so does the commit's, whose parent line names commit one again. In both cases commit one's objects stay exactly as they were.
+Editing hello.txt instead changes its contents, so the blob gets a different identifier. That identifier is part of the tree’s bytes, so the tree changes too. The commit naming the new tree also changes. The old commit and its objects stay intact; the new commit’s parent reference leads back to the earlier history.
 
-Moving main to commit two rewrites the one id main holds; no object is copied, and commit one stays reachable through the parent line. As a detail, every id above a change is new: of the 80 hex digits in the new tree and commit ids, about the one in sixteen that chance gives match the old ones place for place.
+Moving main to the new commit changes the identifier stored in that branch reference. It does not copy the objects below it. Content objects are immutable while a branch name can move between commits.
 
-**The aha:** the box for blob ce01362 moves from tree one's row into tree two's, the same object named by both trees.
-
-**Sentence to remember:** Git writes only the objects whose bytes are new, and names unchanged content again by its id.
-
-**Check questions**, in `meta.checks`, asked after the last step:
-
-1. The second commit adds world.txt. How many objects does Git write, and which object do both trees name?
-2. If the second commit edits hello.txt to "hello again" instead, which ids change, and what happens to commit one's objects?
-3. What does moving main to commit two copy?
-
-**Cases:** add world.txt (the default: the hello blob is shared) and edit hello.txt (every object above the change is new). The model's ids are checked against `git hash-object`.
-
-| Step | Script | Reader predicts |
-| --- | --- | --- |
-| blob | paragraph 1: the 13 bytes and their id, and the question | whether Git stores hello again (add), or what it must write (edit) |
-| tree | paragraph 2, the name lives in the tree | |
-| commit | paragraph 2, commit and branch | |
-| change | paragraph 3: the answer, both commits' rows | |
-| head | paragraph 4, first sentence: main moves, nothing is copied | |
-| hashes (detail) | paragraph 4, the digits that match by chance | |
+This is the logical object model: a commit describes a snapshot through references to reusable content. It does not require an independently duplicated copy of every file for every commit. How Git compresses those objects on disk is a separate question from which snapshot each commit names.

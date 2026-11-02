@@ -214,7 +214,7 @@ export default class BloomFilter extends Scene {
         id: 'pipeline',
         title: `The filter skips ${count(skipped)} read${skipped === 1 ? '' : 's'} and wastes ${count(wasted)}`,
         line: `Over ${thousands(m.sampleSize)} untaken names, ${percent(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${percent(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
-        caption: `Of these ${m.queries.length} lookups the filter answered ${list(m.queries.filter((q) => !q.maybe).map((q) => q.word))} alone and sent ${m.exactLookups} to the database${wasted ? `, one of them wasted on ${probe.word}` : ''}. An untaken name gets through only when all three of its bits are already set: with ${s16.setBits} of 16 set, about (${s16.setBits}/16)³ = ${percent(s16.passChance)} of untaken names should, and with ${s32.setBits} of 32, (${s32.setBits}/32)³ = ${percent(s32.passChance)}. The formula assumes each hash picks a bit at random, independently of the others; the measured rates sit close to it, a little below at both sizes.`,
+        caption: `The upper table follows each lookup: a 0 skips the database; maybe sends the question on. An untaken name gets through only when all three of its bits are already set. A longer row leaves more empty positions, making that harder. The lower table tries both rows on the same ${thousands(m.sampleSize)} untaken names: fewer pass the larger row, so fewer reads are wasted. These are measured results for this sample and these hashes.`,
       },
       {
         id: 'full',

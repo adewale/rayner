@@ -2,7 +2,7 @@
 
 A Rayner explainer is a web page that answers one technical question in steps. The reader presses Next, something on the stage changes, and the picture then holds still while they read the caption. This tutorial builds one that answers this question: what is the difference between the LRU and MRU cache replacement policies?
 
-You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [editorial rubric](EXPLAINER-RUBRIC.md) scores finished explainers against them.
+You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [editorial rubric](EXPLAINER-RUBRIC.md) reviews finished explainers against them.
 
 ## What makes an explainer work
 
@@ -48,38 +48,26 @@ The limit line keeps the explainer inside what it tests. It counts hits, so it c
 
 Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version earns its place by isolating the one decision where the policies differ before it shows what that decision costs over the whole sequence.
 
-Then turn the plan into a script: the 150 to 250 words you would say to a newcomer, answer first, with a sentence to remember and the questions they should be able to answer afterwards. `rayner init` writes this one as `script.md`:
+Then write the explanation you would give the reader, with the concrete problem before the names and each paragraph supplying the reason for the next. Read it straight through: does it explain the result, or merely announce what the drawing will show? `script.md` contains that reader-facing prose. It has no fixed word count. `rayner init` writes this example:
 
 <!-- lru-mru/script.md -->
 ```md
-# Script: what is the difference between LRU and MRU?
+# What is the difference between LRU and MRU?
 
-Write this before any code. Read it aloud to someone who doesn't know the topic, with no pictures: if they can't answer the check questions afterwards, fix the script, not the drawing. See "Script first" in the Rayner explainers skill.
+A cache has three slots. Requests for A, B and C have filled them, in that order. Now D arrives. It is missing, and there is no spare slot. Which item should make room: A, which has waited longest, or C, which was just used?
 
-**Questions the reader brings:** What is the difference between LRU and MRU? When does it matter?
+LRU evicts the item used longest ago: A. Its name means least recently used. MRU, most recently used, evicts C instead. Both put D in the freed slot. Keeping the recent item sounds sensible, but the next requests decide whether it helps.
 
-**Script** (150 to 250 words, answer first):
+Suppose A, B, C and D repeat. LRU has just evicted A, the next item needed. Bringing A back evicts B, which comes next. The same mistake repeats: all eight requests miss. MRU kept A and B when it made room for D. On the second pass, A, B and D hit; C misses. Evicting the newest item preserved more of this loop.
 
-On a miss in a full cache, a replacement policy chooses which item to evict. LRU evicts the item used longest ago. MRU evicts the item used most recently. Which one gets more hits depends on the order of requests.
+Change only the last four requests: C, D, C, D. LRU kept both, so all four repeats hit. MRU dropped C for D. Bringing C back now drops D, then bringing D back drops C. All four repeats miss.
 
-Take a cache with three slots. Requests for A, B and C fill it in both policies, so both hold the same items. The next request, D, misses in both and forces an eviction. LRU drops A, the oldest. MRU drops C, the newest.
-
-Now repeat A, B, C and D. LRU always evicted the item the loop needs next, so every request misses. MRU evicted C to make room for D, so A, B and D hit on the second pass. A loop over more items than the cache holds favours MRU.
-
-Change only what follows: C and D alternate instead. LRU still holds both, so every repeat hits. MRU evicts the item requested just before, which is always the next one requested, so every repeat misses. Reuse of recent items favours LRU.
-
-These counts cover eight requests through three slots. They leave out what tracking recency costs.
-
-**Sentence to remember:** LRU evicts the oldest item and MRU the newest, so a loop larger than the cache favours MRU and reuse of recent items favours LRU.
-
-**Check questions** (they go in the scene's `meta.checks`; `meta.answer` holds the script's first answer):
-
-1. A full cache misses. Which item does each policy evict?
-2. Why does LRU miss every request when a loop is one item larger than the cache?
-3. Which policy should manage a buffer for a file scanned over and over that does not fit in memory?
+The eviction rule has stayed the same; the useful choice has reversed. Recency records the past. Whether it predicts the next request depends on the access pattern. These two examples count eight requests through three slots; they do not measure the cost of maintaining the cache.
 ```
 
-The scene carries two parts of it, so the tools can hold the explainer to the script: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see the answer arrives before the explanation elaborates), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure.
+Keep the script separate from production instructions. An optional `notes.md` can explain a non-obvious visual choice or a model limitation a future author needs. Do not copy the step table, test assertions or revision history into it; inspect the scene, run the tests and use Git for those. The script still states any limit the reader needs to interpret its conclusion.
+
+The scene is the source for the player's answer and check questions: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see the answer arrives before the explanation elaborates), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure. Keep those questions and answers in `meta.checks`, rather than maintaining a second copy in the script. Use them to review the prose: could a reader reason through an unseen case after reading it? See [working documents](EXPLAINER-RUBRIC.md#working-documents) for the small division of responsibilities.
 
 ## 2. Generate the explainer
 

@@ -74,7 +74,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
-      caption: `The agent still has to choose which key. 2password find asks op for the titles of the vault’s items, searches those names and answers with references, so no value is read to make the choice. Here it searches “${hitQuery}” and the typo “${missQuery}” among the ${ITEMS.length} sample items from 2password’s own tests.`,
+      caption: `The agent still has to choose which key. 2password find asks op for the titles of the vault’s items, uses those names to choose the items and answers with references. The later item-get reply can contain secret values; the wrapper drops them before producing its output. Here it searches “${hitQuery}” and the typo “${missQuery}” among the ${ITEMS.length} sample items from 2password’s own tests.`,
     });
     await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
@@ -164,7 +164,7 @@ export default class PasswordExplainer extends Scene {
       title: 'find returns references and prints no secret value',
       line: 'One reference per query; every sample value is searched for in the output.',
       caption:
-        'find answers each query with a reference: a match for “cloud api” and a suggestion for “databse”. It drops each field’s value while it decodes op’s reply, so the agent can read the output freely; the note counts the sample values found in it. The underlines mark the vault, item and field of the Cloud API reference.',
+        'find answers each query with a reference: a match for “cloud api” and a suggestion for “databse”. It drops each field’s value while it decodes op’s reply, so the agent receives references rather than field values; the note counts the sample values found in it. The underlines mark the vault, item and field of the Cloud API reference.',
     });
     await s.clear();
     const ref = match.ref;

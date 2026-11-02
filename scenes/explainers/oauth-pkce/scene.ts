@@ -54,8 +54,8 @@ export default class OAuthExplainer extends Scene {
     answer: 'Redeeming the code also needs the verifier, which never passes through the redirect',
     checks: [
       {
-        question: 'Without PKCE, what does the malicious app need, besides the redirect it caught, to get a token?',
-        answer: 'Nothing. The client is public and has no secret, so the code alone is enough.',
+        question: 'Without PKCE, does redeeming the intercepted code require a secret held by the public client?',
+        answer: 'No. The attacker still supplies ordinary token-request fields, such as the client ID and matching redirect URI, but these are not client-held secrets. In this exchange the stolen code is enough to impersonate the client.',
       },
       {
         question: 'The thief sends the stolen code with a guessed verifier. What does the server compute, and what does it answer?',
@@ -87,9 +87,9 @@ export default class OAuthExplainer extends Scene {
     // 1. The theft, before any fix: the code alone buys a token.
     await this.step('stolen', {
       title: 'Another app can catch the redirect and redeem its code',
-      line: 'Predict: the code is all the token request carries. What could stop the thief?',
+      line: 'Predict: the thief has the code and public request fields. What could stop it?',
       caption:
-        'A mobile or desktop app often gets its authorization code back as a redirect to a custom URI scheme. Another app on the device can register the same scheme, and the operating system may hand it the redirect and its code (RFC 7636 §1). Such a public client has no client secret, so the token endpoint gives an access token to whoever presents the code.',
+        'A mobile or desktop app often gets its authorization code back as a redirect to a custom URI scheme. Another app on the device can register the same scheme, and the operating system may hand it the redirect and its code (RFC 7636 §1). This public client has no client secret. The thief knows the ordinary token-request fields, such as the client ID and redirect URI, so presenting the stolen code gets it an access token in this unprotected exchange.',
     });
     const theft = await s.show({ source: STOLEN }, { box: 'full', build: 'frame' });
     const thief = ['message:S->M#0', 'message:M->S#0', 'message:S->M#1'];
@@ -106,7 +106,7 @@ export default class OAuthExplainer extends Scene {
       title: 'Answer: bind the code to a secret only the real client holds',
       line: 'The challenge is the base64url SHA-256 of the verifier.',
       caption:
-        'An app on a device cannot keep a fixed secret, so for each sign-in the client makes a fresh random code_verifier and keeps it. It sends ahead only the code_challenge, the verifier’s SHA-256 in base64url, a method called S256. Redeeming the code also needs the verifier, which never passes through the redirect. The card starts from RFC 7636’s example verifier.',
+        'A fixed secret distributed inside the app can be extracted, so for each sign-in the client instead makes a fresh random code_verifier and keeps it. It sends ahead only the code_challenge, the verifier’s SHA-256 in base64url, a method called S256. Redeeming the code also needs the verifier, which never passes through the redirect. The card starts from RFC 7636’s example verifier.',
     });
     await s.clear();
     const derive = await s.show(
@@ -198,7 +198,7 @@ export default class OAuthExplainer extends Scene {
       title: 'The verifier never travels where the code does',
       line: 'Challenge and code pass the browser; the verifier goes by TLS.',
       caption:
-        'The challenge and the code pass through the browser and the operating system, where another app can read them. The verifier, 32 random bytes, goes only in the client’s own TLS request to the token endpoint. S256 cannot be reversed, so whoever catches the redirect holds a code it cannot redeem. This holds only while the verifier itself stays on the client.',
+        'The challenge and the code pass through the browser and the operating system, where another app can read them. The verifier, made from 32 random bytes, goes only in the client’s own TLS request to the token endpoint. Finding a verifier that matches its S256 challenge is computationally infeasible, so catching the redirect does not give the thief a practical way to redeem the code. This protection depends on keeping the verifier secret.',
     });
     await s.clearOverlays();
     await seq.unmark();
