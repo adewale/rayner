@@ -89,9 +89,9 @@ export function frames(seed: number): ReaderFrame[] {
     },
     {
       id: 'reader-separate',
-      title: 'Fix the route first; the hand only follows it',
+      title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
-      caption: `The fix: lay the chart out first and let the hand only trace it, so a new drawing changes the strokes but never the boxes. The blue route fixes the corners and the ends. The same simulated hand, a spring shaken by tremor, draws both strokes along it: neither strays more than ${stray.toFixed(3)} units, about ${px(stray)}, and the two drawings lie within ${between.toFixed(3)} units of each other. The hand still decides every wobble; it no longer decides where anything goes.`,
+      caption: `The blue band is a route fixed before any ink: its corners and its ends. The same simulated hand, a spring shaken by tremor, draws both strokes along it. Neither strays more than ${stray.toFixed(3)} units, about ${px(stray)}, and the two drawings lie within ${between.toFixed(3)} units of each other, so the hand still makes every wobble but no longer decides where anything goes. The fix for the drifting boxes is to lay the chart out first and let the hand only trace it, so a new drawing changes the strokes but never the boxes.`,
       values: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
       draw: (s) =>
         new Group(
