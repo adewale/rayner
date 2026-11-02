@@ -38,7 +38,7 @@ export default class BloomFilter extends Scene {
       },
       {
         question: 'dog’s account is deleted, and someone clears dog’s bits 7, 0 and 1 in the 16-bit filter. What does the filter now say when a person types cat?',
-        answer: '“Definitely not taken”, which is wrong: bit 1 was cat’s too, so cat now finds a 0. A bit cannot be cleared without knowing who else set it, and it does not know.',
+        answer: '“Definitely not taken”, which is wrong: bit 1 was cat’s too, so cat now finds a 0. A bit cannot be cleared without knowing who else set it, and the filter does not keep that.',
       },
     ],
   };
@@ -133,7 +133,7 @@ export default class BloomFilter extends Scene {
         id: 'insert',
         title: `Taking cat sets bits ${list(cat)}`,
         line: 'Three hash functions each turn the name into a position.',
-        caption: `When cat is taken, three hash functions each turn the name into a number from 0 to ${size - 1}: ${list(cat)}. Those bits become 1. The purple fill marks them as cat’s for us; the row itself keeps only the 1s, not the name.`,
+        caption: `Each hash gives a number from 0 to ${size - 1}; for cat they give ${list(cat)}, and those bits become 1. The purple fill marks them as cat’s for us, but the row itself stores only the 1s and keeps no trace of the name.`,
       },
       {
         id: 'shared',
@@ -142,8 +142,8 @@ export default class BloomFilter extends Scene {
           : `dog sets ${list(dog)}, none of them cat’s`,
         line: 'A set bit says some name set it, not which.',
         caption: shared.length
-          ? `Taking dog sets bits ${list(dog)}, filled brown. Bit ${list(shared)} was already 1 from cat, so it stays 1: its fill shows both names, but the row records only the 1. A set bit says some name set it, not which. So when a name finds all its bits set, the filter can only say maybe.`
-          : `Taking dog sets bits ${list(dog)}, filled brown; this time none was already set by cat. The fills tell the names apart for us, but the row records only the 1s: a set bit says some name set it, not which. So when a name finds all its bits set, the filter can only say maybe.`,
+          ? `dog’s bits ${list(dog)} are filled brown. Bit ${list(shared)} was already 1 from cat, so it stays 1; its fill shows both names, but the row records only the 1. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`
+          : `dog’s bits ${list(dog)} are filled brown, and none of them was already set by cat. The fills tell the names apart for us, but the row records only the 1s. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
       },
       {
         id: 'absent',
@@ -154,8 +154,8 @@ export default class BloomFilter extends Scene {
       {
         id: 'present',
         title: `${present.word} finds three 1s: maybe, so ask the database`,
-        line: `The database confirms ${present.word} is taken.`,
-        caption: `Looking up ${present.word} finds bits ${list(present.locations)} all set. A taken name always finds its bits set, so the filter never wrongly says “not taken”. But three 1s could have been set by other names, so it can only say maybe and passes the check on; the database confirms ${present.word} is taken.`,
+        line: 'Maybe hands the question to the database.',
+        caption: `${present.word}’s bits ${list(present.locations)} are all set. A taken name always finds its bits set, so the filter never wrongly says “not taken”. But three 1s could have been set by other names, so it can only say maybe and passes the check on; the database confirms ${present.word} is taken.`,
       },
       {
         id: 'predict',
@@ -166,20 +166,20 @@ export default class BloomFilter extends Scene {
       {
         id: 'false-positive',
         title: probe.maybe
-          ? `Answer: maybe. cat and dog set all of ${probe.word}’s bits`
-          : `Answer: definitely not. Bit ${list(zeros(probe))} is still 0`,
+          ? `Maybe: cat and dog set all of ${probe.word}’s bits`
+          : `Definitely not: bit ${list(zeros(probe))} is still 0`,
         line: probe.maybe
           ? `Each of ${probe.word}’s three bits was set by another name.`
           : `With ${other.size} bits, ${probe.word} finds ${list(otherProbe.locations)}, all set by cat and dog.`,
         caption: probe.maybe
-          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees only three 1s and cannot tell, so it says maybe and the database is asked; it answers not taken. That wasted read is a false positive: the filter is never wrong when it says no, and sometimes wrong when it says maybe. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
+          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: the filter is never wrong when it says no, and sometimes wrong when it says maybe. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
           : `With ${size} bits, ${probe.word} lands on ${list(probe.locations)}: bit ${list(sources(m, probe.locations))}. No name set bit ${list(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. In the ${other.size}-bit row the same name finds ${list(otherProbe.locations)}, set by ${list(otherProbe.locations.map((j) => whoSet(other.owners[j]!)))}: there the filter says maybe and the database answers not taken, a false positive. More bits leave more of them 0.`,
       },
       {
         id: 'pipeline',
         title: `The filter skips ${count(skipped)} read${skipped === 1 ? '' : 's'} and wastes ${count(wasted)}`,
         line: `Over ${thousands(m.sampleSize)} untaken names, ${percent(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${percent(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
-        caption: `Of these ${m.queries.length} lookups the filter answered ${list(m.queries.filter((q) => !q.maybe).map((q) => q.word))} alone and sent ${m.exactLookups} to the database${wasted ? `, one of them wasted on ${probe.word}` : ''}; every final answer is correct. An untaken name wastes a read only if all three of its bits are already set. ${s16.setBits} of the 16 bits are set, so about (${s16.setBits}/16)³ = ${percent(s16.passChance)} of untaken names should pass; with 32 bits, ${s32.setBits} are set, and (${s32.setBits}/32)³ = ${percent(s32.passChance)}. Run ${thousands(s16.sampleSize)} untaken names through each row: ${thousands(s16.sampleFalsePositives)} pass at 16 bits and ${thousands(s32.sampleFalsePositives)} at 32. A name needs all three of its bits set, so a smaller share of set bits cuts the passes much faster.`,
+        caption: `Of these ${m.queries.length} lookups the filter answered ${list(m.queries.filter((q) => !q.maybe).map((q) => q.word))} alone and sent ${m.exactLookups} to the database${wasted ? `, one of them wasted on ${probe.word}` : ''}; every final answer is correct. An untaken name wastes a read only if all three of its bits are already set. ${s16.setBits} of the 16 bits are set, so about (${s16.setBits}/16)³ = ${percent(s16.passChance)} of untaken names should pass; with 32 bits, ${s32.setBits} are set, and (${s32.setBits}/32)³ = ${percent(s32.passChance)}. Run ${thousands(s16.sampleSize)} untaken names through each row: ${thousands(s16.sampleFalsePositives)} pass at 16 bits and ${thousands(s32.sampleFalsePositives)} at 32. Because the share of set bits is cubed, doubling the row cuts the passes by much more than half.`,
       },
     ];
 

@@ -471,7 +471,7 @@ function tracePicture(s: Stage, f: Fit): Drawn {
   });
   const fc = flatCounts(flat),
     cc = chartCounts(chart);
-  const tail = [`Flat: ${counted(fc)}    Statechart: ${counted(cc)}`, 'At run time both are in one combination: regions shrink the drawing, not the situations'];
+  const tail = [`Flat: ${counted(fc)}    Statechart: ${counted(cc)}`, 'At run time both are in one combination; regions shrink only the drawing'];
   tail.forEach((t, i) => parts.push(keyed(new Text(t, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([0, top - (rows.length + 1) * gap - 0.1 - i * 0.5])), `t:tail:${i}`)));
   return { group: new Group(...parts), words: [...words, ...tail] };
 }
@@ -593,7 +593,7 @@ export default class Statecharts extends Scene {
     await this.step('machine', {
       title: 'A coffee machine, one box at a time',
       line: 'Predict: a power button must switch it off from any state. How many arrows does that add?',
-      caption: `This coffee machine is always in exactly one of four boxes: idle, grinding, brewing or ready. Each event moves it along one of ${coffeePlain} arrows: START, GROUND, BREWED and TAKE. Boxes, called states, and arrows between them, called transitions, make a state machine, which is how many apps model behaviour. Drawings like this stay readable until states start sharing behaviour. Give the machine a power button that switches it off from whichever state it is in.`,
+      caption: `This coffee machine is always in exactly one of four boxes: idle, grinding, brewing or ready. Each event moves it along one of ${coffeePlain} arrows: START, GROUND, BREWED and TAKE. The boxes are called states and the arrows transitions; together they make a state machine, and many apps model behaviour this way. The drawing stays readable until several states need the same arrow. Give the machine a power button that switches it off from whichever state it is in.`,
     });
     main.rebuild();
     s.keep(main, describe);
@@ -602,18 +602,18 @@ export default class Statecharts extends Scene {
 
     // 2. Shared behaviour is copied.
     await this.step('copies', {
-      title: `Answer: ${coffeeFlat.transitions - coffeePlain}, with POWER_OFF copied onto every state`,
+      title: `${coffeeFlat.transitions - coffeePlain} more arrows: POWER_ON, and a POWER_OFF on every state`,
       line: 'Predict: the four marked arrows all do the same thing. How could one arrow do the job?',
-      caption: `One POWER_ON from off, and a POWER_OFF from each of idle, grinding, brewing and ready, marked, because in a plain state machine an arrow leaves one state. Behaviour shared by many states must be copied onto each of them: ${coffeeFlat.states} states and ${coffeeFlat.transitions} transitions, and every new state would need its own copy too. The same event leaving several states for the same place is the first sign that a drawing is missing structure.`,
+      caption: `In a plain state machine an arrow leaves exactly one state, so idle, grinding, brewing and ready each need their own POWER_OFF, marked here, and off needs a POWER_ON. The machine now has ${coffeeFlat.states} states and ${coffeeFlat.transitions} transitions, and any state added later would need its own POWER_OFF too. The same event leading from several states to the same place is the first sign that a drawing is missing structure.`,
     });
     await morph('copies');
     this.state = { current: null };
 
     // 3. The box: a parent takes what its children don't. The name arrives here.
     await this.step('parent', {
-      title: 'Answer: draw a box around them. That is a statechart',
+      title: 'A box around the four states takes the one POWER_OFF',
       line: 'The current state is asked first, then the box around it.',
-      caption: `Put the four in a box called on, and give the box the one POWER_OFF: ${coffeeFlat.transitions} transitions become ${coffeeChart.transitions}. When POWER_OFF arrives while brewing, brewing is asked first and has no POWER_OFF arrow, so the box around it, its parent, takes it. That is the first idea. A statechart is a state machine whose states can contain other states.`,
+      caption: `Put the four in a box called on, and give the box the one POWER_OFF: ${coffeeFlat.transitions} transitions become ${coffeeChart.transitions}. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. This is the first of two ideas: a statechart is a state machine whose states can contain other states.`,
     });
     await morph('parent');
     this.state = { current: activeStates(coffee(), brewing) };
@@ -622,17 +622,17 @@ export default class Statecharts extends Scene {
     await this.step('multiply', {
       title: 'A media player: two on/off features make four flat states',
       line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
-      caption: `The second idea is for features that don’t depend on each other. A media player is playing or paused, and separately muted or unmuted. A plain state machine is in one state at a time, so each state must name both: one per combination, four of them, each with its own POWER arrow and its own PLAY or PAUSE and MUTE or UNMUTE: ${playerFlat.states} states and ${playerFlat.transitions} transitions, counting off. Each further on/off feature doubles the combinations. And look at the names: every one is two words, one per feature, and every arrow between them changes one word and keeps the other. That is the second sign of missing structure.`,
+      caption: `The second idea handles features that don’t depend on each other. A media player is playing or paused, and separately muted or unmuted. A plain state machine is in one state at a time, so each state must name both: one state per combination, four in all, each with its own POWER arrow and its own PLAY or PAUSE and MUTE or UNMUTE. Including off, that makes ${playerFlat.states} states and ${playerFlat.transitions} transitions, and each further on/off feature doubles the combinations. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign of missing structure.`,
     });
     await fresh('multiply');
     this.state = { current: null };
 
     // 5. Regions: the grid's own words move into two small machines.
     await this.step('regions', {
-      title: 'Answer: split the box into two machines, called regions',
+      title: 'Split the box on into two small machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
       caption:
-        'Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own. So each new feature adds a region of two states instead of doubling everything.',
+        'Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles.',
     });
     await fresh('grid');
     await morph('regions');
@@ -640,10 +640,10 @@ export default class Statecharts extends Scene {
 
     // 6. Same behaviour, smaller drawing.
     await this.step('flatten', {
-      title: 'Answer: no. It draws less, it doesn’t do more',
-      line: 'The same events reach the same states in both machines.',
+      title: 'No: flattened, a statechart is an ordinary state machine',
+      line: 'Flatten the player and send the same events through both machines.',
       caption:
-        'Nothing new becomes possible: flatten any statechart and you get an ordinary state machine with the same behaviour, as every row shows. At run time the player is still in one combination; what you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.',
+        'Each row sends the next event to the statechart and to its flat version, and both end in the same states. At run time the player is still in one combination of playback and volume. Only the drawing changes: the statechart’s grows with the number of features, the flat machine’s with the number of combinations.',
     });
     await fresh('flatten');
     this.state = { current: null };
@@ -659,9 +659,9 @@ export default class Statecharts extends Scene {
 
     // 8. The answer, and the sentence to remember.
     await this.step('frother', {
-      title: 'Answer: a region beside the brewing cycle',
+      title: 'The frother is a second region, beside the brewing cycle',
       line: `Flat: ${frotherFlat.states} states, ${frotherFlat.transitions} transitions. Statechart: ${frotherChart.states} and ${frotherChart.transitions}.`,
-      caption: `Flat, every state while on would be two words, like grinding · frothing, and every arrow between those states would change one word and keep the other: the second sign. So the frother is a second region inside on, and on’s one POWER_OFF covers both; flat, every combination needs its own. In short: a statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don’t multiply.`,
+      caption: `In a flat machine every state while on would be two words, like grinding · frothing, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on. On’s one POWER_OFF covers both regions, where a flat machine needs one for every combination. A statechart nests states, so shared behaviour is written once, and runs regions side by side, so independent features don’t multiply the states.`,
     });
     await morph('frother');
     this.state = { current: activeStates(coffeeWithFrother(), frothingNow) };

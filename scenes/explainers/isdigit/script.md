@@ -4,9 +4,9 @@ Question the reader brings: I check `s.isdigit()` before `int(s)`. Is that safe?
 
 A common guard checks the text and calls `int()` only if the check passes. Take the text `'²'`. `'²'.isdigit()` is True, so the guard lets it through. It is a numeral, two. Will `int('²')` return 2?
 
-It raises ValueError. Before parsing, `int()` rewrites each non-ASCII character: a space as a space, a character with a decimal digit value as that ASCII digit, anything else as `'?'`, which no number contains. ² has no decimal digit value, so it becomes `'?'`. The guard passed a character `int()` cannot parse.
+It raises ValueError. Before parsing, `int()` rewrites each non-ASCII character: a space becomes a space, a character with a decimal digit value becomes that ASCII digit, and anything else becomes `'?'`, so the parse fails. ² has no decimal digit value, so it becomes `'?'`. The guard passed a character `int()` cannot parse.
 
-² is not alone. Eight numerals in a row, each with a numeric value in Unicode: four ways to write 3, then ², ½, Ⅻ and 三. Brackets over the row span what each check accepts, and brackets under it what `int()` does: `int()` accepts only the first four, yet the `isdigit()` bracket reaches ² too and the `isnumeric()` bracket all eight. The picture alone shows the answer: isdigit() is True for ², and int('²') raises ValueError.
+Eight numerals in a row, each with a numeric value in Unicode: four ways to write 3, then ², ½, Ⅻ and 三. Brackets over the row span what each check accepts, and brackets under it what `int()` does: `int()` accepts only the first four, while the `isdigit()` bracket reaches ² too and the `isnumeric()` bracket all eight. So the answer is no: isdigit() is True for ², and int('²') raises ValueError.
 
 Why do they disagree? Each character's line in UnicodeData.txt has three numeric fields: 6, the decimal digit value; 7, the digit value; 8, the numeric value. ² fills 7 and 8 but not 6. `int()` reads field 6. CPython's table builder sets one flag per filled field, under names that do not match the fields (it calls them decomposition_mapping, numeric_type and numeric_value), and each predicate tests one flag: isdecimal field 6, isdigit field 7, isnumeric field 8.
 
