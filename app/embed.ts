@@ -418,7 +418,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
   // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
   // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
-  // drop them and redraw the step at rest. A step playing finishes as drawn and rests anew.
+  // drop them and redraw the resting picture in place. That is not a new step: no step event,
+  // no host message, no history. A step playing finishes as drawn and rests anew.
   let drawnNarrow: boolean | undefined;
   function redrawIfNarrowChanged() {
     const now = narrow();
@@ -427,7 +428,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     drawnNarrow = now;
     if (first) return;
     for (const entry of cache.values()) entry.resting.clear();
-    if (casePhase.kind === 'ready' && !isPlaying()) void show(selected, false);
+    if (casePhase.kind === 'ready' && !isPlaying()) void redrawResting(casePhase.entry, selected);
+  }
+  async function redrawResting(at: Entry, index: number) {
+    const step = at.trace.steps[index]!,
+      scope = playback.scope,
+      container = el('div');
+    await renderAt(at.Scene, restingTime(step, at.trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow));
+    // Superseded while drawing: a step, case or playback change owns the stage now.
+    if (scope.signal.aborted || playback.scope !== scope || casePhase.kind !== 'ready' || casePhase.entry !== at || selected !== index) return;
+    at.resting.set(step.step, clones(container.childNodes));
+    stage.replaceChildren(...container.childNodes);
+    zoom.apply();
   }
   const revealStage = () => {
     if (!narrow()) return;

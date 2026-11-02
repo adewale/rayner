@@ -192,7 +192,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
     });
 });
 
-test('authored phone openings keep comparison ink readable without painting a clipped heading', options, async () => {
+test('authored phone openings keep comparison ink readable, and a narrow stage paints no heading to clip', options, async () => {
   const { storyFrames, inspectStoryFrame, covered, STORY_CLAIMS } = await import(
     '../tools/lib/explain-story-review.ts'
   );
@@ -210,38 +210,19 @@ test('authored phone openings keep comparison ink readable without painting a cl
       const claims = (STORY_CLAIMS[id] ?? []).filter((c) =>
         Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v),
       );
-      const frames = await storyFrames(variant.Scene, [
-        ...claims,
-        ...names.map((step) => ({ step, targets: [{ key: '__heading' }, { key: '__chrome' }] })),
-      ]);
+      const frames = await storyFrames(variant.Scene, claims);
       const layouts = await stepLayouts(variant.Scene);
       for (const step of names) {
         await visitReader(page, `${embed}/${id}-heading.html?${new URLSearchParams({ ...variant.values, step })}`);
         await page.waitForFunction(() => !document.querySelector('svg.leaving'));
         const frame = frames.get(step)!,
           seen = await inspectStoryFrame(page, frame);
-        const headingIndices = new Set(
-          frame.targets.filter((t) => t.name === '__heading' || t.name === '__chrome').flatMap((t) => t.indices),
-        );
-        const headingInk = seen.ink.filter((p) => headingIndices.has(p.index));
-        assert.ok(headingInk.length > 1, 'the observation control contains native heading and chrome ink');
-        // Use the actual stage for admission; the paint checker expands its
-        // viewport by one pixel for coverage rounding, including off-screen ink.
-        const viewport = await page.locator('.stage svg:not(.leaving)').evaluate((node) => {
-          const svg = node as SVGSVGElement,
-            stage = svg.parentElement!.getBoundingClientRect(),
-            inverse = svg.getScreenCTM()!.inverse();
-          const a = new DOMPoint(stage.left, stage.top).matrixTransform(inverse),
-            b = new DOMPoint(stage.right, stage.bottom).matrixTransform(inverse);
-          return [a.x, a.y, b.x, b.y];
-        });
-        const overlaps = (b: number[]) =>
-          b[0]! < viewport[2]! && b[2]! > viewport[0]! && b[1]! < viewport[3]! && b[3]! > viewport[1]!;
-        assert.ok(
-          !headingInk.some((p) => overlaps(p.box)) ||
-            headingInk.every((p) => p.visible && p.complete && covered(p.box, [seen.viewport])),
-          `${id}/${step}: the opening must show all heading ink or leave it outside the picture`,
-        );
+        // The scene draws a heading and its chrome, but a narrow stage paints none of it: the
+        // player sets the step's number, title and line as page text instead. inspectStoryFrame
+        // matched every other record to a painted element, so no heading ink can be clipped.
+        assert.ok(frame.chrome.length > 1, `${id}/${step}: the scene draws a heading on a wide stage`);
+        const painted = await page.locator('.stage svg:not(.leaving)').evaluate((node) => [...node.children].filter((e) => e.tagName.toLowerCase() !== 'defs').length);
+        assert.equal(painted, frame.records.length - frame.chrome.length, `${id}/${step}: the narrow stage paints no heading`);
         const subjects = frame.targets.filter((t) => t.opening);
         assert.ok(subjects.length > 0);
         for (const target of subjects)
@@ -1754,6 +1735,8 @@ interface PlayerModel {
   tourStop: number;
   /** Every step shown so far, by name: the rail and step bar name a teaching step once it, or a later one, is reached. */
   reached: Set<string>;
+  /** Resting pictures redrawn in place because the stage crossed NARROW_PX (a narrow stage draws no heading): an attachment, not a settle. */
+  redraws: number;
 }
 interface PlayerReal {
   page: Page;
@@ -1979,7 +1962,7 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   eq('page errors', r.errors, []);
   eq('settled steps (rayner:step events)', seen.settles, m.settles);
   // Reduced motion: the only pictures ever attached are the resting frames shown on settling.
-  eq('pictures attached to the stage', seen.attaches - r.parsed, m.settles);
+  eq('pictures attached to the stage', seen.attaches - r.parsed, m.settles + m.redraws);
   eq('URL step', seen.urlStep, entry.step);
   eq('URL case', seen.urlCase, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
   eq('checked case', seen.checked, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
@@ -2357,9 +2340,16 @@ const ToggleSteps = command('ToggleSteps', always, async (_m, r) => {
 });
 const Resize = (width: number, height: number) =>
   command(`Resize(${width}, ${height})`, always, async (m, r) => {
+    const before = (await stageSize(r)).narrow;
     await r.page.setViewportSize({ width, height });
     const size = await stageSize(r);
     m.tourStop = Math.min(m.tourStop, (await tourOf(m, size.w, size.h)).length - 1);
+    // Crossing NARROW_PX redraws the resting picture in place, with or without the stage's heading.
+    if (size.narrow !== before) {
+      m.redraws++;
+      const want = r.parsed + m.settles + m.redraws;
+      await r.page.waitForFunction((n) => (window as unknown as { __attaches: number }).__attaches >= n, want, { timeout: 10_000 }).catch(() => {});
+    }
   });
 
 // Narrower than 200 CSS px a single unbreakable word (a step title) is wider than the column.
@@ -2436,7 +2426,7 @@ async function openPlayer(name: string, initial: { values: (string | undefined)[
     const {page,errors}=await counted(context,`${embed}/${name}.html${query.size ? '?' + query : ''}`);
     const base = (await page.evaluate(() => history.length)) - 1;
     const parsed = (await page.evaluate(() => (window as unknown as { __attaches: number }).__attaches)) - 1;
-    const model: PlayerModel = { project: p, entries: [entry], index: 0, notice, k: 1, transcript: false, settles: 1, follow: true, tourStop: 0, reached: new Set() };
+    const model: PlayerModel = { project: p, entries: [entry], index: 0, notice, k: 1, transcript: false, settles: 1, follow: true, tourStop: 0, reached: new Set(), redraws: 0 };
     const real: PlayerReal = { page, errors, base, parsed };
     await reframe(model, real);
     await verify(model, real, `opening ${page.url()}`);
