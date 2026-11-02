@@ -11,100 +11,21 @@
       ]
     },
     {
-      "step": "count",
-      "settings": {
-        "element": "na"
-      },
-      "opening": true,
+      "step": "fill",
       "targets": [
         {
-          "text": "1 counted = group 1"
+          "text": "2 columns"
         },
         {
-          "text": "[Ne] 3s¹"
+          "text": "10 columns"
         },
         {
-          "key": "periodic-count-comparison"
+          "text": "6 columns"
+        },
+        {
+          "text": "Every full run is 2, 6, 10 or 14 cells"
         }
       ]
-    },
-    {
-      "step": "count",
-      "settings": {
-        "element": "cl"
-      },
-      "targets": [
-        {
-          "text": "7 counted ≠ group 17"
-        },
-        {
-          "text": "Al"
-        },
-        {
-          "text": "Cl"
-        },
-        {
-          "key": "periodic-count-comparison"
-        }
-      ],
-      "opening": true
-    },
-    {
-      "step": "count",
-      "settings": {
-        "element": "fe"
-      },
-      "targets": [
-        {
-          "text": "8 counted = group 8"
-        },
-        {
-          "text": "[Ar] 4s² 3d⁶"
-        },
-        {
-          "key": "periodic-count-comparison"
-        }
-      ],
-      "opening": true
-    },
-    {
-      "step": "count",
-      "settings": {
-        "element": "cu"
-      },
-      "targets": [
-        {
-          "text": "[Ar] 4s² 3d⁹"
-        },
-        {
-          "text": "[Ar] 3d¹⁰ 4s¹"
-        },
-        {
-          "text": "11 counted either way = group 11"
-        },
-        {
-          "key": "periodic-count-comparison"
-        }
-      ],
-      "opening": true
-    },
-    {
-      "step": "count",
-      "settings": {
-        "element": "he"
-      },
-      "targets": [
-        {
-          "text": "He?"
-        },
-        {
-          "text": "2 counted ≠ group 18"
-        },
-        {
-          "key": "periodic-count-comparison"
-        }
-      ],
-      "opening": true
     },
     {
       "step": "blocks",
@@ -117,6 +38,82 @@
         },
         {
           "text": "2 + 10 + 6 = 18 numbered columns"
+        }
+      ]
+    },
+    {
+      "step": "blocks",
+      "settings": {
+        "element": "na"
+      },
+      "targets": [
+        {
+          "text": "Sodium: 1s² 2s² 2p⁶ 3s¹"
+        },
+        {
+          "text": "3s¹ starts a run of 2: s column 1, group 1."
+        }
+      ]
+    },
+    {
+      "step": "blocks",
+      "settings": {
+        "element": "cl"
+      },
+      "targets": [
+        {
+          "text": "Chlorine: 1s² 2s² 2p⁶ 3s² 3p⁵"
+        },
+        {
+          "text": "5th p column, after 2 s and 10 d: 2 + 10 + 5 = 17."
+        },
+        {
+          "text": "Its 7 after neon alone would say 7: 10 short."
+        }
+      ]
+    },
+    {
+      "step": "blocks",
+      "settings": {
+        "element": "fe"
+      },
+      "targets": [
+        {
+          "text": "Iron: 1s² 2s² 2p⁶ 3s² 3p⁶ 4s² 3d⁶"
+        },
+        {
+          "text": "6th d column, after 2 s: 2 + 6 = 8."
+        }
+      ]
+    },
+    {
+      "step": "blocks",
+      "settings": {
+        "element": "cu"
+      },
+      "targets": [
+        {
+          "text": "Filling rule: [Ar] 4s² 3d⁹, so 2 + 9 = 11."
+        },
+        {
+          "text": "NIST lists [Ar] 3d¹⁰ 4s¹: still 11 after [Ar]."
+        }
+      ]
+    },
+    {
+      "step": "blocks",
+      "settings": {
+        "element": "he"
+      },
+      "targets": [
+        {
+          "text": "Helium: 1s², column 2 by its run (He?),"
+        },
+        {
+          "text": "but 1s² fills shell 1, as 2s² 2p⁶ fills neon’s shell 2."
+        },
+        {
+          "text": "He?"
         }
       ]
     },
@@ -134,114 +131,6 @@
         },
         {
           "text": "Ru"
-        }
-      ]
-    },
-    {
-      "step": "limit",
-      "settings": {
-        "element": "na"
-      },
-      "targets": [
-        {
-          "text": "Hydrogen: 1s¹, the same ending,"
-        },
-        {
-          "text": "H"
-        },
-        {
-          "key": "periodic-limit:H",
-          "paint": "stroke"
-        }
-      ]
-    },
-    {
-      "step": "limit",
-      "settings": {
-        "element": "cl"
-      },
-      "targets": [
-        {
-          "text": "Tennessine (117) is beyond this model’s"
-        },
-        {
-          "text": "Ts"
-        },
-        {
-          "key": "periodic-limit:Ts",
-          "paint": "stroke"
-        }
-      ]
-    },
-    {
-      "step": "limit",
-      "settings": {
-        "element": "fe"
-      },
-      "targets": [
-        {
-          "text": "“Iron group” can also mean"
-        },
-        {
-          "text": "Co"
-        },
-        {
-          "text": "Ni"
-        },
-        {
-          "key": "periodic-limit:Fe",
-          "paint": "stroke"
-        },
-        {
-          "key": "periodic-limit:Co",
-          "paint": "stroke"
-        },
-        {
-          "key": "periodic-limit:Ni",
-          "paint": "stroke"
-        }
-      ]
-    },
-    {
-      "step": "limit",
-      "settings": {
-        "element": "cu"
-      },
-      "targets": [
-        {
-          "text": "Roentgenium (111) is in group 11;"
-        },
-        {
-          "text": "Rg"
-        },
-        {
-          "key": "periodic-limit:Rg",
-          "paint": "stroke"
-        }
-      ]
-    },
-    {
-      "step": "limit",
-      "settings": {
-        "element": "he"
-      },
-      "targets": [
-        {
-          "text": "By its count of 2, helium would sit"
-        },
-        {
-          "text": "He?"
-        },
-        {
-          "text": "Be"
-        },
-        {
-          "key": "periodic-limit:He",
-          "paint": "stroke"
-        },
-        {
-          "key": "periodic-limit:Be",
-          "paint": "stroke"
         }
       ]
     }

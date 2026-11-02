@@ -151,10 +151,10 @@ test('native macOS Safari runs the introduction, case changes, requested letteri
     assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /EB Garamond/);
     await driver.open('/token-bucket.html?step=trace&rate=4');
     assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /4 \/ s: R6 get 429/);
-    await driver.open('/periodic-groups.html?element=cl&step=count');
+    await driver.open('/periodic-groups.html?element=cl&step=blocks');
     const periodic = await driver.execute<string>('return document.querySelector(".described").textContent');
-    assert.match(periodic, /Al: 3, group 13/);
-    assert.match(periodic, /Cl: 7, group 17/);
+    assert.match(periodic, /2 \+ 10 \+ 5 = 17/);
+    assert.match(periodic, /Its 7 after neon alone would say 7: 10 short/);
     assert.match(await driver.execute<string>('return document.querySelector(".caption").textContent'), /aluminium counts 3 in group 13/);
     await driver.open('/melody-rhythm.html');
     assert.equal(await driver.execute('return document.querySelectorAll(".score-playhead").length'), 0);
@@ -171,7 +171,7 @@ test('native macOS Safari runs the introduction, case changes, requested letteri
     await driver.wait('return !!document.querySelector("[data-ready=true]")');
     assert.equal(await driver.execute('return window.parent!==window'), true);
     await mkdir('out/validation', {recursive: true});
-    await writeFile('out/validation/native-safari.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), capabilities: created.capabilities, journeys: ['introduction', 'next', 'case-change', 'requested-face', 'rate-comparison', 'periodic-count', 'music-play-stop', 'iframe'], platform: process.platform}, null, 2) + '\n');
+    await writeFile('out/validation/native-safari.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), capabilities: created.capabilities, journeys: ['introduction', 'next', 'case-change', 'requested-face', 'rate-comparison', 'periodic-landing', 'music-play-stop', 'iframe'], platform: process.platform}, null, 2) + '\n');
   } finally {
     if (driver.session) await fetch(`${driver.endpoint}/session/${driver.session}`, {method: 'DELETE'}).catch(() => {});
     processDriver.kill();

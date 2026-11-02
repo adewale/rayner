@@ -128,6 +128,25 @@ export function sunlight(latitude: number, declination: number): { altitude: num
     daylight: cos <= -1 ? 24 : cos >= 1 ? 0 : (24 * Math.acos(cos)) / Math.PI,
   };
 }
+/**
+ * Sunlight on one square metre of flat ground at noon, as a share of what an overhead Sun gives:
+ * sin of the noon altitude, and 0 when the Sun is below the horizon. The beam that would cover
+ * one square metre with the Sun overhead is spread over 1 / sin(altitude) square metres. The air,
+ * which absorbs more at low angles, is left out.
+ */
+export function noonShare(latitude: number, declination: number): number {
+  return Math.max(0, Math.sin((sunlight(latitude, declination).altitude * Math.PI) / 180));
+}
+/**
+ * Earth's distance from the Sun in astronomical units on a day of the year (0 = 1 January):
+ * R = 1.00014 − 0.01671 cos g − 0.00014 cos 2g (Wikipedia, Position of the Sun), with the mean
+ * anomaly g = 360° × (day − 2) / 365, zero at perihelion about 2 days after 1 January, as that
+ * article's (N − 2) term puts it.
+ */
+export function sunDistance(day: number): number {
+  const g = (2 * Math.PI * (day - 2)) / 365;
+  return 1.00014 - 0.01671 * Math.cos(g) - 0.00014 * Math.cos(2 * g);
+}
 /** Day of the year (0 = 1 January) of each month's 15th, in a common year. */
 const MID_MONTH = [14, 45, 73, 104, 134, 165, 195, 226, 257, 287, 318, 348];
 /** The Sun's declination in degrees, from the usual cosine approximation: −23.44° × cos(360° × (day + 10) / 365). */

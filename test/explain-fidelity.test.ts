@@ -11,6 +11,8 @@ import {
   ringStory,
   exec,
   sunlight,
+  noonShare,
+  sunDistance,
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
@@ -71,6 +73,10 @@ for (const entry of EXPLAINERS)
           ]!;
           assertStepState(trace, 'june', { latitude: lat, june: sunlight(lat, 23.44) });
           assertStepState(trace, 'december', { december: sunlight(lat, -23.44) });
+          // The noon sunlight per square metre said under each globe, and the orbit's extremes the distance step argues from.
+          assertStepState(trace, 'december', { noonShare: { june: noonShare(lat, 23.44), december: noonShare(lat, -23.44) } });
+          const orbit = Array.from({ length: 365 }, (_, d) => sunDistance(d));
+          assertStepState(trace, 'distance', { distance: { nearest: Math.min(...orbit), farthest: Math.max(...orbit) } });
           assertStepState(trace, 'year', { daylight: daylightYear(lat) });
           // The chart samples the model through the year, and its counts of polar days run it on every day, with
           // daylightYear's own declination, δ = −23.44° × cos(360° × (day + 10) / 365), which the scene restates
@@ -582,6 +588,13 @@ async function seasonsArithmetic(
   // Evaluated at the precision printed: the result to as many places as its most precise operand.
   const places = Math.max(...m.slice(1).map((v) => v.split('.')[1]?.length ?? 0));
   assert.equal((90 - Math.abs(lat - decl)).toFixed(places), result.toFixed(places), formulas[0]!);
+  // The share of overhead sunlight on the close-up is sin of that altitude, to the hundredth it prints.
+  const sines = (texts.get('noon') ?? []).filter((t) => t.startsWith('sin '));
+  assert.equal(sines.length, 1, `one sine on the close-up: ${sines.join(' / ')}`);
+  const sine = /^sin ([\d.]+)° = ([\d.]+)$/.exec(sines[0]!);
+  assert.ok(sine, sines[0]!);
+  assert.equal(Math.sin(((90 - Math.abs(lat - decl)) * Math.PI) / 180).toFixed(2), sine[2], sines[0]!);
+  assert.equal((90 - Math.abs(lat - decl)).toFixed(1), sine[1], sines[0]!);
   // The describe says the same formula.
   const noon = textOf(pictureHtml(trace.steps.find((s) => s.step === 'noon')!.after));
   assert.ok(noon.includes(formulas[0]!), noon);

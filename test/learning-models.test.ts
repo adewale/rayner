@@ -72,7 +72,13 @@ test('insert-only filters never reject an inserted word; concrete false positive
     for(const q of m.queries) assert.deepEqual(q.locations,fixture.bloom[size].locations[q.word]);
     // Each bit's owners are exactly the stored words whose oracle locations include it.
     assert.deepEqual(m.owners,Array.from({length:size},(_,i)=>m.words.filter(w=>fixture.bloom[size].locations[w].includes(i))));
+    // A sample name passes only if its three bits are set: the sample's rate sits near (set/size)³, and none of it is taken.
+    assert.equal(m.setBits,m.owners.filter(o=>o.length>0).length);
+    assert.equal(m.passChance,(m.setBits/size)**3);
+    assert.ok(Math.abs(m.sampleFalsePositives/m.sampleSize-m.passChance)<0.2*m.passChance,`${m.sampleFalsePositives}/${m.sampleSize} vs ${m.passChance}`);
   }
+  // At this sample size the 16-bit row passes several times as many untaken names as the 32-bit one.
+  assert.ok(bloomStory(16).sampleFalsePositives>3*bloomStory(32).sampleFalsePositives);
 });
 
 test('branch labels, parents and checked-out files match real Git through both merge histories',()=>{
