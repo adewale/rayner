@@ -1,15 +1,9 @@
 import { Scene, Group, Rectangle, Arrow, Text } from '../../../src/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { label, table, tile } from './lesson-drawing.ts';
+import { label, table, tile, presentFrame } from './lesson-drawing.ts';
 export { label, table, tile };
-export interface ReaderFrame {
-  id: string;
-  title: string;
-  line: string;
-  caption: string;
-  values: Record<string, unknown>;
-  draw: (s: Stage) => Group;
-}
+import type {NarrativeFrame} from './lesson-drawing.ts';
+export interface ReaderFrame extends NarrativeFrame { values: Record<string, unknown> }
 /** A short explanation precedes the detailed program walkthrough in the same
  * scene. Both use the domain model; neither reads values back from captions. */
 export async function readerFirst(
@@ -17,21 +11,11 @@ export async function readerFirst(
   s: Stage,
   frames: readonly ReaderFrame[] | Promise<readonly ReaderFrame[]>,
 ) {
-  for (const frame of await frames) {
-    await scene.step(frame.id, { title: frame.title, line: frame.line, caption: frame.caption, reader: true });
-    await s.clear({ runTime: 0.18 });
-    scene.state.reader = { ...frame.values };
-    const drawing = frame.draw(s);
-    drawing.key = 'reader-picture';
-    s.reading(drawing);
-    const words = drawing
-      .family()
-      .filter((m): m is Text => m instanceof Text)
-      .map((m) => m.text)
-      .filter(Boolean);
-    await s.enter(drawing, { runTime: 0.25, describe: words.join('. ') });
-  }
+  for (const frame of await frames) await presentFrame(scene, s, frame, () => {
+    scene.state.reader = {...frame.values};
+  }, true);
 }
+
 export function flow(s: Stage, names: readonly string[], { y = 1, key = 'reader-flow' } = {}) {
   const width = names.length === 4 ? 3.0 : 3.8,
     gap = names.length === 4 ? 0.75 : 1.35;

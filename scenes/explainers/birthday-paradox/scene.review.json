@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "room",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-people"
+        }
+      ]
+    },
+    {
+      "step": "chance",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-people"
+        },
+        {
+          "key": "birthday-footer"
+        }
+      ]
+    },
+    {
+      "step": "you",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-you-lines"
+        },
+        {
+          "key": "birthday-comparisons"
+        },
+        {
+          "key": "birthday-chance"
+        }
+      ]
+    },
+    {
+      "step": "pairs",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-pair-lines"
+        },
+        {
+          "key": "birthday-pairs"
+        },
+        {
+          "key": "birthday-chance"
+        }
+      ]
+    },
+    {
+      "step": "growth",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-growth"
+        }
+      ]
+    },
+    {
+      "step": "exact",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-days"
+        }
+      ]
+    },
+    {
+      "step": "estimate",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-shortcut"
+        },
+        {
+          "key": "birthday-exact"
+        }
+      ]
+    },
+    {
+      "step": "occupied",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-days"
+        }
+      ],
+      "settings": {
+        "question": "any"
+      }
+    },
+    {
+      "step": "occupied",
+      "opening": true,
+      "targets": [
+        {
+          "key": "birthday-days"
+        }
+      ],
+      "settings": {
+        "question": "one"
+      }
+    }
+  ]
+}

@@ -73,7 +73,7 @@ test('optional lettering code changes its engine fingerprint without changing an
 test('a page that asks for nothing carries no lettering code, and building a lettered one first leaks nothing into it', async () => {
   const lettered = await collectProject(FIXTURE, { write: false });
   await built(lettered, 'lettered-first');
-  assert.notEqual(shaperFor('sans'), embedded.sans, 'the lettered build swapped the shapers');
+  assert.notEqual(shaperFor('sans'), embedded.sans, 'the lettered build selected its compatibility shapers');
   const plain = await collectProject(join(ROOT, 'scenes/explainers/seasons'), { write: false });
   // Collecting a plain project put the embedded shapers back, the very same functions
   assert.equal(shaperFor('sans'), embedded.sans);

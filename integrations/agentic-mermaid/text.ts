@@ -1,10 +1,10 @@
+import type {TextShaping} from '../../src/text-context.ts';
 import { Group, Text } from '../../src/index.ts';
 import { ItalicText } from '../../src/italic.ts';
 import type { VMobject, Style } from '../../src/index.ts';
 import { SVG_PX_PER_UNIT as PX } from './snapshot.ts';
 import type { SnapshotTextRun } from './snapshot.ts';
 
-let xHeightEm: number | undefined;
 
 /** SVG styles select a family; the scene's lettering request selects its actual face. */
 export function importedFont(family: string, monospace = false): 'sans' | 'mono' {
@@ -12,15 +12,15 @@ export function importedFont(family: string, monospace = false): 'sans' | 'mono'
   return monospace || /mono|share\s*tech/i.test(first) ? 'mono' : 'sans';
 }
 
-export function importedText(run: Pick<SnapshotTextRun, 'text' | 'size' | 'font' | 'weight' | 'italic'>, color?: string): Text {
+export function importedText(run: Pick<SnapshotTextRun, 'text' | 'size' | 'font' | 'weight' | 'italic'>, color?: string, shaping?: TextShaping): Text {
   const Type = run.italic ? ItalicText : Text;
-  return new Type(run.text, { fontSize: run.size, font: run.font ?? 'sans', weight: run.weight ?? 'normal', color });
+  return new Type(run.text, { fontSize: run.size, font: run.font ?? 'sans', weight: run.weight ?? 'normal', color, shaping });
 }
 
 /** Shared lowering of a resolved SVG text run to embedded glyph outlines.
  * Store text/placement once, not thousands of repeated font control points. */
-export function outlineText(run: SnapshotTextRun, style: Style): VMobject[] {
-  const text = run.natural ? importedText(run, style.fill) : new Text(run.text, { fontSize: run.size, color: style.fill });
+export function outlineText(run: SnapshotTextRun, style: Style, shaping?: TextShaping): VMobject[] {
+  const text = run.natural ? importedText(run, style.fill, shaping) : new Text(run.text, { fontSize: run.size, color: style.fill, shaping });
   text.build(run.text, run.size, { ...style, strokeWidth: (style.strokeWidth ?? 0) * PX });
   if (!run.natural && run.width != null && text.advance())
     text.stretch(run.width / text.advance(), 0, { aboutPoint: [0, 0] });
@@ -32,11 +32,11 @@ export function outlineText(run: SnapshotTextRun, style: Style): VMobject[] {
       break;
     case 'middle':
       if (run.natural) {
-        const x = importedText({ ...run, text: 'x', size: 1 });
+        const x = importedText({ ...run, text: 'x', size: 1 }, undefined, shaping);
         offset = (new Group(...x.children).height() * run.size) / 2;
       }
       else {
-        xHeightEm ??= new Text('x', { fontSize: 1 }).children[0]!.height();
+        const xHeightEm = new Text('x', {fontSize: 1, shaping: text.shaping}).children[0]!.height();
         offset = (xHeightEm * run.size) / 2;
       }
       break;

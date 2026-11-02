@@ -12,7 +12,7 @@ import {
   view,
   linear,
 } from '../../../src/index.ts';
-import type { SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
+import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { lerpColor } from '../../../src/color.ts';
 import {
@@ -686,7 +686,7 @@ export default class PeriodicGroupsExplainer extends Scene {
         runs: own.slice(0, runs),
         ...(done ? { rows: ROW_CELLS } : {}),
       });
-      const seq: Animation[] = [];
+      const seq: ScheduledAnimation[] = [];
       RUNS.forEach((run, i) => {
         // The case's last run stops at its own electron first.
         if (run.from <= z && z < run.to) seq.push(apply(fillState(z, own.length, false)), both(0.6));

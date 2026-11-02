@@ -180,7 +180,7 @@ test('same-provider nested runs settle and delayed ordinary runs keep embedded f
   assert.ok(Math.abs((plain.mobjects[0] as Text).run.width - normal('WWW', .4).width) < 1e-8);
 });
 
-test('a lease waits for overlapping same-provider tasks before restoring the font table', async () => {
+test('the compatibility context waits for overlapping same-provider tasks before admitting another scene', async () => {
   await loadFonts();
   const mono = shaperFor('mono');
   const provider: LetteringProvider = { shape: (_, text, size) => mono(text, size), math: () => { throw new Error('unused'); } };

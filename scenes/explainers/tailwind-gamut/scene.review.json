@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-display",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "As written"
+        },
+        {
+          "text": "On an sRGB screen"
+        }
+      ]
+    }
+  ]
+}

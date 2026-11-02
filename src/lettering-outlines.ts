@@ -1,16 +1,15 @@
 // Optional outline snapshots. This module has no installation side effects: a
 // page without lettering never imports a provider or carries a lettering store.
 import type { SceneClass } from './scene.ts';
-import { Scene } from './scene.ts';
-import { loadFonts, shapeChain, shaperFor } from './fonts.ts';
+import { loadFonts, shapeChain, embeddedShaperFor } from './fonts.ts';
 import type { FontName, Shaper } from './fonts.ts';
 import { loadFont } from '../vendor/glyph.js';
-import type { Font, Run } from '../vendor/glyph.js';
+import type { Font, Run, Segment } from '../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from './font-data.ts';
 import { Text, CodeSpan } from './text.ts';
 import type { Style, Box } from './mobject.ts';
-import { TransformMatchingText } from './animation.ts';
-import type { MatchKey } from './animation.ts';
+import {bindTextContext, textContextOf, withTextContext} from './text-context.ts';
+import type {TextShaping} from './text-context.ts';
 
 /** Real cuts an explainer can ask for, instead of the stroked faux bold and no italic. */
 export type LetteringStyle = 'bold' | 'italic';
@@ -50,24 +49,30 @@ export interface LetteringSnapshot {
    * Packed form only (packLettering): each distinct glyph outline once. A packed
    * glyph has `o`, its outline's index here, in place of `path`.
    */
-  outlines?: unknown[][];
+  outlines?: never;
 }
+
+export interface PackedLetteringSnapshot extends Omit<LetteringSnapshot, 'runs' | 'outlines'> {
+  runs: Record<string, Omit<Run, 'glyphs'> & {glyphs: (Omit<Run['glyphs'][number], 'path'> & {o: number})[]}>;
+  outlines: Segment[][];
+}
+export type StoredLetteringSnapshot = LetteringSnapshot | PackedLetteringSnapshot;
 
 /**
  * A snapshot as written to disk and shipped in a page: each distinct glyph
  * outline stored once. A wrapped build-time label is measured line
  * by line, so its glyphs recur in many runs; packing stores each outline once.
  */
-export function packLettering(snapshot: LetteringSnapshot): LetteringSnapshot {
-  const outlines: unknown[][] = [], index = new Map<string, number>();
+export function packLettering(snapshot: LetteringSnapshot): PackedLetteringSnapshot {
+  const outlines: Segment[][] = [], index = new Map<string, number>();
   const runs = Object.fromEntries(Object.entries(snapshot.runs).map(([key, run]) => [key, {
     ...run, glyphs: run.glyphs.map(({ path, ...glyph }) => {
       const id = JSON.stringify(path);
       let o = index.get(id);
-      if (o === undefined) { index.set(id, o = outlines.length); outlines.push(path as unknown[]); }
+      if (o === undefined) { index.set(id, o = outlines.length); outlines.push(path); }
       return { ...glyph, o };
     }),
-  }])) as unknown as LetteringSnapshot['runs'];
+  }]));
   return { ...snapshot, runs, outlines };
 }
 /**
@@ -76,7 +81,7 @@ export function packLettering(snapshot: LetteringSnapshot): LetteringSnapshot {
  * are new, so a shallow copy of a packed snapshot leaves the original packed.
  * An unpacked snapshot is returned as it is. Every stored outline must be used.
  */
-export function unpackLettering(snapshot: LetteringSnapshot): LetteringSnapshot {
+export function unpackLettering(snapshot: StoredLetteringSnapshot): LetteringSnapshot {
   const outlines = snapshot.outlines;
   if (outlines === undefined) return snapshot;
   const fail = (): never => { throw new Error('Invalid lettering snapshot outlines; run rayner snapshots to rebuild it'); };
@@ -85,16 +90,15 @@ export function unpackLettering(snapshot: LetteringSnapshot): LetteringSnapshot 
   const runs: LetteringSnapshot['runs'] = {};
   for (const [key, run] of Object.entries(snapshot.runs)) {
     if (!run || !Array.isArray(run.glyphs)) fail();
-    runs[key] = { ...run, glyphs: (run.glyphs as (Run['glyphs'][number] & { o?: number })[]).map(({ o, ...glyph }) => {
+    runs[key] = { ...run, glyphs: run.glyphs.map(({ o, ...glyph }) => {
       if (!Number.isInteger(o) || !(o! >= 0 && o! < outlines.length)) fail();
       used.add(o!);
       return { ...glyph, path: outlines[o!] as Run['glyphs'][number]['path'] };
     }) };
   }
   if (used.size !== outlines.length) fail();
-  snapshot.runs = runs;
-  delete snapshot.outlines;
-  return snapshot;
+  const {outlines: packed, ...data} = snapshot;
+  return {...data, runs};
 }
 export interface LetteringProvider {
   /** What the scene asked for; styles decide which cuts Text may use. */
@@ -189,8 +193,8 @@ export function requestCuts(request: LetteringRequest): LetteringCut[] {
   const bold = request.styles?.includes('bold'), italic = request.styles?.includes('italic');
   return ['', ...(bold ? ['bold' as const] : []), ...(italic ? ['italic' as const] : []), ...(bold && italic ? ['bold-italic' as const] : [])];
 }
-export function snapshotProvider(snapshot: LetteringSnapshot): LetteringProvider {
-  unpackLettering(snapshot);
+export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProvider {
+  const snapshot = unpackLettering(stored);
   let replay = replays.get(snapshot);
   if (!replay) replays.set(snapshot, replay = { chains: {}, templates: {}, memo: new Map() });
   const state = replay;
@@ -253,75 +257,13 @@ export function snapshotProvider(snapshot: LetteringSnapshot): LetteringProvider
   };
 }
 
-// Text and diagram lowering use the same public font table. Lease it for a
-// complete run, and restore it even on StopScene or errors. Once an optional
-// provider is installed ALL runs participate, so overlapping seeks and
-// ordinary scenes cannot borrow one another's fonts. No patch is installed on
-// pages which do not request lettering.
-const providers: WeakMap<object, LetteringProvider> = /* @__PURE__ */ new WeakMap();
-let installed = false;
-let pending: Promise<unknown> | undefined;
-let active: LetteringProvider | undefined;
-let currentFonts: Awaited<ReturnType<typeof loadFonts>> | undefined;
-let loadedFonts: Awaited<ReturnType<typeof loadFonts>> | undefined;
-let normalShapers: Awaited<ReturnType<typeof loadFonts>> | undefined;
-let leasing = false;
-const activeTasks = new Set<Promise<unknown>>();
-const textProviders = new WeakMap<Text, LetteringProvider>();
-/** The cut each Text built under a provider was shaped in, for spans queried later. */
-const textCuts = new WeakMap<Text, LetteringCut>();
-/** The cut of the Text being built now: the leased shapers pass it to the provider. */
-let building: LetteringCut = '';
-/** Set by ItalicText around its build. */
-let slanting = false;
-/** Set by withFontRun: the Text draws a given run, so it has no cut. */
-let fixedRun = false;
-/** Texts drawn from a given run (maths): their clusters are not indices into their text. */
-const fixedTexts = new WeakSet<Text>();
-
-/**
- * Build an ItalicText. Italic has no faux form, so a scene that did not ask for
- * it fails here, at build time, rather than drawing upright letters.
- */
-export function withItalic<T>(draw: () => T): T {
-  if (!active?.request?.styles?.includes('italic'))
-    throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
-  const saved = slanting;
-  slanting = true;
-  try { return draw(); } finally { slanting = saved; }
+/** One service per provider; each Text retains its own service through copy and replay. */
+const contexts = new WeakMap<LetteringProvider, TextShaping>();
+function cutOf(text: Text, provider: LetteringProvider): LetteringCut {
+  if (text.formula) return '';
+  const bold = text.weight === 'bold' && !!provider.request?.styles?.includes('bold');
+  return text.italic ? (bold ? 'bold-italic' : 'italic') : bold ? 'bold' : '';
 }
-/** The cut a Text is shaped in under `provider`: real bold only when the scene asked for it. */
-function cutOf(text: Text, provider: LetteringProvider | undefined): LetteringCut {
-  if (fixedRun) return '';
-  const bold = text.weight === 'bold' && !!provider?.request?.styles?.includes('bold');
-  return slanting ? (bold ? 'bold-italic' : 'italic') : bold ? 'bold' : '';
-}
-function withinLease<T>(work: () => Promise<T>): Promise<T> {
-  const result = Promise.resolve().then(work);
-  activeTasks.add(result);
-  void result.then(() => activeTasks.delete(result), () => activeTasks.delete(result));
-  return result;
-}
-export function withFontRun<T>(font: FontName, run: Run, draw: () => T): T {
-  if (!currentFonts) throw new Error('Lettering requires a running scene');
-  const saved = currentFonts[font], fixed = fixedRun;
-  currentFonts[font] = () => run;
-  // The run is drawn as given (maths): no cut applies, so bold keeps its faux stroke.
-  fixedRun = true;
-  try { return draw(); } finally { currentFonts[font] = saved; fixedRun = fixed; }
-}
-export function mathRun(text: string, size: number, display: boolean): Run {
-  if (!active) throw new Error('Math requires meta.lettering.math and a fresh lettering snapshot');
-  return active.math(text, size, display);
-}
-function providerOf(Source: object): LetteringProvider | undefined {
-  for (let c: object | null = Source; c; c = Object.getPrototypeOf(c)) {
-    const p = providers.get(c);
-    if (p) return p;
-  }
-  return undefined;
-}
-
 /** The source mapping used by Text: grapheme-based tab stops, code-point clusters. */
 function spanForm(text: Text): { shaped: string; source: number[] } {
   const source: number[] = [];
@@ -342,9 +284,8 @@ function spanForm(text: Text): { shaped: string; source: number[] } {
   return { shaped, source };
 }
 
-// Preserve the core module's source and all legacy geometry. Only a Text built
-// with an optional provider needs the adapter; remember that provider for spans
-// queried after the run has released its fonts, or on a copied Code line.
+// Each text retains its shaping service, including spans queried after its
+// scene finishes or on a copied Code line.
 /**
  * Matching keys for the glyphs of a Text built from lettering runs: the whole
  * cluster each glyph draws (a conjunct, a ligature, a letter with its marks),
@@ -360,19 +301,17 @@ const clusterKeys = new WeakMap<Text, { text: string; keys: Map<number, string> 
  * index into its text; undefined for a Text built with no provider, or drawn
  * from a given run (maths), whose clusters are not source indices.
  */
-function sourceRun(text: Text): { run: Run; clusters: number[] } | undefined {
-  const provider = textProviders.get(text);
-  if (!provider || fixedTexts.has(text)) return undefined;
-  const form = spanForm(text);
-  const run = provider.shape(text.font, form.shaped, text.run.fontSize, normalShapers?.[text.font] ?? shaperFor(text.font), textCuts.get(text) ?? '');
-  return { run, clusters: run.glyphs.map((g) => form.source[g.cluster] ?? text.text.length) };
+function sourceRun(text: Text): {run: Run; clusters: number[]} | undefined {
+  if (!text.shaping || text.formula) return undefined;
+  const form = spanForm(text), run = text.shapeRun(form.shaped, text.run.fontSize);
+  return {run, clusters: run.glyphs.map(g => form.source[g.cluster] ?? text.text.length)};
 }
 function clusterKey(text: Text, cluster: number): string | undefined {
   let memo = clusterKeys.get(text);
   if (!memo || memo.text !== text.text) {
     const shaped = sourceRun(text);
     if (!shaped) return undefined;
-    const { run, clusters: starts } = shaped, cut = textCuts.get(text) ?? '';
+    const {run, clusters: starts} = shaped, cut = text.italic ? (text.weight === 'bold' ? 'bold-italic' : 'italic') : text.weight === 'bold' ? 'bold' : '';
     const sorted = [...new Set(starts)].sort((a, b) => a - b);
     // Only glyphs with outlines become the Text's children, so only they count
     const counts = new Map<number, number>();
@@ -385,143 +324,79 @@ function clusterKey(text: Text, cluster: number): string | undefined {
   return memo.keys.get(cluster);
 }
 
-function installSpanAdapter(): void {
-  const begin = TransformMatchingText.prototype.begin;
-  TransformMatchingText.prototype.begin = function (this: TransformMatchingText) {
-    const plain: MatchKey = this.key;
-    // Cluster keys never equal plain ones, so use them only when every Text on both sides has them
-    const texts = [...this.mobject.family(), ...this.target.family()].filter((m): m is Text => m instanceof Text && m.children.length > 0);
-    if (texts.length && texts.every((t) => textProviders.has(t) && !fixedTexts.has(t)))
-      this.key = (part) => {
-        const text = part.parent, cluster = (part as { cluster?: number }).cluster;
-        return text instanceof Text && cluster != null ? clusterKey(text, cluster) ?? plain(part) : plain(part);
-      };
-    try { begin.call(this); } finally { this.key = plain; }
-  };
-  const build = Text.prototype.build, copy = Text.prototype.copy, box = CodeSpan.prototype.box, setFill = Text.prototype.setFill;
-  Text.prototype.build = function (text: string, size: number, style: Style) {
-    if (active) textProviders.set(this, active); else textProviders.delete(this);
-    if (fixedRun) fixedTexts.add(this); else fixedTexts.delete(this);
-    const cut = cutOf(this, active);
-    if (cut) textCuts.set(this, cut); else textCuts.delete(this);
-    // A real Bold cut replaces the stroke that fakes bold in text.ts.
-    if (cut.startsWith('bold')) style = { ...style, stroke: 'none', strokeWidth: 0 };
-    const saved = building;
-    building = cut;
-    try { return build.call(this, text, size, style); } finally { building = saved; }
-  };
-  Text.prototype.setFill = function (this: Text, fill: string, fillOpacity?: number) {
-    setFill.call(this, fill, fillOpacity);
-    // text.ts strokes bold text in its fill colour; real bold has no stroke to recolour.
-    if (textCuts.get(this)?.startsWith('bold')) this.setStyle({ stroke: 'none' });
-    return this;
-  } as typeof Text.prototype.setFill;
-  Text.prototype.copy = function (this: Text) {
-    const result = copy.call(this), provider = textProviders.get(this), cut = textCuts.get(this);
-    if (provider) textProviders.set(result, provider);
-    if (cut) textCuts.set(result, cut);
-    if (fixedTexts.has(this)) fixedTexts.add(result);
-    return result;
-  } as typeof Text.prototype.copy;
-  CodeSpan.prototype.box = function (): Box {
-    const provider = textProviders.get(this.owner);
-    if (!provider || this.stale) return box.call(this);
-    const text = this.owner, form = spanForm(text), shaped = sourceRun(text);
-    if (!shaped) return box.call(this);
-    const { run, clusters } = shaped;
-    const rtl = clusters.some((cluster, i) => i > 0 && cluster < clusters[i - 1]!);
-    if (!rtl) {
-      if (!loadedFonts) return box.call(this);
-      const saved = loadedFonts[text.font];
-      loadedFonts[text.font] = () => run;
-      try { return box.call(this); } finally { loadedFonts[text.font] = saved; }
-    }
-    const starts = [...new Set(clusters)].sort((a, b) => a - b);
-    const endOf = (cluster: number) => starts.find((start) => start > cluster) ?? text.text.length;
-    const selected = this.from === this.to ? []
-      : run.glyphs.filter((_, i) => clusters[i]! < this.to && endOf(clusters[i]!) > this.from);
-    const frame = text.frameBox, scale = run.width ? (frame[2]! - frame[0]!) / run.width : 0;
-    let left = Infinity, right = -Infinity;
-    for (const glyph of selected) {
-      const a = frame[0]! + glyph.x * scale, b = frame[0]! + (glyph.x + glyph.ax) * scale;
-      left = Math.min(left, a, b); right = Math.max(right, a, b);
-    }
-    if (!selected.length) {
-      // A zero-width range is a caret at the logical boundary, including RTL ends.
-      const logical = starts.find((start) => endOf(start) > this.from) ?? starts.at(-1);
-      const cell = run.glyphs.filter((_, i) => clusters[i] === logical);
-      const next = starts.find((start) => start > (logical ?? 0));
-      const previous = [...starts].reverse().find((start) => start < (logical ?? 0));
-      const position = (cluster: number | undefined) => run.glyphs.find((_, i) => clusters[i] === cluster)?.x;
-      const here = position(logical) ?? 0;
-      const clusterText = logical === undefined ? '' : text.text.slice(logical, endOf(logical));
-      const previousDelta = previous === undefined ? undefined : here - position(previous)!;
-      const nextDelta = next === undefined ? undefined : position(next)! - here;
-      const delta = previousDelta === undefined ? nextDelta : nextDelta === undefined ? previousDelta
-        : Math.abs(previousDelta) < Math.abs(nextDelta) ? previousDelta : nextDelta;
-      const backwards = (RTL_LETTER.test(clusterText) && /\p{L}/u.test(clusterText)) || (delta ?? 0) < 0;
-      const x0 = cell.length ? Math.min(...cell.map((g) => g.x)) : 0;
-      const x1 = cell.length ? Math.max(...cell.map((g) => g.x + g.ax)) : run.width;
-      const atEnd = this.from >= (logical === undefined ? 0 : endOf(logical));
-      left = right = frame[0]! + (backwards !== atEnd ? x1 : x0) * scale;
-    }
-    const result: Box = [left, frame[1]!, right, frame[3]!];
-    const selectedClusters = new Set(selected.map((glyph) => form.source[glyph.cluster] ?? text.text.length));
-    const inkGlyphs = text.children.filter((glyph) => selectedClusters.has((glyph as { cluster?: number }).cluster ?? -1));
-    for (const glyph of inkGlyphs) {
-      const ink = glyph.box();
-      if (!ink) continue;
-      result[0] = Math.min(result[0], ink[0]); result[1] = Math.min(result[1], ink[1]);
-      result[2] = Math.max(result[2], ink[2]); result[3] = Math.max(result[3], ink[3]);
-    }
-    return result;
-  };
-}
-async function lease<T>(p: LetteringProvider | undefined, work: () => Promise<T>): Promise<T> {
-  const fonts = await loadFonts();
-  await p?.prepare?.();
-  const saved = { ...fonts };
-  normalShapers ??= saved;
-  active = p;
-  leasing = true;
-  loadedFonts = fonts;
-  currentFonts = fonts;
-  if (p) for (const font of ['sans', 'mono'] as const)
-    fonts[font] = (text, size) => p.shape(font, text, size, saved[font], building);
-  try { return await work(); }
-  finally {
-    // Same-provider work can nest (or start while a run is awaiting). Keep its
-    // font lease until every such task finishes, including on errors.
-    while (activeTasks.size) await Promise.allSettled([...activeTasks]);
-    Object.assign(fonts, saved); active = undefined; currentFonts = undefined; leasing = false;
+function spanBox(span: CodeSpan): Box | undefined {
+  const text = span.owner, form = spanForm(text), shaped = sourceRun(text);
+  if (!shaped) return undefined;
+  const {run, clusters} = shaped;
+  const rtl = clusters.some((cluster, i) => i > 0 && cluster < clusters[i - 1]!);
+  if (!rtl) return undefined;
+  const starts = [...new Set(clusters)].sort((a, b) => a - b);
+  const endOf = (cluster: number) => starts.find((start) => start > cluster) ?? text.text.length;
+  const selected = span.from === span.to ? []
+    : run.glyphs.filter((_, i) => clusters[i]! < span.to && endOf(clusters[i]!) > span.from);
+  const frame = text.frameBox, scale = run.width ? (frame[2]! - frame[0]!) / run.width : 0;
+  let left = Infinity, right = -Infinity;
+  for (const glyph of selected) {
+    const a = frame[0]! + glyph.x * scale, b = frame[0]! + (glyph.x + glyph.ax) * scale;
+    left = Math.min(left, a, b); right = Math.max(right, a, b);
   }
-}
-function enqueue<T>(p: LetteringProvider | undefined, work: () => Promise<T>): Promise<T> {
-  const execute = () => lease(p, work);
-  const result = (pending ?? Promise.resolve()).then(execute, execute);
-  pending = result.then(() => undefined, () => undefined);
+  if (!selected.length) {
+    // A zero-width range is a caret at the logical boundary, including RTL ends.
+    const logical = starts.find((start) => endOf(start) > span.from) ?? starts.at(-1);
+    const cell = run.glyphs.filter((_, i) => clusters[i] === logical);
+    const next = starts.find((start) => start > (logical ?? 0));
+    const previous = [...starts].reverse().find((start) => start < (logical ?? 0));
+    const position = (cluster: number | undefined) => run.glyphs.find((_, i) => clusters[i] === cluster)?.x;
+    const here = position(logical) ?? 0;
+    const clusterText = logical === undefined ? '' : text.text.slice(logical, endOf(logical));
+    const previousDelta = previous === undefined ? undefined : here - position(previous)!;
+    const nextDelta = next === undefined ? undefined : position(next)! - here;
+    const delta = previousDelta === undefined ? nextDelta : nextDelta === undefined ? previousDelta
+      : Math.abs(previousDelta) < Math.abs(nextDelta) ? previousDelta : nextDelta;
+    const backwards = (RTL_LETTER.test(clusterText) && /\p{L}/u.test(clusterText)) || (delta ?? 0) < 0;
+    const x0 = cell.length ? Math.min(...cell.map((g) => g.x)) : 0;
+    const x1 = cell.length ? Math.max(...cell.map((g) => g.x + g.ax)) : run.width;
+    const atEnd = span.from >= (logical === undefined ? 0 : endOf(logical));
+    left = right = frame[0]! + (backwards !== atEnd ? x1 : x0) * scale;
+  }
+  const result: Box = [left, frame[1]!, right, frame[3]!];
+  const selectedClusters = new Set(selected.map((glyph) => form.source[glyph.cluster] ?? text.text.length));
+  const inkGlyphs = text.children.filter((glyph) => selectedClusters.has((glyph as { cluster?: number }).cluster ?? -1));
+  for (const glyph of inkGlyphs) {
+    const ink = glyph.box();
+    if (!ink) continue;
+    result[0] = Math.min(result[0], ink[0]); result[1] = Math.min(result[1], ink[1]);
+    result[2] = Math.max(result[2], ink[2]); result[3] = Math.max(result[3], ink[3]);
+  }
   return result;
 }
-/** Build-time text outside a run (contact-sheet titles). */
-export function withSceneLettering<T>(Source: object, work: () => Promise<T>): Promise<T> {
-  const p = providerOf(Source);
-  if (!installed) return work();
-  if (leasing && active === p) return withinLease(work);
-  return enqueue(p, work);
-}
-export function bindLettering(Source: SceneClass, provider: LetteringProvider | LetteringSnapshot): SceneClass {
-  if (!installed) {
-    installed = true;
-    const original = Scene.prototype.run;
-    Scene.prototype.run = function () {
-      const p = providerOf(this.constructor);
-      return leasing && active === p ? withinLease(() => original.call(this))
-        : enqueue(p, () => original.call(this));
+export function textShaping(provider: LetteringProvider): TextShaping {
+  let context = contexts.get(provider);
+  if (!context) {
+    context = {
+      prepare: provider.prepare?.bind(provider),
+      shape(owner, text, size) {
+        if (owner.italic && !provider.request?.styles?.includes('italic'))
+          throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
+        return owner.formula ? provider.math(text, size, owner.formula.display)
+          : provider.shape(owner.font, text, size, embeddedShaperFor(owner.font), cutOf(owner, provider));
+      },
+      realBold: owner => cutOf(owner, provider).startsWith('bold'),
+      spanBox,
+      clusterKey,
     };
-    installSpanAdapter();
+    contexts.set(provider, context);
   }
+  return context;
+}
+/** Build-time text outside a run can opt into the same retained shaping service. */
+export function withSceneLettering<T>(Source: object, work: () => Promise<T>): Promise<T> {
+  return withTextContext(Source, work);
+}
+export function bindLettering(Source: SceneClass, provider: LetteringProvider | StoredLetteringSnapshot,
+  {explicit = (Source as {meta?: {textContext?: string}}).meta?.textContext === 'explicit'}: {explicit?: boolean} = {}): SceneClass {
   const Bound = class extends Source {};
-  providers.set(Bound, 'version' in provider ? snapshotProvider(provider) : provider);
+  bindTextContext(Bound, textShaping('version' in provider ? snapshotProvider(provider) : provider), explicit);
   return Bound;
 }
 

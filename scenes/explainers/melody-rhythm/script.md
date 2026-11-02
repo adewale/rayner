@@ -20,7 +20,7 @@ Is it the timing, or the climb to G? Flatten every pitch to C and keep each note
 2. Count B in threes, so a bar line falls after every third beat. Which note holds across a bar line, and does the 1 of bar 3 bring a new note? (The first E, across the line at beat 3; yes, a C on the seventh beat.)
 3. Suppose the E after G lasted a full beat, with later notes straight after it. Which notes of bar 2 start on a beat? (None: D, C and C start half a beat late, and the last C runs past the bar.)
 
-**Settings:** Version B's control (same timing as A) removes the effect; every caption is written for its case. Tempo changes the milliseconds in the bar step and the playback speed; the piano roll is counted in beats and stays the same. Every step carries its score as `step.audio`, played by the reader, and `test/explain-audio.test.ts` plays it at both tempos.
+**Settings:** Version B's control (same timing as A) removes the effect; every caption is written for its case. Tempo changes the milliseconds in the bar step and the playback speed; the piano roll is counted in beats and stays the same. Every step carries its score as `step.audio`, played by the reader, and `test/browser/explain-audio.test.ts` plays it at both tempos.
 
 **Cut from the earlier version:** the timing step, merged into bar (how B was made, and the milliseconds); and the phrase step, a recap whose onset dots now sit in rhythm, the ending.
 

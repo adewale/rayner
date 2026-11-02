@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-pipeline",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "echo hello"
+        },
+        {
+          "text": "tr → HELLO"
+        },
+        {
+          "text": "shout.txt"
+        }
+      ]
+    },
+    {
+      "step": "reader-values",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "original"
+        },
+        {
+          "text": "returned"
+        },
+        {
+          "text": "missing"
+        },
+        {
+          "text": "HELLO"
+        }
+      ]
+    }
+  ]
+}

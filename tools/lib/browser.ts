@@ -8,7 +8,7 @@ import { existsSync, readdirSync } from 'node:fs';
 // chrome-mac-arm64, chrome-linux64 and chrome-headless-shell-*; a list without those skips
 // every current build and runs whatever old one is left. It did: local runs got Chromium 140
 // (revision 1193) while CI ran 156, and 140's renderer crashes in the player test once
-// Accessibility.getPartialAXTree has run (test/explain-embed.test.ts, verify()).
+// Accessibility.getPartialAXTree has run (test/browser/explain-embed.test.ts, verify()).
 const layouts = [
   'chrome-headless-shell-linux64/chrome-headless-shell',
   'chrome-headless-shell-linux-arm64/chrome-headless-shell',

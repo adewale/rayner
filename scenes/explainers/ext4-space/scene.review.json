@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reserve",
+      "settings": {
+        "size": "1t",
+        "reserve": "5"
+      },
+      "targets": [
+        {
+          "text": "Root reserve (5.0%)"
+        },
+        {
+          "text": "Root / metadata"
+        }
+      ]
+    }
+  ]
+}

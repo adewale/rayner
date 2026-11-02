@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "blob",
+      "targets": [
+        {
+          "text": "header"
+        },
+        {
+          "text": "content"
+        }
+      ]
+    },
+    {
+      "step": "change",
+      "targets": [
+        {
+          "text": "commit one"
+        },
+        {
+          "text": "commit two"
+        },
+        {
+          "text": "parent"
+        }
+      ]
+    }
+  ]
+}

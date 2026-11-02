@@ -120,7 +120,7 @@ test('a page leaves out the runs only the build draws, and every snapshot stores
 });
 
 test('a packed snapshot unpacks only whole: every glyph names a stored outline and every outline is used', async () => {
-  const raw = (): LetteringSnapshot => JSON.parse(readFileSync(join(ROOT, 'test/lettering/hebrew/scene.lettering.json'), 'utf8'));
+  const raw = (): import('../src/lettering-outlines.ts').PackedLetteringSnapshot => JSON.parse(readFileSync(join(ROOT, 'test/lettering/hebrew/scene.lettering.json'), 'utf8'));
   // A shallow copy unpacks without touching the original, which stays packed
   const original = raw(), copy = unpackLettering({ ...original });
   assert.ok(Array.isArray(original.outlines) && copy.outlines === undefined);

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "evaluate",
+      "settings": {
+        "date": "2007-06-04"
+      },
+      "targets": [
+        {
+          "text": "FULLW,20070604,2"
+        },
+        {
+          "text": "Trips that run"
+        }
+      ]
+    },
+    {
+      "step": "day",
+      "settings": {
+        "date": "2007-06-09"
+      },
+      "targets": [
+        {
+          "text": "AAMV1, route 50"
+        },
+        {
+          "text": "AAMV2, route 50"
+        },
+        {
+          "text": "AAMV3, route 50"
+        },
+        {
+          "text": "AAMV4, route 50"
+        }
+      ]
+    }
+  ]
+}

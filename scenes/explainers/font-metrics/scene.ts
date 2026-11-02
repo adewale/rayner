@@ -1,4 +1,4 @@
-import { Scene, Text, ItalicText, Group, Circle } from '../../../src/index.ts';
+import { Scene, ItalicText, Group, Circle } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 
 const SAMPLE = 'Ink on paper';
@@ -12,6 +12,7 @@ export default class FontMetrics extends Scene {
     id: 'font-metrics',
     title: 'Why must font measurement match the drawn face?',
     sources: ['https://github.com/googlefonts/ebgaramond'],
+    textContext: 'explicit' as const,
     lettering: { faces: { sans: 'eb-garamond' }, styles: ['bold', 'italic'] as const },
     // The script's answer and check questions (script.md); check holds a step (advance) to stating the answer.
     answer: 'Measure the face you draw: each face and cut gives the same text its own advances',
@@ -49,8 +50,8 @@ export default class FontMetrics extends Scene {
     const widths = settingsOf(this).widths as Widths;
     const s = stage(this, { headingSize: 0.6, style: 'pen-and-ink' });
     const color = s.palette.ink;
-    const wrong = new Text(SAMPLE, { font: 'mono', fontSize: 0.9 }).advance(),
-      actual = new Text(SAMPLE, { fontSize: 0.9 }).advance();
+    const wrong = this.text(SAMPLE, { font: 'mono', fontSize: 0.9 }).advance(),
+      actual = this.text(SAMPLE, { fontSize: 0.9 }).advance();
 
     // 1. The failure: the marker goes where the measured width ends, and the wrong face is measured.
     await this.step('layout', {
@@ -62,12 +63,12 @@ export default class FontMetrics extends Scene {
     comparison.key = 'font-layout';
     for (const [i, name] of [`Measured as Mono: ${wrong.toFixed(2)}`, `Measured as Garamond: ${actual.toFixed(2)}`].entries()) {
       const y = 1.4 - i * 3.0;
-      const word = new Text(SAMPLE, { fontSize: 0.9, color }).moveTo([-5.3, y], [-1, 0]);
+      const word = this.text(SAMPLE, { fontSize: 0.9, color }).moveTo([-5.3, y], [-1, 0]);
       const width = i === 0 ? wrong : word.advance();
       comparison.add(
         word,
         new Circle({ radius: 0.22, fill: s.emphasis, stroke: 'none' }).moveTo([-5.3 + width + GAP, y]),
-        new Text(name, { fontSize: 0.7, color }).moveTo([-5.3, y + 1.1], [-1, 0]),
+        this.text(name, { fontSize: 0.7, color }).moveTo([-5.3, y + 1.1], [-1, 0]),
       );
     }
     this.state.layout = { wrong, actual };
@@ -75,7 +76,7 @@ export default class FontMetrics extends Scene {
     await s.enter(comparison);
 
     // 2. The answer: a phrase's width is the sum of its glyphs' advances, which belong to the face.
-    const ruled = new Text(SAMPLE, { fontSize: 1.2, color }).moveTo([0, 0.8]);
+    const ruled = this.text(SAMPLE, { fontSize: 1.2, color }).moveTo([0, 0.8]);
     await this.step('advance', {
       title: 'A phrase’s width is the sum of its glyphs’ advances',
       line: 'The ruler ends after the final glyph’s advance, not at its ink.',
@@ -95,8 +96,8 @@ export default class FontMetrics extends Scene {
       cut,
       word:
         cut === 'Italic'
-          ? new ItalicText(SAMPLE, { fontSize: 0.9, color })
-          : new Text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal' }),
+          ? new ItalicText(SAMPLE, { fontSize: 0.9, color, shaping: this.textShaping })
+          : this.text(SAMPLE, { fontSize: 0.9, color, weight: cut === 'Bold' ? 'bold' : 'normal' }),
     }));
     const advances: Record<string, number> = Object.fromEntries(cuts.map(({ cut, word }) => [cut, word.advance()]));
     await this.step('cuts', {
@@ -110,9 +111,9 @@ export default class FontMetrics extends Scene {
       const y = 2.0 - index * 2.0;
       word.moveTo([0, y]);
       rows.add(
-        new Text(cut, { fontSize: 0.7, color }).moveTo([-5.6, y]),
+        this.text(cut, { fontSize: 0.7, color }).moveTo([-5.6, y]),
         word,
-        new Text(word.advance().toFixed(2), { fontSize: 0.7, color }).moveTo([5.2, y]),
+        this.text(word.advance().toFixed(2), { fontSize: 0.7, color }).moveTo([5.2, y]),
       );
     }
     this.state.advances = advances;
@@ -147,7 +148,7 @@ export default class FontMetrics extends Scene {
       ['B', 'Paper'],
     ] as const) {
       const run = d.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === text)!.textRun!;
-      const natural = new Text(text, { fontSize: run.size }).advance();
+      const natural = this.text(text, { fontSize: run.size }).advance();
       stretch[text] = (run.width ?? natural) / natural;
       await d.note(id, `stretched ×${stretch[text]!.toFixed(3)}`, { side: 'below', color: s.emphasis });
     }

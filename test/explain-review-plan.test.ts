@@ -5,7 +5,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, unlink, writeFile } from 'node:
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fc, params } from './lib/pbt.ts';
-import { reviewScope, mergeStoryReviews, reviewCodeHash, readStoryPlan } from '../tools/lib/explain-review-plan.ts';
+import { reviewScope, reviewCases, mergeStoryReviews, reviewCodeHash, readStoryPlan } from '../tools/lib/explain-review-plan.ts';
 import type { PlannedCase, ReviewReceipt } from '../tools/lib/explain-review-plan.ts';
 
 test('story shard arguments accept complete integer scopes and reject malformed selections', () => {
@@ -26,6 +26,7 @@ const narrowObligations = (steps: string[]) => steps.map(step => ({step, reviewe
 function receipts(expected: PlannedCase[], total: number): ReviewReceipt[] {
   const parts: ReviewReceipt[] = Array.from({ length: total }, (_, i) => ({
     scope: { part: i + 1, total },
+    collectionChecks: i === 0,
     catalogHash: 'catalog',
     reviewCodeHash: 'code',
     cases: 0,
@@ -34,12 +35,7 @@ function receipts(expected: PlannedCase[], total: number): ReviewReceipt[] {
     consoleErrors: [],
     runtimeConnections: [],
   }));
-  // Round-robin assignment is independent of the production modulo selector.
-  let cursor = 0;
-  for (const c of expected) {
-    const p = parts[cursor]!;
-    cursor++;
-    if (cursor === total) cursor = 0;
+  for (const p of parts) for (const c of reviewCases(expected, p.scope)) {
     p.results.push({
       scene: c.scene,
       settings: c.settings,
@@ -91,6 +87,8 @@ test('a passing story result requires all matching shards with complete nonempty
   const good = receipts(expected, 3);
   assert.equal(mergeStoryReviews(good, expected, 'catalog', 'code').stepWidths, 24);
   const defects: Record<string, (p: ReviewReceipt[]) => void> = {
+    'missing shared checks': p => { p[0]!.collectionChecks = false; },
+    'duplicate shared checks': p => { p[1]!.collectionChecks = true; },
     'missing shard': (p) => {
       p.pop();
     },
@@ -250,9 +248,10 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
       {step: 'details', reviewed: false as const, reason: 'detail-step' as const},
     ];
     const scene = {id: 'example', cases: [{}], narrowOpenings: [{settings: {}, steps: narrowOpenings}]};
-    const writeCatalog = (s: unknown) => writeFile(join(root, 'evidence.json'), JSON.stringify({scenes: [s]}));
+    const writeCatalog = (s: unknown) => writeFile(join(root, 'evidence.json'), JSON.stringify({version: 2, checked: true, totals: {explainers: 1, cases: 1, diagrams: 0, styles: 0, families: 0}, scenes: [{diagrams: 0, styles: [], families: [], ...(s as object)}]}));
     await writeFile(join(root, 'example/describe.json'), JSON.stringify({cases: [{values: {}, steps: [{step: 'picture'}, {step: 'details'}]}]}));
     await writeCatalog(scene);
+    await assert.rejects(readStoryPlan(root, ['fixture', 'missing']), /complete source scene inventory/);
     const plan = await readStoryPlan(root);
     assert.deepEqual(plan.cases, [{scene: 'example', settings: {}, steps: ['picture', 'details'], narrowOpenings}]);
     const parts = receipts(plan.cases, 1);
@@ -270,4 +269,26 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
     await writeCatalog(oldCatalog);
     await assert.rejects(readStoryPlan(root), /without a narrow-opening inventory/);
   } finally { await rm(root, {recursive: true, force: true}); }
+});
+
+test('scene sharding preserves all cases once and keeps a scene on one owner', () => {
+  fc.assert(fc.property(fc.array(fc.array(fc.integer({min: 1, max: 10}), {minLength: 1, maxLength: 5}), {minLength: 3, maxLength: 16}), fc.integer({min: 1, max: 5}), (scenes, total) => {
+    const cases = scenes.flatMap((counts, i) => counts.map((count, j) => {
+      const steps = Array.from({length: count}, (_, k) => `step-${k}`);
+      return {scene: `scene-${i}`, settings: {case: String(j)}, steps, narrowOpenings: narrowObligations(steps)};
+    }));
+    const before = structuredClone(cases);
+    const parts = Array.from({length: total}, (_, i) => reviewCases(cases, {part: i + 1, total}));
+    assert.equal(parts.flat().length, cases.length);
+    assert.deepEqual(new Set(parts.flat()), new Set(cases));
+    for (const scene of new Set(cases.map(c => c.scene)))
+      assert.equal(parts.filter(part => part.some(c => c.scene === scene)).length, 1);
+    assert.deepEqual(cases, before);
+    const cost = (items: PlannedCase[]) => items.reduce((sum, c) => sum + c.steps.length * 3, 0);
+    const loads = parts.map(cost), heaviest = Math.max(...scenes.map((_, i) => cost(cases.filter(c => c.scene === `scene-${i}`))));
+    assert.ok(Math.max(...loads) - Math.min(...loads) <= heaviest);
+  }), params(100));
+  const cases = ['a', 'b', 'c', 'a'].map(scene => ({scene, settings: {}, steps: ['first'], narrowOpenings: narrowObligations(['first'])}));
+  assert.deepEqual(reviewCases(cases, {part: 1, total: 2}).map(c => c.scene), ['a', 'a']);
+  assert.deepEqual(reviewCases(cases, {part: 2, total: 2}).map(c => c.scene), ['b', 'c']);
 });

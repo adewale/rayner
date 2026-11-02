@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "spawn",
+      "targets": [
+        {
+          "text": "thread::spawn(move || x.set(1));"
+        },
+        {
+          "text": "= help: the trait `Sync` is not implemented"
+        },
+        {
+          "text": "= note: required for `Arc<Cell<i32>>` to"
+        }
+      ]
+    }
+  ]
+}

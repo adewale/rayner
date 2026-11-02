@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "objects",
+      "targets": [
+        {
+          "text": "owns"
+        },
+        {
+          "text": "plays"
+        },
+        {
+          "text": "emits"
+        }
+      ]
+    }
+  ]
+}

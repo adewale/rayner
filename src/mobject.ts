@@ -175,8 +175,16 @@ export class Mobject {
     if (this.saved) delete c.saved; // a copy is a new mobject: it has no saved state of its own
     c.copyData(this);
     c.children = this.children.map((ch) => { const cc = ch.copy(); cc.parent = c; return cc; });
+    if (this.rebindReferences !== Mobject.prototype.rebindReferences) {
+      const originals = this.family(), clones = c.family();
+      c.rebindReferences(this, new Map(originals.map((m, i) => [m, clones[i]!])));
+    }
     return c;
   }
+
+  /** Rebind a composite's named child references after copying or restoring its tree.
+   * References outside the copied tree (for example its Scene) remain shared. */
+  rebindReferences(_source: Mobject, _copies: ReadonlyMap<Mobject, Mobject>): void {}
 
   /** Deep-copy point data from `src`. Subclasses override. */
   copyData(_src: Mobject): void {}
@@ -634,6 +642,7 @@ export function adoptState(m: Mobject, state: Mobject): void {
     m.children = fresh.children;
     for (const c of m.children) c.parent = m;
   }
+  for (const [to, from] of pairs) to.rebindReferences(from, own);
   m.invalidateBox();
 }
 

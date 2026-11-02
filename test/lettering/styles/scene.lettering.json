@@ -1,7 +1,7 @@
 {
   "version": 1,
   "sourceHash": "501d0b667c3b33f69c88c7efbd81201cda021156e7f4e7a9a14b1f642de55985",
-  "builderHash": "a0bbd812b03ffdf57265f4f6dd3c533aee063996e2202295cc4e91b9c2b9bca7",
+  "builderHash": "2ba3e48f7fd91f5174c3bcbcf6c00179c4b20542bcb89916b70569211033130b",
   "request": {
     "styles": [
       "bold",
@@ -59,7 +59,7 @@
     }
   },
   "shaper": "uharfbuzz+python-bidi/fonttools; glyph-math@6398654",
-  "payloadHash": "95cd50eb4f0340a9e90fce62f9f8aa277169981e038de1dc8c7b86f124d0447f",
+  "payloadHash": "ebc2f0622db2756d5236bf119485ba76be4e647779b63725b6b660a32545613e",
   "outlines": [
     [{"tag":"MoveTo","x":303,"y":-10},{"tag":"QuadTo","x1":233,"y1":-10,"x":180.5,"y":16.5},{"tag":"QuadTo","x1":128,"y1":43,"x":99,"y":91.5},{"tag":"QuadTo","x1":70,"y1":140,"x":70,"y":206},{"tag":"LineTo","x":70,"y":344},{"tag":"QuadTo","x1":70,"y1":410,"x":99,"y":458.5},{"tag":"QuadTo","x1":128,"y1":507,"x":180.5,"y":533.5},{"tag":"QuadTo","x1":233,"y1":560,"x":303,"y":560},{"tag":"QuadTo","x1":407,"y1":560,"x":469,"y":506.5},{"tag":"QuadTo","x1":531,"y1":453,"x":534,"y":361},{"tag":"LineTo","x":412,"y":361},{"tag":"QuadTo","x1":409,"y1":404,"x":379.5,"y":427.5},{"tag":"QuadTo","x1":350,"y1":451,"x":303,"y":451},{"tag":"QuadTo","x1":253,"y1":451,"x":224,"y":423.5},{"tag":"QuadTo","x1":195,"y1":396,"x":195,"y":345},{"tag":"LineTo","x":195,"y":206},{"tag":"QuadTo","x1":195,"y1":155,"x":224,"y":127},{"tag":"QuadTo","x1":253,"y1":99,"x":303,"y":99},{"tag":"QuadTo","x1":351,"y1":99,"x":380,"y":122.5},{"tag":"QuadTo","x1":409,"y1":146,"x":412,"y":189},{"tag":"LineTo","x":534,"y":189},{"tag":"QuadTo","x1":531,"y1":97,"x":469,"y":43.5},{"tag":"QuadTo","x1":407,"y1":-10,"x":303,"y":-10},{"tag":"Close"}],
     [{"tag":"MoveTo","x":300,"y":-9},{"tag":"QuadTo","x1":194,"y1":-9,"x":132,"y":49.5},{"tag":"QuadTo","x1":70,"y1":108,"x":70,"y":207},{"tag":"LineTo","x":70,"y":343},{"tag":"QuadTo","x1":70,"y1":442,"x":132,"y":500.5},{"tag":"QuadTo","x1":194,"y1":559,"x":300,"y":559},{"tag":"QuadTo","x1":406,"y1":559,"x":468,"y":500.5},{"tag":"QuadTo","x1":530,"y1":442,"x":530,"y":344},{"tag":"LineTo","x":530,"y":207},{"tag":"QuadTo","x1":530,"y1":108,"x":468,"y":49.5},{"tag":"QuadTo","x1":406,"y1":-9,"x":300,"y":-9},{"tag":"Close"},{"tag":"MoveTo","x":300,"y":100},{"tag":"QuadTo","x1":350,"y1":100,"x":377.5,"y":127.5},{"tag":"QuadTo","x1":405,"y1":155,"x":405,"y":207},{"tag":"LineTo","x":405,"y":343},{"tag":"QuadTo","x1":405,"y1":395,"x":377.5,"y":422.5},{"tag":"QuadTo","x1":350,"y1":450,"x":300,"y":450},{"tag":"QuadTo","x1":250,"y1":450,"x":222.5,"y":422.5},{"tag":"QuadTo","x1":195,"y1":395,"x":195,"y":343},{"tag":"LineTo","x":195,"y":207},{"tag":"QuadTo","x1":195,"y1":155,"x":222.5,"y":127.5},{"tag":"QuadTo","x1":250,"y1":100,"x":300,"y":100},{"tag":"Close"}],

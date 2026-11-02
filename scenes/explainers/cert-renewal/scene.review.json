@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "other-rule",
+      "targets": [
+        {
+          "text": "30 days before expiry"
+        },
+        {
+          "text": "Certbot 4.1+ default"
+        }
+      ]
+    },
+    {
+      "step": "slack",
+      "targets": [
+        {
+          "text": "Retry window, the default rule"
+        },
+        {
+          "text": "Retry window, the 30-day rule"
+        }
+      ]
+    }
+  ]
+}

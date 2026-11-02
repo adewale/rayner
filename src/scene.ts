@@ -8,10 +8,15 @@
 import { prepareAnimation, AnimationGroup } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies } from './animation.ts';
 import { bindRecorders } from './animation.ts';
-import type { Animation, Playable, PlayOpts } from './animation.ts';
+import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
 import type { Mobject } from './mobject.ts';
 import { perf } from './perf.ts';
+import {Text} from './text.ts';
+import type {TextOpts} from './text.ts';
+import {textContextOf, withTextContext} from './text-context.ts';
 import { loadFonts } from './fonts.ts';
+import {jsonObject} from './json.ts';
+import type {JsonObject} from './json.ts';
 import { Frame } from './frame.ts';
 
 /**
@@ -22,7 +27,13 @@ import { Frame } from './frame.ts';
 export class StopScene extends Error {}
 
 /** Free-form data attached to a step; travels with the trace. A string `caption` holds the step until read. */
-export type StepMeta = Record<string, unknown>;
+export interface StepMeta {
+  title?: string;
+  line?: string;
+  caption?: string;
+  detail?: boolean;
+  [key: string]: unknown;
+}
 
 /** A named step: from `step()` to the next step or the end of the scene. */
 export interface Step {
@@ -64,7 +75,7 @@ export interface SceneOptions {
   skipUntil?: number;
 }
 
-/** The explanation's own state: JSON, since that is what traces serve and tests hash. */
+/** The author's mutable state; describe() validates and snapshots its JSON representation. */
 export type SceneState = Record<string, unknown>;
 
 /** A scene class, as traceScene(), renderAt() and the registries take it. */
@@ -81,13 +92,13 @@ function assertDisjoint(anims: readonly Animation[]): void {
   // A Succession's members run one at a time, so they may share mobjects with each
   // other (each is checked on its own below), but not with anything beside them.
   const leaves = (a: Animation): Animation[] => (a instanceof AnimationGroup && !(a instanceof Succession) ? a.animations.flatMap(leaves) : [a]);
-  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.mobject.family());
+  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a instanceof AnimationGroup ? a.mobjects.flatMap(m => m.family()) : a.mobject.family());
   for (const a of anims.flatMap(leaves)) {
     if (a instanceof Succession) for (const member of a.animations) assertDisjoint([member]);
     for (const m of driven(a)) {
       const other = seen.get(m);
       if (other && other !== a) {
-        const name = (x: Animation) => `${x.constructor.name}(${x.mobject ? `${x.mobject.constructor.name}#${x.mobject.id}` : '...'})`;
+        const name = (x: Animation) => `${x.constructor.name}(${!(x instanceof AnimationGroup) ? `${x.mobject.constructor.name}#${x.mobject.id}` : '...'})`;
         throw new Error(`play(): ${name(other)} and ${name(a)} both animate ${m.constructor.name}#${m.id}; one play() can drive a mobject only once (sequence them, or combine into one Transform)`);
       }
       seen.set(m, a);
@@ -110,7 +121,7 @@ function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], b
   return roots;
 }
 
-export class Scene {
+export class Scene<S extends object = SceneState> {
   sink: Sink;
   fps: number;
   skipUntil: number;
@@ -119,7 +130,7 @@ export class Scene {
   frameCount: number;
   steps: Step[];
   current: Step | null;
-  state: SceneState;
+  state: {[K in keyof S]: S[K]};
   /** Every Scene.record() so far, in order, across steps. */
   evidence: Evidence[];
   /**
@@ -158,7 +169,7 @@ export class Scene {
     this.steps = [];
     this.current = null;
     // The explanation's own state; describe() snapshots it for traces
-    this.state = {};
+    this.state = {} as S;
     this.evidence = [];
     this.frame = new Frame();
     this.stopped = false;
@@ -198,16 +209,20 @@ export class Scene {
   /** Subclasses define the animation here. */
   async construct(): Promise<void> {}
 
+  /** Explicit text creation stays bound to this scene's shaping service. */
+  get textShaping() { return textContextOf(this.constructor); }
+  text(value: string, opts: TextOpts = {}): Text { return new Text(value, {...opts, shaping: opts.shaping ?? this.textShaping}); }
+
   async run(): Promise<this> {
-    try {
-      await loadFonts();
-      await this.toSink(() => this.sink.frame(this, 0));
-      await this.construct();
-      await this.endCurrentStep();
-    } catch (e) {
-      if (!(e instanceof StopScene)) throw e;
-    }
-    return this;
+    return withTextContext(this.constructor, async () => {
+      try {
+        await loadFonts();
+        await this.toSink(() => this.sink.frame(this, 0));
+        await this.construct();
+        await this.endCurrentStep();
+      } catch (e) { if (!(e instanceof StopScene)) throw e; }
+      return this;
+    });
   }
 
   /**
@@ -221,6 +236,10 @@ export class Scene {
    */
   async step(name: string, meta: StepMeta = {}): Promise<Step> {
     if (typeof meta === 'function') throw new TypeError('step(name, fn) is gone: call `await this.step(name)` where the step begins');
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError('step metadata must be an object');
+    for (const key of ['title', 'line', 'caption'] as const)
+      if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`step ${name}: ${key} must be a string`);
+    if (meta.detail !== undefined && typeof meta.detail !== 'boolean') throw new TypeError(`step ${name}: detail must be boolean`);
     this.throwIfStopped();
     await this.endCurrentStep();
     const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta, evidence: [] };
@@ -273,14 +292,14 @@ export class Scene {
    * mutate it as the animation makes the same change on screen.
    * State is JSON: that is what traces serve and tests hash.
    */
-  describe(): SceneState {
-    const state = JSON.parse(JSON.stringify(this.state)) as SceneState;
+  describe(): JsonObject {
+    const state = jsonObject(this.state, 'scene.state');
     for (const { describer } of this.describers) {
       const extra: unknown = describer();
       if (!extra || typeof extra !== 'object' || Array.isArray(extra))
         throw new TypeError('A describer must return a JSON object');
       // Define own keys, so a key such as "__proto__" is copied, not used as a prototype.
-      for (const [k, value] of Object.entries(JSON.parse(JSON.stringify(extra)) as SceneState))
+      for (const [k, value] of Object.entries(jsonObject(extra, 'scene describer')))
         Object.defineProperty(state, k, { value, enumerable: true, writable: true, configurable: true });
     }
     return state;
@@ -295,8 +314,11 @@ export class Scene {
    * is: it lets a test check the picture against an outside oracle. Copied
    * as JSON when recorded.
    */
-  record(kind: string, data: Record<string, unknown> = {}): void {
-    const e = JSON.parse(JSON.stringify({ kind, ...data })) as Evidence;
+  record(kind: string, data: Record<string, unknown> & {kind?: never} = {}): void {
+    if (typeof kind !== 'string' || !kind.trim()) throw new TypeError('Evidence kind must be a nonempty string');
+    const payload = jsonObject(data, 'scene evidence');
+    if (Object.hasOwn(payload, 'kind')) throw new TypeError('Evidence data must not override kind');
+    const e: Evidence = {kind, ...payload};
     this.evidence.push(e);
     this.current?.evidence?.push(e);
   }

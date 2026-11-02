@@ -45,7 +45,7 @@ function fixture(): DiagramSnapshot {
     { width: 800, palette: { paper: PAPER, ink: INK, accent: ACCENT, muted: '#aaaaaa' } },
   );
 }
-const bound = (S: typeof Scene) => bindSnapshots(S, { [diagramKey(spec)]: fixture() });
+const bound = (S: import('../src/index.ts').SceneClass) => bindSnapshots(S, { [diagramKey(spec)]: fixture() });
 
 test('the heading follows step titles; a fixed or absent heading is still possible', async () => {
   const seen: string[] = [];

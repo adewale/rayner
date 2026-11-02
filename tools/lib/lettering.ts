@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
 import { bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
-import type { LetteringCut, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
+import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
 import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
@@ -110,7 +110,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
   // Default faces and the core shaper are inputs too: requested runs may contain
   // glyphs from the existing fallback chain, and Text determines the strings
   // handed to the shaper (for example after tab expansion).
-  const builderHash = hash((await Promise.all(['src/lettering-outlines.ts', 'src/math.ts', 'src/italic.ts', 'src/font-data.ts', 'src/fonts.ts', 'src/text.ts', 'tools/lib/lettering.ts', 'tools/lib/lettering-validation.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'vendor/glyph.js', 'vendor/glyph-math.js'].map((name) => readFile(join(root, name), 'utf8')))).join('\n'));
+  const builderHash = hash((await Promise.all(['src/text-context.ts', 'src/lettering-outlines.ts', 'src/math.ts', 'src/italic.ts', 'src/font-data.ts', 'src/fonts.ts', 'src/text.ts', 'tools/lib/lettering.ts', 'tools/lib/lettering-validation.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'vendor/glyph.js', 'vendor/glyph-math.js'].map((name) => readFile(join(root, name), 'utf8')))).join('\n'));
   const path = file.replace(/\.[^.]+$/, '') + '.lettering.json';
   if (!capture) {
     const raw: unknown = await readFile(path, 'utf8').then(JSON.parse).catch((e: NodeJS.ErrnoException) => {
@@ -329,7 +329,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
  * on one line, so the file stays small and a recapture's diff names the runs
  * that changed.
  */
-function snapshotFile(snapshot: LetteringSnapshot): string {
+function snapshotFile(snapshot: StoredLetteringSnapshot): string {
   const lines = (entries: [string, unknown][]) => entries.map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)}`).join(',\n');
   const body = Object.entries(snapshot).filter(([, value]) => value !== undefined).map(([key, value]) => {
     if (key === 'runs') return `  "runs": {\n${lines(Object.entries(value as object))}\n  }`;
@@ -355,7 +355,7 @@ export async function letteringWeight(snapshot: LetteringSnapshot) {
  * only the build draws (offPage), hashes and licences stay in the snapshot; the
  * licences go to the page's licence block, once each.
  */
-export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<LetteringSnapshot> {
+export async function pageSnapshot(snapshot: LetteringSnapshot): Promise<PackedLetteringSnapshot> {
   const used = new Set<string>();
   const faces = new Proxy(snapshot.faces, {
     get(target, key) {

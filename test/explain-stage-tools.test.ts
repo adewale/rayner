@@ -10,7 +10,7 @@ import { oneStrokeEach } from '../explain/annotate.ts';
 import { restingTextProblems } from '../tools/lib/explain-check.ts';
 
 /** Run a scene, collecting its motion failures and a probe's readings after each frame. */
-async function run<T>(S: typeof Scene, probe: (scene: Scene) => T) {
+async function run<T>(S: import('../src/index.ts').SceneClass, probe: (scene: Scene) => T) {
   const motion = new MotionSink(),
     seen: T[] = [];
   const scene = new S({

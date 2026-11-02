@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "focus-visible",
+      "settings": {
+        "level": "AA",
+        "guideline": "2.4"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "c2_4_7"
+        }
+      ]
+    },
+    {
+      "step": "focus-visible",
+      "settings": {
+        "level": "AAA",
+        "guideline": "2.4"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "c2_4_7"
+        }
+      ]
+    },
+    {
+      "step": "reader-focus",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "No visible focus"
+        },
+        {
+          "text": "Visible focus on Pay"
+        },
+        {
+          "text": "Cancel"
+        },
+        {
+          "text": "Pay"
+        }
+      ]
+    },
+    {
+      "step": "reader-levels",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "A"
+        },
+        {
+          "text": "AA"
+        },
+        {
+          "text": "AAA"
+        },
+        {
+          "text": "A + AA"
+        },
+        {
+          "text": "A + AA + AAA"
+        }
+      ]
+    }
+  ]
+}

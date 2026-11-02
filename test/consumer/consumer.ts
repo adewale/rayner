@@ -4,11 +4,14 @@
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, RIGHT, TEAL, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
 import type { AnimOpts, TextOpts } from 'rayner';
+import {jsonObject} from 'rayner';
+const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
+void serializedState;
 import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';
 import type { Hunk, TransformDiffOpts, Evidence, StepRecord, ColorSpan, CodeSpan, RenderOptions, Step } from 'rayner';
-import { Frame, StateReadout, View, ViewSync, stateView, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
+import { Frame, StateReadout, View, ViewSync, stateView, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
 import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
 import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
@@ -117,3 +120,32 @@ export async function authorLayout(scene: Scene): Promise<void> {
   const diagram: DiagramSpec = {source: 'graph RL\nA --> B', lettering: 'natural'};
   await s.show(diagram, {box: 'start'});
 }
+
+
+// Author and wire contracts are checked through the installed public declarations.
+function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
+  interface CounterState {count: number}
+  class Counter extends Scene<CounterState> {
+    override state = {count: 0};
+    override async construct() {
+      this.state.count++;
+      // @ts-expect-error a count cannot become prose
+      this.state.count = 'one';
+      // @ts-expect-error recognised caption fields are strings
+      await this.step('one', {caption: 123});
+    }
+  }
+  const counter = new Counter(new StringSink());
+  view(counter, state => new Text(String(state.count)));
+  // @ts-expect-error view callbacks retain their scene's state keys
+  view(counter, state => new Text(String(state.misspelled)));
+  const schedule = new AnimationGroup([]);
+  // @ts-expect-error a group schedules animations, it owns no drawable target
+  schedule.mobject;
+  const expanded = (_value: import('rayner').LetteringSnapshot) => {};
+  // @ts-expect-error packed glyph references are not expanded outline paths
+  expanded(packed);
+  return Counter;
+}
+
+import { view } from 'rayner';

@@ -193,7 +193,7 @@ const radar = (text: string): DiagramSnapshot => {
   assert.ok(s, `no pinned radar with ${text}`);
   return s;
 };
-async function shown(s: DiagramSnapshot, Kind: typeof Scene = Scene, build: 'all' | 'frame' = 'all') {
+async function shown(s: DiagramSnapshot, Kind: import('../src/index.ts').SceneClass = Scene, build: 'all' | 'frame' = 'all') {
   const d = new Diagram(new Kind(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
   await d.build(build);
   return d;

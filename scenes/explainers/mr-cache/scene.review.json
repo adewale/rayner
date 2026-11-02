@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "after",
+      "targets": [
+        {
+          "text": "hit"
+        },
+        {
+          "text": "miss"
+        }
+      ]
+    },
+    {
+      "step": "request",
+      "opening": true,
+      "targets": [
+        {
+          "text": "hit"
+        },
+        {
+          "text": "miss"
+        },
+        {
+          "text": "0 D1 reads"
+        },
+        {
+          "text": "1 D1 read"
+        },
+        {
+          "text": "300 s"
+        }
+      ]
+    },
+    {
+      "step": "reader-request",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Request"
+        },
+        {
+          "text": "Database"
+        },
+        {
+          "text": "Response"
+        }
+      ]
+    },
+    {
+      "step": "reader-outcome",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        }
+      ]
+    }
+  ]
+}

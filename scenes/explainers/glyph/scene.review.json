@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-width",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Inter"
+        },
+        {
+          "text": "JetBrains Mono"
+        }
+      ]
+    },
+    {
+      "step": "reader-shape",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "l"
+        },
+        {
+          "text": "advance 0.218"
+        },
+        {
+          "text": "advance 0.540"
+        }
+      ]
+    }
+  ]
+}

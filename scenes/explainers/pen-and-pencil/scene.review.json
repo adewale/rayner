@@ -2,10 +2,27 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-separate",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Blue: the route the layout fixed"
+        }
+      ]
+    },
+    {
       "step": "marks",
       "targets": [
-        { "key": "construction:marks", "paint": "stroke" },
-        { "key": "construction:tally" }
+        {
+          "key": "construction:marks",
+          "paint": "stroke"
+        },
+        {
+          "key": "construction:tally"
+        }
       ]
     }
   ]

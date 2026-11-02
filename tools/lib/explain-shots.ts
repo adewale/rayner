@@ -1,3 +1,4 @@
+import {textContextOf} from '../../src/text-context.ts';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { Scene, Text, NullSink, SnapshotSink, renderAt } from '../../src/index.ts';
@@ -76,7 +77,7 @@ export async function contactSheet(
     const labelSvg = await withSceneLettering(v.Scene, async () => {
       const labelScene = new Scene(new NullSink()),
         label = new Text(`${i + 1}. ${stepWords(step).title}`, {
-          fontSize: 0.36,
+          shaping: textContextOf(v.Scene), fontSize: 0.36,
           color: '#eef3fa',
           anchor: 'start',
         });

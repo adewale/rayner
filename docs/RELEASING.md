@@ -32,7 +32,7 @@ Video export is deferred to 0.3 in [PR #36](https://github.com/adewale/rayner/pu
 
 Before using `.github/workflows/publish.yml`:
 
-1. Require the nine CI contexts on main: `check`, `catalog`, `story` and the six minimum/current compatibility checks. All must pass on the release commit.
+1. Require the nine CI contexts on main: `check`, `catalog`, `story` and the six minimum/current compatibility checks. All must run and pass on the release commit; the publishing dispatch always runs fresh CI, including when normal prose or identical-tree checks would skip work.
 2. The 0.1.0 manual publication completed package ownership bootstrap. Subsequent versions use npm trusted publishing for owner `adewale`, repository `rayner`, workflow `publish.yml`, environment `npm-publish`. Keep the npm account protected with 2FA; do not create a long-lived publishing token.
 3. The owner configured `npm-publish` with Ade as required reviewer, no admin bypass and a `v*` tag deployment policy. Self-review is allowed because Ade is the sole reviewer. Verify those settings before relying on them; naming an environment in YAML alone does not create its protections.
 

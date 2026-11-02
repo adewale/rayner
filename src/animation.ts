@@ -48,26 +48,15 @@ function lagSlots(rows: readonly FamilyRow[]): { index: Int32Array; count: numbe
   return { index, count };
 }
 
-export class Animation {
-  mobject: Mobject;
+/** Shared scheduling contract for a drawable animation or a group of animations. */
+abstract class AnimationTiming {
   runTime: number;
   rateFunc: RateFunc;
   lagRatio: number;
   remover: boolean;
-  // Set by begin()
-  starting!: Mobject;
-  families!: FamilyRow[];
-  /** Each row's place in the lagRatio stagger, and how many places there are: see lagSlots(). */
-  slots!: { index: Int32Array; count: number };
-
-  constructor(mobject: Mobject, { runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false }: AnimOpts = {}) {
-    this.mobject = mobject;
-    this.runTime = runTime;
-    this.rateFunc = rateFunc;
-    this.lagRatio = lagRatio;
-    this.remover = remover;
+  constructor({runTime = 1, rateFunc = smooth, lagRatio = 0, remover = false}: AnimOpts = {}) {
+    this.runTime = runTime; this.rateFunc = rateFunc; this.lagRatio = lagRatio; this.remover = remover;
   }
-
   setOptions({ runTime, rateFunc, lagRatio }: PlayOpts = {}): this {
     if (runTime != null) this.runTime = runTime;
     if (rateFunc != null) this.rateFunc = rateFunc;
@@ -75,8 +64,21 @@ export class Animation {
     return this;
   }
 
+  abstract begin(): void;
+  abstract interpolate(alpha: number): void;
+  abstract finish(alpha?: number): void;
+  abstract cleanUpFromScene(scene: Scene): void;
+}
+export type ScheduledAnimation = Animation | AnimationGroup;
+
+export class Animation extends AnimationTiming {
+  mobject: Mobject;
+  starting!: Mobject;
+  families!: FamilyRow[];
+  slots!: { index: Int32Array; count: number };
+  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
   /** Called when play starts. Copies live here, never in the constructor. */
-  begin(): void {
+  override begin(): void {
     this.starting = this.createStartingMobject();
     this.families = this.zipFamilies();
     this.slots = lagSlots(this.families);
@@ -98,12 +100,12 @@ export class Animation {
    * Lands on rateFunc(1): for a there-and-back rate function that is the start.
    * A group passes the alpha its own timeline lands each member on instead.
    */
-  finish(alpha: number = this.rateFunc(1)): void { this.interpolate(alpha); }
+  override finish(alpha: number = this.rateFunc(1)): void { this.interpolate(alpha); }
 
-  cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
+  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   /** alpha already passed through rateFunc by the scene. */
-  interpolate(alpha: number): void {
+  override interpolate(alpha: number): void {
     const n = this.families.length, { index, count } = this.slots;
     for (let i = 0; i < n; i++) {
       const slot = index[i]!;
@@ -385,17 +387,13 @@ export class Indicate extends Transform {
 }
 
 /** Run several animations together; lagRatio staggers their start times. */
-export class AnimationGroup extends Animation {
-  animations: Animation[];
+export class AnimationGroup extends AnimationTiming {
+  animations: ScheduledAnimation[];
   timings!: Array<[start: number, end: number]>;
   maxEnd!: number;
 
-  constructor(animations: Animation[], { lagRatio = 0, rateFunc = linear, ...opts }: AnimOpts = {}) {
-    // A group drives no mobject of its own, its members do: `mobject` stays null at
-    // runtime, and every base method that would read it is overridden below.
-    // Its rate function maps the group's own timeline, on top of each member's; it is
-    // linear by default (as in manim), so a group of one plays exactly like its member.
-    super(null as unknown as Mobject, { lagRatio, rateFunc, ...opts });
+  constructor(animations: ScheduledAnimation[], { lagRatio = 0, rateFunc = linear, ...opts }: AnimOpts = {}) {
+    super({ lagRatio, rateFunc, ...opts });
     this.animations = animations;
     this.layOut();
     this.ownRunTime = opts.runTime != null;
@@ -448,20 +446,20 @@ export class AnimationGroup extends Animation {
 }
 
 export class LaggedStart extends AnimationGroup {
-  constructor(animations: Animation[], opts: AnimOpts = {}) { super(animations, { lagRatio: 0.2, ...opts }); }
+  constructor(animations: ScheduledAnimation[], opts: AnimOpts = {}) { super(animations, { lagRatio: 0.2, ...opts }); }
 }
 
 /** What play() accepts: an animation, or a `mobject.animate` builder. */
-export type Playable = Animation | AnimateBuilderBase;
+export type Playable = ScheduledAnimation | AnimateBuilderBase;
 
 function isAnimateBuilder(x: unknown): x is AnimateBuilderBase {
   return !!x && !!(x as Partial<AnimateBuilderBase>)._isAnimateBuilder;
 }
 
 /** Normalize play() arguments: builders become Transforms. */
-export function prepareAnimation(x: unknown): Animation {
+export function prepareAnimation(x: unknown): ScheduledAnimation {
   if (isAnimateBuilder(x)) return fromAnimateBuilder(x);
-  if (x instanceof Animation) return x;
+  if (x instanceof AnimationTiming) return x as ScheduledAnimation;
   throw new Error('play() expects Animations or mobject.animate builders');
 }
 
@@ -696,7 +694,7 @@ export const copiedFrom = new WeakMap<Mobject, Mobject>();
  * Succession's first member, which begins with the play) before any of them
  * begins: another animation's begin() may change the source (Create hides it).
  */
-export function takeCopies(anims: readonly Animation[]): void {
+export function takeCopies(anims: readonly ScheduledAnimation[]): void {
   for (const a of anims) {
     if (a instanceof TransformFromCopy) a.takeCopy();
     else if (a instanceof Succession) takeCopies(a.animations.slice(0, 1));
@@ -785,7 +783,7 @@ class BuiltTransform extends Transform {
 }
 
 /** Give every Succession in `anims` (nested in groups too) the scene its members will join. */
-export function bindSuccessions(anims: readonly Animation[], scene: Scene): void {
+export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
     if (!(a instanceof AnimationGroup)) continue;
     if (a instanceof Succession) a.scene = scene;
@@ -1042,7 +1040,15 @@ export class TransformMatchingText extends TransformMatching {
   constructor(mobject: Mobject, target: Mobject, opts: MatchingOpts = {}) { super(mobject, target, { ordered: true, ...opts, key: textKeyOf }); }
 
   override begin(): void {
-    super.begin();
+    const plain = this.key;
+    const texts = [...this.mobject.family(), ...this.target.family()].filter(m => 'text' in m && m.children.length > 0);
+    type ClusterText = Mobject & {clusterMatching?: boolean; clusterKey?: (cluster: number) => string | undefined};
+    if (texts.length && texts.every(m => (m as ClusterText).clusterMatching))
+      this.key = part => {
+        const cluster = (part as Mobject & {cluster?: number}).cluster;
+        return cluster == null ? plain(part) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part);
+      };
+    try { super.begin(); } finally { this.key = plain; }
     fadeInsideLines(this, true);
   }
 }
@@ -1366,7 +1372,7 @@ export class TransformDiff extends TransformMatching {
 }
 
 /** Give every matching transform in `anims` (nested in groups too) the scene it records its pairing to. */
-export function bindRecorders(anims: readonly Animation[], scene: Scene): void {
+export function bindRecorders(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
     if (a instanceof TransformMatching) a.scene = scene;
     else if (a instanceof AnimationGroup) bindRecorders(a.animations, scene);

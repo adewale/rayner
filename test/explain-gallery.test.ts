@@ -16,10 +16,10 @@ test('catalog tiles open the beginning of every lesson without changing curated 
 test('gallery entries and subset cards come from the selected catalog', async () => {
   const {galleryPage}=await import('../tools/lib/explain-gallery.ts');
   const catalog={product:{entry:{id:'other',step:'question',settings:{case:'two'},label:'Start here'}},scenes:[
-    {id:'featured',title:'Featured',lang:'en',group:'topic',tier:'showcase'},
-    {id:'other',title:'Other',lang:'en',group:'topic',tier:'gallery'},
-    {id:'recipe',title:'Recipe',lang:'en',group:'toolchain',tier:'gallery'},
-    {id:'probe',title:'Probe',lang:'en',group:'topic',tier:'coverage'},
+    {id:'featured',title:'Featured',lang:'en',group:'topic' as const,tier:'showcase' as const},
+    {id:'other',title:'Other',lang:'en',group:'topic' as const,tier:'gallery' as const},
+    {id:'recipe',title:'Recipe',lang:'en',group:'toolchain' as const,tier:'gallery' as const},
+    {id:'probe',title:'Probe',lang:'en',group:'topic' as const,tier:'coverage' as const},
   ]};
   const full=galleryPage(catalog,'');
   assert.ok(full.includes('other.html?case=two&amp;step=question'));

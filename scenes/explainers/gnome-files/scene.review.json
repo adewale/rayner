@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "reader-task",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        }
+      ]
+    },
+    {
+      "step": "reader-sample",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "P1"
+        },
+        {
+          "text": "P2"
+        },
+        {
+          "text": "P3"
+        },
+        {
+          "text": "P4"
+        },
+        {
+          "text": "P5"
+        },
+        {
+          "text": "P6"
+        }
+      ]
+    }
+  ]
+}

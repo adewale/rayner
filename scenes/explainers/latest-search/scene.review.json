@@ -2,27 +2,169 @@
   "version": 1,
   "claims": [
     {
-      "step": "overwrite",
-      "settings": { "order": "new-first" },
+      "step": "race",
       "opening": true,
-      "targets": [{ "text": "Page shows, no check" }, { "text": "“ca” lands" }, { "text": "stale" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Search"
+        },
+        {
+          "text": "Starts"
+        },
+        {
+          "text": "Answers"
+        },
+        {
+          "text": "The user wants “cat”"
+        }
+      ]
     },
     {
-      "step": "reader-ticket",
-      "settings": { "order": "new-first" },
+      "step": "overwrite",
       "opening": true,
-      "targets": [{ "text": "“ca”: ticket 1" }, { "text": "latest = 2" }, { "text": "Drop “ca”" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "After"
+        },
+        {
+          "text": "Page shows, no check"
+        }
+      ]
+    },
+    {
+      "step": "tickets",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "latest = 2"
+        },
+        {
+          "text": "const ticket = ++latest"
+        }
+      ]
     },
     {
       "step": "reader-first",
-      "settings": { "order": "old-first" },
       "opening": true,
-      "targets": [{ "text": "“ca”: ticket 1" }, { "text": "latest = 2" }, { "text": "Drop “ca”" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "latest = 2"
+        }
+      ]
+    },
+    {
+      "step": "reader-ticket",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "latest = 2"
+        }
+      ]
     },
     {
       "step": "reader-guard",
       "opening": true,
-      "targets": [{ "text": "No guard" }, { "text": "Guard on" }, { "text": "“ca”" }, { "text": "“cat”" }]
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "After"
+        },
+        {
+          "text": "No guard"
+        },
+        {
+          "text": "Guard on"
+        }
+      ]
+    },
+    {
+      "step": "overwrite",
+      "settings": {
+        "order": "new-first"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "text": "Page shows, no check"
+        },
+        {
+          "text": "“ca” lands"
+        },
+        {
+          "text": "stale"
+        }
+      ]
+    },
+    {
+      "step": "reader-ticket",
+      "settings": {
+        "order": "new-first"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "text": "“ca”: ticket 1"
+        },
+        {
+          "text": "latest = 2"
+        },
+        {
+          "text": "Drop “ca”"
+        }
+      ]
+    },
+    {
+      "step": "reader-first",
+      "settings": {
+        "order": "old-first"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "text": "“ca”: ticket 1"
+        },
+        {
+          "text": "latest = 2"
+        },
+        {
+          "text": "Drop “ca”"
+        }
+      ]
+    },
+    {
+      "step": "reader-guard",
+      "opening": true,
+      "targets": [
+        {
+          "text": "No guard"
+        },
+        {
+          "text": "Guard on"
+        },
+        {
+          "text": "“ca”"
+        },
+        {
+          "text": "“cat”"
+        }
+      ]
     }
   ]
 }

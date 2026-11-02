@@ -10,7 +10,7 @@ import {collectProject} from '../tools/lib/explain-project.ts';
 import type {Project} from '../tools/lib/explain-project.ts';
 import {buildExplainer, buildLoader} from '../tools/lib/explain-build.ts';
 import {serve} from '../tools/lib/explain-serve.ts';
-import {reviewStoryVariant, STORY_CLAIMS} from '../tools/lib/explain-story-review.ts';
+import {reviewStoryVariant} from '../tools/lib/explain-story-review.ts';
 import {reviewClaims} from '../tools/lib/explain-review-scene.ts';
 
 const names = ['mr-cache', 'token-bucket', 'oauth-pkce', 'font-metrics', 'melody-rhythm', 'periodic-groups'];
@@ -44,7 +44,7 @@ test('WebKit checks served paint for every case of the cache, rate, PKCE, reques
     let cases = 0;
     const reviews = [];
     for (const [name, project] of projects) {
-      const claims = await reviewClaims(project, undefined, STORY_CLAIMS[name]);
+      const claims = await reviewClaims(project);
       for (const variant of project.variants) {
         reviews.push({id: name, settings: variant.values, steps: await reviewStoryVariant(page, `${server!.url}/${name}.html`, variant, claims)});
         cases++;

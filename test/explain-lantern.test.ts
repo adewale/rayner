@@ -44,7 +44,7 @@ class TimeOnly extends Scene {
 }
 
 /** Every frame of a full run, by frame number, as SVG. */
-async function played(S: typeof Scene): Promise<string[]> {
+async function played(S: import('../src/index.ts').SceneClass): Promise<string[]> {
   const frames: string[] = [];
   await new S({ async frame(s: Scene) { frames[s.frameCount] = toSvgString(s); } }).run();
   return frames;

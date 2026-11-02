@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "series",
+      "targets": [
+        {
+          "text": "Mon 2 Nov, 09:00"
+        },
+        {
+          "text": "Mon 9 Nov, 09:00"
+        },
+        {
+          "text": "Mon 7 Dec, 09:00"
+        }
+      ]
+    },
+    {
+      "step": "copy",
+      "settings": {
+        "copy": "guest",
+        "change": "skip"
+      },
+      "targets": [
+        {
+          "text": "Mon 16 Nov, 09:00, cancelled"
+        },
+        {
+          "text": "STATUS:CANCELLED"
+        }
+      ]
+    }
+  ]
+}

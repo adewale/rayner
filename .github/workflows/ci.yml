@@ -8,13 +8,41 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          check-latest: true
+          cache: npm
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/ci-scope.ts
+      - if: steps.scope.outputs.prose == 'true'
+        run: |
+          npm ci
+          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts
+
   check:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04  # the pinned image the embed tests were validated on
     timeout-minutes: 60  # full suite, browser gates and installed capture; catalog/story run separately
     steps:
@@ -40,11 +68,10 @@ jobs:
       - name: Check lettering capture and playback
         run: EXPLAIN_LETTERING=1 EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test --test-reporter=spec test/diagram-natural-lettering.test.ts test/lettering-cache.test.ts test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts
       - run: npm run check          # tsc -b over every project (emits dist/); compile a TS consumer against it
-      - run: FULL=1 node tools/ci-tests.ts --expose-gc --test test/*.test.ts # full properties, independent oracles and raster boundaries
+      - run: FULL=1 node tools/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts # full properties, independent oracles and raster boundaries
       # Product gates reuse this job and its Chromium installation; no scheduled lane.
       - run: |
           node tools/ci-tests.ts "$(command -v npm)" run test:embeds
-          EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test --test-name-pattern='Chromium expands' test/page-snapshots.test.ts
       - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check  # retain the exact tested archive
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -55,6 +82,8 @@ jobs:
           overwrite: true  # a re-run of a failed job uploads again under the same name
 
   catalog:
+    needs: scope
+    if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60  # full scene/composite checks and embed heights exceeded 45 minutes locally
     steps:
@@ -70,7 +99,6 @@ jobs:
       - run: npm ci
       - run: npx playwright-core install --with-deps --only-shell chromium
       - run: node tools/ci-tests.ts "$(command -v npm)" run demos:check
-      - run: EXPLAIN_CATALOG=1 node tools/ci-tests.ts --test test/explain-site.test.ts
       - run: node tools/ci-tests.ts "$(command -v npm)" run check:budgets
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -87,7 +115,8 @@ jobs:
           retention-days: 90
 
   story-part:
-    needs: catalog
+    needs: [scope, catalog]
+    if: needs.scope.outputs.full == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -124,35 +153,50 @@ jobs:
 
   story:
     if: always()  # a failed/missing shard must fail this required check, not skip it
-    needs: [catalog, story-part]
+    needs: [scope, catalog, story-part]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require the catalog and every story shard to pass
         env:
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          FULL: ${{ needs.scope.outputs.full }}
           CATALOG_RESULT: ${{ needs.catalog.result }}
           STORY_RESULT: ${{ needs['story-part'].result }}
-        run: test "$CATALOG_RESULT" = success && test "$STORY_RESULT" = success
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        run: |
+          test "$SCOPE_RESULT" = success
+          if test "$FULL" = true; then
+            test "$CATALOG_RESULT" = success && test "$STORY_RESULT" = success
+          else
+            test "$FULL" = false
+          fi
+      - if: needs.scope.outputs.full == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - if: needs.scope.outputs.full == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           check-latest: true
           cache: npm
-      - run: npm ci
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - if: needs.scope.outputs.full == 'true'
+        run: npm ci
+      - if: needs.scope.outputs.full == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rayner-catalog-${{ github.sha }}
           path: out/explainers/
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - if: needs.scope.outputs.full == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: rayner-story-${{ github.sha }}-*
           merge-multiple: true
           path: out/
-      - run: node tools/explain-review-merge.ts
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - if: needs.scope.outputs.full == 'true'
+        run: node tools/explain-review-merge.ts
+      - if: needs.scope.outputs.full == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rayner-story-${{ github.sha }}
           path: out/validation/browser-review.json
@@ -161,7 +205,8 @@ jobs:
           overwrite: true
 
   compatibility:
-    needs: check
+    needs: [scope, check]
+    if: needs.scope.outputs.full == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -185,9 +230,9 @@ jobs:
       # Pure engine/property assertions have one full owner above. The minimum
       # Node lane retains standard tests and installed browser smoke for API/warning drift.
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: npm run check && node tools/ci-tests.ts --expose-gc --test test/*.test.ts
+        run: npm run check && node tools/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test test/explain-cli.test.ts test/explain-review-scene.test.ts
+        run: EXPLAIN_BROWSER=1 node tools/ci-tests.ts --test test/explain-cli.test.ts test/browser/explain-review-scene.test.ts
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rayner-package-${{ github.sha }}

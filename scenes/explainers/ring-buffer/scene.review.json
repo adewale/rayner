@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "shift",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "slot 0"
+        },
+        {
+          "text": "slot 4"
+        },
+        {
+          "text": "before"
+        },
+        {
+          "text": "after pop()"
+        },
+        {
+          "text": "pop() returned 1 and moved 4 values"
+        }
+      ]
+    }
+  ]
+}

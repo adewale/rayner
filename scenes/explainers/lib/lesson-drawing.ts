@@ -1,6 +1,7 @@
-import { Scene, Group, Text, Rectangle, Circle, Line } from '../../../src/index.ts';
+import { Scene, Group, Text, Rectangle, Circle, Line, jsonObject } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage } from '../../../explain/index.ts';
+import type {StepAudio} from '../../../explain/audio.ts';
 import type { Stage } from '../../../explain/index.ts';
 
 export interface LessonFrame {
@@ -10,7 +11,7 @@ export interface LessonFrame {
   caption: string;
   state: Record<string, unknown>;
   draw: (s: Stage) => Group;
-  audio?: unknown;
+  audio?: StepAudio;
 }
 export function label(text: string | number, x: number, y: number, color: string, size = 0.6, key?: string): Text {
   const t = new Text(String(text), { fontSize: size, color }).moveTo([x, y]);
@@ -93,25 +94,24 @@ export function stat(s: Stage, title: string, value: string | number, x: number,
   g.key = key;
   return g;
 }
+export type NarrativeFrame = Omit<LessonFrame, 'state'>;
+
+/** Present the common caption, drawing, readable subjects and description sequence. */
+export async function presentFrame(scene: Scene, s: Stage, frame: NarrativeFrame, setState: () => void, reader = false) {
+  await scene.step(frame.id, {title: frame.title, line: frame.line, caption: frame.caption,
+    ...(frame.audio ? {audio: frame.audio} : {}), ...(reader ? {reader: true} : {})});
+  await s.clear({runTime: 0.18});
+  setState();
+  const drawing = frame.draw(s);
+  if (reader) drawing.key = 'reader-picture';
+  s.reading(drawing);
+  const words = drawing.family().filter((m): m is Text => m instanceof Text).map(t => t.text).filter(Boolean);
+  await s.enter(drawing, {runTime: reader ? 0.25 : 0.24, describe: words.join('. ')});
+}
+
 export async function lesson(scene: Scene, frames: readonly LessonFrame[], style = 'github-light') {
-  const s = stage(scene, { style, headingSize: 0.6 });
-  for (const frame of frames) {
-    await scene.step(frame.id, {
-      title: frame.title,
-      line: frame.line,
-      caption: frame.caption,
-      ...(frame.audio ? { audio: frame.audio } : {}),
-    });
-    await s.clear({ runTime: 0.18 });
-    scene.state = { ...JSON.parse(JSON.stringify(frame.state)), phase: frame.id };
-    const drawing = frame.draw(s);
-    s.reading(drawing);
-    // Describe actual drawn labels, not the state object or the authored caption.
-    const words = drawing
-      .family()
-      .filter((m): m is Text => m instanceof Text)
-      .map((t) => t.text)
-      .filter(Boolean);
-    await s.enter(drawing, { runTime: 0.24, describe: words.join('. ') });
-  }
+  const s = stage(scene, {style, headingSize: 0.6});
+  for (const frame of frames) await presentFrame(scene, s, frame, () => {
+    scene.state = {...jsonObject(frame.state, 'lesson state'), phase: frame.id};
+  });
 }

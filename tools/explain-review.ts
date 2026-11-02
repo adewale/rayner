@@ -4,7 +4,9 @@ import { readerChrome } from './lib/explain-reader-shell.ts';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { buildInputs } from './lib/build-inputs.ts';
 import { spawnSync, execFileSync } from 'node:child_process';
 import type { Browser, Page } from 'playwright-core';
 import { launch } from './lib/browser.ts';
@@ -14,26 +16,30 @@ import { chromeFor } from '../app/embed-strings.ts';
 import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 import {
   reviewScope,
-  inReviewScope,
+  reviewCases,
   readStoryPlan,
   reviewCodeHash,
   validateReviewedCases,
 } from './lib/explain-review-plan.ts';
-import { reviewStoryVariant, STORY_CLAIMS } from './lib/explain-story-review.ts';
+import { reviewStoryVariant} from './lib/explain-story-review.ts';
+import { checkBuilt } from './lib/explain-site-describe.ts';
 import { reviewClaims } from './lib/explain-review-scene.ts';
 
 let server: Awaited<ReturnType<typeof serve>> | undefined;
 let browser: Browser | undefined, page: Page | undefined;
 let codeHash: string | undefined;
-const scope = reviewScope(process.argv.slice(2));
+const { values } = parseArgs({ options: { shard: { type: 'string' }, from: { type: 'string' } } });
+const scope = reviewScope(values.shard ? ['--shard', values.shard] : []);
+const built = resolve(values.from ?? join(ROOT, 'out/explainers'));
+const inputs = await buildInputs(ROOT);
 const suffix = scope.total === 1 ? '' : `shard-${scope.part}-of-${scope.total}`;
 const receipt = join(ROOT, 'out/validation', `browser-review${suffix ? '-' + suffix : ''}.json`);
 const review = join(ROOT, 'out/review', suffix);
 try {
   await rm(receipt, { force: true });
   await rm(review, { recursive: true, force: true });
-  codeHash = await reviewCodeHash(ROOT);
-  server = await serve(join(ROOT, 'out'), 0, 'explainers/');
+  codeHash = await reviewCodeHash(ROOT, inputs.hash);
+  server = await serve(built, 0, 'index.html');
   const base = server.url;
   browser = await launch();
   page = await browser.newPage({ viewport: { width: 1180, height: 980 } });
@@ -50,29 +56,30 @@ try {
     return route.abort();
   });
   await mkdir(review, { recursive: true });
-  await page.goto(base + '/explainers/');
-  await page.evaluate(async () => {
-    const images = [...document.images];
-    for (const image of images) image.loading = 'eager';
-    await Promise.all(images.map((image) => image.decode()));
-  });
-  await page.screenshot({ path: join(review, 'gallery.png'), fullPage: true, animations: 'disabled' });
-  const plan = await readStoryPlan(join(ROOT, 'out/explainers'));
-  const planned = plan.cases.filter((_, i) => inReviewScope(i, scope));
+  if (scope.part === 1) {
+    await page.goto(base + '/');
+    await page.evaluate(async () => {
+      for (const image of document.images) image.loading = 'eager';
+      await Promise.all([...document.images].map(image => image.decode()));
+    });
+    await page.screenshot({ path: join(review, 'gallery.png'), fullPage: true, animations: 'disabled' });
+  }
+  const plan = await readStoryPlan(built, values.from ? undefined : EXPLAINERS.map(entry => entry.id));
+  assert.deepEqual(plan.scenes, EXPLAINERS.filter(entry => plan.scenes.includes(entry.id)).map(entry => entry.id), 'built scenes must match the source inventory order');
+  const planned = reviewCases(plan.cases, scope);
   assert.ok(planned.length, 'story shard selects no cases');
-  let ordinal = 0;
+  const selectedScenes = new Set(planned.map(c => c.scene));
   const cases = [];
-  for (const entry of EXPLAINERS) {
+  for (const entry of EXPLAINERS.filter(entry => selectedScenes.has(entry.id))) {
     const project = await collectProject(join(ROOT, 'scenes/explainers', entry.id), { write: false });
-    const claims = await reviewClaims(project, undefined, STORY_CLAIMS[entry.id]);
+    const claims = await reviewClaims(project);
     assert.deepEqual(
-      JSON.parse(await readFile(join(ROOT, 'out/explainers', entry.id, 'inputs.json'), 'utf8')),
-      await sceneInputs(project),
+      JSON.parse(await readFile(join(built, entry.id, 'inputs.json'), 'utf8')),
+      await sceneInputs(project, inputs.hash),
       `${entry.id}: rebuild stale collection output before reviewing`,
     );
     let selected = 0;
     for (const [index, variant] of project.variants.entries()) {
-      if (!inReviewScope(ordinal++, scope)) continue;
       selected++;
       const directory = join(review, 'story', entry.id, String(index));
       await mkdir(directory, { recursive: true });
@@ -80,7 +87,7 @@ try {
       const teaching = variant.trace.steps.some(s => s.meta.detail !== true) ? variant.trace.steps.filter(s => s.meta.detail !== true) : variant.trace.steps;
       const steps = await reviewStoryVariant(
         page,
-        `${base}/explainers/${entry.id}.html`,
+        `${base}/${entry.id}.html`,
         variant,
         claims,
         directory,
@@ -95,39 +102,47 @@ try {
   }
 
   validateReviewedCases(cases, planned);
-  const headers = await fetch(base + '/explainers/exgit.html', { method: 'HEAD' });
-  assert.match(headers.headers.get('content-security-policy') ?? '', /connect-src 'none'/);
-  assert.equal(headers.headers.get('x-frame-options'), null);
+  // One shard owns the shared gallery, headers, host and publication boundary.
+  if (scope.part === 1) {
+    const headers = await fetch(base + '/' + planned[0]!.scene + '.html', { method: 'HEAD' });
+    assert.match(headers.headers.get('content-security-policy') ?? '', /connect-src 'none'/);
+    assert.equal(headers.headers.get('x-frame-options'), null);
 
-  await page.goto(base + '/explainers/embed-lab.html');
-  await page.waitForFunction(() => document.querySelectorAll('iframe').length === 2);
-  const mainFrame = page.mainFrame();
-  for (const frame of page.frames().filter((frame) => frame !== mainFrame))
-    await frame.waitForSelector('[data-ready=true]');
-  await page.waitForFunction(() =>
-    [...document.querySelectorAll('iframe')].every((frame) => {
-      const root = frame.contentDocument?.querySelector('#content');
-      return root && Math.abs(frame.clientHeight - Math.ceil(root.getBoundingClientRect().height)) <= 1;
-    }),
-  );
-  await page.screenshot({ path: join(review, 'embed-lab.png'), fullPage: true, animations: 'disabled' });
-  // Link previews: site:export --origin checks every explainer page and share page for its Open
-  // Graph and Twitter card tags, with absolute https URLs and pictures at the declared size.
-  const site = await mkdtemp(join(tmpdir(), 'rayner-site-'));
-  try {
-    const exported = spawnSync(
-      process.execPath,
-      [join(ROOT, 'tools/explain-site.ts'), site, '--origin', 'https://example.org'],
-      { encoding: 'utf8' },
-    );
-    assert.equal(exported.status, 0, `site:export --origin failed:\n${exported.stderr.slice(-4000)}`);
-    console.log(exported.stdout.split('\n').find((line) => line.includes('Twitter card')));
-  } finally {
-    await rm(site, { recursive: true, force: true });
+    if (plan.scenes.length === EXPLAINERS.length) {
+      await page.goto(base + '/embed-lab.html');
+      await page.waitForFunction(() => document.querySelectorAll('iframe').length === 2);
+      const mainFrame = page.mainFrame();
+      for (const frame of page.frames().filter((frame) => frame !== mainFrame))
+        await frame.waitForSelector('[data-ready=true]');
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll('iframe')].every((frame) => {
+          const root = frame.contentDocument?.querySelector('#content');
+          return root && Math.abs(frame.clientHeight - Math.ceil(root.getBoundingClientRect().height)) <= 1;
+        }),
+      );
+      await page.screenshot({ path: join(review, 'embed-lab.png'), fullPage: true, animations: 'disabled' });
+    }
+    // Link previews: site:export --origin checks every explainer page and share page for its Open
+    // Graph and Twitter card tags, with absolute https URLs and pictures at the declared size.
+    const site = await mkdtemp(join(tmpdir(), 'rayner-site-'));
+    try {
+      const exported = spawnSync(
+        process.execPath,
+        [join(ROOT, 'tools/explain-site.ts'), site, '--origin', 'https://example.org', '--from', built],
+        { encoding: 'utf8' },
+      );
+      assert.equal(exported.status, 0, `site:export --origin failed:\n${exported.stderr.slice(-4000)}`);
+      console.log(exported.stdout.split('\n').find((line) => line.includes('Twitter card')));
+    } finally {
+      await rm(site, { recursive: true, force: true });
+    }
   }
   assert.deepEqual(errors, []);
   assert.deepEqual(connections, []);
-  assert.equal(await reviewCodeHash(ROOT), codeHash, 'review implementation or caption claims changed during review');
+  const after = await buildInputs(ROOT);
+  assert.equal(after.hash, inputs.hash, 'build inputs changed during review');
+  assert.equal(await reviewCodeHash(ROOT, after.hash), codeHash, 'review implementation or caption claims changed during review');
+  for (const id of selectedScenes) await checkBuilt(join(built, id), join(ROOT, 'scenes/explainers', id), after.hash);
   await mkdir(join(ROOT, 'out/validation'), { recursive: true });
   await writeFile(
     receipt,
@@ -135,6 +150,7 @@ try {
       {
         sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: ROOT, encoding: 'utf8'}).trim(),
         scope,
+        collectionChecks: scope.part === 1,
         catalogHash: plan.catalogHash,
         reviewCodeHash: codeHash,
         cases: cases.length,
@@ -148,7 +164,7 @@ try {
     ) + '\n',
   );
   console.log(
-    `${cases.length} served cases, every resting step at both widths, passed caption, actual paint, story-target, no-error and no-external-connection checks. Response headers, link preview tags and the two-embed host page passed. Screenshots: ${review}`,
+    `${cases.length} served cases, every resting step at both widths, passed caption, actual paint, story-target, no-error and no-external-connection checks. Shared collection checks run once in shard 1. Screenshots: ${review}`,
   );
 } catch (error) {
   await mkdir(review, { recursive: true });

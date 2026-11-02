@@ -126,7 +126,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .words>.tools{margin:8px 0 0;padding:10px 0 0;border:0;border-top:1px solid var(--line);justify-content:flex-start}.words>.tools .try{margin-inline-end:auto}
 @media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.button.try{font-size:.9375rem}.stepper .button,.tools .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
 /* The scene's check questions after its last step: each question in view, its answer behind a disclosure. */
-.checks{margin:10px 0 2px;padding:12px 14px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px)}
+.checks{margin:10px 0 2px;padding:12px 14px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);overflow-wrap:anywhere}
 .checks[hidden]{display:none}
 .checks h2{margin:0;font-size:1.0625rem}
 .checks .hint{margin:2px 0 6px;font-size:.875rem;color:var(--muted)}

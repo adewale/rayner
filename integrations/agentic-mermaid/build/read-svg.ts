@@ -1,3 +1,4 @@
+import type {TextShaping} from '../../../src/text-context.ts';
 // Build-only SVG lowering. Chromium resolves CSS variables, colour-mix and transforms;
 // svgpath normalizes curves. Runtime snapshots contain only Lantern cubic points.
 import svgpath from 'svgpath';
@@ -25,7 +26,7 @@ interface RawShape {
   style: Style;
 }
 
-export async function readSvg(page: Page, svg: string, natural = false): Promise<Map<number, SnapshotShape[]>> {
+export async function readSvg(page: Page, svg: string, natural = false, shaping?: TextShaping): Promise<Map<number, SnapshotShape[]>> {
   await loadFonts();
   await page.setContent(svg);
   const raw = await page.evaluate((natural) => {
@@ -225,11 +226,11 @@ export async function readSvg(page: Page, svg: string, natural = false): Promise
         } : {}),
       };
       if (natural) {
-        const advance = importedText(run).advance();
+        const advance = importedText(run, undefined, shaping).advance();
         if (run.width === undefined || Math.abs(run.width - advance) > 0.02)
           throw new Error(`Natural diagram metrics do not match the rendered label ${JSON.stringify(run.text)}; this family or font style is not supported`);
       }
-      const outlined = outlineText(run, r.style);
+      const outlined = outlineText(run, r.style, shaping);
       if (outlined.some((p) => p.subpaths.some((a) => !a.every(Number.isFinite))))
         throw new Error(`Non-finite imported text: ${r.text}`);
       const [a, b, c, d] = r.matrix as [number, number, number, number];

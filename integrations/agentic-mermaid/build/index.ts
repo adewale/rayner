@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { SANS, MONO, FALLBACK } from '../../../src/font-data.ts';
 import { loadFonts } from '../../../src/fonts.ts';
+import type {TextShaping} from '../../../src/text-context.ts';
 import { importedFont, importedText } from '../text.ts';
 import type { AnyMutationOp } from 'agentic-mermaid/agent';
 import { mutate, serializeMermaid, verifyMermaid, WARNING_SEVERITY } from 'agentic-mermaid/agent';
@@ -28,7 +29,7 @@ import type {
 // not emit a separate dist/integrations/.../build module.
 const policyRoot = new URL(import.meta.url.endsWith('.js') ? '../../' : '../../../', import.meta.url);
 const metricPolicy = createHash('sha256').update((await Promise.all([
-  'src/text.ts', 'src/fonts.ts', 'src/lettering.ts', 'src/lettering-outlines.ts', 'src/italic.ts', 'vendor/glyph.js',
+  'src/text.ts', 'src/text-context.ts', 'src/fonts.ts', 'src/lettering.ts', 'src/lettering-outlines.ts', 'src/italic.ts', 'vendor/glyph.js',
   'integrations/agentic-mermaid/text.ts',
   'integrations/agentic-mermaid/build/index.ts',
   'integrations/agentic-mermaid/build/capture.ts',
@@ -69,7 +70,7 @@ function chartOf(spec: DiagramSpec): { chart?: ChartData } {
   };
 }
 
-export interface NaturalMeasurementOptions { measurementHash?: string; styles?: readonly string[] }
+export interface NaturalMeasurementOptions { shaping?: TextShaping; measurementHash?: string; styles?: readonly string[] }
 export function naturalMeasurementIdentity({ measurementHash, styles = [] }: NaturalMeasurementOptions = {}) {
   // Include the capture policy as well as actual face bytes in the host identity.
   const metrics = createHash('sha256').update(JSON.stringify([
@@ -97,7 +98,7 @@ export async function snapshotBuilder(
       return importedText({ text: input.text, size: input.fontSize,
         font: importedFont(input.fontFamily, input.monospace),
         ...(bold ? { weight: 'bold' } : {}), ...(italic ? { italic: true } : {}),
-      }).advance();
+      }, undefined, options.shaping).advance();
     },
   };
   const browser = await launch();
@@ -138,7 +139,7 @@ export async function snapshotBuilder(
         } : verified;
         if (!findings.ok) throw new Error(`Diagram verification failed: ${JSON.stringify(findings)}`);
         const r = capture(spec, spec.lettering === 'natural' ? textMeasurement : undefined);
-        const lowered = await readSvg(page, r.marked, spec.lettering === 'natural');
+        const lowered = await readSvg(page, r.marked, spec.lettering === 'natural', options.shaping);
         const parts: SnapshotPart[] = r.parts.map(({ node }, i) => {
           const connector = (n: SceneNode): Extract<SceneNode, { kind: 'connector' }> | undefined =>
             n.kind === 'connector'

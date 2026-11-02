@@ -42,6 +42,9 @@ export function emphasis(p: Palette): string {
  * row, code lines, a mark's colour, a note's words), so moving a focus bar is new emphasis.
  */
 export type Emphasis = readonly (readonly [Mobject, string])[];
+/** Composites report their own current parts; copies inherit the method, not a closure over the original. */
+export const emphasisSource = Symbol('emphasisSource');
+interface EmphasisSource { [emphasisSource](): Emphasis }
 const emphasisers = new WeakMap<Scene, Set<() => Emphasis>>();
 /**
  * Register what a helper emphasises, read from its own state whenever asked: a lit card row's
@@ -58,8 +61,18 @@ export function emphasises(scene: Scene, now: () => Emphasis): void {
 /** Everything the scene's helpers emphasise now, each object with what it shows. */
 export function emphasisOf(scene: Scene): Map<Mobject, string> {
   const out = new Map<Mobject, string>();
+  const add = (items: Emphasis) => {
+    for (const [m, what] of items) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
+  };
   for (const now of emphasisers.get(scene) ?? [])
-    for (const [m, what] of now()) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
+    add(now());
+  const visited = new Set<Mobject>();
+  for (const member of scene.familyMembers())
+    for (let owner: Mobject | null = member; owner && !visited.has(owner); owner = owner.parent) {
+      visited.add(owner);
+      const source = owner as Mobject & Partial<EmphasisSource>;
+      if (source[emphasisSource]) add(source[emphasisSource]());
+    }
   return out;
 }
 

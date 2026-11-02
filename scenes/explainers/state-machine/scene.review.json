@@ -2,22 +2,85 @@
   "version": 1,
   "claims": [
     {
+      "step": "reader-path",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "idle"
+        },
+        {
+          "text": "connecting"
+        },
+        {
+          "text": "CONNECT"
+        }
+      ]
+    },
+    {
+      "step": "reader-reject",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "InvalidTransition"
+        },
+        {
+          "text": "State stays closed"
+        }
+      ]
+    },
+    {
       "step": "terminal",
       "targets": [
-        { "key": "reducer:idle:CONNECT" },
-        { "key": "reducer:connecting:OPENED" },
-        { "key": "reducer:connecting:ERROR" },
-        { "key": "reducer:open:CLOSE" },
-        { "key": "reducer:throw" },
-        { "key": "reducer:throw-box", "paint": "stroke" },
-        { "key": "closed" },
-        { "key": "session:ring:closed", "paint": "stroke" },
-        { "text": "State" },
-        { "key": "session:state" },
-        { "text": "Event" },
-        { "key": "session:event" },
-        { "text": "Returns" },
-        { "key": "session:returns" }
+        {
+          "key": "reducer:idle:CONNECT"
+        },
+        {
+          "key": "reducer:connecting:OPENED"
+        },
+        {
+          "key": "reducer:connecting:ERROR"
+        },
+        {
+          "key": "reducer:open:CLOSE"
+        },
+        {
+          "key": "reducer:throw"
+        },
+        {
+          "key": "reducer:throw-box",
+          "paint": "stroke"
+        },
+        {
+          "key": "closed"
+        },
+        {
+          "key": "session:ring:closed",
+          "paint": "stroke"
+        },
+        {
+          "text": "State"
+        },
+        {
+          "key": "session:state"
+        },
+        {
+          "text": "Event"
+        },
+        {
+          "key": "session:event"
+        },
+        {
+          "text": "Returns"
+        },
+        {
+          "key": "session:returns"
+        }
       ]
     }
   ]

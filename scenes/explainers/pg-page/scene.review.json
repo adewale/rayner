@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "swap",
+      "settings": {
+        "column": "int4"
+      },
+      "targets": [
+        {
+          "text": "int4: 32-byte tuple"
+        },
+        {
+          "text": "int8: 32-byte tuple"
+        },
+        {
+          "text": "padding here"
+        },
+        {
+          "text": "int8’s value here"
+        }
+      ]
+    }
+  ]
+}

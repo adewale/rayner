@@ -162,7 +162,7 @@ test('withSettings binds per class, visible from any constructor, without touchi
       const Bound = withSettings(Source, values);
       class Reader extends Bound {
         seen = settingsOf(this);
-        constructor(...args: ConstructorParameters<typeof Scene>) {
+        constructor(...args: ConstructorParameters<import('../src/index.ts').SceneClass>) {
           super(...args);
           early = settingsOf(this);
         }

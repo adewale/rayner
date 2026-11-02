@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "cases",
+      "opening": true,
+      "targets": [
+        {
+          "key": "fork-cases"
+        },
+        {
+          "text": "Local"
+        },
+        {
+          "text": "Cluster"
+        },
+        {
+          "text": "case 1"
+        },
+        {
+          "text": "case 6"
+        }
+      ]
+    }
+  ]
+}

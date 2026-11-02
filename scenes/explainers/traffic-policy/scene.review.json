@@ -2,6 +2,45 @@
   "version": 1,
   "claims": [
     {
+      "step": "shares",
+      "settings": {
+        "policy": "local",
+        "pods": "3-1-0"
+      },
+      "targets": [
+        {
+          "text": "Pod d"
+        },
+        {
+          "text": "50%"
+        },
+        {
+          "text": "Pod a"
+        }
+      ]
+    },
+    {
+      "step": "local-path",
+      "settings": {
+        "policy": "local"
+      },
+      "targets": [
+        {
+          "key": "service:k1"
+        },
+        {
+          "key": "service:a"
+        },
+        {
+          "key": "edge:k1->a#0",
+          "paint": "stroke"
+        },
+        {
+          "text": "from 198.51.100.79"
+        }
+      ]
+    },
+    {
       "step": "compare",
       "targets": [
         {

@@ -39,7 +39,10 @@ let loading: Promise<Record<FontName, Shaper>> | null = null;
 
 /** Shaped runs kept per face: far more than one scene uses, so seeks never reshape. */
 const SHAPE_MEMO_MAX = 8192;
-let shapers: Record<FontName, Shaper> | null = null;
+let shapers: Readonly<Record<FontName, Shaper>> | null = null;
+let compatibilityShapers: Readonly<Record<FontName, Shaper>> | undefined;
+/** Legacy useLettering() selection; the decoded embedded table stays immutable. */
+export function setDefaultShapers(value: Readonly<Record<FontName, Shaper>> | undefined) { compatibilityShapers = value; }
 
 /** Characters no face in the chain can draw (glyph 0), by the string that held them. */
 const missing = new Map<string, string>();
@@ -64,13 +67,15 @@ function undrawable(text: string, r: Run): string {
  * Decode the embedded fonts (once; concurrent callers share one decode).
  * Scene.run() calls this, so scenes never need to.
  */
-export function loadFonts(): Promise<Record<FontName, Shaper>> {
-  loading ??= buildShapers().then((s) => (shapers = s));
+export function loadFonts(): Promise<Readonly<Record<FontName, Shaper>>> {
+  loading ??= buildShapers().then((s) => (shapers = Object.freeze(s)));
   return loading;
 }
 
 /** The shaper for 'sans' or 'mono'. Throws if fonts haven't been loaded. */
-export function shaperFor(font: FontName): Shaper {
+export function shaperFor(font: FontName): Shaper { return compatibilityShapers?.[font] ?? embeddedShaperFor(font); }
+
+export function embeddedShaperFor(font: FontName): Shaper {
   if (!shapers) throw new Error('Fonts are not loaded: await loadFonts() first (Scene.run() does this for scenes)');
   switch (font) {
     case 'sans': return shapers.sans;

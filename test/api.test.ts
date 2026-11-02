@@ -23,7 +23,7 @@ const EXPECTED = [
   // vocabulary
   'ORIGIN', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'UL', 'UR', 'DL', 'DR', 'add', 'sub', 'mul', 'dot', 'norm', 'normalize', 'lerp', 'rotate', 'angleOf',
   'WHITE', 'BLACK', 'GREY', 'GREY_D', 'BLUE', 'BLUE_D', 'TEAL', 'GREEN', 'YELLOW', 'GOLD', 'RED', 'MAROON', 'PURPLE', 'ORANGE',
-  'loadFonts', 'shaperFor', 'takeMissingGlyphs',
+  'loadFonts', 'shaperFor', 'takeMissingGlyphs', 'jsonObject',
   // output
   'toSvgString', 'renderElements', 'StringSink', 'SnapshotSink', 'DomSink', 'renderText',
   // time
