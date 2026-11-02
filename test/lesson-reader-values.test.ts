@@ -200,22 +200,35 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
   assert.equal(checked, 4);
 });
 
-test('the default ext4 reserve comparison actually changes reserve and preserves the metadata allocation', async () => {
-  const { frames } = await import('../scenes/explainers/lib/readers/ext4-space.ts');
-  const [allocation, comparison] = frames('1t', 5);
-  assert.ok(allocation && comparison);
-  const s = stage(new Scene(new NullSink()));
-  const picture = comparison.draw(s);
-  const words = picture
-    .family()
-    .filter((m): m is Text => m instanceof Text)
-    .map((m) => m.text);
-  assert.ok(words.includes('Users at 5% reserve'));
-  assert.ok(words.includes('Users at 1% reserve'));
-  const fills = picture.family().filter((m): m is Rectangle => m instanceof Rectangle && m.style.stroke === 'none');
-  assert.equal(fills.length, 2);
-  assert.ok(fills[1]!.width() > fills[0]!.width(), 'lower reserve must visibly increase writable space');
-  assert.equal(comparison.values.metadata, 4495258, 'metadata matches the existing 1 TiB mkfs reference vector');
+test('the ext4 reserve comparison actually changes reserve and preserves the metadata allocation', async () => {
+  const { space, SIZES } = await import('../scenes/explainers/lib/ext4-space.ts');
+  const p = await collectProject('scenes/explainers/ext4-space', { write: false });
+  // The 1 TiB disk formatted with -m 1, against the default -m 5 the story walks first.
+  const v = p.variants.find((x) => x.values.size === '1t' && x.values.reserve === '1');
+  assert.ok(v);
+  const fiveUsers = space(SIZES['1t'].bytes, 5).users;
+  let checked = 0;
+  await new v.Scene(
+    {
+      async frame() {},
+      async stepEnd(scene, step) {
+        if (step.name !== 'chosen') return;
+        const chosen = scene.state.chosen as { users: number; pie: { label: string; value: number }[] };
+        assert.ok(chosen.users > fiveUsers, 'lower reserve must increase writable space');
+        assert.equal(chosen.pie.find((x) => x.label === 'Metadata')!.value, 4495258, 'metadata matches the existing 1 TiB mkfs reference vector');
+        assert.ok(chosen.pie.find((x) => x.label === 'Users can write')!.value > fiveUsers);
+        const words = scene
+          .familyMembers()
+          .filter((m): m is Text => m instanceof Text)
+          .map((m) => m.text);
+        assert.ok(words.includes('Root, 1%'));
+        assert.ok(words.some((w) => w.includes('Users can write (97.3%)')) || words.includes('97.3%'), words.join(' | '));
+        checked++;
+      },
+    },
+    { skipUntil: Infinity },
+  ).run();
+  assert.equal(checked, 1);
 });
 
 test('traffic comparisons draw each source pod share without attributing the ingress source IP to its destination', async () => {
