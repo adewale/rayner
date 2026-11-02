@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/periodic-groups.ts';
 import {
   Scene,
   Group,
@@ -114,6 +112,17 @@ const samePlace: MatchKey = (part: Mobject) => {
     : `${(b[2] - b[0]).toFixed(2)}x${(b[3] - b[1]).toFixed(2)}@${at}`;
 };
 
+/** The script's one-sentence answer (meta.answer), which the blocks step states. */
+const ANSWER = 'An element’s group is the column where its last electron lands, in rows of 2 s, 10 d and 6 p columns';
+
+/** A jump down a column as the row it adds: 8 = 2 + 6, from the subshell capacities. */
+function rowSum(jump: number): string {
+  const rows: Block[][] = [['s'], ['s', 'p'], ['s', 'd', 'p'], ['s', 'f', 'd', 'p']];
+  const row = rows.find((r) => r.reduce((sum, b) => sum + CAPACITY[b], 0) === jump);
+  if (!row) throw new Error(`A jump of ${jump} is not one row`);
+  return `${jump} = ${row.map((b) => CAPACITY[b]).join(' + ')}`;
+}
+
 /** One family member, as the family step writes it. */
 interface Member {
   symbol: Symbol;
@@ -134,6 +143,26 @@ export default class PeriodicGroupsExplainer extends Scene {
       'https://en.wikipedia.org/w/index.php?title=Group_(periodic_table)&oldid=1381612279',
       'https://physics.nist.gov/PhysRefData/ASD/ionEnergy.html',
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/periodic-groups.ts',
+    ],
+    // The script's answer and check questions (script.md); the blocks step states the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'Group 1’s atomic numbers jump by 2, 8, 8, 18, 18 and 32. Where does 18 come from?',
+        answer: `One full row of the table: ${CAPACITY.s} s + ${CAPACITY.d} d + ${CAPACITY.p} p columns. Moving one place down a column adds a whole row of elements; rows with f electrons add ${CAPACITY.f} more, which makes 32.`,
+      },
+      {
+        question: 'Chlorine has 7 electrons past neon’s core. Why is it in group 17, not group 7?',
+        answer: 'Its last electron is the fifth in 3p, and the p block starts after the 10 d columns that open in row 4. Rows 2 and 3 have no d electrons, but their p elements still sit over the heavier ones: 2 + 10 + 5 = 17.',
+      },
+      {
+        question: 'The filling rule predicts 4s² 3d⁹ for copper; NIST lists 3d¹⁰ 4s¹. Which group does each put it in?',
+        answer: 'Group 11 either way: both hold 11 electrons past argon’s core, and the count does not care which subshell holds them.',
+      },
+      {
+        question: 'Helium’s 1s² ends like beryllium’s 2s². Why does the table put helium over neon instead?',
+        answer: 'Its two electrons fill the first shell, which has no p subshell, so helium is full, like neon at 2s² 2p⁶. By its count alone it would sit over beryllium in group 2.',
+      },
     ],
   };
   static settings = [
@@ -457,7 +486,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       if (note === 'blocks') {
         const why: Record<Choice, string[]> = {
           na: ['3s¹ lands in the s block:', 'its first column.'],
-          cl: ['3s² 3p⁵ counts 7, then the', '10 d columns: 7 + 10 = 17.'],
+          cl: ['3p⁵ lands in the 5th p column,', 'after the 10 d: 2 + 10 + 5 = 17.'],
           fe: ['4s² 3d⁶: 2 s columns', 'then the 6th d column: 8.'],
           cu: ['4s² 3d⁹: 2 s columns', 'then the 9th d column: 11.'],
           he: ['1s holds only 2: helium is', 'full, as neon is at 2s² 2p⁶.'],
@@ -604,18 +633,18 @@ export default class PeriodicGroupsExplainer extends Scene {
     const base = { element: symbol, z, group };
     const apply = (next: SceneState) => new Apply(this, next);
 
-    // ---- 1. the column ------------------------------------------------------------
+    // ---- 1. the column: a puzzle to predict ------------------------------------------
     const others = members.filter((m) => m.z !== z);
-    await readerFirst(this, s, readerFrames(symbol));
+    const distinct = [...new Set(jumps)].sort((a, b) => a - b);
     await this.step('column', {
       title: `What puts ${name} in group ${group}?`,
-      line: 'The jumps between neighbours in the column are uneven.',
+      line: `Predict: what makes the jumps down the column ${list(distinct.map(String))}?`,
       caption: (
         {
-          na: `Sodium is element 11. Its group runs from hydrogen (1) to francium (87), with gaps of ${list(jumps.map(String))}. Those changing gaps rule out a fixed interval between neighbours; electron configurations explain the shared column.`,
-          cl: `Chlorine, element 17, shares group 17 with ${list(others.map((m) => nameOf(m.symbol)))}, with jumps of ${list(jumps.map(String))}. That chlorine’s atomic number equals its group number is a coincidence: bromine, 35, is in group 17 too.`,
-          fe: `Iron, element 26, shares group 8 with ${list(others.map((m) => nameOf(m.symbol)))}, with jumps of ${list(jumps.map(String))}. Nothing in those numbers says 8; counting iron’s electrons does.`,
-          cu: `Copper, element 29, shares group 11 with ${list(others.map((m) => nameOf(m.symbol)))}, with jumps of ${list(jumps.map(String))}. Nothing in those numbers says 11; counting copper’s electrons does.`,
+          na: `Sodium is element 11, in the column that runs from hydrogen (1) to francium (87). The jumps between neighbours are ${list(jumps.map(String))}: no fixed step, yet every member sits in group 1. Something other than the atomic number puts them there.`,
+          cl: `Chlorine, element 17, shares group 17 with ${list(others.map((m) => nameOf(m.symbol)))}. That its atomic number equals its group number is a coincidence: bromine, 35, is in group 17 too, and the jumps down the column are ${list(jumps.map(String))}.`,
+          fe: `Iron, element 26, shares group 8 with ${list(others.map((m) => nameOf(m.symbol)))}, elements ${list(others.map((m) => String(m.z)))}. Nothing in those numbers says 8, and the jumps between them, ${list(jumps.map(String))}, are not a fixed step.`,
+          cu: `Copper, element 29, shares group 11 with ${list(others.map((m) => nameOf(m.symbol)))}, elements ${list(others.map((m) => String(m.z)))}. Nothing in those numbers says 11, and the jumps between them, ${list(jumps.map(String))}, are not a fixed step.`,
           he: `Helium, element 2, heads the last column, above ${list(others.map((m) => nameOf(m.symbol)))}; the jumps are ${list(jumps.map(String))}. Helium has two electrons, yet it is not in group 2.`,
         } satisfies Record<Choice, string>
       )[choice],
@@ -635,7 +664,6 @@ export default class PeriodicGroupsExplainer extends Scene {
 
     // ---- 2. fill the cells in order -----------------------------------------------
     await this.step('fill', {
-      detail: true,
       title: `Cells 1 to ${z}, read in order, are ${name}’s electrons`,
       line: `${configText(filling)}: one cell per electron.`,
       caption: (
@@ -660,7 +688,33 @@ export default class PeriodicGroupsExplainer extends Scene {
       this.state = { ...base, note: 'fill', band: true, lit: z, filling: configText(filling) };
     }
 
-    // ---- 3. count past the core ------------------------------------------------------
+    // ---- 3. the blocks: the answer ----------------------------------------------------
+    await this.step('blocks', {
+      title: 'Answer: the column where its last electron lands',
+      line: 'The 18 columns are 2 for s, 10 for d and 6 for p.',
+      caption: (
+        {
+          na: `${ANSWER}. Each block is as wide as its subshell holds; the f block’s 14 columns sit below, unnumbered. Sodium’s last electron is the first in 3s, so it lands in the first s column: group 1.`,
+          cl: `${ANSWER}. Chlorine’s last electron is the fifth in 3p. Rows 2 and 3 have no d subshell, but the p block still starts after the 10 d columns that open in row 4, so the fifth p column is 2 + 10 + 5 = 17.`,
+          fe: `${ANSWER}. Iron’s last electron is the sixth in 3d, after 4s²: past the 2 s columns, the sixth d column is 2 + 6 = 8.`,
+          cu: `${ANSWER}. By the filling rule copper’s last electron is the ninth in 3d, after 4s²: past the 2 s columns, the ninth d column is 2 + 9 = 11.`,
+          he: `${ANSWER}, for every element but helium. Its last electron is the second in 1s, column 2 by that rule; but 1s² completes the first shell, as 2s² 2p⁶ completes neon’s second, and the table puts helium with the full shells.`,
+        } satisfies Record<Choice, string>
+      )[choice],
+    });
+    this.state = {
+      ...base,
+      note: 'blocks',
+      band: true,
+      lit: z,
+      core,
+      blocks: true,
+      capacity: CAPACITY,
+      block: here.block,
+    };
+    await this.play(both(0.9));
+
+    // ---- 4. count past the core ------------------------------------------------------
     await this.step('count', {
       title: (
         {
@@ -674,10 +728,10 @@ export default class PeriodicGroupsExplainer extends Scene {
       line: core ? `${coreSymbol} closes the row above; count from there.` : 'No noble gas comes before helium.',
       caption: (
         {
-          na: 'Neon closes the row above, and its 10 electrons form sodium’s core, leaving one 3s electron. IUPAC’s numbering is based on the s, p and d electrons beyond the preceding noble gas: sodium has 1, and sits in group 1.',
-          cl: 'Chlorine carries neon’s core plus seven: 3s² 3p⁵. Counting from sodium gives 1 and 2, then aluminium counts 3 in group 13, and every count after it is 10 short of its column. The count gives chlorine 7, not 17.',
+          na: 'The same answer as a count: neon closes the row above, and its 10 electrons form sodium’s core, leaving one 3s electron. IUPAC numbers groups by the s, p and d electrons past the preceding noble gas: sodium has 1, and sits in group 1.',
+          cl: 'Chlorine carries neon’s core plus seven: 3s² 3p⁵. Counting from sodium gives 1 and 2, then aluminium counts 3 in group 13, and every count after it in rows 2 and 3 is 10 short of its column: the 10 d columns those rows lack.',
           fe: 'Iron carries argon’s 18-electron core plus 4s² 3d⁶. Two s and six d electrons make 8, and from potassium to iron each count matches its group number.',
-          cu: 'The filling rule predicts 4s² 3d⁹, but NIST lists copper’s ground state as 3d¹⁰ 4s¹, one electron moved from 4s to 3d. Both arrangements hold 11 electrons beyond argon’s core, so copper is in group 11 either way.',
+          cu: 'NIST lists copper’s ground state as 3d¹⁰ 4s¹, not the filling rule’s 4s² 3d⁹: one electron moved from 4s to 3d. Both arrangements hold 11 electrons beyond argon’s core, so copper is in group 11 either way.',
           he: 'With no noble gas before it, both of helium’s electrons count. A count of 2 would put helium in group 2, in the dashed cell over beryllium; the table puts it in group 18, over neon.',
         } satisfies Record<Choice, string>
       )[choice],
@@ -703,36 +757,8 @@ export default class PeriodicGroupsExplainer extends Scene {
       this.state = { ...counting, badges: z - core };
     }
 
-    // ---- 4. the blocks --------------------------------------------------------------
-    await this.step('blocks', {
-      detail: true,
-      title: 'The 18 columns are 2 for s, 10 for d, 6 for p',
-      line: 'Each block is as wide as its subshell holds.',
-      caption: (
-        {
-          na: 'The blocks are subshells laid side by side: s holds 2 electrons, d holds 10 and p holds 6, so 2 + 10 + 6 = 18 numbered columns. The f block’s 14 columns sit below, unnumbered. Sodium’s last electron is in s, the first column.',
-          cl: 'From row 4 down, the 10 d columns fill before p, so bromine counts 2 + 10 + 5 = 17. Chlorine has the same s² p⁵ pattern, but no filled d subshell beneath it, so it sits 10 columns past its count of 7, over bromine.',
-          fe: 'The blocks are subshells laid side by side: 2 columns for s, 10 for d and 6 for p. Iron’s 4s² takes the two s columns and its 3d⁶ reaches the sixth d column: 2 + 6 = 8.',
-          cu: 'The blocks are subshells laid side by side: 2 columns for s, 10 for d and 6 for p. By the filling rule, copper’s 4s² takes the s columns and 3d⁹ reaches the ninth d column: 2 + 9 = 11, as NIST’s 3d¹⁰ 4s¹ also gives.',
-          he: 'Each block is as wide as its subshell holds: 2, 10 and 6 make 18 columns. The first shell has only 1s, so helium’s 1s² completes it, as neon’s 2s² 2p⁶ completes the second shell. The table groups helium with the other full shells.',
-        } satisfies Record<Choice, string>
-      )[choice],
-    });
-    this.state = {
-      ...base,
-      note: 'blocks',
-      band: true,
-      lit: z,
-      core,
-      blocks: true,
-      capacity: CAPACITY,
-      block: here.block,
-    };
-    await this.play(both(0.9));
-
-    // ---- 5. the family ----------------------------------------------------------------
+    // ---- 5. the family: the jumps, explained --------------------------------------------
     await this.step('family', {
-      detail: true,
       title: (
         {
           na: 'Every group 1 element ends in one s electron',
@@ -742,16 +768,18 @@ export default class PeriodicGroupsExplainer extends Scene {
           he: 'Every noble gas ends with its outer shell full',
         } satisfies Record<Choice, string>
       )[choice],
-      line: 'Each core is the noble gas one row up.',
-      caption: (
-        {
-          na: 'Lithium to francium each carry the previous noble gas as a core plus one s electron. Each jump in atomic number is the row added to that core: 8 from lithium to sodium, 32 from caesium to francium. Hydrogen’s 1s¹ ends the same way.',
-          cl: 'Each halogen ends in s² p⁵. From bromine down, a full d¹⁰ sits beneath that ending and the count reaches 17; fluorine and chlorine count 7 and take the same column. Tennessine is outside our NIST reference.',
-          fe: 'NIST lists ruthenium as 4d⁷ 5s¹ rather than iron’s d⁶ s² pattern, yet 7 + 1 is still 8. Osmium and hassium carry 4f¹⁴ and 5f¹⁴, which the count leaves out. The column follows the count of 8 rather than one exact ending.',
-          cu: 'NIST lists silver and gold with the same d¹⁰ s¹ ending as copper. Gold also carries 4f¹⁴, which the count leaves out because f electrons have their own 14 unnumbered columns. Roentgenium is outside our NIST reference.',
-          he: 'From neon down, each noble gas ends in s² p⁶, a full outer s and p. Helium’s 1s² is shorter because the first shell has no p subshell, and it is still full. Neon and argon count 8 and shift 10 columns; krypton onward counts 18.',
-        } satisfies Record<Choice, string>
-      )[choice],
+      line: `Each jump is a row: ${distinct.map(rowSum).join(', ')}.`,
+      caption: `${
+        (
+          {
+            na: 'Lithium to francium each carry the previous noble gas as a core plus one s electron. Hydrogen’s 1s¹ ends the same way.',
+            cl: 'Each halogen ends in s² p⁵. From bromine down, a full d¹⁰ sits beneath that ending and the count reaches 17; fluorine and chlorine count 7 and take the same column. Tennessine is outside our NIST reference.',
+            fe: 'NIST lists ruthenium as 4d⁷ 5s¹ rather than iron’s d⁶ s² pattern, yet 7 + 1 is still 8. Osmium and hassium carry 4f¹⁴ and 5f¹⁴, which the count leaves out.',
+            cu: 'NIST lists silver and gold with the same d¹⁰ s¹ ending as copper. Gold also carries 4f¹⁴, which the count leaves out because f electrons have their own 14 unnumbered columns. Roentgenium is outside our NIST reference.',
+            he: 'From neon down, each noble gas ends in s² p⁶, a full outer s and p. Helium’s 1s² is shorter because the first shell has no p subshell, and it is still full. Neon and argon count 8 and shift 10 columns; krypton onward counts 18.',
+          } satisfies Record<Choice, string>
+        )[choice]
+      } The opening’s jumps are whole rows: one place down a column is one full row further on, and a row holds as many elements as its blocks are wide.`,
     });
     this.state = {
       ...base,

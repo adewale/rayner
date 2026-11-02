@@ -290,7 +290,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
   'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
   'pg-page': ['reader-row', 'reader-page'],
-  'periodic-groups': ['reader-electrons', 'reader-filling'],
 };
 // These labels name the comparison’s roles independently of its drawing group.
 // Hiding a role cannot be excused by the group’s remaining border or background.

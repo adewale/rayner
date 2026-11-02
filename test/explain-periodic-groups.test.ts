@@ -174,7 +174,7 @@ test('reader descriptions match core shading and complete block fills in every p
       family: { '#133e7c': 1, '#856912': 6 } },
   ];
   const allBlocks = { '#133e7c': 14, '#856912': 36, '#9e1c2c': 40, '#0f0f0f': 28 };
-  const phases = ['column', 'fill', 'count', 'blocks', 'family', 'names', 'limit'];
+  const phases = ['column', 'fill', 'blocks', 'count', 'family', 'names', 'limit'];
   let checked = 0;
   for (const expected of cases) {
     const Source = withSettings(PeriodicGroupsExplainer, { element: expected.element });
