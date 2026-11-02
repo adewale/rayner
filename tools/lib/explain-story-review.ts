@@ -282,7 +282,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
   '2password': ['reader-boundary', 'reader-auth'],
-  lantern: ['reader-object', 'reader-outputs'],
   'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
   'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
   'pg-page': ['reader-row', 'reader-page'],
@@ -352,7 +351,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-boundary': ['Agent', 'op CLI', 'Application'],
     'reader-auth': ['Agent', 'op CLI', 'Application', 'Service token', 'Resolved key'],
   },
-  lantern: { 'reader-object': ['0 s', '0.5 s', '1 s'], 'reader-outputs': ['Scene', 'Fixed clock', 'Sink'] },
   'latest-search': {
     'reader-order': ['A then B', 'Latest intent: B'],
     'reader-first': ['Latest 2'], 'reader-ticket': ['Latest 2'],
