@@ -111,3 +111,17 @@ test("site:export refuses an explainer's built files when demos:build has not ru
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('llms.txt leaves out coverage-tier explainers', async () => {
+  const { llmsTxt } = await import('../tools/lib/explain-site-describe.ts');
+  const d = (title: string) => ({ title, settings: [], cases: [{ values: {}, steps: [{ caption: `${title} opens here.` }] }] }) as unknown as Parameters<typeof llmsTxt>[0][number]['d'];
+  const llms = llmsTxt(
+    [
+      { item: { id: 'shown', group: 'topic', tier: 'gallery' }, d: d('Shown') },
+      { item: { id: 'probe', group: 'topic', tier: 'coverage' }, d: d('Probe') },
+    ],
+    '',
+  );
+  assert.match(llms, /\[Shown\]\(\/shown\)/);
+  assert.ok(!llms.includes('probe'), 'a coverage scene is not listed');
+});

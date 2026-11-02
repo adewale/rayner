@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { player, coffee, initial, send, run, events, flatten, flatName, activeStates, RUNS } from '../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from '../tools/oracle/statecharts.ts';
 import type { Expected, Explored } from '../tools/oracle/statecharts.ts';
 
@@ -39,6 +39,22 @@ test('XState finds the boxed flat player behaves exactly like the flat player, a
   const flatCoffee = named(xstate.charts.coffee!);
   assert.equal(flatCoffee.length, 9);
   assert.deepEqual(flatCoffee.filter((t) => t.includes(' POWER_OFF ')), ['brewing POWER_OFF off', 'grinding POWER_OFF off', 'idle POWER_OFF off', 'ready POWER_OFF off']);
+});
+
+test('in every configuration XState reaches, a region is in at most one state, so playing and paused never hold together', () => {
+  for (const [name, x] of Object.entries(xstate.charts))
+    for (const config of x.configurations)
+      for (const c of CONTROLS) assert.ok(config.filter((s) => c.states.includes(s)).length <= 1, `${name}: ${flatName(config)} in region ${c.region}`);
+  // While on, the player is in one playback and one volume state.
+  for (const config of xstate.charts.player!.configurations.filter((c) => !c.includes('off')))
+    for (const c of CONTROLS.slice(0, 2)) assert.equal(config.filter((s) => c.states.includes(s)).length, 1, flatName(config));
+});
+
+test('each on/off feature adds a region of two states to the statechart, and doubles the flat machine', () => {
+  for (let n = 1; n < CONTROLS.length; n++) {
+    assert.equal(chartCounts(player(n + 1)).states - chartCounts(player(n)).states, 2, `${n + 1} features: the new region's two states`);
+    assert.equal(flatCounts(flatten(player(n + 1))).states - 1, 2 * (flatCounts(flatten(player(n))).states - 1), `${n + 1} features: combinations double`);
+  }
 });
 
 test('an event the current state does not handle is taken by its parent, leaving everything inside', () => {

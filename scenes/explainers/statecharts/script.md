@@ -14,11 +14,11 @@ Nothing new becomes possible: flatten any statechart and you get an ordinary sta
 
 **Sentence to remember:** a statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.
 
-**Check questions**, in `meta.checks`, asked after the last step:
+**Check questions**, in `meta.checks`, asked after the last step. Each asks about this explainer's own machines, so a reader who already knows statecharts can't answer from memory:
 
-1. Four states all have the same EXIT arrow. What would a statechart do?
-2. Why do two independent on/off features need four flat states but only two regions?
-3. Can a statechart do anything a state machine can't?
+1. The four-state coffee machine gets a power button. How many transitions does its flat machine end up with, and how many does the statechart need? (9 and 6)
+2. Give the player a third on/off feature. How many flat states does it need, not counting off, and how many states does the statechart gain? (8, and two)
+3. After the milk frother is added, how big is the coffee machine as a flat machine, and as a statechart? (9 states and 25 transitions; 8 and 8)
 
 **Transfer:** the last two steps ask the reader to place a milk frother in the coffee machine, then show it as a region.
 

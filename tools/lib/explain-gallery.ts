@@ -13,9 +13,9 @@ interface GalleryCatalog {
     entry: { id: string; step?: string; settings?: Record<string, string>; label?: string };
     [key: string]: unknown;
   };
-  scenes: { id: string; title?: string; lang?: string; group?: unknown; showcase?: unknown }[];
+  scenes: { id: string; title?: string; lang?: string; group?: unknown; tier?: unknown }[];
 }
-/** Full collections lead with the showcase; an explicit subset shows its selected cards. */
+/** Full collections lead with the showcase tier and list the gallery tier behind "More"; coverage scenes get no card. An explicit subset shows its selected cards. */
 export function galleryPage(catalog: GalleryCatalog, tokens: string, collection = true): string {
   const { product, scenes } = catalog,
     entry = product.entry;
@@ -23,17 +23,17 @@ export function galleryPage(catalog: GalleryCatalog, tokens: string, collection 
   const tile = (item: GalleryCatalog['scenes'][number], lead = false) =>
     galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en' }, lead);
   const featured = collection
-    ? scenes.filter((scene) => scene.showcase === true || scene.id === entry.id)
+    ? scenes.filter((scene) => scene.tier === 'showcase' || scene.id === entry.id)
     : scenes;
   const topics = [
     ...featured.filter((scene) => scene.id === entry.id),
     ...featured.filter((scene) => scene.id !== entry.id),
   ];
   const library = collection
-    ? scenes.filter((scene) => scene.group === 'topic' && !featured.includes(scene))
+    ? scenes.filter((scene) => scene.group === 'topic' && scene.tier === 'gallery' && !featured.includes(scene))
     : [];
   const toolchain = collection
-    ? scenes.filter((scene) => scene.group === 'toolchain' && !featured.includes(scene))
+    ? scenes.filter((scene) => scene.group === 'toolchain' && scene.tier === 'gallery' && !featured.includes(scene))
     : [];
   const query = new URLSearchParams({ ...entry.settings, ...(entry.step ? { step: entry.step } : {}) });
   const entryUrl = entry.id + '.html' + (query.size ? '?' + query : '');

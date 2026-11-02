@@ -527,6 +527,15 @@ function tracePicture(s: Stage, f: Fit): Drawn {
 }
 const TRACE: Box = [-6.4, -3.4, 6.2, 2.7];
 
+/** The counts the check questions ask about, from the model. */
+const COUNTS = {
+  coffeeFlat: flatCounts(flatten(coffee())),
+  coffeeChart: chartCounts(coffee()),
+  threeFeatures: flatCounts(flatten(player(3))).states - 1,
+  frotherFlat: flatCounts(flatten(coffeeWithFrother())),
+  frotherChart: chartCounts(coffeeWithFrother()),
+};
+
 export default class Statecharts extends Scene {
   static meta = {
     id: 'statecharts',
@@ -540,18 +549,19 @@ export default class Statecharts extends Scene {
     watch: { current: 'Current states' },
     // The script's answer and check questions (script.md); check holds a step (parent) to stating the answer.
     answer: 'A statechart is a state machine whose states can contain other states',
+    // Questions about this explainer's machines, which a reader who already knows statecharts can't answer from memory.
     checks: [
       {
-        question: 'Four states all have the same EXIT arrow. What would a statechart do?',
-        answer: 'Put the four in one parent box and draw EXIT once, on the box. None of the four handles EXIT, so the event goes to their parent, which does.',
+        question: 'The four-state coffee machine gets a power button. How many transitions does its flat machine end up with, and how many does the statechart need?',
+        answer: `${COUNTS.coffeeFlat.transitions} flat, because each of the four states needs its own POWER_OFF; ${COUNTS.coffeeChart.transitions} in the statechart, where one POWER_OFF on the box on covers all four.`,
       },
       {
-        question: 'Why do two independent on/off features need four flat states but only two regions?',
-        answer: 'A flat state must name both features at once, so it needs one per combination: 2 × 2 = 4. Regions give each feature its own small machine, so they add instead of multiply.',
+        question: 'Give the player a third on/off feature. How many flat states does it need, not counting off, and how many states does the statechart gain?',
+        answer: `${COUNTS.threeFeatures} flat states, one per combination, since each feature doubles them; the statechart gains just two, the new feature’s own region of two states.`,
       },
       {
-        question: 'Can a statechart do anything a state machine can’t?',
-        answer: 'No. Flatten any statechart and you get an ordinary state machine with the same behaviour. What changes is the size of the drawing.',
+        question: 'After the milk frother is added, how big is the coffee machine as a flat machine, and as a statechart?',
+        answer: `Flat: ${COUNTS.frotherFlat.states} states and ${COUNTS.frotherFlat.transitions} transitions. Statechart: ${COUNTS.frotherChart.states} states and ${COUNTS.frotherChart.transitions} transitions, with the frother as a second region inside on.`,
       },
     ],
   };

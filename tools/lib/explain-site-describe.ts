@@ -13,6 +13,8 @@ import type { Project } from './explain-project.ts';
 export interface SiteItem {
   id: string;
   group: 'topic' | 'toolchain';
+  /** A coverage-tier explainer keeps its page and JSON but is not listed (scenes/explainers/catalog.ts). */
+  tier?: 'showcase' | 'gallery' | 'coverage';
 }
 
 const TITLE = '# Rayner explainers';
@@ -60,7 +62,7 @@ export function llmsTxt(entries: { item: SiteItem; d: ExplainerDescription }[], 
   const sections = (Object.keys(GROUPS) as SiteItem['group'][])
     .map((group) => {
       const lines = entries
-        .filter((e) => e.item.group === group)
+        .filter((e) => e.item.group === group && e.item.tier !== 'coverage')
         .map(({ item: { id }, d }) => `- [${linkText(d.title)}](${base}/${id}): ${summaryOf(d)} JSON: [${id}.json](${base}/${id}.json)`);
       return lines.length ? `## ${GROUPS[group]}\n\n${lines.join('\n')}\n` : '';
     })

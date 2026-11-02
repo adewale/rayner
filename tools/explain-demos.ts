@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { EXPLAINERS, PRODUCT, SHOWCASE } from '../scenes/explainers/catalog.ts';
+import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 import { collectProject, defaultVariant, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
 import { describeProject } from './lib/explain-site-describe.ts';
 import { restingTime, htmlEscape, pictureSummary, stepWords } from '../explain/trace.ts';
@@ -172,7 +172,7 @@ const catalog = {
       lang: data.lang,
       cases: data.cases.length,
       entry: data.entry,
-      showcase: SHOWCASE.some((id) => id === item.id),
+      showcase: item.tier === 'showcase',
     };
   }),
 };
