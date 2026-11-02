@@ -6,8 +6,8 @@ A third report, that removing a state's last transition leaves the state declare
 
 | Draft | Verdict |
 | --- | --- |
-| [1. `make_composite` fails after `remove_transition`](1-make-composite-after-remove.md) | Bug. Reproduces on 0.5.1 and 0.5.5. |
-| [2. No edit adds a concurrency region](2-no-edit-adds-region.md) | Missing edit. Reproduces on 0.5.1 and 0.5.5. |
+| [1. `make_composite` fails after `remove_transition`](1-make-composite-after-remove.md) | Bug. Reproduces on 0.5.1, 0.5.5 and 0.5.6. |
+| [2. No edit adds a concurrency region](2-no-edit-adds-region.md) | Missing edit. Reproduces on 0.5.1, 0.5.5 and 0.5.6. |
 
 For each draft, the target diagrams were checked in Mermaid 12.2.0 (in Chromium) and in Pele 1.13.0, the renderer behind pele.run (its npm package, not the website): both render them, and agentic-mermaid 0.5.5 parses and verifies them. The failures are in agentic-mermaid's edit layer, not in the diagrams.
 

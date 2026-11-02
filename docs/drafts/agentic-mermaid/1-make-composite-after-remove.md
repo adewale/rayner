@@ -1,6 +1,6 @@
 # `make_composite` fails after `remove_transition` in the same edit list
 
-**Versions:** agentic-mermaid 0.5.1 and 0.5.5 (latest), Node 24.
+**Versions:** agentic-mermaid 0.5.1, 0.5.5 and 0.5.6 (latest), Node 24.
 
 ## Reproduction
 
@@ -27,7 +27,7 @@ stateDiagram-v2
 
 ## Evidence that the target is valid
 
-- The same two edits in the other order (`make_composite`, then `remove_transition`) succeed on both versions and produce exactly the source above.
+- The same two edits in the other order (`make_composite`, then `remove_transition`) succeed on all three versions and produce exactly the source above.
 - That source parses and verifies in agentic-mermaid 0.5.5 (facts: `composite g; state a parent g; state b parent g; state c; edge a -> b`).
 - It renders in Mermaid 12.2.0 (labels a, b, c, g) and in Pele 1.13.0, the renderer behind pele.run (labels a, b, c, g).
 

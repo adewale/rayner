@@ -1,6 +1,6 @@
 # No edit adds a concurrency region (`--`) to a composite state
 
-**Versions:** agentic-mermaid 0.5.1 and 0.5.5 (latest). The list of state edits (`opSignatures('state')`) is identical in both.
+**Versions:** agentic-mermaid 0.5.1, 0.5.5 and 0.5.6 (latest). The list of state edits (`opSignatures('state')`) is identical in all three.
 
 ## Reproduction
 
