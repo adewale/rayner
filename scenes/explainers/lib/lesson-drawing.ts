@@ -11,8 +11,6 @@ export interface LessonFrame {
   state: Record<string, unknown>;
   draw: (s: Stage) => Group;
   audio?: unknown;
-  /** A step after the ending, outside the numbered story. */
-  detail?: boolean;
 }
 export function label(text: string | number, x: number, y: number, color: string, size = 0.6, key?: string): Text {
   const t = new Text(String(text), { fontSize: size, color }).moveTo([x, y]);
@@ -103,7 +101,6 @@ export async function lesson(scene: Scene, frames: readonly LessonFrame[], style
       line: frame.line,
       caption: frame.caption,
       ...(frame.audio ? { audio: frame.audio } : {}),
-      ...(frame.detail ? { detail: true } : {}),
     });
     await s.clear({ runTime: 0.18 });
     scene.state = { ...JSON.parse(JSON.stringify(frame.state)), phase: frame.id };

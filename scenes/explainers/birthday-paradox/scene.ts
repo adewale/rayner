@@ -1,9 +1,33 @@
-import { Scene, Group, Circle, Line, Rectangle } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
+import { Scene, Group, Circle, Line, Rectangle, Text } from '../../../src/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
 import type { LessonFrame } from '../lib/lesson-drawing.ts';
-import { lesson, label, tile, table, stat } from '../lib/lesson-drawing.ts';
+import { label, tile, table, stat } from '../lib/lesson-drawing.ts';
+
+/** lesson() from lesson-drawing, with frames that can be detail steps after the ending. */
+async function lesson(scene: Scene, frames: readonly (LessonFrame & { detail?: boolean })[]) {
+  const s = stage(scene, { style: 'github-light', headingSize: 0.6 });
+  for (const frame of frames) {
+    await scene.step(frame.id, {
+      title: frame.title,
+      line: frame.line,
+      caption: frame.caption,
+      ...(frame.detail ? { detail: true } : {}),
+    });
+    await s.clear({ runTime: 0.18 });
+    scene.state = { ...JSON.parse(JSON.stringify(frame.state)), phase: frame.id };
+    const drawing = frame.draw(s);
+    s.reading(drawing);
+    // Describe actual drawn labels, not the state object or the authored caption.
+    const words = drawing
+      .family()
+      .filter((m): m is Text => m instanceof Text)
+      .map((t) => t.text)
+      .filter(Boolean);
+    await s.enter(drawing, { runTime: 0.24, describe: words.join('. ') });
+  }
+}
 
 const pct = (p: number) => (100 * p).toFixed(1) + '%';
 const pct2 = (p: number) => (100 * p).toFixed(2) + '%';
@@ -106,7 +130,7 @@ export default class BirthdayParadox extends Scene {
       return g;
     };
     const shared = m.shared.map((d) => d.date);
-    const frames: LessonFrame[] = [
+    const frames: (LessonFrame & { detail?: boolean })[] = [
       {
         id: 'room',
         title: 'How many people make a shared birthday likely?',
