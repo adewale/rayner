@@ -130,10 +130,9 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
   'melody-rhythm': [
     { step: 'listen', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
     { step: 'pulse', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
-    { step: 'rhythm', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
-    { step: 'contour', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
-    { step: 'timing', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
     { step: 'bar', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
+    { step: 'rhythm', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
+    { step: 'timing', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }, { key: 'score-footer' }] },
     { step: 'phrase', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] },
   ],
   'oauth-pkce': [
@@ -202,11 +201,20 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
   ],
   'token-bucket': [
     {
-      step: 'reader-burst',
+      // A phone opening reads R5's 200 beside R6's 429; all six answers are checked in
+      // test/lesson-reader-values.test.ts.
+      step: 'burst',
       opening: true,
-      targets: Array.from({ length: 6 }, (_, i) => ({ key: `burst:${i}:${i < 5 ? 200 : 429}` })),
+      targets: [{ key: 'request:R5' }, { key: 'request:R6' }],
     },
     { step: 'balance', targets: [{ text: 'bucket' }, { text: 'Tokens left' }] },
+    {
+      step: 'refill',
+      opening: true,
+      targets: [{ key: 'balance:found:R7' }, { key: 'balance:found:R7:value' }],
+    },
+    // The flat run along five that min(5, …) throws away, labelled where it is.
+    { step: 'later', settings: { rate: '2' }, targets: [{ key: 'balance:cap:note' }] },
     {
       step: 'trace',
       opening: true,
@@ -267,7 +275,6 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
 // The native introductions must retain their complete comparison in the opening.
 // This inventory is authored independently of reading() and the close-up planner.
 const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
-  'token-bucket': ['reader-burst', 'reader-refill'],
   'ring-buffer': ['shift'],
   'state-machine': ['reader-path', 'reader-reject'],
   'just-bash': ['reader-pipeline', 'reader-values'],
@@ -294,10 +301,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
 // These labels name the comparison’s roles independently of its drawing group.
 // Hiding a role cannot be excused by the group’s remaining border or background.
 const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
-  'token-bucket': {
-    'reader-burst': ['R1', 'R6', '200', '429'],
-    'reader-refill': ['Before the wait', 'On arrival: add elapsed × rate'],
-  },
   'ring-buffer': { shift: ['slot 0', 'slot 4', 'before', 'after pop()', 'pop() returned 1 and moved 4 values'] },
   'state-machine': {
     'reader-path': ['idle', 'connecting', 'CONNECT'],
@@ -381,15 +384,11 @@ export const STORY_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>> = Obj
         : []),
       ...(id === 'bloom-filter'
         ? [
-            { step: 'hashes', opening: true, targets: [{ key: 'bloom-hash-mapping' }] },
             { step: 'predict', opening: true, targets: [{ key: 'bloom-bits' }, { key: 'bloom-answer' }] },
           ]
         : []),
       ...(id === 'monty-hall'
         ? [{ step: 'predict', opening: true, targets: [{ key: 'monty-doors' }, { key: 'monty-result' }] }]
-        : []),
-      ...(id === 'melody-rhythm'
-        ? [{ step: 'predict', opening: true, targets: [{ key: 'score-a' }, { key: 'score-b' }] }]
         : []),
       ...(id === 'birthday-paradox'
         ? [

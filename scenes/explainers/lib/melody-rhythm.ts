@@ -20,5 +20,9 @@ export function musicStory(timing: Timing, bpm: number) {
   return {timing,bpm,clips,flat:musicClips(timing,bpm,true),
     movedStarts:b.filter((n,i)=>n.at!==a[i]!.at).length,
     movedDurations:b.filter((n,i)=>n.duration!==a[i]!.duration).length,
-    crossing:b.filter(n=>n.at<4 && n.at+n.duration>4)};
+    crossing:b.filter(n=>n.at<4 && n.at+n.duration>4),
+    // Notes of B whose start or length differs from A's, by index.
+    changed:b.flatMap((n,i)=>n.at!==a[i]!.at||n.duration!==a[i]!.duration ? [i] : []),
+    // How long a beat lasts at this tempo: the score is in beats, the sound in milliseconds.
+    beatMs:60000/bpm};
 }

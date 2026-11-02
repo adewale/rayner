@@ -15,7 +15,7 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':8,'birthday-paradox':8,'melody-rhythm':8};
+  const expected:Record<string,number>={'python-dict':6,'bloom-filter':8,'git-branches':values.history==='diverged'?4:3,'monty-hall':8,'birthday-paradox':8,'melody-rhythm':6};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     assertStepState(trace,step.step,{phase:step.step});
@@ -33,10 +33,13 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     const m=bloomStory(Number(values.bits) as 16|32);
     assertStepState(trace,'question',{bits:Array(m.size).fill(0),stored:[]});
     assertStepState(trace,'insert',{bits:m.first,stored:['cat']});
-    for(const name of ['shared','absent','present','false-positive','pipeline']) assertStepState(trace,name,{bits:m.bits,stored:m.words});
+    for(const name of ['shared','absent','present','predict','false-positive','pipeline']) assertStepState(trace,name,{bits:m.bits,stored:m.words});
     for(const [i,name] of ['absent','present','false-positive'].entries()) assertStepState(trace,name,{query:m.queries[i]});
-    assertStepState(trace,'pipeline',{queries:m.queries,exactLookups:2,sampleSize:100,sampleFalsePositives:m.sampleFalsePositives});
+    // wolf passes 16 bits on cat's and dog's bits and fails 32, so it costs a read only at 16.
+    assertStepState(trace,'pipeline',{queries:m.queries,exactLookups:m.size===16?2:1,sampleSize:100,sampleFalsePositives:m.sampleFalsePositives});
+    for(const name of ['predict','false-positive']) assertStepState(trace,name,{query:m.queries[2]});
     assert.ok(String(trace.steps.find(s=>s.step==='false-positive')!.meta.caption).includes(m.queries[2]!.word));
+    assert.match(String(trace.steps.find(s=>s.step==='false-positive')!.meta.title),m.size===16?/maybe/:/definitely not/);
   } else if(id==='git-branches') {
     const advanced=values.history==='diverged',frames=gitStory(advanced);
     // The opening question shows the history just before the merge (the old main and predict steps);

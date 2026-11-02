@@ -44,7 +44,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'seasons', step: 'latitude', group: 'topic', tier: 'gallery' },
   { id: 'oauth-pkce', step: 'attack', group: 'topic', tier: 'gallery' },
   { id: 'exgit', step: 'reader-change', group: 'topic', tier: 'gallery' },
-  { id: 'token-bucket', step: 'reader-refill', group: 'topic', tier: 'showcase' },
+  { id: 'token-bucket', step: 'later', group: 'topic', tier: 'showcase' },
   { id: 'mr-cache', step: 'reader-outcome', group: 'topic', tier: 'coverage' },
   { id: 'latest-search', step: 'reader-guard', group: 'topic', tier: 'gallery' },
   { id: 'state-machine', step: 'reader-reject', group: 'topic', tier: 'coverage' },

@@ -18,16 +18,22 @@ export function makeFilter(words: readonly string[], size: number): number[] {
 export function membership(bits: readonly number[], word: string): boolean {
   return locations(word, bits.length).every(i => bits[i] === 1);
 }
+/** Which stored words set each bit: a bit records that some word set it, not which. */
+export function owners(words: readonly string[], size: number): string[][] {
+  const by = Array.from({length: size}, () => [] as string[]);
+  for (const word of words) for (const i of new Set(locations(word, size))) by[i]!.push(word);
+  return by;
+}
+/** The lesson's usernames: cat and dog are taken; owl, cat and wolf are looked up. wolf was
+ * chosen because it passes the 16-bit filter on cat's and dog's bits and fails the 32-bit one. */
+export const TAKEN = ['cat', 'dog'] as const;
+export const LOOKUPS = ['owl', 'cat', 'wolf'] as const;
 export function bloomStory(size: 16 | 32) {
-  const words = ['cat', 'dog'], first = makeFilter(words.slice(0, 1), size), bits = makeFilter(words, size);
-  const candidates = ['owl', 'fox', 'yak', 'eel', ...Array.from({length: 10000}, (_, i) => `word${i}`)];
-  const absent = candidates.find(word => !words.includes(word) && !membership(bits, word));
-  const falsePositive = candidates.find(word => !words.includes(word) && membership(bits, word));
-  if (!absent || !falsePositive) throw new Error('Could not construct the Bloom lesson counterexamples');
-  const queries = [absent, words[0]!, falsePositive].map(word => ({
+  const words: string[] = [...TAKEN], first = makeFilter(words.slice(0, 1), size), bits = makeFilter(words, size);
+  const queries = LOOKUPS.map(word => ({
     word, locations: locations(word, size), maybe: membership(bits, word), stored: words.includes(word),
   }));
   const sample = Array.from({length: 100}, (_, i) => `sample${i}`);
-  return {size, words, first, bits, queries, exactLookups: queries.filter(q => q.maybe).length,
+  return {size, words, first, bits, owners: owners(words, size), queries, exactLookups: queries.filter(q => q.maybe).length,
     sampleSize: sample.length, sampleFalsePositives: sample.filter(word => membership(bits, word)).length};
 }
