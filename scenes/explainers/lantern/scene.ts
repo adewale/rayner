@@ -123,7 +123,7 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
 }
 /** The script's one-sentence answer, stated in the seek step. */
 const ANSWER =
-  'A still re-runs the scene on the same fixed clock and, unless the scene has updaters, skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
+  'A still re-runs the scene on the same fixed clock and, unless the scene has updaters or is playing a Succession, skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
 
 export default class LanternExplainer extends Scene {
   static meta = {
@@ -140,7 +140,7 @@ export default class LanternExplainer extends Scene {
     // Each rule the steps state about every run, frame, sink or page, and the test that holds it.
     claims: [
       {
-        says: 'unless the scene has updaters, skips computing the frames before t',
+        says: 'unless the scene has updaters or is playing a Succession, skips computing the frames before t',
         test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
       },
       {
