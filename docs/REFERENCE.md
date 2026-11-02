@@ -269,7 +269,7 @@ These are the engine's own features, imported from `rayner` and used beside the 
 | Camera | `this.frame.animate.fit(...)`, `.reset()`; `d.focus(…, { camera: true })` | [Camera](CAMERA.md) | `feature-tour` (`s.focus`), `seasons`; `lantern`'s diagram focus with `also` |
 | Emphasis that stays | `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })` | [Emphasis](EMPHASIS.md) | `feature-tour` (`Circumscribe`), `glyph`, `mr-cache`, `state-machine`, `ring-buffer`, `exgit` (`Underline`: `glyph` only); no explainer yet: a bare `Brace`, `tip()`, `putAtTip()` |
 | Charts of the model's numbers | `NumberLine`, `Axes` with `plot`, `lineGraph`, `bar`, `dot`, guide lines, `areaUnder` | [Graphing](GRAPHING.md) | `feature-tour`, `seasons` (`plot`), `token-bucket` (`lineGraph`); no explainer yet: `bar`, `areaUnder`, a standalone `NumberLine` |
-| Pictures rebuilt from state | `view`, `stateView`, `view.sync()`; `viewMismatch`, and `assertViewFollowsState` in `test/lib/view-fidelity.ts` | [Views](VIEWS.md) | `feature-tour`, `state-machine`, `ring-buffer` (`view`), `token-bucket` (`stateView`); no explainer yet: `viewMismatch`, which the tests call through `assertViewFollowsState` |
+| Pictures rebuilt from state | `view`, `stateView`, `view.sync()`; `viewMismatch`, and `assertViewFollowsState` in `test/lib/view-fidelity.ts` | [Views](VIEWS.md) | `feature-tour`, `state-machine`, `ring-buffer` (`view`); no explainer yet: `stateView` (its tests build one), `viewMismatch`, which the tests call through `assertViewFollowsState` |
 | Parts of a line of code | `code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/tokens.ts` | [Code](CODE.md) | `mr-cache` (`spans`), `state-machine` (`code.span`, `code.token`); no explainer yet: `code.lineSpan` |
 | Restore, copies, sequencing | `saveState()` and `Restore`, `TransformFromCopy`, `Succession` | [Animations](ANIMATIONS.md) | `feature-tour` (`saveState`, `Restore`), `state-machine` (`saveState`, `Restore`, `Succession`), `ring-buffer` and `exgit` (`TransformFromCopy`), `ring-buffer` and `token-bucket` (`Succession`); no explainer yet: `restore()` |
 
@@ -365,6 +365,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Words | A kept drawing with no text and no `describe` |
 | Bare runtime | The scene, bundled, gives different steps or state in a context with no DOM, Node, timers or console |
 | Glyphs | Any text the embedded fonts, and the lettering the explainer asked for, cannot draw (every command checks this) |
+| Answer | A declared [`meta.answer`](#scene) that no teaching step's title, line or caption states (see `script` below) |
 
 The report goes to `out/checks/<id>/report.json`. For each case it holds the full step trace, each step's resting picture as a rough text drawing (`restingFrames`: boxes and lines, with diagram labels as bars), and label sizes (`legibility`):
 
