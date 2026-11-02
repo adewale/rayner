@@ -30,6 +30,7 @@ test('claim evidence resolves in an external author project and requires a node:
     "import {test,describe} from 'node:test'; describe.skip('suite', () => { test('backs the claim', () => {}); });",
     "import {test,suite as group} from 'node:test'; group('suite', {skip:true}, () => { test('backs the claim', () => {}); });",
     "function test() {} test('backs the claim', () => {});",
+    "import test from 'node:test'; const x = 'the'; test(`backs ${x} claim`, () => {});",
   ]) {
     await writeFile(file, source);
     assert.match((await declaredClaimProblems([claim], [claim.says], directory)).join(), /there is none/, source);
@@ -39,6 +40,7 @@ test('claim evidence resolves in an external author project and requires a node:
     "import test from 'node:test'; test.only('model backs the claim', () => {});",
     "import {it as check} from 'node:test'; check('model backs the claim', () => {});",
     "import * as tests from 'node:test'; tests.test('model backs the claim', {skip:false}, () => {});",
+    "import test from 'node:test'; for (const id of ['fork']) test(`${id}: model backs the claim`, () => {});",
   ]) {
     await writeFile(file, source);
     assert.deepEqual(await declaredClaimProblems([claim], [claim.says], directory), [], source);

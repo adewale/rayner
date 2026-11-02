@@ -553,7 +553,12 @@ function testNames(source: string): string[] {
         ts.isPropertyAssignment(property) && ['skip', 'todo'].includes(property.name.getText(file).replace(/['"]/g, '')) && property.initializer.kind !== ts.SyntaxKind.FalseKeyword);
       if ((isTest || isSuite) && (skipped || modifier === 'skip' || modifier === 'todo')) return;
       const callback = node.arguments.at(-1);
-      if (isTest && callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && name && (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name))) names.push(name.text);
+      if (isTest && callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && name) {
+        if (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)) names.push(name.text);
+        // A title built per case, as in test(`${entry.id}: …`): only its fixed text can match, so
+        // each substitution becomes a character no claim's test name contains.
+        else if (ts.isTemplateExpression(name)) names.push(name.head.text + name.templateSpans.map((span) => '\u0000' + span.literal.text).join(''));
+      }
     }
     ts.forEachChild(node, visit);
   };
