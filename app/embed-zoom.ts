@@ -6,7 +6,8 @@
  * so does a click or tap, which centres the point under it (no drag needed).
  */
 import { DomSink } from '../src/index.ts';
-import type { ElementRecord } from '../src/index.ts';
+import type { ElementRecord, Scene } from '../src/index.ts';
+import { isHeading } from '../explain/stage.ts';
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;
@@ -133,15 +134,32 @@ export class ReaderView {
  * frame the camera's box arrives as `viewBox`; it is kept as the SVG's `data-camera`,
  * and the reader's zoom is read then, so a camera move and a reader zoom both land in
  * that frame's one viewBox write.
+ *
+ * `withoutHeading`, when it says so, leaves the stage's heading (its number, title and line)
+ * out of the picture: on a narrow stage the player sets them as page text under the stepper
+ * row, and the stage's own copy would be drawn too small to read.
  */
 export class ReaderSink extends DomSink {
   private readonly reader: (author: string) => string;
   private readonly signal:AbortSignal;
-  constructor(container: Element, options: ConstructorParameters<typeof DomSink>[1], reader: (author: string) => string, signal:AbortSignal) {
+  private readonly withoutHeading: () => boolean;
+  constructor(container: Element, options: ConstructorParameters<typeof DomSink>[1], reader: (author: string) => string, signal:AbortSignal, withoutHeading: () => boolean = () => false) {
     super(container, options);
     this.reader = reader;
     this.signal = signal;
+    this.withoutHeading = withoutHeading;
     this.svg.setAttribute('data-camera', this.svg.getAttribute('viewBox') ?? HOME_VIEW);
+  }
+  override async frame(scene: Scene, dt = 0): Promise<void> {
+    if (!this.withoutHeading()) return super.frame(scene, dt);
+    // The scene waits for its sink, so its objects stay put while this frame is drawn without them.
+    const all = scene.mobjects;
+    scene.mobjects = all.filter((m) => !isHeading(m));
+    try {
+      await super.frame(scene, dt);
+    } finally {
+      scene.mobjects = all;
+    }
   }
   override apply(els: readonly ElementRecord[], viewBox?: string): void {
     // DomSink can wake from its browser clock after this step was left.

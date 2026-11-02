@@ -332,8 +332,8 @@ export async function collectProject(
       return inspect(result);
     },
     async morph(before, after, ops) {
-      const { replayMorph } = await import('../../integrations/agentic-mermaid/build/index.ts');
-      replayMorph(before, after, ops);
+      const { replayMorphExplained } = await import('./explain-morph.ts');
+      replayMorphExplained(before, after, ops);
       edits++;
     },
   };

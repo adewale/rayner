@@ -2,11 +2,12 @@
 
 **Remove this folder before merging.** These are drafts for review by another agent before they are filed at https://github.com/adewale/agentic-mermaid/issues. They are here only because this session could not add that repository.
 
+A third report, that removing a state's last transition leaves the state declared, turned out to be correct behaviour (`remove_state` deletes it, and declaration order changes the layout). Rayner's morph check now names the difference instead, so it is not a draft here.
+
 | Draft | Verdict |
 | --- | --- |
 | [1. `make_composite` fails after `remove_transition`](1-make-composite-after-remove.md) | Bug. Reproduces on 0.5.1 and 0.5.5. |
 | [2. No edit adds a concurrency region](2-no-edit-adds-region.md) | Missing edit. Reproduces on 0.5.1 and 0.5.5. |
-| [3. A removed transition leaves its state declared](3-removed-transition-leaves-declared-state.md) | Not a bug. Do not file; the fix is a clearer error in Rayner. |
 
 For each draft, the target diagrams were checked in Mermaid 12.2.0 (in Chromium) and in Pele 1.13.0, the renderer behind pele.run (its npm package, not the website): both render them, and agentic-mermaid 0.5.5 parses and verifies them. The failures are in agentic-mermaid's edit layer, not in the diagrams.
 
@@ -26,6 +27,4 @@ node repro.mjs /tmp/am-0.5.5          # drafts 1 and 2: the failing edits and th
 node am-verify.mjs /tmp/am-0.5.5      # the target diagrams parse and verify
 node pele.mjs /tmp/pele               # Pele renders the targets
 node mermaid.cjs /tmp/pele .          # Mermaid renders the targets (needs Playwright's Chromium)
-node decl.mjs /tmp/am-0.5.5           # draft 3: what a removed transition leaves
-node order-layout.mjs /tmp/am-0.5.5   # draft 3: declaration order changes the layout
 ```

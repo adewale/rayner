@@ -416,6 +416,19 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   views.append(viewCount, nextView, overview);
   stepper.after(views);
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
+  // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
+  // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
+  // drop them and redraw the step at rest. A step playing finishes as drawn and rests anew.
+  let drawnNarrow: boolean | undefined;
+  function redrawIfNarrowChanged() {
+    const now = narrow();
+    if (stage.clientWidth <= 0 || now === drawnNarrow) return;
+    const first = drawnNarrow === undefined;
+    drawnNarrow = now;
+    if (first) return;
+    for (const entry of cache.values()) entry.resting.clear();
+    if (casePhase.kind === 'ready' && !isPlaying()) void show(selected, false);
+  }
   const revealStage = () => {
     if (!narrow()) return;
     const box = stage.getBoundingClientRect();
@@ -445,6 +458,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       on = narrow() && zoom.k > 1;
     stage.classList.toggle('narrow', narrow());
     player.classList.toggle('narrow', narrow());
+    redrawIfNarrowChanged();
     const multiple = tour.length > 1;
     overview.hidden = !on || !multiple;
     // Next is above this row. A single-view step needs neither controls nor reserved space.
@@ -722,7 +736,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const kept = at.resting.get(step.step);
       const container = el('div');
       const [, target] = yield* wait(Promise.all([
-        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal)),
+        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow)),
         framing(step, scope, at),
       ]));
       if (!kept) at.resting.set(step.step, clones(container.childNodes));
@@ -783,7 +797,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const aimAt = (index: number) => {
       const step = at.trace.steps[index]!,
         container = el('div'), scope = new StateScope(),
-        sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal);
+        sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
       return {
         index, scope, sink,
         start: step.t0,
@@ -825,7 +839,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         return go.scope.run(function* () {
           if (scene.time > aim.end + 1e-8) {
             if (scene.time + 1e-9 < aim.rest) return;
-            yield* wait(new ReaderSink(aim.container, sinkOptions(at, false), readerView, go.scope.signal).frame(scene, 0));
+            yield* wait(new ReaderSink(aim.container, sinkOptions(at, false), readerView, go.scope.signal, narrow).frame(scene, 0));
             attach(go, true);
             finish(true);
             throw new StopScene();

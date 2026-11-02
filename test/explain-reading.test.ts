@@ -569,11 +569,12 @@ test('the phone report measures the stage heading in close-ups that show it, not
     // close-ups stay under the heading, which reads the box labels larger, never smaller. Measured
     // at that zoom, the heading's number would read under 12 px; it is not measured.
     assert.ok(below.minLabelPx390 >= 12, `box labels at the close-up's zoom: ${below.minLabelPx390}`);
-    // A frame drawn into the heading brings it into the close-ups. There it is still
-    // measured, and it sets the smallest size: the box labels alone read near 19 px.
+    // A frame drawn into the heading brings that area into the close-ups, but a narrow stage
+    // draws no heading (ReaderSink), so it is not measured there: the box labels, near 19 px,
+    // set the smallest size, where the heading's line would have read about 12.
     const into = by('into');
     assert.equal(into.labelsUnder12PxAt390, 0);
-    assert.ok(into.minLabelPx390 >= 12 && into.minLabelPx390 < 13, `heading measured in its close-up: ${into.minLabelPx390}`);
+    assert.ok(into.minLabelPx390 >= 13, `box labels, not the undrawn heading: ${into.minLabelPx390}`);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

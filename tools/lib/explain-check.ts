@@ -207,6 +207,8 @@ interface LabelSizes {
   phone: number;
   /** Whole inside one of a resting picture's close-ups (where the step opens, or its tour), so no panning finds it. */
   inView: boolean;
+  /** The resting step where `phone` was measured: where a small label is, for the report. */
+  phoneStep?: string;
 }
 const round1 = (n: number) => Math.round(n * 10) / 10;
 /**
@@ -224,6 +226,11 @@ function legibilityReport(records: LabelSizes[]) {
     minLabelPx1280: min == null ? null : round1(min),
     minLabelPx390: phoneMin == null ? null : round1(phoneMin),
     labelsUnder12PxAt390: atRest.filter((r) => round1(r.phone) < 12).length,
+    // Which they are, smallest first: each label's words, its phone size and its step.
+    smallLabelsAt390: atRest
+      .filter((r) => round1(r.phone) < 12)
+      .sort((a, b) => a.phone - b.phone)
+      .map((r) => ({ text: r.text, px: round1(r.phone), step: r.phoneStep ?? '' })),
     // Labels no close-up shows whole, at rest: the reader pans to them (at the same size).
     labelsOutsideCloseUpsAt390: atRest.filter((r) => !r.inView).length,
     minLabelPx390WholeStage: min == null ? null : round1(min * whole),
@@ -257,6 +264,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // Each resting frame's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene),
       phoneUnit = stageScale(PHONE_W, PHONE_H).s;
+    const stepAt = new Map(v.trace.steps.map((s) => [restingFrame(s), s.step] as const));
     const phoneViews = new Map(
       v.trace.steps.map((s) => {
         const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
@@ -273,11 +281,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
      * `box` is in the camera's view units, where close-ups are worked out.
      *
      * A picture label no close-up shows is measured at the opening's zoom, where a reader
-     * panning to it finds it. The stage's heading (`chrome`) is not: close-ups keep below
-     * it by design and the player sets the step's number, title and line as page text
-     * over the stage, so the stage's copy is measured only in the close-ups that show it.
-     * Otherwise the opening's zoom, set by the picture's smallest label, decides whether
-     * the heading's fixed-size line reads, and a larger, more legible drawing scores worse.
+     * panning to it finds it. The stage's heading (`chrome`) is not measured on the phone at
+     * all: a narrow stage draws its pictures without it (ReaderSink in app/embed-zoom.ts) and
+     * the player sets the step's number, title and line as page text under the stepper row.
+     * It is still measured at 1280 px, where the stage draws it.
      */
     const seen = (record: LabelSizes, px: number, box: Box | null, frame: number, chrome = false) => {
       record.px = Math.max(record.px, px);
@@ -285,19 +292,16 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       if (!close) return;
       const inside = (v: Box) =>
         !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
-      const touches = (v: Box) => !!box && box[0] < v[2] && box[2] > v[0] && box[1] < v[3] && box[3] > v[1];
+      if (chrome) return;
       const complete = close.views.filter((v) => inside(v.box));
-      const shown = chrome ? close.views.filter((v) => touches(v.box)) : [];
-      if (chrome && !shown.length) return;
       // The opening can frame a comparison at a smaller scale than its detail
-      // stops. Measure each label where the tour actually shows it whole; a heading
-      // a close-up cuts is still drawn there, at that close-up's zoom.
-      const k = complete.length
-        ? Math.max(...complete.map((v) => v.k))
-        : chrome
-          ? Math.max(...shown.map((v) => v.k))
-          : close.k;
-      record.phone = Math.max(record.phone, (px / STAGE_PX_PER_UNIT) * phoneUnit * k);
+      // stops. Measure each label where the tour actually shows it whole.
+      const k = complete.length ? Math.max(...complete.map((v) => v.k)) : close.k;
+      const size = (px / STAGE_PX_PER_UNIT) * phoneUnit * k;
+      if (size > record.phone) {
+        record.phone = size;
+        record.phoneStep = stepAt.get(frame);
+      }
       if (complete.length) record.inView = true;
     };
     const resting = new Map<number, string>();
@@ -447,7 +451,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
       legibility: legibilityReport([...labels.values(), ...staticLabels.values()]),
-      // Cards in each step's resting picture: values said in a panel rather than on the drawing.
       // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
       // check questions the page asks. Undeclared parts are reported as missing.
       script,
