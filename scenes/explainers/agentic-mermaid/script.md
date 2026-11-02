@@ -6,7 +6,7 @@ An agent drew a cache lookup and got it backwards. Out of the decision Cached, y
 
 It does: verify returns ok: true with no warnings, and a token that follows yes walks a real edge from Cached to Database. That is the answer: the verifier checks structure, such as a label on every branch, not whether the labels mean the right thing.
 
-Is it checking anything at all? Delete both labels and it objects: two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision diamond, each named by its edge id. The warnings are advice, so ok stays true. A missing label is structure, and structure is what it can see.
+Is it checking anything at all? Delete both labels and it returns two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision diamond, each named by its edge id. A missing label is part of the diagram's structure, so the verifier can see it. The warnings are advice, so ok stays true.
 
 Now label the edges the right way round with two typed set_label operations, yes on A->B#0 and no on A->C#0. The build replays them on the unlabelled diagram and refuses the result unless it serializes to the next diagram. The cache hit now replies from the cache, and the report is ok: true with no warnings: exactly what the wrong diagram got. Which label belongs on which branch is the author's decision, and the cache policy needs its own tests.
 

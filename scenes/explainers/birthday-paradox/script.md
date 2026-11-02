@@ -4,15 +4,15 @@ Questions the reader brings: How many people does a room need before two of them
 
 Here is a room of 23 people, each card one person's birthday, drawn at random. Like the Pudding's explainer, the model gives every day of a 365-day year the same chance and leaves out 29 February. A year has 365 days, so a match can seem to need a crowd: half of 365 is about 183. Guess how many people make a shared birthday an even bet, then scan the room.
 
-Look again: 26 Apr is on two cards, and so is 31 Jan. That is common for a room this size. Of 1,000 random rooms of 23, 499 had a shared birthday, and the exact chance is 50.7%. That is the answer: just 23 people give a better than even chance that two share a birthday, because 23 people make 253 pairs.
+Look again: 26 Apr is on two cards, and so is 31 Jan. Is that luck? Of 1,000 random rooms of 23, 499 had a shared birthday, and the exact chance is 50.7%, so a match is about as likely as not. That is the answer: just 23 people give a better than even chance that two share a birthday, because 23 people make 253 pairs.
 
 Why do we guess so high? The Pudding's explainer notes that we usually picture this by comparing ourselves with 365 possible days. Mark one person as you. You make 22 comparisons, each a 1-in-365 chance, and the chance that someone shares your birthday is only 5.9%. An even chance would take 253 other people.
 
-But a match doesn't have to include you. Each of the 23 pairs with 22 others, and that counts every pair twice, so the room holds 23 × 22 / 2 = 253 pairs: the same 253 comparisons you would need 253 other people to make on your own. The room gets them by pairing everyone with everyone.
+But a match doesn't have to include you. Each of the 23 pairs with 22 others, and that counts every pair twice, so the room holds 23 × 22 / 2 = 253 pairs: the same 253 comparisons you would need 253 other people to make on your own.
 
-Pairs grow far faster than people. Two people make one pair, three make three, five make ten: each newcomer adds a pair with everyone already there. Doubling 5 people to 10 takes the pairs from 10 to 45, and at 40 people the pairs outnumber the people 19.5 to 1.
+Pairs grow far faster than people. Two people make one pair, three make three, five make ten. Because each newcomer adds a pair with everyone already there, doubling 5 people to 10 takes the pairs from 10 to 45, and at 40 people the pairs outnumber the people 19.5 to 1.
 
-Now connect the pairs to the chance. Each pair matches with chance 1 in 365. If the 253 pairs missed independently, all would miss with chance 364/365 multiplied 253 times, 49.95%, leaving 50.05% for a match. The exact chance is 50.73%: close, but pairs share people, and if Ann matches Ben and Ben matches Cal, Ann must match Cal. For your own 22 comparisons the same sum is exact, 5.9%, because each involves your one birthday.
+Now connect the pairs to the chance. Each pair matches with chance 1 in 365. If the 253 pairs missed independently, all would miss with chance 364/365 multiplied 253 times, 49.95%, leaving 50.05% for a match. The exact chance is 50.73%. The shortcut misses because pairs share people: if Ann matches Ben and Ben matches Cal, Ann must match Cal. For your own 22 comparisons the same sum is exact, 5.9%, because each involves your one birthday.
 
 **The aha:** the star of 22 lines from you becomes a web of 253 lines across the room, and 253 is exactly the number of comparisons an even chance needs.
 
