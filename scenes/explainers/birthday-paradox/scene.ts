@@ -51,20 +51,22 @@ export default class BirthdayParadox extends Scene {
     const sharedDays = new Set(m.shared.map((d) => d.day));
     /** The room as date cards; `lit` outlines the cards whose date appears more than once. */
     const room = (lit: boolean, footer: string) => (s: Stage) => {
-      const cols = n > 30 ? 6 : 5,
-        dx = n > 30 ? 2.45 : 2.85,
-        dy = n > 30 ? 0.82 : 1.0;
+      // A phone opening shows about 13.8 units across, so the widest row stays inside that.
+      const big = n > 30,
+        cols = 5,
+        dx = big ? 2.6 : 2.7,
+        dy = big ? 0.8 : 1.05;
       const cards = new Group(
         ...m.sample.first.map((day, i) =>
-          tile(m.dates[i]!, ((i % cols) - (cols - 1) / 2) * dx, 2.35 - Math.floor(i / cols) * dy, dx - 0.2, 0.7, s, {
+          tile(m.dates[i]!, ((i % cols) - (cols - 1) / 2) * dx, 2.5 - Math.floor(i / cols) * dy, dx - 0.15, big ? 0.74 : 0.8, s, {
             active: lit && sharedDays.has(day),
-            size: 0.64,
+            size: big ? 0.6 : 0.64,
             key: `person-${i}`,
           }),
         ),
       );
       cards.key = 'birthday-people';
-      return new Group(cards, label(footer, 0, -3.6, s.palette.ink, 0.62, 'birthday-footer'));
+      return new Group(cards, label(footer, 0, big ? -3.85 : -3.6, s.palette.ink, 0.62, 'birthday-footer'));
     };
     /** n people on a circle, joined by every pair (or, with `you`, only the pairs with person 0). */
     const web = (you: boolean) => (s: Stage) => {
