@@ -243,6 +243,28 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
     { step: 'blob', targets: [{ text: 'header' }, { text: 'content' }] },
     { step: 'change', targets: [{ text: 'commit one' }, { text: 'commit two' }, { text: 'parent' }] },
   ],
+  // The reader frames these replaced: when each rule falls due, side by side, and the time left to retry.
+  'cert-renewal': [
+    { step: 'other-rule', targets: [{ text: '30 days before expiry' }, { text: 'Certbot 4.1+ default' }] },
+    { step: 'slack', targets: [{ text: 'Retry window, the default rule' }, { text: 'Retry window, the 30-day rule' }] },
+  ],
+  // The reader frames these replaced: the series' dated meetings, and the copy Bob keeps.
+  'ical-recurrence': [
+    { step: 'series', targets: [{ text: 'Mon 2 Nov, 09:00' }, { text: 'Mon 9 Nov, 09:00' }, { text: 'Mon 7 Dec, 09:00' }] },
+    {
+      step: 'copy',
+      settings: { copy: 'guest', change: 'skip' },
+      targets: [{ text: 'Mon 16 Nov, 09:00, cancelled' }, { text: 'STATUS:CANCELLED' }],
+    },
+  ],
+  // The reader frame this replaced: every combination of two settings is a case.
+  fork: [
+    {
+      step: 'cases',
+      opening: true,
+      targets: [{ key: 'fork-cases' }, { text: 'Policy A' }, { text: 'Policy B' }, { text: 'case 1' }, { text: 'case 6' }],
+    },
+  ],
   'layout-direction': [
     {
       step: 'columns',
@@ -270,11 +292,8 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'ring-buffer': ['reader-capacity', 'reader-reuse'],
   'state-machine': ['reader-path', 'reader-reject'],
   'just-bash': ['reader-pipeline', 'reader-values'],
-  'cert-renewal': ['reader-due', 'reader-retries'],
-  'ical-recurrence': ['reader-series', 'reader-copies'],
   gtfs: ['reader-date', 'reader-stop'],
   'tailwind-gamut': ['reader-edge', 'reader-display'],
-  fork: ['reader-build', 'reader-cost'],
   'gnome-files': ['reader-task', 'reader-sample'],
   'wcag-map': ['reader-focus', 'reader-levels'],
   'layout-direction': ['reader-place', 'reader-fields'],
@@ -311,14 +330,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-pipeline': ['echo hello', 'tr → HELLO', 'shout.txt'],
     'reader-values': ['original', 'returned', 'missing', 'HELLO'],
   },
-  'cert-renewal': {
-    'reader-due': ['Fixed: 30 days before', 'Default: lifetime fraction'],
-    'reader-retries': ['Time before renewal is due', 'Time left to retry'],
-  },
-  'ical-recurrence': {
-    'reader-series': ['Mon 2 Nov', 'Mon 9 Nov', 'Mon 7 Dec'],
-    'reader-copies': ['Alice', 'Bob'],
-  },
   gtfs: {
     'reader-date': ['Route', 'Trip', 'Service', 'date', 'FULLW'],
     'reader-stop': ['Fixed times', 'Headway patterns'],
@@ -326,10 +337,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   'tailwind-gamut': {
     'reader-edge': ['100% = sRGB edge'],
     'reader-display': ['Written chroma', 'Mapped sRGB preview'],
-  },
-  fork: {
-    'reader-build': ['Author', 'scene', 'Build', 'diagrams', 'Portable', 'page'],
-    'reader-cost': ['Policy A', 'Policy B', 'case 1', 'case 6'],
   },
   'gnome-files': { 'reader-sample': ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] },
   'wcag-map': {

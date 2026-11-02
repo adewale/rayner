@@ -271,11 +271,11 @@ for (const entry of EXPLAINERS)
             `Same digit in the same place, coloured: tree ${inPlace.tree}, commit ${inPlace.commit} of 40`,
           ])
             assert.ok(shown.includes(label), `${label}\n${shown}`);
-          assert.ok(
-            textOf(pictureHtml(stepOf('change').after)).includes(
-              `The redraw kept all ${grown.matched} shapes of commit one’s row and grew ${grown.added} new ones.`,
-            ),
-          );
+          // The change step no longer prints the kept and grown shape counts (the evidence above still
+          // holds the redraw to keeping commit one's row whole); its picture names both commits' rows.
+          const rows = textOf(pictureHtml(stepOf('change').after));
+          for (const [label, commit, tree] of [['commit one', c1, t1], ['commit two', c2, t2]] as const)
+            assert.ok(rows.includes(`${label}: commit ${commit.slice(0, 7)} names tree ${tree.slice(0, 7)}`), `${label}\n${rows}`);
           break;
         }
         case 'just-bash': {

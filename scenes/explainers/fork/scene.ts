@@ -1,7 +1,7 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/fork.ts';
+import { table } from '../lib/reader-drawing.ts';
 import { Scene, Rectangle, Text, Group } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
+import { VOCABULARY } from '../../../explain/words.ts';
 const STYLE = 'github-light';
 // Upstream Lantern at the fork base, 2c7bad5: README "Outputs", app/worker.ts, src/mermaid.ts, src/doc.ts.
 const LANTERN =
@@ -18,10 +18,27 @@ const SETTINGS = [
   "            { value: '4', label: '4 tokens' }],",
   '}];',
 ];
+/** The token bucket's refill options, as SETTINGS declares them, and a second setting to add. */
+const RATES = ['1 token', '2 tokens', '4 tokens'];
+const POLICIES = ['Policy A', 'Policy B'];
+const CASES = RATES.length * POLICIES.length;
+/** What rayner check fails a case on (tools/lib/explain-check.ts checkProject, and the glyph check every command runs). */
+const CHECKS: readonly (readonly [string, readonly string[]])[] = [
+  ['Motion and clock', ['motion', 'still during the caption', 'seek equals play', 'skipped trace']],
+  ['Resting pictures', ['each step changes', 'text collisions', 'routes over labels', 'legibility']],
+  ['Words', ['descriptions', 'glyphs', 'the stated answer']],
+  ['Code', ['catch lint', 'bare runtime']],
+];
+const CHECK_COUNT = CHECKS.reduce((n, [, items]) => n + items.length, 0);
+/** The diagram families the explainers name and describe (explain/words.ts). */
+const FAMILIES = Object.keys(VOCABULARY.en!.families!).length;
 const GONE = ['Doc', 'Parser', 'Player', 'Worker'];
 // The diagram takes the top three fifths; cards sit under it.
 const ABOVE = regionBox('top', { bottom: -1.1 }),
   BELOW = regionBox('bottom', { top: -1.35 });
+
+/** The script's one-sentence answer (meta.answer), which the cases step states. */
+const ANSWER = 'Every combination of settings is a case the build runs, draws and checks before anyone opens the page';
 
 export default class ForkExplainer extends Scene {
   static meta = {
@@ -33,86 +50,70 @@ export default class ForkExplainer extends Scene {
       'https://github.com/ivarvong/lantern/blob/2c7bad5/src/mermaid.ts',
       'https://github.com/adewale/rayner/blob/main/docs/UPSTREAM.md',
     ],
+    // The script's answer and check questions (script.md); the cases step states the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: `The token bucket’s refill rate has ${RATES.length} options. Add a policy setting with ${POLICIES.length}: how many cases does the build make, and how many checks run?`,
+        answer: `${CASES} cases, one per combination, each run, captured and checked: ${CASES} × ${CHECK_COUNT} = ${CASES * CHECK_COUNT} checks before the page ships.`,
+      },
+      {
+        question: 'What could a reader get from Lantern’s Worker that a built page cannot give?',
+        answer: 'A frame, text or trace of something nobody built: the Worker ran the scene on request, and the built page holds only the cases made ahead of time.',
+      },
+      {
+        question: 'Which part of the build needs Chromium, and does the page?',
+        answer: 'Capturing a new diagram with Agentic Mermaid. The page does not: it replays the stored snapshots and runs no diagram renderer.',
+      },
+    ],
   };
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE });
     const ink = s.palette.ink;
 
-    await readerFirst(this, s, readerFrames());
-    await this.step('lantern', {
-      detail: true,
-      title: 'Lantern runs each scene for its player and Worker',
-      line: 'The same fixed clock feeds both live readers.',
-      caption:
-        'What must change to send a scene as one HTML page instead of running it for each request? At commit 2c7bad5, Lantern’s development player reads a Scene on a fixed clock, while a Cloudflare Worker serves frames, text and traces on demand. We will keep the scene and its clock but replace that delivery path with a build, then count what readers gain and lose.',
+    // 1. A concrete setting: three options, three pages built in advance.
+    await this.step('settings', {
+      title: `The token bucket’s refill setting is ${RATES.length} cases built ahead`,
+      line: `Predict: add a policy setting with ${POLICIES.length} options. How many cases then?`,
+      caption: `A reader of the token bucket explainer can choose a refill rate of ${RATES.join(', ').replace(/, ([^,]*)$/, ' or $1')} a second. Choosing one opens no new computation: the build already ran the scene once per option, captured its diagrams and checked it, so each choice is a case made before anyone reads.`,
     });
     await s.clear();
-    const flow = await s.show({ source: LANTERN }, { box: ABOVE });
-    await flow.walk([['Scene', 'Clock']], { trail: true });
-    await flow.walk(
-      [
-        ['Clock', 'Player'],
-        ['Clock', 'Worker'],
-      ],
-      { parallel: true, trail: true },
-    );
+    await s.code(SETTINGS, { at: ABOVE, fontSize: 0.3 });
     await s.card(
-      [
-        ['Dev player', '?scene=&step= links, reloads on save'],
-        ['Worker', '/frame.svg, /text, /trace.json, /llms.txt'],
-        ['Diagrams', 'Mermaid flowcharts, laid out in the page'],
-        ['Runtime dependencies', 'none'],
-      ],
+      RATES.map((rate, i) => [`Refill ${rate} a second`, `case ${i + 1}: run, captured, checked`]),
       { at: BELOW },
     );
+    this.state.cases = RATES.length;
 
-    await this.step('engine', {
-      detail: true,
-      title: 'The fork keeps the engine',
-      line: 'Bézier points, fixed endpoints and seek by replay all stay.',
-      caption:
-        'The scene still runs on Lantern’s src/: shapes and glyphs stored as Bézier points, animations whose endpoints are fixed when they begin, the fixed clock and seeking by replay. The fork changed the engine only to fix a fault or add a hook the helpers need, and docs/UPSTREAM.md lists each change with its regression test.',
+    // 2. The answer: settings multiply.
+    await this.step('cases', {
+      title: `Answer: ${CASES}. Every combination is a case`,
+      line: `${RATES.length} rates × ${POLICIES.length} policies = ${CASES} cases to build and check.`,
+      caption: `${ANSWER}. ${RATES.length} rates and ${POLICIES.length} policies make ${CASES}, and every further setting multiplies again. The reader can switch among those cases and no others: an input with no fixed options would need the model running in the page, and checks for values nobody tried.`,
     });
-    await s.clearOverlays();
-    await flow.unmark();
-    await flow.dim(['Scene', 'Clock', 'Frames']);
-    await s.card(
-      [
-        ['Mobject', 'Bézier points'],
-        ['Animation', 'endpoints fixed at begin'],
-        ['Scene', 'fixed dt, seek by replay'],
-        ['Text', 'Inter and JetBrains Mono outlines'],
-        ['Changes offered upstream', 'none yet'],
-      ],
-      { at: BELOW },
+    await s.clear();
+    const grid = table(
+      ['', ...POLICIES],
+      RATES.map((rate, r) => [`Rate ${rate.split(' ')[0]}`, ...POLICIES.map((_, p) => `case ${r * POLICIES.length + p + 1}`)]),
+      s,
+      { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-cases' },
     );
-
-    await this.step('removed', {
-      detail: true,
-      title: 'Four parts of Lantern are deleted',
-      line: 'The JSON doc, parser, dev player and Worker are gone.',
-      caption:
-        'The fork deleted the JSON scene format, the flowchart parser, the development player and the Worker, along with the nine original scenes, which the explainers rebuild. The player and the parser have replacements; the JSON format and the Worker’s endpoints have none.',
+    await s.enter(grid, {
+      describe: `A table of ${RATES.length} refill rates by ${POLICIES.length} policies: ${CASES} cases, numbered 1 to ${CASES}`,
     });
-    await s.clearOverlays();
-    await flow.dim(null);
-    await flow.mark(GONE, { color: s.bad, as: 'deleted' });
-    // What replaces each deleted part, said on the part.
-    await flow.note('Doc', 'no replacement', { side: 'left' });
-    await flow.note('Parser', 'replaced by Agentic Mermaid capture', { side: 'below' });
-    await flow.note('Player', 'replaced by the embed page', { side: 'above' });
-    await flow.note('Worker', 'no replacement', { side: 'right' });
+    this.state.cases = CASES;
 
+    // 3. What the build does for each case.
     await this.step('fork', {
-      detail: true,
-      title: 'The fork puts a build between the scene and the reader',
-      line: 'Diagrams are captured once; the page runs no renderer.',
-      caption:
-        'Agentic Mermaid draws each diagram in Chromium at build time, and the snapshot is stored beside the scene, so the page runs no diagram renderer. The same scene and clock then feed an embed page, PNG stills and rayner check.',
+      title: 'For each case the build draws every diagram once',
+      line: 'Diagrams are captured at build time; the page runs no renderer.',
+      caption: `Agentic Mermaid draws each diagram in Chromium at build time, and the snapshot is stored beside the scene, so the page runs no diagram renderer and has no runtime dependency. The cost lands on the author: capturing a new diagram needs Chromium, though a page built from stored snapshots does not.`,
     });
-    await flow.morph({ source: FORK });
+    await s.clear();
+    const flow = await s.show({ source: FORK }, { box: ABOVE });
     await flow.walk(
       [
+        ['Settings', 'Scene'],
         ['Capture', 'Snaps'],
         ['Snaps', 'Scene'],
         ['Scene', 'Clock'],
@@ -120,24 +121,28 @@ export default class ForkExplainer extends Scene {
       ],
       { trail: true },
     );
-    await flow.note('Capture', '15 diagram families in 0.4.1', { side: 'below' });
-    await flow.note('Page', 'no diagram renderer, still no dependencies', { side: 'above' });
+    await flow.note('Capture', `${FAMILIES} diagram families, Chromium at build`, { side: 'below' });
+    await flow.note('Page', 'no diagram renderer, no dependencies', { side: 'above' });
+    this.state.families = FAMILIES;
 
-    await this.step('settings', {
-      detail: true,
-      title: 'A reader setting is a case built ahead of time',
-      line: 'Each option of the refill rate is a case, checked in advance.',
-      caption:
-        'A scene may declare a few settings, like the token bucket’s refill rate. Every combination of options is a case: the build runs each one, captures its diagrams and checks it, so choosing 4 tokens opens a page that was already tested.',
+    // 4. What the build checks for each case.
+    await this.step('checks', {
+      title: `Each case must pass ${CHECK_COUNT} checks before it ships`,
+      line: `${CASES} cases × ${CHECK_COUNT} checks = ${CASES * CHECK_COUNT}; another two-option setting doubles it.`,
+      caption: `rayner check runs every case and fails the build on any of ${CHECK_COUNT} problems, from a seeked frame that differs from the played one to text under 14 px or a step that never states the scene’s answer. Because every case is known in advance, every case can be checked; the price is that the work grows with each setting.`,
     });
     await s.clearOverlays();
-    await flow.unmark();
-    await flow.dim(['Settings', 'Scene', 'Clock', 'Page']);
-    await flow.walk([['Settings', 'Scene']], { trail: true });
-    await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
-    await flow.note('Settings', '3 cases, each built, captured and checked', { side: 'above' });
+    await flow.focus('all');
+    await flow.dim(['Settings', 'Scene', 'Clock', 'Check']);
+    await flow.walk([['Clock', 'Check']], { trail: true });
+    await s.card(
+      CHECKS.map(([group, items]) => [`${group} (${items.length})`, items.join(', ')]),
+      { at: BELOW, fontSize: 0.22 },
+    );
+    this.state.checks = CHECK_COUNT;
 
-    // The timing step reads the timing of the 'fork' step this scene has just played.
+    // A detail: the page holds each resting picture for its caption. It reads the timing of the
+    // 'fork' step, which has ended by now.
     const shown = this.steps.find((st) => st.name === 'fork')!;
     const words = String(shown.meta.caption).trim().split(/\s+/).length;
     const motion = (shown.hold ?? shown.t1!) - shown.t0,
@@ -149,6 +154,7 @@ export default class ForkExplainer extends Scene {
       caption: `The scene advances automatically; the page waits for the reader. Its clock gives the fork step ${motion.toFixed(1)} seconds of motion and ${held.toFixed(1)} seconds at rest, allowing its ${words}-word caption to be read at ${Scene.captionWpm} words a minute.`,
     });
     await s.clearOverlays();
+    await flow.unmark();
     await flow.dim(['Clock', 'Frames', 'Image']);
     await flow.focus(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
     // One bar per phase of the 'fork' step, to scale.
@@ -177,40 +183,22 @@ export default class ForkExplainer extends Scene {
     );
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };
 
-    await this.step('checks', {
-      detail: true,
-      title: 'Every case passes rayner check before it ships',
-      line: 'Two checks come from Lantern; the fork adds four.',
+    // 5. What building first gave up: Lantern's live path.
+    await this.step('removed', {
+      title: 'Building first deleted Lantern’s live Worker',
+      line: 'The JSON doc, parser, dev player and Worker are gone.',
       caption:
-        'Lantern’s own tests compared a seeked frame with a played one and looked for jumps in motion. rayner check runs both on every case and adds the fork’s checks: text at least 14 px, no letters the fonts lack, words for every drawing, and a still picture while the caption is read.',
+        'Lantern, which Rayner forks at 2c7bad5, ran each scene live: a development player, and a Cloudflare Worker serving frames, text and traces on request. The fork deleted that path. The player and the parser have replacements; the JSON format and the Worker’s endpoints have none, so a page cannot answer for a case nobody built.',
     });
     await s.clearOverlays();
     await flow.focus('all');
-    await flow.dim(['Clock', 'Check']);
-    await flow.walk([['Clock', 'Check']], { trail: true });
-    await s.card(
-      [
-        ['Seek equals play', 'from Lantern'],
-        ['No jumps in motion', 'from Lantern'],
-        ['Text at least 14 px', 'fork'],
-        ['Letters in the fonts', 'fork'],
-        ['Words for every drawing', 'fork'],
-        ['Still while the caption reads', 'fork'],
-      ],
-      { at: BELOW, fontSize: 0.2 },
-    );
-
-    await this.step('cost', {
-      detail: true,
-      title: 'A prebuilt page no longer exposes Lantern’s Worker endpoints',
-      line: 'The Worker endpoints are gone; Inter is the default face.',
-      caption:
-        'Agents lose the Worker’s endpoints. Diagrams use embedded Inter by default; a scene can explicitly request another face and measure it before layout, as font-metrics does. Capturing a new diagram needs Chromium at build time, though a page built from stored snapshots does not. No engine change has gone upstream.',
-    });
-    await s.clearOverlays();
     await flow.dim(null);
-    await flow.mark(['Capture'], { as: 'needs Chromium' });
-    await flow.note('Capture', 'Chromium at build time; Inter by default', { side: 'below' });
-    await flow.note('Page', 'no agent endpoints', { side: 'above' });
+    await flow.morph({ source: LANTERN });
+    await flow.mark(GONE, { color: s.bad, as: 'deleted' });
+    // What replaces each deleted part, said on the part.
+    await flow.note('Doc', 'no replacement', { side: 'left' });
+    await flow.note('Parser', 'replaced by Agentic Mermaid capture', { side: 'below' });
+    await flow.note('Player', 'replaced by the embed page', { side: 'above' });
+    await flow.note('Worker', 'no replacement', { side: 'right' });
   }
 }
