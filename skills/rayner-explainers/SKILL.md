@@ -46,7 +46,8 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` |
 | Works as served: every step from a fresh link, every case, phone and desktop | `rayner review` |
-| Says nothing a setting would make false, and claims no more than it tests | Reading every case against the model and its sources |
+| Says nothing a setting would make false, and claims no more than it tests | Reading every case against the model and its sources; `rayner check` lists each sentence with "every", "never" or "only" that no declared claim backs ([Claims, words and limits](#claims-words-and-limits)) |
+| Uses the reader's words, introducing any code name where it first appears | `rayner check` lists each code name in the steps' words with the step that first uses it |
 | Teaches better than the alternative: a still, a code diff, or a page written without Rayner | Asking honestly; [the benchmark](../../bench/explainers/README.md) for changes to Rayner itself |
 
 Checks establish deterministic, readable pictures; they cannot establish that a caption is true or that a reader learns. Do not weaken a check, bless a corrupt snapshot or skip a case to get a pass; a checker defect needs a valid example it wrongly rejects and an invalid one it must still reject.
@@ -104,6 +105,16 @@ The scene asks the model; it never states an answer it did not get from one. Thi
 2. Check the model against its source: run the real program or library, or use its published test vectors, and pin the version you ran in the `meta.sources` links (`isdigit` links CPython at tag `v3.15.1`). If you cannot run the source, pin exactly what you relied on instead (the tagged source file, the RFC section or the published test vectors) and say in your report that you read it but did not run it. Never leave a placeholder where a pin belongs.
 3. At each step, record what the picture shows on `this.state` (`isdigit` sets `this.state.outcome = run.outcome` from the model's run).
 4. Add a test that runs every case and asserts each step's state equals the model. In this repository, a model of an outside tool gets `test/lib/fidelity/<id>.ts`, using `assertStepState(trace, step, { … })`, called from `test/explain-fidelity.test.ts`; a model in `lib/models.ts` is tested in `test/explain-models.test.ts`, and a picture built with `view` adds `assertViewFollowsState`. Make the test fail first: break the model and watch it go red.
+
+## Claims, words and limits
+
+These follow the statechart skill that checks a TLA+ model and draws it for the person deciding whether its behaviour is right: every rule the reader accepts is checked, the chart speaks the reader's words, simplifying never hides an outcome, and the hand-off says what the model leaves out.
+
+- **A sweeping sentence is a rule; check it or narrow it.** A sentence with "every", "never", "only", "always" or "whenever" claims more than the cases on screen. Back it with `meta.claims: [{ says, test }]`: `says` is a phrase of the sentence and `test` names the test that holds it, as `"test/<file>.test.ts: <part of its name>"`. Write the test if there is none, and make it fail first. When the sentence speaks only of what its own step draws ("every round in the strip"), mark it `{ says, shown: true }` instead. Otherwise narrow the sentence until it says only what the explainer shows. Never weaken a test to make a claim hold. `rayner check` fails a claim no step states or whose test is not there, and lists the scope sentences nothing backs.
+- **Speak the reader's words.** A title, line or caption names what the reader sees, not the code behind it. A code name (`int()`, `skipUntil`, `A->C#0`) belongs only where the reader needs it, introduced where it first appears. `rayner check` lists each one with the step that first uses it.
+- **Simplify without hiding an outcome.** When a picture or a story is too busy, coarsen labels first, then leave out steps, but keep every case a setting offers reachable, never merge two cases that end differently, and never show part of a comparison. Say in `script.md` what you left out.
+- **Say what the model leaves out.** End `script.md` with what the model omits and which values no case shows, and keep every caption inside those limits: the token-bucket page's "accepted at every rate" held at the three rates it offered and failed at one it never built (`fork`).
+- **Doubt the model before the source.** Replay a claim against the real thing where you can, one step at a time. When they disagree, the model is wrong until shown otherwise. A claim that rests on the explainer's own model and nothing outside it (a hand model, a perception claim) says so in its sentence.
 
 ## Engine constraints
 

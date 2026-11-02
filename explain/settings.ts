@@ -42,6 +42,14 @@ export type ExplainerClass = SceneClass & {
      * `describeExplainer` carry them too.
      */
     checks?: readonly { question: string; answer: string }[];
+    /**
+     * Claims that reach beyond the cases shown (a sentence with "every", "never", "only" and the like),
+     * each with the test that holds it: `says` is a phrase of the sentence, `test` is
+     * "test/<file>.test.ts: <part of the test's name>"; or `shown: true` when the sentence speaks only of
+     * what its own step draws. `check` fails a claim no step states or whose test is not there, and
+     * reports scope sentences no claim backs (explain/claims.ts).
+     */
+    claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
   };
   settings?: readonly Setting[];
 };

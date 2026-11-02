@@ -1,4 +1,5 @@
 import { scriptReport } from '../../explain/script.ts';
+import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
 import { isHeading } from '../../explain/stage.ts';
@@ -454,6 +455,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
       // check questions the page asks. Undeclared parts are reported as missing.
       script,
+      // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
+      // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
+      claims: claimsReport(project.Scene.meta, v.trace.steps),
       // What each step changed of the state the author watches (meta.watch), as readers see it, and
       // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch
@@ -471,6 +475,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ),
     });
   }
+  // A declared claim must be stated by some case and held by a test that is there.
+  const claimProblems = await declaredClaimProblems(
+    checkClaimsMeta(project.Scene.meta),
+    variants.flatMap((v) => v.claims.stated),
+  );
+  assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
     variants,
@@ -482,4 +492,23 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   };
   await writeFile(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   return report;
+}
+
+/**
+ * What is wrong with a scene's declared claims: one no case states, or one whose test file is not
+ * there or holds no test whose name contains the given part.
+ */
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[]): Promise<string[]> {
+  const problems: string[] = [];
+  for (const c of claims) {
+    if (!stated.includes(c.says)) problems.push(`no step states the claim "${c.says}"`);
+    if (!c.test) continue;
+    const at = c.test.indexOf(': '),
+      file = c.test.slice(0, at),
+      name = c.test.slice(at + 2);
+    const source = await readFile(join(ROOT, file), 'utf8').catch(() => null);
+    if (source == null) problems.push(`the claim "${c.says}" names ${file}, which is not there`);
+    else if (!source.includes(name)) problems.push(`the claim "${c.says}" names a test in ${file} called "${name}", and there is none`);
+  }
+  return problems;
 }

@@ -14,6 +14,7 @@ import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
+import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
 import type { Trace } from '../../src/index.ts';
 
@@ -407,6 +408,7 @@ export async function collectProject(
     checkWatch(Source.meta?.watch, variants.flatMap((v) => v.trace.steps));
     // The script's answer and check questions must be usable before any case is checked against them.
     checkScriptMeta(Source.meta);
+    checkClaimsMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store, loaded.sourceHash);
     return { ...loaded, Scene: Source, store, variants, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };

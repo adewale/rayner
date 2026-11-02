@@ -20,7 +20,7 @@ For each, say how well it is met (strong, adequate or weak) and cite the steps t
 - **Novelty.** Does the presentation feel fresh: a better example, an angle the usual explanations miss, an obscure idea brought into the light? Or is it the standard treatment, redrawn?
 - **Memorability.** Is there a moment that would stick months later, an aha or shift in perspective, and does the explainer build up to it? Does motion earn its place there?
 - **The reader's own work.** Does the reader commit to a prediction, choose a case that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Questions a reader who knows the topic would answer anyway do not count.
-- **Grounding.** Does every claimed value, path or comparison trace to a model tested against the real thing, with a case that could prove a tempting generalisation wrong?
+- **Grounding.** Does every claimed value, path or comparison trace to a model tested against the real thing, with a case that could prove a tempting generalisation wrong? Is every sentence that reaches beyond the cases shown ("every", "never", "only") backed by a test or narrowed, does the script say what the model leaves out, and does a claim resting only on the explainer's own model say so? `rayner check` lists the sweeping sentences nothing backs and the code names reaching the reader's words.
 
 ## Fix first
 
