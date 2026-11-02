@@ -87,7 +87,7 @@ export function frames(seed: number): ReaderFrame[] {
     return runs.filter((r) => r.length > 1);
   };
   const near = far.d;
-  // The caption says the dark line runs inside the wide grey one everywhere; refuse to say it otherwise.
+  // The picture shows the dark line inside the wide grey one everywhere; refuse to draw it otherwise.
   if (between > 0.06 - 0.0175) throw new Error(`The two drawings are ${between} apart, wider than the grey line shows`);
   // One path per polyline: a hand's stroke has hundreds of points.
   const path = (points: readonly Pt[], color: string, width: number, opacity = 1, dash?: string) => {
@@ -103,7 +103,7 @@ export function frames(seed: number): ReaderFrame[] {
       id: 'reader-drift',
       title: 'If the hand places the boxes, a second drawing moves them',
       line: 'Grey: the first drawing. Dark: the second. Dashed: where the boxes belong.',
-      caption: `First the failure, as a model. Suppose the hand draws the four period boxes itself: each side starts where the last one ended, up to ${FREEHAND.angle}° and ${FREEHAND.length * 100}% off, and the pen moves on to the next box from where it lifted. Every error is carried into every later corner. Two drawings with different seeds put the same box as much as ${worst.toFixed(2)} units apart, about ${px(worst)} on a page 1280 px wide, so names laid out once no longer line up with the boxes drawn round them.`,
+      caption: `Four plain boxes show why the opening’s boxes wander. Each side begins at the end of the side before, up to ${FREEHAND.angle}° and ${FREEHAND.length * 100}% off its direction and length, and the pen moves on to the next box from where it lifted, so every error is carried into every later corner. Two drawings with different seeds put the same box as much as ${worst.toFixed(2)} units apart, about ${px(worst)} on a page 1280 px wide.`,
       values: { apart: apart.map((d) => Number(d.toFixed(3))), fromLayout: fromLayout.map((d) => Number(d.toFixed(3))) },
       draw: (s) =>
         new Group(
@@ -118,7 +118,7 @@ export function frames(seed: number): ReaderFrame[] {
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
-      caption: `The blue band is a route fixed before any ink: its corners and its ends. Now the pen is a mass on a damped spring, chasing a point that moves along the route and shaken by a small tremor, so each stroke is pulled back to the route it is given and no error carries into the next. Neither drawing strays more than ${stray.toFixed(3)} units, about ${px(stray)}, from the route; the dark line runs inside the wide grey one all the way, and the circle magnifies ${ZOOM} times the place where the second drawing is furthest from the first, ${near.toFixed(3)} units. The fix for the drifting boxes is to lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
+      caption: `The blue band is a route fixed before any ink, its corners and ends. The pen is now a mass on a damped spring that chases a point moving along the route, so each stroke is pulled back to its route and no error reaches the next. Neither drawing strays more than ${stray.toFixed(3)} units from the band, and the circle magnifies ${ZOOM} times the spot where they differ most. The fix, then: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
       values: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
       draw: (s) => {
         const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);

@@ -123,7 +123,7 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
 }
 /** The script's one-sentence answer, stated in the seek step. */
 const ANSWER =
-  'A still re-runs the scene on the same fixed clock and skips computing the frames before t, so it matches playback only if each frame depends on the time alone';
+  'A still re-runs the scene on the same fixed clock and skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
 
 export default class LanternExplainer extends Scene {
   static meta = {
@@ -140,9 +140,9 @@ export default class LanternExplainer extends Scene {
     checks: [
       {
         question:
-          'A third version moves the dot with dot.animate.shift([12, 0]) instead of animate.moveTo. Does its still at t = 1 s match playback?',
+          'In the nudge version, the fade-in is stretched from 0.5 s to 1 s, so the move runs from t = 1 s to 2 s and the scene has 60 frames. Does the still at t = 1 s now match playback, and which is the first frame whose still differs?',
         answer:
-          'Yes. animate.shift builds a Transform to a shifted copy of the dot, so its start and end are fixed when the move begins and each frame blends them by the time alone. Only a shift applied on every computed frame, like the nudge, depends on how many frames ran.',
+          'The still at t = 1 s matches: frame 30 is now the last frame of the fade, and neither run has nudged the dot yet. The first frame that differs is 32. Frame 31 opens the move, and the seek and playback have each made one nudge there; by frame 32 playback has made two and the seek still one.',
       },
       {
         question:
@@ -221,7 +221,7 @@ export default class LanternExplainer extends Scene {
     await this.step('played', {
       title: `Played, the dot is halfway at t = ${t} s`,
       line: `Predict: a still at t = ${SEEK_T} s never computes frames 1–${run.seekAt - 1}. Where is its dot?`,
-      caption: `Open a Rayner page from a link to its fifth step and the player draws that step without playing the four before it, and renderAt, the function that saves one moment of a scene as an image, makes its still the same way. Here a tiny scene grows a box and moves a dot along a track. ${how} On the left is frame ${run.seekAt} as played: t = ${t} s, the dot halfway, and SVG with the fingerprint ${print}, whichever motion moves the dot. On the right is the still at t = ${SEEK_T} s. It runs the scene again from the start but only counts frames 1 to ${run.seekAt - 1}, so it never works out where anything was during them.`,
+      caption: `Open a Rayner page from a link to its fifth step and the player draws that step without playing the four before it; renderAt, which saves one moment of a scene as an image, works the same way. Here a tiny scene grows a box and moves a dot along a track. ${how} Left: frame ${run.seekAt} as played, the dot halfway. Right: the still at t = ${SEEK_T} s, which re-runs the scene but only counts frames 1 to ${run.seekAt - 1}.`,
     });
     const left = thumb(run.playedFrame, -3.6, playedLabel, run.played);
     const pending = thumb(null, 3.6, seekedLabel, null);
@@ -254,7 +254,7 @@ export default class LanternExplainer extends Scene {
     await this.step('clock', {
       title: `Frame ${run.seekAt} is t = ${t} s in every run`,
       line: `Scene time is the frame number × 1/${this.fps} s, however fast the frames are taken.`,
-      caption: `Half of the answer is the clock. Scene time advances a fixed 1/${this.fps} s per frame, whatever receives the frames; the receiver is called a sink. The browser sink waits for a display tick before each frame, and the trace sink takes them all at once. On a wall clock the browser’s dots spread out and the trace’s bunch together, but each frame carries the scene time above it, so a still for t = ${SEEK_T} s and playback both stop on frame ${run.seekAt}.`,
+      caption: `The still can find frame ${run.seekAt} because each frame advances scene time by exactly 1/${this.fps} s, whatever receives it. The receiver is called a sink. The browser sink waits for a display tick before each frame and the trace sink takes them all at once, so on a wall clock their dots spread out or bunch together, yet both reach t = ${SEEK_T} s at frame ${run.seekAt}.`,
     });
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: regionBox('top', { bottom: -0.55 }) });
@@ -293,8 +293,8 @@ export default class LanternExplainer extends Scene {
 
     await this.step('objects', {
       title: 'A frame is the shapes on stage, as the playing animations left them',
-      line: 'The other half: what a frame is worked out from.',
-      caption: `In the diagram, a Scene owns mobjects, Rayner’s name for the shapes and text on stage; it plays animations, which change them; and it emits each frame to a sink, which only reads them. So the dot in frame ${run.seekAt} is wherever the playing animation put it. If an animation works that out from what the frame before left behind, as the nudge does, a still that skips those frames gets it wrong.`,
+      line: `Once the still reaches frame ${run.seekAt}, the playing animation decides where the dot is.`,
+      caption: `In the diagram, a Scene owns mobjects, Rayner’s name for the shapes and text on stage; it plays animations, which change them; and it emits each frame to a sink, which only reads them. So the dot in frame ${run.seekAt} is wherever the playing animation put it. When that place depends on how many frames ran before, as the nudge’s does, a still that skips them can put the dot somewhere else.`,
     });
     await s.clear();
     const classes = await s.show({ source: CLASSES }, { box: 'main' });
