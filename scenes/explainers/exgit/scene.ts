@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/exgit.ts';
 import type { Evidence } from '../../../src/index.ts';
 import {
   Scene,
@@ -68,6 +66,24 @@ const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).
 /** How a byte reads in a cell: printable, or its escape. */
 const glyph = (b: number) => (b === 0 ? '\\0' : b === 10 ? '\\n' : b === 32 ? 'sp' : String.fromCharCode(b));
 
+/** The script's one-sentence answer (meta.answer), which the change step states. */
+const ANSWER = 'Git writes only the objects whose bytes are new, and names unchanged content again by its id';
+/** The add case's repository, for the check answers: the hello blob, and what commit two writes. */
+const ADDED = (() => {
+  const repo = new Repo(),
+    hello = repo.blob('hello\n'),
+    world = repo.blob('world\n'),
+    t1 = repo.tree([['100644', 'hello.txt', hello]]),
+    c1 = repo.commit({ tree: t1, author: AUTHOR, message: 'first\n' }),
+    t2 = repo.tree([
+      ['100644', 'hello.txt', hello],
+      ['100644', 'world.txt', world],
+    ]),
+    c2 = repo.commit({ tree: t2, parents: [c1], author: AUTHOR, message: 'second\n' });
+  const before = reachable(repo, c1);
+  return { hello, written: reachable(repo, c2).filter((id) => !before.includes(id)).length };
+})();
+
 export default class GitExplainer extends Scene {
   static meta = {
     id: 'exgit',
@@ -75,6 +91,22 @@ export default class GitExplainer extends Scene {
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',
+    ],
+    // The script's answer and check questions (script.md); the change step states the answer.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'The second commit adds world.txt. How many objects does Git write, and which object do both trees name?',
+        answer: `${ADDED.written}: world’s blob, tree two and commit two. Both trees name the hello blob ${short(ADDED.hello)}, so Git does not store hello again.`,
+      },
+      {
+        question: 'If the second commit edits hello.txt to “hello again” instead, which ids change, and what happens to commit one’s objects?',
+        answer: 'The blob’s, the tree’s and the commit’s: each object holds the id of the one below it. Commit one’s blob, tree and commit stay in the store unchanged, reachable through commit two’s parent line.',
+      },
+      {
+        question: 'What does moving main to commit two copy?',
+        answer: 'No object. It rewrites the 40-digit id that refs/heads/main holds, from commit one’s to commit two’s.',
+      },
     ],
   };
   static settings = [
@@ -97,20 +129,19 @@ export default class GitExplainer extends Scene {
       accent = s.emphasis;
 
     // ── blob: the bytes that are hashed ────────────────────────────────
-    await readerFirst(this, s, readerFrames(which!));
-    await this.step('blob', {
-      detail: true,
-      title: 'A blob id is the SHA-1 of typed bytes',
-      line: 'Header bytes, then content bytes: 13 in all, hashed together.',
-      caption:
-        'Git hashes a header (the type, the byte length and a zero byte) followed by the content. The id is the SHA-1 of exactly these 13 bytes, and the brace marks the seven digits that name it in later pictures.',
-    });
-    await s.clear();
     const hello = repo.blob('hello\n');
-    this.state.hello = hello;
     const object = repo.objects[hello]!,
       header = new TextEncoder().encode(`${object.type} ${object.bytes.length}\0`),
       all = [...header, ...object.bytes];
+    await this.step('blob', {
+      title: `Commit one’s file is ${all.length} bytes, named by their SHA-1`,
+      line: add
+        ? 'Predict: a second commit adds world.txt. Does Git store these bytes again?'
+        : 'Predict: a second commit edits hello.txt to “hello again”. What must Git write?',
+      caption: `The first commit holds one file, hello.txt, containing hello and a newline. Git hashes a header (the type, blob, the byte length and a zero byte) followed by the content: these ${all.length} bytes. The SHA-1 of exactly these bytes is the id of the object, which Git calls a blob; its first seven digits, ${short(hello)}, name it from here on.`,
+    });
+    await s.clear();
+    this.state.hello = hello;
     const cell = 0.98,
       gap = 0.1,
       x0 = -((all.length - 1) * (cell + gap)) / 2,
@@ -183,7 +214,6 @@ export default class GitExplainer extends Scene {
 
     // ── tree: names live in the tree ────────────────────────────────────
     await this.step('tree', {
-      detail: true,
       title: 'A tree gives those bytes a name',
       line: 'The name hello.txt is in the tree entry, not in the blob.',
       caption:
@@ -205,7 +235,6 @@ export default class GitExplainer extends Scene {
 
     // ── commit: a commit names a tree; a branch names a commit ─────────
     await this.step('commit', {
-      detail: true,
       title: 'A commit names a tree; a branch names a commit',
       line: 'main → commit → tree → blob: each holds the next one’s id.',
       caption:
@@ -244,14 +273,15 @@ export default class GitExplainer extends Scene {
     const before = reachable(repo, c1),
       written = reachable(repo, c2).filter((id) => !before.includes(id)).length;
     await this.step('change', {
-      detail: true,
-      title: add ? 'Add a file: the old blob is reused' : 'Edit a file: new blob, new tree, new commit',
+      title: add
+        ? `Answer: no. Tree two names blob ${short(hello)} again`
+        : `Answer: ${written} new objects, a blob, a tree and a commit`,
       line: add
-        ? `Tree two names blob ${short(hello)} again; ${written} new objects are written.`
-        : `Changed bytes change every id above them: ${written} new objects.`,
+        ? `${written} new objects: world’s blob, tree two and commit two.`
+        : 'Changed bytes change every id above them.',
       caption: add
-        ? `Tree two lists hello.txt with the very same blob id, plus world.txt. Below, commit one’s row stays put, ${written} new objects grow in, and the hello blob moves into tree two as the same object: git does not write it again.`
-        : `New bytes hash to a new blob id. The tree naming it changes, so its id changes, and so does the commit’s. Below, commit one’s row stays put and all ${written} of commit two’s objects grow in new.`,
+        ? `${ANSWER}. Tree two lists hello.txt with the very same id, ${short(hello)}, beside world.txt, so commit two writes world’s blob, tree two and itself. In the rows below, commit one’s objects stay as they were, and the hello blob is one object named by both trees.`
+        : `${ANSWER}. New bytes hash to a new blob id; the tree that names it now has new bytes, so a new id, and so does the commit, whose parent line names commit one again. In the rows below, commit one’s objects stay as they were.`,
     });
     const B2 = `New["blob<br/>${short(nextBlob)}"]`,
       T2 = `T2["tree ${short(t2)}<br/>${add ? 'hello.txt, world.txt' : 'hello.txt'}"]`,
@@ -375,18 +405,7 @@ export default class GitExplainer extends Scene {
     await this.play(new TransformMatchingShapes(one.row, rows, { runTime: 1.2 }));
     const [grown] = lastMatches(this, 1);
     if (grown!.removed !== 0 || grown!.morphed !== 0) throw new Error('The morph did not keep commit one’s row whole');
-    const morphNote = s.keep(
-      new Text(`The redraw kept all ${grown!.matched} shapes of commit one’s row and grew ${grown!.added} new ones.`, {
-        fontSize: 0.22,
-        color: s.soft,
-      }).moveTo([0, -4.07]),
-    );
-    await this.play(new FadeIn(morphNote, { runTime: 0.4 }));
-    if (shared) {
-      // Tree two names the very object tree one names: the same box moves across, id and all.
-      const same = s.keep(two.blobs.get(shared)!, { describe: bothRows });
-      await this.play(new TransformFromCopy(oneAgain.blobs.get(shared)!, same, { runTime: 0.9 }));
-    }
+    // The diagram's marks come first, so commit one's redrawn row has settled before anything copies from it.
     if (add) {
       await d.mark(['Hello', 'edge:T1->Hello#0', 'edge:T2->Hello#0']);
       await d.note('Hello', 'one blob, two trees', { side: 'above' });
@@ -394,16 +413,19 @@ export default class GitExplainer extends Scene {
       await d.mark(['C2', 'T2', 'New']);
       await d.note('New', 'new bytes, new id', { side: 'below' });
     }
+    if (shared) {
+      // Tree two names the very object tree one names: the same box moves across, id and all.
+      const same = s.keep(two.blobs.get(shared)!, { describe: bothRows });
+      await this.play(new TransformFromCopy(oneAgain.blobs.get(shared)!, same, { runTime: 0.9 }));
+    }
 
     // ── head: the branch moves; HEAD follows it ─────────────────────────
     await this.step('head', {
-      detail: true,
       title: 'Moving main to commit two changes one reference',
       line: 'refs/heads/main now holds commit two’s id; no object is copied.',
       caption:
-        'HEAD names refs/heads/main, and moving the branch rewrote the id main holds from commit one to commit two, as the note under main says. No object was copied: both rows below are as they were, and commit one stays reachable through commit two’s parent link.',
+        'HEAD names refs/heads/main, and the branch now holds commit two’s id instead of commit one’s, as the note under main says. No object was copied: both rows below are as they were, and commit one stays reachable through commit two’s parent line.',
     });
-    await this.play(new FadeOut(morphNote, { runTime: 0.3 }));
     repo.refs['refs/heads/main'] = c2;
     repo.refs.HEAD = { symbolic: 'refs/heads/main' };
     this.state.head = repo.resolve('HEAD');

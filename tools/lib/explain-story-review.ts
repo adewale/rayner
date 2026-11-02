@@ -238,6 +238,11 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
       targets: [{ text: 'Ink' }, { text: 'Paper' }, { key: 'edge:A->B#0', paint: 'stroke' }],
     },
   ],
+  // The reader frames these replaced: the bytes a blob id names, and both commits' rows with the parent link.
+  exgit: [
+    { step: 'blob', targets: [{ text: 'header' }, { text: 'content' }] },
+    { step: 'change', targets: [{ text: 'commit one' }, { text: 'commit two' }, { text: 'parent' }] },
+  ],
   'layout-direction': [
     {
       step: 'columns',
@@ -281,7 +286,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'quotient-familial': ['reader-quotient', 'reader-cap'],
   glyph: ['reader-width', 'reader-shape'],
   'pen-and-pencil': ['reader-separate', 'reader-labels'],
-  exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
   '2password': ['reader-boundary', 'reader-auth'],
   'agentic-mermaid': ['reader-branches', 'reader-repair'],
@@ -354,7 +358,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-separate': ['Fixed route + simulated stroke'],
     'reader-labels': ['Midnight', 'Reserved for the label'],
   },
-  exgit: { 'reader-objects': ['commit', 'tree', 'blob'], 'reader-change': ['parent'] },
   'mr-cache': { 'reader-request': ['Request', 'Database', 'Response'] },
   '2password': {
     'reader-boundary': ['Agent', 'op CLI', 'Application'],
