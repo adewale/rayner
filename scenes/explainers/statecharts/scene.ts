@@ -305,10 +305,10 @@ const byKey: MatchKey = (p) => {
 };
 
 
-// The coffee machine: a column of on states, off to its right. `flat` gives each state its own POWER_OFF;
-// `chart` puts them in the box on; `question` adds the frother beside it, not yet placed; `frother`
+// The coffee machine: a column of on states, off to its right. `plain` is the machine before it has a
+// power button; `flat` gives each state its own POWER_OFF; `chart` puts them in the box on; `question` adds the frother beside it, not yet placed; `frother`
 // splits on into the brewing cycle and the frother.
-type CoffeeMode = 'flat' | 'chart' | 'question' | 'frother';
+type CoffeeMode = 'plain' | 'flat' | 'chart' | 'question' | 'frother';
 const COFFEE = {
   x: -2.4,
   ys: { idle: 2.05, grinding: 0.65, brewing: -0.75, ready: -2.15 } as Record<string, number>,
@@ -319,7 +319,7 @@ const COFFEE = {
 };
 const coffeeLayout = (mode: CoffeeMode) => {
   const wide = mode === 'frother',
-    short = mode !== 'flat';
+    short = mode !== 'flat' && mode !== 'plain';
   const on: Box = wide ? [-5.45, -3.35, 2.35, 3.2] : [-5.45, -2.9, -0.7, 3.2];
   const offX = wide ? 5.35 : 3.0;
   const off: Place = short ? { center: [offX, 1.25], size: [1.3, 2.4] } : { center: [offX, -0.05], size: [1.3, 5.0] };
@@ -331,11 +331,11 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     lay = coffeeLayout(mode),
     parts: Mobject[] = [],
     words: string[] = [];
-  const places = new Map<string, Place>([['off', lay.off]]);
+  const places = new Map<string, Place>(mode === 'plain' ? [] : [['off', lay.off]]);
   for (const [id, y] of Object.entries(COFFEE.ys)) places.set(id, { center: [COFFEE.x, y], size: COFFEE.size });
   const frotherX = mode === 'question' ? 5.9 : COFFEE.frotherX;
   if (mode === 'question' || mode === 'frother') for (const [id, y] of Object.entries(COFFEE.frotherYs)) places.set(id, { center: [frotherX, y], size: COFFEE.frotherSize });
-  const boxed = mode !== 'flat';
+  const boxed = mode !== 'flat' && mode !== 'plain';
   if (boxed) {
     const followed = look.follow.includes('on');
     parts.push(
@@ -364,8 +364,13 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     parts.push(...stateBox(s, f, `c:${id}`, p.center, p.size, [{ key: `c:${id}|w`, text: id }], look.follow.includes(id)));
     words.push(id + (look.follow.includes(id) ? ' (current)' : ''));
   }
-  parts.push(...start(s, f, 'c:start:machine', places.get('off')!, 'above'));
-  words.push('start → off');
+  if (mode === 'plain') {
+    parts.push(...start(s, f, 'c:start:on', places.get('idle')!, 'above'));
+    words.push('start → idle');
+  } else {
+    parts.push(...start(s, f, 'c:start:machine', places.get('off')!, 'above'));
+    words.push('start → off');
+  }
   if (boxed) {
     parts.push(...start(s, f, 'c:start:on', places.get('idle')!, 'above'));
     words.push('start of the cycle → idle');
@@ -385,7 +390,9 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     return out;
   };
   const arrows =
-    mode === 'flat'
+    mode === 'plain'
+      ? flatten(chart).transitions.filter((t) => t.from !== 'off' && t.to !== 'off')
+      : mode === 'flat'
       ? flatten(chart).transitions
       : mode === 'question'
         ? [...written(chart), { from: 'still', event: FROTHER.events[0], to: 'frothing' }, { from: 'frothing', event: FROTHER.events[1], to: 'still' }]
@@ -426,8 +433,9 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     );
     words.push(...lines);
   }
-  const n = mode === 'flat' ? flatCounts(flatten(chart)) : chartCounts(chart);
-  if (mode !== 'question') parts.push(note(s, f, lay.bounds, `${mode === 'flat' ? 'Flat' : 'Statechart'}: ${counted(n)}`));
+  const n = mode === 'plain' ? { states: places.size, transitions: arrows.length } : mode === 'flat' ? flatCounts(flatten(chart)) : chartCounts(chart);
+  const kind = mode === 'plain' ? 'State machine' : mode === 'flat' ? 'Flat' : 'Statechart';
+  if (mode !== 'question') parts.push(note(s, f, lay.bounds, `${kind}: ${counted(n)}`));
   return { group: new Group(...parts), words };
 }
 
@@ -530,7 +538,7 @@ export default class Statecharts extends Scene {
       'https://www.npmjs.com/package/xstate/v/5.33.3',
     ],
     watch: { current: 'Current states' },
-    // The script's answer and check questions (script.md); check holds step 1 to the answer.
+    // The script's answer and check questions (script.md); check holds a step (parent) to stating the answer.
     answer: 'A statechart is a state machine whose states can contain other states',
     checks: [
       {
@@ -552,6 +560,7 @@ export default class Statecharts extends Scene {
     const s = stage(this, { style: 'github-light', headingSize: 0.54 });
     const playerChart = player(2),
       coffeeFlat = flatCounts(flatten(coffee())),
+      coffeePlain = flatten(coffee()).transitions.filter((t) => t.from !== 'off' && t.to !== 'off').length,
       coffeeChart = chartCounts(coffee()),
       frotherFlat = flatCounts(flatten(coffeeWithFrother())),
       frotherChart = chartCounts(coffeeWithFrother()),
@@ -560,13 +569,11 @@ export default class Statecharts extends Scene {
 
     const FULL = regionBox('full', { top: 3.05 });
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
-    const DEFINE = regionBox('full', { top: 2.6, bottom: -3.2 });
-    const defineFit = fit(CHART.bounds, DEFINE, scaleFor(CHART.bounds, DEFINE));
 
-    type Phase = 'what' | 'copies' | 'parent' | 'multiply' | 'growth' | 'booleans' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
-    let phase: Phase = 'what';
-    const [paused, playing] = PLAYBACK.states,
-      [unmuted, muted] = VOLUME.states;
+    type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'growth' | 'booleans' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
+    let phase: Phase = 'machine';
+    const [, playing] = PLAYBACK.states,
+      [, muted] = VOLUME.states;
     const followCell = cellKey(cellOf([playing, muted]));
     const coffeeRun = run(coffee(), RUNS.coffee),
       frotherRun = run(coffeeWithFrother(), RUNS.frother);
@@ -576,8 +583,8 @@ export default class Statecharts extends Scene {
     let drawn: Drawn = { group: new Group(), words: [] };
     const picture = (): Drawn => {
       switch (phase) {
-        case 'what':
-          return chartPicture(s, playerChart, 'regions', defineFit, { follow: [paused, unmuted], lit: [] }, false);
+        case 'machine':
+          return coffeePicture(s, big(coffeeLayout('flat').bounds), 'plain', { follow: [], lit: [] });
         case 'copies':
           return coffeePicture(s, big(coffeeLayout('flat').bounds), 'flat', { follow: [], lit: Object.keys(COFFEE.ys).map((id) => `c:arrow:${id}:POWER_OFF:off`) });
         case 'parent':
@@ -615,45 +622,40 @@ export default class Statecharts extends Scene {
       await this.play(main.sync({ match: byKey, runTime: 1.2 }));
     };
 
-    // 1. What it is.
-    await this.step('what', {
-      title: 'A statechart is a state machine with states inside states',
-      line: 'Green: the current state in each region. on is the parent.',
-      caption:
-        'A statechart is a state machine whose states can contain other states. It adds two things. A state can be a box of states, a parent, and any event its children don’t handle goes to the parent. And a state can be split into regions, each in one state at the same time.',
+    // 1. A concrete machine, and the change that will hurt it.
+    await this.step('machine', {
+      title: 'A coffee machine, drawn as a state machine',
+      line: 'Predict: a power button must switch it off from any state. How many arrows does that add?',
+      caption: `Many apps model behaviour as a state machine: the thing is in exactly one state, and each event moves it along an arrow. This coffee machine has four states, idle, grinding, brewing and ready, and ${coffeePlain} transitions. Drawings like this stay readable until states start sharing behaviour. Give the machine a power button and watch what happens to it.`,
     });
     main.rebuild();
     s.keep(main, describe);
-    const callout = (text: string, at: Vec, key: string) => keyed(new Text(text, { fontSize: L * defineFit.k * 1.25, color: s.emphasis }).moveTo(defineFit.at(at)), key);
     await this.play(new FadeIn(main, { runTime: 0.7 }));
-    await s.enter(callout('a parent state: on holds the others', [2.4, CHART.on[3] + 0.45], 'n:parent'), callout('two regions, each in one state at once', [0, CHART.on[1] - 0.45], 'n:regions'), {
-      describe: 'Labels: on is a parent state holding the others; the dashed line splits it into two regions, each in one state at once',
-    });
-    this.state = { current: activeStates(playerChart, [paused, unmuted]) };
+    this.state = { current: null };
 
     // 2. Shared behaviour is copied.
     await this.step('copies', {
-      title: 'Shared behaviour is copied onto every state',
-      line: 'Predict: what could replace these four marked POWER_OFF arrows?',
-      caption: `In a plain state machine, behaviour shared by many states must be copied onto each of them. Give a coffee machine a power button, and idle, grinding, brewing and ready each need their own POWER_OFF arrow, marked: ${coffeeFlat.states} states and ${coffeeFlat.transitions} transitions.`,
+      title: `Answer: ${coffeeFlat.transitions - coffeePlain}, with POWER_OFF copied onto every state`,
+      line: 'Predict: the four marked arrows all do the same thing. How could one arrow do the job?',
+      caption: `One POWER_ON from off, and a POWER_OFF from each of idle, grinding, brewing and ready, marked, because in a plain state machine an arrow leaves one state. Behaviour shared by many states must be copied onto each of them: ${coffeeFlat.states} states and ${coffeeFlat.transitions} transitions, and every new state would need its own copy too.`,
     });
-    await fresh('copies');
+    await morph('copies');
     this.state = { current: null };
 
-    // 3. The parent takes what its children don't.
+    // 3. The box: a parent takes what its children don't. The name arrives here.
     await this.step('parent', {
-      title: 'Answer: one POWER_OFF on a parent box',
-      line: 'The current state is asked first, then its parent.',
-      caption: `Put the four in a box called on, and one POWER_OFF on the box does the job: ${coffeeFlat.transitions} transitions become ${coffeeChart.transitions}. When POWER_OFF arrives while brewing, brewing is asked first and has no POWER_OFF arrow, so its parent on takes it and the machine switches off.`,
+      title: 'Answer: draw a box around them. That is a statechart',
+      line: 'The current state is asked first, then the box around it.',
+      caption: `Put the four in a box called on, and give the box the one POWER_OFF: ${coffeeFlat.transitions} transitions become ${coffeeChart.transitions}. When POWER_OFF arrives while brewing, brewing is asked first and has no POWER_OFF arrow, so the box around it, its parent, takes it. That is the first idea. A statechart is a state machine whose states can contain other states.`,
     });
     await morph('parent');
     this.state = { current: activeStates(coffee(), brewing) };
 
     // 4. Independent features multiply.
     await this.step('multiply', {
-      title: 'Two on/off features make four flat states',
+      title: 'A media player: two on/off features make four flat states',
       line: 'Predict: how many states with a third on/off feature?',
-      caption: `A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, each with its own POWER arrow and its own PLAY or PAUSE and MUTE or UNMUTE: ${playerFlat.states} states and ${playerFlat.transitions} transitions, counting off.`,
+      caption: `The second idea is for features that don’t depend on each other. A media player is playing or paused, and separately muted or unmuted. A plain state machine is in one state at a time, so each state must name both: one per combination, four of them, each with its own POWER arrow and its own PLAY or PAUSE and MUTE or UNMUTE: ${playerFlat.states} states and ${playerFlat.transitions} transitions, counting off.`,
     });
     await fresh('multiply');
     this.state = { current: null };
@@ -668,19 +670,19 @@ export default class Statecharts extends Scene {
 
     // 6. Booleans hide the same problem.
     await this.step('booleans', {
-      title: 'Booleans hide the same problem',
-      line: 'Predict: how can four combinations fit in two small machines?',
+      title: 'The usual escape, booleans, lets impossible states in',
+      line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
       caption:
-        'Booleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible. Two booleans make four combinations, but the player has only two playback states, and “neither” is one more case the code must decide.',
+        'The usual escape from the grid is to drop the states and keep booleans. But isPlaying and isPaused can both be true, which should be impossible: two booleans make four combinations, the player has only two playback states, and “neither” is one more case the code must decide.',
     });
     await fresh('booleans');
 
     // 7. Regions: the grid's own words move into two small machines.
     await this.step('regions', {
-      title: 'Answer: regions keep playback and volume apart',
+      title: 'Answer: split the box into two machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
       caption:
-        'Regions keep playback and volume apart, as two small machines side by side, so the impossible combination can’t be written: playback is paused or playing, never both. The combination playing · muted becomes playing in one region and muted in the other. Each new feature adds a region of two states instead of doubling everything.',
+        'Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. The impossible combination can’t be written, and each new feature adds a region of two states instead of doubling everything.',
     });
     await fresh('grid');
     await morph('regions');

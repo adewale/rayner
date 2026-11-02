@@ -2,32 +2,34 @@
 
 Questions the reader brings: What is a statechart? How is it different from a state machine? Why would I use one?
 
-A statechart is a state machine whose states can contain other states. It adds two things. A state can be a box of states, a parent, and any event its children don't handle goes to the parent. And a state can be split into regions, each in one state at the same time.
+Many apps model behaviour as a state machine: the thing is in exactly one state, and each event moves it along an arrow. A coffee machine is idle, grinding, brewing or ready. Drawings like this stay readable until states start sharing behaviour.
 
-Why that matters: in a plain state machine, behaviour shared by many states must be copied onto each of them. Give a coffee machine a power button, and idle, grinding, brewing and ready each need their own POWER_OFF arrow. Put the four in a box called on, and one POWER_OFF on the box does the job.
+Give the machine a power button. A plain state machine's arrow leaves one state, so idle, grinding, brewing and ready each need their own POWER_OFF arrow: behaviour shared by many states is copied onto each of them. Put the four in a box called on, and one POWER_OFF on the box does the job. When POWER_OFF arrives while brewing, brewing is asked first, has no POWER_OFF, and its parent takes it. That is the first idea: a statechart is a state machine whose states can contain other states.
 
-Independent features multiply. A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that. Booleans hide the same problem: isPlaying and isPaused can both be true, which should be impossible. Regions keep playback and volume apart, as two small machines side by side, so the impossible combination can't be written.
+The second idea is for features that don't depend on each other. A player that is playing or paused, and muted or unmuted, needs one flat state per combination, four of them, and each new on/off feature doubles that. The usual escape, booleans, lets impossible states in: isPlaying and isPaused can both be true. Split the box with a dashed line and give each side one feature: each side is a region, a small machine in one state at a time, both running at once. The impossible combination can't be written, and a new feature adds a region instead of doubling everything.
 
 Nothing new becomes possible: flatten any statechart and you get an ordinary state machine with the same behaviour. What you gain is a drawing the size of the idea instead of the size of every combination, so it stays readable as the product grows.
 
+**The aha:** the grid's own words slide apart into two regions, and playing · muted becomes playing on one side and muted on the other.
+
 **Sentence to remember:** a statechart is a state machine that can nest states and run parts side by side, so shared behaviour is written once and independent features don't multiply.
 
-**Check questions**, each asked in a step's line and answered by the next step:
+**Check questions**, in `meta.checks`, asked after the last step:
 
-1. Given four states that all have the same EXIT arrow, what would a statechart do? (asked in copies, answered in parent)
-2. Why do two independent on/off features need four flat states but only two regions? (asked in booleans, answered in regions; growth answers "how many with a third feature?", asked in multiply)
-3. Can a statechart do anything a state machine can't? (asked in regions, answered in flatten)
+1. Four states all have the same EXIT arrow. What would a statechart do?
+2. Why do two independent on/off features need four flat states but only two regions?
+3. Can a statechart do anything a state machine can't?
 
 **Transfer:** the last two steps ask the reader to place a milk frother in the coffee machine, then show it as a region.
 
-| Step | Script |
-| --- | --- |
-| what | paragraph 1 |
-| copies | paragraph 2, first two sentences |
-| parent | paragraph 2, last sentence, and the parent rule from paragraph 1, drawn as a trace |
-| multiply | paragraph 3, first sentence |
-| growth | paragraph 3, "each new on/off feature doubles that", for one to five features |
-| booleans | paragraph 3, the boolean sentences |
-| regions | paragraph 3, last sentence |
-| flatten | paragraph 4, with the same events traced through both machines |
-| question, frother | transfer; the last caption ends on the sentence to remember |
+| Step | Script | Reader predicts |
+| --- | --- | --- |
+| machine | paragraph 1: the concrete machine, and the change to come | how many arrows a power button adds |
+| copies | paragraph 2, the copied arrows | how one arrow could do the job |
+| parent | paragraph 2, the box, the parent rule traced, and the name | |
+| multiply | paragraph 3, first sentence | states with a third feature |
+| growth | paragraph 3, "each new on/off feature doubles that", for one to five features | |
+| booleans | paragraph 3, the boolean sentence | what if each feature had its own machine |
+| regions | paragraph 3, the split: the aha | whether a statechart can do more |
+| flatten | paragraph 4, with the same events traced through both machines | |
+| question, frother | transfer; the last caption ends on the sentence to remember | where the frother goes |
