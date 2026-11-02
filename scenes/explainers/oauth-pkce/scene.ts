@@ -106,7 +106,7 @@ export default class OAuthExplainer extends Scene {
       title: 'Answer: bind the code to a secret only the real client holds',
       line: 'The challenge is the base64url SHA-256 of the verifier.',
       caption:
-        'A fixed secret distributed inside the app can be extracted, so for each sign-in the client instead makes a fresh random code_verifier and keeps it. It sends ahead only the code_challenge, the verifier’s SHA-256 in base64url, a method called S256. Redeeming the code also needs the verifier, which never passes through the redirect. The card starts from RFC 7636’s example verifier.',
+        'A fixed secret distributed inside the app can be extracted, so for each sign-in the client instead makes a fresh random code_verifier and keeps it. It sends ahead only the code_challenge, the verifier’s SHA-256 in base64url, a method called S256. Redeeming the code also needs the verifier, which never passes through the redirect. The server can store the challenge now and recognize the right verifier later without learning the secret in advance. The card uses RFC 7636’s example verifier.',
     });
     await s.clear();
     const derive = await s.show(
@@ -138,7 +138,7 @@ export default class OAuthExplainer extends Scene {
       title: 'The authorization request carries the challenge and S256',
       line: 'It goes through the browser, so treat the challenge as public.',
       caption:
-        'The client sends the challenge and the S256 method in the authorization request, through the user’s browser, as the note under it says, while the verifier stays with the client and is not sent. The user then signs in and consents at the auth server.',
+        'The client sends the challenge and the S256 method in the authorization request, through the user’s browser. The challenge is treated as public; the verifier stays with the client and is not sent. The user then signs in and consents at the auth server.',
     });
     await s.clear();
     const seq = await s.show({ source: sequence(attacker) }, { box: 'full', build: 'frame' });
@@ -168,7 +168,7 @@ export default class OAuthExplainer extends Scene {
         title: 'Answer: invalid_grant. The stolen code fails without the verifier',
         line: 'S256 of the guess differs from the challenge bound to the code.',
         caption:
-          'The malicious app gets the redirect and its code as before, but now the token request must carry a verifier too. It can only guess one; S256 of the guess does not match the challenge bound to the code, so the server answers invalid_grant. The note compares the first eight characters; the server compares all 43.',
+          'The malicious app gets the redirect and its code as before, but now the token request must carry a verifier too. It can only guess one; S256 of the guess does not match the challenge bound to the code, so the server answers invalid_grant. The displayed prefixes differ already; the server checks the full challenge, not just the prefix.',
       });
       const bad = pkceChallenge(GUESS);
       this.state.attackerChallenge = bad;

@@ -8,7 +8,7 @@ export function frames(): ReaderFrame[] {
       title: 'Will Start stay on the left?',
       line: 'An author’s task: reuse a two-panel layout in RTL.',
       caption:
-        'With direction rtl, logical Start moves to the right and End to the left. Physical Left and Right keep their coordinates. Logical regions follow reading order; physical regions keep a diagram tied to a particular side.',
+        'With direction rtl, logical Start moves to the right and End to the left. Physical Left and Right keep their coordinates. Choose logical regions when panels should follow the stage direction, or physical regions when a diagram must stay on a particular side. This does not reverse the text inside a panel.',
       values: { direction: 'rtl', start: 'right', end: 'left' },
       draw: (s) =>
         new Group(

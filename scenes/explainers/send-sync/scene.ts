@@ -287,7 +287,7 @@ export default class SendSyncExplainer extends Scene {
         // marker.rs:541-548: Cell::set takes &self and performs no synchronization, so Cell cannot
         // be Sync. cell.rs:320 Send where T: Send; cell.rs:328 !Sync.
         caption:
-          'Cell::set takes &self and does no synchronisation, so two threads holding &Cell could write to it at once. That is why cell.rs makes Cell not Sync. It still makes Cell<T> Send whenever T is, so a whole Cell can move to another thread: on its own, Cell<i32> could be handed to thread::spawn.',
+          'Cell::set writes through a shared &self without synchronisation. Two threads sharing &Cell could therefore write to the same value at once, so Cell is not Sync. Moving ownership is different: the old owner gives up the Cell rather than keeping shared access to it. Cell<T> is Send when T is, so a whole Cell<i32> can move to another thread.',
         source: 'See cell.rs:320, 328.',
       },
       'Rc<i32>': {
@@ -297,7 +297,7 @@ export default class SendSyncExplainer extends Scene {
         // marker.rs:74-79: two threads cloning Rcs to one value could update the count at once,
         // undefined behaviour because Rc does not use atomic operations. rc.rs:334 and :342.
         caption:
-          'Rc is the single-threaded version of Arc: it counts its owners with a plain integer, not an atomic one. Two threads cloning Rcs that share one count could update it at the same moment, which is undefined behaviour, so rc.rs declares Rc neither Send nor Sync, whatever it holds. Arc’s atomic count fixes exactly that, and nothing about the value inside.',
+          'Rc is the single-threaded version of Arc: it counts its owners with a plain integer, not an atomic one. Two threads cloning Rcs that share one count could update it at the same moment, which is undefined behaviour. Rc is therefore neither Send nor Sync, whatever it holds. Arc’s atomic count fixes exactly that, and nothing about the value inside.',
         source: 'See rc.rs:334, 342.',
       },
       i32: {
@@ -317,7 +317,7 @@ export default class SendSyncExplainer extends Scene {
         // mutex.rs:282-289: not Send because with POSIX threads a lock must be released on the thread
         // that acquired it. mutex.rs:291-294: Sync if T: Sync, because &MutexGuard gives &T.
         caption:
-          'Dropping a MutexGuard unlocks its mutex, and with POSIX threads a lock must be released on the thread that took it, so mutex.rs makes the guard not Send. A shared &MutexGuard gives out &i32, so mutex.rs makes the guard Sync when the value inside is Sync. Send and Sync really are two separate questions: every combination occurs.',
+          'Dropping a MutexGuard unlocks its mutex. Rust supports platforms that require the unlocking thread to be the one that took the lock, so the guard cannot move to another thread: it is not Send. A shared &MutexGuard gives access through &i32 without moving the guard, so it is Sync when the value inside is Sync. Send and Sync really are two separate questions: every combination occurs.',
         source: 'See mutex.rs:289, 294.',
       },
     };

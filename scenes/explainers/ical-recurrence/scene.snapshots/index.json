@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "31de77641701fd3922021e067b8944c8883e282883c2dffdb4e0586e368c5b07",
+  "sourceHash": "33b8689495d64595afb9bff141c30dfa66dc12240c9aaaafbfe964ac0b2df7eb",
   "diagrams": {
     "[\"---\\nconfig:\\n  er:\\n    rankSpacing: 40\\n    nodeSpacing: 30\\n---\\nerDiagram\\n  CALENDAR_OBJECT {\\n    text UID\\n  }\\n  MASTER {\\n    datetime DTSTART\\n  }\\n  OVERRIDE {\\n    datetime RECURRENCE-ID\\n    datetime DTSTART\\n  }\\n  RRULE {\\n    text FREQ\\n    int COUNT\\n  }\\n  EXDATE {\\n    datetime excluded\\n  }\\n  CALENDAR_OBJECT ||--o| MASTER : holds\\n  CALENDAR_OBJECT ||--o{ OVERRIDE : holds\\n  MASTER |o--o{ OVERRIDE : \\\"is overridden by\\\"\\n  MASTER ||--o{ EXDATE : skips\\n  MASTER ||--o{ RRULE : \\\"repeats by\\\"\",\"github-light\"]": "057df6b124d97aa9.json",
     "[\"---\\nconfig:\\n  er:\\n    rankSpacing: 40\\n    nodeSpacing: 30\\n---\\nerDiagram\\n  CALENDAR_OBJECT {\\n    text UID\\n  }\\n  MASTER {\\n    datetime DTSTART\\n  }\\n  OVERRIDE {\\n    datetime RECURRENCE-ID\\n    datetime DTSTART\\n  }\\n  RRULE {\\n    text FREQ\\n    int COUNT\\n  }\\n  EXDATE {\\n    datetime excluded\\n  }\\n  CALENDAR_OBJECT ||--o| MASTER : holds\\n  CALENDAR_OBJECT ||--o{ OVERRIDE : holds\\n  MASTER |o--o{ OVERRIDE : \\\"is overridden by\\\"\\n  MASTER ||--o{ EXDATE : skips\\n  MASTER ||--o| RRULE : \\\"repeats by\\\"\",\"github-light\"]": "597de5de09d675ce.json"

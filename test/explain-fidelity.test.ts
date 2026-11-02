@@ -42,6 +42,7 @@ import { check as wcagMap } from './lib/fidelity/wcag-map.ts';
 import { check as penAndPencil } from './lib/fidelity/pen-and-pencil.ts';
 import { check as periodicGroups } from './lib/fidelity/periodic-groups.ts';
 import { check as statecharts } from './lib/fidelity/statecharts.ts';
+import { check as henge } from './lib/fidelity/henge.ts';
 
 for (const entry of EXPLAINERS)
   test(`${entry.id}: every authored case exposes the program's answers at step boundaries`, async () => {
@@ -60,6 +61,9 @@ for (const entry of EXPLAINERS)
           `Trace invents link ${walk.from}->${walk.to}`,
         );
       switch (entry.id) {
+        case 'henge':
+          henge(values, trace);
+          break;
         case 'statecharts':
           statecharts(values, trace);
           break;
@@ -326,16 +330,14 @@ for (const entry of EXPLAINERS)
             ids.map((e) => e.matched),
             [paired.tree, paired.commit],
           );
-          // The digits equal place for place, the coloured ones: recorded, and what the caption counts.
+          // The digits equal place for place, the coloured ones: recorded, and counted in the line.
           const same = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
           const inPlace = { tree: same(t1, t2), commit: same(c1, c2) };
           assert.deepEqual(evidence('hashes', 'samePlace'), [{ kind: 'samePlace', ...inPlace }]);
           const hashes = stepOf('hashes');
           assert.ok(
-            String(hashes.meta.caption).includes(
-              `Of the 80 digits in the new tree and commit ids, ${inPlace.tree + inPlace.commit} are the same digit in the same place`,
-            ),
-            String(hashes.meta.caption),
+            String(hashes.meta.line).startsWith(`${inPlace.tree + inPlace.commit} of 80 digits match in place`),
+            String(hashes.meta.line),
           );
           // The labels as drawn, read back from the step's picture.
           const shown = textOf(pictureHtml(hashes.after));

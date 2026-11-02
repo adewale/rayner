@@ -158,7 +158,7 @@ export default class BirthdayParadox extends Scene {
         id: 'room',
         title: 'Do two of these people share a birthday?',
         line: 'Predict: what is the chance that a room this size holds a shared birthday?',
-        caption: `Each card is one person, with a birthday drawn at random. The model, like the Pudding’s explainer, gives every day of a 365-day year the same chance and leaves out 29 February. A year has 365 days, so a match can seem to need a crowd: half of 365 is about 183. Count the cards and guess the chance before looking for a date that appears twice.`,
+        caption: `A year has 365 days, so a match can seem to need a crowd. Each card is one person. Before searching the dates, guess how likely a shared birthday is in a room this size. This calculation gives every day of a 365-day year the same chance, with independent birthdays and no 29 February.`,
         state: { people: n, sample: m.sample.first, dates: m.dates },
         draw: room(false, `${n} people, ${n} random birthdays`),
       },
@@ -188,7 +188,7 @@ export default class BirthdayParadox extends Scene {
         id: 'you',
         title: `Your own birthday: only ${m.others} chances to match`,
         line: 'Predict: how many comparisons does the whole room make?',
-        caption: `Mark the first card as you. You make ${m.others} comparisons, one with each other person, each a 1-in-365 chance; each square in the column is one of them. The chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people.`,
+        caption: `Mark the first card as you. Each square in the column compares your birthday with one other person’s. You have just one opportunity per person: the chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people. But a match elsewhere in the room need not involve you.`,
         state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
         draw: pairGrid(true),
         reading: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
@@ -200,14 +200,14 @@ export default class BirthdayParadox extends Scene {
           n === m.even
             ? `${m.pairs} squares: the number of comparisons your own even chance needed.`
             : `Which size of room makes the ${m.evenOthers} comparisons you would need alone?`,
-        caption: `A shared birthday doesn’t have to include you. Each card adds a row with one square for every card before it, and the rows hold ${n} × ${n - 1} / 2 = ${m.pairs} pairs, ${n / 2} times your ${m.others}. ${
+        caption: `Each newcomer can match everyone already in the room. Each card adds a row with one square for every card before it, building a triangle of ${m.pairs} pairs instead of your column of ${m.others}. ${
           m.matchedPairs.length
             ? `The ${words[m.matchedPairs.length] ?? m.matchedPairs.length} red squares are this room’s matches, the pairs that drew ${list(shared)}.`
             : `No square pairs two cards with the same date in this room.`
         } Across all rooms of ${n}, at least one pair matches with chance ${pct(m.chance)}. ${
           n === m.even
-            ? `And ${m.pairs} is the number of comparisons your own even chance needed in the last step, when you had to make all ${m.evenPairs} yourself against ${m.evenOthers} others; here ${n} people share the work.`
-            : `At ${m.even} people the rows hold ${m.evenPairs} squares, the ${m.evenOthers} comparisons your own even chance needed you to make with ${m.evenOthers} other people.`
+            ? `Here the room makes the ${m.evenPairs} comparisons you would need alone by sharing them among ${n} people.`
+            : `A room of ${m.even} makes ${m.evenPairs} pairs: enough comparisons for a better than even chance of a match under these assumptions.`
         }`,
         state: {
           people: n,
@@ -228,9 +228,8 @@ export default class BirthdayParadox extends Scene {
         title: 'Each newcomer pairs with everyone already in the room',
         line: 'The thick bars outrun the thin ones as the room fills.',
         caption: (() => {
-          const [two, three, five, ten] = m.growth,
-            last = m.growth.at(-1)!;
-          return `Two people make ${two!.pairs} pair, three make ${three!.pairs}, five make ${five!.pairs}. Because people arrive one at a time but each brings a pair for everyone already there, doubling ${five!.people} people to ${ten!.people} takes the pairs from ${five!.pairs} to ${ten!.pairs}. The bars share one scale: at ${last.people} people the pairs bar is ${last.pairs / last.people} times as long as the people bar. The outlined row is this room.`;
+          const [, , five, ten] = m.growth;
+          return `Each additional person adds one card but a comparison with everyone already present. That is why the thick pair bars grow faster than the thin people bars. Doubling from ${five!.people} people to ${ten!.people} more than doubles the pairs. The bars use one scale; the outlined row is this room.`;
         })(),
         state: { people: n, growth: m.growth },
         draw: (s: Stage) => {
@@ -275,7 +274,7 @@ export default class BirthdayParadox extends Scene {
         detail: true,
         title: `Counting exactly: person ${n} must miss ${n - 1} dates already taken`,
         line: `Predict: do ${m.pairs} pairs at 1 in 365 each give the same chance?`,
-        caption: `To count the chance exactly, add people one at a time and ask each to miss every date taken so far. Person 2 avoids one date, 364/365; if that succeeds, person 3 avoids two, 363/365; person ${n} avoids ${n - 1}, ${365 - (n - 1)}/365. Multiplying all ${n - 1} fractions gives ${pct2(m.noMatch)} for no match at all, so the chance of at least one shared birthday is ${pct2(m.chance)}.`,
+        caption: `Turn the question around: what would it take for nobody to match? Add people one at a time and ask each to miss every date taken so far. Provided earlier people have all missed, each new arrival has one fewer free date. Multiply those chances to get ${pct2(m.noMatch)} for no match, then subtract from 1: ${pct2(m.chance)} for a match. The picture shows the free dates facing person ${n}.`,
         state: { people: n, factors: m.factors, noMatch: m.noMatch, chance: m.chance, occupied: n - 1, allowed: 365 - (n - 1) },
         draw: (s: Stage) => {
           const occupied = n - 1;
@@ -299,8 +298,8 @@ export default class BirthdayParadox extends Scene {
         id: 'estimate',
         detail: true,
         title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,
-        line: `Within a percentage point of the exact ${pct2(m.chance)}; the gap comes from pairs that share a person.`,
-        caption: `Each pair shares a birthday with chance 1 in 365, so it misses with chance 364/365. If the ${m.pairs} pairs missed independently, all of them would miss with chance 364/365 multiplied ${m.pairs} times, ${pct2(1 - m.shortcut)}, leaving ${pct2(m.shortcut)} for a match. The exact count gave ${pct2(m.chance)}. The gap is there because pairs share people, so they are not independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. Your own ${m.others} comparisons are independent, since each sets a different person against your one birthday, so for them the same product, 364/365 multiplied ${m.others} times, gives the exact ${pct(m.one)}.`,
+        line: `Close to the exact ${pct2(m.chance)}; overlapping comparisons need care.`,
+        caption: `Treating the ${m.pairs} pairs as independent gives the nearby shortcut shown. They are not jointly independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. The person-by-person calculation avoids that dependence. Comparisons with your one birthday do involve independent arrivals, so multiplying their miss chances gives the exact ${pct(m.one)} for a match with you.`,
         state: { people: n, pairs: m.pairs, shortcut: m.shortcut, chance: m.chance, one: m.one },
         draw: (s: Stage) =>
           new Group(

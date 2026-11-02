@@ -247,8 +247,8 @@ export default class LanternExplainer extends Scene {
 
     await this.step('played', {
       title: `Played, the dot is halfway at t = ${t} s`,
-      line: `Predict: a still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
-      caption: `Open a Rayner page from a link to its fifth step and the player draws that step without playing the four before it; renderAt, which saves one moment of a scene as an image, works the same way. Here a tiny scene grows a box and moves a dot along a track. ${how} Left: frame ${run.seekAt} as played, the dot halfway. Right: the still at t = ${SEEK_T} s, which re-runs the scene and counts frames 1 to ${run.seekAt - 1} without computing them.`,
+      line: `a still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
+      caption: `A direct link opens a later picture without playing the earlier steps. Here a box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. The still re-runs the scene but only counts the earlier frames. Where will its dot be?`,
     });
     const left = thumb(run.playedFrame, -3.6, playedLabel, run.played);
     const pending = thumb(null, 3.6, seekedLabel, null);
@@ -264,9 +264,7 @@ export default class LanternExplainer extends Scene {
       line: match
         ? 'Blending works the dot out from the time alone.'
         : `Played, the dot made ${run.playedMoves} nudges by t = ${SEEK_T} s; seeked, it made ${run.seekedMoves}.`,
-      caption: match
-        ? `Both frames are ${run.played.length} characters of SVG with the fingerprint ${print}, and the dot is halfway in each. animate.moveTo puts the dot where the time says, so frame ${run.seekAt} needs nothing from frames 1 to ${run.seekAt - 1}. ${ANSWER}. The other case, ‘A nudge each frame’, has a still that is wrong.`
-        : `${ANSWER}. Here the still has the dot ${run.seekedMoves}/${FPS} of the way along, and the outline marks where playback has it, halfway. A nudge adds to wherever the last frame left the dot, so a still that skips ${run.seekAt - 1} frames skips ${run.playedMoves - run.seekedMoves} nudges. The box grows by blending its start and end sizes, so it matches.`,
+      caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${ANSWER}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${ANSWER}.`,
     });
     await s.clear();
     const right = thumb(run.seekedFrame, 3.6, seekedLabel, run.seeked, match ? undefined : [playedX, START[1]]);
@@ -281,7 +279,7 @@ export default class LanternExplainer extends Scene {
     await this.step('clock', {
       title: `Frame ${run.seekAt} is t = ${t} s in every run`,
       line: `Scene time is the frame number × 1/${this.fps} s, however fast the frames are taken.`,
-      caption: `The still can find frame ${run.seekAt} because each frame advances scene time by exactly 1/${this.fps} s, whatever receives it. The receiver is called a sink. The browser sink waits for a display tick before each frame and the trace sink takes them all at once, so on a wall clock their dots spread out or bunch together, yet both reach t = ${SEEK_T} s at frame ${run.seekAt}.`,
+      caption: `The receiver of a frame is called a sink. A browser sink waits between frames; a trace sink can take them immediately. That changes how fast the output arrives, not the scene’s clock: both reach t = ${SEEK_T} s at frame ${run.seekAt}. The target time therefore identifies the same frame even when earlier pictures are skipped.`,
     });
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: regionBox('top', { bottom: -0.55 }) });
@@ -321,7 +319,7 @@ export default class LanternExplainer extends Scene {
     await this.step('objects', {
       title: 'A frame is the shapes on stage, as the playing animations left them',
       line: `Once the still reaches frame ${run.seekAt}, the playing animation decides where the dot is.`,
-      caption: `In the diagram, a Scene owns mobjects, Rayner’s name for the shapes and text on stage; it plays animations, which change them; and it emits each frame to a sink. Rayner’s sinks only read the frame. So the dot in frame ${run.seekAt} is wherever the playing animation put it. When that place depends on how many frames ran before, as the nudge’s does, a still that skips them can put the dot somewhere else.`,
+      caption: `A Scene owns the shapes and text, called mobjects, and its animations change them. Rayner’s sinks only read the frame. The output cannot reconstruct missing nudges: the dot’s position must already be right when the animation hands over that frame.`,
     });
     await s.clear();
     const classes = await s.show({ source: CLASSES }, { box: 'main' });
@@ -340,7 +338,7 @@ export default class LanternExplainer extends Scene {
     await this.step('begin', {
       title: 'An animation fixes its endpoints when it begins',
       line: `At t = ${SEEK_T} s the blend is halfway, however many frames ran before.`,
-      caption: `In the listing, begin() copies the starting mobject, and each frame blends that copy with a fixed end by an amount set only by how far through its run time the animation is. At t = ${SEEK_T} s the move is half done whether ${run.seekAt - 1} frames were computed before it or none, so the frame comes out the same. The nudge’s one line, dot.shift(step), has no endpoints: its dot is wherever the frames so far have pushed it. The camera has moved in on Mobject and Animation.`,
+      caption: `begin() copies the starting object. Each frame blends that copy with a fixed end by an amount set only by how far through its run time the animation is. Halfway through the duration therefore means halfway between the endpoints. In contrast, dot.shift(step) adds to the position accumulated by earlier frames.`,
     });
     await s.clearOverlays();
     await classes.unmark();
@@ -374,7 +372,7 @@ export default class LanternExplainer extends Scene {
     await this.step('check', {
       title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
       line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-      caption: `Each of the tiny scene’s ${total} frames is made as a still and compared with the played frame. With blending, all ${total} match. With the nudge, the frames before the dot moves match, and so does the first frame of the move, where both runs have made one nudge; from frame ${firstMiss} on, none does. On each page it checks, rayner check makes this comparison: in every step of every case it seeks one frame midway and one just before the step ends, and fails on any difference, so a page whose scene nudges like this one fails with a seek mismatch. A nudge written as an updater would pass: in a scene with updaters, a still computes every frame before t.`,
+      caption: `The strips compare all ${total} frames of this tiny scene with independently seeked stills. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times does not prove every possible time. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
     const cell = 0.27,

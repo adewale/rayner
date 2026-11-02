@@ -280,7 +280,7 @@ export default class MontyHall extends Scene {
     await this.step('worlds', {
       title: 'The same rounds with the other host',
       line: `With the car behind ${C}, the host who knows always opens ${B}; the random host opens it half the time.`,
-      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. With the car behind ${X}, either host opens ${B} in one sixth, and staying wins it. With the car behind ${C}, the host who knows must open ${B}, which gives switching two sixths; the random host opens ${B} in only one of them and opens the car in the other. The odds come from how likely each host was to open ${B}, the door you saw.`,
+      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. With the car behind ${X}, either host opens ${B} in one sixth, and staying wins it. With the car behind ${C}, the host who knows must open ${B}, which gives switching two sixths; the random host opens ${B} in only one of them and opens the car in the other. We keep the rounds that match the particular observation: ${B} opened to a goat. The odds depend on how each host’s rule produced that observation.`,
     });
     await morph('copy', 0.8);
     await morph('worlds', 1.3);

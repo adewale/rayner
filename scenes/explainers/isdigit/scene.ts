@@ -414,9 +414,7 @@ export default class IsDigitExplainer extends Scene {
       title: 'For one character, only isdecimal() matches int()',
       line: 'To test a whole string, call int() and catch ValueError.',
       // functions.rst:1078-1082: int() takes a sign, surrounding whitespace and single underscores.
-      caption: `These rows count characters a check accepts but int() rejects. For single characters, isdecimal() agrees with int(): both accept the ${grouped(
-        COUNTS.int,
-      )} decimal digits. Whole strings also need syntax rules: int() accepts signs, surrounding spaces and underscores in valid positions. Calling int() and catching ValueError asks the parser itself whether the string is valid.`,
+      caption: `These rows count characters a check accepts but int() rejects. For single characters, isdecimal() agrees with int(): both accept decimal digits. Whole strings also need syntax rules: int() accepts signs, surrounding spaces and underscores in valid positions. Calling int() and catching ValueError asks the parser itself whether the string is valid.`,
     });
     await s.clear();
     const counts = await s.card(

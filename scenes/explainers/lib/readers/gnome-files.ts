@@ -49,7 +49,7 @@ export function frames(p: Participant): ReaderFrame[] {
       title: 'Did everyone have the same difficulty?',
       line: `One task, all six participants: ${name}.`,
       caption:
-        'Difficulty labels describe completed tasks. “Could not complete” records an unfinished task; “Outside study scope” records an excluded approach. These six observations cannot estimate population failure rates or completion times.',
+        'Difficulty labels describe completed tasks. “Could not complete” records an unfinished task; “Outside study scope” records an excluded approach. These are six first-time GNOME users in the Files 47 study, not a population failure rate or a timing measurement.',
       values: {
         task: n,
         outcomes: PARTICIPANTS.map((q) => {

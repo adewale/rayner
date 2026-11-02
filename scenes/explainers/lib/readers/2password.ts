@@ -14,9 +14,9 @@ export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
     {
       id: 'ask',
       title: 'An agent must start an app with a key it should never read',
-      line: 'Predict: what could the agent pass along instead of the key?',
+      line: 'what could the agent pass along instead of the key?',
       caption:
-        'A coding agent is asked to run app, which reads its API key from the API_KEY environment variable. Printing the key for the agent would put it into the conversation, so the agent should choose the right key and start the app without receiving the value.',
+        'The app needs API_KEY in its environment. Printing that value for the agent would also put it into the conversation, though the agent needs only to choose the credential and start the app. What can name the credential without exposing its value?',
       values: { needs: 'API_KEY', agentHasValue: false },
       draw: (s) =>
         new Group(
@@ -31,7 +31,7 @@ export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
       id: 'reader-boundary',
       title: 'Answer: hand over a reference, and let op swap in the value',
       line: `The agent passes ${ref}; op gives its value to the app.`,
-      caption: `${ANSWER}. A reference names a vault, an item and a field, and is no secret itself. 2password, a wrapper around 1Password’s op CLI, gives the agent references to search for and run with; op resolves them when it starts the app. The app can still read or print its own environment.`,
+      caption: `${ANSWER}. The reference names a vault, item and field without containing the key. Authenticated op resolves that name when it starts the app. This keeps the value out of the launch request, but the app can still read or print its own environment.`,
       values: { ref, agentHasValue: false, childHasValue: !!launched.childEnv.API_KEY },
       draw: (s) =>
         new Group(

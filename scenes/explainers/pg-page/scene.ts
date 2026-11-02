@@ -205,7 +205,7 @@ export default class PgPageExplainer extends Scene {
       title: `One ${c.label} row takes ${t.perRow} bytes of the page`,
       line: `Predict: ${w.label} ${w.tuple.data > t.data ? 'adds' : 'saves'} ${Math.abs(w.tuple.data - t.data)} bytes of data. How big is its tuple?`,
       // heap_form_tuple (heaptuple.c:1151-1160); PageAddItemExtended (bufpage.c:310-316).
-      caption: `An insert adds a ${LINE_POINTER}-byte line pointer after the header and a tuple at the end of the page: a ${TUPLE_HEADER}-byte header padded to ${t.hoff}, then ${valueWords}, ${t.lpLen} bytes. On a 64-bit build the page gives each tuple a multiple of 8 bytes, ${
+      caption: `A row has two allocations: a ${LINE_POINTER}-byte line pointer, which locates it on the page, and the row itself, called a tuple, at the other end: a ${TUPLE_HEADER}-byte header padded to ${t.hoff}, then ${valueWords}, ${t.lpLen} bytes. On a 64-bit build the page gives each tuple a multiple of 8 bytes, ${
         t.lpLen === t.stored ? `which ${t.lpLen} already is` : `here ${t.stored}`
       }, so the row costs ${t.perRow} bytes, of which ${t.data} are the value${isText ? 's' : ''}.`,
     });
@@ -393,7 +393,7 @@ export default class PgPageExplainer extends Scene {
       line: `Tuple headers take ${percent(sh.headers)} of the page${sh.headers > sh.data ? ', more than the data' : ''}.`,
       caption: `Inserts fill the page until the next row no longer fits: ${p.rows} rows. The pie splits the ${BLCKSZ} bytes, with each part’s bytes in brackets. The ${p.rows} tuple headers take ${percent(sh.headers)}, ${
         sh.headers > sh.data ? 'more than' : 'next to'
-      } the ${percent(sh.data)} that is the values${isText ? ', counting the text’s length byte' : ''}: of each row’s ${t.perRow} bytes, ${t.data} are data. ${same ? 'That is why 4 bytes of data a row changed nothing: most of a row is overhead.' : `Here the 4 bytes did matter: they pushed the ${wide.label} tuple past a multiple of 8.`}`,
+      } the ${percent(sh.data)} that is the values${isText ? ', counting the text’s length byte' : ''}: of each row’s ${t.perRow} bytes, ${t.data} are data. ${same ? 'The extra four data bytes replaced padding rather than crossing the next eight-byte allocation boundary. The large header share explains why value width is only part of the storage bill.' : `Here the 4 bytes did matter: they pushed the ${wide.label} tuple past a multiple of 8.`}`,
     });
     await s.clear();
     // The whole stage for the pie, so its narrow slices have room for their labels.
@@ -406,7 +406,7 @@ export default class PgPageExplainer extends Scene {
       title: `Row ${p.rows + 1} would need ${t.stored} bytes and a pointer; ${p.free} are left`,
       line: `Free space less a ${LINE_POINTER}-byte pointer is ${p.heapFree} bytes, too few.`,
       // hio.c:520, 553, 703 and bufpage.c:906-921 (PageGetFreeSpace subtracts one ItemIdData).
-      caption: `${p.rows} rows of ${t.perRow} bytes use ${used} of the ${BLCKSZ - PAGE_HEADER} free bytes, leaving ${p.free}; pageinspect, Postgres’s page reader, reports pd_lower ${p.lower} and pd_upper ${p.upper}. Before an insert, the code that picks a page for a new row (hio.c) asks for the tuple’s ${t.stored} bytes, and the page code (bufpage.c) counts the free space less one ${LINE_POINTER}-byte pointer: ${p.heapFree} bytes, too few.`,
+      caption: `${p.rows} rows of ${t.perRow} bytes use ${used} of the ${BLCKSZ - PAGE_HEADER} free bytes, leaving ${p.free}; a new row needs both its pointer and its tuple. Reserving the ${LINE_POINTER}-byte pointer leaves ${p.heapFree} bytes for a tuple that needs ${t.stored}. The row cannot fit, even though its unpadded data may look small enough.`,
     });
     await s.clear();
     d = await s.show({ source: pie(c) }, { box: PIE_BOX });

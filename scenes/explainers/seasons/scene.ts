@@ -216,7 +216,7 @@ export default class SeasonsExplainer extends Scene {
       title: 'Nearest the Sun in early January, while the north tilts away',
       line: `Predict: in June, does ${place.name} get more or less than 12 hours of daylight?`,
       caption:
-        'Earth is nearest the Sun in early January, close to its December place here, when the north has winter and the south summer. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the axis leans 23.44° from upright and keeps pointing the same way, so the north end leans toward the Sun in June and away from it in December. Sizes and distances are not to scale.',
+        'Earth is nearest the Sun in early January, when the north has winter and the south summer. Distance cannot explain opposite seasons at once. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the tilted axis keeps pointing the same way, so the north leans sunward in June and away in December. Sizes and distances are not to scale.',
     });
     await s.clear();
     // The orbit's Sun and Earths: the Sun is carried on into the next step, and June's Earth grows into its side view.
@@ -455,7 +455,7 @@ export default class SeasonsExplainer extends Scene {
             ? 'In June the north end leans toward the Sun far enough that Tromsø’s whole latitude circle sits on the day side. As Earth turns, Tromsø never enters the night half, so the Sun stays up for all 24 hours.'
             : place.lat === 0
               ? 'In June the north end leans toward the Sun, but the day–night line still cuts the equator exactly in half. Quito’s circle is half day and half night, so it gets 12 hours of daylight.'
-              : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ' At June noon the Sun is overhead at 23.44° N, a latitude called the Sun’s declination; in December it is overhead at 23.44° S.',
+              : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ' The latitude where the Sun is overhead is its declination; it shifts north and south through the year.',
     });
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
     await this.play(
@@ -571,10 +571,10 @@ export default class SeasonsExplainer extends Scene {
       caption:
         'Half an orbit later Earth is on the far side of the Sun, but the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
         (Math.abs(june.daylight - december.daylight) > 0.05
-          ? `Under the globes, ${place.name}’s daylight ${december.daylight > june.daylight ? 'rises' : 'drops'} from ${hours(june.daylight)} in June to ${hours(december.daylight)}. ` +
+          ? `${place.name}’s daylight ${december.daylight > june.daylight ? 'increases' : 'decreases'}. ` +
             (december.altitude > 0
-              ? `Its noon Sun ${december.altitude > june.altitude ? 'rises' : 'falls'} from ${degrees(june.altitude)} to ${degrees(december.altitude)}, so a square metre of ground gets ${percent(decShare)} of overhead sunlight at noon instead of ${percent(juneShare)}. `
-              : `Its noon Sun stays below the horizon, so the ground gets no direct sunlight at all, against ${percent(juneShare)} of overhead at June noon. `) +
+              ? `Its noon Sun is ${december.altitude > june.altitude ? 'higher, concentrating' : 'lower, spreading'} the beam over ${december.altitude > june.altitude ? 'less' : 'more'} ground. `
+              : `Its noon Sun stays below the horizon, so it gets no direct sunlight. `) +
             `Both the longer days and the stronger sunlight fall in ${december.daylight > june.daylight ? 'December' : 'June'}, so ${place.name} receives the most sunlight around then.`
           : `${place.name}’s noon Sun stands at the same ${degrees(december.altitude)}, now to the south, so its noon sunlight stays at ${percent(decShare)} of overhead; its daylight stays at ${hours(december.daylight)}.`),
     });
@@ -614,7 +614,7 @@ export default class SeasonsExplainer extends Scene {
       title: `Tromsø swings from ${hours(tromsoJune)} to ${hours(tromsoDec)}; Quito stays at ${hours(quitoJune)}`,
       line: 'Latitude sets how much of each circle is lit.',
       caption:
-        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The hours are the sunrise equation’s, the time the Sun’s centre is above a flat horizon; an almanac, which times the Sun’s top edge and adds the air’s bending of light, gives London’s June day about a quarter of an hour more.',
+        'Each line follows one place as Earth turns; yellow marks the daylight part. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. London and Sydney sit between those extremes. These ideal day lengths count the Sun’s centre above a flat horizon, leaving out atmospheric bending and local terrain.',
     });
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const others = ORDER.filter((k) => k !== key);
@@ -695,7 +695,7 @@ export default class SeasonsExplainer extends Scene {
       caption:
         'The curve runs the same model through the year. ' +
         (polarDay
-          ? `It stays flat at 24 hours for ${polarDay} days around the June solstice, the span the dimension marks, when ${place.name}’s whole circle is lit, and at 0 for ${polarNight} days around December; both counts run the model on all 365 days.`
+          ? `It stays flat at 24 hours for ${polarDay} days around the June solstice, the span the dimension marks, when ${place.name}’s whole circle is lit, and at 0 for ${polarNight} days around December; the flat parts represent continuous daylight or darkness, rather than a pause in Earth’s rotation.`
           : flat
             ? `On the equator the day–night line always cuts the circle in half, so the curve stays flat at 12 hours all year.`
             : (june.daylight < december.daylight
@@ -824,7 +824,7 @@ export default class SeasonsExplainer extends Scene {
       farther = Math.round((farthest / nearest - 1) * 1000) / 10,
       stronger = Math.round(((farthest / nearest) ** 2 - 1) * 100);
     const shares = [juneShare, decShare].sort((a, b) => a - b);
-    const distanceSaid = `By the orbit formula Earth is ${nearest.toFixed(3)} of its average distance from the Sun in early January and ${farthest.toFixed(3)} in early July, so an equally oriented surface receives about ${stronger}% stronger sunlight in January, before atmospheric absorption.`;
+    const distanceSaid = `Distance still changes incoming sunlight: an equally oriented surface receives about ${stronger}% more in January than in July, before atmospheric absorption. Both hemispheres share this distance change.`;
     await this.step('distance', {
       title:
         place.lat !== 0

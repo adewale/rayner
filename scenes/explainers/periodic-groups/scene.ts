@@ -655,7 +655,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('fill', {
       title: 'One electron per cell, in runs laid side by side',
       line: 'Predict: slide the runs so that runs of one length share columns. What shape do you get?',
-      caption: `Give each element a cell and add electrons one at a time, in order of atomic number. For these neutral atoms, the atomic number also counts electrons. A useful filling rule arranges them in runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last and start a new row at each run of 2, as the table starts a row after each noble gas. The rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
+      caption: `Give each element a cell and add electrons one at a time, in order of atomic number. For these neutral atoms, the atomic number also counts electrons. A useful filling rule arranges them in runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last and start a new row at each run of 2. The rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
     });
     {
       const fillState = (lit: number, runs: number, done: boolean): SceneState => ({

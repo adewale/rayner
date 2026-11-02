@@ -164,8 +164,8 @@ export default class ForkExplainer extends Scene {
     };
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
-      line: `Predict: at ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
-      caption: `Rayner’s token bucket explainer sends ten requests, R1 to R10, through a bucket that refills at ${RATES.slice(0, -1).join(', ')} or ${RATES.at(-1)} tokens a second, the only rates its reader can choose. Its last step says R10 is accepted at every rate, and at each of those three it is: R10 arrives after a four-second wait and finds at least one token, so its outlined column is a circle in every row. A page could instead take any rate a reader types and show the same sentence.`,
+      line: `at ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
+      caption: `The token-bucket page offers ${RATES.join(', ')} tokens a second, the only rates its reader can choose. R10 succeeds in all three, so its caption says “R10 is accepted at every rate”. Would that sentence survive a reader typing ${UNBUILT}?`,
     });
     await s.clear();
     const rows = RATES.map((r, i) => row(r, i, true));
@@ -184,7 +184,7 @@ export default class ForkExplainer extends Scene {
     await this.step('untested', {
       title: `At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} tokens and is refused`,
       line: 'The sentence holds at every rate the page built and fails at one it never built.',
-      caption: `In the new bottom row, the same model at ${perSecond(UNBUILT)} refuses R7, R8 and R9, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. An author can run and read the three offered cases; the rates a reader might type have no end. ${ANSWER}.`,
+      caption: `At ${perSecond(UNBUILT)}, R10 still needs a whole token. After five seconds only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The caption described the offered inputs, not arbitrary rates. ${ANSWER}.`,
     });
     const slowRow = row(UNBUILT, 3, false);
     slowRow.shift([0, -0.25]);
@@ -199,7 +199,7 @@ export default class ForkExplainer extends Scene {
     await this.step('live', {
       title: 'Lantern, the engine Rayner was forked from, rendered frames on request',
       line: 'A reader can choose only a rate the scene lists, and each listed rate is a case the build runs.',
-      caption: `Lantern’s Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner, forked from Lantern at commit 2c7bad5, deleted the Worker. The bottom row broke at 0.1, a rate the scene does not list, so the build did not run it; a page built ahead would break the same way if it let readers type a rate. Below is the token bucket’s one setting as its scene declares it; the build runs one case per listed rate, and the page offers no box for typing another.`,
+      caption: `Lantern’s Worker rendered requested scene times on demand. Rayner prepares the page and diagrams ahead of reading instead. A reader can choose only a rate the scene lists. That gives an author a finite set of outcomes to inspect, but publishing a prepared page still does not make an unchecked caption true for arbitrary inputs.`,
     });
     await s.clear();
     const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
@@ -219,7 +219,7 @@ export default class ForkExplainer extends Scene {
     await this.step('cases', {
       title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${CASES} cases to build`,
       line: 'Every combination of options is a case the build makes and rayner check tests.',
-      caption: `Building the cases first has a price: settings multiply. Rayner’s traffic-policy explainer has two settings, the service’s traffic policy with ${POLICIES.length} options and the placement of pods on its three nodes with ${PODS.length}, so its build makes ${POLICIES.length} × ${PODS.length} = ${CASES} cases, and a third setting would multiply that again. A reader of that page switches among those ${CASES} and no others.`,
+      caption: `Prepared inputs have a cost: settings multiply. ${POLICIES.length} policies combined with ${PODS.length} pod placements produce ${CASES} cases, and another setting multiplies that collection again. Finite review becomes more work as the number of combinations grows.`,
     });
     await s.clear();
     const grid = table(
@@ -238,7 +238,7 @@ export default class ForkExplainer extends Scene {
       detail: true,
       title: 'The build draws the diagrams ahead of the page',
       line: 'Diagrams are captured at build time, so the page runs no diagram renderer.',
-      caption: `The four parts marked deleted, Lantern’s JSON document, flowchart parser, development player and Worker, are gone. The embed page replaces the player, and capture replaces the parser: Agentic Mermaid, the Mermaid layout library Rayner uses, draws each diagram in Chromium at build time and stores the snapshot beside the scene. The author pays for that: capturing a new diagram needs Chromium, though building a page from stored snapshots does not.`,
+      caption: 'The build captures Agentic Mermaid’s diagrams and saves their geometry. The finished page draws those snapshots without a diagram renderer. Chromium is needed for capture, while stored snapshots can be used to build a page without recapturing them.',
     });
     await s.clear();
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
@@ -269,7 +269,7 @@ export default class ForkExplainer extends Scene {
       detail: true,
       title: 'The page holds each resting picture for its caption',
       line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
-      caption: `A step lasts at least as long as its caption takes to read at ${Scene.captionWpm} words a minute. The fork step’s ${words}-word caption needs ${(motion + held).toFixed(1)} seconds; its motion takes ${motion.toFixed(1)}, so the clock holds the resting picture still for the other ${held.toFixed(1)}.`,
+      caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,
     });
     await s.clearOverlays();
     await flow.unmark();

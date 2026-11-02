@@ -167,7 +167,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       title: 'Inviting Bob to one meeting stores a second VEVENT',
       line: `Same UID, and RECURRENCE-ID ${GUEST_MEETING} names the third meeting.`,
       // RFC 5545 §3.8.4.4, lines 6294–6306: UID names the set, RECURRENCE-ID one instance, by its original start.
-      caption: `Alice invites Bob to the third meeting only. The app keeps the first VEVENT as it was and adds a second with the same UID, an override. Its RECURRENCE-ID, ${GUEST_MEETING}, is the start the rule gave that meeting, kept even if the meeting moves. Bob is sent this override and nothing else.`,
+      caption: `Alice invites Bob to the third meeting only. The app keeps the first VEVENT as it was and adds a second with the same UID, an override. Its RECURRENCE-ID, ${GUEST_MEETING}, is the start the rule gave that meeting, kept even if the meeting moves. Bob is sent this override and nothing else. His copy has one occurrence, not the master rule that generates Alice’s whole series.`,
     });
     await code.morph(lines(INVITED), { markAdded: true });
     await list.set(Object.fromEntries(rows(INVITED)));
@@ -226,7 +226,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         line: 'At a line’s end, a bar is one, a circle zero, a crow’s foot many.',
         // RFC 4791 §4.1, lines 479–487.
         caption:
-          'The same storage as a schema. Marks at a line’s ends say how many: a bar is one, a circle zero, a crow’s foot many. RFC 4791 puts every VEVENT with one UID in one calendar object: the master, which it defines as the one without RECURRENCE-ID, and the overrides, which may be stored without it, as Bob’s is.',
+          'The storage rules explain why Bob can keep one occurrence without Alice’s master rule. Marks at a line’s ends say how many: a bar is one, a circle zero, a crow’s foot many. RFC 4791 puts every VEVENT with one UID in one calendar object: the master, which it defines as the one without RECURRENCE-ID, and the overrides, which may be stored without it, as Bob’s is.',
       });
       await s.clear();
       const drawn = await s.show({ source: erSource('rfc') }, { box: FULL });
@@ -280,10 +280,10 @@ export default class IcalRecurrenceExplainer extends Scene {
         // Broker.php:459–620 (what each attendee is sent), :269–317 (how it is stored).
         caption:
           change === 'skip'
-            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting; Bob’s still lists ${long(GUEST_MEETING)}, marked cancelled. This follows RFC 4791, which counts that one VEVENT as a meeting; asked to expand it, Baïkal returns his object with no VEVENT in it, a sabre/vobject quirk.`
+            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting; Bob’s stored copy still contains ${long(GUEST_MEETING)}, marked cancelled. Bob’s stored object is not a replica of Alice’s series: the scheduling message changes the occurrence he received.`
             : change === 'move'
-              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it. This follows RFC 4791, which counts that one VEVENT as a meeting; asked to expand it, Baïkal returns his object with no VEVENT in it, a sabre/vobject quirk.`
-              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His calendar shows ${plural(expand(mine).length, 'meeting')}. This follows RFC 4791, which counts that one VEVENT as a meeting; asked to expand it, Baïkal returns his object with no VEVENT in it, a sabre/vobject quirk.`,
+              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it. Bob’s stored object is not a replica of Alice’s series: the scheduling message changes the occurrence he received.`
+              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')}. Bob’s stored object is not a replica of Alice’s series: the scheduling message changes the occurrence he received.`,
       });
       await s.clear();
       await s.code(lines(mine), {

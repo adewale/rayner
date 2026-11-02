@@ -8,7 +8,7 @@ export function frames(which: 'hit' | 'miss'): ReaderFrame[] {
       title: 'Does this request need the database?',
       line: `Selected request: cache ${which}.`,
       caption:
-        'A direct request reads the database once. A cache adds a branch before that read: a hit returns the stored value, while a miss must fetch and store it.',
+        'A direct lookup reads the database once. Add a store of saved values before that query: the cache. Would the selected request still need the database if its value were already saved?',
       values: { request: which, beforeReads: 1, afterReads: which === 'hit' ? 0 : 1 },
       draw: (s) =>
         new Group(

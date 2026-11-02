@@ -667,7 +667,7 @@ export default class Statecharts extends Scene {
     await this.step('multiply', {
       title: 'A media player: two on/off features make four flat states',
       line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
-      caption: `A media player is playing or paused, and separately muted or unmuted; neither choice limits the other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Each further on/off feature doubles the combinations. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
+      caption: `A media player is playing or paused, and separately muted or unmuted; neither choice limits the other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Changing playback needs the same transition in both volume settings, and changing volume repeats it for both playback settings. Each further independent on/off feature doubles the combinations. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
     });
     await fresh('multiply');
     this.state = { current: null };
@@ -688,7 +688,7 @@ export default class Statecharts extends Scene {
       title: 'No: flattened, a statechart is an ordinary state machine',
       line: 'Flatten the player and send the same events through both machines.',
       caption:
-        'Each row sends the next event to the statechart and to its flat version, and both end in the same states. At run time the player is still in one combination of playback and volume. Only the drawing changes: the statechart’s grows with the number of features, the flat machine’s with the number of combinations.',
+        'Each row sends the next event to the statechart and to its flat version, and both end in the same states. At run time the player is still in one combination of playback and volume. Only the drawing changes: the statechart describes each feature separately, while the flat machine repeats it for the combinations. The possible combinations still exist; writing their shared behaviour once is what saves space.',
     });
     await fresh('flatten');
     this.state = { current: null };

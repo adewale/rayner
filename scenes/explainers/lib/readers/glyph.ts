@@ -18,8 +18,8 @@ export function frames(font: FontName): ReaderFrame[] {
     {
       id: 'reader-width',
       title: `Same words, same size: ${w.sans.toFixed(2)} or ${w.mono.toFixed(2)} units wide`,
-      line: `Predict: which letters make up the ${Math.abs(w.mono - w.sans).toFixed(2)}-unit difference?`,
-      caption: `At size ${size}, “${word}” is ${widths[0]!.toFixed(2)} units wide in ${name(font)} and ${widths[1]!.toFixed(2)} in ${name(other)}. Both rows start from the same left edge, and each ruler ends where the next word would start. The characters and the size are the same, so the difference comes from the fonts. Which letters does it come from?`,
+      line: `which letters make up the ${Math.abs(w.mono - w.sans).toFixed(2)}-unit difference?`,
+      caption: `At size ${size}, “${word}” is ${widths[0]!.toFixed(2)} units wide in ${name(font)} and ${widths[1]!.toFixed(2)} in ${name(other)}. The same characters start from the same left edge at the same size. The rulers disagree because the fonts assign different spacing. Which letters account for most of the difference?`,
       values: { font, other, word, widths },
       draw: (s) => {
         const g = new Group();
@@ -41,8 +41,8 @@ export function frames(font: FontName): ReaderFrame[] {
     {
       id: 'reader-shape',
       title: 'To fill its wider cell, JetBrains Mono draws a different l',
-      line: 'Predict: will shape matching pair any Inter glyph with a JetBrains Mono one?',
-      caption: `The dashed boxes are each l’s advance. Inter’s l is a bare stem that advances ${l.sans.toFixed(3)} at size ${size}; JetBrains Mono gives it ${l.mono.toFixed(3)}, like every other glyph, and adds a flag on top and a foot turned right so it fills that cell. Same character, different outline. Shape matching pairs two glyphs only when their outlines are the same path once each is centred and scaled to one size.`,
+      line: 'will shape matching pair any Inter glyph with a JetBrains Mono one?',
+      caption: `The dashed boxes mark the l’s advances. JetBrains Mono gives it more room and draws a flag and a foot; Inter uses a simpler stem. The character is the same, but its path has changed. A shape matcher ignores position and size, so the outlines themselves must supply the correspondence.`,
       values: { font, other, l },
       draw: (s) => {
         const big = 3.4,

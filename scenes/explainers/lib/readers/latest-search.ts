@@ -59,7 +59,7 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
-      caption: `Each keystroke starts a search, so ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. The requests can finish in a different order from the one they started in; here ${q(first)} finishes first. The page starts empty and publishes each successful result as it arrives.`,
+      caption: `Each keystroke starts a search, so ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. The requests can finish in a different order from the one they started in; here ${q(first)} finishes first. Both requests succeed in this example. The page starts empty and publishes results as they arrive.`,
       values: { order, completion: done },
       draw: (s) =>
         new Group(

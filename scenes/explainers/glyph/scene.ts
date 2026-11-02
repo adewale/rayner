@@ -118,9 +118,9 @@ export default class GlyphExplainer extends Scene {
     answer: 'Width is the sum of the glyphs’ advances, and each font sets its own',
     checks: [
       {
-        question: 'Why is “Hello, outlines” exactly 8.10 units wide in JetBrains Mono at size 0.9?',
+        question: 'A space adds no outline. Why can adding one still move the next word farther right?',
         answer:
-          'JetBrains Mono gives every glyph the same advance, 0.540 at that size, and the line has 15 characters counting the comma and the space: 15 × 0.540 = 8.10.',
+          'A space has an advance even though it draws no ink. The pen moves by that advance before the next glyph, so the line grows without another outline.',
       },
       {
         question: 'Which letter of “Hello, outlines” gains the most width in JetBrains Mono, and how does the font fill the extra room?',
@@ -128,13 +128,13 @@ export default class GlyphExplainer extends Scene {
           'The l: 0.218 in Inter, 0.540 in JetBrains Mono, three times over. JetBrains Mono draws its l with a flag on top and a foot turned right, so it is a different outline, not a stretched one.',
       },
       {
-        question: 'How many of the line’s 14 Inter glyphs does shape matching pair with JetBrains Mono’s, and how many with Inter’s own 60% copy?',
-        answer: 'None with JetBrains Mono, not even the same letter; all 14 with the 60% copy, because size and position do not count.',
+        question: 'Could moving or uniformly resizing the Inter glyphs make them match the JetBrains Mono paths that failed to pair?',
+        answer: 'No. The matcher already removes position and uniform size before comparing paths. Those operations cannot remove differences in the outlines themselves.',
       },
       {
-        question: 'A diagram is laid out with Inter’s label widths, then drawn in JetBrains Mono. Are its labels stretched or squeezed to fit?',
+        question: 'The label “Hello, outlines” is measured in Inter, then drawn in JetBrains Mono to fit that width. Is this label stretched or squeezed?',
         answer:
-          'Squeezed: JetBrains Mono advances further than Inter (8.10 against 6.02 units for “Hello, outlines”), so each label is pressed into a box measured for narrower text.',
+          'Squeezed: this phrase advances 8.10 units in Mono against 6.02 in Inter. The renderer presses it into the narrower recorded width. A different label needs its own measurements.',
       },
     ],
   };
@@ -177,7 +177,7 @@ export default class GlyphExplainer extends Scene {
     await this.step('measure', {
       title: 'Each glyph moves the pen on by its own advance',
       line: `Ticks: where each glyph leaves the pen. Boxed: Inter’s narrowest, ${sans.chars[narrowAt]}, and widest, ${sans.chars[wideAt]}.`,
-      caption: `Width is the sum of the glyphs’ advances, and each font sets its own. A tick marks where one glyph hands the pen to the next; the step between ticks is that glyph’s advance. Inter’s run from ${sans.advances[narrowAt]!.toFixed(3)} for ${sans.chars[narrowAt]} to ${sans.advances[wideAt]!.toFixed(3)} for ${sans.chars[wideAt]}. JetBrains Mono gives all ${mono.advances.length} characters ${mono.advances[0]!.toFixed(3)}, so its line is ${mono.advances.length} × ${mono.advances[0]!.toFixed(3)} = ${advance('mono').toFixed(2)}. Narrow letters gain most: each of the ${['no', 'one', 'two', 'three'][lCount] ?? lCount} l’s grows by ${lGain.toFixed(3)}.`,
+      caption: `A tick marks where the pen starts the next glyph; the distance between ticks is its advance. Width is the sum of the glyphs’ advances, and each font sets its own. JetBrains Mono gives all ${mono.advances.length} characters ${mono.advances[0]!.toFixed(3)}, so its line is ${mono.advances.length} × ${mono.advances[0]!.toFixed(3)} = ${advance('mono').toFixed(2)}. Inter gives narrow letters less room. Each l gains ${lGain.toFixed(3)} units in Mono, helping account for the opening’s wider line.`,
     });
     await s.clear();
     const wide = Math.max(mine.width, theirs.width);
@@ -242,9 +242,9 @@ export default class GlyphExplainer extends Scene {
     const contours = measured.children.reduce((n, g) => n + contoursOf(g), 0),
       segments = measured.children.reduce((n, g) => n + segmentsOf(g), 0);
     await this.step('write', {
-      title: 'Inside each advance, a glyph is an outline of curves',
+      title: 'An outline supplies ink; an advance positions the next glyph',
       line: `Write traces the contours; the large o shows its points and handles.`,
-      caption: `What fills an advance is the glyph’s outline: closed contours of curves, read from a font bundled with Rayner, so no installed font is needed. The o has ${contoursOf(big)} contours, its outside and its hole, made of ${segmentsOf(big)} cubic curves; the line’s ${measured.children.length} glyphs have ${contours} contours and ${segments} curves. The space has an advance but no outline.`,
+      caption: `An advance positions the next glyph; an outline supplies this glyph’s ink. The large o has ${contoursOf(big)} contours, its outside and its hole. A space supplies an advance without an outline, so the ruler can move even where no ink appears.`,
     });
     await s.clear();
     const text = new Text(WORD, { font, fontSize: font === 'sans' ? 1.5 : 1.15, color: ink, fillOpacity: 0 });
@@ -288,7 +288,7 @@ export default class GlyphExplainer extends Scene {
     await this.step('letterforms', {
       title: `Answer: across the two fonts, none of the ${measured.children.length} glyphs pair`,
       line: `Every glyph pairs with its ${SMALL * 100}% copy; with the other font, none do.`,
-      caption: `TransformMatchingShapes pairs glyphs whose outlines are the same path once each is centred and scaled to one size, so position and size do not count. Every glyph pairs with its own copy at ${SMALL * 100}% size; across the two fonts nothing pairs, not the l, not the o, not even the comma. A font designs its advances and its outlines together, so changing the font changes both.`,
+      caption: `TransformMatchingShapes compares outlines after removing position and size. The ${SMALL * 100}% copy preserves those paths, so its glyphs pair with the originals. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
     await s.clear();
     const row = new Text(WORD, { font, fontSize: SIZE, color: ink }).moveTo([-wide / 2, 2.35], [-1, 0]);
@@ -324,8 +324,7 @@ export default class GlyphExplainer extends Scene {
     await this.step('tradeoff', {
       title: 'In a diagram, Inter takes the width the layout recorded',
       line: 'Upper ruler: Inter’s own advance. Lower: the width the layout recorded.',
-      caption:
-        'This diagram of Rayner’s text pipeline was laid out by agentic-mermaid, which recorded each label’s width, its textLength, as it placed the boxes. Rayner draws the labels in embedded Inter and fits each one to its recorded width, so “PNG stills” is squeezed to the lower ruler. Same words, same font, different space: a width is only right when it adds up the advances of the face that is drawn. The font-metrics explainer has the layout measure that face first.',
+      caption: 'A diagram layout records label widths before the labels are drawn. Here the renderer fits Inter to those recorded widths, squeezing “PNG stills” to the lower ruler. The letters have not changed, but a disagreement between measurement and drawing distorts them. The font-metrics example measures the drawn face before placing the boxes.',
     });
     await s.clear();
     const again = await s.show({ source: pipeline(NAME[font]) }, { box: regionBox('full', { right: -1.4 }) });

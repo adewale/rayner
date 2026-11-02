@@ -149,14 +149,8 @@ export default class MermaidExplainer extends Scene {
         : missing
           ? 'Which branch out of Cached means a cache hit?'
           : 'Both branches out of Cached carry a label',
-      line: 'Predict: does Agentic Mermaid’s verifier accept this diagram?',
-      caption: `${
-        swapped
-          ? 'An agent drew a cache lookup and got it backwards: yes, the cache has the answer, leads to Database, and no leads to Reply, so a cache hit would query the database the cache exists to spare.'
-          : missing
-            ? 'An agent drew a cache lookup with two routes out of Cached, one to Reply and one to Database, but did not say which means yes.'
-            : 'An agent drew a cache lookup with two routes out of Cached: yes to Reply, no to Database.'
-      } Agentic Mermaid’s verify(flow) checks a diagram’s source and returns a report.`,
+      line: 'does Agentic Mermaid’s verifier accept this diagram?',
+      caption: `${swapped ? 'A cache hit follows yes to Database, while no leads straight to Reply. This reverses the intended cache behavior.' : missing ? 'Cached has a path to Reply and another to Database, but their labels do not say which path is a hit.' : 'A cache hit follows yes to Reply, while no leads to Database.'} Agentic Mermaid’s verify(flow) returns a report about the source. Will it accept this diagram?`,
     });
     d = await s.show({ source: first }, { box: 'main' });
     const source = await code(first.split('\n'));
@@ -176,11 +170,7 @@ export default class MermaidExplainer extends Scene {
         : swapped
           ? 'The dot follows the yes edge as drawn: from Cached to Database.'
           : 'Would the report change if the labels were the wrong way round?',
-      caption: missing
-        ? `Cached is a decision, drawn as a diamond. ${UNLABELED}, so each unlabelled exit is marked and gets its own warning. ${NAMING} A warning is advice: ok stays true. The report’s last line, taskCorrectness: not-checked, is the verifier’s own note that it did not judge whether the diagram does its job. ${ANSWER}.`
-        : swapped
-          ? `Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. The report’s last line, taskCorrectness: not-checked, is the verifier’s own note that it did not judge whether the diagram does its job. ${ANSWER}.`
-          : `Cached is a decision, drawn as a diamond, and both of its exits carry a label, so nothing is flagged. The last line, taskCorrectness: not-checked, means the verifier did not test the diagram against its purpose. ${ANSWER}. This diagram happens to be right; a later step swaps its labels and runs the verifier again.`,
+      caption: missing ? `${UNLABELED}. ${NAMING} Warnings identify missing structural information while ok stays true. ${ANSWER}.` : swapped ? `The source renders and both decision exits carry labels, so the report has no warnings. Yet its yes path reaches Database. taskCorrectness: not-checked names the boundary: ${ANSWER}.` : `The source renders and both decision exits carry labels, so the report has no warnings. That does not prove that the labels express the right behavior. ${ANSWER}. Would reversed labels get a different report?`,
     });
     const warnings = d.findings();
     this.state.warnings = warnings;
@@ -210,8 +200,8 @@ export default class MermaidExplainer extends Scene {
 
     await this.step('broken', {
       title: 'Cut the end off an edge, and verify returns ok: false',
-      line: 'Predict: with no node at the end of its last arrow, can this source be drawn at all?',
-      caption: `Here the edge to Database stops at its arrow: the last line ends ${broken.split('\n').at(-1)} with no node after it. Agentic Mermaid’s renderer cannot draw that, so the verifier reports RENDER_FAILED, the error for a source that cannot be drawn, and errors are the findings that turn ok false. It adds an UNSUPPORTED_SYNTAX warning that names the problem, a dangling edge, and its scope lines read renderability: failed and taskCorrectness: not-checked. With no drawing, there is nothing to point a dot or a label at.`,
+      line: 'with no node at the end of its last arrow, can this source be drawn at all?',
+      caption: `The last arrow has no destination. This pinned renderer cannot draw it, so RENDER_FAILED makes ok false; UNSUPPORTED_SYNTAX identifies the dangling edge. The failure establishes a rendering problem without needing to know what a cache should do.`,
     });
     await s.clear();
     const brokenSource = await s.code(broken.split('\n'), { at: REGIONS.main, fontSize: 0.42, enter: false });
@@ -231,9 +221,8 @@ export default class MermaidExplainer extends Scene {
     if (swapped) {
       await this.step('flagged', {
         title: 'Delete both labels, and the verifier warns twice',
-        line: 'Predict: does a missing label turn ok false too?',
-        caption:
-          `Back to a diagram that draws, now with both labels taken off. ${UNLABELED}, and verify(flow) returns two of them, one for each exit. ${NAMING} The two warnings name A->B#0, the edge to Reply, and A->C#0. A missing label is part of the diagram’s structure, so the verifier can see it. Each is a warning, advice for the author, so ok stays true.`,
+        line: 'does a missing label turn ok false too?',
+        caption: `${UNLABELED}. ${NAMING} The warnings identify the unlabelled paths to Reply and Database. The diagram still renders, so ok stays true. A missing label is structural information the verifier can detect; choosing the correct label needs task knowledge.`,
       });
       await s.clear();
       d = await s.show({ source: BAD }, { box: 'main' });
@@ -249,8 +238,7 @@ export default class MermaidExplainer extends Scene {
       await this.step('repair', {
         title: 'Two set_label operations clear both warnings',
         line: 'Each operation names the edge it changes by its id.',
-        caption:
-          'Back to the unlabelled diagram. set_label is an Agentic Mermaid edit that names one edge by its id and sets that edge’s label, so the agent changes those two edges and nothing else in the source. One puts yes on A->B#0 and the other puts no on A->C#0. Verified again, the diagram has no warnings.',
+        caption: 'set_label changes the label of a named edge. Here yes goes on A->B#0 and no on A->C#0, removing the missing-label warnings. That repairs the structural omission; it does not make the warning rule a test of cache behavior.',
       });
       await s.clear();
       d = await s.show({ source: BAD }, { box: 'main' });
@@ -270,13 +258,7 @@ export default class MermaidExplainer extends Scene {
     await this.step('meaning', {
       title: swapped ? 'Label them the right way round: the report does not change' : 'Swap the labels, and the report does not change',
       line: 'The wrong diagram and the right one get the same report.',
-      caption: swapped
-        ? 'set_label is an Agentic Mermaid edit that names one edge by its id and sets that edge’s label. Two of them put yes on A->B#0 and no on A->C#0, and now a cache hit replies from the cache. verify(flow) returns ok: true with no warnings, the report it gave when yes led to Database. Telling the two apart takes a check that knows a cache hit should reach Reply, such as a test written for this diagram.'
-        : `${missing ? 'Two more set_label edits' : `${NAMING} Two set_label edits, Agentic Mermaid operations that each name one edge that way and set its label,`} swap the labels, so yes leads to Database and a cache hit would query the database. verify(flow) still returns ok: true with no warnings, the right diagram’s report, while the dot now follows yes from Cached to Database. ${
-            missing
-              ? 'The two set_label edits that repaired the diagram could just as well have written the labels this way round.'
-              : 'The agent’s first edit was right, and the verifier had no way to say so.'
-          }`,
+      caption: swapped ? 'Two set_label edits put yes on the path to Reply and no on the path to Database. A hit now follows the intended route, but the report is identical to the backwards diagram’s. Distinguishing them needs a check that a cache hit reaches Reply without querying Database; this page describes that missing obligation rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} Two set_label edits`} reverse the behavior: a hit now follows yes to Database. The report remains ok with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job.`,
     });
     // The swapped and missing cases still show a diagram that draws; the complete case left it at the broken step.
     if (edit === 'complete') {
@@ -323,7 +305,7 @@ export default class MermaidExplainer extends Scene {
       detail: true,
       title: 'What the commit history keeps',
       line: 'Three commits in order, the last with the verifier’s findings.',
-      caption: `The git graph shows the Mermaid source, the agent’s edit${missing || swapped ? ', made with two set_label operations,' : ''} and a checked snapshot as three commits in order. A snapshot is the diagram as Agentic Mermaid parsed and drew it, saved with the verifier’s findings: here ${committed} warnings, renderability: passed and taskCorrectness: not-checked, from ${renderer}.`,
+      caption: `The history keeps source, edit and checked snapshot separately. The snapshot records what this renderer drew and the findings it returned, including taskCorrectness: not-checked. Saving a successful report preserves that evidence; it does not enlarge what the verifier checked.`,
     });
     await s.clear();
     const git = await s.show(

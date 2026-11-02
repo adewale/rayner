@@ -254,7 +254,7 @@ export default class TailwindGamutExplainer extends Scene {
     await this.step('oklch', {
       title: `${sum.mostOfSrgb.family}-${shade} is one of ${n} colours at shade ${shade}, all written in oklch`,
       line: 'Each line reads oklch(L C h): lightness, chroma, hue angle.',
-      caption: `Tailwind CSS 4.3.3’s theme.css writes all 286 palette shades this way. The v4.0 announcement says the move from rgb to oklch makes colours more vivid where sRGB had limited them, and more vivid than sRGB can show is what the first step found. These are the ${shade} shades of the ${n} coloured families. To see which of them an sRGB screen can show, we need sRGB’s limit for each one.`,
+      caption: `These are the ${shade} shades of Tailwind’s ${n} coloured families, written as lightness, chroma and hue. Chroma is distance from grey. The opening colour asks for more of it than sRGB can reproduce. To find whether the other families fit, compare each requested chroma with the limit at that colour’s own lightness and hue.`,
     });
     await s.clear();
     const code = await s.code(
@@ -279,7 +279,7 @@ export default class TailwindGamutExplainer extends Scene {
     await this.step('srgb-edge', {
       title: 'An sRGB screen’s edge sits at a different chroma for each colour',
       line: 'The outline is the most chroma sRGB can show on each spoke.',
-      caption: `Each spoke is one family, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, its sRGB edge, found by bisection with CSS Color 4’s sample code. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
+      caption: `Each spoke is one family, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, its sRGB edge. A single chroma cutoff would not work: the limit depends on lightness and hue together. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
     });
     await s.clear();
     const d = await s.show({ source: radar(all, [srgbCurve, twCurve], CHROMA) }, { box: 'main', build: 'frame' });
@@ -319,7 +319,7 @@ export default class TailwindGamutExplainer extends Scene {
     await this.step('share', {
       title: `As a share of the edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
-      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`}. ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
+      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`}. ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. A value above 100% asks for more chroma than that spoke can hold. The centre is now 50%, and the rings are 25 points apart; this is relative capacity, not raw chroma.`,
     });
     await s.clearOverlays();
     said.length = 0;

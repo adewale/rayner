@@ -103,7 +103,7 @@ export function frames(seed: number): ReaderFrame[] {
       id: 'reader-drift',
       title: 'If the hand places the boxes, a second drawing moves them',
       line: 'Grey: the first drawing. Dark: the second. Dashed: where the boxes belong.',
-      caption: `Four plain boxes show why the opening’s boxes wander. Each side begins at the end of the side before, up to ${FREEHAND.angle}° and ${FREEHAND.length * 100}% off its direction and length, and the pen moves on to the next box from where it lifted, so every error is carried into every later corner. Two drawings with different seeds put the same box as much as ${worst.toFixed(2)} units apart, about ${px(worst)} on a page 1280 px wide.`,
+      caption: `Each imperfect move changes where the next one begins, so every error is carried into every later corner. Across four boxes the small deviations accumulate: two seeds place the same box as much as ${worst.toFixed(2)} units apart. Could the pen wobble without deciding the next box’s position?`,
       values: { apart: apart.map((d) => Number(d.toFixed(3))), fromLayout: fromLayout.map((d) => Number(d.toFixed(3))) },
       draw: (s) =>
         new Group(
@@ -118,7 +118,7 @@ export function frames(seed: number): ReaderFrame[] {
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
-      caption: `The blue band is a route fixed before any ink, its corners and ends. The pen is now a mass on a damped spring that chases a point moving along the route, so each stroke is pulled back to its route and no error reaches the next. Neither drawing strays more than ${stray.toFixed(3)} units from the band, and the circle magnifies ${ZOOM} times the spot where they differ most. The fix, in this hand model: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
+      caption: `The route now fixes the corners before drawing. A simulated pen follows it like a mass pulled by a damped spring, and the next stroke starts from its own fixed mark. The magnifier shows different ink near the same route. The fix, in this hand model: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
       values: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
       draw: (s) => {
         const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);

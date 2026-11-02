@@ -156,7 +156,7 @@ export default class QuotientFamilialExplainer extends Scene {
     await this.step('revenu', {
       title: `Un couple ${enfants ? `avec ${ENFANTS[enfants]}` : 'sans enfant'} déclare ${rniTexte}`,
       line: `Prédire${deux} l’impôt divise d’abord ce revenu par des parts. Pourquoi diviser${nb}?`,
-      caption: `Un couple marié ou pacsé, ${ENFANTS[enfants]}, déclare ${rniTexte} de revenu net imposable pour 2024. L’impôt ne s’applique pas à ce revenu tel quel${deux} le schéma le divise d’abord par un nombre de parts, applique le barème, puis multiplie. Pourquoi diviser${nb}? Le calcul reprend celui d’OpenFisca France 176.1.3, réduit aux étapes du schéma${deux} il s’arrête avant les réductions et crédits d’impôt, et ignore le seuil de 61 € sous lequel l’impôt n’est pas recouvré.`,
+      caption: `Un couple marié ou pacsé, ${ENFANTS[enfants]}, déclare ${rniTexte} de revenu net imposable pour 2024. L’impôt ne s’applique pas à ce revenu tel quel${deux} le schéma le divise d’abord par un nombre de parts, applique le barème, puis multiplie. Si l’on finit par multiplier, pourquoi commencer par diviser${nb}? Le schéma s’arrête avant les réductions et crédits d’impôt${pv} il montre le calcul du barème, des parts, du plafond et de la décote.`,
     });
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: TOP });
@@ -195,7 +195,7 @@ export default class QuotientFamilialExplainer extends Scene {
             .map((_, i) => (i < 2 ? '0,5' : '1'))
             .join(' + ')}.`,
       caption:
-        `${REPONSE}. Le couple compte pour deux parts. Les deux premiers enfants à charge ajoutent une demi-part chacun, et chaque enfant à partir du troisième une part entière. ` +
+        `Le barème est progressif${deux} les euros du haut sont taxés davantage que ceux du bas. ${REPONSE}. Le couple compte pour deux parts. Les deux premiers enfants à charge ajoutent une demi-part chacun, et chaque enfant à partir du troisième une part entière. ` +
         (enfants
           ? `Avec ${ENFANTS[enfants]}, ce foyer a ${partsTexte(r.parts)} parts.`
           : 'Sans enfant, ce foyer en reste à deux parts.'),
@@ -230,9 +230,7 @@ export default class QuotientFamilialExplainer extends Scene {
     await this.step('bareme', {
       title: 'Le barème taxe chaque tranche à son propre taux',
       line: `Impôt de chaque tranche${pv} total pour une part${deux} ${eur2(b.total)}.`,
-      caption: `Le barème des revenus 2024 a cinq tranches, de 0 à 45${nb}%. Chaque barre est l’impôt d’une tranche sur ce quotient de ${eur2(r.quotient)}${deux} ${reached
-        .map((x) => `${euros(x.base)} à ${pourcent(x.rate)}`)
-        .join(', ')}. Leur somme, ${eur2(b.total)}, est l’impôt d’une part.`,
+      caption: `Le barème découpe le quotient en tranches. Chaque taux ne frappe que les euros de sa tranche${pv} les premiers euros restent dans les tranches du bas. Chaque barre montre l’impôt d’une tranche, et leur somme donne l’impôt d’une part.`,
     });
     await s.clearOverlays();
     await flow.unmark();
@@ -281,7 +279,7 @@ export default class QuotientFamilialExplainer extends Scene {
     await this.step('multiplie', {
       title: `${partsTexte(r.parts)} parts × ${euros(r.parPart)}${deux} ${euros(r.brut)}, pas ${euros(enGros)}`,
       line: `Barres${deux} l’impôt des ${partsTexte(r.parts)} parts par tranche${pv} ligne${deux} le barème sur le revenu entier.`,
-      caption: `L’impôt d’une part est multiplié par le nombre de parts${deux} ${partsTexte(r.parts)} × ${eur2(r.parPart)} = ${eur2(r.brut)}, la variable ir_brut d’OpenFisca. Appliqué au revenu entier, le barème monterait jusqu’à la tranche à ${tauxTexte(rni)} et donnerait ${eur2(enGros)}. Chaque part repart du bas du barème, donc diviser puis multiplier donne moins d’impôt.`,
+      caption: `L’impôt d’une part est multiplié par le nombre de parts. Appliquer le barème au revenu entier ferait monter davantage d’euros dans les tranches élevées${pv} la ligne montre ce calcul. Les barres reprennent le calcul par parts${deux} chaque part repart du bas du barème. C’est pourquoi diviser puis multiplier change le résultat.`,
     });
     await s.clearOverlays();
     await bars.hide();
@@ -316,8 +314,8 @@ export default class QuotientFamilialExplainer extends Scene {
         ? `2 × barème(${eur2(rni / 2)})${pv} l’écart de ${eur2(r.avantage)} vient des enfants.`
         : `Les deux calculs donnent ${eur2(r.sansEnfants)}${pv} l’écart est nul.`,
       caption: enfants
-        ? `Pour borner l’effet des enfants, OpenFisca refait le calcul du couple sur deux parts seulement${deux} 2 × barème(${eur2(rni / 2)}) = ${eur2(r.sansEnfants)}, la variable ir_ss_qf. L’écart avec l’impôt sur ${partsTexte(r.parts)} parts, ${eur2(r.avantage)}, est ce que les enfants font gagner.`
-        : `Pour borner l’effet des enfants, OpenFisca refait le calcul du couple sur deux parts seulement (ir_ss_qf). Sans enfant, ce foyer a déjà deux parts${deux} les deux calculs donnent ${eur2(r.sansEnfants)} et l’écart est nul.`,
+        ? `Pour mesurer l’avantage des enfants, on compare au même revenu pour un couple sans enfant, sur deux parts. L’écart entre les deux impôts est le gain apporté par les parts supplémentaires. C’est ce gain que le plafond va limiter.`
+        : `La référence est le même revenu pour un couple sur deux parts. Sans enfant, ce foyer a déjà deux parts${deux} les deux calculs sont identiques et l’avantage des enfants est nul.`,
     });
     await s.clearOverlays();
     await entier.hide();
@@ -459,7 +457,7 @@ export default class QuotientFamilialExplainer extends Scene {
         r25.impot === r.impot
           ? `Taux inchangés${pv} ce foyer paierait le même impôt, ${euros(r.impot)}.`
           : `Taux inchangés${pv} ce foyer paierait ${euros(r25.impot)} au lieu de ${euros(r.impot)}.`,
-      caption: `Le commit a59104153d, ${guillemets('Barème 2026')}, ajoute à chacun des quatre seuils de bareme.yaml une valeur au 1er janvier 2025${pv} les taux ne changent pas. Avec aussi le plafond (${euros(PARAMS[2025].plafond)}) et la décote (${euros(PARAMS[2025].decoteSeuil)}) de 2025, le même revenu paierait ${r25.impot === r.impot ? `le même impôt, ${euros(r.impot)}` : `${euros(r25.impot)} au lieu de ${euros(r.impot)}`}.`,
+      caption: `Pour les revenus 2025, les seuils du barème montent mais les taux ne changent pas. Les changements de paramètres sont montrés dans le fichier du barème. Avec aussi le plafond (${euros(PARAMS[2025].plafond)}) et la décote (${euros(PARAMS[2025].decoteSeuil)}) de 2025, le même revenu paierait ${r25.impot === r.impot ? `le même impôt, ${euros(r.impot)}` : `${euros(r25.impot)} au lieu de ${euros(r.impot)}`}.`,
     });
     await s.clear();
     const code = await s.code(yaml(2024), {

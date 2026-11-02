@@ -251,7 +251,7 @@ export default class GtfsExplainer extends Scene {
       line: tripsToday.length
         ? 'Predict: nothing in routes.txt changed overnight. What decides which trips run?'
         : `Predict: all ${FEED.routes.length} routes are still in routes.txt. Why does none run?`,
-      caption: `The same chart, edited for ${shortDate(date)}: each trip that starts or stops running gets a new label and colour, ${edits.length} edits in all. ${
+      caption: `The date is now ${shortDate(date)}. The route list has not changed, but the active trips have: ${
         started.length
           ? `${upper(number(started.length))} trips under ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
           : ''
@@ -274,7 +274,7 @@ export default class GtfsExplainer extends Scene {
       line: `Follow AB1: route ${route(ab1Row.route_id!).route_short_name}’s trip ${ab1Row.trip_headsign}, service_id ${ab1Row.service_id}.`,
       // reference.md:120 and :260.
       caption:
-        'routes.txt gives a route its names, vehicle type, colours and web page, and nothing about when it runs. Each row of trips.txt names one route in route_id, so a route has zero or more trips, and names in service_id the timetable the trip follows. The reference defines a route as “a group of trips that are displayed to riders as a single service”. The diagram shows the feed’s tables and the ID columns that join them; the marks at a line’s ends say how many rows can match.',
+        'routes.txt gives a route its names, vehicle type, colours and web page, and nothing about when it runs. Each row of trips.txt names one route in route_id, so a route has zero or more trips, and names in service_id the timetable the trip follows. A route groups journeys that riders see as one service. It does not itself promise a dated departure. The diagram shows the feed’s tables and the ID columns that join them; the marks at a line’s ends say how many rows can match.',
     });
     await s.clear();
     const er = await s.show({ source: ER }, { box: LEFT });
@@ -311,7 +311,7 @@ export default class GtfsExplainer extends Scene {
       title: `AB1 runs only on the dates its service, ${ab1Row.service_id}, runs`,
       line: `Predict: which rows of the two tables decide ${longDate(date)}?`,
       // reference.md:261, :356-357, :361, :363.
-      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt sets weekdays between a start and an end date; calendar_dates.txt adds or removes single dates. ${ANSWER}: a route row promises nothing by itself. Here ${services
+      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt supplies a weekday pattern within a date range; calendar_dates.txt adds or removes a particular date, overriding that pattern. The same service_id can be shared by several trips, so one exception can stop them together without deleting their route. ${ANSWER}: a route row promises nothing by itself. Here ${services
         .map((x) => `${x.id} (${x.trips} trips) is in ${where(x).replace(' only', ' alone')}`)
         .join(', and ')}.`,
     });

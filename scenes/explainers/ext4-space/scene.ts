@@ -171,7 +171,7 @@ export default class Ext4SpaceExplainer extends Scene {
       title: `A new ${name} disk: users can write only ${of(sp.users)} of it`,
       line: `Predict: no file is written yet. Where did ${size === '1g' ? bytesOf(gone) : gib(gone)} go?`,
       // Linux super.c:6807-6831 ext4_statfs; measured with statfs on the mounted filesystem.
-      caption: `We ran mkfs.ext4 1.47.3 with no options on an empty ${name} disk, ${count(l.blocks)} blocks of ${BLOCK} bytes, mounted it and asked the kernel’s statfs, which df reads. A user other than root can write ${count(sp.users)} blocks, which df shows as Avail: ${of(sp.users)} of the disk. The other ${count(gone)} blocks, ${of(gone)}, are gone before a single file is written. Predict where they went.`,
+      caption: `We ran mkfs.ext4 1.47.3 with no options on an empty ${name} disk, ${count(l.blocks)} blocks of ${BLOCK} bytes, mounted it and asked the kernel’s statfs, which df reads. A user other than root can write ${count(sp.users)} blocks, which df shows as Avail: ${of(sp.users)} of the disk. The other ${count(gone)} blocks, ${of(gone)}, are unavailable to this writer before any user files are added. Does unavailable mean already occupied? Predict where they went.`,
     });
     await s.clear();
     const d3: Diagram = await s.show({ source: pie(answerNames, `Every 4 KiB block of ${name}`, openPie) }, { box: PIE });
@@ -193,9 +193,9 @@ export default class Ext4SpaceExplainer extends Scene {
       title: `Answer: 5% is held back for root, ${ratio} all the metadata`,
       line: `Predict: what fills the ${count(l.metadata)} blocks of metadata?`,
       // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283, balloc.c:620-665.
-      caption: `${ANSWER}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, which only root may fill; its manual gives two reasons, less fragmentation and room for root’s daemons once other users are stopped. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
+      caption: `${ANSWER}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
         kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
-      }. Free blocks less both reserves is what users can write.`,
+      }. Free blocks less both reserves is what ordinary users can write. Lowering the root reserve can change that availability without removing a single metadata block.`,
     });
     await s.clearOverlays();
     // Not available splits into its three parts, re-coloured from the answer's own config.

@@ -87,7 +87,7 @@ export default class StateMachineExplainer extends Scene {
       title: 'Four reducer rows, one per arrow',
       line: 'The session starts idle; a pair with no row throws.',
       caption:
-        'A session starts idle, and the ring shows where it is. Each arrow is one row of the table named next, and reduceSession throws for any state and event pair without a row.',
+        'The ring marks the current state. Each arrow corresponds to a defined state-and-event pair in the reducer table. This reducer rejects a pair with no row by throwing an error; another machine could choose to ignore that event instead.',
     });
     await s.clear();
     const d = await s.show({ source: SOURCE }, { box: DIAGRAM });

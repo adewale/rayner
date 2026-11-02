@@ -472,8 +472,8 @@ export default class PenAndPencil extends Scene {
     // 1. The failure on the real timeline: a hand that places its own strokes pushes words out of their boxes.
     await this.step('text', {
       title: 'Can a wobbling hand draw this timeline and keep its words in their boxes?',
-      line: 'Predict: what must be fixed before any ink?',
-      caption: `The timeline in the corner is four periods with an event in each, and no positions. A simulated hand drew it below, wobbling a little on every line, as this explainer models a person’s hand: first the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and ${misses.length} of the ${wordCountFree}, outlined in red, poke out of the box drawn round them.`,
+      line: 'what must be fixed before any ink?',
+      caption: `The words stayed where the layout placed them, but ${misses.length} of ${wordCountFree} poke out of their boxes. This simulated hand chained imperfect moves, every line setting off from where the previous one stopped. A displaced endpoint became the next line’s starting point. What must be fixed before the ink begins?`,
     });
     await s.clear();
     const source = await s.code(WORLD.split('\n'), { at: [-7.55, 1.2, -2.95, 2.75], fontSize: 0.3, enter: false });
@@ -496,8 +496,7 @@ export default class PenAndPencil extends Scene {
     await this.step('layout', {
       title: 'For the real timeline, Agentic Mermaid fixes every box first',
       line: 'Every box, marker and label has its place before any ink.',
-      caption:
-        'Agentic Mermaid is the Mermaid layout library Rayner draws its diagrams with. Given the four lines of timeline text, it places every period box, marker and event box, sizing each box to its words with Inter’s letter widths, before the hand draws anything; the dimension gives Midnight’s event box width. rough.js, a library for sketchy drawings, takes the same order: rectangle(x, y, width, height) gets its corner and size from the caller, and a roughness and a seed set how the lines wobble. Its documentation does not say what the other order costs, which the first two steps showed.',
+      caption: 'Agentic Mermaid turns the timeline text into geometry: it places every period box, marker and event box, sizing the boxes using Inter’s letter widths. The hand receives those positions rather than deciding them while it draws. rough.js uses the same separation in its rectangle API: the caller supplies the corner and size, while roughness affects the strokes.',
     });
     await s.clear();
     // The timeline's text stays in view in a corner while the layout it became arrives.
@@ -511,7 +510,7 @@ export default class PenAndPencil extends Scene {
     await this.step('marks', {
       title: 'The hand is given the layout’s marks and nothing else',
       line: 'Blue pencil: the route the chart’s ink follows.',
-      caption: `The drawing reads the layout back as marks: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. The chart’s ink follows them, and they are the same in both drawings.`,
+      caption: `The construction pencil traces the fixed outlines before the ink follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
     });
     await drop(width);
     await d.hide();
@@ -535,7 +534,7 @@ export default class PenAndPencil extends Scene {
     await this.step('hand', {
       title: 'Close on Midnight’s marker, the ink lies on the blue ring',
       line: 'Pale blue band: the ring as laid out. Dark line: the spring hand’s ink.',
-      caption: `The camera has closed on the Midnight marker, with the rest of the construction set aside. The spring hand from the third step inked this ring no more than ${fmt(ringStray)} units from it, ${px(ringStray)} on a page 1280 px wide${ringStray < INK_WIDTH ? `, less than the ink line’s own width of ${INK_WIDTH}` : ''}. Over all ${chartInk.length + 1} ink strokes of the chart, the largest stray is ${fmt(chartStray)} units.`,
+      caption: `The pale band is the fixed ring; the dark line is the spring hand’s ink. This ring strays at most ${fmt(ringStray)} units from its route, while the largest deviation across the chart is ${fmt(chartStray)}. A wobbly stroke can remain close to its route without making the next object inherit its error.`,
     });
     await drop(corner, tally);
     // Midnight's marker stays in blue; the rest of the construction is set aside so no line crosses the heading.
@@ -563,10 +562,7 @@ export default class PenAndPencil extends Scene {
         which === 'first'
           ? `Objects, then words; no ink strays over ${fmt(chartStray)} from its mark.`
           : 'Grey: the first drawing’s sea and gulls. Dashed red: the shared boxes.',
-      caption:
-        which === 'first'
-          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last, in single-stroke Hershey letters fitted into the boxes the layout gave. Around the chart the seed also places the sea’s pencil strokes and the gulls, and the scenery is cut away from the paper the chart owns. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts. Choose ‘Second drawing’ to draw the plate again with another seed.`
-          : `With another seed, the sea’s strokes and the gulls land elsewhere (grey marks where the first drawing put them), and the strokes wobble differently. The chart is traced on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, with no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. The planks, tags and rope follow the plates of pele-art-diagrams, a web page of hand-drawn charts.`,
+      caption: which === 'first' ? `The planks, hanging tags and rope follow the fixed marks; the words fit the boxes those marks define. The drawing seed also places sea strokes and gulls, which can move without changing the chart’s geometry. This visual treatment follows the credited pele-art-diagrams examples. Changing the seed will test which parts are construction and which are decoration.` : `The sea strokes and gulls move with the seed, and the ink wobbles differently. The construction stays fixed, so every plank, tag and word lands in the dashed boxes the first drawing used. The decorative strokes can change without deciding where a label belongs. The planks, tags and rope follow the credited pele-art-diagrams examples.`,
     });
     await s.focus('all');
     await this.play(traced.animate.setOpacity(1), { runTime: 0.3 });
@@ -614,7 +610,7 @@ export default class PenAndPencil extends Scene {
     await this.step('freehand', {
       title: `Traced on fixed marks, all ${wordCountFree} words stay in their boxes`,
       line: 'Top: the opening’s drawing. Bottom: the finished plate.',
-      caption: `The opening’s drawing returns above the finished plate. Its boxes ended up as much as ${fmt(maxOff, 2)} units, ${px(maxOff)}, from where the layout put them, because every error rode along into the lines after it. The plate’s ink below wobbles too, but each stroke chased a mark fixed before any ink, so all ${wordCountFree} words sit inside their boxes.`,
+      caption: `Both drawings have imperfect strokes. In the upper one, every error rode along into the lines after it, displacing boxes from the words. Below, each stroke starts from its own fixed mark, so the ${wordCountFree} words fit their boxes. The difference comes from how this model constructs the route, not from making its pen perfectly steady.`,
     });
     await s.clear();
     const freePanel = freeDrawing(1.15);

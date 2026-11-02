@@ -213,7 +213,7 @@ export default class RingBufferExplainer extends Scene {
       title: 'Answer: keep the values still, and move two markers instead',
       line: 'Predict: after five pushes, where are head and tail?',
       caption:
-        'Keep five fixed slots and remember two positions: head, the slot pop reads next, and tail, the slot push writes next. Push writes at tail and moves tail on; pop reads at head and moves head on. Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots. The middle of the ring shows the buffer’s three fields, all 0 to start.',
+        'Keep five fixed slots and remember two positions: head, the slot pop reads next, and tail, the slot push writes next. Push writes at tail and moves tail on; pop reads at head and moves head on. Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots. Queue order starts at head, not at the leftmost or lowest-numbered slot. The three fields start at 0.',
     });
     await s.clear();
     let now: Snapshot = { head: 0, tail: 0, length: 0, data: Array(SLOTS).fill(null) };
@@ -347,11 +347,11 @@ export default class RingBufferExplainer extends Scene {
                 : 'Head, tail and length still read 0, 0 and 5.',
         caption:
           g === 0
-            ? 'Each push outlines the slot at tail, copies v into it, then moves tail on modulo five and adds one to length. After five pushes tail has wrapped to 0, where head is, just as when the ring was empty; only length, 5, says the ring is full.'
+            ? 'Each push outlines the slot at tail, copies v into it, then moves tail on modulo five and adds one to length. After five pushes tail has wrapped to 0, where head is, just as when the ring was empty; only length, 5, says the ring is full. Coincident markers cannot distinguish “nothing to read” from “no room to write”.'
             : which === 'wrap'
               ? g === 1
                 ? `Each pop copies the value at head out to the tray, clears its slot and moves head on: 1 from slot 0, then 2 from slot 1, and head is at 2. The array queue would have moved ${shifted[0]!.moved} values and then ${shifted[1]!.moved}; the ring moved none. Tail is still at 0, the first of the two outlined slots the pops freed.`
-                : 'Tail wrapped to 0 after the fifth push, so 6 and 7 are copied into slots 0 and 1, the storage two pops gave back, and no stored value moves. Length is back to 5, with head and tail both at 2.'
+                : 'Tail wrapped to 0 after the fifth push, so 6 and 7 are copied into slots 0 and 1, the storage two pops gave back, and no stored value moves. Length is back to 5, with head and tail both at 2. Reading from head and wrapping past slot 4 gives queue order 3, 4, 5, 6, 7, even though the slots themselves hold 6, 7, 3, 4, 5.'
               : g === 1
                 ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either marker. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
                 : 'push 7 is refused the same way and joins 6 in the refused tray; the ring still holds 1 to 5. Some ring buffers overwrite the oldest value instead. This one refuses, so no stored value is lost and the caller must handle Full.',

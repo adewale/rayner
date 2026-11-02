@@ -31,7 +31,7 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
       id: 'reader-levels',
       title: 'Does AA mean “only the AA criteria”?',
       line: `WCAG 2.2, selected level ${level}.`,
-      caption: `Level ${level} includes ${total.total} success criteria in WCAG 2.2 because each level includes the levels below it. Guideline ${guideline} contributes ${selected.length} of them. A criterion count helps scope the checks; each applicable requirement still needs testing on the page.`,
+      caption: `Level ${level} includes ${total.total} success criteria in WCAG 2.2 because each level includes the levels below it. Guideline ${guideline} contributes ${selected.length} of them. The totals identify a set of requirements, not a conformance result. The applicable criteria and the rules for complete pages and processes still need evaluation.`,
       values: { level, total: total.total, guideline, count: selected.length },
       draw: (s) =>
         table(

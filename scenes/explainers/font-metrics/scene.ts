@@ -57,7 +57,7 @@ export default class FontMetrics extends Scene {
     await this.step('layout', {
       title: `Measure the wrong face and the marker lands ${(wrong - actual).toFixed(2)} units too far`,
       line: `Same phrase, size and ${GAP}-unit gap; only the measurement changes.`,
-      caption: `Both rows draw “${SAMPLE}” in EB Garamond at size 0.9, and each puts its marker ${GAP} units after the width it measured for the phrase. The upper row measured the phrase as JetBrains Mono, ${wrong.toFixed(2)} units, so its marker sits ${(wrong - actual).toFixed(2)} units farther from the words than intended. The lower row measured EB Garamond, ${actual.toFixed(2)}, and its marker sits where it was meant to. Where does a phrase’s width come from?`,
+      caption: `Both rows draw “${SAMPLE}” in EB Garamond. Each marker adds the same ${GAP}-unit gap, but the upper row placed it using Mono’s ${wrong.toFixed(2)}-unit measurement rather than Garamond’s ${actual.toFixed(2)}. That puts it ${(wrong - actual).toFixed(2)} units too far right. Where does the phrase’s width come from?`,
     });
     const comparison = new Group();
     comparison.key = 'font-layout';
@@ -80,7 +80,7 @@ export default class FontMetrics extends Scene {
     await this.step('advance', {
       title: 'A phrase’s width is the sum of its glyphs’ advances',
       line: 'The ruler ends after the final glyph’s advance, not at its ink.',
-      caption: `Each glyph tells the pen how far to move before the next one: its advance. Added up, spaces included, “${SAMPLE}” in EB Garamond at size 1.2 advances ${ruled.advance().toFixed(2)} units. Measure the face you draw: each face and cut gives the same text its own advances. The ruler ends where a next glyph would start, so a following word still needs its own space.`,
+      caption: `Each glyph advances the pen to the next starting point; spaces contribute movement without ink. The ruler sums those advances, ending where another glyph would begin rather than at the last ink. Measure the face you draw: each face and cut gives the same text its own advances.`,
     });
     await s.clear();
     await s.enter(ruled);
@@ -103,7 +103,7 @@ export default class FontMetrics extends Scene {
     await this.step('cuts', {
       title: 'Bold and italic are faces of their own, with their own advances',
       line: 'Same text, size 0.9: three cuts, three widths.',
-      caption: `At size 0.9 the phrase advances ${advances.Regular!.toFixed(2)} units in Regular, ${advances.Bold!.toFixed(2)} in Bold and ${advances.Italic!.toFixed(2)} in Italic. Bold is not Regular thickened, nor Italic Regular slanted: each cut is a separate font with its own glyphs and metrics, so a width measured in one cut is wrong for another. The page carries outlines captured from all three, so no installed font is needed.`,
+      caption: 'Regular, Bold and Italic supply different glyphs and metrics. Bold here advances farther than Regular, so a marker placed using Regular’s measurement would leave less room after the bold words. The cut must agree between measurement and drawing, just as the font family must.',
     });
     await s.clear();
     const rows = new Group();
@@ -135,10 +135,7 @@ export default class FontMetrics extends Scene {
         widths === 'natural'
           ? 'Under each box: how far its word was stretched to fit. Here, not at all.'
           : 'Under each box: how far its word was stretched to fit the width Inter would need.',
-      caption:
-        widths === 'natural'
-          ? 'The same rule holds for a diagram. Rayner measures Ink and Paper in EB Garamond before Agentic Mermaid places the boxes, so each box is sized from its word and each word keeps its own proportions, stretched ×1.000. Set Diagram widths to Inter estimates to see the boxes sized for another face.'
-          : 'Without a measurement in EB Garamond, Agentic Mermaid sizes each box from its default Inter width estimates, and Rayner stretches the EB Garamond words to fill them. It is the first step’s mistake again, one face measured and another drawn; here the words bend instead of a marker moving. Asking the diagram for natural lettering measures the drawn face first and keeps every word at ×1.000.',
+      caption: widths === 'natural' ? 'Rayner measures Ink and Paper in EB Garamond before the layout sizes their boxes. Both words keep their natural proportions, so both stretch factors are ×1.000. Change the setting to compare a layout measured for another face.' : 'The layout used Inter estimates, then the renderer fitted Garamond to those recorded widths. Paper needs more stretching than Ink because the width disagreement differs between words. This is the misplaced marker’s problem again: one face was measured and another drawn.',
     });
     await s.clear();
     const d = await s.show(widths === 'natural' ? { source: DIAGRAM, lettering: 'natural' } : { source: DIAGRAM });

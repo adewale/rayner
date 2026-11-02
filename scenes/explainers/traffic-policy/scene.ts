@@ -223,7 +223,7 @@ export default class TrafficPolicyExplainer extends Scene {
           : `Probabilities 1/(n−i) give each pod ${frac(each[0]!)} of the node’s requests.`,
       // proxier.go:1464-1471: rule i of n has --probability 1/(n-i); the last has none and always matches.
       caption:
-        `In iptables mode kube-proxy writes one rule per pod. Rule i of n matches with probability 1/(n−i), and the last always matches, so each pod gets 1/n. ` +
+        `In iptables mode kube-proxy tries one rule per pod in order. For three candidates, the first takes 1/3 of requests; the second sees the remaining 2/3 and takes half of those, another 1/3 overall; the last gets the remaining 1/3. In general, rule i of n matches 1/(n−i) of the requests that reach it, counting i from zero, so each pod gets 1/n of the node’s traffic. ` +
         (policy === 'cluster'
           ? `Under Cluster every node lists all ${n} pods: ${spelled}, so each gets 1/${n} of what the node receives.`
           : chainPods.length === 1
@@ -291,8 +291,8 @@ export default class TrafficPolicyExplainer extends Scene {
         // service_health.go:257-261: 200 when the node has local endpoints, 503 when it has none.
         // source-ip.md:362-363: nodes without endpoints fail the load balancer's health checks.
         caption: `Under Local, kube-proxy answers the load balancer’s health check on each node: 200 when the node runs a pod of the Service, 503 when it runs none. ${
-          failing.length ? `The load balancer stops sending to ${nodeList(failing)}, so ` : 'So '
-        }${nodeList(healthy)} each get ${frac(node[healthy[0]!]!)} of the requests.`,
+          failing.length ? `The load balancer stops sending to ${nodeList(failing)}. It divides requests equally among healthy nodes, regardless of their pod counts, so ` : 'So '
+        }${nodeList(healthy)} each get ${frac(node[healthy[0]!]!)} of the requests. The next choice happens inside each node: its share is divided among its own pods.`,
       });
       await s.clearOverlays();
       await d.unmark();

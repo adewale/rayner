@@ -40,12 +40,12 @@ export default class PasswordExplainer extends Scene {
         answer: 'A suggestion, the Database reference. “databse” is one edit from “database”, so it scores 1 − 1/8 = 0.875, above the 0.6 threshold.',
       },
       {
-        question: 'How many secret values appear in find’s output for the two queries?',
-        answer: 'None. find drops each field’s value while it decodes op’s reply and returns only op:// references.',
+        question: 'The app prints API_KEY to stdout, and the agent reads stdout. Does passing a reference prevent that disclosure?',
+        answer: 'No. The app receives the resolved key and can print it. References keep field values out of find’s output and the launch request; they do not sandbox the app or redact its output.',
       },
       {
-        question: 'How many op calls does find make for the two queries, and what is each one for?',
-        answer: 'Two: item list for every item’s title, then one item get for the two items it needs, Cloud API for the match and Database for the suggestion.',
+        question: 'Does knowing an op:// reference let an unauthenticated process read that credential?',
+        answer: 'No. The reference names a location but supplies no authorization. An authenticated op process with the required access must resolve it.',
       },
     ],
   };
@@ -73,8 +73,8 @@ export default class PasswordExplainer extends Scene {
     await readerFirst(this, s, readerFrames(auth));
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
-      line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
-      caption: `The agent still has to choose which key. 2password find asks op for the titles of the vault’s items, uses those names to choose the items and answers with references. The later item-get reply can contain secret values; the wrapper drops them before producing its output. Here it searches “${hitQuery}” and the typo “${missQuery}” among the ${ITEMS.length} sample items from 2password’s own tests.`,
+      line: `it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
+      caption: `Title matching chooses the items without needing their field values. Here “${hitQuery}” and “${missQuery}” search ${ITEMS.length} sample titles. The later item-get reply can contain secret values; the wrapper discards them before returning references to the agent.`,
     });
     await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
@@ -103,7 +103,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('match', {
       title: `Answer: a match for “${hitQuery}”, a suggestion for “${missQuery}”`,
       line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${edits} edit${edits === 1 ? '' : 's'} from “${missQuery}”.`,
-      caption: `A title matches when it contains every query word, so ${match.title} matches “${hitQuery}”. No title contains “${missQuery}”, so find scores each title word against it instead: 1 if one contains the other, otherwise 1 − edit distance ÷ the longer word’s length, and suggests any title scoring at least ${SUGGESTION_THRESHOLD}. ${near.title} scores 1 − ${edits}/${longer} = ${score} and comes back as a suggestion.`,
+      caption: `${match.title} contains the words in “${hitQuery}”, so it matches. The typo “${missQuery}” has no match. Comparing its spelling with title words gives ${near.title} a score of ${score}, above the suggestion threshold. The fallback finds a likely name without comparing secret contents.`,
     });
     await boundary.dim(['Agent', 'Find']);
     const cell = (query: string, title: string) => {
@@ -128,9 +128,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('fetch', {
       title: 'One op item get fetches the match and the suggestion',
       line: `Item list, then one item get for ${found.fetched.join(' and ')}; ${service ? 'no approval' : 'one approval'}.`,
-      caption: service
-        ? `find makes two op calls: item list for titles, then one item get for every item a match or suggestion needs, here ${found.fetched.join(' and ')}. With a service-account token in the environment, op asks for no approval.`
-        : `find makes two op calls: item list for titles, then one item get for every item a match or suggestion needs, here ${found.fetched.join(' and ')}. 2password’s README says the whole command costs one desktop approval.`,
+      caption: service ? `find first lists titles, then fetches the selected items together. The service account authenticates op without a desktop approval. That changes how the vault is accessed, not the reference-only output returned to the agent.` : `find first lists titles, then fetches the selected items together. Upstream documents one desktop approval for this command. The agent still receives references rather than the secret-bearing item reply.`,
     });
     await s.clear();
     const sequence = await s.show(
@@ -163,8 +161,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('reference', {
       title: 'find returns references and prints no secret value',
       line: 'One reference per query; every sample value is searched for in the output.',
-      caption:
-        'find answers each query with a reference: a match for “cloud api” and a suggestion for “databse”. It drops each field’s value while it decodes op’s reply, so the agent receives references rather than field values; the note counts the sample values found in it. The underlines mark the vault, item and field of the Cloud API reference.',
+      caption: 'The returned strings identify a vault, item and field. Field values are discarded while the wrapper decodes op’s response. Those names let the agent select and launch the app without putting the key into the conversation; they do not themselves grant access to the vault.',
     });
     await s.clear();
     const ref = match.ref;
@@ -213,9 +210,7 @@ export default class PasswordExplainer extends Scene {
       line: service
         ? 'The app gets PATH and the API_KEY value, not the service token.'
         : 'op resolves the API_KEY reference; the app gets its value and PATH.',
-      caption: service
-        ? 'The agent runs 2password run with the reference, and op puts the value into the app’s environment. op also holds the service-account token, so 2password has op start env -u OP_SERVICE_ACCOUNT_TOKEN app, and the app gets the key but not the token. The agent handled only the reference throughout; the app can still print what it was given.'
-        : 'The agent runs 2password run with the reference, and op puts the value into the app’s environment. With desktop approval op holds no token to strip, so it starts the app directly; with a service account, 2password would add env -u OP_SERVICE_ACCOUNT_TOKEN. The agent handled only the reference throughout; the app can still print what it was given.',
+      caption: service ? 'op resolves the reference and starts the app with API_KEY’s value. The wrapper removes OP_SERVICE_ACCOUNT_TOKEN from the child environment: the app needs its key, not the account token used to obtain it. This is a launch boundary, not a sandbox; the app can still print its environment.' : 'op resolves the reference and starts the app with API_KEY’s value. With desktop authentication there is no service-account token to remove. The reference keeps the value out of the agent’s launch request, but the app can still print what it receives.',
     });
     // The match's reference is carried into the run command that hands it to op; the rest goes.
     await this.play(

@@ -79,7 +79,6 @@ export default class BloomFilter extends Scene {
       m = bloomStory(size),
       other = bloomStory(size === 16 ? 32 : 16),
       full = saturation(size),
-      otherFull = saturation(size === 16 ? 32 : 16),
       [absent, present, probe] = m.queries as [(typeof m.queries)[0], (typeof m.queries)[0], (typeof m.queries)[0]],
       otherProbe = other.queries[2]!;
     const [s16, s32] = size === 16 ? [m, other] : [other, m];
@@ -168,7 +167,7 @@ export default class BloomFilter extends Scene {
         id: 'insert',
         title: `Taking cat sets bits ${list(cat)}`,
         line: 'Three hash functions each turn the name into a position.',
-        caption: `Each of this explainer’s three hashes gives a number from 0 to ${size - 1}; for cat they give ${list(cat)}, and those bits become 1. The purple fill marks them as cat’s for us, but the row itself stores only the 1s and keeps no trace of the name.`,
+        caption: `The three hash functions turn cat into positions in this row, and those bits become 1. Purple lets us follow cat’s contribution, but the row itself stores only the 1s and keeps no trace of the name.`,
       },
       {
         id: 'shared',
@@ -184,7 +183,7 @@ export default class BloomFilter extends Scene {
         id: 'absent',
         title: `${absent.word} finds a 0: definitely not taken`,
         line: `No database read: had ${absent.word} been taken, all three of its bits would be 1.`,
-        caption: `Looking up ${absent.word} runs the same three hashes: bits ${list(absent.locations)}. Taking a name sets all its bits and nothing clears them, so a taken ${absent.word} would find three 1s. Bit${zeros(absent).length > 1 ? 's' : ''} ${list(zeros(absent))} ${zeros(absent).length > 1 ? 'are' : 'is'} 0, so ${absent.word} is definitely free and the database is not asked. This row of bits and its hash functions is a Bloom filter.`,
+        caption: `Looking up ${absent.word} uses the same hashes as insertion. If the name had been inserted, its three bits would be set. It finds a 0, so it cannot have been inserted and the database read is skipped. This is an insert-only Bloom filter: taking names sets bits, and nothing clears them.`,
       },
       {
         id: 'present',
@@ -220,7 +219,7 @@ export default class BloomFilter extends Scene {
         id: 'full',
         title: `After ${full.words.length} names, all ${size} bits are 1 and every lookup says maybe`,
         line: `Keep taking names and the row only fills: ${absent.word}, turned away earlier, now gets maybe too.`,
-        caption: `Each name taken sets up to three more bits, and nothing clears them. With ${size} bits, the ${full.words.length}th name, ${full.words.at(-1)}, sets the last 0. From then on every name finds three 1s: all ${thousands(full.sampleSize)} untaken names get maybe, and every lookup goes to the database, so the filter saves no reads. A ${otherFull.size}-bit row took ${otherFull.words.length} names to fill. With three hashes, a longer row holds more names before it stops saying “definitely not”; how many depends on where those names’ bits land.`,
+        caption: `Each inserted name can use up more of the remaining zeros. The final name shown sets the last one. From then on every name finds three 1s: the filter says maybe and sends the question to the database, saving no reads. The two row lengths fill at different points in this sequence. More memory helped here, but how long it helps depends on where the names’ bits land.`,
       },
     ];
 

@@ -44,6 +44,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'gallery' },
   { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'showcase' },
   { id: 'seasons', step: 'latitude', group: 'topic', tier: 'showcase' },
+  { id: 'henge', step: 'crossings', group: 'topic', tier: 'showcase' },
   { id: 'oauth-pkce', step: 'attack', group: 'topic', tier: 'gallery' },
   { id: 'exgit', step: 'change', group: 'topic', tier: 'gallery' },
   { id: 'token-bucket', step: 'later', group: 'topic', tier: 'gallery' },

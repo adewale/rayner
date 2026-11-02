@@ -255,7 +255,7 @@ export default class TrustProxyExplainer extends Scene {
       line: `Beyond its own connection, Express sees only X-Forwarded-For: ${got.xff}.`,
       // The proxies' behaviour is this explainer's assumption; Express's guide does not describe it.
       caption:
-        `Express’s own connection comes from the load balancer, ${ADDR.balancer}. All it learns about the machines before that comes from the X-Forwarded-For header: each proxy appends the address its connection came from, as assumed throughout, and nothing stops a sender writing entries of its own first. ` +
+        `Express’s own connection comes from the load balancer, ${ADDR.balancer}. All it learns about the machines before that comes from the X-Forwarded-For header: each proxy here appends the address its connection came from. A sender can write entries of its own first, so the header is a reported chain, not proof that each address belongs to a proxy. ` +
         (reqKey === 'client'
           ? `The client sends ${sent}. The CDN edge appends the client’s address, ${ADDR.client}, and the load balancer appends the edge’s, ${ADDR.edge}. `
           : reqKey === 'forged'
@@ -365,7 +365,7 @@ export default class TrustProxyExplainer extends Scene {
             ? 'The loop stops at the first address outside the ranges.'
             : `Only position counts: the loop trusts index i while i < ${trustKey}.`,
       caption:
-        `Express turns the setting into a trust function, called with each address and its index. ` +
+        `The question is whether this address belongs to a trusted proxy, or merely occupies a trusted position. Express turns the setting into a trust function, called with each address and its index. ` +
         (trustKey === 'true'
           ? 'true returns a function that trusts everything. '
           : trustKey === 'list'
@@ -422,7 +422,7 @@ export default class TrustProxyExplainer extends Scene {
             ? 'None of the three requests gets the real sender’s address.'
             : `Only ${NUMBER[3 - wrong.length]} of three requests ${wrong.length === 2 ? 'gets' : 'get'} the real sender’s address.`,
       caption:
-        `The same setting against all three requests. ` +
+        `Keep the trust setting fixed and change the route into the app. A shorter route puts a different machine in the same trusted position. ` +
         REQUEST_KEYS.map((q) => `${REQUEST_LABEL[q]}: ${row[q].ip}, ${OUTCOME[row[q].outcome]}`).join('. ') +
         '.',
     });

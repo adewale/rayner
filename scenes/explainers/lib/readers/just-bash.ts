@@ -20,7 +20,7 @@ export function frames(): ReaderFrame[] {
       title: 'Where does HELLO go?',
       line: 'echo → tr → a file in the returned shell.',
       caption:
-        'echo writes hello and a newline into the pipe. tr uppercases it; the redirect stores HELLO in shout.txt in the returned shell. This in-memory model supports the commands used here.',
+        'echo writes hello and a newline into the pipe. tr uppercases it; the redirect stores HELLO in shout.txt in the returned shell. This small in-memory model passes strings between commands; it does not run an operating-system shell.',
       values: { file: run.shell.fs['shout.txt'], stdout: run.stdout },
       draw: (s) =>
         new Group(

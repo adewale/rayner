@@ -81,7 +81,6 @@ function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   return figure;
 }
 /** Milliseconds as a reader would say them: 312.5, 625. */
-const ms = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)} ms`;
 
 export default class MelodyRhythm extends Scene {
   static meta = {
@@ -167,8 +166,6 @@ export default class MelodyRhythm extends Scene {
     const v = settingsOf(this),
       m = musicStory(v.timing as Timing, Number(v.tempo)),
       different = m.movedStarts > 0;
-    const g = m.clips[1]!.notes[3]!,
-      lead = 4 - g.at;
     // B's notes that start on bar 2's 1, by index: none when G holds across the bar line.
     const onTheOne = (clip: AudioClip) => clip.notes.flatMap((n, i) => (n.at === 4 ? [`${clip.id}-${i}`] : []));
     const answer = 'The shifted B sounds off the beat because its G starts halfway through beat 4 and holds across the bar line, so the 1 of bar 2 brings no new note.';
@@ -185,7 +182,7 @@ export default class MelodyRhythm extends Scene {
         id: 'pulse',
         title: 'Count 1 2 3 4: the 1 that opens each bar is the strong beat',
         line: 'Predict: in B, which note starts on the 1 of bar 2?',
-        caption: `The pulse clicks once per beat, with a different click on the first beat of each bar. The lines mark the beats, two bars of four, and the large 1s mark the strong beats. In A a new note starts on every click, including the 1 that opens bar 2: E starts exactly there, as C did at the start of bar 1. Both are outlined.`,
+        caption: `Count along with the clicks: 1 2 3 4, then again. Each large 1 opens a bar and gets a different click. In A a new note starts on every click. At the start of bar 2 it is E, outlined in the picture. Which note starts there in B?`,
         clips: m.clips,
         look: { pulse: true, accent: true, lit: ['a-0', ...onTheOne(m.clips[0]!)], footer: 'Large 1: the strong beat that opens each bar' },
       },
@@ -196,8 +193,8 @@ export default class MelodyRhythm extends Scene {
           ? 'The red outline is G, the note still sounding when bar 2 begins.'
           : 'The red outline: G ends exactly as bar 2 begins.',
         caption: different
-          ? `B holds the first E for one and a half beats, so G starts halfway through beat 4, ${ms(lead * m.beatMs)} before the bar line at ${m.bpm} BPM, and is still sounding when the 1 arrives. The E after G is cut to half a beat, which puts D back on beat 2. ${answer} Open Music Theory calls this syncopation: notes that would typically start on strong beats or strong parts of beats start on weak parts instead. Here G and E start on half beats, and the held G sounds through the 1 where A starts E.`
-          : `In this control case B moves no start and changes no length: G fills beat 4 and ends at the bar line, and E starts on the 1 of bar 2, as in A, so neither version sounds off the beat. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)}. ${answer} Only that version starts G late enough to hold it across the bar line.`,
+          ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation. Changing tempo speeds the whole pattern up or slows it down; the starts stay between the same beats.`
+          : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. Compare it with the other setting: ${answer} Only that version starts G late enough to hold it across the bar line.`,
         clips: m.clips,
         look: {
           accent: true,
@@ -211,7 +208,7 @@ export default class MelodyRhythm extends Scene {
         title: different ? 'With every pitch C, B still skips the 1' : 'With every pitch C, A and B play one rhythm',
         line: 'Each version keeps its own starts and lengths; only the pitches go.',
         caption: different
-          ? 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts, red when that falls between beats. Play both. With the climb to G gone, B still has no note starting on the 1 of bar 2, and its two red dots sit either side of the bar line. By this page’s own measure, a 1 that brings no new note, timing by itself is enough to put B off the beat.'
+          ? 'Each version keeps its own starts and lengths, but all pitches are now C. Red dots mark starts between beats. Listen again: with the climb to G gone, B still holds a note across the bar line instead of starting one on the 1. Removing the melody leaves the timing difference intact. The score shows that difference; how strongly you hear its pull can vary.'
           : 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts. With the pitches gone, A and B play the identical rhythm, every start on a beat. Choose “Start two notes half a beat later” to hear a note hold across the bar line.',
         clips: m.flat,
         look: {

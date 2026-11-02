@@ -8,6 +8,8 @@ Rayner turns a TypeScript model into a step-through explanation. Readers can cha
 
 [Browse the subject lessons](https://oshineye.dev/projects/rayner/) · [Write your first scene](docs/TUTORIAL.md) · [API and CLI reference](docs/REFERENCE.md)
 
+[Why does the sunset line up with Manhattan’s streets?](https://oshineye.dev/projects/rayner/henge) Follow Earth’s tilt through the observer’s horizon, then rotate the street to see why the alignment seasons change. The fixed-tilt geometry explains the mechanism; it does not predict visiting times.
+
 ## What Rayner checks for you
 
 An explainer written by hand, or by a language model, can look right and be wrong. Rayner's job is to check what an author, human or model, cannot easily check by eye:

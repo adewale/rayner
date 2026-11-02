@@ -136,7 +136,7 @@ export default class GitBranches extends Scene {
               id: 'lost',
               title: 'Answer: the Home edit. No branch would reach C',
               line: `B’s history is ${history(moved, 'B').join(', then ')}; C is not in it.`,
-              caption: `With main on B, checking out main gives ${currentFiles(moved).colour} and no title.txt. B’s history is ${history(moved, 'B').join(', then ')}, so neither branch would contain C or the Home edit. C is still stored: moving the label does not delete the commit. To keep main’s history, its new commit must contain the old one in its ancestry. A merge needs a new commit when each branch has a commit the other lacks.`,
+              caption: `With main on B, checking out main gives ${currentFiles(moved).colour} and no title.txt. B’s history is ${history(moved, 'B').join(', then ')}, so neither branch would contain C or the Home edit. C is still stored: moving the label does not delete the commit. To keep main’s history, following parent arrows from its new destination must still reach its old commit. A merge needs a new commit when each branch has a commit the other lacks.`,
               state: shown(moved, { lost: unreachable(moved) }),
               draw: (s: Stage) => picture(s, moved, 'C is outside both branch histories.'),
             },

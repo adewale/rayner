@@ -126,7 +126,7 @@ export default class PythonDict extends Scene {
         id: 'question',
         title: `Delete key 0. Can Python still find key ${key}?`,
         line: `Predict: if del d[0] just empties slot 0, what does d[${key}] give?`,
-        caption: `This CPython 3.12.14 dict maps 0 to apple, 8 to pear and 16 to plum. Its eight index slots hold entry numbers, and – marks a slot that has never been used. Key ${key} is stored through slot ${home}, which points to entry ${entry} in the table below. Now delete key 0 the obvious way: put slot 0 back to never used and empty entry 0. Would d[${key}] still find ${value}?`,
+        caption: `This dict uses an index and a separate entry table: a slot points to the entry holding its key and value. Here slot ${home} points to ${value}’s entry. The – marks a slot that has never been used. Delete key 0 by clearing slot 0 and its entry. Would d[${key}] still find ${value}?`,
         state: { dict: m.original, result: m.before, key, policy: 'prediction' },
         view: {
           dict: m.original,

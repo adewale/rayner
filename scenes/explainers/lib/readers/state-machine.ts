@@ -12,7 +12,7 @@ export function frames(which: string): ReaderFrame[] {
       id: 'reader-path',
       title: 'What can this event change?',
       line: 'A transition needs both the current state and the event.',
-      caption: `CONNECT moves idle to connecting. In that state, ${event} moves the session to ${next}. The same event in another state can have a different result because the reducer looks up both state and event.`,
+      caption: `CONNECT moves idle to connecting. In that state, ${event} moves the session to ${next}. The event alone is not the rule: the reducer selects a transition using both the current state and the event.`,
       values: { event, next },
       draw: (s) =>
         new Group(

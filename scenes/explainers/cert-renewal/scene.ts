@@ -228,7 +228,7 @@ export default class CertRenewalExplainer extends Scene {
     await this.step('limit', {
       title: 'Public certificates shrink from 398 days to 47',
       line: `${BR_PHASES[0].days} days, then ${BR_PHASES[1].days} from ${BR_PHASES[1].from.slice(0, 4)}, ${BR_PHASES[2].days} from ${BR_PHASES[2].from.slice(0, 4)} and ${BR_PHASES[3].days} from ${BR_PHASES[3].from.slice(0, 4)}.`,
-      caption: `The CA/Browser Forum caps how long a public TLS certificate may last: ${BR_PHASES[0].days} days until 15 March 2026, ${BR_PHASES[1].days} from then, ${BR_PHASES[2].days} from March 2027 and ${BR_PHASES[3].days} from March 2029. Renewal jobs written for year-long certificates now meet short ones.`,
+      caption: `The CA/Browser Forum caps how long a public TLS certificate may last: ${BR_PHASES[0].days} days until 15 March 2026, ${BR_PHASES[1].days} from then, ${BR_PHASES[2].days} from March 2027 and ${BR_PHASES[3].days} from March 2029. A renewal margin that used to occupy a small part of the lifetime can now exceed the whole lifetime. What should a job do when its certificate lasts less than the configured margin?`,
     });
     await s.clear();
     const line = await s.show({ source: BR_SOURCE }, { box: regionBox('full', { top: 3.1 }) });
@@ -282,7 +282,7 @@ export default class CertRenewalExplainer extends Scene {
     await this.step('new-rule', {
       title: 'Certbot 4.1 renews two thirds of the way through',
       line: `Two thirds of 90 days is day ${days(ninetyNew.due)}; the replacement does not move.`,
-      caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). ${payoff}`,
+      caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
     });
     await chart.clearNotes();
     await code.morph(NEW_CODE);
@@ -383,7 +383,7 @@ export default class CertRenewalExplainer extends Scene {
           : `Each certificate is ${dueWords(rule)}.`,
       caption: `Each blue tick is a renewal, over ${span} from a first certificate on 1 March 2028. Under ${RULES[rule].short} a certificate is ${dueWords(rule)}, ${
         limitedGaps && mine.firstRefused != null
-          ? `so every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (red). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
+          ? `so even a fresh replacement is already due under the same rule. Every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (red). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
           : `and ${replacedBy(rule)} replaces it.`
       }`,
     });
@@ -516,7 +516,7 @@ export default class CertRenewalExplainer extends Scene {
     await this.step('replaces', {
       title: 'Certbot’s renewals still count against the limit',
       line: 'Certbot’s order names no predecessor, so the limit check runs.',
-      caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile, nothing more, so every renewal is checked. A refused order costs nothing; an issued certificate takes a token.`,
+      caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile, nothing more, so every renewal is checked. The renewal window and this exemption are different: following the window does not itself name the replaced certificate. A refused order costs nothing; an issued certificate takes a token.`,
     });
     await s.clear();
     await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), fontSize: 0.22 });
