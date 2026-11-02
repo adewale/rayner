@@ -1737,6 +1737,8 @@ interface PlayerModel {
   reached: Set<string>;
   /** Resting pictures redrawn in place because the stage crossed NARROW_PX (a narrow stage draws no heading): an attachment, not a settle. */
   redraws: number;
+  /** Whether the stage was narrow when last verified; undefined before the first verification. */
+  narrow?: boolean;
 }
 interface PlayerReal {
   page: Page;
@@ -1948,6 +1950,18 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
     .catch(() => {});
   await twoFrames(r.page);
   await settledZoom(r.page);
+  // Whatever moved the stage across NARROW_PX (a resize, or a scrollbar appearing when the
+  // transcript opens at a width on the boundary), the player redraws the resting picture in
+  // place, with or without the stage's heading: one more attachment, not a settle.
+  const narrowNow = (await stageSize(r)).narrow;
+  if (m.narrow !== undefined && narrowNow !== m.narrow) {
+    m.redraws++;
+    await r.page
+      .waitForFunction((n) => (window as unknown as { __attaches: number }).__attaches >= n, r.parsed + m.settles + m.redraws, { timeout: 10_000 })
+      .catch(() => {});
+    await twoFrames(r.page);
+  }
+  m.narrow = narrowNow;
   const seen = await r.page.evaluate(observe, ids);
   const entry = current(m),
     list = steps(m),
@@ -2340,16 +2354,9 @@ const ToggleSteps = command('ToggleSteps', always, async (_m, r) => {
 });
 const Resize = (width: number, height: number) =>
   command(`Resize(${width}, ${height})`, always, async (m, r) => {
-    const before = (await stageSize(r)).narrow;
     await r.page.setViewportSize({ width, height });
     const size = await stageSize(r);
     m.tourStop = Math.min(m.tourStop, (await tourOf(m, size.w, size.h)).length - 1);
-    // Crossing NARROW_PX redraws the resting picture in place, with or without the stage's heading.
-    if (size.narrow !== before) {
-      m.redraws++;
-      const want = r.parsed + m.settles + m.redraws;
-      await r.page.waitForFunction((n) => (window as unknown as { __attaches: number }).__attaches >= n, want, { timeout: 10_000 }).catch(() => {});
-    }
   });
 
 // Narrower than 200 CSS px a single unbreakable word (a step title) is wider than the column.
@@ -2449,6 +2456,16 @@ test('Left at the first story step leaves its picture, URL and settle count unch
     await fc.asyncModelRun(() => ({model, real}), [Key('ArrowLeft'), Key('ArrowLeft')]);
     assert.equal(model.settles, 1);
     assert.equal(model.entries.length, 1);
+  });
+});
+test('crossing the narrow width redraws the resting picture in place, including when a scrollbar moves the stage across it', options, async () => {
+  // Found by the property test (seed 1364731003): at 632 px the stage is exactly 600 px wide, so
+  // the transcript's scrollbar narrows it again and the heading-less picture is redrawn.
+  await playerScenario('oauth-pkce', {
+    values: [undefined], viewport: {width: 200, height: 400},
+  }, async (model, real) => {
+    await fc.asyncModelRun(() => ({model, real}), [ClickStep(3), Resize(632, 704), ToggleTranscript, TranscriptLink(0)]);
+    assert.ok(model.redraws >= 1, 'the stage crossed NARROW_PX at least once');
   });
 });
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
