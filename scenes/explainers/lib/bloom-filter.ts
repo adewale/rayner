@@ -33,7 +33,12 @@ export function bloomStory(size: 16 | 32) {
   const queries = LOOKUPS.map(word => ({
     word, locations: locations(word, size), maybe: membership(bits, word), stored: words.includes(word),
   }));
-  const sample = Array.from({length: 100}, (_, i) => `sample${i}`);
+  // 10,000 untaken names: enough that the two sizes' pass rates (about 2.7% and 0.65%) are not sampling noise.
+  const sample = Array.from({length: 10000}, (_, i) => `sample${i}`);
+  const setBits = bits.filter(b => b === 1).length;
   return {size, words, first, bits, owners: owners(words, size), queries, exactLookups: queries.filter(q => q.maybe).length,
+    setBits,
+    /** The chance that a name whose three positions are independent and uniform lands only on set bits. */
+    passChance: (setBits / size) ** 3,
     sampleSize: sample.length, sampleFalsePositives: sample.filter(word => membership(bits, word)).length};
 }
