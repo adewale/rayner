@@ -15,6 +15,8 @@ import {
   exec,
   sunlight,
   daylightYear,
+  noonShare,
+  sunDistance,
 } from '../scenes/explainers/lib/models.ts';
 import { find, closeness, distance, run } from '../scenes/explainers/lib/2password.ts';
 import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
@@ -174,6 +176,31 @@ test('shell execution returns a new filesystem and never mutates its input', () 
   assert.equal(next.stdout, '');
   assert.equal(exec(original, [['cat', 'shout.txt']]).stdout, '');
   assert.equal(exec(next.shell, [['cat', 'shout.txt']]).stdout, 'HELLO\n');
+});
+test('noon sunlight per square metre is sin of the noon altitude, and the orbit is about 3.4% farther in July', () => {
+  fc.assert(fc.property(
+    fc.double({ min: -90, max: 90, noNaN: true }),
+    fc.double({ min: -23.44, max: 23.44, noNaN: true }),
+    (latitude, declination) => {
+      const share = noonShare(latitude, declination), altitude = sunlight(latitude, declination).altitude;
+      assert.ok(share >= 0 && share <= 1);
+      // A beam one metre across at right angles to the rays lights 1 / sin(altitude) metres of level ground.
+      if (altitude > 0) assert.ok(Math.abs(share - 1 / (1 / Math.sin((altitude * Math.PI) / 180))) < 1e-12);
+      else assert.equal(share, 0);
+    },
+  ), params(300));
+  // By hand: London's June noon Sun at 61.94° gives sin 61.94° = 0.882; December's 15.06° gives 0.260.
+  assert.ok(Math.abs(noonShare(51.5, 23.44) - 0.882) < 0.001);
+  assert.ok(Math.abs(noonShare(51.5, -23.44) - 0.26) < 0.001);
+  assert.equal(noonShare(69.65, -23.44), 0);
+  // Wikipedia's R = 1.00014 − 0.01671 cos g − 0.00014 cos 2g: 0.98329 AU at perihelion (g = 0) and
+  // 1.01671 AU half a year later (g = 180°), 3.4% farther, so sunlight is (1.01671 / 0.98329)² = 1.069 times stronger in January.
+  assert.ok(Math.abs(sunDistance(2) - 0.98329) < 1e-9);
+  assert.ok(Math.abs(sunDistance(2 + 365 / 2) - 1.01671) < 1e-9);
+  const days = Array.from({ length: 365 }, (_, d) => sunDistance(d));
+  assert.equal(days.indexOf(Math.min(...days)), 2, 'nearest in early January');
+  assert.ok([184, 185].includes(days.indexOf(Math.max(...days))), 'farthest in early July');
+  assert.ok(Math.abs(sunDistance(2 + 365 / 2) / sunDistance(2) - 1.034) < 0.001);
 });
 test('sunlight follows the sunrise equation: bounded, hemisphere-symmetric, polar extremes and mid-latitude hours', () => {
   fc.assert(fc.property(
