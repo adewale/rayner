@@ -141,6 +141,15 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
   ],
   'oauth-pkce': [
     {
+      step: 'stolen',
+      opening: true,
+      targets: [
+        { key: 'message:S->M#0', paint: 'stroke' },
+        { key: 'message:M->S#0', paint: 'stroke' },
+        { key: 'message:S->M#1', paint: 'stroke' },
+      ],
+    },
+    {
       step: 'attack',
       settings: { attacker: 'yes' },
       opening: true,
@@ -288,7 +297,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   lantern: ['reader-object', 'reader-outputs'],
   isdigit: ['reader-predict', 'reader-result'],
   'latest-search': ['race', 'overwrite', 'tickets', 'reader-first', 'reader-ticket', 'reader-guard'],
-  'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
   'pg-page': ['reader-row', 'reader-page'],
   'periodic-groups': ['reader-electrons', 'reader-filling'],
 };
@@ -373,11 +381,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     tickets: ['latest = 2', 'const ticket = ++latest'],
     'reader-first': ['latest = 2'], 'reader-ticket': ['latest = 2'],
     'reader-guard': ['After', 'No guard', 'Guard on'],
-  },
-  'oauth-pkce': {
-    'reader-bind': ['Client', 'Auth server', 'Code', 'issued'],
-    'reader-check': ['Saved challenge', 'Client hash', 'Prefix (8)'],
-    'reader-redeem': ['Caller', 'S256 matches?', 'Result', 'Client', 'token'],
   },
   'pg-page': {
     'reader-row': ['Grey: header  ·  Pale: padding  ·  Orange: data'],
