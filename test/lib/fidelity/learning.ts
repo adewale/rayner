@@ -81,6 +81,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     // One marked person's comparisons (the old marked-person question) and every pair in the room.
     assertStepState(trace,'you',{others:m.people-1,one:birthdayChance(m.people,'one'),evenOthers:253});
     assertStepState(trace,'pairs',{pairs:m.people*(m.people-1)/2,others:m.people-1,chance:birthdayChance(m.people,'any'),even:23,evenPairs:253});
+    // The red lines in the web are the room's own matches, the same people the chance step outlines.
+    assertStepState(trace,'pairs',{matchedPairs:m.matchedPairs});
+    assert.ok(trace.steps.findIndex(s=>s.step==='exact')<trace.steps.findIndex(s=>s.step==='estimate'),'the exact count comes before the shortcut that is measured against it');
     // Two, three and five people make one, three and ten pairs.
     assert.deepEqual((trace.steps.find(s=>s.step==='growth')!.after!.growth as {pairs:number}[]).slice(0,3).map(r=>r.pairs),[1,3,10]);
     assertStepState(trace,'growth',{growth:[2,3,5,10,23,40].map(n=>({people:n,pairs:pairCount(n),chance:birthdayChance(n,'any')}))});
