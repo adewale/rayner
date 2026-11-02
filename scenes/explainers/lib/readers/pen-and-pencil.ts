@@ -1,4 +1,4 @@
-import { Group, VMobject } from '../../../../src/index.ts';
+import { Group, VMobject, Circle, Line } from '../../../../src/index.ts';
 import type { Vec } from '../../../../src/index.ts';
 import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from '../pen-and-pencil.ts';
 import type { Pt, Box } from '../pen-and-pencil.ts';
@@ -62,6 +62,33 @@ export function frames(seed: number): ReaderFrame[] {
   const ink = { first: hand(target, HAND, rng(SEEDS.first)), second: hand(target, HAND, rng(SEEDS.second)) };
   const stray = Math.max(deviation(ink.first, target), deviation(ink.second, target));
   const between = Math.max(deviation(ink.first, ink.second), deviation(ink.second, ink.first));
+  // Where the two drawings are furthest apart: the second drawing's point furthest from the first.
+  const far = ink.second.reduce(
+    (best, p) => {
+      const d = deviation([p], ink.first);
+      return d > best.d ? { p, d } : best;
+    },
+    { p: ink.second[0]!, d: -1 },
+  );
+  /** The inset: a window LENS units either side of that point, magnified ZOOM times, drawn at INSET. */
+  const LENS = 0.025,
+    ZOOM = 36,
+    INSET: Pt = [0.5, -0.2];
+  const lensed = (points: readonly Pt[]): Pt[][] => {
+    const runs: Pt[][] = [];
+    let run: Pt[] = [];
+    for (const q of points) {
+      const dx = q[0] - far.p[0],
+        dy = q[1] - far.p[1];
+      if (Math.hypot(dx, dy) <= LENS) run.push([INSET[0] + dx * ZOOM, INSET[1] + dy * ZOOM]);
+      else if (run.length) runs.push(run), (run = []);
+    }
+    if (run.length) runs.push(run);
+    return runs.filter((r) => r.length > 1);
+  };
+  const near = far.d;
+  // The caption says the dark line runs inside the wide grey one everywhere; refuse to say it otherwise.
+  if (between > 0.06 - 0.0175) throw new Error(`The two drawings are ${between} apart, wider than the grey line shows`);
   // One path per polyline: a hand's stroke has hundreds of points.
   const path = (points: readonly Pt[], color: string, width: number, opacity = 1, dash?: string) => {
     const vm = new VMobject({ stroke: color, strokeWidth: width, strokeOpacity: opacity, fill: 'none', lineCap: 'round', lineJoin: 'round' });
@@ -91,16 +118,27 @@ export function frames(seed: number): ReaderFrame[] {
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
-      caption: `The blue band is a route fixed before any ink: its corners and its ends. The same simulated hand, a spring shaken by tremor, draws both strokes along it. Neither strays more than ${stray.toFixed(3)} units, about ${px(stray)}, and the two drawings lie within ${between.toFixed(3)} units of each other, so the hand still makes every wobble but no longer decides where anything goes. The fix for the drifting boxes is to lay the chart out first and let the hand only trace it, so a new drawing changes the strokes but never the boxes.`,
+      caption: `The blue band is a route fixed before any ink: its corners and its ends. Now the pen is a mass on a damped spring, chasing a point that moves along the route and shaken by a small tremor, so each stroke is pulled back to the route it is given and no error carries into the next. Neither drawing strays more than ${stray.toFixed(3)} units, about ${px(stray)}, from the route; the dark line runs inside the wide grey one all the way, and the circle magnifies ${ZOOM} times the place where the second drawing is furthest from the first, ${near.toFixed(3)} units. The fix for the drifting boxes is to lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
       values: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
-      draw: (s) =>
-        new Group(
+      draw: (s) => {
+        const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);
+        const spot = new Circle({ radius: 0.09, stroke: s.soft, strokeWidth: 0.025 }).moveTo(far.p as Vec);
+        const lead = new Line(far.p as Vec, [INSET[0], INSET[1] - LENS * ZOOM] as Vec, { stroke: s.soft, strokeWidth: 0.02 });
+        lead.style.dashArray = '0.06 0.05';
+        return new Group(
           path(target, BAND, 0.32, 0.45),
-          path(ink.first, GREY, 0.04, 0.9),
-          path(ink.second, s.palette.ink, 0.04),
+          path(ink.first, GREY, 0.12, 0.55),
+          path(ink.second, s.palette.ink, 0.035),
+          spot,
+          lead,
+          lens,
+          ...lensed(ink.first).map((r) => path(r, GREY, 0.07, 0.8)),
+          ...lensed(ink.second).map((r) => path(r, s.palette.ink, 0.035)),
           label('Blue: the route the layout fixed', 0, 2.55, s.palette.ink, 0.62),
+          label(`×${ZOOM}: ${near.toFixed(3)} apart`, INSET[0], INSET[1] + LENS * ZOOM + 0.42, s.palette.ink, 0.62),
           label(`Two drawings, within ${stray.toFixed(3)} units of it`, 0, -2.9, s.palette.ink, 0.62),
-        ),
+        );
+      },
     },
   ];
 }
