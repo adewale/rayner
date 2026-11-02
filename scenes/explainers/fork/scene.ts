@@ -92,9 +92,9 @@ export default class ForkExplainer extends Scene {
 
     // 1. The trade-off: Lantern rendered whatever was asked; Rayner offers three rates.
     await this.step('live', {
-      title: 'Lantern rendered any frame on request; Rayner offers three rates',
+      title: 'Lantern’s Worker rendered any frame on request; the token bucket offers three rates',
       line: 'Rayner deleted the Worker. What does a fixed list of cases buy?',
-      caption: `Lantern, which Rayner forks at 2c7bad5, rendered on request: its Cloudflare Worker re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner deleted that Worker. Its token bucket explainer lets a reader choose a refill rate of ${RATES.slice(0, -1).join(', ')} or ${RATES.at(-1)} tokens a second, and nothing else: every option was built before anyone opened the page. Why give up an input that could take anything?`,
+      caption: `Lantern, which Rayner forks at 2c7bad5, rendered on request: its Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Below it is the one setting of Rayner’s token bucket explainer. A reader can choose a refill rate of ${RATES.slice(0, -1).join(', ')} or ${RATES.at(-1)} tokens a second and nothing else, because each option was built before anyone opened the page.`,
     });
     await s.clear();
     const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
@@ -157,7 +157,7 @@ export default class ForkExplainer extends Scene {
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
       line: `Predict: at ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
-      caption: `The token bucket sends ten requests, R1 to R10, and its last step says that R10 is accepted at every rate. On the page that is true: at ${RATES.map(perSecond).join(', ').replace(/, ([^,]*)$/, ' and $1')}, R10 arrives after a four-second wait and finds at least one token. A page that took any rate, the way Lantern’s Worker took any time, would show the same sentence for rates nobody tried. Is it still true at ${perSecond(UNBUILT)}?`,
+      caption: `The token bucket sends ten requests, R1 to R10, and its last step says that R10 is accepted at every rate. On the page that is true: at ${RATES.map(perSecond).join(', ').replace(/, ([^,]*)$/, ' and $1')}, R10 arrives after a four-second wait and finds at least one token, so its outlined column is a circle in every row. A page that took any rate, the way Lantern’s Worker took any time, would show the same sentence for rates nobody tried.`,
     });
     await s.clear();
     const rows = RATES.map((r, i) => row(r, i, true));
@@ -174,9 +174,9 @@ export default class ForkExplainer extends Scene {
     // 3. The answer, from the same model at a rate the page never built.
     const slow = r10(UNBUILT);
     await this.step('untested', {
-      title: `Answer: no. At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} and is refused`,
-      line: 'True at every rate the page built; false at one it never built.',
-      caption: `The same model at ${perSecond(UNBUILT)}: R7, R8 and R9 are refused, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. ${ANSWER}. The page has three cases, so its author can run, read and check all three; nobody can do that for every rate a reader might type.`,
+      title: `At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} tokens and is refused`,
+      line: 'The sentence holds at every rate the page built and fails at one it never built.',
+      caption: `In the new bottom row, the same model at ${perSecond(UNBUILT)} refuses R7, R8 and R9, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The page has three cases, and its author can run, read and check all three; nobody can do that for every rate a reader might type. ${ANSWER}.`,
     });
     const slowRow = row(UNBUILT, 3, false);
     slowRow.shift([0, -0.25]);
@@ -189,9 +189,9 @@ export default class ForkExplainer extends Scene {
 
     // 4. The price: every combination of settings is a case to build and check.
     await this.step('cases', {
-      title: `The price: settings multiply, so ${RATES.length} rates × ${POLICIES.length} policies is ${CASES} cases`,
+      title: `${RATES.length} rates × ${POLICIES.length} policies make ${CASES} cases to build`,
       line: 'Every combination is a case the build runs, draws and checks.',
-      caption: `Checking every case means building every case. A setting with ${RATES.length} options makes ${RATES.length} cases; add a policy setting with ${POLICIES.length} options and every rate meets every policy, ${CASES} cases in all, and each further setting multiplies again. The reader can switch among those cases and no others.`,
+      caption: `That check has a price: the build must make every case first. A setting with ${RATES.length} options makes ${RATES.length} cases; add a policy setting with ${POLICIES.length} options and every rate meets every policy, ${CASES} cases in all, and each further setting multiplies again. The reader can switch among those cases and no others.`,
     });
     await s.clear();
     const grid = table(
@@ -209,7 +209,7 @@ export default class ForkExplainer extends Scene {
     await this.step('fork', {
       title: 'For each case the build draws every diagram once',
       line: 'Diagrams are captured at build time; the page runs no renderer.',
-      caption: `Lantern’s JSON document, flowchart parser, development player and Worker are gone; the embed page replaces the player, and capture replaces the parser: Agentic Mermaid draws each diagram in Chromium at build time, and the snapshot is stored beside the scene, so the page runs no diagram renderer and has no runtime dependency. The cost lands on the author: capturing a new diagram needs Chromium, though a page built from stored snapshots does not.`,
+      caption: `The four parts marked deleted, Lantern’s JSON document, flowchart parser, development player and Worker, are gone. The embed page replaces the player, and capture replaces the parser: Agentic Mermaid draws each diagram in Chromium at build time and stores the snapshot beside the scene, so the page runs no diagram renderer and has no runtime dependency. The author pays for that: capturing a new diagram needs Chromium, though building a page from stored snapshots does not.`,
     });
     await s.clear();
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
@@ -233,7 +233,7 @@ export default class ForkExplainer extends Scene {
     await this.step('checks', {
       title: `Each case must pass ${CHECK_COUNT} checks before it ships`,
       line: 'Each added case is run through every check again.',
-      caption: `rayner check runs every case and fails the build on any of ${CHECK_COUNT} problems, from a seeked frame that differs from the played one to text under 14 px or a step that never states the scene’s answer; rayner describe prints every caption of every case for the author to read. None of that can be done for a case nobody built, which is why Rayner gave up the live input. Every combination of settings is a case the build runs, draws and checks before anyone opens the page.`,
+      caption: `rayner check runs every case and fails the build on any of ${CHECK_COUNT} problems, from a seeked frame that differs from the played one to text under 14 px or a step that never states the scene’s answer. rayner describe prints every caption of every case for the author to read. Because neither command can run on a case nobody built, Rayner gave up Lantern’s live input.`,
     });
     await s.clearOverlays();
     await flow.focus('all');
@@ -255,7 +255,7 @@ export default class ForkExplainer extends Scene {
       detail: true,
       title: 'The page holds each resting picture for its caption',
       line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
-      caption: `The scene advances automatically; the page waits for the reader. Its clock gives the fork step ${motion.toFixed(1)} seconds of motion and ${held.toFixed(1)} seconds at rest, allowing its ${words}-word caption to be read at ${Scene.captionWpm} words a minute.`,
+      caption: `A step lasts at least as long as its caption takes to read at ${Scene.captionWpm} words a minute. The fork step’s ${words}-word caption needs ${(motion + held).toFixed(1)} seconds; its motion takes ${motion.toFixed(1)}, so the clock holds the resting picture still for the other ${held.toFixed(1)}.`,
     });
     await s.clearOverlays();
     await flow.unmark();

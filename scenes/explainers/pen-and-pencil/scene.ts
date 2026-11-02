@@ -180,7 +180,7 @@ export default class PenAndPencil extends Scene {
       title: 'Can a wobbling hand draw this timeline twice without moving its labels?',
       line: 'Predict: draw it again with another seed. What moves?',
       caption:
-        'pele-art-diagrams is a web page that draws four charts as ink-and-pencil plates, every stroke a little unsteady, as a hand’s would be. This explainer models its method, not its code, on a timeline of its own: four periods with an event in each, and no positions. A simulated hand makes every stroke slightly different, and a seed decides how. Draw the timeline twice, with two seeds: what will move?',
+        'pele-art-diagrams is a web page that draws four charts, listed on the right, as ink-and-pencil plates, every stroke a little unsteady, as a hand’s would be. This explainer rebuilds its method without its code, on the timeline at left: four periods with an event in each, and no positions. A simulated hand makes every stroke slightly different, and a seed decides how.',
     });
     await s.clear();
     const source = await s.code(WORLD.split('\n'), {
@@ -204,7 +204,7 @@ export default class PenAndPencil extends Scene {
       title: 'For the real timeline, Agentic Mermaid fixes every box first',
       line: 'Every box, marker and label has its place before any ink.',
       caption:
-        'The real timeline gets its route the same way: Agentic Mermaid lays it out, with Inter’s letter widths, and every box, marker and label has its place before the hand draws anything. The dimension gives one event box’s width. On its own page pele lays each chart out itself and sizes the boxes for its hand lettering, but the order is the same: layout first, ink after.',
+        'Agentic Mermaid lays the timeline out with Inter’s letter widths, so each box is sized to its words before the hand draws anything. The dimension under Midnight’s event box gives its width. On its own page pele lays each chart out itself and sizes the boxes for its hand lettering, and it too places every box before any ink.',
     });
     await s.clear();
     // The timeline's text stays in view in a corner while the layout it became arrives.
@@ -339,8 +339,8 @@ export default class PenAndPencil extends Scene {
 
     await this.step('marks', {
       title: 'The hand is given the layout’s marks and nothing else',
-      line: 'Every later stroke is drawn from these marks alone.',
-      caption: `Like the page, which flattens pele’s SVG into marks a script can select, the drawing reads the layout back: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. They are the route for every later stroke, the same in both drawings.`,
+      line: 'Blue pencil: the route every later stroke follows.',
+      caption: `The drawing reads the layout back as marks, the way the pele page flattens its SVG into marks a script can select: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. Every later stroke follows them, and they are the same in both drawings.`,
     });
     await drop(width);
     await d.hide();
@@ -367,7 +367,7 @@ export default class PenAndPencil extends Scene {
         ringStray < INK_WIDTH
           ? `Its largest stray, ${fmt(ringStray)} units, is less than the ink line’s own width, ${INK_WIDTH}.`
           : `Its largest stray is ${fmt(ringStray)} units, against an ink line ${INK_WIDTH} wide.`,
-      caption: `Why the hand cannot drift: the pen is a mass on a damped spring, ${HAND.frequency} Hz with damping ${HAND.damping}, chasing a point that moves along the mark at ${HAND.speed} units a second, shaken by tremor of up to ${HAND.tremor} units. Each stroke is pulled back to its own mark, so no error carries into the next one. The camera has closed on the Midnight marker: the ink strays at most ${fmt(ringStray)} units from the blue ring, ${px(ringStray)} on a page 1280 px wide, less than the ${INK_WIDTH}-unit line itself.`,
+      caption: `Why can this hand not drift? The pen is a mass on a damped spring, ${HAND.frequency} Hz with damping ${HAND.damping}, chasing a point that moves along the mark at ${HAND.speed} units a second, shaken by tremor of up to ${HAND.tremor} units. Each stroke is pulled back to its own mark, so no error carries into the next one. The camera has closed on the Midnight marker, where the ink strays at most ${fmt(ringStray)} units from the blue ring: ${px(ringStray)} on a page 1280 px wide, against an ink line ${INK_WIDTH} units wide.`,
     });
     await drop(corner, tally);
     const ring = polylines([focus.ring], CONSTRUCTION, 0.004);
@@ -425,7 +425,7 @@ export default class PenAndPencil extends Scene {
     await this.step('scene', {
       title: 'What the seed may place: scenery, around the chart',
       line: 'Hills, sea, lighthouse, gulls: never on paper the chart owns.',
-      caption: `The seed does place some things: the sea’s pencil strokes and the gulls. Hills, sea, a rock with its lighthouse and beam, then gulls are drawn far to near, ${layers.length} layers. The chart and the title own the paper inside the dashed lines, with a ${MARGIN} margin, so the scenery is cut away there: ${trespass} scenery points land on owned paper.`,
+      caption: `The scenery is drawn far to near in ${layers.length} layers: hills, sea, a rock with its lighthouse and beam, then gulls. The seed places the sea’s pencil strokes and the gulls; the hills, rock and lighthouse are fixed. The chart and the title own the paper inside the dashed lines, with a ${MARGIN} margin, and the scenery is cut away there, so ${trespass} scenery points land on owned paper.`,
     });
     await s.focus('all');
     await s.draw(ownedShown, {
@@ -484,16 +484,16 @@ export default class PenAndPencil extends Scene {
     await this.step('plate', {
       title:
         which === 'first'
-          ? 'The chart is drawn last, then its words'
-          : 'A second drawing: new strokes, the same boxes',
+          ? 'The chart is drawn on its marks, and the words last'
+          : 'Laid over the first drawing, the second moves strokes but no box',
       line:
         which === 'first'
           ? `Objects, then words; no ink strays over ${fmt(chartStray)} from its mark.`
           : 'Grey: the first drawing’s sea and gulls. Dashed red: the shared boxes.',
       caption:
         which === 'first'
-          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last in Hershey letters, a public-domain alphabet A. V. Hershey drew for plotters at the U.S. Naval Weapons Laboratory in 1967, each letter a few single pen strokes, fitted into the boxes the layout gave. The second drawing draws the plate again with another seed.`
-          : `This is the second drawing, with another seed, laid over the first. The sea’s strokes and the gulls land elsewhere, the grey ones being where the first drawing put them, and every stroke’s wobble differs too. The chart is drawn on the same laid-out marks, so every plank, tag and word, in Hershey letters fitted to their boxes, lands in the dashed boxes the first drawing used, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. Lay the chart out first and let the hand only trace it, so a new drawing changes the strokes but never the boxes.`,
+          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last, fitted into the boxes the layout gave, in Hershey letters: a public-domain alphabet A. V. Hershey drew for plotters at the U.S. Naval Weapons Laboratory in 1967, each letter a few single pen strokes. Choose ‘Second drawing’ to draw the plate again with another seed.`
+          : `With another seed, the sea’s strokes and the gulls land elsewhere; the grey ones are where the first drawing put them, and every stroke’s wobble differs too. The chart is drawn on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, with no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. The words are Hershey letters, single pen strokes fitted to the same boxes.`,
     });
     await drop(ownedShown);
     s.keep(tints, {

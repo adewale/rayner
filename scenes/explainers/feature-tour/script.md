@@ -2,11 +2,11 @@
 
 Questions the reader brings: I am deciding whether to write explainers in Rayner. How much code does a feature take, and what does my reader actually get from it?
 
-Each case is one thing an author wants to do, asked as a question: how do I show one shape turning into another? The first step shows the few lines an author writes for it, and asks the reader to predict what the next step's picture will show when opened from a link.
+Each case is one thing an author wants to do, asked as a question: how do I show one shape turning into another? The first step shows the few lines an author writes for it, and its line asks the reader to predict something the next step's picture settles, such as whether a link to it shows the circle, the square or both.
 
-The second step runs those lines, and the picture is split: what the reader would have seen before the feature ran, and what it leaves after. That split is the answer, and it is the lesson that carries to every scene: each feature is a few lines of construct(), and a reader gets the picture those lines leave at rest, so the resting picture must show what changed. A reader who opens a step from a link never sees the transform play; they see the square. Shown beside the circle it came from, the square still says what happened.
+The second step runs those lines and splits the picture: what the reader would have seen before the feature ran, and what it leaves after. A reader who opens a step from a link never sees the transform play; they see the square, and only the circle beside it says what happened. That split carries to every scene, and it is the answer: each feature is a few lines of construct(), and a reader who opens its step from a link sees only the picture those lines leave at rest, so the resting picture must show what changed.
 
-The default case is the animation, where the motion is the whole point and a direct link would show only its end. The camera case cannot put a before panel beside a moved camera, so it draws a ruler across the whole stage first: after the zoom the ruler shows only its middle, and a label in the closer view says how many of the stage's 16 units it frames and that the circle has not moved.
+The default case is the animation, where the motion is the whole point and a direct link would show only its end. The camera case cannot put a before panel beside a moved camera, because the camera frames the whole picture, so it draws a ruler across the whole stage first: after the zoom the ruler shows only its middle, and a label in the closer view says how many of the stage's 16 units it frames and that the circle has not moved.
 
 **The aha:** the circle on the left and the square on the right, with the arrow between: a still that tells the whole animation.
 
@@ -22,5 +22,5 @@ The default case is the animation, where the motion is the whole point and a dir
 
 | Step | Script | Reader predicts |
 | --- | --- | --- |
-| recipe | paragraph 1: the author's question and the lines that answer it | what the result's resting picture will show |
+| recipe | paragraph 1: the author's question and the lines that answer it | the case's own question about the result's resting picture |
 | result | paragraph 2: before and after, and the answer; paragraph 3 for the camera | |

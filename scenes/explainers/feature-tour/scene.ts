@@ -40,7 +40,7 @@ type Feature =
 export const RECIPES: Record<Feature, { title: string; result: string; code: string[]; caption: string }> = {
   steps: {
     title: 'Name a step, then draw its resting picture',
-    result: 'The greeting appears',
+    result: 'An empty step, then the greeting',
     code: [
       "await this.step('hello', {",
       "  title: 'Hello',",
@@ -50,11 +50,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  {fontSize: 1});',
       'await s.enter(hello);',
     ],
-    caption: 'A named step and a drawing are enough. The caption sits below the picture; the step name becomes a link.',
+    caption: 'A named step and one drawing make a whole step: the greeting is its picture, the caption sits under it, and the step’s name becomes its link, as this step’s ?step=result shows.',
   },
   settings: {
     title: 'Declare a setting; each option becomes a case',
-    result: 'This case reads its chosen option',
+    result: 'The default case, then the case you chose',
     code: [
       'static settings = [{',
       "  id: 'feature',",
@@ -66,11 +66,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'const choice = settingsOf(this).feature;',
     ],
     caption:
-      'The picker above the picture is a real setting. Choose another feature and the page loads another prebuilt case with its own steps.',
+      'The feature picker on this page is the setting in the recipe. The build made one case per option, and choosing another feature loads another of those cases, with its own steps.',
   },
   diagram: {
     title: 'Capture a diagram, then follow a real edge',
-    result: 'The marked path remains',
+    result: 'A bare flowchart, then its walked edge marked',
     code: [
       'const d = await s.show({source:',
       "  'graph LR\\nA[Start] --> B[Finish]'},",
@@ -78,11 +78,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await d.walk([['A', 'B']], {trail: true});",
     ],
     caption:
-      'The graph is captured at build time. walk checks that the edge exists and leaves a trail; it is not a line drawn by guesswork.',
+      'Both flowcharts were captured at build time. walk throws on an edge the diagram does not have, so the trail on the right lies on the captured Start → Finish link.',
   },
   code: {
     title: 'Show the author’s code, then focus a line',
-    result: 'The changed line stays marked',
+    result: 'Two plain lines, then the second marked as the update',
     code: [
       'const block = await s.code([',
       "  'let count = 0;', 'count += 1;'",
@@ -90,11 +90,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await block.focus(1, {as: 'update'});",
     ],
     caption:
-      'The code panel is an authoring helper. A line focus remains on screen; code.span and code.token can address smaller parts.',
+      'block.focus marks the second line as the update, and the mark stays after the motion ends. code.span and code.token mark smaller parts of a line.',
   },
   'code-diff': {
     title: 'Morph edited code by its surviving lines',
-    result: 'The edited line is marked',
+    result: 'count += 1 edited to count += 2, the new line marked',
     code: [
       'const block = await s.code([',
       "  'let count = 0;', 'count += 1;'",
@@ -103,11 +103,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  'count += 2;'], {markAdded: true});",
     ],
     caption:
-      'The first line stays while the changed line moves in and receives an added mark. TransformDiff handles a full diff when the code is a native Code object.',
+      'morph keeps the first line in place, moves the changed line in and marks it as added. For a full diff of a native Code object, use TransformDiff.',
   },
   animation: {
     title: 'Animate one object into another',
-    result: 'The circle becomes a square',
+    result: 'A circle before, the square it became after',
     code: [
       'const shape = new Circle({radius: 0.8});',
       "await s.enter(shape, {describe: 'A shape'});",
@@ -115,11 +115,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  new Square({side: 1.6})));',
     ],
     caption:
-      'The transform preserves the visible object across the step. FadeIn, Create, Succession and matching transforms use the same play clock.',
+      'Transform reshapes the circle in place, so the square on the right is the same object the step entered. FadeIn, Create, Succession and the matching transforms run on the same play clock.',
   },
   matching: {
     title: 'Match text by shared characters',
-    result: 'The shared text stays recognisable',
+    result: 'cache miss becomes cache hit',
     code: [
       "const before = new Text('cache miss');",
       'await s.enter(before);',
@@ -129,11 +129,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       's.keep(after);',
     ],
     caption:
-      'Matching pairs common text before introducing new letters. It is not a proof that two different words mean the same thing.',
+      'TransformMatchingText moves the letters both labels share to their new places and fades the others out or in. It matches characters only and says nothing about what the words mean.',
   },
   restore: {
     title: 'Save a look, then animate back to it',
-    result: 'The circle returns to its saved place',
+    result: 'The circle moves away and returns to its saved place',
     code: [
       'const circle = new Circle({radius: 0.8});',
       "await s.enter(circle, {describe: 'Circle'});",
@@ -141,11 +141,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(circle.animate.shift([2,0]));',
       'await this.play(new Restore(circle));',
     ],
-    caption: 'saveState records the shape. Restore animates its points back; the saved object remains the same object.',
+    caption: 'saveState records the circle’s points and style. Restore animates the same circle back to that record, and the dashed outline marks where it had moved.',
   },
   emphasis: {
     title: 'Leave emphasis in the resting picture',
-    result: 'The circled result stays circled',
+    result: 'A plain 42, then 42 left circled',
     code: [
       "const target = new Text('42');",
       'await s.enter(target);',
@@ -156,7 +156,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(circle);',
     ],
     caption:
-      'Circumscribe with keep leaves an outline. The description gives a text alternative to an otherwise wordless mark.',
+      'With keep: true, Circumscribe leaves its outline round 42 when the motion ends. s.keep gives that outline a description, so a screen reader can say what the wordless ring marks.',
   },
   camera: {
     title: 'Frame the subject without moving its points',
@@ -168,11 +168,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "// await s.focus('all') returns home",
     ],
     caption:
-      'Camera focus changes the view, not the circle’s coordinates: the ruler that spanned the stage now shows only its middle, and the circle is where it was.',
+      'A focused camera frames the whole picture, so this case has no before panel. The ruler that spanned the stage now shows only its middle, and the label gives the numbers: s.focus changed the view and left the circle’s coordinates alone.',
   },
   chart: {
     title: 'Plot the model’s numbers',
-    result: 'Three values make a graph',
+    result: 'Three values as numbers, then as a line on axes',
     code: [
       'const axes = new Axes({xRange: [0,2,1],',
       '  yRange: [0,2,1], width: 5, height: 3});',
@@ -181,11 +181,11 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await s.enter(axes, line, {describe: 'Plot'});",
     ],
     caption:
-      'These three points, not hand-positioned bars, make the line. Axes can also plot a function or draw bars and guides.',
+      'lineGraph places each point by its value on the axes, so nothing in the line is positioned by hand. Axes can also plot a function or draw bars and guides.',
   },
   state: {
     title: 'Derive the picture from scene.state',
-    result: 'The state-driven value changes',
+    result: 'state.count goes from 0 to 1, and the label follows',
     code: [
       'this.state.count = 0;',
       'const label = view(this, state =>',
@@ -196,39 +196,39 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(label.sync());',
     ],
     caption:
-      'The visible number is a view of the recorded state. Changing state and syncing rebuilds the picture; no separate label value is edited.',
+      'The label is built by a view of this.state. Setting count to 1 and calling sync rebuilds the label from the recorded value.',
   },
   annotations: {
     title: 'Put an explanation beside its subject',
-    result: 'A pin names the point',
+    result: 'A bare circle, then its centre pinned',
     code: [
       'await s.enter(new Circle({radius: 0.8}),',
       "  {describe: 'Circle'});",
       "await s.pin([0, 0], {label: 'centre'});",
     ],
     caption:
-      'A pin attaches words to a specific point. callout and dimension are other authoring helpers for local evidence.',
+      's.pin attaches the word ‘centre’ to the point it names. s.callout labels a box, and s.dimension measures between two points.',
   },
   direction: {
     title: 'Place a card at the logical start',
-    result: 'The card follows RTL start',
+    result: 'Start, in a left-to-right stage and in this right-to-left one',
     code: [
       "const s = stage(this, {direction: 'rtl'});",
       "await s.card([['Count', 3]],",
       "  {at: 'start', direction: 'ltr'});",
     ],
-    caption: 'In an RTL stage, start is the right-hand region. This card keeps its own label and value in LTR order.',
+    caption: 'A right-to-left stage mirrors its regions, so the card placed at start sits on the right. Its own direction: ‘ltr’ keeps Count and 3 in left-to-right order.',
   },
   drawing: {
     title: 'Draw a native path with a tool',
-    result: 'The drawn line remains',
+    result: 'Two end points, then the line the pen drew between them',
     code: [
       'const path = new Line([-4,-1],[4,1]);',
       "await s.draw(path, {tool: 'pen',",
       "  describe: 'A rising line'});",
     ],
     caption:
-      'The pen follows the line as it is drawn. The path stays on screen, and its text description does not depend on watching the motion.',
+      's.draw moves a pen along the line as it appears, and the line stays when the pen lifts. Its description, ‘A rising line’, gives the same fact to a reader who never sees the motion.',
   },
 };
 
@@ -236,7 +236,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
 /** What an author choosing Rayner wants to do, as the question each case answers. */
 const QUESTIONS: Record<Feature, string> = {
   steps: 'How do I give an idea its own link and picture?',
-  settings: 'How do I let a reader compare two prepared cases?',
+  settings: 'How do I let a reader switch between prepared cases?',
   diagram: 'How do I show a path through a real flowchart?',
   code: 'How do I point at one line of code?',
   'code-diff': 'How do I show an edit without redrawing the code?',
@@ -254,25 +254,43 @@ const QUESTIONS: Record<Feature, string> = {
 /** Why an author reaches for each feature, said on its recipe. */
 const USES: Record<Feature, string> = {
   steps: 'Each idea gets a stable link and a resting picture.',
-  settings: 'A reader can compare prepared cases.',
+  settings: 'A reader switches between cases the build has already made.',
   diagram: 'A highlighted path follows a real captured edge.',
-  code: 'The reader’s eye goes to the operation that matters.',
+  code: 'A mark on one line sends the reader to the operation the step is about.',
   'code-diff': 'An unchanged line stays in place while the edit arrives.',
-  animation: 'One object changes instead of the whole picture being replaced.',
-  matching: 'Common letters survive when a label changes.',
+  animation: 'One object changes shape while the rest of the picture stays.',
+  matching: 'Letters the old and new labels share stay on screen.',
   restore: 'An object returns to its saved position after a demonstration.',
   emphasis: 'The evidence stays marked after the animation ends.',
   camera: 'A small subject is seen closer without changing its coordinates.',
-  chart: 'Plotted positions stay tied to the model’s numbers.',
-  state: 'A recorded value changes and the label is derived from it.',
-  annotations: 'An explanation sits on its point instead of the reader hunting for it.',
+  chart: 'Plotted positions come from the model’s numbers.',
+  state: 'A recorded value changes, and the label is derived from it.',
+  annotations: 'A label sits on the point it names, so the reader need not search for it.',
   direction: 'Panel placement follows a right-to-left reading order.',
   drawing: 'A route is revealed by following its own path.',
+};
+/** What the reader predicts on each recipe; the result step's before and after panels answer it. */
+const PREDICT: Record<Feature, string> = {
+  steps: 'Predict: opened from a link, what does the next step show, and what is its address?',
+  settings: 'Predict: which case is this page showing, and how many did the build make?',
+  diagram: 'Predict: once the walk ends, what stays on the flowchart?',
+  code: 'Predict: once the focus ends, which line is still marked?',
+  'code-diff': 'Predict: during the morph, which line moves and which stays put?',
+  animation: 'Predict: opened from a link, does the next step show the circle, the square or both?',
+  matching: 'Predict: from cache miss to cache hit, which letters stay on screen?',
+  restore: 'Predict: opened from a link, how would a reader know the circle ever moved?',
+  emphasis: 'Predict: when Circumscribe ends, is 42 still circled?',
+  camera: 'Predict: after the focus, has the circle moved, or has the view?',
+  chart: 'Predict: which values does the line pass through?',
+  state: 'Predict: after the sync, what number does the label show, and where does it come from?',
+  annotations: 'Predict: what does the pin say, and where does it point?',
+  direction: 'Predict: in a right-to-left stage, where does a card placed at start go?',
+  drawing: 'Predict: opened from a link, what is left of the pen’s motion?',
 };
 
 /** The script's one-sentence answer, stated on every case's result step. */
 const ANSWER =
-  'Each feature is a few lines of construct(), and a reader gets the picture those lines leave at rest, so the resting picture must show what changed';
+  'Each feature is a few lines of construct(), and a reader who opens its step from a link sees only the picture those lines leave at rest, so the resting picture must show what changed';
 
 // The result step's two panels: what the reader would have seen before the feature ran, and after.
 const BEFORE: [number, number, number, number] = [-7.4, -3.5, -2.5, 2.1],
@@ -354,8 +372,8 @@ export default class FeatureTour extends Scene {
     // 1. The author's question, and the few lines that answer it.
     await this.step('recipe', {
       title: QUESTIONS[feature],
-      line: `Predict: open the next step from a link. What will its picture show?`,
-      caption: `${USES[feature]} These ${example.code.length} lines are what an author writes; the next step runs them, placed and styled. A reader who opens that step from a link sees only the picture they leave at rest, not the motion that made it.`,
+      line: PREDICT[feature],
+      caption: `${USES[feature]} An author writes these ${example.code.length} lines; the next step runs them, with positions and colours added.`,
     });
     await s.code(example.code, { at: 'full', fontSize: 0.6 });
     this.state.feature = feature;
@@ -372,11 +390,8 @@ export default class FeatureTour extends Scene {
       );
       await s.enter(heads, ...before, { describe: `Before: ${describe}` });
     };
-    const title =
-      feature === 'camera'
-        ? example.result
-        : `${example.result}: before and after`;
-    await this.step('result', { title, caption: `${example.caption} ${ANSWER}.` });
+    // Each result names its own before and after; the camera case has no before panel.
+    await this.step('result', { title: example.result, caption: `${example.caption} ${ANSWER}.` });
     this.state.phase = 'result';
     await s.clear();
     const [ax, ay] = centre(AFTER),
