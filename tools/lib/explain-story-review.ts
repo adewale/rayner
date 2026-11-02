@@ -311,7 +311,7 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
     {
       step: 'cases',
       opening: true,
-      targets: [{ key: 'fork-cases' }, { text: 'Policy A' }, { text: 'Policy B' }, { text: 'case 1' }, { text: 'case 6' }],
+      targets: [{ key: 'fork-cases' }, { text: 'Local' }, { text: 'Cluster' }, { text: 'case 1' }, { text: 'case 6' }],
     },
   ],
   'layout-direction': [

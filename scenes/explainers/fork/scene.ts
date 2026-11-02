@@ -4,6 +4,7 @@ import type { Mobject } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 import { VOCABULARY } from '../../../explain/words.ts';
 import { TokenBucket } from '../lib/models.ts';
+import { PLACEMENTS } from '../lib/traffic-policy.ts';
 const STYLE = 'github-light';
 // Upstream Lantern at the fork base, 2c7bad5: README "Outputs", app/worker.ts, src/mermaid.ts, src/doc.ts.
 const LANTERN =
@@ -24,8 +25,10 @@ const TIMES = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5];
 /** The token bucket's refill options, as SETTINGS declares them, and a rate it does not offer. */
 const RATES = [1, 2, 4];
 const UNBUILT = 0.1;
-const POLICIES = ['Policy A', 'Policy B'];
-const CASES = RATES.length * POLICIES.length;
+// scenes/explainers/traffic-policy/scene.ts: its two settings, externalTrafficPolicy and where the pods run.
+const POLICIES = ['Local', 'Cluster'];
+const PODS = Object.keys(PLACEMENTS);
+const CASES = PODS.length * POLICIES.length;
 /** What rayner check fails a case on (tools/lib/explain-check.ts checkProject, and the glyph check every command runs). */
 const CHECKS: readonly (readonly [string, readonly string[]])[] = [
   ['Motion and clock', ['motion', 'still during the caption', 'seek equals play', 'skipped trace']],
@@ -53,7 +56,7 @@ const perSecond = (r: number) => `${r} token${r === 1 ? '' : 's'} a second`;
 
 /** The script's one-sentence answer (meta.answer), which the untested step states. */
 const ANSWER =
-  'Rayner builds every case before anyone reads it so that every case can be checked: a reader can reach only a case that has been run, drawn and checked';
+  'Rayner builds every case before anyone reads it, so the author can check each one, and a reader can open only a case that was checked';
 
 export default class ForkExplainer extends Scene {
   static meta = {
@@ -75,9 +78,10 @@ export default class ForkExplainer extends Scene {
           'Below 0.2 tokens a second. At such rates R7 to R9 are refused, so nothing is spent after the burst, and R10 at 5 s finds 5 × rate tokens: under one below 0.2. The page offers only 1, 2 and 4 tokens a second, the cases it built and checked.',
       },
       {
-        question: 'A reader of the token bucket wants 3 tokens a second. What does the page give them, and what must its author do to offer it?',
+        question:
+          'A link can open any step of the token bucket page, at any of its three rates. Why is opening a step from a link safe when a typed rate of 0.1 would not be?',
         answer:
-          'Nothing: the page has no 3-token case. The author adds a ‘3’ option; the build then runs, draws and checks that fourth case like the other three before the page ships.',
+          'A step link picks a step inside a case the build made, and rayner check went through every step of every built case, so the picture it opens was checked. A rate of 0.1 asks for a case nobody built, where the page’s sentence about R10 is false.',
       },
     ],
   };
@@ -90,27 +94,7 @@ export default class ForkExplainer extends Scene {
     if (!RATES.every((r) => r10(r).ok) || r10(UNBUILT).ok)
       throw new Error('R10 must be accepted at every offered rate and refused at the unbuilt one');
 
-    // 1. The trade-off: Lantern rendered whatever was asked; Rayner offers three rates.
-    await this.step('live', {
-      title: 'Lantern’s Worker rendered any frame on request; the token bucket offers three rates',
-      line: 'Rayner deleted the Worker. What does a fixed list of cases buy?',
-      caption: `Lantern, which Rayner forks at 2c7bad5, rendered on request: its Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Below it is the one setting of Rayner’s token bucket explainer. A reader can choose a refill rate of ${RATES.slice(0, -1).join(', ')} or ${RATES.at(-1)} tokens a second and nothing else, because each option was built before anyone opened the page.`,
-    });
-    await s.clear();
-    const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
-    await lantern.mark(['Worker'], { color: s.emphasis, as: 'renders on request' });
-    // What the Worker did, beside it: GET /frame.svg?scene=&step= or &t=, rendered when asked.
-    const worker = lantern.get('Worker').box()!;
-    await s.enter(
-      new Text('any step or time, on request', { fontSize: 0.24, color: s.emphasis, anchor: 'start' }).moveTo(
-        [worker[2] + 0.25, (worker[1] + worker[3]) / 2],
-        [-1, 0],
-      ),
-      { describe: 'Beside Worker: any step or time, rendered on request.' },
-    );
-    await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
-
-    // 2. A sentence that is true of every case the page offers.
+    // 1. A sentence that is true of every case the page offers.
     const pitch = 0.82,
       x0 = -2.9,
       labelX = -7.4,
@@ -157,7 +141,7 @@ export default class ForkExplainer extends Scene {
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
       line: `Predict: at ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
-      caption: `The token bucket sends ten requests, R1 to R10, and its last step says that R10 is accepted at every rate. On the page that is true: at ${RATES.map(perSecond).join(', ').replace(/, ([^,]*)$/, ' and $1')}, R10 arrives after a four-second wait and finds at least one token, so its outlined column is a circle in every row. A page that took any rate, the way Lantern’s Worker took any time, would show the same sentence for rates nobody tried.`,
+      caption: `Rayner’s token bucket explainer sends ten requests, R1 to R10, through a bucket that refills at ${RATES.slice(0, -1).join(', ')} or ${RATES.at(-1)} tokens a second, the only rates its reader can choose. Its last step says R10 is accepted at every rate, and at each of those three it is: R10 arrives after a four-second wait and finds at least one token, so its outlined column is a circle in every row. A page could instead take any rate a reader types and show the same sentence.`,
     });
     await s.clear();
     const rows = RATES.map((r, i) => row(r, i, true));
@@ -171,12 +155,12 @@ export default class ForkExplainer extends Scene {
     await s.enter(pending, { describe: `Below, a row for ${perSecond(UNBUILT)} with a question mark where R10’s answer goes.` });
     this.state.offered = RATES.map((r) => ({ rate: r, r10: r10(r).ok ? 200 : 429 }));
 
-    // 3. The answer, from the same model at a rate the page never built.
+    // 2. The answer, from the same model at a rate the page never built.
     const slow = r10(UNBUILT);
     await this.step('untested', {
       title: `At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} tokens and is refused`,
       line: 'The sentence holds at every rate the page built and fails at one it never built.',
-      caption: `In the new bottom row, the same model at ${perSecond(UNBUILT)} refuses R7, R8 and R9, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The page has three cases, and its author can run, read and check all three; nobody can do that for every rate a reader might type. ${ANSWER}.`,
+      caption: `In the new bottom row, the same model at ${perSecond(UNBUILT)} refuses R7, R8 and R9, and in the five seconds since the burst only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The page’s author ran and read all three offered cases; nobody can do that for every rate a reader might type. ${ANSWER}.`,
     });
     const slowRow = row(UNBUILT, 3, false);
     slowRow.shift([0, -0.25]);
@@ -187,29 +171,50 @@ export default class ForkExplainer extends Scene {
     });
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
 
-    // 4. The price: every combination of settings is a case to build and check.
+    // 3. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
+    await this.step('live', {
+      title: 'Lantern, which Rayner forks, rendered any frame on request',
+      line: 'Rayner deleted that Worker; its pages offer only the cases listed in the scene.',
+      caption: `Lantern is the animation engine Rayner was forked from, at commit 2c7bad5. Its Cloudflare Worker, marked in the diagram, re-ran a scene to whatever step or time a client asked for and served the frame, its text or the trace, caching nothing. Rayner deleted the Worker. Below is the token bucket’s one setting as its scene declares it: the three rates in that list are the cases its build made, and the page has no others.`,
+    });
+    await s.clear();
+    const lantern = await s.show({ source: LANTERN }, { box: regionBox(ABOVE, { right: 3 }) });
+    await lantern.mark(['Worker'], { color: s.emphasis, as: 'renders on request' });
+    // What the Worker did, beside it: GET /frame.svg?scene=&step= or &t=, rendered when asked.
+    const worker = lantern.get('Worker').box()!;
+    await s.enter(
+      new Text('any step or time, on request', { fontSize: 0.24, color: s.emphasis, anchor: 'start' }).moveTo(
+        [worker[2] + 0.25, (worker[1] + worker[3]) / 2],
+        [-1, 0],
+      ),
+      { describe: 'Beside Worker: any step or time, rendered on request.' },
+    );
+    await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
+
+    // 4. The price, the ending: every combination of settings is a case to build and check.
     await this.step('cases', {
-      title: `${RATES.length} rates × ${POLICIES.length} policies make ${CASES} cases to build`,
-      line: 'Every combination is a case the build runs, draws and checks.',
-      caption: `That check has a price: the build must make every case first. A setting with ${RATES.length} options makes ${RATES.length} cases; add a policy setting with ${POLICIES.length} options and every rate meets every policy, ${CASES} cases in all, and each further setting multiplies again. The reader can switch among those cases and no others.`,
+      title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${CASES} cases to build`,
+      line: 'Every combination of options is a case the build makes and the author checks.',
+      caption: `Building every case first has a price: settings multiply. Rayner’s traffic-policy explainer has two settings, externalTrafficPolicy with ${POLICIES.length} options and the placement of pods on its three nodes with ${PODS.length}, so its build makes ${POLICIES.length} × ${PODS.length} = ${CASES} cases, and a third setting would multiply that again. A reader of that page switches among those ${CASES} and no others.`,
     });
     await s.clear();
     const grid = table(
-      ['', ...POLICIES],
-      RATES.map((rate, r) => [`Rate ${rate}`, ...POLICIES.map((_, p) => `case ${r * POLICIES.length + p + 1}`)]),
+      ['Pods per node', ...POLICIES],
+      PODS.map((pods, r) => [pods.replaceAll('-', ', '), ...POLICIES.map((_, p) => `case ${r * POLICIES.length + p + 1}`)]),
       s,
       { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-cases' },
     );
     await s.enter(grid, {
-      describe: `A table of ${RATES.length} refill rates by ${POLICIES.length} policies: ${CASES} cases, numbered 1 to ${CASES}`,
+      describe: `A table of the traffic-policy explainer’s ${PODS.length} pod placements by its ${POLICIES.length} policies, ${POLICIES.join(' and ')}: ${CASES} cases, numbered 1 to ${CASES}`,
     });
-    this.state.cases = CASES;
+    this.state.cases = { count: CASES, policies: POLICIES, pods: PODS };
 
-    // 5. What the build does for each case, and what replaced Lantern's live parts.
+    // Details after the ending: what the build does for each case, and what replaced Lantern's live parts.
     await this.step('fork', {
+      detail: true,
       title: 'For each case the build draws every diagram once',
-      line: 'Diagrams are captured at build time; the page runs no renderer.',
-      caption: `The four parts marked deleted, Lantern’s JSON document, flowchart parser, development player and Worker, are gone. The embed page replaces the player, and capture replaces the parser: Agentic Mermaid draws each diagram in Chromium at build time and stores the snapshot beside the scene, so the page runs no diagram renderer and has no runtime dependency. The author pays for that: capturing a new diagram needs Chromium, though building a page from stored snapshots does not.`,
+      line: 'Diagrams are captured at build time, so the page runs no diagram renderer.',
+      caption: `The four parts marked deleted, Lantern’s JSON document, flowchart parser, development player and Worker, are gone. The embed page replaces the player, and capture replaces the parser: Agentic Mermaid, the Mermaid layout library Rayner uses, draws each diagram in Chromium at build time and stores the snapshot beside the scene. The author pays for that: capturing a new diagram needs Chromium, though building a page from stored snapshots does not.`,
     });
     await s.clear();
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
@@ -226,14 +231,15 @@ export default class ForkExplainer extends Scene {
       { trail: true },
     );
     await flow.note('Capture', `${FAMILIES} diagram families, Chromium at build`, { side: 'below' });
-    await flow.note('Page', 'no diagram renderer, no dependencies', { side: 'above' });
+    await flow.note('Page', 'no diagram renderer', { side: 'above' });
     this.state.families = FAMILIES;
 
-    // 6. What the build checks for each case: the ending.
+    // What the build checks for each case.
     await this.step('checks', {
+      detail: true,
       title: `Each case must pass ${CHECK_COUNT} checks before it ships`,
       line: 'Each added case is run through every check again.',
-      caption: `rayner check runs every case and fails the build on any of ${CHECK_COUNT} problems, from a seeked frame that differs from the played one to text under 14 px or a step that never states the scene’s answer. rayner describe prints every caption of every case for the author to read. Because neither command can run on a case nobody built, Rayner gave up Lantern’s live input.`,
+      caption: `rayner check runs every case and fails the build on any of ${CHECK_COUNT} problems, from a seeked frame that differs from the played one to text under 14 px or a step that never states the scene’s answer. rayner describe prints every caption of every case for the author to read. Both commands work only on cases the build has made.`,
     });
     await s.clearOverlays();
     await flow.focus('all');

@@ -463,6 +463,16 @@ for (const entry of EXPLAINERS)
           // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
           // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.
           assertStepState(trace, 'untested', { unbuilt: { rate: 0.1, r10: 429, found: 0.5 } });
+          // The price is shown on a real scene's settings: traffic-policy's two settings, in its own order.
+          const { default: TrafficPolicy } = await import('../scenes/explainers/traffic-policy/scene.ts');
+          const [policy, pods] = TrafficPolicy.settings;
+          assertStepState(trace, 'cases', {
+            cases: {
+              count: policy!.options.length * pods!.options.length,
+              policies: policy!.options.map((o) => o.label),
+              pods: pods!.options.map((o) => o.value),
+            },
+          });
           break;
         }
         case 'cert-renewal':
