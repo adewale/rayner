@@ -1,5 +1,5 @@
 import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/ring-buffer.ts';
+import { frames as readerFrames, arrayQueue } from '../lib/readers/ring-buffer.ts';
 import {
   Scene,
   Animation,
@@ -81,7 +81,26 @@ export default class RingBufferExplainer extends Scene {
   static meta = {
     id: 'ring-buffer',
     title: 'How does a ring buffer reuse storage?',
-    sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json'],
+    sources: [
+      'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
+      'https://tc39.es/ecma262/2025/#sec-array.prototype.shift',
+    ],
+    // The script's answer and check questions (script.md); check holds the slots step to stating the answer.
+    answer: 'Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots',
+    checks: [
+      {
+        question: 'After five pushes, head and tail are both at slot 0, as they were when the ring was empty. What tells you it is full?',
+        answer: 'length, which is 5 rather than 0. The ring keeps it because head = tail cannot tell full from empty.',
+      },
+      {
+        question: 'Push 1 to 5, pop twice, push 6 and 7: the slots now read 6, 7, 3, 4, 5. In what order will five pops return the values?',
+        answer: '3, 4, 5, 6, 7. Pops start at head, which is at slot 2, and wrap past slot 4 to slot 0.',
+      },
+      {
+        question: 'Popping 1 from an array queue of five values moves how many values, and from this ring?',
+        answer: 'Four from the array, since each later value shifts one slot left; none from the ring, where only head moves.',
+      },
+    ],
   };
   static settings = [
     {
@@ -187,13 +206,14 @@ export default class RingBufferExplainer extends Scene {
     };
     const keepRing = <T extends Mobject>(...mobs: [T, ...Mobject[]]): T => s.keep(...mobs, { describe: ringWords });
 
-    await readerFirst(this, s, readerFrames(which));
+    // The queue the ring replaces: an array whose pop moves every value left.
+    await readerFirst(this, s, readerFrames());
+    const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
     await this.step('slots', {
-      detail: true,
-      title: 'Two cursors and a length on five slots',
-      line: 'Head and tail both start at slot 0; length tells empty from full.',
+      title: 'Answer: keep the values still, and move two markers instead',
+      line: 'Predict: after five pushes, where are head and tail?',
       caption:
-        'Head is the next value to pop; tail is the next slot to write. Both start at slot 0 and meet again when the ring is full, so length is what tells empty from full. The middle of the ring shows the buffer’s own three fields.',
+        'Keep five fixed slots and remember two positions: head, the slot pop reads next, and tail, the slot push writes next. Push writes at tail and moves tail on; pop reads at head and moves head on. Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots. The middle of the ring shows the buffer’s three fields, all 0 to start.',
     });
     await s.clear();
     let now: Snapshot = { head: 0, tail: 0, length: 0, data: Array(SLOTS).fill(null) };
@@ -303,37 +323,38 @@ export default class RingBufferExplainer extends Scene {
       marks: Mobject[] = [];
     for (let g = 0; g < groups.length; g++) {
       await this.step(['fill', 'next', 'result'][g]!, {
-        detail: true,
         title:
           g === 0
-            ? 'Five pushes fill the ring'
+            ? 'Answer: both back at slot 0, so only length says full'
             : which === 'wrap'
               ? g === 1
-                ? 'Two pops free slots 0 and 1'
-                : 'The tail wraps into freed slots'
+                ? 'Answer: 1 and 2 leave, and no other value moves'
+                : 'Answer: into slots 0 and 1, the slots the pops freed'
               : g === 1
-                ? 'push 6 throws Full before changing anything'
-                : 'push 7 is refused and the ring is unchanged',
+                ? 'Answer: push 6 throws Full before changing anything'
+                : 'push 7 is refused too, and the ring is unchanged',
         line:
           g === 0
-            ? 'Tail is back at 0 with head; only length 5 says full.'
+            ? which === 'wrap'
+              ? 'Predict: pop twice. Which values leave, and does anything move?'
+              : 'Predict: the ring is full. What does push 6 do?'
             : which === 'wrap'
               ? g === 1
-                ? 'Head moves on to 2; tail stays at 0 for the next push.'
-                : '6 and 7 go into slots 0 and 1; no stored value moves.'
+                ? 'Predict: tail is at 0. Where do push 6 and push 7 go?'
+                : 'Tail wrapped past slot 4; 6 and 7 reuse freed slots.'
               : g === 1
                 ? 'The first line of push finds length === capacity, both 5.'
                 : 'Head, tail and length still read 0, 0 and 5.',
         caption:
           g === 0
-            ? 'Each push outlines the slot at tail, copies v into it, then moves tail on modulo five and adds one to length. After five pushes tail is back at 0 with head, and only length, 5, says the ring is full.'
+            ? 'Each push outlines the slot at tail, copies v into it, then moves tail on modulo five and adds one to length. After five pushes tail has wrapped to 0, where head is, just as when the ring was empty; only length, 5, says the ring is full.'
             : which === 'wrap'
               ? g === 1
-                ? 'The two pops copy the values in slots 0 and 1 out to the tray and clear both slots, then head moves on to 2. Tail stays at 0, so the next push goes into slot 0, the first of the two outlined slots the pops freed.'
-                : 'Tail wrapped to 0 after the fifth push, so 6 and 7 are copied into slots 0 and 1 and no stored value moves. Length is back to 5, with head and tail both at 2.'
+                ? `Each pop copies the value at head out to the tray, clears its slot and moves head on: 1 from slot 0, then 2 from slot 1, and head is at 2. The array queue would have moved ${shifted[0]!.moved} values and then ${shifted[1]!.moved}; the ring moved none. Tail is still at 0, the first of the two outlined slots the pops freed.`
+                : 'Tail wrapped to 0 after the fifth push, so 6 and 7 are copied into slots 0 and 1, the storage two pops gave back, and no stored value moves. Length is back to 5, with head and tail both at 2.'
               : g === 1
-                ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either cursor. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
-                : 'push 7 is refused the same way and joins 6 in the refused tray. The ring still holds 1 to 5, and head, tail and length still read 0, 0 and 5.',
+                ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either marker. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
+                : 'push 7 is refused the same way and joins 6 in the refused tray; the ring still holds 1 to 5. Some ring buffers overwrite the oldest value instead. This one refuses, so no stored value is lost and the caller must handle Full.',
       });
       const first = groups[g]![0]!;
       await code.focus(first.error ? 1 : first.operation.startsWith('pop') ? [8, 12] : [2, 4]);
@@ -409,6 +430,7 @@ export default class RingBufferExplainer extends Scene {
           marks.push(keepRing(outline));
           outlined.push({ slot: i, why: `in the tail colour, where ${r.data[i]} was just written` });
           values[i] = keepRing(stored(r.data[i]!, at));
+          values[i]!.key = `slot:${i}`;
           // The slot at tail is outlined first, then the value is copied into it.
           members.push(
             new Create(outline, { runTime: 0.35 }),

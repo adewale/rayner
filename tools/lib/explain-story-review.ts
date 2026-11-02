@@ -262,7 +262,7 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
 // This inventory is authored independently of reading() and the close-up planner.
 const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'token-bucket': ['reader-burst', 'reader-refill'],
-  'ring-buffer': ['reader-capacity', 'reader-reuse'],
+  'ring-buffer': ['shift'],
   'state-machine': ['reader-path', 'reader-reject'],
   'just-bash': ['reader-pipeline', 'reader-values'],
   'cert-renewal': ['reader-due', 'reader-retries'],
@@ -287,7 +287,7 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'agentic-mermaid': ['reader-branches', 'reader-repair'],
   lantern: ['reader-object', 'reader-outputs'],
   isdigit: ['reader-predict', 'reader-result'],
-  'latest-search': ['reader-order', 'reader-first', 'reader-ticket', 'reader-guard'],
+  'latest-search': ['race', 'overwrite', 'tickets', 'reader-first', 'reader-ticket', 'reader-guard'],
   'oauth-pkce': ['reader-bind', 'reader-check', 'reader-redeem'],
   'pg-page': ['reader-row', 'reader-page'],
   'periodic-groups': ['reader-electrons', 'reader-filling'],
@@ -299,7 +299,7 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
     'reader-burst': ['R1', 'R6', '200', '429'],
     'reader-refill': ['Before the wait', 'On arrival: add elapsed × rate'],
   },
-  'ring-buffer': { 'reader-capacity': ['head = tail = 0', 'Occupied: 5 / 5'], 'reader-reuse': ['slot 0', 'slot 4'] },
+  'ring-buffer': { shift: ['slot 0', 'slot 4', 'before', 'after pop()', 'pop() returned 1 and moved 4 values'] },
   'state-machine': {
     'reader-path': ['idle', 'connecting', 'CONNECT'],
     'reader-reject': ['InvalidTransition', 'State stays closed'],
@@ -368,8 +368,10 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   lantern: { 'reader-object': ['0 s', '0.5 s', '1 s'], 'reader-outputs': ['Scene', 'Fixed clock', 'Sink'] },
   isdigit: { 'reader-result': ['Guard', 'Passes?', 'Then int'] },
   'latest-search': {
-    'reader-order': ['A then B', 'Latest intent: B'],
-    'reader-first': ['Latest 2'], 'reader-ticket': ['Latest 2'],
+    race: ['Search', 'Starts', 'Answers', 'The user wants “cat”'],
+    overwrite: ['After', 'Page shows, no check'],
+    tickets: ['latest = 2', 'const ticket = ++latest'],
+    'reader-first': ['latest = 2'], 'reader-ticket': ['latest = 2'],
     'reader-guard': ['After', 'No guard', 'Guard on'],
   },
   'oauth-pkce': {

@@ -34,7 +34,7 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
   );
 });
 
-test('token and ring introductions draw the independently expected balances, responses and slot values in every case', async () => {
+test('token introductions and the ring’s fill and result steps draw the independently expected balances, responses and slot values in every case', async () => {
   const token = await collectProject('scenes/explainers/token-bucket', { write: false }),
     ring = await collectProject('scenes/explainers/ring-buffer', { write: false });
   assert.equal(token.variants.length, 3);
@@ -90,9 +90,9 @@ test('token and ring introductions draw the independently expected balances, res
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (!step.name.startsWith('reader-')) return;
+          if (step.name !== 'fill' && step.name !== 'result') return;
           const expected =
-            step.name === 'reader-capacity' || v.values.operations === 'full' ? [1, 2, 3, 4, 5] : [6, 7, 3, 4, 5];
+            step.name === 'fill' || v.values.operations === 'full' ? [1, 2, 3, 4, 5] : [6, 7, 3, 4, 5];
           for (const [i, n] of expected.entries()) {
             const slot = scene.familyMembers().find((m) => m.key === `slot:${i}`);
             assert.ok(slot);
