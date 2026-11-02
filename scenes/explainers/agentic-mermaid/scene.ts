@@ -6,6 +6,7 @@ const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';
 const GOOD = 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]';
 /** The same two edges with their labels swapped: yes now leads to Database. */
 const SWAPPED = 'graph LR\nA{Cached} -->|no| B[Reply]\nA -->|yes| C[Database]';
+/** Yes on the edge to Reply, no on the edge to Database: replayed on BAD or SWAPPED, they must give GOOD. */
 const OPS = [
   { kind: 'set_label', target: 'A->B#0', label: 'yes' },
   { kind: 'set_label', target: 'A->C#0', label: 'no' },
@@ -16,7 +17,7 @@ const SWAP = [
 ];
 const SIDE = REGIONS.side,
   GAP = 0.3;
-/** The script's one-sentence answer, stated in the meaning step of every case. */
+/** The script's one-sentence answer, stated in the verify step of every case. */
 const ANSWER = 'The verifier checks structure, such as a label on every branch, not whether the labels mean the right thing';
 type Edit = 'missing' | 'complete' | 'swapped';
 
@@ -24,22 +25,30 @@ export default class MermaidExplainer extends Scene {
   static meta = {
     id: 'agentic-mermaid',
     title: 'What can a Mermaid verifier prove?',
-    sources: ['https://github.com/adewale/agentic-mermaid', 'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1'],
-    // The script's answer and check questions (script.md); the meaning step states the answer in every case.
+    sources: [
+      'https://github.com/adewale/agentic-mermaid',
+      'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',
+      'https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md',
+    ],
+    // The script's answer and check questions (script.md); the verify step states the answer in every case.
+    // test/explain-real.test.ts runs the pinned verifier on each check's diagram.
     answer: ANSWER,
     checks: [
       {
-        question: 'With the branch labels missing, how many warnings does verify(flow) return, and is ok true?',
-        answer: 'Two DECISION_BRANCH_UNLABELED warnings, one for each edge out of Cached, A->B#0 and A->C#0, and ok is still true.',
-      },
-      {
-        question: 'What does the verifier report when the labels are swapped so that yes leads to Database?',
-        answer: 'ok: true and no warnings, the same as for the right diagram: it checks that each branch has a label, not which label belongs on which branch.',
-      },
-      {
-        question: 'Which two operations repair the first edit, and what must replaying them produce?',
+        question: 'The agent labels both edges out of Cached yes. What does verify(flow) report?',
         answer:
-          "set_label 'yes' on A->B#0 and set_label 'no' on A->C#0. Replayed on the parsed first edit, they must serialize to the same Mermaid as the next diagram, or the build throws.",
+          'ok: true and no warnings. Each exit of the decision carries a label, which is what the verifier checks; it does not compare what the two labels say.',
+      },
+      {
+        question:
+          'The agent adds a third route out of Cached, to a node D labelled Stale, and gives it no label. How many warnings are there, and which edge do they name?',
+        answer:
+          'One DECISION_BRANCH_UNLABELED warning, naming the new edge A->D#0. The yes and no edges still carry labels, and ok stays true.',
+      },
+      {
+        question: 'Draw Cached as a rectangle, A[Cached], and leave both edges unlabelled. Does the verifier warn?',
+        answer:
+          'No: ok: true with no warnings. DECISION_BRANCH_UNLABELED is about the exits of a decision diamond, and a rectangle is not a decision, so there is nothing for it to flag.',
       },
     ],
   };
@@ -47,11 +56,11 @@ export default class MermaidExplainer extends Scene {
     {
       id: 'edit',
       label: 'The agent’s first edit',
-      default: 'missing',
+      default: 'swapped',
       options: [
+        { value: 'swapped', label: 'Labels yes to Database' },
         { value: 'missing', label: 'Leaves out branch labels' },
         { value: 'complete', label: 'Labels yes to Reply' },
-        { value: 'swapped', label: 'Labels yes to Database' },
       ],
     },
   ];
@@ -72,13 +81,39 @@ export default class MermaidExplainer extends Scene {
       }
       await s.enter(...panels, { runTime: 0.35 });
     };
+    /** The verifier's report on each version of the diagram, read from its snapshot while that version is shown. */
+    const reports = new Map<string, { ok: boolean; warnings: number }>();
+    const record = () => reports.set(d.spec.source!, { ok: d.snapshot.findings.ok, warnings: d.findings().length });
+    const reportLines = (heading: string, source: string) => {
+      const r = reports.get(source);
+      if (!r) throw new Error(`No report recorded for ${heading}`);
+      return [heading, `verify(flow).ok: ${r.ok}`, `warnings: ${r.warnings}`];
+    };
+    const flaggedParts = (warnings: { part?: string; edge?: string }[]) =>
+      warnings.map((w) => {
+        if (!w.part) throw new Error(`Warning ${w.edge} names no edge part`);
+        return w.part;
+      });
+    const reportOf = (warnings: { code: string; node?: string; edge?: string }[]) => [
+      `verify(flow).ok: ${d.snapshot.findings.ok}`,
+      `warnings: ${warnings.length}`,
+      ...warnings.flatMap((w) => [`  ${w.code}`, `    node ${w.node}, edge ${w.edge}`]),
+    ];
 
     await this.step('source', {
-      title: missing ? 'Which branch out of Cached means a cache hit?' : 'Both branches out of Cached carry a label',
+      title: swapped
+        ? 'This diagram sends a cache hit to the database'
+        : missing
+          ? 'Which branch out of Cached means a cache hit?'
+          : 'Both branches out of Cached carry a label',
       line: 'Predict: does Agentic Mermaid’s verifier accept this diagram?',
-      caption: missing
-        ? 'An agent drew a cache lookup with two routes out of Cached, one to Reply and one to Database, but did not say which means yes. Agentic Mermaid parses the Mermaid source into a snapshot with an id for each node and edge, so a check can name the part it means. The verifier runs at build time, not in the reader.'
-        : 'An agent drew a cache lookup with two routes out of Cached, one to Reply and one to Database, each with a label. Agentic Mermaid parses the Mermaid source into a snapshot with an id for each node and edge, so a check can name the part it means. The verifier runs at build time, not in the reader.',
+      caption: `${
+        swapped
+          ? 'An agent drew a cache lookup and got it backwards: yes, the cache has the answer, leads to Database, and no leads to Reply, so a cache hit would query the database the cache exists to spare.'
+          : missing
+            ? 'An agent drew a cache lookup with two routes out of Cached, one to Reply and one to Database, but did not say which means yes.'
+            : 'An agent drew a cache lookup with two routes out of Cached: yes to Reply, no to Database.'
+      } Agentic Mermaid parses the Mermaid source into a snapshot with an id for each node and edge, so a check can name the part it means. The verifier runs at build time, not in the reader.`,
     });
     const d = await s.show({ source: first }, { box: 'main' });
     const source = await code(first.split('\n'));
@@ -93,38 +128,56 @@ export default class MermaidExplainer extends Scene {
     await this.step('verify', {
       title: missing ? 'Answer: ok: true, with two warnings' : 'Answer: ok: true, with no warnings',
       line: missing
-        ? 'One DECISION_BRANCH_UNLABELED warning per unlabeled edge, named by its id.'
-        : 'Both edges carry a label, so nothing is flagged.',
+        ? 'One DECISION_BRANCH_UNLABELED warning per unlabelled edge, named by its id.'
+        : swapped
+          ? 'The token follows yes out of Cached, and it reaches Database.'
+          : 'Both edges carry a label, so nothing is flagged.',
       caption: missing
-        ? 'verify(flow) returns ok: true with two DECISION_BRANCH_UNLABELED warnings, one per marked edge, each named by the id the snapshot gave it. The diagram renders, but nothing on it says which edge out of Cached means yes.'
-        : `Both edges out of Cached carry a label, ${swapped ? 'no to Reply and yes to Database' : 'yes to Reply and no to Database'}, so verify(flow) returns ok: true with no warnings and the edit needs no repair.`,
+        ? `verify(flow) returns ok: true with two DECISION_BRANCH_UNLABELED warnings, one per marked edge, each named by the id the snapshot gave it: Cached is a decision, drawn as a diamond, and each of its exits needs a label. ${ANSWER}, so the warnings say a label is missing and nothing about which label belongs where.`
+        : swapped
+          ? `verify(flow) returns ok: true with no warnings: Cached is a decision, drawn as a diamond, and each of its exits carries a label, so there is nothing to flag. Follow yes and the token walks a real edge from Cached to Database. ${ANSWER}.`
+          : `Both exits of the decision Cached, drawn as a diamond, carry a label, so verify(flow) returns ok: true with no warnings. ${ANSWER}: this diagram happens to be right, and the next step shows what the report says when it is not.`,
     });
     await d.clearNotes();
     const warnings = d.findings();
     this.state.warnings = warnings;
-    await d.mark(
-      warnings.length
-        ? [
-            'A',
-            ...warnings.map((w) => {
-              if (!w.part) throw new Error(`Warning ${w.edge} names no edge part`);
-              return w.part;
-            }),
-          ]
-        : d.snapshot.parts.filter((p) => p.role === 'edge' && p.from === 'A').map((p) => p.id),
-      { as: warnings.length ? 'flagged' : 'checked' },
-    );
+    record();
+    if (swapped) {
+      this.state.swappedWarnings = warnings.length;
+      // The wrong diagram's own path: yes, from Cached to Database.
+      const yes = d.snapshot.parts.find((p) => p.id === 'edge:A->C#0');
+      if (!yes || yes.to !== 'C' || !SWAPPED.includes('A -->|yes| C[Database]'))
+        throw new Error('The swapped diagram must send yes to Database');
+      await d.walk([['A', 'C']], { trail: true });
+      await d.mark([yes.id], { color: s.bad, as: 'yes, to Database' });
+    } else
+      await d.mark(
+        warnings.length
+          ? ['A', ...flaggedParts(warnings)]
+          : d.snapshot.parts.filter((p) => p.role === 'edge' && p.from === 'A').map((p) => p.id),
+        { as: warnings.length ? 'flagged' : 'checked' },
+      );
     // The verifier's report sits under the source it checked.
-    const report = await code(
-      [
-        `verify(flow).ok: ${d.snapshot.findings.ok}`,
-        `warnings: ${warnings.length}`,
-        ...warnings.flatMap((w) => [`  ${w.code}`, `    node ${w.node}, edge ${w.edge}`]),
-      ],
-      0.22,
-    );
+    const report = await code(reportOf(warnings), 0.22);
     report.moveTo([SIDE[0], source.box()![1] - GAP], [-1, 1]);
     await s.enter(report, { runTime: 0.35 });
+
+    if (swapped) {
+      await this.step('flagged', {
+        title: 'Delete both labels, and the verifier objects',
+        line: 'Two DECISION_BRANCH_UNLABELED warnings, each naming an edge by its id.',
+        caption:
+          'So the verifier is looking. Take both labels off and verify(flow) returns two DECISION_BRANCH_UNLABELED warnings, one for each exit of the decision, named A->B#0 and A->C#0 by the snapshot’s ids. It still returns ok: true, because this check is advice, and advice never turns ok false. A missing label is structure, and structure is what it can see.',
+      });
+      await s.clearOverlays();
+      await d.unmark();
+      await d.morph({ source: BAD });
+      const flagged = d.findings();
+      this.state.flaggedWarnings = flagged.length;
+      record();
+      await d.mark(['A', ...flaggedParts(flagged)], { as: 'flagged' });
+      await column(await code(BAD.split('\n')), await code(reportOf(flagged), 0.22));
+    }
 
     if (missing) {
       await this.step('repair', {
@@ -142,41 +195,55 @@ export default class MermaidExplainer extends Scene {
       await ops.focus([0, OPS.length * 3 - 1]);
       await d.morph({ source: GOOD }, { ops: OPS });
       await d.mark(OPS.map((op) => `edge:${op.target}`));
+      record();
       // The same report, rerun on the repaired diagram.
       await report.morph([`verify(flow).ok: ${d.snapshot.findings.ok}`, `warnings: ${d.findings().length}`]);
     }
-    // What the agent's edit leaves for the history: the first edit, repaired if it had to be.
-    const committed = d.findings().length,
-      final = d.snapshot;
 
     await this.step('meaning', {
-      title: swapped ? 'No warnings, yet a cache hit goes to the database' : 'Swap the labels and the verifier still finds nothing',
-      line: 'Same report, ok: true and 0 warnings; the yes edge now reaches Database.',
-      caption: `${
-        swapped
-          ? 'The agent wrote yes on the edge to Database and no on the edge to Reply, so a cache hit would query the database.'
-          : 'Swap the two labels with two more set_label operations, so yes leads to Database and a cache hit would query the database.'
-      } verify(flow) still returns ok: true with no warnings, and the token walks a real edge from Cached to Database. ${ANSWER}: which label belongs on which branch is the author’s decision, and the cache policy needs its own tests.`,
+      title: swapped ? 'Label them the right way round: the report does not change' : 'Swap the labels, and the report does not change',
+      line: 'The wrong diagram and the right one get the same report.',
+      caption: swapped
+        ? 'Two set_label operations put yes on A->B#0 and no on A->C#0; the build replays them on the unlabelled diagram and throws unless the result serializes to this one. Now a cache hit replies from the cache. verify(flow) returns ok: true with no warnings, exactly what it said when yes led to Database. Which label belongs on which branch is the author’s decision, and the cache policy needs its own tests.'
+        : 'Swap the two labels with two more set_label operations, so yes leads to Database and a cache hit would query the database. verify(flow) still returns ok: true with no warnings, the same report as the right diagram, and the token walks a real edge from Cached to Database. Which label belongs on which branch is the author’s decision, and the cache policy needs its own tests.',
     });
     await s.clearOverlays();
     await d.unmark();
-    if (!swapped) await d.morph({ source: SWAPPED }, { ops: SWAP });
-    // SWAPPED writes yes on A's edge to C, Database.
-    const yes = d.snapshot.parts.find((p) => p.id === 'edge:A->C#0');
-    if (!yes || yes.to !== 'C' || !SWAPPED.includes('A -->|yes| C[Database]'))
-      throw new Error('The swapped diagram must send yes to Database');
-    await d.walk([['A', 'C']], { trail: true });
-    await d.mark([yes.id], { color: s.bad, as: 'yes, to Database' });
+    if (swapped) {
+      await d.morph({ source: GOOD }, { ops: OPS });
+      record();
+      const yes = d.snapshot.parts.find((p) => p.id === 'edge:A->B#0');
+      if (!yes || yes.to !== 'B' || !GOOD.includes('A{Cached} -->|yes| B[Reply]'))
+        throw new Error('The repaired diagram must send yes to Reply');
+      await d.walk([['A', 'B']], { trail: true });
+      await d.mark([yes.id], { color: s.good, as: 'yes, to Reply' });
+    } else {
+      await d.morph({ source: SWAPPED }, { ops: SWAP });
+      record();
+      this.state.swappedWarnings = d.findings().length;
+      // SWAPPED writes yes on A's edge to C, Database.
+      const yes = d.snapshot.parts.find((p) => p.id === 'edge:A->C#0');
+      if (!yes || yes.to !== 'C' || !SWAPPED.includes('A -->|yes| C[Database]'))
+        throw new Error('The swapped diagram must send yes to Database');
+      await d.walk([['A', 'C']], { trail: true });
+      await d.mark([yes.id], { color: s.bad, as: 'yes, to Database' });
+    }
+    // The two reports side by side: the wrong diagram's and the right one's.
     await column(
-      await code(SWAPPED.split('\n')),
-      await code([`verify(flow).ok: ${d.snapshot.findings.ok}`, `warnings: ${d.findings().length}`], 0.22),
+      await code(d.spec.source!.split('\n')),
+      await code(reportLines('yes to Database (wrong):', SWAPPED), 0.22),
+      await code(reportLines('yes to Reply (right):', GOOD), 0.22),
     );
-    this.state.swappedWarnings = d.findings().length;
+    this.state.reports = { wrong: reports.get(SWAPPED), right: reports.get(GOOD) };
+    // What the agent's work leaves for the history: the right diagram, repaired if it had to be.
+    const committed = reports.get(GOOD)!.warnings,
+      renderer = d.snapshot.renderer;
 
     await this.step('history', {
+      detail: true,
       title: 'The snapshot keeps the findings; a reviewer reads the meaning',
       line: 'Three commits in order; the renderer stays pinned at 0.5.1.',
-      caption: `The git graph shows the original Mermaid source, the agent’s edit and its checked snapshot as three commits in order. The snapshot stores the verifier’s findings for the edit, ${committed} warnings, with the renderer pinned at ${final.renderer}, so an upgrade is a deliberate change whose snapshot diff gets reviewed. Whether yes belongs on the edge to Reply is for the person reading that diff, or for the application’s tests.`,
+      caption: `The git graph shows the original Mermaid source, the agent’s edit${missing || swapped ? ', repaired by two set_label operations,' : ''} and its checked snapshot as three commits in order. The snapshot stores the verifier’s findings for the right diagram, ${committed} warnings, with the renderer pinned at ${renderer}, so an upgrade is a deliberate change whose snapshot diff gets reviewed. Whether yes belongs on the edge to Reply is for the person reading that diff, or for the application’s tests.`,
     });
     await s.clear();
     const git = await s.show(
@@ -184,10 +251,8 @@ export default class MermaidExplainer extends Scene {
       { box: 'full' },
     );
     await git.note('source', 'flow.mmd', { side: 'right' });
-    await git.note('typed edit', missing ? '2 set_label ops' : swapped ? 'labels swapped in first edit' : 'labels in first edit', {
-      side: 'right',
-    });
-    await git.note('checked snapshot', `${committed} warnings, ${final.renderer}`, { side: 'right' });
+    await git.note('typed edit', missing || swapped ? '2 set_label ops' : 'labels in first edit', { side: 'right' });
+    await git.note('checked snapshot', `${committed} warnings, ${renderer}`, { side: 'right' });
     this.state.finalWarnings = committed;
   }
 }

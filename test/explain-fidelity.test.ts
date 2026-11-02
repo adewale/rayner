@@ -158,6 +158,12 @@ for (const entry of EXPLAINERS)
           assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
           // The swapped labels draw the wrong diagram and the verifier still finds nothing.
           assertStepState(trace, 'meaning', { swappedWarnings: 0 });
+          // The aha: the wrong diagram and the right one get the same report.
+          assertStepState(trace, 'meaning', {
+            reports: { wrong: { ok: true, warnings: 0 }, right: { ok: true, warnings: 0 } },
+          });
+          // The default case deletes the swapped labels to show what the verifier does flag.
+          if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
           assertStepState(trace, 'history', { finalWarnings: 0 });
           break;
         }

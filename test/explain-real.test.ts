@@ -15,6 +15,8 @@ import type { DiagramSnapshot } from '../explain/index.ts';
 import { pictureSummary, pictureHtml } from '../explain/trace.ts';
 import { collectProject, readSnapshots } from '../tools/lib/explain-project.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
+import { verifyMermaid } from 'agentic-mermaid/agent';
+import MermaidExplainer from '../scenes/explainers/agentic-mermaid/scene.ts';
 
 await loadFonts();
 
@@ -97,6 +99,29 @@ test('the current verifier’s raw warnings name captured edge parts per endpoin
   assert.deepEqual(s.findings.warnings.map((w) => w.edge), ['A->B#0', 'A->C#0']);
   assert.deepEqual(findingsOf(s).map((f) => f.part), ['edge:A->B#0', 'edge:A->C#0']);
   assert.deepEqual((await shown(s)).findings(), findingsOf(s));
+});
+
+test('the Mermaid explainer’s check answers are what the pinned verifier reports on each check’s diagram', () => {
+  // The swapped labels and the right ones: both captured snapshots carry ok: true and no warnings.
+  for (const text of ['A -->|yes| C[Database]', 'A{Cached} -->|yes| B[Reply]']) {
+    const s = pinned('agentic-mermaid', text);
+    assert.equal(s.findings.ok, true);
+    assert.deepEqual(findingsOf(s), []);
+  }
+  const report = (source: string) => {
+    const r = verifyMermaid(source);
+    return { ok: r.ok, warnings: (r.warnings ?? []).map((w) => `${w.code} ${(w as { edge?: string }).edge}`) };
+  };
+  const [bothYes, third, rectangle] = MermaidExplainer.meta.checks;
+  assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|yes| C[Database]'), { ok: true, warnings: [] });
+  assert.match(bothYes!.answer, /^ok: true and no warnings/);
+  assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]\nA --> D[Stale]'), {
+    ok: true,
+    warnings: ['DECISION_BRANCH_UNLABELED A->D#0'],
+  });
+  assert.match(third!.answer, /^One DECISION_BRANCH_UNLABELED warning, naming the new edge A->D#0/);
+  assert.deepEqual(report('graph LR\nA[Cached] --> B[Reply]\nA --> C[Database]'), { ok: true, warnings: [] });
+  assert.match(rectangle!.answer, /^No: ok: true with no warnings/);
 });
 
 /** Each step's state in an explainer's default case, by step name. */
