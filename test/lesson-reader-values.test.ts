@@ -112,7 +112,7 @@ test('token and ring introductions draw the independently expected balances, res
   assert.equal(frames, 10);
 });
 
-test('GTFS stop introductions preserve fixed departures and frequency patterns across all six source-feed cases', async () => {
+test('GTFS departures preserve fixed departures and frequency patterns across all six source-feed cases', async () => {
   const p = await collectProject('scenes/explainers/gtfs', { write: false });
   assert.equal(p.variants.length, 6);
   let checked = 0;
@@ -121,25 +121,26 @@ test('GTFS stop introductions preserve fixed departures and frequency patterns a
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (step.name !== 'reader-stop') return;
+          if (step.name !== 'departures') return;
           const [fixed, frequency] =
             v.values.date === '2007-06-04'
               ? [0, 0]
               : v.values.stop === 'airport'
                 ? [v.values.date === '2007-06-09' ? 3 : 1, 0]
                 : [0, 2];
-          assert.equal((scene.state.reader as Record<string, unknown>).fixed, fixed);
-          assert.equal((scene.state.reader as Record<string, unknown>).frequency, frequency);
+          const day = scene.state.departures as { departures: unknown[]; headways: unknown[] };
+          assert.equal(day.departures.length, fixed);
+          assert.equal(day.headways.length, frequency);
           const words = scene
             .familyMembers()
             .filter((m): m is Text => m instanceof Text)
             .map((m) => m.text);
-          const at = words.indexOf('Fixed times');
-          assert.ok(at >= 0);
-          assert.equal(words[at + 1], String(fixed));
-          const bands = words.indexOf('Headway patterns');
-          assert.ok(bands >= 0);
-          assert.equal(words[bands + 1], String(frequency));
+          // The card draws one row per fixed departure ("8:00  AB1, route 10") and, for a trip on
+          // headways, one row per period ("STBA  6:00 to 22:00"); a removed day draws calendar.txt's.
+          if (fixed + frequency) {
+            assert.equal(words.filter((w) => /^\d+:\d\d {2}\w+, route /.test(w)).length, fixed);
+            assert.equal(new Set(words.filter((w) => / to \d+:\d\d$/.test(w)).map((w) => w.split(' ')[0])).size, frequency);
+          } else assert.ok(words.some((w) => /^(What calendar\.txt alone would send|Nothing leaves)/.test(w)) || words.includes('no departures'));
           checked++;
         },
       },
