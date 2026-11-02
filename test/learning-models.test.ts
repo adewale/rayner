@@ -62,9 +62,14 @@ test('insert-only filters never reject an inserted word; concrete false positive
   for(const size of [16,32] as const) {
     for(const [word,positions] of Object.entries(fixture.bloom[size].locations)) assert.deepEqual(locations(word,size),positions);
     const m=bloomStory(size);
-    assert.deepEqual(m.queries.map(q=>[q.maybe,q.stored]),[[false,false],[true,true],[true,false]]);
-    assert.equal(m.exactLookups,2);assert.equal(m.queries.length,3);
+    // The same untaken wolf is a false positive at 16 bits and a definite no at 32.
+    assert.deepEqual(m.queries.map(q=>q.word),['owl','cat','wolf']);
+    assert.deepEqual(m.queries.map(q=>[q.maybe,q.stored]),[[false,false],[true,true],[size===16,false]]);
+    assert.equal(m.exactLookups,size===16?2:1);assert.equal(m.queries.length,3);
     assert.equal(m.words.includes(m.queries[2]!.word),false);
+    for(const q of m.queries) assert.deepEqual(q.locations,fixture.bloom[size].locations[q.word]);
+    // Each bit's owners are exactly the stored words whose oracle locations include it.
+    assert.deepEqual(m.owners,Array.from({length:size},(_,i)=>m.words.filter(w=>fixture.bloom[size].locations[w].includes(i))));
   }
 });
 
@@ -192,6 +197,9 @@ test('the music comparison preserves pitches and total beats while moving exactl
     const m=musicStory(timing,bpm);
     assert.equal(m.movedStarts,timing==='straight'?0:2);assert.equal(m.movedDurations,m.movedStarts);
     assert.deepEqual(m.crossing,timing==='straight'?[]:[{midi:67,at:3.5,duration:1}]);
+    // The first E, G and the E after it: two lengths and two starts, by index.
+    assert.deepEqual(m.changed,timing==='straight'?[]:[2,3,4]);
+    assert.equal(m.beatMs,{96:625,120:500}[bpm]);
     for(const clip of m.clips) {
       assert.deepEqual(clip.notes.map(n=>n.midi),expected);
       assert.equal(clip.notes.at(-1)!.at+clip.notes.at(-1)!.duration,8);

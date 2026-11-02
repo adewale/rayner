@@ -39,8 +39,9 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
       },
       { skipUntil: Infinity },
     ).run();
-  assert.equal(pictures, 32);
-  assert.equal(notes, 512);
+  // Six steps in each of four cases, sixteen notes a picture.
+  assert.equal(pictures, 24);
+  assert.equal(notes, 384);
 });
 
 test('Monty Hall paints the host-conditioned percentages beside the correct strategies in every case', async () => {

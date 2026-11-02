@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Rectangle, Circle, loadFonts, NullSink } from '../src/index.ts';
+import { Scene, Text, Rectangle, loadFonts, NullSink } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -45,10 +45,19 @@ test('token and ring introductions draw the independently expected balances, res
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (!step.name.startsWith('reader-')) return;
-          if (step.name === 'reader-burst') {
+          // The introduction's two pictures are gone; the native steps that show the
+          // same burst, starting bucket and R7 refill carry these checks.
+          if (!['balance', 'burst', 'refill'].includes(step.name)) return;
+          if (step.name === 'balance') {
+            // The bucket starts full: its level fills the shell, and the readout says five.
+            const shell = scene.familyMembers().find((m) => m.key === 'bucket:shell'),
+              level = scene.familyMembers().find((m) => m.key === 'bucket:level');
+            assert.ok(shell instanceof Rectangle && level instanceof Rectangle);
+            assert.ok(Math.abs(level.height() - (shell.height() - 0.16)) < 1e-5, 'the five starting tokens must be filled');
+            assert.equal((scene.state as Record<string, unknown>).tokens, 5);
+          } else if (step.name === 'burst') {
             for (let i = 0; i < 6; i++) {
-              const request = scene.familyMembers().find((m) => m.key === `burst:${i}:${i < 5 ? 200 : 429}`);
+              const request = scene.familyMembers().find((m) => m.key === `request:R${i + 1}`);
               assert.ok(request, `request ${i + 1} has its own response group`);
               assert.deepEqual(
                 request
@@ -58,27 +67,21 @@ test('token and ring introductions draw the independently expected balances, res
                 [`R${i + 1}`, i < 5 ? '200' : '429'],
               );
             }
-            const root = scene.familyMembers().find((m) => m.key === 'reader-picture');
-            assert.ok(root);
-            const tokens = root.family().filter((m) => m instanceof Circle);
-            assert.equal(tokens.length, 5);
-            for (const token of tokens)
-              assert.ok((token.style.fillOpacity ?? 1) > 0.9, 'the five starting tokens must be filled');
+            const level = scene.familyMembers().find((m) => m.key === 'bucket:level');
+            assert.ok(level instanceof Rectangle && level.height() < 0.01, 'the burst empties the bucket');
           } else {
             const [found, after] = ({ 1: [0.5, 0.5], 2: [1, 0], 4: [2, 1] } as const)[
               Number(v.values.rate) as 1 | 2 | 4
             ];
-            assert.equal((scene.state.reader as Record<string, unknown>).found, found);
-            assert.equal((scene.state.reader as Record<string, unknown>).after, after);
-            for (const [i, value] of [0, found, after].entries()) {
-              const m = scene.familyMembers().find((m) => m.key === `reader-bars:${i}:value`);
-              assert.ok(m instanceof Text);
-              assert.equal(
-                m.text,
-                String(value),
-                'the drawn number must match the balance, not just the internal state',
-              );
-            }
+            assert.equal((scene.state.balances as number[])[6], after);
+            assert.equal((scene.state.responses as number[])[6], found >= 1 ? 200 : 429);
+            const m = scene.familyMembers().find((m) => m.key === 'balance:found:R7:value');
+            assert.ok(m instanceof Text);
+            assert.equal(
+              m.text,
+              `R7: ${found.toFixed(1)}`,
+              'the drawn number must match the balance, not just the internal state',
+            );
           }
           frames++;
         },
@@ -109,7 +112,8 @@ test('token and ring introductions draw the independently expected balances, res
       },
       { skipUntil: Infinity },
     ).run();
-  assert.equal(frames, 10);
+  // Three token steps in each of three cases, two ring introductions in each of two.
+  assert.equal(frames, 13);
 });
 
 test('GTFS stop introductions preserve fixed departures and frequency patterns across all six source-feed cases', async () => {

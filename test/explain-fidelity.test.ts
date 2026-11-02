@@ -189,12 +189,12 @@ for (const entry of EXPLAINERS)
         case 'token-bucket': {
           const bucket = new TokenBucket(Number(values.rate)),
             balances: number[] = [];
-          const responses = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 2].map((at) => {
+          const responses = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5].map((at) => {
             const ok = bucket.allow(at);
             balances.push(bucket.tokens);
             return ok ? 200 : 429;
           });
-          assertStepState(trace, 'trace', { tokens: bucket.tokens, lastRefill: 2, responses });
+          assertStepState(trace, 'trace', { tokens: bucket.tokens, lastRefill: 5, responses });
           // The chart and the gauge draw these balances; the trace carries them.
           assertStepState(trace, 'trace', {
             balances,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import {
   sha256,
   pkceChallenge,
@@ -68,6 +69,25 @@ test('rate changes alter real decisions while balances stay inside capacity', ()
     successes.push(results.filter(Boolean).length);
   }
   assert.deepEqual(successes, [7, 8, 9]);
+});
+test('token-bucket: the explainer schedule gets the answers golang.org/x/time/rate gives', () => {
+  // tools/oracle/token-bucket runs rate.NewLimiter(r, 5).AllowN(t, 1) on this schedule.
+  const oracle = JSON.parse(readFileSync(new URL('./fixtures/token-bucket-xtime.json', import.meta.url), 'utf8')) as {
+    module: string; burst: number; schedule: number[]; runs: Record<string, { at: number; status: number; tokens: number }[]>;
+  };
+  assert.equal(oracle.module, 'golang.org/x/time v0.15.0');
+  assert.deepEqual(oracle.schedule, [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5]);
+  assert.deepEqual(Object.keys(oracle.runs).sort(), ['1', '2', '4']);
+  for (const [rate, calls] of Object.entries(oracle.runs)) {
+    const bucket = new TokenBucket(Number(rate), oracle.burst);
+    assert.deepEqual(
+      oracle.schedule.map((at) => ({ at, status: bucket.allow(at) ? 200 : 429, tokens: bucket.tokens })),
+      calls,
+      `rate ${rate}`,
+    );
+  }
+  // The long wait is clipped by the cap at 2 and 4 tokens a second, not at 1.
+  assert.deepEqual(Object.values(oracle.runs).map((c) => c.at(-1)!.tokens), [3, 4, 4]);
 });
 test('token buckets match an independent quarter-token ledger at varied rates and capacities', () => {
   fc.assert(fc.property(

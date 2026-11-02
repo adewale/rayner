@@ -73,7 +73,7 @@ result = {
     'python': platform.python_version(),
     'dict': {'original': original, 'deleted': deleted, 'lookups': {str(k): d.get(k) for k in [0,8,16,24]}},
     'fnv': {s: fnv(s) for s in ['', 'a', 'foobar', 'hello', 'cat', 'café', '猫']},
-    'bloom': {str(size): {'locations': {word: [fnv(f'{seed}:{word}') % size for seed in range(3)] for word in ['cat','dog','owl','word32','word127']}} for size in [16,32]},
+    'bloom': {str(size): {'locations': {word: [fnv(f'{seed}:{word}') % size for seed in range(3)] for word in ['cat','dog','owl','word32','word127','wolf']}} for size in [16,32]},
     'birthdays': {f'{n}:{q}': {'chance': chance(n,q), 'sample': sample(n,q)} for n in [10,23,50] for q in ['any','one']},
 }
 print(json.dumps(result, ensure_ascii=False, indent=2))

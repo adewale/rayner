@@ -201,7 +201,7 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
   try {
     for (const [id, names] of [
       ['gtfs', ['reader-date', 'reader-stop']],
-      ['token-bucket', ['reader-refill']],
+      ['token-bucket', ['refill']],
       ['latest-search', ['reader-guard']],
     ] as const) {
       const project = await collectProject(`scenes/explainers/${id}`, { write: false });
@@ -3384,13 +3384,14 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             const m=keyed(key);assert.ok(m instanceof Text);assert.equal(m.text,value);
           };
           if(id==='token-bucket'){
-            const rate=variant.values.rate!, found={1:1,2:2,4:5}[rate as '1'|'2'|'4']!,
-              after={1:0,2:1,4:4}[rate as '1'|'2'|'4']!;
+            // R10 arrives at 5 s: 4 tokens at 1 / s; 2 and 4 / s reach the cap of five.
+            const rate=variant.values.rate!, found={1:4,2:5,4:5}[rate as '1'|'2'|'4']!,
+              after={1:3,2:4,4:4}[rate as '1'|'2'|'4']!;
             text('balance:cap','  tokens = min(5,');text('balance:label','Tokens left');
-            text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 2');
+            text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 5');
             assert.deepEqual(keyed('request:R10').family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),['R10','200']);
             const dot=keyed('balance:found:R10').center(),drop=keyed('balance:spend:R10').box()!;
-            assert.ok(Math.abs(dot[0]+0.56)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
+            assert.ok(Math.abs(dot[0]-1.6)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
             assert.equal(scene.state.tokens,after);
           }else{
