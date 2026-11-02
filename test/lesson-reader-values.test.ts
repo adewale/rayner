@@ -219,7 +219,6 @@ test('the default ext4 reserve comparison actually changes reserve and preserves
 });
 
 test('traffic comparisons draw each source pod share without attributing the ingress source IP to its destination', async () => {
-  const { frames } = await import('../scenes/explainers/lib/readers/traffic-policy.ts');
   const expected = {
     '3-1-0': [
       ['a / N1', '25%', '16.7%'],
@@ -239,24 +238,41 @@ test('traffic comparisons draw each source pod share without attributing the ing
       ['c / N3', '33.3%', '33.3%'],
     ],
   } as const;
+  const p = await collectProject('scenes/explainers/traffic-policy', { write: false });
+  assert.equal(p.variants.length, 6);
   let checked = 0;
-  for (const placement of ['3-1-0', '2-2-0', '1-1-1'] as const)
-    for (const policy of ['cluster', 'local'] as const) {
-      const [nodes, comparison] = frames(placement, policy);
-      assert.ok(nodes && comparison);
-      assert.equal(nodes.values.key, placement);
-      assert.equal(nodes.values.policy, policy);
-      const words = comparison
-        .draw(stage(new Scene(new NullSink())))
-        .family()
-        .filter((m): m is Text => m instanceof Text)
-        .map((m) => m.text);
-      assert.deepEqual(words, ['Pod', 'Cluster', 'Local', ...expected[placement].flat()]);
-      // The picture compares per-pod traffic, not a packet's ingress/SNAT path. Those paths
-      // remain in the independently checked second-hop and source-IP source walkthroughs.
-      assert.doesNotMatch(comparison.caption, /\b(?:source|hop)\b|\b\d{1,3}(?:\.\d{1,3}){3}\b/i);
-      checked++;
-    }
+  for (const v of p.variants)
+    await new v.Scene(
+      {
+        async frame() {},
+        async stepEnd(scene, step) {
+          const placement = v.values.pods as keyof typeof expected;
+          if (step.name === 'shares') {
+            // The step that answers "which pod gets the most?" compares per-pod traffic, not a
+            // packet's ingress/SNAT path: those remain in the second-hop, snat and local-path steps.
+            assert.doesNotMatch(String(step.meta.caption), /\b(?:source|hop)\b|\b\d{1,3}(?:\.\d{1,3}){3}\b/i);
+            return;
+          }
+          if (step.name !== 'compare') return;
+          // Each policy's card draws, for every pod, its share: one row per group of pods with the same share.
+          for (const [column, policy] of [[1, 'cluster'], [2, 'local']] as const) {
+            const rows = scene
+              .familyMembers()
+              .filter((m) => m.key?.startsWith(`traffic-compare:${policy}:share:`))
+              .map((m) => [m.key!.slice(`traffic-compare:${policy}:share:`.length), (m as Text).text] as const);
+            assert.ok(rows.length > 0, `${policy}: share rows drawn`);
+            for (const row of expected[placement]) {
+              const pod = row[0].split(' / ')[0]!;
+              const drawn = rows.find(([label]) => new RegExp(`^Pods? (?:.*\\b)?${pod}\\b`).test(label));
+              assert.ok(drawn, `${placement}/${policy}: a row names pod ${pod}`);
+              assert.ok(drawn[1].includes(`(${row[column]})`), `${placement}/${policy}: pod ${pod} draws ${row[column]}, not ${drawn[1]}`);
+            }
+          }
+          checked++;
+        },
+      },
+      { skipUntil: Infinity },
+    ).run();
   assert.equal(checked, 6);
 });
 
