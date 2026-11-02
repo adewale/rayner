@@ -490,7 +490,7 @@ export default class PenAndPencil extends Scene {
       line:
         which === 'first'
           ? `Objects, then words; no ink strays over ${fmt(chartStray)} from its mark.`
-          : 'Grey: the first drawing’s sea strokes and gulls. Dashed red: the boxes both drawings were drawn in.',
+          : 'Grey: the first drawing’s sea and gulls. Dashed red: the shared boxes.',
       caption:
         which === 'first'
           ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units from them. Hershey letters come last, inside the boxes the layout gave. The second drawing draws the plate again with another seed.`

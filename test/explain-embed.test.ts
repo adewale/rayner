@@ -446,7 +446,10 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
         await page.setViewportSize(viewport);
         await visitReader(page, src);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${id} at ${viewport.width}: no horizontal overflow`);
-        if(id==='quotient-familial') assert.equal(await page.locator('.step-bar button').count(),2,'two teaching steps exclude technical notes');
+        if(id==='quotient-familial') {
+          assert.ok(stepsOf(project, values).length > first.length, 'the fixture has technical notes to exclude');
+          assert.equal(await page.locator('.step-bar button').count(),first.length,'the teaching steps exclude technical notes');
+        }
         if((viewport.width===390&&viewport.height===844)||viewport.height===800) {
         const lede = await page.locator('.lede').evaluate((p) => ({
           visible: (p as HTMLElement).offsetParent !== null,
@@ -456,7 +459,7 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
           // The caption announces the step; the heading is not a second live region.
           live: p.closest('[aria-live]') !== null,
         }));
-        const kicker: string=id==='mr-cache'?'Step 1 of 2':'Étape 1 sur 2', total=2;
+        const total=first.length, kicker: string=id==='mr-cache'?`Step 1 of ${total}`:`Étape 1 sur ${total}`;
         const where: string = `${id} at ${viewport.width}`;
         assert.deepEqual(lede, { visible: true, kicker, title: first[0]!.title, line: first[0]!.line || null, live: false }, where);
         assert.match(lede.kicker!, new RegExp(` ${total}$`), `${where}: the kicker names the total`);
@@ -1405,8 +1408,9 @@ test('Copy link gives the step\'s share page when site:export published one, els
 test('stepping keeps Next in place while headings and captions use their natural height', options, async () => {
   // Caption lengths and tour controls cannot shift a path while the reader steps.
   // Opening the separate source disclosure deliberately changes the page's height.
+  let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
-    for (const scene of ['exgit', 'mr-cache', 'send-sync', 'token-bucket']) {
+    for (const scene of ['exgit', 'mr-cache', 'send-sync', 'token-bucket', 'quotient-familial']) {
       await readerPage({ viewport: { width, height } }, undefined, async page => {
         await page.addInitScript(() => {
           (window as unknown as { __layoutSettles: number }).__layoutSettles = 0;
@@ -1439,13 +1443,18 @@ test('stepping keeps Next in place while headings and captions use their natural
             ),
           );
         }
+        // A scene's notes, when it has any, form the detail path; token-bucket tells one story.
+        const project = projects.get(scene)!, notes = stepsOf(project, resolveSettings(project.Scene)).some(s => s.detail);
+        if (notes) detailScenes++;
         for(const [name,path] of Object.entries(paths)){
+          if (name === 'detail' && !notes) { assert.equal(path.places.size, 0, `${scene}: no detail path without notes`); continue; }
           assert.ok(path.places.size, `${scene}: ${name} path was exercised`);
           assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: navigation tops per step ${[...path.places].join(' | ')}`);
 
         }
   });
     }
+  assert.ok(detailScenes >= 2 * 3, `the detail path was exercised in at least three scenes at each width (${detailScenes / 2})`);
 });
 test(
   'mobile controls and transcript work offline with storage disabled and no page errors',
@@ -2461,16 +2470,21 @@ test('Left at the first story step leaves its picture, URL and settle count unch
 test('crossing the narrow width redraws the resting picture in place, including when a scrollbar moves the stage across it', options, async () => {
   // Found by the property test (seed 1364731003): at 632 px the stage is exactly 600 px wide, so
   // the transcript's scrollbar narrows it again and the heading-less picture is redrawn.
+  // Since oauth-pkce has no notes, no step change alters the heading reserve. At 704 px tall the
+  // header and heading measured at the phone width keep the stage under 600 px; at 800 px the
+  // resize reaches the full 600 px, so it crosses NARROW_PX itself.
   await playerScenario('oauth-pkce', {
     values: [undefined], viewport: {width: 200, height: 400},
   }, async (model, real) => {
-    await fc.asyncModelRun(() => ({model, real}), [ClickStep(3), Resize(632, 704), ToggleTranscript, TranscriptLink(0)]);
+    await fc.asyncModelRun(() => ({model, real}), [ClickStep(3), Resize(632, 800), ToggleTranscript, TranscriptLink(0)]);
     assert.ok(model.redraws >= 1, 'the stage crossed NARROW_PX at least once');
   });
 });
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
-  await playerScenario('oauth-pkce', {
-    values: ['yes'], step: 'stolen', viewport: {width: 308, height: 400},
+  // mr-cache's request opens on its comparison at one scale, then its smaller labels need a closer
+  // one; on a 288 px stage (a 320 px page) the two differ.
+  await playerScenario('mr-cache', {
+    values: ['hit'], step: 'reader-request', viewport: {width: 320, height: 400},
   }, async (model,real) => {
     const {w, h} = await stageSize(real), tour = await tourOf(model, w, h);
     assert.ok(tour.length > 1 && tour[0]!.k !== tour[1]!.k, 'the fixture changes scale between the opening and first detail view');
@@ -2503,14 +2517,15 @@ test('reader model fixed scenarios: teaching and source navigation, segments, ca
   const references=projects.get('references')!, list=teachingSpecs(references,{case:'one'}), pkce=projects.get('oauth-pkce')!;
   assert.equal(new Set(list.map(s=>s.caption)).size,list.length,'the teaching steps have distinct captions');
   assert.notEqual(stepsOf(pkce,{attacker:'no'}).length,stepsOf(pkce,{attacker:'yes'}).length,'the attacker adds a source step');
-  assert.equal(teachingSpecs(pkce,{attacker:'no'}).length,teachingSpecs(pkce,{attacker:'yes'}).length,'the teaching inventory stays fixed');
+  assert.notEqual(stepsOf(references,{case:'one'}).length,stepsOf(references,{case:'two'}).length,'the second case adds a source step');
+  assert.equal(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'two'}).length,'the teaching inventory stays fixed');
   assert.notEqual(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'all'}).length,'all-notes case rebuilds the inventory');
   const scenarios = [
     ...[{width:390,height:568},{width:1280,height:800}].flatMap(viewport=>['reader-request','before'].map(step=>({name:'mr-cache',values:['hit'],step,viewport,commands:[Next]}))),
     {name:'references',values:['one'],commands:[ClickSegment(0),ClickSegment(1),ClickSegment(0),ClickSegment(1)]},
     {name:'mr-cache',values:['hit'],step:'after',commands:[Next,Key('ArrowRight'),StartAgain]},
     {name:'mr-cache',values:['hit'],step:'request',commands:[TryCase,ClickSegment(1),Previous]},
-    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes'],['references','one','all']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseCase(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
+    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes'],['references','one','two'],['references','one','all']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseCase(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
   ];
   let placementPoisoned = false;
   for(const scenario of scenarios) {
@@ -2831,7 +2846,8 @@ test(
   'player, motion on: Next plays a run prepared before the tap, and a revisited step is a copy, not a re-run',
   options,
   async () => {
-    const name = 'oauth-pkce',
+    // mr-cache has both paths: its teaching steps and, under them, its source notes.
+    const name = 'mr-cache',
       p = projects.get(name)!,
       v = p.variants[0]!,
       lists = [v.trace.steps.filter(s => s.meta.detail !== true), v.trace.steps.filter(s => s.meta.detail === true)];
@@ -3360,7 +3376,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       'State','session:state','Event','session:event','Returns','session:returns'],
   };
   const page = await browser.newPage();
-  let cases=0,stepWidths=0,labelChecks=0;
+  let cases=0,stepWidths=0,authoredSteps=0,labelChecks=0;
   try {
     for(const id of ['token-bucket','state-machine'] as const){
       const project = projects.get(id) ?? await collectProject(`scenes/explainers/${id}`,{write:false});
@@ -3415,8 +3431,11 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         const rows=await reviewStoryVariant(page,`${embed}/${id}.html`,variant,claims);
         assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>variant.trace.steps.map(s=>[s.step,width])));
         for(const row of rows.filter(r=>r.step===sourceStep))assert.ok(roles[id].every(role=>row.targets.includes(role)));
-        stepWidths+=rows.length;
-        const frame=(await storyFrames(variant.Scene,claims)).get(sourceStep)!;
+        stepWidths+=rows.length;authoredSteps+=2*variant.trace.steps.length;
+        // A claim bound to settings (token-bucket's cap note, drawn only where the wait passes five)
+        // is an obligation of its own cases, as the production reviewer applies it.
+        const applicable=claims.filter(c=>Object.entries(c.settings??{}).every(([k,v])=>variant.values[k]===v));
+        const frame=(await storyFrames(variant.Scene,applicable)).get(sourceStep)!;
         const indices=new Set(frame.targets.filter(t=>roles[id].includes(t.name)).flatMap(t=>t.indices));
         const labels=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
         assert.equal(labels.length,id==='token-bucket'?9:12,'exact caption-label inventory');
@@ -3447,7 +3466,8 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       }
     }
   }finally{await page.close();}
-  assert.equal(cases,5);assert.equal(stepWidths,68);assert.equal(labelChecks,51);
+  // Every step of every case at both widths, whatever each scene's step count.
+  assert.equal(cases,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,51);
 });
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {
