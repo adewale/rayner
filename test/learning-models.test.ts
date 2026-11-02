@@ -10,7 +10,8 @@ import {fnv1a,locations,makeFilter,membership,bloomStory} from '../scenes/explai
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
 import {monty,threeDoorWorlds,montyExample} from '../scenes/explainers/lib/monty-hall.ts';
 import {birthdayChance,birthdaySample,matches} from '../scenes/explainers/lib/birthday-paradox.ts';
-import {phrase,musicStory} from '../scenes/explainers/lib/melody-rhythm.ts';
+import {phrase,musicStory,beatMs} from '../scenes/explainers/lib/melody-rhythm.ts';
+import MelodyRhythm from '../scenes/explainers/melody-rhythm/scene.ts';
 import {stepAudio} from '../explain/audio.ts';
 const utf16=fc.array(fc.integer({min:0,max:65535}),{maxLength:100}).map(units=>String.fromCharCode(...units));
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/learning-models.json',import.meta.url),'utf8'));
@@ -240,6 +241,9 @@ test('the music comparison preserves pitches and total beats while moving exactl
   assert.deepEqual(phrase('straight').map(n=>n.midi),expected);
   assert.deepEqual(phrase('syncopated').map(n=>n.at),[0,1,2,3.5,4.5,5,6,7]);
   assert.deepEqual(phrase('syncopated').map(n=>n.duration),[1,1,1.5,1,.5,1,1,1]);
+  // The third check question's transfer tempo, which no case shows: G starts half a beat, 375 ms, before the bar line at 80 BPM.
+  assert.equal((4-phrase('syncopated')[3]!.at)*beatMs(80),375);
+  assert.match(MelodyRhythm.meta.checks[2]!.question,/80 BPM/);assert.match(MelodyRhythm.meta.checks[2]!.answer,/^375 ms: a beat lasts 750 ms/);
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     assert.equal(m.movedStarts,timing==='straight'?0:2);assert.equal(m.movedDurations,m.movedStarts);
