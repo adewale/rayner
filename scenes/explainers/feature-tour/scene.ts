@@ -355,7 +355,7 @@ export default class FeatureTour extends Scene {
     await this.step('recipe', {
       title: QUESTIONS[feature],
       line: `Predict: open the next step from a link. What will its picture show?`,
-      caption: `${USES[feature]} These ${example.code.length} lines are the code an author writes in construct(); the next step runs them. A reader who opens it from a link, or on a phone, sees only the picture they leave at rest, not the motion that made it.`,
+      caption: `${USES[feature]} These ${example.code.length} lines are what an author writes; the next step runs them, placed and styled. A reader who opens that step from a link sees only the picture they leave at rest, not the motion that made it.`,
     });
     await s.code(example.code, { at: 'full', fontSize: 0.6 });
     this.state.feature = feature;

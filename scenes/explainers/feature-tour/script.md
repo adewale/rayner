@@ -2,9 +2,9 @@
 
 Questions the reader brings: I am deciding whether to write explainers in Rayner. How much code does a feature take, and what does my reader actually get from it?
 
-Each case is one thing an author wants to do, asked as a question: how do I show one shape turning into another? The first step shows the few lines an author writes in `construct()` for it, and asks the reader to predict what the next step's picture will show when opened from a link.
+Each case is one thing an author wants to do, asked as a question: how do I show one shape turning into another? The first step shows the few lines an author writes for it, and asks the reader to predict what the next step's picture will show when opened from a link.
 
-The second step runs those lines, and the picture is split: what the reader would have seen before the feature ran, and what it leaves after. That split is the answer, and it is the lesson that carries to every scene: each feature is a few lines of construct(), and a reader gets the picture those lines leave at rest, so the resting picture must show what changed. A reader who opens a step from a link, on a phone or with the motion turned off never sees the transform play; they see the square. Shown beside the circle it came from, the square still says what happened.
+The second step runs those lines, and the picture is split: what the reader would have seen before the feature ran, and what it leaves after. That split is the answer, and it is the lesson that carries to every scene: each feature is a few lines of construct(), and a reader gets the picture those lines leave at rest, so the resting picture must show what changed. A reader who opens a step from a link never sees the transform play; they see the square. Shown beside the circle it came from, the square still says what happened.
 
 The default case is the animation, where the motion is the whole point and a direct link would show only its end. The camera case cannot put a before panel beside a moved camera, so it draws a ruler across the whole stage first: after the zoom the ruler shows only its middle, and a label in the closer view says how many of the stage's 16 units it frames and that the circle has not moved.
 

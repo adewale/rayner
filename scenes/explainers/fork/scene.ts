@@ -209,7 +209,7 @@ export default class ForkExplainer extends Scene {
     await this.step('fork', {
       title: 'For each case the build draws every diagram once',
       line: 'Diagrams are captured at build time; the page runs no renderer.',
-      caption: `Lantern’s JSON document, flowchart parser, development player and Worker are gone. In their place, Agentic Mermaid draws each diagram in Chromium at build time, and the snapshot is stored beside the scene, so the page runs no diagram renderer and has no runtime dependency. The cost lands on the author: capturing a new diagram needs Chromium, though a page built from stored snapshots does not.`,
+      caption: `Lantern’s JSON document, flowchart parser, development player and Worker are gone; the embed page replaces the player, and capture replaces the parser: Agentic Mermaid draws each diagram in Chromium at build time, and the snapshot is stored beside the scene, so the page runs no diagram renderer and has no runtime dependency. The cost lands on the author: capturing a new diagram needs Chromium, though a page built from stored snapshots does not.`,
     });
     await s.clear();
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });

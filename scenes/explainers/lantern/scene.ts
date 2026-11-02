@@ -313,7 +313,7 @@ export default class LanternExplainer extends Scene {
     await this.step('begin', {
       title: 'An animation fixes its endpoints when it begins',
       line: `At t = ${SEEK_T} s the blend is halfway, however many frames ran before.`,
-      caption: `Rayner’s animations copy their starting mobject when they begin, and every frame blends that start with a fixed end at alpha = elapsed time / run time. At t = ${SEEK_T} s alpha is 0.5 whether ${run.seekAt - 1} frames were computed before it or none, so the frame comes out the same, and skipping the frames before it changes nothing. The nudge has no endpoints: its dot is wherever the frames so far have pushed it. The camera has moved in on Animation; no point in the diagram moved.`,
+      caption: `Rayner’s animations copy their starting mobject when they begin, and every frame blends that start with a fixed end by an amount set only by how far through its run time the animation is. At t = ${SEEK_T} s the move is half done whether ${run.seekAt - 1} frames were computed before it or none, so the frame comes out the same, and skipping the frames before it changes nothing. The nudge has no endpoints: its dot is wherever the frames so far have pushed it. The camera has moved in on Animation; no point in the diagram moved.`,
     });
     await s.clearOverlays();
     await classes.unmark();
