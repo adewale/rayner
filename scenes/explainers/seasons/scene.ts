@@ -118,7 +118,7 @@ function sideView(center: Vec, radius: number, side: 1 | -1) {
 export default class SeasonsExplainer extends Scene {
   static meta = {
     id: 'seasons',
-    title: 'Why do seasons change with latitude?',
+    title: 'Why does the north have summer when Earth is farthest from the Sun?',
     sources: [
       'https://spaceplace.nasa.gov/seasons/en/',
       'https://gml.noaa.gov/grad/solcalc/calcdetails.html',
@@ -128,16 +128,22 @@ export default class SeasonsExplainer extends Scene {
     answer: 'The tilt of Earth’s axis, not its distance from the Sun, makes the seasons',
     checks: [
       {
-        question: 'Cairo is at latitude 30° N. At the June solstice, how high does its noon Sun stand, and what share of overhead sunlight does a square metre of its ground get then?',
-        answer: '90° − |30° − 23.44°| = 83.4°, and sin 83.4° = 0.99: about 99% of what an overhead Sun gives, before the air takes its share.',
+        question:
+          'Suppose Earth’s axis were tilted 45° instead of 23.44°. At the June solstice, would London (51.5° N) get midnight sun, and how high would its noon Sun stand?',
+        answer:
+          'Yes. Every latitude circle above 90° − 45° = 45° would lie wholly on the day side, and London’s is at 51.5°. Its noon Sun would stand at 90° − |51.5° − 45°| = 83.5°, nearly overhead.',
       },
       {
-        question: 'Reykjavík is at 64.1° N. By this model, does it get midnight sun at the June solstice?',
-        answer: 'No. The sunrise equation gives 20.4 h of daylight: part of its latitude circle stays on the night side. A circle lies wholly on the day side only above 90° − 23.44° = 66.56°, as Tromsø’s does at 69.65°.',
+        question:
+          'If Earth’s orbit were a perfect circle, which of this explainer’s numbers for London would change: its June and December day lengths, its noon sunlight per square metre, or January’s extra sunlight?',
+        answer:
+          'Only January’s extra sunlight, which would drop to nothing. The day lengths and the noon shares come from London’s latitude and the Sun’s declination alone, and distance appears in neither formula.',
       },
       {
-        question: 'If Earth’s axis were not tilted, what would London get on 15 January and on 15 July, in hours of daylight and in noon sunlight per square metre?',
-        answer: 'The same on both days. With no tilt the Sun’s declination is 0 all year, so every latitude circle is cut in half: 12 h of daylight, and a noon Sun at 90° − 51.5° = 38.5°, giving sin 38.5° = 62% of overhead sunlight. Only distance would differ, about 7% more sunlight in January.',
+        question:
+          'With a tilt of 80°, how many hours of daylight would Quito, on the equator, get at the June solstice, and what share of overhead sunlight would reach its ground at noon?',
+        answer:
+          'Still 12 hours: tan 0° = 0, so the equator’s circle is always cut in half. But the noon Sun would stand only 90° − 80° = 10° up, and sin 10° = 0.17, about 17% of overhead sunlight.',
       },
     ],
   };
@@ -170,9 +176,9 @@ export default class SeasonsExplainer extends Scene {
     // The common guess, as a prediction: if nearness made summer, the north would be nearest in July.
     await this.step('nearest', {
       title: 'Earth’s distance from the Sun changes through the year',
-      line: 'Predict: if being nearer made summer, in which month would Earth be nearest?',
+      line: 'Predict: in which month is Earth nearest the Sun?',
       caption:
-        'Earth’s orbit is slightly oval, so it passes nearest the Sun once a year and farthest half a year later. A common guess is that summer comes when Earth is nearest. If so, the northern summer, around July, would be the nearest time. The oval is drawn far more stretched than it is.',
+        'Earth’s orbit is slightly oval, so it passes nearest the Sun once a year and farthest half a year later. A common guess is that the seasons follow this distance, with summer when Earth is nearest. The oval is drawn far more stretched than it is.',
     });
     const guess = (() => {
       const oc: Vec = [0, -0.55],
@@ -208,7 +214,7 @@ export default class SeasonsExplainer extends Scene {
       title: 'Nearest the Sun in early January, while the north tilts away',
       line: `Predict: in June, does ${place.name} get more or less than 12 hours of daylight?`,
       caption:
-        'Earth is nearest the Sun in early January, close to its December place here, when the north has winter and the south summer. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the axis is tilted 23.44° from upright to the orbit and points the same way all year, so the north end leans toward the Sun in June and away from it in December. The latitude where the noon Sun is overhead, called the Sun’s declination, swings from 23.44° north in June to 23.44° south in December. Sizes and distances are not to scale.',
+        'Earth is nearest the Sun in early January, close to its December place here, when the north has winter and the south summer. The tilt of Earth’s axis, not its distance from the Sun, makes the seasons: the axis leans 23.44° from upright and keeps pointing the same way, so the north end leans toward the Sun in June and away from it in December. Sizes and distances are not to scale.',
     });
     await s.clear();
     // The orbit's Sun and Earths: the Sun is carried on into the next step, and June's Earth grows into its side view.
@@ -447,7 +453,7 @@ export default class SeasonsExplainer extends Scene {
             ? 'In June the north end leans toward the Sun far enough that Tromsø’s whole latitude circle sits on the day side. As Earth turns, Tromsø never enters the night half, so the Sun stays up for all 24 hours.'
             : place.lat === 0
               ? 'In June the north end leans toward the Sun, but the day–night line still cuts the equator exactly in half. Quito’s circle is half day and half night, so it gets 12 hours of daylight.'
-              : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ' Day lengths here come from the sunrise equation, the hours the Sun’s centre is above a flat horizon; the latitude step says how close that is to an almanac.',
+              : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ' At June noon the Sun is overhead at 23.44° N, a latitude called the Sun’s declination; in December it is overhead at 23.44° S.',
     });
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
     await this.play(
@@ -476,7 +482,7 @@ export default class SeasonsExplainer extends Scene {
     await this.step('noon', {
       title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${percent(juneShare)} of overhead sunlight per m²`,
       line: `The angle is 90° − |${exactly(place.lat)} − ${exactly(TILT)}| = ${exactly(june.altitude)}, and sin ${degrees(june.altitude)} = ${juneShare.toFixed(2)}.`,
-      caption: `Zoomed in on the red dot. The white line is ${place.name}’s horizon, and noon sunlight arrives parallel to the Sun’s direction. The angle between them is 90° minus the gap between the latitude, ${exactly(place.lat)}, and the latitude where the June Sun is overhead, ${exactly(TILT)}. That angle matters because a lower Sun spreads the same beam over more ground. The yellow band is a beam that would light one square metre from straight overhead; at ${degrees(june.altitude)} it spreads over 1 ÷ sin ${exactly(june.altitude)} = ${(1 / juneShare).toFixed(2)} square metres, so each square metre gets ${percent(juneShare)} of an overhead Sun’s light, before the air takes its share.`,
+      caption: `Zoomed in on the red dot: the white line is ${place.name}’s horizon, and noon sunlight arrives along the Sun’s direction. The angle between them is 90° minus the gap between ${place.name}’s latitude, ${exactly(place.lat)}, and the June declination, ${exactly(TILT)}. A lower Sun spreads the same beam over more ground: the yellow band would light one square metre from overhead, and at ${degrees(june.altitude)} it covers 1 ÷ sin ${exactly(june.altitude)} = ${(1 / juneShare).toFixed(2)} m², so each square metre gets ${percent(juneShare)} of an overhead Sun’s light, before the air takes its share.`,
     });
     const notes = new Group();
     notes.key = 'noon-notes';
@@ -606,7 +612,7 @@ export default class SeasonsExplainer extends Scene {
       title: `Tromsø swings from ${hours(tromsoJune)} to ${hours(tromsoDec)}; Quito stays at ${hours(quitoJune)}`,
       line: 'Latitude sets how much of each circle is lit.',
       caption:
-        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The model’s day length in hours is acos(−tan latitude × tan declination) in degrees, divided by 7.5: the time the Sun’s centre is above a flat horizon. The air bends sunlight, so a real day, as an almanac gives it, is about a quarter of an hour longer at London, and polar night is a little shorter.',
+        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The model’s day length in hours is the sunrise equation, acos(−tan latitude × tan declination) in degrees, divided by 7.5: the time the Sun’s centre is above a flat horizon. An almanac times the Sun’s top edge and adds the air’s bending of sunlight, so its June day at London is about a quarter of an hour longer, and polar night is a little shorter.',
     });
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const others = ORDER.filter((k) => k !== key);
@@ -694,7 +700,7 @@ export default class SeasonsExplainer extends Scene {
                 ? `${place.name}’s curve is upside down from a northern one: its shortest day, ${hours(shortest)}, falls at the June solstice and its longest, ${hours(longest)}, in December.`
                 : `${place.name}’s day grows from ${hours(shortest)} at the December solstice to ${hours(longest)} at the June solstice.`) +
               ` The dimension on the right measures the gap, ${hours(tenths(longest) - tenths(shortest))}.`) +
-        ' Every place gets 12 hours at the two equinoxes.',
+        ' In the model every place off the poles gets 12 hours at the two equinoxes; an almanac’s equinox day is a little longer, for the reasons the latitude step gave.',
     });
     await s.clear();
     this.state.daylight = year;
@@ -816,7 +822,7 @@ export default class SeasonsExplainer extends Scene {
       farther = Math.round((farthest / nearest - 1) * 1000) / 10,
       stronger = Math.round(((farthest / nearest) ** 2 - 1) * 100);
     const shares = [juneShare, decShare].sort((a, b) => a - b);
-    const distanceSaid = `By the orbit formula Earth is ${nearest.toFixed(3)} of its average distance from the Sun in early January and ${farthest.toFixed(3)} in early July, ${farther}% farther, so the sunlight reaching Earth is about ${stronger}% stronger in January.`;
+    const distanceSaid = `By the orbit formula Earth is ${nearest.toFixed(3)} of its average distance from the Sun in early January and ${farthest.toFixed(3)} in early July, so January’s sunlight is about ${stronger}% stronger.`;
     await this.step('distance', {
       title:
         place.lat !== 0
@@ -824,12 +830,12 @@ export default class SeasonsExplainer extends Scene {
           : `Nearest or farthest from the Sun, Quito gets ${hours(year[0]!)}`,
       line:
         place.lat !== 0
-          ? 'The second curve is the same model at the opposite latitude; both dots are 15 January.'
+          ? 'Purple: the same model at the opposite latitude. Grey: the other three places. Both dots are 15 January.'
           : `Earth is ${farther}% farther from the Sun in July; ${place.name} still gets ${hours(year[6]!)}.`,
       caption:
         place.lat !== 0
-          ? `Back to the opening question, with numbers. ${distanceSaid} That is small beside the tilt’s change at ${place.name}, from ${percent(shares[0]!)} to ${percent(shares[1]!)} of overhead sunlight at noon, and it reaches both hemispheres at once: on 15 January, near the nearest point, ${place.name} gets ${hours(year[0]!)} of daylight and latitude ${degrees(-place.lat)}, the second curve, gets ${hours(mirror[0]!)}. Both are the same distance from the Sun that day, so their opposite seasons must come from the tilt.`
-          : `Back to the opening question, with numbers. ${distanceSaid} It reaches both hemispheres at once, yet January is winter in London, with ${hours(daylightYear(PLACES.london!.lat)[0]!)} of daylight on the 15th, and summer in Sydney, with ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}. On the equator the tilt barely changes the Sun: the chart shows Quito with ${hours(year[0]!)} of daylight in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${percent(juneShare)} of overhead.`,
+          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${percent(shares[0]!)} and ${percent(shares[1]!)} of overhead. On 15 January, near the nearest point, ${place.name} gets ${hours(year[0]!)} of daylight and latitude ${degrees(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}. The grey curves, the same formula at the other places, give ${others.map((k) => `${PLACES[k]!.name} ${hours(daylightYear(PLACES[k]!.lat)[0]!)}`).join(', ').replace(/, ([^,]*)$/, ' and $1')} that day. Every place is the same distance from the Sun on a given day, so the opposite seasons come from the tilt.`
+          : `Back to the opening question. ${distanceSaid} That reaches both hemispheres at once, yet on 15 January London, a grey curve, gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} of daylight in its winter and Sydney gets ${hours(daylightYear(PLACES.sydney!.lat)[0]!)} in its summer. Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${percent(juneShare)} of overhead.`,
     });
     await this.play(...[...said, marks, guides].map((m) => new FadeOut(m, { runTime: 0.3 })));
     // 15 January is the first month's sample day, x = 0.5.
@@ -871,6 +877,24 @@ export default class SeasonsExplainer extends Scene {
       s.keep(own, { describe: `${place.name}’s curve named at its end` });
       await this.play(new FadeIn(own));
     }
+    // The same formula at the other places, in grey under the January tags: on one day, at one
+    // distance from the Sun, each latitude gets its own daylight.
+    const greys = others.map((k) =>
+      axes.plot(daylightAt(PLACES[k]!.lat), { samples: 145, color: soft, strokeWidth: 0.03 }).setStyle({
+        strokeOpacity: 0.75,
+      }),
+    );
+    const greyNames = new Group(
+      ...others.map((k) => {
+        const p = end(PLACES[k]!.lat);
+        return label(PLACES[k]!.name, [p[0] + 0.15, p[1]], { size: 0.2, color: soft, edge: [-1, 0] });
+      }),
+    );
+    greyNames.key = 'other-places';
+    s.keep(greys[0]!, ...greys.slice(1), greyNames, {
+      describe: `The same model’s curves for ${others.map((k) => PLACES[k]!.name).join(', ')} in grey, each named at its end`,
+    });
+    await this.play(...greys.map((o) => new Create(o)), new FadeIn(greyNames), { runTime: 1.2 });
     // Exaggerated eccentric orbit: Sun off-centre, Earth nearest at the left end, as in the opening.
     const sketch = new Group();
     sketch.key = 'distance-orbit';
@@ -950,43 +974,5 @@ export default class SeasonsExplainer extends Scene {
           ? `Beside the 15 January dots: ${place.name} ${hours(year[0]!)}, latitude ${degrees(-place.lat)} ${hours(mirror[0]!)}`
           : `${place.name} on 15 January, ${hours(year[0]!)}, and on 15 July, ${hours(year[6]!)}`,
     });
-
-    // ------------------------------------------------------------- compare
-    await this.step('compare', {
-      title: 'The same formula draws all four daylight curves',
-      line: 'London and Sydney peak six months apart; Quito stays at 12 h.',
-      caption:
-        'The chart runs the same model at four latitudes, so latitude alone sets how far each curve swings. Tromsø’s sits flat at 24 h and at 0 h for weeks. London and Sydney peak six months apart, because each hemisphere leans sunward in the opposite half of the year. Quito, on the equator, stays at 12 hours.',
-    });
-    await this.play(
-      ...[marker, ...second.children, sketch, ...janSaid].map((m) => new FadeOut(m, { runTime: 0.4 })),
-      new FadeIn(guides, { runTime: 0.4 }),
-    );
-    const rest = ORDER.filter((k) => k !== key).map((k) =>
-      axes.plot(daylightAt(PLACES[k]!.lat), { samples: 145, color: soft, strokeWidth: 0.03 }).setStyle({
-        strokeOpacity: 0.75,
-      }),
-    );
-    const ends = new Group(
-      ...ORDER.map((k) => {
-        const p = end(PLACES[k]!.lat);
-        return label(PLACES[k]!.name, [p[0] + 0.15, p[1]], {
-          size: 0.22,
-          color: k === key ? PLACE : soft,
-          edge: [-1, 0],
-        });
-      }),
-    );
-    s.keep(rest[0]!, ...rest.slice(1), ends, {
-      describe: `The same model’s curves for ${ORDER.filter((k) => k !== key)
-        .map((k) => PLACES[k]!.name)
-        .join(', ')} in grey, each named at its end, with ${place.name}’s in red`,
-    });
-    await this.play(
-      ...rest.map((o) => new Create(o)),
-      drawnCurve.animate.setStyle({ stroke: PLACE, strokeWidth: 0.065 }),
-      new FadeIn(ends),
-      { runTime: 1.5 },
-    );
   }
 }

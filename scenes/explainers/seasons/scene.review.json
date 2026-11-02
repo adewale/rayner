@@ -13,7 +13,7 @@
     {
       "step": "december",
       "targets": [
-        { "key": "june-latitude", "paint": "stroke" },
+        { "key": "june-daylight-latitude", "paint": "stroke" },
         { "key": "december-latitude", "paint": "stroke" },
         { "key": "june-north" },
         { "key": "december-north" },
