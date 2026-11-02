@@ -2,7 +2,7 @@
   "version": 1,
   "renderer": "agentic-mermaid@0.5.1",
   "spec": {
-    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.3\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\nquadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n  quadrant-1 Send and Sync\n  quadrant-2 Sync only\n  quadrant-3 Neither\n  quadrant-4 Send only\n  x is Mutex<Cell<i32>>: [0.52, 0.125]\n",
+    "source": "---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.4\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\nquadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n  quadrant-1 Send and Sync\n  quadrant-2 Sync only\n  quadrant-3 Neither\n  quadrant-4 Send only\n  i32: [0.52, 0.625]\n",
     "style": "hand-drawn"
   },
   "family": "quadrant",
@@ -1396,7 +1396,7 @@
       }
     },
     {
-      "id": "point:x is Mutex<Cell<i32>>",
+      "id": "point:i32",
       "role": "point",
       "kind": "shape",
       "shapes": [
@@ -1404,31 +1404,31 @@
           "subpaths": [
             [
               3.928800106048584,
-              -5.218800067901611,
+              -2.373800039291382,
               3.928800106048584,
-              -5.251937389373779,
+              -2.4069371223449707,
               3.955662727355957,
-              -5.278800010681152,
+              -2.433799982070923,
               3.988800048828125,
-              -5.278800010681152,
+              -2.433799982070923,
               4.021936893463135,
-              -5.278800010681152,
+              -2.433799982070923,
               4.048799991607666,
-              -5.251937389373779,
+              -2.4069371223449707,
               4.048799991607666,
-              -5.218800067901611,
+              -2.373800039291382,
               4.048799991607666,
-              -5.185662746429443,
+              -2.340662956237793,
               4.021936893463135,
-              -5.15880012512207,
+              -2.313800096511841,
               3.988800048828125,
-              -5.15880012512207,
+              -2.313800096511841,
               3.955662727355957,
-              -5.15880012512207,
+              -2.313800096511841,
               3.928800106048584,
-              -5.185662746429443,
+              -2.340662956237793,
               3.928800106048584,
-              -5.218800067901611
+              -2.373800039291382
             ]
           ],
           "closed": [
@@ -1451,7 +1451,7 @@
       ]
     },
     {
-      "id": "point:x is Mutex<Cell<i32>>:label",
+      "id": "point:i32:label",
       "role": "label",
       "kind": "text",
       "shapes": [
@@ -1471,13 +1471,13 @@
             "miterLimit": 4,
             "paintOrder": "stroke"
           },
-          "text": "x is Mutex<Cell<i32>>",
-          "fontSize": 0.203,
+          "text": "i32",
+          "fontSize": 0.204,
           "textRun": {
-            "text": "x is Mutex<Cell<i32>>",
+            "text": "i32",
             "x": 408.88,
-            "y": 528.985,
-            "size": 20.3,
+            "y": 244.51999999999998,
+            "size": 20.4,
             "anchor": "start",
             "baseline": "middle",
             "matrix": [
@@ -1488,7 +1488,7 @@
               0,
               0
             ],
-            "width": 203.2233
+            "width": 30.9672
           }
         }
       ]
@@ -1664,33 +1664,26 @@
   ],
   "findings": {
     "ok": true,
-    "warnings": [
-      {
-        "code": "UNSUPPORTED_SYNTAX",
-        "syntax": "quadrant_unquoted_text",
-        "line": 19,
-        "message": "Quadrant point label \"x is Mutex<Cell<i32>>\" has \"<\" outside a quoted string, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes."
-      }
-    ],
+    "warnings": [],
     "layout": {
       "version": 1,
       "kind": "quadrant",
       "nodes": [
         {
-          "id": "point#0:x is Mutex<Cell<i32>>",
+          "id": "point#0:i32",
           "x": 393,
-          "y": 516,
+          "y": 231,
           "w": 12,
           "h": 12,
           "shape": "circle",
-          "label": "x is Mutex<Cell<i32>>",
+          "label": "i32",
           "role": "labelled-mark",
           "labelVisibility": "visible",
           "labelBounds": {
             "x": 408.88,
-            "y": 508.69,
-            "w": 203.22000000000003,
-            "h": 26.390000000000043
+            "y": 224.12,
+            "w": 30.970000000000027,
+            "h": 26.519999999999982
           },
           "labelContainer": {
             "x": 0,
@@ -1700,7 +1693,7 @@
           },
           "dataPosition": {
             "x": 0.52,
-            "y": 0.125
+            "y": 0.625
           }
         }
       ],
@@ -1721,7 +1714,9 @@
           "y": 24,
           "w": 285,
           "h": 285,
-          "members": [],
+          "members": [
+            "point#0:i32"
+          ],
           "label": "Send and Sync"
         },
         {
@@ -1739,9 +1734,7 @@
           "y": 309,
           "w": 285,
           "h": 285,
-          "members": [
-            "point#0:x is Mutex<Cell<i32>>"
-          ],
+          "members": [],
           "label": "Send only"
         }
       ],
