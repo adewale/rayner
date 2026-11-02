@@ -1,0 +1,36 @@
+# Script: does isdigit guarantee int can parse it?
+
+Question the reader brings: I check `s.isdigit()` before `int(s)`. Is that safe?
+
+A common guard checks the text and calls `int()` only if the check passes. Take the text `'²'`. `'²'.isdigit()` is True, so the guard lets it through. It is a numeral, two. Will `int('²')` return 2?
+
+It raises ValueError. Before parsing, `int()` rewrites each non-ASCII character: a space as a space, a character with a decimal digit value as that ASCII digit, anything else as `'?'`, which no number contains. ² has no decimal digit value, so it becomes `'?'`. The guard passed a character `int()` cannot parse.
+
+² is not alone. Eight numerals, each with a numeric value in Unicode: four ways to write 3 on top, then ², ½, Ⅻ and 三. `int()` accepts only the top four, yet `isdigit()` is True for ² too and `isnumeric()` for all eight. So the answer is no: isdigit() is True for ², and int('²') raises ValueError.
+
+Why do they disagree? Each character's line in UnicodeData.txt has three numeric fields: 6, the decimal digit value; 7, the digit value; 8, the numeric value. ² fills 7 and 8 but not 6. `int()` reads field 6. CPython's table builder sets one flag per filled field, under names that do not match the fields (it calls them decomposition_mapping, numeric_type and numeric_value), and each predicate tests one flag: isdecimal field 6, isdigit field 7, isnumeric field 8.
+
+Every decimal also has a digit value and every digit a numeric value, so the sets nest: 770 decimals inside 898 digits inside 2,023 numerics. `int()` accepts exactly the innermost box.
+
+**The aha:** the guard's own box drawn heavy, with ² inside it but outside the innermost box, the only characters `int()` accepts.
+
+**Sentence to remember:** for one character only isdecimal() matches int(); for a whole string, call int() and catch ValueError, because int() also takes signs, spaces and underscores.
+
+**Check questions**, in `meta.checks`, asked after the last step:
+
+1. Which field of a UnicodeData.txt line must a character fill for int() to parse it?
+2. Which record attribute sets DECIMAL_MASK in makeunicodedata.py, and what does it hold?
+3. Does `'½'.isdigit()` return True?
+
+**The reader's lever:** two settings, the character and the check. ٣ parses under every check; ½, Ⅻ and 三 are turned away by isdigit() but let through to a ValueError by isnumeric(); isdecimal() never lets a character through that int() rejects.
+
+| Step | Script | Reader predicts |
+| --- | --- | --- |
+| guard | paragraph 1: the guard runs on ² | does int('²') return 2? |
+| int | paragraph 2: int() rewrites ² as '?' and raises | |
+| lineup | paragraph 3: eight numerals, the answer | which part of the database each check reads |
+| ucd | paragraph 4: ²'s line, fields 6, 7 and 8 | |
+| flags | paragraph 4: one flag per field, misnamed | |
+| sets | paragraph 5: the nested sets, counted over every code point | |
+| outcome | the aha: ² inside the isdigit() box, outside the innermost | |
+| match | sentence to remember | |

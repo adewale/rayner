@@ -1592,7 +1592,7 @@ test(
     }
   },
 );
-// The author's camera (lantern's 'points' step focuses the camera on Mobject) and the reader's
+// The author's camera (lantern's 'begin' step focuses the camera on Mobject and Animation) and the reader's
 // zoom compose: Whole picture is the author's frame, a zoom narrows it, and the camera's glide home in the
 // next step plays under a held zoom.
 test(
@@ -1604,7 +1604,7 @@ test(
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
-      await visitReader(page, embed + '/lantern.html?step=points');
+      await visitReader(page, embed + '/lantern.html?step=begin');
       await quiet(page);
       const rect = (v: string) => v.split(' ').map(Number);
       const home = '-8000 -4500 16000 9000';
@@ -1622,7 +1622,7 @@ test(
       const [cx, cy, cw, ch] = rect(zoomed.camera) as [number, number, number, number],
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
-      // Next plays 'clock', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
+      // Next plays 'inspect', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
       const seen: Painted[] = [];
       await page.locator('.stepper').getByRole('button', { name: 'Next step' }).click();
       const end = Date.now() + 3000;
@@ -1646,11 +1646,11 @@ test(
       try {
         const small = await phone.newPage();
         small.on('pageerror', (e) => errors.push(e.message));
-        await visitReader(small, embed + '/lantern.html?step=points');
+        await visitReader(small, embed + '/lantern.html?step=begin');
         await quiet(small);
         const p = await paintedView(small);
         assert.equal(p.camera, author.camera, 'the phone shows the same author frame');
-        const layout = (await stepLayouts(projects.get('lantern')!.variants[0]!.Scene)).get('points');
+        const layout = (await stepLayouts(projects.get('lantern')!.variants[0]!.Scene)).get('begin');
         const want = closeUps(layout, p.w, p.h)[0]!,
           got = zoomOf(p);
         if (want.k === 1) assert.equal(got, null);

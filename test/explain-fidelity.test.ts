@@ -152,7 +152,9 @@ for (const entry of EXPLAINERS)
         case 'agentic-mermaid': {
           const warnings = trace.steps.find((s) => s.step === 'verify')!.after!.warnings as unknown[];
           assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
-          assertStepState(trace, 'evidence', { finalWarnings: 0 });
+          // The swapped labels draw the wrong diagram and the verifier still finds nothing.
+          assertStepState(trace, 'meaning', { swappedWarnings: 0 });
+          assertStepState(trace, 'history', { finalWarnings: 0 });
           break;
         }
         case '2password': {
