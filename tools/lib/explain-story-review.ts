@@ -283,7 +283,7 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'pen-and-pencil': ['reader-separate', 'reader-labels'],
   exgit: ['reader-objects', 'reader-change'],
   'mr-cache': ['reader-request', 'reader-outcome'],
-  '2password': ['reader-boundary', 'reader-auth'],
+  '2password': ['ask', 'reader-boundary'],
   'agentic-mermaid': ['reader-branches', 'reader-repair'],
   lantern: ['reader-object', 'reader-outputs'],
   isdigit: ['reader-predict', 'reader-result'],
@@ -358,8 +358,8 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   exgit: { 'reader-objects': ['commit', 'tree', 'blob'], 'reader-change': ['parent'] },
   'mr-cache': { 'reader-request': ['Request', 'Database', 'Response'] },
   '2password': {
-    'reader-boundary': ['Agent', 'op CLI', 'Application'],
-    'reader-auth': ['Agent', 'op CLI', 'Application', 'Service token', 'Resolved key'],
+    ask: ['Agent', 'Application', 'needs API_KEY', 'must not read'],
+    'reader-boundary': ['Agent', 'op CLI', 'Application', 'op:// reference', 'secret value'],
   },
   'agentic-mermaid': {
     'reader-branches': ['Cached?', 'Reply', 'Database'],

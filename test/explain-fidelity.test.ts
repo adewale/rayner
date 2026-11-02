@@ -162,7 +162,7 @@ for (const entry of EXPLAINERS)
             ['app'],
           );
           assertStepState(trace, 'match', { matches: { 'cloud api': ['Cloud API'], databse: [] } });
-          assertStepState(trace, 'suggest', { found: find(['cloud api', 'databse']) });
+          assertStepState(trace, 'match', { found: find(['cloud api', 'databse']) });
           assertStepState(trace, 'run', { argv: launched.argv, childEnv: launched.childEnv });
           break;
         }
