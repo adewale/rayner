@@ -308,15 +308,32 @@ for (const entry of EXPLAINERS)
           // Independent original-font measurements, recorded with source SHA in
           // docs/evidence/authoring-layout/font-vectors.json. No Text measurement
           // is used as the expected diagram width.
+          // Two diagrams of the same source: measured in the drawn face (natural), and
+          // laid out from Agentic Mermaid's default Inter estimates (recorded).
           const diagrams = Object.values(project.store);
-          assert.equal(diagrams.length, 1);
-          assert.equal(diagrams[0]!.spec.lettering, 'natural');
-          const runs = diagrams[0]!.parts.flatMap(p => p.shapes.flatMap(s => s.textRun ? [s.textRun] : []));
+          assert.equal(diagrams.length, 2);
+          const runsOf = (d: (typeof diagrams)[number]) => d.parts.flatMap(p => p.shapes.flatMap(s => s.textRun ? [s.textRun] : []));
+          const natural = diagrams.find(d => d.spec.lettering === 'natural')!,
+            recorded = diagrams.find(d => d.spec.lettering === undefined)!;
+          assert.ok(natural && recorded);
+          assert.equal(natural.spec.source, recorded.spec.source);
+          const runs = runsOf(natural);
           assert.deepEqual(runs.map(r => r.text).sort(), ['Ink', 'Paper']);
           const diagramEm: Record<string, number> = {Ink: 1.337, Paper: 2.144};
           for (const run of runs) {
             assert.equal(run.natural, true);
             assert.ok(Math.abs(run.width! - diagramEm[run.text]! * run.size) < 0.001, `${run.text}: layout reserves the actual source-font advance`);
+          }
+          // The step's notes say each word's stretch: none when measured, more than none from Inter estimates,
+          // each the recorded width over the source-font advance at the run's size.
+          const stretch = trace.steps.find(s => s.step === 'diagram')!.after!.stretch as Record<string, number>;
+          const diagramShown = pictureHtml(trace.steps.find(s => s.step === 'diagram')!.after);
+          for (const run of values.widths === 'natural' ? runs : runsOf(recorded)) {
+            const k = run.width! / (diagramEm[run.text]! * run.size);
+            assert.ok(Math.abs(stretch[run.text]! - k) < 0.002, `${run.text}: stretch ${stretch[run.text]}, from the source font ${k}`);
+            if (values.widths === 'natural') assert.equal(k.toFixed(3), '1.000');
+            else assert.ok(k > 1.1, `${run.text}: Inter estimates stretch the Garamond word (${k})`);
+            assert.ok(diagramShown.includes(`stretched ×${stretch[run.text]!.toFixed(3)}`), diagramShown);
           }
           break;
         }
