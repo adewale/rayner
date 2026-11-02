@@ -7,6 +7,8 @@ import { SIMPLEX } from '../scenes/explainers/lib/hershey-simplex.ts';
 import {
   WORLD,
   HAND,
+  FREEHAND,
+  freehand,
   rng,
   timelineFacts,
   hand,
@@ -154,4 +156,34 @@ test('the world is a timeline of four periods, one event each, with no positions
     { period: 'Dawn', events: ['Lamp put out'] },
   ]);
   assert.doesNotMatch(WORLD, /\d/);
+});
+
+test('a free hand without error reaches every corner it means to; with error, each corner carries the ones before', () => {
+  fc.assert(
+    fc.property(point, fc.array(point, { minLength: 1, maxLength: 12 }), fc.integer(), (start, moves, seed) => {
+      const exact = freehand(start, moves, { angle: 0, length: 0 }, rng(seed));
+      let [x, y] = start;
+      moves.forEach(([dx, dy], i) => {
+        x += dx;
+        y += dy;
+        assert.ok(Math.abs(exact[i + 1]![0] - x) < 1e-9 && Math.abs(exact[i + 1]![1] - y) < 1e-9);
+      });
+      // With error, each move is the intended one turned by at most FREEHAND.angle and
+      // stretched by at most FREEHAND.length, measured from where the last move ended.
+      const drawn = freehand(start, moves, FREEHAND, rng(seed));
+      assert.deepEqual(drawn[0], start);
+      moves.forEach(([dx, dy], i) => {
+        const [ax, ay] = drawn[i]!,
+          [bx, by] = drawn[i + 1]!;
+        const want = Math.hypot(dx, dy),
+          got = Math.hypot(bx - ax, by - ay);
+        assert.ok(Math.abs(got - want) <= FREEHAND.length * want + 1e-9);
+        if (want > 1e-6) {
+          const turn = Math.atan2(dx * (by - ay) - dy * (bx - ax), dx * (bx - ax) + dy * (by - ay));
+          assert.ok(Math.abs(turn) <= (FREEHAND.angle * Math.PI) / 180 + 1e-9);
+        }
+      });
+    }),
+    params(),
+  );
 });

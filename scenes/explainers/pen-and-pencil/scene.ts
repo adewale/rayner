@@ -1,5 +1,5 @@
 import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/pen-and-pencil.ts';
+import { frames as readerFrames, SEEDS, GREY, px } from '../lib/readers/pen-and-pencil.ts';
 import { Scene, VMobject, Group, Line, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -41,7 +41,6 @@ const TINTS: Record<string, string> = {
   plank: '#c08f45',
   tag: '#7aa6c2',
 };
-const SEEDS: Record<string, number> = { first: 1967, second: 7 };
 /** Pencils are re-sharpened after this many strokes. */
 const SHARPEN = 60;
 /** Owned paper keeps this margin clear around it. */
@@ -138,23 +137,23 @@ export default class PenAndPencil extends Scene {
       'https://pele.run',
       'https://paulbourke.net/dataformats/hershey/',
     ],
-    // The script's answer and check questions (script.md); check holds a step (reader-separate) to stating the answer.
+    // The script's answer and check questions (script.md); reader-separate states the answer.
     answer: 'Lay the chart out first and let the hand only trace it, so a new drawing changes the strokes but never the boxes',
     checks: [
       {
-        question: 'On its own page, how does pele size a chart’s boxes, and what does this explainer do instead?',
+        question: 'The free hand drew its boxes left to right. Drawn right to left instead, which box would carry the most piled-up error, and why?',
         answer:
-          'pele measures each label with Hershey letter widths, so the boxes fit the hand lettering. Here Agentic Mermaid lays the chart out with Inter’s widths, and the Hershey letters are fitted into its boxes at the end.',
+          'Dusk’s, the leftmost, now drawn last. Each side starts where the last one ended, so every error is carried into every later corner, and the last box drawn starts from the end of every move before it.',
       },
       {
-        question: 'The pen is shaken by tremor of up to 0.006 units. Why does its ink stay within a few thousandths of the line it follows?',
+        question: 'Make the spring hand’s tremor ten times larger. Would a second drawing move any box?',
         answer:
-          'The pen is a mass on a damped spring, 8 Hz with damping 0.6, chasing a point that moves along the line; the spring smooths the tremor away, so the close-up ink lies on the blue ring.',
+          'No. Every stroke would wobble further from its mark, but the marks come from the layout, which both drawings share, so every box, marker and word stays where it was.',
       },
       {
-        question: 'How does the scenery avoid the chart and the title?',
+        question: 'A third drawing uses another seed. What will differ from the first two, and what cannot?',
         answer:
-          'They own their paper, with a 0.12 margin, and the scenery is cut away there: none of its points lands on owned paper.',
+          'Every stroke’s wobble, the sea’s pencil strokes and the gulls’ places differ; every plank, tag and word sits in the same laid-out boxes, and the hills, rock and lighthouse keep their places.',
       },
     ],
   };
@@ -162,7 +161,7 @@ export default class PenAndPencil extends Scene {
     {
       id: 'hand',
       label: 'Draw the plate',
-      default: 'first',
+      default: 'second',
       options: [
         { value: 'first', label: 'First drawing' },
         { value: 'second', label: 'Second drawing' },
@@ -171,17 +170,17 @@ export default class PenAndPencil extends Scene {
   ];
   override async construct() {
     const which = settingsOf(this).hand as string,
-      seed = SEEDS[which]!,
+      seed = SEEDS[which as keyof typeof SEEDS],
       s = stage(this, { style: STYLE, headingSize: 0.6 });
     const facts = timelineFacts(WORLD);
     const drop = (...mobs: Mobject[]) => this.play(...mobs.map((m) => new FadeOut(m, { runTime: 0.3 })));
 
     // 1. The puzzle: a hand that wobbles, and labels that must not move.
     await this.step('text', {
-      title: 'Can a wobbling hand draw this timeline without moving its labels?',
-      line: 'Four named periods, an event in each, and no positions yet.',
+      title: 'Can a wobbling hand draw this timeline twice without moving its labels?',
+      line: 'Predict: draw it again with another seed. What moves?',
       caption:
-        'pele-art-diagrams is a web page that draws four charts as ink-and-pencil plates, every stroke a little unsteady, as a hand’s would be. This explainer models its method, not its code, on a timeline of its own: four periods with an event in each, and no positions. A simulated hand makes every stroke slightly different. If the hand also decided where the boxes and words went, a second drawing could move them. Draw it again with another seed: what will move?',
+        'pele-art-diagrams is a web page that draws four charts as ink-and-pencil plates, every stroke a little unsteady, as a hand’s would be. This explainer models its method, not its code, on a timeline of its own: four periods with an event in each, and no positions. A simulated hand makes every stroke slightly different, and a seed decides how. Draw the timeline twice, with two seeds: what will move?',
     });
     await s.clear();
     const source = await s.code(WORLD.split('\n'), {
@@ -202,10 +201,10 @@ export default class PenAndPencil extends Scene {
 
     // 3. The layout comes first.
     await this.step('layout', {
-      title: 'Agentic Mermaid fixes every box, marker and label before any ink',
-      line: 'The engine places every box; the drawing never moves one.',
+      title: 'For the real timeline, Agentic Mermaid fixes every box first',
+      line: 'Every box, marker and label has its place before any ink.',
       caption:
-        'On its page, pele lays each chart out itself and sizes the boxes with Hershey letter widths. Hershey letters are a public-domain alphabet that A. V. Hershey drew for plotters at the U.S. Naval Weapons Laboratory in 1967, each letter a few single pen strokes rather than a filled outline. Here Agentic Mermaid does the layout, with Inter’s widths, and the Hershey letters are fitted into its boxes at the end. The dimension gives one event box’s width.',
+        'The real timeline gets its route the same way: Agentic Mermaid lays it out, with Inter’s letter widths, and every box, marker and label has its place before the hand draws anything. The dimension gives one event box’s width. On its own page pele lays each chart out itself and sizes the boxes for its hand lettering, but the order is the same: layout first, ink after.',
     });
     await s.clear();
     // The timeline's text stays in view in a corner while the layout it became arrives.
@@ -339,9 +338,9 @@ export default class PenAndPencil extends Scene {
     const letterCount = letters.reduce((n, l) => n + l.length, 0);
 
     await this.step('marks', {
-      title: 'Fixed layout marks guide the hand’s later strokes',
+      title: 'The hand is given the layout’s marks and nothing else',
       line: 'Every later stroke is drawn from these marks alone.',
-      caption: `Like the page, which flattens pele’s SVG into marks a script can select, the drawing reads the layout back: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first, and every later stroke is drawn from these marks alone.`,
+      caption: `Like the page, which flattens pele’s SVG into marks a script can select, the drawing reads the layout back: ${outlineCount} outlines, ${filledCount} filled shapes and ${wordCount} words. A blue construction pencil traces them first. They are the route for every later stroke, the same in both drawings.`,
     });
     await drop(width);
     await d.hide();
@@ -368,7 +367,7 @@ export default class PenAndPencil extends Scene {
         ringStray < INK_WIDTH
           ? `Its largest stray, ${fmt(ringStray)} units, is less than the ink line’s own width, ${INK_WIDTH}.`
           : `Its largest stray is ${fmt(ringStray)} units, against an ink line ${INK_WIDTH} wide.`,
-      caption: `The pen is a mass on a damped spring, ${HAND.frequency} Hz with damping ${HAND.damping}, chasing a point that moves along the line at ${HAND.speed} units a second, shaken by tremor of up to ${HAND.tremor}. The spring smooths the tremor away, so even this close on the Midnight marker the ink lies on the blue ring it follows.`,
+      caption: `Why the hand cannot drift: the pen is a mass on a damped spring, ${HAND.frequency} Hz with damping ${HAND.damping}, chasing a point that moves along the mark at ${HAND.speed} units a second, shaken by tremor of up to ${HAND.tremor} units. Each stroke is pulled back to its own mark, so no error carries into the next one. The camera has closed on the Midnight marker: the ink strays at most ${fmt(ringStray)} units from the blue ring, ${px(ringStray)} on a page 1280 px wide, less than the ${INK_WIDTH}-unit line itself.`,
     });
     await drop(corner, tally);
     const ring = polylines([focus.ring], CONSTRUCTION, 0.004);
@@ -424,9 +423,9 @@ export default class PenAndPencil extends Scene {
     for (const m of ownedShown.family()) m.style.dashArray = '0.08 0.06';
 
     await this.step('scene', {
-      title: 'The made-up world is drawn far to near, around the chart',
+      title: 'What the seed may place: scenery, around the chart',
       line: 'Hills, sea, lighthouse, gulls: never on paper the chart owns.',
-      caption: `Hills, sea, a rock with its lighthouse and beam, then gulls: ${layers.length} layers, far to near. The chart and the title own the paper inside the dashed lines, with a ${MARGIN} margin, so the scenery is cut away there: ${trespass} scenery points land on owned paper.`,
+      caption: `The seed does place some things: the sea’s pencil strokes and the gulls. Hills, sea, a rock with its lighthouse and beam, then gulls are drawn far to near, ${layers.length} layers. The chart and the title own the paper inside the dashed lines, with a ${MARGIN} margin, so the scenery is cut away there: ${trespass} scenery points land on owned paper.`,
     });
     await s.focus('all');
     await s.draw(ownedShown, {
@@ -466,16 +465,16 @@ export default class PenAndPencil extends Scene {
     const objects = parts.length * 3 + 1;
     // The second drawing is laid over the first's: the first's scenery in grey, and the boxes both were drawn in.
     // Only the sea's pencil strokes and the gulls are placed by chance; the hills, rock and lighthouse are fixed.
-    const first = which === 'first' ? null : sceneryOf(SEEDS.first!);
+    const first = which === 'first' ? null : sceneryOf(SEEDS.first);
     const firstScenery = first
       ? new Group(
           polylines(
             first.layers.find((l) => l.name === 'sea')!.pencil.map(([a, b]) => [a, b]),
-            '#6f6a66',
+            GREY,
             0.02,
             { opacity: 0.8 },
           ),
-          polylines(first.ink[first.layers.findIndex((l) => l.name === 'gulls')]!, '#6f6a66', 0.02, { opacity: 0.8 }),
+          polylines(first.ink[first.layers.findIndex((l) => l.name === 'gulls')]!, GREY, 0.02, { opacity: 0.8 }),
         )
       : null;
     const sharedBoxes = new Group(
@@ -493,8 +492,8 @@ export default class PenAndPencil extends Scene {
           : 'Grey: the first drawing’s sea and gulls. Dashed red: the shared boxes.',
       caption:
         which === 'first'
-          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units from them. Hershey letters come last, inside the boxes the layout gave. The second drawing draws the plate again with another seed.`
-          : `Another seed lays the sea’s strokes and the gulls elsewhere: the grey ones are where the first drawing put them, and every stroke’s wobble differs too. The chart is drawn on the same laid-out marks, so every plank, tag and word lands in the dashed boxes the first drawing used, and no chart ink lies more than ${fmt(chartStray)} units from its mark.`,
+          ? `Periods become planks, events become tags hung on strings, and the rail becomes a rope: ${objects} objects drawn on the laid-out marks, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from them. The words come last in Hershey letters, a public-domain alphabet A. V. Hershey drew for plotters at the U.S. Naval Weapons Laboratory in 1967, each letter a few single pen strokes, fitted into the boxes the layout gave. The second drawing draws the plate again with another seed.`
+          : `This is the second drawing, with another seed, laid over the first. The sea’s strokes and the gulls land elsewhere, the grey ones being where the first drawing put them, and every stroke’s wobble differs too. The chart is drawn on the same laid-out marks, so every plank, tag and word, in Hershey letters fitted to their boxes, lands in the dashed boxes the first drawing used, no ink more than ${fmt(chartStray)} units, ${px(chartStray)}, from its mark. Lay the chart out first and let the hand only trace it, so a new drawing changes the strokes but never the boxes.`,
     });
     await drop(ownedShown);
     s.keep(tints, {

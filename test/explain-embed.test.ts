@@ -3557,5 +3557,5 @@ test('both pen drawings retain every construction mark and its readable count th
       assert.equal(readable,true);readableCounts++;cases++;
     }
   }finally{await page.close();}
-  assert.equal(cases,2);assert.equal(stepWidths,28);assert.equal(readableCounts,2);
+  assert.equal(cases,2);assert.equal(stepWidths,32);assert.equal(readableCounts,2);
 });
