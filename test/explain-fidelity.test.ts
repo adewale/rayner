@@ -148,6 +148,12 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'recipe', { feature: values.feature, phase: 'recipe' });
           assertStepState(trace, 'result', { feature: values.feature, phase: 'result' });
           if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
+          // The camera case says how much of the 16-unit stage its closer view frames.
+          if (values.feature === 'camera') {
+            const camera = trace.steps.find((s) => s.step === 'result')!.after!.camera as { before: number; after: number };
+            assert.equal(camera.before, 16);
+            assert.ok(camera.after > 1.2 && camera.after < 8, `the view frames ${camera.after} units`);
+          }
           break;
         case 'lantern': {
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Browser'));
