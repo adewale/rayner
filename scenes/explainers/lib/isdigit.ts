@@ -24,7 +24,8 @@ export type NumericType = 'Decimal' | 'Digit' | 'Numeric' | 'None';
 export const PREDICATES: readonly Predicate[] = ['isdecimal', 'isdigit', 'isnumeric'];
 
 export interface Char {
-  id: CharId;
+  /** One of the lineup's eight, or `unshown`: a character only a check question names. */
+  id: CharId | 'unshown';
   char: string;
   /** "U+00B2". */
   code: string;
@@ -62,6 +63,11 @@ export const CHARS: Readonly<Record<CharId, Char>> = {
   }),
 };
 export const LINEUP: readonly CharId[] = ['ascii', 'arabic', 'devanagari', 'fullwidth', 'super', 'half', 'roman', 'han'];
+/** A character the steps never show, for a check question: its row is given and the reader applies fields 6, 7 and 8 to it. */
+export const UNSHOWN: Char = {
+  ...row('super', '⑤', 'CIRCLED DIGIT FIVE', '2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;', 8433),
+  id: 'unshown',
+};
 
 /** UnicodeData.txt fields 6, 7 and 8 for the character, with Unihan's value in field 8 as CPython puts it. */
 export function fields(c: Char): { decimal: string; digit: string; numeric: string } {

@@ -1,84 +1,89 @@
-import { Scene, Group, Rectangle } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
+import { Scene, Group, Rectangle, Text, FadeIn, view } from '../../../src/index.ts';
+import type { Mobject, MatchKey } from '../../../src/index.ts';
+import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { monty, montyExample, threeDoorWorlds } from '../lib/monty-hall.ts';
-import type { Host } from '../lib/monty-hall.ts';
-import { lesson, label, tile, table, stat } from '../lib/lesson-drawing.ts';
+import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter } from '../lib/monty-hall.ts';
+import type { Host, Opener } from '../lib/monty-hall.ts';
+import { label, tile, stat } from '../lib/lesson-drawing.ts';
 
 const pct = (n: number) => (n * 100).toFixed(1) + '%';
 const door = (i: number) => 'ABC'[i]!;
-function odds(s: Stage, m: ReturnType<typeof monty>, title: string) {
-  const g = new Group(
-    label(title, 0, 2.65, s.palette.ink, 0.65),
-    stat(s, 'Stay', pct(m.stayChance), -3.8, 1.0, 'monty-stay'),
-    stat(s, 'Switch', pct(m.switchChance), 3.8, 1.0, 'monty-switch'),
-    label(`${m.doors} doors; ${m.opened} opened`, 0, -0.65, s.soft, 0.6),
-    label(
-      m.host === 'informed' ? 'The host shows a goat in every round.' : `A goat shows in ${pct(m.continuationChance)} of rounds.`,
-      0,
-      -1.75,
-      s.palette.ink,
-      0.6,
-    ),
-    label(
-      m.host === 'informed' ? 'Every wrong first pick becomes a switching win.' : 'The goat rules out two wrong-pick rounds.',
-      0,
-      -3.2,
-      s.palette.ink,
-      0.6,
-    ),
-  );
-  g.key = 'monty-odds';
-  return g;
+const HOSTS: readonly Host[] = ['informed', 'random'];
+const NAME: Record<Host, string> = { informed: 'Host who knows', random: 'Random host' };
+type Cell = ReturnType<typeof threeDoorCells>[number];
+
+// The strip: every round for the first pick, side by side, each as wide as its chance.
+// Narrow enough that a phone's opening close-up holds a whole strip.
+const X0 = -5,
+  X1 = 5,
+  H = 1.5,
+  SIX = (X1 - X0) / 6;
+const SLOT: Record<Host, number> = { informed: 0.92, random: -1.35 };
+
+/** Morphs pair parts by key: glyphs by their text and place in it, shapes by their place in the keyed part. */
+const byKey: MatchKey = (p) => {
+  let m: Mobject = p;
+  const path: number[] = [];
+  while (!m.key) {
+    const parent = m.parent;
+    if (!parent) return undefined;
+    path.unshift(parent.children.indexOf(m));
+    m = parent;
+  }
+  return m instanceof Text ? `${m.key}|${m.text}|${path.join('.')}` : `${m.key}|${path.join('.')}`;
+};
+function keyed<T extends Mobject>(m: T, key: string): T {
+  m.key = key;
+  return m;
 }
-function hundred(s: Stage, m: ReturnType<typeof monty>) {
-  const discarded = new Group(
-    ...Array.from({ length: m.opened }, (_, i) =>
-      new Rectangle({ width: 0.35, height: 0.38, fill: 'none', stroke: s.soft, strokeWidth: 0.035 }).moveTo([
-        -6.65 + (i % 25) * 0.55,
-        2.05 - Math.floor(i / 25) * 0.58,
-      ]),
-    ),
-  );
-  discarded.key = 'monty-removed';
-  return new Group(
-    discarded,
-    label('98 opened doors', 0, 2.7, s.soft, 0.6),
-    stat(s, 'Stay', pct(m.stayChance), -3.8, -1.25, 'monty-stay'),
-    stat(s, 'Switch', pct(m.switchChance), 3.8, -1.25, 'monty-switch'),
-    label(
-      m.host === 'informed'
-        ? 'Wrong first pick: the host leaves the car closed.'
-        : `The game goes on in ${pct(m.continuationChance)} of rounds.`,
-      0,
-      -3.65,
-      s.palette.ink,
-      0.6,
-    ),
-  );
-}
-type World = ReturnType<typeof threeDoorWorlds>[number];
-/** Both hosts' rows for one first pick, side by side; the host in play is titled in the emphasis colour. */
-function worldsPicture(s: Stage, host: Host, informed: World[], random: World[]) {
-  const panel = (rule: Host, rows: World[], xs: number[]) => {
-    const centre = (xs[0]! + xs[2]!) / 2,
-      counted = rows.filter((w) => w.swap !== 'ends');
-    return new Group(
-      label(rule === 'informed' ? 'Host who knows' : 'Random host', centre, 2.7, rule === host ? s.emphasis : s.palette.ink, 0.62),
-      table(
-        ['Car', 'Opens', 'Switch'],
-        rows.map((w) => [w.prize, w.opened, w.swap]),
-        s,
-        { xs, y: 1.9, gap: 0.68, key: `monty-worlds-${rule}`, size: 0.58 },
+const left = (text: string, x: number, y: number, color: string, size: number, key: string) =>
+  keyed(new Text(text, { fontSize: size, color }).moveTo([x, y], [-1, 0]), key);
+
+/** What a round's cell says: the door he opens, what it shows, and which choice wins. */
+const cellWords = (c: Cell) => [c.opened, c.shows, c.stay === 'ends' ? 'over' : c.stay === 'win' ? 'stay' : 'switch'];
+
+/**
+ * One host's strip of rounds at height y, keyed `strip:<as>`; `dim` greys the rounds the reader has ruled out.
+ * Switching wins are tinted, rounds that show the car are drawn in the warning colour.
+ */
+function strip(s: Stage, cells: readonly Cell[], y: number, as: string, dim?: (c: Cell) => boolean): Group {
+  let x = X0;
+  const parts = cells.map((c) => {
+    const w = c.sixths * SIX,
+      cx = x + w / 2,
+      off = dim?.(c) ?? false,
+      car = c.shows === 'car',
+      win = c.swap === 'win';
+    x += w;
+    const color = off ? s.soft : car ? s.bad : win ? s.emphasis : s.palette.ink;
+    const [opens, shows, wins] = cellWords(c);
+    return keyed(
+      new Group(
+        new Rectangle({
+          width: w,
+          height: H,
+          fill: off ? s.palette.paper : car ? s.bad : win ? s.emphasis : s.palette.paper,
+          fillOpacity: off ? 1 : car || win ? 0.14 : 1,
+          stroke: off ? s.soft : s.palette.ink,
+          // Once some rounds are ruled out, the ones left are outlined heavier.
+          strokeWidth: off ? 0.02 : dim ? 0.06 : 0.03,
+        }).moveTo([cx, y]),
+        new Text(opens!, { fontSize: 0.44, color }).moveTo([cx, y + 0.48]),
+        new Text(shows!, { fontSize: 0.44, color }).moveTo([cx, y]),
+        new Text(wins!, { fontSize: 0.44, color, weight: off ? 'normal' : 'bold' }).moveTo([cx, y - 0.48]),
       ),
-      label(`Switch wins ${counted.filter((w) => w.swap === 'win').length} of ${counted.length}`, centre, -2.95, s.palette.ink, 0.6),
-      label(counted.length === rows.length ? 'every row counts' : 'rows that show a goat', centre, -3.65, s.soft, 0.58),
+      `${as}:${c.prize}${c.opened}`,
     );
-  };
-  const g = new Group(panel('informed', informed, [-5.95, -4.15, -1.97]), panel('random', random, [1.32, 3.24, 5.54]));
-  g.key = 'monty-worlds';
-  return g;
+  });
+  return keyed(new Group(...parts), `strip:${as}`);
 }
+/** The car's three places, a third of the strip each. */
+const heads = (s: Stage, y: number) =>
+  keyed(
+    new Group(...[0, 1, 2].map((i) => label(`Car behind ${door(i)}`, X0 + (i + 0.5) * 2 * SIX, y, s.soft, 0.5))),
+    'monty-heads',
+  );
+const sum = (cells: readonly Cell[], f: (c: Cell) => boolean) => cells.filter(f).reduce((n, c) => n + c.sixths, 0);
 
 export default class MontyHall extends Scene {
   static meta = {
@@ -89,18 +94,17 @@ export default class MontyHall extends Scene {
     answer: 'Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat',
     checks: [
       {
-        question: 'With a host who knows where the car is, why doesn’t his goat change the chance that your first door hides the car?',
-        answer:
-          'He shows a goat in every round, whatever is behind your door, so the goat rules no round out. Your door still hides the car 1 time in 3, and in the other 2 he has left the car behind the door he didn’t open.',
+        question:
+          'A host who knows where the car is always opens B when B hides a goat. You pick A, and he opens C. Should you switch, and how sure can you be?',
+        answer: `Switch: you win ${pct(oddsAfter(0, 'leftmost', 'C').switchChance)} of the time. He opens C only when he can’t open B, which means B hides the car. Had he opened B, switching would win ${pct(oddsAfter(0, 'leftmost', 'B').switchChance)}: he opens B whether the car is behind A or C.`,
       },
       {
-        question: 'With a random host, which rounds does seeing a goat rule out, and why does that bring switching down to 1 in 2?',
-        answer:
-          'The 2 of 6 equally likely rounds in which he would have opened the car. In both, your first pick was wrong, so ruling them out leaves 2 rounds where your pick is right and 2 where it is wrong.',
+        question: 'Four doors. A host who knows where the car is opens two goats among the three you didn’t pick. How often does switching to the last closed door win?',
+        answer: `${pct(monty(4, 'informed').switchChance)}. Your first pick is right 1 time in 4; in the other 3 he leaves the car behind the one door he doesn’t open.`,
       },
       {
         question: 'With 100 doors and a random host who opens 98 of them, how often does the game reach a switch offer, and what are the odds then?',
-        answer: 'In 2% of rounds; in the other 98% one of his doors shows the car. When the game does go on, staying and switching each win 50%.',
+        answer: `In ${pct(monty(100, 'random').continuationChance)} of rounds; in the rest, one of his doors shows the car. When the game does go on, staying and switching each win ${pct(monty(100, 'random').switchChance)}.`,
       },
     ],
   };
@@ -120,60 +124,55 @@ export default class MontyHall extends Scene {
       default: 'A',
       options: ['A', 'B', 'C'].map((value) => ({ value, label: value })),
     },
-    {
-      id: 'strategy',
-      label: 'Your decision',
-      default: 'switch',
-      options: [
-        { value: 'stay', label: 'Stay' },
-        { value: 'switch', label: 'Switch' },
-      ],
-    },
   ];
   override async construct() {
     const settings = settingsOf(this),
       host = settings.host as Host,
+      other: Host = host === 'informed' ? 'random' : 'informed',
       choice = 'ABC'.indexOf(settings.choice!),
-      example = montyExample(choice, settings.strategy as 'stay' | 'switch'),
+      example = montyExample(choice, 'switch'),
       m = monty(3, host),
-      large = monty(100, host),
+      informed = monty(3, 'informed'),
+      random = monty(3, 'random'),
       worlds = threeDoorWorlds(choice, host),
       informedWorlds = threeDoorWorlds(choice, 'informed'),
       randomWorlds = threeDoorWorlds(choice, 'random'),
-      informed = monty(3, 'informed'),
-      random = monty(3, 'random');
+      cells = { informed: threeDoorCells(choice, 'informed'), random: threeDoorCells(choice, 'random') } as Record<Host, Cell[]>;
     const X = door(choice),
+      B = door(example.opened),
+      C = door(example.offered),
       others = [0, 1, 2].filter((i) => i !== choice).map(door);
-    const informedWins = informedWorlds.filter((w) => w.swap === 'win').length,
-      randomEnds = randomWorlds.filter((w) => w.swap === 'ends'),
-      randomGoat = randomWorlds.filter((w) => w.swap !== 'ends'),
-      randomWins = randomGoat.filter((w) => w.swap === 'win').length,
-      randomRight = randomGoat.filter((w) => w.stay === 'win').length;
-    // Every round the random host ends is one where the first pick was wrong: the car was behind another door.
-    if (!randomEnds.every((w) => w.prize !== X)) throw new Error('A random host can only open the car behind an unchosen door');
-    const doors = (s: Stage, phase: number, result?: string) => {
-      const g = new Group(
-        ...[0, 1, 2].flatMap((i) => {
-          const open = phase >= 1 && i === example.opened,
-            revealed = phase >= 2;
-          return [
+    const seen = { informed: oddsAfter(choice, 'informed', B), random: oddsAfter(choice, 'random', B) } as Record<Opener, ReturnType<typeof oddsAfter>>;
+    const ends = sum(cells.random, (c) => c.shows === 'car'),
+      goat = 6 - ends,
+      randomSwitch = sum(cells.random, (c) => c.swap === 'win'),
+      randomStay = sum(cells.random, (c) => c.stay === 'win');
+    // The random host's car rounds are rounds where the first pick was wrong, and the informed host's switching wins.
+    for (const c of cells.random.filter((c) => c.shows === 'car'))
+      if (c.prize === X || !cells.informed.some((k) => k.prize === c.prize && k.swap === 'win'))
+        throw new Error('A random host can open the car only where the informed host leaves it for the switcher');
+    if (seen.informed.switchChance !== informed.switchChance || seen.random.switchChance !== random.switchChance)
+      throw new Error('Conditioning on the opened door must give the same odds as counting every goat');
+
+    const s = stage(this, { style: 'github-light', headingSize: 0.6 });
+    type Phase = 'choice' | 'predict' | 'odds' | 'copy' | 'worlds' | 'rules';
+    let phase: Phase = 'choice';
+    let words: string[] = [];
+
+    const doors = (result: string) => {
+      const g = keyed(
+        new Group(
+          ...[0, 1, 2].flatMap((i) => [
             label(door(i), (i - 1) * 4.5, 2.7, s.soft, 0.64),
-            tile(
-              open ? 'goat' : revealed ? (i === example.prize ? 'car' : 'goat') : '?',
-              (i - 1) * 4.5,
-              1.05,
-              3.2,
-              2.25,
-              s,
-              { active: i === (revealed ? example.final : choice), size: 0.8, key: `door-${i}` },
-            ),
-          ];
-        }),
+            tile(i === example.opened ? 'goat' : '?', (i - 1) * 4.5, 1.05, 3.2, 2.25, s, { active: i === choice, size: 0.8, key: `door-${i}` }),
+          ]),
+        ),
+        'monty-doors',
       );
-      g.key = 'monty-doors';
+      words = [`Doors A, B and C; ${X} is your pick; ${B} is open and shows a goat; ${C} is closed`];
       return new Group(
         g,
-        label(`First choice: ${X}; decision: ${example.strategy}`, 0, -1.0, s.palette.ink, 0.62),
+        label(`You picked ${X}; he opened ${B}; ${C} is offered`, 0, -1.0, s.palette.ink, 0.62),
         label(
           host === 'informed' ? 'Knows where the car is; always opens a goat' : 'Opens a random door; this time a goat',
           0,
@@ -182,112 +181,137 @@ export default class MontyHall extends Scene {
           0.6,
           'monty-rule',
         ),
-        label(
-          result ?? (phase === 2 ? `This round: ${example.won ? 'win' : 'lose'}` : 'The car stays hidden until the end.'),
-          0,
-          -3.5,
-          s.palette.ink,
-          0.62,
-          'monty-result',
-        ),
+        label(result, 0, -3.5, s.palette.ink, 0.62, 'monty-result'),
       );
     };
-    const frames = [
-      {
-        id: 'choice',
-        title: `You pick door ${X}`,
-        line: 'A car is behind one door and goats are behind two, each placement equally likely.',
-        caption: `You choose ${X}, so your door hides the car with chance one in three. The host will now open one of the doors you didn’t choose, ${others.join(' or ')}. What he knows about the car will turn out to matter.`,
-        state: { example, host, revealed: false },
-        draw: (s: Stage) => doors(s, 0),
-      },
-      {
-        id: 'host',
-        title: `The host opens ${door(example.opened)}: a goat`,
-        line:
-          host === 'informed'
-            ? 'This host knows where the car is, and always opens a goat door you didn’t pick.'
-            : 'This host doesn’t know where the car is; he opens one of your unchosen doors at random.',
-        caption:
-          host === 'informed'
-            ? `He then offers you the last closed door, ${door(example.offered)}. When both of your unchosen doors hide goats, he picks either with equal chance.`
-            : `This time he happened to reveal a goat, so the game goes on and he offers you ${door(example.offered)}. Had he opened the car, the round would be over.`,
-        state: { example, host, revealed: false },
-        draw: (s: Stage) => doors(s, 1),
-      },
-      {
-        id: 'predict',
-        title: `Stay with ${X}, or switch to ${door(example.offered)}?`,
-        line: 'Predict: does it matter whether the host knew where the car was?',
-        caption:
-          host === 'informed'
-            ? 'Two doors are closed and you have seen a goat. Would switching win more often than staying? And would your answer change if the host had opened a door at random and happened to show a goat?'
-            : 'Two doors are closed and you have seen a goat. Would switching win more often than staying? And would your answer change if the host had known where the car was and always shown a goat?',
-        state: { example, host, revealed: false },
-        draw: (s: Stage) => doors(s, 1, 'Predict: stay or switch?'),
-      },
-      {
-        id: 'reveal',
-        title: example.won ? 'This round, your decision wins' : 'This round, your decision loses',
-        line: 'One round can’t give the odds; listing every placement can.',
-        caption: `The car was behind ${door(example.prize)}. You ${example.strategy} and end at ${door(example.final)}, so you ${example.won ? 'win' : 'lose'}. To see which choice wins more often, keep your first pick at ${X} and list every place the car could be, for both kinds of host.`,
-        state: { example, host, revealed: true },
-        draw: (s: Stage) => doors(s, 2),
-      },
-      {
-        id: 'worlds',
-        title: 'Every placement, for both hosts',
-        line: 'Each row for the host who knows has chance 1/3; each random-host row, 1/6.',
-        caption: `With your pick at ${X}, the host who knows never opens the car, so whenever your pick is wrong he leaves it behind the other closed door: switching wins ${informedWins} of ${informedWorlds.length}. The random host opens the car in ${randomEnds.length} of his ${randomWorlds.length} rows and the game ends; of the ${randomGoat.length} rows that show a goat, switching wins ${randomWins}. Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.`,
-        state: { choice, host, worlds, odds: m, informedWorlds, randomWorlds },
-        draw: (s: Stage) => worldsPicture(s, host, informedWorlds, randomWorlds),
-      },
-      {
-        id: 'odds',
-        title: host === 'informed' ? 'Why: this host’s goat rules nothing out' : 'Why: this host’s goat rules out two rounds',
-        line:
-          host === 'informed'
-            ? `Your pick at ${X} stays right 1 time in 3; the closed door wins the rest.`
-            : 'Both rounds it rules out are ones where your first pick was wrong.',
-        caption:
-          host === 'informed'
-            ? `This host shows a goat in every round, whatever is behind ${X}, so seeing one tells you nothing new about your door: it still hides the car 1 time in 3. In the other 2 times in 3 he has left the car behind the one door he didn’t open, so switching wins ${pct(m.switchChance)}.`
-            : `The random host shows the car in ${randomEnds.length} of the ${randomWorlds.length} rows, and in both the car was behind a door you didn’t pick. Seeing a goat rules those out, which leaves ${randomRight} rows where your pick is right and ${randomWins} where it is wrong: staying and switching each win ${pct(m.switchChance)}.`,
-        state: { odds: m },
-        draw: (s: Stage) => odds(s, m, host === 'informed' ? 'Host who knows' : 'Random host, goat shown'),
-      },
-      {
-        id: 'many',
-        title: 'Same rule, 100 doors',
-        line: host === 'informed' ? 'The host opens 98 goats and never the car.' : 'Only 2% of random 98-door openings miss the car.',
-        caption:
-          host === 'informed'
-            ? `Your first pick holds the car 1 time in 100. Each small outline is a door the host opens, always a goat. Whenever your pick was wrong, ${pct(large.switchChance)} of rounds, the one door he leaves closed hides the car.`
-            : `Each small outline is one of 98 doors opened at random. In ${pct(1 - large.continuationChance)} of rounds one of them shows the car and the game ends. In the ${pct(large.continuationChance)} that go on, your door and the last closed door are equally likely: ${pct(large.switchChance)} each.`,
-        state: { odds: large },
-        draw: (s: Stage) => hundred(s, large),
-      },
-      {
-        id: 'rules',
-        title: 'Same goat, different rule, different odds',
-        line: 'What the host knew decides what his goat tells you.',
-        caption: `A host who knows always shows a goat, and switching wins ${pct(informed.switchChance)}. A random host shows a goat in only ${pct(random.continuationChance)} of rounds, and after one, switching wins ${pct(random.switchChance)}. The two closed doors look the same either way; the rule that produced them sets the odds.`,
-        state: { informed, random },
-        draw: (s: Stage) =>
-          new Group(
-            table(
-              ['Host', 'Goat reveal', 'Switch wins'],
-              [
-                ['informed', 'always', pct(informed.switchChance)],
-                ['random', pct(random.continuationChance), pct(random.switchChance)],
-              ],
-              s,
-              { xs: [-4.9, 0, 4.9], y: 1.75, gap: 1.35, key: 'monty-rules' },
+    /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
+    const readout = (h: Host, y: number, chance: number, key: string) =>
+      keyed(new Text(`switch wins ${pct(chance)}`, { fontSize: 0.48, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
+    const titleOf = (h: Host, y: number) => left(NAME[h], X0, y, h === host ? s.emphasis : s.palette.ink, 0.56, `monty-name-${h}`);
+    const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
+      `${NAME[h]}: ` +
+      list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (ruled out)' : ''}`).join('; ');
+
+    const picture = (): Group => {
+      switch (phase) {
+        case 'choice':
+          return doors(`The car is behind ${X} or ${C}.`);
+        case 'predict':
+          return doors('Predict: stay or switch?');
+        case 'odds': {
+          const y = SLOT.informed;
+          words = [describeStrip(host, cells[host])];
+          return new Group(
+            heads(s, 2.7),
+            titleOf(host, SLOT.informed + 1.15),
+            strip(s, cells[host], y, host),
+            stat(s, 'Stay', pct(m.stayChance), -3.8, -1.45, 'monty-stay'),
+            stat(s, 'Switch', pct(m.switchChance), 3.8, -1.45, 'monty-switch'),
+            label(
+              host === 'informed' ? 'Every round shows a goat.' : `A goat shows in ${pct(random.continuationChance)} of rounds.`,
+              0,
+              -3.0,
+              s.palette.ink,
+              0.52,
+              'monty-note',
             ),
-            label('Random-host odds count only goat rounds.', 0, -2.9, s.palette.ink, 0.6),
-          ),
-      },
-    ];
-    await lesson(this, frames);
+          );
+        }
+        case 'copy':
+        case 'worlds': {
+          // Copy: the other host's strip starts as a copy of this host's, then takes its own rounds.
+          const list = (h: Host) => (phase === 'copy' && h === other ? cells[host] : cells[h]);
+          words = HOSTS.map((h) => describeStrip(h, list(h)));
+          return new Group(
+            heads(s, 2.7),
+            ...HOSTS.flatMap((h) => [
+              titleOf(h, SLOT[h] + 1.15),
+              ...(phase === 'worlds' ? [readout(h, SLOT[h] + 1.15, h === 'informed' ? informed.switchChance : random.switchChance, `monty-readout-${h}`)] : []),
+              strip(s, list(h), SLOT[h], h),
+            ]),
+          );
+        }
+        case 'rules': {
+          const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
+          words = HOSTS.map((h) => describeStrip(h, cells[h], dim));
+          return new Group(
+            heads(s, 2.7),
+            ...HOSTS.flatMap((h) => [titleOf(h, SLOT[h] + 1.15), strip(s, cells[h], SLOT[h], h, dim)]),
+            keyed(new Group(...HOSTS.map((h) => readout(h, SLOT[h] + 1.15, seen[h].switchChance, `monty-seen-${h}`))), 'monty-rules'),
+          );
+        }
+      }
+    };
+    const main = view(() => keyed(picture(), 'monty-picture'), { place: false });
+    const describe = { describe: () => words.join('. ') };
+    const fresh = async (next: Phase) => {
+      await s.clear({ runTime: 0.3 });
+      phase = next;
+      main.rebuild();
+      s.keep(main, describe);
+      await this.play(new FadeIn(main, { runTime: 0.5 }));
+    };
+    const morph = async (next: Phase, runTime = 1.1) => {
+      phase = next;
+      await this.play(main.sync({ match: byKey, runTime }));
+    };
+    const at = (id: string, state: Record<string, unknown>) => {
+      this.state = { ...JSON.parse(JSON.stringify(state)), phase: id };
+    };
+
+    await this.step('choice', {
+      title: `You pick ${X}; the host opens ${B}: a goat`,
+      line: 'Should you switch? It depends on something the picture doesn’t show.',
+      caption:
+        host === 'informed'
+          ? `A car is behind one of three doors and goats are behind the other two. You pick ${X}. The host knows where the car is; he opens ${B}, shows a goat, and offers you ${C}. People have argued for decades about whether to switch, and the answer turns on a question the puzzle is often told without: did the host know where the car was?`
+          : `A car is behind one of three doors and goats are behind the other two. You pick ${X}. The host doesn’t know where the car is; he opened ${B} at random and happened to reveal a goat. Had he opened the car, the round would be over. He offers you ${C}. People have argued for decades about whether to switch, and the answer turns on a question the puzzle is often told without: did the host know where the car was?`,
+    });
+    main.rebuild();
+    s.keep(main, describe);
+    await this.play(new FadeIn(main, { runTime: 0.6 }));
+    at('choice', { example, host, revealed: false });
+
+    await this.step('predict', {
+      title: `Stay with ${X}, or switch to ${C}?`,
+      line: 'Predict: does it matter whether the host knew where the car was?',
+      caption:
+        host === 'informed'
+          ? 'Two doors are closed and you have seen a goat. Would switching win more often than staying? And would your answer change if the host had opened a door at random and happened to show a goat?'
+          : 'Two doors are closed and you have seen a goat. Would switching win more often than staying? And would your answer change if the host had known where the car was and always shown a goat?',
+    });
+    await morph('predict', 0.5);
+    at('predict', { example, host, revealed: false });
+
+    await this.step('odds', {
+      title: host === 'informed' ? 'With this host, switching wins 2 in 3' : 'With this host, switching wins 1 in 2',
+      line: 'Each cell is a round, as wide as its chance: door opened, what it shows, who wins.',
+      caption:
+        host === 'informed'
+          ? `The car is behind each door a third of the time. Behind ${X}, he opens ${others.join(' or ')}, either with equal chance, and staying wins. Behind either other door, he must open the one goat you didn’t pick, so the car is behind the door he leaves closed: switching wins ${pct(m.switchChance)}.`
+          : `The car is behind each door a third of the time, and he opens ${others.join(' or ')} with equal chance, so each round is a sixth. In ${ends} of them he opens the car and the game ends. Of the ${goat} that show a goat, staying wins ${randomStay} and switching wins ${randomSwitch}: ${pct(m.switchChance)} each.`,
+    });
+    await fresh('odds');
+    at('odds', { odds: m, cells: cells[host] });
+
+    await this.step('worlds', {
+      title: 'Same rounds, other host',
+      line:
+        host === 'informed'
+          ? 'Each wrong-pick third splits; in one half he opens the car.'
+          : 'Each car round merges into a switching win.',
+      caption: `The random host opens ${others.join(' or ')} with equal chance, so each third where your pick is wrong splits in two, and in one half he opens the car and the game ends. Those halves are rounds the host who knows turns into switching wins, because he never opens the car. Staying keeps its third either way. Switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.`,
+    });
+    await morph('copy', 0.8);
+    await morph('worlds', 1.3);
+    at('worlds', { choice, host, worlds, odds: m, informedWorlds, randomWorlds, cells });
+
+    await this.step('rules', {
+      title: `The goat you saw was behind ${B}`,
+      line: `Rounds without a goat behind ${B} are greyed. Compare what is left.`,
+      caption: `With the car behind ${X}, either host opens ${B} half the time. With it behind ${C}, the host who knows must open ${B}, so in his rounds ${C} is twice as likely as ${X}: switching wins ${pct(seen.informed.switchChance)}. The random host opens ${B} half the time wherever the car is, so ${X} and ${C} stay equally likely: ${pct(seen.random.switchChance)}. What sets the odds is how likely the host was to open exactly the door you saw.`,
+    });
+    await morph('rules', 0.9);
+    at('rules', { opened: B, seen: { informed: seen.informed, random: seen.random }, cells, informed, random });
   }
 }

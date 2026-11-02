@@ -1,4 +1,4 @@
-import { Scene, Text, Rectangle } from '../../../src/index.ts';
+import { Scene, Text, Rectangle, Line } from '../../../src/index.ts';
 import type { Mobject, Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import {
@@ -16,6 +16,7 @@ import {
   accepts,
   grouped,
   valueOf,
+  UNSHOWN,
 } from '../lib/isdigit.ts';
 import type { Char, CharId, Predicate } from '../lib/isdigit.ts';
 
@@ -95,13 +96,12 @@ export default class IsDigitExplainer extends Scene {
         answer: `Field 6, the decimal digit value. int() rewrites a character with field 6 empty as '?', so int('${CHARS.super.char}') raises ValueError although ${CHARS.super.char} has ${fields(CHARS.super).digit} in fields 7 and 8.`,
       },
       {
-        question: 'In makeunicodedata.py, which record attribute sets DECIMAL_MASK, and what does it hold?',
-        answer:
-          'record.decomposition_mapping, which holds field 6, the decimal digit value. The script names fields 6, 7 and 8 decomposition_mapping, numeric_type and numeric_value.',
+        question: `What does int('${CHARS.arabic.char}4') return? The text is an Arabic-Indic three followed by an ASCII 4.`,
+        answer: `${Number(asciiFor(CHARS.arabic) + '4')}. int() rewrites each character on its own before parsing: ${CHARS.arabic.char} has the decimal digit value ${fields(CHARS.arabic).decimal}, so it becomes '${asciiFor(CHARS.arabic)}', the 4 stays, and '${asciiFor(CHARS.arabic)}4' parses. Mixing scripts in one number doesn’t matter.`,
       },
       {
-        question: `Does '${CHARS.half.char}'.isdigit() return True?`,
-        answer: `No. ${CHARS.half.char} has a value, ${valueOf(CHARS.half)}, only in field 8, so CPython gives it only NUMERIC_MASK: isnumeric() is True, isdigit() and isdecimal() are False.`,
+        question: `${UNSHOWN.char}, ${UNSHOWN.code}, has this line in UnicodeData.txt: ${UNSHOWN.ucd}. What do '${UNSHOWN.char}'.isdigit() and int('${UNSHOWN.char}') do?`,
+        answer: `isdigit() returns ${TF(predicates(UNSHOWN).isdigit)}, and int('${UNSHOWN.char}') raises ValueError. Field 6 is empty while fields 7 and 8 hold ${fields(UNSHOWN).digit}, so CPython sets DIGIT_MASK and NUMERIC_MASK but not DECIMAL_MASK, and int() rewrites ${UNSHOWN.char} as '${asciiFor(UNSHOWN)}'. It fails the same way ${CHARS.super.char} does.`,
       },
     ],
   };
@@ -259,38 +259,53 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ the lineup
     await this.step('lineup', {
-      title: 'Eight numerals; int() accepts only the top four',
-      line: `isdigit() is True for the top four and for ${CHARS.super.char} too.`,
+      title: 'Eight numerals; int() accepts only the first four',
+      line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `The Unicode Character Database gives each of these a numeric value. The top row is four ways to write 3; below are superscript two, one half, Roman twelve and the Chinese numeral three. int() accepts only the top row, yet isdigit() is True for ${CHARS.super.char} as well, and isnumeric() for all eight. The answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
+      caption: `The Unicode Character Database gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets mark what each call returns. int() accepts only the first four, yet isdigit() is True for ${CHARS.super.char} as well, and isnumeric() for all eight. The answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
     });
     await s.clear();
-    const cells = LINEUP.map((cid, i) => {
-      const ch = CHARS[cid];
-      const x = -5.4 + (i % 4) * 3.6,
-        y = i < 4 ? 1.3 : -2.2;
-      return {
-        cid,
-        x,
-        y,
-        mobs: [
-          new Text(ch.char, { fontSize: 1.3, color: ink }).moveTo([x, y + 0.35]),
-          new Text(ch.code, { fontSize: SIZE, font: 'mono', color: s.soft }).moveTo([x, y - 0.95]),
-        ],
-      };
+    // One row in lineup order; a bracket spans the characters each call accepts, which the model
+    // must give as a run from the left: the decimals, then the one digit, then the other numerics.
+    const slot = (i: number) => -6.3 + i * 1.8,
+      ROW = -0.4;
+    const span = (ok: (k: CharId) => boolean) => {
+      const n = LINEUP.filter(ok).length;
+      if (!LINEUP.slice(0, n).every(ok)) throw new Error('The lineup must list accepted characters first');
+      return n;
+    };
+    /** A bracket over (up) or under (down) characters a to b, with its words at its left end. */
+    const bracket = (a: number, b: number, y: number, up: boolean, words: string, color: string, heavy = false) => {
+      const x0 = slot(a) - 0.78,
+        x1 = slot(b) + 0.78,
+        tick = up ? -0.15 : 0.15,
+        stroke = { stroke: color, strokeWidth: heavy ? 0.075 : 0.03 };
+      return [
+        new Line([x0, y], [x1, y], stroke),
+        new Line([x0, y], [x0, y + tick], stroke),
+        new Line([x1, y], [x1, y + tick], stroke),
+        new Text(words, { fontSize: SIZE, font: 'mono', color, weight: heavy ? 'bold' : 'normal' }).moveTo([x0 + 0.12, y + (up ? 0.37 : -0.37)], [-1, 0]),
+      ];
+    };
+    const marks: Mobject[] = [];
+    PREDICATES.forEach((p, level) => {
+      const n = span((k) => predicates(CHARS[k])[p]);
+      marks.push(...bracket(0, n - 1, 0.72 + level * 0.82, true, `${p}() → True`, p === guard ? s.emphasis : ink, p === guard));
     });
-    const mine = cells.find((k) => k.cid === id)!;
-    const ring = new Rectangle({
-      width: 2.9,
-      height: 2.85,
-      cornerRadius: 0.15,
-      stroke: s.emphasis,
-      strokeWidth: 0.05,
-      fill: 'none',
-    }).moveTo([mine.x, mine.y - 0.05]);
-    const named = (ks: readonly CharId[]) => ks.map((k) => `${CHARS[k].char} ${CHARS[k].code}`).join(', ');
-    await s.enter(...cells.flatMap((k) => k.mobs), ring, {
-      describe: `Eight characters in two rows, each over its code point. Top: ${named(LINEUP.slice(0, 4))}. Bottom: ${named(LINEUP.slice(4))}. ${c.char} is circled.`,
+    const parses = span((k) => 'value' in intOf(CHARS[k]));
+    const returned = [...new Set(LINEUP.slice(0, parses).map((k) => (intOf(CHARS[k]) as { value: number }).value))];
+    marks.push(
+      ...bracket(0, parses - 1, -1.35, false, `int() → ${returned.join(' or ')}`, s.good),
+      ...bracket(parses, LINEUP.length - 1, -1.35, false, 'int() → ValueError', s.bad),
+    );
+    const glyphs = LINEUP.map((k, i) => new Text(CHARS[k].char, { fontSize: 1.15, color: ink }).moveTo([slot(i), ROW]));
+    const ring = new Rectangle({ width: 1.5, height: 1.5, cornerRadius: 0.15, stroke: s.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
+      slot(LINEUP.indexOf(id)),
+      ROW,
+    ]);
+    const sup = CHARS.super.char;
+    await s.enter(...glyphs, ring, ...marks, new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.bad }).moveTo([0, -2.85]), {
+      describe: `Eight characters in a row: ${LINEUP.map((k) => CHARS[k].char).join(' ')}. Brackets above span what each check accepts: isdecimal() the first ${span((k) => predicates(CHARS[k]).isdecimal)}, isdigit() the first ${span((k) => predicates(CHARS[k]).isdigit)}, isnumeric() all ${span((k) => predicates(CHARS[k]).isnumeric)}; the ${guard}() bracket is heavier. Brackets below: int() returns ${returned.join(' or ')} for the first ${parses} and raises ValueError for the rest. ${c.char} is circled. Under them: ${sup} passes isdigit() and int('${sup}') raises ValueError.`,
     });
     this.state.lineup = LINEUP.map((k) => ({ char: CHARS[k].char, type: numericType(CHARS[k]), int: intOf(CHARS[k]) }));
 

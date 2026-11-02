@@ -2,33 +2,30 @@
 
 Questions the reader brings: Is switching in the Monty Hall problem really better? Why isn't it 50/50 once two doors are left? People say it depends on what the host knows: how?
 
-You pick door A. A car is behind one of three doors and goats are behind the other two. The host opens B and shows a goat, then offers you C. Ask the reader two things before any arithmetic: would you switch, and would your answer change if the host hadn't known where the car was and had simply opened a door at random?
+You pick door A. A car is behind one of three doors and goats are behind the other two. The host opens B, shows a goat, and offers you C. People have argued about this for decades, and the answer turns on a question the puzzle is often told without: did the host know where the car was? Ask the reader before any arithmetic: would you switch, and would your answer change if the host had opened a door at random and happened to show a goat?
 
-Play the round out once: the car was behind C, so switching wins this time. One round can't say which choice wins more often, so list every placement of the car with your pick fixed at A, for both hosts, side by side. The host who knows has three equally likely rows: the car behind A (he opens B or C, and staying wins), behind B (he must open C), behind C (he must open B). Switching wins two of the three. The random host has six equally likely rows, a car position and a door he happens to open, and in two of them he opens the car and the game ends. Of the four rows that show a goat, switching wins two. That is the answer, mid-story: switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.
+Answer for the reader's own host first, by laying out every round with the first pick fixed at A as one strip, each round as wide as its chance. The car is behind each door a third of the time. The host who knows opens B or C when the car is behind A, and must open the one goat otherwise, so in both wrong-pick thirds the car is behind the door he leaves closed: switching wins 2 in 3. The random host opens B or C with equal chance wherever the car is, so every round is a sixth; in two sixths he opens the car and the game ends, and of the four that show a goat, staying and switching win two each.
 
-Why? A goat is evidence only when it could have been the car. The host who knows shows a goat in every round, so his goat rules nothing out: A still hides the car 1 time in 3, and in the other 2 he has left the car behind the door he didn't open. The random host shows the car in two rounds, both rounds where your first pick was wrong; seeing a goat rules exactly those out, leaving two rounds where your pick is right and two where it is wrong.
+Then the other host, on the same strip, with motion: each wrong-pick third splits in two, and in one half the random host opens the car. Those halves are exactly the rounds the host who knows turns into switching wins. That is the answer, at step 4: switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.
 
-Scale it to 100 doors with the same rule. The host who knows opens 98 goats, and switching wins 99 times in 100. The random host shows the car in 98% of rounds, and in the 2% that go on, staying and switching are even. The last step puts the two rules side by side: the same two closed doors, odds set by the rule that produced them.
+Last, the door the reader actually saw. Keep only the rounds where he opens B and shows a goat. With the car behind A, either host opens B half the time; with it behind C, the host who knows must open B, so C is twice as likely as A, while the random host opens B half the time either way. What sets the odds is how likely the host was to open exactly the door you saw. That rule is what the check questions transfer: a host who always opens B when he can, four doors, and a hundred.
 
-**The aha:** the two random-host rows that end with the car are exactly the wrong-pick rows the informed host turns into switching wins.
+**The aha:** the two strips are the same rounds. The random host's car rounds are carved out of the informed host's switching wins, half of each wrong-pick third, while staying keeps its third.
 
 **Sentence to remember:** switching wins 2 in 3 if the host knows where the car is, but 1 in 2 if the host opened a random door and showed a goat.
 
-**Check questions**, in `meta.checks`, asked after the last step:
+**Check questions**, in `meta.checks`, asked after the last step. Each is a case the steps don't show:
 
-1. With a host who knows where the car is, why doesn't his goat change the chance that your first door hides the car?
-2. With a random host, which rounds does seeing a goat rule out, and why does that bring switching down to 1 in 2?
-3. With 100 doors and a random host who opens 98 of them, how often does the game reach a switch offer, and what are the odds then?
+1. A host who knows always opens B when B hides a goat. You pick A and he opens C. Switch? (Yes, and you win every time: he opens C only when B hides the car. Had he opened B, switching would win 1 in 2.)
+2. Four doors, a host who knows opens two goats. How often does switching win? (3 in 4.)
+3. 100 doors, a random host opens 98. How often is there a switch offer, and what are the odds then? (2% of rounds; then 50/50.)
 
-The settings choose which host you play with in the round and at 100 doors (`host`), your first door (`choice`) and your decision (`strategy`). The side-by-side count and the last step show both hosts in every case.
+**The reader's lever:** the host rule (`host`) decides which round is played, which strip the count starts from, and which way the strips morph at step 4: splitting for the host who knows, merging for the random host. The first pick (`choice`) moves every letter.
 
 | Step | Script | Reader predicts |
 | --- | --- | --- |
-| choice | paragraph 1: your pick, and the hint that the host's knowledge matters | |
-| host | paragraph 1: the host opens a goat, under the chosen rule | |
+| choice | paragraph 1: your pick, the host's goat, and the missing question | |
 | predict | paragraph 1: the two questions | stay or switch; whether the host's knowledge matters |
-| reveal | paragraph 2: one round's outcome, and why it can't settle anything | |
-| worlds | paragraph 2: both hosts' rows side by side, and the answer | |
-| odds | paragraph 3: why, for the chosen host | |
-| many | paragraph 4: 100 doors, same rule | |
-| rules | paragraph 4: both rules, one table | |
+| odds | paragraph 2: your host's strip, and his odds | |
+| worlds | paragraph 3: the other host's strip, morphed from yours; the answer and the aha | |
+| rules | paragraph 4: only the rounds that show your goat behind B | |

@@ -8,7 +8,7 @@ import {fc,params} from './lib/pbt.ts';
 import {dictionary,deleteFirst,lookup,probeSlots} from '../scenes/explainers/lib/python-dict.ts';
 import {fnv1a,locations,makeFilter,membership,bloomStory} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
-import {monty,threeDoorWorlds,montyExample} from '../scenes/explainers/lib/monty-hall.ts';
+import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter} from '../scenes/explainers/lib/monty-hall.ts';
 import {birthdayChance,birthdaySample,matches} from '../scenes/explainers/lib/birthday-paradox.ts';
 import {phrase,musicStory} from '../scenes/explainers/lib/melody-rhythm.ts';
 import {stepAudio} from '../explain/audio.ts';
@@ -205,6 +205,47 @@ test('host-conditioned odds and displayed rows match complete physical worlds',(
       assert.equal(e.final,strategy==='stay'?choice:e.offered);assert.equal(e.won,e.final===e.prize);
     }
   }
+});
+
+test('each round’s chance and the odds after a seen door match a host simulated door by door',()=>{
+  // Independently: weight each (car, opened) pair by 1/3 for the car times the host's chance of
+  // opening that door, in integer twelfths, so only the final ratios are floats.
+  for(const choice of [0,1,2]) for(const host of ['informed','random','leftmost'] as const) {
+    const twelfths=new Map<string,number>();
+    for(let prize=0;prize<3;prize++) {
+      const unchosen=[0,1,2].filter(d=>d!==choice);
+      const allowed=host==='random'?unchosen:unchosen.filter(d=>d!==prize);
+      const picks=host==='leftmost'?[Math.min(...allowed)]:allowed;
+      for(const d of picks) twelfths.set('ABC'[prize]!+'ABC'[d]!,4/picks.length);
+    }
+    const cells=threeDoorCells(choice,host);
+    assert.equal(cells.length,twelfths.size,`${host} host, pick ${'ABC'[choice]}: one cell per possible round`);
+    assert.equal(cells.reduce((n,c)=>n+c.sixths,0),6);
+    for(const c of cells) {
+      assert.equal(c.sixths*2,twelfths.get(c.prize+c.opened),`${host}: ${c.prize}${c.opened}`);
+      const left='ABC'[[0,1,2].find(d=>d!==choice&&'ABC'[d]!==c.opened)!]!;
+      assert.equal(c.shows,c.opened===c.prize?'car':'goat');
+      assert.equal(c.swap,c.shows==='car'?'ends':left===c.prize?'win':'lose');
+      assert.equal(c.stay,c.shows==='car'?'ends':'ABC'[choice]===c.prize?'win':'lose');
+    }
+    for(const opened of [0,1,2].filter(d=>d!==choice).map(d=>'ABC'[d]!)) {
+      let stay=0,swap=0;
+      for(const [round,w] of twelfths) if(round[1]===opened&&round[0]!==opened) {
+        if(round[0]==='ABC'[choice]) stay+=w; else swap+=w;
+      }
+      if(stay+swap===0) { assert.throws(()=>oddsAfter(choice,host,opened),/never shows a goat/); continue; }
+      const o=oddsAfter(choice,host,opened);
+      close(o.switchChance,swap/(stay+swap));close(o.stayChance,stay/(stay+swap));
+    }
+  }
+  // The values the scene and its check questions state.
+  for(const choice of [0,1,2]) for(const opened of [0,1,2].filter(d=>d!==choice).map(d=>'ABC'[d]!)) {
+    close(oddsAfter(choice,'informed',opened).switchChance,2/3);
+    close(oddsAfter(choice,'random',opened).switchChance,1/2);
+  }
+  close(oddsAfter(0,'leftmost','C').switchChance,1);close(oddsAfter(0,'leftmost','B').switchChance,1/2);
+  close(monty(4,'informed').switchChance,3/4);close(monty(100,'random').switchChance,1/2);
+  assert.throws(()=>threeDoorCells(0,'psychic' as never),/Unknown host rule/);
 });
 
 test('birthday formulas match exhaustive small calendars and independent exact Python fractions',()=>{

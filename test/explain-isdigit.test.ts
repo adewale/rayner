@@ -17,6 +17,7 @@ import {
   guarded,
   accepts,
   grouped,
+  UNSHOWN,
 } from '../scenes/explainers/lib/isdigit.ts';
 import type { Char, CharId } from '../scenes/explainers/lib/isdigit.ts';
 
@@ -148,6 +149,35 @@ test('python3, run now, gives the frozen answers', { skip: !PY && 'no python3 wi
   for (const id of LINEUP) assert.deepEqual(got.rows[CHARS[id].char], [...CPYTHON[id]], id);
   assert.deepEqual(got.counts, CPYTHON_COUNTS);
   assert.equal(got.nested, true);
+});
+
+// The check questions' cases, which no step shows: ⑤ from its row alone, and int() on '٣4'.
+// UnicodeData.txt 17.0.0 line 8433, fetched 2026-11-02.
+const UNSHOWN_LINE = [8433, '2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;'] as const;
+test('the check questions’ unshown cases follow from the model: ⑤’s row and the rewrite of ٣4', () => {
+  assert.equal(UNSHOWN.ucd, UNSHOWN_LINE[1]);
+  assert.equal(UNSHOWN.ucdLine, UNSHOWN_LINE[0]);
+  assert.equal(UNSHOWN.code, 'U+2464');
+  assert.deepEqual(fields(UNSHOWN), { decimal: '', digit: '5', numeric: '5' });
+  assert.deepEqual(predicates(UNSHOWN), { isdecimal: false, isdigit: true, isnumeric: true });
+  assert.equal(asciiFor(UNSHOWN), '?');
+  assert.deepEqual(intOf(UNSHOWN), { error: "invalid literal for int() with base 10: '⑤'" });
+  // int() rewrites character by character: ٣ becomes '3' and the ASCII 4 is kept.
+  assert.equal(asciiFor(CHARS.arabic) + '4', '34');
+});
+// ⑤ and ٣ have had these values since Unicode 1.1, so any python3 answers as CPython 3.15.1 would.
+const ANY_PY = spawnSync(process.env.PYTHON ?? 'python3', ['-I', '-c', 'pass']).status === 0 ? (process.env.PYTHON ?? 'python3') : null;
+test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
+  const script = [
+    'import json',
+    "c = chr(0x2464)",
+    "try: n = int(c)\nexcept ValueError as e: n = str(e)",
+    "print(json.dumps([c.isdecimal(), c.isdigit(), c.isnumeric(), n, int(chr(0x663) + '4')], ensure_ascii=False))",
+  ].join('\n');
+  const r = spawnSync(ANY_PY!, ['-I', '-c', script], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const p = predicates(UNSHOWN), int = intOf(UNSHOWN);
+  assert.deepEqual(JSON.parse(r.stdout), [p.isdecimal, p.isdigit, p.isnumeric, 'error' in int ? int.error : int.value, Number(asciiFor(CHARS.arabic) + '4')]);
 });
 
 // ------------------------------------------------------------------ properties over synthetic rows
