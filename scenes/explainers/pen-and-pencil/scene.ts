@@ -444,7 +444,7 @@ export default class PenAndPencil extends Scene {
     // 1. The failure on the real timeline: a hand that places its own strokes pushes words out of their boxes.
     await this.step('text', {
       title: 'Can a wobbling hand draw this timeline and keep every word in its box?',
-      line: 'Predict: what has to be settled before any ink so that every word stays inside?',
+      line: 'Predict: what must be fixed before any ink?',
       caption: `The timeline in the corner is four periods with an event in each, and no positions. A simulated hand drew it below, wobbling a little on every line as a person’s hand would: first the rail, then each box, ring and string from left to right, every line setting off from where the previous one stopped. The words sit where a layout program placed them, and ${misses.length} of the ${wordCountFree}, outlined in red, poke out of the box drawn round them.`,
     });
     await s.clear();
@@ -584,8 +584,8 @@ export default class PenAndPencil extends Scene {
     this.state.plate = { objects, stray: Number(fmt(chartStray)), letters: letterCount, sharpenings };
 
     await this.step('freehand', {
-      title: `Once each stroke traces a fixed mark, all ${wordCountFree} words stay in their boxes`,
-      line: 'Top: the opening’s drawing, each line begun at the end of the last. Bottom: the finished plate.',
+      title: `Traced on fixed marks, all ${wordCountFree} words stay in their boxes`,
+      line: 'Top: the opening’s drawing. Bottom: the finished plate.',
       caption: `The opening’s drawing returns above the finished plate. Its boxes ended up as much as ${fmt(maxOff, 2)} units, ${px(maxOff)}, from where the layout put them, because every error rode along into the lines after it. Every stroke of the plate below wobbles too, but each one chased a mark fixed before any ink, so all ${wordCountFree} words sit inside their boxes.`,
     });
     await s.clear();
