@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { player, coffee, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from '../tools/oracle/statecharts.ts';
 import type { Expected, Explored } from '../tools/oracle/statecharts.ts';
 
@@ -63,6 +63,19 @@ test('an event the current state does not handle is taken by its parent, leaving
   const playerOff = run(player(2), RUNS.player).at(-1)!;
   assert.deepEqual([playerOff.sources, playerOff.exited, playerOff.config], [['on'], ['playing', 'muted'], ['off']]);
   assert.deepEqual(run(player(2), RUNS.player)[2]!.exited, ['unmuted'], 'MUTE leaves the playback region alone');
+});
+
+test('a flat coffee machine copied by hand without brewing’s POWER_OFF cannot be switched off while brewing', () => {
+  const hand = byHand(coffee(), 'brewing', 'POWER_OFF'),
+    flat = flatten(coffee());
+  assert.equal(flatten(hand).transitions.length, flat.transitions.length - 1);
+  assert.deepEqual(flatten(hand).states, flat.states);
+  // The same events as the parent step: the boxed machine ends off, the hand-copied one stays brewing until BREWED.
+  assert.deepEqual(run(hand, RUNS.coffee).at(-1)!.config, ['brewing']);
+  assert.equal(run(hand, RUNS.coffee).at(-1)!.handled, false);
+  assert.deepEqual(run(hand, [...RUNS.coffee, 'BREWED', 'POWER_OFF']).at(-1)!.config, ['off']);
+  assert.deepEqual(run(coffee(), RUNS.coffee).at(-1)!.config, ['off']);
+  assert.throws(() => byHand(coffee(), 'off', 'POWER_OFF'), /No POWER_OFF leaves off/);
 });
 
 test('active states name the boxes a configuration is in, ancestors included, regions left out', () => {

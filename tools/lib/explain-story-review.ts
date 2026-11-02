@@ -77,6 +77,7 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
       targets: [{ key: 'bloom-bits' }, { key: 'bloom-query' }, { key: 'bloom-answer' }],
     },
     { step: 'pipeline', opening: true, targets: [{ key: 'bloom-pipeline' }, { key: 'bloom-checks' }] },
+    { step: 'full', opening: true, targets: [{ key: 'bloom-bits' }, { key: 'bloom-taken' }, { key: 'bloom-query' }, { key: 'bloom-answer' }] },
   ],
   'git-branches': [
     { step: 'question', opening: true, targets: [{ key: 'git-history' }, { key: 'git-head' }, { key: 'git-files' }] },
@@ -104,14 +105,14 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
       step: 'odds',
       settings: { host },
       opening: true,
-      targets: [{ key: `strip:${host}` }, { key: 'monty-stay' }, { key: 'monty-switch' }],
+      targets: [{ key: `strip:${host}` }, { key: 'monty-stay' }, { key: 'monty-switch' }, { key: 'monty-note' }, { key: 'monty-key' }],
     })),
+    // worlds now also carries the old rules step: both strips greyed to the rounds that open B, with their odds.
     {
       step: 'worlds',
       opening: true,
-      targets: [{ key: 'strip:informed' }, { key: 'strip:random' }, { key: 'monty-readout-informed' }, { key: 'monty-readout-random' }],
+      targets: [{ key: 'strip:informed' }, { key: 'strip:random' }, { key: 'monty-readout-informed' }, { key: 'monty-readout-random' }, { key: 'monty-key' }],
     },
-    { step: 'rules', opening: true, targets: [{ key: 'strip:informed' }, { key: 'strip:random' }, { key: 'monty-rules' }] },
   ],
   'birthday-paradox': [
     { step: 'room', opening: true, targets: [{ key: 'birthday-people' }] },

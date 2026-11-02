@@ -2,7 +2,7 @@ import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn
 import type { Mobject, MatchKey, Vec, Box } from 'rayner';
 import { stage, regionBox } from 'rayner/explain';
 import type { Stage } from 'rayner/explain';
-import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, flatten, flatName, run, activeStates, chartCounts, flatCounts } from '../lib/statecharts.ts';
+import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts } from '../lib/statecharts.ts';
 import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
 
 // Every box and arrow below is drawn from a model state or transition; only positions are chosen
@@ -306,9 +306,11 @@ const byKey: MatchKey = (p) => {
 
 
 // The coffee machine: a column of on states, off to its right. `plain` is the machine before it has a
-// power button; `flat` gives each state its own POWER_OFF; `chart` puts them in the box on; `question` adds the frother beside it, not yet placed; `frother`
-// splits on into the brewing cycle and the frother.
+// power button; `flat` gives each state its own POWER_OFF, copied by hand with brewing's forgotten; `chart` puts them in the box on;
+// `question` adds the frother beside it, not yet placed; `frother` splits on into the brewing cycle and the frother.
 type CoffeeMode = 'plain' | 'flat' | 'chart' | 'question' | 'frother';
+/** The state whose POWER_OFF the hand-copied flat machine forgets. */
+const FORGOT = 'brewing';
 const COFFEE = {
   x: -2.4,
   ys: { idle: 2.05, grinding: 0.65, brewing: -0.75, ready: -2.15 } as Record<string, number>,
@@ -393,7 +395,7 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     mode === 'plain'
       ? flatten(chart).transitions.filter((t) => t.from !== 'off' && t.to !== 'off')
       : mode === 'flat'
-      ? flatten(chart).transitions
+      ? flatten(byHand(chart, FORGOT, 'POWER_OFF')).transitions
       : mode === 'question'
         ? [...written(chart), { from: 'still', event: FROTHER.events[0], to: 'frothing' }, { from: 'frothing', event: FROTHER.events[1], to: 'still' }]
         : written(chart);
@@ -425,6 +427,18 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     }
     words.push(`${t.from} → ${t.to}: ${t.event}${lit ? ' (marked)' : ''}`);
   }
+  if (mode === 'flat') {
+    // The copy that was forgotten: a dashed red gap where brewing's POWER_OFF should be.
+    const y = COFFEE.ys[FORGOT]!,
+      left = COFFEE.x + COFFEE.size[0] / 2 + 0.07,
+      right = lay.off.center[0] - lay.off.size[0] / 2 - 0.07,
+      key = `c:arrow:${FORGOT}:POWER_OFF:off`;
+    parts.push(
+      keyed(new Line(f.at([left, y]), f.at([right, y]), { stroke: s.bad, strokeWidth: 0.04 * f.k, dashArray: `${0.12 * f.k} ${0.1 * f.k}` }), key),
+      keyed(new Text('no POWER_OFF', { fontSize: L * f.k, color: s.bad, weight: 'bold' }).moveTo(f.at([(left + right) / 2, y + 0.27])), `${key}|label`),
+    );
+    words.push(`${FORGOT} → off: POWER_OFF missing (marked)`);
+  }
   if (dispatch) {
     // Who answers POWER_OFF while brewing: brewing first, then its parent.
     const lines = ['POWER_OFF while brewing (green):', '1. brewing: no POWER_OFF', '2. its parent on: has it → off'];
@@ -433,7 +447,7 @@ function coffeePicture(s: Stage, f: Fit, mode: CoffeeMode, look: Look, dispatch 
     );
     words.push(...lines);
   }
-  const n = mode === 'plain' ? { states: places.size, transitions: arrows.length } : mode === 'flat' ? flatCounts(flatten(chart)) : chartCounts(chart);
+  const n = mode === 'plain' ? { states: places.size, transitions: arrows.length } : mode === 'flat' ? flatCounts(flatten(byHand(chart, FORGOT, 'POWER_OFF'))) : chartCounts(chart);
   const kind = mode === 'plain' ? 'State machine' : mode === 'flat' ? 'Flat' : 'Statechart';
   if (mode !== 'question') parts.push(note(s, f, lay.bounds, `${kind}: ${counted(n)}`));
   return { group: new Group(...parts), words };
@@ -477,85 +491,43 @@ function tracePicture(s: Stage, f: Fit): Drawn {
 }
 const TRACE: Box = [-6.4, -3.4, 6.2, 2.7];
 
-// The check questions' machines, which no step draws. Each is given to the reader flat; the model holds both versions.
+// The check questions' machines, which no step draws. Each changes the frother, or replays the last step's machine.
 const atomic = (id: string, on?: Record<string, string>): StateNode => ({ id, type: 'atomic', ...(on ? { on } : {}) });
-/** Check 1, flat: a traffic light whose TIMER goes to three different places and whose FAULT goes to one. */
-const lightFlat = (): StateNode => ({
-  id: 'light',
+const frotherRegion = (): StateNode => ({
+  id: FROTHER.region,
   type: 'compound',
-  initial: 'red',
-  children: [
-    atomic('green', { TIMER: 'yellow', FAULT: 'flashing' }),
-    atomic('yellow', { TIMER: 'red', FAULT: 'flashing' }),
-    atomic('red', { TIMER: 'green', FAULT: 'flashing' }),
-    atomic('flashing', { RESET: 'red' }),
-  ],
+  initial: FROTHER.states[0],
+  children: [atomic(FROTHER.states[0], { [FROTHER.events[0]]: FROTHER.states[1] }), atomic(FROTHER.states[1], { [FROTHER.events[1]]: FROTHER.states[0] })],
 });
-/** Check 1, as a statechart: the three lamps in a box that carries FAULT once. */
-const lightChart = (): StateNode => ({
-  id: 'light',
-  type: 'compound',
-  initial: 'working',
-  children: [
-    {
-      id: 'working',
-      type: 'compound',
-      initial: 'red',
-      on: { FAULT: 'flashing' },
-      children: [atomic('green', { TIMER: 'yellow' }), atomic('yellow', { TIMER: 'red' }), atomic('red', { TIMER: 'green' })],
-    },
-    atomic('flashing', { RESET: 'red' }),
-  ],
-});
-/** Check 2, flat: a car door that opens only when unlocked, so there is no open · locked. */
-const doorFlat = (): StateNode => ({
-  id: 'door',
-  type: 'compound',
-  initial: 'closed_locked',
-  children: [
-    atomic('closed_locked', { UNLOCK: 'closed_unlocked' }),
-    atomic('closed_unlocked', { LOCK: 'closed_locked', OPEN: 'open_unlocked' }),
-    atomic('open_unlocked', { CLOSE: 'closed_unlocked' }),
-  ],
-});
-/** Check 2, split into two regions anyway: the door and the lock, each running on its own. */
-const doorRegions = (): StateNode => ({
-  id: 'door',
-  type: 'parallel',
-  children: [
-    { id: 'panel', type: 'compound', initial: 'closed', children: [atomic('closed', { OPEN: 'open' }), atomic('open', { CLOSE: 'closed' })] },
-    { id: 'lock', type: 'compound', initial: 'locked', children: [atomic('locked', { UNLOCK: 'unlocked' }), atomic('unlocked', { LOCK: 'locked' })] },
-  ],
-});
-/** Check 3: a fan, off or on, whose on is split into speed (three states, one SPEED event round them) and swing. */
-const fanChart = (): StateNode => ({
-  id: 'fan',
-  type: 'compound',
-  initial: 'off',
-  children: [
-    atomic('off', { POWER: 'on' }),
-    {
-      id: 'on',
-      type: 'parallel',
-      on: { POWER: 'off' },
-      children: [
-        { id: 'speed', type: 'compound', initial: 'low', children: [atomic('low', { SPEED: 'medium' }), atomic('medium', { SPEED: 'high' }), atomic('high', { SPEED: 'low' })] },
-        { id: 'swing', type: 'compound', initial: 'still', children: [atomic('still', { SWING: 'swinging' }), atomic('swinging', { STILL: 'still' })] },
-      ],
-    },
-  ],
-});
-/** The counts the check questions ask about, from the model. */
-const COUNTS = (() => {
-  const light = { flat: flatCounts(flatten(lightFlat())), chart: chartCounts(lightChart()) };
-  // The box changes nothing a driver sees: flattened, it is the flat light.
-  if (light.flat.transitions !== flatCounts(flatten(lightChart())).transitions) throw new Error('The boxed light must flatten to the flat light');
-  const door = flatten(doorFlat()),
-    split = flatten(doorRegions());
-  const openLocked = Object.values(split.configurations).some((c) => c.includes('open') && c.includes('locked'));
-  if (!openLocked || door.states.includes('open_locked')) throw new Error('Only the split door reaches open and locked');
-  const fan = { flat: flatCounts(flatten(fanChart())), chart: chartCounts(fanChart()) };
-  return { light, door: { flat: door.states.length, split: split.states.length }, fan };
+/** Check 1: a frother with its own power, which works whether the machine is on or off: a region beside the whole machine. */
+const frotherOutside = (): StateNode => ({ id: 'kit', type: 'parallel', children: [coffee(), frotherRegion()] });
+/** Check 2: a frother that runs on the brewing steam, so it exists only while brewing: a box inside brewing. */
+const frotherInBrewing = (): StateNode => {
+  const base = coffee();
+  const swap = (n: StateNode): StateNode =>
+    n.id === 'brewing' ? { ...frotherRegion(), id: 'brewing', on: n.on } : { ...n, ...(n.children ? { children: n.children.map(swap) } : {}) };
+  return swap(base);
+};
+/** The counts and states the check questions ask about, from the model. */
+const CHECKS = (() => {
+  const inside = flatten(coffeeWithFrother()),
+    outside = flatten(frotherOutside()),
+    steam = flatten(frotherInBrewing());
+  // Outside on, the frother can froth while the machine is off; inside on, it cannot.
+  const offFrothing = (m: typeof inside) => Object.values(m.configurations).some((c) => c.includes('off') && c.includes('frothing'));
+  if (!offFrothing(outside) || offFrothing(inside)) throw new Error('Only the frother outside on froths while the machine is off');
+  // On steam, frothing pairs only with brewing, so two-word names stop at brewing.
+  if (Object.values(steam.configurations).some((c) => c.includes('frothing') && !activeStates(frotherInBrewing(), c).includes('brewing')))
+    throw new Error('The steam frother froths only while brewing');
+  // Check 3: the last step's machine switched off while grinding and frothing, then on again.
+  const again = run(coffeeWithFrother(), [...RUNS.frother, 'POWER_ON']).at(-1)!.config;
+  return {
+    machine: flatten(coffee()).states.length,
+    inside: flatCounts(inside),
+    outside: flatCounts(outside),
+    steam: { flat: flatCounts(steam), chart: chartCounts(frotherInBrewing()) },
+    again,
+  };
 })();
 
 export default class Statecharts extends Scene {
@@ -570,23 +542,23 @@ export default class Statecharts extends Scene {
     ],
     watch: { current: 'Current states' },
     // The script's answer and check questions (script.md); check holds a step (parent) to stating the answer.
-    answer: 'A statechart is a state machine whose states can contain other states',
-    // Questions about this explainer's machines, which a reader who already knows statecharts can't answer from memory.
+    answer: 'A statechart is a state machine whose states can contain other states, active one at a time or several at once',
+    // Questions that change this explainer's frother or replay its last machine, none of which a step shows.
     checks: [
       {
         question:
-          'A traffic light’s flat machine has green, yellow, red and flashing. TIMER moves green to yellow, yellow to red and red to green; FAULT moves each of the three lamps to flashing; RESET moves flashing to red. Which arrows can one arrow on a box replace, and how many transitions does the statechart draw?',
-        answer: `The three FAULT arrows: they leave several states for the same place, so green, yellow and red go in a box that carries FAULT once. The three TIMER arrows each go somewhere different, so they stay. The flat machine draws ${COUNTS.light.flat.transitions} transitions; the statechart draws ${COUNTS.light.chart.transitions}.`,
+          'Give the frother its own power, so FROTH and STOP work whether the coffee machine is on or off. Where does the frother region go now, and how many states does the flat machine need?',
+        answer: `Outside on, beside the whole machine: since the frother works whether the machine is off or on, it becomes a region next to the off-and-on machine, and the statechart’s top level splits in two. Flat, every one of the machine’s ${CHECKS.machine} states pairs with still or frothing, off included: ${CHECKS.outside.states} states where the frother inside on needed ${CHECKS.inside.states}.`,
       },
       {
         question:
-          'A car door’s flat machine has closed · locked, closed · unlocked and open · unlocked. LOCK and UNLOCK move between the two closed states; OPEN moves closed · unlocked to open · unlocked, and CLOSE moves it back. Every name is two words. Should the door and the lock be two regions?',
-        answer: `No. The two words depend on each other: there is no open · locked, and OPEN works only when unlocked. Two regions would run the door and the lock independently; flattened, they reach ${COUNTS.door.split} states where the door has ${COUNTS.door.flat}, one of them open · locked, and the door would open while locked.`,
+          'Now the frother runs on the brewing steam, so it can be still or frothing only while brewing, and leaving brewing stops it. Write the flat machine’s state names. Does the second sign still say “region”, and where does the frother go?',
+        answer: `The names are off, idle, grinding, brewing · still, brewing · frothing and ready: ${CHECKS.steam.flat.states} states. Only the brewing states have two words, so the words are not independent and the second sign does not apply. The frother goes inside brewing as a box of two states, which makes brewing a parent: the first idea again. The statechart draws ${CHECKS.steam.chart.transitions} transitions where the flat machine draws ${CHECKS.steam.flat.transitions}.`,
       },
       {
         question:
-          'A fan’s flat machine has off and six on states, each named by a speed (low, medium or high) and a swing (still or swinging). SPEED steps low to medium to high and back to low; SWING and STILL toggle the swing; POWER leaves each on state for off, and leads from off to low · still. Which signs does it show, and how many boxes and transitions does the statechart draw?',
-        answer: `Both. POWER copied onto six states wants a parent, on, with one POWER; names made of two independent words want two regions, speed with three states and swing with two. The flat machine draws ${COUNTS.fan.flat.states} boxes and ${COUNTS.fan.flat.transitions} transitions; the statechart draws ${COUNTS.fan.chart.states} boxes (off, on and the five region states) and ${COUNTS.fan.chart.transitions} transitions.`,
+          'In the last step the machine is grinding while the frother is frothing. Press POWER_OFF, then POWER_ON. Is the frother still frothing?',
+        answer: `No. POWER_OFF is taken by on, which leaves both regions; POWER_ON enters on again, and each region starts at its start dot: ${CHECKS.again.join(' and ')}. Nothing in the chart remembers where a region was when the machine went off.`,
       },
     ],
   };
@@ -665,9 +637,9 @@ export default class Statecharts extends Scene {
 
     // 2. Shared behaviour is copied.
     await this.step('copies', {
-      title: `${coffeeFlat.transitions - coffeePlain} more arrows: POWER_ON, and a POWER_OFF on every state`,
-      line: 'Predict: the four marked arrows all do the same thing. How could one arrow do the job?',
-      caption: `In a plain state machine an arrow leaves exactly one state, so idle, grinding, brewing and ready each need their own POWER_OFF, marked here, and off needs a POWER_ON. The machine now has ${coffeeFlat.states} states and ${coffeeFlat.transitions} transitions, and any state added later would need its own POWER_OFF too. The same event leading from several states to the same place is the first sign that a drawing is missing structure.`,
+      title: 'A POWER_OFF copied onto every state, and one copy missed',
+      line: 'Predict: the marked arrows all do the same thing. How could one arrow do the job?',
+      caption: `In a plain state machine an arrow leaves exactly one state, so idle, grinding, brewing and ready each need their own POWER_OFF, and off needs a POWER_ON: ${coffeeFlat.transitions - coffeePlain} more arrows, ${coffeeFlat.transitions} in all. Copied by hand, one is easy to miss. Here brewing’s is missing, so pressing the power button while brewing does nothing until the brew is done, and every state added later needs its own copy. The same event leading from several states to the same place is the first of two signs to look for in a flat machine.`,
     });
     await morph('copies');
     this.state = { current: null };
@@ -675,8 +647,8 @@ export default class Statecharts extends Scene {
     // 3. The box: a parent takes what its children don't. The name arrives here.
     await this.step('parent', {
       title: 'A box around the four states takes the one POWER_OFF',
-      line: 'The current state is asked first, then the box around it.',
-      caption: `Put the four in a box called on, and give the box the one POWER_OFF: ${coffeeFlat.transitions} transitions become ${coffeeChart.transitions}. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. This is the first of two ideas: a statechart is a state machine whose states can contain other states.`,
+      line: 'In XState and SCXML, the current state is asked first, then the box around it.',
+      caption: `Put the four in a box called on, and give the box the one POWER_OFF: the ${coffeeFlat.transitions} transitions a complete flat machine needs become ${coffeeChart.transitions}, and none can be forgotten. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. The box is half of the answer: a statechart is a state machine whose states can contain other states, active one at a time or several at once. Inside on, one state is active at a time; the next machine needs several at once.`,
     });
     await morph('parent');
     this.state = { current: activeStates(coffee(), brewing) };
@@ -685,7 +657,7 @@ export default class Statecharts extends Scene {
     await this.step('multiply', {
       title: 'A media player: two on/off features make four flat states',
       line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
-      caption: `A media player is playing or paused, and separately muted or unmuted; neither choice limits the other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Each further on/off feature doubles the combinations. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign of missing structure.`,
+      caption: `A media player is playing or paused, and separately muted or unmuted; neither choice limits the other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Each further on/off feature doubles the combinations. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
     });
     await fresh('multiply');
     this.state = { current: null };
@@ -723,8 +695,8 @@ export default class Statecharts extends Scene {
     // 8. The transfer answer: a second region.
     await this.step('frother', {
       title: 'The frother is a second region, beside the brewing cycle',
-      line: `Flat: ${frotherFlat.states} states, ${frotherFlat.transitions} transitions. Statechart: ${frotherChart.states} and ${frotherChart.transitions}.`,
-      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions.`,
+      line: `A flat machine would need ${frotherFlat.states} states and ${frotherFlat.transitions} transitions; the statechart draws ${frotherChart.transitions} arrows.`,
+      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The green boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
     });
     await morph('frother');
     this.state = { current: activeStates(coffeeWithFrother(), frothingNow) };
