@@ -24,12 +24,12 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
 
 ## Export the collection
 
-Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Its gallery leads with six showcase lessons; the rest remain available as subject lessons and authoring recipes. The catalog records `showcase` separately from coverage counts.
+Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Each explainer in `scenes/explainers/catalog.ts` has a tier from its verdict under the [rubric](EXPLAINER-RUBRIC.md): the gallery leads with the `showcase` tier (graded Good), lists the `gallery` tier behind "More", and gives the `coverage` tier (kept as the only scene exercising some feature, or until it is rebuilt) no card and no `llms.txt` line, though its page is still built and checked. The exported catalog records each explainer's `tier`.
 
 Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the showcase, use:
 
 ```sh
-npm run site:export -- <site-root> --only python-dict,bloom-filter,git-branches,melody-rhythm,monty-hall,token-bucket --entry python-dict
+npm run site:export -- <site-root> --only python-dict,git-branches,monty-hall,send-sync,pg-page,isdigit,trust-proxy --entry python-dict
 ```
 
 `--entry` must name a selected lesson. If omitted, export keeps the catalog entry when selected, otherwise it uses the first requested id. No particular subject is mandatory. The exported catalog, evidence and `llms.txt` report only the selected lessons; complete collection checks remain separate.

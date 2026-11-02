@@ -280,10 +280,10 @@ export default class IcalRecurrenceExplainer extends Scene {
         // Broker.php:459–620 (what each attendee is sent), :269–317 (how it is stored).
         caption:
           change === 'skip'
-            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting; Bob’s still lists ${long(GUEST_MEETING)}, marked cancelled.`
+            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting; Bob’s still lists ${long(GUEST_MEETING)}, marked cancelled. This follows RFC 4791, which counts that one VEVENT as a meeting; asked to expand it, Baïkal returns his object with no VEVENT in it, a sabre/vobject quirk.`
             : change === 'move'
-              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
-              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His calendar shows ${plural(expand(mine).length, 'meeting')}.`,
+              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it. This follows RFC 4791, which counts that one VEVENT as a meeting; asked to expand it, Baïkal returns his object with no VEVENT in it, a sabre/vobject quirk.`
+              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His calendar shows ${plural(expand(mine).length, 'meeting')}. This follows RFC 4791, which counts that one VEVENT as a meeting; asked to expand it, Baïkal returns his object with no VEVENT in it, a sabre/vobject quirk.`,
       });
       await s.clear();
       await s.code(lines(mine), {

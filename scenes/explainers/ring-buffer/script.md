@@ -2,7 +2,7 @@
 
 Questions the reader brings: What is a ring buffer for? Why not just use an array as a queue? What happens when it fills up?
 
-The simplest queue keeps its values in order in an array. Push writes at the end. Pop takes the front, and then every other value moves one slot left, the way `Array.prototype.shift` does. Popping 1 from five values moves four; from a thousand values, 999. The order stays right, but every pop pays for every value left behind.
+The simplest queue keeps its values in order in an array. Push writes at the end. Pop takes the front, and then every other value is copied one slot left, as the language's definition of `Array.prototype.shift` says (an engine may skip the copy for a large array). Popping 1 from five values moves four; from a thousand values, 999. The order stays right, but every pop pays for every value left behind.
 
 What if pop took the front value and moved nothing? Keep five fixed slots and remember two positions instead: head, the slot pop reads next, and tail, the slot push writes next. Push writes at tail and moves tail on; pop reads at head and moves head on. When a marker passes slot 4 it wraps back to slot 0, so the row behaves as a ring. Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots.
 

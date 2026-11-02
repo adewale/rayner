@@ -27,7 +27,7 @@ export function frames(): ReaderFrame[] {
       id: 'shift',
       title: 'A queue in an array: each pop moves every value left',
       line: `Predict: how could pop take ${q.popped} without moving the other ${q.moved}?`,
-      caption: `The simplest queue keeps its values in order in an array. Push writes at the end; pop takes the front, then moves every other value one slot left, as Array.prototype.shift does. Popping from five values moves ${q.moved}; from a thousand, ${big.moved}. The order on screen stays right, but every pop pays for every value left behind.`,
+      caption: `The simplest queue keeps its values in order in an array. Push writes at the end; pop takes the front, then copies every other value one slot left, as the language’s definition of Array.prototype.shift does. Popping from five values moves ${q.moved}; from a thousand, ${big.moved}. (An engine may skip the copy for a large array, but a queue that copies pays it.) The order on screen stays right, but every pop pays for every value left behind.`,
       values: { before: q.before, after: q.after, popped: q.popped, moved: q.moved },
       draw: (s) => {
         const g = new Group();

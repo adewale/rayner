@@ -127,10 +127,10 @@ export default class SeasonsExplainer extends Scene {
     checks: [
       {
         question: 'When is Earth nearest the Sun, and what is London’s daylight on 15 January?',
-        answer: 'In early January, in the northern winter. London gets 8.0 h of daylight on 15 January, while latitude −51.5°, the same distance from the Sun, gets 16.0 h.',
+        answer: 'In early January, in the northern winter. By the sunrise equation London gets 8.0 h of daylight on 15 January (an almanac, counting refraction, gives about a quarter of an hour more), while latitude −51.5°, the same distance from the Sun, gets 16.0 h.',
       },
       {
-        question: 'London gets 16.4 h of daylight at the June solstice. Why does Sydney get only 9.7 h that day?',
+        question: 'By the sunrise equation, London gets 16.4 h of daylight at the June solstice. Why does Sydney get only 9.7 h that day?',
         answer: 'Sydney is south of the equator. In June the north end of the axis leans toward the Sun, so most of Sydney’s latitude circle is on the night side.',
       },
       {
@@ -439,13 +439,13 @@ export default class SeasonsExplainer extends Scene {
       title: `Answer: ${hours(june.daylight)} of June daylight in ${place.name}, noon Sun at ${degrees(june.altitude)}`,
       line: `The yellow part of the line through the red dot is ${place.name}’s daylight.`,
       caption:
-        place.lat < 0
+        (place.lat < 0
           ? `In June the north end of the axis leans toward the Sun. Sydney is south of the equator, so its noon Sun is low and most of its latitude circle, the line through the dot, is on the night side: ${hours(june.daylight)} of daylight in its winter.`
           : place.lat > 60
             ? 'In June the north end leans toward the Sun far enough that Tromsø’s whole latitude circle sits on the day side. As Earth turns, Tromsø never enters the night half, so the Sun stays up for all 24 hours.'
             : place.lat === 0
               ? 'In June the north end leans toward the Sun, but the day–night line still cuts the equator exactly in half. Quito’s circle is half day and half night, so it gets 12 hours of daylight.'
-              : `In June the north end leans toward the Sun. London’s noon Sun is high, and most of its latitude circle, the line through the dot, is on the day side, which gives ${hours(june.daylight)} of daylight.`,
+              : `In June the north end leans toward the Sun. London’s noon Sun is high, and most of its latitude circle, the line through the dot, is on the day side, which gives ${hours(june.daylight)} of daylight.`) + ' Day lengths here come from the sunrise equation, the hours the Sun’s centre is above a flat horizon; the latitude step says how close that is to an almanac.',
     });
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
     await this.play(
@@ -556,7 +556,7 @@ export default class SeasonsExplainer extends Scene {
       title: `Answer: Tromsø, ${hours(tromsoJune)} to ${hours(tromsoDec)}; Quito stays at ${hours(quitoJune)}`,
       line: 'Latitude sets how much of each circle is lit.',
       caption:
-        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The model’s day length in hours is acos(−tan latitude × tan declination) in degrees, divided by 7.5.',
+        'Each line is one place’s latitude circle, yellow where it is in daylight. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. The model’s day length in hours is acos(−tan latitude × tan declination) in degrees, divided by 7.5: the time the Sun’s centre is above a flat horizon. The air bends sunlight, so a real day, as an almanac gives it, is about a quarter of an hour longer at London, and polar night is a little shorter.',
     });
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const others = ORDER.filter((k) => k !== key);
