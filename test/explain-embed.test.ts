@@ -639,8 +639,8 @@ const endOf = (page: Page) =>
       request: new URL(location.href).searchParams.get('request'),
     };
   });
-readerTest('one-case and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/lantern.html`, async page => {
-    // A scene with one case (lantern; exgit has two): Start again, and no case button at all.
+readerTest('one-case and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/playback-probe.html`, async page => {
+    // A scene with one case (the playback probe has no settings; exgit has two): Start again, and no case button at all.
     await page.locator('.step-bar button').last().click();
     await page.waitForFunction(() => document.querySelector('.stepper .primary')?.getAttribute('aria-label') === 'Start again from step 1');
     assert.equal(await page.locator('.player .button.try').count(), 0);
@@ -1630,7 +1630,7 @@ test(
       const [cx, cy, cw, ch] = rect(zoomed.camera) as [number, number, number, number],
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
-      // Next plays 'inspect', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
+      // Next plays 'check', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
       const seen: Painted[] = [];
       await page.locator('.stepper').getByRole('button', { name: 'Next step' }).click();
       const end = Date.now() + 3000;

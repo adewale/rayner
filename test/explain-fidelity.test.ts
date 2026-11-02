@@ -149,10 +149,26 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'result', { feature: values.feature, phase: 'result' });
           if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
           break;
-        case 'lantern':
+        case 'lantern': {
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Browser'));
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Trace'));
+          // Independent expectation for the tiny scene: a 0.5 s fade (frames 1-15), then a 1 s move
+          // (frames 16-45). Blending matches playback at every frame; the nudge moves once per
+          // computed frame, so playback has made 15 nudges at t = 1 s and the seek has made one, and
+          // only the fade's frames and the move's first frame match.
+          const nudge = values.motion === 'nudge';
+          assertStepState(trace, 'seek', {
+            seek: {
+              ...(trace.steps.find((s) => s.step === 'seek')!.after!.seek as object),
+              motion: values.motion,
+              match: !nudge,
+              playedMoves: nudge ? 15 : 0,
+              seekedMoves: nudge ? 1 : 0,
+            },
+          });
+          assertStepState(trace, 'check', { check: { frames: 45, matched: { blend: 45, nudge: 16 } } });
           break;
+        }
         case 'agentic-mermaid': {
           const warnings = trace.steps.find((s) => s.step === 'verify')!.after!.warnings as unknown[];
           assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
