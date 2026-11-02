@@ -282,7 +282,6 @@ const MAIN_COMPARISONS: Readonly<Record<string, readonly string[]>> = {
   'gnome-files': ['reader-task', 'reader-sample'],
   'wcag-map': ['reader-focus', 'reader-levels'],
   'layout-direction': ['reader-place', 'reader-fields'],
-  seasons: ['reader-tilt', 'reader-solstices', 'reader-year'],
   'trust-proxy': ['reader-path', 'reader-answer'],
   'traffic-policy': ['reader-nodes', 'reader-shares'],
   'ext4-space': ['reader-allocation', 'reader-reserve'],
@@ -344,11 +343,6 @@ const COMPARISON_WORDS: Readonly<Record<string, Readonly<Record<string, readonly
   'layout-direction': {
     'reader-place': ['Start', 'End'],
     'reader-fields': ['RTL columns', 'LTR override', '123', 'Field'],
-  },
-  seasons: {
-    'reader-tilt': ['Sun', 'June', 'December'],
-    'reader-solstices': ['June daylight', 'December daylight'],
-    'reader-year': ['Jan', 'Dec', 'Hours of daylight'],
   },
   'trust-proxy': { 'reader-path': ['Express'], 'reader-answer': ['Order', 'Address', 'Decision', 'req.ip'] },
   'traffic-policy': { 'reader-nodes': ['Node 1', 'Node 2', 'Node 3'], 'reader-shares': ['Pod', 'Cluster', 'Local'] },

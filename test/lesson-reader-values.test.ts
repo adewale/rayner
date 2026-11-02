@@ -182,8 +182,8 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (step.name !== 'reader-year') return;
-          const root = scene.familyMembers().find((m) => m.key === 'reader-picture');
+          if (step.name !== 'year') return;
+          const root = scene.familyMembers().find((m) => m.key === 'daylight-axes');
           assert.ok(root);
           const words = root
             .family()

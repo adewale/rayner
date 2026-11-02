@@ -144,7 +144,7 @@ test(
         // detail step. Before the subject declarations it rejects the noon
         // globe revealed incidentally when the old callout disappears.
         const reviewed = await reviewStoryVariant(page, `${server.url}/seasons.html`, variant, claims);
-        assert.equal(reviewed.length, 22);
+        assert.equal(reviewed.length, 18);
         formalRows += reviewed.length;
         const applicable = claims.filter((claim) => Object.entries(claim.settings ?? {}).every(([key, value]) => variant.values[key] === value));
         const frames = await storyFrames(variant.Scene, applicable);
@@ -208,7 +208,7 @@ test(
           phoneRows++;
         }
       }
-      assert.equal(formalRows, 88);
+      assert.equal(formalRows, 72);
       assert.equal(phoneRows, 16);
     } finally {
       await browser?.close();
