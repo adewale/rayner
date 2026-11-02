@@ -6,8 +6,7 @@ import {bloomStory} from '../../../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
 import {monty,montyExample,threeDoorWorlds} from '../../../scenes/explainers/lib/monty-hall.ts';
 import type {Host} from '../../../scenes/explainers/lib/monty-hall.ts';
-import {birthdayStory} from '../../../scenes/explainers/lib/birthday-paradox.ts';
-import type {BirthdayQuestion} from '../../../scenes/explainers/lib/birthday-paradox.ts';
+import {birthdayStory,birthdayChance,pairCount} from '../../../scenes/explainers/lib/birthday-paradox.ts';
 import {musicStory} from '../../../scenes/explainers/lib/melody-rhythm.ts';
 import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
 
@@ -15,7 +14,7 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':8,'git-branches':values.history==='diverged'?4:3,'monty-hall':8,'birthday-paradox':8,'melody-rhythm':6};
+  const expected:Record<string,number>={'python-dict':6,'bloom-filter':8,'git-branches':values.history==='diverged'?4:3,'monty-hall':8,'birthday-paradox':7,'melody-rhythm':6};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     assertStepState(trace,step.step,{phase:step.step});
@@ -64,15 +63,24 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     if(host==='random') assert.match(String(trace.steps[1]!.meta.caption),/happened to reveal a goat/);
     assert.ok(String(trace.steps.find(s=>s.step==='reveal')!.meta.caption).includes(`you ${example.won?'win':'lose'}`));
   } else if(id==='birthday-paradox') {
-    const m=birthdayStory(Number(values.people),values.question as BirthdayQuestion);
-    assertStepState(trace,'question',{people:m.people,question:m.question,sample:m.sample.first});
-    assertStepState(trace,'pairs',{examples:[2,3,5].map(n=>({people:n,comparisons:m.question==='any'?n*(n-1)/2:n-1}))});
-    assertStepState(trace,'count',{comparisons:m.comparisons});
-    assertStepState(trace,'avoid',{factors:m.factors,noMatch:m.noMatch});
-    assertStepState(trace,'chance',{chance:m.chance,noMatch:m.noMatch});
+    const m=birthdayStory(Number(values.people));
+    // The room the reader scans, then the same room with its repeated dates and the 1,000-room sample.
+    assertStepState(trace,'room',{people:m.people,sample:m.sample.first,dates:m.dates});
     const {first:_,...sample}=m.sample;
-    assertStepState(trace,'sample',{sample,chance:m.chance});
-    assertStepState(trace,'questions',{any:m.any,one:m.one,anyPairs:m.people*(m.people-1)/2,onePairs:m.people-1});
+    assertStepState(trace,'chance',{sample,chance:m.chance,shared:m.shared});
+    // One marked person's comparisons (the old marked-person question) and every pair in the room.
+    assertStepState(trace,'you',{others:m.people-1,one:birthdayChance(m.people,'one'),evenOthers:253});
+    assertStepState(trace,'pairs',{pairs:m.people*(m.people-1)/2,others:m.people-1,chance:birthdayChance(m.people,'any'),even:23,evenPairs:253});
+    // Two, three and five people make one, three and ten pairs.
+    assert.deepEqual((trace.steps.find(s=>s.step==='growth')!.after!.growth as {pairs:number}[]).slice(0,3).map(r=>r.pairs),[1,3,10]);
+    assertStepState(trace,'growth',{growth:[2,3,5,10,23,40].map(n=>({people:n,pairs:pairCount(n),chance:birthdayChance(n,'any')}))});
+    assertStepState(trace,'estimate',{pairs:m.pairs,shortcut:1-(364/365)**m.pairs,chance:m.chance});
+    assertStepState(trace,'exact',{factors:m.factors,noMatch:m.noMatch,chance:m.chance,occupied:m.people-1});
+    // The figures readers quote: 50.7% for any pair among 23, 5.9% for matching one marked person among 23, 11.7% among 10.
+    const caption=(name:string)=>String(trace.steps.find(s=>s.step===name)!.meta.caption);
+    const shown={10:{any:'11.7%',one:'2.4%'},23:{any:'50.7%',one:'5.9%'},40:{any:'89.1%',one:'10.1%'}}[m.people]!;
+    assert.ok(caption('chance').includes(`the exact chance is ${shown.any}`));
+    assert.ok(caption('you').includes(`shares your birthday is only ${shown.one}`));
   } else if(id==='melody-rhythm') {
     const m=musicStory(values.timing as Timing,Number(values.tempo));
     for(const step of trace.steps) {

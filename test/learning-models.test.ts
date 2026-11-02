@@ -9,7 +9,8 @@ import {dictionary,deleteFirst,lookup,probeSlots} from '../scenes/explainers/lib
 import {fnv1a,locations,makeFilter,membership,bloomStory} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
 import {monty,threeDoorWorlds,montyExample} from '../scenes/explainers/lib/monty-hall.ts';
-import {birthdayChance,birthdaySample,matches} from '../scenes/explainers/lib/birthday-paradox.ts';
+import {birthdayChance,birthdaySample,matches,birthdayStory,evenOdds,pairCount,pairShortcut,dateOf} from '../scenes/explainers/lib/birthday-paradox.ts';
+import BirthdayParadox,{ANSWER as birthdayAnswer} from '../scenes/explainers/birthday-paradox/scene.ts';
 import {phrase,musicStory,beatMs} from '../scenes/explainers/lib/melody-rhythm.ts';
 import MelodyRhythm from '../scenes/explainers/melody-rhythm/scene.ts';
 import {stepAudio} from '../explain/audio.ts';
@@ -222,7 +223,7 @@ test('birthday formulas match exhaustive small calendars and independent exact P
     }
     close(birthdayChance(people,'any',days),any/total);close(birthdayChance(people,'one',days),one/total);
   }
-  for(const people of [10,23,50]) for(const q of ['any','one'] as const) {
+  for(const people of [10,23,40,50]) for(const q of ['any','one'] as const) {
     const f=fixture.birthdays[`${people}:${q}`];
     close(birthdayChance(people,q),f.chance);assert.deepEqual(birthdaySample(people,q),f.sample);
   }
@@ -234,6 +235,43 @@ test('birthday formulas match exhaustive small calendars and independent exact P
     assert.ok(birthdayChance(people,'any',days)>=birthdayChance(people,'one',days)-1e-14);
   }),params());
   close(birthdayChance(23,'any'),.5072972343239854);close(birthdayChance(23,'one'),.058571325264343);
+});
+
+test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer and check questions it asks',()=>{
+  // 23 people for an even chance of any match; 254 for someone matching one person, who then has 253 others.
+  assert.equal(evenOdds('any'),23);assert.equal(evenOdds('one'),254);
+  assert.ok(birthdayChance(22,'any')<.5&&birthdayChance(23,'any')>=.5);
+  assert.ok(birthdayChance(253,'one')<.5&&birthdayChance(254,'one')>=.5);
+  assert.equal(pairCount(23),253);
+  for(let n=1;n<=60;n++){
+    let pairs=0;for(let a=0;a<n;a++)for(let b=a+1;b<n;b++)pairs++;
+    assert.equal(pairCount(n),pairs);
+    // The shortcut is exact for comparisons against one fixed birthday.
+    close(pairShortcut(n-1),birthdayChance(n,'one'));
+  }
+  assert.equal(birthdayAnswer,`Just ${evenOdds('any')} people give a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs`);
+  assert.equal(BirthdayParadox.meta.answer,birthdayAnswer);
+  // Dates of a 365-day year, checked against the calendar of a non-leap year.
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for(let day=1;day<=365;day++){
+    const d=new Date(Date.UTC(2023,0,day));
+    assert.equal(dateOf(day),`${d.getUTCDate()} ${months[d.getUTCMonth()]}`);
+  }
+  assert.throws(()=>dateOf(366));
+  const room=birthdayStory(23);
+  assert.deepEqual(room.shared,[{day:116,date:'26 Apr',people:2},{day:31,date:'31 Jan',people:2}]);
+  assert.equal((100*room.shortcut).toFixed(2),'50.05');assert.equal((100*room.chance).toFixed(2),'50.73');
+  assert.deepEqual(birthdayStory(10).shared,[]);
+  // The check questions' transfers, none of which a step shows.
+  const [joins,thirty,planet]=BirthdayParadox.meta.checks;
+  assert.equal(pairCount(24)-pairCount(23),23);assert.equal(pairCount(24),276);
+  assert.match(joins!.answer,/^23 new pairs.*276 pairs in all/);
+  assert.equal(pairCount(30),435);
+  assert.equal((100*birthdayChance(30,'any')).toFixed(1),'70.6');assert.equal((100*pairShortcut(435)).toFixed(1),'69.7');
+  assert.match(thirty!.answer,/435 pairs\. Yes: the exact chance is 70\.6%, and the pair shortcut gives 69\.7%/);
+  assert.equal(evenOdds('any',100),13);assert.equal(pairCount(13),78);
+  assert.equal((100*birthdayChance(13,'any',100)).toFixed(1),'55.7');assert.equal((100*birthdayChance(12,'any',100)).toFixed(1),'49.7');
+  assert.match(planet!.answer,/^13\. Thirteen people make 78 pairs.*55\.7%; twelve people give 49\.7%/);
 });
 
 test('the music comparison preserves pitches and total beats while moving exactly two starts and durations',()=>{

@@ -155,19 +155,20 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
 
 test('the occupied-date picture contains 365 days and the independently expected excluded set in every case', async () => {
   const p = await collectProject('scenes/explainers/birthday-paradox', { write: false });
-  assert.equal(p.variants.length, 6);
+  assert.equal(p.variants.length, 3);
   let checked = 0;
   for (const v of p.variants)
     await new v.Scene(
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (step.name !== 'occupied') return;
+          if (step.name !== 'exact') return;
           const grid = scene.familyMembers().find((m) => m.key === 'birthday-days');
           assert.ok(grid);
           const cells = grid.children.filter((m): m is Rectangle => m instanceof Rectangle);
           assert.equal(cells.length, 365);
-          const expected = v.values.question === 'any' ? 4 : 1;
+          // The last person must avoid the dates the people before them took.
+          const expected = Number(v.values.people) - 1;
           assert.equal(cells.filter((m) => (m.style.fillOpacity ?? 1) > 0.9).length, expected);
           assert.equal(cells.filter((m) => (m.style.fillOpacity ?? 1) < 0.4).length, 365 - expected);
           checked++;
@@ -175,7 +176,7 @@ test('the occupied-date picture contains 365 days and the independently expected
       },
       { skipUntil: Infinity },
     ).run();
-  assert.equal(checked, 6);
+  assert.equal(checked, 3);
 });
 
 test('the complete annual daylight picture labels its fixed zero, twelve and twenty-four-hour scale at every latitude', async () => {

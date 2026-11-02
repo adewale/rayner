@@ -2,288 +2,248 @@ import { Scene, Group, Circle, Line, Rectangle } from '../../../src/index.ts';
 import { settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
-import type { BirthdayQuestion } from '../lib/birthday-paradox.ts';
 import type { LessonFrame } from '../lib/lesson-drawing.ts';
 import { lesson, label, tile, table, stat } from '../lib/lesson-drawing.ts';
 
 const pct = (p: number) => (100 * p).toFixed(1) + '%';
+const pct2 = (p: number) => (100 * p).toFixed(2) + '%';
+const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+const words = ['no', 'one', 'two', 'three', 'four', 'five'];
+/** The script's one-sentence answer; test/learning-models.test.ts holds its numbers to the model. */
+export const ANSWER = 'Just 23 people give a better than even chance that two share a birthday, because 23 people make 253 pairs';
+const REMEMBER =
+  'A room makes a shared birthday likely long before it fills the year, because every person pairs with every other.';
+
 export default class BirthdayParadox extends Scene {
   static meta = {
     id: 'birthday-paradox',
-    title: 'Why do shared birthdays become likely so quickly?',
+    title: 'How many people make a shared birthday likely?',
     sources: ['https://pudding.cool/2018/04/birthday-paradox/', 'https://mathworld.wolfram.com/BirthdayProblem.html'],
+    // The script's answer and check questions (script.md); the chance step states the answer in every case.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'A 24th person walks into the room of 23. How many new pairs does that make, and how many pairs are there now?',
+        answer: '23 new pairs, one with each person already there, so 276 pairs in all.',
+      },
+      {
+        question: 'A room holds 30 people. How many pairs is that, and is a shared birthday more likely than not?',
+        answer: '30 × 29 / 2 = 435 pairs. Yes: the exact chance is 70.6%, and the pair shortcut gives 69.7%.',
+      },
+      {
+        question: 'On a planet with a 100-day year, how many people make a shared birthday more likely than not?',
+        answer:
+          '13. Thirteen people make 78 pairs, each a 1-in-100 chance, and the exact chance of a shared birthday is 55.7%; twelve people give 49.7%.',
+      },
+    ],
   };
   static settings = [
     {
       id: 'people',
       label: 'People in the room',
       default: '23',
-      options: [10, 23, 50].map((n) => ({ value: String(n), label: String(n) })),
-    },
-    {
-      id: 'question',
-      label: 'Matching birthdays',
-      default: 'any',
-      options: [
-        { value: 'any', label: 'Any pair' },
-        { value: 'one', label: 'Someone matching one marked person' },
-      ],
+      options: [10, 23, 40].map((n) => ({ value: String(n), label: String(n) })),
     },
   ];
   override async construct() {
-    const values = settingsOf(this),
-      m = birthdayStory(Number(values.people), values.question as BirthdayQuestion);
-    const question = m.question === 'any' ? 'any pair' : 'one marked person';
-    const people = (s: Stage) => {
-      const counts = new Map<number, number>();
-      for (const day of m.sample.first) counts.set(day, (counts.get(day) ?? 0) + 1);
-      const cols = m.people === 50 ? 10 : m.people === 23 ? 6 : 5,
-        dx = m.people === 50 ? 1.38 : 2.0,
-        rows = Math.ceil(m.people / cols);
-      const g = new Group(
-        ...m.sample.first.map((day, i) => {
-          const match =
-            m.question === 'any' ? counts.get(day)! > 1 : day === m.sample.first[0] && (i > 0 || counts.get(day)! > 1);
-          return tile(day, ((i % cols) - (cols - 1) / 2) * dx, 2.25 - Math.floor(i / cols) * 0.95, dx - 0.15, 0.7, s, {
-            active: match,
-            bad: m.question === 'one' && i === 0,
-            size: 0.65,
+    const m = birthdayStory(Number(settingsOf(this).people)),
+      n = m.people;
+    const sharedDays = new Set(m.shared.map((d) => d.day));
+    /** The room as date cards; `lit` outlines the cards whose date appears more than once. */
+    const room = (lit: boolean, footer: string) => (s: Stage) => {
+      const cols = n > 30 ? 6 : 5,
+        dx = n > 30 ? 2.45 : 2.85,
+        dy = n > 30 ? 0.82 : 1.0;
+      const cards = new Group(
+        ...m.sample.first.map((day, i) =>
+          tile(m.dates[i]!, ((i % cols) - (cols - 1) / 2) * dx, 2.35 - Math.floor(i / cols) * dy, dx - 0.2, 0.7, s, {
+            active: lit && sharedDays.has(day),
+            size: 0.64,
             key: `person-${i}`,
-          });
-        }),
-      );
-      g.key = 'birthday-people';
-      return new Group(
-        g,
-        label(`${m.people} people; each number is a calendar day.`, 0, 2.3 - rows * 0.95, s.soft, 0.65),
-        label(
-          m.question === 'one' ? 'Red: the one marked birthday.' : 'Blue outlines mark repeated dates.',
-          0,
-          -3.35,
-          s.palette.ink,
-          0.65,
+          }),
         ),
       );
+      cards.key = 'birthday-people';
+      return new Group(cards, label(footer, 0, -3.6, s.palette.ink, 0.62, 'birthday-footer'));
     };
+    /** n people on a circle, joined by every pair (or, with `you`, only the pairs with person 0). */
+    const web = (you: boolean) => (s: Stage) => {
+      const r = 2.6,
+        cy = -0.45,
+        points = Array.from(
+          { length: n },
+          (_, i) => [Math.cos(Math.PI / 2 + (i * 2 * Math.PI) / n) * r, cy + Math.sin(Math.PI / 2 + (i * 2 * Math.PI) / n) * r] as const,
+        );
+      const lines = new Group(),
+        width = n > 30 ? 0.012 : n > 15 ? 0.016 : 0.025;
+      for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++)
+          if (!you || i === 0)
+            lines.add(new Line([...points[i]!], [...points[j]!], { stroke: s.emphasis, strokeWidth: you ? 0.025 : width, strokeOpacity: 0.75 }));
+      lines.key = you ? 'birthday-you-lines' : 'birthday-pair-lines';
+      const dots = new Group(
+        ...points.map((p, i) =>
+          new Circle({ radius: n > 30 ? 0.11 : 0.15, fill: you && i === 0 ? s.bad : s.palette.ink, stroke: 'none' }).moveTo([...p]),
+        ),
+      );
+      dots.key = 'birthday-dots';
+      const g = new Group(lines, dots);
+      if (you) g.add(label('You', 0, cy + r + 0.45, s.bad, 0.6, 'birthday-you'));
+      g.add(
+        you ? stat(s, 'Comparisons', m.others, -5.4, 0.2, 'birthday-comparisons') : stat(s, 'Pairs', m.pairs, -5.4, 0.2, 'birthday-pairs'),
+        stat(s, 'Chance', pct(you ? m.one : m.chance), 5.4, 0.2, 'birthday-chance'),
+        label(
+          you ? `An even chance would take ${m.evenOthers} others` : `${n} × ${n - 1} / 2 = ${m.pairs} pairs`,
+          0,
+          -3.75,
+          s.palette.ink,
+          0.62,
+          'birthday-footer',
+        ),
+      );
+      return g;
+    };
+    const shared = m.shared.map((d) => d.date);
     const frames: LessonFrame[] = [
       {
-        id: 'question',
-        title: `How likely is a match among ${m.people}?`,
-        line: `The question asks about ${question}.`,
-        caption: `The room contains ${m.people} people. We want the chance of a match across repeated random rooms. The model assumes independent birthdays, each equally likely on any of 365 days.`,
-        state: { people: m.people, question: m.question, sample: m.sample.first },
-        draw: people,
+        id: 'room',
+        title: 'How many people make a shared birthday likely?',
+        line: 'Predict: how many people make a shared birthday an even bet?',
+        caption: `Each card is one person in a room of ${n}, with a birthday drawn at random. Like the Pudding’s explainer, the model gives every day of a 365-day year the same chance and leaves out 29 February. A year has 365 days, so a match can seem to need a crowd: half of 365 is about 183. Make a guess, then look for a date that appears twice in this room.`,
+        state: { people: n, sample: m.sample.first, dates: m.dates },
+        draw: room(false, `${n} people, ${n} random birthdays`),
+      },
+      {
+        id: 'chance',
+        title: shared.length
+          ? `This room of ${n} already has ${words[shared.length] ?? shared.length} shared birthdays`
+          : `No shared birthday in this room of ${n}`,
+        line: shared.length ? `Outlined: ${list(shared)}, each on more than one card.` : 'Every date in this room is different.',
+        caption: `${
+          shared.length
+            ? `${list(m.shared.map((d) => `${d.date} belongs to ${words[d.people] ?? d.people} people`))}.`
+            : `All ${n} dates differ.`
+        } ${m.chance < 0.5 ? `Most rooms of ${n} have no match` : `Rooms of ${n} often match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${pct(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
+        state: {
+          people: n,
+          shared: m.shared,
+          chance: m.chance,
+          sample: { seed: m.sample.seed, trials: m.sample.trials, matched: m.sample.matched, observed: m.sample.observed },
+        },
+        draw: room(true, `${shared.length ? `Shared: ${list(shared)}` : 'No shared date'}. Chance: ${pct(m.chance)}`),
+      },
+      {
+        id: 'you',
+        title: `Your own birthday: only ${m.others} chances to match`,
+        line: 'Predict: how many comparisons does the whole room make?',
+        caption: `The Pudding’s explainer notes that we usually picture this by comparing ourselves with 365 possible days. Mark one person as you. You make ${m.others} comparisons, one with each other person, each a 1-in-365 chance. The chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people.`,
+        state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
+        draw: web(true),
       },
       {
         id: 'pairs',
-        title: 'Each newcomer adds comparisons',
+        title: `Any two can match: ${n} people make ${m.pairs} pairs`,
         line:
-          m.question === 'any'
-            ? 'Person 5 creates four new pairs with the people already present.'
-            : 'Each newcomer is compared only with the marked person.',
-        caption:
-          m.question === 'any'
-            ? 'Two people create one pair, three create three pairs, and five create ten. Adding a person creates a comparison with every person already in the room.'
-            : 'With one marked birthday, adding a person creates just one new comparison. Two people give one comparison, three give two, and five give four.',
-        state: {
-          question: m.question,
-          examples: [2, 3, 5].map((n) => ({
-            people: n,
-            comparisons: m.question === 'any' ? (n * (n - 1)) / 2 : n - 1,
-          })),
-        },
+          n === m.even
+            ? `The same ${m.pairs} comparisons you would need ${m.evenOthers} other people to make.`
+            : `${m.even} people make ${m.evenPairs} pairs: the ${m.evenOthers} you would need alone.`,
+        caption: `A shared birthday doesn’t have to include you. Each of the ${n} people pairs with ${n - 1} others, and that counts every pair twice, so there are ${n} × ${n - 1} / 2 = ${m.pairs} pairs, ${n / 2} times your ${m.others}. ${
+          n === m.even
+            ? `That is the ${m.evenPairs} comparisons you would need ${m.evenOthers} other people to make on your own.`
+            : `At ${m.even} people the room makes ${m.evenPairs} pairs, the ${m.evenOthers} comparisons you would need ${m.evenOthers} other people to make on your own.`
+        } Every pair is a chance to match, and the chance of a match among all ${m.pairs} is ${pct(m.chance)}.`,
+        state: { people: n, pairs: m.pairs, others: m.others, chance: m.chance, one: m.one, even: m.even, evenPairs: m.evenPairs },
+        draw: web(false),
+      },
+      {
+        id: 'growth',
+        title: 'Pairs grow far faster than people',
+        line: 'Each newcomer adds a pair with everyone already there.',
+        caption: (() => {
+          const [two, three, five, ten] = m.growth,
+            last = m.growth.at(-1)!;
+          return `Two people make ${two!.pairs} pair, three make ${three!.pairs}, five make ${five!.pairs}: each newcomer adds a pair with everyone already in the room. People grow one at a time, pairs by the size of the room, so doubling ${five!.people} people to ${ten!.people} takes the pairs from ${five!.pairs} to ${ten!.pairs}. The bars share one scale: at ${last.people} people the pairs bar is ${last.pairs / last.people} times as long as the people bar. The outlined row is this room.`;
+        })(),
+        state: { people: n, growth: m.growth },
         draw: (s: Stage) => {
-          const points = Array.from(
-            { length: 5 },
-            (_, i) =>
-              [
-                Math.cos(Math.PI / 2 + (i * 2 * Math.PI) / 5) * 2.6,
-                Math.sin(Math.PI / 2 + (i * 2 * Math.PI) / 5) * 2.6,
-              ] as [number, number],
-          );
-          const g = new Group();
-          for (let i = 0; i < 5; i++)
-            for (let j = i + 1; j < 5; j++)
-              if (m.question === 'any' || i === 0) {
-                const a = points[i]!,
-                  b = points[j]!,
-                  dx = b[0] - a[0],
-                  dy = b[1] - a[1],
-                  len = Math.hypot(dx, dy),
-                  r = 0.57;
-                g.add(
-                  new Line(
-                    [a[0] + (dx / len) * r, a[1] + (dy / len) * r],
-                    [b[0] - (dx / len) * r, b[1] - (dy / len) * r],
-                    { stroke: s.emphasis, strokeWidth: 0.04 },
-                  ),
-                );
-              }
-          points.forEach(([x, y], i) =>
-            g.add(
-              new Circle({
-                radius: 0.53,
-                fill: s.palette.paper,
-                stroke: i === 0 && m.question === 'one' ? s.bad : s.soft,
-                strokeWidth: 0.04,
-              }).moveTo([x, y]),
-              label(i + 1, x, y, s.palette.ink, 0.7),
+          const y0 = 2.4,
+            gap = 0.82,
+            x0 = 0.4,
+            scale = 6.7 / m.growth.at(-1)!.pairs;
+          const g = new Group(
+            table(
+              ['People', 'Pairs', 'Chance'],
+              m.growth.map((row) => [row.people, row.pairs, pct(row.chance)]),
+              s,
+              { xs: [-6.1, -3.8, -1.4], y: y0, gap, key: 'birthday-growth', size: 0.6 },
             ),
           );
-          g.add(
-            label(
-              m.question === 'any' ? 'Five people, ten distinct pairs' : 'One marked person, four comparisons',
-              0,
-              -3.7,
-              s.palette.ink,
-              0.66,
-            ),
-          );
-          g.key = 'birthday-growth';
+          m.growth.forEach((row, r) => {
+            const y = y0 - (r + 1) * gap;
+            const bars = new Group(
+              new Rectangle({ width: Math.max(0.02, row.people * scale), height: 0.14, fill: s.soft, stroke: 'none' }).moveTo(
+                [x0 + (row.people * scale) / 2, y + 0.15],
+                [0, 0],
+              ),
+              new Rectangle({ width: Math.max(0.02, row.pairs * scale), height: 0.3, fill: s.emphasis, stroke: 'none' }).moveTo(
+                [x0 + (row.pairs * scale) / 2, y - 0.1],
+                [0, 0],
+              ),
+            );
+            bars.key = `birthday-bars-${row.people}`;
+            g.add(bars);
+            if (row.people === n) {
+              const outline = new Rectangle({ width: 14.6, height: 0.74, fill: 'none', stroke: s.emphasis, strokeWidth: 0.03 }).moveTo([0, y]);
+              outline.key = 'birthday-this-room';
+              g.add(outline);
+            }
+          });
+          g.add(label('Thin bars: people. Thick bars: pairs, on one scale.', 0, -3.65, s.palette.ink, 0.6, 'birthday-footer'));
           return g;
         },
       },
       {
-        id: 'count',
-        title: `${m.people} people create ${m.comparisons} comparisons`,
-        line:
-          m.question === 'any'
-            ? 'Count each unordered pair once.'
-            : 'The marked person has one comparison with each other person.',
-        caption:
-          m.question === 'any'
-            ? `The ${m.people} people create ${m.people} × ${m.people - 1} / 2 = ${m.comparisons} unordered pairs. That count explains the many opportunities, but adding individual match probabilities would double-count overlapping events.`
-            : `One marked person has ${m.people - 1} other people to compare with. This asks a narrower question than a match between any two people in the room.`,
-        state: { people: m.people, question: m.question, comparisons: m.comparisons },
+        id: 'estimate',
+        title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,
+        line: `The exact chance is ${pct(m.chance)}: pairs that share people are not independent.`,
+        caption: `Each pair shares a birthday with chance 1 in 365, so it misses with chance 364/365. If the ${m.pairs} pairs missed independently, all of them would miss with chance 364/365 multiplied ${m.pairs} times, ${pct2(1 - m.shortcut)}, leaving ${pct2(m.shortcut)} for a match. The exact chance is ${pct2(m.chance)}. The shortcut is close but not exact because pairs share people: if Ann matches Ben and Ben matches Cal, Ann must match Cal. For your own ${m.others} comparisons the same sum is exact, ${pct(m.one)}, because each involves your one birthday. ${REMEMBER}`,
+        state: { people: n, pairs: m.pairs, shortcut: m.shortcut, chance: m.chance, one: m.one },
         draw: (s: Stage) =>
           new Group(
-            stat(s, 'People', m.people, -4.6, 1, 'birthday-n'),
-            stat(s, 'Comparisons', m.comparisons, 3.8, 1, 'birthday-pairs'),
-            label(
-              m.question === 'any' ? `${m.people} x ${m.people - 1} / 2` : `${m.people} - 1`,
-              0,
-              -1.9,
-              s.palette.ink,
-              0.85,
+            label('One pair shares a birthday: 1 in 365', 0, 2.2, s.palette.ink, 0.66),
+            label(`All ${m.pairs} pairs miss: 364/365, ${m.pairs} times over`, 0, 1.2, s.palette.ink, 0.66),
+            label(`= ${pct2(1 - m.shortcut)} chance of no match`, 0, 0.35, s.palette.ink, 0.66),
+            stat(s, 'Pair shortcut', pct2(m.shortcut), -3.6, -1.7, 'birthday-shortcut'),
+            stat(s, 'Exact', pct2(m.chance), 3.6, -1.7, 'birthday-exact'),
+            label('Close, not exact: pairs share people', 0, -3.6, s.soft, 0.62, 'birthday-footer'),
+          ),
+      },
+      {
+        id: 'exact',
+        detail: true,
+        title: 'The exact count: each newcomer avoids the dates already taken',
+        line: `Person ${n} must avoid ${n - 1} taken dates: ${365 - (n - 1)} of 365 are free.`,
+        caption: `To count exactly, add people one at a time and ask each to miss every date taken so far. Person 2 avoids one date, 364/365; if that succeeds, person 3 avoids two, 363/365; person ${n} avoids ${n - 1}, ${365 - (n - 1)}/365. Multiplying all ${n - 1} fractions gives ${pct2(m.noMatch)} for no match at all, so the chance of at least one shared birthday is ${pct2(m.chance)}.`,
+        state: { people: n, factors: m.factors, noMatch: m.noMatch, chance: m.chance, occupied: n - 1, allowed: 365 - (n - 1) },
+        draw: (s: Stage) => {
+          const occupied = n - 1;
+          const grid = new Group(
+            ...Array.from({ length: 365 }, (_, i) =>
+              new Rectangle({
+                width: 0.55,
+                height: 0.16,
+                fill: i < occupied ? s.bad : s.emphasis,
+                fillOpacity: i < occupied ? 1 : 0.35,
+                stroke: 'none',
+              }).moveTo([((i % 20) - 9.5) * 0.68, 2.6 - Math.floor(i / 20) * 0.31]),
             ),
-          ),
-      },
-      {
-        id: 'avoid',
-        title: 'First calculate no match',
-        line: 'Each fraction is conditional on having avoided a match so far.',
-        caption:
-          m.question === 'any'
-            ? `Person 2 must avoid one occupied date, giving 364/365. If that succeeds, person 3 must avoid two. Person ${m.people} must avoid ${m.people - 1} occupied dates. Multiplying all those conditional factors gives the no-match probability.`
-            : `Each of the ${m.people - 1} other people must avoid the marked birthday. Every factor is 364/365. Multiplying the factors gives the probability that nobody matches that one date.`,
-        state: { people: m.people, question: m.question, factors: m.factors, noMatch: m.noMatch },
-        draw: (s: Stage) =>
-          new Group(
-            table(
-              ['Person', 'Allowed days', 'All days'],
-              m.factors.map((f) => [f.person, f.numerator, f.denominator]),
-              s,
-              { xs: [-4.8, 0, 4.8], y: 2.3, gap: 1.1, key: 'birthday-factors' },
-            ),
-            label(`Product through person ${m.people}: ${pct(m.noMatch)}`, 0, -3.35, s.palette.ink, 0.65),
-          ),
-      },
-      {
-        id: 'chance',
-        title: `At least one match: ${pct(m.chance)}`,
-        line: 'Subtract the no-match probability from one.',
-        caption: `The no-match probability is ${pct(m.noMatch)}. Its complement, ${pct(m.chance)}, is the chance of ${m.question === 'any' ? 'at least one matching pair' : 'at least one person matching the marked birthday'} under this uniform 365-day model.`,
-        state: { people: m.people, question: m.question, chance: m.chance, noMatch: m.noMatch },
-        draw: (s: Stage) =>
-          new Group(
-            stat(s, 'No match', pct(m.noMatch), -4, 1.1, 'birthday-no'),
-            stat(s, 'At least one match', pct(m.chance), 4, 1.1, 'birthday-yes'),
-            label(`100% - ${pct(m.noMatch)} = ${pct(m.chance)}`, 0, -1.8, s.palette.ink, 0.78),
-          ),
-      },
-      {
-        id: 'sample',
-        title: 'Repeat whole rooms',
-        line: 'A finite sample fluctuates around the theoretical chance.',
-        caption: `In ${m.sample.trials} repeatable simulated rooms, ${m.sample.matched} contain the requested match: ${pct(m.sample.observed)}. The formula gives ${pct(m.chance)}. The simulated proportion fluctuates with the rooms sampled; the formula counts all possible birthdays under the model.`,
-        state: {
-          people: m.people,
-          question: m.question,
-          sample: {
-            seed: m.sample.seed,
-            trials: m.sample.trials,
-            matched: m.sample.matched,
-            observed: m.sample.observed,
-          },
-          chance: m.chance,
+            label(`Person ${n}: ${occupied} dates taken, ${365 - occupied} free`, 0, -3.75, s.palette.ink, 0.66),
+          );
+          grid.key = 'birthday-days';
+          return grid;
         },
-        draw: (s: Stage) =>
-          new Group(
-            stat(s, 'Matching rooms', `${m.sample.matched} / ${m.sample.trials}`, 0, 2, 'birthday-trials'),
-            stat(s, 'Observed', pct(m.sample.observed), -4, -0.6, 'birthday-observed'),
-            stat(s, 'Theory', pct(m.chance), 4, -0.6, 'birthday-theory'),
-            label(`Seed ${m.sample.seed}; ${m.people} people in every room`, 0, -3.1, s.soft, 0.6),
-          ),
-      },
-      {
-        id: 'questions',
-        title: 'Different questions, different chances',
-        line: 'A marked birthday uses fewer comparisons than any matching pair.',
-        caption: `With ${m.people} people, any matching pair has probability ${pct(m.any)}, while someone matching one marked person has probability ${pct(m.one)}. Both figures use the same uniform model.`,
-        state: {
-          people: m.people,
-          any: m.any,
-          one: m.one,
-          anyPairs: (m.people * (m.people - 1)) / 2,
-          onePairs: m.people - 1,
-        },
-        draw: (s: Stage) =>
-          table(
-            ['Question', 'Comparisons', 'Chance'],
-            [
-              ['Any pair', (m.people * (m.people - 1)) / 2, pct(m.any)],
-              ['Marked person', m.people - 1, pct(m.one)],
-            ],
-            s,
-            { xs: [-4.7, 0.4, 5.0], y: 1.8, gap: 1.35, key: 'birthday-questions' },
-          ),
       },
     ];
-    frames.splice(3, 0, {
-      id: 'occupied',
-      title: 'Which dates must person 5 avoid?',
-      line:
-        m.question === 'any'
-          ? 'Suppose the first four people have different birthdays.'
-          : 'Only the marked birthday matters in this question.',
-      caption:
-        m.question === 'any'
-          ? 'Condition on no match among the first four people. They occupy four different dates, so person 5 has 361 acceptable dates out of 365. If that succeeds, person 6 must avoid five dates. The changing occupied set is why the no-match factors decrease.'
-          : 'To avoid matching one marked person, each newcomer must avoid just that one date. Matches between two unmarked people are allowed. The allowed set stays at 364 dates out of 365 for every newcomer.',
-      state: {
-        people: m.people,
-        question: m.question,
-        occupied: m.question === 'any' ? 4 : 1,
-        allowed: m.question === 'any' ? 361 : 364,
-      },
-      draw: (s: Stage) => {
-        const occupied = m.question === 'any' ? 4 : 1;
-        const grid = new Group(
-          ...Array.from({ length: 365 }, (_, i) =>
-            new Rectangle({
-              width: 0.55,
-              height: 0.16,
-              fill: i < occupied ? s.bad : s.emphasis,
-              fillOpacity: i < occupied ? 1 : 0.35,
-              stroke: 'none',
-            }).moveTo([((i % 20) - 9.5) * 0.68, 2.6 - Math.floor(i / 20) * 0.31]),
-          ),
-          label(`${occupied} occupied; ${365 - occupied} available`, 0, -3.75, s.palette.ink, 0.7),
-        );
-        grid.key = 'birthday-days';
-        return grid;
-      },
-    });
     await lesson(this, frames);
   }
 }
