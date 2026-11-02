@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/isdigit.ts';
 import { Scene, Text, Rectangle } from '../../../src/index.ts';
 import type { Mobject, Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -42,6 +40,12 @@ const list = (xs: readonly string[]) =>
   xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 const TF = (b: boolean) => (b ? 'True' : 'False');
 
+/** The lineup's characters that isdigit() passes and int() rejects: ² alone. */
+const LET_THROUGH = LINEUP.filter((k) => predicates(CHARS[k]).isdigit && !('value' in intOf(CHARS[k])));
+if (LET_THROUGH.join() !== 'super') throw new Error(`isdigit() lets through ${LET_THROUGH.join()}, not super`);
+/** The script's one-sentence answer, stated in the lineup step of every case. */
+const ANSWER = `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
+
 /** The row as three lines: fields 0 to 4, fields 5 to 9 (the numeric ones in the middle), fields 10 to 14. */
 const rowLines = (c: Char) => {
   const f = c.ucd.split(';');
@@ -82,6 +86,23 @@ export default class IsDigitExplainer extends Scene {
       UCD + 'UnicodeData.txt',
       UCD + 'Unihan.zip',
       'https://www.unicode.org/reports/tr44/tr44-38.html#UnicodeData.txt',
+    ],
+    // The script's answer and check questions (script.md); the lineup step states the answer in every case.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'Which field of a UnicodeData.txt line must a character fill for int() to parse it?',
+        answer: `Field 6, the decimal digit value. int() rewrites a character with field 6 empty as '?', so int('${CHARS.super.char}') raises ValueError although ${CHARS.super.char} has ${fields(CHARS.super).digit} in fields 7 and 8.`,
+      },
+      {
+        question: 'In makeunicodedata.py, which record attribute sets DECIMAL_MASK, and what does it hold?',
+        answer:
+          'record.decomposition_mapping, which holds field 6, the decimal digit value. The script names fields 6, 7 and 8 decomposition_mapping, numeric_type and numeric_value.',
+      },
+      {
+        question: `Does '${CHARS.half.char}'.isdigit() return True?`,
+        answer: `No. ${CHARS.half.char} has a value, ${valueOf(CHARS.half)}, only in field 8, so CPython gives it only NUMERIC_MASK: isnumeric() is True, isdigit() and isdecimal() are False.`,
+      },
     ],
   };
   static settings = [
@@ -170,14 +191,78 @@ export default class IsDigitExplainer extends Scene {
       });
     };
 
+    // ------------------------------------------------------------------ the guard
+    await this.step('guard', {
+      title: run.passes
+        ? `${q(c)}.${guard}() is True, so int() runs`
+        : `${q(c)}.${guard}() is False, so int() never runs`,
+      line: run.passes
+        ? `Predict: does int(${q(c)}) return a number, or raise ValueError?`
+        : `Predict: had it run, would int(${q(c)}) return a number, or raise ValueError?`,
+      caption: `A common guard checks the text first and calls int() only if the check passes, so that int() never sees text it cannot parse. The check here is ${guard}(). For ${q(c)}, a numeral whose Unicode value is ${valueOf(c)}, it returns ${
+        run.passes
+          ? 'True, so the next line calls int()'
+          : 'False, so the code skips int() and treats the text as not a number'
+      }.`,
+    });
+    await s.clear();
+    const prog = await s.code([`s = "${c.char}"`, `if s.${guard}():`, '    n = int(s)'], {
+      at: [-7.55, 0.2, 7.55, TOP],
+      fontSize: SIZE * 1.2,
+    });
+    await prog.focus(run.passes ? [1, 2] : 1, { as: run.passes ? 'run' : 'the check that fails' });
+    // What the check returns, said at the end of its line, just outside the panel.
+    const check = prog.code.lines[1]!.box()!;
+    await s.callout(check, `returns ${TF(run.passes)}`, {
+      side: 'right',
+      gap: prog.panel.box()![2] - check[2] + 0.35,
+      color: run.passes ? s.good : s.bad,
+      size: SIZE * 1.2,
+    });
+    this.state.guard = { predicate: guard, passes: run.passes };
+
+    // ------------------------------------------------------------------ int()
+    await this.step('int', {
+      title: parsed ? `Answer: int(${q(c)}) returns ${int.value}` : `Answer: int(${q(c)}) raises ValueError`,
+      line: `${q(c)} becomes '${asciiFor(c)}' before parsing${parsed ? '' : `, and no number contains '?'`}.`,
+      // longobject.c:3193 calls _PyUnicode_TransformDecimalAndSpaceToASCII before parsing;
+      // unicodeobject.c:9538-9552 rewrites each character; longobject.c:3209 is the error message.
+      caption: `Before parsing, int() rewrites each non-ASCII character: a space as ' ', a character with a decimal digit value as that ASCII digit, anything else as '?', which no number contains. ${c.char} ${
+        f.decimal ? `has the decimal digit value ${f.decimal}` : 'has no decimal digit value'
+      }, so it becomes '${asciiFor(c)}' and int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}. ${
+        run.outcome === 'raised'
+          ? 'The check let through text int() cannot parse.'
+          : run.outcome === 'parsed'
+            ? 'Here the check and int() agree.'
+            : 'Here the check turned away text int() could not parse anyway.'
+      }`,
+    });
+    await s.clear();
+    const transform = await s.code(
+      [
+        '// unicodeobject.c:9538-9552, abridged',
+        'if (ch < 127) out[i] = ch;',
+        "else if (Py_UNICODE_ISSPACE(ch)) out[i] = ' ';",
+        'else {',
+        '    int decimal = Py_UNICODE_TODECIMAL(ch);',
+        "    if (decimal < 0) { out[i] = '?'; break; }",
+        "    out[i] = '0' + decimal; }",
+      ],
+      { at: [-WIDE, -2.75, WIDE, TOP], fontSize: SIZE },
+    );
+    await transform.focus(parsed ? 6 : 5, { as: 'the branch this character takes' });
+    await s.note(`int(${q(c)})  ${parsed ? `returns ${int.value}` : 'raises ValueError'}`, {
+      at: [0, -3.55],
+      size: SIZE,
+    });
+    this.state.int = int;
+
     // ------------------------------------------------------------------ the lineup
-    await readerFirst(this, s, readerFrames(values.char as CharId, guard));
     await this.step('lineup', {
-      detail: true,
       title: 'Eight numerals; int() accepts only the top four',
-      line: 'Four ways to write 3 on top; isnumeric() is True for all eight.',
+      line: `isdigit() is True for the top four and for ${CHARS.super.char} too.`,
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `The Unicode Character Database gives each of these a numeric value. The top row is four ways to write 3; below are superscript two, one half, Roman twelve and the Chinese numeral three. isnumeric() is True for all eight; int() accepts only the top row. This case follows ${c.char}: the next steps ask which Python predicate lets it through, and whether int() can actually parse it.`,
+      caption: `The Unicode Character Database gives each of these a numeric value. The top row is four ways to write 3; below are superscript two, one half, Roman twelve and the Chinese numeral three. int() accepts only the top row, yet isdigit() is True for ${CHARS.super.char} as well, and isnumeric() for all eight. The answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
     });
     await s.clear();
     const cells = LINEUP.map((cid, i) => {
@@ -211,7 +296,6 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ its row in the database
     await this.step('ucd', {
-      detail: true,
       title:
         id === 'han'
           ? '三 gets its value, 3, from Unihan'
@@ -229,8 +313,8 @@ export default class IsDigitExplainer extends Scene {
       // from which fields are filled, and gives Numeric_Type=Numeric to Unihan's numeric ideographs.
       caption:
         id === 'han'
-          ? 'UnicodeData.txt covers 三 only with a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty. Its value comes from the Unihan database: kPrimaryNumeric 3. Unicode gives every ideograph with such a value Numeric_Type=Numeric.'
-          : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, 7 the digit value, 8 the numeric value. ${c.char} fills ${
+          ? 'UnicodeData.txt covers 三 only with a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty, so int() finds no decimal digit value. Its value comes from the Unihan database: kPrimaryNumeric 3. Unicode gives every ideograph with such a value Numeric_Type=Numeric.'
+          : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, the one int() reads; 7 is the digit value, 8 the numeric value. ${c.char} fills ${
               type === 'Decimal' ? 'all three' : type === 'Digit' ? 'only 7 and 8' : 'only 8'
             }, so its Numeric_Type is ${type}.`,
     });
@@ -262,14 +346,13 @@ export default class IsDigitExplainer extends Scene {
     // ------------------------------------------------------------------ flags
     const set = MASKS.filter((m) => fl[m]);
     await this.step('flags', {
-      detail: true,
       title: set.length === 3 ? `CPython gives ${c.char} all three flags` : `CPython gives ${c.char} ${list(set)}`,
       line: 'Each filled field sets one flag; each predicate tests one flag.',
       // makeunicodedata.py:595-603; lines 998-1000 name fields 6, 7 and 8; lines 1210-1222 copy Unihan's
       // value into field 8. unicodectype.c:105-144: each predicate tests one flag.
       caption: `When CPython builds its character tables, makeunicodedata.py sets one flag for each filled field${
         id === 'han' ? ', after copying Unihan’s value into field 8' : ''
-      }. It calls fields 6, 7 and 8 decomposition_mapping, numeric_type and numeric_value. isdecimal(), isdigit() and isnumeric() each test one flag.`,
+      }. It calls fields 6, 7 and 8 decomposition_mapping, numeric_type and numeric_value. isdecimal(), isdigit() and isnumeric() each test one flag, so isdigit() asks about field 7 while int() reads field 6.`,
     });
     await s.clear();
     const make = await s.code(
@@ -294,7 +377,6 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ the nested sets
     await this.step('sets', {
-      detail: true,
       title: 'Decimals sit inside digits, inside numerics',
       line: `${c.char} sits in ${type === 'Decimal' ? 'the innermost set' : type === 'Digit' ? 'the middle set, not the innermost' : 'the outer set only'}.`,
       caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
@@ -311,73 +393,8 @@ export default class IsDigitExplainer extends Scene {
     await sets(null, s.emphasis, 'this case’s character');
     this.state.counts = COUNTS;
 
-    // ------------------------------------------------------------------ the guard
-    await this.step('guard', {
-      detail: true,
-      title: run.passes
-        ? `${q(c)}.${guard}() is True, so int() runs`
-        : `${q(c)}.${guard}() is False, so int() never runs`,
-      line: run.passes
-        ? `The code checks s.${guard}() first and calls int() only on True.`
-        : 'The code skips int() and treats the text as not a number.',
-      caption: `This code checks the text first and calls int() only if the check passes. The check here is ${guard}(). For ${q(c)} it returns ${
-        run.passes
-          ? 'True, so the next line calls int()'
-          : 'False, so the code skips int() and treats the text as not a number'
-      }.`,
-    });
-    await s.clear();
-    const prog = await s.code([`s = "${c.char}"`, `if s.${guard}():`, '    n = int(s)'], {
-      at: [-7.55, 0.2, 7.55, TOP],
-      fontSize: SIZE * 1.2,
-    });
-    await prog.focus(run.passes ? [1, 2] : 1, { as: run.passes ? 'run' : 'the check that fails' });
-    // What the check returns, said at the end of its line, just outside the panel.
-    const check = prog.code.lines[1]!.box()!;
-    await s.callout(check, `returns ${TF(run.passes)}`, {
-      side: 'right',
-      gap: prog.panel.box()![2] - check[2] + 0.35,
-      color: run.passes ? s.good : s.bad,
-      size: SIZE * 1.2,
-    });
-    this.state.guard = { predicate: guard, passes: run.passes };
-
-    // ------------------------------------------------------------------ int()
-    await this.step('int', {
-      detail: true,
-      title: parsed
-        ? `int() reads field 6, so int(${q(c)}) is ${int.value}`
-        : `int() reads only field 6, so int(${q(c)}) fails`,
-      line: `${q(c)} becomes '${asciiFor(c)}' before parsing${parsed ? '' : `, and no number contains '?'`}.`,
-      // longobject.c:3193 calls _PyUnicode_TransformDecimalAndSpaceToASCII before parsing;
-      // unicodeobject.c:9538-9552 rewrites each character; longobject.c:3209 is the error message.
-      caption: `Before parsing, int() rewrites each non-ASCII character: a space as ' ', a character with a decimal value as that ASCII digit, anything else as '?', which no number contains. ${q(c)} becomes '${asciiFor(
-        c,
-      )}', so int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}.`,
-    });
-    await s.clear();
-    const transform = await s.code(
-      [
-        '// unicodeobject.c:9538-9552, abridged',
-        'if (ch < 127) out[i] = ch;',
-        "else if (Py_UNICODE_ISSPACE(ch)) out[i] = ' ';",
-        'else {',
-        '    int decimal = Py_UNICODE_TODECIMAL(ch);',
-        "    if (decimal < 0) { out[i] = '?'; break; }",
-        "    out[i] = '0' + decimal; }",
-      ],
-      { at: [-WIDE, -2.75, WIDE, TOP], fontSize: SIZE },
-    );
-    await transform.focus(parsed ? 6 : 5, { as: 'the branch this character takes' });
-    await s.note(`int(${q(c)})  ${parsed ? `returns ${int.value}` : 'raises ValueError'}`, {
-      at: [0, -3.55],
-      size: SIZE,
-    });
-    this.state.int = int;
-
     // ------------------------------------------------------------------ the outcome
     await this.step('outcome', {
-      detail: true,
       title:
         run.outcome === 'parsed'
           ? `${guard}() and int() agree on ${c.char}`
@@ -411,7 +428,6 @@ export default class IsDigitExplainer extends Scene {
 
     // ------------------------------------------------------------------ the check that matches int()
     await this.step('match', {
-      detail: true,
       title: 'For one character, only isdecimal() matches int()',
       line: 'To test a whole string, call int() and catch ValueError.',
       // UAX #44 rev. 38, field 7: no character encoded since Unicode 6.3.0 gets Numeric_Type=Digit.
