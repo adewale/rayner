@@ -19,6 +19,8 @@ import {
   grouped,
   UNSHOWN,
   UNSHOWN_DECIMAL,
+  SPACE,
+  rewrite,
 } from '../scenes/explainers/lib/isdigit.ts';
 import type { Char, CharId } from '../scenes/explainers/lib/isdigit.ts';
 
@@ -152,11 +154,11 @@ test('python3, run now, gives the frozen answers', { skip: !PY && 'no python3 wi
   assert.equal(got.nested, true);
 });
 
-// The check questions' cases, which no step shows: ⑤ and 𝟗 from their rows alone, and the rewrite of '٣4²'
+// Two unshown rows, ⑤ and 𝟗, from earlier check questions, and the rewrite of '٣4²': the model still answers for them
 // (the model's rewrite of '٣4', an earlier question, is kept). UnicodeData.txt 17.0.0 lines 8433 and 35286, fetched 2026-11-02.
 const UNSHOWN_LINE = [8433, '2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;'] as const;
 const UNSHOWN_DECIMAL_LINE = [35286, '1D7D7;MATHEMATICAL BOLD DIGIT NINE;Nd;0;EN;<font> 0039;9;9;9;N;;;;;'] as const;
-test('the check questions’ unshown cases follow from the model: ⑤’s and 𝟗’s rows and the rewrite of ٣4²', () => {
+test('unshown rows follow from the model: ⑤’s and 𝟗’s fields and the rewrite of ٣4²', () => {
   assert.equal(UNSHOWN_DECIMAL.ucd, UNSHOWN_DECIMAL_LINE[1]);
   assert.equal(UNSHOWN_DECIMAL.ucdLine, UNSHOWN_DECIMAL_LINE[0]);
   assert.equal(UNSHOWN_DECIMAL.code, 'U+1D7D7');
@@ -176,7 +178,25 @@ test('the check questions’ unshown cases follow from the model: ⑤’s and �
   // int() rewrites character by character: ٣ becomes '3' and the ASCII 4 is kept.
   assert.equal(asciiFor(CHARS.arabic) + '4', '34');
 });
-// ⑤, ² and ٣ have had these values since Unicode 1.1 and 𝟗 since 3.1, so any python3 answers as CPython 3.15.1 would.
+// The check questions' cases, which no step shows: U+3000 then 7, refused by isdigit() and parsed by int(); and
+// float(), which runs the same rewrite (floatobject.c:189), on '٣.5' and '2.²'. UnicodeData.txt 17.0.0 line 11279, fetched 2026-11-02.
+const SPACE_LINE = [11279, '3000;IDEOGRAPHIC SPACE;Zs;0;WS;<wide> 0020;;;;N;;;;;'] as const;
+test('the check questions’ cases follow from the model: an ideographic space before 7, and float() on ٣.5 and 2.²', () => {
+  assert.equal(SPACE.ucd, SPACE_LINE[1]);
+  assert.equal(SPACE.ucdLine, SPACE_LINE[0]);
+  assert.equal(SPACE.code, 'U+3000');
+  assert.deepEqual(fields(SPACE), { decimal: '', digit: '', numeric: '' });
+  assert.deepEqual(predicates(SPACE), { isdecimal: false, isdigit: false, isnumeric: false });
+  assert.equal(asciiFor(SPACE), ' ');
+  assert.equal(rewrite([SPACE, '7']), ' 7');
+  assert.equal(rewrite([CHARS.arabic, '.5']), '3.5');
+  // The rewrite stops at the first '?', as unicodeobject.c:9548-9549 does.
+  assert.equal(rewrite(['2.', CHARS.super]), '2.?');
+  assert.equal(rewrite([CHARS.super, '1']), '?');
+  assert.throws(() => rewrite(['²']), /as a Char/);
+});
+
+// ⑤, ², ٣ and U+3000 have had these values since Unicode 1.1 and 𝟗 since 3.1, so any python3 answers as CPython 3.15.1 would.
 const ANY_PY = spawnSync(process.env.PYTHON ?? 'python3', ['-I', '-c', 'pass']).status === 0 ? (process.env.PYTHON ?? 'python3') : null;
 test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
   const script = [
@@ -195,6 +215,23 @@ test('python3, run now, agrees on the check questions’ cases', { skip: !ANY_PY
   assert.deepEqual(JSON.parse(first!), [p.isdecimal, p.isdigit, p.isnumeric, 'error' in int ? int.error : int.value, Number(asciiFor(CHARS.arabic) + '4')]);
   const b = predicates(UNSHOWN_DECIMAL), bold = intOf(UNSHOWN_DECIMAL) as { value: number };
   assert.deepEqual(JSON.parse(second!), [b.isdecimal, b.isdigit, b.isnumeric, bold.value, true, "invalid literal for int() with base 10: '٣4²'"]);
+});
+test('python3, run now, agrees on the check questions’ space and float() cases', { skip: !ANY_PY && 'no python3 on PATH or in $PYTHON' }, () => {
+  const script = [
+    'import json',
+    "s = chr(0x3000) + '7'",
+    "try: f = float('2.' + chr(0xB2))\nexcept ValueError as e: f = str(e)",
+    "print(json.dumps([chr(0x3000).isspace(), s.isdigit(), int(s), float(chr(0x663) + '.5'), f], ensure_ascii=False))",
+  ].join('\n');
+  const r = spawnSync(ANY_PY!, ['-I', '-c', script], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout.trim()), [
+    asciiFor(SPACE) === ' ',
+    predicates(SPACE).isdigit,
+    Number(rewrite([SPACE, '7']).trim()),
+    Number(rewrite([CHARS.arabic, '.5'])),
+    "could not convert string to float: '2.²'",
+  ]);
 });
 
 // ------------------------------------------------------------------ properties over synthetic rows

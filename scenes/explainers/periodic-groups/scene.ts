@@ -17,6 +17,7 @@ import { stage, settingsOf } from '../../../explain/index.ts';
 import { lerpColor } from '../../../src/color.ts';
 import {
   POSITIONS,
+  position,
   NAMES,
   CAPACITY,
   NIST_UP_TO,
@@ -172,7 +173,18 @@ const samePlace: MatchKey = (part: Mobject) => {
 };
 
 /** The script's one-sentence answer (meta.answer), which the stack step states. */
-const ANSWER = 'Apart from helium and the f block, an element’s group is the column where its last electron lands, in rows of 2, 10 and 6 columns';
+const ANSWER =
+  'Apart from helium and the f block, an element’s group is the column where the filling rule puts its last electron, with the runs of 2, 10 and 6 stacked left to right';
+
+// Check 2: lanthanum, whose last electron the filling rule puts in a run of 14 and NIST in a run of 10.
+const LA = (() => {
+  const z = 57,
+    rule = position(z),
+    nist = listed(z);
+  const lu = POSITIONS.find((p) => p.symbol === 'Lu')!;
+  if (rule.block !== 'f' || rule.group !== null || lu.group !== 3) throw new Error('The filling rule must put lanthanum in the f rows and lutetium in group 3');
+  return { rule: shorthand(predicted(z), z), nist: shorthand(nist, z), count: counted(nist, z), fColumn: rule.fColumn! };
+})();
 
 /** Of the 108 elements in the NIST reference, how many it lists as the filling rule predicts. */
 const RULE_MATCHES = NIST_UP_TO - Object.keys(NIST_EXCEPTIONS).length;
@@ -218,15 +230,8 @@ export default class PeriodicGroupsExplainer extends Scene {
       },
       {
         question:
-          'Some tables keep the runs of 14 in the body, between the runs of 2 and the runs of 10, so the table is 2 + 14 + 10 + 6 columns wide. In that table, which column would chlorine sit in, and how far would row 3’s run of 6 slide from where the fill step lays it?',
-        answer:
-          'Column 2 + 14 + 10 + 5 = 31. Row 3’s run of 6 would slide 14 + 10 = 24 columns to sit over the runs of 6 below.',
-      },
-      {
-        question:
-          'If element 119 opened an eighth row and the filling rule held, that row would bring a new kind of run, 18 long, between its run of 2 and its run of 14. How many cells would row 8 hold, and which element would sit below element 119 in group 1?',
-        answer:
-          'Row 8 would hold 2 + 18 + 14 + 10 + 6 = 50. Element 119 starts that row, so the next member of group 1 is a whole row further on: element 169.',
+          'Lanthanum is element 57. Stacked as this explainer stacks, where does the filling rule put it? NIST lists its configuration as [Xe] 5d¹ 6s². Where would that put it?',
+        answer: `The filling rule gives ${LA.rule}: its last electron is the ${ordinal(LA.fColumn)} of a run of 14, so it sits at the start of the detached f rows, with no group. NIST’s ${LA.nist} has no f electron; its last electron by the rule’s order would be the 1st of a run of 10, column 2 + 1 = 3, and NIST counts ${LA.count} after xenon. That is why many textbooks put lanthanum, not lutetium, in group 3.`,
       },
     ],
   };
@@ -628,7 +633,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       line: `Predict: what makes the jumps down the column ${list(distinct.map(String))}?`,
       caption: (
         {
-          na: `Sodium reacts with water much as lithium and potassium do, and chemists put such look-alikes in one column. Sodium is element 11, in the column that runs from hydrogen (1) to francium (87). The jumps between neighbours are ${list(jumps.map(String))}: no fixed step, so something other than the atomic number puts them together.`,
+          na: `Sodium reacts with water much as lithium and potassium do, and chemists put such look-alikes in one column. Sodium is element 11, in the column that runs from hydrogen (1) to francium (87). The jumps between neighbours are ${list(jumps.map(String))}: no fixed step, so no simple count from the atomic number gives the column.`,
           cl: `Chlorine, fluorine and bromine each join with sodium to make a salt (table salt is sodium chloride), and chemists put them in one column with ${list(others.filter((m) => m.symbol !== 'F' && m.symbol !== 'Br').map((m) => nameOf(m.symbol)))}. Chlorine is element 17 and bromine 35, both in group 17, and the jumps down the column are ${list(jumps.map(String))}.`,
           fe: `Iron, element 26, shares group 8 with ${list(others.map((m) => nameOf(m.symbol)))}, elements ${list(others.map((m) => String(m.z)))}, metals that chemists group because their compounds are alike. Nothing in those numbers says 8, and the jumps between them, ${list(jumps.map(String))}, are not a fixed step.`,
           cu: `Copper, silver and gold, the coinage metals, are soft, bright and conduct electricity well, and they share group 11 with roentgenium. Their atomic numbers, ${list(members.map((m) => String(m.z)))}, say nothing of 11, and the jumps between them, ${list(jumps.map(String))}, are not a fixed step.`,
@@ -660,7 +665,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('fill', {
       title: 'One electron per cell, in runs laid side by side',
       line: 'Predict: slide the runs so that runs of one length share columns. What shape do you get?',
-      caption: `Give each element a cell and add electrons one at a time, in order of atomic number. By the filling rule, which step 4 explains, they fill runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last and start a new row at each run of 2, as the table starts a row after each noble gas. The rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
+      caption: `Give each element a cell and add electrons one at a time, in order of atomic number. By the filling rule, which step 4 names and sources, they fill runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last and start a new row at each run of 2, as the table starts a row after each noble gas. The rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
     });
     {
       const fillState = (lit: number, runs: number, done: boolean): SceneState => ({
@@ -704,7 +709,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('stack', {
       title: 'Stack runs of one length in the same columns',
       line: 'Runs of 2 at the left, 10 in the middle, 6 at the right, 14 in two rows below.',
-      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. The result is the periodic table with one cell out of place: helium, which the table puts over neon. ${ANSWER}. ${
+      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. The result is the 18-column table that puts lutetium in group 3, as IUPAC endorsed, except for one cell: helium, which that table puts over neon. ${ANSWER}. ${
         (
           {
             na: 'Sodium’s 11th electron starts a run of 2, so it lands in column 1.',
@@ -791,7 +796,7 @@ export default class PeriodicGroupsExplainer extends Scene {
           cl: 'Every halogen ends in two s and five p electrons',
           fe: 'Iron, ruthenium and osmium each end with 8 s and d electrons',
           cu: 'Copper, silver and gold all end in d¹⁰ s¹',
-          he: 'Every noble gas ends with its outer shell full',
+          he: 'Neon to radon end in s² p⁶; helium ends in 1s²',
         } satisfies Record<Choice, string>
       )[choice],
       line: `Each jump is a row: ${distinct.map(rowSum).join(', ')}.`,
@@ -802,7 +807,7 @@ export default class PeriodicGroupsExplainer extends Scene {
             cl: 'Each halogen ends in s² p⁵. From bromine down, a full d¹⁰ sits beneath that ending and the count reaches 17; fluorine and chlorine count 7 and take the same column. Tennessine is outside our NIST reference. From chlorine to bromine the jump is row 4’s 18 cells.',
             fe: 'NIST lists ruthenium as 4d⁷ 5s¹ where iron has 3d⁶ 4s², yet 7 + 1 is still 8. Osmium and hassium carry 4f¹⁴ and 5f¹⁴, which the count leaves out. Ruthenium is 18 after iron, the length of row 5, and osmium 32 after ruthenium, the length of row 6.',
             cu: 'NIST lists silver and gold with copper’s d¹⁰ s¹ ending. Gold also carries 4f¹⁴, which the count leaves out because f electrons have their own 14 unnumbered columns. Roentgenium is outside our NIST reference. Silver sits one row of 18 below copper, and gold a row of 32 below silver.',
-            he: 'From neon down, each noble gas ends in a full outer s² p⁶; helium’s 1s² is shorter because shell 1 has no p subshell. Neon and argon count 8, ten short of their column, because rows 2 and 3 have no d run; from krypton on the count is 18. Each noble gas closes its row, so each jump is the next row’s length.',
+            he: 'From neon to radon, each noble gas ends in s² p⁶, a full s and p subshell; helium’s 1s² is shorter because shell 1 has no p subshell. Neon and argon count 8, ten short of their column, because rows 2 and 3 have no d run; from krypton on the count is 18. Each noble gas closes its row, so each jump is the next row’s length.',
           } satisfies Record<Choice, string>
         )[choice]
       }`,

@@ -320,6 +320,26 @@ export function flatten(chart: StateNode): FlatMachine {
   return { states: [...seen.keys()], initial: flatName(start), transitions, configurations: Object.fromEntries(seen) };
 }
 
+/**
+ * The flat machine as someone copying arrows by hand might write it, with one copy forgotten: every
+ * reachable configuration becomes a plain state, and every flat transition is kept except `event`
+ * leaving `from`.
+ */
+export function byHand(chart: StateNode, from: string, event: string): StateNode {
+  const flat = flatten(chart);
+  if (!flat.transitions.some((t) => t.from === from && t.event === event)) throw new Error(`No ${event} leaves ${from} to forget`);
+  return {
+    id: chart.id,
+    type: 'compound',
+    initial: flat.initial,
+    children: flat.states.map((name) => ({
+      id: name,
+      type: 'atomic' as const,
+      on: Object.fromEntries(flat.transitions.filter((t) => t.from === name && !(t.from === from && t.event === event)).map((t) => [t.event, t.to])),
+    })),
+  };
+}
+
 export interface Counts {
   /** Named boxes: every state except the chart's root and the regions a parallel state is divided into. */
   states: number;

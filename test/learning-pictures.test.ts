@@ -60,7 +60,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (!['odds', 'worlds', 'rules'].includes(step.name)) return;
+          if (!['odds', 'worlds'].includes(step.name)) return;
           const members = (key: string) => scene.familyMembers().filter((m) => m.key === key);
           const words = (key: string) => {
             const groups = members(key);
@@ -89,30 +89,32 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
             const expected = variant.values.host === 'random' ? ['50.0%', '50.0%'] : ['33.3%', '66.7%'];
             assert.deepEqual(words('monty-stay'), ['Stay', expected[0]]);
             assert.deepEqual(words('monty-switch'), ['Switch', expected[1]]);
-            // The old summary table's goat-reveal column: always for the host who knows, 66.7% of rounds for the random host.
-            assert.deepEqual(words('monty-note'), [variant.values.host === 'random' ? 'A goat shows in 66.7% of rounds.' : 'Every round shows a goat.']);
+            // The strip now counts only the rounds that show a goat behind B (the old rules step): the host who knows
+            // opens B in three sixths, two of them switching wins; the random host in two, one a switching win.
+            // The old note on all goat reveals went with the uncounted rounds, which are greyed.
+            assert.deepEqual(words('monty-note'), [variant.values.host === 'random' ? 'Left: 2 sixths; switching wins 1 of them.' : 'Left: 3 sixths; switching wins 2 of them.']);
             readouts += 3;
-          } else if (step.name === 'worlds') {
-            // The old summary table's switch-wins column, now beside each host's strip.
+            comparisons++;
+          } else {
+            // The old summary table's switch-wins column, now beside each host's strip; counting only the rounds that
+            // show a goat behind the opened door gives the same odds (the old rules step's comparison).
             assert.deepEqual(words('monty-readout-informed'), ['switch wins 66.7%']);
             assert.deepEqual(words('monty-readout-random'), ['switch wins 50.0%']);
             readouts += 2;
-          } else {
-            // Counting only the rounds that show a goat behind the opened door gives the same odds.
-            assert.deepEqual(words('monty-rules'), ['switch wins 66.7%', 'switch wins 50.0%']);
-            comparisons++;
           }
+          // Each strip picture carries the key to its cells.
+          assert.deepEqual(words('monty-key'), ['Each cell: the door he opens, what it shows, who wins']);
           pictures++;
           visited.push(step.name);
         },
       },
       { skipUntil: Infinity },
     ).run();
-    assert.deepEqual(visited, ['odds', 'worlds', 'rules']);
+    assert.deepEqual(visited, ['odds', 'worlds']);
   }
-  assert.equal(pictures, 6);
+  assert.equal(pictures, 4);
   assert.equal(readouts, 10);
   assert.equal(comparisons, 2);
-  // Per case: one strip in odds (4 or 6 cells), two in worlds and rules (10 each).
-  assert.equal(cells, 4 + 6 + 2 * 20);
+  // Per case: one strip in odds (4 or 6 cells), two in worlds (10).
+  assert.equal(cells, 4 + 6 + 2 * 10);
 });

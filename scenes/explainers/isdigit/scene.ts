@@ -16,8 +16,8 @@ import {
   accepts,
   grouped,
   valueOf,
-  UNSHOWN,
-  UNSHOWN_DECIMAL,
+  SPACE,
+  rewrite,
 } from '../lib/isdigit.ts';
 import type { Char, CharId, Predicate } from '../lib/isdigit.ts';
 
@@ -37,19 +37,17 @@ const TOP = 3.05;
 const BOTTOM = -4.25;
 
 const q = (c: Char) => `'${c.char}'`;
-const MASKS = ['DECIMAL_MASK', 'DIGIT_MASK', 'NUMERIC_MASK'] as const;
-const list = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 const TF = (b: boolean) => (b ? 'True' : 'False');
 
 /** The lineup's characters that isdigit() passes and int() rejects: ² alone. */
 const LET_THROUGH = LINEUP.filter((k) => predicates(CHARS[k]).isdigit && !('value' in intOf(CHARS[k])));
 if (LET_THROUGH.join() !== 'super') throw new Error(`isdigit() lets through ${LET_THROUGH.join()}, not super`);
-/** Check 2's text: ٣, an ASCII 4 and ². Every character has a digit value; int() rewrites it one character at a time. */
-const MIXED = [CHARS.arabic, null, CHARS.super] as const;
-const mixedText = MIXED.map((c) => (c ? c.char : '4')).join(''),
-  mixedAscii = MIXED.map((c) => (c ? asciiFor(c) : '4')).join(''),
-  mixedIsdigit = MIXED.every((c) => !c || predicates(c).isdigit);
+/** Check 1: U+3000 then '7'. isdigit() refuses the space; int() sees ' 7' and ignores the space. */
+const SPACED = rewrite([SPACE, '7']);
+if (predicates(SPACE).isdigit || SPACED !== ' 7') throw new Error('The ideographic space must fail isdigit() and become a space');
+/** Check 2: float() runs the same rewrite: '٣.5' becomes '3.5', and '2.²' becomes '2.?'. */
+const FLOATS = { arabic: rewrite([CHARS.arabic, '.5']), super: rewrite(['2.', CHARS.super]) };
+if (FLOATS.arabic !== '3.5' || !FLOATS.super.endsWith('?')) throw new Error('float() must see 3.5 and a ?');
 /** The script's one-sentence answer, stated in the lineup step of every case. */
 const ANSWER = `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
 
@@ -90,6 +88,7 @@ export default class IsDigitExplainer extends Scene {
       CPY + 'Objects/unicodeobject.c#L12048-L12158',
       CPY + 'Objects/unicodeobject.c#L9515-L9557',
       CPY + 'Objects/longobject.c#L3187-L3212',
+    CPY + 'Objects/floatobject.c#L180-L189',
       UCD + 'UnicodeData.txt',
       UCD + 'Unihan.zip',
       'https://www.unicode.org/reports/tr44/tr44-38.html#UnicodeData.txt',
@@ -98,16 +97,12 @@ export default class IsDigitExplainer extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: `${UNSHOWN_DECIMAL.char}, ${UNSHOWN_DECIMAL.code}, is a bold nine from the mathematical alphabets, with this line in UnicodeData.txt: ${UNSHOWN_DECIMAL.ucd}. What do '${UNSHOWN_DECIMAL.char}'.isdigit() and int('${UNSHOWN_DECIMAL.char}') do?`,
-        answer: `isdigit() returns ${TF(predicates(UNSHOWN_DECIMAL).isdigit)}, and int('${UNSHOWN_DECIMAL.char}') returns ${(intOf(UNSHOWN_DECIMAL) as { value: number }).value}. Field 6 holds ${fields(UNSHOWN_DECIMAL).decimal}, so CPython sets DECIMAL_MASK as well as the other two, and int() rewrites ${UNSHOWN_DECIMAL.char} as '${asciiFor(UNSHOWN_DECIMAL)}'. The styling doesn’t matter; field 6 does.`,
+        question: `s is two characters: ${SPACE.code}, IDEOGRAPHIC SPACE, then an ASCII 7. Its line in UnicodeData.txt is ${SPACE.ucd}. Does the isdigit() guard let s through, and what would int(s) do?`,
+        answer: `The guard turns s away: ${SPACE.code} has nothing in field 7, so s.isdigit() is ${TF(predicates(SPACE).isdigit)}. Yet int(s) returns 7. Its category Zs makes it whitespace to Python, so the rewrite turns it into a space, '${SPACED}', and int() ignores surrounding spaces. The isdigit() guard also refuses text that int() can parse.`,
       },
       {
-        question: `What do '${mixedText}'.isdigit() and int('${mixedText}') do? The text is an Arabic-Indic three, an ASCII 4 and a superscript two.`,
-        answer: `isdigit() returns ${TF(mixedIsdigit)}, because every character has a digit value in field 7. int() raises ValueError: it rewrites the text one character at a time as '${mixedAscii}', which it cannot parse.`,
-      },
-      {
-        question: `${UNSHOWN.char}, ${UNSHOWN.code}, has this line in UnicodeData.txt: ${UNSHOWN.ucd}. What do '${UNSHOWN.char}'.isdigit() and int('${UNSHOWN.char}') do?`,
-        answer: `isdigit() returns ${TF(predicates(UNSHOWN).isdigit)}, and int('${UNSHOWN.char}') raises ValueError. Field 6 is empty while fields 7 and 8 hold ${fields(UNSHOWN).digit}, so CPython sets DIGIT_MASK and NUMERIC_MASK but not DECIMAL_MASK, and int() rewrites ${UNSHOWN.char} as '${asciiFor(UNSHOWN)}'. It fails the same way ${CHARS.super.char} does.`,
+        question: `float() runs the same rewrite as int() before it parses. What do float('${CHARS.arabic.char}.5') and float('2.${CHARS.super.char}') do?`,
+        answer: `float('${CHARS.arabic.char}.5') returns 3.5: ${CHARS.arabic.char} has a decimal digit value, so the text becomes '${FLOATS.arabic}'. float('2.${CHARS.super.char}') raises ValueError: ${CHARS.super.char} has none, so the text becomes '${FLOATS.super}', for the same reason int('${CHARS.super.char}') fails.`,
       },
     ],
   };
@@ -326,16 +321,18 @@ export default class IsDigitExplainer extends Scene {
       line:
         id === 'han'
           ? 'Fields 6, 7 and 8 are empty; Unihan’s kPrimaryNumeric gives 3.'
-          : `Fields 6, 7, 8 hold decimal, digit, numeric values: ${c.char} is ${type}.`,
+          : `isdigit() reads field 7 and int() reads field 6: ${c.char} fills ${
+              type === 'Decimal' ? 'both' : type === 'Digit' ? 'field 7 but not field 6' : 'neither'
+            }.`,
       // UAX #44 rev. 38, the UnicodeData.txt field table: field 6 is filled only for Numeric_Type=Decimal,
       // field 7 for Decimal and Digit, field 8 for every numeric character; #Numeric_Type derives the type
       // from which fields are filled, and gives Numeric_Type=Numeric to Unihan's numeric ideographs.
       caption:
         id === 'han'
-          ? 'UnicodeData.txt covers 三 only with a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty, so int() finds no decimal digit value. Its value comes from the Unihan database: kPrimaryNumeric 3. Unicode gives every ideograph with such a value Numeric_Type=Numeric.'
-          : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, the one int() reads; 7 is the digit value, 8 the numeric value. ${c.char} fills ${
+          ? 'UnicodeData.txt covers 三 only with a range line for the ideographs 4E00 to 9FFF, whose fields 6, 7 and 8 are empty. Its value comes from the Unihan database: kPrimaryNumeric 3, which CPython copies into field 8 when it builds its tables, so isnumeric() is True. isdigit() reads field 7 and int() reads field 6, and both are empty.'
+          : `A UnicodeData.txt line has 15 fields split by semicolons; the middle line here holds fields 5 to 9. Field 6 is the decimal digit value, 7 the digit value and 8 the numeric value. int() and isdecimal() read field 6, isdigit() field 7 and isnumeric() field 8. ${c.char} fills ${
               type === 'Decimal' ? 'all three' : type === 'Digit' ? 'only 7 and 8' : 'only 8'
-            }, so its Numeric_Type is ${type}.`,
+            }, so its Numeric_Type is ${type}${type === 'Digit' ? ', and isdigit() and int() disagree on it' : ''}.`,
     });
     await s.clear();
     const row = await s.code(
@@ -353,44 +350,15 @@ export default class IsDigitExplainer extends Scene {
     const blank = (v: string) => v || 'empty';
     await s.card(
       [
-        ['Field 6, decimal', blank(f.decimal)],
-        ['Field 7, digit', blank(f.digit)],
-        [id === 'han' ? 'Field 8, from Unihan' : 'Field 8, numeric', blank(f.numeric)],
+        ['Field 6: int(), isdecimal()', blank(f.decimal)],
+        ['Field 7: isdigit()', blank(f.digit)],
+        [id === 'han' ? 'Field 8 (Unihan): isnumeric()' : 'Field 8: isnumeric()', blank(f.numeric)],
       ],
       { at: [-7.55, BOTTOM, 7.55, -0.35], fontSize: SIZE, width: 10 },
     );
     this.state.fields = f;
     this.state.numericType = type;
-
-    // ------------------------------------------------------------------ flags
-    const set = MASKS.filter((m) => fl[m]);
-    await this.step('flags', {
-      title: set.length === 3 ? `CPython gives ${c.char} all three flags` : `CPython gives ${c.char} ${list(set)}`,
-      line: 'Each filled field sets one flag; each predicate tests one flag.',
-      // makeunicodedata.py:595-603; lines 998-1000 name fields 6, 7 and 8; lines 1210-1222 copy Unihan's
-      // value into field 8. unicodectype.c:105-144: each predicate tests one flag.
-      caption: `When CPython builds its character tables, makeunicodedata.py sets one flag for each filled field${
-        id === 'han' ? ', after copying Unihan’s value into field 8' : ''
-      }. It calls fields 6, 7 and 8 decomposition_mapping, numeric_type and numeric_value. isdecimal(), isdigit() and isnumeric() each test one flag, so isdigit() asks about field 7 while int() reads field 6.`,
-    });
-    await s.clear();
-    const make = await s.code(
-      [
-        '# makeunicodedata.py:595-603, abridged',
-        'if record.decomposition_mapping:  # field 6',
-        '    flags |= DECIMAL_MASK',
-        'if record.numeric_type:           # field 7',
-        '    flags |= DIGIT_MASK',
-        'if record.numeric_value:          # field 8',
-        '    flags |= NUMERIC_MASK',
-      ],
-      { at: [-7.55, -2.75, 7.55, TOP], fontSize: SIZE },
-    );
-    const first = MASKS.findIndex((m) => fl[m]);
-    await make.focus([1 + 2 * first, 6], {
-      as: set.length === 1 ? 'the flag this character gets' : 'the flags this character gets',
-    });
-    await s.note(`${q(c)}: ${PREDICATES.map((k) => `${k}() ${TF(p[k])}`).join(', ')}`, { at: [0, -3.55], size: SIZE });
+    // The flags step is gone: what each check returns follows from the fields it reads, said in this step.
     this.state.flags = fl;
     this.state.predicates = p;
 

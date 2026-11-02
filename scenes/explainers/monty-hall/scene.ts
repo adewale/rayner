@@ -83,13 +83,11 @@ const heads = (s: Stage, y: number) =>
     new Group(...[0, 1, 2].map((i) => label(`Car behind ${door(i)}`, X0 + (i + 0.5) * 2 * SIX, y, s.soft, 0.5))),
     'monty-heads',
   );
-// Check 2: a host chosen by a coin toss, after a goat behind B. Each host's rounds that show it, in sixths.
-const mixed = (() => {
-  const informed = oddsAfter(0, 'informed', 'B'),
-    random = oddsAfter(0, 'random', 'B');
-  return { informed, random, sixths: informed.sixths + random.sixths, swap: informed.swapSixths + random.swapSixths };
-})();
-const sum = (cells: readonly Cell[], f: (c: Cell) => boolean) => cells.filter(f).reduce((n, c) => n + c.sixths, 0);
+// Check 1: a host who knows but tosses a coin when the first pick is wrong draws the random host's strip.
+if (JSON.stringify(threeDoorCells(0, 'coin')) !== JSON.stringify(threeDoorCells(0, 'random')))
+  throw new Error('The coin host must open every door with the random host’s chance');
+// Check 2: the car hidden behind A 40% of the time, B and C 30% each.
+const PRIOR = [4, 3, 3];
 
 export default class MontyHall extends Scene {
   static meta = {
@@ -102,17 +100,13 @@ export default class MontyHall extends Scene {
     checks: [
       {
         question:
-          'A host who knows where the car is always opens B when B hides a goat. You pick A, and he opens C. Should you switch, and how sure can you be?',
-        answer: `Switch: you win ${pct(oddsAfter(0, 'leftmost', 'C').switchChance)} of the time. He opens C only when he can’t open B, so B hides the car. Had he opened B, switching would win ${pct(oddsAfter(0, 'leftmost', 'B').switchChance)}: he opens B whether the car is behind A or C.`,
+          'This host knows where the car is. When your first pick is right, he opens one of the two goats at random. When it is wrong, he tosses a coin: heads, he opens the car and the round ends; tails, he opens the other goat. You pick A and he opens B to a goat. How often does switching win, and which strip in the last step is his?',
+        answer: `${pct(oddsAfter(0, 'coin', 'B').switchChance)}. His strip is the random host’s, cell for cell: with the car behind B or C, he opens each unchosen door half the time, so one of the two sixths in each wrong-pick third shows the car. He knows where the car is, but his rule gives each round the random host’s chance, and those chances set the odds.`,
       },
       {
         question:
-          'Before the game a coin is tossed: heads, the host knows where the car is and picks at random between two goats; tails, he opens a random door. You don’t see the coin. You pick A, and he opens B to a goat. How often does switching win?',
-        answer: `${pct(mixed.swap / mixed.sixths)}. Count sixths of a round for each host. The host who knows shows a goat behind B in ${mixed.informed.sixths} sixths, and switching wins ${mixed.informed.swapSixths} of them; the random host shows one in ${mixed.random.sixths}, and switching wins ${mixed.random.swapSixths}. Together switching wins ${mixed.swap} of ${mixed.sixths}.`,
-      },
-      {
-        question: 'With 100 doors and a random host who opens 98 of them, how often does the game reach a switch offer, and what are the odds then?',
-        answer: `In ${pct(monty(100, 'random').continuationChance)} of rounds; in the rest, one of his doors shows the car. When the game does go on, staying and switching each win ${pct(monty(100, 'random').switchChance)}.`,
+          'The producers hide the car behind A 40% of the time and behind B or C 30% each. You pick A and the host opens B to a goat. How often does switching win with the host who knows, and with the random host?',
+        answer: `With the host who knows, ${pct(oddsAfter(0, 'informed', 'B', PRIOR).switchChance)}: the car-behind-A rounds now fill 40% of the strip and he opens B in half of them, 20%, while all of the car-behind-C rounds, 30%, open B. With the random host, ${pct(oddsAfter(0, 'random', 'B', PRIOR).switchChance)}: he opens B in only half of the car-behind-C rounds, 15%, against the same 20%.`,
       },
     ],
   };
@@ -146,10 +140,6 @@ export default class MontyHall extends Scene {
       C = door(example.offered),
       others = [0, 1, 2].filter((i) => i !== choice).map(door);
     const seen = { informed: oddsAfter(choice, 'informed', B), random: oddsAfter(choice, 'random', B) } as Record<Opener, ReturnType<typeof oddsAfter>>;
-    const ends = sum(cells.random, (c) => c.shows === 'car'),
-      goat = 6 - ends,
-      randomSwitch = sum(cells.random, (c) => c.swap === 'win'),
-      randomStay = sum(cells.random, (c) => c.stay === 'win');
     // The random host's car rounds are rounds where the first pick was wrong, and the informed host's switching wins.
     for (const c of cells.random.filter((c) => c.shows === 'car'))
       if (c.prize === X || !cells.informed.some((k) => k.prize === c.prize && k.swap === 'win'))
@@ -158,7 +148,10 @@ export default class MontyHall extends Scene {
       throw new Error('Conditioning on the opened door must give the same odds as counting every goat');
 
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
-    type Phase = 'choice' | 'predict' | 'odds' | 'copy' | 'worlds' | 'rules';
+    type Phase = 'choice' | 'predict' | 'odds' | 'copy' | 'worlds';
+    // From the first strip on, only the rounds where he opened B to a goat count; the rest are greyed.
+    const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
+    const KEY = 'Each cell: the door he opens, what it shows, who wins';
     let phase: Phase = 'choice';
     let words: string[] = [];
 
@@ -193,7 +186,8 @@ export default class MontyHall extends Scene {
     const titleOf = (h: Host, y: number) => left(NAME[h], X0, y, h === host ? s.emphasis : s.palette.ink, 0.56, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
       `${NAME[h]}: ` +
-      list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (ruled out)' : ''}`).join('; ');
+      list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
+    const cellKey = (y: number) => label(KEY, 0, y, s.soft, 0.44, 'monty-key');
 
     const picture = (): Group => {
       switch (phase) {
@@ -203,44 +197,30 @@ export default class MontyHall extends Scene {
           return doors('Predict: stay or switch?');
         case 'odds': {
           const y = SLOT.informed;
-          words = [describeStrip(host, cells[host])];
+          words = [describeStrip(host, cells[host], dim), KEY];
           return new Group(
             heads(s, 2.7),
             titleOf(host, SLOT.informed + 1.15),
-            strip(s, cells[host], y, host),
-            stat(s, 'Stay', pct(m.stayChance), -3.8, -1.45, 'monty-stay'),
-            stat(s, 'Switch', pct(m.switchChance), 3.8, -1.45, 'monty-switch'),
-            label(
-              host === 'informed' ? 'Every round shows a goat.' : `A goat shows in ${pct(random.continuationChance)} of rounds.`,
-              0,
-              -3.0,
-              s.palette.ink,
-              0.52,
-              'monty-note',
-            ),
+            strip(s, cells[host], y, host, dim),
+            stat(s, 'Stay', pct(seen[host].stayChance), -3.8, -1.45, 'monty-stay'),
+            stat(s, 'Switch', pct(seen[host].switchChance), 3.8, -1.45, 'monty-switch'),
+            label(`Left: ${seen[host].sixths} sixths; switching wins ${seen[host].swapSixths} of them.`, 0, -3.0, s.palette.ink, 0.52, 'monty-note'),
+            cellKey(-3.65),
           );
         }
         case 'copy':
         case 'worlds': {
           // Copy: the other host's strip starts as a copy of this host's, then takes its own rounds.
           const list = (h: Host) => (phase === 'copy' && h === other ? cells[host] : cells[h]);
-          words = HOSTS.map((h) => describeStrip(h, list(h)));
+          words = [...HOSTS.map((h) => describeStrip(h, list(h), dim)), KEY];
           return new Group(
             heads(s, 2.7),
             ...HOSTS.flatMap((h) => [
               titleOf(h, SLOT[h] + 1.15),
-              ...(phase === 'worlds' ? [readout(h, SLOT[h] + 1.15, h === 'informed' ? informed.switchChance : random.switchChance, `monty-readout-${h}`)] : []),
-              strip(s, list(h), SLOT[h], h),
+              ...(phase === 'worlds' ? [readout(h, SLOT[h] + 1.15, seen[h].switchChance, `monty-readout-${h}`)] : []),
+              strip(s, list(h), SLOT[h], h, dim),
             ]),
-          );
-        }
-        case 'rules': {
-          const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
-          words = HOSTS.map((h) => describeStrip(h, cells[h], dim));
-          return new Group(
-            heads(s, 2.7),
-            ...HOSTS.flatMap((h) => [titleOf(h, SLOT[h] + 1.15), strip(s, cells[h], SLOT[h], h, dim)]),
-            keyed(new Group(...HOSTS.map((h) => readout(h, SLOT[h] + 1.15, seen[h].switchChance, `monty-seen-${h}`))), 'monty-rules'),
+            cellKey(-2.75),
           );
         }
       }
@@ -264,7 +244,7 @@ export default class MontyHall extends Scene {
 
     await this.step('choice', {
       title: `You pick ${X}; the host opens ${B}: a goat`,
-      line: `Should you switch? That depends on what the host knew when he opened ${B}.`,
+      line: 'Should you switch? That depends on what the host knew and how he chose which door to open.',
       caption:
         host === 'informed'
           ? `A car is behind one of three doors, and goats are behind the other two. You pick ${X}. The host knows where the car is; he opens ${B}, shows a goat, and offers you ${C}. With two doors still closed, the odds look even.`
@@ -277,7 +257,7 @@ export default class MontyHall extends Scene {
 
     await this.step('predict', {
       title: `Stay with ${X}, or switch to ${C}?`,
-      line: 'Predict: does it matter whether the host knew where the car was?',
+      line: 'Predict: does it matter what the host knew and how he picked a door?',
       caption:
         host === 'informed'
           ? 'Two doors are closed and you have seen a goat. Would switching win more often than staying? And would your answer change if the host had opened a door at random and happened to show a goat?'
@@ -287,34 +267,38 @@ export default class MontyHall extends Scene {
     at('predict', { example, host, revealed: false });
 
     await this.step('odds', {
-      title: host === 'informed' ? 'He knows and picks goats at random: switching wins 2 in 3' : 'With a random host, switching wins 1 in 2',
-      line: 'Each cell is a round, as wide as its chance: door opened, what it shows, who wins.',
+      title: host === 'informed' ? `When the host who knows opens ${B}, switching wins 2 in 3` : `When a random host opens ${B} to a goat, switching wins 1 in 2`,
+      line:
+        host === 'informed'
+          ? `With the car behind ${C}, he must open ${B}; with it behind ${X}, he opens ${B} half the time.`
+          : `Wherever the car is, he opens ${B} half the time, so ${X} and ${C} keep equal shares.`,
       caption:
         host === 'informed'
-          ? `First count every round for a pick of ${X}, including those where he opens ${C}; the last step keeps only the ones that match the goat you saw. The car is behind each door a third of the time. When it is behind ${X}, he opens ${others.join(' or ')} with equal chance, and staying wins. When it is behind either other door, he must open the one goat you didn’t pick, so the car is behind the door he leaves closed: switching wins ${pct(m.switchChance)}.`
-          : `First count every round for a pick of ${X}, including those where he opens ${C}; the last step keeps only the ones that match the goat you saw. The car is behind each door a third of the time, and he opens ${others.join(' or ')} with equal chance, so each round is a sixth. In ${ends} of them he opens the car and the game ends. Of the ${goat} that show a goat, staying wins ${randomStay} and switching wins ${randomSwitch}: ${pct(m.switchChance)} each.`,
+          ? `The strip lays out every round for a pick of ${X}, each as wide as its chance. The car is behind each door a third of the time. When it is behind ${X}, he opens ${others.join(' or ')} with equal chance, a sixth each. When it is behind ${C}, ${B} is the only goat you didn’t pick, so he opens it in that whole third. You saw ${B} open, so the rounds where he opened ${C} are greyed. Of the ${seen.informed.sixths} sixths left, the car is behind ${C} in ${seen.informed.swapSixths}: switching wins ${pct(seen.informed.switchChance)}.`
+          : `The strip lays out every round for a pick of ${X}, each as wide as its chance. The car is behind each door a third of the time, and he opens ${others.join(' or ')} with equal chance wherever it is, so each round is a sixth. You saw ${B} open to a goat, so the rounds where he opened ${C}, or opened ${B} to the car, are greyed. Of the ${seen.random.sixths} sixths left, the car is behind ${X} in one and behind ${C} in the other: staying and switching win ${pct(seen.random.switchChance)} each.`,
     });
     await fresh('odds');
-    at('odds', { odds: m, cells: cells[host] });
+    at('odds', { odds: m, cells: cells[host], opened: B, seen: seen[host] });
 
     await this.step('worlds', {
       title: 'The same rounds with the other host',
-      line:
-        host === 'informed'
-          ? 'Each wrong-pick third splits, and in one half the random host opens the car.'
-          : 'Each round where he opens the car becomes a switching win for the host who knows.',
-      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. The two strips hold the same rounds. The random host opens ${others.join(' or ')} with equal chance, so in half of each third where your pick is wrong he opens the car and the game ends; the host who knows never opens the car, so those halves are switching wins for him. Staying keeps its third under either host.`,
+      line: `With the car behind ${C}, the host who knows always opens ${B}; the random host opens it half the time.`,
+      caption: `Switching wins 2 in 3 if the host knows where the car is and picks at random between two goats, but 1 in 2 if he opened a random door and showed a goat. Both strips hold the same rounds. With the car behind ${X}, either host opens ${B} in one sixth, and staying wins it. With the car behind ${C}, the host who knows must open ${B}, which gives switching two sixths; the random host opens ${B} in only one of them and opens the car in the other. The odds come from how likely each host was to open ${B}, the door you saw.`,
     });
     await morph('copy', 0.8);
     await morph('worlds', 1.3);
-    at('worlds', { choice, host, worlds, odds: m, informedWorlds, randomWorlds, cells });
-
-    await this.step('rules', {
-      title: `The goat you saw was behind ${B}`,
-      line: `Rounds where he did not open ${B} to a goat are greyed. Compare what is left.`,
-      caption: `With the car behind ${X}, either host opens ${B} half the time. With it behind ${C}, the host who knows must open ${B}, so in his rounds ${C} is twice as likely as ${X}: switching wins ${pct(seen.informed.switchChance)}. The random host opens ${B} half the time wherever the car is, so ${X} and ${C} stay equally likely, and switching wins ${pct(seen.random.switchChance)}. The odds come from how likely each host was to open ${B}, the door you saw.`,
+    at('worlds', {
+      choice,
+      host,
+      worlds,
+      odds: m,
+      informedWorlds,
+      randomWorlds,
+      cells,
+      opened: B,
+      seen: { informed: seen.informed, random: seen.random },
+      informed,
+      random,
     });
-    await morph('rules', 0.9);
-    at('rules', { opened: B, seen: { informed: seen.informed, random: seen.random }, cells, informed, random });
   }
 }

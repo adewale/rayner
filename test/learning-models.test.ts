@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {fc,params} from './lib/pbt.ts';
 import {dictionary,deleteFirst,lookup,probeSlots} from '../scenes/explainers/lib/python-dict.ts';
-import {fnv1a,locations,makeFilter,membership,bloomStory} from '../scenes/explainers/lib/bloom-filter.ts';
+import {fnv1a,locations,makeFilter,membership,bloomStory,saturation} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
 import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter} from '../scenes/explainers/lib/monty-hall.ts';
 import {birthdayChance,birthdaySample,matches,birthdayStory,evenOdds,pairCount,pairShortcut,dateOf} from '../scenes/explainers/lib/birthday-paradox.ts';
@@ -83,6 +83,25 @@ test('insert-only filters never reject an inserted word; concrete false positive
   assert.deepEqual(locations('eel',32),[23,20,1]);
   const withEel=makeFilter(['cat','dog','eel'],32);
   assert.equal(membership(withEel,'wolf'),true);assert.equal(membership(withEel,'owl'),false);
+  // The full row: names keep coming until no bit is 0; each name only adds bits, and then every name passes.
+  for(const size of [16,32] as const) {
+    const full=saturation(size);
+    assert.deepEqual(full.words.slice(0,2),['cat','dog']);
+    assert.equal(full.trail.at(-1)!.setBits,size);assert.ok(full.trail.slice(0,-1).every(t=>t.setBits<size),'stops at the first full row');
+    for(let i=1;i<full.trail.length;i++) assert.ok(full.trail[i]!.setBits>=full.trail[i-1]!.setBits);
+    assert.equal(full.trail.length,full.words.length-1);
+    assert.deepEqual(full.bits,Array(size).fill(1));
+    assert.deepEqual(full.lookups,[true,true,true]);assert.equal(full.samplePass,full.sampleSize);
+    assert.equal(full.words.some(w=>(['owl','wolf'] as string[]).includes(w)),false);
+  }
+  assert.equal(saturation(16).words.length,12);assert.equal(saturation(32).words.length,45);
+  // Check 2: clearing dog's bits at 16 bits clears cat's shared bit 1 too, so a taken cat gets "definitely not";
+  // at 32 bits dog shares no bit with cat, so cat still gets maybe.
+  for(const size of [16,32] as const) {
+    const bits=makeFilter(['cat','dog'],size);
+    for(const i of locations('dog',size)) bits[i]=0;
+    assert.equal(membership(bits,'cat'),size===32);
+  }
 });
 
 test('branch labels, parents and checked-out files match real Git through both merge histories',()=>{
@@ -222,11 +241,12 @@ test('host-conditioned odds and displayed rows match complete physical worlds',(
 test('each round’s chance and the odds after a seen door match a host simulated door by door',()=>{
   // Independently: weight each (car, opened) pair by 1/3 for the car times the host's chance of
   // opening that door, in integer twelfths, so only the final ratios are floats.
-  for(const choice of [0,1,2]) for(const host of ['informed','random','leftmost'] as const) {
+  for(const choice of [0,1,2]) for(const host of ['informed','random','leftmost','coin'] as const) {
     const twelfths=new Map<string,number>();
     for(let prize=0;prize<3;prize++) {
       const unchosen=[0,1,2].filter(d=>d!==choice);
-      const allowed=host==='random'?unchosen:unchosen.filter(d=>d!==prize);
+      // The coin host may open the car (heads) only when the first pick is wrong.
+      const allowed=host==='random'||(host==='coin'&&prize!==choice)?unchosen:unchosen.filter(d=>d!==prize);
       const picks=host==='leftmost'?[Math.min(...allowed)]:allowed;
       for(const d of picks) twelfths.set('ABC'[prize]!+'ABC'[d]!,4/picks.length);
     }
@@ -262,6 +282,15 @@ test('each round’s chance and the odds after a seen door match a host simulate
     const i=oddsAfter(0,'informed','B'),r=oddsAfter(0,'random','B');
     close((i.swapSixths+r.swapSixths)/(i.sixths+r.sixths),3/5);
   }
+  // Check 1: the coin host knows where the car is, yet his rounds are the random host's, cell for cell.
+  for(const choice of [0,1,2]) assert.deepEqual(threeDoorCells(choice,'coin'),threeDoorCells(choice,'random'));
+  close(oddsAfter(0,'coin','B').switchChance,1/2);
+  // Check 2: the car behind A 40% of the time, B and C 30% each. By Bayes, with the pick A and B opened:
+  // host who knows, stay .4·½ against switch .3·1; random host, stay .4·½ against switch .3·½.
+  close(oddsAfter(0,'informed','B',[4,3,3]).switchChance,.3/(.2+.3));
+  close(oddsAfter(0,'random','B',[4,3,3]).switchChance,.15/(.2+.15));
+  for(const c of threeDoorCells(0,'informed',[4,3,3])) if(c.prize==='C') assert.equal(c.opened,'B');
+  assert.throws(()=>threeDoorCells(0,'informed',[1,-1,1]),/non-negative/);
   assert.throws(()=>threeDoorCells(0,'psychic' as never),/Unknown host rule/);
 });
 

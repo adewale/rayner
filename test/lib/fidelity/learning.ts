@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {Trace} from '../../../src/trace.ts';
 import {assertStepState} from '../explainer-state.ts';
 import {dictStory} from '../../../scenes/explainers/lib/python-dict.ts';
-import {bloomStory} from '../../../scenes/explainers/lib/bloom-filter.ts';
+import {bloomStory,saturation} from '../../../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
 import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter} from '../../../scenes/explainers/lib/monty-hall.ts';
 import type {Host} from '../../../scenes/explainers/lib/monty-hall.ts';
@@ -14,7 +14,7 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':8,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':7,'melody-rhythm':6};
+  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':4,'birthday-paradox':7,'melody-rhythm':6};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     assertStepState(trace,step.step,{phase:step.step});
@@ -43,6 +43,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     for(const name of ['predict','false-positive']) assertStepState(trace,name,{query:m.queries[2]});
     assert.ok(String(trace.steps.find(s=>s.step==='false-positive')!.meta.caption).includes(m.queries[2]!.word));
     assert.match(String(trace.steps.find(s=>s.step==='false-positive')!.meta.title),m.size===16?/maybe/i:/definitely not/i);
+    // The last step keeps taking names until the row is full: every bit 1, every lookup and sample name maybe.
+    const full=saturation(m.size);
+    assertStepState(trace,'full',{bits:Array(m.size).fill(1),stored:full.words,owners:full.owners,trail:full.trail,lookups:[true,true,true],sampleSize:10000,samplePass:10000});
   } else if(id==='git-branches') {
     const advanced=values.history==='diverged',frames=gitStory(advanced);
     // The opening question shows the history just before the merge (the old main and predict steps);
@@ -61,17 +64,18 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed.
     for(const name of ['choice','predict']) assertStepState(trace,name,{example,host,revealed:false});
     const cells={informed:threeDoorCells(choice,'informed'),random:threeDoorCells(choice,'random')};
-    assertStepState(trace,'odds',{odds:monty(3,host),cells:cells[host]});
+    const opened='ABC'[example.opened]!;
+    // The first strip already counts only the rounds that show a goat behind the opened door (the old rules step).
+    assertStepState(trace,'odds',{odds:monty(3,host),cells:cells[host],opened,seen:oddsAfter(choice,host,opened)});
     assertStepState(trace,'worlds',{choice,host,worlds:threeDoorWorlds(choice,host),odds:monty(3,host)});
     // Whichever host is in play, the count sets both hosts' rows side by side.
     assertStepState(trace,'worlds',{informedWorlds:threeDoorWorlds(choice,'informed'),randomWorlds:threeDoorWorlds(choice,'random'),cells});
-    const opened='ABC'[example.opened]!;
-    assertStepState(trace,'rules',{opened,informed:monty(3,'informed'),random:monty(3,'random'),cells,
+    assertStepState(trace,'worlds',{opened,informed:monty(3,'informed'),random:monty(3,'random'),cells,
       seen:{informed:oddsAfter(choice,'informed',opened),random:oddsAfter(choice,'random',opened)}});
     // The 100-door step is gone: its numbers are now only in a check question, from monty(100, 'random').
     if(host==='random') assert.match(String(trace.steps[0]!.meta.caption),/happened to reveal a goat/);
     // The reveal step, and with it the strategy setting and one round's win or loss, is gone.
-    assert.ok(!trace.steps.some(s=>s.step==='reveal'||s.step==='many'));
+    assert.ok(!trace.steps.some(s=>s.step==='reveal'||s.step==='many'||s.step==='rules'));
   } else if(id==='birthday-paradox') {
     const m=birthdayStory(Number(values.people));
     // The room the reader scans, then the same room with its repeated dates and the 1,000-room sample.
