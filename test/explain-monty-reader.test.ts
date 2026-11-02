@@ -17,7 +17,9 @@ import type { StoryClaim } from '../tools/lib/explain-story-review.ts';
 const enabled = !!process.env.EXPLAIN_BROWSER;
 const options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for served Monty Hall reader checks' };
 let project: Project, folder: string, browser: Browser, server: Awaited<ReturnType<typeof serve>>;
-const steps = ['choice', 'host', 'predict', 'reveal'];
+// The round (choice, which now has the host's opened door) and the prediction; the separate host step merged into
+// choice and the reveal step, which played one round out, is gone.
+const steps = ['choice', 'predict'];
 // The inference compares all three doors under the pictured host rule. A later
 // tour stop cannot repair a door or the rule missing beside the opening caption.
 const targets: StoryClaim['targets'] = [
@@ -30,7 +32,7 @@ const targets: StoryClaim['targets'] = [
 before(async () => {
   if (!enabled) return;
   project = await collectProject('scenes/explainers/monty-hall', { write: false });
-  assert.equal(project.variants.length, 12);
+  assert.equal(project.variants.length, 6);
   folder = await mkdtemp(join(tmpdir(), 'rayner-monty-reader-'));
   await buildExplainer(project, join(folder, 'monty.html'));
   server = await serve(folder, 0, 'monty.html');
@@ -43,7 +45,7 @@ after(async () => {
   if (folder) await rm(folder, { recursive: true, force: true });
 });
 
-test('every host, first choice and decision opens with all three readable doors and the complete host rule', options, async () => {
+test('every host and first choice opens with all three readable doors and the complete host rule', options, async () => {
   let openings = 0, checkedTargets = 0;
   for (const variant of project.variants) {
     const claims = steps.map((step) => ({ step, opening: true, targets }));
@@ -94,6 +96,6 @@ test('every host, first choice and decision opens with all three readable doors 
       }
     }
   }
-  assert.equal(openings, 96);
-  assert.equal(checkedTargets, 768);
+  assert.equal(openings, 24);
+  assert.equal(checkedTargets, 192);
 });

@@ -99,20 +99,19 @@ const DETAIL_AND_EXISTING_CLAIMS: Readonly<Record<string, readonly StoryClaim[]>
       opening: true,
       targets: [{ key: 'monty-doors' }, { key: 'monty-rule' }, { key: 'monty-result' }],
     },
-    { step: 'host', opening: true, targets: [{ key: 'monty-doors' }, { key: 'monty-rule' }, { key: 'monty-result' }] },
-    {
-      step: 'reveal',
+    // choice now shows the host's opened door (the old host step); the reveal and 100-door steps are gone.
+    ...(['informed', 'random'] as const).map((host) => ({
+      step: 'odds',
+      settings: { host },
       opening: true,
-      targets: [{ key: 'monty-doors' }, { key: 'monty-rule' }, { key: 'monty-result' }],
-    },
-    { step: 'worlds', opening: true, targets: [{ key: 'monty-worlds' }] },
-    { step: 'odds', opening: true, targets: [{ key: 'monty-stay' }, { key: 'monty-switch' }] },
+      targets: [{ key: `strip:${host}` }, { key: 'monty-stay' }, { key: 'monty-switch' }],
+    })),
     {
-      step: 'many',
+      step: 'worlds',
       opening: true,
-      targets: [{ key: 'monty-removed' }, { key: 'monty-stay' }, { key: 'monty-switch' }],
+      targets: [{ key: 'strip:informed' }, { key: 'strip:random' }, { key: 'monty-readout-informed' }, { key: 'monty-readout-random' }],
     },
-    { step: 'rules', opening: true, targets: [{ key: 'monty-rules' }] },
+    { step: 'rules', opening: true, targets: [{ key: 'strip:informed' }, { key: 'strip:random' }, { key: 'monty-rules' }] },
   ],
   'birthday-paradox': [
     { step: 'room', opening: true, targets: [{ key: 'birthday-people' }] },
