@@ -1,7 +1,8 @@
-import { Group, Code } from '../../../../src/index.ts';
+import { Group, Code, Rectangle, Line, Circle, Arrow } from '../../../../src/index.ts';
+import type { Stage } from '../../../../explain/index.ts';
 import { runSearch } from '../latest-search.ts';
-import type { CompletionOrder, Query } from '../latest-search.ts';
-import { label, tile, table } from '../reader-drawing.ts';
+import type { CompletionOrder, Query, Lifetime, PageSpan } from '../latest-search.ts';
+import { label, tile } from '../reader-drawing.ts';
 import type { ReaderFrame } from '../reader-drawing.ts';
 
 /** What the user typed for each search: A is the older keystroke, B the latest. */
@@ -13,10 +14,69 @@ const TICKET: Record<Query, number> = { A: 1, B: 2 };
  * same size, so it sits in the same place in every step that shows it. */
 const CHECK = 'if (ticket === latest) publish(result)';
 const CODE_SIZE = 0.58;
-/** The tables' first row, row spacing and lettering, shared by every table step. */
-const TABLE = { y: 1.8, gap: 1.6, size: 0.7 };
 /** The script's answer, stated in the second step of both cases. */
 export const ANSWER = 'An older search can finish last, and an unguarded handler publishes whatever finishes last';
+
+/** The timeline's event clock: tick t sits at x(t); the last span runs on to the right edge. */
+const tickX = (t: number) => -3.2 + t * 2.4,
+  RIGHT_EDGE = 6.8,
+  ROW_LABEL_X = -7.1;
+/** Each search as a bar from the tick it starts to the tick its result lands, from the model's lifetimes; beneath
+ * them, one track per rule of what the page shows between events, from the model's page spans. A dashed line
+ * drops from each landing to the tracks, where the page changes or, under the guard, may not. */
+function timeline(s: Stage, lifetimes: readonly Lifetime[], tracks: readonly { name: string; page: readonly PageSpan[]; key: string }[]) {
+  const rowLabel = (text: string, y: number, color = s.palette.ink) => label(text, 0, 0, color, 0.62).moveTo([ROW_LABEL_X, y], [-1, 0]);
+  const bars = new Group(
+    ...lifetimes.flatMap(({ query, start, land }, i) => {
+      const y = 2.4 - i * 1.2,
+        color = query === 'B' ? s.emphasis : s.soft,
+        a = tickX(start),
+        b = tickX(land);
+      return [
+        rowLabel(q(query), y),
+        new Rectangle({ width: b - a, height: 0.6, fill: color, fillOpacity: 0.35, stroke: color, strokeWidth: 0.03 }).moveTo([(a + b) / 2, y]),
+        new Circle({ radius: 0.18, fill: color, stroke: color }).moveTo([b, y]),
+      ];
+    }),
+  );
+  bars.key = 'timeline-searches';
+  const axisY = 0.1;
+  const axis = new Group(
+    new Arrow([tickX(0), axisY], [RIGHT_EDGE, axisY], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2, tipWidth: 0.16 }),
+    label('time', 0, 0, s.soft, 0.62).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
+  );
+  const top = -0.75,
+    rowY = (i: number) => top - 0.95 - i * 1.25;
+  const rows = tracks.map(({ name, page, key }, i) => {
+    const y = rowY(i);
+    const g = new Group(
+      rowLabel(name, y),
+      ...page.flatMap(({ from, to, shown }) => {
+        const a = tickX(from) + 0.04,
+          b = (to === null ? RIGHT_EDGE : tickX(to)) - 0.04,
+          stale = shown === 'A',
+          // A landing inside the span changed nothing here; its dashed line crosses the span, so the words sit before it.
+          inside = lifetimes.map((l) => l.land).filter((t) => t > from && (to === null || t < to)),
+          end = inside.length ? tickX(Math.min(...inside)) - 0.04 : b;
+        return [
+          new Rectangle({ width: b - a, height: 0.9, fill: s.palette.paper, stroke: stale ? s.bad : s.soft, strokeWidth: stale ? 0.055 : 0.025 }).moveTo([(a + b) / 2, y]),
+          label(shown ? q(shown) : 'nothing', (a + end) / 2, y, stale ? s.bad : shown ? s.palette.ink : s.soft, 0.62),
+        ];
+      }),
+    );
+    g.key = key;
+    return g;
+  });
+  const drops = tracks.length
+    ? lifetimes.map(({ land }, i) => {
+        const x = tickX(land),
+          d = new Line([x, 2.4 - i * 1.2 - 0.2], [x, rowY(tracks.length - 1) - 0.55], { stroke: s.soft, strokeWidth: 0.025 });
+        d.style.dashArray = '0.12 0.1';
+        return d;
+      })
+    : [];
+  return new Group(bars, axis, ...drops, ...(tracks.length ? [rowLabel('Page shows', top, s.soft)] : []), ...rows);
+}
 
 export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
   const [off, on] = await Promise.all([runSearch(false, order), runSearch(true, order)]);
@@ -64,17 +124,12 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
-      caption: `Each keystroke starts a search, so ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. The requests can finish in a different order from the one they started in; here ${q(first)} finishes first. Both requests succeed in this example. The page starts empty and publishes results as they arrive.`,
-      values: { order, completion: done },
+      caption: `Each bar is one search, from the keystroke that starts it to the moment its answer lands. ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. Both are running at once, and they can finish in a different order from the one they started in; here ${q(first)} lands first. The bars show the order of events, not measured time. Both requests succeed in this example. The page starts empty and publishes results as they arrive.`,
+      values: { order, completion: done, lifetimes: off.lifetimes },
       draw: (s) =>
         new Group(
-          table(
-            ['Search', 'Starts', 'Answers'],
-            (['A', 'B'] as const).map((x) => [q(x), x === 'A' ? '1st' : '2nd', x === first ? '1st' : '2nd']),
-            s,
-            { xs: [-4.2, 0.4, 4.6], ...TABLE },
-          ),
-          label(`The user wants ${q('B')}`, 0, TABLE.y - 3 * TABLE.gap - 0.4, s.emphasis, 0.75),
+          timeline(s, off.lifetimes, []),
+          label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75),
         ),
     },
     {
@@ -87,23 +142,11 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
         : `Predict: had ${q('B')} answered first, what would stop ${q('A')} replacing it?`,
       caption: `${ANSWER}. ${
         staleWins
-          ? `${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}.`
-          : `${q(first)} lands first and the page shows it for a moment; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
+          ? `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}, outlined in red.`
+          : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined in red; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
-      values: { order, off: off.snapshots },
-      draw: (s) =>
-        new Group(
-          table(
-            ['After', 'Page shows, no check'],
-            off.snapshots.map((snap, i) => [i === 0 ? 'Both start' : `${q(done[i - 1]!)} lands`, q(snap.shown)]),
-            s,
-            { xs: [-3.4, 3], ...TABLE },
-          ),
-          // A result for "ca" on the page is stale: the user has typed "cat".
-          ...off.snapshots.flatMap((snap, i) =>
-            snap.shown === 'A' ? [label('stale', 6.6, TABLE.y - (i + 1) * TABLE.gap, s.bad, 0.62, `stale:${i}`)] : [],
-          ),
-        ),
+      values: { order, off: off.snapshots, lifetimes: off.lifetimes, page: { off: off.page } },
+      draw: (s) => timeline(s, off.lifetimes, [{ name: 'No guard', page: off.page, key: 'timeline-page-off' }]),
     },
     {
       id: 'tickets',
@@ -131,21 +174,15 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       line: `Both searches have finished; the user still wants ${q('B')}.`,
       caption: `${
         staleWins
-          ? `Without the guard, the page ends on ${q(off.snapshots[2]!.shown)}; with it, on ${q(on.snapshots[2]!.shown)}. Older ${q('A')} lands last and would overwrite ${q('B')}; its ticket is stale, so the guard drops it.`
-          : `Both rules end on ${q(on.snapshots[2]!.shown)}, because ${q('B')} landed last. Without the guard the page showed ${q(off.snapshots[1]!.shown)} first; with it, ${q(on.snapshots[1]!.shown)} until ${q('B')} arrived.`
+          ? `Without the guard, the page ends on ${q(off.snapshots[2]!.shown)}; with it, on ${q(on.snapshots[2]!.shown)}. Older ${q('A')} lands last and would overwrite ${q('B')}; its ticket is stale, so the guarded page does not change when it lands.`
+          : `Both rules end on ${q(on.snapshots[2]!.shown)}, because ${q('B')} landed last. Without the guard the page showed ${q(off.snapshots[1]!.shown)} first; with it, ${q(on.snapshots[1]!.shown)} until ${q('B')} arrived, so the guarded page does not change when ${q('A')} lands.`
       } The guard drops stale results without cancelling the old search, which still runs to the end.`,
-      values: { order, off: off.snapshots, on: on.snapshots },
+      values: { order, off: off.snapshots, on: on.snapshots, lifetimes: off.lifetimes, page: { off: off.page, on: on.page } },
       draw: (s) =>
-        table(
-          ['After', 'No guard', 'Guard on'],
-          off.snapshots.map((snap, i) => [
-            i === 0 ? 'Both start' : `${q(done[i - 1]!)} lands`,
-            q(snap.shown),
-            q(on.snapshots[i]!.shown),
-          ]),
-          s,
-          { xs: [-4.7, 0.3, 5.1], ...TABLE },
-        ),
+        timeline(s, off.lifetimes, [
+          { name: 'No guard', page: off.page, key: 'timeline-page-off' },
+          { name: 'Guard on', page: on.page, key: 'timeline-page-on' },
+        ]),
     },
   ];
 }

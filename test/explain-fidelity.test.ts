@@ -167,6 +167,17 @@ for (const entry of EXPLAINERS)
           assert.deepEqual(on[2]!.completed, off[2]!.completed);
           assert.deepEqual(off[2]!.writes, newFirst ? ['B','A'] : ['A','B']);
           assert.deepEqual(on[2]!.writes, ['B']);
+          // The timeline: A starts at tick 0 and B at 1; both run until the landings at 2 and 3. The page tracks change
+          // only where a landing publishes: the unguarded page shows each arrival, the guarded one only B's.
+          const lifetimes = [{ query: 'A', start: 0, land: newFirst ? 3 : 2 }, { query: 'B', start: 1, land: newFirst ? 2 : 3 }];
+          const offPage = [{ from: 0, to: 2, shown: null }, { from: 2, to: 3, shown: first }, { from: 3, to: null, shown: newFirst ? 'A' : 'B' }];
+          const onPage = newFirst ? [{ from: 0, to: 2, shown: null }, { from: 2, to: null, shown: 'B' }] : [{ from: 0, to: 3, shown: null }, { from: 3, to: null, shown: 'B' }];
+          assertStepState(trace, 'race', { reader: { order: values.order, completion: [first, newFirst ? 'A' : 'B'], lifetimes } });
+          const timeline = (step: string) => trace.steps.find(s => s.step === step)!.after!.reader as { lifetimes: unknown; page: unknown };
+          assert.deepEqual(timeline('overwrite').lifetimes, lifetimes);
+          assert.deepEqual(timeline('overwrite').page, { off: offPage });
+          assert.deepEqual(timeline('reader-guard').lifetimes, lifetimes);
+          assert.deepEqual(timeline('reader-guard').page, { off: offPage, on: onPage });
           break;
         }
         case 'feature-tour':

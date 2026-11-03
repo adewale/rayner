@@ -17,6 +17,12 @@ export default class LatestSearchExplainer extends Scene {
     ],
     // check holds the overwrite step to stating the answer, in both completion orders.
     answer: ANSWER,
+    // Three requests, finishing newest first: only the newest ticket publishes, and the two older ones stay stale.
+    claims: [
+      { says: 'publish only the latest', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
+      { says: 'publish it only if its ticket is still the latest', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
+      { says: 'makes every older ticket stale', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
+    ],
     checks: [
       {
         question: 'The user types “ca”, then “cat”, then “ca” again, starting requests with tickets 1, 2 and 3. Request 3 finishes first; request 1 finishes last. Should request 1 be published because its query text matches the current input?',
