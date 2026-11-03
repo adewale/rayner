@@ -28,7 +28,7 @@ const F = 0.37, // state words
   CELL: Vec = [2.4, 1.15],
   OFF_BOX: Vec = [1.3, 0.8],
   STATE: Vec = [1.9, 0.75];
-const FLAT = { bounds: [-6.35, -4.0, 5.3, 3.0] as Box, off: [-5.15, 0] as Vec, cols: [-0.95, 3.65], rows: [1.25, -1.25] };
+const FLAT = { bounds: [-6.35, -4.0, 5.3, 3.3] as Box, off: [-5.15, 0] as Vec, cols: [-0.95, 3.65], rows: [1.25, -1.25] };
 const CHART = { bounds: [-5.4, -3.75, 5.4, 3.5] as Box, off: [-3.4, 3.0] as Vec, on: [-5.2, -2.95, 5.2, 1.75] as Box, cols: [-2.2, 2.2], rows: [0.55, -1.75] };
 
 /** Where local units land in a frame, and how big they are there. */
@@ -486,10 +486,11 @@ function tracePicture(s: Stage, f: Fit): Drawn {
   const fc = flatCounts(flat),
     cc = chartCounts(chart);
   const tail = [`Flat: ${counted(fc)}    Statechart: ${counted(cc)}`, 'At run time both are in one combination; regions shrink only the drawing'];
-  tail.forEach((t, i) => parts.push(keyed(new Text(t, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([0, top - (rows.length + 1) * gap - 0.1 - i * 0.5])), `t:tail:${i}`)));
+  tail.forEach((t, i) => parts.push(keyed(new Text(t, { fontSize: L * f.k, color: s.soft }).moveTo(f.at([0, top - rows.length * gap - 0.85 - i * 0.48])), `t:tail:${i}`)));
   return { group: new Group(...parts), words: [...words, ...tail] };
 }
-const TRACE: Box = [-6.4, -3.4, 6.2, 2.7];
+// The table's extent, header to the last line under it, in its own units.
+const TRACE: Box = [-6.4, -3.5, 6.2, 2.55];
 
 // The check questions' machines, which no step draws. Each changes the frother, or replays the last step's machine.
 const atomic = (id: string, on?: Record<string, string>): StateNode => ({ id, type: 'atomic', ...(on ? { on } : {}) });
