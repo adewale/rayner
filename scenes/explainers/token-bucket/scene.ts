@@ -89,6 +89,31 @@ const formatState = (v: unknown) =>
         ? String(v)
         : v.toFixed(1)
       : String(v);
+/** "R6", "R6 and R9", "R6, R7 and R9". */
+const list = (names: string[]) =>
+  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+
+// The check questions' runs, from the same model (test/explain-token-bucket.test.ts checks them).
+/** The schedule at 2 a second with a bucket of six tokens. */
+const SIX_TOKENS = (() => {
+  const bucket = new TokenBucket(2, 6);
+  return TIMES.map((at) => (bucket.allow(at) ? 200 : 429));
+})();
+/** One request every 0.4 s at 2 a second: the first refused, and how many of requests 101–200 get through. */
+const STEADY = (() => {
+  const bucket = new TokenBucket(2, CAPACITY),
+    ok = Array.from({ length: 200 }, (_, n) => bucket.allow(n * 0.4));
+  return { first: ok.indexOf(false) + 1, share: ok.slice(100).filter(Boolean).length };
+})();
+/** R10 moved to 1.5 s, at each rate: what R9 left, what R10 found, and its answer. */
+const MOVED = RATES.map((rate) => {
+  const bucket = new TokenBucket(rate, CAPACITY);
+  TIMES.slice(0, 9).forEach((at) => bucket.allow(at));
+  const left = bucket.tokens,
+    ok = bucket.allow(1.5);
+  return { rate, left, found: bucket.tokens + (ok ? 1 : 0), ok };
+});
+
 /** Drop repeated points; a line needs two distinct ones. */
 const distinct = (points: [number, number][]) =>
   points.filter((p, i) => i === 0 || p[0] !== points[i - 1]![0] || p[1] !== points[i - 1]![1]);
@@ -124,21 +149,26 @@ export default class TokenBucketExplainer extends Scene {
     ],
     // The readout's own words, which the captions use too.
     watch: { tokens: 'Tokens left', allowed: 'Accepted', rejected: 'Rejected' },
-    // The script's answer and check questions (script.md); check holds the burst step to stating the answer.
+    // check holds the burst step to stating the answer.
     answer: 'A burst can spend only the tokens saved up, and only elapsed time adds more',
     checks: [
       {
-        question: 'At 4 tokens a second, R9 leaves 1 token and R10 arrives four seconds later. How many tokens does R10 find, and why not 17?',
-        answer: 'Five. Four seconds at 4 a second would add 16, but min(5, …) stops the balance at the bucket’s five and throws the rest away.',
+        question: 'R6 is refused at all three rates. Would a faster refill or a bigger bucket let it through, and why?',
+        answer: `A bigger bucket. R1 to R6 arrive at the same instant, so no time passes and refill adds nothing at any rate. A bucket of six tokens, still at 2 a second, answers R6 with ${SIX_TOKENS[5]}.`,
       },
       {
-        question: 'At 2 tokens a second, R8 and R9 arrive at the same instant. Why does R8 get 200 and R9 get 429?',
-        answer: 'The half second since R7 added exactly one token, and R8 spent it. No time passes between R8 and R9, so nothing is added and R9 finds 0.',
+        question: 'At 2 tokens a second, a client sends one request every 0.4 seconds from a full bucket and never pauses. Is any request refused, and what share gets through in the long run?',
+        answer: `Yes. Each gap earns 0.8 tokens and each request spends one, so the saved five drain by 0.2 a request and request ${STEADY.first} is the first refused. From then on ${STEADY.share} of every 100 get through, 2 a second: the refill rate, however long the flood lasts.`,
       },
       {
-        question: 'At 1 token a second, what does R7 find half a second after the burst?',
-        answer: 'Half a token: 0.5 s × 1 a second. That is less than the one token a request needs, so R7 gets 429.',
+        question: 'Suppose R10 arrived at 1.5 s instead of 5 s. At which of the three rates would it be refused?',
+        answer: `At ${list(MOVED.filter((m) => !m.ok).map((m) => perSecond(m.rate)))} only. ${MOVED.map((m, i) => `${i ? 'at' : 'At'} ${m.rate} a second R9 leaves ${formatState(m.left)} and R10 finds ${formatState(m.found)}`).join('; ')}. Half a second has to earn the token R9 did not leave.`,
       },
+    ],
+    claims: [
+      { says: 'A burst can spend only the tokens saved up, and only elapsed time adds more', test: 'test/explain-token-bucket.test.ts: a burst can spend only the tokens saved up' },
+      { says: 'R6 is refused at every rate', test: 'test/explain-token-bucket.test.ts: R6 is refused at every refill rate' },
+      { says: 'R10 is accepted at every rate', test: 'test/explain-token-bucket.test.ts: R10 is accepted at the three offered rates and refused below a fifth of a token a second' },
     ],
   };
   static settings = [
@@ -172,8 +202,6 @@ export default class TokenBucketExplainer extends Scene {
         .map((r) => (r.ok ? 200 : 429))
         .join(', ');
     const refusedAt = (r: number) => runs.get(r)!.flatMap((c, i) => (c.ok ? [] : [name(i)]));
-    const list = (names: string[]) =>
-      names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
     /** The calls made so far, in order: what every readout and description reports. */
     const calls: Call[] = [];
     /** The name tags on the chart's dots, by call. */
@@ -292,7 +320,7 @@ export default class TokenBucketExplainer extends Scene {
       title: 'Ten requests from one client, and a bucket of five tokens',
       line: 'Predict: R1–R6 arrive at the same instant. How many get 200?',
       caption:
-        'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst should still get through. So the server keeps a balance of tokens for the client, at most five: the bucket. Each accepted request spends one token; a request that finds less than one gets 429. Capacity sets the burst the client can save; refill rate sets how quickly it earns another request. The dashed line marks the one token a request needs. How many of six simultaneous requests can spend this balance?',
+        'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst, such as the requests a page makes as it loads, should still get through. So the server keeps a balance for the client of at most five tokens: the bucket. Each accepted request spends one token, and a request that finds less than one, under the dashed line, gets 429. Ten requests will arrive at the times written above their boxes.',
     });
     await s.clear();
     const record = (calls: Call[]) => ({
@@ -395,7 +423,7 @@ export default class TokenBucketExplainer extends Scene {
       'Answer: five 200s, then a 429',
       `Answer: ${code7}. R7 finds ${tokens(r7.found)} after half a second`,
       uncapped > CAPACITY
-        ? `R10 waits ${seconds(wait)} s but finds only ${formatState(r10.found)} tokens`
+        ? `R10 waits ${seconds(wait)} s, but the bucket stops at ${formatState(r10.found)} tokens`
         : `R10 waits ${seconds(wait)} s and finds ${formatState(r10.found)} tokens`,
     ];
     const lines = [
@@ -514,11 +542,16 @@ export default class TokenBucketExplainer extends Scene {
     }
 
     // --------------------------------------------------------------- trace
-    const refused = RATES.map((r) => `${perSecond(r)}, ${list(refusedAt(r))}`);
+    // R7–R9, the requests whose answer the rate decides on this schedule.
+    const between = (r: number) => refusedAt(r).filter((n) => ['R7', 'R8', 'R9'].includes(n));
+    const betweenSay = (r: number) =>
+      between(r).length ? `${list(between(r))} ${between(r).length > 1 ? 'are' : 'is'} refused` : 'none of them is refused';
+    // Below a fifth of a token a second, R6–R9 all fail, the bucket refills from empty at 0 s, and R10 at 5 s finds
+    // under 5 × 0.2 = 1 token (test/explain-token-bucket.test.ts).
     await this.step('trace', {
       title: 'The same ten requests at 1, 2 and 4 tokens a second',
       line: `429s at 4 / s: ${list(refusedAt(4))}; at 1 / s: ${list(refusedAt(1))}.`,
-      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this case. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. In between, the rate decides: at ${refused[2]} gets 429; at ${refused[0]} do.`,
+      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this case. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Those are the three rates offered here; below a fifth of a token a second, R10 too would find less than one token. For R7 to R9 the rate decides: at ${perSecond(4)} ${betweenSay(4)}; at ${perSecond(1)} ${betweenSay(1)}. The bucket’s capacity sets the burst, and its rate sets how soon the client can send again.`,
     });
     // The curves explain refill in earlier steps. End on a large comparison of
     // their outcomes, so a phone reader sees all three rates together.
@@ -562,7 +595,7 @@ export default class TokenBucketExplainer extends Scene {
     await s.enter(comparison, {
       describe: () =>
         'Requests R1 to R10, left to right. ' +
-        RATES.map((r) => `${r} / s: ${list(refusedAt(r))} get 429; all other requests get 200`).join('. ') +
+        RATES.map((r) => `${r} / s: ${list(refusedAt(r))} ${refusedAt(r).length > 1 ? 'get' : 'gets'} 429; all other requests get 200`).join('. ') +
         `. The ${rate} / s row is outlined.`,
     });
   }

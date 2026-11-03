@@ -177,7 +177,7 @@ test('shipped explainers describe their steps: chart values, marks, focus, walks
   assert.match(summary('later'), /A chart of the balance over time: it climbs at 1 a second between calls and drops one token for each 200\./);
   assert.match(summary('trace'), /1 \/ s: R6, R7 and R9 get 429/);
   assert.match(summary('trace'), /2 \/ s: R6 and R9 get 429/);
-  assert.match(summary('trace'), /4 \/ s: R6 get 429/);
+  assert.match(summary('trace'), /4 \/ s: R6 gets 429/);
   assert.match(summary('balance'), /Refill: 2: tokens = min\(5/);
   assert.match(summary('burst'), /R6 at 0\.0 is under the one-token line and got 429/);
   // A step that changes only emphasis lists the rest as it was.
