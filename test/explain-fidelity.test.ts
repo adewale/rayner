@@ -17,9 +17,10 @@ import {
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
-import { Scene, Text, Code, loadFonts, parseUnifiedDiff } from '../src/index.ts';
+import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/index.ts';
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
+import { resolveSettings } from '../explain/settings.ts';
 import type { VMobject, Sink } from '../src/index.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -213,6 +214,21 @@ for (const entry of EXPLAINERS)
             },
           });
           assertStepState(trace, 'check', { check: { frames: 45, matched: { blend: 45, nudge: 16 } } });
+          // The timeline plots the dot's x at every frame, played and seeked. Independently: still at
+          // -6 through the fade; then played, blending eases from -6 to 6 by smooth((f - 15) / 30) and
+          // the nudge adds 0.4 per frame; seeked, blending lands where playback is and the nudge has
+          // made its one step, to -5.6, at every frame of the move.
+          const x = (v: number) => +v.toFixed(3) + 0;
+          const frames = Array.from({ length: 45 }, (_, i) => i + 1);
+          const blended = frames.map((f) => x(f <= 15 ? -6 : -6 + 12 * smooth((f - 15) / 30)));
+          assertStepState(trace, 'timeline', {
+            timeline: {
+              frames: 45,
+              moveStarts: 16,
+              played: { blend: blended, nudge: frames.map((f) => x(f <= 15 ? -6 : -6 + 0.4 * (f - 15))) },
+              seeked: { blend: blended, nudge: frames.map((f) => x(f <= 15 ? -6 : -5.6)) },
+            },
+          });
           break;
         }
         case 'agentic-mermaid': {
@@ -594,6 +610,29 @@ for (const entry of EXPLAINERS)
           // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
           // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.
           assertStepState(trace, 'untested', { unbuilt: { rate: 0.1, r10: 429, found: 0.5 } });
+          // The cases the choice step draws are the token bucket's own: its setting as declared, one
+          // case per option with R10's answer from that case's trace, and what its settings resolver
+          // does with a link naming a listed rate and with one naming 0.1.
+          const { default: TokenBucketScene } = await import('../scenes/explainers/token-bucket/scene.ts');
+          const [rate] = TokenBucketScene.settings;
+          const refused = (() => {
+            try {
+              resolveSettings(TokenBucketScene, { rate: '0.1' });
+            } catch (e) {
+              return (e as Error).message;
+            }
+            assert.fail('0.1 must not resolve to a token-bucket case');
+          })();
+          assertStepState(trace, 'choice', {
+            choice: {
+              setting: rate,
+              cases: offered.map((o) => ({ rate: String(o.rate), r10: o.r10, default: String(o.rate) === rate!.default })),
+              links: [
+                { asked: '4', opens: resolveSettings(TokenBucketScene, { rate: '4' }).rate },
+                { asked: '0.1', opens: rate!.default, refused },
+              ],
+            },
+          });
           // The price is shown on a real scene's settings: traffic-policy's two settings, in its own order.
           const { default: TrafficPolicy } = await import('../scenes/explainers/traffic-policy/scene.ts');
           const [policy, pods] = TrafficPolicy.settings;

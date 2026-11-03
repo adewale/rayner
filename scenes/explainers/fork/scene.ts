@@ -1,7 +1,8 @@
 import { table } from '../lib/reader-drawing.ts';
-import { Scene, Rectangle, Text, Group, Circle, Cross, FadeOut } from '../../../src/index.ts';
+import { Scene, Rectangle, Text, Group, Circle, Cross, FadeOut, Line, Arrow } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { stage, regionBox } from '../../../explain/index.ts';
+import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
+import type { ExplainerClass } from '../../../explain/index.ts';
 import { VOCABULARY } from '../../../explain/words.ts';
 import { TokenBucket } from '../lib/models.ts';
 import { PLACEMENTS } from '../lib/traffic-policy.ts';
@@ -22,8 +23,19 @@ const SETTINGS = [
   '}];',
 ];
 const TIMES = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5];
-/** The token bucket's refill options, as SETTINGS declares them, and a rate it does not offer. */
-const RATES = [1, 2, 4];
+/** The token bucket's setting, as SETTINGS lists it; the choice step resolves links against it. */
+const RATE_SETTING = {
+  id: 'rate',
+  label: 'Refill per second',
+  default: '2',
+  options: [
+    { value: '1', label: '1 token' },
+    { value: '2', label: '2 tokens' },
+    { value: '4', label: '4 tokens' },
+  ],
+};
+/** The token bucket's refill options, and a rate it does not offer. */
+const RATES = RATE_SETTING.options.map((o) => Number(o.value));
 const UNBUILT = 0.1;
 // scenes/explainers/traffic-policy/scene.ts: its two settings, externalTrafficPolicy and where the pods run.
 const POLICIES = ['Local', 'Cluster'];
@@ -201,7 +213,95 @@ export default class ForkExplainer extends Scene {
     });
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
 
-    // 3. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
+    // 3. Why no reader meets that row: a link picks one of the cases the build made, or gets the default.
+    const resolver = { settings: [RATE_SETTING] } as unknown as ExplainerClass;
+    const open = (asked: string) => {
+      try {
+        return { asked, opens: resolveSettings(resolver, { rate: asked }).rate! };
+      } catch (e) {
+        return { asked, opens: RATE_SETTING.default, refused: (e as Error).message };
+      }
+    };
+    const links = [open('4'), open(String(UNBUILT))];
+    const fallback = links[1]!;
+    const byDefault = perSecond(Number(RATE_SETTING.default));
+    if (!fallback.refused || links[0]!.opens !== '4') throw new Error('A listed rate must open its case and 0.1 must be refused');
+    await this.step('choice', {
+      title: `The build made ${RATES.length} cases, and a link opens one of them`,
+      line: `A link naming ${UNBUILT} matches no case, so the page opens the default, ${byDefault}.`,
+      caption: `The rate setting lists ${RATES.length} options, so the build ran the scene once for each and rayner check tested each of the ${RATES.length} cases; R10 is accepted in all three. A link picks a case by naming its option: ?rate=4 opens the 4-token case. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default case, ${byDefault}. The ${UNBUILT} row from the last step exists in this explainer, not on the token-bucket page.`,
+    });
+    await s.clear();
+    {
+      const W = 3.1,
+        H = 0.68,
+        pitch = 0.8,
+        top = 1.3;
+      const y = (i: number) => top - i * pitch;
+      const slotY = y(RATES.length);
+      const left = -W / 2,
+        right = W / 2;
+      const two = (a: string, b: string, at: number, color: string, colorB = s.soft) =>
+        new Group(
+          new Text(a, { fontSize: 0.28, color, anchor: 'start' }).moveTo([left + 0.18, at + 0.15], [-1, 0]),
+          new Text(b, { fontSize: 0.25, color: colorB, anchor: 'start' }).moveTo([left + 0.18, at - 0.16], [-1, 0]),
+        );
+      const cases = new Group();
+      RATE_SETTING.options.forEach((o, i) => {
+        const r = Number(o.value),
+          isDefault = o.value === RATE_SETTING.default;
+        cases.add(
+          new Rectangle({ width: W, height: H, stroke: isDefault ? s.emphasis : ink, strokeWidth: isDefault ? 0.05 : 0.025, cornerRadius: 0.08 }).moveTo([0, y(i)]),
+          two(perSecond(r), `R10: ${r10(r).ok ? 200 : 429}, checked`, y(i), ink, r10(r).ok ? s.good : s.bad),
+        );
+      });
+      // Where a 0.1 case would sit: the build made none.
+      const slot = new Rectangle({ width: W, height: H, stroke: s.bad, strokeWidth: 0.03, cornerRadius: 0.08, fill: 'none' }).moveTo([0, slotY]);
+      slot.style.dashArray = '0.14 0.1';
+      cases.add(slot, two(`${perSecond(UNBUILT)}`, 'no case: never built', slotY, s.bad, s.bad));
+      cases.key = 'fork-choice-cases';
+      // The setting's name labels the column, beside its first case, clear of the fallback's path below.
+      const heading = new Group(
+        new Text(RATE_SETTING.label, { fontSize: 0.3, color: ink, weight: 'bold', anchor: 'end' }).moveTo([left - 0.3, top + 0.16], [1, 0]),
+        new Text(`${RATES.length} cases`, { fontSize: 0.26, color: s.soft, anchor: 'end' }).moveTo([left - 0.3, top - 0.17], [1, 0]),
+      );
+      // Links come in from the right.
+      const arrow = (from: number, to: number, at: number, color: string) =>
+        new Arrow([from, at], [to, at], { stroke: color, strokeWidth: 0.04, tipLength: 0.22, tipWidth: 0.2 });
+      const linkX = right + 1.5;
+      const link = (text: string, at: number, color: string) =>
+        new Group(
+          new Text(text, { fontSize: 0.3, font: 'mono', color, anchor: 'start' }).moveTo([linkX + 0.15, at], [-1, 0]),
+          arrow(linkX, right + 0.08, at, color),
+        );
+      const four = link(`?rate=${links[0]!.asked}`, y(RATES.indexOf(Number(links[0]!.opens))), ink);
+      const slow = link(`?rate=${fallback.asked}`, slotY, s.bad);
+      const defaultY = y(RATE_SETTING.options.findIndex((o) => o.value === RATE_SETTING.default));
+      const tag = new Text('the default case', { fontSize: 0.3, color: s.emphasis, anchor: 'start' }).moveTo([right + 0.3, defaultY], [-1, 0]);
+      // Refused, the link falls back along the left side to the default case.
+      const back = left - 0.5,
+        to = y(RATE_SETTING.options.findIndex((o) => o.value === fallback.opens));
+      const redirect = new Group(
+        new Line([left - 0.05, slotY], [back, slotY], { stroke: s.emphasis, strokeWidth: 0.04 }),
+        new Line([back, slotY], [back, to], { stroke: s.emphasis, strokeWidth: 0.04 }),
+        arrow(back, left - 0.08, to, s.emphasis),
+      );
+      redirect.key = 'fork-choice-fallback';
+      const refusal = new Group(
+        new Text(String(fallback.refused), { fontSize: 0.28, color: s.bad }).moveTo([0, slotY - H / 2 - 0.4]),
+        new Text('so the page opens the default case', { fontSize: 0.28, color: s.emphasis }).moveTo([0, slotY - H / 2 - 0.8]),
+      );
+      await s.enter(heading, cases, tag, four, slow, redirect, refusal, {
+        describe: `The ${RATES.length} cases the build made for the token bucket’s rate setting, ${RATE_SETTING.options.map((o) => perSecond(Number(o.value))).join(', ')}, each checked, with R10 accepted; the default is ${byDefault}. Below them a dashed, empty slot for ${perSecond(UNBUILT)}: no case. A link ?rate=4 points at the 4-token case; ?rate=${UNBUILT} points at the empty slot and is redirected, “${fallback.refused}”, to the default case.`,
+      });
+    }
+    this.state.choice = {
+      setting: RATE_SETTING,
+      cases: RATE_SETTING.options.map((o) => ({ rate: o.value, r10: r10(Number(o.value)).ok ? 200 : 429, default: o.value === RATE_SETTING.default })),
+      links,
+    };
+
+    // 4. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
     await this.step('live', {
       title: 'Lantern, the engine Rayner was forked from, rendered frames on request',
       line: 'A reader can choose only a rate the scene lists, and each listed rate is a case the build runs.',
@@ -221,7 +321,7 @@ export default class ForkExplainer extends Scene {
     );
     await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
 
-    // 4. The price, the ending: every combination of settings is a case to build and check.
+    // 5. The price, the ending: every combination of settings is a case to build and check.
     await this.step('cases', {
       title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${CASES} cases to build`,
       line: 'Every combination of options is a case the build makes and rayner check tests.',

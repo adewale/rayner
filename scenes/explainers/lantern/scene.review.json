@@ -2,6 +2,18 @@
   "version": 1,
   "claims": [
     {
+      "step": "timeline",
+      "opening": true,
+      "targets": [
+        {
+          "key": "lantern-timeline-nudge-played"
+        },
+        {
+          "key": "lantern-timeline-nudge-seeked"
+        }
+      ]
+    },
+    {
       "step": "objects",
       "targets": [
         {
