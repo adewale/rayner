@@ -454,6 +454,18 @@ for (const entry of EXPLAINERS)
           assert.ok(caption.includes(`all 15 characters ${monoAdv[0]!.toFixed(3)}, so its line is 15 × ${monoAdv[0]!.toFixed(3)} = 8.10`), caption);
           const gains = sansAdv.map((a, i) => monoAdv[i]! - a);
           assert.equal('Hello, outlines'[gains.indexOf(Math.max(...gains))], 'l', 'the l gains most');
+          // The card adds the difference up by groups: Inter's narrowest letters, the other narrow
+          // characters, the one letter Inter draws wider, and the rest.
+          const group = (keep: (c: string) => boolean) =>
+            +[...'Hello, outlines'].reduce((n, c, i) => (keep(c) ? n + gains[i]! : n), 0).toFixed(3);
+          assertStepState(trace, 'measure', {
+            gains: {
+              'l, l, l, i': group((c) => c === 'l' || c === 'i'),
+              'comma, space, t': group((c) => c === ',' || c === ' ' || c === 't'),
+              H: group((c) => c === 'H'),
+              'the other 7': group((c) => 'eousne'.includes(c)),
+            },
+          });
           // Outline shapes, compared point by point once each glyph is centred and scaled
           // to one size: each glyph pairs with itself at 60%, and the other font's pairs
           // only where an outline really is the same.
