@@ -16,7 +16,7 @@ import {
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
-import { Scene, Text, Code, loadFonts, parseUnifiedDiff } from '../src/index.ts';
+import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/index.ts';
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
 import type { VMobject, Sink } from '../src/index.ts';
@@ -198,6 +198,21 @@ for (const entry of EXPLAINERS)
             },
           });
           assertStepState(trace, 'check', { check: { frames: 45, matched: { blend: 45, nudge: 16 } } });
+          // The timeline plots the dot's x at every frame, played and seeked. Independently: still at
+          // -6 through the fade; then played, blending eases from -6 to 6 by smooth((f - 15) / 30) and
+          // the nudge adds 0.4 per frame; seeked, blending lands where playback is and the nudge has
+          // made its one step, to -5.6, at every frame of the move.
+          const x = (v: number) => +v.toFixed(3) + 0;
+          const frames = Array.from({ length: 45 }, (_, i) => i + 1);
+          const blended = frames.map((f) => x(f <= 15 ? -6 : -6 + 12 * smooth((f - 15) / 30)));
+          assertStepState(trace, 'timeline', {
+            timeline: {
+              frames: 45,
+              moveStarts: 16,
+              played: { blend: blended, nudge: frames.map((f) => x(f <= 15 ? -6 : -6 + 0.4 * (f - 15))) },
+              seeked: { blend: blended, nudge: frames.map((f) => x(f <= 15 ? -6 : -5.6)) },
+            },
+          });
           break;
         }
         case 'agentic-mermaid': {

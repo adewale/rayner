@@ -1,4 +1,4 @@
-import { Scene, Rectangle, Dot, Circle, Line, Text, Group, FadeIn, Transform, Animation, toSvgString, renderAt, StringSink } from '../../../src/index.ts';
+import { Scene, Rectangle, Dot, Circle, Line, Text, Group, VMobject, FadeIn, Transform, Animation, toSvgString, renderAt, StringSink } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
@@ -118,11 +118,15 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
   const nudges: Nudge[] = [];
   const Demo = demoScene(ink, accent, soft, motion, nudges);
   const frames: string[] = [];
+  /** The dot's x at each frame, played and seeked: what the timeline step plots. */
+  const playedX: number[] = [],
+    seekedX: number[] = [];
   let playedFrame: Mobject[] = [],
     playedMoves = 0;
   await new Demo({
     async frame(s: Scene) {
       frames[s.frameCount] = toSvgString(s);
+      if (s.frameCount > 0) playedX[s.frameCount] = dotX(s);
       if (s.frameCount === Math.round(SEEK_T * FPS)) {
         playedFrame = s.mobjects.map((m) => m.copy());
         playedMoves = nudges[0]?.moves ?? 0;
@@ -142,7 +146,7 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
   const matches: boolean[] = [];
   for (let f = 1; f < frames.length; f++) {
     const sink = new StringSink();
-    await renderAt(Demo, f / FPS, sink);
+    seekedX.push(dotX(await renderAt(Demo, f / FPS, sink)));
     matches.push(sink.last() === frames[f]);
   }
   return {
@@ -158,7 +162,16 @@ async function runDemo(ink: string, accent: string, soft: string, motion: Motion
     playedMoves,
     seekedMoves,
     matches,
+    /** The dot's x at frames 1 to the last, played and seeked. */
+    playedX: playedX.slice(1),
+    seekedX,
   };
+}
+/** The dot's x on a frame of the tiny scene, to three places, with -0 as 0. */
+function dotX(s: Scene): number {
+  const dot = s.mobjects.find((m) => m instanceof Dot);
+  if (!dot) throw new Error(`No dot on frame ${s.frameCount}`);
+  return +dot.center()[0].toFixed(3) + 0;
 }
 /** The script's one-sentence answer, stated in the seek step. */
 const ANSWER =
@@ -185,6 +198,10 @@ export default class LanternExplainer extends Scene {
       {
         says: 'counts frames 1–29 without computing them',
         test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+      },
+      {
+        says: 'the nudged dot never passes its first step',
+        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
       },
       {
         says: 'Frame 30 is t = 1.00 s in every run',
@@ -330,6 +347,74 @@ export default class LanternExplainer extends Scene {
     await s.enter(new Text(match ? '=' : '≠', { fontSize: 0.7, color: accent, weight: 'bold' }).moveTo([0, THUMB_Y]));
     this.state.seek = { motion, match, played: print, seeked: seekPrint, playedMoves: run.playedMoves, seekedMoves: run.seekedMoves };
 
+    // The dot's position at every frame, played and seeked, for both kinds of motion side by side.
+    const total = run.matches.length,
+      moveStarts = runs.nudge.playedX.findIndex((x) => x !== START[0]) + 1;
+    await this.step('timeline', {
+      title: 'Seeked frame by frame, the nudged dot never passes its first step',
+      line: 'Line: where playback has the dot. Dots: a still taken at each frame.',
+      caption: `Each panel plots the dot’s place on its track against the frame number, for all ${total} frames of the tiny scene. The line is playback; each dot is a separate still, seeked to that frame. Through the fade, frames 1–${moveStarts - 1}, the dot has not moved and the two agree. From frame ${moveStarts} the dot moves: played, the blend eases in and out and the nudge climbs evenly, and both are halfway at frame ${run.seekAt}, the dashed line, where the story took its still. A blended dot is placed by the frame’s time, so in this scene each still lands on playback’s line. A nudged still computes one frame of the move and makes one nudge, so its dots stay at the first step while playback climbs a nudge a frame. This case’s panel, on the ${motion === 'blend' ? 'left' : 'right'}, has the bold title.`,
+    });
+    await s.clear();
+    {
+      const W = 5.0,
+        H = 2.5,
+        bottom = -2.0;
+      const panel = (m: Motion, left: number, heading: string) => {
+        const fx = (f: number) => left + (f / total) * W,
+          py = (x: number) => bottom + ((x - START[0]) / (END[0] - START[0])) * H;
+        const frame = new Group(
+          new Line([left, bottom], [left + W, bottom], { stroke: soft, strokeWidth: 0.025 }),
+          new Line([left, bottom], [left, bottom + H], { stroke: soft, strokeWidth: 0.025 }),
+        );
+        const words = new Group(
+          new Text(heading, { fontSize: 0.32, color: ink, weight: m === motion ? 'bold' : 'normal' }).moveTo([left + W / 2, bottom + H + 0.5]),
+          new Text('end', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([left - 0.15, py(END[0])], [1, 0]),
+          new Text('start', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([left - 0.15, py(START[0])], [1, 0]),
+        );
+        for (const f of [1, moveStarts, run.seekAt, total]) {
+          frame.add(new Line([fx(f), bottom], [fx(f), bottom - 0.1], { stroke: soft, strokeWidth: 0.025 }));
+          words.add(new Text(String(f), { fontSize: 0.26, font: 'mono', color: soft }).moveTo([fx(f), bottom - 0.32]));
+        }
+        // The still the story followed.
+        const marker = new Line([fx(run.seekAt), bottom], [fx(run.seekAt), bottom + H], { stroke: accent, strokeWidth: 0.025 });
+        marker.style.dashArray = '0.12 0.1';
+        const played = new VMobject({ stroke: ink, strokeWidth: 0.045, fill: 'none' });
+        runs[m].playedX.forEach((x, i) => (i ? played.addLineTo([fx(i + 1), py(x)]) : played.startNewPath([fx(1), py(x)])));
+        const seeked = new Group(...runs[m].seekedX.map((x, i) => new Dot({ radius: 0.065, color: accent }).moveTo([fx(i + 1), py(x)])));
+        return { frame, words, marker, played, seeked, fx, py };
+      };
+      const blend = panel('blend', -6.4, 'Blending fixed endpoints'),
+        nudge = panel('nudge', 1.6, 'A nudge each frame');
+      const playedLines = new Group(blend.played, nudge.played),
+        stills = new Group(blend.seeked, nudge.seeked);
+      // On a phone the step opens on the nudge's panel, where the two runs part.
+      nudge.played.key = 'lantern-timeline-nudge-played';
+      nudge.seeked.key = 'lantern-timeline-nudge-seeked';
+      // At the still the story followed, how far apart the nudge's two runs are.
+      const at = nudge.fx(run.seekAt);
+      const notes = new Group(
+        new Text(`played: ${runs.nudge.playedMoves} nudges`, { fontSize: 0.26, color: ink, anchor: 'end' }).moveTo(
+          [at - 0.15, nudge.py(runs.nudge.playedX[run.seekAt - 1]!) + 0.25],
+          [1, 0],
+        ),
+        new Text(`seeked: ${runs.nudge.seekedMoves} nudge`, { fontSize: 0.26, color: accent, anchor: 'start' }).moveTo(
+          [at + 0.15, nudge.py(runs.nudge.seekedX[run.seekAt - 1]!) + 0.3],
+          [-1, 0],
+        ),
+        new Text('frame', { fontSize: 0.26, color: soft }).moveTo([0, bottom - 0.32]),
+      );
+      await s.enter(blend.frame, nudge.frame, blend.marker, nudge.marker, playedLines, stills, blend.words, nudge.words, notes, {
+        describe: `Two plots of the dot’s place on its track, start to end, against frames 1 to ${total}. Each has a line for playback and a dot for a still seeked to each frame. Blending fixed endpoints: every dot sits on the line. A nudge each frame: the dots follow the line through frame ${moveStarts}, then stay one nudge from the start while the line climbs to the end; at frame ${run.seekAt} playback has made ${runs.nudge.playedMoves} nudges and the still ${runs.nudge.seekedMoves}.`,
+      });
+    }
+    this.state.timeline = {
+      frames: total,
+      moveStarts,
+      played: { blend: runs.blend.playedX, nudge: runs.nudge.playedX },
+      seeked: { blend: runs.blend.seekedX, nudge: runs.nudge.seekedX },
+    };
+
     await this.step('clock', {
       title: `Frame ${run.seekAt} is t = ${t} s in every run`,
       line: `Scene time is the frame number × 1/${this.fps} s, however fast the frames are taken.`,
@@ -443,13 +528,12 @@ export default class LanternExplainer extends Scene {
     );
 
     // Every frame of the tiny scene, seeked and compared with playback, for both kinds of motion.
-    const total = run.matches.length;
     const count = (m: Motion) => runs[m].matches.filter(Boolean).length;
     const firstMiss = runs.nudge.matches.indexOf(false) + 1;
     await this.step('check', {
       title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
       line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-      caption: `The strips compare all ${total} frames of this tiny scene with independently seeked stills. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
+      caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
     const cell = 0.29,
