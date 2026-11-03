@@ -1,11 +1,11 @@
 # Which events can change this session?
 
-A session starts idle. CONNECT moves it to connecting, where it waits for the connection's result. OPENED moves it to open; ERROR instead takes it to closed. If it opened successfully, CLOSE can take it from open to closed.
+A network session connects in two moves. CONNECT takes it from idle to connecting, and the network's reply decides what happens next: OPENED moves it to open, ERROR to closed. Once open, CLOSE ends it. Now suppose the session has closed, and only then a reply from an earlier connection attempt arrives: OPENED. Taken on its own, OPENED means the connection is open. Should the session reopen?
 
-The current state matters as much as the event's name. OPENED means a connection completed, but does it follow that OPENED should make the session open whenever it arrives? Consider a late completion after the session has closed.
+It should not, and the code that keeps it closed is a reducer: a function given the current state and an event, which returns the next state. This reducer is a table with one row for each state-and-event pair it allows: idle:CONNECT, connecting:OPENED, connecting:ERROR and open:CLOSE. A late OPENED in closed looks for the row closed:OPENED, finds none and throws InvalidTransition, so the state stays closed. The reducer accepts an event only in a state that has a row for it.
 
-The reducer looks for a row matching both the current state and the incoming event. It has a connecting:OPENED row, but no closed:OPENED row. The late event therefore raises InvalidTransition and leaves the session closed. A completion from the earlier connection attempt cannot reopen it through a row that does not exist.
+That is why the same event can be right in one state and refused in another. OPENED is accepted from connecting, where a reply is expected, and refused from closed, where nothing is waiting for one. Draw the table as a diagram and each row is an arrow; a state with no arrow leaving it under some event refuses that event.
 
-Follow either history through the diagram and code. Each accepted event selects a reducer row, returns the next state and moves the ring to that state. The success history reaches open before CLOSE; the failure history reaches closed through ERROR. Both refuse the later OPENED for the same reason: their current state is closed.
+Follow either history through the diagram and the code. Each accepted event lights its row, the reducer returns the next state and the ring moves to it. The success history reaches open and then closes; the failure history reaches closed through ERROR. Both refuse the late OPENED for the same reason: they are in closed, and closed has no rows at all.
 
-This small reducer treats an undefined state-and-event pair as an error. A different machine could ignore or defer an event instead. Here, the arrows define the allowed changes and a missing arrow is a refusal, not an instruction to guess the intended state.
+Throwing is this reducer's choice for a missing row; another machine could ignore the event or queue it. And the table only knows states and event names. It cannot tell which connection attempt sent an OPENED, so a machine that can be connecting again when an old reply arrives would need the event to say which attempt it answers.
