@@ -57,6 +57,8 @@ export interface Step {
  * such as the hunks a TransformDiff animated. JSON, like the state.
  */
 export type Evidence = { kind: string } & Record<string, unknown>;
+/** A claim about the picture: a message when it fails on this frame, anything else when it holds. */
+export type Invariant = (scene: Scene<any>) => string | null | undefined | void;
 
 /**
  * What a scene renders into: called once per frame (dt = 0 for the first),
@@ -149,6 +151,8 @@ export class Scene<S extends object = SceneState> {
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private describers: Array<{ describer: () => SceneState }>;
+  /** Named claims about the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
+  readonly invariants: Map<string, Invariant>;
 
   /**
    * skipUntil: frames that end before this time are not rendered or
@@ -174,6 +178,7 @@ export class Scene<S extends object = SceneState> {
     this.stopped = false;
     this.stepListeners = [];
     this.describers = [];
+    this.invariants = new Map();
   }
 
   /** Rethrow a stop a sink already raised: nothing reaches the sink after it. */
@@ -203,6 +208,22 @@ export class Scene<S extends object = SceneState> {
     const entry = { describer };
     this.describers.push(entry);
     return () => { this.describers = this.describers.filter((e) => e !== entry); };
+  }
+
+  /**
+   * Claim something about the picture on every frame from now on: `check(scene)` returns
+   * a message when the claim fails, anything else when it holds. It reads the scene, by
+   * key (`scene.find`), and changes nothing. An InvariantSink runs every registered
+   * check on every frame it is handed, so `rayner check`, which plays every case in full,
+   * fails at the first frame a claim breaks, mid-animation included. A seek skips frames
+   * and so checks nothing between them. Names are unique per scene; returns a remover.
+   */
+  addInvariant(name: string, check: Invariant): () => void {
+    if (typeof name !== 'string' || !name.trim()) throw new TypeError('An invariant needs a name');
+    if (typeof check !== 'function') throw new TypeError(`Invariant ${name}: check must be a function of the scene`);
+    if (this.invariants.has(name)) throw new Error(`Invariant ${name} is already registered`);
+    this.invariants.set(name, check);
+    return () => { if (this.invariants.get(name) === check) this.invariants.delete(name); };
   }
 
   /** Subclasses define the animation here. */

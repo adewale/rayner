@@ -11,6 +11,7 @@ import { build } from 'esbuild';
 import ts from 'typescript';
 import {
   MotionSink,
+  InvariantSink,
   analyzeMotion,
   SnapshotSink,
   renderAt,
@@ -248,6 +249,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const shipped = project.outlineLettering ? JSON.stringify(await pageSnapshot(project.outlineLettering)) : '';
   for (const v of project.variants) {
     const where = `in ${caseName(project.Scene, v.values) || 'the scene'}`;
+    // The scene's own claims about the picture (Scene.addInvariant), checked on every frame of this full run.
+    const invariants = new InvariantSink();
     const motion = new MotionSink(),
       frames = new Map<number, string>();
     const targets = new Set(
@@ -318,6 +321,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       moved = new Set<string>();
     await new v.Scene({
       async frame(scene, dt) {
+        invariants.check(scene);
         await motion.frame(scene);
         const hold = dt ? holds.find((h) => scene.frameCount >= h.from && scene.frameCount <= h.to) : undefined;
         if (hold) {
@@ -374,6 +378,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     }).run();
     const events = analyzeMotion(motion);
     assert.equal(events.length, 0, `Motion failures ${where}: ${JSON.stringify(events.slice(0, 8))}`);
+    assert.deepEqual(
+      invariants.failures.slice(0, 5),
+      [],
+      `Invariants fail ${where} (${invariants.failures.length} frames; the first five)`,
+    );
     assert.deepEqual(
       [...moved],
       [],
@@ -446,6 +455,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       frames: motion.frames.length,
       seekFrames: frames.size,
       motionEvents: events.length,
+      // Each declared invariant and the frames it held on: a claim checked on no frame is not evidence.
+      invariants: Object.fromEntries(invariants.checked),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.

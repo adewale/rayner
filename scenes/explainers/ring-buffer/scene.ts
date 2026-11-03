@@ -86,16 +86,37 @@ const queueOrder = (r: { head: number; length: number; data: (number | null)[] }
   Array.from({ length: r.length }, (_, k) => r.data[(r.head + k) % r.data.length]!);
 const angle = (i: number) => Math.PI / 2 - (i * 2 * Math.PI) / SLOTS;
 const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1] + Math.sin(a) * r];
+/** The turn from one slot to another, the short way round. */
+const turnBetween = (from: number, to: number) => {
+  const d = angle(to) - angle(from);
+  return d - 2 * Math.PI * Math.round(d / (2 * Math.PI));
+};
+const aboutRing = (p: Readonly<Vec>, a: number): Vec => {
+  const x = p[0] - C[0], y = p[1] - C[1], c = Math.cos(a), s = Math.sin(a);
+  return [C[0] + x * c - y * s, C[1] + x * s + y * c];
+};
 /**
- * A pointer's move from one slot to another goes round the ring, not across it: the straight
- * morph between its two drawings, carried along the arc its base travels at the pointers'
- * radius, the short way round. Both drawings are upright, so the word stays upright too.
+ * A pointer's arrow turns about the ring's centre from one slot to another, the short way
+ * round, so it never crosses the ring. Its two drawings are the same arrow turned, so each
+ * point rotates; the remainder, zero up to rounding, is blended so the ends are exact.
+ */
+const turnAboutRing = (from: number, to: number): PathFunc => {
+  const d = turnBetween(from, to);
+  return (s, e, alpha) => {
+    if (alpha <= 0) return [s[0], s[1]];
+    if (alpha >= 1) return [e[0], e[1]];
+    const now = aboutRing(s, d * alpha), whole = aboutRing(s, d);
+    return [now[0] + alpha * (e[0] - whole[0]), now[1] + alpha * (e[1] - whole[1])];
+  };
+};
+/**
+ * A pointer's word travels round the ring with its arrow but stays upright: the straight
+ * morph between its two places, carried along the arc they lie on at the pointers' radius.
  */
 const alongRing = (from: number, to: number): PathFunc => {
   const r = R + 1.12,
-    a0 = angle(from);
-  let d = angle(to) - a0;
-  d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
+    a0 = angle(from),
+    d = turnBetween(from, to);
   const c0 = polar(a0, r),
     c1 = polar(angle(to), r);
   return (s, e, alpha) => {
@@ -263,6 +284,20 @@ export default class RingBufferExplainer extends Scene {
     );
     const headPtr = pointer('head', 0),
       tailPtr = pointer('tail', 0);
+    headPtr.key = 'ring:pointer:head';
+    tailPtr.key = 'ring:pointer:tail';
+    // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
+    // never across it, so its arrow always starts on the pointers' circle.
+    const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;
+    const pointerRadius = Math.hypot(arrowBase(headPtr)[0]! - C[0], arrowBase(headPtr)[1]! - C[1]);
+    this.addInvariant('pointers stay on their circle', (scene) => {
+      for (const name of ['head', 'tail']) {
+        const ptr = scene.find(`ring:pointer:${name}`);
+        if (!ptr) continue;
+        const [x, y] = arrowBase(ptr), r = Math.hypot(x! - C[0], y! - C[1]);
+        if (Math.abs(r - pointerRadius) > 1e-3) return `the ${name} arrow starts ${r.toFixed(3)} from the centre, not ${pointerRadius.toFixed(3)}`;
+      }
+    });
     // The buffer's own fields, rebuilt from this.state at every sync.
     const readout = (this.readout = view(
       this,
@@ -479,8 +514,16 @@ export default class RingBufferExplainer extends Scene {
           );
         }
         const moves: ScheduledAnimation[] = [];
-        if (r.head !== now.head) moves.push(new Transform(headPtr, pointer('head', r.head), { runTime: 0.45, pathFunc: alongRing(now.head, r.head) }));
-        if (r.tail !== now.tail) moves.push(new Transform(tailPtr, pointer('tail', r.tail), { runTime: 0.45, pathFunc: alongRing(now.tail, r.tail) }));
+        // A pointer's arrow turns about the centre and its word rides round upright beside it.
+        const move = (ptr: Mobject, name: 'head' | 'tail', from: number, to: number) => {
+          const next = pointer(name, to);
+          moves.push(
+            new Transform(ptr.children[0]!, next.children[0]!, { runTime: 0.45, pathFunc: turnAboutRing(from, to) }),
+            new Transform(ptr.children[1]!, next.children[1]!, { runTime: 0.45, pathFunc: alongRing(from, to) }),
+          );
+        };
+        if (r.head !== now.head) move(headPtr, 'head', now.head, r.head);
+        if (r.tail !== now.tail) move(tailPtr, 'tail', now.tail, r.tail);
         members.push(together([...moves, syncAll()]));
         now = r;
       }

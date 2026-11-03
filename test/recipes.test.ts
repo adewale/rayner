@@ -5,6 +5,7 @@ import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';
 import { outputs, recipes } from '../recipes/render.ts';
+import { SampledOrbit, MorphedOrbit, invariantFailures } from '../recipes/invariants.ts';
 
 test('document recipe accepts data, computes both routes, and exposes the model result in picture text and trace', async () => {
   for (const cached of [false, true]) {
@@ -17,7 +18,10 @@ test('document recipe accepts data, computes both routes, and exposes the model 
     assert.match(result.text, new RegExp(expected));
     assert.equal(result.trace.steps.length, 3);
     assert.deepEqual(result.trace.steps[1]!.after, { cached, destination: expected });
-    assert.deepEqual(result.trace.steps[1]!.evidence, [{ kind: 'route', cached, destination: expected }]);
+    // The route the model chose, and the readout's sync recording what its morph paired as it began
+    const evidence = result.trace.steps[1]!.evidence!;
+    assert.deepEqual(evidence.filter((e) => e.kind === 'route'), [{ kind: 'route', cached, destination: expected }]);
+    assert.ok(evidence.some((e) => e.kind === 'match'));
   }
 });
 
@@ -88,7 +92,7 @@ test('parameter animations capture starts in succession and reject another write
 });
 
 test('every supported recipe produces nonempty SVG, text, elements and a named-step trace through public APIs', async () => {
-  assert.deepEqual(Object.keys(recipes), ['document', 'extensions', 'continuous', 'choreography']);
+  assert.deepEqual(Object.keys(recipes), ['document', 'extensions', 'continuous', 'choreography', 'invariants']);
   for (const SceneClass of Object.values(recipes)) {
     const result = await outputs(SceneClass);
     assert.match(result.svg, /^<svg/);
@@ -97,4 +101,21 @@ test('every supported recipe produces nonempty SVG, text, elements and a named-s
     assert.ok(result.trace.steps.length >= 2);
     assert.equal(result.index.steps.length, result.trace.steps.length);
   }
+});
+
+test('invariant recipe: the sampled orbit holds its claim on every frame, the morphed one fails exactly where it cuts across', async () => {
+  const held = await invariantFailures(SampledOrbit);
+  assert.deepEqual(held.failures, []);
+  assert.ok(held.checked['the dot stays on its circle']! > 30, 'the claim was checked on every frame of the run');
+  const broken = await invariantFailures(MorphedOrbit);
+  assert.ok(broken.failures.length > 0);
+  assert.ok(broken.failures.every((f) => f.invariant === 'the dot stays on its circle' && f.step === 'turn'));
+  // Half way, a straight morph passes through the centre: the dot is a whole radius off its circle
+  assert.ok(broken.failures.some((f) => f.message === 'the dot is 2.000 off its circle'), JSON.stringify(broken.failures.slice(0, 3)));
+  // The same run can feed another sink: invariants ride along with whatever else is watching
+  const frames: number[] = [];
+  await invariantFailures(SampledOrbit, { async frame(scene) { frames.push(scene.frameCount); } });
+  // Every frame but the one run() draws before construct() registers the claim
+  assert.equal(frames.length, held.checked['the dot stays on its circle']! + 1);
+  assert.ok(Object.hasOwn(recipes, 'invariants'));
 });

@@ -38,7 +38,7 @@ export { linear, smooth, rushInto, rushFrom, thereAndBack, easeInQuad, easeOutQu
 export type { RateFunc } from './rate.ts';
 export { Scene, StopScene } from './scene.ts';
 export type { Sink, Step, StepMeta, SceneOptions, SceneState, SceneClass } from './scene.ts';
-export type { Evidence } from './scene.ts';
+export type { Evidence, Invariant } from './scene.ts';
 // Camera: scene.frame, a box the sinks use as the viewBox
 export { Frame } from './frame.ts';
 export type { FrameFitOpts } from './frame.ts';
@@ -63,8 +63,8 @@ export type { Trace, StepRecord } from './trace.ts';
 
 // Diagnostics
 export { perf } from './perf.ts';
-export { MotionSink, analyzeMotion } from './verify.ts';
-export type { MotionEvent, MotionOptions } from './verify.ts';
+export { MotionSink, analyzeMotion, InvariantSink } from './verify.ts';
+export type { MotionEvent, MotionOptions, InvariantFailure } from './verify.ts';
 
 // Optional lettering: tree-shaken from scenes which do not request it.
 export { MathTex, MathTex as Math } from './math.ts';

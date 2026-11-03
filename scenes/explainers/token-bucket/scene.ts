@@ -18,7 +18,7 @@ import {
   Circle,
   Cross,
 } from '../../../src/index.ts';
-import type { ScheduledAnimation as Animation, Mobject, SceneState, SyncOpts, View } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, Mobject, SceneState, SyncOpts, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { TokenBucket } from '../lib/models.ts';
 
@@ -325,6 +325,24 @@ export default class TokenBucketExplainer extends Scene {
         [SHELL_X - w, Y0],
       ]);
     };
+    // The claim the shared scale makes, checked on every frame by rayner check: wherever the balance
+    // line has got to, refilling or spending, the bucket's level stands at the same height. The line's
+    // tip is the drawn end furthest along in time; at equal times, the one drawn last.
+    this.addInvariant('the bucket stands where the balance line ends', (scene) => {
+      const gauge = scene.find('bucket:level');
+      if (!gauge || gauge.style.opacity <= 0) return;
+      let tip: [number, number] | null = null;
+      for (const m of scene.findAll((k) => k.startsWith('balance:refill:') || k.startsWith('balance:spend:'))) {
+        const shown = m.style.drawFraction ?? 1;
+        if (m.style.opacity <= 0 || shown <= 0) continue;
+        const p = (m as VMobject).pointFromProportion(shown);
+        if (!tip || p[0] >= tip[0] - 1e-6) tip = [p[0], p[1]];
+      }
+      if (!tip) return;
+      const top = gauge.box()![3];
+      // An empty bucket keeps a sliver 0.001 tall, so it can still be seen.
+      return Math.abs(top - tip[1]) <= 0.002 ? null : `the bucket's top is at ${top.toFixed(3)}, the line ends at ${tip[1].toFixed(3)}`;
+    });
     /** A climb drawn up to time t: the share of the line's length at or before t, as Create reveals a stroke. */
     const drawTo = (path: Mobject, points: [number, number][], t: number) => {
       const ps = distinct(points),

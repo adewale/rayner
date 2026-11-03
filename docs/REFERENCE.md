@@ -366,6 +366,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Catch lint | A `try`/`catch` or `.catch()` around awaited code in `construct()` |
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |
+| Invariants | A claim the scene registered with `this.addInvariant(name, check)` fails on any frame of the full run, mid-animation included; the report lists the frames each claim held on (`invariants`) |
 | Seek | A seeked frame differs from the played frame, at two frames per step |
 | Trace | The trace with frames skipped differs from the played trace |
 | Step change | A step's resting picture, ignoring the heading, equals the previous step's. The camera's view is part of the picture, so a camera move alone is a change |

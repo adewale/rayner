@@ -30,7 +30,7 @@ const EXPECTED = [
   // time
   'NullSink', 'SeekSink', 'indexScene', 'stepTime', 'renderAt', 'TraceSink', 'traceScene',
   // diagnostics
-  'perf', 'MotionSink', 'analyzeMotion',
+  'perf', 'MotionSink', 'analyzeMotion', 'InvariantSink',
   // emphasis that stays
   'SurroundingRectangle', 'Underline', 'Cross', 'Brace', 'BraceLabel', 'Circumscribe',
 ].sort();

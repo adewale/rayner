@@ -9,9 +9,11 @@ import DocumentScene from './document.ts';
 import ExtensionScene from './extensions.ts';
 import ContinuousScene from './continuous.ts';
 import ChoreographyScene from './choreography.ts';
+import InvariantScene from './invariants.ts';
 
 export const recipes: Readonly<Record<string, SceneClass>> = {
   document: DocumentScene, extensions: ExtensionScene, continuous: ContinuousScene, choreography: ChoreographyScene,
+  invariants: InvariantScene,
 };
 
 export async function outputs(SceneClass: SceneClass, time = 0.5) {
