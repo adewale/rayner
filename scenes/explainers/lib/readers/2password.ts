@@ -13,10 +13,10 @@ export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
   return [
     {
       id: 'ask',
-      title: 'An agent must start an app with a key it should never read',
-      line: 'what could the agent pass along instead of the key?',
+      title: 'An agent must start an app without reading its key',
+      line: 'Predict: what could the agent pass along instead of the key?',
       caption:
-        'The app needs API_KEY in its environment. Printing that value for the agent would also put it into the conversation, though the agent needs only to choose the credential and start the app. What can name the credential without exposing its value?',
+        'The app needs API_KEY in its environment. Printing that value for the agent would also put it into the conversation, though the agent’s job is to choose the credential and start the app, not to read it. What can name the credential without exposing its value?',
       values: { needs: 'API_KEY', agentHasValue: false },
       draw: (s) =>
         new Group(

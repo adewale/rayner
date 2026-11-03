@@ -10,7 +10,7 @@ import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
 // identity as the pictures change: paused becomes paused · unmuted, a box's words become the
 // states of the regions, and duplicates fade.
 
-const [PLAYBACK, VOLUME] = CONTROLS as [(typeof CONTROLS)[0], (typeof CONTROLS)[1]];
+const [PLAYBACK, VOLUME, SUBTITLES] = CONTROLS as [(typeof CONTROLS)[0], (typeof CONTROLS)[1], (typeof CONTROLS)[2]];
 type Cell = readonly [row: number, col: number];
 const cellKey = ([r, c]: Cell) => `${r},${c}`;
 /** A state's place in the grid: playback chooses the row, volume (if any) the column. */
@@ -581,7 +581,10 @@ export default class Statecharts extends Scene {
       coffeeChart = chartCounts(coffee()),
       frotherFlat = flatCounts(flatten(coffeeWithFrother())),
       frotherChart = chartCounts(coffeeWithFrother()),
-      playerFlat = flatCounts(flatten(playerChart));
+      playerFlat = flatCounts(flatten(playerChart)),
+      // A third feature, as the regions step counts it: the flat machine's states while on, and the chart's states in its regions.
+      threeFlat = flatCounts(flatten(player(3))).states - 1,
+      threeChart = CONTROLS.slice(0, 3).reduce((n, c) => n + c.states.length, 0);
 
     const FULL = regionBox('full', { top: 3.05 });
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
@@ -649,7 +652,7 @@ export default class Statecharts extends Scene {
     await this.step('copies', {
       title: 'A POWER_OFF copied onto every state, and one copy missed',
       line: 'Predict: the marked arrows all do the same thing. How could one arrow do the job?',
-      caption: `In a plain state machine an arrow leaves exactly one state, so idle, grinding, brewing and ready each need their own POWER_OFF, and off needs a POWER_ON: ${coffeeFlat.transitions - coffeePlain} more arrows, ${coffeeFlat.transitions} in all. Copied by hand, one is easy to miss. In this hand-copied machine brewing’s is missing, so pressing the power button while brewing does nothing until the brew is done, and a state added later would need a copy of its own. The same event leading from several states to the same place is the first of two signs to look for in a flat machine.`,
+      caption: `In this hand-copied machine brewing’s POWER_OFF is missing, so the power button does nothing while the machine brews, until the brew finishes. The copies are needed because in a plain state machine an arrow leaves exactly one state: idle, grinding, brewing and ready each need their own POWER_OFF, and off needs a POWER_ON, ${coffeeFlat.transitions - coffeePlain} more arrows and ${coffeeFlat.transitions} in all. A state added later would need a copy of its own. One event leading from several states to the same place is the first of two signs to look for in a flat machine.`,
     });
     await morph('copies');
     this.state = { current: null };
@@ -666,8 +669,8 @@ export default class Statecharts extends Scene {
     // 4. Independent features multiply.
     await this.step('multiply', {
       title: 'A media player: two on/off features make four flat states',
-      line: 'Predict: playback and volume never affect each other. What if each had its own small machine?',
-      caption: `A media player is playing or paused, and separately muted or unmuted; neither choice limits the other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Changing playback needs the same transition in both volume settings, and changing volume repeats it for both playback settings. Each further independent on/off feature doubles the combinations. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
+      line: `Predict: add a third on/off feature, ${SUBTITLES.region}. How many combinations must the flat states name?`,
+      caption: `A media player is playing or paused, and muted or unmuted, and playback and volume never affect each other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Changing playback needs the same transition in both volume settings, and changing volume repeats it for both playback settings. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
     });
     await fresh('multiply');
     this.state = { current: null };
@@ -676,8 +679,7 @@ export default class Statecharts extends Scene {
     await this.step('regions', {
       title: 'Split the box on into two small machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
-      caption:
-        'Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles.',
+      caption: `Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
     });
     await fresh('grid');
     await morph('regions');

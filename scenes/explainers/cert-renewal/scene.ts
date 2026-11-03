@@ -9,7 +9,11 @@ import {
   LIFETIMES,
   LIMIT,
   RUN_EVERY,
+  YEAR,
   ariSummary,
+  dueAt,
+  dueByInterval,
+  issue,
   simulate,
   summarize,
   windowFor,
@@ -138,12 +142,28 @@ const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 /** The script's one-sentence answer (meta.answer), which the new-rule step states. */
 const ANSWER = 'renew at a share of the certificate’s life, not a fixed time before expiry';
-/** The check answers' numbers, from the model: the 30-day rule on 160-hour and 45-day certificates. */
+/** The check answers' numbers, from the model: lifetimes and settings no case offers. */
 const CHECK = (() => {
-  const shortLived = summarize('fixed30', '160h'),
-    run = simulate('fixed30', LIFETIMES['160h'].hours, windowFor('160h')),
-    before = run.issued.filter((t) => t < shortLived.firstRefused!).length - 1;
-  return { shortLived, before, f45: summarize('fixed30', '45d'), d45: summarize('fraction', '45d') };
+  // A 20-day certificate, shorter than the 30-day margin but longer than ten days.
+  const twenty = 20 * DAY,
+    year = (r: Rule) => simulate(r, twenty, YEAR),
+    c20 = issue(0, twenty);
+  const shortLived = summarize('fixed30', '160h');
+  // A 45-day certificate with renew_before_expiry set to 10 days: the first run inside 10 days of expiry renews.
+  const c45 = issue(0, LIFETIMES['45d'].hours),
+    interval = 10 * DAY;
+  let tenDay = RUN_EVERY;
+  while (!dueByInterval(c45.notAfter, tenDay, interval)) tenDay += RUN_EVERY;
+  let tenDayRetries = 0;
+  for (let t = tenDay; t < c45.notAfter; t += RUN_EVERY) tenDayRetries++;
+  return {
+    twenty: {
+      fixed: { renewals: year('fixed30').issued.length - 1, refused: year('fixed30').refused.length, first: year('fixed30').refused[0] },
+      share: { due: dueAt('fraction', c20) - c20.notBefore, renewals: year('fraction').issued.length - 1 },
+      sameAsShort: year('fixed30').issued.length - 1 === shortLived.renewalsPerYear && year('fixed30').refused.length === shortLived.refusedPerYear,
+    },
+    tenDay: { at: tenDay, retries: tenDayRetries, fraction: summarize('fraction', '45d') },
+  };
 })();
 
 export default class CertRenewalExplainer extends Scene {
@@ -179,18 +199,28 @@ export default class CertRenewalExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the new-rule step states the answer.
     answer: ANSWER,
+    // Sentences that reach past the strips on screen, and the test that holds each against the model.
+    claims: [
+      { says: 'every run renews until', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'renewing at every run', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'renews at every run until', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'every run tries to renew', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'allows 5 certificates for the same names in 7 days', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+      { says: '5 per 7 days', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+      { says: 'check only for an order that names the certificate it replaces', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+    ],
     checks: [
       {
-        question: 'Certbot is set to renew 30 days before expiry, and the certificates last 160 hours. What happens?',
-        answer: `Every twice-daily run renews, because 30 days is longer than the certificate’s whole life. After ${CHECK.before} renewals Let’s Encrypt’s limit of ${LIMIT.burst} certificates in 7 days refuses the run at hour ${CHECK.shortLived.firstRefused}; in 365 days ${CHECK.shortLived.refusedPerYear} runs are refused.`,
+        question: 'A CA issues 20-day certificates, and Certbot keeps renew_before_expiry at 30 days. How many certificates does it get in a year, and how many would the 4.1 default get?',
+        answer: `With the 30-day setting, ${CHECK.twenty.fixed.renewals} renewed and ${CHECK.twenty.fixed.refused} runs refused, the first at hour ${CHECK.twenty.fixed.first}${CHECK.twenty.sameAsShort ? ', exactly as for 160-hour certificates' : ''}: any certificate shorter than 30 days is due from issue, so every run asks until the limit refuses. The default renews two thirds of the way through, since 20 days is not under ten: at day ${days(CHECK.twenty.share.due)}, ${CHECK.twenty.share.renewals} times a year.`,
       },
       {
-        question: 'For 45-day certificates, how often does the 30-day rule renew compared with Certbot 4.1’s default?',
-        answer: `${CHECK.f45.renewalsPerYear} times a year against ${CHECK.d45.renewalsPerYear}: the 30-day rule falls due at day ${days(CHECK.f45.due)}, the default at day ${days(CHECK.d45.due)}, two thirds of the way through.`,
+        question: 'For 45-day certificates, someone sets renew_before_expiry to 10 days. When does Certbot 4.1 renew, and how long is left to retry?',
+        answer: `At day ${days(CHECK.tenDay.at)}, the first twice-daily run within 10 days of expiry, leaving ${CHECK.tenDay.retries} runs to retry. The setting replaces the default rather than adding to it: without it Certbot would renew at day ${days(CHECK.tenDay.fraction.due)} with ${CHECK.tenDay.fraction.retries} runs to spare.`,
       },
       {
-        question: 'Why do Certbot 5.8’s renewals still count against Let’s Encrypt’s limit?',
-        answer: 'Boulder skips the limit only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s orders name no predecessor.',
+        question: 'A client renews at a random time inside Let’s Encrypt’s ARI window. Is that order exempt from the 5-in-7-days limit?',
+        answer: 'Not by its timing alone. Boulder exempts an order only when it names the certificate it replaces and arrives inside that certificate’s window. Certbot 5.8’s orders name no predecessor, so they are counted even when they follow the window.',
       },
     ],
   };
@@ -246,8 +276,7 @@ export default class CertRenewalExplainer extends Scene {
     this.state.letsEncrypt = LE_DATES.map((d) => [d.date, d.profile, d.days]);
 
     // --------------------------------------------------------------- old-rule
-    const ninety = summarize('fixed30', '90d'),
-      ninetyNew = summarize('fraction', '90d');
+    const ninety = summarize('fixed30', '90d');
     const oneRenewal = gantt(
       [
         [
@@ -262,12 +291,15 @@ export default class CertRenewalExplainer extends Scene {
     );
     await this.step('old-rule', {
       title: 'Certbot 3.3 renews 30 days before expiry',
-      line: `Predict: what does this rule do to a ${adjective} certificate?`,
+      line:
+        key === '90d'
+          ? `Predict: what share of a 90-day life has passed at day ${days(ninety.renewsAt)}?`
+          : `Predict: when does a 30-day margin renew a ${adjective} certificate?`,
       caption: `Certbot 3.3 renews when the certificate expires within renew_before_expiry, 30 days unless the renewal file sets it. Let’s Encrypt dates a certificate ${+(BACKDATE * 60).toFixed(1)} minutes before it issues it, so a 90-day one falls due just before the twice-daily run at day ${days(ninety.renewsAt)}, which replaces it.`,
     });
     await s.clear();
-    const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: 0.0 }) });
-    const code = await s.code(OLD_CODE, { at: regionBox('full', { top: -0.1 }), fontSize: 0.21 });
+    const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
+    const code = await s.code(OLD_CODE, { at: regionBox('full', { top: -0.35 }), fontSize: 0.2 });
     await code.focus([2, 3]);
     await chart.note('task:c2', `replaced at day ${days(ninety.renewsAt)}`, { side: 'right' });
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
@@ -279,16 +311,45 @@ export default class CertRenewalExplainer extends Scene {
         : byRule.fixed30.due === byRule.fraction.due
           ? `On a ${adjective} certificate both fall due at ${at(byRule.fraction.due, short)}.`
           : `On a ${adjective} certificate the old rule falls due at ${at(byRule.fixed30.due, short)}, the new one at ${at(byRule.fraction.due, short)}.`;
+    // The case's own lifetime, with the replacement each rule makes: the answer to the old-rule step's prediction.
+    const share = short ? 'half' : 'two thirds',
+      both = byRule.fixed30.renewsAt === byRule.fraction.renewsAt,
+      // The default's due time, and the run that renews when that run comes noticeably later.
+      byRun =
+        byRule.fraction.renewsAt + BACKDATE - byRule.fraction.due >= 1
+          ? `, renewed by the run at ${at(byRule.fraction.renewsAt, short)}`
+          : '';
+    const replacements = gantt(
+      [
+        [
+          `One ${adjective} certificate`,
+          [
+            { label: 'First', id: 'c1', start: 0, hours: life.hours },
+            { label: `30-day rule, ${at(byRule.fixed30.renewsAt, short)}`, id: 'fixed30', start: byRule.fixed30.renewsAt, hours: life.hours },
+            { label: `Default, ${at(byRule.fraction.renewsAt, short)}`, id: 'fraction', start: byRule.fraction.renewsAt, hours: life.hours },
+          ],
+        ],
+      ],
+      '%d %b',
+    );
     await this.step('new-rule', {
-      title: 'Certbot 4.1 renews two thirds of the way through',
-      line: `Two thirds of 90 days is day ${days(ninetyNew.due)}; the replacement does not move.`,
+      title: `Certbot 4.1 renews ${short ? 'half way' : 'two thirds of the way'} through a ${adjective} certificate`,
+      line: both
+        ? `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}, where the 30-day rule renews too.`
+        : `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
       caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
     });
     await chart.clearNotes();
+    await chart.morph({ source: replacements });
     await code.morph(NEW_CODE);
     await code.focus([6, 9]);
-    await chart.note('task:c2', `day ${days(ninetyNew.renewsAt)} under both`, { side: 'right' });
-    this.state.newRule = { due: ninetyNew.due, renewsAt: ninetyNew.renewsAt };
+    // Each replacement's row names its rule and when it starts; the chosen rule's row is marked.
+    await chart.mark([`task:${rule}`], { as: 'the chosen rule' });
+    this.state.newRule = {
+      lifetime: key,
+      fixed30: { due: byRule.fixed30.due, renewsAt: byRule.fixed30.renewsAt },
+      fraction: { due: byRule.fraction.due, renewsAt: byRule.fraction.renewsAt },
+    };
 
     // ------------------------------------------------------------------- year
     // A strip per rule: a tick at each certificate's issue, a red mark at each refused run.
@@ -516,7 +577,7 @@ export default class CertRenewalExplainer extends Scene {
     await this.step('replaces', {
       title: 'Certbot’s renewals still count against the limit',
       line: 'Certbot’s order names no predecessor, so the limit check runs.',
-      caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile, nothing more, so every renewal is checked. The renewal window and this exemption are different: following the window does not itself name the replaced certificate. A refused order costs nothing; an issued certificate takes a token.`,
+      caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile and names no predecessor, so its renewals are checked. The renewal window and this exemption are different: following the window does not itself name the replaced certificate. A refused order costs nothing; an issued certificate takes a token.`,
     });
     await s.clear();
     await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), fontSize: 0.22 });

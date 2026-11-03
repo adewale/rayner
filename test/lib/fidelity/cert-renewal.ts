@@ -18,9 +18,17 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'limit', { limits: BR_PHASES.map((p) => p.days) });
   assertStepState(trace, 'letsencrypt', { letsEncrypt: LE_DATES.map((d) => [d.date, d.profile, d.days]) });
   const old = summarize('fixed30', '90d'),
-    now = summarize('fraction', '90d');
+    fixed = summarize('fixed30', key),
+    share = summarize('fraction', key);
   assertStepState(trace, 'old-rule', { oldRule: { due: old.due, renewsAt: old.renewsAt } });
-  assertStepState(trace, 'new-rule', { newRule: { due: now.due, renewsAt: now.renewsAt } });
+  // The new-rule step draws this case's lifetime with the replacement each rule makes.
+  assertStepState(trace, 'new-rule', {
+    newRule: {
+      lifetime: key,
+      fixed30: { due: fixed.due, renewsAt: fixed.renewsAt },
+      fraction: { due: share.due, renewsAt: share.renewsAt },
+    },
+  });
   assertStepState(trace, 'year', {
     year: { rule, issued: run(rule).issued, refused: run(rule).refused, renewalsPerYear: mine.renewalsPerYear },
   });
