@@ -50,6 +50,8 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
             fontSize: 0.7,
             color: s.palette.ink,
           }).moveTo([0, -2.1]),
+          // What each rule leaves on the page after this result, from the model's two runs.
+          label(`Page now: ${q(withGuard)} with the guard, ${q(without)} without`, 0, -3.5, s.palette.ink, 0.62, 'page-now'),
         ),
     };
   });
