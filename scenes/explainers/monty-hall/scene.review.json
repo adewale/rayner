@@ -17,6 +17,42 @@
       ]
     },
     {
+      "step": "rounds",
+      "settings": {
+        "host": "informed"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "strip:informed"
+        },
+        {
+          "key": "monty-heads"
+        },
+        {
+          "key": "monty-key"
+        }
+      ]
+    },
+    {
+      "step": "rounds",
+      "settings": {
+        "host": "random"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "strip:random"
+        },
+        {
+          "key": "monty-heads"
+        },
+        {
+          "key": "monty-key"
+        }
+      ]
+    },
+    {
       "step": "odds",
       "settings": {
         "host": "informed"

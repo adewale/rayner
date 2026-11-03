@@ -60,7 +60,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (!['odds', 'worlds'].includes(step.name)) return;
+          if (!['rounds', 'odds', 'worlds'].includes(step.name)) return;
           const members = (key: string) => scene.familyMembers().filter((m) => m.key === key);
           const words = (key: string) => {
             const groups = members(key);
@@ -72,7 +72,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
           };
           // Each strip draws one cell per round, as wide as the round's chance: an informed host's
           // goat openings at A's third are two sixths, his forced openings two sixths each; a random host's six are one each.
-          const hosts = step.name === 'odds' ? [variant.values.host!] : ['informed', 'random'];
+          const hosts = step.name === 'worlds' ? ['informed', 'random'] : [variant.values.host!];
           for (const host of hosts) {
             const strip = members(`strip:${host}`);
             assert.equal(strip.length, 1, `${step.name}: one ${host} strip`);
@@ -91,6 +91,10 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
             assert.deepEqual(words('monty-switch'), ['Switch', expected[1]]);
             readouts += 2;
             comparisons++;
+          } else if (step.name === 'rounds') {
+            // Every round before the reader rules any out: no odds are drawn yet.
+            for (const key of ['monty-stay', 'monty-switch', 'monty-readout-informed', 'monty-readout-random'])
+              assert.equal(members(key).length, 0, `rounds: ${key} must wait for the next step`);
           } else {
             // The old summary table's switch-wins column, now beside each host's strip; counting only the rounds that
             // show a goat behind the opened door gives the same odds (the old rules step's comparison).
@@ -106,11 +110,11 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
       },
       { skipUntil: Infinity },
     ).run();
-    assert.deepEqual(visited, ['odds', 'worlds']);
+    assert.deepEqual(visited, ['rounds', 'odds', 'worlds']);
   }
-  assert.equal(pictures, 4);
+  assert.equal(pictures, 6);
   assert.equal(readouts, 8);
   assert.equal(comparisons, 2);
-  // Per case: one strip in odds (4 or 6 cells), two in worlds (10).
-  assert.equal(cells, 4 + 6 + 2 * 10);
+  // Per case: one strip in rounds and one in odds (4 or 6 cells each), two in worlds (10).
+  assert.equal(cells, 2 * (4 + 6) + 2 * 10);
 });
