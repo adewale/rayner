@@ -51,8 +51,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  {fontSize: 1});',
       'await s.enter(hello);',
     ],
-    recipe: "this.step names a picture and its caption. The entered Text becomes that step’s resting state; the name hello gives a link an address. The empty frame is a separate comparison showing the state before entry.",
-    caption: "A link to hello opens the finished greeting without playing its entry. The caption and resting picture therefore carry the explanation a direct visitor receives.",
+    recipe: "this.step opens a step with a name, a title and a caption. Whatever the lines after it enter becomes that step’s resting picture, and the step’s name becomes part of its address.",
+    caption: "A link ending ?step=hello opens the finished greeting without playing its entry, so this resting picture and its caption carry everything a direct visitor gets. The empty frame on the left is a separate drawing of the step before entry, not something these lines draw.",
     point: 'This picture and its caption are all a reader gets from a link ending ?step=hello.',
   },
   settings: {
@@ -68,8 +68,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '}];',
       'const choice = settingsOf(this).feature;',
     ],
-    recipe: "settingsOf(this) supplies the selected option while construct builds its case. The two listed options are examples from this page’s feature picker; the result compares the default with the selected case.",
-    caption: "The feature picker switches between prepared cases. It changes which picture the scene builds, rather than accepting arbitrary new program input.",
+    recipe: "static settings declares an option list, the build makes one case for every option, and settingsOf(this) tells construct which case it is building. The two options shown are excerpts from this page’s own feature picker.",
+    caption: "The left card names the default case and the right card this one, with the number of cases the build made: one per option in the feature picker. Choosing a feature switches between those prepared cases; it does not run the scene on new input.",
     point: 'The default case is Animations; this page is the Settings case.',
   },
   diagram: {
@@ -81,8 +81,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  {box: 'main'});",
       "await d.walk([['A', 'B']], {trail: true});",
     ],
-    recipe: "s.show uses diagram geometry captured at build time. d.walk follows the existing Start → Finish edge; trail keeps that route marked after the token finishes. The unmarked copy supplies the starting comparison.",
-    caption: "The trail follows a captured edge rather than drawing a shortcut. Its persistent mark makes the route inspectable after the moving token has gone.",
+    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; trail: true is the walk option this case is about.",
+    caption: "The trail stays on Start → Finish after the token has gone, so the route can be inspected at rest, and it follows the captured edge rather than a shortcut. The unmarked copy on the left is a separate drawing of the flowchart before the walk.",
     point: 'The trail stays on Start → Finish after the walk ends.',
   },
   code: {
@@ -94,8 +94,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "], {at: 'main'});",
       "await block.focus(1, {as: 'update'});",
     ],
-    recipe: "s.code displays the lines; focus(1) marks the second as an update. The unmarked copy beside it makes the added emphasis visible without replaying the motion.",
-    caption: "The update bar remains on the second line after focus finishes. That persistent mark connects the caption to the code it explains.",
+    recipe: "s.code draws the lines as a code panel. block.focus(1, {as: 'update'}) points at the line with index 1, the second, and says why.",
+    caption: "The update bar stays on count += 1 after the focus finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the focus.",
     point: 'The update bar stays on count += 1 after the motion stops.',
   },
   'code-diff': {
@@ -108,8 +108,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await block.morph(['let count = 0;',",
       "  'count += 2;'], {markAdded: true});",
     ],
-    recipe: "morph keeps the unchanged first line and replaces the increment line. markAdded identifies the replacement; the separate original panel retains the previous version.",
-    caption: "The surviving first line stays put while the replacement becomes current. The added mark describes the new line; it is not a history of earlier edits.",
+    recipe: "block.morph turns the panel into a new list of lines and keeps the lines both versions share in place; markAdded: true marks what the edit introduced.",
+    caption: "let count = 0 stays where it was, and count += 2 replaces the old increment and carries the mark. The mark labels the current line; it is not a history of earlier edits. The panel on the left is a separate drawing of the version before the morph.",
     point: 'Only count += 2 carries the added mark; let count = 0 kept its place.',
   },
   animation: {
@@ -121,8 +121,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(new Transform(shape,',
       '  new Square({side: 1.6})));',
     ],
-    recipe: "Transform reshapes the object already on stage toward a target. Once finished, that object is a square. The left-hand circle is a separate starting copy, not something Transform leaves behind.",
-    caption: "Only the square comes from the recipe. The separate circle preserves the starting shape so a direct visitor can inspect the change without seeing it play.",
+    recipe: "Transform reshapes the object already on stage, point by point, until it matches the target.",
+    caption: "Only the square comes from the recipe: Transform turned the circle into it. The circle on the left is a separate drawing of the starting shape, so a direct visitor can inspect the change without seeing it play.",
     point: 'From a link, these lines leave a square; the circle is a separate drawing.',
   },
   matching: {
@@ -136,8 +136,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  before, after));',
       's.keep(after);',
     ],
-    recipe: "TransformMatchingText pairs equal characters, moves those pairs and fades unmatched glyphs. The retained old text and the correspondence list expose that mechanical rule.",
-    caption: "The list records the pairs the animation actually used. Matching follows characters, not word meanings, so the same letter can move into a different semantic context.",
+    recipe: "TransformMatchingText pairs equal characters between the two texts, moves each pair and fades the characters left over. s.keep tells the stage that the new text stays.",
+    caption: "The lists under the result record the pairs the animation used. Matching follows characters, not words, so a letter can move into a different word. The smaller cache miss on the left is a separate drawing of the text before the change.",
     point: 'The shared letters slid into place, and the others faded.',
   },
   restore: {
@@ -150,8 +150,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await this.play(circle.animate.shift([2,0]));',
       'await this.play(new Restore(circle));',
     ],
-    recipe: "saveState records points and style; Restore returns the circle to that record. The separately drawn dashed outline preserves the visited position after the circle returns.",
-    caption: "The circle ends where it began, so its resting state alone would conceal the trip. The dashed outline supplies the missing evidence of its intervening position.",
+    recipe: "saveState() records the circle’s points and style. Restore animates the circle back to that record from wherever the lines in between moved it.",
+    caption: "Restore brought the circle back to the place saveState() recorded, so the circle alone gives no sign that it moved. The dashed outline, which this page draws separately, marks where it went before Restore.",
     point: 'Without the dashed outline, the resting picture would hide the circle’s trip.',
   },
   emphasis: {
@@ -166,8 +166,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  {describe: 'Box round 42'});",
       'await this.play(circle);',
     ],
-    recipe: "Circumscribe normally removes its outline when the animation ends. keep: true preserves it, while s.keep supplies a description for the wordless mark. The unmarked copy shows the change.",
-    caption: "The rectangle remains around 42 after motion stops. Its description also states what the emphasis marks for someone who does not see the animation.",
+    recipe: "Circumscribe animates an outline round its target; keep: true is the option this case is about, and s.keep gives the outline a description for readers who cannot see it.",
+    caption: "Circumscribe normally removes its outline when the animation ends. keep: true leaves the box round 42, and the description says what it marks. The plain 42 on the left is a separate drawing.",
     point: 'The box round 42 is still drawn once the motion ends.',
   },
   camera: {
@@ -179,8 +179,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'await s.focus(subject, {margin: 0.8});',
       "// await s.focus('all') returns home",
     ],
-    recipe: "s.focus changes the view rather than the subject’s coordinates. The ruler provides a stable reference because a second comparison panel would be inside the same moving camera.",
-    caption: "The ruler now shows only its middle. Its reduced visible span shows that the camera moved closer while the circle kept its coordinates.",
+    recipe: "s.focus frames a subject for the reader, with a margin round it; s.focus('all') returns to the whole stage.",
+    caption: "The ruler, which this page draws across the whole stage, now shows only its middle, while the circle is still at (0, 0): the view moved, not the circle. A before panel would sit inside the same closer view, so the ruler is the reference instead.",
     point: 'The view moved in; the circle kept its coordinates.',
   },
   chart: {
@@ -193,8 +193,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  [[0,0],[1,2],[2,1]]);',
       "await s.enter(axes, line, {describe: 'Plot'});",
     ],
-    recipe: "Axes maps data coordinates to stage positions. lineGraph joins the supplied points using that mapping, and the adjacent card retains the same values as numbers.",
-    caption: "The plotted positions follow the supplied data and axes. Their agreement with the numeric card can be checked without estimating where an author placed the line by hand.",
+    recipe: "Axes maps data coordinates to stage positions, and lineGraph joins the points you give it through that mapping.",
+    caption: "The axes placed each point, so the line can be checked against the numbers without guessing where an author drew it by hand. The card on the left is a separate drawing of the same values.",
     point: 'The line passes through 0, 2 and 1, each placed by the axes.',
   },
   state: {
@@ -209,8 +209,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'this.state.count = 1;',
       'await this.play(label.sync());',
     ],
-    recipe: "view builds a label from scene.state; sync rebuilds it after count changes. The recorded state and the separately retained starting label show what drove the new picture.",
-    caption: "Changing count alone does not explain a picture change: sync rebuilds the view from that value. The resulting label and recorded state agree because both use count.",
+    recipe: "this.state holds values the model decides. view builds a label from that state, and label.sync() rebuilds the label after the state changes.",
+    caption: "Setting count alone changes nothing on screen; sync rebuilt the label from count, so the label and the recorded state both read 1. The 0 on the left is a separate drawing of the view before the change.",
     point: 'Label and trace both read 1, because the view rebuilt the label from state.',
   },
   annotations: {
@@ -221,8 +221,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  {describe: 'Circle'});",
       "await s.pin([0, 0], {label: 'centre'});",
     ],
-    recipe: "s.pin gives a named point a label and leader. The bare circle provides the comparison; the leader identifies which part the new word refers to.",
-    caption: "The leader binds centre to a location. The label can explain a geometric relationship without requiring another animation.",
+    recipe: "s.pin puts a label at a point in the picture and draws a leader to it.",
+    caption: "The leader ties the word centre to the circle’s centre, so the label names a place without another animation. The bare circle on the left is a separate drawing.",
     point: 'The word centre sits at the end of a leader to the circle’s centre.',
   },
   direction: {
@@ -233,8 +233,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await s.card([['Count', 3]],",
       "  {at: 'start', direction: 'ltr'});",
     ],
-    recipe: "direction: rtl places logical start on the right. The card’s own ltr direction independently orders its contents; the outline records where start would be on an ltr stage.",
-    caption: "The card sits on the right but still reads Count, 3. Placement direction and the order inside the card are separate choices.",
+    recipe: "direction: 'rtl' lays the stage’s logical regions out right to left. The card’s own direction: 'ltr' sets the order of the text inside it.",
+    caption: "The card sits on the right, the start of a right-to-left stage, yet still reads Count, 3: placement and the order inside the card are separate choices. The outline on the left marks where start would be in a left-to-right stage.",
     point: 'Start is on the right in this stage, yet the card still reads Count, 3.',
   },
   drawing: {
@@ -245,8 +245,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await s.draw(path, {tool: 'pen',",
       "  describe: 'A rising line'});",
     ],
-    recipe: "s.draw reveals a path along its length with a pen at the tip. The description states what the completed stroke represents; the separate endpoint markers supply a comparison.",
-    caption: "The pen disappears when drawing ends, while the rising line remains. Its description carries the same geometric fact to readers who do not see the motion.",
+    recipe: "s.draw reveals a path along its length with a tool riding its tip, and describe says what the finished stroke shows.",
+    caption: "The pen disappears when drawing ends, and the rising line remains; its description carries the same fact to readers who do not see the motion. The two dots on the left are a separate drawing of the path’s ends.",
     point: 'Of the pen’s motion, only the finished line is left at rest.',
   },
 };
@@ -311,8 +311,12 @@ export default class FeatureTour extends Scene {
     ],
     // The script's answer and check questions (script.md); every case's recipe step states the answer.
     answer: ANSWER,
-    // "Only" sentences: the result's picture is the evidence where they speak of it; the drawing tool's rule has a test.
+    // Scope sentences: the build rule and the drawing tool rule have tests; the result picture is the evidence for the rest.
     claims: [
+      {
+        says: 'the build makes one case for every option',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+      },
       { says: 'Only count += 2 carries the added mark', shown: true as const },
       { says: 'Only the square comes from the recipe', shown: true as const },
       { says: 'now shows only its middle', shown: true as const },
