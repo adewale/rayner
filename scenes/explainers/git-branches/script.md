@@ -12,4 +12,4 @@ What if main had never made C? It would still point at A, which is already in B'
 
 The difference is in the parent arrows. In the first history, each branch has a commit the other lacks, so a merge commit keeps both. In the second, the incoming history already contains main's commit, so main can move forward along that history.
 
-These examples allow fast-forwards. The option `--no-ff` can request a merge commit even when moving the label would suffice. The examples also have no conflicting edits, tags or other branches; a commit outside these two branch histories has not necessarily disappeared from Git.
+Git fast-forwards by default, and these examples keep that default. The option `--no-ff` can request a merge commit even when moving the label would suffice. The examples also have no conflicting edits, tags or other branches; a commit outside these two branch histories has not necessarily disappeared from Git.

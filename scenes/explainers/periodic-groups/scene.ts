@@ -226,8 +226,8 @@ export default class PeriodicGroupsExplainer extends Scene {
         answer: '32 cells: 2 + 14 + 10 + 6. Putting the 14-cell runs below removes 14 columns from those rows, leaving an 18-column main table. The detached rows save width; they are still part of the same filling sequence.',
       },
       {
-        question: 'A short row has a run of 2 followed by a run of 6. When its run of 6 is aligned with the rightmost six columns of the 18-column table, which columns are left empty?',
-        answer: 'Columns 3 through 12: ten empty columns. The first two cells stay at the left and the six-cell run starts at column 13. There is no ten-cell run in that row to fill the space between them.',
+        question: 'Silicon (14) ends 3s² 3p² and tin (50) ends 5s² 4d¹⁰ 5p². Silicon has 4 electrons after neon, tin has 14 after krypton, yet both sit in column 14. Use the stacked runs to explain why.',
+        answer: 'Each lands on the 2nd cell of a run of 6, and runs of 6 start after 2 + 10 columns, so both land in column 2 + 10 + 2 = 14. Tin’s row has a run of 10 (4d¹⁰) that fills columns 3 to 12. Silicon’s row has none, so its run of 6 slides across ten empty columns to reach the same place.',
       },
     ],
   };
@@ -629,7 +629,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('column', {
       title: `Why are the jumps down ${name}’s column uneven?`,
       line: `Predict: what makes the jumps down the column ${list(distinct.map(String))}?`,
-      caption: `${Name} is element ${z}, in group ${group}. Follow the atomic numbers down its column: the gaps change from row to row. The picture shows the numbers and their differences. To explain those jumps, build the rows from the order in which electrons fill an atom, then stack matching runs.`,
+      caption: `${Name} is element ${z}, in group ${group}. Down its column the atomic number rises by ${list(jumps.map(String))}. Rows of equal length would give equal jumps, so the lower rows must hold more elements. To see why, add electrons one at a time in the order an atom fills them, then line up the runs they make.`,
     });
     await s.clear();
     this.state = { ...base, note: 'column', band: true, members: members.map((m) => m.z), gaps: jumps };
@@ -699,7 +699,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('stack', {
       title: 'Stack runs of one length in the same columns',
       line: 'Runs of 2 at the left, 10 in the middle, 6 at the right, 14 in two rows below.',
-      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. This builds the outline of an 18-column table. Helium needs one further move: over neon. ${ANSWER}. ${
+      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. ${ANSWER}. ${
         (
           {
             na: 'Sodium’s 11th electron starts a run of 2, so it lands in column 1.',
@@ -709,7 +709,7 @@ export default class PeriodicGroupsExplainer extends Scene {
             he: 'Helium’s 2nd electron ends a run of 2 in column 2, over beryllium, yet helium is in group 18; step 4 says why.',
           } satisfies Record<Choice, string>
         )[choice]
-      }`,
+      }${choice === 'he' ? '' : ' One element is still out of place: helium, whose run of 2 leaves it over beryllium.'}`,
     });
     this.state = {
       ...base,
@@ -728,7 +728,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('names', {
       title: 'The runs have names; helium needs one move',
       line: 's holds 2, p holds 6, d holds 10 and f holds 14 electrons.',
-      caption: 'Each run is a subshell: s for 2, p for 6, d for 10 and f for 14. Those widths give the table its blocks and its gaps; the changing row lengths explain the jumps down the opening column. Widths alone leave helium over beryllium. The table groups helium with neon: helium’s two electrons complete its first shell, while neon has a complete outer shell of eight. That grouping is information we bring to the table, not something sliding cells proves. The detailed filling rule and its exceptions are in the optional notes.',
+      caption: 'Each run is a subshell: s for 2, p for 6, d for 10 and f for 14. Those widths give the table its blocks and its gaps; the changing row lengths explain the jumps down the opening column. Widths alone leave helium over beryllium. The table groups helium with neon: helium’s two electrons complete its first shell, while neon has a complete outer shell of eight. That grouping is information we bring to the table, not something sliding cells proves. The order the runs fill in, and how the electrons end down this column, are under Details and sources.',
     });
     this.state = { ...base, note: 'names', blocks: true, lit: POSITIONS.length, strip: 'named', helium: 'over-ne', capacity: CAPACITY };
     await this.play(both(1.2));
@@ -752,8 +752,8 @@ export default class PeriodicGroupsExplainer extends Scene {
     )[choice];
     await this.step('blocks', {
       detail: true,
-      title: 'Reference: filling order and configuration exceptions',
-      line: 'A subshell holds at most 2 electrons (s), 6 (p), 10 (d) or 14 (f).',
+      title: `${Name}’s ${z} electrons, written as subshells`,
+      line: `The solid cells are ${name}’s ${z} electrons, in the order they fill.`,
       caption: `Chemists call each run a subshell, named by its shell n and a letter for its length (s 2, p 6, d 10, f 14): ${name}’s runs read ${configText(filling)}. A subshell holds at most that many electrons. Subshells fill lowest n + l first, with l from 0 for s to 3 for f, and lower n first on a tie: Madelung’s empirical rule, which NIST’s reference configurations follow for ${RULE_MATCHES} of the first ${NIST_UP_TO} elements. ${
         (
           {

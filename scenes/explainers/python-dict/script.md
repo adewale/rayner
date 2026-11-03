@@ -10,6 +10,6 @@ A never-used slot ends that search. If the key had been inserted, it would have 
 
 Python instead writes a deleted marker, D, into slot 0 and removes apple from the entry table. D records that the slot used to be occupied. It cannot match the key, but it tells the lookup to continue. The search for 8 passes D and finds pear at slot 1. The search for 16 continues through slots 0 and 1 to find plum at slot 6. Changing one slot from never used to deleted preserves both searches.
 
-What about a key that is absent? Key 24 also starts at slot 0. Its search passes D and the occupied slots, then reaches slot 7, which has genuinely never been used. That is where the lookup can conclude that 24 is missing. Deleted slots keep a route open; never-used slots let it end.
+What about a key that is absent? Key 24 also starts at slot 0. Its search passes D, then the occupied slots 1 and 6, and reaches slot 7, which has never been used. That is where the lookup can conclude that 24 is missing. Slot 2 has never been used either, but 24's route never visits it: only the slots on a key's own route are evidence about that key. A deleted slot keeps the route open, and a never-used slot on it lets the search end.
 
 This example follows CPython 3.12.14 with eight slots throughout. It shows why deletion needs the marker, without covering how the dictionary grows or reuses space for later insertions.
