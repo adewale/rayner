@@ -189,6 +189,36 @@ test('a service runs on a date exactly when an exception adds it, or no exceptio
   );
 });
 
+test('a route has departures only on dates its trips’ service runs', () => {
+  // The scene's dates and the exception date, then any date: every trip leaving any stop has a running service.
+  const dates = fc.oneof(fc.constantFrom('20070603', '20070604', '20070605', '20070609'), ymd);
+  fc.assert(
+    fc.property(dates, fc.constantFrom(...FEED.stops.map((s) => s.stop_id!)), (date, stop) => {
+      const day = stopDay(FEED, stop, date);
+      for (const tripId of [...day.departures.map((d) => d.tripId), ...day.headways.map((h) => h.tripId)]) {
+        const trip = FEED.trips.find((t) => t.trip_id === tripId)!;
+        assert.ok(serviceOn(FEED, trip.service_id!, date).runs, `${tripId} leaves ${stop} on ${date}`);
+      }
+    }),
+    params(),
+  );
+  // So AB1, route 10's trip under FULLW, leaves the airport on 5 June and not on 4 June, when FULLW is removed.
+  assert.deepEqual(['20070604', '20070605'].map((d) => stopDay(FEED, 'BEATTY_AIRPORT', d).departures.some((x) => x.tripId === 'AB1')), [false, true]);
+});
+
+test('one calendar_dates.txt row adds or removes a service for one date, leaving routes and trips as they were', () => {
+  const plus = (row: string) => readFeed({ ...SAMPLE_FEED, 'calendar_dates.txt': SAMPLE_FEED['calendar_dates.txt'] + '\n' + row });
+  const ids = (feed: Feed, date: string) => tripsOn(feed, date).map((t) => t.trip_id);
+  // WE,20070604,1 adds route 50's four weekend trips to Monday 4 June.
+  assert.deepEqual(ids(plus('WE,20070604,1'), '20070604'), ['AAMV1', 'AAMV2', 'AAMV3', 'AAMV4']);
+  // WE,20070609,2 removes them from Saturday 9 June only: seven trips run, and the next Saturday keeps all eleven.
+  assert.equal(ids(plus('WE,20070609,2'), '20070609').length, 7);
+  assert.equal(ids(plus('WE,20070609,2'), '20070616').length, 11);
+  // FULLW,20070605,2 empties Tuesday 5 June as the sample's own row empties Monday 4 June.
+  assert.deepEqual(ids(plus('FULLW,20070605,2'), '20070605'), []);
+  assert.equal(plus('FULLW,20070605,2').routes.length, FEED.routes.length);
+});
+
 test('the weekly pattern repeats every seven days; only calendar_dates.txt breaks it', () => {
   fc.assert(
     fc.property(ymd, (date) => {
