@@ -456,7 +456,7 @@ export default class SeasonsExplainer extends Scene {
             ? 'In June the north end leans toward the Sun far enough that Tromsø’s whole latitude circle sits on the day side. As Earth turns, Tromsø never enters the night half, so the Sun stays up for all 24 hours.'
             : place.lat === 0
               ? 'In June the north end leans toward the Sun, but the day–night line still cuts the equator exactly in half. Quito’s circle is half day and half night, so it gets 12 hours of daylight.'
-              : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ' The latitude where the Sun is overhead is its declination; it shifts north and south through the year.',
+              : `In June the north end leans toward the Sun, so most of London’s latitude circle, the line through the dot, is on the day side: as Earth turns, London spends ${hours(june.daylight)} in daylight, and its noon Sun stands high.`) + ` At noon in June the Sun is overhead at ${exactly(TILT)} N; that latitude is the Sun’s declination, and through the year it moves between ${exactly(TILT)} N and ${exactly(TILT)} S.`,
     });
     // The orbit goes, but its Sun stays: carried to the middle, with June's Earth grown into a side view.
     await this.play(
@@ -482,16 +482,16 @@ export default class SeasonsExplainer extends Scene {
     // How strongly that noon sunlight lands: sin of the altitude, from the model.
     const juneShare = noonShare(place.lat, TILT),
       decShare = noonShare(place.lat, -TILT);
-    await this.step('noon', {
-      title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${percent(juneShare)} of overhead sunlight per m²`,
-      line: 'The yellow band shows how one beam spreads across the ground.',
-      caption: `The white line is ${place.name}’s horizon. A lower Sun spreads the same beam over more ground, sharing its light across a larger patch. A higher Sun concentrates that light. Here each square metre receives ${percent(juneShare)} of what it would under an overhead Sun, before the air takes its share. The angle and its calculation are shown beside the beam.`,
-    });
-    const notes = new Group();
-    notes.key = 'noon-notes';
     // The noon altitude as the reader can check it: operands as given, to the hundredth, and
     // their result, exact to the hundredth too, which the heading rounds to a tenth.
     const formula = `90° − |${exactly(place.lat)} − ${exactly(TILT)}| = ${exactly(june.altitude)}`;
+    await this.step('noon', {
+      title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${percent(juneShare)} of overhead sunlight per m²`,
+      line: 'The yellow band shows how one beam spreads across the ground.',
+      caption: `The white line is ${place.name}’s horizon. A lower Sun spreads the same beam over more ground, sharing its light across a larger patch. A higher Sun concentrates that light. Here each square metre receives ${percent(juneShare)} of what it would under an overhead Sun, before the air takes its share. The noon Sun’s height is 90° minus the distance from ${place.name}’s latitude to the declination: ${formula}.`,
+    });
+    const notes = new Group();
+    notes.key = 'noon-notes';
     {
       const ZOOM = 2,
         w = 16 / ZOOM,
@@ -572,9 +572,9 @@ export default class SeasonsExplainer extends Scene {
       caption:
         'Half an orbit later Earth is on the far side of the Sun, but the axis still points the same way, so the south end now leans sunward and the hemispheres swap seasons. ' +
         (Math.abs(june.daylight - december.daylight) > 0.05
-          ? `${place.name}’s daylight ${december.daylight > june.daylight ? 'increases' : 'decreases'}. ` +
+          ? `${place.name}’s daylight ${december.daylight > june.daylight ? 'rises' : 'falls'} to ${hours(december.daylight)}. ` +
             (december.altitude > 0
-              ? `Its noon Sun is ${december.altitude > june.altitude ? 'higher, concentrating' : 'lower, spreading'} the beam over ${december.altitude > june.altitude ? 'less' : 'more'} ground. `
+              ? `Its noon Sun is ${december.altitude > june.altitude ? 'higher' : 'lower'}, ${degrees(december.altitude)} up, ${december.altitude > june.altitude ? 'concentrating' : 'spreading'} the beam over ${december.altitude > june.altitude ? 'less' : 'more'} ground: ${percent(decShare)} of overhead sunlight per m², against ${percent(juneShare)} in June. `
               : `Its noon Sun stays below the horizon, so it gets no direct sunlight. `) +
             `Both the longer days and the stronger sunlight fall in ${december.daylight > june.daylight ? 'December' : 'June'}, so ${place.name} receives the most sunlight around then.`
           : `${place.name}’s noon Sun stands at the same ${degrees(december.altitude)}, now to the south, so its noon sunlight stays at ${percent(decShare)} of overhead; its daylight stays at ${hours(december.daylight)}.`),
