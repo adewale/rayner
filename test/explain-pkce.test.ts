@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { redeem, theftFlow, pkceFlow, VERIFIER, GUESS } from '../scenes/explainers/lib/pkce.ts';
+import { redeem, theftFlow, pkceFlow, lanes, readable, VERIFIER, GUESS } from '../scenes/explainers/lib/pkce.ts';
 
 // RFC 7636 appendix B: this verifier's S256 challenge.
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
@@ -48,4 +48,29 @@ test('without PKCE the intercepted code is redeemed by the app that caught it', 
   const flow = theftFlow();
   assert.deepEqual(flow.at(-1), { from: 'S', to: 'M', text: 'Access token', channel: 'tls', carries: {} });
   assert.ok(flow.every((m) => !('code_challenge' in m.carries) && !('code_verifier' in m.carries)));
+});
+
+test('the channel map: another app reads the challenge and the code, and no value it reads redeems the code', () => {
+  for (const attacker of [false, true]) {
+    const flow = pkceFlow(attacker), map = lanes(flow);
+    // The client's own messages, by channel and in order: the challenge and the code cross the browser lane,
+    // the code and the verifier the TLS lane, whether or not a malicious app also caught the redirect.
+    assert.deepEqual(map.browser.map((m) => [m.from, m.to, m.carries]), [
+      ['C', 'S', ['code_challenge', 'code_challenge_method']],
+      ['S', 'C', ['code']],
+    ], `attacker ${attacker}`);
+    assert.deepEqual(map.tls.map((m) => [m.from, m.to, m.carries, m.text]), [
+      ['C', 'S', ['code', 'code_verifier'], 'Token request: code + code_verifier'],
+      ['S', 'C', [], 'Access token'],
+    ], `attacker ${attacker}`);
+    // What an app that reads the browser lane holds: the challenge, its method and the code, never the verifier.
+    const held = readable(flow);
+    assert.deepEqual(Object.keys(held), ['code_challenge', 'code_challenge_method', 'code']);
+    assert.equal(held.code_challenge, CHALLENGE);
+    assert.ok(!Object.values(held).includes(VERIFIER));
+    // Presented as the verifier, none of those values redeems the code bound to the challenge.
+    for (const value of Object.values(held)) assert.equal(redeem(CHALLENGE, value), 'invalid_grant', value);
+  }
+  // Before PKCE the same lane holds the code, and the code alone was enough.
+  assert.deepEqual(Object.keys(readable(theftFlow())), ['code']);
 });
