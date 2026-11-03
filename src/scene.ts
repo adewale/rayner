@@ -6,8 +6,7 @@
 // deterministic regardless of sink.
 
 import { prepareAnimation, AnimationGroup } from './animation.ts';
-import { Succession, bindSuccessions, takeCopies } from './animation.ts';
-import { bindRecorders } from './animation.ts';
+import { Succession, bindSuccessions, takeCopies, recordEvidence } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
 import type { Mobject } from './mobject.ts';
 import { perf } from './perf.ts';
@@ -308,8 +307,10 @@ export class Scene<S extends object = SceneState> {
   /**
    * Record a fact about the step running now, for traces and fidelity tests:
    * `{ kind, ...data }` is appended to the step's `evidence` (and to the
-   * scene's, which also keeps what happens before the first step). Matching
-   * transforms record what they paired; TransformDiff the hunks it animated.
+   * scene's, which also keeps what happens before the first step). play()
+   * records each animation's `evidence()` as it begins: what a matching
+   * transform or a View's sync paired, the hunks TransformDiff animated, the
+   * interval a Follow sampled.
    * Unlike `state`, evidence is what the animation did, not what the program
    * is: it lets a test check the picture against an outside oracle. Copied
    * as JSON when recorded.
@@ -454,12 +455,12 @@ export class Scene<S extends object = SceneState> {
   }
 
   beginAnimations(anims: readonly Animation[]): void {
-    bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come
-    bindRecorders(anims, this); // matching transforms record what they paired (Scene.record) as they begin
+    bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come; groups record their members' evidence
     takeCopies(anims); // every TransformFromCopy copies its source before anything in the play begins
     const present = new Set(this.familyMembers());
     for (const a of anims) {
       a.begin();
+      recordEvidence(a, this); // what it decided as it began (matching pairs, diff hunks, a sampled interval)
       const mobs = a.targets();
       for (const m of mobs) {
         // Camera: animated like any mobject, but never added to the drawn list

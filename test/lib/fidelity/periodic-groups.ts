@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import {
-  NIST_UP_TO, atomicNumber, periodLength, configText, coreOf, counted, gaps, listed, membersOf, position, predicted, shorthand, symbolOf,
+  NIST_UP_TO, POSITIONS, atomicNumber, periodLength, configText, coreOf, counted, gaps, listed, membersOf, position, predicted, shorthand, symbolOf,
 } from '../../../scenes/explainers/lib/periodic-groups.ts';
 import type { Symbol } from '../../../scenes/explainers/lib/periodic-groups.ts';
 
@@ -35,6 +35,17 @@ export function check(trace: Trace, values: Record<string, string>): void {
     core, coreSymbol: core ? symbolOf(core) : null, count: p.count, adjustment: p.adjustment,
     listed: shorthand(listed(z), z), listedCount: counted(listed(z), z), ghost: symbol === 'He',
   });
+  // The runs slide into the table: the stack redraw keeps every element's cell and every letter of
+  // its symbol, wherever it goes, and fades nothing of the rows it came from. Recorded by the
+  // table's own sync as it began, so this is what the morph paired, not what the end shows.
+  const tableMatches = (step: string) =>
+    (trace.steps.find((s) => s.step === step)!.evidence ?? []).filter((e) => e.kind === 'match' && e.view === 'periodic:table');
+  const [stacked] = tableMatches('stack');
+  const kept = POSITIONS.length + POSITIONS.reduce((n, p) => n + [...p.symbol].length, 0);
+  assert.equal(POSITIONS.length, 118);
+  assert.ok(stacked, 'the stack step records its table redraw');
+  assert.equal(stacked.matched, kept, 'every cell and symbol letter is kept across the stack');
+  assert.equal(stacked.removed, 0, 'nothing of the filling rows fades out');
   // The landing column, s then d then p widths, is the group for all but helium, whose run says 2.
   const last = predicted(z).at(-1)!;
   const landed = last.l === 's' ? last.electrons : last.l === 'd' ? 2 + last.electrons : 12 + last.electrons;

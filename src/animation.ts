@@ -73,6 +73,26 @@ abstract class AnimationTiming {
   abstract cleanUpFromScene(scene: Scene): void;
   /** The mobjects this animation writes: what play() admits to the scene and allows one writer each. */
   abstract targets(): Mobject[];
+  /**
+   * What this animation decided when it began, for the step's trace: read once, right
+   * after begin(), and recorded with Scene.record. null (the default) records nothing.
+   * Matching transforms report what they paired, TransformDiff the hunks it animated,
+   * a View's sync what its morph paired, Follow the interval it sampled.
+   */
+  evidence(): Evidence | null { return null; }
+}
+
+/**
+ * Record what an animation decided as it began. Called by whoever began it: play() for
+ * the animations it is given and a Succession's members, a group for its own members.
+ * A group records nothing itself; its members do, in the order they begin.
+ */
+export function recordEvidence(a: ScheduledAnimation, scene: Scene | null): void {
+  if (!scene || a instanceof AnimationGroup) return;
+  const e = a.evidence();
+  if (!e) return;
+  const { kind, ...data } = e;
+  scene.record(kind, data);
 }
 export type ScheduledAnimation = Animation | AnimationGroup;
 
@@ -203,6 +223,11 @@ export class Follow extends Animation {
   }
 
   override targets(): Mobject[] { return this.written; }
+
+  /** The interval it sampled and what it wrote: `{ kind: 'follow', from, to, targets }`, targets by key (or class). */
+  override evidence(): Evidence {
+    return { kind: 'follow', from: this.start, to: this.spec.to, targets: this.written.map((m) => m.key ?? m.constructor.name) };
+  }
 
   override begin(): void {
     const from = typeof this.spec.from === 'function' ? this.spec.from() : this.spec.from;
@@ -539,7 +564,14 @@ export class AnimationGroup extends AnimationTiming {
     }
     return this;
   }
-  override begin(): void { for (const a of this.animations) a.begin(); }
+  /** The scene the play runs on, set by play() (see bindSuccessions): members record their evidence to it as they begin. */
+  scene: Scene | null = null;
+  override begin(): void {
+    for (const a of this.animations) {
+      a.begin();
+      recordEvidence(a, this.scene);
+    }
+  }
   /** Each member lands where the group's own timeline puts it at rateFunc(1) (a there-and-back group ends at the start). */
   override finish(alpha: number = this.rateFunc(1)): void {
     this.animations.forEach((a, i) => a.finish(a.rateFunc(this.memberTime(alpha, i))));
@@ -862,14 +894,12 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * rate functions, and a group rate function must not run time backwards.
  */
 export class Succession extends AnimationGroup {
-  /** The scene the members join as they begin; set by play() (see bindSuccessions). */
-  scene: Scene | null;
   /** Index of the member running now; earlier ones have finished. Set by begin(). */
   active: number;
 
+  /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
   constructor(animations: Playable[], opts: AnimOpts = {}) {
     super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x)), { rateFunc: linear, ...opts, lagRatio: 1 });
-    this.scene = null;
     this.active = -1;
   }
 
@@ -928,12 +958,16 @@ class BuiltTransform extends Transform {
   }
 }
 
-/** Bind nested schedules to their scene, validating scene-bound state changes before beginning. */
+/**
+ * Bind nested schedules to their scene, validating scene-bound state changes before
+ * beginning: a Succession's members join it as they begin, and every group records
+ * its members' evidence to it.
+ */
 export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
     if (a instanceof SetState && a.host !== scene) throw new Error('SetState must play on the scene it belongs to');
     if (!(a instanceof AnimationGroup)) continue;
-    if (a instanceof Succession) a.scene = scene;
+    a.scene = scene;
     bindSuccessions(a.animations, scene);
   }
 }
@@ -1046,14 +1080,11 @@ export class TransformMatching extends Animation {
   frames!: FrameRow[];
   /** The source family after begin() attached the copies: whose boxes go stale each frame. */
   touched!: Mobject[];
-  /** The scene begin() records the pairing to (Scene.record); set by play(), see bindRecorders. */
-  scene: Scene | null;
 
   constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, ...opts }: TransformMatchingOpts) {
     super(mobject, opts);
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
     this.pathFunc = pathFunc; this.replace = replace;
-    this.scene = null;
   }
 
   /** How many parts were matched, morphed, faded out and faded in. */
@@ -1061,8 +1092,8 @@ export class TransformMatching extends Animation {
     return { matched: this.pairs.length, morphed: this.morphed.length, removed: this.removed.length, added: this.added.length };
   }
 
-  /** What begin() records to the scene: the counts, as `match` evidence. */
-  evidence(): Evidence { return { kind: 'match', ...this.summary() }; }
+  /** What play() records once this has begun: the counts, as `match` evidence. */
+  override evidence(): Evidence { return { kind: 'match', ...this.summary() }; }
 
   override begin(): void {
     const src = this.mobject, tgt = this.target;
@@ -1163,7 +1194,6 @@ export class TransformMatching extends Animation {
     });
     this.touched = src.family();
     this.interpolate(0);
-    if (this.scene) { const { kind, ...data } = this.evidence(); this.scene.record(kind, data); }
   }
 
   override interpolate(alpha: number): void {
@@ -1546,12 +1576,6 @@ export class TransformDiff extends TransformMatching {
 }
 
 /** Give every matching transform in `anims` (nested in groups too) the scene it records its pairing to. */
-export function bindRecorders(anims: readonly ScheduledAnimation[], scene: Scene): void {
-  for (const a of anims) {
-    if (a instanceof TransformMatching) a.scene = scene;
-    else if (a instanceof AnimationGroup) bindRecorders(a.animations, scene);
-  }
-}
 
 // A span's children are its line's glyphs, which carry their source index
 const clusterOf = (g: Mobject): number => (g as { cluster?: number }).cluster ?? -1;

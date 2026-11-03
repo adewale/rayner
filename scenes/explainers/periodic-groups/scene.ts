@@ -629,6 +629,9 @@ export default class PeriodicGroupsExplainer extends Scene {
     // Both pictures are drawn from this.state, so every resting picture is the state it shows.
     const table = view(this, drawTable, { place: false });
     const notes = view(this, drawNotes, { place: false });
+    // Named, so each redraw's evidence says which picture it paired.
+    table.key = 'periodic:table';
+    notes.key = 'periodic:notes';
     this.table = table;
     this.notes = notes;
     s.keep(table, notes, { describe: () => describe(this.state) });

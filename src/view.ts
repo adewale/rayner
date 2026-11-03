@@ -18,7 +18,7 @@ import type { MatchKey, MatchSummary } from './animation.ts';
 import type { RateFunc } from './rate.ts';
 import { Text } from './text.ts';
 import { StateReadout } from './panels.ts';
-import type { Scene, SceneState } from './scene.ts';
+import type { Scene, SceneState, Evidence } from './scene.ts';
 import type { Vec } from './vec.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
@@ -184,6 +184,12 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
 
   /** What the matching transform paired, once begun; null for 'index' or when nothing changed. */
   summary(): MatchSummary | null { return this.inner instanceof TransformMatching ? this.inner.summary() : null; }
+
+  /** The morph's evidence (`match` counts), with the View's key as `view` when it has one; none for 'index' or no change. */
+  override evidence(): Evidence | null {
+    const e = this.inner?.evidence() ?? null;
+    return e && this.view.key !== undefined ? { ...e, view: this.view.key } : e;
+  }
 }
 
 /** A View of `build()`; build reads whatever state it closes over each time it is called. */
