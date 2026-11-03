@@ -23,6 +23,7 @@ export function frames(shade: Shade, screen: Space): ReaderFrame[] {
     most = all.find((r) => r.family === sum.mostOfSrgb.family)!;
   const preview = painted(most.L, most.C, most.h);
   const written = /oklch\([^)]*\)/.exec(THEME_LINES[most.line]!)![0];
+  const split = written.indexOf(' ');
   const name = `${most.family}-${shade}`;
   return [
     {
@@ -57,12 +58,13 @@ export function frames(shade: Shade, screen: Space): ReaderFrame[] {
         }
         g.add(
           new Rectangle({ width: w, height: h, fill: preview, stroke: s.soft, strokeWidth: 0.03 }).moveTo([right, y]),
-          label('As written', left, y + h / 2 + 0.5, s.palette.ink, 0.6),
-          label('On an sRGB screen', right, y + h / 2 + 0.5, s.palette.ink, 0.6),
-          label(written, left, y - h / 2 - 0.5, s.palette.ink, 0.46),
-          label(preview, right, y - h / 2 - 0.5, s.palette.ink, 0.46),
-          label(`Chroma ${most.C.toFixed(3)}`, left, y - h / 2 - 1.25, s.emphasis, 0.56),
-          label(`Chroma ${most.shown.toFixed(3)}`, right, y - h / 2 - 1.25, s.emphasis, 0.56),
+          label('As written', left, y + h / 2 + 0.5, s.palette.ink, 0.66),
+          label('On an sRGB screen', right, y + h / 2 + 0.5, s.palette.ink, 0.66),
+          label(written.slice(0, split), left, y - h / 2 - 0.5, s.palette.ink, 0.66),
+          label(written.slice(split + 1), left, y - h / 2 - 1.3, s.palette.ink, 0.66),
+          label(preview, right, y - h / 2 - 0.5, s.palette.ink, 0.66),
+          label(`Chroma ${most.C.toFixed(3)}`, left, y - h / 2 - 2.35, s.emphasis, 0.66),
+          label(`Chroma ${most.shown.toFixed(3)}`, right, y - h / 2 - 2.35, s.emphasis, 0.66),
         );
         return g;
       },

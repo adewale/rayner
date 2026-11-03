@@ -4,6 +4,12 @@ import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
+import { READ_PX } from '../../app/embed-closeup.ts';
+
+/** A planned label can round a few millionths of a CSS pixel in the browser's SVG matrix. */
+export function readableOpeningLabel(pixels: number | null | undefined): boolean {
+  return typeof pixels === 'number' && Number.isFinite(pixels) && pixels >= READ_PX - 1e-5;
+}
 
 export interface ReviewScope {
   part: number;
@@ -215,7 +221,7 @@ export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedC
         );
         assert.ok(
           obligation.labels.length
-            ? Number.isFinite(opening.minimumLabelPx) && opening.minimumLabelPx! >= 12 - 1e-6
+            ? readableOpeningLabel(opening.minimumLabelPx)
             : opening.minimumLabelPx === null,
           `${c.scene}/${step.step}: narrow-opening labels must reach 12px`,
         );
