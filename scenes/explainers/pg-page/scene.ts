@@ -9,10 +9,15 @@ import {
   SWAP,
   TEXT_CHARS,
   TUPLE_HEADER,
+  INT4,
+  INT8,
   caseOf,
+  fill,
   percent,
+  shortText,
+  tuple,
 } from '../lib/pg-page.ts';
-import type { Case, Column, Share } from '../lib/pg-page.ts';
+import type { Attr, Case, Column, Share } from '../lib/pg-page.ts';
 
 // Sources, all at postgres/postgres tag REL_18_6; lines are quoted in lib/pg-page.ts and
 // test/explain-pg-page.test.ts, which also freezes the measurements on Postgres 18.6.
@@ -81,6 +86,22 @@ const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
 /** The script's one-sentence answer (script.md); the swap step's caption opens with it. */
 const ANSWER = 'On a 64-bit build, Postgres gives every tuple a multiple of 8 bytes';
 
+// The check questions' rows, laid out by the model's rules (not measured): two int4 columns, one int2
+// (smallint: 2 bytes, pg_type typalign 's'), and the integer followed by a 15-character text.
+const INT2: Attr = { name: 'int2', len: 2, align: 2 };
+const rowOf = (attrs: readonly Attr[]) => {
+  const t = tuple(attrs);
+  return { ...t, rows: fill(t.stored, 100).rows };
+};
+const ONE = rowOf([INT4]),
+  TWO = rowOf([INT4, INT4]),
+  SMALL_INT = rowOf([INT2]),
+  T15 = 15,
+  NARROW15 = rowOf([INT4, shortText(T15)]),
+  WIDE15 = rowOf([INT8, shortText(T15)]);
+if (TWO.perRow !== ONE.perRow || SMALL_INT.perRow !== ONE.perRow || NARROW15.perRow !== WIDE15.perRow)
+  throw new Error('The check answers assume each changed row costs what its comparison row costs');
+
 export default class PgPageExplainer extends Scene {
   static meta = {
     id: 'pg-page',
@@ -103,18 +124,27 @@ export default class PgPageExplainer extends Scene {
     answer: ANSWER,
     checks: [
       {
-        question: 'An int4 row and an int8 row both take 36 bytes of the page. Where do int8’s 4 extra bytes go?',
-        answer:
-          'Into padding. The int4 tuple is 28 bytes, and the page rounds every tuple up to a multiple of 8, so it ends in 4 bytes of padding; int8’s extra 4 bytes take their place, and its tuple is exactly 32.',
+        question: 'Would a row with two int4 columns take more page space than a row with one?',
+        answer: `No. The first int4 ends at byte ${ONE.lpLen}, and the second fills bytes ${ONE.lpLen} to ${TWO.lpLen - 1}, the padding one int4 leaves. Both tuples take ${ONE.stored} bytes, so both rows cost ${ONE.perRow} and a page holds ${TWO.rows} of either.`,
       },
       {
-        question: 'On a full page of int4 rows, which takes more room: the values or the tuple headers?',
-        answer: 'The tuple headers, 63.5% of the page, against 11.0% for the values: 23 header bytes a row against 4 of data.',
+        question: 'Would smallint (int2, 2 bytes) fit more rows on a page than int4?',
+        answer: `No. Its tuple is ${SMALL_INT.hoff} + 2 = ${SMALL_INT.lpLen} bytes, which the page rounds up to ${SMALL_INT.stored}, the same as int4’s ${ONE.lpLen}. Both rows cost ${ONE.perRow} bytes and a page holds ${SMALL_INT.rows}.`,
       },
       {
-        question: 'With an 11-character text column after the integer, why does int8 cost more than int4?',
-        answer:
-          'Text needs no alignment. After an int4 it starts at byte 28, in what was padding, and the tuple is 40 bytes; after an int8 it starts at 32, the tuple is 44 bytes, and the page rounds it up to 48.',
+        question: `With a ${T15}-character text after the integer instead of an ${TEXT_CHARS}-character one, does int4 still fit more rows than int8?`,
+        answer: `No. After an int4 the tuple is ${NARROW15.lpLen} bytes, rounded up to ${NARROW15.stored}; after an int8 it is ${WIDE15.lpLen}, already a multiple of 8. Both rows cost ${NARROW15.perRow} bytes, so the saving the ${TEXT_CHARS}-character text showed disappears.`,
+      },
+    ],
+    // The sentences that reach beyond the rows on screen, and the tests that hold them.
+    claims: [
+      {
+        says: 'every page starts with a 24-byte header',
+        test: 'test/explain-pg-page.test.ts: the page header, line pointer and tuple header sizes',
+      },
+      {
+        says: 'Postgres gives every tuple a multiple of 8 bytes',
+        test: 'test/explain-pg-page.test.ts: stored in a multiple of MAXALIGN',
       },
     ],
   };
@@ -393,7 +423,7 @@ export default class PgPageExplainer extends Scene {
       line: `Tuple headers take ${percent(sh.headers)} of the page${sh.headers > sh.data ? ', more than the data' : ''}.`,
       caption: `Inserts fill the page until the next row no longer fits: ${p.rows} rows. The pie splits the ${BLCKSZ} bytes, with each part’s bytes in brackets. The ${p.rows} tuple headers take ${percent(sh.headers)}, ${
         sh.headers > sh.data ? 'more than' : 'next to'
-      } the ${percent(sh.data)} that is the values${isText ? ', counting the text’s length byte' : ''}: of each row’s ${t.perRow} bytes, ${t.data} are data. ${same ? 'The extra four data bytes replaced padding rather than crossing the next eight-byte allocation boundary. The large header share explains why value width is only part of the storage bill.' : `Here the 4 bytes did matter: they pushed the ${wide.label} tuple past a multiple of 8.`}`,
+      } the ${percent(sh.data)} that is the values${isText ? ', counting the text’s length byte' : ''}: of each row’s ${t.perRow} bytes, ${t.data} are data. ${same ? `Each of these rows pays ${TUPLE_HEADER} header bytes for ${t.data} bytes of value, so the integer’s width is a small part of the page whichever type is chosen.` : `Here the 4 bytes did matter: they pushed the ${wide.label} tuple past a multiple of 8.`}`,
     });
     await s.clear();
     // The whole stage for the pie, so its narrow slices have room for their labels.
@@ -406,7 +436,11 @@ export default class PgPageExplainer extends Scene {
       title: `Row ${p.rows + 1} would need ${t.stored} bytes and a pointer; ${p.free} are left`,
       line: `Free space less a ${LINE_POINTER}-byte pointer is ${p.heapFree} bytes, too few.`,
       // hio.c:520, 553, 703 and bufpage.c:906-921 (PageGetFreeSpace subtracts one ItemIdData).
-      caption: `${p.rows} rows of ${t.perRow} bytes use ${used} of the ${BLCKSZ - PAGE_HEADER} free bytes, leaving ${p.free}; a new row needs both its pointer and its tuple. Reserving the ${LINE_POINTER}-byte pointer leaves ${p.heapFree} bytes for a tuple that needs ${t.stored}. The row cannot fit, even though its unpadded data may look small enough.`,
+      caption: `${p.rows} rows of ${t.perRow} bytes use ${used} of the ${BLCKSZ - PAGE_HEADER} free bytes, leaving ${p.free}; a new row needs both its pointer and its tuple. Reserving the ${LINE_POINTER}-byte pointer leaves ${p.heapFree} bytes for a tuple that needs ${t.stored}. ${
+        t.lpLen <= p.heapFree
+          ? `The tuple’s own ${t.lpLen} bytes would fit; rounding them up to ${t.stored} is what keeps row ${p.rows + 1} out.`
+          : `Even unrounded, its ${t.lpLen} bytes would not fit.`
+      }`,
     });
     await s.clear();
     d = await s.show({ source: pie(c) }, { box: PIE_BOX });
@@ -418,11 +452,12 @@ export default class PgPageExplainer extends Scene {
         ['Left', `${p.free}`],
         ['pd_lower, pd_upper', `${p.lower}, ${p.upper}`],
         [`Left less a pointer`, `${p.heapFree}`],
-        ['Next row needs', `${t.stored}`],
+        ['Next tuple, unrounded', `${t.lpLen}`],
+        ['Next tuple, rounded up', `${t.stored}`],
       ],
       { at: RIGHT, fontSize: SIZE, title: `Why ${p.rows} rows` },
     );
-    this.state.why = { used, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored };
+    this.state.why = { used, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored, unrounded: t.lpLen };
 
     // ------------------------------------------------------------------ compare
     const all = (['int4', 'int8', 'int4-text', 'int8-text'] as Column[]).map((k) => caseOf(k, 100));

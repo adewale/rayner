@@ -113,6 +113,16 @@ const number = (n: number) =>
   ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'][n] ?? String(n);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
+/** The sample feed with one more calendar_dates.txt row, for the check questions. */
+const plus = (row: string) =>
+  readFeed({ ...SAMPLE_FEED, 'calendar_dates.txt': SAMPLE_FEED['calendar_dates.txt'] + '\n' + row });
+const ADD_WE = 'WE,20070604,1',
+  CUT_WE = 'WE,20070609,2',
+  ADDED = tripsOn(plus(ADD_WE), '20070604').map((t) => t.trip_id!),
+  CUT_DAY = tripsOn(plus(CUT_WE), '20070609').length,
+  CUT_NEXT = tripsOn(plus(CUT_WE), '20070616').length,
+  TUESDAY = tripsOn(plus('FULLW,20070605,2'), '20070605').length;
+
 /** What one service's calendar rows say for a date, in a few words. */
 function verdict(s: ServiceDay, date: GtfsDate): string {
   const day = weekday(date);
@@ -137,23 +147,30 @@ export default class GtfsExplainer extends Scene {
       TRANSIT + 'examples/sample-feed-1',
       'https://github.com/google/transit/blob/3c9e7b904b5035349622f03e11851e25c16d1d99/LICENSE',
     ],
-    // The script's answer and check questions (script.md); check holds a step (service) to stating the answer.
+    // The script's answer, stated by the service step, and three questions that ask the reader to edit the
+    // feed: each answer is the model's result on the sample feed with one more calendar_dates.txt row.
     answer: ANSWER,
     checks: [
       {
-        question: 'calendar.txt says FULLW runs every day of the week. Why does no trip run on Monday 4 June 2007?',
-        answer:
-          'calendar_dates.txt has the row FULLW,20070604,2: exception_type 2 removes FULLW for that one date, overriding the weekly pattern. The other service, WE, runs only on Saturdays and Sundays.',
+        question:
+          'Route 50’s four trips run only at weekends. Which one row, in which file, would make them run on Monday 4 June 2007 as well?',
+        answer: `calendar_dates.txt: ${ADD_WE}. exception_type 1 adds service WE on that date, so ${list(ADDED)} run, ${ADDED.length} of the ${FEED.trips.length} trips; routes.txt, trips.txt and stop_times.txt stay as they are.`,
       },
       {
-        question: 'Why do the four route 50 trips run on Saturday 9 June but not on Tuesday 5 June?',
-        answer: 'Their service_id is WE, whose calendar.txt row has 1 only under saturday and sunday.',
+        question:
+          'To cancel route 50 on Saturday 9 June 2007 only, why not delete its row from routes.txt, and what row would do it instead?',
+        answer: `Deleting the route would remove it from every date and leave four trips whose route_id names nothing. The row ${CUT_WE} in calendar_dates.txt removes WE on that one date: ${CUT_DAY} of the ${FEED.trips.length} trips still run, and the next Saturday keeps all ${CUT_NEXT}.`,
       },
       {
         question: 'If calendar_dates.txt also had the row FULLW,20070605,2, what would Tuesday 5 June look like?',
-        answer:
-          'Like Monday: FULLW would be removed for the day and WE does not run on Tuesdays, so none of the 11 trips would run, though every route stays in routes.txt.',
+        answer: `Like Monday: FULLW would be removed for the day and WE does not run on Tuesdays, so ${TUESDAY ? `${TUESDAY} trips would run` : `none of the ${FEED.trips.length} trips would run`}, though all ${FEED.routes.length} routes stay in routes.txt.`,
       },
+    ],
+    // The sentences that reach beyond the case on screen, and the tests that hold them.
+    claims: [
+      { says: 'A route has departures only on dates its trips’ service runs', test: 'test/explain-gtfs.test.ts: a route has departures only on dates' },
+      { says: 'AB1 runs only on the dates its service', test: 'test/explain-gtfs.test.ts: a route has departures only on dates' },
+      { says: 'only FULLW runs', shown: true as const },
     ],
   };
   static settings = [
@@ -253,11 +270,11 @@ export default class GtfsExplainer extends Scene {
         : `Predict: all ${FEED.routes.length} routes are still in routes.txt. Why does none run?`,
       caption: `The date is now ${shortDate(date)}. The route list has not changed, but the active trips have: ${
         started.length
-          ? `${upper(number(started.length))} trips under ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
+          ? `${number(started.length)} trips under ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
           : ''
       }${
         stopped.length
-          ? `${upper(number(stopped.length))} trips under ${list(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
+          ? `${started.length ? ' ' + upper(number(stopped.length)) : number(stopped.length)} trips under ${list(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
           : ''
       } To see why, follow one trip, AB1, from its route to its dates.`,
     });
@@ -377,7 +394,7 @@ export default class GtfsExplainer extends Scene {
       title: 'What leaves a stop: rows of stop_times.txt',
       line: 'One row per stop a trip makes, in stop_sequence order.',
       // reference.md:121, :306, :309; frequencies :657, :664-667.
-      caption: `Which of the running trips leave a given stop? stop_times.txt joins trips to stops: one row for each stop a trip makes, in stop_sequence order, with its times. AB1 leaves ${stopName(ab1First.stop_id!)} at ${clock(seconds(ab1First.departure_time!))} and reaches ${stopName(ab1Last.stop_id!)} at ${clock(seconds(ab1Last.arrival_time!))}. A trip listed in frequencies.txt repeats through the day on a headway.`,
+      caption: `Which of the running trips leave a given stop? stop_times.txt joins trips to stops: one row for each stop a trip makes, in stop_sequence order, with its times. AB1 leaves ${stopName(ab1First.stop_id!)} at ${clock(seconds(ab1First.departure_time!))} and reaches ${stopName(ab1Last.stop_id!)} at ${clock(seconds(ab1Last.arrival_time!))}. A trip listed in frequencies.txt instead repeats on a headway between the start and end times of its rows there.`,
     });
     await s.clear();
     const er2 = await s.show({ source: ER }, { box: LEFT });

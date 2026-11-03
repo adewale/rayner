@@ -25,7 +25,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   });
   assertStepState(trace, 'full', { full: { rows: p.rows, share: c.share } });
   assertStepState(trace, 'why', {
-    why: { used: p.rows * t.perRow, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored },
+    why: { used: p.rows * t.perRow, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored, unrounded: t.lpLen },
   });
   // The two tuples side by side, byte for byte; the other type's pie and the fillfactor step are gone.
   assertStepState(trace, 'swap', {

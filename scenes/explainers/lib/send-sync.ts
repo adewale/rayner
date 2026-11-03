@@ -77,6 +77,11 @@ export const WRAPS: Record<Wrapper, readonly Ctor[]> = {
   mutex: ['Mutex'],
   'arc-mutex': ['Mutex', 'Arc'],
 };
+/**
+ * Types the check questions ask about that no step draws: a Mutex inside an Rc, and a guard inside an
+ * Arc. test/explain-send-sync.test.ts compiles the model's answers for them whenever rustc is on PATH.
+ */
+export const CHECK_TYPES: readonly RustType[] = [t('Rc', t('Mutex', I32)), t('Arc', t('MutexGuard', I32))];
 /** The four single types the scene places first, one per quadrant. */
 export const SINGLES: readonly RustType[] = [I32, t('Rc', I32), t('Cell', I32), t('MutexGuard', I32)];
 

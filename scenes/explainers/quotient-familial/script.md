@@ -1,15 +1,15 @@
 # Comment les parts changent-elles l’impôt d’un couple ?
 
-Un couple marié ou pacsé avec un enfant déclare 65 673,88 € de revenu net imposable pour 2024. Le calcul divise ce revenu par un nombre de parts, applique le barème, puis multiplie. Si l’on finit par multiplier, pourquoi commencer par diviser ?
+Un couple marié ou pacsé avec un enfant déclare 65 673,88 € de revenu net imposable pour 2024. Le calcul de son impôt fait une chose étrange : il divise ce revenu par un nombre de parts, applique le barème au résultat, puis multiplie l’impôt obtenu par ce même nombre. Diviser puis multiplier par le même nombre devrait ramener au point de départ. Est-ce que cela change l’impôt ?
 
-Parce que le barème est progressif : les euros du haut sont taxés davantage que ceux du bas. Les parts tiennent compte des personnes qui vivent de ce revenu. Le couple compte deux parts et son enfant une demi-part, soit 2,5 parts. Le revenu d’une part, appelé quotient, est donc d’environ 26 270 €.
+Les parts comptent les personnes qui vivent du revenu. Le couple compte deux parts, son enfant une demi-part : 2,5 parts. Le revenu d’une part, appelé quotient, est de 26 269,55 €.
 
-Ce quotient reste dans la tranche à 11 %. Cela ne veut pas dire que tout est taxé à 11 % : les premiers 11 497 € ne sont pas taxés, et seuls les euros au-dessus le sont. Le résultat est d’environ 1 625 € pour une part. Multiplié par 2,5, il donne environ 4 062 €.
+Le barème taxe ce quotient tranche par tranche. Les 11 497 premiers euros ne sont pas taxés ; les 14 772,55 € suivants le sont à 11 %. Passer dans la tranche à 11 % ne change rien aux euros d’en dessous, qui gardent leur taux. Une part paie ainsi 1 624,98 €, soit 6,2 % de son quotient.
 
-Appliquer directement le barème au revenu entier donnerait environ 12 868 €, car une partie monterait dans la tranche à 30 %. Diviser change donc le résultat avant même que l’on multiplie : chaque part repart du bas du barème.
+Multiplié par 2,5, cela donne 4 062,45 €. Le même barème appliqué au revenu entier donnerait 12 867,64 €, parce que les euros au-delà de 29 315 € y paient 30 %. Voilà la réponse : diviser change l’impôt parce que le barème est progressif. Chaque part repart du bas du barème, si bien que moins d’euros atteignent les tranches les plus taxées.
 
-L’avantage apporté par l’enfant est toutefois limité. Le même couple sans enfant, avec deux parts, aurait environ 6 033 € d’impôt. La demi-part supplémentaire ferait gagner environ 1 971 €, mais le plafond n’autorise ici que 1 791 €. Le calcul retient donc 6 033 € moins 1 791 €, soit environ 4 242 €. La décote, qui allège les petits impôts, ne joue pas à ce niveau.
+Ce gain a une limite. Pour la mesurer, on calcule l’impôt du même revenu sur deux parts, comme pour un couple sans enfant : 6 033,12 €. L’enfant ferait donc gagner 1 970,67 €. Or une demi-part ne peut réduire l’impôt de plus de 1 791 €. Le calcul retient 6 033,12 € − 1 791 €, soit 4 242,12 €, et le plafond reprend 179,67 €. Enfin, la décote, qui allège les petits impôts, ne joue plus au-delà de 3 248 € d’impôt ; ce couple paie 4 242 €.
 
-Changer le revenu et le nombre d’enfants permet de distinguer ces effets. Avec un revenu plus faible, la décote peut annuler l’impôt. Avec un revenu plus élevé, le plafond reprend une partie de l’avantage des enfants. Les parts abaissent le revenu auquel on applique le barème ; le plafond limite ensuite le gain, et la décote peut encore réduire les petits montants.
+Le revenu et le nombre d’enfants se choisissent. À 30 000 €, l’avantage de la demi-part reste sous le plafond, et l’impôt tombe à zéro quel que soit le nombre d’enfants : la décote l’annule sans enfant ou avec un enfant, et le barème ne trouve plus rien à taxer avec deux ou trois. À 150 000 €, le plafond reprend une partie de l’avantage pour un, deux ou trois enfants.
 
-Les seuils changent aussi d’une année à l’autre. Le détail consacré aux revenus 2025 reprend le même foyer avec les nouveaux paramètres : un changement du résultat peut venir des règles, même lorsque le revenu et la famille restent les mêmes.
+Le calcul suivi ici s’arrête avant les réductions et crédits d’impôt, ignore le seuil de 61 € sous lequel l’impôt n’est pas recouvré et ne traite que les couples mariés ou pacsés. Les seuils changent aussi d’une année à l’autre : pour les revenus 2025, les seuils montent d’environ 0,9 %, les taux ne bougent pas, et le même couple paierait 4 103 €. Un impôt peut donc changer sans que le revenu ni la famille changent.

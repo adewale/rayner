@@ -2,8 +2,8 @@ import { Scene, Text, Rectangle } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from '../lib/send-sync.ts';
-import type { Inner, Wrapper, Quadrant, Layer } from '../lib/send-sync.ts';
+import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from '../lib/send-sync.ts';
+import type { Inner, Wrapper, Quadrant, Layer, RustType } from '../lib/send-sync.ts';
 
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in lib/send-sync.ts
 // and test/explain-send-sync.test.ts.
@@ -63,6 +63,14 @@ const valueName = (type: string) => `x is ${type}`;
 const ANSWER = 'Arc<T> is Send only when T is both Send and Sync';
 /** Where each quadrant's cell sits in the small map under the right column, in Mermaid's numbering. */
 const MAP: Record<Quadrant, [number, number]> = { 1: [6.35, -1.95], 2: [4.15, -1.95], 3: [4.15, -2.95], 4: [6.35, -2.95] };
+// The check questions' types: a plain Cell, moved or borrowed; and the two types no step draws.
+const CELL = {
+  send: isSend(INNERS.cell),
+  sync: isSync(INNERS.cell),
+  spawn: isSend(INNERS.cell),
+  scope: isSend(t('&', INNERS.cell)),
+};
+const [RC_MUTEX, ARC_GUARD] = CHECK_TYPES as [RustType, RustType];
 
 export default class SendSyncExplainer extends Scene {
   static meta = {
@@ -80,24 +88,32 @@ export default class SendSyncExplainer extends Scene {
       REFERENCE + '#L729-L734',
       NOMICON + '#L8-L29',
     ],
-    // The script's answer and check questions (script.md); check holds a step (arc-cell) to stating the answer.
+    // The script's answer, stated by the arc-cell step, and three questions on types or uses no step draws;
+    // each answer is the model's, compiled by test/explain-send-sync.test.ts.
     answer: ANSWER,
     checks: [
       {
-        question: 'Why does rustc refuse thread::spawn(move || x.set(1)) when x is an Arc<Cell<i32>>?',
-        answer:
-          'Arc<T> is Send only when T is both Send and Sync, because every clone reaches the same T. Cell<i32> is not Sync, since Cell::set writes through &self with no synchronisation, so Arc<Cell<i32>> is neither Send nor Sync.',
+        question: 'Take a plain Cell<i32> c, with no Arc. Does thread::spawn(move || c.set(1)) compile? Does a scoped thread that borrows &c?',
+        answer: `${CELL.spawn ? 'The move compiles' : 'The move is refused'}: it hands the whole Cell to the new thread, and Cell<i32> is ${CELL.send ? '' : 'not '}Send. The borrow ${CELL.scope ? 'compiles' : 'is refused'}: the scoped thread would share c with its parent through &c, and Cell<i32> is ${CELL.sync ? '' : 'not '}Sync.`,
       },
       {
-        question: 'Which type here is Sync but not Send, and why can’t it move?',
-        answer:
-          'MutexGuard<i32>. Dropping it unlocks the mutex, and with POSIX threads a lock must be released on the thread that took it.',
+        question: 'Mutex made Cell<i32> safe to share. Does Rc<Mutex<i32>> cross to another thread?',
+        answer: `${isSend(RC_MUTEX) ? 'Yes' : 'No'}. Rc’s plain owner count is the problem, not the value inside, so Rc<T> is neither Send nor Sync whatever T is, and ${nameOf(RC_MUTEX)} is ${traits(isSend(RC_MUTEX), isSync(RC_MUTEX))}.`,
       },
       {
         question: 'Is Arc<MutexGuard<i32>> Send?',
-        answer:
-          'No. Arc needs T to be both Send and Sync, and MutexGuard<i32> is Sync but not Send, so Arc<MutexGuard<i32>> is neither.',
+        answer: `${isSend(ARC_GUARD) ? 'Yes' : 'No'}. Arc needs T to be both Send and Sync, and MutexGuard<i32> is Sync but not Send, so ${nameOf(ARC_GUARD)} is neither.`,
       },
+    ],
+    // The sentences that reach beyond the case on screen, and what holds them. The rule table test reads the
+    // impl lines; the evaluator test holds the model to rustc 1.99.1's answers.
+    claims: [
+      { says: 'Arc<T> is Send only when T is both Send and Sync', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
+      { says: 'Mutex<T> needs only T: Send', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
+      { says: 'a move closure that owns x is Send only if', test: 'test/explain-send-sync.test.ts: the evaluator gives rustc’s answers' },
+      { says: 'every combination occurs', shown: true as const },
+      // The quadrant's name, as the chart labels it.
+      { says: '“Send only”', shown: true as const },
     ],
   };
   static settings = [
@@ -254,7 +270,7 @@ export default class SendSyncExplainer extends Scene {
       title: 'Send and Sync: the two questions in that error',
       line: 'Predict: Cell::set writes through a shared &self. Which quadrant holds Cell<i32>?',
       caption:
-        'thread::spawn needs everything its closure owns to be Send: safe to move to another thread. Sync is the other question: can several threads hold a shared reference &T to it at once? The standard library defines T as Sync exactly when &T is Send. The compiler answers both questions for every type, so each type falls in one of four quadrants.',
+        'thread::spawn needs everything its closure owns to be Send: safe to move to another thread. Sync is the other question: can several threads hold a shared reference &T to it at once? The standard library defines T as Sync exactly when &T is Send. rustc answers both questions for a type, so the type lands in one of four quadrants.',
     });
     await s.clear();
     const singles = SINGLES.map((type) => ({
@@ -307,7 +323,7 @@ export default class SendSyncExplainer extends Scene {
         // marker.rs:92 and :657 declare both as auto traits; :521 says primitive types are Sync;
         // the Nomicon (lines 20-23) says almost all primitives are Send and Sync.
         caption:
-          'Send and Sync are auto traits: the compiler gives them to any type built only from parts that have them. Primitives such as i32 have both, so i32 sits in the top-right quadrant. Each point sits at one fixed spot in its quadrant, so only the quadrant carries meaning.',
+          'Send and Sync are auto traits: a type made of parts that have them gets them too, unless its library opts out, as Rc does for both and Cell does for Sync. Primitives such as i32 have both, so i32 sits in the top-right quadrant. A point’s place inside its quadrant means nothing.',
         source: 'Both are auto traits.',
       },
       'MutexGuard<i32>': {
@@ -345,7 +361,7 @@ export default class SendSyncExplainer extends Scene {
       line: 'Arc makes its count thread-safe, not the value inside.',
       // sync.rs:135-147: Arc gives shared ownership of the data but adds no thread safety to it.
       // sync.rs:284, 286: Send and Sync for Arc<T> both need T: Send + Sync.
-      caption: `${ANSWER}, and the same holds for Sync. Every clone of an Arc reaches the same T, so a clone moved to another thread shares T between threads, and Arc adds no locking around it. ${cellLayer.name} is ${traits(cellLayer.send, cellLayer.sync)}, so ${arcCell.name} is ${traits(arcCell.send, arcCell.sync)}: the point moves from “${QUADRANT[cellLayer.quadrant]}” to “${QUADRANT[arcCell.quadrant]}”, and thread::spawn refuses x.`,
+      caption: `${ANSWER}, and the same holds for Sync. Cloning an Arc gives another owner of the same T, so a clone moved to another thread shares T between threads, and Arc adds no locking around it. ${cellLayer.name} is ${traits(cellLayer.send, cellLayer.sync)}, so ${arcCell.name} is ${traits(arcCell.send, arcCell.sync)}: the point moves from “${QUADRANT[cellLayer.quadrant]}” to “${QUADRANT[arcCell.quadrant]}”, and thread::spawn refuses x.`,
     });
     await s.clear();
     const shared = valueName(arcCell.name);
