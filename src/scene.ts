@@ -328,6 +328,18 @@ export class Scene<S extends object = SceneState> {
 
   familyMembers(): Mobject[] { return this.mobjects.flatMap((m) => m.family()); }
 
+  /** The first mobject on stage, in drawing order and depth first, whose key is `key` (see Mobject.find). */
+  find(key: string): Mobject | undefined {
+    for (const m of this.mobjects) {
+      const found = m.find(key);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /** Every mobject on stage, in drawing order, whose key is `match` or passes it. */
+  findAll(match: string | ((key: string) => boolean)): Mobject[] { return this.mobjects.flatMap((m) => m.findAll(match)); }
+
   add(...mobs: Mobject[]): this {
     // Re-adding a root moves it last; a child of a visible parent is a no-op.
     this.mobjects = admitRoots(this.mobjects, mobs);

@@ -293,7 +293,7 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   assert.equal(a.removed.length, 'runs'.length);
   assert.equal(a.added.length, 'table'.length);
   // A fallback keys what is under no key: the same word pairs
-  const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey((p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined)) });
+  const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey({ fallback: (p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined) }) });
   b.begin();
   assert.equal(b.removed.length + b.added.length, 0);
   // A kept Text may change its glyphs: the symbol's parts morph inside the kept cell
@@ -304,6 +304,46 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
   const d = new TransformMatching(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { key: matchByKey() });
   d.begin();
   assert.equal(d.summary().matched, 0);
+});
+
+test('matchByKey text policy: by place, a relabelled keyed word morphs its glyphs; whole, it pairs only with the same words', async () => {
+  const { matchByKey } = await import('../src/index.ts');
+  const node = (label: string, at: Vec) => {
+    const word = new Text(label, { fontSize: 0.3 });
+    word.key = 'state:idle:label';
+    const g = new Group(new Rectangle({ width: 2, height: 1 }), word).moveTo(at);
+    g.key = 'state:idle';
+    return new Group(g);
+  };
+  const byPlace = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey() });
+  byPlace.begin();
+  assert.deepEqual(byPlace.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 1 });
+  const whole = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey({ text: 'whole' }) });
+  whole.begin();
+  assert.deepEqual(whole.summary(), { matched: 1, morphed: 0, removed: 4, added: 5 });
+  const same = new TransformMatching(node('idle', [0, 0]), node('idle', [1, 0]), { key: matchByKey({ text: 'whole' }) });
+  same.begin();
+  assert.deepEqual(same.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 0 });
+});
+
+test('find and findAll address parts by key, depth first, on a mobject and across a scene', () => {
+  const cell = (z: number) => { const g = new Group(new Square({ side: 1 }), new Text(String(z))); g.key = `cell:${z}`; g.children[1]!.key = `cell:${z}:z`; return g; };
+  const table = new Group(cell(1), new Group(cell(2), cell(3)));
+  table.key = 'table';
+  assert.equal(table.find('table'), table);
+  assert.equal(table.find('cell:3:z'), table.children[1]!.children[1]!.children[1]);
+  assert.equal(table.find('cell:9'), undefined);
+  assert.deepEqual(table.findAll((k) => /^cell:\d+$/.test(k)).map((m) => m.key), ['cell:1', 'cell:2', 'cell:3']);
+  assert.deepEqual(table.findAll('cell:2').length, 1);
+  const scene = new Scene(new StringSink());
+  const other = cell(2);
+  scene.add(table, other);
+  assert.equal(scene.find('cell:2'), table.children[1]!.children[0], 'drawing order: the first on stage wins');
+  assert.deepEqual(scene.findAll('cell:2'), [table.children[1]!.children[0], other]);
+  // A copy finds its own parts
+  const copy = table.copy();
+  assert.notEqual(copy.find('cell:3'), table.find('cell:3'));
+  assert.equal(copy.find('cell:3')!.parent!.parent, copy);
 });
 
 test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {

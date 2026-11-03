@@ -60,7 +60,7 @@ export function isHeading(m: Mobject): boolean {
  * The colour of the stage's paper (`__paper`, its palette's `paper`) as `scene` has it, or undefined
  * for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => scene.mobjects.find((m) => m.key === '__paper')?.style.fill;
+export const paperOf = (scene: Scene): string | undefined => scene.find('__paper')?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();

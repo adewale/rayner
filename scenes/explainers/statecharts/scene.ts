@@ -1,4 +1,4 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view } from 'rayner';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view, matchByKey } from 'rayner';
 import type { Mobject, MatchKey, Vec, Box } from 'rayner';
 import { stage, regionBox } from 'rayner/explain';
 import type { Stage } from 'rayner/explain';
@@ -291,18 +291,8 @@ function chartPicture(s: Stage, source: StateNode, kind: ChartKind, f: Fit, look
   return { group: new Group(...parts), words };
 }
 
-/** Morphs pair parts by key: glyphs by their text and place in it, shapes by their place in the keyed part. */
-const byKey: MatchKey = (p) => {
-  let m: Mobject = p;
-  const path: number[] = [];
-  while (!m.key) {
-    const parent = m.parent;
-    if (!parent) return undefined;
-    path.unshift(parent.children.indexOf(m));
-    m = parent;
-  }
-  return m instanceof Text ? `${m.key}|${m.text}|${path.join('.')}` : `${m.key}|${path.join('.')}`;
-};
+/** Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the same word. */
+const byKey: MatchKey = matchByKey({ text: 'whole' });
 
 
 // The coffee machine: a column of on states, off to its right. `plain` is the machine before it has a

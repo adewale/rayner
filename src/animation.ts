@@ -986,23 +986,37 @@ import type { Evidence } from './scene.ts';
  */
 export type MatchKey = (part: Mobject, root: Mobject) => string | undefined;
 
+export interface MatchByKeyOpts {
+  /** How parts under no key below the root pair; by default they do not, and fade. */
+  fallback?: MatchKey;
+  /**
+   * A keyed Text whose words change: 'by-place' (default) morphs its glyphs place by
+   * place, as a readout's digits should; 'whole' pairs it only with the same words, so a
+   * relabelled part fades out and in, as a renamed state or event should.
+   */
+  text?: 'by-place' | 'whole';
+}
+
 /**
  * Pair parts by the keys their author gave (`mobject.key`). A part inside a
  * keyed container pairs with the part at the same place inside the container
  * of the same key on the other side, so a keyed cell, label or node is kept as
- * one component wherever it moves and its own parts morph inside it (a kept
- * Text may change its glyphs). A keyed part pairs by its own key. Anything
- * under no key below the root pairs by `fallback`, by default not at all.
- * The root's own key, and keys above it, are not read: they would make every
- * part the same component. A key two containers share pairs by distance, as
- * any repeated key does. The key `View.sync({ match: 'keys' })` uses.
+ * one component wherever it moves and its own parts morph inside it. A keyed
+ * part pairs by its own key; the nearest key wins when keyed containers nest.
+ * Anything under no key below the root pairs by `fallback`, by default not at
+ * all. The root's own key, and keys above it, are not read: they would make
+ * every part the same component. A key two containers share pairs by distance,
+ * as any repeated key does. `View.sync({ match: 'keys' })` uses the defaults.
  */
-export function matchByKey(fallback: MatchKey = () => undefined): MatchKey {
+export function matchByKey({ fallback = () => undefined, text = 'by-place' }: MatchByKeyOpts = {}): MatchKey {
   return (part, root) => {
     const path: number[] = [];
     for (let m: Mobject = part; m !== root; m = m.parent!) {
       if (!m.parent) break; // not under the root: nothing above it is this picture's
-      if (m.key !== undefined) return path.length ? `${m.key}/${path.reverse().join('/')}` : m.key;
+      if (m.key !== undefined) {
+        const words = text === 'whole' && m instanceof Text ? `|${m.text}` : '';
+        return `${m.key}${words}|${path.reverse().join('.')}`;
+      }
       path.push(m.parent.children.indexOf(m));
     }
     return fallback(part, root);

@@ -153,7 +153,7 @@ const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 
  * words, or a shape of the same size; a badge, a note or a block label that is new or gone
  * fades, and no letter travels between labels.
  */
-const samePlace: MatchKey = matchByKey((part: Mobject) => {
+const samePlace: MatchKey = matchByKey({ fallback: (part: Mobject) => {
   const owner = part.parent instanceof Text ? part.parent : part;
   const b = owner.box();
   if (!b) return undefined;
@@ -161,7 +161,7 @@ const samePlace: MatchKey = matchByKey((part: Mobject) => {
   return part.parent instanceof Text
     ? `${part.parent.text}@${at}#${(part as { cluster?: number }).cluster ?? ''}`
     : `${(b[2] - b[0]).toFixed(2)}x${(b[3] - b[1]).toFixed(2)}@${at}`;
-});
+} });
 
 /** The script's one-sentence answer (meta.answer), which the stack step states. */
 const ANSWER =

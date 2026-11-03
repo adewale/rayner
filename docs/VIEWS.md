@@ -94,7 +94,7 @@ view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 | `'index'` (default otherwise) | `Transform`, family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
 | `'shapes'` | `TransformMatchingShapes` | pictures whose parts come and go |
 | `'keys'` | `TransformMatching` with `matchByKey()` | pictures whose containers carry `key`s: a keyed cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
-| a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey(fallback)` to keep unkeyed parts too |
+| a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey({ fallback })` to keep unkeyed parts too, `matchByKey({ text: 'whole' })` when a keyed word's change is a new identity |
 
 `sync.summary()` reports what a matching transform paired once the play has
 begun (`{ matched, morphed, removed, added }`). It is `null` for `'index'` and

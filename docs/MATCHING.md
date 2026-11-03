@@ -23,7 +23,7 @@ await this.play(new TransformMatching(before, after, { key: (part) => part.style
 | `TransformMatchingText` | are the same character in the same font and weight; anything else by shape. In an explainer with outline lettering, the same whole cluster drawn with the same number of glyphs ([lettering](LETTERING.md#changes-between-strings)) | `Text`, `Code`, groups of them |
 | `TransformMatchingShapes` | have the same `shapeKey()`: same path up to position and size | diagrams, symbols, anything drawn |
 | `TransformMatching` + `key` | map to the same string (`undefined` never matches) | identity you know: a node id, a color, a role |
-| `TransformMatching` + `matchByKey(fallback?)` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
+| `TransformMatching` + `matchByKey({ fallback?, text? })` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
 
 A part is one drawable piece: a visible `VMobject` with points of its own (a
 glyph, an arrow's line or tip, a node's box). Containers are not parts; a
@@ -37,18 +37,31 @@ A picture rebuilt from state names what persists by giving a container a
 `key`: a table cell `cell:${z}`, a state node `state:${id}`. `matchByKey()`
 pairs every part under a keyed container with the part at the same place under
 the container of the same key on the other side, so the cell is kept as one
-component wherever it moves and its own parts morph inside it. A kept `Text`
-may change its glyphs: they pair by place, and a glyph with no counterpart
-fades inside the cell. A keyed part (a lone `Rectangle` with a key) pairs by
-its own key. The nearest key wins when keyed containers nest. A key two
-containers share pairs by distance, like any repeated key.
+component wherever it moves and its own parts morph inside it. A keyed part
+(a lone `Rectangle` with a key) pairs by its own key. The nearest key wins when
+keyed containers nest. A key two containers share pairs by distance, like any
+repeated key.
+
+A keyed `Text` whose words change needs a decision, and `text` makes it. By
+place (the default), its glyphs morph place by place and a glyph with no
+counterpart fades inside it: right for a readout whose digits change. Whole,
+it pairs only with a `Text` of the same key and the same words, so a renamed
+state or event fades out and the new name fades in: right where the words are
+the identity. `statecharts` uses `text: 'whole'`.
 
 ```js
 import { TransformMatching, matchByKey } from 'rayner';
 await this.play(new TransformMatching(before, after, { key: matchByKey() }));
+// A relabelled node's old name fades and the new one grows in
+machine.sync({ match: matchByKey({ text: 'whole' }) });
 // Keyed cells keep their identity; the same word elsewhere stays put instead of fading
-table.sync({ match: matchByKey((part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined) });
+table.sync({ match: matchByKey({ fallback: (part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined }) });
 ```
+
+`mobject.find(key)` and `scene.find(key)` return the first part with a key,
+depth first in drawing order; `findAll(key or test)` returns every one. Use
+them, rather than walking `family()` or `children`, so the parts a scene
+addresses are the same ones matching, invariants and reviews address.
 
 What is under no key below the root pairs by the `fallback`, and by default
 not at all: it fades out and in, as a label that is new or gone should. Pass a
@@ -56,7 +69,7 @@ fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one
 component and reduce the morph to matching by index. `View.sync({ match: 'keys' })`
-is `matchByKey()` with no fallback ([views](VIEWS.md#match)). This is the
+is `matchByKey()` with the defaults ([views](VIEWS.md#match)). This is the
 morph the [live machine](https://github.com/adewale/rayner/issues/88) needs
 for a reader-driven redraw: the parts that stay keep their identity.
 

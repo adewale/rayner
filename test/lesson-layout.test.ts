@@ -56,7 +56,7 @@ test('comparison tables align text starts and numeric ends, including their head
 test('wrapping a flow label preserves equal peer boxes and keeps every word inside its box', () => {
   const names = ['Route', 'Trip', 'Service date'],
     drawing = flow(stage(new Scene(new NullSink())), names);
-  const nodes = names.map((_, i) => drawing.children.find((m) => m.key === `reader-flow:${i}`)!);
+  const nodes = names.map((_, i) => drawing.find(`reader-flow:${i}`)!);
   const boxes = nodes.map((n) => n.children.find((m): m is Rectangle => m instanceof Rectangle)!);
   for (const box of boxes) near(box.height(), boxes[0]!.height());
   for (const [i, node] of nodes.entries()) {

@@ -145,6 +145,26 @@ export class Mobject {
     return out;
   }
 
+  /**
+   * The first mobject in this family, depth first and this one included, whose `key` is
+   * `key`; undefined when none has it. Keys are the address a picture gives its parts:
+   * matching (matchByKey), descriptions, invariants and reviews all read the same one.
+   */
+  find(key: string): Mobject | undefined {
+    if (this.key === key) return this;
+    for (const c of this.children) {
+      const found = c.find(key);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /** Every mobject in this family, depth first, whose key is `match` or passes it. */
+  findAll(match: string | ((key: string) => boolean)): Mobject[] {
+    const test = typeof match === 'string' ? (k: string) => k === match : match;
+    return this.family().filter((m) => m.key !== undefined && test(m.key));
+  }
+
   add(...mobs: Mobject[]): this {
     for (const m of mobs) {
       if (m.parent) m.parent.remove(m);
