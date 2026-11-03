@@ -3005,8 +3005,9 @@ for (const motion of ['reduce', 'no-preference'] as const)
                   const inventory=paths.find(row=>Object.entries(row.values).every(([id,value])=>query.get(id)===value))!;
                   const nextStep=inventory.next[at!];
                   const expectedNext=a.kind==='next'&&!document.querySelector('#content.loading')&&button('Next step')?.disabled===false?nextStep!==at?nextStep:undefined:undefined;
-                  const continuing = a.kind === 'next' && inventory.raw.indexOf(nextStep!)===inventory.raw.indexOf(at!)+1 && !!document.querySelector('.stage[aria-busy=true]') && w.__attachedStep === new URLSearchParams(location.search).get('step');
                   if (nav.currentEntry.index !== seenIndex) [queued, seenIndex] = [0, nav.currentEntry.index];
+                  // A Back still to land restarts the scene itself, so it would be blamed on this Next.
+                  const continuing = a.kind === 'next' && queued === 0 && inventory.raw.indexOf(nextStep!)===inventory.raw.indexOf(at!)+1 && !!document.querySelector('.stage[aria-busy=true]') && w.__attachedStep === new URLSearchParams(location.search).get('step');
                   if (a.kind === 'case') {
                     const s = settings[a.setting];
                     const input = s && document.querySelector<HTMLInputElement>(`input[name="${s.id}"][value="${s.options[a.option % s.options.length]}"]`);
