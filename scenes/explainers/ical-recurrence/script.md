@@ -12,6 +12,8 @@ Now Alice skips the third meeting. Her app excludes its start by adding EXDATE:2
 
 On the server shown, Baïkal, it stays. The server sends Bob an iTIP CANCEL, the scheduling message that calls a meeting off, and delivering it sets STATUS:CANCELLED on his VEVENT rather than deleting it. Alice could remove the meeting by excluding its start from her rule. Bob has no rule; he has only the occurrence he was sent, and the cancellation is applied to that.
 
+Lay the two stored objects side by side and line their calendars up against the six weeks of Alice's rule. Alice's row has five meetings and a gap in the third week, where her own EXDATE takes the start out. Bob's row has one meeting, 16 November, marked cancelled, and five empty weeks. Nothing excluded those five: his copy holds no master and no RRULE, so nothing ever generated them.
+
 Move the second meeting instead. Alice's object gains an override for that occurrence, but Bob was not invited to it. The update sent to Bob contains only the meeting he attends, so his copy never learns of the move. A guest's calendar is not a replica of the organiser's series: it holds the occurrences it was sent, changed by the messages that follow.
 
 The storage rules allow this. Related VEVENTs share one UID, with at most one master and any number of overrides named by RECURRENCE-ID, and an override may be stored without its master, as Bob's is. Baïkal also refuses some objects the standard only discourages: a second master, or a second RRULE in one VEVENT, gets status 415.

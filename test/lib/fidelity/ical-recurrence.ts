@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { INVITED, MOVED_FROM, SERIES, SERVER_CASES, copyOf, counts, expand, guestCopy, organiserCopy, schema, validate } from '../../../scenes/explainers/lib/ical-recurrence.ts';
+import { INVITED, MOVED_FROM, SERIES, SERVER_CASES, copyOf, counts, expand, guestCopy, organiserCopy, schema, validate, weeks } from '../../../scenes/explainers/lib/ical-recurrence.ts';
 import type { Change, Copy } from '../../../scenes/explainers/lib/ical-recurrence.ts';
 
 /** Every case's step state equals the model's stored copies, meetings and refusals for that change and copy. */
@@ -18,6 +18,14 @@ export function check(trace: Trace, values: Record<string, string>): void {
     moved = expand(after).find((m) => m.slot === MOVED_FROM)!;
   assertStepState(trace, 'change', {
     change: { change, stored: counts(after), meetings: starts(after), ...(change === 'move' ? { moved: { from: moved.slot, to: moved.start } } : {}) },
+  });
+  // The copies view: Alice's and Bob's stored objects side by side, by the weeks of Alice's rule.
+  const bob = guestCopy(change);
+  assertStepState(trace, 'copies', {
+    copies: {
+      alice: { stored: counts(after), weeks: weeks(after).map((w) => w.week) },
+      bob: { stored: counts(bob.copy), weeks: weeks(bob.copy).map((w) => w.week), sent: bob.messages.map((m) => m.method) },
+    },
   });
   assertStepState(trace, 'schema', { schema: { relations: schema('rfc') } });
   const mine = copyOf(change, copy);

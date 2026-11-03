@@ -11,6 +11,7 @@ import {
   TRUST_KEYS,
   arrivals,
   atExpress,
+  positions,
   readAddresses,
 } from '../../../scenes/explainers/lib/trust-proxy.ts';
 import type { RequestKey, TrustKey } from '../../../scenes/explainers/lib/trust-proxy.ts';
@@ -34,6 +35,16 @@ export function check(trace: Trace, values: Record<string, string>): void {
 
   assertStepState(trace, 'paths', { addresses: { ...ADDR } });
   assertStepState(trace, 'follow', { arrivals: arrivals(REQUESTS[q]).map((h) => [h.at.id, h.socket, h.xff]) });
+  // The routes view: the count beside the address list, each on the long and the short route, by who stands at each position.
+  const counted: TrustKey = t === 'list' ? '2' : t;
+  assertStepState(trace, 'routes', {
+    routes: Object.fromEntries(
+      [counted, 'list' as const].map((s) => [
+        s,
+        Object.fromEntries((['forged', 'direct'] as const).map((k) => [k, positions(REQUESTS[k], TRUSTS[s]).map((p) => [p.who, p.verdict])])),
+      ]),
+    ),
+  });
   assertStepState(trace, 'code', { trust: TRUST_CODE[t] });
   assertStepState(trace, 'read', { read: reading.map((r) => [r.addr, r.verdict]), ip });
   assertStepState(trace, 'requests', { answers: Object.fromEntries(REQUEST_KEYS.map((k) => [k, TABLE[t][k].ip])) });

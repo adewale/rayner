@@ -1,6 +1,6 @@
 # Construction and scope
 
-The short route is essential: a single two-proxy route cannot distinguish a correct hop count from trust tied to proxy addresses. The settings cross four trust policies with three requests, giving twelve outcomes. The source-code step connects the numeric setting to its positional test.
+The short route is essential: a single two-proxy route cannot distinguish a correct hop count from trust tied to proxy addresses. The settings cross four trust policies with three requests, giving twelve outcomes. The routes step lines up the attacker’s two routes by position from Express, so a count’s cut and the list’s per-address trust sit in one picture. The source-code step connects the numeric setting to its positional test.
 
 The IPv4 model in `../lib/trust-proxy.ts` is compared with Express 5.3.0. It excludes IPv6 and IPv4-mapped addresses. The illustrated proxies append the observed source address to the forwarded chain. Other header-replacement policies or ingress restrictions can change which attacks reach the app; the scene is not a complete deployment-hardening guide. An address list is sound only if its trusted ranges and forwarding proxies are trustworthy.
 

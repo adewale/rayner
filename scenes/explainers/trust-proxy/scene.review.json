@@ -2,6 +2,23 @@
   "version": 1,
   "claims": [
     {
+      "step": "routes",
+      "opening": true,
+      "targets": [
+        {
+          "key": "routes-positions"
+        }
+      ]
+    },
+    {
+      "step": "routes",
+      "targets": [
+        {
+          "key": "routes-addresses"
+        }
+      ]
+    },
+    {
       "step": "ranges",
       "targets": [
         {

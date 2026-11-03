@@ -16,6 +16,26 @@
       ]
     },
     {
+      "step": "copies",
+      "opening": true,
+      "targets": [
+        {
+          "key": "copies-weeks"
+        }
+      ]
+    },
+    {
+      "step": "copies",
+      "targets": [
+        {
+          "key": "copies-alice"
+        },
+        {
+          "key": "copies-bob"
+        }
+      ]
+    },
+    {
       "step": "copy",
       "settings": {
         "copy": "guest",
