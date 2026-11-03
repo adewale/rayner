@@ -24,7 +24,7 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
 
 ## Export the collection
 
-Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Each explainer in `scenes/explainers/catalog.ts` has a tier from its verdict under the [rubric](EXPLAINER-RUBRIC.md): the gallery leads with the `showcase` tier (selected subject exemplars), lists the `gallery` tier behind "More", and gives the `coverage` tier (kept as the only scene exercising some feature, or until it is rebuilt) no card and no `llms.txt` line, though its page is still built and checked. The exported catalog records each explainer's `tier`.
+Run `npm run demos:check` and `npm run demos:review` to build and review the complete collection. Each explainer in `scenes/explainers/catalog.ts` has a tier from its verdict under the [rubric](EXPLAINER-RUBRIC.md): the gallery leads with the `showcase` tier (selected exemplars), lists the `gallery` tier behind "More", and gives the `coverage` tier (kept as the only scene exercising some feature, or until it is rebuilt) no card and no `llms.txt` line, though its page is still built and checked. The exported catalog records each explainer's `tier`.
 
 Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the showcase, use:
 
@@ -32,7 +32,7 @@ Prepare all pages with `npm run site:export -- <site-root>`. To prepare only the
 npm run site:export -- <site-root> --only showcase
 ```
 
-`--only showcase` derives its selection from catalog tiers and keeps the declared product entry. The same alias works for `demos:check`; no hand-maintained list of showcase IDs is needed. Toolchain lessons stay under “Authoring recipes and how Rayner works” in a full export.
+`--only showcase` derives its selection from catalog tiers and keeps the declared product entry. The same alias works for `demos:check`; no hand-maintained list of showcase IDs is needed. A toolchain lesson in the showcase tier (lantern) leads the gallery with the subjects; the other toolchain lessons stay under “Authoring recipes and how Rayner works” in a full export.
 
 You can also build and review just the selected pages in an isolated directory:
 

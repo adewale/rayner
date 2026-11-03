@@ -9,7 +9,7 @@ export function galleryTile(item: { id: string; title: string; lang: string }, l
 }
 
 type GalleryCatalog = Pick<import('./explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('./explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'tier'>[]};
-/** Full collections lead with the showcase tier and list the gallery tier behind "More"; coverage scenes get no card. An explicit subset shows its selected cards. */
+/** Full collections lead with the showcase tier, of either group, and list the gallery tier behind "More"; coverage scenes get no card. An explicit subset shows its selected cards. */
 export function galleryPage(catalog: GalleryCatalog, tokens: string, collection = true): string {
   const { product, scenes } = catalog,
     entry = product.entry;
@@ -17,7 +17,7 @@ export function galleryPage(catalog: GalleryCatalog, tokens: string, collection 
   const tile = (item: GalleryCatalog['scenes'][number], lead = false) =>
     galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en' }, lead);
   const featured = collection
-    ? scenes.filter((scene) => scene.group === 'topic' && scene.tier === 'showcase')
+    ? scenes.filter((scene) => scene.tier === 'showcase')
     : scenes;
   const topics = [
     ...featured.filter((scene) => scene.id === entry.id),

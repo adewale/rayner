@@ -26,8 +26,8 @@ export const PRODUCT = {
 } as const;
 
 /**
- * Where an explainer is shown. `showcase`: the selected subject exemplars, leading the
- * gallery. Selection is editorial; it is not evidence of learning or benchmark superiority.
+ * Where an explainer is shown. `showcase`: the selected exemplars, leading the gallery;
+ * mostly subjects, plus any toolchain lesson that stands on its own. Selection is editorial; it is not evidence of learning or benchmark superiority.
  * `gallery`: worth reading, behind "More". `coverage`: kept because it is
  * the only scene exercising some engine feature, diagram family or check (or until it is rebuilt);
  * its page is built and tested but not listed in the gallery or llms.txt.
@@ -35,7 +35,7 @@ export const PRODUCT = {
 export type Tier = 'showcase' | 'gallery' | 'coverage';
 
 export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain'; tier: Tier }[] = [
-  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'gallery' },
+  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'showcase' },
   { id: 'python-dict', step: 'marker', group: 'topic', tier: 'showcase' },
   { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
   { id: 'git-branches', step: 'merge', group: 'topic', tier: 'showcase' },
@@ -68,7 +68,7 @@ export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | '
   { id: 'gnome-files', step: 'reader-sample', group: 'topic', tier: 'coverage' },
   { id: 'wcag-map', step: 'reader-levels', group: 'topic', tier: 'coverage' },
   { id: 'feature-tour', step: 'result', group: 'toolchain', tier: 'gallery' },
-  { id: 'lantern', step: 'seek', group: 'toolchain', tier: 'gallery' },
+  { id: 'lantern', step: 'seek', group: 'toolchain', tier: 'showcase' },
   { id: 'fork', step: 'untested', group: 'toolchain', tier: 'gallery' },
   { id: 'agentic-mermaid', step: 'meaning', group: 'toolchain', tier: 'gallery' },
   { id: 'glyph', step: 'letterforms', group: 'toolchain', tier: 'gallery' },

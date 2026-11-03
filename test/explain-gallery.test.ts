@@ -19,12 +19,16 @@ test('gallery entries and subset cards come from the selected catalog', async ()
     {id:'featured',title:'Featured',lang:'en',group:'topic' as const,tier:'showcase' as const},
     {id:'other',title:'Other',lang:'en',group:'topic' as const,tier:'showcase' as const},
     {id:'recipe',title:'Recipe',lang:'en',group:'toolchain' as const,tier:'gallery' as const},
+    {id:'engine',title:'Engine',lang:'en',group:'toolchain' as const,tier:'showcase' as const},
     {id:'probe',title:'Probe',lang:'en',group:'topic' as const,tier:'coverage' as const},
   ]};
   const full=galleryPage(catalog,'');
   assert.ok(full.includes('other.html?case=two&amp;step=question'));
   assert.ok(full.indexOf('src="other.png"')<full.indexOf('src="featured.png"'));
   assert.ok(full.includes('src="recipe.png"'),'the gallery tier is listed');
+  const lead=full.slice(0,full.indexOf('<details'));
+  assert.ok(lead.includes('src="engine.png"')&&!lead.includes('src="recipe.png"'),'a showcase toolchain lesson leads with the subjects; the rest stay behind their own summary');
+  assert.equal((full.match(/src="engine\.png"/g)??[]).length,1,'a featured lesson is not listed twice');
   assert.ok(!full.includes('probe.png')&&!full.includes('probe.html'),'a coverage scene gets no card');
   const subset=galleryPage({...catalog,scenes:[catalog.scenes[1]!]},'',false);
   assert.equal((subset.match(/<li/g)??[]).length,2,'one selected card and the evidence link');
@@ -33,9 +37,10 @@ test('gallery entries and subset cards come from the selected catalog', async ()
 });
 
 
-test('the product entry is a showcase subject and authoring lessons stay in their own collection', () => {
+test('the product entry is a showcase subject, and the showcase stays mostly subjects', () => {
   const entry = EXPLAINERS.find(scene => scene.id === PRODUCT.entry.id)!;
   assert.equal(entry.group, 'topic');
   assert.equal(entry.tier, 'showcase');
-  assert.ok(EXPLAINERS.filter(scene => scene.group === 'toolchain').every(scene => scene.tier !== 'showcase'));
+  const showcase = EXPLAINERS.filter(scene => scene.tier === 'showcase');
+  assert.ok(showcase.filter(scene => scene.group === 'toolchain').length * 4 <= showcase.length, 'toolchain lessons are at most a quarter of the showcase');
 });
