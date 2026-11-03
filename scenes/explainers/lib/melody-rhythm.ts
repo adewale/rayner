@@ -14,7 +14,7 @@ export function musicClips(timing: Timing, bpm: number, flat = false): AudioClip
   if (![96,120].includes(bpm)) throw new Error('Use 96 or 120 BPM in this lesson');
   return [
     {id:'a',label:'Play A: even beats',bpm,beats:8,notes:phrase('straight',flat),plot:[-6,-0.1,7.2,2.2]},
-    {id:'b',label:timing==='syncopated' ? 'Play B: shifted timing' : 'Play B: even beats',bpm,beats:8,notes:phrase(timing,flat),plot:[-6,-3.1,7.2,-0.6]},
+    {id:'b',label:timing==='syncopated' ? 'Play B: shifted timing' : 'Play B: even beats',bpm,beats:8,notes:phrase(timing,flat),plot:[-6,-2.85,7.2,-0.35]},
   ];
 }
 export function musicStory(timing: Timing, bpm: number) {

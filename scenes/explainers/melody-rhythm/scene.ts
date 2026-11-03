@@ -27,7 +27,7 @@ function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   const figure = new Group();
   figure.key = 'music-score';
   clips.forEach((clip, lane) => {
-    const base = lane === 0 ? 0.25 : -2.75,
+    const base = lane === 0 ? 0.25 : -2.5,
       top = base + 1.5;
     const row = new Group(label(lane === 0 ? 'A' : 'B', -7.05, base + 0.7, s.palette.ink, 0.7));
     row.key = `score-${clip.id}`;
@@ -75,7 +75,8 @@ function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
     });
     figure.add(row);
   });
-  const y = look.onsets ? -3.85 : -3.6;
+  // One footer line for every step, clear of B's notes and of its onset dots.
+  const y = -3.75;
   if (look.footer) figure.add(label(look.footer, 0.6, y, s.soft, 0.66, 'score-footer'));
   else figure.add(label('Bar 1: four beats', -2.7, y, s.soft, 0.7), label('Bar 2: four beats', 4.0, y, s.soft, 0.7));
   return figure;

@@ -28,7 +28,7 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
               assert.ok(rect instanceof Rectangle && text instanceof Text);
               const [x, y] = rect.center();
               assert.ok(Math.abs(x - (-6 + (starts[i]! + duration[i]! / 2) * 1.65)) < 1e-5);
-              assert.ok(Math.abs(y - ((lane === 0 ? 0.25 : -2.75) + heights[i]!)) < 1e-5);
+              assert.ok(Math.abs(y - ((lane === 0 ? 0.25 : -2.5) + heights[i]!)) < 1e-5);
               assert.ok(Math.abs(rect.width() - (duration[i]! * 1.65 - 0.08)) < 1e-5);
               assert.equal(text.text, names[i]);
               notes++;

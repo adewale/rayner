@@ -184,25 +184,26 @@ export default class SeasonsExplainer extends Scene {
         'Earth’s orbit is slightly oval, so it passes nearest the Sun once a year and farthest half a year later. A common guess is that the seasons follow this distance, with summer when Earth is nearest. The oval is drawn far more stretched than it is.',
     });
     const guess = (() => {
-      const oc: Vec = [0, -0.55],
-        orx = 4.6,
-        ory = 2.3,
+      const oc: Vec = [0, -0.6],
+        orx = 6.2,
+        ory = 3.0,
         sunX = oc[0] - 1.9;
       const orbit = new Circle({ radius: 1, stroke: s.palette.muted, strokeWidth: 0.025 })
         .stretch(orx, 0)
         .stretch(ory, 1)
         .moveTo(oc);
+      // Each Earth's words sit inside the orbit beside it, edge toward the Earth, clear of the line.
       const at = (x: number, word: string, edge: Vec) =>
         new Group(
-          new Circle({ radius: 0.3, fill: '#7aa2f7', stroke: 'none' }).moveTo([x, oc[1]]),
-          label(word, [x + edge[0] * 0.5, oc[1] - 0.75], { size: 0.3, color: ink, edge }),
-          label('which month?', [x + edge[0] * 0.5, oc[1] - 1.2], { size: 0.26, color: SUN, edge }),
+          new Circle({ radius: 0.42, fill: '#7aa2f7', stroke: 'none' }).moveTo([x, oc[1]]),
+          label(word, [x - edge[0] * 0.68, oc[1] + 0.25], { size: 0.42, color: ink, edge }),
+          label('which month?', [x - edge[0] * 0.68, oc[1] - 0.3], { size: 0.36, color: SUN, edge }),
         );
       const near = at(oc[0] - orx, 'nearest', [-1, 0]),
         far = at(oc[0] + orx, 'farthest', [1, 0]);
       const sun = new Group(
-        new Circle({ radius: 0.45, fill: SUN, stroke: 'none' }).moveTo([sunX, oc[1]]),
-        label('Sun', [sunX, oc[1] + 0.75], { size: 0.26, color: ink }),
+        new Circle({ radius: 0.62, fill: SUN, stroke: 'none' }).moveTo([sunX, oc[1]]),
+        label('Sun', [sunX, oc[1] + 1.0], { size: 0.36, color: ink }),
       );
       const g = new Group(orbit, sun, near, far);
       g.key = 'nearest-orbit';
@@ -222,9 +223,9 @@ export default class SeasonsExplainer extends Scene {
     await s.clear();
     // The orbit's Sun and Earths: the Sun is carried on into the next step, and June's Earth grows into its side view.
     const tilt = (() => {
-      const c: Vec = [0, -0.45],
-        rx = 5.6,
-        ry = 2.2;
+      const c: Vec = [0, -0.55],
+        rx = 6.0,
+        ry = 2.4;
       const orbit = new Circle({
         radius: 1,
         stroke: s.palette.muted,
@@ -234,10 +235,14 @@ export default class SeasonsExplainer extends Scene {
         .stretch(ry, 1)
         .moveTo(c);
       const sun = new Circle({ radius: 0.5, fill: SUN, stroke: 'none' }).moveTo(c);
-      const earth = (x: number, y: number, name: string, below: boolean, bright: boolean) => {
+      /**
+       * The name goes under June's and December's Earths, moved sideways by `out` off the orbit line,
+       * and beside September's and March's, above or below the line (`below`), clear of the axis.
+       */
+      const earth = (x: number, y: number, name: string, below: boolean, bright: boolean, out = 0) => {
         const e = TILT * RAD,
-          r = 0.36,
-          len = 0.62;
+          r = 0.44,
+          len = 0.74;
         const g = new Group(
           new Circle({
             radius: r,
@@ -248,19 +253,20 @@ export default class SeasonsExplainer extends Scene {
             stroke: AXIS,
             strokeWidth: 0.04,
           }),
-          label('N', [x - (len + 0.16) * Math.sin(e), y + (len + 0.16) * Math.cos(e)], {
-            size: 0.2,
+          label('N', [x - (len + 0.18) * Math.sin(e), y + (len + 0.18) * Math.cos(e)], {
+            size: 0.26,
             color: AXIS,
           }),
-          label(name, [x, below ? y - 0.95 : y + 1.05], {
-            size: bright ? 0.26 : 0.22,
+          label(name, bright ? [x + out, y - 1.05] : [x + 0.62, below ? y - 0.5 : y + 0.5], {
+            size: bright ? 0.34 : 0.3,
             color: bright ? ink : soft,
+            edge: bright ? [0, 0] : [-1, 0],
           }),
         );
         return g;
       };
-      const june = earth(c[0] + rx, c[1], 'June', true, true),
-        december = earth(c[0] - rx, c[1], 'December', true, true),
+      const june = earth(c[0] + rx, c[1], 'June', true, true, 0.35),
+        december = earth(c[0] - rx, c[1], 'December', true, true, -0.45),
         september = earth(c[0], c[1] + ry, 'September', false, false),
         march = earth(c[0], c[1] - ry, 'March', true, false);
       return { orbit, sun, june, december, september, march };
@@ -274,15 +280,15 @@ export default class SeasonsExplainer extends Scene {
         'Earth in June (right), September (top), December (left) and March (bottom), its axis tilted the same way each time',
     });
     const nearestNote = new Group(
-      label('nearest the Sun:', [-5.6, 1.05], { size: 0.24, color: SUN }),
-      label('early January', [-5.6, 0.72], { size: 0.24, color: SUN }),
+      label('nearest the Sun:', [-6.0, 1.45], { size: 0.32, color: SUN }),
+      label('early January', [-6.0, 1.0], { size: 0.32, color: SUN }),
     );
     nearestNote.key = 'nearest-note';
     await s.enter(nearestNote, { describe: 'Beside December’s Earth: nearest the Sun in early January' });
 
     // ---------------------------------------------------------------- june
-    const R = 1.7,
-      CY = 0.7,
+    const R = 1.75,
+      CY = 0.8,
       JUNE_C: Vec = [4.3, CY],
       DEC_C: Vec = [-4.3, CY];
     const june = sunlight(place.lat, TILT),
@@ -306,15 +312,18 @@ export default class SeasonsExplainer extends Scene {
         fillOpacity: 0.62,
         stroke: 'none',
       });
-      const tip = 1.28 * R;
+      // The axis reaches past the north pole to carry its N; past the south pole it stops short,
+      // clear of the table the latitude step sets under the globe.
+      const tip = 1.2 * R,
+        foot = 1.08 * R;
       const axis = new Line(
-        [center[0] - tip * v.a[0], center[1] - tip * v.a[1]],
+        [center[0] - foot * v.a[0], center[1] - foot * v.a[1]],
         [center[0] + tip * v.a[0], center[1] + tip * v.a[1]],
         { stroke: AXIS, strokeWidth: 0.035 },
       );
       axis.key = `${month.toLowerCase()}-axis`;
-      const north = label('N', [center[0] + (tip + 0.18) * v.a[0], center[1] + (tip + 0.18) * v.a[1]], {
-        size: 0.22,
+      const north = label('N', [center[0] + (tip + 0.2) * v.a[0], center[1] + (tip + 0.2) * v.a[1]], {
+        size: 0.28,
         color: AXIS,
       });
       north.key = `${month.toLowerCase()}-north`;
@@ -381,8 +390,8 @@ export default class SeasonsExplainer extends Scene {
         );
         const mid = a0 + sweep / 2;
         ray.add(
-          label(degrees(result.altitude), [p[0] + 0.95 * Math.cos(mid), p[1] + 0.95 * Math.sin(mid)], {
-            size: 0.24,
+          label(degrees(result.altitude), [p[0] + 1.0 * Math.cos(mid), p[1] + 1.0 * Math.sin(mid)], {
+            size: 0.28,
             color: SUN,
           }),
         );
@@ -432,13 +441,13 @@ export default class SeasonsExplainer extends Scene {
       const [a, b] = S.daySpan;
       const mid: Vec = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       const callout = await s.callout(mid, `${hours(r.daylight)} of daylight`, {
-        side: 'below', gap: mid[1] - (CY - R - 0.3), color: SUN, size: 0.24,
+        side: 'below', gap: mid[1] - (CY - R - 0.3), color: SUN, size: 0.28,
       });
       callout.key = `${S.month.toLowerCase()}-daylight-callout`;
       if (r.altitude <= 0) {
         const value = callout.children.at(-1)!;
-        const below = label(`Noon Sun ${degrees(r.altitude)}, below the horizon`, [value.center()[0], value.center()[1] - 0.4], {
-          size: 0.24, color: SUN,
+        const below = label(`Noon Sun ${degrees(r.altitude)}, below the horizon`, [value.center()[0], value.center()[1] - 0.44], {
+          size: 0.28, color: SUN,
         });
         callout.add(below);
         await this.play(new FadeIn(below, { runTime: 0.2 }));
@@ -474,11 +483,13 @@ export default class SeasonsExplainer extends Scene {
     );
     await s.enter(J.ray, { describe: J.noon });
     const juneSaid = await daylightCallout(J, june);
+    // Only the Sun and June's Earth are on stage: the camera comes in on them, so they fill the frame.
+    await s.focus([-0.8, CY - R - 0.8, JUNE_C[0] + R + 0.35, CY + R + 0.5], { runTime: 0.8 });
     this.state = { place: place.name, latitude: place.lat, june };
 
     // ---------------------------------------------------------------- noon
-    // The camera zooms onto the red dot, twice as close, so the horizon, the
-    // noon ray and the angle between them fill the stage.
+    // The camera comes in on June's Earth, up to 1.8 times as close, so the horizon, the noon ray and
+    // the angle between them fill the stage with the whole globe still in view.
     // How strongly that noon sunlight lands: sin of the altitude, from the model.
     const juneShare = noonShare(place.lat, TILT),
       decShare = noonShare(place.lat, -TILT);
@@ -493,20 +504,11 @@ export default class SeasonsExplainer extends Scene {
     const notes = new Group();
     notes.key = 'noon-notes';
     {
-      const ZOOM = 2,
-        w = 16 / ZOOM,
-        h = 9 / ZOOM,
-        p = J.place,
-        // The ray comes in from the left: keep its start in view, with room beside the globe for
-        // the formula. The heading and its line stay on screen over a band 1.25 units deep (the
-        // stage above y = 3.25), so the view may reach that much higher, a band's depth at this
-        // zoom, and still show nothing from above y = 3.25 except under the band.
-        start = Math.min(1.45, p[0] - 0.9),
-        cx = JUNE_C[0] - 1.7,
-        cy = Math.min(p[1], 3.25 - h / 2 + 1.25 / ZOOM);
-      const view: Box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
-      // Labels that read at 14 px even judged without the zoom, which doubles them.
-      const small = 0.18;
+      const p = J.place,
+        start = Math.min(1.45, p[0] - 0.9);
+      // Labels that read at 14 px even judged without the zoom, which nearly doubles them.
+      const small = 0.2,
+        pitch = small * 1.3 * 1.55;
       // The June Sun is to the left (side −1): the horizon's sunward direction points left.
       const t = J.tangent,
         z = J.zenith,
@@ -516,6 +518,29 @@ export default class SeasonsExplainer extends Scene {
       const BEAM = 0.3,
         spread = BEAM / juneShare,
         q: Vec = [p[0] - spread * sunward[0], p[1] - spread * sunward[1]];
+      // The camera comes in on the red dot with the whole globe in view: from just under the globe,
+      // or under the beam's label when the place sits low, to just over the north label. The
+      // heading and its line stay on screen over a band 1.25 units deep (the stage above
+      // y = 3.25), which covers 1.25 / ZOOM of the view, so the view shows 7.75 / ZOOM below it.
+      // The ray comes in from the left: the view keeps its start, with room beside the globe for the
+      // formula, and ends just past the globe on the right.
+      const labelBelow = sunward[1] >= 0,
+        bottom = Math.min(CY - R - 0.25, Math.min(p[1], q[1]) - (labelBelow ? 0.5 + small : 0.25)),
+        top = J.drawing.box()![3] + 0.12,
+        ZOOM = Math.min(1.8, 7.75 / (top - bottom)),
+        w = 16 / ZOOM,
+        h = 9 / ZOOM,
+        cx = JUNE_C[0] + R + 0.4 - w / 2,
+        cy = bottom + h / 2;
+      const view: Box = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+      // The notes go in the view's bottom left corner, or its top left one, under the band,
+      // when the place sits low on the globe and its beam would cross them.
+      /** Line `n` of four, counted from the top, at the chosen corner. */
+      const low = p[1] < CY + 0.3,
+        corner = (n: number): { at: Vec; edge: Vec } =>
+          low
+            ? { at: [view[0] + 0.3, view[3] - 1.25 / ZOOM - 0.25 - n * pitch], edge: [-1, 1] }
+            : { at: [view[0] + 0.3, view[1] + 0.3 + (3 - n) * pitch], edge: [-1, -1] };
       const beam = new Polygon(
         [
           [start, p[1]],
@@ -530,7 +555,7 @@ export default class SeasonsExplainer extends Scene {
       patch.key = 'noon-patch';
       const share = new Group(
         ...['Per m² of ground:', `sin ${degrees(june.altitude)} = ${juneShare.toFixed(2)}`, 'of overhead sunlight'].map((line, i) =>
-          label(line, [view[0] + 0.3, view[1] + 0.3 + (3 - i) * 0.36], { size: small * 1.3, color: i === 1 ? SUN : ink, edge: [-1, -1] }),
+          label(line, corner(i).at, { size: small * 1.3, color: i === 1 ? SUN : ink, edge: corner(i).edge }),
         ),
       );
       share.key = 'noon-share';
@@ -548,11 +573,11 @@ export default class SeasonsExplainer extends Scene {
         sunward[1] < 0
           ? label('noon sunlight', [p[0] - 0.3, Math.max(p[1], q[1]) + 0.12], { size: small, color: SUN, edge: [1, -1] })
           : label('noon sunlight', [p[0] - 0.3, Math.min(p[1], q[1]) - 0.12], { size: small, color: SUN, edge: [1, 1] }),
-        // Bottom left, clear of the globe at every latitude.
-        label(formula, [view[0] + 0.3, view[1] + 0.3], {
+        // Under the share, clear of the globe and the beam at every latitude.
+        label(formula, corner(3).at, {
           size: small * 1.3,
           color: ink,
-          edge: [-1, -1],
+          edge: corner(3).edge,
         }),
       );
       // The stage's camera: the heading and its line stay on screen, over the band.
@@ -589,8 +614,8 @@ export default class SeasonsExplainer extends Scene {
     const shareSaid = async (callout: Mobject, r: { altitude: number }, x: number) => {
       if (r.altitude <= 0) return;
       const under = callout.children.at(-1)!.center();
-      const said = label(`Noon: ${percent(noonShare(place.lat, Math.sign(x) * TILT))} of overhead sunlight per m²`, [under[0], under[1] - 0.4], {
-        size: 0.24,
+      const said = label(`Noon: ${percent(noonShare(place.lat, Math.sign(x) * TILT))} of overhead sunlight per m²`, [under[0], under[1] - 0.44], {
+        size: 0.28,
         color: SUN,
       });
       callout.add(said);
@@ -599,8 +624,8 @@ export default class SeasonsExplainer extends Scene {
     await shareSaid(juneSaid, june, JUNE_C[0]);
     await shareSaid(decSaid, december, DEC_C[0]);
     const monthsSaid = new Group(
-      label('June', [JUNE_C[0] + R, 2.65], { size: 0.24, color: ink, edge: [1, 0] }),
-      label('December', [DEC_C[0] + R, 2.65], { size: 0.24, color: ink, edge: [1, 0] }),
+      label('June', [JUNE_C[0] + R, 2.85], { size: 0.32, color: ink, edge: [1, 0] }),
+      label('December', [DEC_C[0] + R, 2.85], { size: 0.32, color: ink, edge: [1, 0] }),
     );
     monthsSaid.key = 'solstice-months';
     await s.enter(monthsSaid, { describe: 'June on the right; December on the left' });
@@ -651,7 +676,7 @@ export default class SeasonsExplainer extends Scene {
           const ch = v.chord(PLACES[k]!.lat);
           extra.add(
             label(PLACES[k]!.name, ch.far, {
-              size: 0.2,
+              size: 0.27,
               color: k === key ? PLACE : soft,
               edge: side < 0 ? [-1, 0] : [1, 0],
             }),
@@ -669,11 +694,11 @@ export default class SeasonsExplainer extends Scene {
     const table = (title: string, decl: number, box: [number, number, number, number]) =>
       s.card(
         ORDER.map((k) => [PLACES[k]!.name, hours(sunlight(PLACES[k]!.lat, decl).daylight)] as const),
-        { at: box, title, fontSize: 0.24 },
+        { at: box, title, fontSize: 0.27, align: 'top' },
       );
     // Four places in two months: a table, one under each globe.
-    const juneTable = await table('June', TILT, [1.7, -4.2, 7.3, -1.05]);
-    const decTable = await table('December', -TILT, [-7.3, -4.2, -1.7, -1.05]);
+    const juneTable = await table('June', TILT, [JUNE_C[0] - 2.8, -4.2, JUNE_C[0] + 2.8, CY - R - 0.2]);
+    const decTable = await table('December', -TILT, [DEC_C[0] - 2.8, -4.2, DEC_C[0] + 2.8, CY - R - 0.2]);
     juneTable.key = 'june-daylight-table';
     decTable.key = 'december-daylight-table';
     await juneTable.mark(place.name);
