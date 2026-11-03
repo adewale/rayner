@@ -50,7 +50,7 @@ test('WebKit checks served paint for every case of the cache, rate, PKCE, reques
         cases++;
       }
     }
-    assert.equal(cases, 17, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 1 face, 4 music, 5 periodic-table');
+    assert.equal(cases, 18, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 2 face (natural and recorded widths), 4 music, 5 periodic-table');
     await page.setViewportSize({width: 390, height: 667});
     await page.goto(server!.url + '/melody-rhythm.html');
     await page.waitForSelector('[data-ready=true]');
