@@ -12,6 +12,7 @@ import {
   exec,
   sunlight,
   noonShare,
+  noonPatch,
   sunDistance,
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
@@ -79,6 +80,9 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'december', { december: sunlight(lat, -23.44) });
           // The noon sunlight per square metre said under each globe, and the orbit's extremes the distance step argues from.
           assertStepState(trace, 'december', { noonShare: { june: noonShare(lat, 23.44), december: noonShare(lat, -23.44) } });
+          // The ground each 1 m noon beam lands on, drawn side by side; null where the noon Sun is down (Tromsø's December).
+          assertStepState(trace, 'spread', { patch: { june: noonPatch(lat, 23.44), december: noonPatch(lat, -23.44) } });
+          assert.equal(lat === 69.65, (trace.steps.find((s) => s.step === 'spread')!.after!.patch as { december: number | null }).december === null);
           const orbit = Array.from({ length: 365 }, (_, d) => sunDistance(d));
           assertStepState(trace, 'distance', { distance: { nearest: Math.min(...orbit), farthest: Math.max(...orbit) } });
           // The first check question: London's December-solstice noon share, 26% at average distance, is about 27% once
@@ -735,6 +739,20 @@ async function seasonsArithmetic(
   // The describe says the same formula.
   const noon = textOf(pictureHtml(trace.steps.find((s) => s.step === 'noon')!.after));
   assert.ok(noon.includes(formulas[0]!), noon);
+
+  // The side-by-side beams: each patch length printed under its beam, and the share per m² under it, is
+  // 1 ÷ that length as printed; the caption's "1 ÷ x = y%" sums hold as printed too.
+  const spreadTexts = texts.get('spread') ?? [];
+  const lengths = spreadTexts.filter((t) => /^\d+\.\d\d m$/.test(t)), shares = spreadTexts.filter((t) => /^\d+% per m²$/.test(t));
+  assert.ok(lengths.length >= 1 && lengths.length === shares.length, `one share under each patch: ${spreadTexts.join(' / ')}`);
+  lengths.forEach((length, i) => assert.equal(Math.round(100 / parseFloat(length)) + '% per m²', shares[i], `${length} against ${shares[i]}`));
+  const spreadCaption = String(trace.steps.find((s) => s.step === 'spread')!.meta.caption);
+  const sums = [...spreadCaption.matchAll(/1 ÷ ([\d.]+) = (\d+)%/g)];
+  assert.ok(sums.length >= 1, spreadCaption);
+  for (const [, x, y] of sums) {
+    assert.equal(Math.round(100 / Number(x)), Number(y), spreadCaption);
+    assert.ok(lengths.includes(`${x} m`), `the caption's ${x} m is drawn: ${spreadCaption}`);
+  }
 
   const yearStep = trace.steps.find((s) => s.step === 'year')!,
     year = textOf(pictureHtml(yearStep.after));

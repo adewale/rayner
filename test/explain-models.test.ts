@@ -16,6 +16,7 @@ import {
   sunlight,
   daylightYear,
   noonShare,
+  noonPatch,
   sunDistance,
 } from '../scenes/explainers/lib/models.ts';
 import { find, closeness, distance, run, ITEMS } from '../scenes/explainers/lib/2password.ts';
@@ -226,6 +227,31 @@ test('noon sunlight per square metre is sin of the noon altitude, and the orbit 
   assert.equal(days.indexOf(Math.min(...days)), 2, 'nearest in early January');
   assert.ok([184, 185].includes(days.indexOf(Math.max(...days))), 'farthest in early July');
   assert.ok(Math.abs(sunDistance(2 + 365 / 2) / sunDistance(2) - 1.034) < 0.001);
+});
+test('a noon beam one metre across lights the stretch of level ground its two edge rays meet, and none when the Sun is down', () => {
+  const rad = Math.PI / 180;
+  fc.assert(fc.property(
+    fc.double({ min: -90, max: 90, noNaN: true }),
+    fc.double({ min: -23.44, max: 23.44, noNaN: true }),
+    (latitude, declination) => {
+      const altitude = sunlight(latitude, declination).altitude, patch = noonPatch(latitude, declination);
+      if (altitude <= 0) return assert.equal(patch, null);
+      // Geometry, not the formula: one edge ray lands at the origin, travelling (cos a, −sin a); the other runs
+      // parallel, one metre away at right angles, through (sin a, cos a). Where it meets the ground, y = 0.
+      const a = altitude * rad, t = Math.cos(a) / Math.sin(a);
+      const x = Math.sin(a) + t * Math.cos(a);
+      assert.ok(patch !== null && Math.abs(patch - x) < 1e-9 * Math.max(1, x), `${latitude}, ${declination}: ${patch} against ${x}`);
+      assert.ok(patch >= 1 - 1e-12, 'no patch is shorter than the beam is wide');
+      assert.ok(Math.abs(patch * noonShare(latitude, declination) - 1) < 1e-9, 'the share per m² is one over the patch');
+    },
+  ), params(300));
+  // London: 1.13 m in June against 3.85 m in December, 3.4 times as long; Tromsø's December noon Sun is down;
+  // Quito's June and December patches are one length.
+  assert.equal(noonPatch(51.5, 23.44)!.toFixed(2), '1.13');
+  assert.equal(noonPatch(51.5, -23.44)!.toFixed(2), '3.85');
+  assert.equal((noonPatch(51.5, -23.44)! / noonPatch(51.5, 23.44)!).toFixed(1), '3.4');
+  assert.equal(noonPatch(69.65, -23.44), null);
+  assert.equal(noonPatch(0, 23.44), noonPatch(0, -23.44));
 });
 test('sunlight follows the sunrise equation: bounded, hemisphere-symmetric, polar extremes and mid-latitude hours', () => {
   fc.assert(fc.property(

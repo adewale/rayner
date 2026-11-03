@@ -53,6 +53,22 @@
       ]
     },
     {
+      "step": "spread",
+      "opening": true,
+      "targets": [
+        {
+          "key": "spread-ground",
+          "paint": "stroke"
+        },
+        {
+          "key": "spread-december"
+        },
+        {
+          "key": "spread-june"
+        }
+      ]
+    },
+    {
       "step": "latitude",
       "targets": [
         {

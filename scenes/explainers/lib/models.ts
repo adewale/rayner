@@ -138,6 +138,15 @@ export function noonShare(latitude: number, declination: number): number {
   return Math.max(0, Math.sin((sunlight(latitude, declination).altitude * Math.PI) / 180));
 }
 /**
+ * The length of level ground, in metres along the Sun's direction, that a noon beam one metre
+ * across (measured at right angles to its rays) lands on: 1 / sin of the noon altitude, so the
+ * share per square metre is 1 / patch. Null when the noon Sun is below the horizon.
+ */
+export function noonPatch(latitude: number, declination: number): number | null {
+  const { altitude } = sunlight(latitude, declination);
+  return altitude > 0 ? 1 / Math.sin((altitude * Math.PI) / 180) : null;
+}
+/**
  * Earth's distance from the Sun in astronomical units on a day of the year (0 = 1 January):
  * R = 1.00014 − 0.01671 cos g − 0.00014 cos 2g (Wikipedia, Position of the Sun), with the mean
  * anomaly g = 360° × (day − 2) / 365, zero at perihelion about 2 days after 1 January, as that

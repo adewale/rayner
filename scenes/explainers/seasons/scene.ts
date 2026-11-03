@@ -17,7 +17,7 @@ import {
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { emphasises } from '../../../explain/look.ts';
-import { sunlight, daylightYear, noonShare, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
+import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
 
 const PLACES: Record<string, { name: string; lat: number }> = {
   tromso: { name: 'Tromsø', lat: 69.65 },
@@ -636,6 +636,97 @@ export default class SeasonsExplainer extends Scene {
     let comparingJune = true;
     emphasises(this, () => (comparingJune ? [[J.dayLine, 'June daylight']] : []));
 
+    // -------------------------------------------------------------- spread
+    // The two noon beams from the globes, set down on one stretch of level ground under them, to scale:
+    // each 1 m across at right angles to its rays, landing on the length noonPatch gives.
+    const junePatch = noonPatch(place.lat, TILT),
+      decPatch = noonPatch(place.lat, -TILT);
+    const metres = (x: number) => x.toFixed(2) + ' m';
+    const longer = junePatch !== null && decPatch !== null && Math.abs(junePatch - decPatch) > 0.005
+      ? decPatch > junePatch
+        ? { month: 'December', other: 'June', ratio: decPatch / junePatch, from: juneShare, to: decShare }
+        : { month: 'June', other: 'December', ratio: junePatch / decPatch, from: decShare, to: juneShare }
+      : null;
+    const beamSaid = (month: string, alt: number, patch: number, share: number) =>
+      `${month}’s Sun, ${degrees(alt)} up, lays its beam on ${metres(patch)} of ground, so each square metre gets 1 ÷ ${patch.toFixed(2)} = ${percent(share)} of what an overhead Sun gives`;
+    await this.step('spread', {
+      title:
+        decPatch === null
+          ? `The same 1 m beam lands on ${metres(junePatch!)} of ground in June; in December the noon Sun is down`
+          : longer
+            ? `The same 1 m beam lands on ${metres(junePatch!)} of ground in June, ${metres(decPatch)} in December`
+            : `The same 1 m beam lands on ${metres(decPatch)} of ground in June and in December`,
+      line: `Both noon beams on level ground at ${place.name}, drawn to one scale.`,
+      caption:
+        `Here the noon sunlight from both globes lands on level ground at ${place.name}. Each beam is 1 m across, measured at right angles to its rays. ` +
+        `${beamSaid('June', june.altitude, junePatch!, juneShare)}. ` +
+        (decPatch === null
+          ? `In December the noon Sun stays ${degrees(-december.altitude)} below the horizon, so no beam reaches the ground.`
+          : longer
+            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. Counted at Earth’s average distance, as the percentages are, both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times as much ground as ${longer.other}’s, which is how ${percent(longer.from)} per m² falls to ${percent(longer.to)}.`
+            : `December’s Sun stands at the same ${degrees(december.altitude)}, so the beam lands on the same ${metres(decPatch)} and the share stays ${percent(decShare)}.`),
+    });
+    comparingJune = false;
+    await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
+    const spread = new Group();
+    spread.key = 'spread';
+    {
+      // Ground at y0; 1 m of beam is W units; each beam is drawn L units long on its sun-side edge. The words
+      // under each patch sit in a column at ±COLUMN, so the comparison stays narrow enough for a phone to open
+      // on it whole with its words at a readable size.
+      const y0 = -2.6,
+        W = 0.5,
+        L = 1.5,
+        COLUMN = 1.9,
+        size = 0.34;
+      const ground = new Line([-3.4, y0], [3.4, y0], { stroke: ink, strokeWidth: 0.03 });
+      ground.key = 'spread-ground';
+      spread.add(ground);
+      /**
+       * One noon beam landing on the ground, with its words in a column at `column`. `s` is the Sun's side
+       * (+1 = right). The patch is centred under the column and runs patch × W away from the Sun; the beam's
+       * far end is cut square to its rays, so it shows the beam's 1 m width.
+       */
+      const beam = (month: string, column: number, s: 1 | -1, alt: number, patch: number | null, share: number) => {
+        const g = new Group();
+        g.key = `spread-${month.toLowerCase()}`;
+        const words = patch === null ? [month, 'Sun below the horizon'] : [`${month}, ${degrees(alt)}`, metres(patch), `${percent(share)} per m²`];
+        g.add(...words.map((t, i) => label(t, [column, y0 - 0.38 - i * 0.44], { size, color: i === 1 ? SUN : ink })));
+        if (patch === null) return g;
+        const a = alt * RAD,
+          up: Vec = [s * Math.cos(a), Math.sin(a)],
+          across: Vec = [-s * Math.sin(a), Math.cos(a)];
+        const near: Vec = [column + (s * patch * W) / 2, y0],
+          far: Vec = [column - (s * patch * W) / 2, y0],
+          t1: Vec = [near[0] + L * up[0], near[1] + L * up[1]],
+          t2: Vec = [t1[0] + W * across[0], t1[1] + W * across[1]];
+        const band = new Polygon([near, t1, t2, far], { fill: SUN, fillOpacity: 0.4, stroke: 'none' });
+        band.key = `spread-${month.toLowerCase()}-beam`;
+        const lit = new Line(near, far, { stroke: SUN, strokeWidth: 0.07 });
+        lit.key = `spread-${month.toLowerCase()}-patch`;
+        g.add(
+          band,
+          new Line(t1, t2, { stroke: SUN, strokeWidth: 0.03 }),
+          lit,
+          label('1 m', [(t1[0] + t2[0]) / 2 + 0.34 * up[0], (t1[1] + t2[1]) / 2 + 0.34 * up[1]], { size, color: ink }),
+        );
+        return g;
+      };
+      // December's Sun is to the right of its globe and June's to the left, as drawn above: December's beam
+      // lands on the left half of the ground and June's on the right, both leaning toward the Sun between them.
+      spread.add(
+        beam('December', -COLUMN, 1, december.altitude, decPatch, decShare),
+        beam('June', COLUMN, -1, june.altitude, junePatch, juneShare),
+      );
+    }
+    await s.enter(spread, {
+      describe:
+        `Level ground at ${place.name}, with both noon beams drawn to one scale, each 1 m across: June’s, at ${degrees(june.altitude)}, lands on ${metres(junePatch!)}, ${percent(juneShare)} per m²; ` +
+        (decPatch === null ? `December’s noon Sun is below the horizon, so no beam lands` : `December’s, at ${degrees(december.altitude)}, lands on ${metres(decPatch)}, ${percent(decShare)} per m²`),
+    });
+    s.reading(spread);
+    this.state.patch = { june: junePatch, december: decPatch };
+
     // ------------------------------------------------------------ latitude
     const swing = (k: string) => [sunlight(PLACES[k]!.lat, TILT).daylight, sunlight(PLACES[k]!.lat, -TILT).daylight] as const;
     const [tromsoJune, tromsoDec] = swing('tromso'),
@@ -646,8 +737,7 @@ export default class SeasonsExplainer extends Scene {
       caption:
         'Each line follows one place as Earth turns; yellow marks the daylight part. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. London and Sydney sit between those extremes. These ideal day lengths count the Sun’s centre above a flat horizon, leaving out atmospheric bending and local terrain.',
     });
-    comparingJune = false;
-    await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
+    await this.play(new FadeOut(spread, { runTime: 0.3 }));
     const others = ORDER.filter((k) => k !== key);
     const extra = new Group();
     extra.key = 'latitude-circles';
