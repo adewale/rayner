@@ -213,6 +213,17 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'meaning', {
             reports: { wrong: { ok: true, warnings: 0 }, right: { ok: true, warnings: 0 } },
           });
+          // Both diagrams on show at once, each traced from its own yes label: a cache hit ends at Database in the
+          // wrong one and at Reply in the right one, while the verifier's lines in the two reports beside them are the same.
+          assertStepState(trace, 'meaning', {
+            hit: { wrong: { edge: 'edge:A->C#0', node: 'Database' }, right: { edge: 'edge:A->B#0', node: 'Reply' } },
+          });
+          {
+            const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'meaning')!.after)).replace(/\s+/g, ' ');
+            for (const heading of ['1: yes to Database;', '1: yes to Reply;']) assert.ok(shown.includes(heading), shown);
+            const body = '2: ok: true; 3: warnings: 0';
+            assert.equal(shown.split(body).length - 1, 2, shown);
+          }
           // The default case deletes the swapped labels to show what the verifier does flag.
           if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
           // Every case shows an error turning ok false: the edge to Database cut off at its arrow.
@@ -386,6 +397,20 @@ for (const entry of EXPLAINERS)
           const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
           assert.equal(overlap, '1.57');
           assert.ok(String((project.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta.checks[0]!.answer).includes(`about ${overlap} units before the phrase ends`));
+          // The rulers step draws both measurements under the opening's upper row, pen stop by pen stop from the
+          // phrase's start: JetBrains Mono's 12 cells of 0.54 and Garamond's own advances. Every Garamond advance is
+          // narrower than the cell, so the gap between matching stops grows at each glyph, ending at the opening's
+          // 2.07; the marker sits 0.5 past the Mono ruler's end, where the opening's upper row put it.
+          const rulers = trace.steps.find(s => s.step === 'rulers')!.after!.rulers as { measured: number[]; drawn: number[]; markers: { measured: number; drawn: number } };
+          assert.equal(rulers.measured.length, 13);
+          assert.equal(rulers.drawn.length, 13);
+          rulers.measured.forEach((x, i) => assert.ok(Math.abs(x - i * 0.54) < 1e-5, `Mono stop ${i}: ${x}`));
+          assert.ok(Math.abs(rulers.drawn[12]! - em.Regular * 0.9) < 1e-5);
+          const drift = rulers.measured.map((x, i) => x - rulers.drawn[i]!);
+          for (let i = 1; i < drift.length; i++) assert.ok(drift[i]! > drift[i - 1]!, `drift falls at glyph ${i}: ${drift}`);
+          assert.equal(drift[12]!.toFixed(2), (layout.wrong - layout.actual).toFixed(2));
+          assert.ok(Math.abs(rulers.markers.measured - (layout.wrong + 0.5)) < 1e-5 && Math.abs(rulers.markers.drawn - (layout.actual + 0.5)) < 1e-5);
+          assert.deepEqual(trace.steps.map(s => s.step), ['layout', 'advance', 'rulers', 'cuts', 'diagram']);
           const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));

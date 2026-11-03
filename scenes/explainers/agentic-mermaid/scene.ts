@@ -1,6 +1,6 @@
 import { Scene } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
+import { stage, settingsOf, REGIONS, regionBox } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 const STYLE = 'blueprint';
 const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';
@@ -37,6 +37,9 @@ export const BROKEN_REPORT = {
 } as const;
 const SIDE = REGIONS.side,
   GAP = 0.3;
+/** Where the meaning step's reports start, and their type size: each report sits beside its own diagram. */
+const REPORT_X = SIDE[0],
+  REPORT_SIZE = 0.42;
 /** The script's one-sentence answer, stated in the verify step of every case. */
 const ANSWER =
   'Verify fails a diagram that Agentic Mermaid’s renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked';
@@ -262,50 +265,64 @@ export default class MermaidExplainer extends Scene {
 
     await this.step('meaning', {
       title: swapped ? 'Label them the right way round: the report does not change' : 'Swap the labels, and the report does not change',
-      line: 'The wrong diagram and the right one get the same report.',
-      caption: swapped ? 'Two set_label edits, each naming one edge, put yes on the path to Reply and no on the path to Database. A hit now follows the intended route, but the report is identical to the backwards diagram’s. Distinguishing them needs a check that a cache hit reaches Reply without querying Database; this page describes that missing obligation rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} A set_label edit changes the label on one named edge; two of them`} reverse the behavior: a hit now follows yes to Database. The report remains ok with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job.`,
+      line: 'Same report beside both. Follow yes: Database above, Reply below.',
+      caption: swapped ? 'Two set_label edits, each naming one edge, put yes on the path to Reply and no on the path to Database. The corrected diagram sits below the backwards one, and both reports say ok: true with no warnings. Following yes out of Cached tells them apart: a hit reaches Database above and Reply below. A check that a cache hit reaches Reply without querying Database would catch the backwards one; this page describes that missing check rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} A set_label edit changes the label on one named edge; two of them`} reverse the behavior in the upper diagram: a hit now follows yes to Database, while in the lower one it still reaches Reply. Both reports say ok: true with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job; following the yes path can.`,
     });
-    // The swapped and missing cases still show a diagram that draws; the complete case left it at the broken step.
-    if (edit === 'complete') {
-      await s.clear();
-      d = await s.show({ source: GOOD }, { box: 'main' });
-    } else {
-      await s.clearOverlays();
-      await d.clearNotes();
-      await d.unmark();
+    await s.clear();
+    // The wrong diagram above and the right one below, each with its report beside it. The case's own edit makes
+    // one from the other: the swapped case repairs the unlabelled diagram, the others swap the right one's labels.
+    const rows = {
+      wrong: regionBox('full', { right: REPORT_X - 0.4, bottom: -0.2 }),
+      right: regionBox('full', { right: REPORT_X - 0.4, top: -0.8 }),
+    };
+    const wrong = await s.show({ source: swapped ? SWAPPED : GOOD }, { box: rows.wrong });
+    const right = await s.show({ source: swapped ? BAD : GOOD }, { box: rows.right });
+    d = swapped ? right : wrong;
+    await d.morph({ source: swapped ? GOOD : SWAPPED }, { ops: swapped ? OPS : SWAP });
+    record();
+    if (!swapped) this.state.swappedWarnings = d.findings().length;
+    // This case's caption names an edge by its id for the first time here, so the edited diagram's edges carry their ids.
+    if (edit === 'complete') await nameEdges();
+    /** Where a cache hit goes: the edge carrying the yes label, and the node at its end, read from the drawn snapshot. */
+    const hitOf = (g: Diagram) => {
+      const label = g.snapshot.parts.find((p) => p.role === 'edge-label' && p.shapes.some((sh) => sh.textRun?.text === 'yes'));
+      const edge = g.snapshot.parts.find((p) => p.id === label?.owner);
+      const node = g.snapshot.parts.find((p) => p.id === edge?.to)?.shapes.find((sh) => sh.textRun)?.textRun?.text;
+      if (!edge?.from || !edge.to || !node) throw new Error(`${g.spec.source} has no yes edge to a named node`);
+      return { edge: edge.id, from: edge.from, to: edge.to, node };
+    };
+    const hit = { wrong: hitOf(wrong), right: hitOf(right) };
+    for (const [g, h, color] of [
+      [wrong, hit.wrong, s.bad],
+      [right, hit.right, s.good],
+    ] as const) {
+      await g.walk([[h.from, h.to]], { trail: true });
+      await g.mark([h.edge], { color, as: `yes, to ${h.node}` });
     }
-    if (swapped) {
-      await d.morph({ source: GOOD }, { ops: OPS });
-      record();
-      const yes = d.snapshot.parts.find((p) => p.id === 'edge:A->B#0');
-      if (!yes || yes.to !== 'B' || !GOOD.includes('A{Cached} -->|yes| B[Reply]'))
-        throw new Error('The repaired diagram must send yes to Reply');
-      await d.walk([['A', 'B']], { trail: true });
-      await d.mark([yes.id], { color: s.good, as: 'yes, to Reply' });
-    } else {
-      await d.morph({ source: SWAPPED }, { ops: SWAP });
-      record();
-      this.state.swappedWarnings = d.findings().length;
-      // SWAPPED writes yes on A's edge to C, Database.
-      const yes = d.snapshot.parts.find((p) => p.id === 'edge:A->C#0');
-      if (!yes || yes.to !== 'C' || !SWAPPED.includes('A -->|yes| C[Database]'))
-        throw new Error('The swapped diagram must send yes to Database');
-      await d.walk([['A', 'C']], { trail: true });
-      await d.mark([yes.id], { color: s.bad, as: 'yes, to Database' });
-      // This case's caption names an edge by its id for the first time here, so the edges carry their ids.
-      if (edit === 'complete') await nameEdges();
-    }
-    // The two reports side by side: the wrong diagram's and the right one's.
-    await column(
-      await code(d.spec.source!.split('\n')),
-      await code(reportLines('yes to Database (wrong):', SWAPPED)),
-      await code(reportLines('yes to Reply (right):', GOOD)),
-    );
+    this.state.hit = {
+      wrong: { edge: hit.wrong.edge, node: hit.wrong.node },
+      right: { edge: hit.right.edge, node: hit.right.node },
+    };
+    // Each report beside its diagram, the two stacked either side of the rows' boundary, in type large enough to read
+    // on a 320 px phone with both reports in one view.
+    const wrongReport = await code(reportLines(`yes to ${hit.wrong.node}`, SWAPPED), REPORT_SIZE);
+    const rightReport = await code(reportLines(`yes to ${hit.right.node}`, GOOD), REPORT_SIZE);
+    const between = (rows.wrong[1] + rows.right[3]) / 2;
+    wrongReport.moveTo([REPORT_X, between + 0.1], [-1, -1]);
+    rightReport.moveTo([REPORT_X, between - 0.1], [-1, 1]);
+    wrongReport.key = 'mermaid-report-wrong';
+    rightReport.key = 'mermaid-report-right';
+    await s.enter(wrongReport, rightReport, { runTime: 0.35 });
+    // On a phone the step opens on the two reports, whose first lines name where each yes path ends;
+    // the diagrams and their coloured paths follow in the close-up tour.
+    s.reading(wrongReport, rightReport);
     const brief = (source: string) => {
       const { ok, warnings } = reports.get(source)!;
       return { ok, warnings };
     };
     this.state.reports = { wrong: brief(SWAPPED), right: brief(GOOD) };
+    // The history step reads the verifier's scope from the right diagram.
+    d = right;
     // What the agent's work leaves for the history: the right diagram, repaired if it had to be.
     const committed = reports.get(GOOD)!;
     // Every diagram that reaches the history drew, and none had its task checked: the caption says so.

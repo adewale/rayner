@@ -6,6 +6,8 @@ The upper row used JetBrains Mono's width for the phrase, 6.48 units. The lower 
 
 Where does a phrase's width come from? Each glyph moves the pen on by its advance, and the next glyph starts where the pen stopped. The two spaces in “Ink on paper” move the pen without drawing anything. The width is the sum of all twelve advances, 4.41 units in Garamond Regular, and that sum is what the lower row added the gap to.
 
+Now lay both measurements under the opening's upper row, starting where the words start. The upper ruler has a tick at each Garamond pen stop. The lower ruler has one at each stop JetBrains Mono would make for the same letters, every 0.54 units. Join matching stops and the lines lean further apart with each glyph, because every Garamond glyph in this phrase is narrower than Mono's cell. By the end of “paper” the rulers are 2.07 units apart, and the layout put the marker half a unit past the lower one: a ruler made for another font's glyphs.
+
 The cut matters as well as the family. At the same size the phrase advances 4.41 units in Regular, 4.85 in Bold and 4.24 in Italic, because each cut has its own glyphs and its own advances. A layout that measures Regular and draws Bold leaves 0.44 units less room than it planned.
 
 A diagram layout needs these widths before it chooses its box sizes. When it measures EB Garamond first, each word fits its box at its natural width. When it uses Inter estimates instead, the renderer stretches each Garamond word to the width recorded for Inter: Ink by 1.135 and Paper by 1.399. The two factors differ, so there is no single scale that converts Inter widths into Garamond ones; the only cure is to measure the face that will be drawn.
