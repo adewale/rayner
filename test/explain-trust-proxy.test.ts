@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
   ADDR,
+  MACHINES,
   REQUESTS,
   REQUEST_KEYS,
   TABLE,
@@ -16,6 +17,7 @@ import {
   readAddresses,
   reqIp,
   reqIps,
+  positions,
 } from '../scenes/explainers/lib/trust-proxy.ts';
 import type { Trust } from '../scenes/explainers/lib/trust-proxy.ts';
 
@@ -225,6 +227,36 @@ test('with 2, an attacker straight at the load balancer chooses req.ip; via the 
       assert.equal(reqIp(viaCdn.socket, viaCdn.xff, 2), ADDR.attacker);
       assert.equal(reqIp(direct.socket, direct.xff, TRUSTS.list), ADDR.attacker);
       assert.equal(reqIp(viaCdn.socket, viaCdn.xff, TRUSTS.list), ADDR.attacker);
+    }),
+    params(),
+  );
+});
+
+test('the routes view: a hop count trusts the same positions on both routes, the address list the same machines', () => {
+  const who = (t: Trust, q: 'forged' | 'direct') => positions(REQUESTS[q], t).map((p) => [p.who, p.verdict]);
+  // Counted from Express: the load balancer, then the CDN edge only on the long route, then the attacker and what it wrote.
+  assert.deepEqual(who(2, 'forged'), [['balancer', 'trusted'], ['edge', 'trusted'], ['attacker', 'answer'], ['forged', 'unread']]);
+  assert.deepEqual(who(2, 'direct'), [['balancer', 'trusted'], ['attacker', 'trusted'], ['forged', 'answer']]);
+  assert.deepEqual(who(TRUSTS.list, 'forged'), [['balancer', 'trusted'], ['edge', 'trusted'], ['attacker', 'answer'], ['forged', 'unread']]);
+  assert.deepEqual(who(TRUSTS.list, 'direct'), [['balancer', 'trusted'], ['attacker', 'answer'], ['forged', 'unread']]);
+  for (const t of TRUST_KEYS)
+    for (const q of REQUEST_KEYS) {
+      const got = atExpress(REQUESTS[q]),
+        ps = positions(REQUESTS[q], TRUSTS[t]);
+      // The same addresses and verdicts as proxy-addr's read; each position's address is its machine's own.
+      assert.deepEqual(ps.map((p) => ({ addr: p.addr, index: p.index, verdict: p.verdict })), readAddresses(got.socket, got.xff, TRUSTS[t]));
+      for (const p of ps) assert.equal(p.addr, p.who === 'forged' ? ADDR.forged : (MACHINES as Record<string, { addr: string }>)[p.who]!.addr, `${t} ${q} ${p.index}`);
+    }
+  // Whatever the attacker writes: a count n trusts positions below n on either route; the list trusts only the two proxies.
+  fc.assert(
+    fc.property(header, fc.integer({ min: 0, max: 6 }), (written, n) => {
+      const sent = written.join(', ');
+      for (const q of ['forged', 'direct'] as const) {
+        const ps = positions({ ...REQUESTS[q], sent }, n);
+        assert.deepEqual(ps.filter((p) => p.verdict === 'trusted').map((p) => p.index), [...Array(Math.min(n, ps.length - 1)).keys()]);
+        const byList = positions({ ...REQUESTS[q], sent }, TRUSTS.list).filter((p) => p.verdict === 'trusted').map((p) => p.who);
+        assert.deepEqual(byList, q === 'forged' ? ['balancer', 'edge'] : ['balancer']);
+      }
     }),
     params(),
   );

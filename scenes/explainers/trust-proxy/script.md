@@ -12,6 +12,8 @@ A numeric setting trusts positions. With 2, the load balancer occupies the first
 
 Follow the same request through the CDN instead. The two trusted positions now contain the load balancer and CDN, and the next address is the real sender. The hop count succeeds on this route and fails on the shorter one. Choosing a count requires knowing every route into the app, not just the intended route.
 
+Put the two routes side by side, with Express at the top of each column and the addresses it reads listed below it in order. Positions 1 and 2 hold the load balancer and the CDN edge in one column, and the load balancer and the attacker in the other. A count of two cuts both columns at the same depth, whatever machine sits above the cut, so on the short route the attacker's own address lands inside it.
+
 An address list makes a different decision: trust the load balancer's network and the CDN's range, rather than the first two positions. On the direct route it skips the load balancer but stops at the attacker's actual address. On the CDN route it skips both proxies. That gives the right sender for the three requests shown, provided the trusted ranges contain only trusted proxies and those proxies preserve an accurate forwarding chain.
 
 Compare all twelve combinations of request and trust setting. The setting true walks to the farthest reported address; a smaller hop count stops too soon on the longer route; the count of two goes too far on the shorter route. The address list works across these routes because the trust decision follows the proxy's identity rather than its position.
