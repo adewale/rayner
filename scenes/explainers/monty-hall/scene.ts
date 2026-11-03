@@ -1,4 +1,4 @@
-import { Scene, Group, Rectangle, Text, FadeIn, view } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Line, FadeIn, view } from '../../../src/index.ts';
 import type { Mobject, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
@@ -9,16 +9,24 @@ import { label, tile, stat } from '../lib/lesson-drawing.ts';
 const pct = (n: number) => (n * 100).toFixed(1) + '%';
 const door = (i: number) => 'ABC'[i]!;
 const HOSTS: readonly Host[] = ['informed', 'random'];
-const NAME: Record<Host, string> = { informed: 'Host who knows', random: 'Random host' };
+const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random host' };
 type Cell = ReturnType<typeof threeDoorCells>[number];
 
 // The strip: every round for the first pick, side by side, each as wide as its chance.
-// Narrow enough that a phone's opening close-up holds a whole strip.
-const X0 = -5,
-  X1 = 5,
-  H = 1.7,
-  SIX = (X1 - X0) / 6;
-const SLOT: Record<Host, number> = { informed: 0.92, random: -1.35 };
+// Nearly the stage's width; every word on a strip step is F, so a phone's opening close-up
+// still holds a whole strip with its labels at 12 px.
+const X0 = -6.5,
+  X1 = 6.5,
+  H = 2.05,
+  SIX = (X1 - X0) / 6,
+  F = 0.6;
+/** Strip centres: the host in play on top (rounds, odds), the second host under it (worlds). */
+const SLOT: Record<Host, number> = { informed: 0.5, random: -2.475 };
+/** A strip's name and readout sit this far above its centre; the column heads sit over the top strip. */
+const NAME = H / 2 + 0.45,
+  HEADS = 2.78;
+/** The rounds step has the strip alone, so its picture is lowered to the middle of the stage. */
+const ALONE = -1.45;
 
 /** Morphs pair parts by key: glyphs by their text and place in it, shapes by their place in the keyed part. */
 const byKey: MatchKey = (p) => {
@@ -68,19 +76,31 @@ function strip(s: Stage, cells: readonly Cell[], y: number, as: string, dim?: (c
           // Once some rounds are ruled out, the ones left are outlined heavier.
           strokeWidth: off ? 0.02 : dim ? 0.06 : 0.03,
         }).moveTo([cx, y]),
-        new Text(opens!, { fontSize: 0.5, color }).moveTo([cx, y + 0.54]),
-        new Text(shows!, { fontSize: 0.5, color }).moveTo([cx, y]),
-        new Text(wins!, { fontSize: 0.5, color, weight: off ? 'normal' : 'bold' }).moveTo([cx, y - 0.54]),
+        new Text(opens!, { fontSize: F, color }).moveTo([cx, y + 0.65]),
+        new Text(shows!, { fontSize: F, color }).moveTo([cx, y]),
+        new Text(wins!, { fontSize: F, color, weight: off ? 'normal' : 'bold' }).moveTo([cx, y - 0.65]),
       ),
       `${as}:${c.prize}${c.opened}`,
     );
   });
   return keyed(new Group(...parts), `strip:${as}`);
 }
-/** The car's three places, a third of the strip each. */
+/** The car's three places, a third of the strip each: each head centred over its third, a rule under it spanning the third. */
 const heads = (s: Stage, y: number) =>
   keyed(
-    new Group(...[0, 1, 2].map((i) => label(`Car behind ${door(i)}`, X0 + (i + 0.5) * 2 * SIX, y, s.soft, 0.52))),
+    new Group(
+      ...[0, 1, 2].flatMap((i) => {
+        const a = X0 + i * 2 * SIX + 0.12,
+          b = a + 2 * SIX - 0.24,
+          r = y - 0.36;
+        return [
+          label(`Car behind ${door(i)}`, (a + b) / 2, y, s.soft, F),
+          new Line([a, r], [b, r], { stroke: s.soft, strokeWidth: 0.025 }),
+          new Line([a, r], [a, r + 0.14], { stroke: s.soft, strokeWidth: 0.025 }),
+          new Line([b, r], [b, r + 0.14], { stroke: s.soft, strokeWidth: 0.025 }),
+        ];
+      }),
+    ),
     'monty-heads',
   );
 // Check 2: the car hidden behind A 40% of the time, B and C 30% each.
@@ -157,8 +177,8 @@ export default class MontyHall extends Scene {
       const g = keyed(
         new Group(
           ...[0, 1, 2].flatMap((i) => [
-            label(door(i), (i - 1) * 4.5, 2.7, s.soft, 0.64),
-            tile(i === example.opened ? 'goat' : '?', (i - 1) * 4.5, 1.05, 3.2, 2.25, s, { active: i === choice, size: 0.8, key: `door-${i}` }),
+            label(door(i), (i - 1) * 4.6, 2.7, s.soft, 0.64),
+            tile(i === example.opened ? 'goat' : '?', (i - 1) * 4.6, 0.95, 3.5, 2.5, s, { active: i === choice, size: 0.8, key: `door-${i}` }),
           ]),
         ),
         'monty-doors',
@@ -166,27 +186,27 @@ export default class MontyHall extends Scene {
       words = [`Doors A, B and C; ${X} is your pick; ${B} is open and shows a goat; ${C} is closed`];
       return new Group(
         g,
-        label(`You picked ${X}; he opened ${B}; ${C} is offered`, 0, -1.0, s.palette.ink, 0.62),
+        label(`You picked ${X}; he opened ${B}; ${C} is offered`, 0, -1.25, s.palette.ink, 0.62),
         label(
           host === 'informed' ? 'Knows where the car is; opens a goat at random' : 'Opens a random door; this time a goat',
           0,
-          -2.25,
+          -2.45,
           s.soft,
           // The size of the lines around it: a phone's close-up is set by the line that changes, the result.
           0.62,
           'monty-rule',
         ),
-        label(result, 0, -3.5, s.palette.ink, 0.62, 'monty-result'),
+        label(result, 0, -3.65, s.palette.ink, 0.62, 'monty-result'),
       );
     };
     /** Switching's chance for a host, right of his name: over every round, or (as) over the rounds left after the seen goat. */
     const readout = (h: Host, y: number, chance: number, key: string) =>
-      keyed(new Text(`switch wins ${pct(chance)}`, { fontSize: 0.52, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
-    const titleOf = (h: Host, y: number) => left(NAME[h], X0, y, h === host ? s.emphasis : s.palette.ink, 0.56, `monty-name-${h}`);
+      keyed(new Text(`switch wins ${pct(chance)}`, { fontSize: F, color: s.palette.ink }).moveTo([X1, y], [1, 0]), key);
+    const titleOf = (h: Host, y: number) => left(HOST[h], X0, y, h === host ? s.emphasis : s.palette.ink, F, `monty-name-${h}`);
     const describeStrip = (h: Host, list: readonly Cell[], dim: (c: Cell) => boolean = () => false) =>
-      `${NAME[h]}: ` +
+      `${HOST[h]}: ` +
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
-    const cellKey = (y: number) => label(KEY, 0, y, s.soft, 0.52, 'monty-key');
+    const cellKey = (y: number) => label(KEY, 0, y, s.soft, F, 'monty-key');
 
     const picture = (): Group => {
       switch (phase) {
@@ -196,20 +216,22 @@ export default class MontyHall extends Scene {
           return doors('Predict: stay or switch?');
         case 'rounds':
         case 'odds': {
-          const y = SLOT.informed,
+          // The key sits under the strip it explains; in odds the two figures take the stage's lower part, clear of it.
+          const dy = phase === 'rounds' ? ALONE : 0,
+            y = SLOT.informed + dy,
             ruled = phase === 'odds' ? dim : undefined;
           words = [describeStrip(host, cells[host], ruled), KEY];
           return new Group(
-            heads(s, 2.7),
-            titleOf(host, SLOT.informed + 1.15),
+            heads(s, HEADS + dy),
+            titleOf(host, y + NAME),
             strip(s, cells[host], y, host, ruled),
+            cellKey(y - NAME),
             ...(phase === 'odds'
               ? [
-                  stat(s, 'Stay', pct(seen[host].stayChance), -3.8, -1.45, 'monty-stay'),
-                  stat(s, 'Switch', pct(seen[host].switchChance), 3.8, -1.45, 'monty-switch'),
+                  stat(s, 'Stay', pct(seen[host].stayChance), -3.25, -2.85, 'monty-stay'),
+                  stat(s, 'Switch', pct(seen[host].switchChance), 3.25, -2.85, 'monty-switch'),
                 ]
               : []),
-            cellKey(-2.65),
           );
         }
         case 'copy':
@@ -218,13 +240,13 @@ export default class MontyHall extends Scene {
           const list = (h: Host) => (phase === 'copy' && h === other ? cells[host] : cells[h]);
           words = [...HOSTS.map((h) => describeStrip(h, list(h), dim)), KEY];
           return new Group(
-            heads(s, 2.7),
+            heads(s, HEADS),
             ...HOSTS.flatMap((h) => [
-              titleOf(h, SLOT[h] + 1.15),
-              ...(phase === 'worlds' ? [readout(h, SLOT[h] + 1.15, seen[h].switchChance, `monty-readout-${h}`)] : []),
+              titleOf(h, SLOT[h] + NAME),
+              ...(phase === 'worlds' ? [readout(h, SLOT[h] + NAME, seen[h].switchChance, `monty-readout-${h}`)] : []),
               strip(s, list(h), SLOT[h], h, dim),
             ]),
-            cellKey(-2.75),
+            cellKey(SLOT.random - NAME),
           );
         }
       }

@@ -78,7 +78,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
             assert.equal(strip.length, 1, `${step.name}: one ${host} strip`);
             const sixths = strip[0]!.children.map((cell) => {
               const box = cell.children.find((m): m is Rectangle => m instanceof Rectangle)!;
-              return Math.round((box.width() / (10 / 6)) * 100) / 100;
+              return Math.round((box.width() / (13 / 6)) * 100) / 100;
             });
             assert.deepEqual(sixths, host === 'informed' ? [1, 1, 2, 2] : [1, 1, 1, 1, 1, 1], `${step.name}: ${host} widths`);
             cells += sixths.length;
