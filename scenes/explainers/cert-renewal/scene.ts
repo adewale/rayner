@@ -1,4 +1,4 @@
-import { Scene, Group, Line, Rectangle, Text } from '../../../src/index.ts';
+import { Scene, Group, Line, Rectangle, Text, FadeOut } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import {
   BACKDATE,
@@ -8,11 +8,13 @@ import {
   LE_DATES,
   LIFETIMES,
   LIMIT,
+  FIXED_INTERVAL,
   RUN_EVERY,
   YEAR,
   ariSummary,
   dueAt,
   dueByInterval,
+  dueOffset,
   issue,
   simulate,
   summarize,
@@ -304,6 +306,109 @@ export default class CertRenewalExplainer extends Scene {
     await chart.note('task:c2', `replaced at day ${days(ninety.renewsAt)}`, { side: 'right' });
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
 
+    // ----------------------------------------------------------------- margin
+    let marginPicture: Group | undefined;
+    // The cause behind old-rule's answer: a 90-day certificate and this case's, drawn to one time scale and lined up
+    // at expiry, each with the 30-day rule's due point counted back from its expiry. Where that point lies left of a
+    // bar, the certificate is due from issue.
+    const percent = (x: number) => `${Math.round(x * 100)}%`;
+    const rows = [...new Set<LifetimeKey>(['90d', key])].map((k) => ({
+      lifetime: k,
+      hours: LIFETIMES[k].hours,
+      due: dueOffset('fixed30', LIFETIMES[k].hours),
+      share: FIXED_INTERVAL / LIFETIMES[k].hours,
+    }));
+    const fixedHere = rows.at(-1)!,
+      renewsHere = summarize('fixed30', key).renewsAt;
+    const named = (k: LifetimeKey) => `${LIFETIMES[k].label.replace(/ (day|hour)s$/, '-$1')} certificate`;
+    // Where the due point falls, in the words each row prints and the caption says.
+    const marginWords = (r: (typeof rows)[number]) =>
+      r.due < 0 ? `due ${days(-r.due)} days before issue` : `due at day ${days(r.due)}`;
+    const ofLife = (share: number, k: LifetimeKey) => {
+      const life = `a ${LIFETIMES[k].label.replace(/ (day|hour)s$/, '-$1')} life`;
+      return share >= 1 ? `${+share.toFixed(1)} times ${life}` : `${percent(share)} of ${life}`;
+    };
+    const lifeLeft = (share: number) =>
+      Math.abs(share - 1 / 3) < 1e-9 ? 'a third' : Math.abs(share - 2 / 3) < 1e-9 ? 'two thirds' : percent(share);
+    await this.step('margin', {
+      title:
+        fixedHere.due < 0
+          ? `Answer: 30 days before expiry is ${days(-fixedHere.due)} days before issue`
+          : `Answer: 30 days before expiry is day ${days(fixedHere.due)}, ${percent(1 - fixedHere.share)} of the way through`,
+      line:
+        fixedHere.due < 0
+          ? `So it is due from issue, and the first run, at hour ${renewsHere}, renews it.`
+          : `The rule counts 30 days back from expiry: ${percent(fixedHere.share)} of a ${adjective} life.`,
+      caption: `Each bar is one certificate, from issue to expiry, drawn to one time scale and lined up at expiry. The highlighted line is the 30-day test: renew once expiry is less than 30 days away. The red tick marks where that test starts to pass: 30 days before the right-hand end of each bar. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
+        key === '90d'
+          ? 'A ninety-day lifetime is what the 30-day margin was written for.'
+          : fixedHere.due < 0
+            ? `A ${named(key)} is shorter than the margin: its due point falls ${Math.round(-fixedHere.due)} hours, ${days(-fixedHere.due)} days, before it was issued. It is due from the moment it exists, so the first twice-daily run, at hour ${renewsHere}, replaces it, and the replacement is due from issue too.`
+            : `A ${named(key)} falls due at day ${days(fixedHere.due)}, with ${lifeLeft(fixedHere.share)} of its life left.`
+      }`,
+    });
+    await chart.hide();
+    await code.focus([7, 8]);
+    {
+      // The rows are the phone's opening, so their words are large enough to read when the rows fill a narrow stage;
+      // the words left of the bars, each row's share of its life, wait for the close-up tour.
+      const XE = 6.5,
+        perHour = 7.2 / LIFETIMES['90d'].hours,
+        xOf = (fromExpiry: number) => XE + fromExpiry * perHour,
+        size = 0.32,
+        ink = s.palette.ink;
+      const row = (r: (typeof rows)[number], y: number) => {
+        const left = xOf(-r.hours),
+          dueX = xOf(-FIXED_INTERVAL),
+          yb = y - 0.4;
+        const bar = new Rectangle({
+          width: XE - left,
+          height: 0.34,
+          fill: s.emphasis,
+          fillOpacity: 0.2,
+          stroke: s.emphasis,
+          strokeWidth: 0.025,
+        }).moveTo([(left + XE) / 2, y]);
+        const name = new Text(named(r.lifetime), { fontSize: size, color: ink, weight: 'bold', anchor: 'end' }).moveTo(
+          [XE, y + 0.5],
+          [1, 0],
+        );
+        const bracket = new Group(
+          new Line([dueX, yb], [XE, yb], { stroke: s.bad, strokeWidth: 0.03 }),
+          new Line([XE, yb - 0.08], [XE, yb + 0.08], { stroke: s.bad, strokeWidth: 0.03 }),
+          new Line([dueX, y + 0.2], [dueX, yb - 0.08], { stroke: s.bad, strokeWidth: 0.04 }),
+          new Text('30 days', { fontSize: size, color: s.bad }).moveTo([(dueX + XE) / 2, yb - 0.33]),
+          new Text(marginWords(r), { fontSize: size, color: s.bad, anchor: 'end' }).moveTo([dueX - 0.15, yb], [1, 0]),
+        );
+        const g = new Group(bar, name, bracket);
+        g.key = `margin:${r.lifetime}`;
+        return g;
+      };
+      const ys = rows.length === 1 ? [1.6] : [2.45, 0.78];
+      const subjects = rows.map((r, i) => row(r, ys[i]!));
+      const shares = rows.map((r, i) =>
+        new Text(`30 days is ${ofLife(r.share, r.lifetime)}`, {
+          fontSize: 0.24,
+          color: s.soft,
+          anchor: 'end',
+        }).moveTo([xOf(-LIFETIMES['90d'].hours) - 0.35, ys[i]!], [1, 0]),
+      );
+      const picture = new Group(...subjects, ...shares);
+      picture.key = 'margin';
+      await s.enter(picture, {
+        describe: () =>
+          `${rows.length === 1 ? 'One certificate' : 'Two certificates'} drawn to one time scale and lined up at expiry, each with a red 30-day bracket counted back from its right-hand end: ${rows
+            .map((r) => `a ${named(r.lifetime)}, ${marginWords(r)}, 30 days being ${ofLife(r.share, r.lifetime)}`)
+            .join('; ')}.`,
+      });
+      s.reading(...subjects);
+      marginPicture = picture;
+    }
+    this.state.margin = {
+      rows: rows.map(({ lifetime, hours, due, share }) => ({ lifetime, hours, due, share })),
+      renewsAt: renewsHere,
+    };
+
     // --------------------------------------------------------------- new-rule
     const payoff =
       byRule.fixed30.due === 0
@@ -339,12 +444,13 @@ export default class CertRenewalExplainer extends Scene {
         : `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
       caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
     });
-    await chart.clearNotes();
-    await chart.morph({ source: replacements });
+    // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
+    await this.play(new FadeOut(marginPicture!, { runTime: 0.3 }));
+    const replaced = await s.show({ source: replacements }, { box: regionBox('top', { bottom: -0.25 }) });
     await code.morph(NEW_CODE);
     await code.focus([6, 9]);
     // Each replacement's row names its rule and when it starts; the chosen rule's row is marked.
-    await chart.mark([`task:${rule}`], { as: 'the chosen rule' });
+    await replaced.mark([`task:${rule}`], { as: 'the chosen rule' });
     this.state.newRule = {
       lifetime: key,
       fixed30: { due: byRule.fixed30.due, renewsAt: byRule.fixed30.renewsAt },
