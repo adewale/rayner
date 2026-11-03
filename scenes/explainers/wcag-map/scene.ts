@@ -1,5 +1,5 @@
 import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/wcag-map.ts';
+import { frames as readerFrames, ANSWER } from '../lib/readers/wcag-map.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import {
@@ -137,6 +137,34 @@ export default class WcagMapExplainer extends Scene {
       'https://www.w3.org/TR/2023/CRD-WCAG22-20230125/#focus-visible',
       'https://www.w3.org/TR/2023/CRD-WCAG22-20230517/#focus-visible',
       'https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/',
+    ],
+    answer: ANSWER,
+    claims: [
+      {
+        says: 'means meeting every',
+        test: 'test/explain-wcag-map.test.ts: every version and level includes everything the level below it asks for',
+      },
+      { says: 'Every one dates from 2.0', shown: true as const },
+    ],
+    checks: [
+      {
+        question:
+          'A site meets all 24 criteria labelled AA in WCAG 2.2 but fails 1.1.1 Non-text Content, a level A criterion. Does it conform at level AA?',
+        answer:
+          'No. Level AA’s list includes every level A criterion, so failing one level A criterion fails level AA too, however many AA criteria pass.',
+      },
+      {
+        question:
+          'A contract asks for WCAG 2.1 level AA. A team checked its pages against the WCAG 2.2 level AA list and met all 55. What is still unchecked, and what did they check that 2.1 does not ask for?',
+        answer:
+          '4.1.1 Parsing is still unchecked: it is on the 2.1 AA list of 50 but 2.2 removed it. The six criteria 2.2 added at A or AA are extra work for a 2.1 contract.',
+      },
+      {
+        question:
+          'Keyboard focus on a new site is invisible. Does that fail 2.4.7 Focus Visible under a WCAG 2.0 level A policy, a WCAG 2.2 level A policy, or a WCAG 2.2 level AA policy?',
+        answer:
+          'Only under the 2.2 level AA policy. 2.4.7 is a level AA criterion in 2.0, 2.1 and the final 2.2 text, so neither level A list includes it, although drafts of 2.2 had moved it to level A.',
+      },
     ],
   };
   static settings = [

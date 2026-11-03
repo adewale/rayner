@@ -1,13 +1,13 @@
 # What does an authoring feature leave on the page?
 
-A few lines can turn a circle into a square. The motion makes their relationship easy to see while it plays. But someone opening a link directly to the finished step sees its resting picture. Does the transformation itself leave both shapes there?
+Four lines turn a circle into a square. While the motion plays, the relationship between the two shapes is plain. But someone who opens a link straight to the finished step sees only its resting picture. Before reading on, decide: does the transformation leave the circle, the square or both?
 
-It leaves the square. The before-and-after example has a circle beside it because that circle is a separate drawing. The animation’s starting state helps calculate the transition; it is not automatically a persistent comparison panel.
+It leaves the square. Transform reshapes the object already on stage until it matches the target, so when it finishes there is one object, and it is square. The result on this page has a circle beside the square only because the page draws that circle separately, as a record of where the change started. The animation's starting state helps calculate the transition; it does not become a comparison panel by itself.
 
-That distinction also applies to text and code changes. A morph can move matching letters and fade the others, or replace one code line with another. At rest the changed line is the current line. Earlier versions do not remain visible just because the animation passed through them. The matching example identifies which glyphs moved so their correspondence can still be inspected.
+The same holds for text and code. A matching morph moves the letters two texts share and fades the rest; a code morph keeps the lines both versions share and replaces the others. At rest, the changed line is simply the current line, and earlier versions do not stay visible because the animation passed through them. The matching example lists which letters moved, so the correspondence can still be inspected after the motion.
 
-A camera operation changes a different thing. `s.focus(subject)` brings a small object closer by changing the view, without changing the object’s coordinates. The ruler that previously spanned the stage now shows only its middle. A second before panel would be inside that same changed camera, so the ruler gives the comparison a reference that survives the zoom.
+A camera move changes something else. `s.focus(subject)` brings a small object closer by changing the view, not the object's coordinates. A before panel would sit inside the same closer view, so the page draws a ruler across the whole stage instead; after the focus it shows only its middle, while the circle is still at the origin.
 
-The feature selector pairs short examples of the APIs with their results. Settings choose prepared alternatives; drawing tools leave completed strokes; a saved state gives Restore a position and style to return to. These operations have different mechanics, but each result can be judged by the same question: what evidence remains once the motion ends?
+Each of the fifteen cases pairs a few lines an author writes with the picture those lines leave. Settings choose among prepared cases, a drawing tool leaves its finished stroke, and saveState gives Restore a position and style to return to. The mechanics differ, but one question judges every result: what evidence remains once the motion ends?
 
-Code describes what happens over time. A directly linked step must also explain the state it leaves behind. The starting copy, ruler and marked differences in these examples make that state inspectable without requiring the reader to replay the transition.
+Code describes what happens over time; a step opened from a link has to explain the state it leaves behind. When the motion is the point, draw what the reader needs to see at rest, as the starting copies, the ruler and the dashed outline do here.

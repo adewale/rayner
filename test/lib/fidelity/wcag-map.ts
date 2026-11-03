@@ -8,6 +8,16 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const level = values.level as Level,
     open = values.guideline!;
   if (!LEVELS.includes(level)) throw new Error(`Unknown level ${level}`);
+  // The reading path's version table: the same level's totals in each version, and what 2.1 and 2.2 changed.
+  assertStepState(trace, 'reader-versions', {
+    reader: {
+      level,
+      totals: VERSIONS.map((v) => tally(v, level).total),
+      added21: change('2.0', '2.1', level).added.length,
+      added22: change('2.1', '2.2', level).added.length,
+      removed22: ['4.1.1'],
+    },
+  });
   assertStepState(trace, 'v20', { v20: tally('2.0', level) });
   assertStepState(trace, 'v21', { v21: { tally: tally('2.1', level), change: change('2.0', '2.1', level) } });
   assertStepState(trace, 'v22', { v22: { tally: tally('2.2', level), change: change('2.1', '2.2', level) } });

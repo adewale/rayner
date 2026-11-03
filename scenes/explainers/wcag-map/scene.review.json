@@ -71,6 +71,30 @@
           "text": "A + AA + AAA"
         }
       ]
+    },
+    {
+      "step": "reader-versions",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "2.0"
+        },
+        {
+          "text": "2.1"
+        },
+        {
+          "text": "2.2"
+        },
+        {
+          "text": "first edition"
+        },
+        {
+          "text": "Criteria"
+        }
+      ]
     }
   ]
 }
