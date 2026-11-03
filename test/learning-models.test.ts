@@ -421,6 +421,8 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     for(const [i,j] of story.matchedPairs) assert.ok(i<j&&story.sample.first[i]===story.sample.first[j]);
     // The estimate step says the pair shortcut is within a percentage point of the exact chance.
     assert.ok(story.chance-story.shortcut>0&&story.chance-story.shortcut<.01);
+    // It also says the shortcut is the chance of sharing one birthday with as many other people as the room has pairs.
+    close(story.shortcut,birthdayChance(story.pairs+1,'one'));
   }
   assert.equal(room.matchedPairs.length,2);
   // Transfer exercises: two rooms of 23 merged, and a 100-day year.

@@ -4,9 +4,9 @@ Earth's orbit is slightly oval. It passes nearest the Sun once a year and farthe
 
 It is early January: winter in the north and summer in the south. Distance cannot explain opposite seasons happening at once. Earth's axis leans about 23 degrees and keeps pointing the same way as Earth goes round the Sun. The north therefore leans sunward in June and away in December.
 
-Follow London as Earth turns in June. Most of its daily circle lies on the lit side, giving it about sixteen hours of daylight. Its noon Sun also stands high above the horizon. A high Sun concentrates a beam onto less ground; a low Sun spreads that same beam over more ground. Longer days and stronger noon sunlight work together.
+Follow London as Earth turns in June. Most of its daily circle lies on the lit side, giving it about sixteen hours of daylight. Its noon Sun also stands high: in June the Sun is overhead at 23.44 degrees north, only 28 degrees of latitude from London, so London's noon Sun is 90 minus 28, about 62 degrees above the horizon. A high Sun concentrates a beam onto less ground; a low Sun spreads that same beam over more ground. Longer days and stronger noon sunlight work together.
 
-Half an orbit later the axis still points the same way, but the Sun is on the other side. London's day falls to about eight hours, and its low noon Sun spreads the light much more thinly. Sydney, south of the equator, makes the opposite swap.
+Half an orbit later the axis still points the same way, but the Sun is on the other side. London's day falls to about eight hours. The Sun is now overhead at 23.44 degrees south, 75 degrees of latitude away, so London's noon Sun stands only about 15 degrees up and spreads the light much more thinly. Sydney, south of the equator, makes the opposite swap.
 
 How much does the change depend on where you live? Tromsø's circle stays entirely in daylight in June and entirely in darkness in December. The equator's circle stays half lit, so Quito keeps about twelve hours of daylight. London and Sydney fall between those extremes. Through the year the same geometry gives each place its own rising and falling curve.
 

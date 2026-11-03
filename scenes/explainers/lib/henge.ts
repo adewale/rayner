@@ -3,6 +3,8 @@ export const LATITUDE = 40.75;
 export const TILT = 23.44;
 export const STREET = 299.1;
 export const SUN_RADIUS = 0.2666;
+/** Days in a year: the circular orbit's mean rate turns longitude into days, 365.2422 for 360°. */
+export const YEAR = 365.2422;
 export type Street = 'manhattan' | 'west';
 const rad = Math.PI / 180;
 const deg = 180 / Math.PI;
@@ -36,9 +38,12 @@ export function crossings(bearing: number, altitude = 0) {
 export function henge(street: Street) {
   if (street !== 'manhattan' && street !== 'west') throw new Error('Choose manhattan or west');
   const bearing = street === 'manhattan' ? STREET : 270;
+  const half = crossings(bearing), full = crossings(bearing, SUN_RADIUS);
   const seasons = [-TILT, 0, TILT].map((d) => ({ ...sunset(d),
     path: Array.from({ length: 49 }, (_, i) => sky(LATITUDE, d, sunset(d).hourAngle * i / 48)) }));
   return { street, bearing, latitude: LATITUDE, tilt: TILT, radius: SUN_RADIUS, seasons,
     annual: Array.from({ length: 145 }, (_, i) => ({ longitude: i * 2.5, ...sunset(declination(i * 2.5)) })),
-    half: crossings(bearing), full: crossings(bearing, SUN_RADIUS) };
+    half, full,
+    /** Days between half Sun and full Sun in each alignment season, at the mean orbital rate. */
+    gapDays: ((full[0]! - half[0]!) * YEAR) / 360 };
 }
