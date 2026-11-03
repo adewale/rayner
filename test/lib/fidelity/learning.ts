@@ -28,6 +28,14 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assertStepState(trace,'marker',{dict:m.correct,result:m.repaired});
     assertStepState(trace,'missing',{dict:m.correct,result:m.missing});
     assert.match(String(trace.steps.find(s=>s.step==='broken')!.meta.caption),/Suppose deletion/);
+    // The arrows under the slot row: each step's route, read slot by slot. Absent 24 hops D, 8 and 16, stops at
+    // never-used slot 7, and flies over never-used slots 2 to 5 without reading them.
+    assertStepState(trace,'broken',{route:{hops:[{slot:0,reads:'never used',then:'stop'}],passedOver:[]}});
+    assertStepState(trace,'missing',{route:{hops:[{slot:0,reads:'D',then:'on'},{slot:1,reads:8,then:'on'},{slot:6,reads:16,then:'on'},{slot:7,reads:'never used',then:'stop'}],passedOver:[2,3,4,5]}});
+    assertStepState(trace,'marker',{route:{hops:key===8
+      ?[{slot:0,reads:'D',then:'on'},{slot:1,reads:8,then:'found'}]
+      :[{slot:0,reads:'D',then:'on'},{slot:1,reads:8,then:'on'},{slot:6,reads:16,then:'found'}],passedOver:key===8?[]:[2,3,4,5]}});
+    assertStepState(trace,'collision',{route:{hops:[{slot:0,reads:0,then:'on'},{slot:1,reads:8,then:'on'},{slot:6,reads:16,then:'found'}],passedOver:[2,3,4,5]}});
   } else if(id==='bloom-filter') {
     const m=bloomStory(Number(values.bits) as 16|32);
     assertStepState(trace,'question',{bits:Array(m.size).fill(0),stored:[]});

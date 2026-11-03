@@ -9,13 +9,13 @@
           "key": "reader-picture"
         },
         {
-          "text": "Search"
+          "key": "timeline-searches"
         },
         {
-          "text": "Starts"
+          "text": "“ca”"
         },
         {
-          "text": "Answers"
+          "text": "“cat”"
         },
         {
           "text": "The user wants “cat”"
@@ -30,10 +30,16 @@
           "key": "reader-picture"
         },
         {
-          "text": "After"
+          "key": "timeline-searches"
         },
         {
-          "text": "Page shows, no check"
+          "key": "timeline-page-off"
+        },
+        {
+          "text": "Page shows"
+        },
+        {
+          "text": "No guard"
         }
       ]
     },
@@ -84,7 +90,13 @@
           "key": "reader-picture"
         },
         {
-          "text": "After"
+          "key": "timeline-searches"
+        },
+        {
+          "key": "timeline-page-off"
+        },
+        {
+          "key": "timeline-page-on"
         },
         {
           "text": "No guard"
@@ -102,13 +114,16 @@
       "opening": true,
       "targets": [
         {
-          "text": "Page shows, no check"
+          "key": "timeline-page-off"
         },
         {
-          "text": "“ca” lands"
+          "text": "No guard"
         },
         {
-          "text": "stale"
+          "text": "“ca”"
+        },
+        {
+          "text": "“cat”"
         }
       ]
     },
