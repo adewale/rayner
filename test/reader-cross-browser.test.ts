@@ -150,7 +150,7 @@ test('native macOS Safari runs the introduction, case changes, requested letteri
     assert.equal(await driver.execute('return document.querySelectorAll(".stage path").length>=9'), true);
     assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /EB Garamond/);
     await driver.open('/token-bucket.html?step=trace&rate=4');
-    assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /4 \/ s: R6 get 429/);
+    assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /4 \/ s: R6 gets 429/);
     await driver.open('/periodic-groups.html?element=cl&step=blocks');
     const periodic = await driver.execute<string>('return document.querySelector(".described").textContent');
     assert.match(periodic, /2 \+ 10 \+ 5 = 17/);
