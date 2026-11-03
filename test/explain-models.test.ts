@@ -177,6 +177,31 @@ test('shell execution returns a new filesystem and never mutates its input', () 
   assert.equal(exec(original, [['cat', 'shout.txt']]).stdout, '');
   assert.equal(exec(next.shell, [['cat', 'shout.txt']]).stdout, 'HELLO\n');
 });
+test('property: exec leaves any shell it is given unchanged and puts a redirect’s write only in the shell it returns', () => {
+  const name = fc.constantFrom('a.txt', 'b.txt', 'shout.txt');
+  const stage = fc.oneof(
+    fc.tuple(fc.constant('echo'), fc.string({ maxLength: 6 })),
+    fc.constant(['tr', 'a-z', 'A-Z'] as const),
+    fc.tuple(fc.constant('cat'), name),
+  );
+  fc.assert(fc.property(
+    fc.dictionary(name, fc.string({ maxLength: 6 })),
+    fc.nat(5),
+    fc.array(stage, { minLength: 1, maxLength: 4 }),
+    fc.option(name, { nil: undefined }),
+    (files, steps, stages, redirect) => {
+      const shell = { fs: { ...files }, steps },
+        before = structuredClone(shell);
+      const run = exec(shell, stages, redirect);
+      assert.deepEqual(shell, before);
+      if (redirect) {
+        assert.equal(run.stdout, '');
+        assert.ok(redirect in run.shell.fs);
+      }
+      for (const f of Object.keys(run.shell.fs)) if (f !== redirect) assert.equal(run.shell.fs[f], shell.fs[f]);
+    },
+  ), params(300));
+});
 test('noon sunlight per square metre is sin of the noon altitude, and the orbit is about 3.4% farther in July', () => {
   fc.assert(fc.property(
     fc.double({ min: -90, max: 90, noNaN: true }),

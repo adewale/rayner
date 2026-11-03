@@ -1,5 +1,5 @@
 import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/just-bash.ts';
+import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
 import { Scene, Text, Group, Rectangle, Transform } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
@@ -23,6 +23,21 @@ function lookup(name: string): 'builtin' | 'unsupported' {
     throw error;
   }
 }
+/** The check answers, from the model: two writes from the same starting shell, a pipeline with no redirect, and ls. */
+const CHECK = (() => {
+  const empty: Shell = { fs: {}, steps: 0 },
+    first = exec(empty, [['echo', 'hi']], 'a.txt').shell,
+    second = exec(empty, [['echo', 'bye']], 'b.txt').shell,
+    plain = exec(empty, PIPELINE);
+  let ls = '';
+  try {
+    exec(first, [['ls']]);
+  } catch (error) {
+    ls = error instanceof Error ? error.message : String(error);
+  }
+  if (!('a.txt' in first.fs) || 'a.txt' in second.fs) throw new Error('a.txt should be in the first result alone');
+  return { branch: { first: files(first), second: files(second) }, plain: { stdout: plain.stdout, files: files(plain.shell) }, ls };
+})();
 const TOP = regionBox('top', { bottom: -0.2 }),
   BOTTOM = regionBox('bottom', { top: -0.5 }),
   BOTTOM_LEFT = regionBox('left', { top: -0.5 }),
@@ -34,6 +49,27 @@ export default class BashExplainer extends Scene {
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/just-bash.ts',
+    ],
+    // The script's answer; check holds reader-values to stating it.
+    answer: ANSWER,
+    claims: [
+      { says: 'leaves the shell you passed in unchanged', test: 'test/explain-models.test.ts: exec leaves any shell it is given unchanged' },
+      { says: 'only the returned one holds shout.txt', shown: true as const },
+    ],
+    // Commands no step runs, each answered by the same exec.
+    checks: [
+      {
+        question: 'From the empty shell, a caller runs echo hi > a.txt and keeps the returned shell. Then it runs echo bye > b.txt on the empty shell again and keeps that result too. Which files does the second result hold, and where is a.txt?',
+        answer: `The second result holds ${CHECK.branch.second} and nothing else. a.txt is in the first result, because the second command started from the empty shell, which never received the first write.`,
+      },
+      {
+        question: 'Run echo hello | tr a-z A-Z with no redirect. What does exec print, and does the returned shell gain a file?',
+        answer: `It prints ${q(CHECK.plain.stdout)}, and the returned shell holds ${CHECK.plain.files === 'none' ? 'no files' : CHECK.plain.files}. Without a redirect the text stays on standard output, so there is no write for the returned shell to carry.`,
+      },
+      {
+        question: 'To check whether shout.txt exists, a caller runs ls on the returned shell. What happens, and what does that tell it about the file?',
+        answer: `exec throws “${CHECK.ls}”, because this model has branches only for echo, tr and cat. The error says nothing about shout.txt; cat on the returned shell would print its contents.`,
+      },
     ],
   };
   override async construct() {
@@ -151,11 +187,10 @@ export default class BashExplainer extends Scene {
     this.state = { oldShell: old, newShell: run.shell, stdout: run.stdout };
     // ── redirect: the write lands in a new value ────────────────────────
     await this.step('redirect', {
-      detail: true,
-      title: 'The redirect writes into a new shell',
-      line: `The returned shell holds ${FILE}; the original has no files.`,
+      title: 'The redirect writes into a copy, and exec returns the copy',
+      line: `The returned shell holds ${FILE}; the original still has no files.`,
       caption:
-        'The redirect stores HELLO in shout.txt and empties stdout. Exec copies the filesystem into a new shell value and returns it, so the original shell on the left still has no files.',
+        'The redirect stores HELLO in shout.txt and empties stdout, but the file does not go into the shell the caller passed in. exec copies that shell’s files into a new shell value, adds shout.txt there and returns it, so the original shell on the left still has no files and its step count is still 0.',
     });
     await s.clearOverlays();
     await flow.morph({
@@ -248,7 +283,7 @@ export default class BashExplainer extends Scene {
       title: 'cat reads the returned shell',
       line: `The returned shell has ${FILE}, so cat ${prints(result.stdout)}.`,
       caption:
-        'Cat receives the returned shell, finds shout.txt and prints HELLO. The write is visible only because the caller passed exec’s returned shell to this call.',
+        'Cat receives the returned shell, finds shout.txt and prints HELLO. The write is visible because the caller passed exec’s returned shell to this call; the original would print nothing.',
     });
     await s.clear();
     await s.code([`exec(${'returned'}, [["cat", "${FILE}"]])`], {
@@ -280,11 +315,10 @@ export default class BashExplainer extends Scene {
     const viaNew = exec(run.shell, [['cat', FILE]]).stdout,
       viaOld = exec(old, [['cat', FILE]]).stdout;
     await this.step('lesson', {
-      detail: true,
-      title: 'The caller holds both shells and can cat either',
+      title: 'Keep the returned shell: the caller holds both and can cat either',
       line: `On s1 cat ${prints(viaNew)}, on s0 it ${prints(viaOld)}; s0.fs is still ${JSON.stringify(old.fs)}.`,
       caption:
-        'Every exec returns the next shell and leaves its input alone. Because the caller holds s0 and s1 at once, it can cat either: s1 prints HELLO and s0 prints nothing.',
+        'Call the starting shell s0 and the shell exec returned s1. exec gives back the next shell and leaves its input alone, so the caller holds both at once: cat on s1 prints HELLO and cat on s0 prints nothing. Code that passes s1 to the next command sees the file; code that keeps using s0 has lost it, although the command ran.',
     });
     await s.clear();
     const chain = await s.show(
