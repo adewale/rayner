@@ -97,8 +97,9 @@ distribution and adding another dependent readout. Keep these constraints:
 The recipe fixes drawing coordinates at construction. Do not shift/scale/rotate
 the dependent group and expect later sampling to retain that placement: absolute
 updates use its original coordinate system. Camera animation is independent.
-[Sampled parameters](PARAMETERS.md) records which explainers a general version
-would change, and the small shape it would take if one is migrated.
+The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow): one sampled
+number, an `apply` that writes absolutely, and the targets it writes named for the
+one-writer check. [Sampled parameters](PARAMETERS.md) records the survey behind it.
 
 ## Consume a scene in another application
 

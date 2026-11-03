@@ -92,7 +92,7 @@ function assertDisjoint(anims: readonly Animation[]): void {
   // A Succession's members run one at a time, so they may share mobjects with each
   // other (each is checked on its own below), but not with anything beside them.
   const leaves = (a: Animation): Animation[] => (a instanceof AnimationGroup && !(a instanceof Succession) ? a.animations.flatMap(leaves) : [a]);
-  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a instanceof AnimationGroup ? a.mobjects.flatMap(m => m.family()) : a.mobject.family());
+  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
   for (const a of anims.flatMap(leaves)) {
     if (a instanceof Succession) for (const member of a.animations) assertDisjoint([member]);
     for (const m of driven(a)) {
@@ -460,7 +460,7 @@ export class Scene<S extends object = SceneState> {
     const present = new Set(this.familyMembers());
     for (const a of anims) {
       a.begin();
-      const mobs = a instanceof AnimationGroup ? a.mobjects : [a.mobject];
+      const mobs = a.targets();
       for (const m of mobs) {
         // Camera: animated like any mobject, but never added to the drawn list
         if (!m || m === this.frame || present.has(m)) continue;

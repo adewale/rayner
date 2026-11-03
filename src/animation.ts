@@ -5,7 +5,7 @@
 import { smooth, thereAndBack, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState } from './mobject.ts';
+import { Group, adoptState, Mobject as MobjectClass } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
@@ -71,6 +71,8 @@ abstract class AnimationTiming {
   abstract interpolate(alpha: number): void;
   abstract finish(alpha?: number): void;
   abstract cleanUpFromScene(scene: Scene): void;
+  /** The mobjects this animation writes: what play() admits to the scene and allows one writer each. */
+  abstract targets(): Mobject[];
 }
 export type ScheduledAnimation = Animation | AnimationGroup;
 
@@ -80,6 +82,7 @@ export class Animation extends AnimationTiming {
   families!: FamilyRow[];
   slots!: { index: Int32Array; count: number };
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
+  override targets(): Mobject[] { return [this.mobject]; }
   /** Called when play starts. Copies live here, never in the constructor. */
   override begin(): void {
     this.starting = this.createStartingMobject();
@@ -158,6 +161,67 @@ export class SetState<S extends object = SceneState> extends Animation {
     this.host.state = jsonObject(this.snapshot, 'SetState state') as Scene<S>['state'];
     super.begin();
   }
+}
+
+export interface FollowSpec {
+  /** Where the value starts: a number, or a function read when the play begins (so a Succession member starts where the one before left it). */
+  from: number | (() => number);
+  /** Where the value ends. */
+  to: number;
+  /** Write the drawings from one value: absolute geometry, text and paint, never from what the previous frame left. */
+  apply: (value: number) => void;
+}
+export interface FollowOpts extends AnimOpts {
+  /** Every mobject `apply` writes: play() admits them and refuses a second writer of any of them. */
+  targets: readonly Mobject[];
+}
+
+/**
+ * Several drawings following one number: a bucket's level and the chart's climb
+ * from the same elapsed time, a dot, a radius and a readout from the same angle.
+ * Each frame samples the value between `from` and `to` at the eased alpha and
+ * calls `apply` with it, so the drawings always agree, and a seek renders what a
+ * full run renders because nothing is integrated over frames. No updater is
+ * registered. The value is exact at both ends; an easing that overshoots samples
+ * outside them, as a Transform would. See docs/CHOREOGRAPHY.md.
+ */
+export class Follow extends Animation {
+  readonly spec: FollowSpec;
+  private readonly written: Mobject[];
+  /** The value the play began from. Set by begin(). */
+  start = 0;
+
+  constructor(spec: FollowSpec, { targets, ...opts }: FollowOpts) {
+    if (!Array.isArray(targets) || !targets.length || !targets.every((m) => m instanceof MobjectClass))
+      throw new TypeError('Follow needs the mobjects apply() writes: targets: [a, b, ...]');
+    if (!Number.isFinite(spec.to)) throw new RangeError(`Follow: to must be a finite number, not ${String(spec.to)}`);
+    if (typeof spec.from !== 'function' && !Number.isFinite(spec.from)) throw new RangeError(`Follow: from must be a finite number or a function, not ${String(spec.from)}`);
+    if (typeof spec.apply !== 'function') throw new TypeError('Follow: apply must be a function of the value');
+    super(targets[0]!, opts);
+    this.spec = spec;
+    this.written = [...targets];
+  }
+
+  override targets(): Mobject[] { return this.written; }
+
+  override begin(): void {
+    const from = typeof this.spec.from === 'function' ? this.spec.from() : this.spec.from;
+    if (!Number.isFinite(from)) throw new RangeError(`Follow: from() must return a finite number, not ${String(from)}`);
+    this.start = from;
+    this.interpolate(0);
+  }
+
+  /** The value at an eased alpha: exact at 0 and 1. */
+  valueAt(alpha: number): number {
+    return alpha <= 0 ? this.start : alpha >= 1 ? this.spec.to : this.start + (this.spec.to - this.start) * alpha;
+  }
+
+  override interpolate(alpha: number): void {
+    this.spec.apply(this.valueAt(alpha));
+    for (const m of this.written) m.invalidateBox();
+  }
+
+  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(...this.written); }
 }
 
 /** A path's structure: its subpaths and their closed flags. */
@@ -494,8 +558,9 @@ export class AnimationGroup extends AnimationTiming {
   }
   /** A group has no mobject; nested groups contribute their leaf members. */
   get mobjects(): Mobject[] {
-    return this.animations.flatMap((a) => a instanceof AnimationGroup ? a.mobjects : [a.mobject]).filter(Boolean);
+    return this.animations.flatMap((a) => a.targets()).filter(Boolean);
   }
+  override targets(): Mobject[] { return this.mobjects; }
 }
 
 export class LaggedStart extends AnimationGroup {

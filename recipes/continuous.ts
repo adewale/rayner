@@ -1,5 +1,5 @@
-// A supported recipe using the current Animation extension point.
-// The general parameter-binding API in docs/PARAMETERS.md is a design, not an export.
+// A supported recipe using the Animation extension point by hand. The exported
+// `Follow` does the same for any one number (docs/CHOREOGRAPHY.md); this shows what it wraps.
 import { Scene, Group, Circle, Dot, Line, DecimalNumber, Animation, linear } from 'rayner';
 import type { Vec, AnimOpts } from 'rayner';
 

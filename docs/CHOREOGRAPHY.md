@@ -9,6 +9,7 @@ with native mobjects as ordinary animations: pass them to `play`, `AnimationGrou
 | Stretch from a baseline while fading in | `GrowFromEdge` | Captured chart bars grow from the bottom; Gantt tasks from the left |
 | Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins |
 | Adopt the next model state at a particular point inside a schedule | `SetState` | Ring-buffer operations and periodic-table configuration steps |
+| Drive several drawings from one sampled number | `Follow` | Token bucket: the gauge and the chart's climb from the same elapsed time |
 
 The first two replace private classes in `explain/diagrams.ts`. `SetState` replaces
 the duplicated `Apply` class in the ring-buffer and periodic-groups examples. The
@@ -121,6 +122,45 @@ The snapshot must come from your model or source, not an invented answer. `SetSt
 does not execute an asynchronous program, verify a model or interpolate categorical
 states. Seeking replays the state changes at their scheduled turns.
 
+## Follow
+
+```ts
+import { Follow, linear } from 'rayner';
+await this.play(new Follow(
+  { from: 0, to: Math.PI, apply: (angle) => { dot.moveTo(orbit(angle)); radius.putStartAndEndOn([0, 0], orbit(angle)); readout.setText(angle.toFixed(2)); } },
+  { targets: [dot, radius, readout], runTime: 1, rateFunc: linear },
+));
+```
+
+Signature: `new Follow({ from, to, apply }, { targets, ...AnimOpts })`.
+
+One number, sampled between `from` and `to` at the eased alpha, decides every
+drawing `apply` writes, so a bucket's level and the chart's climb agree at every
+frame and a dot evaluated from its angle stays on its circle where a morph between
+two endpoint pictures would cut through the centre. `from` is a number or a
+function read when the play begins, so a member of a `Succession` starts where the
+one before left the value. The value is exact at alpha 0 and 1; an easing that
+overshoots samples past the ends, as a `Transform` would.
+
+`apply` writes absolute geometry, text and paint from its one argument and never
+from what the previous frame left (`setPolygon`, `moveTo`, `setText`, a style
+field), so repeated and out-of-order evaluation is harmless and a seek renders the
+frame a full run renders. That is a documented contract, as it is for updaters;
+the engine cannot check it. No updater is registered, so seeking still skips.
+
+`targets` names every mobject `apply` writes. `play()` admits them to the scene
+and refuses a second writer of any of them in the same play, including another
+`Follow`, through the ordinary ownership check (`targets()` is what every
+animation now reports). With `remover: true` all of them leave the scene after
+the play. Non-finite values, an empty target list and a `from()` that returns
+`NaN` at begin are refused before anything is drawn.
+
+The token bucket's refill member uses it: elapsed time between two requests drives
+the gauge through `min(5, previous + elapsed × rate)` and the climbing line's drawn
+share through `drawFraction`, so the gauge no longer waits at the old balance while
+the line climbs, and the corner where the cap takes over appears in both at once.
+The accept or refuse that follows stays a discrete `Transform` in the next member.
+
 ## Composition and verification
 
 Growth and pulse capture geometry at `begin()`; `SetState` freezes the supplied
@@ -133,6 +173,8 @@ reversible state transition.
 
 `test/choreography.test.ts` checks independent geometric/opacity expectations,
 the old growth/message-token frame sequences, malformed inputs, state isolation,
-conflicting writers, nested schedules and SVG/trace seek equality. The installed
+conflicting writers, nested schedules and SVG/trace seek equality, and for `Follow`
+begin-time starts in a `Succession`, refused writers, admission and removal of every
+target, and a mid-sweep dot that sits on its circle. The installed
 package smoke runs the compiled recipe and checks its final model state. Other
 simple uses of FadeIn/FadeOut, Create and Transform remain ordinary compositions.

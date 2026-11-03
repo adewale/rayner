@@ -308,9 +308,9 @@ test('matchByKey: a keyed component is kept wherever it moves, its parts morph i
 
 test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
   const { view } = await import('../src/index.ts');
-  const scene = new Scene(new StringSink());
+  const scene = new Scene<{ order: number[] }>(new StringSink());
   scene.state = { order: [1, 2, 3] };
-  const v = view(scene, (st: { order: number[] }) => new Group(...st.order.map((z, i) => {
+  const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
     const g = new Group(new Square({ side: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
     g.key = `cell:${z}`;
     return g;

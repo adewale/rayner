@@ -8,6 +8,7 @@ import {
   FadeIn,
   FadeOut,
   Create,
+  Follow,
   Transform,
   AnimationGroup,
   Succession,
@@ -313,6 +314,34 @@ export default class TokenBucketExplainer extends Scene {
     const level = fill(CAPACITY);
     shell.key = 'bucket:shell';
     level.key = 'bucket:level';
+    /** The gauge at a balance: the rectangle fill() builds, written in place so one value sets it from any frame. */
+    const setLevel = (n: number) => {
+      const w = (SHELL_W - 0.16) / 2,
+        h = Math.max(0.001, ((Y5 - Y0) * n) / CAPACITY);
+      level.setPolygon([
+        [SHELL_X - w, Y0 + h],
+        [SHELL_X + w, Y0 + h],
+        [SHELL_X + w, Y0],
+        [SHELL_X - w, Y0],
+      ]);
+    };
+    /** A climb drawn up to time t: the share of the line's length at or before t, as Create reveals a stroke. */
+    const drawTo = (path: Mobject, points: [number, number][], t: number) => {
+      const ps = distinct(points),
+        ws = ps.map(([x, y]) => axes.c2p(x, y));
+      let total = 0,
+        upTo = 0;
+      for (let i = 1; i < ps.length; i++) {
+        const len = Math.hypot(ws[i]![0] - ws[i - 1]![0], ws[i]![1] - ws[i - 1]![1]),
+          [t0, t1] = [ps[i - 1]![0], ps[i]![0]];
+        total += len;
+        upTo += t >= t1 ? len : t > t0 ? (len * (t - t0)) / (t1 - t0) : 0;
+      }
+      const share = total > 0 ? upTo / total : 1;
+      if (share >= 1) delete path.style.drawFraction;
+      else path.style.drawFraction = share;
+      path.style.opacity = share > 0 ? 1 : 0;
+    };
     const bucketLabel = new Text('bucket', { fontSize: 0.2, color: soft }).moveTo([SHELL_X, Y0 - 0.33]);
 
     // ------------------------------------------------------------- balance
@@ -464,10 +493,29 @@ export default class TokenBucketExplainer extends Scene {
           rise.key = `balance:refill:${name(i)}`;
           s.keep(rise, { describe: chartSays });
         }
+        // One elapsed time drives the line's climb and the gauge from allow()'s own formula, so the
+        // two agree at every frame, the corner where min(5, …) takes over included. The spend
+        // member below then drops the gauge by the token the call takes, or leaves it.
+        const climbed = climb(prev, call, rate);
+        const balanceAt = (t: number) => (t >= call.at ? call.found : Math.min(CAPACITY, prev.after + (t - prev.at) * rate));
         members.push(
-          new AnimationGroup([new Transform(code.bar, barAt(REFILL)), ...(rise ? [new Create(rise)] : [])], {
-            runTime: 0.3,
-          }),
+          new AnimationGroup(
+            [
+              new Transform(code.bar, barAt(REFILL)),
+              new Follow(
+                {
+                  from: prev.at,
+                  to: call.at,
+                  apply: (t) => {
+                    setLevel(balanceAt(t));
+                    if (rise) drawTo(rise, climbed, t);
+                  },
+                },
+                { targets: [level, ...(rise ? [rise] : [])] },
+              ),
+            ],
+            { runTime: 0.3 },
+          ),
         );
         // The verdict: spend one token or refuse, and every readout follows.
         const drop = ok

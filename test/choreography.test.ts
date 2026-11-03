@@ -229,3 +229,76 @@ test('growth and pulse can resample arbitrary alpha order without accumulating g
       close(dot.center()[0], shift + width / 2);
     }), params(80));
 });
+
+test('Follow samples one value for several drawings: exact ends, linear between, start read when the play begins', async () => {
+  const { Follow, Transform } = await import('../src/index.ts');
+  const dot = new Dot({ radius: 0.1 }), bar = new Rectangle({ width: 1, height: 1 });
+  const seen: number[] = [];
+  const apply = (v: number) => { seen.push(v); dot.moveTo([v, 0]); bar.moveTo([0, v / 2]); };
+  const a = new Follow({ from: 0.1, to: 0.7, apply }, { targets: [dot, bar], rateFunc: linear });
+  assert.deepEqual(a.targets(), [dot, bar]);
+  a.begin();
+  for (const alpha of [0, 0.5, 1, 0.25, 1, 0]) {
+    a.interpolate(alpha);
+    const v = a.valueAt(alpha);
+    close(dot.center()[0], v); close(bar.center()[1], v / 2);
+  }
+  assert.equal(a.valueAt(0), 0.1); assert.equal(a.valueAt(1), 0.7);
+  assert.equal(seen[0], 0.1, 'begin applies the start');
+  // A function start is read at begin(): in a Succession the second leg starts where the first ended
+  let value = 0;
+  const log: number[] = [];
+  const leg = (to: number) => new Follow({ from: () => value, to, apply: (v) => { value = v; log.push(v); dot.moveTo([v, 0]); } }, { targets: [dot], rateFunc: linear, runTime: 0.2 });
+  const first = leg(2), second = leg(1);
+  const scene = new Scene(new NullSink());
+  scene.add(dot, bar);
+  await scene.play(new Succession([first, second]));
+  assert.equal(first.start, 0); assert.equal(second.start, 2); assert.equal(value, 1);
+  assert.ok(log.every((v, i) => i === 0 || Math.abs(v - log[i - 1]!) < 0.5), 'no jump between the legs');
+  // Invalid specs are refused before anything is drawn
+  assert.throws(() => new Follow({ from: 0, to: NaN, apply }, { targets: [dot] }), RangeError);
+  assert.throws(() => new Follow({ from: Infinity, to: 1, apply }, { targets: [dot] }), RangeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, apply }, { targets: [] }), TypeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, apply }, { targets: [{} as Mobject] }), TypeError);
+  const bad = new Follow({ from: () => NaN, to: 1, apply }, { targets: [dot] });
+  assert.throws(() => bad.begin(), RangeError);
+  // One writer per mobject: play() refuses a Follow beside anything else that writes one of its targets
+  await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, apply }, { targets: [dot, bar] }), new Transform(bar, bar.copy().shift([1, 0]))), /both animate/);
+  await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, apply }, { targets: [dot] }), new Follow({ from: 0, to: 1, apply: () => {} }, { targets: [dot] })), /both animate/);
+  await scene.play(new Follow({ from: 0, to: 1, apply: (v) => dot.moveTo([v, 0]) }, { targets: [dot] }), new Transform(bar, bar.copy().shift([1, 0])), { runTime: 0.1 });
+});
+
+test('Follow admits its targets, removes them all as a remover, and seeks to the frame a full run renders', async () => {
+  const { Follow } = await import('../src/index.ts');
+  class Orbit extends Scene {
+    override async construct(): Promise<void> {
+      const dot = new Dot({ radius: 0.1 }).moveTo([2, 0]), radius = new Line([0, 0], [2, 0]), readout = new Text('0.00', { fontSize: 0.3 }).moveTo([0, -2.5]);
+      this.add(new Circle({ radius: 2 }));
+      // Not added beforehand: play() admits every target
+      await this.step('sweep');
+      await this.play(new Follow({
+        from: 0, to: Math.PI,
+        apply: (angle) => { dot.moveTo([2 * Math.cos(angle), 2 * Math.sin(angle)]); radius.putStartAndEndOn([0, 0], [2 * Math.cos(angle), 2 * Math.sin(angle)]); readout.setText(angle.toFixed(2)); },
+      }, { targets: [dot, radius, readout], runTime: 0.5, rateFunc: linear }));
+      assert.ok(this.mobjects.includes(dot) && this.mobjects.includes(radius) && this.mobjects.includes(readout));
+      await this.step('gone');
+      await this.play(new Follow({ from: 1, to: 0, apply: (k) => dot.setStyle({ opacity: k }) }, { targets: [dot, readout], runTime: 0.2, remover: true }));
+      assert.ok(!this.mobjects.includes(dot) && !this.mobjects.includes(readout) && this.mobjects.includes(radius));
+      await this.wait(0.1);
+    }
+  }
+  const sink = new StringSink();
+  const full = new Orbit(sink);
+  await full.run();
+  const fps = full.fps;
+  for (const frame of [1, 3, Math.round(0.25 * fps), Math.round(0.5 * fps), sink.frames.length - 2]) {
+    const snap = new SnapshotSink();
+    const scene = await renderAt(Orbit, frame / fps, snap);
+    assert.equal(snap.svg, sink.frames[Math.round(scene.time * scene.fps)], `frame ${frame}`);
+  }
+  // Mid-sweep the dot sits on the circle, where a morph between the two endpoint pictures would cut through its centre
+  const mid = new SnapshotSink();
+  const scene = await renderAt(Orbit, 0.25, mid);
+  const dot = scene.mobjects.find((m) => m instanceof Dot)!;
+  close(Math.hypot(dot.center()[0], dot.center()[1]), 2);
+});

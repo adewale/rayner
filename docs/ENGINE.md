@@ -13,7 +13,7 @@ reading for this API.
 | --- | --- | --- |
 | `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
 | `animation.ts`: `Restore`, `TransformFromCopy`, `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
-| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar/task, send a transient token, or sequence model snapshots with views? |
+| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState`, `Follow` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar/task, send a transient token, sequence model snapshots with views, or drive several drawings from one sampled number? |
 | `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText`, `matchByKey` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family, and keep a keyed cell or node as one component? |
 | `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |
@@ -81,8 +81,9 @@ Not built, and why:
   needs (a geometry plan, cycle rejection, missing-target policy) are a reactive
   constraint graph, which "points are the truth" deliberately excludes.
 - **A parameter rig.** [Sampled parameters](PARAMETERS.md) records the survey:
-  one explainer would change. The supported path is the recipe; the exportable
-  shape, if that migration happens, is one small animation.
+  one explainer, the token bucket, needed several drawings to follow one number.
+  The exported shape is one small animation, [`Follow`](CHOREOGRAPHY.md#follow),
+  which names the mobjects it writes; the token bucket's refill is its proof.
 
 Keep `presentFrame`'s clear/draw transition the default: an author opts into
 entity continuity when successive pictures really show the same entities.

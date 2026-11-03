@@ -20,7 +20,7 @@ import {
   view,
   linear,
 } from '../../../src/index.ts';
-import type { ScheduledAnimation, Vec, Mobject, SceneState, View } from '../../../src/index.ts';
+import type { ScheduledAnimation, Vec, Mobject, PathFunc, SceneState, View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Card } from '../../../explain/panels.ts';
 import { ringStory, RingBuffer } from '../lib/models.ts';
@@ -86,6 +86,28 @@ const queueOrder = (r: { head: number; length: number; data: (number | null)[] }
   Array.from({ length: r.length }, (_, k) => r.data[(r.head + k) % r.data.length]!);
 const angle = (i: number) => Math.PI / 2 - (i * 2 * Math.PI) / SLOTS;
 const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1] + Math.sin(a) * r];
+/**
+ * A pointer's move from one slot to another goes round the ring, not across it: the straight
+ * morph between its two drawings, carried along the arc its base travels at the pointers'
+ * radius, the short way round. Both drawings are upright, so the word stays upright too.
+ */
+const alongRing = (from: number, to: number): PathFunc => {
+  const r = R + 1.12,
+    a0 = angle(from);
+  let d = angle(to) - a0;
+  d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
+  const c0 = polar(a0, r),
+    c1 = polar(angle(to), r);
+  return (s, e, alpha) => {
+    if (alpha <= 0) return [s[0], s[1]];
+    if (alpha >= 1) return [e[0], e[1]];
+    const on = polar(a0 + d * alpha, r);
+    return [
+      s[0] + (e[0] - s[0]) * alpha + on[0] - (c0[0] + (c1[0] - c0[0]) * alpha),
+      s[1] + (e[1] - s[1]) * alpha + on[1] - (c0[1] + (c1[1] - c0[1]) * alpha),
+    ];
+  };
+};
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
 /** The value a push hands the buffer, read back from the operation the model ran ("push 6" -> 6). */
@@ -457,8 +479,8 @@ export default class RingBufferExplainer extends Scene {
           );
         }
         const moves: ScheduledAnimation[] = [];
-        if (r.head !== now.head) moves.push(new Transform(headPtr, pointer('head', r.head), { runTime: 0.45 }));
-        if (r.tail !== now.tail) moves.push(new Transform(tailPtr, pointer('tail', r.tail), { runTime: 0.45 }));
+        if (r.head !== now.head) moves.push(new Transform(headPtr, pointer('head', r.head), { runTime: 0.45, pathFunc: alongRing(now.head, r.head) }));
+        if (r.tail !== now.tail) moves.push(new Transform(tailPtr, pointer('tail', r.tail), { runTime: 0.45, pathFunc: alongRing(now.tail, r.tail) }));
         members.push(together([...moves, syncAll()]));
         now = r;
       }
