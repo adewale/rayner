@@ -9,6 +9,12 @@ export const TYPED: Record<Query, string> = { A: 'ca', B: 'cat' };
 const q = (query: Query | null) => (query ? `“${TYPED[query]}”` : 'nothing');
 /** The ticket each search takes as it starts: A starts first. */
 const TICKET: Record<Query, number> = { A: 1, B: 2 };
+/** The guarded handler's check, as one line: the last line of the tickets step's code, set at the
+ * same size, so it sits in the same place in every step that shows it. */
+const CHECK = 'if (ticket === latest) publish(result)';
+const CODE_SIZE = 0.58;
+/** The tables' first row, row spacing and lettering, shared by every table step. */
+const TABLE = { y: 1.8, gap: 1.6, size: 0.7 };
 /** The script's answer, stated in the second step of both cases. */
 export const ANSWER = 'An older search can finish last, and an unguarded handler publishes whatever finishes last';
 
@@ -42,16 +48,13 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       values: { query, ticket, latest, accepted, off: off.snapshots[i + 1], on: on.snapshots[i + 1] },
       draw: (s) =>
         new Group(
-          tile(`${q(query)}: ticket ${ticket}`, -4, 1.7, 5.4, 1.2, s),
-          tile(`latest = ${latest}`, 4, 1.7, 5, 1.2, s),
-          label(accepted ? '=' : '≠', 0, 1.7, accepted ? s.good : s.bad, 1),
-          label(accepted ? `Publish ${q(query)}` : `Drop ${q(query)}`, 0, 0, accepted ? s.good : s.bad, 0.8),
-          new Code(['if (ticket === latest)', '  publish(result)'], {
-            fontSize: 0.7,
-            color: s.palette.ink,
-          }).moveTo([0, -2.1]),
+          tile(`${q(query)}: ticket ${ticket}`, -4, 2, 5.4, 1.2, s),
+          tile(`latest = ${latest}`, 4, 2, 5.4, 1.2, s),
+          label(accepted ? '=' : '≠', 0, 2, accepted ? s.good : s.bad, 1),
+          label(accepted ? `Publish ${q(query)}` : `Drop ${q(query)}`, 0, 0.5, accepted ? s.good : s.bad, 0.8),
+          new Code([CHECK], { fontSize: CODE_SIZE, color: s.palette.ink }).moveTo([0, -1.35]),
           // What each rule leaves on the page after this result, from the model's two runs.
-          label(`Page now: ${q(withGuard)} with the guard, ${q(without)} without`, 0, -3.5, s.palette.ink, 0.62, 'page-now'),
+          label(`Page now: ${q(withGuard)} with the guard, ${q(without)} without`, 0, -3.05, s.palette.ink, 0.62, 'page-now'),
         ),
     };
   });
@@ -69,9 +72,9 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
             ['Search', 'Starts', 'Answers'],
             (['A', 'B'] as const).map((x) => [q(x), x === 'A' ? '1st' : '2nd', x === first ? '1st' : '2nd']),
             s,
-            { xs: [-4.2, 0.4, 4.6], y: 2.2, gap: 1.5, size: 0.7 },
+            { xs: [-4.2, 0.4, 4.6], ...TABLE },
           ),
-          label(`The user wants ${q('B')}`, 0, -2.6, s.emphasis, 0.75),
+          label(`The user wants ${q('B')}`, 0, TABLE.y - 3 * TABLE.gap - 0.4, s.emphasis, 0.75),
         ),
     },
     {
@@ -94,11 +97,11 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
             ['After', 'Page shows, no check'],
             off.snapshots.map((snap, i) => [i === 0 ? 'Both start' : `${q(done[i - 1]!)} lands`, q(snap.shown)]),
             s,
-            { xs: [-3.4, 3], y: 2.2, gap: 1.5, size: 0.7 },
+            { xs: [-3.4, 3], ...TABLE },
           ),
           // A result for "ca" on the page is stale: the user has typed "cat".
           ...off.snapshots.flatMap((snap, i) =>
-            snap.shown === 'A' ? [label('stale', 6.6, 2.2 - (i + 1) * 1.5, s.bad, 0.62, `stale:${i}`)] : [],
+            snap.shown === 'A' ? [label('stale', 6.6, TABLE.y - (i + 1) * TABLE.gap, s.bad, 0.62, `stale:${i}`)] : [],
           ),
         ),
     },
@@ -113,8 +116,8 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
           tile(`${q('A')}: ticket ${TICKET.A}`, -4, 2, 5.4, 1.2, s),
           tile(`${q('B')}: ticket ${TICKET.B}`, 4, 2, 5.4, 1.2, s, { active: true }),
           label(`latest = ${latest}`, 0, 0.5, s.emphasis, 0.8),
-          new Code(['// when a search starts', 'const ticket = ++latest', '// when its result lands', 'if (ticket === latest) publish(result)'], {
-            fontSize: 0.58,
+          new Code(['// when a search starts', 'const ticket = ++latest', '// when its result lands', CHECK], {
+            fontSize: CODE_SIZE,
             color: s.palette.ink,
           }).moveTo([0, -2.1]),
         ),
@@ -141,7 +144,7 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
             q(on.snapshots[i]!.shown),
           ]),
           s,
-          { xs: [-4.7, 0.3, 5.1], y: 2.5, gap: 1.5 },
+          { xs: [-4.7, 0.3, 5.1], ...TABLE },
         ),
     },
   ];
