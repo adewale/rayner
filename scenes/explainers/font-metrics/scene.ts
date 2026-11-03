@@ -1,4 +1,4 @@
-import { Scene, ItalicText, Group, Circle } from '../../../src/index.ts';
+import { Scene, ItalicText, Group, Circle, Line, Rectangle, Create } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 
 const SAMPLE = 'Ink on paper';
@@ -16,21 +16,30 @@ export default class FontMetrics extends Scene {
     lettering: { faces: { sans: 'eb-garamond' }, styles: ['bold', 'italic'] as const },
     // The script's answer and check questions (script.md); check holds a step (advance) to stating the answer.
     answer: 'Measure the face you draw: each face and cut gives the same text its own advances',
+    // The opening's line speaks of its own two drawn rows: same words, size and gap, two measurements.
+    claims: [{ says: 'only the measurement changes', shown: true as const }],
     checks: [
       {
-        question: 'In the first step, why does the upper marker sit 2.07 units further right than the lower one?',
+        question:
+          'Reverse the opening’s mistake: measure “Ink on paper” in EB Garamond, draw it in JetBrains Mono, and put the marker 0.5 units after the measured width. Where does the marker land?',
         answer:
-          'It was placed after JetBrains Mono’s width for the phrase, 6.48 units, but the words are drawn in EB Garamond, which advances 4.41 at the same size; 6.48 − 4.41 = 2.07.',
-      },
-      {
-        question: 'At size 0.9, which EB Garamond cut makes “Ink on paper” widest, and by how much more than Regular?',
-        answer: 'Bold: 4.85 units against Regular’s 4.41, 0.44 more. Italic is the narrowest, at 4.24.',
+          'On the words. It goes 4.41 + 0.5 = 4.91 units from the start, but the JetBrains Mono phrase runs to 6.48, so the marker sits about 1.57 units before the phrase ends.',
       },
       {
         question:
           'A layout measures the phrase in Regular and puts a marker 0.5 units after it, but the phrase is drawn in Bold. What happens to the gap?',
         answer:
           'It shrinks from 0.5 to 0.06 units: Bold advances 0.44 further than Regular at size 0.9, so the marker nearly touches the words.',
+      },
+      {
+        question: 'Add a trailing space, “Ink on paper ”. No ink changes. Does the marker move?',
+        answer:
+          'Yes. The space has an advance, so the measured width grows by that advance, and the marker, placed after the width, moves right by the same amount.',
+      },
+      {
+        question: 'In some other diagram, a box reads “stretched ×1.000”. What does that say about how its word was measured?',
+        answer:
+          'Its recorded width equals the drawn word’s own advance: the layout measured the face, cut and size the renderer drew, or a face that happens to give that word the same advance.',
       },
     ],
   };
@@ -57,7 +66,7 @@ export default class FontMetrics extends Scene {
     await this.step('layout', {
       title: `Measure the wrong face and the marker lands ${(wrong - actual).toFixed(2)} units too far`,
       line: `Same phrase, size and ${GAP}-unit gap; only the measurement changes.`,
-      caption: `Both rows draw “${SAMPLE}” in EB Garamond. Each marker adds the same ${GAP}-unit gap, but the upper row placed it using Mono’s ${wrong.toFixed(2)}-unit measurement rather than Garamond’s ${actual.toFixed(2)}. That puts it ${(wrong - actual).toFixed(2)} units too far right. Where does the phrase’s width come from?`,
+      caption: `Both rows draw “${SAMPLE}” in EB Garamond. Each marker adds the same ${GAP}-unit gap, but the upper row placed it using JetBrains Mono’s ${wrong.toFixed(2)}-unit measurement rather than Garamond’s ${actual.toFixed(2)}. That puts it ${(wrong - actual).toFixed(2)} units too far right. Where does the phrase’s width come from?`,
     });
     const comparison = new Group();
     comparison.key = 'font-layout';
@@ -76,19 +85,38 @@ export default class FontMetrics extends Scene {
     await s.enter(comparison);
 
     // 2. The answer: a phrase's width is the sum of its glyphs' advances, which belong to the face.
-    const ruled = this.text(SAMPLE, { fontSize: 1.2, color }).moveTo([0, 0.8]);
+    // The lower row of the opening again, at its size: the ruler's total is the 4.41 the marker used.
+    const ruled = this.text(SAMPLE, { fontSize: 0.9, color }).moveTo([0, 1.0]);
+    const run = ruled.shapeRun(SAMPLE, 0.9);
+    const spaces = run.glyphs.filter((g) => SAMPLE[g.cluster] === ' ');
     await this.step('advance', {
       title: 'A phrase’s width is the sum of its glyphs’ advances',
-      line: 'The ruler ends after the final glyph’s advance, not at its ink.',
-      caption: `Each glyph advances the pen to the next starting point; spaces contribute movement without ink. The ruler sums those advances, ending where another glyph would begin rather than at the last ink. Measure the face you draw: each face and cut gives the same text its own advances.`,
+      line: `Ticks: where each glyph hands the pen to the next. Dashed: the ${spaces.length} spaces.`,
+      caption: `Each glyph moves the pen on by its advance, and the next glyph starts where the pen stopped. The dashed cells are spaces, which move the pen without drawing anything. The ruler adds up all ${run.glyphs.length} advances, which is how the lower row placed its marker. Measure the face you draw: each face and cut gives the same text its own advances.`,
     });
     await s.clear();
     await s.enter(ruled);
-    const start = ruled.anchorPoint()[0] - ruled.advance() / 2;
-    await s.dimension([start, -0.4], [start + ruled.advance(), -0.4], `${ruled.advance().toFixed(2)} units`, {
+    const [x0, y0, , y1] = ruled.box()!;
+    const ticks = new Group();
+    for (const g of run.glyphs.slice(1))
+      ticks.add(new Line([x0 + g.x, y0 - 0.08], [x0 + g.x, y0 - 0.3], { stroke: s.emphasis, strokeWidth: 0.02 }));
+    for (const g of spaces) {
+      const cell = new Rectangle({ width: g.ax, height: y1 - y0, fill: 'none', stroke: s.emphasis, strokeWidth: 0.02 }).moveTo([
+        x0 + g.x + g.ax / 2,
+        (y0 + y1) / 2,
+      ]);
+      cell.style.dashArray = '0.08 0.06';
+      ticks.add(cell);
+    }
+    s.keep(ticks, {
+      describe: `A tick under “${SAMPLE}” at each of its ${run.glyphs.length - 1} pen positions, and dashed cells around its ${spaces.length} spaces`,
+    });
+    await this.play(new Create(ticks, { runTime: 0.8, lagRatio: 0 }));
+    await s.dimension([x0, y0 - 0.5], [x0 + ruled.advance(), y0 - 0.5], `${ruled.advance().toFixed(2)} units`, {
       size: 0.7,
       offset: -0.4,
     });
+    s.reading(ruled, ticks);
     this.state.advance = ruled.advance();
 
     // 3. Within one family, every cut is its own face.
@@ -135,7 +163,7 @@ export default class FontMetrics extends Scene {
         widths === 'natural'
           ? 'Under each box: how far its word was stretched to fit. Here, not at all.'
           : 'Under each box: how far its word was stretched to fit the width Inter would need.',
-      caption: widths === 'natural' ? 'Rayner measures Ink and Paper in EB Garamond before the layout sizes their boxes. Both words keep their natural proportions, so both stretch factors are ×1.000. Change the setting to compare a layout measured for another face.' : 'The layout used Inter estimates, then the renderer fitted Garamond to those recorded widths. Paper needs more stretching than Ink because the width disagreement differs between words. This is the misplaced marker’s problem again: one face was measured and another drawn.',
+      caption: widths === 'natural' ? 'Rayner measures Ink and Paper in EB Garamond before the layout sizes their boxes. Both words keep their natural proportions, so both stretch factors are ×1.000. If the layout had used Inter’s estimates instead, would both words stretch by the same factor?' : 'The layout used Inter estimates, then the renderer fitted the Garamond words to those recorded widths. Each factor is a word’s recorded width over its own Garamond advance, and Paper’s is larger than Ink’s, so no single scale turns Inter widths into Garamond ones. This is the misplaced marker’s problem again: one face was measured and another drawn.',
     });
     await s.clear();
     const d = await s.show(widths === 'natural' ? { source: DIAGRAM, lettering: 'natural' } : { source: DIAGRAM });

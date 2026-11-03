@@ -373,7 +373,15 @@ for (const entry of EXPLAINERS)
           const em = {Regular: 4.901, Bold: 5.386, Italic: 4.71};
           // Text's advance box uses float32 endpoints; allow their rounding,
           // while keeping the printed hundredths independently exact below.
-          assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 1.2) < 1e-6);
+          // The ruler measures the opening's lower row again, at its size 0.9.
+          assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 0.9) < 1e-6);
+          // The first check reverses the opening: measured in Garamond, drawn in JetBrains Mono (12 cells of 0.54),
+          // the marker 0.5 after the measured width lands 1.57 before the drawn phrase ends.
+          const layout = trace.steps.find(s => s.step === 'layout')!.after!.layout as { wrong: number; actual: number };
+          assert.ok(Math.abs(layout.wrong - 12 * 0.54) < 1e-5 && Math.abs(layout.actual - em.Regular * 0.9) < 1e-6);
+          const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
+          assert.equal(overlap, '1.57');
+          assert.ok(String((project.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta.checks[0]!.answer).includes(`about ${overlap} units before the phrase ends`));
           const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));
@@ -409,6 +417,11 @@ for (const entry of EXPLAINERS)
             if (values.widths === 'natural') assert.equal(k.toFixed(3), '1.000');
             else assert.ok(k > 1.1, `${run.text}: Inter estimates stretch the Garamond word (${k})`);
             assert.ok(diagramShown.includes(`stretched ×${stretch[run.text]!.toFixed(3)}`), diagramShown);
+          }
+          // The recorded case's caption: Paper is stretched more than Ink, so no single factor converts the faces.
+          if (values.widths === 'recorded') {
+            assert.ok(stretch.Paper! > stretch.Ink! + 0.1, `Paper ${stretch.Paper}, Ink ${stretch.Ink}`);
+            assert.match(String(trace.steps.find(s => s.step === 'diagram')!.meta.caption), /Paper’s is larger than Ink’s/);
           }
           break;
         }
