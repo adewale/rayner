@@ -5,6 +5,7 @@ import { lesson, label } from '../lib/lesson-drawing.ts';
 import type { LessonFrame } from '../lib/lesson-drawing.ts';
 import { henge, TILT, LATITUDE } from '../lib/henge.ts';
 import type { Street } from '../lib/henge.ts';
+type Sunset = ReturnType<typeof henge>['seasons'][number];
 
 const INK = '#1e293b', SUN = '#c77900', SUMMER = '#a03b22', WINTER = '#235d9b', MUTED = '#64748b', PAPER = '#f8fafc';
 const ANSWER = 'The street stays fixed while Earth’s tilt moves the sunset direction across it and back';
@@ -86,11 +87,14 @@ export default class Henge extends Scene {
       const y = (alt: number) => -1.75 + alt / 90 * 4.5;
       const g = new Group(line([-6.2, -1.75], [6.2, -1.75], INK),
         words('New York’s horizon', 0, -3.1), words('south', -5.6, -2.4), words('west', x(270), -2.4), words('northward', 5.1, -2.4));
+      // The street's bearing, in the street's red: the line the sunset has to cross.
+      g.add(tagged(new Group(line([x(m.bearing), -1.75], [x(m.bearing), 1.75], SUMMER, 0.05), words('Street', x(m.bearing), 2.2, SUMMER)), 'henge-paths-street'));
       m.seasons.forEach((season, i) => {
-        const color = [WINTER, MUTED, SUMMER][i]!;
+        const color = [WINTER, MUTED, SUN][i]!;
+        const noon = season.path[0]!;
         g.add(path(season.path.map((p) => [x(p.azimuth), y(p.altitude)]), color),
           new Dot({ radius: 0.1, color }).moveTo([x(season.azimuth), -1.75]),
-          words(['December', 'Equinox', 'June'][i]!, -4.3 + i * 4.3, 2.8, color));
+          words(['December', 'Equinox', 'June'][i]!, -4.6, y(noon.altitude) + 0.42, color));
       });
       return tagged(g, 'henge-arcs');
     };
@@ -103,6 +107,7 @@ export default class Henge extends Scene {
         line([-6, streetY], [6, streetY], SUMMER, 0.045),
         words(manhattan ? 'Street: 29° N of west' : 'Street: due west', 3.4, streetY + 0.65, SUMMER),
         words('Yellow: sunset direction', -2.5, -3.3, SUN));
+      if (manhattan) g.add(words('due west', -4.9, -0.45, MUTED));
       ['Mar', 'Jun', 'Sep', 'Dec', 'Mar'].forEach((label, i) => g.add(words(label, -6 + i * 3, -2.65)));
       if (reveal) m.half.forEach((longitude, i) => g.add(
         new Dot({ radius: 0.13, color: SUMMER }).moveTo([x(longitude), streetY]),
@@ -117,15 +122,21 @@ export default class Henge extends Scene {
       words(`${seasonNames[0]}: half → full`, 0, -3.25, SUMMER),
       words(`${seasonNames[1]}: full → half`, 0, -4.0, SUMMER),
     ), 'henge-disc');
+    const west = (bearing: number) => `${Math.abs(bearing - 270).toFixed(1)}° ${bearing > 270 ? 'north' : 'south'} of west`;
+    const [december, , june] = m.seasons as [Sunset, Sunset, Sunset];
+    const gap = m.gapDays.toFixed(1);
     const frames: LessonFrame[] = [
-      { id: 'street', title: 'The street stays still. Why does this evening matter?', line: 'Predict: will the low Sun line up again tomorrow?',
-        caption: 'Look west down a straight street. Buildings frame a narrow direction, and the low Sun fits inside it. The buildings do not move tomorrow. To explain the alignment, we need to follow the Sun’s changing path.',
+      { id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
+        caption: manhattan
+          ? 'Look west down 42nd Street. On a few evenings a year, in late May and mid-July, the low Sun fits between the buildings; the Hayden Planetarium calls it Manhattanhenge. The buildings point the same way all year, so what changes must be where the Sun sets.'
+          : 'This case turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
         state: { bearing: m.bearing }, draw: () => tagged(new Group(streetView(false), words(manhattan ? '42nd Street: about 29° north of west' : 'A street pointing due west', 0, -3.7)), 'henge-street') },
-      { id: 'tilt', title: 'One axis direction, opposite sides of the Sun', line: 'Earth turns each day and travels around the Sun each year.',
-        caption: 'Earth’s axis keeps nearly the same direction through the year. In June the north leans sunward; in December it leans away. The red observer and the small horizon line turn with Earth. We now look from that observer’s position to see where the daily Sun path meets the horizon. Sizes and distances here are schematic.',
+      { id: 'tilt', title: 'One axis direction, opposite sides of the Sun', line: 'Predict: in June, does New York’s Sun set north or south of due west?',
+        caption: 'Earth’s axis keeps nearly the same direction through the year. In June the north leans sunward; in December it leans away. The red dot is New York and the short red line its horizon; both turn with Earth each day. Sizes and distances here are schematic.',
         state: { latitude: m.latitude, tilt: m.tilt }, draw: orbit },
-      { id: 'paths', title: 'The daily paths meet the horizon in different places', line: 'Predict: is June’s sunset north or south of due west?',
-        caption: `${ANSWER}. These are afternoon paths seen from New York, ending where the Sun’s centre reaches a flat horizon. In June more of the daily path lies above that horizon, and sunset is north of west. December’s shorter path ends south of west. Daily turning carries the Sun along a path; the changing tilt toward the Sun shifts which path we see.`,
+      { id: 'paths', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
+        line: manhattan ? `The red line is the street, ${west(m.bearing)}.` : 'The red line is the street, at due west.',
+        caption: `Each curve is one afternoon’s path of the Sun’s centre seen from New York, ending where it meets a flat horizon. In June more of the path lies above the horizon and it ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. ${ANSWER}.`,
         state: { sunsets: m.seasons.map(({ declination, azimuth, hourAngle }) => ({ declination, azimuth, hourAngle })) }, draw: arcs },
       { id: 'sweep', title: 'Follow the sunset direction through a year', line: 'Predict: how often does the yellow curve cross the red street?',
         caption: `The yellow curve marks sunset direction, from March through the following March. Higher means farther north along the horizon. The red line stays at this street’s bearing. ${manhattan ? 'It lies near the northern turning point in June.' : 'It lies at due west, between the northern and southern extremes.'} The calendar spacing is an idealised circular orbit, not a viewing timetable.`,
@@ -133,9 +144,9 @@ export default class Henge extends Scene {
       { id: 'crossings', title: manhattan ? 'Across the street in May, back across it in July' : 'A due-west street aligns near the equinoxes', line: 'Change the street setting: the sky stays the same.',
         caption: `${manhattan ? 'The sunset direction passes the street before June, turns a little farther north, then returns across it. This gives the May and July alignment seasons.' : 'The same curve crosses due west near March and September, instead of near May and July.'} Changing the street changes the direction we wait for, not Earth’s motion.`,
         state: { bearing: m.bearing, crossings: m.half }, draw: () => annual(true) },
-      { id: 'disc', title: 'One bearing still leaves the Sun’s height to explain', line: 'Half Sun and full Sun compare neighbouring evenings.',
-        caption: `The two views keep the Sun centred down the same street. Half Sun puts its centre on the visible horizon; full Sun puts its bottom edge there. During the ${seasonNames[0]} northward sweep the aligned Sun rises from half to full on neighbouring evenings; during the ${seasonNames[1]} return it reverses. These are changes across dates, not stages of one evening’s descent. The disc is enlarged here.`,
-        state: { half: m.half, full: m.full, radius: m.radius }, draw: disc },
+      { id: 'disc', title: 'One bearing still leaves the Sun’s height to explain', line: `Half Sun and full Sun come ${gap} days apart in this model.`,
+        caption: `The two views keep the Sun centred down the same street. Half Sun puts its centre on the visible horizon; full Sun puts its bottom edge there. During the ${seasonNames[0]} northward sweep the aligned Sun rises from half to full: in this model full Sun comes ${gap} days after half Sun, ${manhattan ? 'about one evening to the next' : 'closer than one evening to the next, because near an equinox the Sun’s path shifts fastest from day to day'}. During the ${seasonNames[1]} return the order reverses. These are changes across dates, not stages of one evening’s descent. The disc is enlarged here.`,
+        state: { half: m.half, full: m.full, radius: m.radius, gapDays: m.gapDays }, draw: disc },
     ];
     await lesson(this, frames);
   }

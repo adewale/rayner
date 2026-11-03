@@ -17,7 +17,7 @@ export function check(values: Record<string, string>, trace: Trace): void {
     annual: model.annual.map(({ longitude, azimuth }) => ({ longitude, azimuth })),
   });
   assertStepState(trace, 'crossings', { bearing: model.bearing, crossings: model.half });
-  assertStepState(trace, 'disc', { half: model.half, full: model.full, radius: model.radius });
+  assertStepState(trace, 'disc', { half: model.half, full: model.full, radius: model.radius, gapDays: model.gapDays });
   const caption = trace.steps.find(step => step.step === 'disc')!.meta.caption as string;
   assert.match(caption, model.street === 'west' ? /March.*September/ : /May.*July/);
   if (model.street === 'west') assert.doesNotMatch(caption, /May|July/);

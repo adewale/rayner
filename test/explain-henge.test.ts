@@ -40,6 +40,17 @@ test('Henge annual sweep crosses Manhattan twice near the northern solstice and 
     assert.ok(model.full[0]!>model.half[0]!, 'northward sweep: full after half');
     assert.ok(model.full[1]!<model.half[1]!, 'southward sweep: full before half');
   }
+  // The disc step says how far apart half and full Sun fall at the mean orbital rate: about one evening to the next
+  // at Manhattan's bearing, under half a day due west, where the declination changes fastest.
+  for (const model of [ny,west]) {
+    close(model.gapDays,(model.full[0]!-model.half[0]!)*365.2422/360);
+    close(model.gapDays,(model.half[1]!-model.full[1]!)*365.2422/360);
+  }
+  assert.ok(ny.gapDays>1&&ny.gapDays<1.5,`Manhattan: ${ny.gapDays} days`);
+  assert.ok(west.gapDays>0&&west.gapDays<0.5,`due west: ${west.gapDays} days`);
+  // The paths step says June's sunset lies a little north of Manhattan's street and December's far south of it.
+  assert.ok(ny.seasons[2]!.azimuth>STREET&&ny.seasons[2]!.azimuth-STREET<5);
+  assert.ok(ny.seasons[0]!.azimuth<270);
   assert.deepEqual(crossings(320),[], 'bearing beyond the northern extreme is never crossed');
   // Independent USNO inverse relation at full-disc height, not just the horizon-specialised sunset function.
   for (const longitude of ny.full) {
