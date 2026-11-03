@@ -135,7 +135,8 @@ export function frames(seed: number): ReaderFrame[] {
           ...lensed(ink.first).map((r) => path(r, GREY, 0.07, 0.8)),
           ...lensed(ink.second).map((r) => path(r, s.palette.ink, 0.035)),
           label('Blue: the route the layout fixed', 0, 2.55, s.palette.ink, 0.62),
-          label(`×${ZOOM}: ${near.toFixed(3)} apart`, INSET[0], INSET[1] + LENS * ZOOM + 0.42, s.palette.ink, 0.62),
+          // Above the gap between the route's two upper corners, clear of the band.
+          label(`×${ZOOM}: ${near.toFixed(3)} apart`, INSET[0], 1.72, s.palette.ink, 0.62),
           label(`Two drawings, within ${stray.toFixed(3)} units of it`, 0, -2.9, s.palette.ink, 0.62),
         );
       },
