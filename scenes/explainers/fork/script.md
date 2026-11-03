@@ -2,12 +2,12 @@
 
 A token bucket page offers refill rates of 1, 2 and 4 tokens a second. Its last request, R10, succeeds at all three, so a caption says it is accepted at every rate. Would that sentence survive a reader typing 0.1?
 
-At 0.1 tokens a second, the same request schedule ends differently. Five seconds after the burst the bucket has recovered only half a token, and R10 needs one. It is refused. The sentence was true across the page’s offered cases, but the model did not make it true across arbitrary rates.
+At 0.1 tokens a second the same request schedule ends differently. Five seconds after the burst the bucket has recovered only half a token, and R10 needs a whole one, so it is refused. The sentence was true of every case the page offered; nothing in the model made it true of every rate.
 
-Rayner prepares a fixed set of cases before publishing. The build runs the combinations of declared options, so their pictures and captions can be checked together. The reader chooses among those cases. A rate outside the list does not silently become another supported case.
+Rayner answers by not letting the reader type 0.1. Before publishing, the build runs every combination of the options a scene declares, so each case's pictures and captions exist, and `rayner check` tests them, before anyone reads the page. The reader chooses among those cases, and a link naming a rate outside the list opens the default case instead.
 
-This makes review finite. An author can inspect whether a caption holds for the three offered rates and correct it before readers see the page. A program accepting arbitrary input would need a rule that remains valid across that wider input space. Building ahead does not supply that rule, and a false caption can still be published if its prepared cases are not read.
+That makes review finite. An author can read the caption in each of the three offered cases and correct it before readers see the page. A program that accepted any rate would need a rule that stays true across that wider input space, and building ahead does not supply one: a false caption can still be published if its author never reads the prepared cases.
 
-The restriction also has a cost. Two traffic-policy options combined with three pod placements make six cases. Adding another setting multiplies the combinations again. Prepared cases trade some freedom of input for a bounded collection of outcomes that can be inspected.
+The restriction has a cost. Two traffic-policy options combined with three pod placements make six cases, and each further setting multiplies the count again. Prepared cases trade freedom of input for a bounded set of outcomes that someone can inspect.
 
-The fork from Lantern reflects that choice. Lantern’s Worker rendered requested scene times on demand; Rayner prepares the page and its diagrams ahead of reading. The important boundary is the declared input set: prebuilding a page helps make its evidence reviewable, but it does not turn a statement about those inputs into a statement about all possible inputs.
+The fork from Lantern made this choice. Lantern's Worker rendered any requested step or time on demand; Rayner prepares the page and its diagrams before anyone reads it. Building ahead makes a page's evidence reviewable. It does not turn a statement about the declared inputs into a statement about every input.

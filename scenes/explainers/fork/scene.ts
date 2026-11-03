@@ -107,6 +107,12 @@ export default class ForkExplainer extends Scene {
         answer:
           'The player looks for 0.1 among the rates the scene lists, finds none, and opens the default case, 2 tokens a second, with the notice “Unknown rate option: 0.1. Showing the default case.” The reader sees a case the author ran, where R10 is accepted; the 0.1 row exists only in this explainer.',
       },
+      {
+        question:
+          'The traffic-policy page has two policies and three pod placements. Its author wants a third setting, the number of nodes, with four values. How many cases would the build make and the author need to read, and when is such a setting worth adding?',
+        answer:
+          'Twenty-four: 2 × 3 × 4. Each is built, checked and must be read before publishing, so a setting earns its place when one of its values changes what the page concludes, not merely a number on it.',
+      },
     ],
   };
   override async construct() {
@@ -164,7 +170,7 @@ export default class ForkExplainer extends Scene {
     };
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
-      line: `at ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
+      line: `At ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
       caption: `The token-bucket page offers ${RATES.join(', ')} tokens a second, the only rates its reader can choose. R10 succeeds in all three, so its caption says “R10 is accepted at every rate”. Would that sentence survive a reader typing ${UNBUILT}?`,
     });
     await s.clear();
