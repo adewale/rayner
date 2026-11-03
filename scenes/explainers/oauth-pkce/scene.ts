@@ -1,7 +1,8 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Arrow, Line } from '../../../src/index.ts';
+import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from '../lib/models.ts';
-import { pkceFlow, theftFlow, VERIFIER, GUESS, type Message } from '../lib/pkce.ts';
+import { pkceFlow, theftFlow, lanes, readable, VERIFIER, GUESS, type Message, type LaneMessage } from '../lib/pkce.ts';
 const STYLE = 'github-light';
 // One colour per value, so the reader can follow each across the flow (outcomes use the stage's good and bad).
 const CHALLENGE = '#0969da',
@@ -203,18 +204,88 @@ export default class OAuthExplainer extends Scene {
     await say(token, `S256(verifier) = ${prefix(recomputed)} ${recomputed === challenge ? '=' : '≠'} bound challenge`, accepted ? s.good : s.bad);
     this.state.accepted = accepted;
 
+    // 7. The same sign-in redrawn by channel instead of by time: one lane another app can read, one it cannot.
     await this.step('channels', {
       title: 'The code crosses the browser; the verifier does not',
-      line: 'Challenge and code pass the browser; the verifier goes by TLS.',
+      line: 'Red lane: what another app can read. Green: the client’s own TLS.',
       caption:
-        'The challenge and the code pass through the browser and the operating system, where another app can read them. The verifier, made from 32 random bytes, goes only in the client’s own TLS request to the token endpoint. Reading the challenge does not help a thief, because finding a verifier whose S256 equals it is computationally infeasible. The protection lasts while the verifier stays secret: an attacker who can read the app’s memory gets the verifier as well as the code, and the server can no longer tell the two apps apart.',
+        'Drawn by channel instead of by time, the client’s sign-in uses two routes. The challenge and the code pass through the browser and the operating system’s redirect, the red lane, where another app can read them. The verifier, made from 32 random bytes, goes only in the client’s own TLS request to the token endpoint, the green lane, together with the code. Reading the challenge does not help a thief, because finding a verifier whose S256 equals it is computationally infeasible. The protection lasts while the verifier stays secret: an attacker who can read the app’s memory gets the verifier as well as the code, and the server can no longer tell the two apps apart.',
     });
-    await s.clearOverlays();
-    await seq.unmark();
-    // The marks follow the model's channels: what crosses the browser, and the request that carries the verifier.
-    const exposed = ids.filter((id, i) => flow[i]!.channel === 'browser');
-    await seq.mark(exposed, { color: s.bad, as: 'readable on the device' });
-    await seq.mark([request], { color: s.good, as: 'direct TLS' });
-    await say(token, 'The verifier, 32 random bytes, went only by TLS', s.good);
+    const map = lanes(flow),
+      held = readable(flow);
+    this.state.lanes = map;
+    this.state.readable = Object.keys(held);
+    await s.clear();
+    await s.enter(...channelMap(map, s), {
+      runTime: 0.5,
+      describe: `Two lanes between the client on the left and the auth server on the right. The red, dashed lane is the browser and the redirect, which another app can read: ${laneWords(map.browser)}. The green lane is the client’s own TLS connection to the token endpoint: ${laneWords(map.tls)}. Another app can read ${listed(Object.keys(held))}, and not the code_verifier.`,
+    });
   }
+}
+
+/** One colour for each parameter's name on the map, so the code reads as the same value in both lanes. */
+const NAME_COLOR: Record<string, string> = { code_challenge: CHALLENGE, code: CODE };
+/** What a lane's messages carry, in words, for the drawing's description. */
+const laneWords = (lane: LaneMessage[]) =>
+  lane.map((m) => `${NAMES[m.from]} to ${NAMES[m.to]}, ${m.carries.length ? listed(m.carries) : m.text.toLowerCase()}`).join('; ');
+const listed = (names: string[]) => names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names.at(-1);
+/**
+ * The client's messages from the model, as two lanes between the client and the auth server: the browser lane on top,
+ * outlined dashed in the stage's bad colour, and the TLS lane under it in its good colour. Each message is an arrow,
+ * with the names of what it carries above it (the challenge's method rides with it as S256); replies are dashed.
+ * Narrow enough for a phone's opening to show both lanes whole with every label at 12 px.
+ */
+function channelMap(map: Record<Message['channel'], LaneMessage[]>, s: ReturnType<typeof stage>) {
+  const SIZE = 0.45,
+    HALF = 4.5,
+    END = 3.9,
+    HEIGHT = 2.5,
+    GAP = 0.2,
+    TOP = 1.8,
+    ink = s.palette.ink;
+  const label = (text: string, color: string, size = SIZE) => new Text(text, { fontSize: size, color });
+  /** A message's parameter names in a row, each in its own colour, joined by plus signs. */
+  const carried = (m: LaneMessage, color: string) => {
+    const names = m.carries.filter((n) => n !== 'code_challenge_method');
+    const parts = names.length
+      ? names.flatMap((n, i) => [
+          ...(i ? [label('+', ink)] : []),
+          label(n === 'code_challenge' && m.carries.includes('code_challenge_method') ? `${n} (S256)` : n, NAME_COLOR[n] ?? color),
+        ])
+      : [label(m.text.toLowerCase(), ink)];
+    parts.slice(1).forEach((p, i) => p.nextTo(parts[i]!, [1, 0], 0.14));
+    return new Group(...parts);
+  };
+  const lane = (key: string, messages: LaneMessage[], top: number, color: string, title: readonly [string, string], dashed: boolean) => {
+    const band = new Rectangle({ width: 2 * HALF, height: HEIGHT, cornerRadius: 0.12, fill: color, fillOpacity: 0.07, stroke: color, strokeWidth: 0.04 });
+    if (dashed) band.style.dashArray = '0.2 0.12';
+    band.moveTo([0, top - HEIGHT / 2]);
+    // Two lines, centred between the lifelines so neither crosses them.
+    const heading = title.map((words, i) => new Text(words, { fontSize: SIZE, color, weight: 'bold' }).moveTo([0, top - 0.38 - i * 0.5]));
+    for (const h of heading) if (h.width() > 2 * END - 0.3) throw new Error(`Lane title too wide for the lifelines: ${title.join(' ')}`);
+    const parts: Mobject[] = [band, ...heading];
+    messages.forEach((m, i) => {
+      // The names sit on the arrow, which breaks around them: a line up to them, an arrow on from them.
+      const y = top - 1.62 - i * 0.58,
+        names = carried(m, color).moveTo([0, y]),
+        gap = names.width() / 2 + 0.15,
+        sign = m.to === 'S' ? 1 : -1,
+        tail = new Line([-sign * END, y], [-sign * gap, y], { stroke: ink, strokeWidth: 0.035 }),
+        head = new Arrow([sign * gap, y], [sign * END, y], { stroke: ink, strokeWidth: 0.035, tipLength: 0.22, tipWidth: 0.18 });
+      // The server's replies are dashed, as in the sequence diagrams.
+      if (m.from === 'S') for (const piece of [tail, head]) piece.style.dashArray = '0.16 0.1';
+      parts.push(tail, head, names);
+    });
+    const g = new Group(...parts);
+    g.key = key;
+    return g;
+  };
+  const party = (name: string, x: number) =>
+    new Group(label(name, ink).moveTo([x, TOP + 0.42]), new Line([x, TOP + 0.12], [x, TOP - 2 * HEIGHT - GAP - 0.1], { stroke: s.soft, strokeWidth: 0.04 }));
+  return [
+    party(NAMES.C!, -END),
+    party(NAMES.S!, END),
+    lane('pkce-lane-browser', map.browser, TOP, s.bad, ['Browser and redirect:', 'other apps can read it'], true),
+    lane('pkce-lane-tls', map.tls, TOP - HEIGHT - GAP, s.good, ['The client’s own TLS', 'to the token endpoint'], false),
+  ];
 }

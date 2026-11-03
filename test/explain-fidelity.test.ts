@@ -16,6 +16,7 @@ import {
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
+import { pkceFlow, lanes, readable } from '../scenes/explainers/lib/pkce.ts';
 import { Scene, Text, Code, loadFonts, parseUnifiedDiff } from '../src/index.ts';
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
@@ -129,6 +130,19 @@ for (const entry of EXPLAINERS)
           assert.deepEqual(guesses.map(s => s.step), values.attacker === 'yes' ? ['attack'] : []);
           // Without PKCE, the opening's theft gets a token.
           assertStepState(trace, 'stolen', { stolenAccepted: true });
+          // The channel map draws the client's messages lane by lane, as the model routes them, and names what
+          // another app can read: the challenge, its method and the code, without the verifier.
+          const flow = pkceFlow(values.attacker === 'yes');
+          assertStepState(trace, 'channels', { lanes: lanes(flow), readable: Object.keys(readable(flow)) });
+          assert.deepEqual(Object.keys(readable(flow)), ['code_challenge', 'code_challenge_method', 'code']);
+          // The picture in words says the same lanes.
+          const lanesShown = pictured('channels');
+          for (const words of [
+            'which another app can read: Client to Auth server, code_challenge and code_challenge_method; Auth server to Client, code.',
+            'token endpoint: Client to Auth server, code and code_verifier; Auth server to Client, access token.',
+            'Another app can read code_challenge, code_challenge_method and code, and not the code_verifier.',
+          ])
+            assert.ok(lanesShown.includes(words), `${words}\n${lanesShown}`);
           break;
         }
         case 'mr-cache':

@@ -84,6 +84,24 @@
           "paint": "stroke"
         }
       ]
+    },
+    {
+      "step": "channels",
+      "opening": true,
+      "targets": [
+        {
+          "key": "pkce-lane-browser"
+        },
+        {
+          "key": "pkce-lane-tls"
+        },
+        {
+          "text": "code_challenge (S256)"
+        },
+        {
+          "text": "code_verifier"
+        }
+      ]
     }
   ]
 }

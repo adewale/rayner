@@ -37,7 +37,30 @@ export function redeem(bound: string | undefined, verifier: string | undefined):
   return pkceChallenge(verifier) === bound ? 'Access token' : 'invalid_grant';
 }
 
-/** The theft before PKCE: the malicious app M catches the redirect and redeems the code alone. */
+/** A message as the channel map draws it: its ends, its words and the names of the parameters it carries. */
+export interface LaneMessage {
+  from: string;
+  to: string;
+  text: string;
+  carries: string[];
+}
+/** One party's messages, grouped by channel and in order: what crosses the browser and what crosses TLS. */
+export function lanes(flow: Message[], party = 'C'): Record<Message['channel'], LaneMessage[]> {
+  const lane = (channel: Message['channel']) =>
+    flow
+      .filter((m) => m.channel === channel && (m.from === party || m.to === party))
+      .map(({ from, to, text, carries }) => ({ from, to, text, carries: Object.keys(carries) }));
+  return { browser: lane('browser'), tls: lane('tls') };
+}
+/**
+ * Every parameter that crosses the browser channel, with its value: what an app that registers the same URI scheme,
+ * or otherwise reads the authorization request and its redirect, can hold (RFC 7636 §1).
+ */
+export function readable(flow: Message[]): Record<string, string> {
+  return Object.assign({}, ...flow.filter((m) => m.channel === 'browser').map((m) => m.carries));
+}
+
+/** The theft before PKCE:the malicious app M catches the redirect and redeems the code alone. */
 export function theftFlow(): Message[] {
   return [
     { from: 'C', to: 'S', text: 'Authorize request', channel: 'browser', carries: {} },
