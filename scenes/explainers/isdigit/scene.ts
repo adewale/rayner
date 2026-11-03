@@ -241,7 +241,7 @@ export default class IsDigitExplainer extends Scene {
       // unicodeobject.c:9538-9552 rewrites each character; longobject.c:3209 is the error message.
       caption: `Before parsing, int() converts non-ASCII decimal digits to ASCII digits and whitespace to spaces; other non-ASCII characters become '?'. ${c.char} ${
         f.decimal ? `has the decimal digit value ${f.decimal}` : 'has no decimal digit value'
-      }, so it becomes '${asciiFor(c)}' and int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}. ${run.outcome === 'raised' ? 'Passing the check did not guarantee a successful parse.' : ''}`,
+      }, so it becomes '${asciiFor(c)}' and int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}.${run.outcome === 'raised' ? ' Passing the check did not guarantee a successful parse.' : ''}`,
     });
     await s.clear();
     const transform = await s.code(
@@ -268,7 +268,7 @@ export default class IsDigitExplainer extends Scene {
       title: 'Eight numerals; int() accepts only the first four',
       line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `The Unicode Character Database gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets over the row mark what the three string checks, isdecimal(), isdigit() and isnumeric(), return, and those under it what int() does: int() and isdecimal() accept only the first four, isdigit() reaches ${CHARS.super.char} as well, and isnumeric() all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. Which part of its database entry does each check read?`,
+      caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. If all eight have a numeric value, what does each check look up?`,
     });
     await s.clear();
     // One row in lineup order; a bracket spans the characters each call accepts, which the model
@@ -328,7 +328,7 @@ export default class IsDigitExplainer extends Scene {
       line:
         id === 'han'
           ? 'Fields 6, 7 and 8 are empty; Unihan’s kPrimaryNumeric, its main numeric value, gives 3.'
-          : `isdigit() reads field 7 and int() reads field 6: ${c.char} fills ${
+          : `isdigit() follows field 7 and int() follows field 6: ${c.char} fills ${
               type === 'Decimal' ? 'both' : type === 'Digit' ? 'field 7 but not field 6' : 'neither'
             }.`,
       // UAX #44 rev. 38, the UnicodeData.txt field table: field 6 is filled only for Numeric_Type=Decimal,
