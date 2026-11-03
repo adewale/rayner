@@ -1,8 +1,8 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view, matchByKey } from 'rayner';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view, matchByKey, Session } from 'rayner';
 import type { Mobject, MatchKey, Vec, Box } from 'rayner';
 import { stage, regionBox } from 'rayner/explain';
 import type { Stage } from 'rayner/explain';
-import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts } from '../lib/statecharts.ts';
+import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, events as chartEvents } from '../lib/statecharts.ts';
 import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
 
 // Every box and arrow below is drawn from a model state or transition; only positions are chosen
@@ -585,10 +585,15 @@ export default class Statecharts extends Scene {
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
     const followCell = cellKey(cellOf([playing, muted]));
-    const coffeeRun = run(coffee(), RUNS.coffee),
-      frotherRun = run(coffeeWithFrother(), RUNS.frother);
-    const brewing = coffeeRun[2]!.config,
-      frothingNow = frotherRun[2]!.config;
+    const coffeeRun = run(coffee(), RUNS.coffee);
+    const brewing = coffeeRun[2]!.config;
+    // The frother machine as a session: its configuration is the scene's state, each event the model's
+    // send(), and the picture marks the states the state names. rayner check draws every configuration
+    // the events reach and checks each one; the frother step replays the transfer answer's events.
+    type Machine = { config: string[]; current: string[] };
+    const frotherMachine = coffeeWithFrother();
+    const machineAt = (config: string[]): Machine => ({ config, current: activeStates(frotherMachine, config) });
+    const machine = () => this.state as Machine;
     const ACTIVE = activeStates(playerChart, run(playerChart, RUNS.player)[2]!.config);
     let drawn: Drawn = { group: new Group(), words: [] };
     const picture = (): Drawn => {
@@ -610,7 +615,7 @@ export default class Statecharts extends Scene {
         case 'question':
           return coffeePicture(s, big(coffeeLayout('question').bounds), 'question', { follow: [], lit: [] });
         case 'frother':
-          return coffeePicture(s, big(coffeeLayout('frother').bounds), 'frother', { follow: activeStates(coffeeWithFrother(), frothingNow), lit: [] });
+          return coffeePicture(s, big(coffeeLayout('frother').bounds), 'frother', { follow: machine().current, lit: [] });
       }
     };
     const main = view(() => (drawn = picture()).group, { place: false });
@@ -627,6 +632,13 @@ export default class Statecharts extends Scene {
       phase = next;
       await this.play(main.sync({ match: byKey, runTime: 1.2 }));
     };
+    const frother = new Session<Machine, string>(this, {
+      start: machineAt(initial(frotherMachine)),
+      events: chartEvents(frotherMachine),
+      next: (state, event) => machineAt(send(frotherMachine, state.config, event).config),
+      views: [main],
+      match: byKey,
+    });
 
     // 1. A concrete machine, and the change that will hurt it.
     await this.step('machine', {
@@ -701,7 +713,9 @@ export default class Statecharts extends Scene {
       line: `A flat machine would need ${frotherFlat.states} states and ${frotherFlat.transitions} transitions; the statechart draws ${frotherChart.transitions} arrows.`,
       caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The green boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
     });
+    // The machine starts off; the transfer answer's events take it to grinding and frothing.
+    this.state = frother.spec.start;
     await morph('frother');
-    this.state = { current: activeStates(coffeeWithFrother(), frothingNow) };
+    await this.play(frother.replay(RUNS.frother.slice(0, 3)));
   }
 }

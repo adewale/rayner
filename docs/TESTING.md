@@ -19,6 +19,7 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 | Domain values | Independent model tests, source vectors and real Git/CPython fixtures; `view-readouts.test.ts` pins reader values |
 | Engine geometry and animation | Seeded properties, Manim/raster references, native SVG and seek/cache tests |
 | Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
+| Sessions | `rayner check` explores every session's reachable states and checks each picture; `session.test.ts` checks replay, seeking, shortest paths and a picture that cannot tell states apart |
 | Scene invariants | `rayner check` runs each `addInvariant` claim on every frame of every case; `recipes.test.ts` proves a claim fails on the counterexample, and each explainer's claim was shown to fail on its old behaviour |
 | Extracted choreography | `choreography.test.ts` checks geometric anchors, route/opacity samples, legacy frame equivalence, JSON state boundaries, nested schedules and writer conflicts |
 | Requested lettering | `lettering.test.ts` checks declarations, isolation and glyph contracts; the catalog builder checks actual receipt fields and page bytes |

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { activeStates } from '../../../scenes/explainers/lib/statecharts.ts';
+import assert from 'node:assert/strict';
+import { activeStates, RUNS } from '../../../scenes/explainers/lib/statecharts.ts';
 import { CHARTS, FIXTURE } from '../../../tools/oracle/statecharts.ts';
 import type { Expected } from '../../../tools/oracle/statecharts.ts';
 
@@ -17,4 +18,9 @@ export function check(_values: Record<string, string>, trace: Trace): void {
   assertStepState(trace, 'regions', { current: activeStates(CHARTS.player!.chart, x.player!.follow[2]!.config) });
   // The transfer answer: grinding with the frother frothing, inside on.
   assertStepState(trace, 'frother', { current: activeStates(CHARTS.coffeeWithFrother!.chart, x.coffeeWithFrother!.follow[2]!.config) });
+  // It gets there by the events XState was sent, replayed through the model one at a time: the
+  // session records each as it begins, and the configuration after the last is XState's.
+  const events = (trace.steps.find((s) => s.step === 'frother')!.evidence ?? []).filter((e) => e.kind === 'event').map((e) => e.event);
+  assert.deepEqual(events, RUNS.frother.slice(0, 3));
+  assertStepState(trace, 'frother', { config: x.coffeeWithFrother!.follow[2]!.config });
 }

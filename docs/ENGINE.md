@@ -22,6 +22,7 @@ reading for this API.
 | `text.ts`: `Code` spans and token colours; `svg.ts`: run merging; `tools/tokens.ts` | [CODE.md](CODE.md) | How do I address, colour and box part of a line of code, and what does colour cost? |
 | `diff.ts`, `animation.ts`: `TransformDiff`; `scene.ts`: `record()` | [MATCHING.md, "Diff-driven"](MATCHING.md#diff-driven) and [the reference, "Scene"](REFERENCE.md#scene) | How does a code morph follow the diff, and how does the trace prove it did? |
 | `svg.ts`, `ascii.ts`, `trace.ts`, `timeline.ts` | [Scene outputs](SCENE-OUTPUTS.md) | How do I get frames, text, elements, step indexes and traces without a JSON scene document? |
+| `session.ts`: `Session`, `sessionsOf`; `SetState` with a model step | [Sessions](SESSIONS.md) | How do I drive a scene's model with events, replay them as one play, and have every reachable state checked? |
 | `scene.ts`: `addInvariant`; `verify.ts`: `InvariantSink` | [Extension recipes, "Claim something on every frame"](EXTENDING.md#claim-something-on-every-frame) | How do I say what must stay true while things move, and have every frame checked? |
 | `verify.ts`, `trace.ts`, `timeline.ts` | [Testing](TESTING.md), [fundamentals](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance) and [the reference, "Checks"](REFERENCE.md#checks) | Is the animation true, correct and smooth, and what does each check establish? |
 | `perf.ts`, `svg.ts` | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance); run merging in [CODE.md](CODE.md#cost-elements-per-line) | Where does a frame's time go, and how should I measure it? |
@@ -81,6 +82,9 @@ Not built, and why:
   the diagram `note()` cover static anchors. The contracts an attachment system
   needs (a geometry plan, cycle rejection, missing-target policy) are a reactive
   constraint graph, which "points are the truth" deliberately excludes.
+- **The live machine, authoring half (done).** [Sessions](SESSIONS.md) replay events
+  through a scene's model as one play and `rayner check` explores every reachable state;
+  `statecharts` reaches its transfer answer this way. The player's buttons remain.
 - **A parameter rig.** [Sampled parameters](PARAMETERS.md) records the survey:
   one explainer, the token bucket, needed several drawings to follow one number.
   The exported shape is one small animation, [`Follow`](CHOREOGRAPHY.md#follow),

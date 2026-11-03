@@ -163,24 +163,45 @@ export class Animation extends AnimationTiming {
 // visible to play()'s ordinary overlap check. Separate scenes do not conflict.
 const stateTargets = new WeakMap<object, Group>();
 
-/** Replace a scene's JSON state when this member begins, usually inside Succession. */
+export interface SetStateOpts {
+  /** The event that set the state: recorded as `{ kind: 'event', event }` as this begins. */
+  event?: string;
+}
+
+/**
+ * Replace a scene's JSON state when this member begins, usually inside a Succession. `next`
+ * is the state, or a function of the state when this begins (a copy, so it cannot change the
+ * scene's): a model step, so each member of a replay starts where the one before left it.
+ */
 export class SetState<S extends object = SceneState> extends Animation {
   readonly host: Scene<S>;
-  private readonly snapshot: JsonObject;
+  readonly event: string | undefined;
+  private readonly snapshot: JsonObject | null;
+  private readonly update: ((current: S) => S) | null;
 
-  constructor(host: Scene<S>, next: NoInfer<S>) {
-    const snapshot = jsonObject(next, 'SetState state');
+  constructor(host: Scene<S>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOpts = {}) {
+    if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('SetState event must be a nonempty string');
+    const update = typeof next === 'function' ? (next as (current: S) => S) : null;
+    const snapshot = update ? null : jsonObject(next, 'SetState state');
     let target = stateTargets.get(host);
     if (!target) { target = new Group(); stateTargets.set(host, target); }
     super(target, { runTime: 0, remover: true });
     this.host = host;
+    this.event = event;
     this.snapshot = snapshot;
+    this.update = update;
   }
 
   override begin(): void {
-    this.host.state = jsonObject(this.snapshot, 'SetState state') as Scene<S>['state'];
+    const next = this.update
+      ? this.update(jsonObject(this.host.state, 'SetState current state') as S)
+      : this.snapshot;
+    this.host.state = jsonObject(next, 'SetState state') as Scene<S>['state'];
     super.begin();
   }
+
+  /** `{ kind: 'event', event }` when an event set the state; nothing otherwise. */
+  override evidence(): Evidence | null { return this.event === undefined ? null : { kind: 'event', event: this.event }; }
 }
 
 export interface FollowSpec {

@@ -98,7 +98,11 @@ await this.play(new Succession([
 ]));
 ```
 
-Signature: `new SetState(scene, nextState)`.
+Signature: `new SetState(scene, nextState | (current) => nextState, { event? })`.
+
+Given a function, it computes the next state from a copy of the state when it begins,
+so a member of a replay starts where the one before left it; with `event`, it records
+`{ kind: 'event', event }` as it begins. [Sessions](SESSIONS.md) build on this form.
 
 It draws nothing and defaults to zero duration. When its turn begins, it replaces
 the whole scene state. This puts model updates inside an existing schedule, so a

@@ -12,6 +12,9 @@ import ts from 'typescript';
 import {
   MotionSink,
   InvariantSink,
+  sessionsOf,
+  viewMismatch,
+  jsonObject,
   analyzeMotion,
   SnapshotSink,
   renderAt,
@@ -25,7 +28,7 @@ import { caseName } from '../../explain/index.ts';
 import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
-import type { Box, Mobject } from '../../src/index.ts';
+import type { Box, Mobject, Scene } from '../../src/index.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 
@@ -238,6 +241,39 @@ function legibilityReport(records: LabelSizes[]) {
   };
 }
 
+/**
+ * Every state a scene's sessions (src/session.ts) reach, breadth first from each one's start,
+ * redrawn after the run and checked as a resting picture is: no text collisions or routes
+ * over labels, a description, a picture that follows the state (viewMismatch, for views of
+ * the scene's state), and a description no other reachable state shares, so a reader, or a
+ * screen reader, can tell them apart. A problem is named by the shortest events reaching it.
+ */
+export function exploreSessions(scene: Scene): { events: string[]; states: number; sampled: boolean; problems: string[] }[] {
+  return sessionsOf(scene).map((session) => {
+    const problems: string[] = [];
+    const reached = session.reachable();
+    const said = new Map<string, string>();
+    for (const { state, path } of reached) {
+      const at = path.length ? `after ${path.join(', ')}` : 'at the start';
+      scene.state = jsonObject(state, 'session state');
+      for (const view of session.spec.views) {
+        view.rebuild();
+        if (view.render) {
+          const mismatch = viewMismatch(view, scene.state);
+          if (mismatch) problems.push(`${at}: ${mismatch}`);
+        }
+      }
+      problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${at}: ${p}`));
+      const picture = scene.describe().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+      const words = JSON.stringify(picture?.entries ?? []);
+      if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
+      else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
+      else said.set(words, at);
+    }
+    return { events: [...session.spec.events], states: reached.length, sampled: reached.length >= session.spec.limit, problems };
+  });
+}
+
 /** Run every check on every case; write the report to `out`/report.json and return it. */
 export async function checkProject(project: Project, out: string): Promise<Record<string, unknown>> {
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
@@ -319,7 +355,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     const held = new Map<string, string>(),
       moved = new Set<string>();
-    await new v.Scene({
+    const ran = await new v.Scene({
       async frame(scene, dt) {
         invariants.check(scene);
         await motion.frame(scene);
@@ -382,6 +418,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       invariants.failures.slice(0, 5),
       [],
       `Invariants fail ${where} (${invariants.failures.length} frames; the first five)`,
+    );
+    const sessions = exploreSessions(ran);
+    assert.deepEqual(
+      sessions.flatMap((s) => s.problems).slice(0, 5),
+      [],
+      `Sessions ${where}: a state the events reach fails (each named by its shortest events; the first five)`,
     );
     assert.deepEqual(
       [...moved],
@@ -457,6 +499,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       motionEvents: events.length,
       // Each declared invariant and the frames it held on: a claim checked on no frame is not evidence.
       invariants: Object.fromEntries(invariants.checked),
+      // Each session's events and how many states they reach, every one drawn and checked.
+      ...(sessions.length ? { sessions: sessions.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
