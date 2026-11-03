@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "tranches",
+      "opening": true,
+      "targets": [
+        {
+          "key": "qf-tranches:entier"
+        },
+        {
+          "key": "qf-tranches:parts"
+        }
+      ]
+    }
+  ]
+}

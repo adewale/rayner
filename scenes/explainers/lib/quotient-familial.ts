@@ -68,6 +68,15 @@ export function bareme(q: number, year: Year = 2024): { total: number; slices: S
   });
   return { total: slices.reduce((s, x) => s + x.tax, 0), slices };
 }
+/**
+ * The income's euros in each tranche, two ways: the barème on the whole income, and on the quotient
+ * times the parts. Both add up to the income; split into parts, they sit lower in the barème.
+ */
+export function repartition(rni: number, enfants: number, year: Year = 2024): { rate: number; entier: number; parts: number }[] {
+  const p = parts(enfants),
+    split = bareme(rni / p, year).slices;
+  return bareme(rni, year).slices.map((x, k) => ({ rate: x.rate, entier: x.base, parts: p * split[k]!.base }));
+}
 /** The tranche q falls in: its rate is the taux marginal. */
 export function tranche(q: number, year: Year = 2024): number {
   const b = BAREME[year];

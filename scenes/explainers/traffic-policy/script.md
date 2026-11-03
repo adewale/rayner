@@ -10,6 +10,8 @@ Node 1 gets half the requests and divides that half among three pods: one sixth 
 
 Change the policy to Cluster. Each node can now choose any of the four pods. Each pod receives one quarter of each node's traffic, so its total share is one quarter too. The entry node need not contain the selected pod: in this placement, two requests in three take a second hop to another node.
 
+Draw both policies as bands, each as wide as its share of the requests and coloured by the node it enters. The load balancer makes the first cut, by node, and each node's rules make the second. Under Cluster each node's third fans out to all four pods, so every pod's bar collects three colours and ends a quarter wide. Under Local, Node 3 gets no band, Node 1 cuts its half into three bands of one sixth, and Node 2 hands its whole half to pod d. Pod d's bar is Node 2's band, three times as wide as each of Node 1's.
+
 The possibility of that second hop is why Cluster hides the client. In the iptables path shown, Cluster applies source NAT to every outside request in case it crosses nodes: the entry node replaces the client's address with its own, even when the chosen pod is local. Local keeps the request on its entry node, so the pod sees the client's address. The trade is even load against the client's address, and with 3, 1, 0 pods Local pays for the address with pod d's triple load.
 
 Now place two pods on each of two nodes. Under Local, each healthy node still gets half, but now each divides that half two ways, giving every pod one quarter. The unevenness came from unequal pod counts per healthy node, not from Local inevitably favouring a particular pod. A load balancer that weights nodes by their pod counts could change the result as well.

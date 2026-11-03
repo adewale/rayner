@@ -1,4 +1,4 @@
-import { Scene, Text } from '../../../src/index.ts';
+import { Scene, Text, Group, Rectangle } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
@@ -18,8 +18,9 @@ import {
   clock,
   seconds,
   headwayWords,
+  weekGrid,
 } from '../lib/gtfs.ts';
-import type { GtfsDate, Row, ServiceDay } from '../lib/gtfs.ts';
+import type { Cell, GtfsDate, Row, ServiceDay } from '../lib/gtfs.ts';
 
 // Sources, all at google/transit commit 3c9e7b9: the GTFS Schedule reference (lines quoted in
 // ../lib/gtfs.ts and below) and its sample feed, whose files are copied in ./sample-feed-1.
@@ -382,6 +383,111 @@ export default class GtfsExplainer extends Scene {
       { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, fontSize: 0.28 },
     );
     this.state.today = today;
+
+    // ------------------------------------------------------------------ week: the services' dates as a grid
+    const grid = weekGrid(FEED, date);
+    const col = grid.dates.indexOf(date);
+    const short3 = (d: GtfsDate) => upper(weekday(d)).slice(0, 3);
+    const empties = grid.dates.filter((_, i) => grid.trips[i] === 0);
+    const pattern = (cells: readonly Cell[]) => {
+      const days = grid.dates.filter((_, i) => cells[i] !== 'off').map((d) => upper(weekday(d)));
+      return days.length === 7 ? 'every day' : days.length ? list(days) : 'no day';
+    };
+    const removedCells = grid.services.flatMap((x) =>
+      grid.dates.flatMap((d, i) => (x.cells[i] === 'removed' ? [{ serviceId: x.serviceId, date: d }] : [])),
+    );
+    const runningHere = grid.services.filter((x) => x.cells[col] === 'runs').map((x) => x.serviceId);
+    const emptyWords = empties.length === 1 ? `${longDate(empties[0]!)} is the week’s one empty column` : empties.length ? `the week has ${number(empties.length)} empty columns` : 'no column of the week is empty';
+    await this.step('week', {
+      title:
+        grid.trips[col] === 0 && empties.length === 1
+          ? `${longDate(date)} is the week’s one empty column`
+          : `${upper(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : list(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
+      line: 'Filled: the service runs. Dashed: calendar_dates.txt removes it. Blank: not that weekday.',
+      caption:
+        `Each row is a service and each column a date, ${longDate(grid.dates[0]!)} to ${longDate(grid.dates[6]!)}; the number under a column counts the trips that run that day. ` +
+        `${list(grid.services.map((x) => `${x.serviceId}’s weekly pattern covers ${pattern(x.cells)}`))}. ` +
+        (removedCells.length
+          ? `${upper(number(removedCells.length))} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${list(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${list(removedCells.map((r) => `${r.serviceId}’s ${upper(weekday(r.date))} cell`))}. `
+          : '') +
+        (empties.length === 1
+          ? `With no other service on that weekday, ${shortDate(empties[0]!)}’s column is empty: 0 trips. `
+          : '') +
+        'routes.txt and trips.txt are the same in each column; the service cells are what change.',
+    });
+    await s.clear();
+    const GX0 = -5.6,
+      CW = 13 / 7,
+      CH = 0.75,
+      TOP = 0.95;
+    const SERVICE_COLORS = ['#0969da', '#8250df', '#1a7f37'];
+    const rowY = (r: number) => TOP - r * (CH + 0.12) - CH / 2;
+    const colX = (i: number) => GX0 + i * CW + CW / 2;
+    const words = (t: string, opts: { color?: string; size?: number; bold?: boolean } = {}) =>
+      new Text(t, { fontSize: opts.size ?? 0.28, color: opts.color ?? s.palette.ink, weight: opts.bold ? 'bold' : 'normal' });
+    const cellOf = (r: number, i: number) => {
+      const x = grid.services[r]!,
+        kind = x.cells[i]!,
+        color = SERVICE_COLORS[r]!,
+        at: [number, number] = [colX(i), rowY(r)];
+      const frame = new Rectangle({
+        width: CW - 0.14,
+        height: CH,
+        fill: kind === 'runs' ? color : 'none',
+        stroke: kind === 'off' ? '#d0d7de' : color,
+        strokeWidth: kind === 'removed' ? 0.04 : 0.02,
+      }).moveTo(at);
+      if (kind === 'removed') frame.style.dashArray = '0.12 0.08';
+      const g = new Group(frame);
+      if (kind === 'runs') g.add(words(x.serviceId, { color: s.palette.paper, bold: true }).moveTo(at));
+      if (kind === 'removed')
+        g.add(words(x.serviceId, { color }).moveTo([at[0], at[1] + 0.16]), words('removed', { color }).moveTo([at[0], at[1] - 0.18]));
+      g.key = `gtfs-week:${x.serviceId}:${grid.dates[i]}`;
+      return g;
+    };
+    const totalY = rowY(grid.services.length) + 0.2;
+    const dayColumn = (i: number) => {
+      const d = grid.dates[i]!;
+      const g = new Group(
+        words(short3(d), { bold: i === col }).moveTo([colX(i), TOP + 0.72]),
+        words(shortDate(d)).moveTo([colX(i), TOP + 0.3]),
+        ...grid.services.map((_, r) => cellOf(r, i)),
+        words(String(grid.trips[i]), { size: 0.34, bold: true }).moveTo([colX(i), totalY]),
+      );
+      g.key = i === col ? 'gtfs-week:day' : `gtfs-week:column:${d}`;
+      return g;
+    };
+    const columns = grid.dates.map((_, i) => dayColumn(i));
+    // The date asked about, framed from its weekday down to its count.
+    const frameTop = TOP + 0.92,
+      frameBottom = totalY - 0.25;
+    const mark = new Rectangle({ width: CW, height: frameTop - frameBottom, fill: 'none', stroke: s.emphasis, strokeWidth: 0.05 }).moveTo([
+      colX(col),
+      (frameTop + frameBottom) / 2,
+    ]);
+    columns[col]!.add(mark);
+    const labelX = GX0 - 0.15;
+    const rowLabels = new Group(
+      ...grid.services.map((x, r) =>
+        new Group(
+          words(x.serviceId, { bold: true, color: SERVICE_COLORS[r] }).moveTo([labelX, rowY(r) + 0.17], [1, 0]),
+          words(`${x.trips} trips`).moveTo([labelX, rowY(r) - 0.19], [1, 0]),
+        ),
+      ),
+      words('Trips', { bold: true }).moveTo([labelX, totalY], [1, 0]),
+    );
+    rowLabels.key = 'gtfs-week:rows';
+    await s.enter(rowLabels, ...columns, {
+      describe: () =>
+        `A week grid, ${longDate(grid.dates[0]!)} to ${longDate(grid.dates[6]!)}, one row per service and one column per date. ` +
+        grid.services
+          .map((x) => `${x.serviceId}: ${grid.dates.map((d, i) => `${short3(d)} ${x.cells[i] === 'off' ? 'blank' : x.cells[i]}`).join(', ')}`)
+          .join('. ') +
+        `. Trips that run: ${grid.trips.join(', ')}. ${longDate(date)} is framed.`,
+    });
+    // A phone opens on the date asked about, with its neighbours either side as room allows.
+    s.reading(columns[col]!);
+    this.state.week = grid;
 
     // ------------------------------------------------------------------ trip-stops
     const ab1 = stopTimesOf(FEED, 'AB1'),

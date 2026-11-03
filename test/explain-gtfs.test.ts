@@ -25,6 +25,7 @@ import {
   dayChart,
   ganttSource,
   ganttEdits,
+  weekGrid,
   WEEKDAYS,
 } from '../scenes/explainers/lib/gtfs.ts';
 import type { Feed, GtfsDate } from '../scenes/explainers/lib/gtfs.ts';
@@ -217,6 +218,34 @@ test('one calendar_dates.txt row adds or removes a service for one date, leaving
   // FULLW,20070605,2 empties Tuesday 5 June as the sample's own row empties Monday 4 June.
   assert.deepEqual(ids(plus('FULLW,20070605,2'), '20070605'), []);
   assert.equal(plus('FULLW,20070605,2').routes.length, FEED.routes.length);
+});
+
+test('gtfs week view: the week grid is each service’s run, removed or off cell per date, and its column totals are the day’s trips', () => {
+  // Sunday 3 to Saturday 9 June: FULLW's Monday is removed, WE runs only at the weekend, so Monday's column is empty.
+  const week = weekGrid(FEED, '20070604');
+  assert.deepEqual(week.dates, Object.keys(GTFS_KIT_TRIPS));
+  assert.deepEqual(week.services.map((s) => [s.serviceId, s.trips, s.cells]), [
+    ['FULLW', 7, ['runs', 'removed', 'runs', 'runs', 'runs', 'runs', 'runs']],
+    ['WE', 4, ['runs', 'off', 'off', 'off', 'off', 'off', 'runs']],
+  ]);
+  assert.deepEqual(week.trips, Object.values(GTFS_KIT_TRIPS));
+  // Any date: the grid's week runs Sunday to Saturday around it, and each cell and total is the model's for that day.
+  fc.assert(
+    fc.property(ymd, (date) => {
+      const w = weekGrid(FEED, date);
+      assert.equal(w.dates.length, 7);
+      assert.ok(w.dates.includes(date));
+      assert.equal(weekday(w.dates[0]!), 'sunday');
+      w.dates.forEach((d, i) => {
+        assert.equal(w.trips[i], tripsOn(FEED, d).length);
+        for (const s of w.services) {
+          const on = serviceOn(FEED, s.serviceId, d);
+          assert.equal(s.cells[i], on.runs ? 'runs' : on.byCalendar ? 'removed' : 'off', `${s.serviceId} ${d}`);
+        }
+      });
+    }),
+    params(),
+  );
 });
 
 test('the weekly pattern repeats every seven days; only calendar_dates.txt breaks it', () => {

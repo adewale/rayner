@@ -128,6 +128,49 @@
           "key": "traffic-compare:local:share:Pods a, b and c"
         }
       ]
+    },
+    {
+      "step": "flow",
+      "settings": {
+        "policy": "local"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "traffic-flow:local"
+        }
+      ]
+    },
+    {
+      "step": "flow",
+      "settings": {
+        "policy": "cluster"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "traffic-flow:cluster"
+        }
+      ]
+    },
+    {
+      "step": "flow",
+      "settings": {
+        "policy": "local",
+        "pods": "3-1-0"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "traffic-flow:local:band:2:d"
+        },
+        {
+          "key": "traffic-flow:local:pod:d"
+        },
+        {
+          "text": "50%"
+        }
+      ]
     }
   ]
 }
