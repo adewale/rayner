@@ -6,6 +6,8 @@ At 0.1 tokens a second the same request schedule ends differently. Five seconds 
 
 Rayner answers by not letting the reader type 0.1. Before publishing, the build runs every combination of the options a scene declares, so each case's pictures and captions exist, and `rayner check` tests them, before anyone reads the page. The reader chooses among those cases, and a link naming a rate outside the list opens the default case instead.
 
+Drawn as cases, the token bucket page is three boxes, one per listed rate, each built and checked. A link to 4 tokens a second lands in its box. A link to 0.1 points at a slot the build never filled: the player refuses the option with "Unknown rate option: 0.1" and opens the default box, 2 tokens a second, where R10 is accepted.
+
 That makes review finite. An author can read the caption in each of the three offered cases and correct it before readers see the page. A program that accepted any rate would need a rule that stays true across that wider input space, and building ahead does not supply one: a false caption can still be published if its author never reads the prepared cases.
 
 The restriction has a cost. Two traffic-policy options combined with three pod placements make six cases, and each further setting multiplies the count again. Prepared cases trade freedom of input for a bounded set of outcomes that someone can inspect.

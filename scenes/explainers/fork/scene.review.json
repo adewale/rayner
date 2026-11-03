@@ -2,6 +2,18 @@
   "version": 1,
   "claims": [
     {
+      "step": "choice",
+      "opening": true,
+      "targets": [
+        {
+          "key": "fork-choice-cases"
+        },
+        {
+          "key": "fork-choice-fallback"
+        }
+      ]
+    },
+    {
       "step": "cases",
       "opening": true,
       "targets": [
