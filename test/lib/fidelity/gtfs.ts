@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import { SAMPLE_FEED } from '../../../scenes/explainers/gtfs/feed.ts';
-import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf } from '../../../scenes/explainers/lib/gtfs.ts';
+import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf, weekGrid } from '../../../scenes/explainers/lib/gtfs.ts';
 
 const STOPS: Record<string, string> = { airport: 'BEATTY_AIRPORT', stagecoach: 'STAGECOACH' };
 
@@ -33,6 +33,8 @@ export function check(trace: Trace, values: Record<string, string>): void {
     })),
   });
   assertStepState(trace, 'evaluate', { today: servicesOn(feed, date) });
+  // The week grid: each service's cell per date and each date's trips.
+  assertStepState(trace, 'week', { week: weekGrid(feed, date) });
   assertStepState(trace, 'day-before', { dayBefore: { date: before, running: tripsOn(feed, before).map((t) => t.trip_id) } });
   const running = tripsOn(feed, date);
   assertStepState(trace, 'day', { day: { date, running: running.map((t) => t.trip_id), edits: ganttEdits(feed, before, date).length } });

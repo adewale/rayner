@@ -147,6 +147,29 @@ export function serviceIds(feed: Feed): string[] {
 export function servicesOn(feed: Feed, date: GtfsDate): ServiceDay[] {
   return serviceIds(feed).map((id) => serviceOn(feed, id, date));
 }
+/** A week-grid cell: the service runs; the weekly pattern runs it but calendar_dates.txt removes it; or neither. */
+export type Cell = 'runs' | 'removed' | 'off';
+export interface WeekGrid {
+  /** Sunday to Saturday, around the date asked for. */
+  dates: GtfsDate[];
+  services: { serviceId: string; trips: number; cells: Cell[] }[];
+  /** Trips that run on each date. */
+  trips: number[];
+}
+/** The week around a date as a grid: one row per service, one column per date, and each column's trips. */
+export function weekGrid(feed: Feed, date: GtfsDate): WeekGrid {
+  const sunday = addDays(date, -((WEEKDAYS.indexOf(weekday(date)) + 1) % 7));
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(sunday, i));
+  const services = serviceIds(feed).map((serviceId) => ({
+    serviceId,
+    trips: feed.trips.filter((t) => t.service_id === serviceId).length,
+    cells: dates.map((d): Cell => {
+      const s = serviceOn(feed, serviceId, d);
+      return s.runs ? 'runs' : s.byCalendar ? 'removed' : 'off';
+    }),
+  }));
+  return { dates, services, trips: dates.map((d) => tripsOn(feed, d).length) };
+}
 /**
  * The trips that run on a date: those whose service_id runs then, in trips.txt order. With
  * `byCalendar`, those calendar.txt's weekly pattern alone would run, before calendar_dates.txt.
