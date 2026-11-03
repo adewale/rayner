@@ -150,7 +150,7 @@ export default class GitBranches extends Scene {
           : 'Predict: if main had made its own commit first, would moving the label still do?',
         caption: advanced
           ? 'git merge feature creates M with parents C and B and moves main to it. M’s files have both edits, green and Home, because the two edits touch different files. Feature stays at B, and C stays in main’s history.'
-          : 'Main’s commit, A, is B’s parent, so B already holds everything main had. With fast-forwards allowed, git merge feature moves main from A to B, a fast-forward: no new commit, and colour.txt turns green. A merge needs a new commit when each branch has a commit the other lacks; here only feature does.',
+          : 'Main’s commit, A, is B’s parent, so B already holds everything main had. git merge feature moves main from A to B without a new commit, which Git calls a fast-forward and does by default, and colour.txt turns green. A merge needs a new commit when each branch has a commit the other lacks; here only feature does.',
         state: shown(merged),
         draw: (s: Stage) => picture(s, merged, advanced ? 'M records parents C and B.' : 'main moves to existing commit B.'),
       },
@@ -159,7 +159,7 @@ export default class GitBranches extends Scene {
         title: advanced ? 'Answer: no. Without C, main just moves to B' : 'Answer: no. With C on main, the merge needs M',
         line: advanced ? 'A is in B’s history, so moving main to B loses nothing.' : 'M has parents C and B, so main keeps both edits.',
         caption: advanced
-          ? 'Here main never made C and still points at A, B’s parent. With fast-forwards allowed, git merge feature moves main to B; colour.txt turns green. --no-ff would request a merge commit even here: that is a policy choice, not a missing edit.'
+          ? 'Here main never made C and still points at A, B’s parent. git merge feature moves main to B without a new commit, which Git calls a fast-forward, and colour.txt turns green. Git fast-forwards by default; the option --no-ff would make a merge commit here anyway, by choice, though no edit would be lost without one.'
           : 'Here main made C, adding Home. B does not contain C, so moving main to B would drop that edit from main’s history. git merge feature creates M with parents C and B, keeping green and Home. --no-ff can request a commit even when a fast-forward could keep both histories.',
         state: { frame: other, files: currentFiles(other), advanced: !advanced },
         draw: (s: Stage) => picture(s, other, advanced ? 'main moves to existing commit B.' : 'M records parents C and B.'),
