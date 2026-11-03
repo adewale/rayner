@@ -1,11 +1,50 @@
 import { Scene, Rectangle, Dot, Circle, Line, Text, Group, FadeIn, Transform, Animation, toSvgString, renderAt, StringSink } from '../../../src/index.ts';
-import type { Mobject, Vec } from '../../../src/index.ts';
+import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
+import type { Diagram } from '../../../explain/index.ts';
 const STYLE = 'hand-drawn';
+
+/**
+ * The box to fit a Mermaid canvas into so that its boxes, not the blank margin Mermaid leaves around
+ * them, fill `region`. `canvas` is the captured canvas size and `content` the boxes' extent, both in
+ * the snapshot's pixels; `inside` clips the margin back to the region and checks the fit held.
+ */
+function bleed(region: Box, canvas: [number, number], content: Box): Box {
+  const k = Math.min((region[2] - region[0]) / (content[2] - content[0]), (region[3] - region[1]) / (content[3] - content[1]));
+  const left = (region[0] + region[2]) / 2 - ((content[0] + content[2]) / 2) * k,
+    top = (region[1] + region[3]) / 2 + ((content[1] + content[3]) / 2) * k;
+  // The diagram insets its artwork 0.12 from the box it is given.
+  return [left - 0.12, top - canvas[1] * k - 0.12, left + canvas[0] * k + 0.12, top + 0.12];
+}
+function inside(d: Diagram, ids: string[], region: Box, clip: Box) {
+  d.root.clipBox = clip;
+  for (const id of ids) {
+    const b = d.get(id).box()!;
+    if (b[0] < region[0] - 0.1 || b[1] < region[1] - 0.1 || b[2] > region[2] + 0.1 || b[3] > region[3] + 0.1)
+      throw new Error(`${id} at ${b.map((v) => v.toFixed(2))} is outside ${region}: recapture the canvas and content sizes`);
+  }
+}
+/**
+ * A camera view in which the stage's content area, below the heading, starts at `top` and holds `t`,
+ * so that whatever lies above `top` passes under the heading's band.
+ */
+function viewUnder(top: number, t: Box): Box {
+  // The content area below the heading, and the stage, in home units (explain/stage.ts).
+  const [l, b, r, u] = [-7.55, -4.25, 7.55, 3.25];
+  const z = Math.min((r - l) / (t[2] - t[0]), (u - b) / (top - t[1]));
+  const hw = 8 / z,
+    hh = 4.5 / z,
+    cx = (t[0] + t[2]) / 2 - (l + r) / 2 / z,
+    cy = top - u / z;
+  if (z <= 1 || cy - hh < -4.5 - 1e-6 || Math.abs(cx) + hw > 8 + 1e-6)
+    throw new Error(`No view below the heading from y = ${top.toFixed(2)} holds ${t.map((v) => v.toFixed(2))} on the stage`);
+  return [cx - hw, cy - hh, cx + hw, cy + hh];
+}
+// Tighter spacing than Mermaid's default, so the boxes and their labels fill more of the stage.
 const CLASSES =
-  'classDiagram\n direction LR\n class Scene {\n construct()\n play()\n step()\n }\n class Mobject {\n points\n style\n }\n class Animation {\n interpolate()\n }\n class Sink {\n frame()\n }\n Scene --> Mobject : owns\n Scene --> Animation : plays\n Scene --> Sink : emits';
+  '---\nconfig:\n  class:\n    nodeSpacing: 32\n    rankSpacing: 12\n---\nclassDiagram\n direction LR\n class Scene {\n construct()\n play()\n step()\n }\n class Mobject {\n points\n style\n }\n class Animation {\n interpolate()\n }\n class Sink {\n frame()\n }\n Scene --> Mobject : owns\n Scene --> Animation : plays\n Scene --> Sink : emits';
 const FLOW =
-  'graph LR\nAuthor[Native Scene] --> Clock[Fixed dt loop]\nClock --> Browser[Browser sink]\nClock --> SVG[SVG frames]\nClock --> Trace[State trace]\nSVG --> PNG[PNG stills]';
+  '---\nconfig:\n  flowchart:\n    rankSpacing: 24\n    nodeSpacing: 16\n---\ngraph LR\nAuthor[Native Scene] --> Clock[Fixed dt loop]\nClock --> Browser[Browser sink]\nClock --> SVG[SVG frames]\nClock --> Trace[State trace]\nSVG --> PNG[PNG stills]';
 
 type Motion = 'blend' | 'nudge';
 /** The still the story asks about: t = 1 s, halfway through the dot's one-second move. */
@@ -223,8 +262,11 @@ export default class LanternExplainer extends Scene {
       throw new Error('A seek must compute no frame before t and land on the played frame number'); 
     const print = fingerprint(run.played),
       seekPrint = fingerprint(run.seeked);
+    // Two frames side by side, centred in the stage below the heading.
+    const THUMB_X = 3.7,
+      THUMB_Y = -0.45;
     const thumb = (frame: Mobject[] | null, cx: number, label: string, svg: string | null, ghost?: Vec) => {
-      const w = 6,
+      const w = 6.6,
         k = w / 16;
       const box = new Rectangle({ width: w, height: (w * 9) / 16, stroke: ink, strokeWidth: 0.02, cornerRadius: 0.04 });
       const parts: Mobject[] = [box];
@@ -240,11 +282,13 @@ export default class LanternExplainer extends Scene {
             new Circle({ radius: 0.55 * k + 0.04, stroke: accent, strokeWidth: 0.04, fill: 'none' }).moveTo([ghost[0] * k, ghost[1] * k]),
           );
       } else parts.push(new Text('?', { fontSize: 0.9, color: soft, weight: 'bold' }));
-      const g = new Group(...parts).moveTo([cx, -0.75]);
-      const title = new Text(label, { fontSize: 0.26, color: ink }).moveTo([cx, 1.25]);
+      const g = new Group(...parts).moveTo([cx, THUMB_Y]);
+      const title = new Text(label, { fontSize: 0.3, color: ink }).moveTo([cx, THUMB_Y + (w * 9) / 32 + 0.4]);
       const out: Mobject[] = [g, title];
       if (svg)
-        out.push(new Text(`svg ${fingerprint(svg)} · ${svg.length} chars`, { fontSize: 0.24, font: 'mono', color: soft }).moveTo([cx, -2.8]));
+        out.push(
+          new Text(`svg ${fingerprint(svg)} · ${svg.length} chars`, { fontSize: 0.26, font: 'mono', color: soft }).moveTo([cx, THUMB_Y - (w * 9) / 32 - 0.4]),
+        );
       return new Group(...out);
     };
     const t = SEEK_T.toFixed(2);
@@ -260,8 +304,8 @@ export default class LanternExplainer extends Scene {
       line: `A still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
       caption: `A direct link opens a later picture without playing the earlier steps, so Rayner makes that picture as a still. Here a box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. To make the still, Rayner re-runs the scene and counts frames 1–${run.seekAt - 1} without computing them. Predict where the still’s dot will be before you go on.`,
     });
-    const left = thumb(run.playedFrame, -3.6, playedLabel, run.played);
-    const pending = thumb(null, 3.6, seekedLabel, null);
+    const left = thumb(run.playedFrame, -THUMB_X, playedLabel, run.played);
+    const pending = thumb(null, THUMB_X, seekedLabel, null);
     await s.enter(left, pending, {
       describe: `Left: the tiny scene ${playedLabel}, the dot halfway along its track, fingerprint ${print}. Right: an empty frame marked with a question mark, ${seekedLabel}.`,
     });
@@ -277,13 +321,13 @@ export default class LanternExplainer extends Scene {
       caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${ANSWER}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${ANSWER}.`,
     });
     await s.clear();
-    const right = thumb(run.seekedFrame, 3.6, seekedLabel, run.seeked, match ? undefined : [playedX, START[1]]);
-    await s.enter(thumb(run.playedFrame, -3.6, playedLabel, run.played), right, {
+    const right = thumb(run.seekedFrame, THUMB_X, seekedLabel, run.seeked, match ? undefined : [playedX, START[1]]);
+    await s.enter(thumb(run.playedFrame, -THUMB_X, playedLabel, run.played), right, {
       describe: match
         ? `Two frames of the tiny scene at t = ${t} s, played and seeked, both with the dot halfway and the fingerprint ${print}.`
         : `Two frames of the tiny scene at t = ${t} s: played, with the dot halfway (${print}); seeked, with the dot near the start of its track and an outline where playback has it (${seekPrint}).`,
     });
-    await s.enter(new Text(match ? '=' : '≠', { fontSize: 0.7, color: accent, weight: 'bold' }).moveTo([0, -0.75]));
+    await s.enter(new Text(match ? '=' : '≠', { fontSize: 0.7, color: accent, weight: 'bold' }).moveTo([0, THUMB_Y]));
     this.state.seek = { motion, match, played: print, seeked: seekPrint, playedMoves: run.playedMoves, seekedMoves: run.seekedMoves };
 
     await this.step('clock', {
@@ -292,7 +336,12 @@ export default class LanternExplainer extends Scene {
       caption: `The receiver of a frame is called a sink. A browser sink waits between frames; a trace sink can take them immediately. That changes how fast the output arrives, not the scene’s clock: both reach t = ${SEEK_T} s at frame ${run.seekAt}. The target time therefore identifies the same frame even when earlier pictures are skipped.`,
     });
     await s.clear();
-    const flow = await s.show({ source: FLOW }, { box: regionBox('top', { bottom: -0.55 }) });
+    // The pipeline spans the stage above the timeline, which starts at RULER_TOP. Canvas and box
+    // extents in pixels are the snapshot's.
+    const RULER_TOP = -1.55;
+    const flowAt: Box = [-7.35, RULER_TOP + 0.2, 7.35, 2.95];
+    const flow = await s.show({ source: FLOW }, { box: bleed(flowAt, [606.6, 222.7], [40, 40, 566.6, 182.7]) });
+    inside(flow, ['Author', 'Browser', 'Trace', 'PNG'], flowAt, regionBox('top', { bottom: RULER_TOP }));
     await flow.walk(
       [
         ['Clock', 'Browser'],
@@ -303,24 +352,28 @@ export default class LanternExplainer extends Scene {
     // Frame times from the scene's own fps; two sinks pace the same frames differently.
     const dt = 1 / this.fps,
       frames = 9,
-      x0 = -3.3,
-      pitch = 1.3;
+      x0 = -2.85,
+      pitch = 1.25;
+    const axisY = RULER_TOP - 0.4,
+      timeY = axisY - 0.4,
+      browserY = timeY - 0.85,
+      traceY = browserY - 0.8;
     const ruler = new Group();
     const lane = (label: string, y: number) =>
-      new Text(label, { fontSize: 0.22, color: s.soft, anchor: 'start' }).moveTo([-7.3, y], [-1, 0]);
+      new Text(label, { fontSize: 0.28, color: s.soft, anchor: 'start' }).moveTo([-7.3, y], [-1, 0]);
     ruler.add(
-      lane('scene time (ms)', -1.75),
-      lane('browser sink, wall clock', -2.75),
-      lane('trace sink, wall clock', -3.6),
-      new Line([x0 - 0.2, -1.5], [x0 + pitch * (frames - 1) + 0.2, -1.5], { stroke: ink, strokeWidth: 0.02 }),
+      lane('scene time (ms)', timeY),
+      lane('browser sink, wall clock', browserY),
+      lane('trace sink, wall clock', traceY),
+      new Line([x0 - 0.25, axisY], [x0 + pitch * (frames - 1) + 0.25, axisY], { stroke: ink, strokeWidth: 0.025 }),
     );
     for (let n = 0; n < frames; n++) {
       const x = x0 + n * pitch;
       ruler.add(
-        new Line([x, -1.38], [x, -1.62], { stroke: ink, strokeWidth: 0.02 }),
-        new Text((n * dt * 1000).toFixed(0), { fontSize: 0.2, font: 'mono', color: ink }).moveTo([x, -1.85]),
-        new Dot({ radius: 0.09, color: accent }).moveTo([x, -2.75]),
-        new Dot({ radius: 0.09, color: accent }).moveTo([x0 + n * 0.28, -3.6]),
+        new Line([x, axisY + 0.14], [x, axisY - 0.14], { stroke: ink, strokeWidth: 0.025 }),
+        new Text((n * dt * 1000).toFixed(0), { fontSize: 0.26, font: 'mono', color: ink }).moveTo([x, timeY]),
+        new Dot({ radius: 0.11, color: accent }).moveTo([x, browserY]),
+        new Dot({ radius: 0.11, color: accent }).moveTo([x0 + n * 0.28, traceY]),
       );
     }
     await s.enter(ruler);
@@ -332,18 +385,20 @@ export default class LanternExplainer extends Scene {
       caption: `A Scene owns the shapes and text, called mobjects, and its animations change them. Rayner’s sinks only read the frame. The output cannot reconstruct missing nudges: the dot’s position must already be right when the animation hands over that frame.`,
     });
     await s.clear();
-    const classes = await s.show({ source: CLASSES }, { box: 'main' });
+    // The classes fill the stage's height, left of centre, with the sink's note beside them.
+    const classesAt: Box = [-6.1, -3.55, 1.0, 2.95];
+    const classes = await s.show({ source: CLASSES }, { box: bleed(classesAt, [397.786, 370.7], [40, 40, 358, 331]) });
+    inside(classes, ['Scene', 'Mobject', 'Animation', 'Sink'], classesAt, regionBox('full', { right: classesAt[2] + 0.3 }));
     await classes.walk([['Scene', 'Mobject']], { trail: true });
     await classes.walk([['Scene', 'Animation']], { trail: true });
     await classes.walk([['Scene', 'Sink']], { trail: true });
     // What the sink does with a frame, beside it: it reads; it never changes a mobject.
     const sinkBox = classes.get('Sink').box()!;
-    const reads = new Text('reads each frame; changes nothing', { fontSize: 0.24, color: soft, anchor: 'start' }).moveTo(
-      [sinkBox[2] + 0.3, (sinkBox[1] + sinkBox[3]) / 2],
+    const reads = new Text('reads each frame; changes nothing', { fontSize: 0.28, color: soft, anchor: 'start' }).moveTo(
+      [sinkBox[2] + 0.35, (sinkBox[1] + sinkBox[3]) / 2],
       [-1, 0],
     );
     await s.enter(reads, { describe: 'Beside Sink: it reads each frame and changes nothing.' });
-
     // src/animation.ts:1-3 and 79-83: begin() copies the starting mobject; every frame blends two fixed endpoints.
     await this.step('begin', {
       title: 'An animation fixes its endpoints when it begins',
@@ -368,12 +423,24 @@ export default class LanternExplainer extends Scene {
         '// the nudge, each frame:',
         '  dot.shift(step)',
       ],
-      { at: [anim[2] + 0.35, anim[1] - 0.9, Math.min(anim[2] + 4.2, 7.8), mob[3]], fontSize: 0.19 },
+      { at: [anim[2] + 0.25, anim[1], anim[2] + 4.2, mob[3]], fontSize: 0.19 },
     );
     // Scene and Sink fade, so nothing behind the heading competes with it once the camera moves in.
     await classes.dim(['Mobject', 'Animation']);
-    // The camera frames Mobject, Animation, its note and the listing below the heading, which stays on screen.
-    await s.focus([classes.get('Mobject'), classes.get('Animation'), fixed, listing], { margin: 0.5 });
+    // The camera frames Scene and the two links this step is about, Mobject, Animation, its note and the
+    // listing below the heading, which stays on screen. Sink, above Mobject, passes under the heading
+    // whole, so the frame cuts no box.
+    const sink = classes.get('Sink').box()!;
+    const subject = [classes.get('Scene'), classes.get('Mobject'), classes.get('Animation'), fixed, listing].map((m) => m.box()!);
+    await s.focus(
+      viewUnder(sink[1] - 0.02, [
+        Math.min(...subject.map((b) => b[0])) - 0.08,
+        Math.min(...subject.map((b) => b[1])) - 0.15,
+        Math.max(...subject.map((b) => b[2])) + 0.08,
+        mob[3],
+      ]),
+      { exact: true },
+    );
 
     // Every frame of the tiny scene, seeked and compared with playback, for both kinds of motion.
     const total = run.matches.length;
@@ -385,18 +452,18 @@ export default class LanternExplainer extends Scene {
       caption: `The strips compare all ${total} frames of this tiny scene with independently seeked stills. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
-    const cell = 0.27,
-      x1 = -6.1;
+    const cell = 0.29,
+      x1 = -6.5;
     const strip = (m: Motion, y: number, label: string) => {
       const g = new Group();
       g.add(
-        new Text(`${label}: ${count(m)} of ${total} match`, { fontSize: 0.28, color: ink, anchor: 'start' }).moveTo([x1, y + 0.55], [-1, 0]),
+        new Text(`${label}: ${count(m)} of ${total} match`, { fontSize: 0.3, color: ink, anchor: 'start' }).moveTo([x1, y + 0.65], [-1, 0]),
       );
       runs[m].matches.forEach((ok, i) => {
         g.add(
           new Rectangle({
             width: cell * 0.8,
-            height: 0.5,
+            height: 0.6,
             stroke: ok ? s.good : s.bad,
             strokeWidth: 0.02,
             fill: ok ? s.good : s.bad,
@@ -409,15 +476,15 @@ export default class LanternExplainer extends Scene {
     const axis = new Group();
     for (const f of [1, 15, run.seekAt, total]) {
       const x = x1 + cell * (f - 0.5);
-      axis.add(new Text(String(f), { fontSize: 0.22, font: 'mono', color: soft }).moveTo([x, -2.15]));
+      axis.add(new Text(String(f), { fontSize: 0.26, font: 'mono', color: soft }).moveTo([x, -2.05]));
     }
-    axis.add(new Text('frame', { fontSize: 0.22, color: soft, anchor: 'end' }).moveTo([x1 - 0.2, -2.15], [1, 0]));
+    axis.add(new Text('frame', { fontSize: 0.26, color: soft, anchor: 'end' }).moveTo([x1 - 0.2, -2.05], [1, 0]));
     // The still the story followed, marked across both rows.
     const at = x1 + cell * (run.seekAt - 0.5);
-    const marker = new Line([at, 1.45], [at, -1.85], { stroke: accent, strokeWidth: 0.03 });
-    const markerLabel = new Text(`the still at t = ${t} s`, { fontSize: 0.22, color: accent }).moveTo([at, 1.7]);
-    const key = new Text('filled: seeked frame = played frame · hollow: different', { fontSize: 0.22, color: soft }).moveTo([0, -2.9]);
-    await s.enter(strip('blend', 0.4, 'Blending fixed endpoints'), strip('nudge', -1.25, 'A nudge each frame'), axis, marker, markerLabel, key, {
+    const marker = new Line([at, 1.7], [at, -1.75], { stroke: accent, strokeWidth: 0.03 });
+    const markerLabel = new Text(`the still at t = ${t} s`, { fontSize: 0.26, color: accent }).moveTo([at, 1.95]);
+    const key = new Text('filled: seeked frame = played frame · hollow: different', { fontSize: 0.26, color: soft }).moveTo([0, -2.85]);
+    await s.enter(strip('blend', 0.5, 'Blending fixed endpoints'), strip('nudge', -1.2, 'A nudge each frame'), axis, marker, markerLabel, key, {
       describe: `Two rows of ${total} cells, one per frame of the tiny scene, each comparing the seeked frame with the played one. Blending: all ${total} match. A nudge each frame: frames 1 to ${firstMiss - 1} match, frames ${firstMiss} to ${total} differ. A line marks frame ${run.seekAt}, the still at t = ${t} s.`,
     });
     this.state.check = { frames: total, matched: { blend: count('blend'), nudge: count('nudge') } };
