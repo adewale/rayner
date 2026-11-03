@@ -297,7 +297,7 @@ test('Next is on screen at load', options, async () => {
         assert.ok(v.scrollWidth <= v.width, `${where}: no horizontal scroll (${v.scrollWidth} > ${v.width})`);
     });
     }
-  // specs/player-tile.md T1: with the header inside the card, the French ten-step page too.
+  // specs/player-tile.md T1: with the header inside the card, the French eleven-step page too.
   for (const [width, height] of [[1280, 800], [1440, 900]] as const) {
     await readerPage({ viewport: { width, height } }, embed + '/quotient-familial.html', async page => {
       const v = await boxesOf(page, { next: '.stepper .primary', lede: '.lede' });

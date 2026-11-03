@@ -1,6 +1,6 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import { impot, bareme, tranche, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from '../lib/quotient-familial.ts';
+import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from '../lib/quotient-familial.ts';
 import type { Impot } from '../lib/quotient-familial.ts';
 
 // Every rule is read from openfisca-france at tag 176.1.3 (commit 5cc6563); the model in
@@ -163,7 +163,7 @@ export default class QuotientFamilialExplainer extends Scene {
       );
     const rniTexte = Number.isInteger(rni) ? euros(rni) : eur2(rni);
 
-    // The pipeline sits on top for the first nine steps; each step's picture is below it.
+    // The pipeline sits on top for the first ten steps; each step's picture is below it.
     const TOP = regionBox('top', { bottom: -0.3 }),
       BELOW = regionBox('bottom', { top: -0.5 }),
       LEFT = regionBox(BELOW, { right: 1.2 }),
@@ -285,6 +285,63 @@ export default class QuotientFamilialExplainer extends Scene {
     this.state.tranche = top.rate;
     this.state.tauxMoyenPart = moyen;
 
+    // --------------------------------------------------------- tranches: the same euros, whole and by parts
+    const rep = repartition(rni, enfants),
+      haut = tranche(rni),
+      tHaut = pourcent(BAREME[2024][haut]!.rate),
+      wHaut = rep[haut]!.entier,
+      pHaut = rep[haut]!.parts;
+    await this.step('tranches', {
+      title: pHaut > 0 ? `Par parts, ${euros(pHaut)} atteignent la tranche à ${tHaut}, contre ${euros(wHaut)}` : `Par parts, aucun euro n’atteint la tranche à ${tHaut}`,
+      line: `Les deux barres font ${rniTexte}${deux} en haut le revenu entier, en bas les ${partsTexte(r.parts)} parts.`,
+      caption:
+        `Les deux barres contiennent les mêmes ${rniTexte}, rangés par tranche du barème. En haut, le barème s’applique au revenu entier${deux} ${eur2(wHaut)} dépassent ${euros(BAREME[2024][haut]!.from)} et tombent dans la tranche à ${tHaut}. ` +
+        `En bas, il s’applique à chacune des ${partsTexte(r.parts)} parts${deux} chaque quotient de ${eur2(r.quotient)} repart du bas du barème, et ${pHaut > 0 ? `${eur2(pHaut)} seulement atteignent la tranche à ${tHaut}` : `aucun euro n’atteint la tranche à ${tHaut}`}. ` +
+        `Les euros qui manquent en haut descendent dans les tranches moins taxées${deux} ${eur2(rep[0]!.parts)} à 0${nb}% au lieu de ${eur2(rep[0]!.entier)}.`,
+    });
+    await s.clearOverlays();
+    await bars.hide();
+    await flow.unmark();
+    // Two rulers on one scale of euros, each cut at the barème's thresholds and coloured by rate.
+    const RATE_FILL = ['#efe6d2', '#e3b47c', '#c8582a', '#8f2d1a', '#4d160d'],
+      RW = 6.4,
+      RX = -RW / 2,
+      RH = 0.45,
+      TXT = 0.3;
+    const mot = (t: string, color = s.palette.ink, bold = false) => new Text(t, { fontSize: TXT, color, weight: bold ? 'bold' : 'normal' });
+    const regle = (cle: 'entier' | 'parts', titre: string, y: number) => {
+      const g = new Group(mot(titre, s.palette.ink, true).moveTo([RX, y + RH + 0.28], [-1, 0]));
+      let x = RX;
+      rep.forEach((t, k) => {
+        const w = (t[cle] / rni) * RW;
+        if (w <= 0) return;
+        const c = [x + w / 2, y + RH / 2] as [number, number];
+        g.add(new Rectangle({ width: w, height: RH, fill: RATE_FILL[k]!, stroke: s.palette.ink, strokeWidth: 0.02 }).moveTo(c));
+        const taux = mot(pourcent(t.rate), k >= 2 ? s.palette.paper : s.palette.ink);
+        if (taux.width() + 0.1 <= w) g.add(taux.moveTo(c));
+        const somme = mot(euros(t[cle]));
+        if (somme.width() + 0.15 <= w) g.add(somme.moveTo([c[0], y - 0.25]));
+        x += w;
+      });
+      g.key = `qf-tranches:${cle}`;
+      return g;
+    };
+    const regles = [
+      regle('entier', `Revenu entier, ${rniTexte}`, -1.5),
+      regle('parts', `Par parts, ${partsTexte(r.parts)} × ${eur2(r.quotient)}`, -2.95),
+    ];
+    const ligne = (cle: 'entier' | 'parts') =>
+      rep
+        .filter((t) => t[cle] > 0)
+        .map((t) => `${eur2(t[cle])} à ${pourcent(t.rate)}`)
+        .join(', ');
+    await s.enter(...regles, {
+      describe: () =>
+        `Deux barres de ${rniTexte} à la même échelle, coupées par tranche du barème${deux} revenu entier, ${ligne('entier')}${pv} par parts, ${ligne('parts')}.`,
+    });
+    s.reading(...regles);
+    this.state.tranches = rep;
+
     // --------------------------------------------------------- multiplie
     const gros = bareme(rni),
       enGros = gros.total;
@@ -294,7 +351,6 @@ export default class QuotientFamilialExplainer extends Scene {
       caption: `${REPONSE}. Sur le revenu entier, ${rniTexte} monte jusqu’à la tranche à ${tauxTexte(rni)} et paierait ${eur2(enGros)}${deux} c’est la ligne. Par parts, chaque quotient de ${eur2(r.quotient)} s’arrête à la tranche à ${tauxTexte(r.quotient)}, et ${eur2(r.parPart)} × ${partsTexte(r.parts)} = ${eur2(r.brut)}${deux} ce sont les barres.`,
     });
     await s.clearOverlays();
-    await bars.hide();
     await flow.unmark();
     await flow.dim(['RNI', 'QUOT', 'BAR', 'FOIS']);
     await flow.walk([['BAR', 'FOIS']], { trail: true });
