@@ -11,6 +11,7 @@ import {
   PLACEMENTS,
   computeProbability,
   endpointsOn,
+  flows,
   frac,
   nodeShares,
   passes,
@@ -168,6 +169,37 @@ test('for any placement, the shares sum to 1 and follow each policy’s rule', (
     }),
     params(300),
   );
+});
+
+test('traffic-policy flow view: each band is a node’s share times its rule’s share, and only Cluster’s bands cross nodes', () => {
+  fc.assert(
+    fc.property(placements, (counts) => {
+      for (const policy of ['cluster', 'local'] as const) {
+        const f = flows(counts, policy);
+        const pods = podsOf(counts);
+        // Summed into each pod, the bands are its share; summed out of each node, the node's share.
+        for (const p of pods) {
+          const into = f.filter((b) => b.pod === p.id).reduce((a, b) => a + value(b.share), 0);
+          assert.ok(Math.abs(into - value(shares(counts, policy)[p.id]!)) < 1e-12, `${policy} ${counts} into ${p.id}`);
+        }
+        counts.forEach((_, j) => {
+          const out = f.filter((b) => b.node === j).reduce((a, b) => a + value(b.share), 0);
+          assert.ok(Math.abs(out - value(nodeShares(counts, policy)[j]!)) < 1e-12, `${policy} ${counts} out of node ${j}`);
+        });
+        // A band that lands on another node's pod is a second hop.
+        const away = f.filter((b) => pods.find((p) => p.id === b.pod)!.node !== b.node).reduce((a, b) => a + value(b.share), 0);
+        assert.ok(Math.abs(away - value(secondHop(counts, policy))) < 1e-12, `${policy} ${counts} crossing bands`);
+        assert.ok(f.every((b) => value(b.share) > 0));
+      }
+    }),
+    params(300),
+  );
+  // The default case: under Local, Node 2's whole half is one band into pod d, three times as wide as each of Node 1's.
+  const local = flows([3, 1, 0], 'local');
+  assert.deepEqual(local.map((b) => [b.node, b.pod, frac(b.share)]), [[0, 'a', '1/6'], [0, 'b', '1/6'], [0, 'c', '1/6'], [1, 'd', '1/2']]);
+  const cl = flows([3, 1, 0], 'cluster');
+  assert.equal(cl.length, 12);
+  assert.ok(cl.every((b) => frac(b.share) === '1/12'));
 });
 
 // ---------------------------------------------------------------- architecture words (explain/diagrams.ts)

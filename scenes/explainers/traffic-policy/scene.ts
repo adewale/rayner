@@ -1,10 +1,11 @@
-import { Scene } from '../../../src/index.ts';
-import type { Box } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, VMobject } from '../../../src/index.ts';
+import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
   endpointsOn,
+  flows,
   frac,
   nodeIp,
   nodeShares,
@@ -115,6 +116,115 @@ const shareRows = (s: Record<string, Q>) =>
 const DIAGRAM: Box = [-8, -1.25, 8, 3.2];
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
+
+// The flow picture: load balancer on top, nodes in the middle, pods at the bottom, each band as wide as
+// its share of the outside requests. Bands take their entry node's colour, so a pod fed by several
+// colours is fed by several nodes.
+const NODE_COLORS = ['#0969da', '#bf8700', '#1a7f37', '#8250df', '#cf222e', '#57606a'];
+const FLOW_W = 3.4,
+  BAR_H = 0.42,
+  FLOW_TEXT = 0.3;
+// Short enough for a phone's opening view to hold one whole panel at a readable size.
+const LB_Y = 1.2,
+  NODE_Y = -0.2,
+  POD_Y = -1.6;
+/** A band from [a0, a1] at height ya down to [b0, b1] at yb, its sides eased into vertical at both ends. */
+function band(a0: number, a1: number, ya: number, b0: number, b1: number, yb: number, color: string) {
+  const m = (ya + yb) / 2;
+  const v = new VMobject({ fill: color, fillOpacity: 0.4, stroke: 'none', strokeWidth: 0 });
+  v.startNewPath([a0, ya]);
+  v.addCubic([a0, m], [b0, m], [b0, yb]);
+  v.addLineTo([b1, yb]);
+  v.addCubic([b1, m], [a1, m], [a1, ya]);
+  v.closePath();
+  return v;
+}
+/** One policy's flow, centred at x = cx. The keys name the panel, each band and each pod. */
+function flowPanel(counts: readonly number[], policy: Policy, cx: number, ink: string, paper: string, mine: boolean) {
+  const pods = podsOf(counts),
+    node = nodeShares(counts, policy),
+    share = shares(counts, policy),
+    bands = flows(counts, policy);
+  const w = (x: Q) => value(x) * FLOW_W;
+  const text = (words: string, color = ink, size = FLOW_TEXT, bold = false) =>
+    new Text(words, { fontSize: size, color, weight: bold ? 'bold' : 'normal' });
+  const box = (x0: number, x1: number, y: number, fill: string, stroke = 'none') =>
+    new Rectangle({ width: x1 - x0, height: BAR_H, fill, stroke, strokeWidth: 0.025 }).moveTo([(x0 + x1) / 2, y + BAR_H / 2]);
+  const nodeX = counts.map((_, j) => cx + (j - (counts.length - 1) / 2) * 2.1);
+  // Pods sit in slots one unit apart, centred under their node: where they run, whatever their share.
+  const podX = new Map<string, number>();
+  counts.forEach((c, j) => pods.filter((p) => p.node === j).forEach((p, i) => podX.set(p.id, nodeX[j]! + (i - (c - 1) / 2) * 0.95)));
+  const parts: Mobject[] = [];
+  // The policy's name sits left of the load balancer, with "this case" under it for the case's own policy.
+  const nameAt: [number, number] = [cx - FLOW_W / 2 - 0.2, LB_Y + BAR_H / 2];
+  const title = new Group(text(POLICY[policy], ink, 0.34, true).moveTo(nameAt, [1, 0]));
+  if (mine) title.add(text('this case', ink).moveTo([nameAt[0], nameAt[1] - 0.42], [1, 0]));
+  // Load balancer bar, its bottom cut into one segment per node, in node order.
+  const lb = new Group(box(cx - FLOW_W / 2, cx + FLOW_W / 2, LB_Y, ink), text('Load balancer', paper).moveTo([cx, LB_Y + BAR_H / 2]));
+  let lbAt = cx - FLOW_W / 2;
+  const nodeIn = new Map<number, [number, number]>();
+  node.forEach((x, j) => {
+    nodeIn.set(j, [lbAt, lbAt + w(x)]);
+    lbAt += w(x);
+  });
+  // Node bars: as wide as the node's share; a node with no share is an empty dashed outline.
+  const nodeBars: Mobject[] = [];
+  const nodeSpan = new Map<number, [number, number]>();
+  counts.forEach((_, j) => {
+    const width = value(node[j]!) > 0 ? w(node[j]!) : 1.4;
+    const x0 = nodeX[j]! - width / 2;
+    nodeSpan.set(j, [x0, x0 + width]);
+    if (value(node[j]!) > 0) {
+      const [a0, a1] = nodeIn.get(j)!;
+      parts.push(band(a0, a1, LB_Y, x0, x0 + width, NODE_Y + BAR_H, NODE_COLORS[j]!));
+      nodeBars.push(new Group(box(x0, x0 + width, NODE_Y, NODE_COLORS[j]!), text(NODES[j]!, paper).moveTo([nodeX[j]!, NODE_Y + BAR_H / 2])));
+    } else {
+      const outline = box(x0, x0 + width, NODE_Y, 'none', ink);
+      outline.style.dashArray = '0.12 0.08';
+      nodeBars.push(new Group(outline, text(NODES[j]!).moveTo([nodeX[j]!, NODE_Y + BAR_H / 2]), text('no band').moveTo([nodeX[j]!, NODE_Y - 0.32])));
+    }
+  });
+  // Node to pod bands: out of each node bar in chain order, into each pod bar in node order.
+  const out = new Map([...nodeSpan].map(([j, [x0]]) => [j, x0]));
+  const into = new Map(pods.map((p) => [p.id, podX.get(p.id)! - w(share[p.id]!) / 2]));
+  const bandMobs: Mobject[] = [];
+  for (const b of bands) {
+    const o = out.get(b.node)!,
+      i = into.get(b.pod)!;
+    const m = band(o, o + w(b.share), NODE_Y, i, i + w(b.share), POD_Y + BAR_H, NODE_COLORS[b.node]!);
+    m.key = `traffic-flow:${policy}:band:${b.node + 1}:${b.pod}`;
+    bandMobs.push(m);
+    out.set(b.node, o + w(b.share));
+    into.set(b.pod, i + w(b.share));
+  }
+  const podBars = pods.map((p) => {
+    const x = podX.get(p.id)!,
+      width = w(share[p.id]!);
+    const g = new Group(
+      box(x - width / 2, x + width / 2, POD_Y, ink),
+      text(p.id, paper).moveTo([x, POD_Y + BAR_H / 2]),
+      text(percent(share[p.id]!)).moveTo([x, POD_Y - 0.3]),
+    );
+    g.key = `traffic-flow:${policy}:pod:${p.id}`;
+    return g;
+  });
+  const group = new Group(title, ...parts, ...bandMobs, lb, ...nodeBars, ...podBars);
+  group.key = `traffic-flow:${policy}`;
+  const words = () => {
+    const nodeWords = counts
+      .map((_, j) =>
+        value(node[j]!) === 0
+          ? `${NODES[j]} gets no band`
+          : `${NODES[j]} gets ${frac(node[j]!)} and passes it to ${bands
+              .filter((b) => b.node === j)
+              .map((b) => `pod ${b.pod} (${frac(b.share)})`)
+              .join(', ')}`,
+      )
+      .join('; ');
+    return `${POLICY[policy]}: bands as wide as their share of requests, from the load balancer to the nodes and on to the pods. ${nodeWords}. Pods end with ${pods.map((p) => `${p.id} ${percent(share[p.id]!)}`).join(', ')}.`;
+  };
+  return { group, words };
+}
 /** The script's one-sentence answer (script.md); the shares step's caption states it. */
 const ANSWER = 'The load balancer weighs nodes, not pods';
 
@@ -176,6 +286,8 @@ export default class TrafficPolicyExplainer extends Scene {
       { says: 'every node lists all', test: 'test/explain-traffic-policy.test.ts: the shares sum to 1' },
       { says: 'always matches', test: 'test/explain-traffic-policy.test.ts: then a rule that always matches' },
       { says: 'every pod gets the same', shown: true as const },
+      { says: 'every pod bar collects', shown: true as const },
+      { says: 'every pod ends at', shown: true as const },
       { says: 'every node passes the health check', shown: true as const },
     ],
   };
@@ -216,7 +328,7 @@ export default class TrafficPolicyExplainer extends Scene {
       caption: `A Service of type LoadBalancer: a cloud load balancer sends outside requests to the nodes, and rules that kube-proxy writes on each node hand every request to a pod. ${placementWords(counts)}. The Service’s externalTrafficPolicy sets which pods a node may pick: under Cluster, the default, any pod in the cluster; under Local, only the pods on that node. This one is set to ${POLICY[policy]}.`,
     });
     await s.clear();
-    const d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
+    let d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
     await s.card(
       [
         ['externalTrafficPolicy', POLICY[policy]],
@@ -379,6 +491,48 @@ export default class TrafficPolicyExplainer extends Scene {
     for (const id of ids) await d.note(id, percent(share[id]!), { side: 'above', size: SIZE });
     this.state.shares = Object.fromEntries(ids.map((id) => [id, frac(share[id]!)]));
 
+    // ------------------------------------------------------------------ flow: both policies as bands
+    const localNode = nodeShares(counts, 'local'),
+      localShare = shares(counts, 'local'),
+      localRanked = byShare(localShare),
+      clusterNode = nodeShares(counts, 'cluster');
+    const lUneven = localRanked.length > 1,
+      lHigh = localRanked[0]!,
+      lLowest = localRanked.at(-1)!;
+    const fedBy = (id: string) => pods.find((p) => p.id === id)!.node;
+    const localCuts = counts.flatMap((c, j) =>
+      c === 0
+        ? [`${NODES[j]} gets no band`]
+        : c === 1
+          ? [`${NODES[j]} hands its whole ${frac(localNode[j]!)} to pod ${pods.find((p) => p.node === j)!.id}`]
+          : [`${NODES[j]} cuts its ${frac(localNode[j]!)} into ${named(c)} bands of ${frac(shares(counts, 'local')[pods.find((p) => p.node === j)!.id]!)}`],
+    );
+    const cutWords = localCuts.length > 1 ? `${localCuts.slice(0, -1).join(', ')} and ${localCuts.at(-1)}` : localCuts[0]!;
+    await this.step('flow', {
+      title: lUneven
+        ? `Under Local, ${NODES[fedBy(lHigh[1][0]!)]}’s whole ${frac(localNode[fedBy(lHigh[1][0]!)]!)} flows into pod ${lHigh[1][0]}`
+        : `Both policies give each pod ${frac(lHigh[0])}; only Cluster’s bands cross nodes`,
+      line: 'Band width is share of requests; colour is the node a request enters.',
+      caption:
+        `Each band is as wide as its share of the outside requests and takes the colour of the node it enters. The load balancer makes the first cut, by node; each node’s rules make the second, among the pods they list. ` +
+        `Under Cluster each node’s ${frac(clusterNode[0]!)} fans out to all ${n} pods, so every pod bar collects ${named(counts.length)} colours and ends at ${frac(q(1, n))}. ` +
+        `Under Local ${cutWords}` +
+        (lUneven
+          ? `, so pod ${lHigh[1][0]}’s bar ends ${value(lHigh[0]) / value(lLowest[0])} times as wide as pod ${lLowest[1][0]}’s.`
+          : `, so every pod ends at ${frac(lHigh[0])}, as under Cluster, and no band crosses to another node.`),
+    });
+    await s.clear();
+    const flowLeft = flowPanel(counts, 'cluster', -3.85, s.palette.ink, s.palette.paper, policy === 'cluster'),
+      flowRight = flowPanel(counts, 'local', 3.85, s.palette.ink, s.palette.paper, policy === 'local');
+    await s.enter(flowLeft.group, flowRight.group, { describe: () => `${flowLeft.words()} ${flowRight.words()}` });
+    // A phone opens on this case's own policy; the other panel is the next stop of the tour.
+    s.reading(policy === 'cluster' ? flowLeft.group : flowRight.group);
+    const flowState = (p: Policy) => ({
+      nodes: nodeShares(counts, p).map(frac),
+      bands: flows(counts, p).map((b) => [NODES[b.node], b.pod, frac(b.share)]),
+    });
+    this.state.flow = { cluster: flowState('cluster'), local: flowState('local') };
+
     // ------------------------------------------------------------------ the client's address
     if (policy === 'cluster') {
       // ---------------------------------------------------------------- snat
@@ -390,9 +544,9 @@ export default class TrafficPolicyExplainer extends Scene {
         // "in case we cross nodes"; source-ip.md:205 "node2 replaces the source IP address (SNAT)".
         caption: `Under Cluster, kube-proxy marks every outside request for source NAT, in case it crosses nodes. Node 3 replaces the client’s address, ${CLIENT_IP}, with its own, ${nodeIp(2)}, and pod ${target} sees that. Requests that stay on their node are rewritten too.`,
       });
-      await s.clearOverlays();
-      await d.clearNotes();
-      await d.unmark();
+      // The flow picture gives way to the cluster again.
+      await s.clear();
+      d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
       await d.walk(
         [
           ['lb', 'k3'],
@@ -412,9 +566,8 @@ export default class TrafficPolicyExplainer extends Scene {
         // the local chain; source-ip.md:219-222 "kube-proxy only proxies proxy requests to local endpoints".
         caption: `Node 1’s rules list only its own pods, so the request never leaves Node 1, and kube-proxy adds no source NAT for it. Pod a sees the client’s address, ${CLIENT_IP}. Under Local no outside request takes a second hop.`,
       });
-      await s.clearOverlays();
-      await d.clearNotes();
-      await d.unmark();
+      await s.clear();
+      d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
       await d.walk(
         [
           ['lb', 'k1'],
