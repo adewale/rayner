@@ -1,4 +1,4 @@
-import { Scene, Group } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { dictStory, EMPTY, DELETED } from '../lib/python-dict.ts';
@@ -26,10 +26,29 @@ interface View {
   ask?: string;
 }
 
+/** The slot grid: eight slots 1.8 apart, each 1.55 wide; tables and the lookup panel line up with its columns. */
+const slotX = (i: number) => -6.3 + i * 1.8,
+  HALF = 1.55 / 2,
+  LEFT = slotX(0) - HALF,
+  RIGHT = slotX(7) + HALF;
+/** Column centres for table(): its columns spread from left to right edge with equal gaps, measured as table() draws them. */
+function spread(headers: readonly string[], rows: readonly (readonly (string | number)[])[], size: number, left: number, right: number) {
+  const widths = headers.map((h, c) =>
+    Math.max(new Text(h, { fontSize: size, weight: 'bold' }).width(), ...rows.map((r) => new Text(String(r[c]), { fontSize: size }).width())),
+  );
+  const gap = (right - left - widths.reduce((a, b) => a + b, 0)) / (headers.length - 1);
+  let x = left;
+  return widths.map((w) => {
+    const centre = x + w / 2;
+    x += w + gap;
+    return centre;
+  });
+}
+
 function picture(s: Stage, v: View) {
   const slots = new Group(
     ...v.dict.indices.flatMap((entry, i) => {
-      const x = -6.3 + i * 1.8;
+      const x = slotX(i);
       return [
         label(i, x, 2.3, s.soft, 0.66),
         tile(entry === EMPTY ? '–' : entry === DELETED ? 'D' : entry, x, 1.55, 1.55, 0.85, s, {
@@ -43,27 +62,41 @@ function picture(s: Stage, v: View) {
   );
   slots.key = 'dict-index';
   const note = label(v.note, 0, -3.65, s.palette.ink, 0.62);
-  if (v.hashes)
+  if (v.hashes) {
+    const heads = ['Key', 'Hash', 'In binary', 'Start slot'],
+      rows = v.hashes.map((h) => [h.key, h.hash, h.hash.toString(2).padStart(5, '0'), h.slot]);
     return new Group(
       slots,
-      table(
-        ['Key', 'Hash', 'In binary', 'Start slot'],
-        v.hashes.map((h) => [h.key, h.hash, h.hash.toString(2).padStart(5, '0'), h.slot]),
-        s,
-        { xs: [-5.4, -2.0, 1.6, 5.2], y: 0.3, gap: 0.8, key: 'dict-hashes', size: 0.62 },
-      ),
+      // The hash table spans the slot row, edge to edge.
+      table(heads, rows, s, { xs: spread(heads, rows, 0.66, LEFT + 0.2, RIGHT - 0.2), y: 0.15, gap: 0.85, key: 'dict-hashes', size: 0.66 }),
       note,
     );
-  const entries = table(
-    ['Entry', 'Key', 'Value'],
-    v.dict.entries.map((e, i) => [i, e.key ?? '–', e.value ?? '–']),
-    s,
-    { xs: [-5.8, -3.5, -0.8], y: 0.1, gap: 0.85, key: 'dict-entries', size: 0.66 },
-  );
+  }
+  // The entry table fills the columns under slots 0 to 3; the lookup panel those under slots 4 to 7, its lines on the table's rows.
+  const heads = ['Entry', 'Key', 'Value'],
+    rows = v.dict.entries.map((e, i) => [i, e.key ?? '–', e.value ?? '–']),
+    rowY = (r: number) => 0.15 - r * 0.85;
+  const entries = table(heads, rows, s, {
+    xs: spread(heads, rows, 0.66, LEFT + 0.2, slotX(3) + HALF - 0.6),
+    y: rowY(0),
+    gap: 0.85,
+    key: 'dict-entries',
+    size: 0.66,
+  });
+  const panelX = (slotX(4) - HALF + RIGHT) / 2,
+    outcome = v.found === null ? s.palette.ink : v.found ? s.good : s.bad;
   const result = new Group(
-    label(`d[${v.query.key}]`, 4.6, 0.25, s.palette.ink, 0.8),
-    label(v.path ? `Visit: ${v.query.slots.join(' > ')}` : (v.ask ?? ''), 4.4, -0.8, s.soft, 0.66),
-    label(v.outcome, 4.4, -1.75, v.found === null ? s.palette.ink : v.found ? s.good : s.bad, 0.66),
+    new Rectangle({
+      width: RIGHT - (slotX(4) - HALF),
+      height: 3.44,
+      fill: v.found === null ? s.palette.paper : outcome,
+      fillOpacity: v.found === null ? 1 : 0.07,
+      stroke: v.found === null ? s.soft : outcome,
+      strokeWidth: 0.03,
+    }).moveTo([panelX, -1.0]),
+    label(`d[${v.query.key}]`, panelX, 0.12, s.palette.ink, 0.8),
+    label(v.path ? `Visit: ${v.query.slots.join(' > ')}` : (v.ask ?? ''), panelX, -1.0, s.soft, 0.66),
+    label(v.outcome, panelX, -2.12, outcome, 0.8),
   );
   result.key = 'dict-result';
   return new Group(slots, entries, result, note);
