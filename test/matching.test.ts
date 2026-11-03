@@ -261,3 +261,66 @@ test('shapeKey: same shape at any position and size, nothing else', () => {
   const p: Vec = [1, 2];
   assert.equal(key(new Line(p, p)), key(new Line([5, 5], [5, 5])), 'points key alike');
 });
+
+test('matchByKey: a keyed component is kept wherever it moves, its parts morph inside it, and the root key is ignored', async () => {
+  const { matchByKey } = await import('../src/index.ts');
+  const cell = (z: number, symbol: string, at: Vec) => {
+    const g = new Group(new Square({ side: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
+    g.key = `cell:${z}`;
+    g.moveTo(at);
+    return g;
+  };
+  const picture = (shuffled: boolean, note: string) => {
+    const root = new Group(
+      ...(shuffled ? [cell(2, 'He', [4, 2]), cell(1, 'H', [-4, 0])] : [cell(1, 'H', [-4, 2]), cell(2, 'He', [-2, 2])]),
+      new Text(note, { fontSize: 0.3 }).moveTo([0, -2]),
+    );
+    root.key = 'table'; // the picture's own key names it; it must not make every part one component
+    return root;
+  };
+  const src = picture(false, 'runs'), tgt = picture(true, 'table');
+  const a = new TransformMatching(src, tgt, { key: matchByKey() });
+  a.begin();
+  assertPartition(a, parts(src), parts(tgt), 'keys');
+  // Each cell's square pairs with its own key's square across the swap, not the nearer one
+  for (const [s, t] of a.pairs) {
+    const owner = (m: Mobject) => { let p: Mobject | null = m; while (p && p.key === undefined) p = p.parent; return p?.key; };
+    assert.equal(owner(s), owner(t));
+    if (s instanceof Square) assert.notEqual(owner(s), 'table');
+  }
+  assert.equal(a.pairs.filter(([s]) => s instanceof Square).length, 2);
+  // The unkeyed note has no fallback: its glyphs fade out and in
+  assert.equal(a.removed.length, 'runs'.length);
+  assert.equal(a.added.length, 'table'.length);
+  // A fallback keys what is under no key: the same word pairs
+  const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey((p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined)) });
+  b.begin();
+  assert.equal(b.removed.length + b.added.length, 0);
+  // A kept Text may change its glyphs: the symbol's parts morph inside the kept cell
+  const c = new TransformMatching(new Group(cell(3, 'Li', [0, 0])), new Group(cell(3, 'Be', [3, 0])), { key: matchByKey() });
+  c.begin();
+  assert.equal(c.summary().matched, 1 + 2 + 1, 'the square, both glyphs by place, and the digit');
+  // The root's own key is not a component: matching one keyed cell to another reads only what is below it
+  const d = new TransformMatching(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { key: matchByKey() });
+  d.begin();
+  assert.equal(d.summary().matched, 0);
+});
+
+test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
+  const { view } = await import('../src/index.ts');
+  const scene = new Scene(new StringSink());
+  scene.state = { order: [1, 2, 3] };
+  const v = view(scene, (st: { order: number[] }) => new Group(...st.order.map((z, i) => {
+    const g = new Group(new Square({ side: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
+    g.key = `cell:${z}`;
+    return g;
+  })), { place: false });
+  scene.add(v);
+  const before = v.current.children.map((c) => c.key);
+  scene.state = { order: [3, 1, 2] };
+  const sync = v.sync({ match: 'keys', runTime: 0.4 });
+  await scene.play(sync);
+  assert.deepEqual(sync.summary(), { matched: 3 * (1 + 2), morphed: 0, removed: 0, added: 0 });
+  assert.deepEqual(v.current.children.map((c) => c.key), ['cell:3', 'cell:1', 'cell:2']);
+  assert.notDeepEqual(before, v.current.children.map((c) => c.key));
+});

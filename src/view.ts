@@ -13,7 +13,7 @@
 
 import { Mobject, Group } from './mobject.ts';
 import type { Box, HasText } from './mobject.ts';
-import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText } from './animation.ts';
+import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 import type { MatchKey, MatchSummary } from './animation.ts';
 import type { RateFunc } from './rate.ts';
 import { Text } from './text.ts';
@@ -34,8 +34,8 @@ export interface ViewOpts {
   place?: ViewPlace | false;
 }
 
-/** How sync() morphs: by glyph, by shape, by position in the family, or by your own key. */
-export type ViewMatch = 'text' | 'shapes' | 'index' | MatchKey;
+/** How sync() morphs: by glyph, by shape, by position in the family, by the keys the picture's parts carry, or by your own key. */
+export type ViewMatch = 'text' | 'shapes' | 'index' | 'keys' | MatchKey;
 
 export interface SyncOpts {
   runTime?: number;
@@ -157,7 +157,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false })
       : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false })
       : match === 'index' ? new Transform(old, next)
-      : new TransformMatching(old, next, { key: match, replace: false });
+      : new TransformMatching(old, next, { key: match === 'keys' ? matchByKey() : match, replace: false });
     if (inner instanceof Transform) inner.sameStructure = old.sameShapeAs(next, true);
     inner.lagRatio = this.lagRatio;
     inner.begin();

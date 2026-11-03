@@ -87,3 +87,30 @@ test('bar labels share the zero edge and displayed numbers share a right edge', 
   for (const label of labels) near(label.box()![0], -4);
   for (const value of values) near(value.box()![2], values[0]!.box()![2]);
 });
+
+test('a table placed by its edges spreads its measured columns with equal gaps and spans exactly those edges', () => {
+  const s = stage(new Scene(new NullSink()));
+  const headers = ['Key', 'Hash', 'In binary', 'Start slot'],
+    rows = [['a', 12, '01100', 4], ['bb', 3, '00011', 3]];
+  const fixed = table(headers, rows, s, { xs: [-6, -2, 2, 6] });
+  const spread = table(headers, rows, s, { xs: { left: -6, right: 6 } });
+  const widths = headers.map((_, c) => Math.max(...fixed.children.filter((m): m is Text => m instanceof Text).filter((_, i) => i % 4 === c).map((t) => t.width())));
+  const rule = spread.children.find((m): m is Line => m instanceof Line)!;
+  near(rule.box()![0], -6);
+  near(rule.box()![2], 6);
+  near(spread.box()![0], -6);
+  near(spread.box()![2], 6);
+  const texts = spread.children.filter((m): m is Text => m instanceof Text);
+  const columnBox = (c: number) => {
+    const col = texts.filter((_, i) => i % 4 === c);
+    return [Math.min(...col.map((t) => t.box()![0])), Math.max(...col.map((t) => t.box()![2]))];
+  };
+  const gaps = headers.slice(1).map((_, c) => columnBox(c + 1)[0]! - columnBox(c)[1]!);
+  for (const g of gaps) near(g, gaps[0]!);
+  near(gaps[0]!, (12 - widths.reduce((a, w) => a + w, 0)) / 3);
+  const beside = table(headers, rows, s, { xs: { left: 1.5, gap: 0.7 } });
+  const bTexts = beside.children.filter((m): m is Text => m instanceof Text);
+  near(beside.box()![0], 1.5);
+  for (let c = 1; c < 4; c++)
+    near(Math.min(...bTexts.filter((_, i) => i % 4 === c).map((t) => t.box()![0])) - Math.max(...bTexts.filter((_, i) => i % 4 === c - 1).map((t) => t.box()![2])), 0.7);
+});

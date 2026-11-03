@@ -11,6 +11,7 @@ import {
   FadeIn,
   view,
   linear,
+  matchByKey,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -146,15 +147,13 @@ const list = (items: string[]) =>
 const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
 /**
- * Parts pair across a redraw when they are the same element's cell or symbol, wherever it
- * goes, so the runs slide from their rows into the table. Anything else pairs only when it
- * is the same thing in the same place: the same words, or a shape of the same size; a badge,
- * a note or a block label that is new or gone fades, and no letter travels between labels.
+ * Parts pair across a redraw by the keys the pictures give them: an element's cell and
+ * symbol keep their identity wherever they go, so the runs slide from their rows into the
+ * table. Anything unkeyed pairs only when it is the same thing in the same place: the same
+ * words, or a shape of the same size; a badge, a note or a block label that is new or gone
+ * fades, and no letter travels between labels.
  */
-const samePlace: MatchKey = (part: Mobject) => {
-  if (part.key?.startsWith('periodic-cell:')) return part.key;
-  if (part.parent instanceof Text && part.parent.key?.startsWith('periodic-symbol:'))
-    return `${part.parent.key}#${(part as { cluster?: number }).cluster ?? ''}`;
+const samePlace: MatchKey = matchByKey((part: Mobject) => {
   const owner = part.parent instanceof Text ? part.parent : part;
   const b = owner.box();
   if (!b) return undefined;
@@ -162,7 +161,7 @@ const samePlace: MatchKey = (part: Mobject) => {
   return part.parent instanceof Text
     ? `${part.parent.text}@${at}#${(part as { cluster?: number }).cluster ?? ''}`
     : `${(b[2] - b[0]).toFixed(2)}x${(b[3] - b[1]).toFixed(2)}@${at}`;
-};
+});
 
 /** The script's one-sentence answer (meta.answer), which the stack step states. */
 const ANSWER =

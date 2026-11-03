@@ -1,4 +1,4 @@
-import { Scene, Group, Rectangle, Text, CurvedArrow } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, CurvedArrow } from '../../../src/index.ts';
 import { settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED } from '../lib/python-dict.ts';
@@ -35,20 +35,6 @@ const slotX = (i: number) => -6.3 + i * 1.8,
   HALF = 1.55 / 2,
   LEFT = slotX(0) - HALF,
   RIGHT = slotX(7) + HALF;
-/** Column centres for table(): its columns spread from left to right edge with equal gaps, measured as table() draws them. */
-function spread(headers: readonly string[], rows: readonly (readonly (string | number)[])[], size: number, left: number, right: number) {
-  const widths = headers.map((h, c) =>
-    Math.max(new Text(h, { fontSize: size, weight: 'bold' }).width(), ...rows.map((r) => new Text(String(r[c]), { fontSize: size }).width())),
-  );
-  const gap = (right - left - widths.reduce((a, b) => a + b, 0)) / (headers.length - 1);
-  let x = left;
-  return widths.map((w) => {
-    const centre = x + w / 2;
-    x += w + gap;
-    return centre;
-  });
-}
-
 /** The lookup's route as arrows under the slot row, one per hop, from each slot it reads to the next. An arrow that
  *  flies over slots does not read them; the search stops in the last slot, which has no arrow out. */
 function hops(s: Stage, v: View) {
@@ -95,7 +81,7 @@ function picture(s: Stage, v: View) {
     return new Group(
       slots,
       // The hash table spans the slot row, edge to edge.
-      table(heads, rows, s, { xs: spread(heads, rows, 0.66, LEFT + 0.2, RIGHT - 0.2), y: TOP, gap: 0.85, key: 'dict-hashes', size: 0.66 }),
+      table(heads, rows, s, { xs: { left: LEFT + 0.2, right: RIGHT - 0.2 }, y: TOP, gap: 0.85, key: 'dict-hashes', size: 0.66 }),
       note,
     );
   }
@@ -104,7 +90,7 @@ function picture(s: Stage, v: View) {
     rows = v.dict.entries.map((e, i) => [i, e.key ?? '–', e.value ?? '–']),
     rowY = (r: number) => TOP - r * 0.85;
   const entries = table(heads, rows, s, {
-    xs: spread(heads, rows, 0.66, LEFT + 0.2, slotX(3) + HALF - 0.6),
+    xs: { left: LEFT + 0.2, right: slotX(3) + HALF - 0.6 },
     y: rowY(0),
     gap: 0.85,
     key: 'dict-entries',

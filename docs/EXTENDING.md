@@ -97,8 +97,8 @@ distribution and adding another dependent readout. Keep these constraints:
 The recipe fixes drawing coordinates at construction. Do not shift/scale/rotate
 the dependent group and expect later sampling to retain that placement: absolute
 updates use its original coordinate system. Camera animation is independent.
-The [general parameter design](PARAMETERS.md) specifies explicit placement and
-lifecycle support before this becomes a reusable exported binding API.
+[Sampled parameters](PARAMETERS.md) records which explainers a general version
+would change, and the small shape it would take if one is migrated.
 
 ## Consume a scene in another application
 
@@ -117,7 +117,7 @@ In a browser, `DomSink` draws into an SVG element; in a document generator,
 [choreography.ts](../recipes/choreography.ts) uses `GrowFromEdge`, `PulseAlongPath`
 and `SetState` with native shapes and a state-derived readout. These are exported
 engine animations extracted from repeated techniques in the collection, unlike
-the proposed parameter API. [Reusable choreography](CHOREOGRAPHY.md) documents
+the sampled-parameter recipe. [Reusable choreography](CHOREOGRAPHY.md) documents
 their timing, ownership, opacity, snapshot and cleanup contracts.
 
 ## Composition, compositionality and modularity

@@ -28,7 +28,7 @@ export type { CircumscribeOpts } from './animation.ts';
 export { Restore, TransformFromCopy, Succession } from './animation.ts';
 export { GrowFromEdge, PulseAlongPath, SetState } from './animation.ts';
 export type { GrowFromEdgeOpts } from './animation.ts';
-export { TransformMatching, TransformMatchingShapes, TransformMatchingText } from './animation.ts';
+export { TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 export type { MatchKey, MatchingOpts, TransformMatchingOpts, MatchSummary } from './animation.ts';
 export { TransformDiff } from './animation.ts';
 export type { TransformDiffOpts, LinePlan } from './animation.ts';

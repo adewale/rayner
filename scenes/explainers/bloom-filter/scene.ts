@@ -276,33 +276,17 @@ export default class BloomFilter extends Scene {
                 COLUMN_GAP = 1.1,
                 READS_GAP = 1.4;
               const reads = stat(s, 'Reads', `${m.exactLookups} of ${m.queries.length}`, 0, 0, 'bloom-checks').scale(7 / 6);
-              /** Column widths: each column's widest header or cell. */
-              const widthsOf = (t: { headers: string[]; rows: string[][] }) =>
-                t.headers.map((h, c) =>
-                  Math.max(
-                    new Text(h, { fontSize: TABLE, weight: 'bold' }).width(),
-                    ...t.rows.map((row) => new Text(row[c]!, { fontSize: TABLE }).width()),
-                  ),
-                );
               // The lookups and the read count beside them, centred together; the sample shares their left edge.
-              const lookupsWidth = widthsOf(lookups).reduce((a, w) => a + w, COLUMN_GAP * (lookups.headers.length - 1));
-              const LEFT = -(lookupsWidth + READS_GAP + reads.width()) / 2;
-              /** Column centres that set a table's columns side by side from `LEFT`, `COLUMN_GAP` apart. */
-              const columns = (t: { headers: string[]; rows: string[][] }) => {
-                let x = LEFT;
-                return widthsOf(t).map((w) => {
-                  const centre = x + w / 2;
-                  x += w + COLUMN_GAP;
-                  return centre;
-                });
-              };
-              const top = table(lookups.headers, lookups.rows, s, { xs: columns(lookups), y: 2.6, gap: 0.98, key: 'bloom-pipeline', size: TABLE });
+              const top = table(lookups.headers, lookups.rows, s, { xs: { left: 0, gap: COLUMN_GAP }, y: 2.6, gap: 0.98, key: 'bloom-pipeline', size: TABLE });
               // The read count sits level with the lookups' rows, centred on them.
-              reads.moveTo([LEFT + lookupsWidth + READS_GAP, 0.64], [-1, 0]);
+              reads.moveTo([top.width() + READS_GAP, 0.64], [-1, 0]);
+              const LEFT = -(top.width() + READS_GAP + reads.width()) / 2;
+              top.shift([LEFT, 0]);
+              reads.shift([LEFT, 0]);
               return new Group(
                 top,
                 reads,
-                table(sample.headers, sample.rows, s, { xs: columns(sample), y: -1.75, gap: 0.98, key: 'bloom-sample', size: TABLE }),
+                table(sample.headers, sample.rows, s, { xs: { left: LEFT, gap: COLUMN_GAP }, y: -1.75, gap: 0.98, key: 'bloom-sample', size: TABLE }),
               );
             }
             const active = query?.locations ?? (i === 1 ? cat : i === 2 ? dog : []);

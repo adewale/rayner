@@ -14,7 +14,7 @@ reading for this API.
 | `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
 | `animation.ts`: `Restore`, `TransformFromCopy`, `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
 | `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar/task, send a transient token, or sequence model snapshots with views? |
-| `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family? |
+| `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText`, `matchByKey` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family, and keep a keyed cell or node as one component? |
 | `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |
 | `graphing.ts`: `NumberLine`, `Axes` | [GRAPHING.md](GRAPHING.md) | How do I chart the program's own numbers? |
@@ -35,8 +35,8 @@ Endpoint-based animations capture starts when their play begins and support skip
 interpolations; active updaters conservatively retain frame-by-frame replay. Seeking
 must render the byte-identical frame a full run renders. Nothing in `src/` imports
 a dependency or shells out. External inputs such as token colours, Git hunks and
-diagram snapshots are captured at build time. [Continuous parameters](PARAMETERS.md)
-designs a shared, directly sampled alternative; its proposed API is not yet exported.
+diagram snapshots are captured at build time. [Sampled parameters](PARAMETERS.md)
+records what a directly sampled alternative to updaters would and would not buy.
 
 ## What belongs in Rayner
 
@@ -47,56 +47,45 @@ Sort a feature request with one question: does it check, ground or publish the r
 
 When a request is the second kind, the answer is usually to expose the data the author needs, not to build the behaviour.
 
-## Proposed composition primitives after PR #89
+## Next primitives
 
-Reconsidered against [PR #89](https://github.com/adewale/rayner/pull/89) at
-`50bc696cabcc370bb4349126cacb1e4387dc19f8` on 2026-11-03. These are design
-directions, not five new exported APIs. The current supported extension points and
-animations remain in [the recipes](EXTENDING.md) and [choreography](CHOREOGRAPHY.md).
+Reconsidered on 2026-11-03 against the collection as it draws today: 34 of the
+40 explainers clear the stage and redraw each step, 7 morph a `View`, and the
+duplication the collection actually carries is layout arithmetic, not identity.
+That rules out most of what was proposed and leaves two things, each in its own
+layer.
 
-| Primitive | Evidence in the current examples | Required contract |
-| --- | --- | --- |
-| Keyed component updates | Periodic groups' `samePlace` matches element cells and symbol glyphs across the filling-run/table transition. `View.sync()` retains its outer View but swaps its child; matching currently addresses drawable paths. | An author supplies semantic keys within an owner. Retain compatible keyed component roots, including their addressability; explicitly insert/remove/replace others. Reject duplicate keys. Glyphs may change beneath a retained Text. Do not infer entity identity from equal words or coordinates. |
-| Measured, addressable table | Python dict repeats table width calculations to align its lookup panel; GTFS computes cell, column and row positions locally. | Expose measured column widths, row heights, cell bounds and anchors keyed by row/column identity. Cell contents remain ordinary mobjects. Rows and columns can be selected without giving a cell two parents. Gaps, alignment, fixed widths and overflow policy belong to the author. |
-| Keyed collections with separate slots | Dict entries occupy slots; ring-buffer values wrap around storage; GTFS has service/date cells; iCalendar shows a moved meeting in its original recurrence slot. | Separate item identity, slot/address and display order. Moving an item must not rename it; clearing a slot must not delete the slot. iCalendar's identity includes the series and original recurrence id, not its displayed start. An array strip and a date grid are compositions over this capability. |
-| Persistent attachments | Git pointers, dict routes and labels in the calendar/timeline drawings manually recompute positions and endpoints. | Address an owner plus a named anchor, with an explicit offset and missing-target policy. Retain the attached label/connector. Resolve anchors after the sample's geometry is known, before paint; arbitrary repeated calls to `nextTo()` are not the contract. Graph route planning remains a separate responsibility. |
-| Sampled continuous parameters | Seasons can derive several drawings from one day; token-bucket refill can advance between request events. | Keep the [four parameter contracts](PARAMETERS.md#the-four-contracts): validated inputs, one shared sample, stable identity/one writer, reproducible evaluation and inspection. Event acceptance, deletion and calendar membership remain discrete. |
+- **Keyed components, in the engine (done).** `matchByKey()` pairs the parts
+  under containers with the same `mobject.key`, so a keyed cell or node is kept
+  as one component wherever it moves ([matching](MATCHING.md#keyed-components)),
+  and `View.sync({ match: 'keys' })` uses it. `periodic-groups` keys its element
+  cells and symbols this way. The [live machine](https://github.com/adewale/rayner/issues/88)
+  is the next consumer: a reader-driven redraw whose parts keep their identity.
+- **A table that places its measured columns, in the explainer library (done).**
+  `table()` in `scenes/explainers/lib/lesson-drawing.ts` already measured every
+  column; it now takes `{ left, right }` or `{ left, gap }` and places them, and
+  its box is the measured extent. That removed the private width calculations
+  in `python-dict` and `bloom-filter`. Nothing in `src/` is involved: a table is
+  a drawing an author composes, not an engine object.
 
-Start with semantic identity: the periodic-table transition already demonstrates
-the need, and tables, collection references and attachments all depend on it.
-Table and collection layouts should share measurement and addressing mechanisms,
-while retaining distinct row/column and item/slot semantics. Attachments and
-parameter bindings should share deterministic sampling and ownership rules,
-rather than install competing updater systems. A rig binding and an attachment
-cannot both claim the same label or connector.
+Not built, and why:
 
-An attachment that follows animated geometry needs that sample's planned bounds
-or endpoints. Resolve these from an immutable geometry plan before applying the
-patches; do not read a previous frame's boxes or depend on mutation order. This
-extends the parameter design's calculation phase, not its permission for bindings
-to read another binding's newly mutated target. Reject dependency cycles and
-missing anchors before applying changes. Static attachments can use captured
-bounds without introducing a general reactive graph.
+- **Keyed collections with separate slots.** Which entity an item is, which slot
+  it occupies and where it is shown are model facts, and every scene's model
+  already holds them (`ring-buffer` keys values `slot:${i}`). Once keyed
+  components match, a collection is a key-naming convention, and moving entity
+  identity into the drawing layer would take it away from the oracle-tested model.
+- **Persistent attachments.** In a redraw scene every label is recomputed anyway;
+  in a morphing scene the `View` rebuild repositions arrows, and `Labeled` and
+  the diagram `note()` cover static anchors. The contracts an attachment system
+  needs (a geometry plan, cycle rejection, missing-target policy) are a reactive
+  constraint graph, which "points are the truth" deliberately excludes.
+- **A parameter rig.** [Sampled parameters](PARAMETERS.md) records the survey:
+  one explainer would change. The supported path is the recipe; the exportable
+  shape, if that migration happens, is one small animation.
 
-The new expiry-aligned certificate bars, tax rulers and request lifetime tracks
-also suggest useful recipes: scales, interval marks, ticks and labels composed
-from `NumberLine`, `Axes` and ordinary shapes. They do not yet justify another
-timeline engine. Preserve the quantity's meaning: the certificate bars measure
-hours; the search tracks show event order and explicitly disclaim measured time.
-
-**Composition** is an author assembling a particular drawing. **Modularity** is
-keeping its model, drawing and checks independently usable. **Compositionality**
-is stronger: independently useful parts preserve their contracts when combined.
-A table cell that becomes a connector target and then follows a sampled parameter
-must keep its identity, report the current anchor, obey one-writer scheduling and
-remain seekable. Five isolated widgets would not establish that property.
-
-Prove the shared mechanisms by refactoring the periodic keyed transition and the
-dict's measured table/lookup alignment first, preserving their model checks and
-resting pictures. Then exercise an attached label through a sampled interval,
-including seek/full-render equality, removal and conflicting writers. Keep
-`presentFrame`'s clear/draw transition available: an author must opt into entity
-continuity when successive pictures actually represent the same entities.
+Keep `presentFrame`'s clear/draw transition the default: an author opts into
+entity continuity when successive pictures really show the same entities.
 
 ## Out of scope
 

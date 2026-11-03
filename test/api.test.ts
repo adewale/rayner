@@ -16,7 +16,7 @@ const EXPECTED = [
   'Animation', 'Transform', 'FadeIn', 'FadeOut', 'Create', 'Write', 'Indicate', 'Flash', 'MoveAlongPath', 'AnimationGroup', 'LaggedStart',
   'Restore', 'TransformFromCopy', 'Succession',
   'GrowFromEdge', 'PulseAlongPath', 'SetState',
-  'TransformMatching', 'TransformMatchingShapes', 'TransformMatchingText',
+  'TransformMatching', 'TransformMatchingShapes', 'TransformMatchingText', 'matchByKey',
   'TransformDiff', 'diffLines', 'diffTokens', 'parseUnifiedDiff', 'tokenize', 'hunkHeader',
   'linear', 'smooth', 'rushInto', 'rushFrom', 'thereAndBack', 'easeInQuad', 'easeOutQuad', 'easeOutBack', 'wiggle',
   'Scene', 'StopScene',

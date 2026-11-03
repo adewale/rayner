@@ -146,8 +146,8 @@ skipping, not constant-time indexing into a precompiled timeline.
 
 A sink stops a seek with `StopScene`. Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
-scene. Handle known model errors before animating. See the
-[parameter design](PARAMETERS.md) for a directly sampled alternative to updaters.
+scene. Handle known model errors before animating. [Sampled parameters](PARAMETERS.md)
+records what a directly sampled alternative to updaters would buy the collection.
 
 ## Outputs, checks and performance
 

@@ -274,7 +274,7 @@ These are the engine's own features, imported from `rayner` and used beside the 
 
 | Feature | What a scene uses | Guide | Used by |
 | --- | --- | --- | --- |
-| Matching transforms | `TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key; `summary()`, `pairs`, `removed`, `added` | [Matching](MATCHING.md) | `feature-tour` (basic text), `glyph`, `exgit`; no explainer yet: `TransformMatching` with your own key |
+| Matching transforms | `TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added` | [Matching](MATCHING.md) | `feature-tour` (basic text), `glyph`, `exgit`; `periodic-groups` (`matchByKey` with a same-place fallback, through `View.sync`) |
 | Diff-driven code morph | `new TransformDiff(before, after, { hunks })` and its `plan`; `diffLines`, `parseUnifiedDiff` for hunks | [Diff-driven](MATCHING.md#diff-driven) | `mr-cache`; no explainer yet: the `hunks` option, `diffLines`, `diffTokens`, `parseUnifiedDiff`, `hunkHeader` |
 | Camera | `this.frame.animate.fit(...)`, `.reset()`; `d.focus(…, { camera: true })` | [Camera](CAMERA.md) | `feature-tour` (`s.focus`), `seasons`; `lantern`'s diagram focus with `also` |
 | Emphasis that stays | `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })` | [Emphasis](EMPHASIS.md) | `feature-tour` (`Circumscribe`), `glyph`, `mr-cache`, `state-machine`, `ring-buffer`, `exgit` (`Underline`: `glyph` only); no explainer yet: a bare `Brace`, `tip()`, `putAtTip()` |

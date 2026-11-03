@@ -880,8 +880,35 @@ import { VMobject as VMobjectClass } from './vmobject.ts';
 import { Text } from './text.ts';
 import type { Evidence } from './scene.ts';
 
-/** What a part matches by: equal strings pair up; undefined never matches. */
-export type MatchKey = (part: Mobject) => string | undefined;
+/**
+ * What a part matches by: equal strings pair up; undefined never matches.
+ * `root` is the picture the part belongs to (the transform's source or target),
+ * so a key can stop reading ancestors there; a key that ignores it is fine.
+ */
+export type MatchKey = (part: Mobject, root: Mobject) => string | undefined;
+
+/**
+ * Pair parts by the keys their author gave (`mobject.key`). A part inside a
+ * keyed container pairs with the part at the same place inside the container
+ * of the same key on the other side, so a keyed cell, label or node is kept as
+ * one component wherever it moves and its own parts morph inside it (a kept
+ * Text may change its glyphs). A keyed part pairs by its own key. Anything
+ * under no key below the root pairs by `fallback`, by default not at all.
+ * The root's own key, and keys above it, are not read: they would make every
+ * part the same component. A key two containers share pairs by distance, as
+ * any repeated key does. The key `View.sync({ match: 'keys' })` uses.
+ */
+export function matchByKey(fallback: MatchKey = () => undefined): MatchKey {
+  return (part, root) => {
+    const path: number[] = [];
+    for (let m: Mobject = part; m !== root; m = m.parent!) {
+      if (!m.parent) break; // not under the root: nothing above it is this picture's
+      if (m.key !== undefined) return path.length ? `${m.key}/${path.reverse().join('/')}` : m.key;
+      path.push(m.parent.children.indexOf(m));
+    }
+    return fallback(part, root);
+  };
+}
 
 export interface MatchingOpts extends TransformOpts {
   /** Unmatched parts fade (default). false: morph them into each other by index, fading only the leftovers. */
@@ -996,7 +1023,7 @@ export class TransformMatching extends Animation {
     // Ordered: runs pair first and decide which line is which; a lone leftover
     // then pairs only within its own line, so stray letters do not fly across
     // the text (and each line stays one piece, the way MotionSink sees a Text)
-    const pairOf = matchParts(sParts, tParts, this.key, this.ordered, (runs) => {
+    const pairOf = matchParts(sParts, tParts, [src, tgt], this.key, this.ordered, (runs) => {
       mapFrames(runs);
       return [sf, Int32Array.from(tf, (f) => sIndex.get(toSource.get(tFrames[f]!)!) ?? -1)];
     });
@@ -1126,9 +1153,9 @@ export class TransformMatchingText extends TransformMatching {
     const texts = [...this.mobject.family(), ...this.target.family()].filter(m => 'text' in m && m.children.length > 0);
     type ClusterText = Mobject & {clusterMatching?: boolean; clusterKey?: (cluster: number) => string | undefined};
     if (texts.length && texts.every(m => (m as ClusterText).clusterMatching))
-      this.key = part => {
+      this.key = (part, root) => {
         const cluster = (part as Mobject & {cluster?: number}).cluster;
-        return cluster == null ? plain(part) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part);
+        return cluster == null ? plain(part, root) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part, root);
       };
     try { super.begin(); } finally { this.key = plain; }
     fadeInsideLines(this, true);
@@ -1168,13 +1195,13 @@ const IDENTITY: Carry = { k: 1, bx: 0, by: 0 };
 const shapeKeyOf: MatchKey = (p) => (p instanceof VMobjectClass ? p.shapeKey() : undefined);
 
 // A glyph's cluster is the UTF-16 index in its Text's source string where its character starts
-const textKeyOf: MatchKey = (p) => {
+const textKeyOf: MatchKey = (p, root) => {
   const t = p.parent, cluster = (p as { cluster?: number }).cluster;
   if (t instanceof Text && cluster != null) {
     const cp = t.text.codePointAt(cluster);
     return `${t.font} ${t.weight} ${cp === undefined ? '' : String.fromCodePoint(cp)}`;
   }
-  const k = shapeKeyOf(p);
+  const k = shapeKeyOf(p, root);
   return k === undefined ? undefined : 'shape ' + k;
 };
 
@@ -1235,11 +1262,11 @@ function median(ds: Vec[]): Vec {
  * a group that moves as a whole keeps its order, which nearest-first greedy
  * pairing does not. Deterministic: ties go to the earlier part.
  */
-function matchParts(src: Mobject[], tgt: Mobject[], key: MatchKey, ordered: boolean, scopes: (runs: Int32Array) => [Int32Array, Int32Array]): Int32Array {
+function matchParts(src: Mobject[], tgt: Mobject[], roots: [Mobject, Mobject], key: MatchKey, ordered: boolean, scopes: (runs: Int32Array) => [Int32Array, Int32Array]): Int32Array {
   // Keys as small integers, -1 for "never matches"
   const ids = new Map<string, number>();
-  const idOf = (p: Mobject) => { const k = key(p); if (k === undefined) return -1; let i = ids.get(k); if (i === undefined) ids.set(k, (i = ids.size)); return i; };
-  const ks = src.map(idOf), kt = tgt.map(idOf);
+  const idOf = (p: Mobject, root: Mobject) => { const k = key(p, root); if (k === undefined) return -1; let i = ids.get(k); if (i === undefined) ids.set(k, (i = ids.size)); return i; };
+  const ks = src.map((p) => idOf(p, roots[0])), kt = tgt.map((p) => idOf(p, roots[1]));
   const cs = src.map(ownCenter), ct = tgt.map(ownCenter);
   const dist2 = (i: number, j: number) => (cs[i]![0] - ct[j]![0]) ** 2 + (cs[i]![1] - ct[j]![1]) ** 2;
   const pairOf = new Int32Array(src.length).fill(-1), taken = new Uint8Array(tgt.length);

@@ -35,9 +35,10 @@ current value therefore makes seeking replay the interval frame by frame.
 That is a conservative implementation rule, not a requirement of every continuous
 relationship. `position = orbit(angle)` can be evaluated directly without previous
 frames. The [continuous recipe](EXTENDING.md#make-several-objects-follow-one-parameter)
-does this with a custom Animation; the [parameter design](PARAMETERS.md) specifies
-a general binding API. A View remains appropriate for a discrete target rebuild;
-it does not evaluate the model continuously between its two endpoint pictures.
+does this with a custom Animation; [sampled parameters](PARAMETERS.md) records
+what the collection would gain from exporting that shape. A View remains
+appropriate for a discrete target rebuild; it does not evaluate the model
+continuously between its two endpoint pictures.
 
 A View never registers an updater. `sync()` is an ordinary animation whose
 endpoints are fixed at `begin()`:
@@ -92,7 +93,8 @@ view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 | `'text'` (default when either picture contains a `Text`) | `TransformMatchingText` | readouts, code: unchanged characters stay where they are |
 | `'index'` (default otherwise) | `Transform`, family position by position | geometry whose structure persists (bars, a gauge); `DecimalNumber` counting |
 | `'shapes'` | `TransformMatchingShapes` | pictures whose parts come and go |
-| a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour |
+| `'keys'` | `TransformMatching` with `matchByKey()` | pictures whose containers carry `key`s: a keyed cell or node keeps its identity wherever it moves, its parts morph inside it, unkeyed parts fade ([matching](MATCHING.md#keyed-components)) |
+| a `MatchKey` function | `TransformMatching` with that key | identity you know: a node id, a colour; `matchByKey(fallback)` to keep unkeyed parts too |
 
 `sync.summary()` reports what a matching transform paired once the play has
 begun (`{ matched, morphed, removed, added }`). It is `null` for `'index'` and

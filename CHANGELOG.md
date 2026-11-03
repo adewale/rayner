@@ -14,7 +14,9 @@
 - File Agentic Mermaid state-edit reports [#596](https://github.com/adewale/agentic-mermaid/issues/596) and [#597](https://github.com/adewale/agentic-mermaid/issues/597), and remove temporary drafts.
 - Extract `GrowFromEdge`, `PulseAlongPath` and `SetState` as composable engine animations. Use them for captured bars/tasks/messages and the ring-buffer/periodic-table schedules; document their contracts and ship a runnable choreography recipe.
 
-- Document native frame/text/trace output as the replacement for Lantern document authoring. Add local engine fundamentals, runnable public-API extension recipes and installed-package coverage. Specify a proposed continuous-parameter binding API and its relationship to Agentic Mermaid and PR #89; the proposed API is not yet exported.
+- Add `matchByKey()` and `View.sync({ match: 'keys' })`: parts under containers with the same `key` pair by place, so a keyed cell or node is kept as one component wherever it moves and its own parts morph inside it. Match keys now receive the picture they belong to. Periodic groups keys its cells and symbols this way instead of reading its own key prefixes.
+- Let the explainer library's `table()` place its measured columns between two edges or a fixed gap apart; Python dict and the Bloom filter drop their private column-width calculations.
+- Document native frame/text/trace output as the replacement for Lantern document authoring. Add local engine fundamentals, runnable public-API extension recipes and installed-package coverage. Record the sampled-parameter survey: the recipe stays the supported path, one explainer would change, and the rig API is not built.
 
 - Capture numbered contact-sheet titles in explicit lettering mode. Preserve copied panels’ reader emphasis and repeated state-readout labels. Export `jsonObject` for portable authoring helpers, and reject array subclasses and inherited array entries.
 - Give composite objects a shared copy/restore contract so copied cards and code blocks update their own children, readouts and highlights.
