@@ -47,6 +47,13 @@ try {
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, version);
   for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'explain/audio.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'tools/lib/lettering.ts', 'vendor/glyph-math.js', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(installed, file)), `archive is missing ${file}`);
+  // Public-API extension recipes must work from the installed archive too.
+  await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
+  const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
+  assert.equal(recipeTrace.steps.find((s: {step: string}) => s.step === 'result').after.destination, 'cache');
+  assert.match(await readFile(join(folder, 'recipe-output/continuous.txt'), 'utf8'), /1\.57/);
+  const choreographyTrace = JSON.parse(await readFile(join(folder, 'recipe-output/choreography.trace.json'), 'utf8'));
+  assert.equal(choreographyTrace.steps.at(-1).after.count, 9);
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });

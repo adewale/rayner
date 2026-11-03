@@ -2,6 +2,13 @@
 
 [The tutorial](TUTORIAL.md) builds a two-case explainer of LRU and MRU cache replacement; the [authoring feature tour](FEATURE-TOUR.md) pairs code excerpts with the result of running them. [Publishing](PUBLISHING.md) covers hosting and embedding a page.
 
+For the lower-level API, read [engine fundamentals](ENGINE-FUNDAMENTALS.md),
+[native scene outputs](SCENE-OUTPUTS.md) and the [runnable extension recipes](EXTENDING.md).
+The [reusable choreography guide](CHOREOGRAPHY.md) covers edge growth, pulsing route
+tokens and model-state changes composed with ordinary animation schedules.
+The [parameter-binding design](PARAMETERS.md) explains a proposed continuous-animation
+API and its integration with existing scenes; it is not yet a package export.
+
 Words used throughout: a **setting** is a choice a scene declares (an id, a label and options); a **case** is one value for every setting. A **step** is a named section of the scene, and its **resting picture** is what the step leaves on screen: the picture a reader looks at while reading the caption. The **stage** is the 16 × 9 drawing area. Code and JSON spell case as `variant` (`variantsOf`, `variants` in reports) and resting picture as `restingFrame`.
 
 ## Scene
@@ -346,7 +353,7 @@ for (const c of d.cases)
 
 ## Snapshots
 
-Every command except `init` runs every case, captures any diagram missing from `scene.snapshots/` beside the scene, and deletes unused ones; `rayner snapshots` stops there. Commit the folder; `index.json` maps each diagram's key to its own file. A change to the capture code invalidates the whole cache; `--refresh` recaptures everything. Capture needs Chromium and the authoring packages listed in [the README](../README.md#requirements).
+Every command except `init` runs every case, captures any diagram missing from `scene.snapshots/` beside the scene, and deletes unused ones; `rayner snapshots` stops there. Commit the folder; `index.json` maps each diagram's key to its own file. A change to the capture code invalidates the whole cache; `--refresh` recaptures everything. Capture needs Chromium and the authoring packages listed in [the README](../README.md#write-your-first-scene).
 
 Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte for byte, and fails on SVG it cannot convert (unsupported paint, masks, filters). Chromium resolves CSS, transforms and markers at build time with network requests blocked. The page receives resolved geometry and text runs; it never runs Agentic Mermaid.
 

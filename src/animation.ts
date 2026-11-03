@@ -13,6 +13,9 @@ import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
 import { Circle, SurroundingRectangle, boxOf } from './shapes.ts';
 import { YELLOW } from './color.ts';
+import { jsonObject } from './json.ts';
+import type { JsonObject } from './json.ts';
+import type { SceneState } from './scene.ts';
 
 export interface AnimOpts {
   runTime?: number;
@@ -131,6 +134,30 @@ export class Animation extends AnimationTiming {
    * (sub, start, target, alpha) for a Transform; see allMobjects().
    */
   interpolateSubmobject(..._row: [...FamilyRow, number]): void {}
+}
+
+// A shared, non-drawing target makes simultaneous SetStates on one Scene
+// visible to play()'s ordinary overlap check. Separate scenes do not conflict.
+const stateTargets = new WeakMap<object, Group>();
+
+/** Replace a scene's JSON state when this member begins, usually inside Succession. */
+export class SetState<S extends object = SceneState> extends Animation {
+  readonly host: Scene<S>;
+  private readonly snapshot: JsonObject;
+
+  constructor(host: Scene<S>, next: NoInfer<S>) {
+    const snapshot = jsonObject(next, 'SetState state');
+    let target = stateTargets.get(host);
+    if (!target) { target = new Group(); stateTargets.set(host, target); }
+    super(target, { runTime: 0, remover: true });
+    this.host = host;
+    this.snapshot = snapshot;
+  }
+
+  override begin(): void {
+    this.host.state = jsonObject(this.snapshot, 'SetState state') as Scene<S>['state'];
+    super.begin();
+  }
 }
 
 /** A path's structure: its subpaths and their closed flags. */
@@ -293,6 +320,32 @@ export class FadeOut extends Transform {
     if (this.remover) { super.finish(0); return; }
     super.finish(alpha);
     for (const [m, start] of this.families) m!.style.opacity = start!.style.opacity;
+  }
+}
+
+export interface GrowFromEdgeOpts extends AnimOpts {
+  /** Nonzero by default to keep the starting path nondegenerate; in [0, 1]. */
+  initialScale?: number;
+}
+
+/** Fade in while expanding along one axis from a fixed cardinal edge. */
+export class GrowFromEdge extends FadeIn {
+  readonly edge: Vec;
+  readonly axis: 0 | 1;
+  readonly initialScale: number;
+
+  constructor(mobject: Mobject, edge: Readonly<Vec> = V.DOWN, { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
+    if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
+      Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
+      throw new TypeError('GrowFromEdge edge must be UP, DOWN, LEFT or RIGHT');
+    if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
+      throw new RangeError('GrowFromEdge initialScale must be finite and in [0, 1]');
+    super(mobject, opts);
+    this.edge = [edge[0], edge[1]]; this.axis = edge[0] === 0 ? 1 : 0; this.initialScale = initialScale;
+  }
+
+  override createStartingMobject(): Mobject {
+    return super.createStartingMobject().stretch(this.initialScale, this.axis, { aboutEdge: this.edge });
   }
 }
 
@@ -505,6 +558,34 @@ export class MoveAlongPath extends Animation {
       sub.touchPoints(); sub._bbox = null;
     }
     this.mobject.invalidateBox();
+  }
+}
+
+/** Travel along a fixed route while fading in and out; remove the token by default. */
+export class PulseAlongPath extends MoveAlongPath {
+  readonly sourcePath: VMobject;
+
+  constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOpts = {}) {
+    super(mobject, path, { rateFunc: linear, remover: true, ...opts });
+    this.sourcePath = path;
+  }
+
+  override begin(): void {
+    // The path, like the starting geometry, is fixed when the play begins.
+    this.path = this.sourcePath.copy();
+    super.begin();
+  }
+
+  override interpolate(alpha: number): void {
+    super.interpolate(alpha);
+    const opacity = Math.sin(Math.PI * alpha);
+    for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity * opacity;
+  }
+
+  override cleanUpFromScene(scene: Scene): void {
+    super.cleanUpFromScene(scene);
+    // A removed token can be used again without inheriting its invisible end.
+    if (this.remover) for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity;
   }
 }
 
@@ -782,9 +863,10 @@ class BuiltTransform extends Transform {
   }
 }
 
-/** Give every Succession in `anims` (nested in groups too) the scene its members will join. */
+/** Bind nested schedules to their scene, validating scene-bound state changes before beginning. */
 export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
+    if (a instanceof SetState && a.host !== scene) throw new Error('SetState must play on the scene it belongs to');
     if (!(a instanceof AnimationGroup)) continue;
     if (a instanceof Succession) a.scene = scene;
     bindSuccessions(a.animations, scene);

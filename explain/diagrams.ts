@@ -8,6 +8,8 @@ import {
   Transform,
   Dot,
   MoveAlongPath,
+  GrowFromEdge,
+  PulseAlongPath,
   AnimationGroup,
   linear,
   Rectangle,
@@ -366,24 +368,6 @@ function clampedPosition(note: Mobject, box: Box, side: NoteSide, frame: Box): V
   y = Math.min(Math.max(y, frame[1] + h / 2 + 0.05), frame[3] - h / 2 - 0.05);
   return [x, y];
 }
-class GrowFromEdge extends FadeIn {
-  axis: 0 | 1;
-  edge: Vec;
-  constructor(mob: Mobject, axis: 0 | 1, edge: Vec, runTime: number) {
-    super(mob, { runTime });
-    this.axis = axis;
-    this.edge = edge;
-  }
-  override createStartingMobject(): Mobject {
-    return super.createStartingMobject().stretch(0.001, this.axis, { aboutEdge: this.edge });
-  }
-}
-class MessageToken extends MoveAlongPath {
-  override interpolate(alpha: number): void {
-    super.interpolate(alpha);
-    this.mobject.setOpacity(Math.sin(Math.PI * alpha));
-  }
-}
 /** Scale a style's lengths (stroke width, dashes) by k, as artwork scaled by k needs. */
 function scaleStyle(style: Style, k: number): void {
   if (style.strokeWidth != null) style.strokeWidth *= k;
@@ -646,13 +630,13 @@ export class Diagram {
           return new AnimationGroup(
             [
               new Create(p.mob, { runTime, lagRatio: 0 }),
-              new MessageToken(token, p.route, { runTime, rateFunc: linear, remover: true }),
+              new PulseAlongPath(token, p.route, { runTime, rateFunc: linear }),
             ],
             { rateFunc: linear },
           );
         }
-        if (p.info.role === 'bar') return new GrowFromEdge(p.mob, 1, [0, -1], runTime);
-        if (p.info.role === 'task') return new GrowFromEdge(p.mob, 0, [-1, 0], runTime);
+        if (p.info.role === 'bar') return new GrowFromEdge(p.mob, [0, -1], { runTime });
+        if (p.info.role === 'task') return new GrowFromEdge(p.mob, [-1, 0], { runTime });
         return p.info.from
           ? new Create(p.mob, { runTime, lagRatio: 0 })
           : new FadeIn(p.mob, { runTime, shift: [0, 0.08] });

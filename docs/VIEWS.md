@@ -27,10 +27,17 @@ picture to the new one.
 
 ## Why not updaters
 
-`always_redraw` rebuilds the picture every frame with an updater. A Rayner scene
-can't afford that. A play with an active updater can never be skipped during a
-seek (`Scene.hasUpdaters()`), because updaters integrate over frames. One
-per-frame readout would make every seek into that scene replay frame by frame.
+`always_redraw` rebuilds the picture every frame with an updater. Rayner currently
+treats every active updater as potentially history-dependent: that play cannot be
+skipped during a seek (`Scene.hasUpdaters()`). Even an updater that only reads a
+current value therefore makes seeking replay the interval frame by frame.
+
+That is a conservative implementation rule, not a requirement of every continuous
+relationship. `position = orbit(angle)` can be evaluated directly without previous
+frames. The [continuous recipe](EXTENDING.md#make-several-objects-follow-one-parameter)
+does this with a custom Animation; the [parameter design](PARAMETERS.md) specifies
+a general binding API. A View remains appropriate for a discrete target rebuild;
+it does not evaluate the model continuously between its two endpoint pictures.
 
 A View never registers an updater. `sync()` is an ordinary animation whose
 endpoints are fixed at `begin()`:

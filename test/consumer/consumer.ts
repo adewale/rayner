@@ -3,6 +3,18 @@
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, RIGHT, TEAL, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
+import { GrowFromEdge, PulseAlongPath, SetState, Line, Dot } from 'rayner';
+import type { GrowFromEdgeOpts } from 'rayner';
+
+export function choreography(scene: Scene<{count: number}>) {
+  const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
+  const grow = new GrowFromEdge(new Rectangle(), RIGHT, opts);
+  const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
+  const state = new SetState(scene, { count: 3 });
+  // @ts-expect-error A typed scene's count is a number.
+  new SetState(scene, { count: 'three' });
+  return [grow, pulse, state];
+}
 import type { AnimOpts, TextOpts } from 'rayner';
 import {jsonObject} from 'rayner';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});

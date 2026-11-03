@@ -12,6 +12,10 @@
 - Ask birthday readers to reason about merged rooms and a smaller calendar rather than recall seeded cards. Share seasons’ calendar calculation with its model and keep model invariants in tests instead of scene construction.
 - Improve phone stage height, remove duplicated headings from close-ups, enable arrow keys from load and conceal future step titles. Phone preflight uses the minimum stage geometry; browser review measures the actual served page.
 - File Agentic Mermaid state-edit reports [#596](https://github.com/adewale/agentic-mermaid/issues/596) and [#597](https://github.com/adewale/agentic-mermaid/issues/597), and remove temporary drafts.
+- Extract `GrowFromEdge`, `PulseAlongPath` and `SetState` as composable engine animations. Use them for captured bars/tasks/messages and the ring-buffer/periodic-table schedules; document their contracts and ship a runnable choreography recipe.
+
+- Document native frame/text/trace output as the replacement for Lantern document authoring. Add local engine fundamentals, runnable public-API extension recipes and installed-package coverage. Specify a proposed continuous-parameter binding API and its relationship to Agentic Mermaid and PR #89; the proposed API is not yet exported.
+
 - Capture numbered contact-sheet titles in explicit lettering mode. Preserve copied panels’ reader emphasis and repeated state-readout labels. Export `jsonObject` for portable authoring helpers, and reject array subclasses and inherited array entries.
 - Give composite objects a shared copy/restore contract so copied cards and code blocks update their own children, readouts and highlights.
 - Separate animation schedules from drawable targets and packed lettering references from expanded glyph paths. Type known step metadata and scene state; reject lossy JSON state and evidence with a field path.

@@ -2,7 +2,7 @@ import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, arrayQueue } from '../lib/readers/ring-buffer.ts';
 import {
   Scene,
-  Animation,
+  SetState,
   AnimationGroup,
   Succession,
   Circle,
@@ -91,25 +91,6 @@ const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { ra
 /** The value a push hands the buffer, read back from the operation the model ran ("push 6" -> 6). */
 const pushArg = (operation: unknown): number | null =>
   typeof operation === 'string' && operation.startsWith('push ') ? Number(operation.slice(5)) : null;
-
-/**
- * A program step at its turn in a Succession: when it begins, the scene's
- * state becomes the model's answer for that operation, so the View syncs
- * after it show that operation's state and not the step's last. Draws nothing.
- */
-class Apply extends Animation {
-  readonly host: Scene;
-  readonly next: SceneState;
-  constructor(host: Scene, next: SceneState) {
-    super(new Group(), { runTime: 0, remover: true });
-    this.host = host;
-    this.next = next;
-  }
-  override begin(): void {
-    this.host.state = JSON.parse(JSON.stringify(this.next)) as SceneState;
-    super.begin();
-  }
-}
 
 export default class RingBufferExplainer extends Scene {
   static meta = {
@@ -394,7 +375,7 @@ export default class RingBufferExplainer extends Scene {
       const first = groups[g]![0]!;
       await code.focus(first.error ? 1 : first.operation.startsWith('pop') ? [8, 12] : [2, 4]);
       // Every operation of the step, in order, in one play. The model already ran:
-      // each Apply puts its answer in this.state at its turn, and the syncs after it show it.
+      // Each SetState puts its answer in this.state at its turn, and the syncs after it show it.
       const members: ScheduledAnimation[] = [];
       if (g === 0) members.push(new FadeIn(argLabel, { runTime: 0.3 }));
       for (const event of groups[g]!) {
@@ -402,7 +383,7 @@ export default class RingBufferExplainer extends Scene {
           popped = event.operation.startsWith('pop'),
           gone = now.data.flatMap((v, i) => (v != null && r.data[i] == null ? [i] : []));
         members.push(
-          new Apply(this, {
+          new SetState(this, {
             ...r,
             operation: event.operation,
             error: event.error ?? null,

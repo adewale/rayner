@@ -18,6 +18,8 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 | --- | --- |
 | Domain values | Independent model tests, source vectors and real Git/CPython fixtures; `view-readouts.test.ts` pins reader values |
 | Engine geometry and animation | Seeded properties, Manim/raster references, native SVG and seek/cache tests |
+| Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
+| Extracted choreography | `choreography.test.ts` checks geometric anchors, route/opacity samples, legacy frame equivalence, JSON state boundaries, nested schedules and writer conflicts |
 | Requested lettering | `lettering.test.ts` checks declarations, isolation and glyph contracts; the catalog builder checks actual receipt fields and page bytes |
 | Shared player shell | `explain-reader-shell.ts` runs during every catalog case at both reading widths; embed tests retain English/French standalone, raw iframe and loader crop checks |
 | Story evidence | `demos:review` visits every resting step in every settings case at 390 and 1180 px, using actual controls and matching ready events |

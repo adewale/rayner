@@ -9,6 +9,6 @@
     "resolveJsonModule": true,
     "tsBuildInfoFile": "node_modules/.cache/tsc/node.tsbuildinfo"
   },
-  "include": ["tools/**/*.ts", "test/**/*.ts", "scenes/**/*.test.ts"],
+  "include": ["tools/**/*.ts", "test/**/*.ts", "scenes/**/*.test.ts", "recipes/**/*.ts"],
   "exclude": ["test/consumer"]
 }

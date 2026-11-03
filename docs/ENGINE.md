@@ -3,13 +3,17 @@
 The engine is `src/` (zero dependencies, exported through `src/index.ts`). Each guide below
 answers one question about it. The explainer layer built on top is documented in
 [the reference](REFERENCE.md), which also [names the explainers](REFERENCE.md#engine-features)
-that use each feature. Lantern's own engine notes are at the fork base, `2c7bad5`; links to
-them below say so.
+that use each feature. Start with [engine fundamentals](ENGINE-FUNDAMENTALS.md),
+then run the [extension recipes](EXTENDING.md). [Scene outputs](SCENE-OUTPUTS.md)
+covers the use case previously served by Lantern's JSON documents. Attribution and
+historical differences belong in [Upstream](UPSTREAM.md), not in the prerequisite
+reading for this API.
 
 | Module | Doc | The question it answers |
 | --- | --- | --- |
-| `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Lantern's README, "Model"](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/README.md#model) (at `2c7bad5`) | What is a scene made of, and why are points the truth? |
+| `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
 | `animation.ts`: `Restore`, `TransformFromCopy`, `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
+| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar/task, send a transient token, or sequence model snapshots with views? |
 | `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family? |
 | `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |
@@ -17,8 +21,9 @@ them below say so.
 | `view.ts`: `view`, `stateView`, `viewMismatch`; `panels.ts`: `StateReadout` | [VIEWS.md](VIEWS.md) | How do I make a picture a function of `scene.state`, and check it at every step? |
 | `text.ts`: `Code` spans and token colours; `svg.ts`: run merging; `tools/tokens.ts` | [CODE.md](CODE.md) | How do I address, colour and box part of a line of code, and what does colour cost? |
 | `diff.ts`, `animation.ts`: `TransformDiff`; `scene.ts`: `record()` | [MATCHING.md, "Diff-driven"](MATCHING.md#diff-driven) and [the reference, "Scene"](REFERENCE.md#scene) | How does a code morph follow the diff, and how does the trace prove it did? |
-| `verify.ts`, `trace.ts`, `timeline.ts` | [The reference, "Checks"](REFERENCE.md#checks); Lantern's [VERIFY.md](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/docs/VERIFY.md) (at `2c7bad5`) | Is the animation true, correct and smooth, and how is each checked? |
-| `perf.ts`, `svg.ts` | Lantern's [PERF.md](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/docs/PERF.md) (at `2c7bad5`); run merging in [CODE.md](CODE.md#cost-elements-per-line) | Where does a frame's time go, and what made it faster? |
+| `svg.ts`, `ascii.ts`, `trace.ts`, `timeline.ts` | [Scene outputs](SCENE-OUTPUTS.md) | How do I get frames, text, elements, step indexes and traces without a JSON scene document? |
+| `verify.ts`, `trace.ts`, `timeline.ts` | [Testing](TESTING.md), [fundamentals](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance) and [the reference, "Checks"](REFERENCE.md#checks) | Is the animation true, correct and smooth, and what does each check establish? |
+| `perf.ts`, `svg.ts` | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance); run merging in [CODE.md](CODE.md#cost-elements-per-line) | Where does a frame's time go, and how should I measure it? |
 | `fonts.ts`, `font-data.ts` | [The reference, "Scene"](REFERENCE.md#scene) (the fallback chain) and [upstream](UPSTREAM.md#engine-changes) | Which face draws a character, and what fails? |
 | `lettering.ts` | [The reference, "Lettering on request"](REFERENCE.md#lettering-on-request) | How does an explainer draw Greek or Cyrillic, and what does that cost the explainers that do not? |
 | `lettering-outlines.ts`, `italic.ts`, `math.ts` | [LETTERING.md](LETTERING.md) | How does an explainer draw another face, real bold and italic, Arabic, Devanagari, Hebrew or maths from runs shaped at build time, and why does no other page carry that code? |
@@ -26,10 +31,12 @@ them below say so.
 Lantern's Mermaid flowchart layout and its JSON document format were deleted in this fork
 ([upstream](UPSTREAM.md) lists what went); diagrams come from Agentic Mermaid capture instead.
 
-Every guide keeps the same guarantees: a frame is a pure function of alpha over endpoints
-fixed when its animation begins, so a seek renders the byte-identical frame a full run
-renders; nothing in `src/` imports a dependency or shells out; inputs computed outside the
-scene (token colours, git hunks, diagram snapshots) are produced at build time and checked in.
+Endpoint-based animations capture starts when their play begins and support skipped
+interpolations; active updaters conservatively retain frame-by-frame replay. Seeking
+must render the byte-identical frame a full run renders. Nothing in `src/` imports
+a dependency or shells out. External inputs such as token colours, Git hunks and
+diagram snapshots are captured at build time. [Continuous parameters](PARAMETERS.md)
+designs a shared, directly sampled alternative; its proposed API is not yet exported.
 
 ## What belongs in Rayner
 

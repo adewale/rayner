@@ -20,6 +20,10 @@ An explainer written by hand, or by a language model, can look right and be wron
 - **Agents can read it.** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 
 Phone label estimates use the minimum stage geometry; `rayner review` checks the actual served layout. Claims metadata links prose to named tests, but does not run them or verify their assertions. The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
+To use Rayner as a library, start with [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md),
+[frames, text and traces](docs/SCENE-OUTPUTS.md), and [runnable extension recipes](docs/EXTENDING.md).
+The [continuous-parameter design](docs/PARAMETERS.md) describes a proposed binding API;
+the current recipe uses the supported Animation extension point.
 
 ## Write your first scene
 

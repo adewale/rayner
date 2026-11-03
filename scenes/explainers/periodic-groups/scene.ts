@@ -5,7 +5,7 @@ import {
   Rectangle,
   Line,
   Arrow,
-  Animation,
+  SetState,
   AnimationGroup,
   Succession,
   FadeIn,
@@ -144,24 +144,6 @@ const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
 const list = (items: string[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
-
-/**
- * A program step at its turn in a Succession: when it begins, the scene's state becomes
- * the model's answer for that point, so the syncs after it show that state. Draws nothing.
- */
-class Apply extends Animation {
-  readonly host: Scene;
-  readonly next: SceneState;
-  constructor(host: Scene, next: SceneState) {
-    super(new Group(), { runTime: 0, remover: true });
-    this.host = host;
-    this.next = next;
-  }
-  override begin(): void {
-    this.host.state = JSON.parse(JSON.stringify(this.next)) as SceneState;
-    super.begin();
-  }
-}
 
 /**
  * Parts pair across a redraw when they are the same element's cell or symbol, wherever it
@@ -634,7 +616,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       return said.join(' ');
     };
     const base = { element: symbol, z, group };
-    const apply = (next: SceneState) => new Apply(this, next);
+    const apply = (next: SceneState) => new SetState(this, next);
 
     // ---- 1. the column: a puzzle to predict ------------------------------------------
     const distinct = [...new Set(jumps)].sort((a, b) => a - b);

@@ -1,5 +1,8 @@
 # Restore, copies and sequencing
 
+[Reusable choreography](CHOREOGRAPHY.md) covers `GrowFromEdge`, `PulseAlongPath`
+and `SetState`, extracted from the example collection, with a complete runnable recipe.
+
 Three animations from manim's set, with Lantern's guarantees: every frame is a pure
 function of alpha over endpoints fixed when the animation begins, and a seek renders
 the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
