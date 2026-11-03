@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
-import { RULES, INNERS, WRAPS, SINGLES, OPENING, OPENING_TYPE, OPENING_ERROR, t, isSend, isSync, nameOf, build, threads, quadrantOf } from '../scenes/explainers/lib/send-sync.ts';
+import { RULES, INNERS, WRAPS, SINGLES, CHECK_TYPES, OPENING, OPENING_TYPE, OPENING_ERROR, t, isSend, isSync, nameOf, build, threads, quadrantOf } from '../scenes/explainers/lib/send-sync.ts';
 import type { Ctor, Inner, Needs, RustType, Wrapper } from '../scenes/explainers/lib/send-sync.ts';
 
 // Copied verbatim from rust-lang/rust at tag 1.99.1 (commit 213cfbe66a6da4e4b41bde365643286371af6e5a),
@@ -290,6 +290,27 @@ test('rustc, run now, gives the model’s answers and this table’s', { skip: r
     RUSTC.map(([rust]) => [rust, ...CHECKS.map((check) => live.get(`${rust}: ${check}`))]),
     RUSTC.map((row) => [...row]),
   );
+});
+
+// The check questions' types are not in the frozen 1.99.1 table: they are checked by the rustc on PATH only.
+test('rustc, run now, gives the model’s answers for the check questions’ types', { skip: rustcSkip }, (tc) => {
+  const claims = CHECK_TYPES.flatMap((type) => [
+    { rust: rustName(type), check: 'send' as const, holds: isSend(type) },
+    { rust: rustName(type), check: 'sync' as const, holds: isSync(type) },
+    { rust: rustName(type), check: 'spawn' as const, holds: isSend(type) },
+    { rust: rustName(type), check: 'scope' as const, holds: isSend(t('&', type)) },
+  ]);
+  const answers = rustcAnswers(RUSTC_BIN, claims);
+  tc.diagnostic(`${rustcVersion.stdout.trim()}: ${claims.length} claims`);
+  assert.deepEqual(
+    claims.filter((c) => answers.get(c) !== c.holds).map((c) => `${c.rust}: ${c.check}: the model says ${c.holds}`),
+    [],
+  );
+  // Neither type can cross: Rc is never Send, and Arc needs a Send guard.
+  assert.deepEqual(CHECK_TYPES.map((x) => [nameOf(x), isSend(x), isSync(x)]), [
+    ['Rc<Mutex<i32>>', false, false],
+    ['Arc<MutexGuard<i32>>', false, false],
+  ]);
 });
 
 const anyType: fc.Arbitrary<RustType> = fc.letrec<{ type: RustType }>((tie) => ({
