@@ -48,7 +48,7 @@ export default class BloomFilter extends Scene {
       { says: 'could have been set by other names, so it can only say maybe', test: 'test/learning-models.test.ts: concrete false positives still need storage' },
       { says: 'Only cat and dog are taken', shown: true as const },
       { says: 'An untaken name gets through only when all three of its bits are already set', test: 'test/learning-models.test.ts: a name gets through only when all three of its bits are set' },
-      { says: 'bits are 1 and every lookup says maybe', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
+      { says: 'bits are 1: always maybe', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
       { says: 'Keep taking names and the row only fills', test: 'test/learning-models.test.ts: the row only fills' },
       { says: 'From then on every name finds three 1s', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
     ],
@@ -118,14 +118,24 @@ export default class BloomFilter extends Scene {
         width = parts.reduce((w, t) => w + t.width(), gap * (parts.length - 1));
       let x = -width / 2;
       for (const t of parts) {
-        t.moveTo([x, 2.6], [-1, 0]);
+        t.moveTo([x, 2.7], [-1, 0]);
         x += t.width() + gap;
       }
       const g = new Group(...parts);
       g.key = 'bloom-taken';
       return g;
     };
-    /** One bit: its position and value, filled in the colour of each name that set it, side by side. */
+    /**
+     * The row's geometry. 16 bits sit in two rows of 8 large boxes; 32 bits in two rows of 16 narrower ones,
+     * so both keep each position, in grey, above its box and leave room for the footer lines below.
+     */
+    const perRow = size === 16 ? 8 : 16,
+      pitch = size === 16 ? 1.8 : 0.94,
+      W = size === 16 ? 1.6 : 0.84,
+      H = size === 16 ? 1.0 : 0.86,
+      rowY = [0.75, -1.45],
+      positionGap = 0.4;
+    /** One bit: its position above, its value large in the box, filled in the colour of each name that set it, side by side. */
     const bitTile = (
       s: Stage,
       j: number,
@@ -135,10 +145,7 @@ export default class BloomFilter extends Scene {
       setBy: readonly string[],
       { active = false, bad = false } = {},
     ) => {
-      // Four rows of 32 need shorter boxes than two rows of 16 to leave room for each position above its box.
-      const W = 1.75,
-        H = size === 16 ? 0.72 : 0.62,
-        part = W / Math.max(1, setBy.length);
+      const part = W / Math.max(1, setBy.length);
       const color = bad ? s.bad : active ? s.emphasis : s.soft;
       const g = new Group(
         ...setBy.map((name, k) =>
@@ -151,8 +158,8 @@ export default class BloomFilter extends Scene {
           x,
           y,
         ]),
-        label(`${j}:`, x, y, s.soft, 0.7).moveTo([x - W / 2 + 0.12, y], [-1, 0]),
-        label(String(bit), x, y, bad ? s.bad : s.palette.ink, 0.7).moveTo([x + W / 2 - 0.12, y], [1, 0]),
+        label(String(j), x, y + H / 2 + positionGap, s.soft, 0.66),
+        label(String(bit), x, y, bad ? s.bad : s.palette.ink, size === 16 ? 0.9 : 0.74),
       );
       g.key = `bit-${j}`;
       return g;
@@ -219,7 +226,7 @@ export default class BloomFilter extends Scene {
       },
       {
         id: 'full',
-        title: `After ${full.words.length} names, all ${size} bits are 1 and every lookup says maybe`,
+        title: `After ${full.words.length} names, all ${size} bits are 1: always maybe`,
         line: `Keep taking names and the row only fills: ${absent.word}, ruled out earlier, now gets maybe too.`,
         caption: `Each inserted name can use up more of the remaining zeros, and the ${ordinal(full.words.length)} name sets the last one. From then on every name finds three 1s: the filter says maybe and sends the question to the database, saving no reads. In this sequence of names the ${size}-bit row fills after ${full.words.length} names and the ${other.size}-bit row after ${otherFull.words.length}. The zeros were the filter’s only evidence, so more memory helped here by leaving more of them, but how long it helps depends on where the names’ bits land.`,
       },
@@ -255,26 +262,49 @@ export default class BloomFilter extends Scene {
             ...(i === FULL ? { trail: full.trail, lookups: full.lookups, sampleSize: full.sampleSize, samplePass: full.samplePass } : {}),
           },
           draw: (s: Stage) => {
-            if (i === 7)
+            if (i === 7) {
+              // Two blocks on one left edge: the three lookups with their read count beside them, then the sample.
+              const lookups = {
+                  headers: ['Name', 'Filter', 'Database'],
+                  rows: m.queries.map((q) => [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped']),
+                },
+                sample = {
+                  headers: [`${thousands(m.sampleSize)} untaken`, 'Bits set', 'Pass'],
+                  rows: [s16, s32].map((story) => [`${story.size} bits`, `${story.setBits} of ${story.size}`, thousands(story.sampleFalsePositives)]),
+                };
+              const TABLE = 0.7,
+                COLUMN_GAP = 1.1,
+                READS_GAP = 1.4;
+              const reads = stat(s, 'Reads', `${m.exactLookups} of ${m.queries.length}`, 0, 0, 'bloom-checks').scale(7 / 6);
+              /** Column widths: each column's widest header or cell. */
+              const widthsOf = (t: { headers: string[]; rows: string[][] }) =>
+                t.headers.map((h, c) =>
+                  Math.max(
+                    new Text(h, { fontSize: TABLE, weight: 'bold' }).width(),
+                    ...t.rows.map((row) => new Text(row[c]!, { fontSize: TABLE }).width()),
+                  ),
+                );
+              // The lookups and the read count beside them, centred together; the sample shares their left edge.
+              const lookupsWidth = widthsOf(lookups).reduce((a, w) => a + w, COLUMN_GAP * (lookups.headers.length - 1));
+              const LEFT = -(lookupsWidth + READS_GAP + reads.width()) / 2;
+              /** Column centres that set a table's columns side by side from `LEFT`, `COLUMN_GAP` apart. */
+              const columns = (t: { headers: string[]; rows: string[][] }) => {
+                let x = LEFT;
+                return widthsOf(t).map((w) => {
+                  const centre = x + w / 2;
+                  x += w + COLUMN_GAP;
+                  return centre;
+                });
+              };
+              const top = table(lookups.headers, lookups.rows, s, { xs: columns(lookups), y: 2.6, gap: 0.98, key: 'bloom-pipeline', size: TABLE });
+              // The read count sits level with the lookups' rows, centred on them.
+              reads.moveTo([LEFT + lookupsWidth + READS_GAP, 0.64], [-1, 0]);
               return new Group(
-                table(
-                  ['Name', 'Filter', 'Database'],
-                  m.queries.map((q) => [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped']),
-                  s,
-                  { xs: [-4.9, 0, 4.9], y: 2.35, key: 'bloom-pipeline', size: 0.7 },
-                ),
-                stat(s, 'Reads', `${m.exactLookups} of ${m.queries.length}`, -5.7, -2.6, 'bloom-checks').scale(7 / 6),
-                table(
-                  [`${thousands(m.sampleSize)} untaken`, 'Bits set', 'Pass'],
-                  [s16, s32].map((story) => [
-                    `${story.size} bits`,
-                    `${story.setBits} of ${story.size}`,
-                    thousands(story.sampleFalsePositives),
-                  ]),
-                  s,
-                  { xs: [-0.8, 3.4, 6.4], y: -1.75, gap: 0.95, key: 'bloom-sample', size: 0.7 },
-                ),
+                top,
+                reads,
+                table(sample.headers, sample.rows, s, { xs: columns(sample), y: -1.75, gap: 0.98, key: 'bloom-sample', size: TABLE }),
               );
+            }
             const active = query?.locations ?? (i === 1 ? cat : i === 2 ? dog : []);
             // In the full row, bits set only by the later names are grey.
             const owners =
@@ -287,8 +317,8 @@ export default class BloomFilter extends Scene {
                     : m.owners;
             const grid = new Group(
               ...bits.map((bit, j) => {
-                const x = -6.3 + (j % 8) * 1.8,
-                  y = (size === 16 ? 0.8 : 1.45) - Math.floor(j / 8) * (size === 16 ? 1.3 : 1.15);
+                const x = ((j % perRow) - (perRow - 1) / 2) * pitch,
+                  y = rowY[Math.floor(j / perRow)]!;
                 return bitTile(s, j, bit, x, y, owners[j] ?? [], {
                   active: active.includes(j),
                   bad: !!query && !asking && !bit && active.includes(j),
@@ -300,7 +330,7 @@ export default class BloomFilter extends Scene {
               i === FULL
                 ? `Set bits: ${milestones.map((t, k) => `${t.setBits} after ${t.taken}${k ? '' : ' names'}`).join(', ')}`
                 : !query
-              ? 'Each box: grey position, then the bit'
+              ? 'Grey number above each box: its position'
               : frame.id === 'false-positive'
                 ? `${query.word}: ${sources(m, query.locations).join(', ')}`
                 : `Lookup ${query.word}: bits ${query.locations.join(', ')}`;
@@ -319,8 +349,8 @@ export default class BloomFilter extends Scene {
             return new Group(
               grid,
               takenLabel(s, i),
-              label(queryText, 0, -2.95, s.soft, 0.66, 'bloom-query'),
-              label(answerText, 0, -3.85, s.palette.ink, 0.66, 'bloom-answer'),
+              label(queryText, 0, -2.85, s.soft, 0.66, 'bloom-query'),
+              label(answerText, 0, -3.7, s.palette.ink, 0.66, 'bloom-answer'),
             );
           },
         };
