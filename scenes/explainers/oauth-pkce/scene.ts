@@ -10,7 +10,8 @@ const CHALLENGE = '#0969da',
   CODE = '#bc4c00';
 const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 /** A value's first eight characters, as the notes say it; the server compares all of them. */
-const prefix = (value: string) => `${value.slice(0, 8)}…`;
+// Six characters keep the attack's note, both prefixes side by side, within one phone close-up.
+const prefix = (value: string) => `${value.slice(0, 6)}…`;
 /**
  * The theft PKCE answers (RFC 7636 §1): a public client has no secret, so without PKCE the code
  * alone buys a token. The malicious app is M here, so this diagram is told apart from the PKCE flow's.

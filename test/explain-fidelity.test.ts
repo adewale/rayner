@@ -124,8 +124,8 @@ for (const entry of EXPLAINERS)
           if (values.attacker === 'yes') assertStepState(trace, 'attack', { attackerAccepted: false });
           const pictured = (step: string) => textOf(pictureHtml(trace.steps.find(s => s.step === step)!.after));
           assert.match(pictured('secret'), /code_challenge.*E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM/s);
-          assert.match(pictured('exchange'), /S256\(verifier\) = E9Melhoa… = bound challenge/);
-          const guesses = trace.steps.filter(s => /S256\(guess\) = \S+… ≠ E9Melhoa…/.test(textOf(pictureHtml(s.after))));
+          assert.match(pictured('exchange'), /S256\(verifier\) = E9Melh… = bound challenge/);
+          const guesses = trace.steps.filter(s => /S256\(guess\) = \S+… ≠ E9Melh…/.test(textOf(pictureHtml(s.after))));
           assert.deepEqual(guesses.map(s => s.step), values.attacker === 'yes' ? ['attack'] : []);
           // Without PKCE, the opening's theft gets a token.
           assertStepState(trace, 'stolen', { stolenAccepted: true });
