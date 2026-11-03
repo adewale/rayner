@@ -35,6 +35,11 @@ export function crossings(bearing: number, altitude = 0) {
   const first = Math.abs(raw - 360) < 1e-10 || raw < 1e-10 ? 0 : raw;
   return [first, (180 - first + 360) % 360].sort((x, y) => x - y);
 }
+/** The sunrise point for the centre of the Sun on a flat horizon: the same path as sunset, reached at the opposite hour angle. */
+export function sunrise(decl: number) {
+  const hour = -sunset(decl).hourAngle;
+  return { declination: decl, hourAngle: hour, ...sky(LATITUDE, decl, hour) };
+}
 export function henge(street: Street) {
   if (street !== 'manhattan' && street !== 'west') throw new Error('Choose manhattan or west');
   const bearing = street === 'manhattan' ? STREET : 270;
@@ -44,6 +49,10 @@ export function henge(street: Street) {
   return { street, bearing, latitude: LATITUDE, tilt: TILT, radius: SUN_RADIUS, seasons,
     annual: Array.from({ length: 145 }, (_, i) => ({ longitude: i * 2.5, ...sunset(declination(i * 2.5)) })),
     half, full,
+    /** Seen from above on the first alignment day: where the Sun sets and rises, and where the street's other end points.
+     *  That end faces sunrise when the sunrise azimuth reaches it, the dates `backCrossings` gives. */
+    alignment: { sunset: bearing, sunrise: sunrise(declination(half[0]!)).azimuth, back: (bearing + 180) % 360 },
+    backCrossings: crossings(360 - ((bearing + 180) % 360)),
     /** Days between half Sun and full Sun in each alignment season, at the mean orbital rate. */
     gapDays: ((full[0]! - half[0]!) * YEAR) / 360 };
 }

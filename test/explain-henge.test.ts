@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { sky, declination, sunset, crossings, henge, TILT, LATITUDE, STREET, SUN_RADIUS } from '../scenes/explainers/lib/henge.ts';
+import { sky, declination, sunset, sunrise, crossings, henge, TILT, LATITUDE, STREET, SUN_RADIUS } from '../scenes/explainers/lib/henge.ts';
 import { fc, params } from './lib/pbt.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { check as checkHengeScene } from './lib/fidelity/henge.ts';
@@ -58,7 +58,30 @@ test('Henge annual sweep crosses Manhattan twice near the northern solstice and 
     close(Math.sin(d),Math.sin(p)*Math.sin(a)+Math.cos(p)*Math.cos(a)*Math.cos(STREET*Math.PI/180));
   }
 });
-test('Henge both street cases expose their geometry at all six resting steps', async () => {
+test('Henge overhead view: Manhattan aligns sunset only, a due-west street aligns sunrise and sunset on the same days', () => {
+  const ny = henge('manhattan'), west = henge('west');
+  // Sunrise is the same path reached at the opposite hour: on any day it mirrors sunset across north.
+  fc.assert(fc.property(fc.double({min:-TILT,max:TILT,noNaN:true}), (d) => {
+    close(sunrise(d).azimuth, 360 - sunset(d).azimuth, 1e-9);
+    close(sunrise(d).altitude, 0, 1e-9);
+  }), params(100));
+  close(ny.alignment.sunset, STREET);
+  close(ny.alignment.back, STREET - 180);
+  close(ny.alignment.sunrise, 360 - STREET, 1e-9);
+  // The map says sunrise misses the street's other end by about 58 degrees, north of east against south of east.
+  const miss = ny.alignment.back - ny.alignment.sunrise;
+  assert.ok(miss > 58 && miss < 58.5, `miss ${miss}`);
+  assert.ok(ny.alignment.sunrise < 90 && ny.alignment.back > 90);
+  // That end faces sunrise on two winter mornings, either side of the December solstice (longitude 270).
+  assert.equal(ny.backCrossings.length, 2);
+  assert.ok(ny.backCrossings[0]! > 180 && ny.backCrossings[0]! < 270 && ny.backCrossings[1]! > 270 && ny.backCrossings[1]! < 360);
+  for (const longitude of ny.backCrossings) close(sunrise(declination(longitude)).azimuth, ny.alignment.back, 1e-9);
+  // Due west: the equinox Sun rises due east, up the street's other end, on the alignment days themselves.
+  close(west.alignment.sunrise, 90, 1e-9);
+  close(west.alignment.back, 90);
+  assert.deepEqual(west.backCrossings, west.half);
+});
+test('Henge both street cases expose their geometry at all seven resting steps', async () => {
   const project=await collectProject('scenes/explainers/henge',{write:false});
   assert.equal(project.variants.length,2);
   assert.deepEqual(project.variants.map(variant => variant.values.street).sort(), ['manhattan', 'west']);

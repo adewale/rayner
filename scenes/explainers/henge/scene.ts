@@ -51,6 +51,9 @@ export default class Henge extends Scene {
       'https://science.nasa.gov/image-article/apod-2014-july-6-manhattanhenge-a-new-york-city-sunset/',
     ],
     answer: ANSWER,
+    claims: [
+      { says: 'faces the sunrise only on winter mornings', test: 'test/explain-henge.test.ts: Henge overhead view' },
+    ],
     checks: [
       { question: 'The Sun is centred down the street, but its centre is above the horizon. Is that enough to identify a half-Sun event?',
         answer: 'No. The horizontal alignment fixes its bearing, not its height. Half Sun puts the centre on the visible horizon; full Sun puts the bottom edge there.' },
@@ -124,6 +127,52 @@ export default class Henge extends Scene {
       });
       return tagged(g, 'henge-annual');
     };
+    /** Overhead, north up: a schematic grid turned to the street's bearing, and the Sun's direction at sunset and sunrise
+     *  on the first alignment day. East is +x, north is +y; an azimuth points along (sin az, cos az). */
+    const overhead = () => {
+      const dir = (az: number): Vec => [Math.sin(az * rad), Math.cos(az * rad)];
+      const o: Vec = [0, -0.5];
+      const at = (p: Vec, along: Vec, t: number): Vec => [p[0] + along[0] * t, p[1] + along[1] * t];
+      const u = dir(m.bearing), v: Vec = [u[1], -u[0]];
+      const streetsHalf = 2.6, avenuesHalf = 1.05;
+      const grid = new Group();
+      for (let k = -4; k <= 4; k++) {
+        const c = at(o, v, (k * avenuesHalf) / 4);
+        grid.add(line(at(c, u, -streetsHalf), at(c, u, streetsHalf), '#cbd5e1', k === 0 ? 0 : 0.03));
+      }
+      for (let j = -3; j <= 3; j++) {
+        const c = at(o, u, (j * streetsHalf) / 3);
+        grid.add(line(at(c, v, -avenuesHalf), at(c, v, avenuesHalf), '#cbd5e1', 0.05));
+      }
+      const north = tagged(new Group(new Arrow([-6.4, -3.4], [-6.4, -2.2], { stroke: INK, strokeWidth: 0.05 }), words('N', -6.4, -1.75)), 'henge-map-north');
+      // Drawn over the Sun's rays, thinner than them, so a ray along the street still shows the street inside it.
+      const street = tagged(new Group(line(at(o, u, -streetsHalf - 0.6), at(o, u, streetsHalf + 0.6), SUMMER, 0.04)), 'henge-map-street');
+      const ray = (az: number, length: number, dashed: boolean) => {
+        const a = new Arrow(at(o, dir(az), 0.25), at(o, dir(az), length), { stroke: SUN, strokeWidth: 0.07 });
+        if (dashed) a.style.dashArray = '0.22 0.14';
+        return a;
+      };
+      const { sunset, sunrise, back } = m.alignment;
+      const offWest = (az: number) => Math.abs(az - 270) < 0.05 ? 'due west' : `${Math.abs(az - 270).toFixed(1)}° ${az > 270 ? 'north' : 'south'} of west`;
+      const offEast = (az: number) => Math.abs(az - 90) < 0.05 ? 'due east' : `${Math.abs(az - 90).toFixed(1)}° ${az < 90 ? 'north' : 'south'} of east`;
+      // Each Sun's name and bearing sit above its disc, on the outer side, clear of the ray that reaches it from below.
+      const disc = (az: number) => at(o, dir(az), 4.1);
+      const tag = (name: string, detail: string, az: number, side: -1 | 1) => {
+        const d = disc(az), x = side * 6.6;
+        return new Group(words(name, 0, 0, SUN).moveTo([x, d[1] + 1.22], [side, 0]), words(detail, 0, 0, SUN).moveTo([x, d[1] + 0.54], [side, 0]));
+      };
+      const sun = tagged(new Group(
+        ray(sunset, 3.8, false), ray(sunrise, 3.8, true),
+        new Circle({ radius: 0.2, fill: SUN, stroke: SUN }).moveTo(disc(sunset)),
+        new Circle({ radius: 0.2, fill: SUN, stroke: SUN }).moveTo(disc(sunrise)),
+        tag('Sunset', offWest(sunset), sunset, -1), tag('Sunrise', offEast(sunrise), sunrise, 1),
+      ), 'henge-map-sun');
+      const notes = manhattan
+        ? [words('East end', 0, 0, SUMMER).moveTo([6.6, -2.55], [1, 0]), words(offEast(back), 0, 0, SUMMER).moveTo([6.6, -3.23], [1, 0]),
+          words(`Sunrise misses that end by ${(back - sunrise).toFixed(1)}°`, 0, -3.9)]
+        : [words('Sunrise and sunset both run along the street', 0, -3.7)];
+      return tagged(new Group(grid, sun, street, new Dot({ radius: 0.12, color: INK }).moveTo(o), north, ...notes), 'henge-map');
+    };
     const disc = (s: Stage) => tagged(new Group(
       streetView(true, s.palette.paper, -3.5, 0.5, 0.5), streetView(false, s.palette.paper, 3.5, 0.5, 0.5),
       words('Half Sun', -3.5, 2.45), words('Full Sun', 3.5, 2.45),
@@ -140,6 +189,13 @@ export default class Henge extends Scene {
           ? 'Look west down 42nd Street. On a few evenings a year, in late May and mid-July, the low Sun fits between the buildings; the Hayden Planetarium calls it Manhattanhenge. The buildings point the same way all year, so what changes must be where the Sun sets.'
           : 'This case turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
         state: { bearing: m.bearing }, draw: (s) => tagged(new Group(streetView(false, s.palette.paper), words(manhattan ? '42nd Street: about 29° north of west' : 'A street pointing due west', 0, -3.7)), 'henge-street') },
+      { id: 'overhead',
+        title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',
+        line: 'North is up. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
+        caption: manhattan
+          ? `From above, Manhattan’s grid is turned: its cross streets point ${(m.bearing - 270).toFixed(1)}° north of west at one end and the same angle south of east at the other. On an alignment evening the setting Sun lies on that line, so it shines straight down 42nd Street. The same morning the Sun rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° away from the street’s other end. That end faces the sunrise only on winter mornings either side of the December solstice, when the Sun rises south of east. The grid is schematic: it shows the streets’ direction, not the real blocks.`
+          : 'This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days. The grid is schematic: it shows the streets’ direction, not real blocks.',
+        state: { alignment: m.alignment, backCrossings: m.backCrossings }, draw: overhead },
       { id: 'tilt', title: 'One axis direction, opposite sides of the Sun', line: 'Predict: in June, does New York’s Sun set north or south of due west?',
         caption: 'Earth’s axis keeps nearly the same direction through the year. In June the north leans sunward; in December it leans away. The red dot is New York and the short red line its horizon; both turn with Earth each day. Sizes and distances here are schematic.',
         state: { latitude: m.latitude, tilt: m.tilt }, draw: orbit },

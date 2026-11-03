@@ -11,6 +11,24 @@
       ]
     },
     {
+      "step": "overhead",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-map-street"
+        },
+        {
+          "key": "henge-map-sun"
+        },
+        {
+          "text": "Sunset"
+        },
+        {
+          "text": "Sunrise"
+        }
+      ]
+    },
+    {
       "step": "tilt",
       "opening": true,
       "targets": [
