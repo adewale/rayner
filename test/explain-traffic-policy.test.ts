@@ -124,6 +124,19 @@ const placements = fc
   .array(fc.integer({ min: 0, max: 6 }), { minLength: 1, maxLength: 6 })
   .filter((c) => c.some((n) => n > 0));
 
+// proxier.go:1104-1110 marks every packet of a Cluster external chain for masquerade, "in case we cross
+// nodes"; under Local no masquerade rule applies (1112-1146). So the pod sees the entry node's address under
+// Cluster whichever node it runs on, the same node included, and the client's under Local.
+test('under Cluster every outside request is source-NATed to its entry node; under Local none is', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 0, max: 5 }), (node) => {
+      assert.equal(seenSource('cluster', node), `10.240.0.${node + 1}`);
+      assert.equal(seenSource('local', node), '198.51.100.79');
+    }),
+    params(50),
+  );
+});
+
 test('for any placement, the shares sum to 1 and follow each policy’s rule', () => {
   fc.assert(
     fc.property(placements, (counts) => {
