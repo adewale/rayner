@@ -144,6 +144,10 @@ export default class LanternExplainer extends Scene {
         test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
       },
       {
+        says: 'counts frames 1–29 without computing them',
+        test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+      },
+      {
         says: 'Frame 30 is t = 1.00 s in every run',
         test: 'test/explain-lantern.test.ts: clock: frame k is t = k / fps in every run, whatever the sink’s pace',
       },
@@ -176,6 +180,12 @@ export default class LanternExplainer extends Scene {
           'Another version moves the dot by the change in time since the last frame it computed: x += distance × (α − α at the last frame). Does its still at t = 1 s match playback?',
         answer:
           'Yes. begin() computes α = 0, the skipped frames are never computed, and the frame at t = 1 s adds the whole change from 0 to 0.5 in one go, so the dot is halfway, as in playback. Keeping state is allowed, as long as the frame comes out the same however many frames ran before it.',
+      },
+      {
+        question:
+          'You write a typing animation: each computed frame appends the next character of a 60-character sentence, over a 2-second run at 30 fps. What does a still taken 1 s into that run show, and what change makes it match playback?',
+        answer:
+          'Playback has computed 30 frames by then and shows 30 characters; the still computes only the frame at t and shows about one. Show the first round(60 × α) characters instead, where α is the elapsed share of the run: each frame then depends on the time alone, and both show 30 characters at the midpoint.',
       },
     ],
   };
@@ -247,8 +257,8 @@ export default class LanternExplainer extends Scene {
 
     await this.step('played', {
       title: `Played, the dot is halfway at t = ${t} s`,
-      line: `a still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
-      caption: `A direct link opens a later picture without playing the earlier steps. Here a box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. The still re-runs the scene but only counts the earlier frames. Where will its dot be?`,
+      line: `A still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
+      caption: `A direct link opens a later picture without playing the earlier steps, so Rayner makes that picture as a still. Here a box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. To make the still, Rayner re-runs the scene and counts frames 1–${run.seekAt - 1} without computing them. Predict where the still’s dot will be before you go on.`,
     });
     const left = thumb(run.playedFrame, -3.6, playedLabel, run.played);
     const pending = thumb(null, 3.6, seekedLabel, null);
@@ -372,7 +382,7 @@ export default class LanternExplainer extends Scene {
     await this.step('check', {
       title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
       line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-      caption: `The strips compare all ${total} frames of this tiny scene with independently seeked stills. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times does not prove every possible time. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
+      caption: `The strips compare all ${total} frames of this tiny scene with independently seeked stills. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
     const cell = 0.27,
