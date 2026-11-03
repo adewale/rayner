@@ -11,8 +11,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'revenu', { rni, enfants });
   assertStepState(trace, 'parts', { parts: r.parts });
   assertStepState(trace, 'quotient', { quotient: rni / r.parts });
-  assertStepState(trace, 'bareme', { parPart: bareme(r.quotient).total });
-  assertStepState(trace, 'taux', { tranche: top, tauxMoyenPart: r.parPart / r.quotient });
+  assertStepState(trace, 'bareme', { parPart: bareme(r.quotient).total, tranche: top, tauxMoyenPart: r.parPart / r.quotient });
   assertStepState(trace, 'multiplie', { brut: r.brut });
   assertStepState(trace, 'reference', { sansEnfants: r.sansEnfants, avantage: r.avantage });
   assertStepState(trace, 'plafond', { plafond: r.plafond, plafonne: r.plafonne, plafQf: r.plafQf });

@@ -141,6 +141,21 @@ test('each year’s cap bounds the children’s tax advantage per half-part', ()
     params(500),
   );
 });
+test('split into parts, fewer euros reach each tranche and above than on the whole income', () => {
+  fc.assert(
+    fc.property(income, children, fc.constantFrom<Year>(2024, 2025), (rni, n, year) => {
+      const p = parts(n),
+        split = bareme(rni / p, year).slices,
+        whole = bareme(rni, year).slices;
+      // From each tranche up: p × the quotient's euros there never exceed the whole income's.
+      for (let k = 0; k < whole.length; k++) {
+        const above = (xs: typeof whole) => xs.slice(k).reduce((s, x) => s + x.base, 0);
+        assert.ok(p * above(split) <= above(whole) + 1e-6, `${rni} € with ${n} children, tranche ${k}`);
+      }
+    }),
+    params(500),
+  );
+});
 test('more income never lowers the tax, and another child never raises it', () => {
   fc.assert(
     fc.property(income, income, children, fc.constantFrom<Year>(2024, 2025), (a, b, n, year) => {
