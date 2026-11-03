@@ -23,7 +23,38 @@ import {
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Card } from '../../../explain/panels.ts';
-import { ringStory } from '../lib/models.ts';
+import { ringStory, RingBuffer } from '../lib/models.ts';
+
+/** The check questions' answers, from the same model: rings and queues no step draws. */
+const CHECK = (() => {
+  // Carry on from the wrap case's last step: three pops, then push 8.
+  const ring = new RingBuffer<number>(5);
+  for (let v = 1; v <= 5; v++) ring.push(v);
+  ring.pop();
+  ring.pop();
+  ring.push(6);
+  ring.push(7);
+  const out = [ring.pop(), ring.pop(), ring.pop()],
+    slot8 = ring.tail;
+  ring.push(8);
+  const left = Array.from({ length: ring.length }, (_, k) => ring.data[(ring.head + k) % ring.capacity]!);
+  const carry = { out, slot8, head: ring.head, left };
+  // Eight slots, eight pushes, eight pops.
+  const eight = new RingBuffer<number>(8);
+  for (let v = 1; v <= 8; v++) eight.push(v);
+  const full8 = eight.snapshot();
+  for (let v = 1; v <= 8; v++) eight.pop();
+  const empty8 = eight.snapshot();
+  // Draining a thousand values: the array copies every value behind each popped one; the ring copies none.
+  let queue = Array.from({ length: 1000 }, (_, i) => i + 1),
+    arrayMoves = 0;
+  while (queue.length) {
+    const step = arrayQueue(queue);
+    arrayMoves += step.moved;
+    queue = step.after;
+  }
+  return { carry, full8, empty8, arrayMoves };
+})();
 
 type Snapshot = ReturnType<typeof ringStory>[number]['result'];
 const SLOTS = 5,
@@ -50,6 +81,9 @@ const CODE = [
   '  return v;',
   '}',
 ];
+/** The values in queue order: from head, wrapping past the last slot. */
+const queueOrder = (r: { head: number; length: number; data: (number | null)[] }) =>
+  Array.from({ length: r.length }, (_, k) => r.data[(r.head + k) % r.data.length]!);
 const angle = (i: number) => Math.PI / 2 - (i * 2 * Math.PI) / SLOTS;
 const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1] + Math.sin(a) * r];
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
@@ -89,16 +123,17 @@ export default class RingBufferExplainer extends Scene {
     answer: 'Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots',
     checks: [
       {
-        question: 'After five pushes, head and tail are both at slot 0, as they were when the ring was empty. What tells you it is full?',
-        answer: 'length, which is 5 rather than 0. The ring keeps it because head = tail cannot tell full from empty.',
+        question:
+          'Carry on from the last step of “Push 5, pop 2, push 2”, where head and tail are both at slot 2. Pop three times, then push 8. Which values leave, which slot takes 8, and in what order do the rest come out?',
+        answer: `The pops return ${CHECK.carry.out.join(', ')}, and head wraps to slot ${CHECK.carry.head}. Tail is still at slot ${CHECK.carry.slot8}, so 8 goes there. Reading from head gives ${CHECK.carry.left.join(', ')}: the order comes from head, not from the slot numbers.`,
       },
       {
-        question: 'Push 1 to 5, pop twice, push 6 and 7: the slots now read 6, 7, 3, 4, 5. In what order will five pops return the values?',
-        answer: '3, 4, 5, 6, 7. Pops start at head, which is at slot 2, and wrap past slot 4 to slot 0.',
+        question: 'A ring of eight slots takes eight pushes and then eight pops. Where are head and tail, and how does the ring know it is empty?',
+        answer: `Both are at slot ${CHECK.empty8.head}, just where they were when it was full (head ${CHECK.full8.head}, tail ${CHECK.full8.tail}). Only length, ${CHECK.empty8.length} now against ${CHECK.full8.length} then, tells empty from full.`,
       },
       {
-        question: 'Popping 1 from an array queue of five values moves how many values, and from this ring?',
-        answer: 'Four from the array, since each later value shifts one slot left; none from the ring, where only head moves.',
+        question: 'A queue of 1,000 values is drained by 1,000 pops. How many value copies does the array queue make in all, and how many does the ring make?',
+        answer: `The array makes ${CHECK.arrayMoves.toLocaleString('en')}: each pop copies every value still behind the front, 999, then 998, down to 0. The ring makes none, because a pop moves only head.`,
       },
     ],
   };
@@ -341,7 +376,7 @@ export default class RingBufferExplainer extends Scene {
             : which === 'wrap'
               ? g === 1
                 ? 'Predict: tail is at 0. Where do push 6 and push 7 go?'
-                : 'Tail wrapped past slot 4; 6 and 7 reuse freed slots.'
+                : `Read from head, slot ${events.at(-1)!.result.head}: ${queueOrder(events.at(-1)!.result).join(', ')}.`
               : g === 1
                 ? 'The first line of push finds length === capacity, both 5.'
                 : 'Head, tail and length still read 0, 0 and 5.',
@@ -351,7 +386,7 @@ export default class RingBufferExplainer extends Scene {
             : which === 'wrap'
               ? g === 1
                 ? `Each pop copies the value at head out to the tray, clears its slot and moves head on: 1 from slot 0, then 2 from slot 1, and head is at 2. The array queue would have moved ${shifted[0]!.moved} values and then ${shifted[1]!.moved}; the ring moved none. Tail is still at 0, the first of the two outlined slots the pops freed.`
-                : 'Tail wrapped to 0 after the fifth push, so 6 and 7 are copied into slots 0 and 1, the storage two pops gave back, and no stored value moves. Length is back to 5, with head and tail both at 2. Reading from head and wrapping past slot 4 gives queue order 3, 4, 5, 6, 7, even though the slots themselves hold 6, 7, 3, 4, 5.'
+                : 'Tail wrapped to 0 after the fifth push, so 6 and 7 are copied into slots 0 and 1, the storage two pops gave back, and no stored value moves. Length is back to 5, with head and tail both at 2. Left to right the slots hold 6, 7, 3, 4, 5, but the queue starts at head and wraps past slot 4, so the markers decide the order, not the slot numbers.'
               : g === 1
                 ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either marker. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
                 : 'push 7 is refused the same way and joins 6 in the refused tray; the ring still holds 1 to 5. Some ring buffers overwrite the oldest value instead. This one refuses, so no stored value is lost and the caller must handle Full.',
