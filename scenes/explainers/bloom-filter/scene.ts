@@ -24,6 +24,7 @@ const CLEARED = ([16, 32] as const).map((size) => {
   return { size, cat: membership(bits, 'cat'), shared: locations('dog', size).filter((i) => locations('cat', size).includes(i)) };
 });
 const count = (n: number) => ['none', 'one', 'two', 'three'][n] ?? String(n);
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
 const list = (items: readonly (string | number)[]) =>
   items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
@@ -79,6 +80,7 @@ export default class BloomFilter extends Scene {
       m = bloomStory(size),
       other = bloomStory(size === 16 ? 32 : 16),
       full = saturation(size),
+      otherFull = saturation(other.size),
       [absent, present, probe] = m.queries as [(typeof m.queries)[0], (typeof m.queries)[0], (typeof m.queries)[0]],
       otherProbe = other.queries[2]!;
     const [s16, s32] = size === 16 ? [m, other] : [other, m];
@@ -218,8 +220,8 @@ export default class BloomFilter extends Scene {
       {
         id: 'full',
         title: `After ${full.words.length} names, all ${size} bits are 1 and every lookup says maybe`,
-        line: `Keep taking names and the row only fills: ${absent.word}, turned away earlier, now gets maybe too.`,
-        caption: `Each inserted name can use up more of the remaining zeros. The final name shown sets the last one. From then on every name finds three 1s: the filter says maybe and sends the question to the database, saving no reads. The two row lengths fill at different points in this sequence. More memory helped here, but how long it helps depends on where the names’ bits land.`,
+        line: `Keep taking names and the row only fills: ${absent.word}, ruled out earlier, now gets maybe too.`,
+        caption: `Each inserted name can use up more of the remaining zeros, and the ${ordinal(full.words.length)} name sets the last one. From then on every name finds three 1s: the filter says maybe and sends the question to the database, saving no reads. In this sequence of names the ${size}-bit row fills after ${full.words.length} names and the ${other.size}-bit row after ${otherFull.words.length}. The zeros were the filter’s only evidence, so more memory helped here by leaving more of them, but how long it helps depends on where the names’ bits land.`,
       },
     ];
 
