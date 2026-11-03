@@ -8,6 +8,6 @@ A different mistake stops the diagram from drawing at all. Cut the destination o
 
 Missing labels fall between the two. The diagram still draws, but a decision with two exits now has unlabelled branches, and the verifier warns about each one while leaving ok true. An edge name such as A->C#0 says which connection needs a label: the first edge from Cached to Database.
 
-Now label the branches the right way round, with yes to Reply and no to Database. The report is clean, but the backwards diagram's report was just as clean. Both diagrams draw, and both give every exit a label, so the same checks pass for both and the reports cannot tell them apart.
+Now label the branches the right way round, with yes to Reply and no to Database, and set the corrected diagram under the backwards one, each with its report beside it. Both reports say ok is true with no warnings. Both diagrams draw, and both give every exit a label, so the same checks pass for both. Follow yes out of Cached in each drawing and the paths end in different places: Database in the backwards diagram, Reply in the corrected one. Where a cache hit goes is the difference, and the verifier's findings say nothing about it.
 
 The missing requirement comes from the task: following a cache hit should reach Reply without querying Database. A check of that path would separate the two diagrams. Agentic Mermaid's ok and warnings answer two narrower questions: can this renderer draw the source, and does each decision say which exit is which? This page shows the gap; it does not implement the cache check.

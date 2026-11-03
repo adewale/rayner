@@ -209,6 +209,17 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'meaning', {
             reports: { wrong: { ok: true, warnings: 0 }, right: { ok: true, warnings: 0 } },
           });
+          // Both diagrams on show at once, each traced from its own yes label: a cache hit ends at Database in the
+          // wrong one and at Reply in the right one, while the verifier's lines in the two reports beside them are the same.
+          assertStepState(trace, 'meaning', {
+            hit: { wrong: { edge: 'edge:A->C#0', node: 'Database' }, right: { edge: 'edge:A->B#0', node: 'Reply' } },
+          });
+          {
+            const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'meaning')!.after)).replace(/\s+/g, ' ');
+            for (const heading of ['1: yes to Database;', '1: yes to Reply;']) assert.ok(shown.includes(heading), shown);
+            const body = '2: ok: true; 3: warnings: 0';
+            assert.equal(shown.split(body).length - 1, 2, shown);
+          }
           // The default case deletes the swapped labels to show what the verifier does flag.
           if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
           // Every case shows an error turning ok false: the edge to Database cut off at its arrow.
