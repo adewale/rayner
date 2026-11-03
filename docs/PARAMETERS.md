@@ -207,7 +207,7 @@ an unbounded stream of new typeset snapshots.
 ## PR #89 and migration
 
 Reviewed against open [PR #89](https://github.com/adewale/rayner/pull/89), head
-`f57a1bcb3d850b68041237b564707ebcebc21e7a`, on 2026-11-03. Its scripts, model/source
+`50bc696cabcc370bb4349126cacb1e4387dc19f8`, on 2026-11-03. Its scripts, model/source
 checks, transfer questions, finite cases and served-paint review remain valuable
 independently. This is a companion capability, not a replacement for its lesson work.
 
@@ -218,7 +218,17 @@ independently. This is a companion capability, not a replacement for its lesson 
 | Token bucket's reference and finite rate cases | Parameterise elapsed time between fixed request events. Evaluate refill from the same event history; keep accept/reject and token subtraction discrete. |
 | Melody/rhythm model | A beat/playhead can drive highlighting and a readout; audio scheduling remains the existing audio owner's responsibility. Do not schedule audio as a side effect of resampling a frame. |
 | Python dict, Git, guarded promise handlers and statecharts | Keep model-derived discrete transitions. Continuous animation can show travel or emphasis; it must not fabricate intermediate program states or replace their external oracles. |
+| Certificate expiry bars and tax-bracket rulers | Reuse one explicit scale for every comparable interval. Sample model quantities where they have a meaningful continuous domain; do not merely interpolate rectangle corners independently. Existing `NumberLine`, `Axes` and shapes can supply the geometry. |
+| Search request lifetimes and page-state tracks | Preserve the event-order axis. Its equal tick spacing is not evidence of measured durations. Publication changes at completion events; continuous motion between marks must not invent a partially accepted result. |
+| GTFS service/date grids and iCalendar copy strips | Keep service/date and series/original recurrence identity independent of position. A moved meeting's displayed start does not change its recurrence id. Membership and exceptions remain discrete, even if a cursor or highlight moves continuously. |
+| Periodic groups' keyed run-to-table transition | Keep its semantic cell/symbol matching. Endpoint morphing is appropriate for rearranging elements; it does not need a parameter rig merely because the movement is continuous. |
 | Finite-case source and served-reader checks | Retain all existing reviewed cases and resting pictures. Add intermediate samples and domain boundaries for each continuous interval; do not call a sampled range exhaustive. |
+
+The [five proposed composition primitives](ENGINE.md#proposed-composition-primitives-after-pr-89)
+share identity, measurement and sampling contracts. If attachments are added,
+resolve their anchors from the current sample's planned geometry before applying
+patches, with one writer per target. Do not add a second updater pass that reads
+the last rendered frame or makes rig results depend on binding order.
 
 The PR is open and its head can change. Do not overwrite its tutorial or regenerate
 its snapshots just to add these docs. Merge the companion documentation and recipes

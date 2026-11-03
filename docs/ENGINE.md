@@ -47,6 +47,57 @@ Sort a feature request with one question: does it check, ground or publish the r
 
 When a request is the second kind, the answer is usually to expose the data the author needs, not to build the behaviour.
 
+## Proposed composition primitives after PR #89
+
+Reconsidered against [PR #89](https://github.com/adewale/rayner/pull/89) at
+`50bc696cabcc370bb4349126cacb1e4387dc19f8` on 2026-11-03. These are design
+directions, not five new exported APIs. The current supported extension points and
+animations remain in [the recipes](EXTENDING.md) and [choreography](CHOREOGRAPHY.md).
+
+| Primitive | Evidence in the current examples | Required contract |
+| --- | --- | --- |
+| Keyed component updates | Periodic groups' `samePlace` matches element cells and symbol glyphs across the filling-run/table transition. `View.sync()` retains its outer View but swaps its child; matching currently addresses drawable paths. | An author supplies semantic keys within an owner. Retain compatible keyed component roots, including their addressability; explicitly insert/remove/replace others. Reject duplicate keys. Glyphs may change beneath a retained Text. Do not infer entity identity from equal words or coordinates. |
+| Measured, addressable table | Python dict repeats table width calculations to align its lookup panel; GTFS computes cell, column and row positions locally. | Expose measured column widths, row heights, cell bounds and anchors keyed by row/column identity. Cell contents remain ordinary mobjects. Rows and columns can be selected without giving a cell two parents. Gaps, alignment, fixed widths and overflow policy belong to the author. |
+| Keyed collections with separate slots | Dict entries occupy slots; ring-buffer values wrap around storage; GTFS has service/date cells; iCalendar shows a moved meeting in its original recurrence slot. | Separate item identity, slot/address and display order. Moving an item must not rename it; clearing a slot must not delete the slot. iCalendar's identity includes the series and original recurrence id, not its displayed start. An array strip and a date grid are compositions over this capability. |
+| Persistent attachments | Git pointers, dict routes and labels in the calendar/timeline drawings manually recompute positions and endpoints. | Address an owner plus a named anchor, with an explicit offset and missing-target policy. Retain the attached label/connector. Resolve anchors after the sample's geometry is known, before paint; arbitrary repeated calls to `nextTo()` are not the contract. Graph route planning remains a separate responsibility. |
+| Sampled continuous parameters | Seasons can derive several drawings from one day; token-bucket refill can advance between request events. | Keep the [four parameter contracts](PARAMETERS.md#the-four-contracts): validated inputs, one shared sample, stable identity/one writer, reproducible evaluation and inspection. Event acceptance, deletion and calendar membership remain discrete. |
+
+Start with semantic identity: the periodic-table transition already demonstrates
+the need, and tables, collection references and attachments all depend on it.
+Table and collection layouts should share measurement and addressing mechanisms,
+while retaining distinct row/column and item/slot semantics. Attachments and
+parameter bindings should share deterministic sampling and ownership rules,
+rather than install competing updater systems. A rig binding and an attachment
+cannot both claim the same label or connector.
+
+An attachment that follows animated geometry needs that sample's planned bounds
+or endpoints. Resolve these from an immutable geometry plan before applying the
+patches; do not read a previous frame's boxes or depend on mutation order. This
+extends the parameter design's calculation phase, not its permission for bindings
+to read another binding's newly mutated target. Reject dependency cycles and
+missing anchors before applying changes. Static attachments can use captured
+bounds without introducing a general reactive graph.
+
+The new expiry-aligned certificate bars, tax rulers and request lifetime tracks
+also suggest useful recipes: scales, interval marks, ticks and labels composed
+from `NumberLine`, `Axes` and ordinary shapes. They do not yet justify another
+timeline engine. Preserve the quantity's meaning: the certificate bars measure
+hours; the search tracks show event order and explicitly disclaim measured time.
+
+**Composition** is an author assembling a particular drawing. **Modularity** is
+keeping its model, drawing and checks independently usable. **Compositionality**
+is stronger: independently useful parts preserve their contracts when combined.
+A table cell that becomes a connector target and then follows a sampled parameter
+must keep its identity, report the current anchor, obey one-writer scheduling and
+remain seekable. Five isolated widgets would not establish that property.
+
+Prove the shared mechanisms by refactoring the periodic keyed transition and the
+dict's measured table/lookup alignment first, preserving their model checks and
+resting pictures. Then exercise an attached label through a sampled interval,
+including seek/full-render equality, removal and conflicting writers. Keep
+`presentFrame`'s clear/draw transition available: an author must opt into entity
+continuity when successive pictures actually represent the same entities.
+
 ## Out of scope
 
 Each for a reason:
