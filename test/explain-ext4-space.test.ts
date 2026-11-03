@@ -278,7 +278,9 @@ test('the captured 1 TiB opening pie says only what users can write and what the
 
 test('at 2 GiB, a measured size, the default 5% root reserve falls short of the metadata, so meta.answer names its disks', () => {
   // From the recorded mkfs.ext4 run: metadata is every block statfs does not count as free.
-  const [, , [blocks, root], , [, fBfree]] = RUNS.find(([size, m]) => size === '2G' && m === 5)!;
+  const [, , counts, , free] = RUNS.find(([size, m]) => size === '2G' && m === 5)!;
+  const [blocks, root] = counts, fBfree = free[1];
+  assert.ok(blocks !== undefined && root !== undefined && fBfree !== undefined, 'the 2 GiB run records its block counts');
   assert.ok(root < blocks - fBfree, `measured 2 GiB: root ${root}, metadata ${blocks - fBfree}`);
   const sp = space(2 * GiB, 5);
   assert.deepEqual([sp.root, sp.layout.metadata], [root, blocks - fBfree]);
