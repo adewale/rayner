@@ -81,6 +81,7 @@ function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   return figure;
 }
 /** Milliseconds as a reader would say them: 312.5, 625. */
+const ms = (n: number) => String(Math.round(n * 10) / 10);
 
 export default class MelodyRhythm extends Scene {
   static meta = {
@@ -193,8 +194,8 @@ export default class MelodyRhythm extends Scene {
           ? 'The red outline is G, the note still sounding when bar 2 begins.'
           : 'The red outline: G ends exactly as bar 2 begins.',
         caption: different
-          ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation. Changing tempo speeds the whole pattern up or slows it down; the starts stay between the same beats.`
-          : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. Compare it with the other setting: ${answer} Only that version starts G late enough to hold it across the bar line.`,
+          ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)} ms, so G starts ${ms(m.beatMs / 2)} ms before the bar line; the other tempo changes that gap but keeps G halfway through beat 4.`
+          : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. The other version of B differs at exactly this bar line. ${answer} Only that version starts G late enough to hold it across the bar line.`,
         clips: m.clips,
         look: {
           accent: true,
@@ -208,7 +209,7 @@ export default class MelodyRhythm extends Scene {
         title: different ? 'With every pitch C, B still skips the 1' : 'With every pitch C, A and B play one rhythm',
         line: 'Each version keeps its own starts and lengths; only the pitches go.',
         caption: different
-          ? 'Each version keeps its own starts and lengths, but all pitches are now C. Red dots mark starts between beats. Listen again: with the climb to G gone, B still holds a note across the bar line instead of starting one on the 1. Removing the melody leaves the timing difference intact. The score shows that difference; how strongly you hear its pull can vary.'
+          ? 'Could the climb to G be what sounds off? Each version keeps its own starts and lengths, but all pitches are now C. Red dots mark starts between beats. Listen again: with the climb to G gone, B still holds a note across the bar line instead of starting one on the 1. Removing the melody leaves the timing difference intact. The score shows that difference; how strongly you hear its pull can vary.'
           : 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts. With the pitches gone, A and B play the identical rhythm, every start on a beat. Choose “Start two notes half a beat later” to hear a note hold across the bar line.',
         clips: m.flat,
         look: {
@@ -225,6 +226,7 @@ export default class MelodyRhythm extends Scene {
         state: {
           timing: m.timing,
           bpm: m.bpm,
+          beatMs: m.beatMs,
           clips,
           movedStarts: m.movedStarts,
           movedDurations: m.movedDurations,

@@ -103,7 +103,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     const m=musicStory(values.timing as Timing,Number(values.tempo));
     for(const step of trace.steps) {
       const clips=step.step==='rhythm'?m.flat:m.clips;
-      assertStepState(trace,step.step,{clips,bpm:m.bpm,timing:m.timing,movedStarts:m.movedStarts,movedDurations:m.movedDurations,
+      assertStepState(trace,step.step,{clips,bpm:m.bpm,beatMs:m.beatMs,timing:m.timing,movedStarts:m.movedStarts,movedDurations:m.movedDurations,
         crossing:clips[1]!.notes.filter(n=>n.at<4&&n.at+n.duration>4)});
       assert.deepEqual(step.meta.audio,{clips},'played notes and drawn notes must use the same score');
     }
