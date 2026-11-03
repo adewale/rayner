@@ -13,6 +13,7 @@ import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { storyFrames, inspectStoryFrame, covered } from '../../tools/lib/explain-story-review.ts';
 import type { StoryClaim } from '../../tools/lib/explain-story-review.ts';
+import { readableOpeningLabel } from '../../tools/lib/explain-review-plan.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
 const options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for served Monty Hall reader checks' };
@@ -86,7 +87,7 @@ test('every host rule opens with all three readable doors and the complete host 
             return Math.hypot(matrix.a, matrix.b) * 1000;
           });
           const pixels = minimum.get(step)! * scale;
-          assert.ok(pixels >= 12 - 1e-6, `${caseName}: smallest body label is ${pixels}px`);
+          assert.ok(readableOpeningLabel(pixels), `${caseName}: smallest body label is ${pixels}px`);
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, caseName);
           openings++;
           checkedTargets += claimed.length;

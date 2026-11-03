@@ -172,7 +172,8 @@ export default class MontyHall extends Scene {
           0,
           -2.25,
           s.soft,
-          0.6,
+          // The size of the lines around it: a phone's close-up is set by the line that changes, the result.
+          0.62,
           'monty-rule',
         ),
         label(result, 0, -3.5, s.palette.ink, 0.62, 'monty-result'),

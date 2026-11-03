@@ -16,6 +16,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
+import { emphasises } from '../../../explain/look.ts';
 import { sunlight, daylightYear, noonShare, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
 
 const PLACES: Record<string, { name: string; lat: number }> = {
@@ -605,6 +606,10 @@ export default class SeasonsExplainer extends Scene {
     await s.enter(monthsSaid, { describe: 'June on the right; December on the left' });
     this.state.december = december;
     this.state.noonShare = { june: juneShare, december: decShare };
+    // The step compares June's daylight with December's, so a phone's tour visits June's line
+    // too, though it did not change; the next step moves on to the other places.
+    let comparingJune = true;
+    emphasises(this, () => (comparingJune ? [[J.dayLine, 'June daylight']] : []));
 
     // ------------------------------------------------------------ latitude
     const swing = (k: string) => [sunlight(PLACES[k]!.lat, TILT).daylight, sunlight(PLACES[k]!.lat, -TILT).daylight] as const;
@@ -616,6 +621,7 @@ export default class SeasonsExplainer extends Scene {
       caption:
         'Each line follows one place as Earth turns; yellow marks the daylight part. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. London and Sydney sit between those extremes. These ideal day lengths count the Sun’s centre above a flat horizon, leaving out atmospheric bending and local terrain.',
     });
+    comparingJune = false;
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const others = ORDER.filter((k) => k !== key);
     const extra = new Group();

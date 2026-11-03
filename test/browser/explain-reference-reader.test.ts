@@ -173,7 +173,7 @@ test(
           const expectedKeys = step === 'noon'
             ? ['june-horizon', 'june-place', 'june-noon-ray', 'noon-notes']
             : step === 'december'
-              ? ['june-daylight-latitude', 'december-latitude', 'june-north', 'december-north', 'solstice-months', 'june-daylight-callout', 'december-daylight-callout', 'december-noon-ray']
+              ? ['june-daylight-latitude', 'emphasis: june-daylight-latitude', 'december-latitude', 'june-north', 'december-north', 'solstice-months', 'june-daylight-callout', 'december-daylight-callout', 'december-noon-ray']
               : step === 'latitude'
                 ? ['june-latitude', 'december-latitude', 'latitude-circles', 'june-daylight-table', 'december-daylight-table', `emphasis: row ${values.name}`, `emphasis: row ${values.name}`]
                 : ['effect-bars', 'daylight-curve', 'january-point', 'january-value', ...(variant.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
