@@ -18,6 +18,7 @@ import {
   atExpress,
   inRange,
   readAddresses,
+  reqIp,
 } from '../lib/trust-proxy.ts';
 import type { Reading, RequestKey, TrustKey } from '../lib/trust-proxy.ts';
 
@@ -88,6 +89,25 @@ const count = (n: number, noun: string) => `${NUMBER[n] ?? n} ${n === 1 ? noun :
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
 /** The script's one-sentence answer, stated in the read step of every case. */
 const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
+// Check 1: two made-up entries on the short route. 2 stops at the nearer one; true takes the farther.
+const TWO_FORGED = `5.6.7.8, ${ADDR.forged}`;
+const TWO_FORGED_XFF = `${TWO_FORGED}, ${ADDR.attacker}`;
+const TWO_FORGED_IP = { 2: reqIp(ADDR.balancer, TWO_FORGED_XFF, 2), true: reqIp(ADDR.balancer, TWO_FORGED_XFF, true) };
+if (TWO_FORGED_IP[2] !== ADDR.forged || TWO_FORGED_IP.true !== '5.6.7.8' || reqIp(ADDR.balancer, TWO_FORGED_XFF, TRUSTED_RANGES) !== ADDR.attacker)
+  throw new Error('Two made-up entries: 2 must take the nearer, true the farther, the list the attacker’s real address');
+// Check 2: a third proxy in front of the CDN. 2 stops at it; the list with its address added reaches the client.
+const WAF = '100.64.0.20';
+const WAF_XFF = `${ADDR.client}, ${WAF}, ${ADDR.edge}`;
+const WAF_LIST_IP = reqIp(ADDR.balancer, WAF_XFF, [...TRUSTED_RANGES, WAF]);
+const SHORT_XFF = `${ADDR.forged}, ${ADDR.attacker}`;
+if (
+  reqIp(ADDR.balancer, WAF_XFF, 2) !== WAF ||
+  reqIp(ADDR.balancer, WAF_XFF, 3) !== ADDR.client ||
+  reqIp(ADDR.balancer, SHORT_XFF, 3) !== ADDR.forged ||
+  WAF_LIST_IP !== ADDR.client ||
+  reqIp(ADDR.balancer, SHORT_XFF, [...TRUSTED_RANGES, WAF]) !== ADDR.attacker
+)
+  throw new Error('A third proxy: 2 must report it, 3 the client but the short route’s made-up entry, the extended list the right sender on both');
 /** The request, as the opening question puts it. */
 const ASKED: Record<RequestKey, string> = {
   client: 'a client comes through the CDN',
@@ -140,15 +160,35 @@ export default class TrustProxyExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the read step states the answer in every case.
     answer: ANSWER,
+    // Sentences that reach past one step's picture, and the test that holds each.
+    claims: [
+      { says: 'every connection Express sees comes from the load balancer', test: 'test/explain-trust-proxy.test.ts: the proxies’ appends give the headers the Express run received' },
+      { says: 'Express sees only X-Forwarded-For', test: 'test/explain-trust-proxy.test.ts: forwarded reads the socket, then the header right to left' },
+      { says: 'trust every proxy in front of it', test: 'test/explain-trust-proxy.test.ts: true answers the left-most entry' },
+      { says: 'trusts every address', test: 'test/explain-trust-proxy.test.ts: true answers the left-most entry' },
+      { says: 'trusts everything', test: 'test/explain-trust-proxy.test.ts: true answers the left-most entry' },
+      { says: 'the loop never stops early', test: 'test/explain-trust-proxy.test.ts: true answers the left-most entry' },
+      { says: 'tests every address but the last', test: 'test/explain-trust-proxy.test.ts: req.ip and req.ips equal real Express 5.3.0 for every setting and request' },
+      { says: 'never looks at the address a', test: 'test/explain-trust-proxy.test.ts: a hop count n answers the address at position n, or the last one' },
+      { says: 'Only position counts', test: 'test/explain-trust-proxy.test.ts: a hop count n answers the address at position n, or the last one' },
+      { says: 'Express never reads', test: 'test/explain-trust-proxy.test.ts: req.ip and req.ips equal real Express 5.3.0 for every setting and request' },
+      { says: 'is never read', test: 'test/explain-trust-proxy.test.ts: an address list answers the nearest untrusted address' },
+      { says: 'of three requests', test: 'test/explain-trust-proxy.test.ts: the scene’s table is the twelve Express answers' },
+      { says: 'only the address list gets all three', test: 'test/explain-trust-proxy.test.ts: the scene’s table is the twelve Express answers' },
+      { says: 'every request through the CDN reports the CDN edge', test: 'test/explain-trust-proxy.test.ts: the scene’s table is the twelve Express answers' },
+      { says: 'the attacker picks req.ip only by skipping the CDN', test: 'test/explain-trust-proxy.test.ts: with 2, an attacker straight at the load balancer chooses req.ip' },
+      { says: 'the real sender on every path', test: 'test/explain-trust-proxy.test.ts: the scene’s table is the twelve Express answers' },
+      { says: 'assumes every path has the same length', test: 'test/explain-trust-proxy.test.ts: with 2, an attacker straight at the load balancer chooses req.ip' },
+      { says: 'the short path has only one', shown: true as const },
+    ],
     checks: [
       {
-        question: 'Why does trust proxy 2 report an address the attacker wrote when the attacker skips the CDN?',
-        answer: `That path has one proxy, not two. Express trusts the first two addresses by position, the load balancer’s ${ADDR.balancer} and the attacker’s real ${ADDR.attacker}, so the next one, the ${ADDR.forged} the attacker wrote into X-Forwarded-For, becomes req.ip.`,
+        question: `The attacker skips the CDN again, but writes two made-up entries: X-Forwarded-For: ${TWO_FORGED}. Which address becomes req.ip with trust proxy 2, and which with true?`,
+        answer: `With 2, ${TWO_FORGED_IP[2]}: Express trusts the load balancer and the attacker’s real address by position, then stops at the next entry, the made-up one nearest to it. With true, ${TWO_FORGED_IP.true}: every address is trusted, so Express reaches the far end of the list and takes it without a test. Either way the attacker chose req.ip.`,
       },
       {
-        question: 'Which address does Express never test, and why does that matter with trust proxy true?',
-        answer:
-          'The farthest one, the left-most entry of X-Forwarded-For: the loop stops one short of it. With true every other address is trusted, so whatever the first sender wrote there becomes req.ip, unless the last trusted proxy removes or overwrites the header.',
+        question: `You put a firewall service at ${WAF} in front of the CDN, so a client’s request now passes three proxies. With trust proxy 2, whose address does req.ip report for a client? Which setting gives the client’s address and still stops the attacker who skips the CDN?`,
+        answer: `The firewall’s: the two trusted positions now hold the load balancer and the CDN edge, so the third proxy is the first address left. A count of 3 gives the client, but on the route that skips the CDN it trusts every address, and the attacker’s made-up entry becomes req.ip. The address list with ${WAF} added gives the client, ${WAF_LIST_IP}, and the attacker’s real address on the short route.`,
       },
       {
         question: `What must hold for the address list ${TRUST_CODE.list} to keep req.ip right?`,
@@ -217,7 +257,7 @@ export default class TrustProxyExplainer extends Scene {
     await this.step('paths', {
       title: trustKey === 'list' ? 'With trust proxy set to an address list, what is req.ip?' : `With trust proxy ${trustKey}, what is req.ip?`,
       line: `Predict: ${ASKED[reqKey]}. Whose address does Express report?`,
-      caption: `Requests are meant to reach Express through a CDN and then a load balancer, so every connection Express sees comes from the load balancer, ${ADDR.balancer}. req.ip is meant to be the sender’s address instead. ${meaning} But the load balancer also accepts connections from the internet, so an attacker can skip the CDN. The addresses are examples. Here ${ASKED[reqKey]}: is req.ip the ${req.sender.name}’s real address, ${req.sender.addr}?`,
+      caption: `Requests are meant to reach Express through a CDN and then a load balancer, so every connection Express sees comes from the load balancer, ${ADDR.balancer}. Express’s req.ip should still name the machine that sent the request. ${meaning} But the load balancer also accepts connections from the internet, so an attacker can skip the CDN. Here ${ASKED[reqKey]}: will req.ip be the ${req.sender.name}’s real address, ${req.sender.addr}? All the addresses are examples.`,
     });
     await s.clear();
     const d = await s.show({ source: NETWORK }, { box: DIAGRAM });
@@ -422,7 +462,9 @@ export default class TrustProxyExplainer extends Scene {
             ? 'None of the three requests gets the real sender’s address.'
             : `Only ${NUMBER[3 - wrong.length]} of three requests ${wrong.length === 2 ? 'gets' : 'get'} the real sender’s address.`,
       caption:
-        `Keep the trust setting fixed and change the route into the app. A shorter route puts a different machine in the same trusted position. ` +
+        `Keep the trust setting fixed and change the route into the app. ${
+          trustKey === 'list' ? 'A shorter route puts different machines at each position, and the list judges each by its address.' : 'A shorter route puts a different machine in the same trusted position.'
+        } ` +
         REQUEST_KEYS.map((q) => `${REQUEST_LABEL[q]}: ${row[q].ip}, ${OUTCOME[row[q].outcome]}`).join('. ') +
         '.',
     });
@@ -494,7 +536,7 @@ export default class TrustProxyExplainer extends Scene {
             ? `The attacker’s address, ${ADDR.attacker}, is in neither range, so Express stops there on both paths, and whatever the attacker wrote further left is never read. Express’s guide gives the rule, quoted below.`
             : trustKey === '1'
               ? `The path through the CDN has two proxies and the setting trusts one, so the answer is the CDN edge. The path that skips the CDN has one, so it gives the attacker’s real address. Express’s guide warns about paths of different lengths.`
-              : `The path through the CDN has two proxies; the path that skips it has one. Counting two trusted addresses on the short path trusts the attacker’s own address, and the next one is the last entry it wrote. Express’s guide warns about this, quoted below.`,
+              : `The path through the CDN has two proxies; the path that skips it has one. Counting two trusted addresses on the short path trusts the attacker’s own address, and the next address is the one the attacker wrote. Express’s guide warns about this, quoted below.`,
     });
     await s.clearOverlays();
     await d.reveal('rest');
@@ -531,8 +573,8 @@ export default class TrustProxyExplainer extends Scene {
       caption:
         `app.set('trust proxy', ${TRUST_CODE.list}) trusts the load balancer’s network and the CDN edge’s range, and nothing else. ` +
         (trustKey === 'list'
-          ? `With 2 instead, the request that skips the CDN gives ${TABLE['2'].direct.ip}, an address the attacker wrote. The list depends on every trusted range holding only your proxies.`
-          : `It gives the real sender for all three requests, where ${setting(trustKey)} gets ${wrong.length === 1 ? 'one' : wrong.length === 2 ? 'two' : 'three'} wrong. The list depends on every trusted range holding only your proxies.`),
+          ? `With 2 instead, the request that skips the CDN gives ${TABLE['2'].direct.ip}, an address the attacker wrote. The list is safe as long as each trusted range holds your proxies and no other machine.`
+          : `It gives the real sender for all three requests, where ${setting(trustKey)} gets ${wrong.length === 1 ? 'one' : wrong.length === 2 ? 'two' : 'three'} wrong. The list is safe as long as each trusted range holds your proxies and no other machine.`),
     });
     await s.clearOverlays();
     await d.unmark();

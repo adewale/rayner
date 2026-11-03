@@ -1,6 +1,6 @@
 # Which address should Express call the client?
 
-Your Express app sits behind a CDN and a load balancer. Every connection reaching the app comes from the load balancer, so the socket address identifies that machine rather than the visitor. The trust proxy setting tells Express how to look past it.
+Your Express app sits behind a CDN and a load balancer. Every connection reaching the app comes from the load balancer, so the socket address identifies that machine rather than the visitor. Express's `req.ip` is meant to name the visitor, and the trust proxy setting tells Express how to look past the proxies to find it.
 
 There appear to be two proxies, so you choose trust proxy 2. But the load balancer also accepts requests directly from the internet. An attacker skips the CDN and sends a request with X-Forwarded-For: 1.2.3.4, an address they invented. Will Express report the attacker's actual address?
 

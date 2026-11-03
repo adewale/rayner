@@ -4,7 +4,7 @@ import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SHADES, THEME_LINES, rows, summarize } from '../lib/tailwind-gamut.ts';
+import { SHADES, THEME_LINES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
 import type { Row, Shade } from '../lib/tailwind-gamut.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
@@ -56,6 +56,22 @@ const SIZE = 0.24;
 const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
 
 const pct = (v: number) => `${v.toFixed(1)}%`;
+
+// The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
+// at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
+const OPEN = summarize('500');
+const OPENING = swatch(OPEN.mostOfSrgb.family, '500');
+const OPEN_MAPPED = cssMap(OPENING.L, OPENING.C, OPENING.h, 'srgb');
+const OPEN_ROW = rows('500').find((r) => r.family === OPENING.family)!;
+if (inside(OPENING.L, OPEN_ROW.shown, OPENING.h, 'srgb')) throw new Error('The mapped chroma must not fit at the written lightness and hue');
+// Check 2: the raw and relative leaders differ at shade 500.
+const RAW = rows('500').find((r) => r.family === OPEN.furthest.family)!;
+if (OPEN.furthest.family === OPEN.mostOfSrgb.family || RAW.srgb <= OPEN_ROW.srgb) throw new Error('The raw leader must sit on a higher edge than the relative one');
+// Check 3: a family that fits at 500 need not fit at 700.
+const ROOMY = OPEN.leastOfSrgb.family;
+const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
+if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
+const deg = (h: number) => `${h.toFixed(1)}°`;
 const list = (xs: readonly string[]) =>
   xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
@@ -73,19 +89,24 @@ export default class TailwindGamutExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); check holds a step (palette) to stating the answer.
     answer: 'Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written',
+    // Sentences about everything one radar draws.
+    claims: [
+      { says: 'lie outside, and only', shown: true as const },
+      { says: 'every colour past it shows', shown: true as const },
+      { says: 'lies beyond sRGB’s on every spoke', shown: true as const },
+    ],
     checks: [
       {
-        question: 'Which Tailwind 500 colour goes furthest past its own sRGB edge, and how far?',
-        answer: 'cyan-500: its chroma is 113.1% of the most an sRGB screen can show at its lightness and hue.',
+        question: `An sRGB screen paints ${OPENING.family}-500 with chroma ${OPEN_ROW.shown.toFixed(3)}. Suppose you write that chroma yourself, at ${OPENING.family}-500’s own lightness and hue: oklch(${(OPENING.L * 100).toFixed(1)}% ${OPEN_ROW.shown.toFixed(3)} ${OPENING.h}). Does it fit sRGB?`,
+        answer: `No. The sRGB edge at that lightness and hue is ${OPEN_ROW.srgb.toFixed(3)}, below ${OPEN_ROW.shown.toFixed(3)}. The mapped colour fits because the final clip also moved it, to lightness ${(OPEN_MAPPED.L * 100).toFixed(1)}% and hue ${deg(OPEN_MAPPED.h)}, where the edge is higher. Whether a chroma fits depends on the lightness and hue it comes with.`,
       },
       {
-        question: 'In raw chroma, lime-500 is the 500 colour furthest past the sRGB edge. Why does the share view put cyan-500 first instead?',
-        answer:
-          'The edge sits at a different chroma on every spoke. lime-500 overshoots by 0.024 on a high edge; cyan’s edge is low, so its smaller overshoot is a larger share of it.',
+        question: `In raw chroma, ${RAW.family}-500 is the 500 colour furthest past the sRGB edge. Why does the share view put ${OPENING.family}-500 first instead?`,
+        answer: `The edge sits at a different chroma on every spoke. ${RAW.family}-500 overshoots by ${OPEN.furthest.value.toFixed(3)} on an edge at ${RAW.srgb.toFixed(3)}; ${OPENING.family}’s edge is ${OPEN_ROW.srgb.toFixed(3)}, so its smaller overshoot is a larger share of it.`,
       },
       {
-        question: 'Which of the 17 Tailwind 500 colours does an sRGB screen show exactly as written?',
-        answer: 'Only red, fuchsia and pink: they are the three inside sRGB, and gamut mapping leaves a colour inside the gamut unchanged.',
+        question: `${ROOMY}-500 has the most room of the 500 shades, at ${pct(OPEN.leastOfSrgb.value)} of its sRGB edge. Does that make ${ROOMY}-700 safe on an sRGB screen?`,
+        answer: `No: ${ROOMY}-700 asks for ${pct(ROOMY_700.ofSrgb)} of its edge, so an sRGB screen maps it. The darker shade has its own lightness and chroma, and the edge moves with lightness, so a family’s name says nothing about whether it fits.`,
       },
     ],
   };
@@ -251,6 +272,8 @@ export default class TailwindGamutExplainer extends Scene {
     // color palette from rgb to oklch, taking advantage of the wider gamut to make the colors more vivid in
     // places where we were previously limited by the sRGB color space."
     await readerFirst(this, s, readerFrames(shade, screen));
+    // Colours that round to the leader's share: the radar draws them at the same radius.
+    const level = all.filter((r) => r.family !== sum.mostOfSrgb.family && r.ofSrgb === sum.mostOfSrgb.value).map((r) => r.family);
     await this.step('oklch', {
       title: `${sum.mostOfSrgb.family}-${shade} is one of ${n} colours at shade ${shade}, all written in oklch`,
       line: 'Each line reads oklch(L C h): lightness, chroma, hue angle.',
@@ -319,7 +342,9 @@ export default class TailwindGamutExplainer extends Scene {
     await this.step('share', {
       title: `As a share of the edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
-      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`}. ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. A value above 100% asks for more chroma than that spoke can hold. The centre is now 50%, and the rings are 25 points apart; this is relative capacity, not raw chroma.`,
+      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${
+        sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
+      }.${level.length ? ` ${list(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. A value above 100% asks for more chroma than that spoke can hold. The centre is now 50%, and the rings are 25 points apart; this is relative capacity, not raw chroma.`,
     });
     await s.clearOverlays();
     said.length = 0;

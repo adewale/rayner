@@ -1,13 +1,15 @@
 # Where does an empty ext4 filesystem’s space go?
 
-A newly formatted one-tebibyte ext4 filesystem has no user files, yet an ordinary user can write only about 93.3% of its blocks. The missing share is roughly 68.4 GiB. Is all of it occupied by the filesystem’s own structures?
+Format a one-tebibyte disk as ext4, mount it, and ask `df` how much you can write. No file has been written, yet an ordinary user can fill only 93.3% of the blocks. About 68.4 GiB is gone. Is all of that taken by the filesystem's own structures?
 
-Most of it is a reservation. With the defaults used here, mke2fs sets aside 5% of the blocks for privileged use. Those blocks can be free while still excluded from the space available to an ordinary writer. On the one-tebibyte example that reserve is about three times the metadata.
+Most of it is not taken at all. With no options, mke2fs sets aside 5% of the blocks for root. Those blocks are free, but an ordinary user may not write to them, so `df` leaves them out of the space available. On this disk the reserve is three times all the metadata.
 
-The accounting separates these categories. Metadata already occupies blocks. Other blocks are free, but the root reserve and a smaller kernel reserve are held back from the ordinary-user availability reported by statfs. “Not available to me” therefore does not mean “already filled with metadata.”
+So the missing space has two kinds of block in it. Metadata blocks are already occupied. Reserved blocks are free and held back: the root reserve, plus a much smaller one the kernel keeps once the filesystem is mounted. "Not available to me" does not mean "already filled".
 
-The metadata has its own costs. Inode tables reserve records for files before those files exist, so their size follows the configured density of inodes. They make up most of this example’s metadata. The journal, which supports filesystem recovery, grows in size steps and then stops at one gibibyte. Superblock copies, bitmaps and the first few files account for the rest.
+The metadata is still worth a look, because its biggest part is a promise about the future. Inode tables hold one record per file, and mke2fs builds them for every file the disk might ever hold, at one inode per 16 KiB of disk on this size of disk. They are most of the metadata here. The journal, which lets the filesystem recover after a crash, doubles in size with the disk and stops at one gibibyte. Superblock copies, bitmaps and the first few files make up the rest.
 
-Lowering the root-reserve percentage changes which free blocks ordinary users may use. The settings for 1% and 0% leave the inode tables and journal in place. The recovered availability is not evidence that metadata has been removed.
+Lowering the reserve shows which part is which. Formatting with `-m 1` or `-m 0` hands some or all of the reserved blocks to ordinary users and leaves every inode table and the journal where they were. The space you get back was free all along.
 
-Disk size changes the balance. A percentage reserve grows with the disk, while the journal reaches a cap and larger size classes allocate fewer inodes per byte. Across the shown larger disks the reserve becomes increasingly prominent. That comparison depends on these formatting defaults; it is not a fixed overhead percentage for every ext4 filesystem.
+Disk size changes the balance. The reserve is a percentage, so it grows with the disk, while the journal stops growing and the largest disks get fewer inodes per byte. At 20 TiB the reserve is twelve times the metadata. On small disks the two are close: at 1 GiB the reserve only just covers the metadata, which is mostly journal, so anything that makes the journal jump can tip the balance.
+
+These figures come from mkfs.ext4 1.47.3's defaults with 4 KiB blocks, checked against recorded formatting runs and a mounted Linux 6.8 kernel. Other mkfs options, quotas and the space a workload later uses are outside them, and there is no fixed overhead percentage that holds for every ext4 filesystem.

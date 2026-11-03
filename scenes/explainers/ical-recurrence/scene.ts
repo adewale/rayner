@@ -13,11 +13,13 @@ import {
   SERVER_CASES,
   copyOf,
   counts,
+  deliver,
   erSource,
   expand,
   guestCopy,
   lines,
   long,
+  messageFor,
   occurrences,
   organiserCopy,
   parseRule,
@@ -57,7 +59,20 @@ const upperFirst = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 /** The script's one-sentence answer (meta.answer), which the copy step states in every case. */
 const ANSWER =
-  'a guest’s calendar keeps only the meetings it was sent, and a cancellation marks one CANCELLED instead of deleting it';
+  'a guest’s calendar keeps only the meetings it was sent, and on this server a cancellation marks the guest’s copy CANCELLED instead of deleting it';
+
+// Check 1: Alice skips the fifth meeting instead of Bob's. COUNT still counts it, so the series does not
+// run a week longer, and Bob is still in his override, so his copy keeps it uncancelled.
+const FIFTH = RULE_STARTS[4]!;
+const SKIP_FIFTH: VEvent[] = [{ ...MASTER, exdates: [FIFTH] }, ...INVITED.slice(1)];
+const FIFTH_LEFT = expand(SKIP_FIFTH);
+const FIFTH_MESSAGE = messageFor(INVITED, SKIP_FIFTH, GUEST);
+const FIFTH_BOB = FIFTH_MESSAGE ? deliver(FIFTH_MESSAGE, guestCopy('none').copy) ?? [] : [];
+if (FIFTH_LEFT.length !== 5 || FIFTH_LEFT.at(-1)!.start !== RULE_STARTS.at(-1) || expand(FIFTH_BOB).map((m) => `${m.start}${m.cancelled}`).join() !== `${GUEST_MEETING}false`)
+  throw new Error('Skipping the fifth meeting must leave five meetings ending on the sixth start, and Bob’s meeting uncancelled');
+// Check 3: what Bob's copy lacks to rebuild the series.
+const BOB = counts(guestCopy('skip').copy);
+if (BOB.masters || BOB.rrules) throw new Error('Bob’s copy must hold no master and no RRULE');
 
 /**
  * Alice's meeting list, one row per week of the rule: the start her calendar shows, with what makes
@@ -84,7 +99,7 @@ const guestRows = (components: readonly VEvent[]): [string, string][] =>
 export default class IcalRecurrenceExplainer extends Scene {
   static meta = {
     id: 'ical-recurrence',
-    title: 'What does a guest’s calendar keep when one meeting of a series changes?',
+    title: 'Why can a cancelled meeting remain in a guest’s calendar?',
     sources: [
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1',
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10',
@@ -102,18 +117,27 @@ export default class IcalRecurrenceExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the copy step states the answer.
     answer: ANSWER,
+    // Sentences that reach past the cases on screen, and the test that holds each.
+    claims: [
+      { says: 'invites Bob to the third meeting only', shown: true as const },
+      { says: 'keeps only the meetings it was sent', test: 'test/explain-ical-recurrence.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },
+      { says: 'only the VEVENTs', test: 'test/explain-ical-recurrence.test.ts: property: a guest gets exactly the overrides they attend' },
+      { says: 'only the override Bob attends', test: 'test/explain-ical-recurrence.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },
+      { says: 'never appears in it', test: 'test/explain-ical-recurrence.test.ts: each copy holds what Baïkal stored' },
+      { says: 'puts every VEVENT with one UID in one calendar object', test: 'test/explain-ical-recurrence.test.ts: every marker in the ER source says what the model allows' },
+    ],
     checks: [
       {
-        question: 'Alice skips the meeting Bob was invited to. What does each calendar show for that week?',
-        answer: `Alice’s shows nothing: her app adds EXDATE:${GUEST_MEETING} to the master and deletes Bob’s override. Bob’s still lists ${long(GUEST_MEETING)}, marked cancelled: delivering the iTIP CANCEL sets STATUS:CANCELLED and deletes nothing.`,
+        question: `Alice skips the fifth meeting, ${long(FIFTH)}, instead of Bob’s, by adding EXDATE:${FIFTH}. How many meetings does her calendar show, and when is the last? What does Bob’s calendar show?`,
+        answer: `Alice’s shows ${number(FIFTH_LEFT.length)}, the last still on ${long(FIFTH_LEFT.at(-1)!.start)}: COUNT=6 counts the excluded start, so the series does not run a week longer. Bob is still in the third meeting’s override, so any update the server sends him carries that override again, and his calendar keeps ${long(GUEST_MEETING)}, not cancelled.`,
       },
       {
-        question: 'Alice moves the second meeting, which Bob does not attend. What changes in Bob’s copy?',
-        answer: 'Nothing. The iTIP REQUEST the server sends him holds only the VEVENTs he attends, the third meeting’s override, so his copy keeps that one VEVENT.',
+        question: 'Alice moves the second meeting, which Bob does not attend. Before trying that setting: does Bob’s copy change, and why?',
+        answer: 'No. The iTIP REQUEST the server sends him holds only the VEVENTs he attends, the third meeting’s override, so his copy keeps that one VEVENT and never learns of the move.',
       },
       {
-        question: 'Bob’s copy is an override with RECURRENCE-ID and no master. Does the server accept it, and what does it refuse?',
-        answer: 'It accepts it: RFC 4791 allows overrides stored without their master. Baïkal (sabre/dav) answers 415 to a second VEVENT without RECURRENCE-ID or a second RRULE in one VEVENT, which RFC 5545 only says SHOULD NOT happen.',
+        question: 'Bob’s calendar app wants to show him the rest of the stand-up series. Which lines would it need that his stored copy lacks?',
+        answer: `The master’s DTSTART and RRULE. His copy holds ${plural(BOB.overrides, 'override')} and ${plural(BOB.masters, 'master')}, so it has no rule to generate the other weeks from; only the organiser’s object has one.`,
       },
     ],
   };
@@ -144,7 +168,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       title: 'A weekly stand-up is stored as one VEVENT',
       line: 'DTSTART is the first meeting; RRULE with COUNT=6 makes six.',
       // RFC 5545 §3.3.10, lines 2272–2274: COUNT; DTSTART counts as the first occurrence.
-      caption: `Alice’s calendar app saves her stand-up as one VEVENT. DTSTART is the first meeting, ${long(DTSTART)} 2026 at 09:00 UTC. RRULE repeats it weekly, and COUNT=6 stops after six meetings, with DTSTART counting as the first. The list shows the meetings a calendar computes from those two lines.`,
+      caption: `Alice cancels one meeting of her weekly stand-up. Bob, invited to that meeting alone, can still find it in his calendar, marked cancelled. To see why, start with how Alice’s app stores the series: as one VEVENT, the iCalendar record for an event. DTSTART is the first meeting, ${long(DTSTART)} 2026 at 09:00 UTC. RRULE repeats it weekly, and COUNT=6 stops after six meetings, with DTSTART counting as the first. The list shows the meetings a calendar computes from those two lines.`,
     });
     await s.clear();
     const code: CodeBlock = await s.code(lines(SERIES), {
@@ -246,7 +270,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       await this.step('copy', {
         title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
         line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${number(expand(mine).length)} meetings.`,
-        caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. In the schema, a bar at a line’s end means one, a circle zero and a crow’s foot many; the notes count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${ANSWER}.`,
+        caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${ANSWER}.`,
       });
       const present = [
         'entity:CALENDAR_OBJECT',
@@ -280,10 +304,10 @@ export default class IcalRecurrenceExplainer extends Scene {
         // Broker.php:459–620 (what each attendee is sent), :269–317 (how it is stored).
         caption:
           change === 'skip'
-            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, and delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting; Bob’s stored copy still contains ${long(GUEST_MEETING)}, marked cancelled. Bob’s stored object is not a replica of Alice’s series: the scheduling message changes the occurrence he received.`
+            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, the scheduling message that calls a meeting off. Delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting, because she excluded its start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
             : change === 'move'
-              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it. Bob’s stored object is not a replica of Alice’s series: the scheduling message changes the occurrence he received.`
-              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST holding only the VEVENTs he attends, and the server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')}. Bob’s stored object is not a replica of Alice’s series: the scheduling message changes the occurrence he received.`,
+              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
+              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')} and no rule to generate the others.`,
       });
       await s.clear();
       await s.code(lines(mine), {
@@ -315,11 +339,11 @@ export default class IcalRecurrenceExplainer extends Scene {
     await this.step('server', {
       detail: true,
       title: 'The server refuses a second master or a second RRULE',
-      line: 'It answers 415; RFC 5545 only says RRULE SHOULD NOT repeat.',
+      line: 'It answers 415, though RFC 5545 says just that RRULE SHOULD NOT repeat.',
       // sabre/dav Plugin.php:843–874; sabre/vobject VCalendar.php:448–455, Component.php:626–647.
       // RFC 5545 §3.8.5.3, lines 6808–6812: RRULE SHOULD NOT repeat; the set is then undefined.
       caption:
-        'Baïkal, running sabre/dav, checks each object saved to it and answers 415 to two VEVENTs without RECURRENCE-ID or to two RRULEs in one VEVENT. RFC 5545 says only that RRULE SHOULD NOT repeat, so here sabre is stricter, and the RRULE line now allows one. Bob’s copy, with no master, is accepted.',
+        'Baïkal, running sabre/dav, checks each object saved to it and answers 415 to two VEVENTs without RECURRENCE-ID or to two RRULEs in one VEVENT. RFC 5545 recommends against a repeated RRULE, saying it SHOULD NOT occur, but does not forbid it; sabre is stricter, so the RRULE line now allows at most one. Bob’s copy, with no master, is accepted.',
     });
     // The edit, replayed on the schema: the RRULE relationship is removed and added back as zero or one.
     const ops = [
