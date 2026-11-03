@@ -119,6 +119,9 @@ export default class PythonDict extends Scene {
     const onward = m.repaired.slots.slice(1);
     const missingPasses = passes(m.correct, m.missing.slots.slice(0, -1)),
       missingStop = m.missing.slots.at(-1)!;
+    /** A never-used slot before the stop that 24's route skips, read from the table. */
+    const skipped = m.correct.indices.findIndex((at, i) => at === EMPTY && i < missingStop && !m.missing.slots.includes(i));
+    const offRoute = skipped < 0 ? undefined : skipped;
     const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 
     const frames = [
@@ -141,7 +144,7 @@ export default class PythonDict extends Scene {
       },
       {
         id: 'broken',
-        title: `Empty slot 0, and key ${key} vanishes`,
+        title: `Empty slot 0, and d[${key}] can no longer find ${value}`,
         line: `The search for ${key} starts at slot 0, reads never used, and stops.`,
         caption: `Suppose deletion emptied slot 0 like this. d[${key}] would raise KeyError, although ${value} is still stored in entry ${entry}: these three keys all start their searches at slot 0. When 0 occupied it, the other keys went into later slots. A lookup retraces that route, and a never-used slot tells it to stop. An emptied slot would end the search early, so deletion leaves a marker that says keep looking.`,
         state: { dict: m.wrong, result: m.broken, key, policy: 'incorrect-clear' },
@@ -158,7 +161,7 @@ export default class PythonDict extends Scene {
       {
         id: 'marker',
         title: 'CPython leaves D in slot 0, and the search goes on',
-        line: 'Predict: key 24 was never stored and also starts at slot 0. Where does its search stop?',
+        line: 'Predict: key 24 was never stored and starts at slot 0. Where does its search stop, and why?',
         caption: `In CPython, del d[0] writes a deleted marker, drawn here as D, into slot 0 and empties entry 0. A search treats D as a taken slot whose key never matches: the search for ${key} reads D at slot 0, moves on to slot ${onward.join(', then ')}, and finds ${m.repaired.value}.`,
         state: { dict: m.correct, result: m.repaired, key, policy: 'CPython marker' },
         view: {
@@ -173,9 +176,13 @@ export default class PythonDict extends Scene {
       },
       {
         id: 'missing',
-        title: `Answer: at slot ${missingStop}, the first never-used slot`,
+        title: `Answer: at slot ${missingStop}, the first never-used slot on its route`,
         line: 'D and taken slots send a search on; a never-used slot stops it.',
-        caption: `Key 24’s search passes ${list(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. A deleted marker keeps the path open; a never-used slot is the evidence that this key is absent. This example keeps eight slots throughout and does not cover resizing.`,
+        caption: `Key 24’s search passes ${list(missingPasses)}, and stops at slot ${missingStop}, which has never been used: 24 is not in the dict. ${
+          offRoute === undefined
+            ? ''
+            : `Slot ${offRoute} has never been used either, but 24’s route does not visit it; only slots on the route count. `
+        }A deleted marker keeps the route open, and a never-used slot on it is the evidence that the key is absent. This example keeps eight slots throughout and does not cover resizing.`,
         state: { dict: m.correct, result: m.missing, key, policy: 'CPython marker' },
         view: {
           dict: m.correct,
