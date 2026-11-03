@@ -18,7 +18,7 @@ import {
   noonShare,
   sunDistance,
 } from '../scenes/explainers/lib/models.ts';
-import { find, closeness, distance, run } from '../scenes/explainers/lib/2password.ts';
+import { find, closeness, distance, run, ITEMS } from '../scenes/explainers/lib/2password.ts';
 import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { View } from '../src/index.ts';
@@ -307,6 +307,18 @@ test('2password find port gives upstream test answers', () => {
   assert.equal(closeness(['databse'], 'Cloud Login'), 0);
   assert.equal(closeness(['opnai', 'key'], 'OpenAI API Key'), (1 - 1 / 6 + 1) / 2);
   assert.ok(!JSON.stringify(find(['cloud', 'databse'])).includes('secret-'));
+});
+test('2password find returns references and no field value, and compares queries with titles alone', () => {
+  const queries = [['cloud api', 'databse'], ['cloud'], ['cloud key'], ['clod api'], ['database', 'nothing like this']];
+  const values = ITEMS.flatMap((i) => i.fields.map((f) => f.value));
+  // Every value the vault holds is absent from every answer find prints.
+  for (const q of queries) {
+    const printed = JSON.stringify(find(q));
+    for (const v of values) assert.ok(!printed.includes(v), `${q.join(', ')} printed ${v}`);
+  }
+  // Changing every secret changes no answer: only titles decide what comes back.
+  const changed = ITEMS.map((i) => ({ ...i, fields: i.fields.map((f) => ({ ...f, value: `${i.title} other secret` })) }));
+  for (const q of queries) assert.deepEqual(find(q, changed), find(q));
 });
 test('2password run strips the service token only when op holds one', () => {
   const ref = { API_KEY: 'op://Personal/Cloud API/credential' };

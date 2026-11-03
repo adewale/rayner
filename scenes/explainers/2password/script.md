@@ -4,7 +4,7 @@ A coding agent needs to start an app that reads API_KEY. Pasting the key into th
 
 An op:// reference does that. op://Personal/Cloud API/credential identifies a vault, an item and a field. The reference tells 1Password’s op CLI where to look; it does not contain the key or grant permission to read the vault. The authenticated CLI resolves it when it starts the app.
 
-The agent still needs to find the right item. 2password’s find command searches item titles first. Cloud API contains the words in “cloud api”, so it matches. The typo “databse” matches no title, but Database is one edit away. Its similarity score makes it a suggestion rather than an exact match.
+The agent still needs to find the right item, and 2password’s find command compares its query with item titles, not with what the items hold. Cloud API contains both words of “cloud api”, so it matches. The typo “databse” is in no title, so find compares spellings instead: one inserted letter turns it into “database”, a score of 1 − 1/8 = 0.875, above the 0.6 threshold, and Database comes back as a suggestion rather than a match. A query that neither matches a title nor scores 0.6 against one finds nothing, whatever the items hold.
 
 Finding by title separates choosing an item from using its secret. The wrapper obtains the selected item information, drops field values while decoding the reply, and returns references. In the shown search, two op calls provide the titles and the selected items. The agent gets names it can pass onward rather than the credentials themselves.
 

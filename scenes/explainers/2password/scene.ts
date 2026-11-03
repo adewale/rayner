@@ -21,6 +21,20 @@ const TOKEN = 'OP_SERVICE_ACCOUNT_TOKEN';
 const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
+/** The check questions' answers, from the same find: a query whose words are in no title. */
+const CHECK = (() => {
+  const query = 'cloud key',
+    result = find([query]);
+  if (result.matches.length || result.suggestions) throw new Error(`“${query}” should find nothing`);
+  const best = Math.max(...ITEMS.map((i) => closeness(terms(query), i.title)));
+  return { blind: { query, best: best.toFixed(3), calls: result.opCalls.length } };
+})();
+const match0 = (() => {
+  const m = find(['cloud api']).matches[0]!,
+    [vault, title, field] = m.ref.slice('op://'.length).split('/');
+  return { ref: m.ref, vault: vault!, title: title!, field: field! };
+})();
+
 export default class PasswordExplainer extends Scene {
   static meta = {
     id: '2password',
@@ -34,18 +48,25 @@ export default class PasswordExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); check holds reader-boundary to stating the answer.
     answer: ANSWER,
+    // Sentences that reach past the cases on screen, and what holds each.
+    claims: [
+      { says: 'The agent handles only an op:// reference', test: 'test/explain-models.test.ts: 2password find returns references and no field value' },
+      { says: 'the agent searches titles, never values', test: 'test/explain-models.test.ts: compares queries with titles alone' },
+      { says: 'contains every word of', shown: true as const },
+      { says: 'every sample value is searched for in the output', shown: true as const },
+    ],
     checks: [
       {
-        question: 'The agent searches for “databse”, which no title contains. What does find return, and why that item?',
-        answer: 'A suggestion, the Database reference. “databse” is one edit from “database”, so it scores 1 − 1/8 = 0.875, above the 0.6 threshold.',
+        question: `The agent searches for “${CHECK.blind.query}”, hoping to find the API key. What does find return, and why?`,
+        answer: `Nothing. No title contains “key”, so nothing matches, and the closest titles score ${CHECK.blind.best}, below the ${SUGGESTION_THRESHOLD} threshold, so nothing is suggested. find compares the query with titles only; it cannot know that ${match0.title} holds a key, and it makes ${CHECK.blind.calls} op call, the item list, without fetching any item.`,
       },
       {
         question: 'The app prints API_KEY to stdout, and the agent reads stdout. Does passing a reference prevent that disclosure?',
         answer: 'No. The app receives the resolved key and can print it. References keep field values out of find’s output and the launch request; they do not sandbox the app or redact its output.',
       },
       {
-        question: 'Does knowing an op:// reference let an unauthenticated process read that credential?',
-        answer: 'No. The reference names a location but supplies no authorization. An authenticated op process with the required access must resolve it.',
+        question: `The agent’s transcript, containing ${match0.ref}, is pasted into a team chat. What does the team learn, and can they read the key?`,
+        answer: `They learn names: a vault called ${match0.vault}, an item titled ${match0.title} and a field called ${match0.field}. Reading the value still needs an op session with access to that vault; the reference carries no permission. The names themselves can still be sensitive, since they say which vaults and items exist.`,
       },
     ],
   };
@@ -73,7 +94,7 @@ export default class PasswordExplainer extends Scene {
     await readerFirst(this, s, readerFrames(auth));
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
-      line: `it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
+      line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
       caption: `Title matching chooses the items without needing their field values. Here “${hitQuery}” and “${missQuery}” search ${ITEMS.length} sample titles. The later item-get reply can contain secret values; the wrapper discards them before returning references to the agent.`,
     });
     await s.clear();
@@ -103,7 +124,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('match', {
       title: `Answer: a match for “${hitQuery}”, a suggestion for “${missQuery}”`,
       line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${edits} edit${edits === 1 ? '' : 's'} from “${missQuery}”.`,
-      caption: `${match.title} contains the words in “${hitQuery}”, so it matches. The typo “${missQuery}” has no match. Comparing its spelling with title words gives ${near.title} a score of ${score}, above the suggestion threshold. The fallback finds a likely name without comparing secret contents.`,
+      caption: `${match.title} contains every word of “${hitQuery}”, so it matches and find returns its reference. No title contains “${missQuery}”, so find falls back to spelling: “${missQuery}” is ${edits} edit${edits === 1 ? '' : 's'} from “${word}”, which scores 1 − ${edits}/${longer} = ${score}, above the ${SUGGESTION_THRESHOLD} threshold, and ${near.title} comes back as a suggestion. Both answers compare the query with titles; neither looks at a secret.`,
     });
     await boundary.dim(['Agent', 'Find']);
     const cell = (query: string, title: string) => {
@@ -128,7 +149,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('fetch', {
       title: 'One op item get fetches the match and the suggestion',
       line: `Item list, then one item get for ${found.fetched.join(' and ')}; ${service ? 'no approval' : 'one approval'}.`,
-      caption: service ? `find first lists titles, then fetches the selected items together. The service account authenticates op without a desktop approval. That changes how the vault is accessed, not the reference-only output returned to the agent.` : `find first lists titles, then fetches the selected items together. Upstream documents one desktop approval for this command. The agent still receives references rather than the secret-bearing item reply.`,
+      caption: service ? `find first lists titles, then fetches the selected items together. The service account authenticates op without a desktop approval. That changes how op reaches the vault; the agent still receives references, as it does with desktop approvals.` : `find first lists titles, then fetches the selected items together. Upstream documents one desktop approval for this command. The agent still receives references rather than the secret-bearing item reply.`,
     });
     await s.clear();
     const sequence = await s.show(
@@ -190,13 +211,16 @@ export default class PasswordExplainer extends Scene {
         [-1, 0],
       );
     const matchFor = answers(`match for “${hitQuery}”`, refText);
-    await s.enter(refText, matchFor, { runTime: 0.5 });
-    await this.play(new Create(s.keep(anatomy), { lagRatio: 0 }));
+    await s.enter(refText, matchFor, {
+      runTime: 0.5,
+      describe: () => `The match for “${hitQuery}”: ${ref}, its three parts underlined as vault, item and field`,
+    });
+    await this.play(new Create(s.keep(anatomy, { describe: () => `Under ${ref}: vault ${segs[0]}, item ${segs[1]}, field ${segs[2]}` }), { lagRatio: 0 }));
     const suggestionText = new Text(suggestion.ref, { fontSize: 0.44, font: 'mono', color: s.palette.ink }).moveTo([
         0, -0.9,
       ]),
       suggestionFor = answers(`suggestion for “${missQuery}”`, suggestionText);
-    await s.enter(suggestionText, suggestionFor, { runTime: 0.5 });
+    await s.enter(suggestionText, suggestionFor, { runTime: 0.5, describe: () => `The suggestion for “${missQuery}”: ${suggestion.ref}` });
     const values = ITEMS.flatMap((i) => i.fields.map((f) => f.value));
     const printed = JSON.stringify(found),
       leaked = values.filter((v) => printed.includes(v)).length;
@@ -206,7 +230,7 @@ export default class PasswordExplainer extends Scene {
     await this.step('run', {
       title: service
         ? 'op starts the app with the key; env -u keeps the service token back'
-        : 'op starts the app with the key the agent never saw',
+        : 'op swaps the reference for the key as it starts the app',
       line: service
         ? 'The app gets PATH and the API_KEY value, not the service token.'
         : 'op resolves the API_KEY reference; the app gets its value and PATH.',
