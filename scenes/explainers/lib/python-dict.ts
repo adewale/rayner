@@ -24,6 +24,23 @@ export function lookup(table: DictTable, key: number): DictLookup {
   }
   throw new Error('The eight-slot dictionary lesson needs an unused slot');
 }
+/** One slot a lookup reads: a key, D or never used; and whether the search goes on, has found its key, or stops. */
+export interface RouteHop {slot: number; reads: number | 'D' | 'never used'; then: 'on' | 'found' | 'stop'}
+/** A finished lookup as hops along the slot row, plus the never-used slots its hops fly over without reading. */
+export function route(table: DictTable, result: DictLookup): {hops: RouteHop[]; passedOver: number[]} {
+  const hops = result.slots.map((slot, i): RouteHop => {
+    const at = table.indices[slot]!;
+    const reads = at === EMPTY ? 'never used' : at === DELETED ? 'D' : table.entries[at]!.key!;
+    return {slot, reads, then: i < result.slots.length - 1 ? 'on' : result.found ? 'found' : 'stop'};
+  });
+  const passedOver = new Set<number>();
+  for (let i = 1; i < result.slots.length; i++) {
+    const a = result.slots[i - 1]!, b = result.slots[i]!;
+    for (let slot = Math.min(a, b) + 1; slot < Math.max(a, b); slot++)
+      if (table.indices[slot] === EMPTY && !result.slots.includes(slot)) passedOver.add(slot);
+  }
+  return {hops, passedOver: [...passedOver].sort((x, y) => x - y)};
+}
 export function dictionary(): DictTable {
   const table: DictTable = {indices: Array(8).fill(EMPTY), entries: []};
   for (const [key, value] of [[0, 'apple'], [8, 'pear'], [16, 'plum']] as const) {

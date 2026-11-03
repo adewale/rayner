@@ -66,6 +66,9 @@
           "key": "dict-index"
         },
         {
+          "key": "dict-route"
+        },
+        {
           "key": "dict-entries"
         },
         {
@@ -79,6 +82,9 @@
       "targets": [
         {
           "key": "dict-index"
+        },
+        {
+          "key": "dict-route"
         },
         {
           "key": "dict-result"
