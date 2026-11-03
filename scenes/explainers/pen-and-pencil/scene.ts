@@ -472,7 +472,7 @@ export default class PenAndPencil extends Scene {
     // 1. The failure on the real timeline: a hand that places its own strokes pushes words out of their boxes.
     await this.step('text', {
       title: 'Can a wobbling hand draw this timeline and keep its words in their boxes?',
-      line: 'what must be fixed before any ink?',
+      line: 'What must be fixed before any ink?',
       caption: `The words stayed where the layout placed them, but ${misses.length} of ${wordCountFree} poke out of their boxes. This simulated hand chained imperfect moves, every line setting off from where the previous one stopped. A displaced endpoint became the next line’s starting point. What must be fixed before the ink begins?`,
     });
     await s.clear();
@@ -562,7 +562,7 @@ export default class PenAndPencil extends Scene {
         which === 'first'
           ? `Objects, then words; no ink strays over ${fmt(chartStray)} from its mark.`
           : 'Grey: the first drawing’s sea and gulls. Dashed red: the shared boxes.',
-      caption: which === 'first' ? `The planks, hanging tags and rope follow the fixed marks; the words fit the boxes those marks define. The drawing seed also places sea strokes and gulls, which can move without changing the chart’s geometry. This visual treatment follows the credited pele-art-diagrams examples. Changing the seed will test which parts are construction and which are decoration.` : `The sea strokes and gulls move with the seed, and the ink wobbles differently. The construction stays fixed, so every plank, tag and word lands in the dashed boxes the first drawing used. The decorative strokes can change without deciding where a label belongs. The planks, tags and rope follow the credited pele-art-diagrams examples.`,
+      caption: which === 'first' ? `The planks, hanging tags and rope follow the fixed marks; the words fit the boxes those marks define. The drawing seed also places sea strokes and gulls, which can move without changing the chart’s geometry. This visual treatment follows the credited pele-art-diagrams examples. Which of these marks would a second drawing move?` : `The sea strokes and gulls move with the seed, and the ink wobbles differently. The construction stays fixed, so every plank, tag and word lands in the dashed boxes the first drawing used. The decorative strokes can change without deciding where a label belongs. The planks, tags and rope follow the credited pele-art-diagrams examples.`,
     });
     await s.focus('all');
     await this.play(traced.animate.setOpacity(1), { runTime: 0.3 });

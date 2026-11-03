@@ -1,13 +1,13 @@
 # What does a Mermaid verifier check?
 
-A cache lookup has its branches reversed: yes from Cached leads to Database, while no leads to Reply. The diagram can be drawn neatly, but a hit now follows the database path the cache was meant to avoid. Would a verifier reject it?
+An agent edits a cache lookup and gets its branches backwards: yes from Cached leads to Database, and no leads to Reply. The diagram draws neatly, but a cache hit now takes the database path the cache exists to avoid. Would a verifier reject it?
 
-Agentic Mermaid accepts it: ok is true and there are no warnings. Its report also says taskCorrectness is not checked. The drawn yes path really reaches Database; accepting the diagram has not established that the path represents a correct cache lookup.
+Agentic Mermaid accepts it: ok is true and there are no warnings. The report's last line says taskCorrectness is not checked. The verifier has confirmed that the source draws and that each exit of the decision carries a label; it has not confirmed that the labels describe a working cache.
 
-A different mistake stops the diagram from being drawn at all. Cutting the destination off an arrow makes the pinned renderer fail. The report then has ok false and a rendering error. This is a check the tool can perform without knowing what the cache is for: can its renderer turn this source into a diagram?
+A different mistake stops the diagram from drawing at all. Cut the destination off the last arrow, and the pinned renderer fails. The report then has ok false and a rendering error. The verifier can make this check without knowing what a cache is for, because the question is only whether its renderer can turn the source into a picture.
 
-Missing labels fall between the two cases. The diagram still draws, but a decision with multiple exits has unlabelled branches. The verifier warns about those edges while leaving ok true. An edge identifier such as A->C#0 tells which connection needs attention: the first edge from Cached to Database.
+Missing labels fall between the two. The diagram still draws, but a decision with two exits now has unlabelled branches, and the verifier warns about each one while leaving ok true. An edge name such as A->C#0 says which connection needs a label: the first edge from Cached to Database.
 
-Correcting the labels makes yes lead to Reply and no to Database. The warnings are clear, but the backwards diagram already had a clear report. The two reports cannot distinguish the two meanings because both diagrams meet the same drawing and structural checks.
+Now label the branches the right way round, with yes to Reply and no to Database. The report is clean, but the backwards diagram's report was just as clean. Both diagrams draw, and both give every exit a label, so the same checks pass for both and the reports cannot tell them apart.
 
-The remaining requirement has to come from the task. For this cache, following a hit should reach Reply without querying Database. A check of that behavior would distinguish the diagrams; the generic verifier’s success does not. Its findings are useful evidence about renderability and particular structural rules, with a boundary at domain meaning.
+The missing requirement comes from the task: following a cache hit should reach Reply without querying Database. A check of that path would separate the two diagrams. Agentic Mermaid's ok and warnings answer two narrower questions: can this renderer draw the source, and does each decision say which exit is which? This page shows the gap; it does not implement the cache check.

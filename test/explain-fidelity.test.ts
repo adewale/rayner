@@ -373,7 +373,15 @@ for (const entry of EXPLAINERS)
           const em = {Regular: 4.901, Bold: 5.386, Italic: 4.71};
           // Text's advance box uses float32 endpoints; allow their rounding,
           // while keeping the printed hundredths independently exact below.
-          assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 1.2) < 1e-6);
+          // The ruler measures the opening's lower row again, at its size 0.9.
+          assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 0.9) < 1e-6);
+          // The first check reverses the opening: measured in Garamond, drawn in JetBrains Mono (12 cells of 0.54),
+          // the marker 0.5 after the measured width lands 1.57 before the drawn phrase ends.
+          const layout = trace.steps.find(s => s.step === 'layout')!.after!.layout as { wrong: number; actual: number };
+          assert.ok(Math.abs(layout.wrong - 12 * 0.54) < 1e-5 && Math.abs(layout.actual - em.Regular * 0.9) < 1e-6);
+          const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
+          assert.equal(overlap, '1.57');
+          assert.ok(String((project.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta.checks[0]!.answer).includes(`about ${overlap} units before the phrase ends`));
           const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));
@@ -410,30 +418,66 @@ for (const entry of EXPLAINERS)
             else assert.ok(k > 1.1, `${run.text}: Inter estimates stretch the Garamond word (${k})`);
             assert.ok(diagramShown.includes(`stretched ×${stretch[run.text]!.toFixed(3)}`), diagramShown);
           }
+          // The recorded case's caption: Paper is stretched more than Ink, so no single factor converts the faces.
+          if (values.widths === 'recorded') {
+            assert.ok(stretch.Paper! > stretch.Ink! + 0.1, `Paper ${stretch.Paper}, Ink ${stretch.Ink}`);
+            assert.match(String(trace.steps.find(s => s.step === 'diagram')!.meta.caption), /Paper’s is larger than Ink’s/);
+          }
           break;
         }
         case 'layout-direction': {
-          // The public story promises both cards at once, opposite field sides
-          // and unchanged digit order before and after an update.
+          // Measured from the cards themselves: logical start/end take the stage's halves, physical
+          // left/right keep theirs, and a card's field columns follow the stage unless it overrides them,
+          // before and after an update, without reversing the digits.
+          const rtl = values.direction === 'rtl';
           const seen: string[] = [];
           await new variant.Scene({
             async frame() {},
             async stepEnd(scene, step) {
-              if (step.name !== 'columns' && step.name !== 'updates') return;
+              if (!['columns', 'updates', 'physical'].includes(step.name)) return;
               const cards = scene.familyMembers().filter((m): m is Card => m instanceof Card);
               assert.equal(cards.length, 2);
               const [left, right] = cards.sort((a, b) => a.center()[0] - b.center()[0]);
-              assert.ok(left!.center()[0] < 0 && right!.center()[0] > 0, 'RTL logical end/start occupy left/right');
-              const expected = step.name === 'columns' ? '123' : '456';
+              assert.ok(left!.center()[0] < 0 && right!.center()[0] > 0, 'one card on each half');
+              const expected = step.name === 'updates' ? '456' : '123';
               for (const card of cards) assert.equal(card.values.get('Field')!.text, expected);
-              assert.ok(left!.labels.get('Field')!.box()![2] < left!.values.get('Field')!.box()![0], 'LTR override puts label before value');
-              assert.ok(right!.values.get('Field')!.box()![2] < right!.labels.get('Field')!.box()![0], 'RTL default puts value before label');
-              assert.equal(left!.direction, 'ltr');
-              assert.equal(right!.direction, 'rtl');
+              const nameFirst = (card: Card) => card.labels.get('Field')!.box()![2] < card.values.get('Field')!.box()![0];
+              const valueFirst = (card: Card) => card.values.get('Field')!.box()![2] < card.labels.get('Field')!.box()![0];
+              // Which card is which, from the titles the reader sees.
+              const titled = (t: string) => cards.find((c) => c.describe().what.includes(t))!;
+              if (step.name === 'physical') {
+                assert.ok(titled('Left,') === left && titled('Right,') === right, 'left and right keep their halves');
+                for (const card of cards) {
+                  assert.equal(card.direction, values.direction);
+                  assert.ok(rtl ? valueFirst(card) : nameFirst(card), 'physical cards take the stage columns');
+                }
+              } else {
+                const start = titled('Start,'),
+                  end = titled('End,');
+                assert.equal(start, rtl ? right : left, 'start follows the stage');
+                assert.equal(end, rtl ? left : right, 'end follows the stage');
+                assert.equal(start.direction, values.direction);
+                assert.equal(end.direction, 'ltr');
+                assert.ok(rtl ? valueFirst(start) : nameFirst(start), 'the Start card inherits the stage columns');
+                assert.ok(nameFirst(end), 'the End card’s ltr override puts the name before the value');
+              }
               seen.push(step.name);
             },
           }, {skipUntil: Infinity}).run();
-          assert.deepEqual(seen, ['columns', 'updates']);
+          assert.deepEqual(seen, ['columns', 'updates', 'physical']);
+          // The state the scene records says the same.
+          assertStepState(trace, 'columns', {
+            cards: {
+              start: { side: rtl ? 'right' : 'left', name: rtl ? 'right of value' : 'left of value', value: '123' },
+              end: { side: rtl ? 'left' : 'right', name: 'left of value', value: '123' },
+            },
+          });
+          assertStepState(trace, 'physical', {
+            cards: {
+              left: { side: 'left', name: rtl ? 'right of value' : 'left of value', value: '123' },
+              right: { side: 'right', name: rtl ? 'right of value' : 'left of value', value: '123' },
+            },
+          });
           break;
         }
         case 'glyph': {
@@ -454,6 +498,18 @@ for (const entry of EXPLAINERS)
           assert.ok(caption.includes(`all 15 characters ${monoAdv[0]!.toFixed(3)}, so its line is 15 × ${monoAdv[0]!.toFixed(3)} = 8.10`), caption);
           const gains = sansAdv.map((a, i) => monoAdv[i]! - a);
           assert.equal('Hello, outlines'[gains.indexOf(Math.max(...gains))], 'l', 'the l gains most');
+          // The card adds the difference up by groups: Inter's narrowest letters, the other narrow
+          // characters, the one letter Inter draws wider, and the rest.
+          const group = (keep: (c: string) => boolean) =>
+            +[...'Hello, outlines'].reduce((n, c, i) => (keep(c) ? n + gains[i]! : n), 0).toFixed(3);
+          assertStepState(trace, 'measure', {
+            gains: {
+              'l, l, l, i': group((c) => c === 'l' || c === 'i'),
+              'comma, space, t': group((c) => c === ',' || c === ' ' || c === 't'),
+              H: group((c) => c === 'H'),
+              'the other 7': group((c) => 'eousne'.includes(c)),
+            },
+          });
           // Outline shapes, compared point by point once each glyph is centred and scaled
           // to one size: each glyph pairs with itself at 60%, and the other font's pairs
           // only where an outline really is the same.

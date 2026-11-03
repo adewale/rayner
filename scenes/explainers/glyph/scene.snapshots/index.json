@@ -2,9 +2,8 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "286dd8777c7d816d304ad5f0f2aa97d69bb2ccd484b6684fa8bab9e0c796795e",
+  "sourceHash": "d33bbb7823a3d5e73ab1f8cb1c7e78389f18e1f3fa98192237b8b3f626841ee2",
   "diagrams": {
-    "[\"graph TB\\nFont[Inter] --> Shape[Shape text]\\nShape --> Paths[Cubic paths]\\nPaths --> SVG[SVG player]\\nPaths --> PNG[PNG stills]\",\"pen-and-ink\"]": "9725559958b9a5bd.json",
-    "[\"graph TB\\nFont[JetBrains Mono] --> Shape[Shape text]\\nShape --> Paths[Cubic paths]\\nPaths --> SVG[SVG player]\\nPaths --> PNG[PNG stills]\",\"pen-and-ink\"]": "1a5dd1d2d801513d.json"
+    "[\"graph TB\\nFont[Inter] --> Shape[Shape text]\\nShape --> Paths[Cubic paths]\\nPaths --> SVG[SVG player]\\nPaths --> PNG[PNG stills]\",\"pen-and-ink\"]": "9725559958b9a5bd.json"
   }
 }
