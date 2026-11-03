@@ -64,14 +64,12 @@ export function table(
 ): Group {
   const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.palette.ink, weight: 'bold' }));
   const cells = rows.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.palette.ink })));
+  const isNumber = (v: string | number | undefined) =>
+    typeof v === 'number' || /^[+−-]?\d[\d.,\s/]*(?:%|€|h|days|pages|tokens|bytes|GiB|TiB)?$/u.test(String(v));
+  // A dash stands for an empty cell; it keeps a column of numbers aligned as numbers.
+  const isBlank = (v: string | number | undefined) => typeof v === 'string' && /^[–—-]?$/u.test(v);
   const numeric = headers.map(
-    (_, c) =>
-      rows.length > 0 &&
-      rows.every(
-        (row) =>
-          typeof row[c] === 'number' ||
-          /^[+−-]?\d[\d.,\s/]*(?:%|€|h|days|pages|tokens|bytes|GiB|TiB)?$/u.test(String(row[c])),
-      ),
+    (_, c) => rows.some((row) => isNumber(row[c])) && rows.every((row) => isNumber(row[c]) || isBlank(row[c])),
   );
   const widths = headers.map((_, c) => Math.max(heads[c]!.width(), ...cells.map((row) => row[c]!.width())));
   const place = (text: Text, c: number, at: number) =>
