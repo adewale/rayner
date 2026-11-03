@@ -50,6 +50,15 @@ const rowY = (row: number) => 2.29 - (row - 1) * PITCH_Y;
 const HEADER_Y = 2.78;
 const STRIP_Y = -2.24;
 const fRowY = (row: number) => -3.03 - (row - 1) * PITCH_Y;
+/**
+ * The opening's small, unlabelled table and its caption, one row under the comparison: the
+ * caption's left edge, the table's scale, and its centre. The caption is about 6.2 wide and the
+ * table 14.76 × 0.4 = 5.9, so the pair, 1 apart, centres on the stage.
+ */
+const CONTEXT_LABEL_X = -6.6,
+  CONTEXT_SCALE = 0.4,
+  CONTEXT_X = 3.6,
+  CONTEXT_Y = -2.8;
 /** The empty rectangle above the d block, periods 1 to 3: where the words go. */
 const NOTE_X = colX(3) - CELL_W / 2,
   NOTE_RIGHT = colX(12) + CELL_W / 2;
@@ -106,13 +115,14 @@ const ROW_CELLS = Array.from({ length: 7 }, (_, r) =>
 );
 
 // The fill step lays each row's runs side by side, before any table: smaller cells, a
-// small gap between runs, 32 across at most.
-const PK_PITCH = 0.4,
-  PK_W = 0.36,
-  PK_H = 0.56,
-  PK_GAP = 0.1,
-  PK_LEFT = -7.0;
-const pkRowY = (row: number) => 2.2 - (row - 1) * 0.72;
+// small gap between runs, 32 across at most. The longest rows and their "= 32" span the
+// stage; the short rows leave the upper right for the notes.
+const PK_PITCH = 0.42,
+  PK_W = 0.38,
+  PK_H = 0.64,
+  PK_GAP = 0.12,
+  PK_LEFT = -7.45;
+const pkRowY = (row: number) => 2.4 - (row - 1) * 0.8;
 const PACKED: Vec[] = [];
 const ROW_END: number[] = [];
 {
@@ -332,7 +342,7 @@ export default class PeriodicGroupsExplainer extends Scene {
         picture.add(cell);
         if (compact) continue;
         const letters = new Text(p.symbol, {
-          fontSize: packed ? 0.21 : 0.3,
+          fontSize: packed ? 0.23 : 0.3,
           color: letter,
           weight: chosen ? 'bold' : 'normal',
         }).moveTo([x, packed ? y : y - 0.11]);
@@ -426,7 +436,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       }
       if (compact) {
         picture.key = 'periodic-context';
-        picture.scale(0.3).moveTo([4.1, -2.9]);
+        picture.scale(CONTEXT_SCALE).moveTo([CONTEXT_X, CONTEXT_Y]);
       }
       return picture;
     };
@@ -473,30 +483,32 @@ export default class PeriodicGroupsExplainer extends Scene {
             picture.add(jump);
           }
         });
-        say(`Group ${group}`, [-6.4, -2.45], { size: 0.72, bold: true });
-        say(`in the ${POSITIONS.length}-cell table`, [-6.4, -3.3], { size: 0.68 });
+        // The small table's caption, beside it: the two make one row centred under the comparison.
+        say(`Group ${group}`, [CONTEXT_LABEL_X, CONTEXT_Y + 0.42], { size: 0.72, bold: true });
+        say(`in the ${POSITIONS.length}-cell table`, [CONTEXT_LABEL_X, CONTEXT_Y - 0.42], { size: 0.68 });
       }
       if (note === 'fill') {
         // The element's own runs, by length, in the space right of the short rows; the names
         // s, p, d and f come two steps later.
         const lengths = (state.runs ?? []) as number[];
-        const left = ROW_END[3]! + 1.3;
-        say(`${Name}: ${z} electron${z > 1 ? 's' : ''}, one per cell`, [left, pkRowY(1)], { size: 0.24, color: SOFT });
+        const left = ROW_END[3]! + 1.5;
+        say(`${Name}: ${z} electron${z > 1 ? 's' : ''}, one per cell`, [left, pkRowY(1)], { size: 0.32, color: SOFT });
         say(lengths.length > 1 ? `${lengths.join(' + ')} = ${lengths.reduce((a, b) => a + b, 0)}` : String(lengths[0] ?? ''), [
           left,
-          pkRowY(2) + 0.08,
-        ], { size: 0.4 });
+          pkRowY(2) + 0.04,
+        ], { size: 0.5 });
         const rows = (state.rows ?? null) as number[] | null;
         if (rows) {
-          say('Every full run is 2, 6, 10 or 14 cells', [left, pkRowY(3) + 0.1], { size: 0.27 });
+          say('Every full run is 2, 6, 10 or 14 cells', [left, pkRowY(3) + 0.08], { size: 0.34 });
           // Each row's length, at its right end.
-          rows.forEach((n, i) => say(`= ${n}`, [ROW_END[i + 1]! + 0.18, pkRowY(i + 1) - 0.03], { size: 0.28, bold: true }));
-          // Colour says the run's length; the legend says it in words too.
-          const legendY = pkRowY(7) - 0.8;
+          rows.forEach((n, i) => say(`= ${n}`, [ROW_END[i + 1]! + 0.16, pkRowY(i + 1) - 0.02], { size: 0.34, bold: true }));
+          // Colour says the run's length; the legend says it in words too, spread under the longest rows.
+          const legendY = pkRowY(7) - 1.0,
+            legendPitch = (ROW_END[6]! - PK_LEFT) / 4;
           (['s', 'p', 'd', 'f'] as Block[]).forEach((b, i) => {
-            const x = PK_LEFT + i * 2.6;
-            picture.add(new Line([x, legendY], [x + 0.5, legendY], { stroke: BLOCK[b], strokeWidth: 0.3 }));
-            say(`run of ${CAPACITY[b]}`, [x + 0.85, legendY - 0.02], { size: 0.26 });
+            const x = PK_LEFT + i * legendPitch;
+            picture.add(new Line([x, legendY], [x + 0.6, legendY], { stroke: BLOCK[b], strokeWidth: 0.34 }));
+            say(`run of ${CAPACITY[b]}`, [x + 1.0, legendY - 0.02], { size: 0.34 });
           });
         }
       }
