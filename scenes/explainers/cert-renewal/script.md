@@ -2,6 +2,8 @@
 
 A renewal job written for ninety-day certificates often says “renew thirty days before expiry”. Certificate lifetimes are shrinking: the CA/Browser Forum’s cap falls to 47 days by 2029, and Let’s Encrypt already offers 160-hour certificates. The setting still names the old amount of time. What does it do to a certificate that lasts 160 hours?
 
+Draw a ninety-day certificate and a 160-hour one to the same scale, lined up at expiry. The rule counts thirty days back from expiry, so its due point sits the same distance from the right-hand end of both bars. On the ninety-day certificate it lands at day 60, with a third of the life left. On the 160-hour certificate it lands 560 hours, 23.3 days, before the certificate was issued.
+
 Thirty days exceeds its entire lifetime. The certificate is already inside the renewal period when it is issued. A twice-daily job therefore tries again at its next run, and a successful replacement is immediately due under the same rule. Shorter certificates turn an occasional renewal into repeated issuance.
 
 A rule based on a share of the lifetime scales with the certificate. Certbot 4.1’s default renews two thirds of the way through a normal lifetime and halfway through one shorter than ten days. For a ninety-day certificate the thirty-day rule and the fractional rule agree. For a 160-hour certificate the default leaves roughly half its life available for retries instead of treating it as due from the start.
