@@ -1,5 +1,5 @@
 import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/mr-cache.ts';
+import { frames as readerFrames, ANSWER } from '../lib/readers/mr-cache.ts';
 import {
   Scene,
   Code,
@@ -114,8 +114,32 @@ export default class CacheMRExplainer extends Scene {
   static meta = {
     id: 'mr-cache',
     title: 'What does a cache hit save?',
-    sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts'],
+    sources: [
+      'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts',
+      'https://developers.cloudflare.com/kv/api/read-key-value-pairs/',
+    ],
     watch: { databaseReads: 'Database reads', request: 'Request', reads: 'D1 reads' },
+    answer: ANSWER,
+    // Each speaks of the code drawn in its own step.
+    claims: [
+      { says: 'Before: every request reads D1', shown: true as const },
+      { says: 'every lookup is a database read', shown: true as const },
+      { says: 'so only a miss reaches D1', shown: true as const },
+    ],
+    checks: [
+      {
+        question: 'Nine of ten requests for one user are hits. How many database reads do those ten requests make, against how many before the change?',
+        answer: 'One, the miss that filled the cache, against ten. Each hit returns from KV without reaching D1.',
+      },
+      {
+        question: 'A nightly job looks up every user exactly once. What does the cache do to its database reads, and to its total work?',
+        answer: 'Every lookup misses, so the job still makes one database read per user, as before, and each lookup adds a KV read and a KV write. The cache saves nothing here and costs two extra operations a user.',
+      },
+      {
+        question: 'For a user who does not exist, the query returns null. What happens on the next lookup for that user, and which line decides it?',
+        answer: 'It misses again and reads D1 again. The put stores the text null; get with "json" parses it back to null, and line 3, if (hit), treats null as no saved value. A missing user is never answered from the cache.',
+      },
+    ],
   };
   static settings = [
     {
@@ -265,8 +289,8 @@ export default class CacheMRExplainer extends Scene {
           : 'The miss row reads D1 once and caches the row for 300 s.',
       caption:
         which === 'hit'
-          ? 'The user is already in KV, so getUser returns without reading D1. The highlighted hit row goes straight from KV to Reply; the miss row shows the database work this request avoids.'
-          : 'KV has no entry, so the highlighted miss row goes through D1: one read, then the row is cached for 300 seconds. Lookups for the same user in that window follow the hit row; D1 still serves every miss.',
+          ? 'The user is already in KV, so getUser runs lines 2 and 3 and returns without reading D1. The highlighted hit row goes straight from KV to Reply; the miss row shows the database read this request avoids, and the KV write it does not need.'
+          : 'KV has no entry, so the highlighted miss row goes through D1: one read, as before the change, then the row is written to KV for 300 seconds. A later lookup for the same user can follow the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
     });
     const path = PATH[which];
     await flow.clearNotes();
