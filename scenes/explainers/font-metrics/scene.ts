@@ -21,7 +21,7 @@ export default class FontMetrics extends Scene {
       { says: 'only the measurement changes', shown: true as const },
       {
         says: 'Every Garamond glyph here advances less than',
-        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+        test: 'test/explain-font-metrics.test.ts: every Garamond glyph in the phrase advances less than a JetBrains Mono cell',
       },
     ],
     checks: [
