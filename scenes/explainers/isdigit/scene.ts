@@ -1,4 +1,4 @@
-import { Scene, Text, Rectangle, Line } from '../../../src/index.ts';
+import { Scene, Text, Rectangle, Line, FadeIn } from '../../../src/index.ts';
 import type { Mobject, Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import {
@@ -218,18 +218,30 @@ export default class IsDigitExplainer extends Scene {
       }.`,
     });
     await s.clear();
+    // Three lines are the whole picture: set large, with what the check returns beside them,
+    // the panel and its callout centred together on the stage.
+    const GUARD_SIZE = SIZE * 1.5,
+      CALLOUT_GAP = 0.35,
+      returns = `returns ${TF(run.passes)}`;
     const prog = await s.code([`s = "${c.char}"`, `if s.${guard}():`, '    n = int(s)'], {
-      at: [-7.55, 0.2, 7.55, TOP],
-      fontSize: SIZE * 1.2,
+      at: [-7.55, -4.0, 7.55, TOP],
+      fontSize: GUARD_SIZE,
+      enter: false,
     });
+    {
+      const [x0, , x1] = prog.panel.box()!,
+        across = x1 - x0 + CALLOUT_GAP + new Text(returns, { fontSize: GUARD_SIZE }).width();
+      prog.shift([-across / 2 - x0, 0]);
+    }
+    await this.play(new FadeIn(prog, { runTime: 0.4 }));
     await prog.focus(run.passes ? [1, 2] : 1, { as: run.passes ? 'run' : 'the check that fails' });
     // What the check returns, said at the end of its line, just outside the panel.
     const check = prog.code.lines[1]!.box()!;
-    await s.callout(check, `returns ${TF(run.passes)}`, {
+    await s.callout(check, returns, {
       side: 'right',
-      gap: prog.panel.box()![2] - check[2] + 0.35,
+      gap: prog.panel.box()![2] - check[2] + CALLOUT_GAP,
       color: run.passes ? s.good : s.bad,
-      size: SIZE * 1.2,
+      size: GUARD_SIZE,
     });
     this.state.guard = { predicate: guard, passes: run.passes };
 
@@ -274,7 +286,7 @@ export default class IsDigitExplainer extends Scene {
     // One row in lineup order; a bracket spans the characters each call accepts, which the model
     // must give as a run from the left: the decimals, then the one digit, then the other numerics.
     const slot = (i: number) => -6.3 + i * 1.8,
-      ROW = -0.4;
+      ROW = -0.8;
     const span = (ok: (k: CharId) => boolean) => {
       const n = LINEUP.filter(ok).length;
       if (!LINEUP.slice(0, n).every(ok)) throw new Error('The lineup must list accepted characters first');
@@ -296,13 +308,13 @@ export default class IsDigitExplainer extends Scene {
     const marks: Mobject[] = [];
     PREDICATES.forEach((p, level) => {
       const n = span((k) => predicates(CHARS[k])[p]);
-      marks.push(...bracket(0, n - 1, 0.72 + level * 0.82, true, `${p}() → True`, p === guard ? s.emphasis : ink, p === guard));
+      marks.push(...bracket(0, n - 1, 0.32 + level * 0.95, true, `${p}() → True`, p === guard ? s.emphasis : ink, p === guard));
     });
     const parses = span((k) => 'value' in intOf(CHARS[k]));
     const returned = [...new Set(LINEUP.slice(0, parses).map((k) => (intOf(CHARS[k]) as { value: number }).value))];
     marks.push(
-      ...bracket(0, parses - 1, -1.35, false, `int() → ${returned.join(' or ')}`, s.good),
-      ...bracket(parses, LINEUP.length - 1, -1.35, false, 'int() → ValueError', s.bad),
+      ...bracket(0, parses - 1, -1.75, false, `int() → ${returned.join(' or ')}`, s.good),
+      ...bracket(parses, LINEUP.length - 1, -1.75, false, 'int() → ValueError', s.bad),
     );
     const glyphs = LINEUP.map((k, i) => new Text(CHARS[k].char, { fontSize: 1.15, color: ink }).moveTo([slot(i), ROW]));
     const ring = new Rectangle({ width: 1.5, height: 1.5, cornerRadius: 0.15, stroke: s.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
@@ -310,7 +322,7 @@ export default class IsDigitExplainer extends Scene {
       ROW,
     ]);
     const sup = CHARS.super.char;
-    await s.enter(...glyphs, ring, ...marks, new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.bad }).moveTo([0, -2.85]), {
+    await s.enter(...glyphs, ring, ...marks, new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.bad }).moveTo([0, -3.3]), {
       describe: `Eight characters in a row: ${LINEUP.map((k) => CHARS[k].char).join(' ')}. Brackets above span what each check accepts: isdecimal() the first ${span((k) => predicates(CHARS[k]).isdecimal)}, isdigit() the first ${span((k) => predicates(CHARS[k]).isdigit)}, isnumeric() all ${span((k) => predicates(CHARS[k]).isnumeric)}; the ${guard}() bracket is heavier. Brackets below: int() returns ${returned.join(' or ')} for the first ${parses} and raises ValueError for the rest. ${c.char} is circled. Under them: ${sup} passes isdigit() and int('${sup}') raises ValueError.`,
     });
     this.state.lineup = LINEUP.map((k) => ({ char: CHARS[k].char, type: numericType(CHARS[k]), int: intOf(CHARS[k]) }));
@@ -361,7 +373,7 @@ export default class IsDigitExplainer extends Scene {
         ['Field 7: isdigit()', blank(f.digit)],
         [id === 'han' ? 'Field 8 (Unihan): isnumeric()' : 'Field 8: isnumeric()', blank(f.numeric)],
       ],
-      { at: [-7.55, BOTTOM, 7.55, -0.35], fontSize: SIZE, width: 10 },
+      { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', fontSize: SIZE, width: 10 },
     );
     this.state.fields = f;
     this.state.numericType = type;
@@ -419,11 +431,13 @@ export default class IsDigitExplainer extends Scene {
     await s.clear();
     const counts = await s.card(
       PREDICATES.map((k) => [`${k}() but not int()`, grouped(accepts(k))] as const),
-      { at: [-7.55, -0.75, 7.55, TOP], fontSize: SIZE, width: 11 },
+      { at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11 },
     );
     await counts.mark(`${guard}() but not int()`, { as: 'this case’s check' });
+    // The answer's code right under the counts, the pair centred down the stage.
     await s.code(['try: n = int(s)', 'except ValueError: n = None'], {
-      at: [-7.55, BOTTOM, 7.55, -1.25],
+      at: [-7.55, BOTTOM, 7.55, counts.box()![1] - 0.5],
+      align: 'top',
       fontSize: SIZE,
     });
     this.state.accepts = Object.fromEntries(PREDICATES.map((k) => [k, accepts(k)]));
