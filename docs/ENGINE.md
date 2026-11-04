@@ -49,7 +49,7 @@ Sort a feature request with one question: does it check, ground or publish the r
 
 When a request is the second kind, the answer is usually to expose the data the author needs, not to build the behaviour.
 
-**Design records.** A design document ends with what was tried and not kept, and why, as Lantern's performance notes did: [sampled parameters](PARAMETERS.md), [sessions](SESSIONS.md) and the primitives below do. A proposal that cannot name its rejected alternatives, or the existing explainers it changes, is not ready. A claim of success names the check that proves it and the deliberate defect that check was shown to reject.
+**Design records.** A design document ends with what was tried and not kept, and why, as Lantern's performance notes did: [sampled parameters](PARAMETERS.md), [sessions](SESSIONS.md), the primitives below and the proposed [vocabulary](VOCABULARY.md) do. A proposal that cannot name its rejected alternatives, or the existing explainers it changes, is not ready. A claim of success names the check that proves it and the deliberate defect that check was shown to reject.
 
 ## Next primitives
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Propose one vocabulary for Rayner's abstractions (docs/VOCABULARY.md): `draw` as the one name for state to picture, `Session` renamed `Machine` before release, staged steps as views of state with a redraw check, and the names #88, #7 and 3D need. Not built.
 - Build Henge from the approved script: fixed-axis globes, projected daily sky paths, an annual bearing sweep, a due-west alternative and street-level half/full disc geometry. Check the coordinate model against independently captured ERFA vectors. Update the other published explanations to follow their revised causal scripts and regenerate the complete website collection.
 - Rewrite the explainer scripts and the starter as reader-facing causal explanations. Keep construction choices and model scope in optional notes, ending quizzes in scene metadata, and verification in tests. Update the tutorial and editorial guidance to use the same division.
 - Shorten the main periodic-table story to runs, stacking, names and helium; keep filling-order machinery and configuration exceptions as optional reference. Give dictionary deletion and search-race readers unseen transfer exercises, distinguish all three ordinary Git merge outcomes, and promote the three engineering lessons after reviewing their scripts and source checks.
