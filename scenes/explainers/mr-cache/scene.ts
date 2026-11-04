@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, ANSWER } from '../lib/readers/mr-cache.ts';
 import {
   Scene,
@@ -156,7 +155,7 @@ export default class CacheMRExplainer extends Scene {
     const which = settingsOf(this).request as 'hit' | 'miss',
       s = stage(this, { headingSize: 0.6, style: STYLE });
 
-    await readerFirst(this, s, readerFrames(which));
+    await s.steps(readerFrames(which), { reader: true });
     await this.step('before', {
       detail: true,
       title: 'Before: every request reads D1',

@@ -1,10 +1,10 @@
 import { Scene, Group, Arrow, Text } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from '../lib/git-branches.ts';
 import type { GitFrame } from '../lib/git-branches.ts';
-import { lesson, label, tile, dot, table } from '../lib/lesson-drawing.ts';
+import { label, tile, dot, table } from '../lib/lesson-drawing.ts';
 
 /** Commit positions: the two branches fork right from A, and M joins them, spread across the stage. */
 const AT: Record<string, Vec> = { A: [-6.1, 0.67], B: [-0.4, 1.47], C: [-0.4, -0.13], M: [5.3, 0.67] };
@@ -162,7 +162,7 @@ export default class GitBranches extends Scene {
           ? `${intro} on main, commit C added title.txt, Home. We have main checked out (HEAD), so the files below are C’s. A branch label names a commit; arrows lead back through its history. Could moving main to B combine the edits?`
           : `${intro} main has made no commit since, so it still points at A. We have main checked out (HEAD), so the files below are A’s. A branch label names a commit; arrows lead back through its history. Could moving main to B bring in feature’s edit?`,
         state: shown(before),
-        draw: (s: Stage) => picture(s, before, 'Arrows point from a commit to its parent.'),
+        draw: (_: unknown, s: Stage) => picture(s, before, 'Arrows point from a commit to its parent.'),
       },
       ...(advanced
         ? [
@@ -172,7 +172,7 @@ export default class GitBranches extends Scene {
               line: `B’s history is ${history(moved, 'B').join(', then ')}; C is not in it.`,
               caption: `With main on B, checking out main gives ${currentFiles(moved).colour} and no title.txt. B’s history is ${history(moved, 'B').join(', then ')}, so neither branch would contain C or the Home edit. C is still stored: moving the label does not delete the commit. To keep main’s history, following parent arrows from its new destination must still reach its old commit. A merge needs a new commit when each branch has a commit the other lacks.`,
               state: shown(moved, { lost: unreachable(moved) }),
-              draw: (s: Stage) => picture(s, moved, 'C is outside both branch histories.'),
+              draw: (_: unknown, s: Stage) => picture(s, moved, 'C is outside both branch histories.'),
             },
           ]
         : []),
@@ -186,7 +186,7 @@ export default class GitBranches extends Scene {
           ? 'git merge feature creates M with parents C and B and moves main to it. M’s files have both edits, green and Home, because the two edits touch different files. Feature stays at B, and C stays in main’s history.'
           : 'Main’s commit, A, is B’s parent, so B already holds everything main had. git merge feature moves main from A to B without a new commit, which Git calls a fast-forward and does by default, and colour.txt turns green. A merge needs a new commit when each branch has a commit the other lacks; here only feature does.',
         state: shown(merged),
-        draw: (s: Stage) => picture(s, merged, advanced ? 'M records parents C and B.' : 'main moves to existing commit B.'),
+        draw: (_: unknown, s: Stage) => picture(s, merged, advanced ? 'M records parents C and B.' : 'main moves to existing commit B.'),
       },
       {
         id: 'countercase',
@@ -196,9 +196,9 @@ export default class GitBranches extends Scene {
           ? 'Here main never made C and still points at A, B’s parent. git merge feature moves main to B without a new commit, which Git calls a fast-forward, and colour.txt turns green. Git fast-forwards by default; the option --no-ff would make a merge commit here anyway, by choice, though no edit would be lost without one.'
           : 'Here main made C, adding Home. B does not contain C, so moving main to B would drop that edit from main’s history. git merge feature creates M with parents C and B, keeping green and Home. --no-ff can request a commit even when a fast-forward could keep both histories.',
         state: { frame: other, files: currentFiles(other), advanced: !advanced },
-        draw: (s: Stage) => picture(s, other, advanced ? 'main moves to existing commit B.' : 'M records parents C and B.'),
+        draw: (_: unknown, s: Stage) => picture(s, other, advanced ? 'main moves to existing commit B.' : 'M records parents C and B.'),
       },
     ];
-    await lesson(this, lessons);
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(lessons);
   }
 }

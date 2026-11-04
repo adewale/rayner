@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, arrayQueue } from '../lib/readers/ring-buffer.ts';
 import {
   Scene,
@@ -231,7 +230,7 @@ export default class RingBufferExplainer extends Scene {
     const keepRing = <T extends Mobject>(...mobs: [T, ...Mobject[]]): T => s.keep(...mobs, { describe: ringWords });
 
     // The queue the ring replaces: an array whose pop moves every value left.
-    await readerFirst(this, s, readerFrames());
+    await s.steps(readerFrames(), { reader: true });
     const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
     await this.step('slots', {
       title: 'Answer: keep the values still, and move two markers instead',

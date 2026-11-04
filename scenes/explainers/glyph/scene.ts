@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames } from '../lib/readers/glyph.ts';
 import {
   Scene,
@@ -195,7 +194,7 @@ export default class GlyphExplainer extends Scene {
     const total = advance('mono') - advance('sans');
 
     // 1. The puzzle: the same words at the same size, two widths.
-    await readerFirst(this, s, [widthFrame!]);
+    await s.steps([widthFrame!], { reader: true });
 
     // 2. The answer: each glyph advances the pen by its own width, and each font sets those widths.
     await this.step('measure', {
@@ -304,7 +303,7 @@ export default class GlyphExplainer extends Scene {
     );
 
     // 4. The same letter, two outlines: the prediction.
-    await readerFirst(this, s, [shapeFrame!]);
+    await s.steps([shapeFrame!], { reader: true });
 
     // 5. The answer to it: no glyph pairs across the fonts.
     await this.step('letterforms', {

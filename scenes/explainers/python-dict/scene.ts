@@ -1,9 +1,9 @@
 import { Scene, Group, Rectangle, CurvedArrow } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
+import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED } from '../lib/python-dict.ts';
 import type { DictTable, DictLookup } from '../lib/python-dict.ts';
-import { lesson, label, tile, table } from '../lib/lesson-drawing.ts';
+import { label, tile, table } from '../lib/lesson-drawing.ts';
 
 /** What one resting picture shows beside the index: the entries and a lookup, or the start-slot table. */
 interface View {
@@ -287,9 +287,8 @@ export default class PythonDict extends Scene {
         },
       },
     ];
-    await lesson(
-      this,
-      frames.map(({ view, ...frame }) => ({ ...frame, draw: (s: Stage) => picture(s, view as View) })),
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(
+      frames.map(({ view, ...frame }): StagedStep => ({ ...frame, draw: (_, s: Stage) => picture(s, view as View) })),
     );
   }
 }

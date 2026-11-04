@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames } from '../lib/readers/gnome-files.ts';
 import { Scene, Group, Line, Rectangle, Text } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -132,7 +131,7 @@ export default class GnomeFilesExplainer extends Scene {
     const ink = s.palette.ink;
 
     // ------------------------------------------------------------------ one task, then all six people
-    await readerFirst(this, s, readerFrames(p));
+    await s.steps(readerFrames(p), { reader: true });
     // ------------------------------------------------------------------ every give-up, every person
     const mine = gaveUp(p),
       all = giveUps();

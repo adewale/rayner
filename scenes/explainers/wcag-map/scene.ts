@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, ANSWER } from '../lib/readers/wcag-map.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -192,7 +191,7 @@ export default class WcagMapExplainer extends Scene {
       t22 = tally('2.2', level);
 
     // ------------------------------------------------------------------ 2.0
-    await readerFirst(this, s, readerFrames(level, open));
+    await s.steps(readerFrames(level, open), { reader: true });
     await this.step('v20', {
       detail: true,
       title: `WCAG 2.0 at level ${level} asks for ${t20.total} success criteria`,

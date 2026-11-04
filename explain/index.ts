@@ -1,5 +1,6 @@
 export { stage } from './stage.ts';
-export type { StageOptions, Stage, StageRegion, Describe } from './stage.ts';
+export { stagedStepsOf } from './stage.ts';
+export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions, StagedRecord } from './stage.ts';
 export type { LayoutDirection } from './layout-direction.ts';
 export type {AudioClip, ScoreNote, StepAudio} from './audio.ts';
 export { Diagram } from './diagrams.ts';

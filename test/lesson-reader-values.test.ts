@@ -325,10 +325,10 @@ test('GNOME sample labels explain every participant outcome and retain the repor
   let participants = 0;
   for (const selected of ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as const) {
     const sample = frames(selected)[1]!;
-    assert.equal(sample.values.task, tasks[selected]);
-    const picture = sample.draw(stage(new Scene(new NullSink())));
+    assert.equal(sample.state.task, tasks[selected]);
+    const picture = sample.draw(sample.state, stage(new Scene(new NullSink())));
     assert.equal(picture.children.length, 6);
-    const outcomes = sample.values.outcomes as { participant: string; colour: string; meaning: string }[];
+    const outcomes = sample.state.outcomes as { participant: string; colour: string; meaning: string }[];
     assert.equal(outcomes.length, 6);
     for (let i = 0; i < 6; i++) {
       const participant = `P${i + 1}`;

@@ -143,6 +143,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
 | `s.carry(m, to, { runTime })` | Glide a kept object to a point, or into a box or region it is shrunk to fit (never enlarged): carry an idea on instead of clearing it |
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
+| `s.steps(steps, { reader }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, audio?, detail?, reading? }`: it clears the stage, records `state` (as the scene's state with `phase: id`, or under `state.reader` with `reader: true`), and fades in `draw(state, s)`, described by its words. `rayner check` redraws every step from the state its trace recorded and fails one whose picture differs, so a `draw` must read its state, not a variable another step changes. `reading` lists keys of the parts a phone opens on. |
 | `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept |
 | `s.pin(at, { label, color, size })` | A pin stuck in at `at`, with an optional label |
 | `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge |
@@ -383,6 +384,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Catch lint | A `try`/`catch` or `.catch()` around awaited code in `construct()` |
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |
+| Staged steps | A step presented with `s.steps` draws a different picture (text or any part's box) when redrawn after the run from the state its trace recorded |
 | Machines | A state some [machine](MACHINES.md)'s events reach collides, has no description, does not show its state, or is described exactly as another reachable state; reported by its shortest events |
 | Invariants | An invariant the scene registered with `this.addInvariant(name, check)` fails on any frame of the full run, mid-animation included, or never holds on any frame (it found nothing to check: a key it reads may be misspelt); the report lists the frames each claim held on (`invariants`) |
 | Seek | A seeked frame differs from the played frame, at two frames per step |

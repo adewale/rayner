@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, ANSWER } from '../lib/readers/2password.ts';
 import { Scene, Text, Arrow, Group, Line, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -91,7 +90,7 @@ export default class PasswordExplainer extends Scene {
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await readerFirst(this, s, readerFrames(auth));
+    await s.steps(readerFrames(auth), { reader: true });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,

@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
 import { Scene, Text, Group, Rectangle, Transform } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
@@ -78,7 +77,7 @@ export default class BashExplainer extends Scene {
       accent = s.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
     // ── command: a line of text and a shell value ──────────────────────
-    await readerFirst(this, s, readerFrames());
+    await s.steps(readerFrames(), { reader: true });
     await this.step('command', {
       detail: true,
       title: 'A command line and the empty shell it runs on',

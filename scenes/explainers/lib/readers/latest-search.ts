@@ -3,7 +3,7 @@ import type { Stage } from '../../../../explain/index.ts';
 import { runSearch } from '../latest-search.ts';
 import type { CompletionOrder, Query, Lifetime, PageSpan } from '../latest-search.ts';
 import { label, tile } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /** What the user typed for each search: A is the older keystroke, B the latest. */
 export const TYPED: Record<Query, string> = { A: 'ca', B: 'cat' };
@@ -78,7 +78,7 @@ function timeline(s: Stage, lifetimes: readonly Lifetime[], tracks: readonly { n
   return new Group(bars, axis, ...drops, ...(tracks.length ? [rowLabel('Page shows', top, s.soft)] : []), ...rows);
 }
 
-export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
+export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
   const [off, on] = await Promise.all([runSearch(false, order), runSearch(true, order)]);
   // The order the promises resolved in, read back from the model's run.
   const done = off.snapshots.slice(1).map((x) => x.completed.at(-1)!);
@@ -86,7 +86,7 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
   const staleWins = off.snapshots.at(-1)!.shown !== 'B';
   const latest = TICKET.B;
 
-  const decisions = done.map((query, i): ReaderFrame => {
+  const decisions = done.map((query, i): StagedStep => {
     const ticket = TICKET[query],
       accepted = ticket === latest,
       without = off.snapshots[i + 1]!.shown,
@@ -105,8 +105,8 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
           ? `Predict: ${q(done[1]!)} lands next with ticket ${TICKET[done[1]!]}. Published or dropped?`
           : `Latest is still ${latest}: finishing a search does not change it.`,
       caption: `${q(query)} carries ticket ${ticket} and latest is ${latest}, so the guard ${accepted ? 'publishes its results' : 'drops its results'}. ${page}`,
-      values: { query, ticket, latest, accepted, off: off.snapshots[i + 1], on: on.snapshots[i + 1] },
-      draw: (s) =>
+      state: { query, ticket, latest, accepted, off: off.snapshots[i + 1], on: on.snapshots[i + 1] },
+      draw: (_, s) =>
         new Group(
           tile(`${q(query)}: ticket ${ticket}`, -4, 2, 5.4, 1.2, s),
           tile(`latest = ${latest}`, 4, 2, 5.4, 1.2, s),
@@ -125,8 +125,8 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
       caption: `Each bar is one search, from the keystroke that starts it to the moment its answer lands. ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. Both are running at once, and they can finish in a different order from the one they started in; here ${q(first)} lands first. The bars show the order of events, not measured time. Both requests succeed in this example. The page starts empty and publishes results as they arrive.`,
-      values: { order, completion: done, lifetimes: off.lifetimes },
-      draw: (s) =>
+      state: { order, completion: done, lifetimes: off.lifetimes },
+      draw: (_, s) =>
         new Group(
           timeline(s, off.lifetimes, []),
           label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75),
@@ -145,16 +145,16 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
           ? `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}, outlined in red.`
           : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined in red; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
-      values: { order, off: off.snapshots, lifetimes: off.lifetimes, page: { off: off.page } },
-      draw: (s) => timeline(s, off.lifetimes, [{ name: 'No guard', page: off.page, key: 'timeline-page-off' }]),
+      state: { order, off: off.snapshots, lifetimes: off.lifetimes, page: { off: off.page } },
+      draw: (_, s) => timeline(s, off.lifetimes, [{ name: 'No guard', page: off.page, key: 'timeline-page-off' }]),
     },
     {
       id: 'tickets',
       title: 'Answer: number each search, and publish only the latest',
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,
       caption: `Give each search a ticket from a counter as it starts: ${q('A')} gets 1, ${q('B')} gets 2, and latest is now 2. Finishing changes neither. When a result lands, publish it only if its ticket is still the latest. Starting a newer request makes every older ticket stale; arrival order cannot make an old ticket current again.`,
-      values: { tickets: { A: TICKET.A, B: TICKET.B }, latest },
-      draw: (s) =>
+      state: { tickets: { A: TICKET.A, B: TICKET.B }, latest },
+      draw: (_, s) =>
         new Group(
           tile(`${q('A')}: ticket ${TICKET.A}`, -4, 2, 5.4, 1.2, s),
           tile(`${q('B')}: ticket ${TICKET.B}`, 4, 2, 5.4, 1.2, s, { active: true }),
@@ -177,8 +177,8 @@ export async function frames(order: CompletionOrder): Promise<ReaderFrame[]> {
           ? `Without the guard, the page ends on ${q(off.snapshots[2]!.shown)}; with it, on ${q(on.snapshots[2]!.shown)}. Older ${q('A')} lands last and would overwrite ${q('B')}; its ticket is stale, so the guarded page does not change when it lands.`
           : `Both rules end on ${q(on.snapshots[2]!.shown)}, because ${q('B')} landed last. Without the guard the page showed ${q(off.snapshots[1]!.shown)} first; with it, ${q(on.snapshots[1]!.shown)} until ${q('B')} arrived, so the guarded page does not change when ${q('A')} lands.`
       } The guard drops stale results without cancelling the old search, which still runs to the end.`,
-      values: { order, off: off.snapshots, on: on.snapshots, lifetimes: off.lifetimes, page: { off: off.page, on: on.page } },
-      draw: (s) =>
+      state: { order, off: off.snapshots, on: on.snapshots, lifetimes: off.lifetimes, page: { off: off.page, on: on.page } },
+      draw: (_, s) =>
         timeline(s, off.lifetimes, [
           { name: 'No guard', page: off.page, key: 'timeline-page-off' },
           { name: 'Guard on', page: on.page, key: 'timeline-page-on' },

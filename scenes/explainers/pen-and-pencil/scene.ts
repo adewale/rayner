@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, SEEDS, GREY, px } from '../lib/readers/pen-and-pencil.ts';
 import { Scene, VMobject, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
@@ -489,7 +488,7 @@ export default class PenAndPencil extends Scene {
     this.state.periods = facts.length;
 
     // 2. Why the boxes wander, and the fix in miniature: the route is fixed first, and the hand only follows it.
-    await readerFirst(this, s, readerFrames(seed));
+    await s.steps(readerFrames(seed), { reader: true });
 
     // 3. For the real timeline, the layout comes first.
 

@@ -1,5 +1,6 @@
-import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation } from '../src/index.ts';
+import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create, jsonObject } from '../src/index.ts';
+import type { Scene, Vec, Box, FadeOpts, Animation, SceneState } from '../src/index.ts';
+import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, tool, Draw, oneStrokeEach } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
@@ -45,6 +46,45 @@ type Entry = { enter?: boolean };
  * function for a drawing that changes. Without it, their visible text is listed.
  */
 export type Describe = { describe?: string | (() => string) };
+
+/**
+ * One step of a stepped explanation: its words, the state it records, and its picture as a
+ * function of that state. `rayner check` redraws every step from the state its trace recorded,
+ * after the run, and fails a step whose picture differs: a `draw` that reads anything another
+ * step changes, rather than its own state, cannot pass.
+ */
+export interface StagedStep<S extends object = Record<string, unknown>> {
+  id: string;
+  title: string;
+  line: string;
+  caption: string;
+  /** What the step records (JSON): the scene's state, or `state.reader` for a reader's short path. */
+  state: S;
+  /** The step's picture, from its state alone; the stage gives its palette and helpers. */
+  draw: (state: S, stage: StageApi) => Mobject;
+  audio?: StepAudio;
+  detail?: boolean;
+  /** Keys of the parts the step is about, when that is less than the whole picture: a phone opens on them. */
+  reading?: readonly string[];
+}
+/** Options for `stage.steps`: `reader` records each state under `state.reader` and marks the steps as the reader's short path. */
+export interface StagedStepsOptions { reader?: boolean }
+/** One staged step as `rayner check` redraws it: from the recorded state, compared with what was drawn. */
+export interface StagedRecord { step: string; reader: boolean; redraw: (recorded: SceneState) => Mobject; drawn: string }
+const staged = new WeakMap<object, StagedRecord[]>();
+/** The steps `stage.steps` presented on a scene, in order: what `rayner check` redraws after a run. */
+export function stagedStepsOf(scene: Scene): StagedRecord[] {
+  let list = staged.get(scene);
+  if (!list) staged.set(scene, (list = []));
+  return list;
+}
+/** A picture's text and each part's box, rounded: what a redraw must reproduce. */
+export function pictureFingerprint(m: Mobject): string {
+  const round = (v: number) => Math.round(v * 1000) / 1000;
+  return JSON.stringify(m.family().map((x) => [x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null]));
+}
+// The stage, for a step's draw; declared structurally so StagedStep can name it inside stage().
+type StageApi = Stage;
 
 /**
  * Part of the stage's heading: its title (`__heading`), or its number, line or band
@@ -544,6 +584,37 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       await scene.play(new Draw(m, t, { runTime }));
       if (t) scene.remove(t);
       return m;
+    },
+    /**
+     * Present steps in turn: each clears the stage, records its state, and fades in its picture,
+     * drawn from that state. With `reader`, the state goes under `state.reader` (the rest of the
+     * scene's state stays) and the steps are the reader's short path before a detailed one.
+     */
+    async steps<S extends object>(list: readonly StagedStep<S>[], { reader = false }: StagedStepsOptions = {}): Promise<void> {
+      for (const step of list) {
+        await scene.step(step.id, {
+          title: step.title, line: step.line, caption: step.caption,
+          ...(step.audio ? { audio: step.audio } : {}), ...(step.detail ? { detail: true } : {}), ...(reader ? { reader: true } : {}),
+        });
+        await this.clear({ runTime: 0.18 });
+        const state = jsonObject(step.state as Record<string, unknown>, `step ${step.id} state`) as S;
+        if (reader) scene.state.reader = { ...state };
+        else scene.state = { ...state, phase: step.id };
+        const drawing = step.draw(state, this as StageApi);
+        if (reader) drawing.key = 'reader-picture';
+        stagedStepsOf(scene).push({
+          step: step.id,
+          reader,
+          redraw: (recorded) => step.draw((reader ? recorded.reader : recorded) as S, this as StageApi),
+          drawn: pictureFingerprint(drawing),
+        });
+        // What the step is about, when that is less than the whole drawing: a phone opens on it.
+        const about = step.reading ? drawing.family().filter((m) => step.reading!.includes(m.key ?? '')) : [drawing];
+        this.reading(...about);
+        // Describe the drawn labels, not the state object or the authored caption.
+        const words = drawing.family().filter((m): m is Text => m instanceof Text).map((t) => t.text).filter(Boolean);
+        await this.enter(drawing, { runTime: reader ? 0.25 : 0.24, describe: words.join('. ') });
+      }
     },
   };
 }

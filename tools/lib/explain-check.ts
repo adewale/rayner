@@ -2,7 +2,7 @@ import { scriptReport } from '../../explain/script.ts';
 import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
-import { isHeading } from '../../explain/stage.ts';
+import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -429,6 +429,24 @@ export async function exploreMachines(scene: Scene): Promise<{ events: string[];
   return explored;
 }
 
+/**
+ * Every step `stage.steps` presented, redrawn after the run from the state its trace recorded and
+ * compared with the picture drawn then (text and every part's box). A step whose draw reads
+ * anything but its own state, such as a variable a later step changed, draws something else now
+ * and is named here.
+ */
+export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[] } {
+  const problems: string[] = [];
+  const records = stagedStepsOf(scene);
+  for (const record of records) {
+    const traced = trace.steps.find((s) => s.step === record.step);
+    if (!traced?.after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); continue; }
+    if (pictureFingerprint(record.redraw(traced.after)) !== record.drawn)
+      problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than ${record.reader ? 'state.reader' : 'its state'}`);
+  }
+  return { redrawn: records.length, problems };
+}
+
 /** Run every check on every case; write the report to `out`/report.json and return it. */
 export async function checkProject(project: Project, out: string): Promise<Record<string, unknown>> {
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
@@ -499,6 +517,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
     );
     const machines = await exploreMachines(ran);
+    const staged = redrawStagedSteps(ran, v.trace);
+    assert.deepEqual(
+      staged.problems.slice(0, 5),
+      [],
+      `Staged steps ${where}: a step's picture must be a function of the state it records (the first five)`,
+    );
     assert.deepEqual(
       machines.flatMap((s) => s.problems).slice(0, 5),
       [],
@@ -580,6 +604,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       invariants: Object.fromEntries(invariants.held),
       // Each machine's events and how many states they reach, every one drawn and checked.
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
+      // How many stage.steps pictures were redrawn from their recorded state and matched.
+      ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.

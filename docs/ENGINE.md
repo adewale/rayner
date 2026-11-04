@@ -92,7 +92,7 @@ Not built, and why:
   The exported shape is one small animation, [`Follow`](CHOREOGRAPHY.md#follow),
   which names the mobjects it writes; the token bucket's refill is its proof.
 
-Keep `presentFrame`'s clear/draw transition the default: an author opts into
+Keep `stage.steps`' clear/draw transition the default: an author opts into
 entity continuity when successive pictures really show the same entities.
 
 ## Out of scope

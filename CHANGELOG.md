@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `stage.steps(steps, { reader })`: each step records its state and draws its picture from it, and `rayner check` redraws every step from the state its trace recorded, failing a step whose picture differs. The 17 explainers that used the scene library's `lesson()` and `readerFirst()` now use it; those helpers are gone.
+- Every `View` is a view of state: the constructor takes `(scene, draw)`, `view(build)` and `stateView` are gone, and `View.render` is `View.draw`. Monty-hall keeps its phase in the scene's state. The stage's pen animation is `s.sketch`, so `draw` means only state to picture.
+- Rename `Session` to `Machine` (`machinesOf`, describe's `machines`) and `View.sync({ match: 'keys' })` to `'key'`; invariants are no longer called claims.
 - Propose one vocabulary for Rayner's abstractions (docs/VOCABULARY.md): `draw` as the one name for state to picture, `Session` renamed `Machine` before release, staged steps as views of state with a redraw check, and the names #88, #7 and 3D need. Not built.
 - Build Henge from the approved script: fixed-axis globes, projected daily sky paths, an annual bearing sweep, a due-west alternative and street-level half/full disc geometry. Check the coordinate model against independently captured ERFA vectors. Update the other published explanations to follow their revised causal scripts and regenerate the complete website collection.
 - Rewrite the explainer scripts and the starter as reader-facing causal explanations. Keep construction choices and model scope in optional notes, ending quizzes in scene metadata, and verification in tests. Update the tutorial and editorial guidance to use the same division.

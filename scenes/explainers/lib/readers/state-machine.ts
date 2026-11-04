@@ -1,13 +1,13 @@
 import { Group } from '../../../../src/index.ts';
 import { reduceSession, sessionAttempt } from '../models.ts';
 import { flow, label, tile } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /** The scene's one-sentence answer, which the reject step states in both histories. */
 export const ANSWER =
   'The reducer accepts an event only in a state that has a row for it, so a late OPENED cannot reopen a closed session';
 
-export function frames(which: string): ReaderFrame[] {
+export function frames(which: string): StagedStep[] {
   const event = which === 'success' ? 'OPENED' : 'ERROR',
     next = reduceSession('connecting', event);
   const closed = which === 'success' ? reduceSession(next, 'CLOSE') : next;
@@ -19,8 +19,8 @@ export function frames(which: string): ReaderFrame[] {
       title: 'Should a late OPENED reopen a closed session?',
       line: `Predict: the session ends in ${closed}, then an OPENED arrives. What happens?`,
       caption: `A session connects in two moves: CONNECT takes it from idle to connecting, and the network’s reply, OPENED or ERROR, decides where it goes next. Here the reply is ${event}, which moves it to ${next}${which === 'success' ? ', and later CLOSE moves it to closed' : ''}. Then a reply from an earlier attempt turns up: OPENED. Read on its own, OPENED means open. Should the session reopen? The code that decides is a reducer: a function given the current state and an event, which returns the next state.`,
-      values: { event, next },
-      draw: (s) =>
+      state: { event, next },
+      draw: (_, s) =>
         new Group(
           flow(s, ['idle', 'connecting', next]),
           label('CONNECT', -2.55, 2.25, s.emphasis, 0.65),
@@ -33,8 +33,8 @@ export function frames(which: string): ReaderFrame[] {
       title: 'Answer: no. Closed has no row for OPENED',
       line: 'The reducer looks up the current state and the event together.',
       caption: `${ANSWER}. ${ended}. The reducer then looks up the pair closed:OPENED, finds no row and throws InvalidTransition, an error, so the state stays closed.`,
-      values: { state: 'closed', event: 'OPENED', result: rejected },
-      draw: (s) =>
+      state: { state: 'closed', event: 'OPENED', result: rejected },
+      draw: (_, s) =>
         new Group(
           label(which === 'success' ? 'CLOSE → closed' : 'ERROR → closed', 0, 2.65, s.palette.ink, 0.7),
           tile('closed', -4.7, 1, 3.8, 1.3, s, { active: true }),

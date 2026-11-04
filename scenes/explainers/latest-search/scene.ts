@@ -1,6 +1,5 @@
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames, ANSWER } from '../lib/readers/latest-search.ts';
 import type { CompletionOrder } from '../lib/latest-search.ts';
 
@@ -47,6 +46,6 @@ export default class LatestSearchExplainer extends Scene {
   ];
   override async construct() {
     const order = settingsOf(this).order as CompletionOrder;
-    await readerFirst(this, stage(this, { style: 'github-dark', headingSize: 0.6 }), frames(order));
+    await stage(this, { style: 'github-dark', headingSize: 0.6 }).steps(await frames(order), { reader: true });
   }
 }

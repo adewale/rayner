@@ -1,9 +1,8 @@
 import { Scene, Group, Text, Circle, Dot, Line, Polygon, Rectangle, Arrow, VMobject } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
-import { lesson, label } from '../lib/lesson-drawing.ts';
-import type { LessonFrame } from '../lib/lesson-drawing.ts';
-import type { Stage } from '../../../explain/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
+import { label } from '../lib/lesson-drawing.ts';
+import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { henge, TILT, LATITUDE } from '../lib/henge.ts';
 import type { Street } from '../lib/henge.ts';
 type Sunset = ReturnType<typeof henge>['seasons'][number];
@@ -173,7 +172,7 @@ export default class Henge extends Scene {
         : [words('Sunrise and sunset both run along the street', 0, -3.7)];
       return tagged(new Group(grid, sun, street, new Dot({ radius: 0.12, color: INK }).moveTo(o), north, ...notes), 'henge-map');
     };
-    const disc = (s: Stage) => tagged(new Group(
+    const disc = (_: unknown, s: Stage) => tagged(new Group(
       streetView(true, s.palette.paper, -3.5, 0.5, 0.5), streetView(false, s.palette.paper, 3.5, 0.5, 0.5),
       words('Half Sun', -3.5, 2.45), words('Full Sun', 3.5, 2.45),
       words('Centre on horizon', -3.5, -1.6), words('Bottom on horizon', 3.5, -1.6),
@@ -183,12 +182,12 @@ export default class Henge extends Scene {
     const west = (bearing: number) => `${Math.abs(bearing - 270).toFixed(1)}° ${bearing > 270 ? 'north' : 'south'} of west`;
     const [december, , june] = m.seasons as [Sunset, Sunset, Sunset];
     const gap = m.gapDays.toFixed(1);
-    const frames: LessonFrame[] = [
+    const frames: StagedStep[] = [
       { id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
         caption: manhattan
           ? 'Look west down 42nd Street. On a few evenings a year, in late May and mid-July, the low Sun fits between the buildings; the Hayden Planetarium calls it Manhattanhenge. The buildings point the same way all year, so what changes must be where the Sun sets.'
           : 'This case turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
-        state: { bearing: m.bearing }, draw: (s) => tagged(new Group(streetView(false, s.palette.paper), words(manhattan ? '42nd Street: about 29° north of west' : 'A street pointing due west', 0, -3.7)), 'henge-street') },
+        state: { bearing: m.bearing }, draw: (_, s) => tagged(new Group(streetView(false, s.palette.paper), words(manhattan ? '42nd Street: about 29° north of west' : 'A street pointing due west', 0, -3.7)), 'henge-street') },
       { id: 'overhead',
         title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',
         line: 'North is up. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
@@ -213,6 +212,6 @@ export default class Henge extends Scene {
         caption: `The two views keep the Sun centred down the same street. Half Sun puts its centre on the visible horizon; full Sun puts its bottom edge there. During the ${seasonNames[0]} northward sweep the aligned Sun rises from half to full: in this model full Sun comes ${gap} days after half Sun, ${manhattan ? 'about one evening to the next' : 'closer than one evening to the next, because near an equinox the Sun’s path shifts fastest from day to day'}. During the ${seasonNames[1]} return the order reverses. These are changes across dates, not stages of one evening’s descent. The disc is enlarged here.`,
         state: { half: m.half, full: m.full, radius: m.radius, gapDays: m.gapDays }, draw: disc },
     ];
-    await lesson(this, frames);
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(frames);
   }
 }

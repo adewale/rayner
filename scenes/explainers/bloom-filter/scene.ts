@@ -1,9 +1,9 @@
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bloomStory, locations, makeFilter, membership, saturation, TAKEN } from '../lib/bloom-filter.ts';
 import { lerpColor } from '../../../src/color.ts';
-import { lesson, label, table, stat } from '../lib/lesson-drawing.ts';
+import { label, table, stat } from '../lib/lesson-drawing.ts';
 
 /** Each taken name's colour: text on white at 4.5:1 or better, and a pale fill behind a bit it set. */
 const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#57606a' };
@@ -232,8 +232,7 @@ export default class BloomFilter extends Scene {
       },
     ];
 
-    await lesson(
-      this,
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(
       frames.map((frame, i) => {
         const bits = i === 0 ? Array<number>(size).fill(0) : i === 1 ? m.first : i === FULL ? full.bits : m.bits;
         const query = i >= 3 && i <= 6 ? m.queries[Math.min(i - 3, 2)]! : null;
@@ -261,7 +260,7 @@ export default class BloomFilter extends Scene {
               : {}),
             ...(i === FULL ? { trail: full.trail, lookups: full.lookups, sampleSize: full.sampleSize, samplePass: full.samplePass } : {}),
           },
-          draw: (s: Stage) => {
+          draw: (_: unknown, s: Stage) => {
             if (i === 7) {
               // Two blocks on one left edge: the three lookups with their read count beside them, then the sample.
               const lookups = {

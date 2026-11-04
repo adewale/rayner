@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, ANSWER } from '../lib/readers/state-machine.ts';
 import {
   Scene,
@@ -104,7 +103,7 @@ export default class StateMachineExplainer extends Scene {
   override async construct() {
     const which = settingsOf(this).events,
       s = stage(this, { headingSize: 0.6, style: 'dracula' });
-    await readerFirst(this, s, readerFrames(which!));
+    await s.steps(readerFrames(which!), { reader: true });
     await this.step('machine', {
       detail: true,
       title: 'Four reducer rows, one per arrow',

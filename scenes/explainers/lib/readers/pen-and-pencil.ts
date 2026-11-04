@@ -3,7 +3,7 @@ import type { Vec } from '../../../../src/index.ts';
 import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from '../pen-and-pencil.ts';
 import type { Pt, Box } from '../pen-and-pencil.ts';
 import { label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /** The two drawings the plate compares: the first in grey, the second in ink. */
 export const SEEDS = { first: 1967, second: 7 } as const;
@@ -39,7 +39,7 @@ function freeBoxes(seed: number): Pt[][] {
 }
 const offset = (a: readonly Pt[], b: readonly Pt[]) => Math.max(...a.map((p, i) => Math.hypot(p[0] - b[i]![0], p[1] - b[i]![1])));
 
-export function frames(seed: number): ReaderFrame[] {
+export function frames(seed: number): StagedStep[] {
   // The failure: both drawings place their own boxes, and the boxes drift apart.
   const free = { first: freeBoxes(SEEDS.first), second: freeBoxes(SEEDS.second) };
   const apart = NAMES.map((_, i) => offset(free.first[i]!, free.second[i]!));
@@ -104,8 +104,8 @@ export function frames(seed: number): ReaderFrame[] {
       title: 'If the hand places the boxes, a second drawing moves them',
       line: 'Grey: the first drawing. Dark: the second. Dashed: where the boxes belong.',
       caption: `Each imperfect move changes where the next one begins, so every error is carried into every later corner. Across four boxes the small deviations accumulate: two seeds place the same box as much as ${worst.toFixed(2)} units apart. Could the pen wobble without deciding the next box’s position?`,
-      values: { apart: apart.map((d) => Number(d.toFixed(3))), fromLayout: fromLayout.map((d) => Number(d.toFixed(3))) },
-      draw: (s) =>
+      state: { apart: apart.map((d) => Number(d.toFixed(3))), fromLayout: fromLayout.map((d) => Number(d.toFixed(3))) },
+      draw: (_, s) =>
         new Group(
           ...laid.map((b) => path([...boxPolygon(b), boxPolygon(b)[0]!], DASHED, 0.03, 0.8, '0.12 0.1')),
           ...freeInk.first.map((l) => path(l, GREY, 0.045, 0.9)),
@@ -119,8 +119,8 @@ export function frames(seed: number): ReaderFrame[] {
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
       caption: `The route now fixes the corners before drawing. A simulated pen follows it like a mass pulled by a damped spring, and the next stroke starts from its own fixed mark. The magnifier shows different ink near the same route. The fix, in this hand model: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
-      values: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
-      draw: (s) => {
+      state: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
+      draw: (_, s) => {
         const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);
         const spot = new Circle({ radius: 0.09, stroke: s.soft, strokeWidth: 0.025 }).moveTo(far.p as Vec);
         const lead = new Line(far.p as Vec, [INSET[0], INSET[1] - LENS * ZOOM] as Vec, { stroke: s.soft, strokeWidth: 0.02 });
