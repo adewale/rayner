@@ -838,20 +838,17 @@ export class Diagram {
    * Animations that bring each part to its current look: base style, then the
    * mark colour, then dimming. Parts not on screen change in place.
    */
-  private looks(ids: Iterable<string>, runTime: number, animate = true): Transform[] {
-    const anims: Transform[] = [];
-    for (const id of new Set(ids)) {
+  /** Each family member's style for part `id` as the diagram draws it, marked in `color` and dimmed or not. */
+  private styled(id: string, color: string | undefined, dim: boolean): Style[] {
       const p = this.parts.get(id)!;
       const fam = p.mob.family();
       const base = this.base.get(id)!;
-      const color = this.marks.get(id)?.color;
-      const dim = this.kept != null && !this.kept.has(id) && !isScaffold(p.info);
       const connector = !!(p.info.from && p.info.to);
       const within = (m: Mobject, test: (a: Mobject) => boolean) => {
         for (let a: Mobject | null = m; a && a !== p.mob; a = a.parent) if (test(a)) return true;
         return false;
       };
-      const styles = fam.map((m, i) => {
+      return fam.map((m, i) => {
         const b = base[i]!,
           st: Style = { ...b };
         if (this.zoom !== 1) scaleStyle(st, this.zoom);
@@ -881,6 +878,14 @@ export class Diagram {
         if (dim) st.opacity = (b.opacity ?? 1) * this.dimmed;
         return st;
       });
+  }
+  private looks(ids: Iterable<string>, runTime: number, animate = true): Transform[] {
+    const anims: Transform[] = [];
+    for (const id of new Set(ids)) {
+      const p = this.parts.get(id)!;
+      const fam = p.mob.family();
+      const dim = this.kept != null && !this.kept.has(id) && !isScaffold(p.info);
+      const styles = this.styled(id, this.marks.get(id)?.color, dim);
       if (fam.every((m, i) => JSON.stringify(m.style) === JSON.stringify(styles[i]))) continue;
       if (animate && this.root.children.includes(p.mob) && this.scene.familyMembers().includes(p.mob)) {
         const target = p.mob.copy();
@@ -889,6 +894,49 @@ export class Diagram {
       } else fam.forEach((m, i) => (m.style = { ...styles[i]! } as typeof m.style));
     }
     return anims;
+  }
+  /** A picture drawn from this diagram (see picture()) that shows it while the live diagram is off the stage. */
+  shownBy: Mobject | null = null;
+  /** Say that `picture` shows this diagram: the stage describes the diagram while it is on stage. */
+  showBy(picture: Mobject): this {
+    this.shownBy = picture;
+    return this;
+  }
+  /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
+  link(from: string, to: string): { id: string; mob: Group; route: VMobject } {
+    const [a, b] = [this.end(from), this.end(to)];
+    const edge = [...this.parts.values()].find(
+      (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
+    );
+    if (!edge?.route || !edge.route.numCurves()) throw new Error(`link(): ${from} -> ${to} is not a real link`);
+    return { id: edge.info.id, mob: edge.mob, route: edge.route };
+  }
+  /**
+   * The whole diagram, copied, with the parts in `marks` (id to colour) in the look a mark gives
+   * them: a picture of the diagram that a view can draw from state, so marks such as a trail are
+   * part of that state. It carries the diagram's keys; once a view shows it, take the live
+   * diagram off the stage and call showBy(view), so each key is on stage once.
+   */
+  picture(marks: Readonly<Record<string, string>> = {}): Group {
+    const copy = this.root.copy();
+    const live = this.root.family(), drawn = copy.family();
+    const at = new Map(live.map((m, i) => [m, i] as const));
+    const marked = new Map(Object.entries(marks).map(([id, color]) => [this.top(id), color] as const));
+    // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
+    // drawn or marked, the rest unseen.
+    for (const [id, part] of this.parts) {
+      // An owned part (a link's label) is styled with its owner's family.
+      if (!this.base.has(id)) continue;
+      const styles = this.styled(id, marked.get(id), false), shown = this.visible.has(id);
+      part.mob.family().forEach((m, k) => {
+        const i = at.get(m);
+        if (i === undefined) return;
+        drawn[i]!.style = { ...styles[k]! } as typeof m.style;
+        if (!shown) drawn[i]!.style.opacity = 0;
+      });
+    }
+    copy.setStyle({ opacity: 1 }, false);
+    return copy;
   }
   /**
    * Colour parts (and links' arrowheads) and thicken their outlines until unmarked. Labels keep

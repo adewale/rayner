@@ -263,7 +263,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     const w = wordsOf(scene);
     const present = new Set(scene.familyMembers());
     const seen: Seen[] = [];
-    for (const d of diagrams) if (present.has(d.root)) seen.push(d.describe());
+    for (const d of diagrams) if (present.has(d.root) || (d.shownBy && present.has(d.shownBy))) seen.push(d.describe());
     const told = new Set<() => string>();
     const labels: string[] = [];
     let blank = 0;

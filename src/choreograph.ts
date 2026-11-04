@@ -57,7 +57,7 @@ export interface Choreography {
   enter(key: string, how?: { from?: string; create?: boolean }, opts?: AnimOpts): Animation;
   /** Take out a part only the current picture has. */
   leave(key: string, opts?: AnimOpts): Animation;
-  /** Put an unseen copy of `like` into the current picture as the part `key`, for the author to animate into view; it must end as the target part. */
+  /** Put an unseen copy of `like` into the current picture as the part `key`, for the author to animate into view; it must end as the target part, or, when the target has no such part, leave. */
   insert(key: string, like: Mobject): Mobject;
   /** Mark a current part as the author's to animate (with Follow, say); it must end as the target part. */
   own(key: string): Mobject;
@@ -72,7 +72,7 @@ export interface Choreography {
  */
 export function choreograph(current: Mobject, target: Mobject): Choreography {
   const now = keyedParts(current), want = keyedParts(target);
-  const done = new Set<string>(), left = new Set<string>();
+  const done = new Set<string>(), left = new Set<string>(), passing = new Set<string>();
   // A part that has left may enter again, once: replacing a part in place with a new one.
   const claim = (key: string, entering = false) => {
     if (done.has(key) && !(entering && left.has(key))) throw new Error(`choreograph: ${key} is already animated`);
@@ -101,8 +101,13 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
     now.set(key, part);
     return part;
   };
-  // The author's first move brings it into view.
-  const insert = make;
+  // The author's first move brings it into view. A part the target does not have is passing
+  // through, and must leave before the transition ends.
+  const insert = (key: string, like: Mobject) => {
+    const part = make(key, like);
+    if (!want.has(key)) passing.add(key);
+    return part;
+  };
   const self: Choreography = {
     from,
     to,
@@ -122,7 +127,9 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
     },
     leave(key, opts = {}) {
       const part = from(key);
-      claim(key);
+      // A part the author put in that the target does not have may pass through: in, then out.
+      if (passing.has(key)) passing.delete(key);
+      else claim(key);
       now.delete(key);
       left.add(key);
       return new FadeOut(part, { ...opts, remover: true });

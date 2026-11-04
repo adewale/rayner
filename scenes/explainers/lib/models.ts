@@ -23,6 +23,30 @@ export function sessionAttempt(state: string, event: string): { state?: string; 
     return { error: error.message };
   }
 }
+/**
+ * A session a reader can drive: each event goes to reduceSession from the state the session is
+ * in. A pair with a row moves the session and records the row it read and the link it travelled;
+ * a pair with none throws InvalidTransition, recorded as `invalid`, and the session stays.
+ * No event is refused: the throw is what the explainer shows.
+ */
+export interface SessionState {
+  session: string;
+  event: string | null;
+  returns: string | null;
+  invalid: { state?: string; error?: string } | null;
+  /** The row the reducer read for the last event that had one, as 'state:EVENT'. */
+  row: string | null;
+  /** Every link travelled, as 'from:to:EVENT', in order. */
+  travelled: string[];
+}
+export const SESSION_EVENTS = ['CONNECT', 'OPENED', 'ERROR', 'CLOSE'] as const;
+export type SessionEvent = (typeof SESSION_EVENTS)[number];
+export const sessionStart = (): SessionState => ({ session: 'idle', event: null, returns: null, invalid: null, row: null, travelled: [] });
+export function sessionNext(st: SessionState, event: SessionEvent): SessionState {
+  const attempt = sessionAttempt(st.session, event);
+  if (attempt.error) return { ...st, event, returns: attempt.error, invalid: attempt, row: null };
+  return { session: attempt.state!, event, returns: attempt.state!, invalid: null, row: `${st.session}:${event}`, travelled: [...st.travelled, `${st.session}:${attempt.state}:${event}`] };
+}
 export class TokenBucket {
   tokens: number;
   lastRefill = 0;
