@@ -1,6 +1,6 @@
 # Vocabulary: one name per idea
 
-**Status: in progress.** Steps 1 to 3 of the [order of work](#order-of-work) are done, and step 4 apart from the player: refused events, authored transitions with `choreograph`, transition checks, and ring-buffer and state-machine as machines. Of step 5, keyed table cells are done, with python-dict as their first user. Done before them: `stage.steps` with its redraw check, and `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
+**Status: in progress.** Steps 1 to 4 of the [order of work](#order-of-work) are done: refused events, authored transitions with `choreograph`, transition checks, ring-buffer and state-machine as machines, and [the player](MACHINES.md#the-player)'s event buttons at each machine's live step. Of step 5, keyed table cells are done, with python-dict as their first user. Done before them: `stage.steps` with its redraw check, and `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
 
 ## Why
 
@@ -101,7 +101,7 @@ This changes the 6 `lesson()` explainers (birthday-paradox, bloom-filter, git-br
 ### 2. Machines, ready for the player
 
 - `Session` becomes `Machine`, and statecharts' local `machine()` helper is renamed to avoid the clash.
-- `next` returns `undefined` for an event the state refuses. The player disables that event's button, and exploration does not follow it. There is no separate `allows`: two functions could disagree about which events a state accepts.
+- `next` returns `undefined` for an event the state refuses. The player disables that event's button (it stays focusable and says why), and exploration does not follow it. There is no separate `allows`: two functions could disagree about which events a state accepts.
 - `transition` is optional per event. Without it an event plays the keyed morph, as now. With it the authored animation plays, then the views snap to `draw(after)`. That last morph is checked to be still, so a transition that ends somewhere else shows as motion that `rayner check` reports.
 - Exploration checks every edge as well as every state. Each reachable edge's frames run through the invariant and legibility checks, and a failure is named by its shortest events plus the edge's event.
 

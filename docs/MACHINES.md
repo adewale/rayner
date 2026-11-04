@@ -1,9 +1,10 @@
 # Machines: a model driven by events
 
-**Status: the authoring and checking half of [the live machine](https://github.com/adewale/rayner/issues/88) is built; the player half is not.**
+**Status: [the live machine](https://github.com/adewale/rayner/issues/88) is built: authoring, checking and the player.**
 A scene can replay events through its own model as one schedule, and `rayner check`
-draws and checks every state those events can reach. The reader's buttons, which would
-send the same events from the page, are the remaining work, described at the end.
+draws and checks every state those events can reach. At the step where a machine last
+played, the player gives the reader a button per event, which sends the same events from
+the page ([the player](#the-player)). The benchmark has not been re-run with it yet.
 
 ## The idea
 
@@ -138,17 +139,104 @@ lists each machine's events and the number of states reached. `statecharts` reac
   install is needed in tests; regenerating the fixture needs the pinned release.
 - **A state is compared as JSON.** Two states equal as JSON are one state.
 
-## Not built yet: the player
+## The player
 
-Issue 88 asks for event buttons under a step's resting picture. The page already runs the
-scene, so the design that keeps every guarantee is to treat a reader's events as a machine
-replayed from the step's resting state: the player appends the event to a log, re-runs
-the scene to the step with `skipUntil`, and plays `machine.send(event)`. The log is the
-reader's state: it can sit in the URL beside `step`, so the log is a deep link that seeks
-like any step. Leaving the step, opening a fresh link or switching scenario clears the log.
-That needs a way for a step to declare its machine to the player, the buttons with their
-keyboard, screen-reader and reduced-motion behaviour, and a transcript line listing the
-events. None of it changes the engine.
+At the step where a machine last played, the reader can drive it: one button per event under
+the resting picture, then **Undo** and **Reset**. Every one of the eight machines below is live
+at its step, in every scenario that plays it (oauth-pkce without the attacker plays none).
+
+**Which step is live: the step the machine last played in.** There is no declaration. A machine
+already records the step it last played in (`lastPlayedIn`), and that is the step `rayner check`
+explores it on: the scene run again to that step's resting picture, every reachable state drawn
+and checked there. A separately declared step could be one exploration never checked, or one
+whose stage no longer holds the machine's views (token-bucket's last step clears them). One fact
+in one place: a scene makes a machine live at a step by playing it there last. When two machines
+last play in one step, the one made later is live there. `describeExplainer` reports the step as
+each machine's `step`.
+
+**Where the reader starts.** Where the step leaves the machine, its state at the resting
+picture. Wiring the eight explainers showed three steps that leave their machine finished:
+token-bucket's client has sent all ten requests, both of latest-search's responses have landed,
+and oauth-pkce's sign-in has run to its end. Every button there would be disabled. So when no
+event goes anywhere from the step's state, the reader's events start from the machine's `start`,
+the state exploration starts from, and the line over the buttons says "send the events again, in
+your own order". The first event redraws the views at the start, in place, as exploration draws
+a state, and plays from there. Which of the two applies is a function of the step, so the URL
+does not say it (`logStart` in `app/embed-live.ts`).
+
+**The events are the reader's state, and sit in the URL.** A press appends the event to a log,
+written beside the step as `sent=push,push,pop` (commas between events, a space as `+`, a colon
+kept: `sent=open+B:+goat,stay`; `sent` is a reserved setting id). The picture of a log is the
+scene run again to the step's resting picture, then the log played through `machine.send` with
+every frame skipped (`runLive`); a press plays its last event frame by frame from the picture of
+the log before it. A fresh load of the URL runs the same, all skipped, so a link reopens the same
+picture, and seeking keeps its guarantees: a frame is a function of time and of the log. The run
+stops in the live step as soon as its picture stops changing (at the end of the play or wait
+that reaches the step's hold, or as the step ends), so code a scene runs between its last play
+and its next step never reaches the reader's stage. The machine plays under what the scene
+showed when it played, as exploration draws it.
+
+A link's events are checked against the machine before anything is drawn: the longest prefix it
+takes is replayed, and a notice names the first event it refused or that is past where the story
+stops, as an unknown step falls back to the first. Events for a step with no machine are left
+out, with a notice. Showing another step, switching scenario, or opening a link without `sent`
+starts with no events. Each press, Undo and Reset adds a history entry, as a step does, so Back
+takes an event back. Copy link keeps the events; a share page, which shows a step's own picture,
+is used only when none were sent.
+
+**Buttons.** Each event's button says what `outcome` says from the state the events reached. An
+event that goes somewhere is a plain button. One the model refuses, or one past where the story
+stops (`bound`), stays focusable with `aria-disabled`, dimmed, the second dashed, and says why on
+hover and on focus: the machine's `why`, else "Not possible here", or "The story stops here:"
+and the bound's reason. The reason is the button's accessible description, and pressing it only
+says why. A button is named by the machine's `labels` for its event, else the event itself:
+
+```ts
+new Machine(this, {
+  events: BASH_EVENTS,
+  labels: { RUN_PIPELINE: 'Run the pipeline', CAT_NEWEST: 'cat on the newest shell', CAT_S0: 'cat on s0', LS: 'ls' },
+  // ...
+});
+```
+
+A press during a play lands that event and plays the next. Undo and Reset draw their picture at
+once. Under reduced motion every event lands at once, with the crossfade the player uses between
+steps. On a phone the picture is shown whole while the reader explores.
+
+**Keyboard and screen readers.** Tab reaches every event, refused ones too, and Enter or Space
+presses it. There is no key per event: the player's keys are the arrows (step, or pan a zoomed
+stage) and `+`, `-` and `0` on the focused stage, and a key per event could not be learned for
+monty-hall's fourteen. The arrows do nothing on a button, so they never step away from the events.
+A polite status line under the buttons says what each event did: the event, then what it changed
+of the picture's description (the whole summary when no description changed). A refused press
+says the event and why. The stage is `aria-busy` while an event plays, and its description, and
+"What the picture shows", follow the picture the events land on.
+
+**Transcript.** Without JavaScript the page's transcript lists, under a live step, the events a
+reader can send there: "Try it: send push, pop.", or "Try it: from the start, send AUTHORIZE…"
+where the step leaves its machine finished.
+
+**How it is checked.** `test/browser/explain-live.test.ts` builds the eight pages and, at each
+live step of the default scenario (ten steps: statecharts and latest-search have two machines),
+presses every event the model takes, two events deep and up to six states per step, each played
+in real time. At every state it checks that each button's kind, `aria-disabled`, reason and name
+agree with `outcome`, that the URL holds the events, that a press changed the picture when it
+changed the state, and that a fresh load of the URL draws the same SVG and the same buttons. A
+button set to refused where the model takes the event fails the check (the deliberate defect).
+It also checks the keyboard, a refused press, a link with a refused event, Back, Reset, and
+leaving the step. `test/embed-live.test.ts` checks the logic in Node: the live step, the kept
+prefix, the URL round trip, where the log starts, and that a log's picture is the same however
+it is reached, animated or not.
+
+**Not done.**
+- Each press runs the scene again to the step, which takes 50 to 300 ms for these eight in Node
+  before the event starts to move. Keeping a run suspended at the step would avoid it, at the cost
+  of a second way to reach a picture.
+- From the step's state the reader can reach states exploration, which starts at `start` and
+  samples a large machine, never drew: ring-buffer's 256 are a sample.
+- `rayner review` does not yet visit a live step and send events through the real page, and the
+  benchmark has not been re-run with the buttons.
+- An event whose name has a comma cannot be written in a link.
 
 ## Nine machines
 
@@ -190,6 +278,16 @@ outline now means what it says: a result published after a newer search started.
   machine is sampled breadth first up to `limit`; random sequences remain an option there.
 - **Running the model in the player as a separate runtime.** It would give up seeking and
   traces for the reader's own actions, which is what makes them checkable.
+- **Declaring the live step** (`step(name, { live: machine })`, or `machine.live()`). The step a
+  machine last played in already says it, and it is the stage exploration checked; a second
+  declaration could name a stage that was never checked.
+- **Starting the reader's events at the step's state, always.** Three of the eight steps leave
+  their machine finished, so every button would be disabled there.
+- **Disabling the buttons while an event plays.** A press then landed nowhere; landing the playing
+  event and playing the next keeps every press, and the picture is the log's either way.
+- **Leaving disabled buttons `disabled`.** A disabled button cannot take focus, so a keyboard or
+  screen reader user could not learn why an event is refused; `aria-disabled` keeps it in the Tab
+  order with its reason as its description.
 - **A trail laid over the diagram as a copy of the link.** The copy's route sat above the
   label's backing plate, so it crossed its own label (the route check said so), and a copy with
   the label drew the label twice. Drawing the whole diagram from state (`Diagram.picture`) has
