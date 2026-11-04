@@ -52,6 +52,8 @@ export interface MachineDescription {
   start: SceneState;
   states: number;
   sampled?: true;
+  /** The step where the reader can drive it: the step it last played in (docs/MACHINES.md, "The player"); absent when it never played. */
+  step?: string;
 }
 /** One scenario: a combination of setting values, as a reader picks it under the title. */
 export interface ScenarioDescription {
@@ -161,6 +163,7 @@ export async function describeScenario(Scene: ExplainerClass, values: Settings, 
       start: JSON.parse(JSON.stringify(machine.spec.start)) as SceneState,
       states,
       ...(states >= machine.spec.limit ? { sampled: true as const } : {}),
+      ...(machine.lastPlayedIn === null ? {} : { step: machine.lastPlayedIn }),
     };
   });
   return {

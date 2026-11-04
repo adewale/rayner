@@ -99,6 +99,32 @@ export interface Chrome {
   checkHint: string;
   /** The disclosure that holds a check question's answer. */
   showAnswer: string;
+  /** Accessible name of a live step's event buttons (docs/MACHINES.md, "The player"). */
+  liveControls: string;
+  /** Over the event buttons: sending from the step's picture, or again from the machine's start. */
+  liveFromRest: string;
+  liveFromStart: string;
+  /** Takes back the last event sent. */
+  undo: string;
+  /** Clears the events sent: the step's own picture again. */
+  reset: string;
+  resetLabel: string;
+  /** A refused event's reason when the model gives none. */
+  notPossible: string;
+  /** An event past where the explainer's story stops, with the story's reason. */
+  storyStops: (reason: string) => string;
+  /** Announced after an event: the event, then the picture it lands on. */
+  sentSaid: (event: string, picture: string) => string;
+  /** Announced when a refused event's button is pressed: the event and why. */
+  refusedSaid: (event: string, reason: string) => string;
+  /** Announced after Reset. */
+  resetSaid: string;
+  /** A notice when a link's events stop at one the machine does not take there. */
+  sentFallback: (event: string, reason: string) => string;
+  /** A notice when a link sends events to a step without a machine. */
+  notLive: string;
+  /** The transcript's line of a live step: the events a reader can send there. */
+  liveEvents: (events: string, fromStart: boolean) => string;
 }
 
 const EN: Chrome = {
@@ -155,6 +181,20 @@ const EN: Chrome = {
   checkYourself: 'Check yourself',
   checkHint: 'Answer each one before you open it.',
   showAnswer: 'Show the answer',
+  liveControls: 'Send events',
+  liveFromRest: 'Try it: send an event',
+  liveFromStart: 'Try it: send the events again, in your own order',
+  undo: 'Undo',
+  reset: 'Reset',
+  resetLabel: 'Reset: the step’s own picture',
+  notPossible: 'Not possible here',
+  storyStops: (reason) => `The story stops here: ${reason}`,
+  sentSaid: (event, picture) => `${event}. ${picture}`,
+  refusedSaid: (event, reason) => `${event}: ${reason}`,
+  resetSaid: 'Back to the step’s own picture.',
+  sentFallback: (event, reason) => `This link’s event “${event}” cannot be sent there (${reason}), so the picture stops before it.`,
+  notLive: 'This step has no events to send, so the link’s events are left out.',
+  liveEvents: (events, fromStart) => `Try it: ${fromStart ? 'from the start, send ' : 'send '}${events}.`,
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
@@ -217,6 +257,20 @@ const FR: Chrome = {
   checkYourself: 'Vérifiez vos connaissances',
   checkHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
   showAnswer: 'Voir la réponse',
+  liveControls: 'Envoyer des événements',
+  liveFromRest: 'À vous\u202f: envoyez un événement',
+  liveFromStart: 'À vous\u202f: renvoyez les événements, dans l’ordre de votre choix',
+  undo: 'Annuler',
+  reset: 'Réinitialiser',
+  resetLabel: 'Réinitialiser\u202f: l’image de l’étape',
+  notPossible: 'Impossible ici',
+  storyStops: (reason) => `L’histoire s’arrête ici\u202f: ${reason}`,
+  sentSaid: (event, picture) => `${event}. ${picture}`,
+  refusedSaid: (event, reason) => `${event}\u202f: ${reason}`,
+  resetSaid: 'Retour à l’image de l’étape.',
+  sentFallback: (event, reason) => `L’événement «\u202f${event}\u202f» de ce lien ne peut pas être envoyé là (${reason})\u202f: l’image s’arrête avant lui.`,
+  notLive: 'Cette étape n’a pas d’événements à envoyer\u202f: ceux du lien sont ignorés.',
+  liveEvents: (events, fromStart) => `À vous\u202f: ${fromStart ? 'depuis le début, envoyez ' : 'envoyez '}${events}.`,
 };
 export const CHROME: Readonly<Record<string, Chrome>> = { en: EN, fr: FR };
 

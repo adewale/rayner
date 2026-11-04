@@ -18,6 +18,8 @@ import type { StepLayout } from './embed-closeup.ts';
 import { changeText, chromeFor, descriptionsLang, settingsProblem } from './embed-strings.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
+import { SENT, acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from './embed-live.ts';
+import type { Live, LogStart } from './embed-live.ts';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag);
@@ -67,11 +69,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     selected = 0,
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
-  type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; paper?: string; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
+  // `live`: the steps where the reader can drive a machine; `bases`: where each one's log starts, worked out once.
+  type Base = { from: LogStart; state: object };
+  type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; paper?: string; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]>;
+    live: Map<string, Live>; bases: Map<string, Promise<Base | null>>; said: Map<string, SceneStateLike> };
+  type SceneStateLike = Record<string, unknown>;
   type ScenarioHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
   type ScenarioPhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
   let scenarioPhase: ScenarioPhase = { kind: 'loading', scope: new StateScope() };
   const cache = new Map<string, Entry>();
+  // The events the reader sent at the step on show (the log the URL's `sent` holds), and that step's machine.
+  let sent: string[] = [],
+    liveNow: LiveNow | null = null;
   const currentStep = () => trace.steps[selected]!;
   const stepCount = () => trace.steps.length;
 
@@ -426,6 +435,29 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   views.hidden = true;
   views.append(viewCount, nextView, overview);
   stepper.after(views);
+  // A live step's controls (docs/MACHINES.md, "The player"): one button per event of the machine
+  // the step last played, then Undo and Reset, and a polite line that says what each event did.
+  // Under the stepper and view rows, so Next never moves; a step without a machine hides the row.
+  const liveRow = el('div', undefined, 'live'),
+    liveLede = el('p', undefined, 'live-lede'),
+    liveEvents = el('div', undefined, 'live-events'),
+    liveTools = el('div', undefined, 'live-tools'),
+    undo = el('button', t.undo, 'button'),
+    reset = el('button', t.reset, 'button'),
+    liveSaid = el('p', undefined, 'live-said');
+  liveRow.setAttribute('role', 'group');
+  liveRow.setAttribute('aria-label', t.liveControls);
+  liveLede.id = 'live-lede';
+  liveEvents.setAttribute('aria-describedby', liveLede.id);
+  undo.type = reset.type = 'button';
+  reset.setAttribute('aria-label', t.resetLabel);
+  reset.title = t.resetLabel;
+  liveSaid.setAttribute('role', 'status');
+  liveSaid.setAttribute('aria-live', 'polite');
+  liveTools.append(undo, reset);
+  liveRow.append(liveLede, liveEvents, liveTools, liveSaid);
+  liveRow.hidden = true;
+  views.after(liveRow);
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
   // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
   // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
@@ -445,10 +477,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const step = at.trace.steps[index]!,
       scope = playback.scope,
       container = el('div');
-    await renderAt(at.Scene, restingTime(step, at.trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow));
+    await restingPicture(at, step, liveNow?.step === step ? liveNow : null, sent, container, scope);
     // Superseded while drawing: a step, scenario or playback change owns the stage now.
     if (scope.signal.aborted || playback.scope !== scope || scenarioPhase.kind !== 'ready' || scenarioPhase.entry !== at || selected !== index) return;
-    at.resting.set(step.step, clones(container.childNodes));
     stage.replaceChildren(...container.childNodes);
     zoom.apply();
   }
@@ -577,19 +608,21 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   };
   reportHeight(root);
 
-  function urlFor(): URL {
+  /** This step and scenario as a URL, with the events the reader sent last, written as `sent=push,pop` (commas and colons kept). */
+  function urlFor(withoutParent = false): URL {
     const url = new URL(location.href);
     for (const [key, value] of Object.entries(values)) url.searchParams.set(key, value);
     url.searchParams.set('step', currentStep().step);
+    url.searchParams.delete(SENT);
+    if (withoutParent) url.searchParams.delete('parentOrigin');
+    if (sent.length) url.search = `${url.search ? `${url.search}&` : '?'}${SENT}=${encodeLog(sent)}`;
     return url;
   }
   function link(push: boolean) {
     const url = urlFor();
     // Re-showing the step already in the address bar adds no history entry Back would have to skip.
     (push && url.href !== location.href ? history.pushState : history.replaceState).call(history, null, '', url);
-    const out = new URL(url);
-    out.searchParams.delete('parentOrigin');
-    wayOut.href = out.href;
+    wayOut.href = urlFor(true).href;
   }
   const mainIndices = () => storyIndices(trace.steps);
   const firstMain = () => mainIndices()[0] ?? 0;
@@ -633,8 +666,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Busy while a step plays: the resting picture, and its description, are still to come.
     if (isPlaying()) stage.setAttribute('aria-busy', 'true');
     else stage.removeAttribute('aria-busy');
-    summary.textContent = pictureSummary(step.shown);
-    picture.innerHTML = pictureHtml(step.shown);
+    describePicture(step);
+  }
+  /** The resting picture in words: the step's, or what the scene shows after the reader's events (`shown`). */
+  let describedShown: unknown;
+  function describePicture(step: Trace['steps'][number], shown?: SceneStateLike) {
+    const said = describedShown = shown ?? step.shown;
+    summary.textContent = pictureSummary(said);
+    picture.innerHTML = pictureHtml(said);
     described.hidden = !picture.innerHTML;
   }
   // The steps the reader has reached, by name, across scenarios. The rail and the step bar name a
@@ -778,11 +817,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (target) zoom.to(target);
     else zoom.apply();
     root.classList.remove('loading');
-    yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values } }))));
+    yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values, sent: [...sent] } }))));
     toHost({ step: step.step, index: selected, total: stepCount(), settings: { ...values } });
     primeNext(at);
   }
-  async function show(index: number, push = true) {
+  /**
+   * Show step `index` at rest. `log` is a link's events for the step's machine: the longest prefix
+   * the machine takes is replayed onto the resting picture, and a notice says where the rest
+   * stopped, as an unknown step falls back to the first. Any other show starts with no events.
+   */
+  async function show(index: number, push = true, log: readonly string[] = []) {
     if (scenarioPhase.kind === 'loading') return;
     if (push) revealStage();
     const at=scenarioPhase.entry;
@@ -790,23 +834,207 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     leaveStep({ kind: 'resting', scope });
     return scope.run(function* () {
       selected = Math.max(0, Math.min(stepCount() - 1, index));
+      sent = [...log];
+      liveNow = null;
+      drawLive();
       chrome();
       reserve();
       link(push);
       const step = currentStep();
-      const kept = at.resting.get(step.step);
       const container = el('div');
-      const [, target] = yield* wait(Promise.all([
-        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow)),
+      let live: LiveNow | null = null;
+      // A link's events are checked against the machine before anything is drawn; with none, the
+      // step's own picture is drawn while the machine's starting point is worked out.
+      if (log.length) {
+        live = yield* wait(liveAt(at, step));
+        const accepted = live ? acceptedLog(live.live.machine, live.base.state, log) : undefined;
+        sent = accepted?.kept ?? [];
+        const problem = !live ? t.notLive : accepted!.stopped ? t.sentFallback(accepted!.stopped.event, reasonText(accepted!.stopped)) : '';
+        if (problem) notice.textContent = [notice.textContent, problem].filter(Boolean).join(' ');
+        if (sent.length !== log.length) link(false);
+      }
+      const [shown, target, found] = yield* wait(Promise.all([
+        restingPicture(at, step, live, sent, container, scope),
         framing(step, scope, at),
+        log.length ? Promise.resolve(live) : liveAt(at, step),
       ]));
-      if (!kept) at.resting.set(step.step, clones(container.childNodes));
+      liveNow = found;
+      drawLive();
+      if (found) liveRow.dataset.landed = encodeLog(sent);
+      if (shown) describePicture(step, shown);
       // Reduced motion: no animation, but the old picture fades out over the new one, so the change is still seen.
       const old = reduced() ? stage.querySelector('svg') : null;
       old?.classList.add('leaving');
       old?.addEventListener('animationend', () => old.remove());
       stage.replaceChildren(...container.childNodes, ...(old ? [old] : []));
-      yield* settle(step, target ?? null, at, scope);
+      // On a phone the picture is shown whole while the reader explores.
+      if (sent.length && narrow()) zoom.reset();
+      yield* settle(step, sent.length && narrow() ? null : target ?? null, at, scope);
+    });
+  }
+  type LiveNow = { step: Trace['steps'][number]; live: Live; base: Base };
+  /** The machine live at `step` and where its log starts, or null: a step with no machine, or one no event moves. */
+  function liveAt(at: Entry, step: Trace['steps'][number]): Promise<LiveNow | null> {
+    const live = at.live.get(step.step);
+    if (!live) return Promise.resolve(null);
+    let base = at.bases.get(step.step);
+    if (!base) {
+      base = runLive(at.Scene, step, live.index, []).then((run) => logStart(live.machine, run.rest), (error: unknown) => {
+        console.error(error);
+        return null;
+      });
+      at.bases.set(step.step, base);
+    }
+    return base.then((b) => (b ? { step, live, base: b } : null));
+  }
+  /**
+   * `step`'s resting picture with `log` sent to its machine, drawn into `container` (kept per step
+   * and log, so Back and a repeated log draw nothing). With no log it is the step's own picture,
+   * drawn as it always was; with one, the scene run to that picture and the log played on it, every
+   * frame skipped. Resolves to what the scene then shows, for the picture's description.
+   */
+  function restingPicture(at: Entry, step: Trace['steps'][number], live: LiveNow | null, log: readonly string[], container: HTMLElement, scope: StateScope): Promise<SceneStateLike | undefined> {
+    const key = log.length ? `${step.step}\n${log.join('\n')}` : step.step,
+      kept = at.resting.get(key);
+    if (kept) {
+      container.append(...clones(kept));
+      return Promise.resolve(at.said.get(key));
+    }
+    const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
+    const drawn: Promise<SceneStateLike | undefined> = log.length && live
+      ? runLive(at.Scene, step, live.live.index, log, { sink, from: live.base.from }).then((run) => run.shown as SceneStateLike)
+      : renderAt(at.Scene, restingTime(step, at.trace.fps), sink).then(() => undefined);
+    return drawn.then((shown) => {
+      at.resting.set(key, clones(container.childNodes));
+      if (shown) at.said.set(key, shown);
+      return shown;
+    });
+  }
+  /** Why an event is not sent: the story's bound, the model's reason, or that it is not possible here. */
+  const reasonText = (o: { kind: string; reason: string | null }) =>
+    o.kind === 'beyond' ? t.storyStops(o.reason!) : o.reason ?? t.notPossible;
+  /** The state the reader's events have reached. */
+  const liveState = (now: LiveNow) => acceptedLog(now.live.machine, now.base.state, sent).states.at(-1)!;
+  /**
+   * The live row for the step on show: one button per event, in the machine's order, each as
+   * `outcome` says from the state reached. An event that goes somewhere is a plain button; one the
+   * model refuses, or one past where the story stops, stays focusable (aria-disabled) and says why
+   * in its description, on hover and on focus. Buttons are kept by event, so focus stays put.
+   */
+  function drawLive() {
+    const now = liveNow;
+    liveRow.hidden = !now;
+    if (!now) {
+      liveEvents.replaceChildren();
+      liveSaid.textContent = '';
+      delete liveRow.dataset.landed;
+      return;
+    }
+    liveLede.textContent = now.base.from === 'start' ? t.liveFromStart : t.liveFromRest;
+    const kept = new Map([...liveEvents.querySelectorAll<HTMLButtonElement>('button')].map((b) => [b.dataset.event!, b] as const));
+    liveEvents.replaceChildren(...outcomes(now.live.machine, liveState(now)).map((o, i) => {
+      let b = kept.get(o.event);
+      if (!b) {
+        b = el('button', undefined, 'button event');
+        b.type = 'button';
+        b.dataset.event = o.event;
+        const why = el('span', undefined, 'reason');
+        why.id = `live-reason-${i}`;
+        b.append(el('span', o.label, 'word'), why);
+        b.setAttribute('aria-label', o.label);
+        const event = o.event;
+        b.addEventListener('click', () => void sendEvent(event));
+      }
+      b.dataset.outcome = o.kind;
+      const why = b.querySelector<HTMLElement>('.reason')!, reason = o.kind === 'next' ? '' : reasonText(o);
+      why.textContent = reason;
+      if (reason) {
+        b.setAttribute('aria-disabled', 'true');
+        b.setAttribute('aria-describedby', why.id);
+      } else {
+        b.removeAttribute('aria-disabled');
+        b.removeAttribute('aria-describedby');
+      }
+      return b;
+    }));
+    // With nothing sent there is nothing to undo or reset; focus on them moves to the first event.
+    const none = !sent.length;
+    if (none && (document.activeElement === undo || document.activeElement === reset)) liveEvents.querySelector('button')?.focus();
+    undo.disabled = reset.disabled = none;
+  }
+  /** Send `event` from the state the reader's events reached: refused, it only says why; otherwise it joins the log and plays. */
+  async function sendEvent(event: string) {
+    if (scenarioPhase.kind !== 'ready' || !liveNow) return;
+    const now = liveNow,
+      o = outcomes(now.live.machine, liveState(now)).find((x) => x.event === event)!;
+    if (o.kind !== 'next') {
+      liveSaid.textContent = t.refusedSaid(o.label, reasonText(o));
+      return;
+    }
+    sent = [...sent, event];
+    link(true);
+    drawLive();
+    return land(now, !reduced(), o.label);
+  }
+  undo.onclick = () => {
+    if (!liveNow || !sent.length) return;
+    sent = sent.slice(0, -1);
+    link(true);
+    drawLive();
+    void land(liveNow, false, t.undo);
+  };
+  reset.onclick = () => {
+    if (!liveNow || !sent.length) return;
+    sent = [];
+    link(true);
+    drawLive();
+    void land(liveNow, false);
+  };
+  /**
+   * Draw the picture the reader's log lands on. Animated, the scene runs to the step's picture
+   * with every earlier event skipped, and the last one plays in real time from the picture before
+   * it, so a press during a play lands that one and plays the next. Otherwise (reduced motion,
+   * Undo, Reset) the landing is drawn at once. Then the picture's words and the live line say
+   * what happened: `what` (the event, or Undo) and the picture it lands on; Reset says so.
+   */
+  function land(now: LiveNow, animated: boolean, what?: string) {
+    if (scenarioPhase.kind !== 'ready') return;
+    const at = scenarioPhase.entry, step = now.step, log = [...sent];
+    const scope = new StateScope();
+    leaveStep({ kind: 'resting', scope });
+    stage.setAttribute('aria-busy', 'true');
+    // On a phone the picture is shown whole while the reader explores.
+    if (narrow() && zoom.k > 1) zoom.reset();
+    return scope.run(function* () {
+      const container = el('div');
+      let shown: SceneStateLike | undefined;
+      if (animated && log.length) {
+        const sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
+        const run = yield* wait(runLive(at.Scene, step, now.live.index, log, {
+          animate: sink, from: now.base.from,
+          onStart: () => { stage.replaceChildren(...container.childNodes); zoom.apply(); },
+        }));
+        shown = run.shown as SceneStateLike;
+        const key = `${step.step}\n${log.join('\n')}`;
+        at.resting.set(key, clones(stage.querySelectorAll(':scope>svg')));
+        at.said.set(key, shown);
+      } else {
+        shown = yield* wait(restingPicture(at, step, now, log, container, scope));
+        const old = reduced() ? stage.querySelector('svg') : null;
+        old?.classList.add('leaving');
+        old?.addEventListener('animationend', () => old.remove());
+        stage.replaceChildren(...container.childNodes, ...(old ? [old] : []));
+        zoom.apply();
+      }
+      stage.removeAttribute('aria-busy');
+      const before = describedShown;
+      describePicture(step, shown);
+      // What the event changed of the picture, or the whole picture when no description changed.
+      const change = pictureChange(before, describedShown);
+      liveSaid.textContent = what === undefined ? t.resetSaid : t.sentSaid(what, change ? `${change}.` : summary.textContent ?? '');
+      liveRow.dataset.landed = encodeLog(log);
+      document.dispatchEvent(new CustomEvent('rayner:sent', { detail: { step: step.step, sent: log, settings: values } }));
+      primeNext(at);
     });
   }
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -819,6 +1047,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // A source run cannot animate across omitted reference steps without flashing them.
     if (reduced() || target !== selected + 1) return show(target);
     selected = target;
+    sent = [];
+    liveNow = null;
+    drawLive();
     link(true);
     await animate(true);
   }
@@ -965,6 +1196,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       at.resting.set(step.step, clones(stage.querySelectorAll(':scope>svg')));
       playback = { kind: 'resting', scope };
       chrome();
+      liveNow = yield* wait(liveAt(at, step));
+      drawLive();
+      if (liveNow) liveRow.dataset.landed = '';
       yield* settle(step, null, at, scope);
     });
   }
@@ -973,7 +1207,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
    * scenario it has, so navigation meanwhile stays consistent; a newer load supersedes this one.
    * `step` may be a function, captured before loading freezes child navigation.
    */
-  async function load(request: Settings, step?: string | (() => string | undefined), push = false) {
+  async function load(request: Settings, step?: string | (() => string | undefined), push = false, log: readonly string[] = []) {
     if (scenarioPhase.kind === 'loading') scenarioPhase.scope.abort();
     const scope = new StateScope();
     const history: ScenarioHistory = typeof step === 'function' ? {kind:'keep-step',name:step()} :
@@ -997,7 +1231,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (!entry) {
         const Scene = withSettings(Bound, next),
           { trace, scene } = yield* wait(traceRun(Scene));
-        entry = { Scene, trace, palette: paletteOf(scene), paper: paperOf(scene), resting: new Map() };
+        entry = { Scene, trace, palette: paletteOf(scene), paper: paperOf(scene), resting: new Map(), live: liveSteps(scene), bases: new Map(), said: new Map() };
         cache.set(key, entry);
       }
       const name = history.kind === 'first' ? undefined : history.name;
@@ -1018,9 +1252,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       selected = name ? trace.steps.findIndex((s) => s.step === name) : firstMain();
       // A previous scenario's fallback must not describe the restored scenario; both of this one's show.
       const notices = fallback ? [fallback] : [];
+      let events = name ? log : [];
       if (selected < 0) {
         selected = firstMain();
         notices.push(t.noStep(name!));
+        events = [];
       }
       notice.textContent = notices.join(' ');
       // Each step's title and its line. The current step is marked by colour and a filled
@@ -1050,7 +1286,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.scenario !== shown;
       shownScenario = shown;
       reserve();
-      yield* wait(show(selected, push));
+      yield* wait(show(selected, push, events));
     });
   }
   for (const type of ['click', 'wheel', 'dblclick', 'pointerdown', 'pointermove']) root.addEventListener(type, event => {
@@ -1115,10 +1351,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const sharedSteps = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_STEPS_META}"]`)?.content.split(/\s+/);
   copy.onclick = async () => {
     if (scenarioPhase.kind==='loading') return;
-    const url = urlFor();
-    url.searchParams.delete('parentOrigin');
+    const url = urlFor(true);
+    // A share page shows a step's own picture, so a link with the reader's events is the page's own.
     const step = currentStep().step,
-      share = shared && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && JSON.stringify(values) === JSON.stringify(resolveSettings(Source)) ? shared + step : url.href;
+      share = shared && !sent.length && shareable(step) && (!sharedSteps || sharedSteps.includes(step)) && JSON.stringify(values) === JSON.stringify(resolveSettings(Source)) ? shared + step : url.href;
     try {
       await navigator.clipboard.writeText(share);
       notice.textContent = t.copied;
@@ -1167,7 +1403,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const q = new URLSearchParams(location.search);
     const request: Record<string, string> = {};
     for (const s of Source.settings ?? []) if (q.has(s.id)) request[s.id] = q.get(s.id)!;
-    return { request, step: q.get('step') ?? undefined };
+    return { request, step: q.get('step') ?? undefined, sent: decodeLog(q.get(SENT)) };
   };
   // A host page drives the player through the loader (specs/player-guidance.md G4): a step by name
   // and settings by id, validated as the URL's are (an undeclared id is ignored, as in a URL; an
@@ -1180,8 +1416,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   });
   window.addEventListener('popstate', () => {
     const q = fromURL();
-    void load(q.request, q.step);
+    void load(q.request, q.step, false, q.sent);
   });
   const q = fromURL();
-  await load(q.request, q.step);
+  await load(q.request, q.step, false, q.sent);
 }

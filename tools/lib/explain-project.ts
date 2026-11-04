@@ -18,6 +18,8 @@ import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
 import type { Trace } from '../../src/index.ts';
+import { liveSteps } from '../../app/embed-live.ts';
+import type { Live } from '../../app/embed-live.ts';
 
 import { scenariosOf, withSettings, bindSnapshots, scenarioName, resolveSettings } from '../../explain/index.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
@@ -169,7 +171,7 @@ export interface Project {
   engineHash: string;
   store: SnapshotStore;
   /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
-  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette }[];
+  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, Live> }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -392,7 +394,9 @@ export async function collectProject(
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
-      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });
+      // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
+      const live = liveSteps(ran);
+      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);

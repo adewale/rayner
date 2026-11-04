@@ -16,6 +16,7 @@ import { letteringLicences, pageSnapshot } from './lettering.ts';
 import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
 import {stepAudio} from '../../explain/audio.ts';
+import { logStart, outcomes, runLive } from '../../app/embed-live.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of
@@ -105,8 +106,21 @@ export async function buildExplainer(
   // Every scenario, every step: a link to it, its caption, what it changed of the state the author
   // watches (meta.watch) and what its resting picture shows.
   // The player shows the current scenario's section; without JavaScript every scenario shows.
+  // A live step's events (docs/MACHINES.md, "The player"): what a reader without JavaScript, or an
+  // agent, can try there, from where the step leaves the machine (or from its start, when it is finished there).
+  const liveLines = await Promise.all(project.scenarios.map(async ({ Scene, trace, live }) => {
+    const lines = new Map<string, string>();
+    for (const [step, { index, machine }] of live ?? []) {
+      const times = trace.steps.find((s) => s.step === step);
+      const base = times && logStart(machine, (await runLive(Scene, times, index, [])).rest);
+      if (!base) continue;
+      const events = outcomes(machine, base.state).filter((o) => o.kind === 'next').map((o) => o.label);
+      lines.set(step, t.liveEvents(events.join(', '), base.from === 'start'));
+    }
+    return lines;
+  }));
   const transcript = project.scenarios
-    .map(({ values, trace }) => {
+    .map(({ values, trace }, n) => {
       const key = new URLSearchParams(values).toString(),
         name = scenarioNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
@@ -117,7 +131,8 @@ export async function buildExplainer(
         const entry = project.Scene.meta?.scenarioNavigation === 'first' && i > 0
           ? `<span>${htmlEscape(words.title)}</span>`
           : `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
-        return `<li>${entry}${wordsHtml(words)}${changes.length ? `<p>${htmlEscape(t.changes(...changes))}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
+        const live = liveLines[n]!.get(s.step);
+        return `<li>${entry}${wordsHtml(words)}${changes.length ? `<p>${htmlEscape(t.changes(...changes))}</p>` : ''}${live ? `<p class="live-events">${htmlEscape(live)}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
       });
       return `<section data-scenario="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
     })

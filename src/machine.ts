@@ -19,6 +19,8 @@ export interface MachineSpec<S extends object, E extends string> {
   start: S;
   /** Every event the machine accepts, in order: what a reader's buttons would be. */
   events: readonly E[];
+  /** How the player's button names an event, where the event's own name would not read well (default: the event). */
+  labels?: Partial<Record<E, string>>;
   /**
    * The model's step: pure, from the model module, and it returns a new state, or `undefined`
    * when the state refuses the event (a reader's button for it is disabled, and exploration does
@@ -84,6 +86,10 @@ export class Machine<S extends object, E extends string> {
     if (!spec.events.length) throw new TypeError('A machine needs at least one event');
     if (new Set(spec.events).size !== spec.events.length) throw new TypeError('A machine\'s events must be distinct');
     if (typeof spec.next !== 'function') throw new TypeError('A machine needs next(state, event)');
+    for (const [event, label] of Object.entries(spec.labels ?? {})) {
+      if (!spec.events.includes(event as E)) throw new TypeError(`A machine's labels name its events; ${event} is not one`);
+      if (typeof label !== 'string' || !label.trim()) throw new TypeError(`The label of ${event} must be words`);
+    }
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;

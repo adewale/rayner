@@ -57,8 +57,8 @@ export type ExplainerClass = SceneClass & {
 };
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
-// Query parameters the embed reads itself.
-const reserved = new Set(['step', 'parentOrigin', 'theme']);
+// Query parameters the embed reads itself (`sent`: the events a reader sent at a live step, app/embed-live.ts).
+const reserved = new Set(['step', 'sent', 'parentOrigin', 'theme']);
 
 /** Validate declarations and selections once, at the author/URL boundary. */
 export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): Settings {
