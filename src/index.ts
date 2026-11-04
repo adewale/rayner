@@ -29,7 +29,7 @@ export { Restore, TransformFromCopy, Succession } from './animation.ts';
 export { GrowFromEdge, PulseAlongPath, SetState, Follow } from './animation.ts';
 export type { GrowFromEdgeOpts, FollowSpec, FollowOpts, SetStateOpts } from './animation.ts';
 export { Machine, machinesOf } from './machine.ts';
-export type { MachineSpec } from './machine.ts';
+export type { MachineSpec, Transition } from './machine.ts';
 export { TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 export type { MatchKey, MatchingOpts, TransformMatchingOpts, MatchSummary, MatchByKeyOpts } from './animation.ts';
 export { TransformDiff } from './animation.ts';

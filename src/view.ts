@@ -83,6 +83,17 @@ export class View<M extends Mobject = Mobject> extends Group {
    */
   sync(opts: SyncOpts = {}): ViewSync<M> { return new ViewSync(this, opts); }
 
+  /**
+   * The picture of `state`, placed where a sync or rebuild would put it now, without taking it:
+   * what an authored transition morphs into, so it ends where the View will land.
+   */
+  placed(state: SceneState): M {
+    const keep = [this.builtSize, this.scaleK] as const;
+    const next = this.fit(fresh(this.draw(state), this.current));
+    [this.builtSize, this.scaleK] = keep;
+    return next;
+  }
+
   /** Rebuild now, without animating: for a View not on screen yet (on screen it would jump). */
   rebuild(): this {
     const next = this.fit(fresh(this.build(), this.current));

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A `Machine`'s `next` returns `undefined` for an event the state refuses, and an event may have an authored `transition` built from `{ before, after, views, targets }` when its turn comes; `View.placed(state)` gives the picture where a view will land. `rayner check` plays every reachable transition, checks the invariants through it, and fails one that does not end on the pictures of the state it reaches. A schedule from `send` refuses to play from a state other than the one it was built for.
 - Add `stage.steps(steps, { reader })`: each step records its state and draws its picture from it, and `rayner check` redraws every step from the state its trace recorded, failing a step whose picture differs. The 17 explainers that used the scene library's `lesson()` and `readerFirst()` now use it; those helpers are gone.
 - Every `View` is a view of state: the constructor takes `(scene, draw)`, `view(build)` and `stateView` are gone, and `View.render` is `View.draw`. Monty-hall keeps its phase in the scene's state. The stage's pen animation is `s.sketch`, so `draw` means only state to picture.
 - Rename `Session` to `Machine` (`machinesOf`, describe's `machines`) and `View.sync({ match: 'keys' })` to `'key'`; invariants are no longer called claims.

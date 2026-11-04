@@ -47,10 +47,30 @@ made, any view that is not a `view(scene, draw)`, so the mistake cannot be writt
 computes the next state from a copy of the state when it begins, so each member of a replay
 starts where the one before left it.
 
+## Refused events and authored transitions
+
+`next` returns `undefined` when a state refuses an event. Exploration does not follow it,
+`machine.after(state, event)` says so to a player that disables the event's button, and
+`send` refuses it before anything plays. There is no separate list of allowed events: one
+function says both, so the buttons and the model cannot disagree.
+
+An event may have authored motion instead of the keyed morph:
+
+```ts
+transition: {
+  PUSH: ({ before, after, views, targets }) =>
+    new Transform(views[0].current, targets[0]),   // targets: each view's picture of `after`, placed where it lands
+},
+```
+
+The transition is built when its turn comes, from the pictures on screen then, and plays
+over the machine's `runTime` with its own easing. When it ends the views take the pictures
+of `after`. `send(event, from)` builds its schedule for one state (the scene's state by
+default) and refuses to play from any other, so a replay cannot drift from the model.
+
 ## What check does with a machine
 
-After each case runs, `rayner check` explores every machine breadth first from its start,
-up to `limit` states (256 by default), and redraws each state as a resting picture. It
+After each case runs, `rayner check` explores every machine breadth first from its start, and plays every authored transition from every state it reaches: each invariant is checked a quarter, half, three quarters and all the way through, and the transition must end on the pictures of the state it reaches, compared as rendered, so the landing moves nothing. A transition that ends elsewhere would leave the view there for good, since a rebuilt picture keeps its place. It explores up to `limit` states (256 by default), and redraws each state as a resting picture. It
 fails a state whose picture
 
 - has colliding text or a connector over a label (the same rules as resting pictures),

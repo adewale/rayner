@@ -1,6 +1,6 @@
 # Vocabulary: one name per idea
 
-**Status: in progress.** Steps 1 to 3 of the [order of work](#order-of-work) are done: `stage.steps` with its redraw check, and `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
+**Status: in progress.** Steps 1 to 3 of the [order of work](#order-of-work) are done, and step 4's engine half (refused events, authored transitions, transition checks; the player is next): `stage.steps` with its redraw check, and `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
 
 ## Why
 

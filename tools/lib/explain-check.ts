@@ -423,6 +423,7 @@ export async function exploreMachines(scene: Scene): Promise<{ events: string[];
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
       else said.set(words, at);
+      problems.push(...transitionProblems(scene, machine, state, path));
     }
     explored.push({ events: [...machine.spec.events], states: reached.length, sampled: reached.length >= machine.spec.limit, problems });
   }
@@ -445,6 +446,46 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
       problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than ${record.reader ? 'state.reader' : 'its state'}`);
   }
   return { redrawn: records.length, problems };
+}
+
+/**
+ * Each authored transition from `state`, played through on the explored scene: every invariant
+ * is checked a quarter, half, three quarters and all the way through, and when it ends the views
+ * must show the pictures of the state it reaches, as rendered, so the landing sync moves nothing.
+ */
+function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[]): string[] {
+  const problems: string[] = [];
+  const { views, transition, events } = machine.spec;
+  for (const event of events) {
+    const authored = transition?.[event];
+    const after = authored && machine.spec.next(state, event);
+    if (!authored || after === undefined) continue;
+    const at = `${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
+    // What the reader should see when it ends: the views rebuilt for `after` where they stand
+    // now (a rebuilt picture keeps its place), before the transition can move them.
+    scene.state = jsonObject(after, 'machine state');
+    for (const v of views) v.rebuild();
+    const expected = toSvgString(scene);
+    scene.state = jsonObject(state, 'machine state');
+    for (const v of views) v.rebuild();
+    const motion = authored({ event, before: state, after, views, targets: views.map((v) => v.placed(after as Record<string, unknown>)) });
+    scene.beginAnimations([motion]);
+    for (const alpha of [0.25, 0.5, 0.75, 1]) {
+      motion.interpolate(motion.rateFunc(alpha));
+      for (const [name, check] of scene.invariants) {
+        const said = check(scene);
+        if (typeof said === 'string') problems.push(`${at}: the invariant "${name}" fails ${alpha * 100}% through the transition: ${said}`);
+      }
+    }
+    motion.finish();
+    motion.cleanUpFromScene(scene);
+    // Compared as rendered, since a morph lands glyphs without retyping a Text. A transition that
+    // ends elsewhere would leave the views there: their next rebuild keeps the place it left them.
+    if (toSvgString(scene) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
+    scene.state = jsonObject(after, 'machine state');
+    for (const v of views) v.rebuild();
+  }
+  return problems;
 }
 
 /** Run every check on every case; write the report to `out`/report.json and return it. */
