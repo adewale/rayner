@@ -4,8 +4,8 @@ import {assertStepState} from '../explainer-state.ts';
 import {dictStory} from '../../../scenes/explainers/lib/python-dict.ts';
 import {bloomStory,saturation} from '../../../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
-import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter} from '../../../scenes/explainers/lib/monty-hall.ts';
-import type {Host} from '../../../scenes/explainers/lib/monty-hall.ts';
+import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter,roundStart,roundNext} from '../../../scenes/explainers/lib/monty-hall.ts';
+import type {Host,Round,RoundEvent} from '../../../scenes/explainers/lib/monty-hall.ts';
 import {birthdayStory,birthdayChance,pairCount} from '../../../scenes/explainers/lib/birthday-paradox.ts';
 import {musicStory} from '../../../scenes/explainers/lib/melody-rhythm.ts';
 import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
@@ -71,8 +71,11 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assertStepState(trace,'countercase',{advanced:!advanced,frame:other,files:currentFiles(other)});
   } else if(id==='monty-hall') {
     const host=values.host as Host,choice=0,example=montyExample(choice,'switch');
-    // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed.
-    for(const name of ['choice','predict']) assertStepState(trace,name,{example,host,revealed:false});
+    // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed:
+    // the round machine's state after you pick A and the host opens B to a goat, replayed through the model.
+    const round=[`pick A`,`open ${'ABC'[example.opened]}: goat`].reduce<Round|undefined>((r,e)=>r&&roundNext(r,e as RoundEvent),roundStart(host))!;
+    assert.deepEqual(round,{host,pick:example.choice,opened:example.opened,shows:'goat',decision:null,car:null});
+    for(const name of ['choice','predict']) assertStepState(trace,name,{...round});
     const cells={informed:threeDoorCells(choice,'informed'),random:threeDoorCells(choice,'random')};
     const opened='ABC'[example.opened]!;
     // The first strip lays out every round for the host in play; the next counts only the rounds that show a goat behind the opened door.

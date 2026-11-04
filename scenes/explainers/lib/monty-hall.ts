@@ -63,3 +63,69 @@ export function oddsAfter(choice: number, host: Opener, opened: string, prior?: 
   if(!sixths) throw new Error(`The ${host} host never shows a goat behind ${opened}`);
   return {opened,sixths,swapSixths,stayChance:(sixths-swapSixths)/sixths,switchChance:swapSixths/sixths};
 }
+
+/**
+ * One round a reader could play, as the reader sees it: pick a door, the host opens another, stay
+ * or switch, and the car is shown. Where the car is stays unknown until a door shows it, so each
+ * state is what the reader knows. An informed host never opens your door or the car; a random
+ * host may open the car, which ends the round. `roundNext` refuses every move the rules forbid.
+ */
+export type Letter = 'A' | 'B' | 'C';
+export type RoundEvent = `pick ${Letter}` | `open ${Letter}: goat` | `open ${Letter}: car` | 'stay' | 'switch' | `car behind ${Letter}`;
+export interface Round {
+  host: Host;
+  /** The door you picked first (0, 1, 2), or null before you pick. */
+  pick: number | null;
+  /** The door the host opened, and what it showed. */
+  opened: number | null;
+  shows: 'goat' | 'car' | null;
+  decision: 'stay' | 'switch' | null;
+  /** Where the car was shown: behind the host's door (the round ends there) or by the reveal. */
+  car: number | null;
+}
+const LETTERS: readonly Letter[] = ['A', 'B', 'C'];
+export const ROUND_EVENTS: readonly RoundEvent[] = [
+  ...LETTERS.map((d) => `pick ${d}` as const),
+  ...LETTERS.map((d) => `open ${d}: goat` as const),
+  ...LETTERS.map((d) => `open ${d}: car` as const),
+  'stay',
+  'switch',
+  ...LETTERS.map((d) => `car behind ${d}` as const),
+];
+export function roundStart(host: Host): Round {
+  if (!['informed', 'random'].includes(host)) throw new Error('Unknown host rule');
+  return { host, pick: null, opened: null, shows: null, decision: null, car: null };
+}
+/** Your door now: the first pick, or after a switch the other closed door. */
+export function roundDoor(r: Round): number | null {
+  if (r.pick === null) return null;
+  return r.decision === 'switch' ? [0, 1, 2].find((i) => i !== r.pick && i !== r.opened)! : r.pick;
+}
+/** How the round ended: won or lost once the car is shown after your choice, over when the host opened the car. */
+export function roundResult(r: Round): 'win' | 'lose' | 'over' | null {
+  if (r.car === null) return null;
+  if (r.decision === null) return 'over';
+  return roundDoor(r) === r.car ? 'win' : 'lose';
+}
+/** The round after one event, or undefined when the rules refuse it. Pure. */
+export function roundNext(r: Round, event: RoundEvent): Round | undefined {
+  const door = (letter: string) => LETTERS.indexOf(letter as Letter);
+  let m: RegExpMatchArray | null;
+  if ((m = event.match(/^pick ([ABC])$/))) return r.pick === null ? { ...r, pick: door(m[1]!) } : undefined;
+  if ((m = event.match(/^open ([ABC]): (goat|car)$/))) {
+    const i = door(m[1]!), shows = m[2] as 'goat' | 'car';
+    // He opens once, after your pick, never your door; the host who knows never opens the car.
+    if (r.pick === null || r.opened !== null || i === r.pick) return undefined;
+    if (shows === 'car' && r.host === 'informed') return undefined;
+    return { ...r, opened: i, shows, car: shows === 'car' ? i : null };
+  }
+  if (event === 'stay' || event === 'switch')
+    // Only once he has shown a goat: the car behind his door ended the round.
+    return r.shows === 'goat' && r.decision === null ? { ...r, decision: event } : undefined;
+  if ((m = event.match(/^car behind ([ABC])$/))) {
+    const i = door(m[1]!);
+    // Shown after your choice, behind a door still closed: never behind the goat he opened.
+    return r.decision !== null && r.car === null && i !== r.opened ? { ...r, car: i } : undefined;
+  }
+  throw new RangeError(`Unknown round event ${event}`);
+}

@@ -8,7 +8,8 @@ import {fc,params} from './lib/pbt.ts';
 import {dictionary,deleteFirst,lookup,probeSlots,route,dictStory,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
 import {fnv1a,locations,makeFilter,membership,bloomStory,saturation} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
-import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter} from '../scenes/explainers/lib/monty-hall.ts';
+import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter,roundStart,roundNext,roundDoor,roundResult,ROUND_EVENTS} from '../scenes/explainers/lib/monty-hall.ts';
+import type {Round} from '../scenes/explainers/lib/monty-hall.ts';
 import {birthdayChance,birthdaySample,matches,birthdayStory,evenOdds,pairCount,pairShortcut,dateOf} from '../scenes/explainers/lib/birthday-paradox.ts';
 import BirthdayParadox,{ANSWER as birthdayAnswer} from '../scenes/explainers/birthday-paradox/scene.ts';
 import {phrase,musicStory,beatMs} from '../scenes/explainers/lib/melody-rhythm.ts';
@@ -388,6 +389,42 @@ test('the host who knows always opens the only goat left when your pick is wrong
   }
   for(const choice of [0,1,2]) for(const prior of [[1,1,1],[4,3,3],[1,0,5]])
     assert.ok(threeDoorCells(choice,'informed',prior).every(c=>c.shows==='goat'),'the host who knows never opens the car');
+});
+
+// The round machine the doors step plays: every legal round it reaches, walked event by event, is a
+// cell of the strip, and each cell is reached, with the same winner for staying and for switching.
+test('every round the round machine can play is a cell of the strip, with the strip’s winner',()=>{
+  for(const host of ['informed','random'] as const) {
+    let states=0;
+    const seen=new Set<string>(),ended:Round[]=[];
+    const queue:Round[]=[roundStart(host)];
+    while(queue.length) {
+      const r=queue.shift()!,key=JSON.stringify(r);
+      if(seen.has(key)) continue;
+      seen.add(key);states++;
+      if(r.car!==null) ended.push(r);
+      for(const e of ROUND_EVENTS) {
+        const next=roundNext(r,e);
+        if(!next) continue;
+        // The rules' refusals: he never opens your door, and the host who knows never opens the car.
+        if(e.startsWith('open')) { assert.notEqual(next.opened,r.pick); if(host==='informed') assert.equal(next.shows,'goat'); }
+        queue.push(next);
+      }
+    }
+    assert.equal(states,host==='informed'?46:52);
+    assert.ok(ROUND_EVENTS.every(e=>roundNext(roundStart(host),e)===undefined||e.startsWith('pick')),'nothing but a pick starts a round');
+    for(const choice of [0,1,2]) {
+      const mine=ended.filter(r=>r.pick===choice);
+      const cells=threeDoorCells(choice,host).map(c=>JSON.stringify([c.prize,c.opened,c.shows]));
+      assert.deepEqual([...new Set(mine.map(r=>JSON.stringify(['ABC'[r.car!],'ABC'[r.opened!],r.shows])))].sort(),[...cells].sort(),`${host}, pick ${'ABC'[choice]}`);
+      for(const r of mine) {
+        const cell=threeDoorCells(choice,host).find(c=>c.prize==='ABC'[r.car!]&&c.opened==='ABC'[r.opened!])!;
+        const said=roundResult(r)==='over'?'ends':roundResult(r);
+        assert.equal(said,r.decision==='switch'?cell.swap:cell.stay,JSON.stringify(r));
+        if(r.decision==='switch') assert.notEqual(roundDoor(r),r.pick);
+      }
+    }
+  }
 });
 
 test('birthday formulas match exhaustive small calendars and independent exact Python fractions',()=>{

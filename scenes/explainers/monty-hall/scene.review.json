@@ -6,7 +6,13 @@
       "opening": true,
       "targets": [
         {
-          "key": "monty-doors"
+          "key": "door-0"
+        },
+        {
+          "key": "door-1"
+        },
+        {
+          "key": "door-2"
         },
         {
           "key": "monty-rule"
@@ -120,7 +126,13 @@
       "opening": true,
       "targets": [
         {
-          "key": "monty-doors"
+          "key": "door-0"
+        },
+        {
+          "key": "door-1"
+        },
+        {
+          "key": "door-2"
         },
         {
           "key": "monty-result"
