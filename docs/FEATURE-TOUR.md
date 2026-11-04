@@ -26,7 +26,7 @@ When you copy a recipe, copy the before panel's job too. A step whose motion is 
 
 ## What the tour leaves out
 
-The 15 scenarios cover the common authoring families. They do not list every exported class, option, animation or diagram family. The features below need build-time setup that a two-step scenario cannot show, so this page points to where each one is set up:
+The 15 scenarios cover the common authoring families. They do not list every exported class, option, animation or diagram family. The features below need build-time setup or more than two steps, so this page points to where each one is documented:
 
 - **Additional writing systems, faces, weight and italic:** add `static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } };` before drawing `new Text('Αλφάβητο')`, then capture and commit `scene.lettering.json` as described in [Lettering](REFERENCE.md#lettering-on-request). Arabic, Devanagari and Hebrew, replacement faces and real bold or italic use the [outline workflow](LETTERING.md#supported-requests).
 - **Played scores:** the [melody and rhythm scene](../scenes/explainers/melody-rhythm/scene.ts) draws both piano rolls from the note data supplied to `step.audio`. Sound starts only after a reader gesture; see [score audio](REFERENCE.md#optional-score-audio) for clip limits and cancellation.
