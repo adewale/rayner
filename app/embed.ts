@@ -181,7 +181,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tryCase.hidden = !end || !firstSetting;
     // On phones Try lives with the secondary tools after the explanation.
     stepper.classList.toggle('end', !tryCase.hidden);
-    if (tryCase.textContent !== tryLabel) tryCase.textContent = tryLabel;
+    if (tryCase.textContent !== tryLabel) { tryCase.textContent = tryLabel; tryCase.title = tryLabel; }
   }
   /** At rest on the last step: the end of the explanation, not of a step still playing. */
   const atEnd = () => !!trace && !isPlaying() && adjacentStep(trace.steps, selected, 1) === selected;
@@ -724,7 +724,27 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // its title the tallest title's, so stepping never moves the line or the caption.
     root.style.setProperty('--lede-h', `${tallest}px`);
     root.style.setProperty('--lede-title-h', `${tallestTitle}px`);
+    reserveStepper(trace.steps);
     return true;
+  }
+  /** The stepper row at its widest: Start again, Try beside it when it is in the row, and Back when
+   *  the case has details. When the tools do not fit beside that, they take their own line on every
+   *  step; the row keeps that case's height, so no step wraps it differently or moves what follows. */
+  function reserveStepper(steps: Trace['steps']) {
+    const saved = { face, tryHidden: tryCase.hidden, tryText: tryCase.textContent, backHidden: backToStory.hidden };
+    endControls(true, tryLabel());
+    tryCase.hidden = tryCase.parentElement !== stepper || !firstSetting;
+    backToStory.hidden = !steps.some((_, i) => isDetail(i));
+    stepper.classList.remove('stacked');
+    root.style.setProperty('--stepper-h', '0px');
+    const row = next.offsetTop;
+    const wraps = [...stepper.children].some((c) => c instanceof HTMLElement && !c.hidden && c.offsetTop >= row + next.offsetHeight);
+    stepper.classList.toggle('stacked', wraps);
+    const height = stepper.getBoundingClientRect().height;
+    endControls(saved.face === 'end', saved.tryText ?? '');
+    tryCase.hidden = saved.tryHidden;
+    backToStory.hidden = saved.backHidden;
+    root.style.setProperty('--stepper-h', `${height}px`);
   }
   // Measuring the heading changes the observed layout. Write in the next
   // frame, outside ResizeObserver delivery (WebKit otherwise reports a loop).
@@ -1016,6 +1036,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       detailSteps.replaceChildren(...buttons.filter((_, i) => isDetail(i)));
       detailDisclosure.hidden = !detailSteps.childElementCount;
       railSummary.textContent = t.allSteps(mainIndices().length);
+      bar.style.setProperty('--segments', String(mainIndices().length)); // its least width (embed.css)
       bar.replaceChildren(...mainIndices().map((i, ordinal, all) => {
         const step = trace.steps[i]!, li = el('li'), b = el('button'), label = stepWords(step).title;
         b.type = 'button'; b.dataset.step = step.step; b.dataset.index = String(i); b.title = label;
