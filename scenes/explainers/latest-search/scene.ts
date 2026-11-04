@@ -65,8 +65,7 @@ export default class LatestSearchExplainer extends Scene {
 
     const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims);
     /** A response leaves its search's dot, runs down the dashed line to each page, and is published or dropped there. */
-    const land = ({ before, after, views, targets }: Transition<RaceState, RaceEvent>) => {
-      const c = choreograph(views[0]!.current, targets[0]!);
+    const land = ({ before, after }: Transition<RaceState, RaceEvent>, c: Choreography) => {
       const query = after.log.at(-1)!.split(' ')[0] as 'A' | 'B';
       const x = tickX(after.log.length - 1);
       const was = raceTracks(before), now = raceTracks(after);
@@ -95,8 +94,7 @@ export default class LatestSearchExplainer extends Scene {
       return new Succession([reach, drop, together(arrive), together([...settle, c.rest({ runTime: 0.6 })])]);
     };
     /** A search starts: its row appears and its bar grows from the keystroke; a running bar reaches on. */
-    const start = ({ after, views, targets }: Transition<RaceState, RaceEvent>) => {
-      const c = choreograph(views[0]!.current, targets[0]!);
+    const start = ({ after }: Transition<RaceState, RaceEvent>, c: Choreography) => {
       const query = after.log.at(-1)!.split(' ')[1] as 'A' | 'B';
       const bar = c.to(`timeline-search:${query}:bar`);
       const grown = c.insert(`timeline-search:${query}:bar`, bar.copy().stretch(0.02, 0, { aboutPoint: [bar.box()![0], bar.center()[1]] }));
@@ -105,7 +103,9 @@ export default class LatestSearchExplainer extends Scene {
         together([new Transform(grown, bar, { runTime: 0.5 }), c.rest({ runTime: 0.5 })]),
       ]);
     };
-    const transition = Object.fromEntries(RACE_EVENTS.map((e) => [e, e.startsWith('start') ? start : land])) as unknown as Record<RaceEvent, (t: Transition<RaceState, RaceEvent>) => ScheduledAnimation>;
+    /** Each event's transition, on the timeline view it plays on. */
+    const transitionOn = (timeline: View) =>
+      Object.fromEntries(RACE_EVENTS.map((e) => [e, (t: Transition<RaceState, RaceEvent>) => (e.startsWith('start') ? start : land)(t, t.choreograph(timeline))])) as unknown as Record<RaceEvent, (t: Transition<RaceState, RaceEvent>) => ScheduledAnimation>;
 
     /** One machine per rule, each with its own timeline view: the race's events, under that rule's handler. */
     const raceMachine = (guarded: boolean) => {
@@ -115,7 +115,7 @@ export default class LatestSearchExplainer extends Scene {
         events: RACE_EVENTS,
         next: raceNext,
         views: [timeline],
-        transition,
+        transition: transitionOn(timeline),
         runTime: ({ event }) => (event.startsWith('start') ? 0.8 : 1.86),
       });
       return { timeline, machine };

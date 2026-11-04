@@ -457,14 +457,18 @@ export default class TokenBucketExplainer extends Scene {
     const machine = new Machine<BucketState, 'request'>(this, {
       start,
       events: ['request'],
-      next: (st) => (st.calls.length < TIMES.length ? bucketRequest(st, TIMES[st.calls.length]!) : undefined),
+      // The bucket would take a request at any time; this client sends ten. Past the schedule, another
+      // request at the last request's time shows the model would go on, and the bound stops the story.
+      next: (st) => bucketRequest(st, TIMES[st.calls.length] ?? TIMES.at(-1)!),
+      bound: (st) => (st.calls.length >= TIMES.length ? `The client sends ${TIMES.length} requests` : undefined),
       views: [gauge, chart, chips, readout],
       runTime: REFILL_S + ANSWER_S,
       transition: {
-        request: ({ before, after, views, targets }) => {
-          const g = choreograph(views[0]!.current, targets[0]!),
-            c = choreograph(views[1]!.current, targets[1]!),
-            q = choreograph(views[2]!.current, targets[2]!);
+        request: (t) => {
+          const { before, after } = t;
+          const g = t.choreograph(gauge),
+            c = t.choreograph(chart),
+            q = t.choreograph(chips);
           const i = before.calls.length,
             call = after.calls[i]!,
             prev = before.calls.at(-1) ?? START,
@@ -488,7 +492,7 @@ export default class TokenBucketExplainer extends Scene {
             new Transform(level, g.to('bucket:level'), { runTime: ANSWER_S }),
             q.leave(`request:${n}`, { runTime: ANSWER_S }),
             q.enter(`request:${n}`, {}, { runTime: ANSWER_S }),
-            views[3]!.sync({ match: 'index', runTime: ANSWER_S }),
+            readout.sync({ match: 'index', runTime: ANSWER_S }),
           ];
           if (call.ok) {
             const coin = (at: Vec) => new Circle({ radius: 0.13, fill: s.palette.accent, fillOpacity: 1, stroke: 'none' }).moveTo(at);

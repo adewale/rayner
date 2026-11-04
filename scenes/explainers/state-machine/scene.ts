@@ -238,9 +238,9 @@ export default class StateMachineExplainer extends Scene {
       transition: Object.fromEntries(
         SESSION_EVENTS.map((event) => [
           event,
-          ({ before, after, views, targets }: Transition<SessionState, SessionEvent>) => {
-            const g = choreograph(views[0]!.current, targets[0]!), o = choreograph(views[1]!.current, targets[1]!),
-              c = choreograph(views[2]!.current, targets[2]!), k = choreograph(views[3]!.current, targets[3]!);
+          (t: Transition<SessionState, SessionEvent>) => {
+            const { before, after } = t;
+            const g = t.choreograph(diagram), o = t.choreograph(ring), c = t.choreograph(reducer), k = t.choreograph(readout);
             if (after.invalid) {
               // No row: the card shows the event and the throw, and the throw lights.
               return new Succession([

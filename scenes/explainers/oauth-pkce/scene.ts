@@ -287,8 +287,8 @@ export default class OAuthExplainer extends Scene {
       transition: Object.fromEntries(
         SIGN_IN_EVENTS.map((event) => [
           event,
-          ({ after, views, targets }: Transition<SignIn, SignInEvent>) => {
-            const c = choreograph(views[0]!.current, targets[0]!);
+          (t: Transition<SignIn, SignInEvent>) => {
+            const { after } = t, c = t.choreograph(sheet);
             // Each message travels from its sender to its receiver as a dot in the colour of what it carries, drawing
             // its arrow; then its label comes in, and the notes under the parties follow.
             const moves = SENDS[event].flatMap((id) => travel(c, id, tokenColor(id, after, s)));

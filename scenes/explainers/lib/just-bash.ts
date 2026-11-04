@@ -43,13 +43,12 @@ export function sessionOfShells(): ShellSession {
  * pipeline's returned shell is kept as the newest; cat's stdout is read and the shell it returns is dropped, as the
  * explainer's code does, so running cat again on the same shell prints the same thing and changes nothing. Cat on s0
  * shows what s0 holds, however many writes came after it: exec never changed it. The script writes shout.txt once,
- * so a second RUN_PIPELINE, which would return a third shell this script does not run, is refused as well.
+ * so a second RUN_PIPELINE, which would return a third shell, is beyond the script: see `scriptBound`.
  */
 export function sessionNextShell(state: ShellSession, event: BashEvent): ShellSession | undefined {
   const newest = state.shells.length - 1;
   switch (event) {
     case 'RUN_PIPELINE': {
-      if (state.shells.length > 1) return undefined;
       const { shell } = exec(state.shells[newest]!, PIPELINE, FILE);
       return { shells: [...state.shells, shell], cats: [...state.cats, null] };
     }
@@ -68,4 +67,9 @@ export function sessionNextShell(state: ShellSession, event: BashEvent): ShellSe
       }
       throw new Error('ls is expected to be refused by the model');
   }
+}
+
+/** Where the script stops though exec would go on: it writes shout.txt once. */
+export function scriptBound(state: ShellSession, event: BashEvent): string | undefined {
+  return event === 'RUN_PIPELINE' && state.shells.length > 1 ? 'The script writes shout.txt once' : undefined;
 }

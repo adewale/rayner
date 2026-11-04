@@ -109,7 +109,8 @@ test('rayner check measures every label an explored state shows: one too small t
 });
 
 /** The lamp with an authored transition for UP, and (optionally) an invariant on the box. */
-function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>) => import('../src/index.ts').Animation, invariant = false) {
+/** A lamp whose UP has an authored transition, given the transition and the lamp's view. */
+function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => import('../src/index.ts').Animation, invariant = false) {
   const nextUp = (s: Lamp, e: 'UP' | 'OFF'): Lamp | undefined => (e === 'UP' && s.level === 2 ? undefined : next(s, e));
   return class LitLamp extends Scene<Lamp> {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
@@ -132,14 +133,14 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>) => import('../s
         if (!b) return;
         return b[0] >= -8 && b[2] <= 8 ? true : `the box spans ${b[0].toFixed(2)} to ${b[2].toFixed(2)}`;
       });
-      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], transition: { UP: transition } });
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], transition: { UP: (t) => transition(t, picture) } });
       await this.step('press');
       await this.play(this.machine.replay(['UP', 'UP', 'OFF']));
     }
   };
 }
 /** UP morphs the picture into the picture of the state it reaches. */
-const morphUp = ({ views, targets }: Transition<Lamp, 'UP' | 'OFF'>) => new Transform((views[0] as View).current, targets[0]!);
+const morphUp = (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => new Transform(lamp.current, t.target(lamp));
 
 test('a refused event: next says undefined, exploration does not follow it, and sending it is refused before anything plays', async () => {
   const ran = await new (litLamp(morphUp))(new NullSink()).run();
@@ -174,7 +175,7 @@ test('an authored transition plays, the views land on the state it reaches, and 
 
 test('deliberate defect: a transition that ends somewhere else fails, named by its shortest events and its event', async () => {
   // It morphs to the right picture two units to the right: the landing would leave the view there.
-  const ran = await new (litLamp(({ views, targets }) => new Transform((views[0] as View).current, targets[0]!.copy().shift([2, 0]))))(new NullSink()).run();
+  const ran = await new (litLamp((t, lamp) => new Transform(lamp.current, t.target(lamp).copy().shift([2, 0]))))(new NullSink()).run();
   const [explored] = await exploreMachines(ran);
   // Each misplaced landing also moves the view for good, so a later state can drift off the stage.
   for (const named of ['UP', 'after UP, UP'])
@@ -183,8 +184,8 @@ test('deliberate defect: a transition that ends somewhere else fails, named by i
 
 test('deliberate defect: a transition that breaks an invariant on the way fails, though it lands', async () => {
   // It swings the picture off screen and back, ending where the model says.
-  const swing = ({ views, targets }: Transition<Lamp, 'UP' | 'OFF'>) => {
-    const v = views[0] as View, target = targets[0]!;
+  const swing = (t: Transition<Lamp, 'UP' | 'OFF'>, v: View) => {
+    const target = t.target(v);
     return new Transform(v.current, target, { pathFunc: (a, b, t) => a.map((x, i) => x + (b[i]! - x) * t + (i === 0 ? 30 * Math.sin(Math.PI * t) : 0)) as typeof a });
   };
   const [explored] = await exploreMachines(await new (litLamp(swing, true))(new NullSink()).run());
@@ -260,4 +261,70 @@ test('exploration checks a machine on the stage where it last played, not the st
   });
   assert.deepEqual(explored!.problems, []);
   assert.equal(explored!.states, 3);
+});
+
+test('a transition finds each view by the view itself, and refuses a view the machine does not have', async () => {
+  class Two extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const lamp = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
+      const meter = view(this, (st: Lamp) => Object.assign(new Text(`level ${st.level}`, { fontSize: 0.5 }).moveTo([0, -2]), { key: 'meter' }));
+      const stranger = view(this, () => new Text('elsewhere'));
+      this.add(lamp, meter);
+      let asked: unknown = null;
+      // The views are listed meter first; the transition still gets the lamp's own target.
+      const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, {
+        start: { level: 0 }, events: ['UP', 'OFF'], next, views: [meter, lamp],
+        transition: {
+          UP: (t) => {
+            assert.match((t.target(lamp) as Text).text, /^lamp /);
+            try { t.target(stranger); } catch (e) { asked = (e as Error).message; }
+            return t.choreograph(lamp).rest();
+          },
+        },
+      });
+      await this.step('press');
+      await this.play(machine.send('UP'));
+      assert.match(String(asked), /a view this machine does not have/);
+    }
+  }
+  await new Two(new NullSink()).run();
+});
+
+test('a bound stops the story where the model would go on; check fails a bound the model refuses anyway', async () => {
+  const nextUp = (s: Lamp, e: 'UP' | 'OFF'): Lamp | undefined => (e === 'UP' && s.level === 2 ? undefined : next(s, e));
+  const bounded = (bound: (s: Lamp, e: 'UP' | 'OFF') => string | undefined) => class extends Scene<Lamp> {
+    machine!: Machine<Lamp, 'UP' | 'OFF'>;
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      // UP is refused at bright: that is the lamp's rule.
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, {
+        start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound,
+        why: (st) => `the lamp is already ${LEVELS[st.level]}`,
+      });
+      await this.step('press');
+      await this.play(this.machine.replay(['UP']));
+    }
+  };
+  // This story never turns the lamp past dim, though the lamp could go brighter.
+  const Story = bounded((st, e) => (e === 'UP' && st.level >= 1 ? 'This story stops at dim' : undefined));
+  const story = await new Story(new NullSink()).run();
+  assert.deepEqual(story.machine.outcome({ level: 1 }, 'UP'), { beyond: 'This story stops at dim' });
+  assert.deepEqual(story.machine.outcome({ level: 0 }, 'UP'), { next: { level: 1 } });
+  assert.deepEqual(story.machine.reachable().map((r) => r.state.level), [0, 1]);
+  assert.throws(() => story.machine.send('UP', { level: 1 }), /UP is beyond the story in \{"level":1\}: This story stops at dim/);
+  assert.deepEqual((await exploreMachines(story))[0]!.problems, []);
+  // A bound placed where the lamp refuses anyway (at bright) is a refusal mislabelled.
+  const Wrong = bounded((st, e) => (e === 'UP' && st.level === 2 ? 'This story stops at bright' : undefined));
+  const wrong = await new Wrong(new NullSink()).run();
+  assert.ok((await exploreMachines(wrong))[0]!.problems.some((p) => /after UP, UP, UP: the bound says "This story stops at bright", but the model refuses it anyway/.test(p)));
+  // The model's own refusal carries its reason.
+  assert.deepEqual(wrong.machine.outcome({ level: 2 }, 'UP'), { beyond: 'This story stops at bright' });
+  const free = bounded(() => undefined);
+  const lamp = await new free(new NullSink()).run();
+  assert.deepEqual(lamp.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
 });

@@ -10,6 +10,8 @@ import { linear } from './rate.ts';
 import type { Scene } from './scene.ts';
 import type { View, ViewMatch } from './view.ts';
 import type { Mobject } from './mobject.ts';
+import { choreograph } from './choreograph.ts';
+import type { Choreography } from './choreograph.ts';
 import type { Evidence, SceneState } from './scene.ts';
 
 export interface MachineSpec<S extends object, E extends string> {
@@ -23,6 +25,16 @@ export interface MachineSpec<S extends object, E extends string> {
    * not follow it). One function says both, so the buttons and the model cannot disagree.
    */
   next: (state: S, event: E) => S | undefined;
+  /** Why the model refuses `event` in `state`, in the reader's words: what the player says of a disabled button. */
+  why?: (state: S, event: E) => string;
+  /**
+   * Where the explainer's story stops though the model would go on: the reason, in the reader's
+   * words, when `event` from `state` is beyond the story (the client sends ten requests), else
+   * undefined. Exploration does not follow it, and the player says the story ends there, not that
+   * the model refuses. A bound only bounds: `rayner check` fails one on an event the model refuses
+   * anyway, which is a refusal.
+   */
+  bound?: (state: S, event: E) => string | undefined;
   /**
    * Authored motion for an event, built when its turn comes from the states before and after it
    * and the pictures it must end on, and played over the machine's `runTime`. When it ends, the
@@ -41,11 +53,23 @@ export interface MachineSpec<S extends object, E extends string> {
 }
 
 /**
- * What an authored transition is built from: the event, the states either side, the views, and
- * `targets`, each view's picture of `after` placed where the view will land. Morph into those
- * (or end exactly as they are) and the landing moves nothing.
+ * What an authored transition is built from: the event, the states either side, and for each of
+ * the machine's views, by the view itself, the picture it must end on (`target`) and a
+ * choreography from its current picture to that one (`choreograph`). End each view on its target
+ * and the landing moves nothing.
  */
-export interface Transition<S, E> { event: E; before: S; after: S; views: readonly View[]; targets: readonly Mobject[] }
+export interface Transition<S, E> {
+  event: E;
+  before: S;
+  after: S;
+  /** `view`'s picture of `after`, placed where the view will land. Throws for a view the machine does not have. */
+  target(view: View): Mobject;
+  /** `choreograph(view.current, target(view))`: the view's parts, from what it shows now to its target. */
+  choreograph(view: View): Choreography;
+}
+
+/** What one event does from a state: the next state, a refusal by the model (with its reason, if given), or the story's bound. */
+export type Outcome<S> = { next: S } | { refused: string | null } | { beyond: string };
 
 /** A model driven by events on one scene. */
 export class Machine<S extends object, E extends string> {
@@ -81,10 +105,37 @@ export class Machine<S extends object, E extends string> {
    */
   get lastPlayedIn(): string | null { return this.playedInStep; }
 
-  /** The state after `event` from `state`, or undefined when the state refuses it. */
-  after(state: S, event: E): S | undefined {
+  /**
+   * What `event` does from `state`: the next state; or, refused by the model, its reason (`why`,
+   * or null); or beyond the story, the bound's reason. The bound is asked first, so `next` is never
+   * asked for a state the story does not reach.
+   */
+  outcome(state: S, event: E): Outcome<S> {
     if (!this.spec.events.includes(event)) throw new RangeError(`This machine accepts ${this.spec.events.join(', ')}, not ${String(event)}`);
-    return this.spec.next(state, event);
+    const beyond = this.spec.bound?.(state, event);
+    if (beyond !== undefined) return { beyond };
+    const next = this.spec.next(state, event);
+    return next === undefined ? { refused: this.spec.why?.(state, event) ?? null } : { next };
+  }
+
+  /** The state after `event` from `state`, or undefined when the model refuses it or it is beyond the story. */
+  after(state: S, event: E): S | undefined {
+    const o = this.outcome(state, event);
+    return 'next' in o ? o.next : undefined;
+  }
+
+  /**
+   * The transition for `event` from `before` to `after`, with each view's target placed where it
+   * will land now (when the transition is built: its turn in a play, or exploration).
+   */
+  transitionFor(event: E, before: S, after: S): Transition<S, E> {
+    const { views } = this.spec, placed = new Map<View, Mobject>();
+    const target = (view: View) => {
+      if (!views.includes(view)) throw new RangeError(`${String(event)}: the transition asked for a view this machine does not have`);
+      if (!placed.has(view)) placed.set(view, view.placed(after as SceneState));
+      return placed.get(view)!;
+    };
+    return { event, before, after, target, choreograph: (view) => choreograph(view.current, target(view)) };
   }
 
   /**
@@ -95,8 +146,10 @@ export class Machine<S extends object, E extends string> {
    */
   send(event: E, from: S = this.scene.state as S): Succession {
     const before = JSON.parse(JSON.stringify(from)) as S;
-    const after = this.after(before, event);
-    if (after === undefined) throw new RangeError(`${String(event)} is refused in ${JSON.stringify(before)}`);
+    const o = this.outcome(before, event);
+    if ('beyond' in o) throw new RangeError(`${String(event)} is beyond the story in ${JSON.stringify(before)}: ${o.beyond}`);
+    if ('refused' in o) throw new RangeError(`${String(event)} is refused in ${JSON.stringify(before)}${o.refused ? `: ${o.refused}` : ''}`);
+    const after = o.next;
     const { views, match } = this.spec;
     const runTime = typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
     const authored = this.spec.transition?.[event];
@@ -115,7 +168,7 @@ export class Machine<S extends object, E extends string> {
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
         ? new Succession([
-          new WhenItsTurnComes(this.scene, () => authored({ event, before, after, views, targets: views.map((v) => v.placed(after as SceneState)) }), views, runTime),
+          new WhenItsTurnComes(this.scene, () => authored(this.transitionFor(event, before, after)), views, runTime),
           new Landing(this.scene, views),
         ])
         : new AnimationGroup(views.map((v) => v.sync({ match, runTime }))),
@@ -144,7 +197,7 @@ export class Machine<S extends object, E extends string> {
     while (queue.length && seen.size < this.spec.limit) {
       const { state, path } = queue.shift()!;
       for (const event of this.spec.events) {
-        const next = this.spec.next(state, event);
+        const next = this.after(state, event);
         if (next === undefined) continue;
         const key = JSON.stringify(next);
         if (seen.has(key)) continue;

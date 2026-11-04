@@ -5,7 +5,7 @@ import { stage, regionBox } from '../../../explain/index.ts';
 import { emphasises } from '../../../explain/look.ts';
 import { exec } from '../lib/models.ts';
 import type { Shell } from '../lib/models.ts';
-import { sessionOfShells, sessionNextShell, BASH_EVENTS } from '../lib/just-bash.ts';
+import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from '../lib/just-bash.ts';
 import type { ShellSession, BashEvent } from '../lib/just-bash.ts';
 const STYLE = 'chalkboard';
 const PIPELINE = [
@@ -356,10 +356,11 @@ export default class BashExplainer extends Scene {
       start,
       events: BASH_EVENTS,
       next: sessionNextShell,
+      bound: scriptBound,
       views: [chain],
       runTime: ({ event }) => (event === 'RUN_PIPELINE' ? 1.6 : 1.2),
       transition: Object.fromEntries(
-        BASH_EVENTS.map((event) => [event, ({ views, targets }: Transition<ShellSession, BashEvent>) => commandRuns(choreograph(views[0]!.current, targets[0]!))]),
+        BASH_EVENTS.map((event) => [event, (t: Transition<ShellSession, BashEvent>) => commandRuns(t.choreograph(chain))]),
       ) as unknown as Record<BashEvent, (t: Transition<ShellSession, BashEvent>) => Animation>,
     });
     const story = await s.code(

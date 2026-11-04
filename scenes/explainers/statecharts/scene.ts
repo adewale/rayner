@@ -659,8 +659,8 @@ export default class Statecharts extends Scene {
         transition: Object.fromEntries(
           chartEvents(chart).map((event) => [
             event,
-            ({ before, after, views, targets }: Transition<Driven, string>) => {
-              const c = choreograph(views[0]!.current, targets[0]!);
+            (t: Transition<Driven, string>) => {
+              const { before, after } = t, c = t.choreograph(main);
               const was = followed(before), now = followed(after);
               const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
               const routes = send(chart, before.config, event).sources.map((from, i) => {

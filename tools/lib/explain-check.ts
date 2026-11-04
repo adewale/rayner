@@ -481,8 +481,12 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
   const problems: string[] = [];
   const { views, transition, events } = machine.spec;
   for (const event of events) {
+    // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
+    const bound = machine.spec.bound?.(state, event);
+    if (bound !== undefined && machine.spec.next(state, event) === undefined)
+      problems.push(`${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
     const authored = transition?.[event];
-    const after = authored && machine.spec.next(state, event);
+    const after = authored && machine.after(state, event);
     if (!authored || after === undefined) continue;
     const at = `${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
@@ -492,7 +496,7 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
     const expected = marksOf(toSvgString(scene));
     scene.state = jsonObject(state, 'machine state');
     for (const v of views) v.rebuild();
-    const motion = authored({ event, before: state, after, views, targets: views.map((v) => v.placed(after as Record<string, unknown>)) });
+    const motion = authored(machine.transitionFor(event, state, after));
     // As in a play: the event's SetState has already moved the scene to `after` when its transition
     // begins, so a sync inside the transition draws the state reached.
     scene.state = jsonObject(after, 'machine state');

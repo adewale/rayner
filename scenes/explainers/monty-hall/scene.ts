@@ -357,20 +357,20 @@ export default class MontyHall extends Scene {
         ROUND_EVENTS.flatMap((event): [RoundEvent, (t: Transition<Round, RoundEvent>) => ScheduledAnimation][] => {
           // The host opens his door: it swings round to show a goat (or, for a random host, the car), then the lines say so.
           if (event.startsWith('open'))
-            return [[event, ({ after, views, targets }) => {
-              const c = choreograph(views[0]!.current, targets[0]!);
+            return [[event, (t) => {
+              const { after } = t, c = t.choreograph(main);
               return new Succession([swing(c, after.opened!), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
             }]];
           // The car is shown: both closed doors swing open together.
           if (event.startsWith('car'))
-            return [[event, ({ after, views, targets }) => {
-              const c = choreograph(views[0]!.current, targets[0]!);
+            return [[event, (t) => {
+              const { after } = t, c = t.choreograph(main);
               return new Succession([together(closedDoors(after).map((i) => swing(c, i))), together([...crossfade(c, LINES, 0.45), c.rest({ runTime: 0.45 })])]);
             }]];
           // Switching: your door's outline lifts off it, passes over the open door, and settles on the one he offered.
           if (event === 'switch')
-            return [[event, ({ before, after, views, targets }) => {
-              const c = choreograph(views[0]!.current, targets[0]!);
+            return [[event, (t) => {
+              const { before, after } = t, c = t.choreograph(main);
               const from = roundDoor(before)!,
                 to = roundDoor(after)!;
               const outline = c.from(`door-${from}`).children[0]!;

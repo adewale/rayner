@@ -381,7 +381,7 @@ export default class RingBufferExplainer extends Scene {
 
     // The reader could press push or pop; each press is one model step, its motion authored below.
     // A transition morphs the ring's parts in turn; anything it does not name lands at the end.
-    const fields = (views: readonly View[]) => together([views[1]!.sync({ runTime: 0.45 }), views[2]!.sync({ runTime: 0.45 })]);
+    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ runTime: 0.45 })]);
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */
     const turn = (c: Choreography, name: 'head' | 'tail', from: number, to: number) => {
       const a0 = angle(from), a1 = a0 + turnBetween(from, to);
@@ -411,12 +411,14 @@ export default class RingBufferExplainer extends Scene {
       start,
       events: ['push', 'pop'],
       next: ringNext,
+      // The ring would take 10 and on; this story pushes the values 1 to 9.
+      bound: (st, event) => (event === 'push' && st.next > 9 ? 'This story pushes the values 1 to 9' : undefined),
       views: [ring, readout, results],
       // A push takes 1.8 s, a pop 2.1 s and a refused push, which travels, is crossed and is trayed, 3 s.
       runTime: ({ event, after }) => (event === 'pop' ? 2.1 : after.error ? 3 : 1.8),
       transition: {
-        push: ({ before, after, views, targets }) => {
-          const c = choreograph(views[0]!.current, targets[0]!);
+        push: (t) => {
+          const { before, after } = t, c = t.choreograph(ring);
           const slot = before.tail;
           if (after.error) {
             // Refused: the value travels toward the slot it would have taken and goes no further,
@@ -435,7 +437,7 @@ export default class RingBufferExplainer extends Scene {
               new Transform(bad, to.copy().shift(by), { runTime: 0.6 }),
               new Transform(crossed, cross.copy().shift(by), { runTime: 0.4 }),
               together([new Transform(bad, to, { runTime: 0.5 }), new Transform(crossed, cross, { runTime: 0.5 })]),
-              together([fields(views), c.rest({ runTime: 0.45 })]),
+              together([fields(), c.rest({ runTime: 0.45 })]),
             ]);
           }
           // The slot at tail is outlined first, then the value is copied into it, then tail moves on.
@@ -446,11 +448,11 @@ export default class RingBufferExplainer extends Scene {
               c.enter(`ring:value:${slot}`, { from: `ring:incoming:${pushArg(after.operation)}` }, { runTime: 0.6 }),
               c.morph(`ring:slot:${slot}`, { runTime: 0.6 }),
             ]),
-            together([turn(c, 'tail', before.tail, after.tail), fields(views), c.rest({ runTime: 0.45 })]),
+            together([turn(c, 'tail', before.tail, after.tail), fields(), c.rest({ runTime: 0.45 })]),
           ]);
         },
-        pop: ({ before, after, views, targets }) => {
-          const c = choreograph(views[0]!.current, targets[0]!);
+        pop: (t) => {
+          const { before, after } = t, c = t.choreograph(ring);
           const slot = before.head, k = after.tray!.values.length - 1;
           // The value at head is copied out to the tray, its slot empties, and head moves on.
           return new Succession([
@@ -461,7 +463,7 @@ export default class RingBufferExplainer extends Scene {
               c.enter(`ring:tray:${k}`, { from: `ring:value:${slot}` }, { runTime: 0.6 }),
             ]),
             together([c.morph(`ring:slot:${slot}`, { runTime: 0.35 }), c.leave(`ring:value:${slot}`, { runTime: 0.35 })]),
-            together([turn(c, 'head', before.head, after.head), fields(views), c.rest({ runTime: 0.45 })]),
+            together([turn(c, 'head', before.head, after.head), fields(), c.rest({ runTime: 0.45 })]),
           ]);
         },
       },

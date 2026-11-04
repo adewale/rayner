@@ -187,7 +187,6 @@ export function ringNext(st: RingState, event: RingEvent): RingState | undefined
       tray: { label: 'popped:', values: run && st.tray && !st.tray.refused ? [...st.tray.values, value] : [value], refused: false },
     };
   }
-  if (st.next > 9) return undefined;
   const value = st.next, slot = ring.tail;
   try {
     ring.push(value);
