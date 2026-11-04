@@ -94,7 +94,12 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 @keyframes leave{to{opacity:0}}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
-.caption{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
+.caption,.caption-ruler{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
+/* The caption keeps the tallest caption's height (--caption-h, measured by .caption-ruler at its
+   own width), so what follows it, the picture's description and the tools, never moves as the
+   reader steps; a short caption leaves room below it instead. */
+.words>.caption{min-height:var(--caption-h,0px)}
+.caption-ruler{position:absolute;top:0;left:0;min-height:0;visibility:hidden;pointer-events:none}
 .lede-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
 /* The step's heading on every width: "Step 3 of 4", the title, then the line. */
 .lede,.lede-ruler{max-width:68ch;font-size:1rem;line-height:1.45;text-wrap:pretty}
@@ -217,13 +222,17 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .player:fullscreen{display:flex;flex-direction:column;justify-content:safe center;padding:16px;background:var(--tile);overflow:auto}
 .player:fullscreen>*{width:min(100%,max(var(--player-floor,0px),calc((100dvh - 300px)*16/9)));margin-inline:auto}
 
-@media(max-width:480px){.caption{font-size:1.0625rem}.stepper{gap:6px}}
-/* On a phone the way back from the details says Back, so it fits beside Next and the stepper row
-   keeps one line on both paths; its accessible name stays the full words. */
-@media(max-width:640px){.button.back>span{font-size:0}.button.back>span::after{content:attr(data-short);font-size:.9375rem}}
-/* On a phone the step bar takes the room Prev and Next leave rather than asking for its own,
-   so a longer Next (Start again, Recommencer) never wraps the row onto a second line. */
-@media(max-width:640px){.step-bar{flex-basis:0}}
+@media(max-width:480px){.caption,.caption-ruler{font-size:1.0625rem}.stepper{gap:6px}}
+/* The way back from the details says Back, and gives even that up when the row is tight (the
+   end of the details, with Start again and Try): it shrinks to its icon, its word moving to a
+   hidden second line rather than being cut, so the stepper row keeps one line on both paths at
+   every width. Its accessible name and tooltip stay the full words. */
+.stepper>.button.back{flex:1 1 0;min-width:44px;max-width:max-content}
+.button.back>span{display:block;min-width:0;height:1.5em;overflow:hidden;font-size:0;line-height:1.5em;text-align:start}
+.button.back>span::after{content:"\200B" attr(data-short);font-size:.9375rem;line-height:1.5}
+/* The step bar takes the room the controls leave rather than asking for its own, so a longer
+   Next (Start again, Recommencer) and Try at the end never wrap the row onto a second line. */
+.step-bar{flex-basis:0}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
 
 /* Source notes remain a separate disclosure beneath the teaching path. */

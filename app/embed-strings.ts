@@ -16,7 +16,7 @@ export type SettingsProblem =
 export interface Chrome {
   details: string;
   backToStory: string;
-  /** Back to the explanation's word on a phone, where the full words would wrap the stepper row; its name stays backToStory. */
+  /** Back to the explanation's visible word, short so the stepper row never wraps; its name and tooltip stay backToStory. */
   backToStoryShort: string;
   /** Accessible name of the player section. */
   player: string;

@@ -147,7 +147,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   next.append(next.querySelector('svg')!); // the arrow follows the word
   next.querySelector('span')!.dataset.other = t.startAgain; // reserves Start again's width (embed.css)
   const backToStory = button(t.backToStory, 'previous', {text: t.backToStory, className: 'button back'});
-  backToStory.querySelector('span')!.dataset.short = t.backToStoryShort; // its word on a phone (embed.css)
+  backToStory.querySelector('span')!.dataset.short = t.backToStoryShort; // its visible word (embed.css)
+  backToStory.title = t.backToStory; // the full words, as its name says them
   backToStory.hidden = true;
   let lastStory = 0;
   // At rest on the last step Next is Start again, and a scene with settings offers its next case
@@ -251,6 +252,12 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // Measure the tallest heading and title: the stage cap budgets them and the heading keeps their height.
   const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
+  // And the tallest caption, measured where the caption sits, so its rules and width apply: the
+  // caption keeps that height, so nothing after it moves as captions change length.
+  // Its own class, styled with .caption's text rules in embed.css, so `.caption` still names one element.
+  const captionRuler = el('p', undefined, 'caption-ruler');
+  captionRuler.setAttribute('aria-hidden', 'true');
+  words.append(captionRuler);
   // The page's transcript holds every case; the player shows the current one, and its links move
   // the player. It is a closed row of the card, under the words (and the steps, on a narrow page).
   const transcript = root.querySelector<HTMLDetailsElement>('.transcript')!;
@@ -676,7 +683,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     span.textContent = words.line;
     span.hidden = !words.line;
   }
-  // The tallest heading sets the stage cap and the heading's reserved height; captions keep their natural height.
+  // The tallest heading sets the stage cap and the heading's reserved height; the tallest caption the caption's.
   // Recheck when the cap changes the card width, which can wrap the heading again.
   function reserve() {
     for (let pass = 0; pass < 3; pass++) {
@@ -698,14 +705,21 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       strong = el('strong'),
       span = el('span', undefined, 'line');
     ledeRuler.replaceChildren(kicker, strong, span);
+    captionRuler.style.width = `${caption.clientWidth}px`;
     let tallest = 0,
-      tallestTitle = 0;
+      tallestTitle = 0,
+      tallestCaption = 0;
     for (const [i, step] of trace.steps.entries()) {
-      fillLede(kicker, strong, span, i, stepWords(step));
+      const shown = stepWords(step);
+      fillLede(kicker, strong, span, i, shown);
       tallest = Math.max(tallest, ledeRuler.getBoundingClientRect().height);
       tallestTitle = Math.max(tallestTitle, strong.getBoundingClientRect().height);
+      captionRuler.textContent = shown.caption;
+      tallestCaption = Math.max(tallestCaption, captionRuler.getBoundingClientRect().height);
     }
     ledeRuler.replaceChildren();
+    captionRuler.textContent = '';
+    root.style.setProperty('--caption-h', `${tallestCaption}px`);
     // The stage cap budgets the tallest heading, and the heading keeps that height (embed.css),
     // its title the tallest title's, so stepping never moves the line or the caption.
     root.style.setProperty('--lede-h', `${tallest}px`);

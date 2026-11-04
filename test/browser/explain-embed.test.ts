@@ -1408,8 +1408,10 @@ test('Copy link gives the step\'s share page when site:export published one, els
     assert.equal(await copied(), `${embed}/mr-cache.html?step=diff&request=hit`);
   });
 });
-test('stepping keeps Next in place while headings and captions use their natural height', options, async () => {
-  // Caption lengths and tour controls cannot shift a path while the reader steps.
+test('stepping keeps Next, the heading line and the caption in place', options, async () => {
+  // Heading and caption lengths and tour controls cannot shift a path while the reader steps:
+  // the heading keeps the tallest heading's height, its line the tallest title's place, and the
+  // caption the tallest caption's height, so what follows the caption does not move either.
   // Opening the separate source disclosure deliberately changes the page's height.
   let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
@@ -1441,9 +1443,11 @@ test('stepping keeps Next in place while headings and captions use their natural
           if (await page.locator('.lede .line').isVisible())
             path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY).toFixed(1)));
           path.places.add(
-            await page.evaluate(() =>
-              ['.stepper'].map((s) => (document.querySelector(s)!.getBoundingClientRect().top + scrollY).toFixed(1)).join(' '),
-            ),
+            await page.evaluate(() => {
+              const top = (s: string) => document.querySelector(s)!.getBoundingClientRect().top + scrollY;
+              const caption = document.querySelector('.words > .caption')!.getBoundingClientRect();
+              return [top('.stepper'), caption.top + scrollY, caption.bottom + scrollY].map((v) => v.toFixed(1)).join(' ');
+            }),
           );
         }
         // A scene's notes, when it has any, form the detail path; token-bucket tells one story.
@@ -1452,7 +1456,8 @@ test('stepping keeps Next in place while headings and captions use their natural
         for(const [name,path] of Object.entries(paths)){
           if (name === 'detail' && !notes) { assert.equal(path.places.size, 0, `${scene}: no detail path without notes`); continue; }
           assert.ok(path.places.size, `${scene}: ${name} path was exercised`);
-          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: navigation tops per step ${[...path.places].join(' | ')}`);
+          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: stepper top, caption top and bottom per step ${[...path.places].join(' | ')}`);
+          assert.ok(path.lines.size <= 1, `${scene}/${name} at ${width} px: heading line tops per step ${[...path.lines].join(' | ')}`);
 
         }
   });
