@@ -60,7 +60,10 @@ export class View<M extends Mobject = Mobject> extends Group {
   /** The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
   scaleK: number;
 
-  /** Every View is a picture of a scene's state: there is no way to make one that closes over anything else. */
+  /**
+   * Every View is a picture of a scene's state with a draw that check can call again. A draw can
+   * still read variables outside the state; the checks catch that when a redraw disagrees.
+   */
   constructor(scene: Scene<any>, draw: (state: SceneState) => M, { place = 'center' }: ViewOpts = {}) {
     super();
     this.build = () => draw(scene.state); this.draw = draw; this.place = place; this.scaleK = 1;

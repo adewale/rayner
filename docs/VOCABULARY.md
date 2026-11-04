@@ -122,7 +122,7 @@ Each of these has no adopter, or breaks an invariant, or says something the engi
 | Cut | Users | Why |
 | --- | --- | --- |
 | `stateView` | 0 | A readout of state keys; `StateReadout` in a `view` does the same. |
-| `view(build)` | 1 (monty-hall) | A view not made from state cannot be checked against it. Monty-hall moves to `view(scene, draw)`, and the `View` constructor itself takes `(scene, draw)`, so no View can close over anything else. |
+| `view(build)` | 1 (monty-hall) | A view not made from state cannot be checked against it. Monty-hall moves to `view(scene, draw)`, and the `View` constructor itself takes `(scene, draw)`, so every View keeps a `draw` the checks can call again; a `draw` that reads anything outside the state is caught when a redraw disagrees. |
 | `Diagram.fromGraph` (proposed) | 0 needed | Git-branches and exgit draw their graphs with the kit, and `Diagram.morph` already handles graph edits. |
 | `allows` (proposed) | — | Folded into `next` returning `undefined`. |
 | `viewpoint` as an engine type (proposed) | — | It is state; `projected` is a drawing function. |

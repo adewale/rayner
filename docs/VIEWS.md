@@ -156,9 +156,10 @@ the picture, in family order), not geometry. The pure form,
 `viewMismatch(view, state)`, is exported from the library, and
 `assertViewFollowsState` calls it at each step end. It returns `null`, or
 a message that says what the View shows and what the state draws. Every View is
-made with `view(scene, draw)` and keeps `draw` for these checks: there is no way
-to make a View that closes over anything but the scene's state, so every View can
-be checked and every state a Machine reaches redrawn.
+made with `view(scene, draw)` and keeps `draw` for these checks, so every View can
+be checked and every state a Machine reaches redrawn. A `draw` can still read a
+variable outside the state: the checks catch it when a redraw disagrees with what
+was shown, which they can only do because every View keeps its `draw`.
 
 ## Migration notes
 
