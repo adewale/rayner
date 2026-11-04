@@ -238,7 +238,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .step-bar{flex-basis:0;min-width:min(100%,calc(var(--segments,8)*8px))}
 .stepper>.button.try{flex:1 1 0;min-width:44px;max-width:max-content;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .stepper{min-height:var(--stepper-h,0px)}
-.stepper.stacked>.tools{flex-basis:100%;padding-inline-start:0;border-inline-start:0}
+.stepper[data-stacked]>.tools{flex-basis:100%;padding-inline-start:0;border-inline-start:0}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
 
 /* Source notes remain a separate disclosure beneath the teaching path. */

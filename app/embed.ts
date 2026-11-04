@@ -735,11 +735,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     endControls(true, tryLabel());
     tryCase.hidden = tryCase.parentElement !== stepper || !firstSetting;
     backToStory.hidden = !steps.some((_, i) => isDetail(i));
-    stepper.classList.remove('stacked');
+    stepper.removeAttribute('data-stacked');
     root.style.setProperty('--stepper-h', '0px');
     const row = next.offsetTop;
     const wraps = [...stepper.children].some((c) => c instanceof HTMLElement && !c.hidden && c.offsetTop >= row + next.offsetHeight);
-    stepper.classList.toggle('stacked', wraps);
+    stepper.toggleAttribute('data-stacked', wraps); // an attribute, so the row's class still names it alone
     const height = stepper.getBoundingClientRect().height;
     endControls(saved.face === 'end', saved.tryText ?? '');
     tryCase.hidden = saved.tryHidden;

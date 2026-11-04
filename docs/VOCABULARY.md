@@ -41,28 +41,27 @@ One row per idea. **Bold** marks a change.
 | Matching by key | `matchByKey()`, **`match: 'key'`** | Keyed parts pair with keyed parts | `match: 'keys'` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
 | Event-driven model | **`Machine`**, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay`, `reachable` | `Session`, `sessionsOf`; describe's `sessions` field becomes **`machines`** |
-| Allowed events | **`machine.allows(state, event)`** (new) | Which buttons a reader can press in a state | A refused event returning the same state |
+| Refused events | `next` returns **`undefined`** | Which buttons a reader cannot press in a state; one function, so the buttons and the model cannot disagree | A refused event returning the same state |
 | Authored transition | **`transition: ({ before, after, event }) => Animation`** (new, per event) | The motion for an event; Rayner then swaps in `draw(after)`, so it always lands where the model says | Hand animation in ring-buffer and state-machine |
 | A sampled value | `Follow({ from, to, draw }, { targets })` | One number sampled between two ends and redrawn with `become` | |
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | **`stage.sketch(m)`** | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
-| 3D viewpoint | **`viewpoint`** (new) | `{ yaw, pitch, kind }` held in state; `projected(model, viewpoint)` draws a 3D model as a picture | |
+| 3D picture | **`projected(model, viewpoint)`** (new, in `rayner/drawing`) | Draws a 3D model through a viewpoint, `{ yaw, pitch, kind }`, that is ordinary state turned by an ordinary `Follow`. Not an engine type. | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
-| Timeline cue | **`{ cue }` on `play` options** (new) | A name for when an animation begins, for narration to align to (#7) | |
 | Decisions | `evidence()` | What an animation decided, recorded as it begins | |
 | Frames recorded | trace, `traceScene` | What each frame showed | |
 | Output record | receipt (`claude/video-pacing`) | What a render produced | |
 | Words for a picture | `describe` | The same word on the stage, on `Diagram`, in `describeExplainer` and `rayner describe` | |
 | Tables | `table(rows, columns, { key })` | The drawing kit's existing `table()`, which gains keyed cells (`table:row:col`) | A second table primitive |
-| Graphs | `Diagram`, plus **`Diagram.fromGraph({ nodes, edges })`** (new) | Nodes keyed by id, whether captured from Mermaid or built natively; `walk`, `mark` and `morph` work on both | A separate `Graph` type |
+| Graphs | `Diagram` | Captured from Mermaid; `walk`, `mark` and `morph` | A separate `Graph` type |
 
 After the change, "frame" still means two things: the 2D camera and an instant of a run. Manim has the same overlap (`camera.frame` and frame rate), and context separates them. The step-list meaning goes.
 
 ### Names deliberately kept
 
-- **`Frame`.** Published in 0.1.0, and Manim authors know `camera.frame`.
+- **`Frame`.** Manim authors know `camera.frame`.
 - **`SetState`, `Follow`, `become`, `Transform`.** Animations named as verbs follow Manim's convention.
 - **`keep`, `enter`, `focus`, `carry`, `reading`.** Stage verbs read well at their call sites.
 - **`describe`.** It already means one thing everywhere: words for what is shown.
@@ -97,7 +96,7 @@ This changes the 6 `lesson()` explainers (birthday-paradox, bloom-filter, git-br
 ### 2. Machines, ready for the player
 
 - `Session` becomes `Machine`, and statecharts' local `machine()` helper is renamed to avoid the clash.
-- `allows(state, event)` is optional. Without it every event is allowed, and an event that leaves the state unchanged counts as refused, as now.
+- `next` returns `undefined` for an event the state refuses. The player disables that event's button, and exploration does not follow it. There is no separate `allows`: two functions could disagree about which events a state accepts.
 - `transition` is optional per event. Without it an event plays the keyed morph, as now. With it the authored animation plays, then the views snap to `draw(after)`. That last morph is checked to be still, so a transition that ends somewhere else shows as motion that `rayner check` reports.
 - Exploration checks every edge as well as every state. Each reachable edge's frames run through the invariant and legibility checks, and a failure is named by its shortest events plus the edge's event.
 
@@ -107,46 +106,51 @@ Ring-buffer and state-machine then become machines. Their resting pictures must 
 
 `View.render` becomes `View.draw`, and `stage.draw(m)` becomes `stage.sketch(m)`. `Follow` already uses `draw`. The drawing kit `rayner/drawing` then reads as intended: it is what `draw` functions are written with.
 
-### 4. Tables, graphs, cues and viewpoints
+### 4. Keyed tables and 3D pictures
 
-These are new rather than renames, but each takes its name from the table above so that it lands in place:
+These are new rather than renames, and each has two adopters:
 
 | Addition | First adopter | Second adopter |
 | --- | --- | --- |
 | `table(..., { key })` | python-dict (insert and delete as a machine) | bloom-filter |
-| `Diagram.fromGraph` | git-branches | exgit |
-| `{ cue }` | token-bucket, on `claude/video-pacing` | python-dict deletion |
-| `viewpoint` and `projected` | great-circle ([script](../scenes/explainers/great-circle/script.md)) | seasons' globe views, whose resting pictures must stay identical |
+| `projected(model, viewpoint)` in `rayner/drawing` | great-circle ([script](../scenes/explainers/great-circle/script.md)) | henge's fixed-axis globes, whose resting pictures must stay identical |
+
+### 5. Cuts
+
+Each of these has no adopter, or breaks an invariant, or says something the engine already says another way:
+
+| Cut | Users | Why |
+| --- | --- | --- |
+| `addUpdater`, `clearUpdaters`, `Updater` | 0 explainers | A function of `dt` run every frame makes a frame depend on the frames before it, so it cannot be sought directly (invariant 1). `Follow` covers continuous motion from a value. |
+| `stateView` | 0 | A readout of state keys; `StateReadout` in a `view` does the same. |
+| `view(build)` | 1 (monty-hall) | A view not made from state cannot be checked against it. Monty-hall moves to `view(scene, draw)`. |
+| `GrowFromEdge`, `PulseAlongPath` as public exports | 0 directly | Only `Diagram` uses them. They stay, internal. |
+| `Diagram.fromGraph` (proposed) | 0 needed | Git-branches and exgit draw their graphs with the kit, and `Diagram.morph` already handles graph edits. |
+| `allows` (proposed) | — | Folded into `next` returning `undefined`. |
+| `viewpoint` as an engine type (proposed) | — | It is state; `projected` is a drawing function. |
+
+Deferred: `{ cue }` for narration belongs with video export on `claude/video-pacing` (#7). Lighting, shading and depth of field for 3D: nothing the scripts argue needs them.
 
 ## Compatibility
 
-Rayner 0.1.0 is published. Names that shipped in it keep an alias for every 0.2.x release, are marked deprecated in the changelog, and are removed in 0.3.0. Names that have not been released change outright before 0.2.0.
-
-| Name | Shipped in 0.1.0? | Plan |
-| --- | --- | --- |
-| `Session`, `sessionsOf`, describe's `sessions` | No | Rename outright |
-| `match: 'keys'` | No | Rename outright |
-| `view(scene, render)` | Yes | A parameter name only: no break. The docs change. |
-| `View.render` | Yes | `View.draw`, with a deprecated `render` getter |
-| `stage.draw(m)` | Yes | `stage.sketch(m)`, with a deprecated `draw` alias |
-| `lesson`, `readerFirst` | Not public (scene library) | Wrappers over `stage.steps`, then removed |
+Nothing here has shipped, so every rename and cut changes outright, with no aliases. The scene library's `lesson` and `readerFirst` are removed once the 17 explainers have moved to `stage.steps`.
 
 ## Order of work
 
 Each item is one commit with its own evidence, as the primitives in this PR were.
 
 1. **Unreleased renames** (`Machine`, `machinesOf`, `machines`, `match: 'key'`) and the invariant docstrings. Evidence: sampled frames hash-identical for all 40 explainers; the full suite and `pack:smoke` pass.
-2. **`draw` and `sketch`**, with aliases. Evidence: identical frames; the consumer type test still compiles against the deprecated names.
+2. **`draw` and `sketch`**, and the cuts above. Evidence: identical frames for every explainer; monty-hall's picture moves to `view(scene, draw)` with identical frames.
 3. **`stage.steps`**, moving the 17 explainers one at a time. Evidence: identical frames per explainer. The redraw check is shown rejecting a deliberate defect: a `draw` that reads a counter incremented by each step.
-4. **`allows`, `transition` and edge checks**; ring-buffer and state-machine as machines. Evidence: identical resting pictures. The edge check is shown rejecting a transition that ends one slot away from `draw(after)`.
-5. **Additions**, each with its two adopters and a deliberate defect: a duplicated table key, a graph edge to a missing node, a cue named but never played, a viewpoint change that draws a back face in front.
+4. **Refused events, `transition` and edge checks**; ring-buffer and state-machine as machines, and the player's event buttons (#88). Evidence: identical resting pictures. The edge check is shown rejecting a transition that ends one slot away from `draw(after)`.
+5. **Additions**, each with its two adopters and a deliberate defect: a duplicated table key, and a viewpoint change that draws a back face in front.
 
 ## Done when
 
 - [ ] Every idea in the vocabulary table has one name in the code, the docs and the skill, and `grep` finds no other.
 - [ ] Every explainer that steps through pictures does so through `stage.steps`, a view or a machine, and `rayner check` redraws each resting picture from its state.
-- [ ] `Machine` has `allows` and `transition`, exploration covers edges, and ring-buffer and state-machine are machines.
-- [ ] Deprecated aliases exist for every 0.1.0 name changed, and the changelog lists them.
+- [ ] `Machine` refuses events through `next`, has `transition`, exploration covers edges, and ring-buffer and state-machine are machines.
+- [ ] The cuts are gone from the code, the docs and the skill.
 
 ## Not chosen, and why
 
