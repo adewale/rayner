@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { exec } from '../scenes/explainers/lib/models.ts';
-import { sessionOfShells, sessionNextShell, BASH_EVENTS, PIPELINE, FILE } from '../scenes/explainers/lib/just-bash.ts';
+import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS, PIPELINE, FILE } from '../scenes/explainers/lib/just-bash.ts';
 import type { ShellSession, BashEvent } from '../scenes/explainers/lib/just-bash.ts';
 
 /** Every session the script's command lines reach from the empty shell, with the shortest events to each. */
@@ -13,6 +13,8 @@ function reachable(): { state: ShellSession; path: BashEvent[] }[] {
     if (seen.has(JSON.stringify(at.state))) continue;
     seen.set(JSON.stringify(at.state), at);
     for (const e of BASH_EVENTS) {
+      // The machine's bound first: the script writes once, though exec would go on.
+      if (scriptBound(at.state, e) !== undefined) continue;
       const next = sessionNextShell(at.state, e);
       if (next) queue.push({ state: next, path: [...at.path, e] });
     }
@@ -50,7 +52,9 @@ test('the session refuses what exec refuses: ls in every state; and the script w
     assert.throws(() => exec(state.shells.at(-1)!, [['ls']]), /Unknown model command/);
   }
   const once = sessionNextShell(sessionOfShells(), 'RUN_PIPELINE')!;
-  assert.equal(sessionNextShell(once, 'RUN_PIPELINE'), undefined);
+  // A second write is beyond the script, not refused by exec: exec would return a third shell.
+  assert.equal(scriptBound(once, 'RUN_PIPELINE'), 'The script writes shout.txt once');
+  assert.equal(sessionNextShell(once, 'RUN_PIPELINE')!.shells.length, 3);
   // A cat run again on the same shell prints the same and changes nothing.
   const read = sessionNextShell(once, 'CAT_NEWEST')!;
   assert.deepEqual(sessionNextShell(read, 'CAT_NEWEST'), read);
