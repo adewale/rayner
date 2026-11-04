@@ -3,7 +3,7 @@ import { stage } from '../../../explain/index.ts';
 import type {StepAudio} from '../../../explain/audio.ts';
 import type { Stage } from '../../../explain/index.ts';
 // The drawing kit is published as rayner/drawing; the collection's scenes keep importing it from here.
-export { label, tile, segment, dot, table, stat, flow, bars } from '../../../explain/drawing.ts';
+export { keyed, label, tile, segment, dot, table, stat, flow, bars } from '../../../explain/drawing.ts';
 export type { TableColumns } from '../../../explain/drawing.ts';
 
 export interface LessonFrame {

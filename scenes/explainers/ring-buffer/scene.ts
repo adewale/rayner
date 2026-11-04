@@ -14,13 +14,14 @@ import {
   Create,
   Transform,
   TransformFromCopy,
+  Follow,
   SurroundingRectangle,
   Cross,
   StateReadout,
   view,
   linear,
 } from '../../../src/index.ts';
-import type { ScheduledAnimation, Vec, Mobject, PathFunc, SceneState, View } from '../../../src/index.ts';
+import type { ScheduledAnimation, Vec, Mobject, SceneState, View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Card } from '../../../explain/panels.ts';
 import { ringStory, RingBuffer } from '../lib/models.ts';
@@ -90,44 +91,6 @@ const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1] + Mat
 const turnBetween = (from: number, to: number) => {
   const d = angle(to) - angle(from);
   return d - 2 * Math.PI * Math.round(d / (2 * Math.PI));
-};
-const aboutRing = (p: Readonly<Vec>, a: number): Vec => {
-  const x = p[0] - C[0], y = p[1] - C[1], c = Math.cos(a), s = Math.sin(a);
-  return [C[0] + x * c - y * s, C[1] + x * s + y * c];
-};
-/**
- * A pointer's arrow turns about the ring's centre from one slot to another, the short way
- * round, so it never crosses the ring. Its two drawings are the same arrow turned, so each
- * point rotates; the remainder, zero up to rounding, is blended so the ends are exact.
- */
-const turnAboutRing = (from: number, to: number): PathFunc => {
-  const d = turnBetween(from, to);
-  return (s, e, alpha) => {
-    if (alpha <= 0) return [s[0], s[1]];
-    if (alpha >= 1) return [e[0], e[1]];
-    const now = aboutRing(s, d * alpha), whole = aboutRing(s, d);
-    return [now[0] + alpha * (e[0] - whole[0]), now[1] + alpha * (e[1] - whole[1])];
-  };
-};
-/**
- * A pointer's word travels round the ring with its arrow but stays upright: the straight
- * morph between its two places, carried along the arc they lie on at the pointers' radius.
- */
-const alongRing = (from: number, to: number): PathFunc => {
-  const r = R + 1.12,
-    a0 = angle(from),
-    d = turnBetween(from, to);
-  const c0 = polar(a0, r),
-    c1 = polar(angle(to), r);
-  return (s, e, alpha) => {
-    if (alpha <= 0) return [s[0], s[1]];
-    if (alpha >= 1) return [e[0], e[1]];
-    const on = polar(a0 + d * alpha, r);
-    return [
-      s[0] + (e[0] - s[0]) * alpha + on[0] - (c0[0] + (c1[0] - c0[0]) * alpha),
-      s[1] + (e[1] - s[1]) * alpha + on[1] - (c0[1] + (c1[1] - c0[1]) * alpha),
-    ];
-  };
 };
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
@@ -219,11 +182,12 @@ export default class RingBufferExplainer extends Scene {
       });
       return new Group(ring, new Text(String(v), { fontSize: 0.28, color: ink }).moveTo(ring.center()));
     };
-    const pointer = (name: 'head' | 'tail', i: number) => {
-      const a = angle(i) + (name === 'head' ? 0.22 : -0.22),
+    /** A pointer at any angle round the ring: its arrow toward the slot there, its word upright beside it. */
+    const pointerAt = (name: 'head' | 'tail', at: number) => {
+      const a = at + (name === 'head' ? 0.22 : -0.22),
         color = name === 'head' ? head : TAIL;
       const start = polar(a, R + 1.12),
-        slot = polar(angle(i), R),
+        slot = polar(at, R),
         dir = [start[0] - slot[0], start[1] - slot[1]],
         len = Math.hypot(dir[0]!, dir[1]!),
         end: Vec = [slot[0] + (dir[0]! / len) * (SLOT + 0.07), slot[1] + (dir[1]! / len) * (SLOT + 0.07)];
@@ -235,6 +199,7 @@ export default class RingBufferExplainer extends Scene {
         label,
       );
     };
+    const pointer = (name: 'head' | 'tail', i: number) => pointerAt(name, angle(i));
     /** An outline that stays on the slot an operation touched until the next operation. */
     const mark = (i: number, color: string) =>
       new SurroundingRectangle(circles[i]!, {
@@ -291,12 +256,15 @@ export default class RingBufferExplainer extends Scene {
     const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;
     const pointerRadius = Math.hypot(arrowBase(headPtr)[0]! - C[0], arrowBase(headPtr)[1]! - C[1]);
     this.addInvariant('pointers stay on their circle', (scene) => {
+      let checked = false;
       for (const name of ['head', 'tail']) {
         const ptr = scene.find(`ring:pointer:${name}`);
         if (!ptr) continue;
         const [x, y] = arrowBase(ptr), r = Math.hypot(x! - C[0], y! - C[1]);
         if (Math.abs(r - pointerRadius) > 1e-3) return `the ${name} arrow starts ${r.toFixed(3)} from the centre, not ${pointerRadius.toFixed(3)}`;
+        checked = true;
       }
+      return checked;
     });
     // The buffer's own fields, rebuilt from this.state at every sync.
     const readout = (this.readout = view(
@@ -514,12 +482,16 @@ export default class RingBufferExplainer extends Scene {
           );
         }
         const moves: ScheduledAnimation[] = [];
-        // A pointer's arrow turns about the centre and its word rides round upright beside it.
+        // One angle drives the pointer round the ring, the short way: its arrow turns about the
+        // centre and its word rides round upright beside it, drawn afresh at each sampled angle
+        // and written into the pointer, which keeps its identity and key.
         const move = (ptr: Mobject, name: 'head' | 'tail', from: number, to: number) => {
-          const next = pointer(name, to);
+          const a0 = angle(from), a1 = a0 + turnBetween(from, to);
           moves.push(
-            new Transform(ptr.children[0]!, next.children[0]!, { runTime: 0.45, pathFunc: turnAboutRing(from, to) }),
-            new Transform(ptr.children[1]!, next.children[1]!, { runTime: 0.45, pathFunc: alongRing(from, to) }),
+            new Follow(
+              { from: a0, to: a1, draw: (a) => (a === a1 ? pointer(name, to) : pointerAt(name, a)) },
+              { targets: [ptr], runTime: 0.45 },
+            ),
           );
         };
         if (r.head !== now.head) move(headPtr, 'head', now.head, r.head);

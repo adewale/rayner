@@ -184,9 +184,10 @@ A row gives one value per column, or one value that spans them all (Requests abo
 
 | Function | Draws |
 | --- | --- |
+| `keyed(m, key)` | Sets `m.key` and returns `m`, for any mobject a scene draws itself |
 | `label(text, x, y, color, size?, key?)` | A centred line of text |
 | `tile(text, x, y, width, height, s, { active?, bad?, key?, size? })` | A labelled box, emphasised or marked bad |
-| `segment(a, b, color, width?)`, `dot(text, x, y, s, active?)` | A stroke; a labelled circle |
+| `segment(a, b, color, width?, key?)`, `dot(text, x, y, s, active?, key?)` | A stroke; a labelled circle |
 | `table(headers, rows, s, { xs, y, gap, key, size })` | Bold headers over rows; text columns start-aligned, numeric ones end-aligned, a rule spanning exactly the columns. `xs` is column centres, `{ left, right }` to spread the measured columns between two edges, or `{ left, gap }` to set them a gap apart; the group's box is the table's measured extent |
 | `stat(s, title, value, x, y, key)` | A title over a large value |
 | `flow(s, names, { y, key })` | Named steps in boxes of one size joined by arrows; long names wrap; each box keyed `key:i` |
@@ -383,7 +384,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |
 | Sessions | A state some [session](SESSIONS.md)'s events reach collides, has no description, does not show its state, or is described exactly as another reachable state; reported by its shortest events |
-| Invariants | A claim the scene registered with `this.addInvariant(name, check)` fails on any frame of the full run, mid-animation included; the report lists the frames each claim held on (`invariants`) |
+| Invariants | A claim the scene registered with `this.addInvariant(name, check)` fails on any frame of the full run, mid-animation included, or never holds on any frame (it found nothing to check: a key it reads may be misspelt); the report lists the frames each claim held on (`invariants`) |
 | Seek | A seeked frame differs from the played frame, at two frames per step |
 | Trace | The trace with frames skipped differs from the played trace |
 | Step change | A step's resting picture, ignoring the heading, equals the previous step's. The camera's view is part of the picture, so a camera move alone is a change |

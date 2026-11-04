@@ -23,7 +23,7 @@ await this.play(new TransformMatching(before, after, { key: (part) => part.style
 | `TransformMatchingText` | are the same character in the same font and weight; anything else by shape. In an explainer with outline lettering, the same whole cluster drawn with the same number of glyphs ([lettering](LETTERING.md#changes-between-strings)) | `Text`, `Code`, groups of them |
 | `TransformMatchingShapes` | have the same `shapeKey()`: same path up to position and size | diagrams, symbols, anything drawn |
 | `TransformMatching` + `key` | map to the same string (`undefined` never matches) | identity you know: a node id, a color, a role |
-| `TransformMatching` + `matchByKey({ fallback?, text? })` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
+| `TransformMatching` + `matchByKey({ fallback?, unkeyed?, text? })` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
 
 A part is one drawable piece: a visible `VMobject` with points of its own (a
 glyph, an arrow's line or tip, a node's box). Containers are not parts; a
@@ -64,7 +64,10 @@ them, rather than walking `family()` or `children`, so the parts a scene
 addresses are the same ones matching, invariants and reviews address.
 
 What is under no key below the root pairs by the `fallback`, and by default
-not at all: it fades out and in, as a label that is new or gone should. Pass a
+not at all: it fades out and in, as a label that is new or gone should. With
+`unkeyed: 'by-place'` it pairs with the part at the same place in the other
+picture instead, as if the whole picture were one keyed component (`monty-hall`'s
+picture works this way). Pass a
 fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one

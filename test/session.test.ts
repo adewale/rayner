@@ -76,6 +76,8 @@ test('a session replays events through the model as one schedule: state, evidenc
   assert.deepEqual((await traceScene(Lamp)).steps, fullTrace.steps());
   assert.throws(() => ran.session.send('DOWN' as 'UP'), RangeError);
   assert.throws(() => new Session(ran, { start: { level: 0 }, events: [], next, views: [] }), TypeError);
+  // A picture that closes over variables outside the state cannot be redrawn for an explored state
+  assert.throws(() => new Session(ran, { start: { level: 0 }, events: ['UP'], next, views: [view(() => new Text('lamp'))] }), /made with view\(scene, render\)/);
   assert.throws(() => new Session(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), TypeError);
 });
 

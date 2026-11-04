@@ -12,13 +12,13 @@ import {
   Transform,
   AnimationGroup,
   Succession,
-  ViewSync,
+  SetState,
   view,
   StateReadout,
   Circle,
   Cross,
 } from '../../../src/index.ts';
-import type { ScheduledAnimation as Animation, Mobject, SceneState, SyncOpts, View, VMobject } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, Mobject, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { TokenBucket } from '../lib/models.ts';
 
@@ -118,25 +118,6 @@ const MOVED = RATES.map((rate) => {
 /** Drop repeated points; a line needs two distinct ones. */
 const distinct = (points: [number, number][]) =>
   points.filter((p, i) => i === 0 || p[0] !== points[i - 1]![0] || p[1] !== points[i - 1]![1]);
-
-/**
- * A readout sync that first makes one call's result the scene's state. In a
- * Succession it begins when its turn comes, so each request's members show
- * that request's state, and the step ends on the last one.
- */
-class SyncToCall extends ViewSync {
-  owner: Scene;
-  result: SceneState;
-  constructor(owner: Scene, readout: View, result: SceneState, opts: SyncOpts) {
-    super(readout, opts);
-    this.owner = owner;
-    this.result = result;
-  }
-  override begin(): void {
-    this.owner.state = this.result;
-    super.begin();
-  }
-}
 
 export default class TokenBucketExplainer extends Scene {
   static meta = {
@@ -314,17 +295,6 @@ export default class TokenBucketExplainer extends Scene {
     const level = fill(CAPACITY);
     shell.key = 'bucket:shell';
     level.key = 'bucket:level';
-    /** The gauge at a balance: the rectangle fill() builds, written in place so one value sets it from any frame. */
-    const setLevel = (n: number) => {
-      const w = (SHELL_W - 0.16) / 2,
-        h = Math.max(0.001, ((Y5 - Y0) * n) / CAPACITY);
-      level.setPolygon([
-        [SHELL_X - w, Y0 + h],
-        [SHELL_X + w, Y0 + h],
-        [SHELL_X + w, Y0],
-        [SHELL_X - w, Y0],
-      ]);
-    };
     // The claim the shared scale makes, checked on every frame by rayner check: wherever the balance
     // line has got to, refilling or spending, the bucket's level stands at the same height. The line's
     // tip is the drawn end furthest along in time; at equal times, the one drawn last.
@@ -341,10 +311,11 @@ export default class TokenBucketExplainer extends Scene {
       if (!tip) return;
       const top = gauge.box()![3];
       // An empty bucket keeps a sliver 0.001 tall, so it can still be seen.
-      return Math.abs(top - tip[1]) <= 0.002 ? null : `the bucket's top is at ${top.toFixed(3)}, the line ends at ${tip[1].toFixed(3)}`;
+      return Math.abs(top - tip[1]) <= 0.002 || `the bucket's top is at ${top.toFixed(3)}, the line ends at ${tip[1].toFixed(3)}`;
     });
     /** A climb drawn up to time t: the share of the line's length at or before t, as Create reveals a stroke. */
-    const drawTo = (path: Mobject, points: [number, number][], t: number) => {
+    const climbTo = (points: [number, number][], t: number) => {
+      const path = line(points, s.palette.accent)!;
       const ps = distinct(points),
         ws = ps.map(([x, y]) => axes.c2p(x, y));
       let total = 0,
@@ -356,9 +327,9 @@ export default class TokenBucketExplainer extends Scene {
         upTo += t >= t1 ? len : t > t0 ? (len * (t - t0)) / (t1 - t0) : 0;
       }
       const share = total > 0 ? upTo / total : 1;
-      if (share >= 1) delete path.style.drawFraction;
-      else path.style.drawFraction = share;
+      if (share < 1) path.style.drawFraction = share;
       path.style.opacity = share > 0 ? 1 : 0;
+      return path;
     };
     const bucketLabel = new Text('bucket', { fontSize: 0.2, color: soft }).moveTo([SHELL_X, Y0 - 0.33]);
 
@@ -524,10 +495,8 @@ export default class TokenBucketExplainer extends Scene {
                 {
                   from: prev.at,
                   to: call.at,
-                  apply: (t) => {
-                    setLevel(balanceAt(t));
-                    if (rise) drawTo(rise, climbed, t);
-                  },
+                  // The gauge at the balance allow() would compute at t, and the climb drawn up to t.
+                  draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(climbed, t)] : fill(balanceAt(t))),
                 },
                 { targets: [level, ...(rise ? [rise] : [])] },
               ),
@@ -575,9 +544,10 @@ export default class TokenBucketExplainer extends Scene {
               new FadeOut(chips[i]!),
               new FadeIn(next),
               new Transform(level, fill(call.after)),
-              // By position: a value that gains characters ("0" to "0.5") splits its
-              // glyphs outward instead of growing new ones inside a box that jumps.
-              new SyncToCall(this, readout, after, { match: 'index' }),
+              // The call's result becomes the scene's state at its turn, then the readout follows it,
+              // by position: a value that gains characters ("0" to "0.5") splits its glyphs outward
+              // instead of growing new ones inside a box that jumps.
+              new Succession([new SetState(this, after), readout.sync({ match: 'index', runTime: 0.4 })]),
             ].map((a) => a.setOptions({ runTime: 0.4 })),
           ),
         );

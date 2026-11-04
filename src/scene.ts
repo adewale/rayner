@@ -57,8 +57,13 @@ export interface Step {
  * such as the hunks a TransformDiff animated. JSON, like the state.
  */
 export type Evidence = { kind: string } & Record<string, unknown>;
-/** A claim about the picture: a message when it fails on this frame, anything else when it holds. */
-export type Invariant = (scene: Scene<any>) => string | null | undefined | void;
+/**
+ * A claim about the picture on one frame: a message when it fails, `true` when it held, and
+ * nothing (or false) when there was nothing to check, such as before the parts it reads are
+ * drawn. A claim that never holds on any frame of a run was never tested, so rayner check
+ * fails it: a misspelt key finds nothing and cannot pass for a claim that held.
+ */
+export type Invariant = (scene: Scene<any>) => string | boolean | null | undefined | void;
 
 /**
  * What a scene renders into: called once per frame (dt = 0 for the first),
@@ -212,8 +217,9 @@ export class Scene<S extends object = SceneState> {
 
   /**
    * Claim something about the picture on every frame from now on: `check(scene)` returns
-   * a message when the claim fails, anything else when it holds. It reads the scene, by
-   * key (`scene.find`), and changes nothing. An InvariantSink runs every registered
+   * a message when the claim fails, `true` when it held, and nothing when there was nothing
+   * to check on this frame. It reads the scene, by key (`scene.find`), and changes nothing;
+   * a claim that never returns `true` in a run fails `rayner check`. An InvariantSink runs every registered
    * check on every frame it is handed, so `rayner check`, which plays every case in full,
    * fails at the first frame a claim breaks, mid-animation included. A seek skips frames
    * and so checks nothing between them. Names are unique per scene; returns a remover.

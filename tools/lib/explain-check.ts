@@ -495,6 +495,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `Invariants fail ${where} (${invariants.failures.length} frames; the first five)`,
     );
+    assert.deepEqual(
+      invariants.vacuous(),
+      [],
+      `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
+    );
     const sessions = await exploreSessions(ran);
     assert.deepEqual(
       sessions.flatMap((s) => s.problems).slice(0, 5),
@@ -573,8 +578,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       frames: motion.frames.length,
       seekFrames: frames.size,
       motionEvents: events.length,
-      // Each declared invariant and the frames it held on: a claim checked on no frame is not evidence.
-      invariants: Object.fromEntries(invariants.checked),
+      // Each declared invariant and the frames it held on: a claim that held on no frame is not evidence.
+      invariants: Object.fromEntries(invariants.held),
       // Each session's events and how many states they reach, every one drawn and checked.
       ...(sessions.length ? { sessions: sessions.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       labels: labels.size,

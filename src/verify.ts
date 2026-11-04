@@ -246,13 +246,18 @@ export interface InvariantFailure {
  * Checks a scene's invariants (Scene.addInvariant) on every frame it is handed, then
  * hands the frame on to `inner` if given, so it rides along with any other sink. A check
  * that throws fails with what it threw. `failures` lists every failing frame, `checked`
- * how many frames each invariant was checked on: a claim never checked is not evidence.
+ * how many frames each invariant ran on, and `held` how many it returned `true` on. A
+ * claim that ran but never held found nothing to check: `vacuous()` names those.
  */
 export class InvariantSink implements Sink {
   readonly inner: Sink | null;
   failures: InvariantFailure[];
   checked: Map<string, number>;
-  constructor(inner: Sink | null = null) { this.inner = inner; this.failures = []; this.checked = new Map(); }
+  held: Map<string, number>;
+  constructor(inner: Sink | null = null) { this.inner = inner; this.failures = []; this.checked = new Map(); this.held = new Map(); }
+
+  /** The invariants that ran on some frame and held on none: claims that tested nothing. */
+  vacuous(): string[] { return [...this.checked.keys()].filter((name) => !this.held.get(name)); }
 
   /** Run every invariant against the scene as it is now. */
   check(scene: Scene): void {
@@ -262,6 +267,7 @@ export class InvariantSink implements Sink {
       try { result = test(scene); } catch (e) { result = `threw ${e instanceof Error ? e.message : String(e)}`; }
       if (typeof result === 'string')
         this.failures.push({ invariant, step: scene.currentStep?.name ?? null, frame: scene.frameCount, t: scene.time, message: result });
+      else if (result === true) this.held.set(invariant, (this.held.get(invariant) ?? 0) + 1);
     }
   }
 

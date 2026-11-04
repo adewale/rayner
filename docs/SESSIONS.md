@@ -30,9 +30,18 @@ await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
 
 Each event records `{ kind: 'event', event }` as it begins, followed by its views' match
 evidence, so a fidelity test can check the events a step replayed and the configuration
-it ended in against an outside oracle. `statecharts` does this for the frother: the
-transfer answer is reached by replaying XState's own three events, and the test checks
-both the events and the final configuration against the XState fixture.
+it ended in against an outside oracle. `statecharts` does this for both machines it
+draws: the parent step reaches brewing by replaying POWER_ON, START and GROUND, and the
+frother step reaches the transfer answer by replaying POWER_ON, START and FROTH. The test
+checks the events and each final configuration against the XState fixture.
+
+**A session's views must be functions of the scene's state alone.** Exploration redraws
+a state after the run, so a picture that also reads a variable outside the state is drawn
+wrongly. Adding the coffee machine's session showed this: statecharts' picture depended on
+a `phase` variable, so its second session would have been drawn in the frother's layout.
+The phase now lives in the state, and the picture is a `view(this, render)`, which also
+lets the trace's view check compare it at every step. A session now refuses, when it is
+made, any view that is not a `view(scene, render)`, so the mistake cannot be written.
 
 `SetState` gained the form a session needs: `new SetState(scene, (current) => next, { event })`
 computes the next state from a copy of the state when it begins, so each member of a replay
@@ -83,6 +92,16 @@ like any step. Leaving the step, opening a fresh link or switching case clears t
 That needs a way for a step to declare its session to the player, the buttons with their
 keyboard, screen-reader and reduced-motion behaviour, and a transcript line listing the
 events. None of it changes the engine.
+
+## Where it does not fit
+
+`ring-buffer` and `state-machine` also replay events one at a time, and neither became a
+session. Between events each animates its main picture by hand: a value token copied into
+its slot, an outline drawn, a diagram walked, a code row boxed. Their main pictures are
+therefore not views of the state, only their readouts are, and exploring their states
+would redraw the readouts over a stale picture and judge it. Making them sessions would
+first mean drawing each main picture from the state, which would change two published
+lessons' animations; that is a separate decision from adopting the API.
 
 ## Tried and not kept
 

@@ -129,41 +129,59 @@ states. Seeking replays the state changes at their scheduled turns.
 ## Follow
 
 ```ts
-import { Follow, linear } from 'rayner';
+import { Follow, Dot, Line, Text, linear } from 'rayner';
 await this.play(new Follow(
-  { from: 0, to: Math.PI, apply: (angle) => { dot.moveTo(orbit(angle)); radius.putStartAndEndOn([0, 0], orbit(angle)); readout.setText(angle.toFixed(2)); } },
+  {
+    from: 0, to: Math.PI,
+    // The picture at one angle: a fresh mobject per target, in targets order.
+    draw: (angle) => [new Dot().moveTo(orbit(angle)), new Line([0, 0], orbit(angle)), new Text(angle.toFixed(2))],
+  },
   { targets: [dot, radius, readout], runTime: 1, rateFunc: linear },
 ));
 ```
 
-Signature: `new Follow({ from, to, apply }, { targets, ...AnimOpts })`.
+Signature: `new Follow({ from, to, draw }, { targets, ...AnimOpts })`.
 
 One number, sampled between `from` and `to` at the eased alpha, decides every
-drawing `apply` writes, so a bucket's level and the chart's climb agree at every
-frame and a dot evaluated from its angle stays on its circle where a morph between
-two endpoint pictures would cut through the centre. `from` is a number or a
-function read when the play begins, so a member of a `Succession` starts where the
-one before left the value. The value is exact at alpha 0 and 1; an easing that
-overshoots samples past the ends, as a `Transform` would.
+drawing, so a bucket's level and the chart's climb agree at every frame and a dot
+evaluated from its angle stays on its circle where a morph between two endpoint
+pictures would cut through the centre. `from` is a number or a function read when
+the play begins, so a member of a `Succession` starts where the one before left the
+value. The value is exact at alpha 0 and 1; an easing that overshoots samples past
+the ends, as a `Transform` would.
 
-`apply` writes absolute geometry, text and paint from its one argument and never
-from what the previous frame left (`setPolygon`, `moveTo`, `setText`, a style
-field), so repeated and out-of-order evaluation is harmless and a seek renders the
-frame a full run renders. That is a documented contract, as it is for updaters;
-the engine cannot check it. No updater is registered, so seeking still skips.
+It is correct by construction. `draw` returns the picture at the value, one fresh
+mobject per target, and Follow itself writes each into its target with `become`.
+So Follow writes nothing but its declared targets, which `play()`'s one-writer check
+covers, and writes them only from the value, so nothing can carry over from the
+previous frame and a seek renders the frame a full run renders. No updater is
+registered, so seeking still skips. What could only be a documented contract, and
+was one in an earlier `apply` form, is now what the API can express.
 
-`targets` names every mobject `apply` writes. `play()` admits them to the scene
-and refuses a second writer of any of them in the same play, including another
-`Follow`, through the ordinary ownership check (`targets()` is what every
-animation now reports). With `remover: true` all of them leave the scene after
-the play. Non-finite values, an empty target list and a `from()` that returns
-`NaN` at begin are refused before anything is drawn.
+`play()` admits the targets and refuses a second writer of any of them in the same
+play, including another `Follow` (`targets()` is what every animation now reports).
+With `remover: true` all of them leave the scene after the play. Refused before
+anything is drawn: non-finite values, an empty or repeated target list, a `from()`
+that returns `NaN` at begin, a `draw` that returns the wrong number of pictures or a
+target itself, and a picture whose different shape would drop a keyed part.
 
-The token bucket's refill member uses it: elapsed time between two requests drives
-the gauge through `min(5, previous + elapsed × rate)` and the climbing line's drawn
-share through `drawFraction`, so the gauge no longer waits at the old balance while
-the line climbs, and the corner where the cap takes over appears in both at once.
-The accept or refuse that follows stays a discrete `Transform` in the next member.
+The token bucket's refill member uses it: elapsed time between two requests draws
+the gauge at `min(5, previous + elapsed × rate)` and the climbing line revealed up to
+that time, so the gauge no longer waits at the old balance while the line climbs,
+and the corner where the cap takes over appears in both at once. The accept or
+refuse that follows stays a discrete `Transform` in the next member.
+
+The ring buffer's pointers use it too: one angle, from the slot a pointer leaves to
+the slot it reaches the short way round, draws its arrow and its word. That replaced
+two hand-written path functions, and the ring buffer's claim that its pointers stay
+on their circle holds exactly on every frame.
+
+`mobject.become(other)` (manim's name) is the write Follow makes: take `other`'s
+points, style and fields in place, keeping this mobject's identity, key and parent.
+With the same family shape each member takes its counterpart's data, so children
+keep their identities too. A different shape replaces the children, as a readout
+whose number gains a digit needs; that is refused when any child carries a key, so a
+keyed part cannot silently vanish. `other` is not changed.
 
 ## Composition and verification
 

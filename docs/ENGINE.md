@@ -13,7 +13,7 @@ reading for this API.
 | --- | --- | --- |
 | `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
 | `animation.ts`: `Restore`, `TransformFromCopy`, `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
-| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState`, `Follow` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar/task, send a transient token, sequence model snapshots with views, or drive several drawings from one sampled number? |
+| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState`, `Follow`; `mobject.ts`: `become` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar/task, send a transient token, sequence model snapshots with views, or drive several drawings from one sampled number? |
 | `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText`, `matchByKey` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family, and keep a keyed cell or node as one component? |
 | `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |

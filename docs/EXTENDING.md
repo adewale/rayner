@@ -98,8 +98,8 @@ The recipe fixes drawing coordinates at construction. Do not shift/scale/rotate
 the dependent group and expect later sampling to retain that placement: absolute
 updates use its original coordinate system. Camera animation is independent.
 The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow): one sampled
-number, an `apply` that writes absolutely, and the targets it writes named for the
-one-writer check. [Sampled parameters](PARAMETERS.md) records the survey behind it.
+number, a `draw` that returns the picture at it, and the targets Follow writes it
+into, named for the one-writer check. [Sampled parameters](PARAMETERS.md) records the survey behind it.
 
 ## Claim something on every frame
 
@@ -108,13 +108,16 @@ and registers one claim: the dot stays on its circle.
 
 ```ts
 this.addInvariant('the dot stays on its circle', (scene) => {
-  const [x, y] = scene.find('orbit:dot')!.center();
-  if (Math.abs(Math.hypot(x, y) - 2) > 1e-3) return 'the dot is off its circle';
+  const dot = scene.find('orbit:dot');
+  if (!dot) return; // nothing to check on this frame
+  return Math.abs(Math.hypot(...dot.center()) - 2) <= 1e-3 || 'the dot is off its circle';
 });
 ```
 
 A check reads the scene by key and changes nothing; it returns a message when the
-claim fails. `rayner check` runs every registered claim on every frame of every case,
+claim fails, `true` when it held, and nothing when there was nothing to check on that
+frame. A claim that never holds in a whole run tested nothing, so `rayner check` fails
+it: a misspelt key finds nothing and cannot pass for a claim that held. `rayner check` runs every registered claim on every frame of every case,
 so a claim about what happens between steps (a gauge meeting a line, a pointer on its
 circle) fails at the first frame that breaks it. Sampled from its angle with `Follow`,
 the dot holds; morphed between its two ends with `Transform`, it cuts through the

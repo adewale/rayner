@@ -364,3 +364,37 @@ test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and
   assert.deepEqual(v.current.children.map((c) => c.key), ['cell:3', 'cell:1', 'cell:2']);
   assert.notDeepEqual(before, v.current.children.map((c) => c.key));
 });
+
+test('matchByKey unkeyed: by-place pairs parts under no key by their place in the picture; fade leaves them to fade', async () => {
+  const { matchByKey } = await import('../src/index.ts');
+  const picture = (word: string, at: Vec) => {
+    const cell = new Group(new Square({ side: 1 }));
+    cell.key = 'cell';
+    return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
+  };
+  const faded = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey() });
+  faded.begin();
+  assert.deepEqual(faded.summary(), { matched: 1, morphed: 0, removed: 4 + 1, added: 4 + 1 });
+  const placed = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place' }) });
+  placed.begin();
+  assert.deepEqual(placed.summary(), { matched: 1 + 4 + 1, morphed: 0, removed: 0, added: 0 });
+  // A fallback still wins over unkeyed
+  const fallen = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place', fallback: () => undefined }) });
+  fallen.begin();
+  assert.equal(fallen.summary().matched, 1);
+});
+
+test('become takes another mobject\'s data in place, keeping identity, children and key', () => {
+  const ptr = new Group(new Arrow([0, 0], [1, 0]), new Text('head', { fontSize: 0.24 }));
+  ptr.key = 'ring:pointer:head';
+  const ids = ptr.family().map((m) => m.id), parent = new Group(ptr);
+  const drawn = new Group(new Arrow([0, 0], [0, 2]), new Text('head', { fontSize: 0.24 }).moveTo([3, 3]));
+  const before = drawn.family().map((m) => m.pointArrays().map((a) => [...a]));
+  assert.equal(ptr.become(drawn), ptr);
+  assert.deepEqual(ptr.family().map((m) => m.id), ids, 'every member keeps its identity');
+  assert.equal(ptr.key, 'ring:pointer:head');
+  assert.equal(ptr.parent, parent);
+  assert.deepEqual(ptr.family().map((m) => m.pointArrays().map((a) => [...a])), before, 'and takes the drawn points');
+  assert.deepEqual(drawn.family().map((m) => m.pointArrays().map((a) => [...a])), before, 'the other is not changed');
+  assert.ok(Math.abs(ptr.children[1]!.center()[0] - 3) < 1e-5);
+});

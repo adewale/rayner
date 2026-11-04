@@ -209,21 +209,27 @@ export interface FollowSpec {
   from: number | (() => number);
   /** Where the value ends. */
   to: number;
-  /** Write the drawings from one value: absolute geometry, text and paint, never from what the previous frame left. */
-  apply: (value: number) => void;
+  /**
+   * The picture at one value: a fresh mobject for each target, in `targets` order (or the one
+   * mobject, for one target), each the same family shape as its target. Follow writes each
+   * into its target with `become`, so it writes exactly its targets, and only from the value:
+   * nothing can carry over from what the previous frame left.
+   */
+  draw: (value: number) => Mobject | readonly Mobject[];
 }
 export interface FollowOpts extends AnimOpts {
-  /** Every mobject `apply` writes: play() admits them and refuses a second writer of any of them. */
+  /** The mobjects `draw` redraws: play() admits them and refuses a second writer of any of them. */
   targets: readonly Mobject[];
 }
 
 /**
  * Several drawings following one number: a bucket's level and the chart's climb
  * from the same elapsed time, a dot, a radius and a readout from the same angle.
- * Each frame samples the value between `from` and `to` at the eased alpha and
- * calls `apply` with it, so the drawings always agree, and a seek renders what a
- * full run renders because nothing is integrated over frames. No updater is
- * registered. The value is exact at both ends; an easing that overshoots samples
+ * Each frame samples the value between `from` and `to` at the eased alpha, draws
+ * the picture at that value and writes it into the targets, so the drawings always
+ * agree. Correct by construction: Follow writes nothing but its declared targets,
+ * and only from the value, so a seek renders what a full run renders and play()'s
+ * one-writer check covers everything it touches. No updater is registered. The value is exact at both ends; an easing that overshoots samples
  * outside them, as a Transform would. See docs/CHOREOGRAPHY.md.
  */
 export class Follow extends Animation {
@@ -234,10 +240,11 @@ export class Follow extends Animation {
 
   constructor(spec: FollowSpec, { targets, ...opts }: FollowOpts) {
     if (!Array.isArray(targets) || !targets.length || !targets.every((m) => m instanceof MobjectClass))
-      throw new TypeError('Follow needs the mobjects apply() writes: targets: [a, b, ...]');
+      throw new TypeError('Follow needs the mobjects draw() redraws: targets: [a, b, ...]');
     if (!Number.isFinite(spec.to)) throw new RangeError(`Follow: to must be a finite number, not ${String(spec.to)}`);
     if (typeof spec.from !== 'function' && !Number.isFinite(spec.from)) throw new RangeError(`Follow: from must be a finite number or a function, not ${String(spec.from)}`);
-    if (typeof spec.apply !== 'function') throw new TypeError('Follow: apply must be a function of the value');
+    if (typeof spec.draw !== 'function') throw new TypeError('Follow: draw must be a function of the value');
+    if (new Set(targets).size !== targets.length) throw new TypeError('Follow: each target once');
     super(targets[0]!, opts);
     this.spec = spec;
     this.written = [...targets];
@@ -263,7 +270,16 @@ export class Follow extends Animation {
   }
 
   override interpolate(alpha: number): void {
-    this.spec.apply(this.valueAt(alpha));
+    const drawn = this.spec.draw(this.valueAt(alpha));
+    const pictures = drawn instanceof MobjectClass ? [drawn] : drawn;
+    if (pictures.length !== this.written.length)
+      throw new TypeError(`Follow: draw returned ${pictures.length} pictures for ${this.written.length} targets`);
+    pictures.forEach((picture, i) => {
+      const target = this.written[i]!;
+      if (pictures.indexOf(picture) !== i || this.written.includes(picture))
+        throw new TypeError('Follow: draw must return fresh mobjects, one per target, not a target itself');
+      target.become(picture);
+    });
     for (const m of this.written) m.invalidateBox();
   }
 
@@ -1008,8 +1024,14 @@ import type { Evidence } from './scene.ts';
 export type MatchKey = (part: Mobject, root: Mobject) => string | undefined;
 
 export interface MatchByKeyOpts {
-  /** How parts under no key below the root pair; by default they do not, and fade. */
+  /** How parts under no key below the root pair, when given; it takes precedence over `unkeyed`. */
   fallback?: MatchKey;
+  /**
+   * Parts under no key below the root, without a fallback: 'fade' (default) pairs them with
+   * nothing, so they fade out and in; 'by-place' pairs each with the part at the same place in
+   * the other picture, as if the whole picture were one keyed component.
+   */
+  unkeyed?: 'fade' | 'by-place';
   /**
    * A keyed Text whose words change: 'by-place' (default) morphs its glyphs place by
    * place, as a readout's digits should; 'whole' pairs it only with the same words, so a
@@ -1029,18 +1051,21 @@ export interface MatchByKeyOpts {
  * every part the same component. A key two containers share pairs by distance,
  * as any repeated key does. `View.sync({ match: 'keys' })` uses the defaults.
  */
-export function matchByKey({ fallback = () => undefined, text = 'by-place' }: MatchByKeyOpts = {}): MatchKey {
+export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: MatchByKeyOpts = {}): MatchKey {
   return (part, root) => {
     const path: number[] = [];
+    let under = false;
     for (let m: Mobject = part; m !== root; m = m.parent!) {
-      if (!m.parent) break; // not under the root: nothing above it is this picture's
+      if (!m.parent) return fallback?.(part, root); // not under the root: nothing above it is this picture's
       if (m.key !== undefined) {
         const words = text === 'whole' && m instanceof Text ? `|${m.text}` : '';
         return `${m.key}${words}|${path.reverse().join('.')}`;
       }
       path.push(m.parent.children.indexOf(m));
+      under = true;
     }
-    return fallback(part, root);
+    if (fallback) return fallback(part, root);
+    return unkeyed === 'by-place' && under ? `\u0000|${path.reverse().join('.')}` : undefined;
   };
 }
 

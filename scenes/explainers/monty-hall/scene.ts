@@ -1,10 +1,10 @@
-import { Scene, Group, Rectangle, Text, Line, FadeIn, view } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Line, FadeIn, view, matchByKey } from '../../../src/index.ts';
 import type { Mobject, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter } from '../lib/monty-hall.ts';
 import type { Host, Opener } from '../lib/monty-hall.ts';
-import { label, tile, stat } from '../lib/lesson-drawing.ts';
+import { label, tile, stat, keyed } from '../lib/lesson-drawing.ts';
 
 const pct = (n: number) => (n * 100).toFixed(1) + '%';
 const door = (i: number) => 'ABC'[i]!;
@@ -28,22 +28,11 @@ const NAME = H / 2 + 0.45,
 /** The rounds step has the strip alone, so its picture is lowered to the middle of the stage. */
 const ALONE = -1.45;
 
-/** Morphs pair parts by key: glyphs by their text and place in it, shapes by their place in the keyed part. */
-const byKey: MatchKey = (p) => {
-  let m: Mobject = p;
-  const path: number[] = [];
-  while (!m.key) {
-    const parent = m.parent;
-    if (!parent) return undefined;
-    path.unshift(parent.children.indexOf(m));
-    m = parent;
-  }
-  return m instanceof Text ? `${m.key}|${m.text}|${path.join('.')}` : `${m.key}|${path.join('.')}`;
-};
-function keyed<T extends Mobject>(m: T, key: string): T {
-  m.key = key;
-  return m;
-}
+/**
+ * Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the
+ * same word, and anything unkeyed by its place in the picture.
+ */
+const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
 const left = (text: string, x: number, y: number, color: string, size: number, key: string) =>
   keyed(new Text(text, { fontSize: size, color }).moveTo([x, y], [-1, 0]), key);
 

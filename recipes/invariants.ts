@@ -14,16 +14,19 @@ function orbit(turn: 'sampled' | 'morphed'): SceneClass {
       const dot = new Dot({ radius: 0.12 }).moveTo([RADIUS, 0]);
       dot.key = 'orbit:dot';
       this.add(new Circle({ radius: RADIUS }), dot);
-      // Read by key, changing nothing: a message when the claim fails, nothing when it holds.
+      // Read by key, changing nothing: a message when the claim fails, true when it held, nothing
+      // when the part is not there to check. A claim that never holds is reported as vacuous.
       this.addInvariant('the dot stays on its circle', (scene) => {
-        const [x, y] = scene.find('orbit:dot')!.center();
+        const dot = scene.find('orbit:dot');
+        if (!dot) return;
+        const [x, y] = dot.center();
         const off = Math.abs(Math.hypot(x, y) - RADIUS);
-        if (off > 1e-3) return `the dot is ${off.toFixed(3)} off its circle`;
+        return off <= 1e-3 || `the dot is ${off.toFixed(3)} off its circle`;
       });
       await this.step('turn');
       await this.play(
         turn === 'sampled'
-          ? new Follow({ from: 0, to: Math.PI, apply: (a) => dot.moveTo([RADIUS * Math.cos(a), RADIUS * Math.sin(a)]) }, { targets: [dot] })
+          ? new Follow({ from: 0, to: Math.PI, draw: (a) => new Dot({ radius: 0.12 }).moveTo([RADIUS * Math.cos(a), RADIUS * Math.sin(a)]) }, { targets: [dot] })
           : new Transform(dot, dot.copy().moveTo([-RADIUS, 0])),
         { runTime: 1, rateFunc: linear },
       );
@@ -41,8 +44,8 @@ export default SampledOrbit;
  * each was checked on. InvariantSink hands each frame on to `inner`, so the same run can
  * also render, trace or sample motion: this is how `rayner check` runs it beside its own sink.
  */
-export async function invariantFailures(SceneClass: SceneClass, inner: Sink = new NullSink()): Promise<{ failures: InvariantFailure[]; checked: Record<string, number> }> {
+export async function invariantFailures(SceneClass: SceneClass, inner: Sink = new NullSink()): Promise<{ failures: InvariantFailure[]; checked: Record<string, number>; held: Record<string, number>; vacuous: string[] }> {
   const sink = new InvariantSink(inner);
   await new SceneClass(sink).run();
-  return { failures: sink.failures, checked: Object.fromEntries(sink.checked) };
+  return { failures: sink.failures, checked: Object.fromEntries(sink.checked), held: Object.fromEntries(sink.held), vacuous: sink.vacuous() };
 }

@@ -1,9 +1,9 @@
 # Several drawings following the same parameter
 
 **Status: one exported animation, [`Follow`](CHOREOGRAPHY.md#follow).** It
-samples one number between two ends at the eased alpha and calls `apply` with it,
-names the mobjects it writes for the one-writer check, registers no updater, and
-so seeks to the frame a full run renders. The [continuous recipe](../recipes/continuous.ts)
+samples one number between two ends at the eased alpha, draws the picture at that
+value and writes it into the mobjects it names for the one-writer check, registers
+no updater, and so seeks to the frame a full run renders. The [continuous recipe](../recipes/continuous.ts)
 shows the same idea written by hand as an ordinary `Animation`. This note records
 the survey that fixed that size, taken on 2026-11-03 across all 40 explainers.
 
@@ -38,9 +38,11 @@ proves it for the recipe's `FollowAngle`.
 - **`seasons` has nothing to migrate.** No step varies a day; every Earth is a
   static drawing. A day-driven interval would be new content.
 - **`ring-buffer`'s head and tail pointers travelled a chord** when a `Transform`
-  moved them between slots, so mid-frame an arrow was inside its ring. That is a
-  discrete index, and the existing `pathFunc` option now carries the morph along
-  the ring's arc; no parameter is involved.
+  moved them between slots, so mid-frame an arrow was inside its ring. A first fix
+  used two `pathFunc`s; the second adopter of `Follow` replaced them: one angle drives
+  each pointer, drawn afresh at each sampled angle and written in place with
+  `become`. The survey had counted this as a discrete index; the motion between two
+  indexes is a continuous angle, which the migration showed.
 - No scene interpolates two opposite points on a circle. The orbit exists only in
   the recipe.
 - **Issue 88, the live machine, needs none of this.** It is discrete: `next(state, event)`
@@ -51,24 +53,25 @@ proves it for the recipe's `FollowAngle`.
 
 ```ts
 new Follow(
-  { from: prev.at, to: call.at, apply: (t) => { setLevel(balanceAt(t)); drawTo(rise, climbed, t); } },
+  { from: prev.at, to: call.at, draw: (t) => [fill(balanceAt(t)), climbTo(climbed, t)] },
   { targets: [level, rise], runTime: 0.3 },
 );
 ```
 
 `from` is read in `begin()`, so the animation is correct inside a `Succession`.
-`apply` writes absolutely from the sampled value and never from the previous
-frame; that purity is a documented contract, as it is for updaters. The one
-engine change beside the class is `targets()`: every animation now reports the
-mobjects it writes, a `Follow` reports its list, and `play()` admits and checks
-them without wrapping live mobjects in a new `Group`, which would reparent them.
+`draw` returns fresh pictures and Follow writes them into its targets with
+`become`, so it cannot write anything it did not declare, nor carry anything over
+from the previous frame: the purity an `apply` callback could only promise is what
+the API allows. The engine changes beside the class are `targets()`, which every
+animation now reports and `play()` admits and checks without wrapping live mobjects
+in a new `Group`, and `Mobject.become`.
 
 This is the smallest shape that composes with what exists. The model stays an
 ordinary function the tests already check; the animation is one member among
 `Transform`s in an `AnimationGroup` or `Succession`; the writers are declared and
 the frame is a pure function of alpha, so identity, ownership and seeking hold
 when it is combined with the rest, which is the compositionality the proposal
-asked for. A reader control that drives the same value would call `apply` with
+asked for. A reader control that drives the same value would call `draw` with
 the reader's number; nothing plans one.
 
 ## What is deliberately not built

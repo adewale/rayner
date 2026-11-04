@@ -233,9 +233,11 @@ test('growth and pulse can resample arbitrary alpha order without accumulating g
 test('Follow samples one value for several drawings: exact ends, linear between, start read when the play begins', async () => {
   const { Follow, Transform } = await import('../src/index.ts');
   const dot = new Dot({ radius: 0.1 }), bar = new Rectangle({ width: 1, height: 1 });
+  dot.key = 'dot';
+  const ids = [dot.id, bar.id];
   const seen: number[] = [];
-  const apply = (v: number) => { seen.push(v); dot.moveTo([v, 0]); bar.moveTo([0, v / 2]); };
-  const a = new Follow({ from: 0.1, to: 0.7, apply }, { targets: [dot, bar], rateFunc: linear });
+  const draw = (v: number) => { seen.push(v); return [new Dot({ radius: 0.1 }).moveTo([v, 0]), new Rectangle({ width: 1, height: 1 }).moveTo([0, v / 2])]; };
+  const a = new Follow({ from: 0.1, to: 0.7, draw }, { targets: [dot, bar], rateFunc: linear });
   assert.deepEqual(a.targets(), [dot, bar]);
   a.begin();
   for (const alpha of [0, 0.5, 1, 0.25, 1, 0]) {
@@ -243,12 +245,15 @@ test('Follow samples one value for several drawings: exact ends, linear between,
     const v = a.valueAt(alpha);
     close(dot.center()[0], v); close(bar.center()[1], v / 2);
   }
+  // Each drawing is written into its target, which keeps its identity and key
+  assert.deepEqual([dot.id, bar.id], ids);
+  assert.equal(dot.key, 'dot');
   assert.equal(a.valueAt(0), 0.1); assert.equal(a.valueAt(1), 0.7);
-  assert.equal(seen[0], 0.1, 'begin applies the start');
+  assert.equal(seen[0], 0.1, 'begin draws the start');
   // A function start is read at begin(): in a Succession the second leg starts where the first ended
   let value = 0;
   const log: number[] = [];
-  const leg = (to: number) => new Follow({ from: () => value, to, apply: (v) => { value = v; log.push(v); dot.moveTo([v, 0]); } }, { targets: [dot], rateFunc: linear, runTime: 0.2 });
+  const leg = (to: number) => new Follow({ from: () => value, to, draw: (v) => { value = v; log.push(v); return new Dot({ radius: 0.1 }).moveTo([v, 0]); } }, { targets: [dot], rateFunc: linear, runTime: 0.2 });
   const first = leg(2), second = leg(1);
   const scene = new Scene(new NullSink());
   scene.add(dot, bar);
@@ -256,16 +261,23 @@ test('Follow samples one value for several drawings: exact ends, linear between,
   assert.equal(first.start, 0); assert.equal(second.start, 2); assert.equal(value, 1);
   assert.ok(log.every((v, i) => i === 0 || Math.abs(v - log[i - 1]!) < 0.5), 'no jump between the legs');
   // Invalid specs are refused before anything is drawn
-  assert.throws(() => new Follow({ from: 0, to: NaN, apply }, { targets: [dot] }), RangeError);
-  assert.throws(() => new Follow({ from: Infinity, to: 1, apply }, { targets: [dot] }), RangeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, apply }, { targets: [] }), TypeError);
-  assert.throws(() => new Follow({ from: 0, to: 1, apply }, { targets: [{} as Mobject] }), TypeError);
-  const bad = new Follow({ from: () => NaN, to: 1, apply }, { targets: [dot] });
+  assert.throws(() => new Follow({ from: 0, to: NaN, draw }, { targets: [dot, bar] }), RangeError);
+  assert.throws(() => new Follow({ from: Infinity, to: 1, draw }, { targets: [dot, bar] }), RangeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [] }), TypeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [{} as Mobject] }), TypeError);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot, dot] }), TypeError);
+  const bad = new Follow({ from: () => NaN, to: 1, draw }, { targets: [dot, bar] });
   assert.throws(() => bad.begin(), RangeError);
+  // What draw returns must be one fresh picture per target, of the target's shape
+  assert.throws(() => new Follow({ from: 0, to: 1, draw }, { targets: [dot] }).begin(), /2 pictures for 1 targets/);
+  assert.throws(() => new Follow({ from: 0, to: 1, draw: () => dot }, { targets: [dot] }).begin(), /fresh mobjects/);
+  const cell = new Group(new Rectangle(), new Text('a'));
+  cell.children[1]!.key = 'cell:label';
+  assert.throws(() => new Follow({ from: 0, to: 1, draw: () => new Group(new Rectangle()) }, { targets: [cell] }).begin(), /cell:label would be lost/);
   // One writer per mobject: play() refuses a Follow beside anything else that writes one of its targets
-  await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, apply }, { targets: [dot, bar] }), new Transform(bar, bar.copy().shift([1, 0]))), /both animate/);
-  await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, apply }, { targets: [dot] }), new Follow({ from: 0, to: 1, apply: () => {} }, { targets: [dot] })), /both animate/);
-  await scene.play(new Follow({ from: 0, to: 1, apply: (v) => dot.moveTo([v, 0]) }, { targets: [dot] }), new Transform(bar, bar.copy().shift([1, 0])), { runTime: 0.1 });
+  await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw }, { targets: [dot, bar] }), new Transform(bar, bar.copy().shift([1, 0]))), /both animate/);
+  await assert.rejects(() => scene.play(new Follow({ from: 0, to: 1, draw: (v) => new Dot().moveTo([v, 0]) }, { targets: [dot] }), new Follow({ from: 0, to: 1, draw: (v) => new Dot().moveTo([0, v]) }, { targets: [dot] })), /both animate/);
+  await scene.play(new Follow({ from: 0, to: 1, draw: (v) => new Dot({ radius: 0.1 }).moveTo([v, 0]) }, { targets: [dot] }), new Transform(bar, bar.copy().shift([1, 0])), { runTime: 0.1 });
 });
 
 test('Follow admits its targets, removes them all as a remover, and seeks to the frame a full run renders', async () => {
@@ -278,11 +290,15 @@ test('Follow admits its targets, removes them all as a remover, and seeks to the
       await this.step('sweep');
       await this.play(new Follow({
         from: 0, to: Math.PI,
-        apply: (angle) => { dot.moveTo([2 * Math.cos(angle), 2 * Math.sin(angle)]); radius.putStartAndEndOn([0, 0], [2 * Math.cos(angle), 2 * Math.sin(angle)]); readout.setText(angle.toFixed(2)); },
+        draw: (angle) => {
+          const at: Vec = [2 * Math.cos(angle), 2 * Math.sin(angle)];
+          // The readout grows a digit past 10 in other uses; a Text's glyphs carry no keys, so it may rebuild them
+          return [new Dot({ radius: 0.1 }).moveTo(at), new Line([0, 0], at), new Text(angle.toFixed(angle > 3 ? 3 : 2), { fontSize: 0.3 }).moveTo([0, -2.5])];
+        },
       }, { targets: [dot, radius, readout], runTime: 0.5, rateFunc: linear }));
       assert.ok(this.mobjects.includes(dot) && this.mobjects.includes(radius) && this.mobjects.includes(readout));
       await this.step('gone');
-      await this.play(new Follow({ from: 1, to: 0, apply: (k) => dot.setStyle({ opacity: k }) }, { targets: [dot, readout], runTime: 0.2, remover: true }));
+      await this.play(new Follow({ from: 1, to: 0, draw: (k) => [dot.copy().setStyle({ opacity: k }), readout.copy().setStyle({ opacity: k })] }, { targets: [dot, readout], runTime: 0.2, remover: true }));
       assert.ok(!this.mobjects.includes(dot) && !this.mobjects.includes(readout) && this.mobjects.includes(radius));
       await this.wait(0.1);
     }

@@ -7,6 +7,12 @@ import { Group, Text, Rectangle, Circle, Line, Arrow } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import type { Stage } from './stage.ts';
 
+/** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
+export function keyed<T extends Mobject>(m: T, key: string): T {
+  m.key = key;
+  return m;
+}
+
 /** A centred line of text at (x, y). */
 export function label(text: string | number, x: number, y: number, color: string, size = 0.6, key?: string): Text {
   const t = new Text(String(text), { fontSize: size, color }).moveTo([x, y]);
@@ -37,13 +43,14 @@ export function tile(
   if (options.key) g.key = options.key;
   return g;
 }
-/** A straight stroke from a to b. */
-export function segment(a: Vec, b: Vec, color: string, width = 0.04): Line {
-  return new Line(a, b, { stroke: color, strokeWidth: width });
+/** A straight stroke from a to b, keyed when `key` is given. */
+export function segment(a: Vec, b: Vec, color: string, width = 0.04, key?: string): Line {
+  const line = new Line(a, b, { stroke: color, strokeWidth: width });
+  return key ? keyed(line, key) : line;
 }
-/** A labelled circle, emphasised when `active`. */
-export function dot(text: string, x: number, y: number, s: Stage, active = false): Group {
-  return new Group(
+/** A labelled circle, emphasised when `active`; keyed when `key` is given. */
+export function dot(text: string, x: number, y: number, s: Stage, active = false, key?: string): Group {
+  const g = new Group(
     new Circle({
       radius: 0.5,
       fill: s.palette.paper,
@@ -52,6 +59,7 @@ export function dot(text: string, x: number, y: number, s: Stage, active = false
     }).moveTo([x, y]),
     label(text, x, y, s.palette.ink, 0.7),
   );
+  return key ? keyed(g, key) : g;
 }
 /**
  * Where a table's columns go: their centres, or an edge for the measured columns to

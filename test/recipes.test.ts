@@ -106,6 +106,8 @@ test('every supported recipe produces nonempty SVG, text, elements and a named-s
 test('invariant recipe: the sampled orbit holds its claim on every frame, the morphed one fails exactly where it cuts across', async () => {
   const held = await invariantFailures(SampledOrbit);
   assert.deepEqual(held.failures, []);
+  assert.deepEqual(held.vacuous, []);
+  assert.equal(held.held['the dot stays on its circle'], held.checked['the dot stays on its circle'], 'it held on every frame it ran');
   assert.ok(held.checked['the dot stays on its circle']! > 30, 'the claim was checked on every frame of the run');
   const broken = await invariantFailures(MorphedOrbit);
   assert.ok(broken.failures.length > 0);
@@ -118,4 +120,26 @@ test('invariant recipe: the sampled orbit holds its claim on every frame, the mo
   // Every frame but the one run() draws before construct() registers the claim
   assert.equal(frames.length, held.checked['the dot stays on its circle']! + 1);
   assert.ok(Object.hasOwn(recipes, 'invariants'));
+});
+
+test('a claim that reads a misspelt key finds nothing on every frame: it is reported as vacuous, not as held', async () => {
+  const { Scene, Dot, Follow, linear } = await import('rayner');
+  class Misspelt extends Scene {
+    override async construct() {
+      const dot = new Dot().moveTo([2, 0]);
+      dot.key = 'orbit:dot';
+      this.add(dot);
+      this.addInvariant('the dot stays on its circle', (scene) => {
+        const found = scene.find('orbit:dto');
+        if (!found) return;
+        return Math.abs(Math.hypot(...found.center()) - 2) <= 1e-3 || 'off its circle';
+      });
+      await this.step('turn');
+      await this.play(new Follow({ from: 0, to: 1, draw: (a) => new Dot().moveTo([2 * Math.cos(a), 2 * Math.sin(a)]) }, { targets: [dot] }), { runTime: 0.3, rateFunc: linear });
+    }
+  }
+  const result = await invariantFailures(Misspelt);
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(result.vacuous, ['the dot stays on its circle']);
+  assert.equal(result.held['the dot stays on its circle'], undefined);
 });

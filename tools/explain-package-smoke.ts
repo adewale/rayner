@@ -57,7 +57,7 @@ try {
   assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
   // The drawing kit resolves from the installed archive as rayner/drawing.
   const kit = await run(process.execPath, ['--input-type=module', '-e', "const k = await import('rayner/drawing'); console.log(Object.keys(k).sort().join(','))"], { cwd: folder });
-  assert.equal(kit.stdout.trim(), 'bars,dot,flow,label,segment,stat,table,tile');
+  assert.equal(kit.stdout.trim(), 'bars,dot,flow,keyed,label,segment,stat,table,tile');
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
