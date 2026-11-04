@@ -1,5 +1,6 @@
 // Node 24 runner. Native SVG/text/trace generation needs no browser.
 import { mkdir, writeFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -57,4 +58,6 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+// Compare real paths: macOS's temporary folders sit behind a symlink (/var -> /private/var), and Node
+// runs the module from its real path, so a plain comparison would skip main() and write nothing.
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))) await main();
