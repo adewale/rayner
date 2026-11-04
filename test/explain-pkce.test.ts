@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { redeem, theftFlow, pkceFlow, lanes, readable, VERIFIER, GUESS } from '../scenes/explainers/lib/pkce.ts';
+import { redeem, theftFlow, pkceFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS } from '../scenes/explainers/lib/pkce.ts';
+import type { SignIn, SignInEvent } from '../scenes/explainers/lib/pkce.ts';
 
 // RFC 7636 appendix B: this verifier's S256 challenge.
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
@@ -73,4 +74,62 @@ test('the channel map: another app reads the challenge and the code, and no valu
   }
   // Before PKCE the same lane holds the code, and the code alone was enough.
   assert.deepEqual(Object.keys(readable(theftFlow())), ['code']);
+});
+
+/** Every complete order of the sign-in's events the protocol allows, from the start, with the state each reaches. */
+function everyOrder(): { events: SignInEvent[]; state: SignIn }[] {
+  const out: { events: SignInEvent[]; state: SignIn }[] = [];
+  const walk = (state: SignIn, events: SignInEvent[]) => {
+    const next = SIGN_IN_EVENTS.flatMap((e) => { const s = signInNext(state, e); return s ? [[e, s] as const] : []; });
+    if (!next.length) out.push({ events, state });
+    for (const [e, s] of next) walk(s, [...events, e]);
+  };
+  walk(signInStart(), []);
+  return out;
+}
+
+test('in every order of the sign-in’s messages, only a request without a challenge lets the malicious app get a token', () => {
+  const orders = everyOrder();
+  // Two requests, then the two deliveries and two token requests in any order the code allows: six orders each.
+  assert.equal(orders.length, 12);
+  for (const { events, state } of orders) {
+    assert.equal(events.length, 5, events.join(' '));
+    if (state.challenge !== null) {
+      // Bound to the challenge: the guess is refused in every order, and the client, with its verifier, is not.
+      assert.equal(state.challenge, CHALLENGE);
+      assert.equal(state.app.answer, 'invalid_grant', events.join(' '));
+      assert.equal(state.client.answer, 'Access token', events.join(' '));
+    } else {
+      // No challenge: whichever app redeems first gets the token, and the code, used once, is refused to the other.
+      const first = events.find((e) => e === 'CLIENT_REDEEMS' || e === 'APP_REDEEMS') === 'APP_REDEEMS' ? 'app' : 'client';
+      assert.equal(state[first].answer, 'Access token', events.join(' '));
+      assert.equal(state[first === 'app' ? 'client' : 'app'].answer, 'invalid_grant', events.join(' '));
+    }
+  }
+  assert.ok(orders.some(({ state }) => state.challenge === null && state.app.answer === 'Access token'), 'without a challenge the theft can work');
+  // Every state on the way, not only the ends: with the challenge stored, the app never holds a token.
+  const seen = new Map<string, SignIn>(), queue = [signInStart()];
+  while (queue.length) {
+    const state = queue.shift()!;
+    if (seen.has(JSON.stringify(state))) continue;
+    seen.set(JSON.stringify(state), state);
+    for (const e of SIGN_IN_EVENTS) { const s = signInNext(state, e); if (s) queue.push(s); }
+  }
+  assert.equal(seen.size, 20);
+  assert.ok([...seen.values()].every((s) => s.challenge === null || s.app.answer !== 'Access token'));
+});
+
+test('the sign-in refuses what the protocol refuses, and agrees with the flows the diagrams draw', () => {
+  const run = (events: SignInEvent[]) => events.reduce<SignIn | undefined>((s, e) => s && signInNext(s, e), signInStart());
+  // Nothing is delivered or redeemed before the request; one request per sign-in; one delivery and one answer per app.
+  for (const e of ['REDIRECT', 'INTERCEPT', 'CLIENT_REDEEMS', 'APP_REDEEMS'] as const) assert.equal(signInNext(signInStart(), e), undefined, e);
+  assert.equal(run(['AUTHORIZE_S256', 'AUTHORIZE']), undefined);
+  assert.equal(run(['AUTHORIZE_S256', 'REDIRECT', 'REDIRECT']), undefined);
+  assert.equal(run(['AUTHORIZE_S256', 'INTERCEPT', 'CLIENT_REDEEMS']), undefined, 'the client cannot redeem a code it has not received');
+  assert.equal(run(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'APP_REDEEMS']), undefined);
+  // pkceFlow's order and theftFlow's order give the answers those flows draw.
+  const pkce = run(['AUTHORIZE_S256', 'REDIRECT', 'INTERCEPT', 'APP_REDEEMS', 'CLIENT_REDEEMS'])!;
+  const answers = pkceFlow(true).filter((m) => m.from === 'S' && m.channel === 'tls').map((m) => m.text);
+  assert.deepEqual([pkce.app.answer, pkce.client.answer], answers);
+  assert.equal(run(['AUTHORIZE', 'REDIRECT', 'INTERCEPT', 'APP_REDEEMS'])!.app.answer, theftFlow().at(-1)!.text);
 });

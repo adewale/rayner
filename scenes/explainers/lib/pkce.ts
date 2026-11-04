@@ -91,3 +91,71 @@ export function pkceFlow(attacker: boolean, verifier = VERIFIER, guess = GUESS):
     { from: 'S', to: 'C', text: redeem(challenge, verifier), channel: 'tls', carries: {} },
   ];
 }
+
+/**
+ * One sign-in as a machine: the client's authorization request (with or without a challenge), the redirect that
+ * brings the code back to the client, the same redirect caught by the malicious app, and each app's token request
+ * with the server's answer. The order is the network's and the device's, so any order the protocol allows can
+ * happen; `signInNext` refuses what it does not allow. The state is who holds what, not the order that got there.
+ */
+export type SignInEvent = 'AUTHORIZE' | 'AUTHORIZE_S256' | 'REDIRECT' | 'INTERCEPT' | 'CLIENT_REDEEMS' | 'APP_REDEEMS';
+export const SIGN_IN_EVENTS: readonly SignInEvent[] = ['AUTHORIZE', 'AUTHORIZE_S256', 'REDIRECT', 'INTERCEPT', 'CLIENT_REDEEMS', 'APP_REDEEMS'];
+/** What one app holds: the code, once a redirect brought it, and the server's answer to its token request. */
+export interface Holder {
+  code: boolean;
+  answer: Answer | null;
+}
+export interface SignIn {
+  /** Whether the client has sent its authorization request (one per sign-in). */
+  requested: boolean;
+  /** The code_challenge that request carried, which the server stores with the code; null without one. */
+  challenge: string | null;
+  client: Holder;
+  app: Holder;
+  /** Whether the server has issued a token for the code: RFC 6749 §4.1.2 lets a code be used once. */
+  spent: boolean;
+}
+
+/** Before the sign-in: nothing sent, nobody holds the code. */
+export function signInStart(): SignIn {
+  return { requested: false, challenge: null, client: { code: false, answer: null }, app: { code: false, answer: null }, spent: false };
+}
+
+/**
+ * The token endpoint for one app's request: invalid_grant for a code already used (RFC 6749 §4.1.2), otherwise
+ * `redeem`. The client sends its verifier when its request carried a challenge; the malicious app, which never saw
+ * the verifier, sends a guess in its place, and sends the code alone when no challenge was stored. A refused request
+ * leaves the code unused, as pkceFlow assumes when the client redeems after the guess.
+ */
+function answerFor(state: SignIn, who: 'client' | 'app'): Answer {
+  if (state.spent) return 'invalid_grant';
+  const bound = state.challenge ?? undefined;
+  return redeem(bound, bound === undefined ? undefined : who === 'client' ? VERIFIER : GUESS);
+}
+
+/**
+ * The sign-in's next state, or undefined for what the protocol refuses: a second authorization request, a redirect
+ * before there is a code or delivered twice to the same app, and a token request from an app without the code or
+ * from one that already has its answer.
+ */
+export function signInNext(state: SignIn, event: SignInEvent): SignIn | undefined {
+  switch (event) {
+    case 'AUTHORIZE':
+    case 'AUTHORIZE_S256':
+      if (state.requested) return undefined;
+      return { ...state, requested: true, challenge: event === 'AUTHORIZE_S256' ? pkceChallenge(VERIFIER) : null };
+    case 'REDIRECT':
+    case 'INTERCEPT': {
+      const who = event === 'REDIRECT' ? 'client' : 'app';
+      if (!state.requested || state[who].code) return undefined;
+      return { ...state, [who]: { ...state[who], code: true } };
+    }
+    case 'CLIENT_REDEEMS':
+    case 'APP_REDEEMS': {
+      const who = event === 'CLIENT_REDEEMS' ? 'client' : 'app';
+      if (!state[who].code || state[who].answer !== null) return undefined;
+      const answer = answerFor(state, who);
+      return { ...state, [who]: { ...state[who], answer }, spent: state.spent || answer === 'Access token' };
+    }
+  }
+}

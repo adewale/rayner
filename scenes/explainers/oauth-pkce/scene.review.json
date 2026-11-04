@@ -102,6 +102,24 @@
           "text": "code_verifier"
         }
       ]
+    },
+    {
+      "step": "any-order",
+      "settings": {
+        "attacker": "yes"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "sign-in:label:app-request"
+        },
+        {
+          "key": "sign-in:label:app-answer"
+        },
+        {
+          "text": "S256(guess) ≠ challenge"
+        }
+      ]
     }
   ]
 }

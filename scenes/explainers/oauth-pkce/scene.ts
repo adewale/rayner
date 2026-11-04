@@ -1,8 +1,9 @@
-import { Scene, Group, Rectangle, Text, Arrow, Line } from '../../../src/index.ts';
-import type { Mobject } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Arrow, Line, Dot, AnimationGroup, Succession, Transform, MoveAlongPath, FadeIn, Machine, choreograph, view, linear } from '../../../src/index.ts';
+import type { Animation, Mobject, SceneState, Choreography, Transition, ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { emphasises } from '../../../explain/look.ts';
 import { pkceChallenge, sha256 } from '../lib/models.ts';
-import { pkceFlow, theftFlow, lanes, readable, VERIFIER, GUESS, type Message, type LaneMessage } from '../lib/pkce.ts';
+import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type LaneMessage, type SignIn, type SignInEvent } from '../lib/pkce.ts';
 const STYLE = 'github-light';
 // One colour per value, so the reader can follow each across the flow (outcomes use the stage's good and bad).
 const CHALLENGE = '#0969da',
@@ -58,6 +59,10 @@ export default class OAuthExplainer extends Scene {
       { says: 'which never passes through the redirect', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },
       { says: 'gets only the code', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },
       { says: 'goes only in the client’s own TLS request', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },
+      {
+        says: 'in every order of these messages the malicious app never gets a token',
+        test: 'test/explain-pkce.test.ts: in every order of the sign-in’s messages, only a request without a challenge lets the malicious app get a token',
+      },
     ],
   };
   static settings = [
@@ -220,7 +225,210 @@ export default class OAuthExplainer extends Scene {
       runTime: 0.5,
       describe: `Two lanes between the client on the left and the auth server on the right. The red, dashed lane is the browser and the redirect, which another app can read: ${laneWords(map.browser)}. The green lane is the client’s own TLS connection to the token endpoint: ${laneWords(map.tls)}. Another app can read ${listed(Object.keys(held))}, and not the code_verifier.`,
     });
+    if (attacker) await this.anyOrder(s);
   }
+
+  /**
+   * The theft replayed as a machine (lib/pkce.ts: signInNext): the client's request, the redirect to each app and each
+   * app's token request, in any order the protocol allows. The run plays the malicious app's head start; rayner check
+   * plays every order, and the invariant below holds in each.
+   */
+  async anyOrder(s: ReturnType<typeof stage>) {
+    await this.step('any-order', {
+      title: 'Even redeemed first, the stolen code gets invalid_grant',
+      line: 'The malicious app catches the redirect first and redeems before the client has the code.',
+      caption:
+        'Here the malicious app catches the redirect before the client does and sends its token request at once. The server compares S256 of its guess with the challenge stored with the code and answers invalid_grant; in this model the refusal leaves the code unused, so the client’s request with the verifier still gets the token. While the authorization request carries the challenge, in every order of these messages the malicious app never gets a token. Without the challenge, whichever app redeems first gets it, and the other gets invalid_grant, because a code is used once.',
+    });
+    await s.clear();
+    const start = signInStart();
+    this.state = { ...start } as unknown as SceneState;
+    const sheet = view(this, (st) => signInPicture(st as unknown as SignIn, s), { place: false });
+    s.keep(sheet, { describe: () => signInWords(this.state as unknown as SignIn) });
+    // What the picture marks: each server answer, read from state.
+    emphasises(this, () => {
+      const st = this.state as unknown as SignIn, out: [Mobject, string][] = [];
+      for (const who of ['app', 'client'] as const) {
+        const m = sheet.current.find(`sign-in:label:${who}-answer`);
+        if (m && st[who].answer) out.push([m, `${who === 'app' ? 'malicious app' : 'client'}: ${st[who].answer}`]);
+      }
+      return out;
+    });
+    // Checked on every frame, and through every transition from every state rayner check reaches: a code bound to a
+    // challenge never gives the malicious app a token, in the model or in the picture.
+    this.addInvariant('a code bound to a challenge gives the malicious app no token', (scene) => {
+      const st = scene.state as unknown as SignIn;
+      if (typeof st.requested !== 'boolean') return false;
+      const said = sheet.current.find('sign-in:label:app-answer')?.family().some((m) => m instanceof Text && m.text === 'Access token') ?? false;
+      if (st.challenge !== null && (st.app.answer === 'Access token' || said)) return 'the malicious app holds a token for a code bound to a challenge';
+      return true;
+    });
+    await this.play(new FadeIn(sheet, { runTime: 0.4 }));
+
+    const travel = (c: Choreography, id: MessageId, color: string): ScheduledAnimation[] => {
+      const path = (c.to(`sign-in:msg:${id}`) as Arrow).line, at = path.pointFromProportion(0);
+      const token = c.insert(`sign-in:token:${id}`, new Dot({ radius: 0.1, color }).moveTo(at));
+      return [
+        new Transform(token, new Dot({ radius: 0.1, color }).moveTo(at), { runTime: 0.15 }),
+        new AnimationGroup([
+          new MoveAlongPath(token, path, { runTime: 0.7, rateFunc: linear }),
+          c.enter(`sign-in:msg:${id}`, { create: true }, { runTime: 0.7 }),
+        ]),
+        new AnimationGroup([c.leave(`sign-in:token:${id}`, { runTime: 0.2 }), c.enter(`sign-in:label:${id}`, {}, { runTime: 0.3 })]),
+      ];
+    };
+    const machine = new Machine<SignIn, SignInEvent>(this, {
+      start,
+      events: SIGN_IN_EVENTS,
+      next: signInNext,
+      views: [sheet],
+      // A token request travels there and its answer back (2.6 s); any other message travels once (1.4 s).
+      runTime: ({ event }) => (event.endsWith('REDEEMS') ? 2.6 : 1.4),
+      transition: Object.fromEntries(
+        SIGN_IN_EVENTS.map((event) => [
+          event,
+          ({ after, views, targets }: Transition<SignIn, SignInEvent>) => {
+            const c = choreograph(views[0]!.current, targets[0]!);
+            // Each message travels from its sender to its receiver as a dot in the colour of what it carries, drawing
+            // its arrow; then its label comes in, and the notes under the parties follow.
+            const moves = SENDS[event].flatMap((id) => travel(c, id, tokenColor(id, after, s)));
+            return new Succession([...moves, c.rest({ runTime: 0.4 })]);
+          },
+        ]),
+      ) as unknown as Record<SignInEvent, (t: Transition<SignIn, SignInEvent>) => Animation>,
+    });
+    await this.play(machine.replay(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'REDIRECT', 'CLIENT_REDEEMS']));
+    // A phone opens on the malicious app's request and the server's refusal.
+    s.reading(...['app-request', 'app-answer'].map((id) => sheet.current.find(`sign-in:label:${id}`)!));
+  }
+}
+
+// ---- the sign-in machine's picture ------------------------------------------------------------
+
+type MessageId = 'authorize' | 'redirect' | 'intercept' | 'client-request' | 'client-answer' | 'app-request' | 'app-answer';
+/** The messages each event sends, in order. */
+const SENDS: Record<SignInEvent, MessageId[]> = {
+  AUTHORIZE: ['authorize'],
+  AUTHORIZE_S256: ['authorize'],
+  REDIRECT: ['redirect'],
+  INTERCEPT: ['intercept'],
+  CLIENT_REDEEMS: ['client-request', 'client-answer'],
+  APP_REDEEMS: ['app-request', 'app-answer'],
+};
+/** The three lifelines, left to right. */
+const X = { C: -4.6, S: 0, M: 4.6 } as const;
+const PARTY = { C: 'Client', S: 'Auth server', M: 'Malicious app' } as const;
+/** Where each message's arrow runs: fixed, so any order draws each message in its place. */
+const ROUTE: Record<MessageId, { from: keyof typeof X; to: keyof typeof X; y: number; lane: 'browser' | 'tls' }> = {
+  authorize: { from: 'C', to: 'S', y: 1.0, lane: 'browser' },
+  redirect: { from: 'S', to: 'C', y: -0.05, lane: 'browser' },
+  intercept: { from: 'S', to: 'M', y: -0.05, lane: 'browser' },
+  'client-request': { from: 'C', to: 'S', y: -1.55, lane: 'tls' },
+  'app-request': { from: 'M', to: 'S', y: -1.55, lane: 'tls' },
+  'client-answer': { from: 'S', to: 'C', y: -2.75, lane: 'tls' },
+  'app-answer': { from: 'S', to: 'M', y: -2.75, lane: 'tls' },
+};
+const LABEL = 0.3;
+/** What a piece of a label is coloured as: a value's own colour, plain ink, or the answer's outcome. */
+type Tone = 'challenge' | 'code' | 'ink' | 'good' | 'bad';
+type Piece = readonly [string, Tone];
+const toneColor = (tone: Tone, s: ReturnType<typeof stage>) =>
+  ({ challenge: CHALLENGE, code: CODE, ink: s.palette.ink, good: s.good, bad: s.bad })[tone];
+
+/** What each message says in the state it is drawn from (pieces of text and their tones), and why an answer was refused. */
+function messageWords(id: MessageId, st: SignIn): { pieces: Piece[]; why?: string } | null {
+  const bound = st.challenge !== null;
+  const answer = (who: 'client' | 'app', why: string) => {
+    const a = st[who].answer;
+    return a === null ? null : a === 'Access token' ? { pieces: [[a, 'good']] as Piece[] } : { pieces: [[a, 'bad']] as Piece[], why };
+  };
+  switch (id) {
+    case 'authorize':
+      return st.requested ? { pieces: bound ? [['code_challenge (S256)', 'challenge']] : [['authorize request', 'ink']] } : null;
+    case 'redirect':
+      return st.client.code ? { pieces: [['code', 'code']] } : null;
+    case 'intercept':
+      return st.app.code ? { pieces: [['code', 'code']] } : null;
+    case 'client-request':
+      return st.client.answer === null ? null : { pieces: bound ? [['code', 'code'], ['+', 'ink'], ['code_verifier', 'ink']] : [['code', 'code']] };
+    case 'app-request':
+      return st.app.answer === null ? null : { pieces: bound ? [['code', 'code'], ['+', 'ink'], ['a guess', 'ink']] : [['code', 'code']] };
+    case 'client-answer':
+      return answer('client', 'code already used');
+    case 'app-answer':
+      return answer('app', bound ? 'S256(guess) ≠ challenge' : 'code already used');
+  }
+}
+/** The notes under the client and the server: the verifier the client keeps, what the server stored and whether the code is used. */
+function notes(st: SignIn): Partial<Record<keyof typeof X, string>> {
+  const server = [st.requested ? (st.challenge !== null ? 'stores the challenge' : 'no challenge stored') : null, st.spent ? 'code used' : null].filter(Boolean);
+  return { ...(st.challenge !== null ? { C: 'keeps code_verifier' } : {}), ...(server.length ? { S: server.join(' · ') } : {}) };
+}
+/** A dot in the colour of what a message carries: the challenge, the code, or the answer's outcome. */
+function tokenColor(id: MessageId, st: SignIn, s: ReturnType<typeof stage>): string {
+  if (id === 'authorize') return st.challenge !== null ? CHALLENGE : s.palette.ink;
+  if (id.endsWith('answer')) return st[id.startsWith('app') ? 'app' : 'client'].answer === 'Access token' ? s.good : s.bad;
+  return CODE;
+}
+
+/**
+ * The sign-in drawn from its state: the client, the server and the malicious app as lifelines across a red, dashed
+ * browser lane other apps can read and a green TLS lane, each sent message an arrow in its fixed place with what it
+ * carries above it (a refusal's reason under it), and notes under the client and the server. Every part is keyed.
+ */
+function signInPicture(st: SignIn, s: ReturnType<typeof stage>): Group {
+  const ink = s.palette.ink, parts: Mobject[] = [];
+  const add = (m: Mobject, key: string) => { m.key = key; parts.push(m); };
+  const band = (lane: 'browser' | 'tls', top: number, bottom: number, color: string, title: readonly [string, string]) => {
+    const rect = new Rectangle({ width: 15.0, height: top - bottom, cornerRadius: 0.12, fill: color, fillOpacity: 0.07, stroke: color, strokeWidth: 0.04 }).moveTo([0, (top + bottom) / 2]);
+    if (lane === 'browser') rect.style.dashArray = '0.2 0.12';
+    const mid = (top + bottom) / 2;
+    add(new Group(
+      rect,
+      new Text(title[0], { fontSize: 0.32, color, weight: 'bold' }).moveTo([-6.15, mid + 0.22]),
+      new Text(title[1], { fontSize: 0.26, color }).moveTo([-6.15, mid - 0.18]),
+    ), `sign-in:band:${lane}`);
+  };
+  band('browser', 1.75, -0.5, s.bad, ['Browser', 'others can read']);
+  band('tls', -0.7, -3.75, s.good, ['TLS', 'each app’s own']);
+  for (const p of ['C', 'S', 'M'] as const)
+    add(new Group(
+      new Text(PARTY[p], { fontSize: 0.36, color: ink }).moveTo([X[p], 2.95]),
+      new Line([X[p], 2.2], [X[p], -3.85], { stroke: s.soft, strokeWidth: 0.04 }),
+    ), `sign-in:party:${p}`);
+  for (const [p, text] of Object.entries(notes(st)) as [keyof typeof X, string][])
+    add(new Text(text, { fontSize: 0.26, color: s.soft }).moveTo([X[p], 2.5]), `sign-in:note:${p}:${text}`);
+  for (const id of Object.keys(ROUTE) as MessageId[]) {
+    const words = messageWords(id, st);
+    if (!words) continue;
+    const { from, to, y } = ROUTE[id], dir = Math.sign(X[to] - X[from]);
+    const arrow = new Arrow([X[from] + dir * 0.08, y], [X[to] - dir * 0.08, y], { stroke: ink, strokeWidth: 0.035, tipLength: 0.22, tipWidth: 0.18 });
+    // The server's replies are dashed, as in the sequence diagrams.
+    if (from === 'S') arrow.line.style.dashArray = '0.16 0.1';
+    add(arrow, `sign-in:msg:${id}`);
+    const pieces = words.pieces.map(([text, tone]) => new Text(text, { fontSize: LABEL, color: toneColor(tone, s) }));
+    pieces.slice(1).forEach((p, i) => p.nextTo(pieces[i]!, [1, 0], 0.12));
+    const label = new Group(new Group(...pieces).moveTo([(X[from] + X[to]) / 2, y + 0.32]));
+    if (words.why) label.add(new Text(words.why, { fontSize: 0.26, color: s.bad }).moveTo([(X[from] + X[to]) / 2, y - 0.32]));
+    add(label, `sign-in:label:${id}`);
+  }
+  return new Group(...parts);
+}
+
+/** The sign-in's picture in words: every message sent, by lane, and the notes under the parties. */
+function signInWords(st: SignIn): string {
+  const lane = { browser: 'Browser lane', tls: 'TLS lane' };
+  const said = (id: MessageId) => {
+    const w = messageWords(id, st);
+    return w && `${lane[ROUTE[id].lane]}: ${PARTY[ROUTE[id].from]} to ${PARTY[ROUTE[id].to]}, ${w.pieces.map(([t]) => t).join(' ')}${w.why ? ` (${w.why})` : ''}`;
+  };
+  const sent = (Object.keys(ROUTE) as MessageId[]).map(said).filter(Boolean);
+  const under = Object.entries(notes(st)).map(([p, text]) => `Under ${PARTY[p as keyof typeof X]}: ${text}`);
+  return [
+    'Three lifelines, the client, the auth server and the malicious app, across a red dashed browser lane other apps can read and a green TLS lane',
+    ...(sent.length ? sent : ['No message sent yet']),
+    ...under,
+  ].join('. ') + '.';
 }
 
 /** One colour for each parameter's name on the map, so the code reads as the same value in both lanes. */
