@@ -137,3 +137,25 @@ test('charts that break the model’s rules are refused', () => {
   assert.throws(() => initial({ id: 'r', type: 'compound', initial: 'a', children: [{ id: 'a', type: 'atomic', on: { GO: 'z' } }] }), /unknown state z/);
   assert.throws(() => initial({ id: 'r', type: 'compound', initial: 'a', children: [{ id: 'a', type: 'atomic' }, { id: 'a', type: 'atomic' }] }), /Duplicate/);
 });
+
+test('generated event sequences: the model and XState end every event in the same configuration, for every chart', async () => {
+  const { fc, params } = await import('./lib/pbt.ts');
+  for (const [name, { chart }] of Object.entries(CHARTS)) {
+    const x = xstate.charts[name]!;
+    const key = (c: readonly string[]) => [...c].sort().join(' ');
+    const index = new Map(x.configurations.map((c, i) => [key(c), i]));
+    // XState's own graph: from a configuration, an event it takes leads where XState said; any other changes nothing.
+    const step = (at: number, event: string) => x.transitions.find(([from, e]) => from === at && e === event)?.[2] ?? at;
+    fc.assert(
+      fc.property(fc.array(fc.constantFrom(...x.events), { maxLength: 16 }), (sent) => {
+        let config = initial(chart), at = index.get(key(x.initial))!;
+        for (const event of sent) {
+          config = send(chart, config, event).config;
+          at = step(at, event);
+          assert.equal(key(config), key(x.configurations[at]!), `${name}: after ${sent.join(', ')}`);
+        }
+      }),
+      params(200),
+    );
+  }
+});

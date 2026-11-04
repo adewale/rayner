@@ -13,14 +13,14 @@ const LEVELS = ['off', 'dim', 'bright'] as const;
 const next = (s: Lamp, e: 'UP' | 'OFF'): Lamp => ({ level: e === 'OFF' ? 0 : Math.min(2, s.level + 1) });
 
 /** A lamp of three levels as a session; `blind` draws the same picture whatever the level. */
-function lampScene(blind = false) {
+function lampScene(blind = false, size = 0.5) {
   return class LampScene extends Scene<Lamp> {
     session!: Session<Lamp, 'UP' | 'OFF'>;
     override state = { level: 0 };
     override async construct() {
       const s = stage(this);
       const picture = view(this, (st: Lamp) => {
-        const word = new Text(blind ? 'lamp' : `lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
+        const word = new Text(blind ? 'lamp' : `lamp ${LEVELS[st.level]}`, { fontSize: st.level === 2 ? size : 0.5 });
         word.key = 'lamp:word';
         const g = new Group(new Rectangle({ width: 4, height: 1.2 }), word);
         g.key = 'lamp';
@@ -91,11 +91,17 @@ test('reachable states are found breadth first, each with its shortest events, u
 });
 
 test('rayner check draws every reachable state: a picture that cannot tell two states apart fails, named by its shortest events', async () => {
-  const good = exploreSessions(await new (lampScene())(new NullSink()).run());
+  const good = await exploreSessions(await new (lampScene())(new NullSink()).run());
   assert.deepEqual(good, [{ events: ['UP', 'OFF'], states: 3, sampled: false, problems: [] }]);
-  const blind = exploreSessions(await new (lampScene(true))(new NullSink()).run());
+  const blind = await exploreSessions(await new (lampScene(true))(new NullSink()).run());
   assert.deepEqual(blind[0]!.problems, [
     'after UP: the picture is described exactly as at the start, a different state',
     'after UP, UP: the picture is described exactly as at the start, a different state',
   ]);
+});
+
+test('rayner check measures every label an explored state shows: one too small to read fails, named by its shortest events', async () => {
+  const [lamp] = await exploreSessions(await new (lampScene(false, 0.12))(new NullSink()).run());
+  assert.equal(lamp!.problems.length, 1, JSON.stringify(lamp!.problems));
+  assert.match(lamp!.problems[0]!, /^after UP, UP: “lamp bright” is \d+(\.\d)? px at a 1280 px stage, under 14$/);
 });

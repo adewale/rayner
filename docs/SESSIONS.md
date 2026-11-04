@@ -45,6 +45,7 @@ up to `limit` states (256 by default), and redraws each state as a resting pictu
 fails a state whose picture
 
 - has colliding text or a connector over a label (the same rules as resting pictures),
+- shows a label under 14 px at a 1280 px stage,
 - has no description,
 - does not show its state, for views made from the scene's state (`viewMismatch`), or
 - is described exactly as another reachable state is, so neither a reader nor a screen
@@ -62,10 +63,13 @@ lists each session's events and the number of states reached. `statecharts` reac
   not that each is drawn rightly: a picture that never marks frothing still differs between
   grinding-and-still and grinding-and-frothing, and passes. Say what must be true with an
   [invariant](EXTENDING.md#claim-something-on-every-frame) or a fidelity test.
-- **Legibility is not explored.** Label sizes are measured during the authored run only.
-- **The oracle comparison is the fixture's.** The statecharts model is compared with XState
-  on the runs in `tools/oracle/statecharts.ts`; comparing generated sequences would need
-  XState installed as a test dependency.
+- **Phone close-ups are not explored.** Each explored state's labels are measured at a
+  1280 px stage by the same legibility sink a run uses; the phone's close-ups are worked
+  out for the authored run only.
+- **The oracle is XState's explored graph.** `tools/oracle/statecharts.ts` records every
+  configuration XState reaches and where every event leads, for every chart. The model is
+  compared with that whole graph, and generated event sequences walk it too, so no XState
+  install is needed in tests; regenerating the fixture needs the pinned release.
 - **A state is compared as JSON.** Two states equal as JSON are one state.
 
 ## Not built yet: the player
