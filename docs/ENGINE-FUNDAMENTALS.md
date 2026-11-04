@@ -1,19 +1,19 @@
 # Engine fundamentals
 
-Read this when you want to draw, animate, inspect or extend a scene without using the
-whole publishing workflow. The [tutorial](TUTORIAL.md) covers authoring a lesson;
-[extension recipes](EXTENDING.md) give runnable examples. All names below are public
-exports from `rayner` unless a different entry point is shown.
+Read this to draw, animate, inspect or extend a scene without the publishing
+workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
+[extension recipes](EXTENDING.md) give runnable examples. Every name below is a
+public export of `rayner` unless another entry point is shown.
 
 ## The model
 
 A `Scene` runs a TypeScript program. That program creates a tree of `Mobject`s,
-plays `Animation`s and marks named `step()` boundaries. A `Sink` receives the frames.
-Changing the sink changes the output, not the scene's explanation.
+plays `Animation`s and marks named `step()` boundaries. A `Sink` receives the frames,
+so changing the sink changes the output and leaves the scene alone.
 
 | Primitive | Responsibility |
 | --- | --- |
-| `Mobject` | Identity, children, style, geometry operations, layout and updaters |
+| `Mobject` | Key, children, style, geometry operations, layout and updaters |
 | `Group` | Several mobjects treated as one ordinary mobject |
 | `VMobject` | Drawable cubic Bézier subpaths, with open/closed flags |
 | `Text`, `Code`, `DecimalNumber` | Text and numbers, rendered with glyph outlines |
@@ -33,12 +33,11 @@ and `moveTo` change the points of the whole family. There is no separate model
 transform matrix whose effect an inspector must reconstruct.
 
 `VMobject.startNewPath(point)`, `addLineTo(point)`, `addCubic(handle1, handle2, end)`
-and `closePath()` build paths. `setPolygon(corners)` is convenient for closed
-polygons. Use those methods instead of writing a point buffer yourself: they keep
-the geometry caches current. If custom code mutates a point buffer in place, call
-`touchPoints()` on the object whose points changed and `invalidateBox()` afterwards:
-the first updates the render-cache version, the second invalidates layout bounds.
-One does not replace the other. Prefer path builders and geometric methods.
+and `closePath()` build paths, and `setPolygon(corners)` builds a closed polygon.
+Use them rather than writing a point buffer yourself, because they keep the geometry
+caches current. Code that mutates a point buffer in place must call both
+`touchPoints()` on the object whose points changed, which bumps the render-cache
+version, and `invalidateBox()`, which drops the cached layout bounds.
 
 Style includes fill, stroke, their opacity and width, overall opacity, and optional
 SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpacity`
@@ -46,24 +45,26 @@ update it. `Create`/`Write` use the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
-and `setHeight`. Bounds describe geometry, not a complete screen-pixel collision
-proof: clipping, paint order and stroke also matter. The publishing checks inspect
-those separately.
+and `setHeight`. Bounds describe geometry only; clipping, paint order and stroke
+also decide what collides on screen, which is why `rayner check` measures painted
+labels separately.
 
 ## Ownership, identity and copying
 
-`group.add(child)` makes the child belong to that group, detaching it from its old
-parent. A scene admits one root for a subtree: admitting a parent must not paint a
+`group.add(child)` moves the child into that group, detaching it from its old
+parent. A scene admits one root per subtree, so admitting a parent never paints a
 child twice. `Scene.add`, `remove`, `replace`, `bringToFront` and `bringToBack`
-control scene membership and draw order. Avoid inserting the same child twice or
-creating a cycle; a tree is the supported structure.
+control membership and draw order. The structure is a tree: do not insert a child
+twice or make a cycle.
 
-`id` is a runtime identity. `key` is an optional semantic name useful for matching.
-Neither a current numeric id nor a position in a child's array is a persistent
-domain identifier. Use your own semantic keys when the domain supplies identity.
+A part's identity is its `key`, an optional name you give it: `find(key)`,
+`findAll`, keyed matching, invariants and reviews all address parts by key. A
+position in a child array is not an identity, and `Mobject.id`, the renderer's
+number, is internal. Give keys from the domain (`slot:3`, `state:idle`) when the
+domain has identities.
 
-`copy()` clones the tree and mutable geometry/style, gives copies new identities,
-and clears updaters and saved-state history. A custom composite should expose its
+`copy()` clones the tree with its geometry, style and keys (a copy is a new
+object that still answers to the same key), and clears updaters and saved state. A custom composite should expose its
 parts through getters into its own children, as [StatusBadge](../recipes/extensions.ts)
 does. If it stores named child references, implement `rebindReferences(source, map)`
 so the clone names its children, not the original's. Use `copyData(source)` for
@@ -107,30 +108,35 @@ timestamps.
 ## Steps, state and evidence
 
 `await this.step(name, metadata)` closes the previous step and begins the next.
-Names should be stable, unique URL identifiers. `title`, `line`, `caption` and
-`kind` (`'short'`, `'main'` or `'detail'`) have reader meanings; other metadata can
-describe the model's inputs.
-A caption may extend the step to allow reading. The resting picture is therefore
-different from the picture at a step's start.
+Names are stable, unique URL identifiers. `title`, `line`, `caption` and `kind`
+(`'short'`, `'main'` or `'detail'`) mean something to the reader; other metadata
+can describe the model's inputs. A caption extends its step until it could be read,
+so the step's resting picture, its last frame, can differ from its first.
 
 `this.state` is the model: what the subject program is doing, and nothing about
 how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
-shown of it apart from the model, such as which of several pictures a phase shows;
-a view's draw may read it, and a machine never changes it. `describe()` snapshots
+shown apart from the model, such as which of several pictures a phase shows; a
+view's `draw` may read it, and a machine never changes it. `describe()` snapshots
 the model plus describers registered into it; `describeShown()` snapshots `shown`
 plus describers registered with `addDescriber(fn, 'shown')`, such as the stage's
-description of its picture. Traces record both. State and recorded evidence accept
-plain JSON data and finite numbers; functions, class instances, cycles and nonfinite
-values are refused. Shape objects belong in the scene tree, not in `state`.
+description of its picture. The trace records the model as `before` and `after`
+and the second as `shown`. Both accept plain JSON and finite numbers, and refuse
+functions, class instances, cycles and non-finite values; shapes belong in the
+scene tree.
 
-`this.record(kind, data)` records what an animation or operation did. It is evidence
-attached to a step, distinct from subject state. `onStep` and `addDescriber` are
-supported extension hooks; each returns its own removal function. Do not replace
-the scene's methods to attach helpers.
+Evidence is what an animation or operation did, attached to the step it happened
+in, apart from the model. `this.record(kind, data)` adds a record, and every
+animation's `evidence()` is recorded as it begins: a matching transform records
+`{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
+([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
+key as `view`, `Follow` its interval and targets, and `SetState` with an `event`
+`{ kind: 'event', event }`. `onStep` and `addDescriber` are the extension hooks,
+and each returns its own remover; do not replace the scene's methods to attach
+helpers.
 
-A trace records what an author declared. It does not prove the declaration true.
-Compare the trace with an independently checked program or reference, and check
-the visible values too. [Views](VIEWS.md) help connect state to its picture.
+A trace records what an author declared; it does not prove the declaration true.
+Compare it with an independently checked program, and check the values on screen
+too: a [view](VIEWS.md) ties a picture to the state it was drawn from.
 
 ## Updaters, derived pictures and seeking
 
@@ -140,19 +146,18 @@ when they are no longer needed. An updater that integrates `velocity * dt` depen
 on previous frames. The engine conservatively replays any play or wait with active
 updaters, including an updater that merely reads the current value.
 
-`view(scene, draw).sync()` is different: it rebuilds a target from state at the
-start of the play and morphs to that target. It is useful for discrete updates.
-It does not continually reevaluate a nonlinear relationship between endpoints.
+`view(scene, draw).sync()` registers no updater: it rebuilds a target from state
+when its play begins and morphs to it. That suits discrete updates; it does not
+evaluate a relationship between the two endpoints, which [`Follow`](CHOREOGRAPHY.md#follow) does.
 
 `renderAt(SceneClass, time, sink)` reruns the scene up to the first frame at or after
-the requested time (or the final frame if past the end). Endpoint-based plays can
-skip intervening interpolations. Stateful updaters cannot. This is replay with
-skipping, not constant-time indexing into a precompiled timeline.
+the requested time (or the final frame if past the end), skipping the interpolations
+of plays without updaters. A seek is a replay with skipping, not an index into a
+precompiled timeline.
 
 A sink stops a seek with `StopScene`. Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
-scene. Handle known model errors before animating. [Sampled parameters](PARAMETERS.md)
-records what a directly sampled alternative to updaters would buy the collection.
+scene. Handle known model errors before animating.
 
 ## Outputs, checks and performance
 
@@ -161,15 +166,13 @@ step indexes, full frames and live DOM playback. They all consume native scenes.
 Embedded fonts make ordinary glyph geometry independent of installed browser
 fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapshots.
 
-Use [Testing Rayner](TESTING.md) to choose checks. There are different questions:
-domain truth, geometry/replay correctness, motion continuity, readable served paint
-and whether readers understand. Success on one does not establish the others.
-`MotionSink` plus `analyzeMotion` inspect sampled motion; they are not an editorial
-or mathematical oracle.
+[Testing Rayner](TESTING.md) says which check answers which question: domain truth,
+geometry and replay, motion continuity, readable served paint, or whether readers
+understand. A pass on one says nothing about the others. `MotionSink` and
+`analyzeMotion` inspect sampled motion; they judge neither the editing nor the maths.
 
 For profiling, `perf.enable()` starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a
 trace viewer. Disable it with `perf.disable()`. Compare identical scenes, timestamps,
 frame rates and output modes: a trace-only dry run is not a playback benchmark.
-Grouping glyph runs, avoiding unnecessary redraws and retaining fast seeking help,
-but measure an actual workload before making a speed claim.
+Measure a real workload before making a speed claim.
