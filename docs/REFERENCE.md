@@ -239,6 +239,7 @@ The diagram spec accepts `lettering: 'natural'` to measure the active requested 
 | --- | --- |
 | `d.reveal(n \| ids \| 'rest')` | Bring in the next `n` parts in reading order, named parts, or the rest |
 | `d.walk(hops, { trail, parallel, color })` | A token travels real links; `trail` leaves them marked; `parallel` runs several journeys in one play |
+| `d.picture(marks)`, `d.link(from, to)`, `d.showBy(view)` | The diagram copied with the parts in `marks` (id to colour) as a mark draws them, for a view to draw the diagram, and a trail, from state; a link's id, part and route; and, once that view shows it and the live diagram is off the stage, the view that keeps the stage describing it (see `state-machine`) |
 | `d.mark(ids, { color, as })`, `d.unmark(ids?)` | Colour parts and thicken their outlines until unmarked; labels keep their ink; `as` names the mark in the description |
 | `d.dim(keep \| null)` | Fade everything but `keep`, links between kept parts and scaffolding; `null` restores. Dimmed parts keep 3:1 contrast with the paper |
 | `d.note(id, text, { side })` | A short label beside a part at a fixed readable size; `side` is `above`, `below`, `left` or `right` |

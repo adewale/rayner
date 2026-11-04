@@ -54,19 +54,46 @@ starts where the one before left it.
 `send` refuses it before anything plays. There is no separate list of allowed events: one
 function says both, so the buttons and the model cannot disagree.
 
-An event may have authored motion instead of the keyed morph:
+An event may have authored motion instead of the keyed morph. `choreograph(current, target)`
+names the keyed parts of a view's picture and of its target, and each call animates some of
+them in the author's order; `rest()` lands every part no call named, so a transition that
+forgets a part still ends on the target. From `ring-buffer`:
 
 ```ts
 transition: {
-  PUSH: ({ before, after, views, targets }) =>
-    new Transform(views[0].current, targets[0]),   // targets: each view's picture of `after`, placed where it lands
+  push: ({ before, after, views, targets }) => {
+    const c = choreograph(views[0].current, targets[0]);   // targets: each view's picture of `after`, placed where it lands
+    return new Succession([
+      c.enter(`ring:mark:${before.tail}`, { create: true }),          // outline the slot at tail
+      new AnimationGroup([
+        c.enter(`ring:value:${before.tail}`, { from: 'ring:incoming:6' }), // the value grows from a copy of push(v)'s
+        c.morph(`ring:slot:${before.tail}`),
+      ]),
+      new AnimationGroup([turnTail(c), c.rest()]),                    // tail turns round the ring (Follow); the rest lands
+    ]);
+  },
 },
 ```
 
-The transition is built when its turn comes, from the pictures on screen then, and plays
-over the machine's `runTime` with its own easing. When it ends the views take the pictures
-of `after`. `send(event, from)` builds its schedule for one state (the scene's state by
-default) and refuses to play from any other, so a replay cannot drift from the model.
+| Call | What it does |
+| --- | --- |
+| `morph(key)` | The current part becomes its target |
+| `enter(key, { from?, create? })` | A part only the target has: faded in, drawn, or grown from a copy of the current part `from` |
+| `leave(key)` | A part only the current picture has fades out and leaves the picture |
+| `insert(key, like)` | An unseen copy of `like`, for the author to animate; it must end as the target part, or leave when the target has none (a token walking a link) |
+| `own(key)` | The author animates this current part (with `Follow`, say) and must end it as the target part |
+| `rest()` | Every keyed part not yet handled: morphed, faded in or faded out |
+
+A part may leave and enter again, which replaces it in place. A part brought in is in the
+picture from the start but unseen, and joins when its turn comes, so `play()` never takes it
+for a new mobject. The transition is built when its turn comes, from the pictures on screen
+then, and begun through the scene, so a part that fades out leaves the picture. It plays over
+the machine's `runTime`, which may be a function of the event and the states either side
+(`ring-buffer` gives a refused push longer than a plain one). When it ends, each keyed part of
+each view takes its drawn counterpart's data in place, in the drawn stacking order: nothing
+moves, and every part keeps its identity for the next event. `send(event, from)` builds its
+schedule for one state (the scene's state by default) and refuses to play from any other, so a
+replay cannot drift from the model.
 
 ## What check does with a machine
 
@@ -113,15 +140,20 @@ That needs a way for a step to declare its machine to the player, the buttons wi
 keyboard, screen-reader and reduced-motion behaviour, and a transcript line listing the
 events. None of it changes the engine.
 
-## Where it does not fit
+## Three machines
 
-`ring-buffer` and `state-machine` also replay events one at a time, and neither became a
-machine. Between events each animates its main picture by hand: a value token copied into
-its slot, an outline drawn, a diagram walked, a code row boxed. Their main pictures are
-therefore not views of the state, only their readouts are, and exploring their states
-would redraw the readouts over a stale picture and judge it. Making them machines would
-first mean drawing each main picture from the state, which would change two published
-lessons' animations; that is a separate decision from adopting the API.
+| Explainer | State | Events | What is drawn from state | Explored |
+| --- | --- | --- | --- | --- |
+| `statecharts` | A chart's configuration | The chart's events, through the model's `send` | The chart, its active boxes and the arrows they light | Every configuration (the keyed morph, no authored transitions) |
+| `ring-buffer` | `RingState`: the buffer, the last operation and its result, outlines, the tray, the next value | `push`, `pop` (a pop of an empty ring, or a push past 9, is refused) | Slots, values, pointers, outlines, push(v), the next value, the tray; the readout and card values | 256 states sampled per case, every transition played |
+| `state-machine` | `SessionState`: the session, the last event and what it returned, the row read, the links travelled | `CONNECT`, `OPENED`, `ERROR`, `CLOSE` (none refused: a throw is the lesson) | The diagram with its trail (`Diagram.picture`), the ring, the lit row or throw; the card | All 21 states per case, every transition played |
+
+Making `ring-buffer` and `state-machine` machines meant drawing each main picture from state.
+Their resting pictures stayed the same, except where exploration found something the story
+never reached: two ring states that differed only in the next value pushed looked alike (the
+ring now shows "next N"), and a long tray ran into the bottom pointers' labels (the tray row is
+lower, and shows the most recent values that fit). `state-machine`'s diagram is drawn by the
+view, so the live diagram leaves the stage; `Diagram.showBy(view)` keeps the stage describing it.
 
 ## Tried and not kept
 
@@ -132,3 +164,14 @@ lessons' animations; that is a separate decision from adopting the API.
   machine is sampled breadth first up to `limit`; random sequences remain an option there.
 - **Running the model in the player as a separate runtime.** It would give up seeking and
   traces for the reader's own actions, which is what makes them checkable.
+- **A trail laid over the diagram as a copy of the link.** The copy's route sat above the
+  label's backing plate, so it crossed its own label (the route check said so), and a copy with
+  the label drew the label twice. Drawing the whole diagram from state (`Diagram.picture`) has
+  no overlay.
+- **Landing a transition with a one-frame keyed morph.** Parts without keys (a readout's
+  glyphs) faded out and back within a frame. **Landing by swapping in the drawn pictures** gave
+  every part a new identity in the frame the next event's copy appeared, which the motion
+  check could not pair. Landing in place keeps identities and moves nothing.
+- **Building a transition when its schedule is built.** In a replay, the second event's
+  transition held the first picture, which the first event's landing had replaced. It is built
+  when its turn comes.
