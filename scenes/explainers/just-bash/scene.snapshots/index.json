@@ -2,12 +2,11 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "a38d7c993fc6414adf1c34165af807efed8b23f72116cb45ffae68ad7f4ef6da",
+  "sourceHash": "04c4c923a7537fe760c59ed6a211dac56873714c029ba50d1d139fb6192c12b6",
   "diagrams": {
     "[\"graph LR\\nInput[empty stdin] --> Echo[echo hello]\\nEcho --> Tr[tr a-z A-Z]\\nTr --> File[shout.txt]\",\"chalkboard\"]": "7b26439faa13fe2a.json",
     "[\"graph LR\\nInput[empty stdin] --> Echo[echo hello]\\nEcho --> Tr[tr a-z A-Z]\\nTr --> Output[stdout]\",\"chalkboard\"]": "697b6b21dacec626.json",
     "[\"graph LR\\nName[command name] --> Builtin[look up the builtin]\\nBuiltin --> Run[found: run on values]\\nBuiltin --> Error[missing: refuse]\",\"chalkboard\"]": "9c759f7f07a6bc5f.json",
-    "[\"graph LR\\nS0[\\\"original shell<br/>files: none\\\"]\\nS1[\\\"returned shell<br/>files: shout.txt\\\"]\\nOut1[\\\"prints HELLO\\\"]\\nOut0[\\\"prints nothing\\\"]\\nS0 -->|echo, tr, redirect| S1\\nS1 -->|cat| Out1\\nS0 -->|cat| Out0\",\"chalkboard\"]": "13af3eb6dbdc4c0b.json",
     "[\"graph TD\\nScript[Script] --> Pipeline[Pipeline]\\nPipeline --> Echo[echo hello]\\nPipeline --> Tr[tr a-z A-Z]\\nScript --> Redirect[redirect to shout.txt]\",\"chalkboard\"]": "9db0b10193a6edb6.json"
   }
 }
