@@ -455,23 +455,71 @@ export async function exploreMachines(
   return explored;
 }
 
+/** A picture in full for telling two drawings apart: each part's kind, key, text, box and style. */
+const pictureDetail = (m: Mobject) =>
+  JSON.stringify(m.family().map((x) => [x.constructor.name, x.key ?? null, 'text' in x ? x.text : null, x.box(), x.style]));
+
+/** Every value of a JSON state changed: numbers moved, strings lengthened, booleans flipped, nulls made 0. */
+function perturbed(value: unknown): unknown {
+  if (typeof value === 'number') return Number.isInteger(value) ? value + 1 : value * 1.5 + 0.5;
+  if (typeof value === 'string') return `${value}x`;
+  if (typeof value === 'boolean') return !value;
+  if (value === null) return 0;
+  if (Array.isArray(value)) return value.map(perturbed);
+  if (typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, perturbed(v)]));
+  return value;
+}
+
 /**
  * Every step `stage.steps` presented, redrawn after the run from the state its trace recorded and
  * compared with the picture drawn then (text and every part's box). A step whose draw reads
  * anything but its own state, such as a variable a later step changed, draws something else now
  * and is named here.
+ *
+ * The redraw alone passes a draw that ignores its state and draws from constants it captured, so
+ * the picture could disagree with the state the step records. Each step is therefore also drawn
+ * from states that differ from its own: its state with every value changed, the empty state, and
+ * the other steps' recorded states. A draw whose picture is the same for all of them, and throws
+ * for none, does not read its state, and its step is named in `ignoring` and in `problems`. A
+ * draw that throws on a different state has read it, so a throw counts as depending on it.
+ *
+ * The rule: a step whose recorded state is empty is exempt (there is nothing to read, and nothing
+ * for the picture to disagree with); any other step's picture must depend on its state. A state
+ * that changes nothing in the picture is a value the reader is told about but never shown, so it
+ * either reaches the picture or leaves the state.
  */
-export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[] } {
+export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[]; ignoring: string[] } {
   const problems: string[] = [];
+  const ignoring: string[] = [];
   const records = stagedStepsOf(scene);
-  for (const record of records) {
-    const traced = trace.steps.find((s) => s.step === record.step);
-    if (!traced?.after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); continue; }
-    if (pictureFingerprint(record.redraw(traced.after)) !== record.drawn)
+  const recorded = records.map((r) => trace.steps.find((s) => s.step === r.step)?.after);
+  records.forEach((record, i) => {
+    const after = recorded[i];
+    if (!after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); return; }
+    if (pictureFingerprint(record.redraw(after)) !== record.drawn)
       problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than its state`);
-  }
-  return { redrawn: records.length, problems };
+    if (!Object.keys(after).length) return;
+    const own = JSON.stringify(after);
+    const drawn = pictureDetail(record.redraw(after));
+    const others = [perturbed(after), {}, ...recorded.filter((s): s is Record<string, unknown> => !!s)]
+      .filter((s, j, all) => JSON.stringify(s) !== own && all.findIndex((t) => JSON.stringify(t) === JSON.stringify(s)) === j);
+    const depends = others.some((state) => {
+      try { return pictureDetail(record.redraw(state as Record<string, unknown>)) !== drawn; } catch { return true; }
+    });
+    if (!depends) {
+      ignoring.push(record.step);
+      problems.push(`step "${record.step}": its draw ignores its state; its picture is the same drawn from ${others.length} different states, so it can disagree with the state the step records`);
+    }
+  });
+  return { redrawn: records.length, problems, ignoring };
 }
+
+/**
+ * Explainers whose staged draws are being moved onto their state on other branches: a step of
+ * theirs that ignores its state is reported, not failed. Delete an entry when its explainer's
+ * draws read their state; an entry whose steps all read it already changes nothing.
+ */
+const AWAITING_STATE_DRAWS: ReadonlySet<string> = new Set(['python-dict', 'henge']);
 
 /**
  * Each authored transition from `state`, played through on the explored scene: every invariant
@@ -602,8 +650,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
     });
     const staged = redrawStagedSteps(ran, v.trace);
+    const ignoresState = AWAITING_STATE_DRAWS.has(project.Scene.meta?.id ?? '') ? staged.ignoring : [];
     assert.deepEqual(
-      staged.problems.slice(0, 5),
+      staged.problems.filter((p) => !ignoresState.some((step) => p.startsWith(`step "${step}": its draw ignores its state`))).slice(0, 5),
       [],
       `Staged steps ${where}: a step's picture must be a function of the state it records (the first five)`,
     );
@@ -690,6 +739,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       // How many stage.steps pictures were redrawn from their recorded state and matched.
       ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
+      // Steps of an explainer awaiting conversion (AWAITING_STATE_DRAWS) whose draw ignores its state. Reported, not gated.
+      ...(ignoresState.length ? { ignoresState } : {}),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
