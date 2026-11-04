@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fc, params } from '../lib/pbt.ts';
-import { covered, storyFrames, inspectStoryFrame, reviewStoryVariant, narrowOpeningPlan } from '../../tools/lib/explain-story-review.ts';
+import { covered, storyFrames, inspectStoryFrame, reviewStoryCase, narrowOpeningPlan } from '../../tools/lib/explain-story-review.ts';
 import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
@@ -414,12 +414,12 @@ test('served review rejects hiding the blue artwork revealed by removing a dupli
         await this.step('after',{caption:'Removing the top red reveals blue.'});this.remove(upper);
       }} `);
     const project = await collectProject(dir, { write: false });
-    assert.equal(project.variants.length, 1);
+    assert.equal(project.cases.length, 1);
     await buildExplainer(project, join(dir, 'scene.html'));
     server = await serve(dir, 0, 'scene.html');
     const baseline = await browser.newPage();
     try {
-      const rows = await reviewStoryVariant(baseline, server.url + '/scene.html', project.variants[0]!);
+      const rows = await reviewStoryCase(baseline, server.url + '/scene.html', project.cases[0]!);
       assert.equal(rows.length, 4, 'two steps at both widths');
       assert.deepEqual(rows.filter(r => r.step === 'after').map(r => r.targets.sort()),
         [['changed: blue', 'changed: lower'], ['changed: blue', 'changed: lower']]);
@@ -439,7 +439,7 @@ test('served review rejects hiding the blue artwork revealed by removing a dupli
             blue.style.opacity = '0';
           });
         }, width);
-        await assert.rejects(reviewStoryVariant(page, server.url + '/scene.html', project.variants[0]!),
+        await assert.rejects(reviewStoryCase(page, server.url + '/scene.html', project.cases[0]!),
           /after: changed: blue has hidden or clipped ink/);
         assert.equal(await page.evaluate(() =>
           (window as unknown as { visibleBeforePoison: boolean }).visibleBeforePoison), true, `${width}: visible blue before poison`);
@@ -526,11 +526,11 @@ test('native SVG pixels confirm the stroke-order changes selected by the review'
 
 test('token-bucket refill does not turn untouched waiting R10 into a story obligation', async () => {
   const project = await collectProject('scenes/explainers/token-bucket', { write: false });
-  assert.equal(project.variants.length, 3);
+  assert.equal(project.cases.length, 3);
   let checked = 0;
-  for (const variant of project.variants) {
-    const frame = (await storyFrames(variant.Scene)).get('refill')!;
-    await new variant.Scene({
+  for (const theCase of project.cases) {
+    const frame = (await storyFrames(theCase.Scene)).get('refill')!;
+    await new theCase.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (step.name !== 'refill') return;
@@ -544,7 +544,7 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
         assert.equal(records[index]!.attrs['stroke-dasharray'], '80 60', 'R10 is still waiting');
         assert.deepEqual(frame.records[index]!.attrs, records[index]!.attrs, 'bind the same actual rectangle in the reviewed frame');
         assert.equal(frame.targets.some(target => target.indices.includes(index)), false,
-          `rate ${variant.values.rate}: redrawing answered R7-R9 must not make unchanged R10 a subject`);
+          `rate ${theCase.values.rate}: redrawing answered R7-R9 must not make unchanged R10 a subject`);
         checked++;
       },
     }, { skipUntil: Infinity }).run();
@@ -615,7 +615,7 @@ test(
       await this.step('split',{caption:'Read the left and right subjects.'});await s.clear();const l=new Text('Left',{fontSize:.2}).moveTo([-5,0]),r=new Text('Right',{fontSize:.2}).moveTo([5,0]);l.key='left';r.key='right';r.clipBox=[4,-1,6,1];await s.enter(l,r,{describe:'The left and right subjects'});await this.step('return',{caption:'Return to the right subject.'});await s.clear();const again=new Text('Again',{fontSize:.7}).moveTo([4,0]);again.key='again';await s.enter(again,{describe:'Again on the right'});await this.step('route',{caption:'The highlighted route enters the window.'});await s.clear();const outside=settingsOf(this).route==='outside';const route=new Line(outside?[20,0]:[-10,0],outside?[21,0]:[0,0],{stroke:'#ff0000',strokeWidth:.05});route.key='window-route';route.clipBox=outside?[19,-1,22,1]:[-1,-1,1,1];this.add(route,new Text('Unrelated context',{fontSize:.2}).moveTo([6,3]));const other=outside?new Text('Other subject',{fontSize:.7}):null;if(other)this.add(other);emphasises(this,()=>other?[[route,'visible route'],[other,'other subject']]:[[route,'visible route']]);}}`,
       );
       const project = await collectProject(dir, { write: false }),
-        variant = project.variants[0]!;
+        theCase = project.cases[0]!;
       await buildExplainer(project, join(dir, 'story.html'));
       server = await serve(dir, 0, 'story.html');
       const page = await browser.newPage();
@@ -625,7 +625,7 @@ test(
         { step: 'split', targets: [{ key: 'left' }, { key: 'right' }] },
         { step: 'return', opening: true, targets: [{ key: 'again' }] },
       ];
-      const results = await reviewStoryVariant(page, server.url + '/story.html', variant, claims);
+      const results = await reviewStoryCase(page, server.url + '/story.html', theCase, claims);
       assert.deepEqual(
         results.map((r) => [r.step, r.width]),
         [
@@ -642,16 +642,16 @@ test(
         ],
       );
       await assert.rejects(
-        reviewStoryVariant(page, server.url + '/story.html', variant, [
+        reviewStoryCase(page, server.url + '/story.html', theCase, [
           ...claims,
           { step: 'route', targets: [{ key: 'window-route', paint: 'stroke' }] },
         ]),
         /route: window-route has hidden or clipped ink/,
         'an explicit arrow claim requires the whole route',
       );
-      const outside = project.variants.find((v) => v.values.route === 'outside')!;
+      const outside = project.cases.find((v) => v.values.route === 'outside')!;
       await assert.rejects(
-        reviewStoryVariant(page, server.url + '/story.html', outside, claims),
+        reviewStoryCase(page, server.url + '/story.html', outside, claims),
         /route: emphasis: window-route is outside the authored picture/,
         'helper membership cannot excuse an entirely absent subject',
       );
@@ -660,9 +660,9 @@ test(
         () => (window as unknown as { raynerReviewStep: string }).raynerReviewStep === 'ending',
       );
       await page.locator('.leaving').waitFor({ state: 'detached' });
-      const frame = (await storyFrames(variant.Scene, claims)).get('ending')!;
+      const frame = (await storyFrames(theCase.Scene, claims)).get('ending')!;
       await assert.rejects(
-        storyFrames(variant.Scene, [{ step: 'ending', targets: [{ key: 'absent' }] }]),
+        storyFrames(theCase.Scene, [{ step: 'ending', targets: [{ key: 'absent' }] }]),
         /story target absent is missing/,
       );
       const index = frame.targets.find((t) => t.name === 'last')!.indices[0]!;
@@ -765,7 +765,7 @@ test(
         /painted record count/,
         'other paths and the caption cannot stand in for a missing subject',
       );
-      const split = (await storyFrames(variant.Scene, claims)).get('split')!;
+      const split = (await storyFrames(theCase.Scene, claims)).get('split')!;
       const right = split.targets.find((t) => t.name === 'right')!.indices[0]!;
       for (const mode of ['visibility', 'clip'] as const) {
         const poisoned = await browser.newPage();
@@ -795,10 +795,10 @@ test(
           );
           // Generic new artwork must also be protected when it has no named claim.
           await assert.rejects(
-            reviewStoryVariant(
+            reviewStoryCase(
               poisoned,
               server.url + '/story.html',
-              variant,
+              theCase,
               claims.filter((c) => c.step !== 'split'),
             ),
             /split at 390px: changed: Right is missing/,
@@ -825,12 +825,12 @@ test('narrow-opening plans keep a nonopening text claim separate from a same-nam
       await s.enter(context, subject, {describe: 'Context and result'});
     }
   }
-  const variant = {Scene: CollidingNames, values: {}, trace: await traceScene(CollidingNames)};
+  const theCase = {Scene: CollidingNames, values: {}, trace: await traceScene(CollidingNames)};
   const claims = [
     {step: 'comparison', targets: [{text: 'Same'}]},
     {step: 'comparison', opening: true, targets: [{key: 'Same'}]},
   ];
-  assert.deepEqual(await narrowOpeningPlan(variant, claims),
+  assert.deepEqual(await narrowOpeningPlan(theCase, claims),
     [{step: 'comparison', reviewed: true, targets: ['Same'], labels: ['Result']}]);
 });
 
@@ -867,8 +867,8 @@ await this.step('reference',{detail:true,caption:'Reference implementation value
       const project = await collectProject(dir, {write: false});
       await buildExplainer(project, join(dir, 'narrow.html'));
       server = await serve(dir, 0, 'narrow.html');
-      const url = server.url + '/narrow.html', compact = project.variants[0]!, wide = project.variants[1]!;
-      assert.deepEqual(project.variants.map(v => v.values.spacing), ['compact', 'wide', 'all-detail']);
+      const url = server.url + '/narrow.html', compact = project.cases[0]!, wide = project.cases[1]!;
+      assert.deepEqual(project.cases.map(v => v.values.spacing), ['compact', 'wide', 'all-detail']);
       const claims = [
         {step: 'comparison', opening: true, targets: [{key: 'left'}, {key: 'right'}]},
         {step: 'reference', targets: [{key: 'reference'}]},
@@ -876,12 +876,12 @@ await this.step('reference',{detail:true,caption:'Reference implementation value
       const page = await browser.newPage();
       const mixedPlan = await narrowOpeningPlan(compact, claims);
       assert.deepEqual(mixedPlan.find(p => p.step === 'reference'), {step: 'reference', reviewed: false, reason: 'detail-step'});
-      const allDetail = project.variants[2]!;
+      const allDetail = project.cases[2]!;
       assert.equal((await narrowOpeningPlan(allDetail, claims)).find(p => p.step === 'comparison')!.reviewed, true,
         'all-detail fallback has a main reading path and cannot silently skip its opening claims');
-      const results = await reviewStoryVariant(page, url, compact, claims);
+      const results = await reviewStoryCase(page, url, compact, claims);
       assert.equal(results.length, 4, 'the existing two-width/all-step matrix remains intact');
-      const fallback = await reviewStoryVariant(page, url, allDetail, claims);
+      const fallback = await reviewStoryCase(page, url, allDetail, claims);
       assert.ok(fallback.find(r => r.step === 'comparison' && r.width === 390)!.openingAt320!.reviewed, 'actual all-detail reader opening is reviewed at 320px');
       const opening = results.find(r => r.step === 'comparison' && r.width === 390)!.openingAt320!;
       assert.ok(opening.reviewed);
@@ -903,7 +903,7 @@ await this.step('reference',{detail:true,caption:'Reference implementation value
         assert.ok(ink.visible && ink.complete && covered(ink.box, [seen.viewport]));
       }
       for (const label of frame.labels) assert.ok(label.size * Math.min(...label.indices.map(index => seen.ink.find(ink => ink.index === index)!.scale)) >= 12 - 1e-6);
-      await assert.rejects(reviewStoryVariant(page, url, wide, claims), /comparison at 320px: .*missing from the opening/);
+      await assert.rejects(reviewStoryCase(page, url, wide, claims), /comparison at 320px: .*missing from the opening/);
 
       const compactFrame = (await storyFrames(compact.Scene, claims)).get('comparison')!;
       assert.deepEqual(compactFrame.labels.map(label => label.text), ['Before 1', 'After 2'], 'only existing heading classification excludes the chrome');
@@ -915,7 +915,7 @@ await this.step('reference',{detail:true,caption:'Reference implementation value
         const paths = [...svg.children].filter(e => e.tagName.toLowerCase() !== 'defs');
         (paths[index] as SVGElement).style.opacity = '0.2';
       }), index);
-      const dimmedResults = await reviewStoryVariant(dimmed, url, compact, claims);
+      const dimmedResults = await reviewStoryCase(dimmed, url, compact, claims);
       assert.equal(dimmedResults.length, 4, 'explicit dimmed subjects still count and must reach the reading size');
       await dimmed.close();
       for (const [property, value, error] of [
@@ -931,7 +931,7 @@ await this.step('reference',{detail:true,caption:'Reference implementation value
           const paths = [...svg.children].filter(e => e.tagName.toLowerCase() !== 'defs');
           (paths[index] as SVGElement).style.setProperty(property, value);
         }), {index, property, value});
-        await assert.rejects(reviewStoryVariant(poisoned, url, compact, claims), error, `${property}: ${value}`);
+        await assert.rejects(reviewStoryCase(poisoned, url, compact, claims), error, `${property}: ${value}`);
         await poisoned.close();
       }
     } finally {
@@ -961,18 +961,18 @@ test('served review rejects hidden reordered and duplicated layers despite a cha
         }
       }`);
     const project = await collectProject(dir, { write: false });
-    assert.equal(project.variants.length, 3);
+    assert.equal(project.cases.length, 3);
     await buildExplainer(project, join(dir, 'layers.html'));
     server = await serve(dir, 0, 'layers.html');
     let baselineRows = 0, rejected = 0;
-    for (const variant of project.variants) {
+    for (const theCase of project.cases) {
       const page = await browser.newPage();
       try {
-        baselineRows += (await reviewStoryVariant(page, server.url + '/layers.html', variant)).length;
+        baselineRows += (await reviewStoryCase(page, server.url + '/layers.html', theCase)).length;
       } finally { await page.close(); }
       const poisoned = await browser.newPage();
       try {
-        const index = variant.values.mode === 'removed' ? 0 : 1;
+        const index = theCase.values.mode === 'removed' ? 0 : 1;
         await poisoned.addInitScript(index => {
           document.addEventListener('rayner:step', event => {
             if ((event as CustomEvent).detail.step !== 'after') return;
@@ -986,8 +986,8 @@ test('served review rejects hidden reordered and duplicated layers despite a cha
             path.style.opacity = '0';
           });
         }, index);
-        await assert.rejects(reviewStoryVariant(poisoned, server.url + '/layers.html', variant),
-          /after: changed: layer-.* has hidden or clipped ink/, variant.values.mode);
+        await assert.rejects(reviewStoryCase(poisoned, server.url + '/layers.html', theCase),
+          /after: changed: layer-.* has hidden or clipped ink/, theCase.values.mode);
         assert.equal(await poisoned.evaluate(() =>
           (window as unknown as { visibleBeforePoison: boolean }).visibleBeforePoison), true,
         'each defect starts from actually painted ink');
@@ -1028,7 +1028,7 @@ test('traffic policy reviews every case and step while binding its comparison to
       local: {'Pods a, b and c': '1/3 each (33.3%)', 'Second hop': 'none', 'Pod sees': 'client address'},
     },
   };
-  assert.deepEqual(project.variants.map(v => [v.values.policy, v.values.pods]).sort(),
+  assert.deepEqual(project.cases.map(v => [v.values.policy, v.values.pods]).sort(),
     ['cluster', 'local'].flatMap(policy => Object.keys(facts).map(pods => [policy, pods])).sort());
   const dir = await mkdtemp(join(tmpdir(), 'rayner-traffic-subjects-'));
   const browser = await launch();
@@ -1039,10 +1039,10 @@ test('traffic policy reviews every case and step while binding its comparison to
     const url = server.url + '/traffic.html';
     const page = await browser.newPage();
     let reviewed = 0, compared = 0, readableLabels = 0;
-    for (const variant of project.variants) {
-      const expected = facts[variant.values.pods!]!;
+    for (const theCase of project.cases) {
+      const expected = facts[theCase.values.pods!]!;
       let inspected = 0;
-      await new variant.Scene({async frame() {}, async stepEnd(scene, step) {
+      await new theCase.Scene({async frame() {}, async stepEnd(scene, step) {
         if (step.name !== 'compare') return;
         const cards = scene.familyMembers().filter((m): m is InstanceType<typeof Card> =>
           m instanceof Card && !!m.key?.startsWith('traffic-compare:'));
@@ -1056,21 +1056,21 @@ test('traffic policy reviews every case and step while binding its comparison to
         inspected++;
       }}, {skipUntil: Infinity}).run();
       assert.equal(inspected, 1, 'every case has one factual policy comparison');
-      const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v));
-      const frame = (await storyFrames(variant.Scene, applicable)).get('compare')!;
+      const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v));
+      const frame = (await storyFrames(theCase.Scene, applicable)).get('compare')!;
       assert.deepEqual(frame.targets.filter(t => ['traffic-compare:cluster', 'traffic-compare:local'].includes(t.name)).map(t => t.name).sort(),
         ['traffic-compare:cluster', 'traffic-compare:local']);
       assert.ok(!frame.targets.some(t => t.name.startsWith('changed:')), 'independent facts take priority over incidentally revealed context');
-      const rows = await reviewStoryVariant(page, url, variant, claims);
+      const rows = await reviewStoryCase(page, url, theCase, claims);
       assert.deepEqual(rows.map(r => [r.width, r.step]),
-        [390, 1180].flatMap(width => variant.trace.steps.map(s => [width, s.step])));
+        [390, 1180].flatMap(width => theCase.trace.steps.map(s => [width, s.step])));
       reviewed += rows.length;
       const cardIndices = new Set(frame.targets.filter(t => t.name.startsWith('traffic-compare:')).flatMap(t => t.indices));
       const labels = frame.labels.filter(label => label.indices.some(index => cardIndices.has(index)));
       assert.ok(labels.length >= 8, 'both cards contain their policy heading and factual rows');
       for (const width of [390, 1180]) {
         await page.setViewportSize({width, height: width === 390 ? 844 : 980});
-        await page.goto(url + '?' + new URLSearchParams({...variant.values, step: 'compare'}));
+        await page.goto(url + '?' + new URLSearchParams({...theCase.values, step: 'compare'}));
         await page.waitForSelector('[data-ready=true]');
         await page.waitForFunction(() => !document.querySelector('#content.loading'));
         const views = [await inspectStoryFrame(page, frame)];
@@ -1089,7 +1089,7 @@ test('traffic policy reviews every case and step while binding its comparison to
             const ink = view.ink.find(ink => ink.index === index)!;
             return ink.visible && ink.complete && covered(ink.box, [view.viewport]) && label.size * ink.scale >= 12 - 1e-6;
           }));
-          assert.ok(readable, `${JSON.stringify(variant.values)} at ${width}: ${label.text} is complete and at least 12px in one reachable view`);
+          assert.ok(readable, `${JSON.stringify(theCase.values)} at ${width}: ${label.text} is complete and at least 12px in one reachable view`);
           readableLabels++;
         }
         compared++;
@@ -1103,12 +1103,12 @@ test('traffic policy reviews every case and step while binding its comparison to
     // obligation: an old diagram becomes visible when its notes are removed.
     const oldInference = await browser.newPage();
     try {
-      await assert.rejects(reviewStoryVariant(oldInference, url, project.variants[0]!, claims.filter(c => c.step !== 'compare')),
+      await assert.rejects(reviewStoryCase(oldInference, url, project.cases[0]!, claims.filter(c => c.step !== 'compare')),
         /compare.*changed: drawing is missing from the close-up tour/);
     } finally {await oldInference.close();}
-    const variant = project.variants[0]!;
-    const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v));
-    const frame = (await storyFrames(variant.Scene, applicable)).get('compare')!;
+    const theCase = project.cases[0]!;
+    const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v));
+    const frame = (await storyFrames(theCase.Scene, applicable)).get('compare')!;
     let rejected = 0;
     for (const [width, word] of [[390, 'node address'], [1180, 'client address']] as const) {
       const label = frame.labels.find(label => label.text === word)!;
@@ -1124,7 +1124,7 @@ test('traffic policy reviews every case and step while binding its comparison to
             path.style.opacity = '0';
           });
         }, {width, index});
-        await assert.rejects(reviewStoryVariant(poisoned, url, variant, claims), /compare.*traffic-compare:.*hidden or clipped ink/);
+        await assert.rejects(reviewStoryCase(poisoned, url, theCase, claims), /compare.*traffic-compare:.*hidden or clipped ink/);
         assert.equal(await poisoned.locator('.stage svg:not(.leaving)').evaluate((svg, index) =>
           getComputedStyle([...svg.children].filter(e => e.tagName.toLowerCase() !== 'defs')[index]!).opacity, index), '0',
           'the caption evidence is actually hidden under the served CSP');
@@ -1160,15 +1160,15 @@ const halfCover=new Rectangle({width:3,height:2,fill:'green',stroke:'none'}).mov
 const thinCover=new Rectangle({width:.1,height:2,fill:'yellow',stroke:'none'}).moveTo([2.5,0]).setOpacity(.2);
 const haloCover=new Rectangle({width:4,height:1.4,fill:'orange',stroke:'none'}).moveTo([0,2]).setOpacity(.2);
 this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover,haloCover);}}`);
-    const project = await collectProject(dir, {write: false}), variant = project.variants[0]!;
+    const project = await collectProject(dir, {write: false}), theCase = project.cases[0]!;
     const claims = [{step: 'comparison', opening: true, targets: [{key: 'blue-shape'}, {key: 'label-subject'}]}];
     await buildExplainer(project, join(dir, 'scene.html'));
     server = await serve(dir, 0, 'scene.html');
     const url = server.url + '/scene.html';
-    assert.deepEqual(project.variants.map(v => v.values.channels), ['opacity', 'color']);
+    assert.deepEqual(project.cases.map(v => v.values.channels), ['opacity', 'color']);
     const page = await browser.newPage();
-    for (const sample of project.variants) {
-      const rows = await reviewStoryVariant(page, url, sample, claims);
+    for (const sample of project.cases) {
+      const rows = await reviewStoryCase(page, url, sample, claims);
       const receipt = rows.find(row => row.width === 390)!.openingAt320!;
       assert.ok(receipt.reviewed && receipt.minimumLabelPx! >= 12, 'translucent layers preserve painted facts and the label floor');
       assert.deepEqual(receipt.labels, ['Named value', 'Outline', 'Fill', 'Halo'],
@@ -1192,13 +1192,13 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover,haloCover);}}`
           cover.style.opacity = '1';
           (window as unknown as {occlusionControl: string[]}).occlusionControl = [before, getComputedStyle(cover).opacity];
         }), which);
-        await assert.rejects(reviewStoryVariant(poisoned, url, variant, claims), missing, which);
+        await assert.rejects(reviewStoryCase(poisoned, url, theCase, claims), missing, which);
         assert.deepEqual(await poisoned.evaluate(() =>
           (window as unknown as {occlusionControl: string[]}).occlusionControl), ['0.2', '1'],
         'the cover begins translucent, and CSSOM poison applies under the served CSP');
       } finally { await poisoned.close(); }
     }
-    const frame = (await storyFrames(variant.Scene, claims)).get('comparison')!;
+    const frame = (await storyFrames(theCase.Scene, claims)).get('comparison')!;
     const labelIndices = frame.labels.find(label => label.text === 'Named value')!.indices;
     const shapeIndices = frame.targets.find(target => target.name === 'blue-shape')!.indices;
     for (const effect of ['mask', 'filter', 'ancestor-filter', 'path', 'shape-mask', 'shape-path', 'gradient', 'round-clip'] as const) {
@@ -1241,7 +1241,7 @@ this.add(shape,labelled,shapeCover,labelCover,halfCover,thinCover,haloCover);}}`
             roundClip ? getComputedStyle(roundClip).getPropertyValue('rx') : getComputedStyle(target).getPropertyValue(
               effect.endsWith('mask') ? 'mask-image' : effect.endsWith('path') ? 'd' : effect === 'gradient' ? 'fill' : 'filter')];
         }), {effect, indices: effect.startsWith('shape-') ? shapeIndices : labelIndices});
-        await assert.rejects(reviewStoryVariant(poisoned, url, variant, claims), effect.endsWith('path')
+        await assert.rejects(reviewStoryCase(poisoned, url, theCase, claims), effect.endsWith('path')
           ? /(?:label Named value|blue-shape): CSS overrides declared subject path/
           : effect === 'gradient' ? /label Named value: unsupported paint server/
           : effect === 'round-clip' ? /label-subject has hidden or clipped ink/
@@ -1272,7 +1272,7 @@ emphasises(this,()=>[[outline,'same region, newly focused']]);}}`);
     await buildExplainer(project, join(dir, 'scene.html'));
     server = await serve(dir, 0, 'scene.html');
     const page = await browser.newPage();
-    const rows = await reviewStoryVariant(page, server.url + '/scene.html', project.variants[0]!,
+    const rows = await reviewStoryCase(page, server.url + '/scene.html', project.cases[0]!,
       [{step: 'outlined', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Region'}]},
         {step: 'refocus', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Area'}]}]);
     assert.deepEqual(rows.map(row => [row.step, row.width]), [['outlined', 390], ['refocus', 390], ['outlined', 1180], ['refocus', 1180]]);

@@ -8,16 +8,16 @@ import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { reviewClaims } from '../../tools/lib/explain-review-scene.ts';
-import { reviewStoryVariant, storyFrames, inspectStoryFrame, covered } from '../../tools/lib/explain-story-review.ts';
+import { reviewStoryCase, storyFrames, inspectStoryFrame, covered } from '../../tools/lib/explain-story-review.ts';
 const enabled = !!process.env.EXPLAIN_BROWSER;
 test(
   'the served reader skips optional notes, preserves direct links and returns to the last main step',
   { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for reference navigation' },
   async () => {
     const project = await collectProject('test/fixtures/reference-steps', { write: false });
-    assert.equal(project.variants.length, 3);
+    assert.equal(project.cases.length, 3);
     assert.deepEqual(
-      project.variants[0]!.trace.steps.map((s) => s.step),
+      project.cases[0]!.trace.steps.map((s) => s.step),
       ['alpha', 'note', 'omega', 'source'],
       'full verification retains every step',
     );
@@ -123,7 +123,7 @@ test(
   { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for seasons reference tours' },
   async () => {
     const project = await collectProject('scenes/explainers/seasons', { write: false });
-    assert.equal(project.variants.length, 4);
+    assert.equal(project.cases.length, 4);
     const claims = await reviewClaims(project);
     const expected = {
       tromso: { name: 'Tromsø', formula: '90° − |69.65° − 23.44°| = 43.79°', june: '24.0 h of daylight', december: ['0.0 h of daylight', 'Noon Sun -3.1°, below the horizon'], january: '0.0 h', other: '24.0 h',
@@ -143,20 +143,20 @@ test(
       server = await serve(folder, 0, 'seasons.html');
       browser = await launch();
       const page = await browser.newPage();
-      for (const variant of project.variants) {
+      for (const theCase of project.cases) {
         // The complete existing reviewer must still accept every main and
         // detail step. Before the subject declarations it rejects the noon
         // globe revealed incidentally when the old callout disappears.
-        const reviewed = await reviewStoryVariant(page, `${server.url}/seasons.html`, variant, claims);
+        const reviewed = await reviewStoryCase(page, `${server.url}/seasons.html`, theCase, claims);
         // Nine steps, each reviewed on two stages; the compare step's curves now sit in distance.
         assert.equal(reviewed.length, 18);
         formalRows += reviewed.length;
-        const applicable = claims.filter((claim) => Object.entries(claim.settings ?? {}).every(([key, value]) => variant.values[key] === value));
-        const frames = await storyFrames(variant.Scene, applicable);
-        const values = expected[variant.values.place as keyof typeof expected];
+        const applicable = claims.filter((claim) => Object.entries(claim.settings ?? {}).every(([key, value]) => theCase.values[key] === value));
+        const frames = await storyFrames(theCase.Scene, applicable);
+        const values = expected[theCase.values.place as keyof typeof expected];
         await page.setViewportSize({ width: 320, height: 568 });
         for (const step of ['noon', 'december', 'spread', 'latitude', 'distance']) {
-          await page.goto(`${server.url}/seasons.html?${new URLSearchParams({ ...variant.values, step })}`);
+          await page.goto(`${server.url}/seasons.html?${new URLSearchParams({ ...theCase.values, step })}`);
           await page.waitForFunction((name) => (window as unknown as { raynerReviewStep: string }).raynerReviewStep === name &&
             !document.querySelector('#content.loading') && !document.querySelector('svg.leaving'), step);
           const frame = frames.get(step)!;
@@ -182,7 +182,7 @@ test(
                 ? ['spread-ground', 'spread-december', 'spread-june']
               : step === 'latitude'
                 ? ['june-latitude', 'december-latitude', 'latitude-circles', 'june-daylight-table', 'december-daylight-table', `emphasis: row ${values.name}`, `emphasis: row ${values.name}`]
-                : ['effect-bars', 'daylight-curve', 'january-point', 'january-value', ...(variant.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
+                : ['effect-bars', 'daylight-curve', 'january-point', 'january-value', ...(theCase.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
           assert.deepEqual(frame.targets.map((target) => target.name).sort(), [...expectedKeys].sort());
           const indices = new Set(frame.targets.flatMap((target) => target.indices));
           for (const target of frame.targets) for (const index of target.indices) {
@@ -190,9 +190,9 @@ test(
               const paint = view.ink.find((ink) => ink.index === index)!;
               return paint.visible && paint.complete;
             });
-            assert.ok(eligible.length, `${variant.values.place}/${step}/320: ${target.name} needs complete native paint`);
+            assert.ok(eligible.length, `${theCase.values.place}/${step}/320: ${target.name} needs complete native paint`);
             const paint = eligible[0]!.ink.find((ink) => ink.index === index)!;
-            assert.ok(covered(paint.box, eligible.map((view) => view.viewport)), `${variant.values.place}/${step}/320: ${target.name}: the reachable tour must cover all claimed ink (${JSON.stringify(paint.box)} in ${JSON.stringify(eligible.map((view) => view.viewport))})`);
+            assert.ok(covered(paint.box, eligible.map((view) => view.viewport)), `${theCase.values.place}/${step}/320: ${target.name}: the reachable tour must cover all claimed ink (${JSON.stringify(paint.box)} in ${JSON.stringify(eligible.map((view) => view.viewport))})`);
           }
           const labels = frame.labels.filter((label) => label.indices.some((index) => indices.has(index)));
           const words = step === 'noon' ? ['horizon', 'noon sunlight', values.formula]
@@ -210,7 +210,7 @@ test(
             const pixels = Math.max(...eligible.map((view) => label.size * Math.min(...label.indices.map((index) => view.ink.find((paint) => paint.index === index)!.scale))));
             // SVG viewBox rounding can move a 12px result by a few millionths
             // of a CSS pixel; use the same native tolerance as transformed-text proof.
-            assert.ok(pixels >= 12 - 1e-5, `${variant.values.place}/${step}: ${label.text} complete native type is ${pixels}px`);
+            assert.ok(pixels >= 12 - 1e-5, `${theCase.values.place}/${step}: ${label.text} complete native type is ${pixels}px`);
           }
           assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
           phoneRows++;

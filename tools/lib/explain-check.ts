@@ -504,10 +504,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.deepEqual(lint, [], lint.join('\n'));
   await mkdir(out, { recursive: true });
   await useProjectLettering(project);
-  const variants = [];
+  const cases = [];
   // The lettering the page carries, once for every case: the bare runtime below runs it
   const shipped = project.outlineLettering ? JSON.stringify(await pageSnapshot(project.outlineLettering)) : '';
-  for (const v of project.variants) {
+  for (const v of project.cases) {
     const where = `in ${caseName(project.Scene, v.values) || 'the scene'}`;
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
     const invariants = new InvariantSink();
@@ -644,7 +644,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.ok(result.svg.includes('<path'), bare);
     const script = scriptReport(project.Scene.meta, v.trace.steps);
     assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
-    variants.push({
+    cases.push({
       settings: v.values,
       trace: v.trace,
       steps: v.trace.steps.length,
@@ -687,12 +687,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   // A declared claim must be stated by some case and held by a test that is there.
   const claimProblems = await declaredClaimProblems(
     checkClaimsMeta(project.Scene.meta),
-    variants.flatMap((v) => v.claims.stated),
+    cases.flatMap((v) => v.claims.stated),
   );
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
-    variants,
+    cases,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,
     ...(project.outlineLettering ? { lettering: await letteringWeight(project.outlineLettering) } : {}),

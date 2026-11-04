@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
-import { collectProject, defaultVariant, sceneSlug, ROOT } from './lib/explain-project.ts';
+import { collectProject, defaultCase, sceneSlug, ROOT } from './lib/explain-project.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
 
@@ -106,7 +106,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       JSON.stringify(
         {
           scene: slug,
-          variants: project.variants.length,
+          cases: project.cases.length,
           diagrams: Object.keys(project.store).length,
           replayedEdits: project.edits,
         },
@@ -131,24 +131,24 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     return;
   }
   /** The case every --case id=value chooses, other settings at their defaults. */
-  function selectedVariant() {
+  function selectedCase() {
     const values: Record<string, string> = {};
     for (const assignment of flags.case ?? []) {
       const at = assignment.indexOf('=');
       if (at < 1) throw new Error('--case requires id=value');
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
-    return defaultVariant(project, values);
+    return defaultCase(project, values);
   }
   if (command === 'see') {
     const { see } = await import('./lib/explain-see.ts');
-    console.log(await see(project, selectedVariant(), step, flags.out));
+    console.log(await see(project, selectedCase(), step, flags.out));
     return;
   }
   if (command === 'shots') {
     const { contactSheet } = await import('./lib/explain-shots.ts');
     console.log(
-      await contactSheet(project, flags.out ?? resolve('out/shots', slug + '.png'), selectedVariant()),
+      await contactSheet(project, flags.out ?? resolve('out/shots', slug + '.png'), selectedCase()),
     );
     return;
   }
@@ -156,7 +156,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const result = await buildExplainer(project, out);
   await buildLoader(join(dirname(resolve(out)), 'loader.js'));
   console.log(
-    `Built ${out} (${Math.round(Buffer.byteLength(result.html) / 1024)} KiB; ${project.variants.length} cases)`,
+    `Built ${out} (${Math.round(Buffer.byteLength(result.html) / 1024)} KiB; ${project.cases.length} cases)`,
   );
   if (command === 'preview') {
     // The page is served from disk with its header recipe, so a rebuild shows on reload.
@@ -179,7 +179,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
             try {
               const next = await collectProject(input!, collection);
               await buildExplainer(next, out);
-              console.log(`Rebuilt ${slug}: ${next.variants.length} cases`);
+              console.log(`Rebuilt ${slug}: ${next.cases.length} cases`);
             } catch (error) {
               console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
             }

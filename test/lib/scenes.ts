@@ -12,7 +12,7 @@ import { labelOf } from '../../explain/diagrams.ts';
 import { Card } from '../../explain/panels.ts';
 import { toView } from '../../app/embed-closeup.ts';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
-import { collectProject, defaultVariant, ROOT } from '../../tools/lib/explain-project.ts';
+import { collectProject, defaultCase, ROOT } from '../../tools/lib/explain-project.ts';
 
 export class Fixture extends Scene {
   override async construct() {
@@ -51,7 +51,7 @@ export class Fixture extends Scene {
 const loaded = new Map<string, Promise<SceneClass>>();
 export const explainer = (id: string): Promise<SceneClass> => {
   if (!loaded.has(id))
-    loaded.set(id, collectProject(join(ROOT, 'scenes/explainers', id), { write: false }).then((p) => defaultVariant(p).Scene));
+    loaded.set(id, collectProject(join(ROOT, 'scenes/explainers', id), { write: false }).then((p) => defaultCase(p).Scene));
   return loaded.get(id)!;
 };
 // One at a time, so the order of collection, and anything a project leaves behind, is the same on

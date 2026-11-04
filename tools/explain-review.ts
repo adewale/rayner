@@ -21,7 +21,7 @@ import {
   reviewCodeHash,
   validateReviewedCases,
 } from './lib/explain-review-plan.ts';
-import { reviewStoryVariant} from './lib/explain-story-review.ts';
+import { reviewStoryCase} from './lib/explain-story-review.ts';
 import { checkBuilt } from './lib/explain-site-describe.ts';
 import { reviewClaims } from './lib/explain-review-scene.ts';
 
@@ -79,16 +79,16 @@ try {
       `${entry.id}: rebuild stale collection output before reviewing`,
     );
     let selected = 0;
-    for (const [index, variant] of project.variants.entries()) {
+    for (const [index, theCase] of project.cases.entries()) {
       selected++;
       const directory = join(review, 'story', entry.id, String(index));
       await mkdir(directory, { recursive: true });
       const t = chromeFor(project.Scene.meta?.lang);
-      const teaching = variant.trace.steps.some(s => s.meta.detail !== true) ? variant.trace.steps.filter(s => s.meta.detail !== true) : variant.trace.steps;
-      const steps = await reviewStoryVariant(
+      const teaching = theCase.trace.steps.some(s => s.meta.detail !== true) ? theCase.trace.steps.filter(s => s.meta.detail !== true) : theCase.trace.steps;
+      const steps = await reviewStoryCase(
         page,
         `${base}/${entry.id}.html`,
-        variant,
+        theCase,
         claims,
         directory,
         { chrome: readerChrome(t), home: PRODUCT.home, cases: project.Scene.settings?.length ?? 0, steps: teaching.map(s => s.step),
@@ -96,7 +96,7 @@ try {
             kicker: t.stepOf(1, teaching.length), segments: teaching.length, cases: project.Scene.settings?.length ?? 0,
             madeWith: t.madeWith, home: PRODUCT.home, open: null } },
       );
-      cases.push({ scene: entry.id, settings: variant.values, steps });
+      cases.push({ scene: entry.id, settings: theCase.values, steps });
     }
     if (selected) console.log(`${entry.id}: ${selected} selected cases, every resting step passed both widths`);
   }

@@ -30,7 +30,7 @@ const row: StoryClaim['targets'] = [
 before(async () => {
   if (!enabled) return;
   project = await collectProject('scenes/explainers/ring-buffer', { write: false });
-  assert.equal(project.variants.length, 2);
+  assert.equal(project.cases.length, 2);
   folder = await mkdtemp(join(tmpdir(), 'rayner-ring-reader-'));
   await buildExplainer(project, join(folder, 'ring.html'));
   server = await serve(folder, 0, 'ring.html');
@@ -45,14 +45,14 @@ after(async () => {
 
 test('both operation cases open with the whole array queue: both rows, every slot and the pop’s result', options, async () => {
   let openings = 0, checkedTargets = 0;
-  for (const variant of project.variants) {
+  for (const theCase of project.cases) {
     const claims = steps.map((step) => ({
       step, opening: true,
       targets: row,
     }));
-    const frames = await storyFrames(variant.Scene, claims);
+    const frames = await storyFrames(theCase.Scene, claims);
     const minimum = new Map<string, number>();
-    await new variant.Scene({
+    await new theCase.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (!steps.includes(step.name)) return;
@@ -68,8 +68,8 @@ test('both operation cases open with the whole array queue: both rows, every slo
       }));
       try {
         for (const step of steps) {
-          const caseName = `${variant.values.operations}/${step}/${viewport.width}`;
-          await page.goto(`${server.url}/ring.html?${new URLSearchParams({ ...variant.values, step })}`);
+          const caseName = `${theCase.values.operations}/${step}/${viewport.width}`;
+          await page.goto(`${server.url}/ring.html?${new URLSearchParams({ ...theCase.values, step })}`);
           await page.waitForSelector('[data-ready=true]');
           await page.waitForFunction((name) => (window as unknown as { ringStep: string }).ringStep === name &&
             !document.querySelector('#content.loading') && !document.querySelector('svg.leaving'), step);

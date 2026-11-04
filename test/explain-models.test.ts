@@ -394,14 +394,14 @@ import { withSettings as viewSettings } from '../explain/index.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 test('state-machine: its Session card shows the traced state at every step, in every case', async () => {
   const project = await collectViewProject('scenes/explainers/state-machine', { write: false });
-  for (const variant of project.variants) {
+  for (const theCase of project.cases) {
     const checked = await viewFollowsState(
-      variant.Scene,
+      theCase.Scene,
       (scene) => (scene as unknown as { readout?: StateView }).readout,
     );
-    const expected=variant.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
-    assert.deepEqual(variant.trace.steps.filter(s=>s.meta.detail===true).map(s=>s.step),expected);
-    assert.equal(checked, expected.length, `${JSON.stringify(variant.values)}: the Session card is checked at every program-walkthrough step`);
+    const expected=theCase.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
+    assert.deepEqual(theCase.trace.steps.filter(s=>s.meta.detail===true).map(s=>s.step),expected);
+    assert.equal(checked, expected.length, `${JSON.stringify(theCase.values)}: the Session card is checked at every program-walkthrough step`);
   }
 });
 test('ring-buffer views show the traced state at every step, in both cases', async () => {

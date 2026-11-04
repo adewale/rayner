@@ -4,7 +4,7 @@ import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPLAINERS, PRODUCT, SHOWCASE } from '../scenes/explainers/catalog.ts';
-import { collectProject, defaultVariant, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
+import { collectProject, defaultCase, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { restingTime, htmlEscape, pictureSummary, stepWords } from '../explain/trace.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
@@ -61,15 +61,15 @@ for (const item of items) {
   );
   assert.equal(Buffer.byteLength(html), receipt.bytes, `${item.id}: receipt reports actual page bytes`);
   // The poster uses a representative step of the default case; tile links start at step one.
-  const variant = defaultVariant(project),
-    step = variant.trace.steps.find((s) => s.step === item.step) ?? variant.trace.steps[0]!;
+  const theCase = defaultCase(project),
+    step = theCase.trace.steps.find((s) => s.step === item.step) ?? theCase.trace.steps[0]!;
   await writeFile(
     join(directory, item.id + '.png'),
-    await stillPng(variant.Scene, restingTime(step, variant.trace.fps), 960),
+    await stillPng(theCase.Scene, restingTime(step, theCase.trace.fps), 960),
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });
-  const pictured = variant.trace.steps.filter((x) => !x.meta.detail && shareable(x.step));
+  const pictured = theCase.trace.steps.filter((x) => !x.meta.detail && shareable(x.step));
   const share: ShareManifest = {
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -99,27 +99,27 @@ for (const item of items) {
   );
   const claims = await reviewClaims(project);
   const narrowOpenings = [];
-  for (const variant of project.variants)
-    narrowOpenings.push({ settings: variant.values, steps: await narrowOpeningPlan(variant, claims) });
+  for (const theCase of project.cases)
+    narrowOpenings.push({ settings: theCase.values, steps: await narrowOpeningPlan(theCase, claims) });
   evidence.push({
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
     lang: project.Scene.meta?.lang ?? 'en',
-    cases: project.variants.map((v) => v.values),
+    cases: project.cases.map((v) => v.values),
     narrowOpenings,
     diagrams: Object.keys(project.store).length,
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],
     entry: {
-      step: variant.trace.steps.find((step) => !step.meta.detail)?.step ?? variant.trace.steps[0]!.step,
-      settings: variant.values,
+      step: theCase.trace.steps.find((step) => !step.meta.detail)?.step ?? theCase.trace.steps[0]!.step,
+      settings: theCase.values,
     },
     sourceHash: project.sourceHash,
     engineHash: project.engineHash,
     snapshotHashes: baseReceipt(project).snapshotHashes,
   });
   console.log(
-    `${item.id}: ${project.variants.length} cases · ${Object.keys(project.store).length} diagrams${check ? ' · checks passed' : ''}`,
+    `${item.id}: ${project.cases.length} cases · ${Object.keys(project.store).length} diagrams${check ? ' · checks passed' : ''}`,
   );
 }
 await buildLoader(join(directory, 'loader.js'));

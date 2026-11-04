@@ -10,7 +10,7 @@ import { ROOT, hash, loadScene } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { serve } from './explain-serve.ts';
 import { launch } from './browser.ts';
-import { reviewStoryVariant } from './explain-story-review.ts';
+import { reviewStoryCase } from './explain-story-review.ts';
 import type { StoryClaim } from './explain-story-review.ts';
 
 /** Independent caption expectations belong beside the author's scene, outside its runtime. */
@@ -35,10 +35,10 @@ export async function reviewClaims(project: Project, file?: string): Promise<Sto
       assert.ok(object(target) && ((typeof target.key === 'string' && !!target.key.trim() && target.text === undefined) ||
         (typeof target.text === 'string' && !!target.text.trim() && target.key === undefined)) &&
         (target.paint === undefined || target.paint === 'stroke') && Object.keys(target).every(key => ['key', 'text', 'paint'].includes(key)), `${path}: targets need a key or text, with optional paint: "stroke"`);
-    const applicable = project.variants.filter(v => Object.entries(claim.settings ?? {}).every(([key, value]) => v.values[key] === value));
+    const applicable = project.cases.filter(v => Object.entries(claim.settings ?? {}).every(([key, value]) => v.values[key] === value));
     assert.ok(applicable.length, `${path}: claim settings select no case`);
-    for (const variant of applicable)
-      assert.ok(variant.trace.steps.some(s => s.step === claim.step), `${path}: ${claim.step} is missing from a selected case`);
+    for (const theCase of applicable)
+      assert.ok(theCase.trace.steps.some(s => s.step === claim.step), `${path}: ${claim.step} is missing from a selected case`);
   }
   return value.claims as StoryClaim[];
 }
@@ -71,10 +71,10 @@ export async function reviewScene(project: Project, directory: string, claimsFil
     });
     const results = [];
     try {
-      for (const [index, variant] of project.variants.entries()) {
+      for (const [index, theCase] of project.cases.entries()) {
         const output = join(directory, String(index));
         await mkdir(output, { recursive: true });
-        results.push({ settings: variant.values, steps: await reviewStoryVariant(page, server.url + '/scene.html', variant, claims, output) });
+        results.push({ settings: theCase.values, steps: await reviewStoryCase(page, server.url + '/scene.html', theCase, claims, output) });
       }
       assert.deepEqual(errors, [], 'reader console errors');
       assert.deepEqual(connections, [], 'reader external connections');

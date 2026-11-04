@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Browser, Page, Frame } from 'playwright-core';
 import { launch } from '../../tools/lib/browser.ts';
-import { collectProject, defaultVariant } from '../../tools/lib/explain-project.ts';
+import { collectProject, defaultCase } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer, buildLoader } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
@@ -208,15 +208,15 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
       ['latest-search', ['reader-guard']],
     ] as const) {
       const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-      const variant = defaultVariant(project);
+      const theCase = defaultCase(project);
       await buildExplainer(project, join(folder, `${id}-heading.html`));
       const claims = (await reviewClaims(project)).filter((c) =>
-        Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v),
+        Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v),
       );
-      const frames = await storyFrames(variant.Scene, claims);
-      const layouts = await stepLayouts(variant.Scene);
+      const frames = await storyFrames(theCase.Scene, claims);
+      const layouts = await stepLayouts(theCase.Scene);
       for (const step of names) {
-        await visitReader(page, `${embed}/${id}-heading.html?${new URLSearchParams({ ...variant.values, step })}`);
+        await visitReader(page, `${embed}/${id}-heading.html?${new URLSearchParams({ ...theCase.values, step })}`);
         await page.waitForFunction(() => !document.querySelector('svg.leaving'));
         const frame = frames.get(step)!,
           seen = await inspectStoryFrame(page, frame);
@@ -757,7 +757,7 @@ test('arrow keys inside the step bar move the step and the focus', options, asyn
 
 test('pressing the current segment while a step plays rests the picture', options, async () => {
   const p = projects.get('mr-cache')!,
-    step = p.variants.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
+    step = p.cases.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
     motion = (step.hold ?? step.t1!) - step.t0;
   assert.equal(step.step, 'reader-outcome');
   await readerContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, async context => {
@@ -1520,7 +1520,7 @@ test(
       const project = projects.get('mr-cache')!,
         values = resolveSettings(project.Scene, { request: 'miss' });
       const size = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
-      const layout = (await stepLayouts(project.variants.find((v) => v.values.request === values.request)!.Scene)).get('after')!;
+      const layout = (await stepLayouts(project.cases.find((v) => v.values.request === values.request)!.Scene)).get('after')!;
       const tour = closeUps(layout, size.w, size.h);
       const painted = () => settledZoom(page);
       const near = (a: ReturnType<typeof zoomOf>, b: { k: number; x: number; y: number }) =>
@@ -1667,7 +1667,7 @@ test(
         await quiet(small);
         const p = await paintedView(small);
         assert.equal(p.camera, author.camera, 'the phone shows the same author frame');
-        const layout = (await stepLayouts(projects.get('lantern')!.variants[0]!.Scene)).get('begin');
+        const layout = (await stepLayouts(projects.get('lantern')!.cases[0]!.Scene)).get('begin');
         const want = closeUps(layout, p.w, p.h)[0]!,
           got = zoomOf(p);
         if (want.k === 1) assert.equal(got, null);
@@ -1768,7 +1768,7 @@ interface PlayerReal {
 const settingsOfProject = (p: Project) => p.Scene.settings ?? [];
 const sameCase = (p: Project, a: Settings, b: Settings) => settingsOfProject(p).every((s) => a[s.id] === b[s.id]);
 function stepsOf(p: Project, values: Settings): StepSpec[] {
-  const v = p.variants.find((v) => sameCase(p, v.values, values));
+  const v = p.cases.find((v) => sameCase(p, v.values, values));
   assert.ok(v, `no prebuilt case ${JSON.stringify(values)}`);
   return v.trace.steps.map((s) => ({
     detail: s.meta.detail === true,
@@ -2114,7 +2114,7 @@ const layoutCache = new Map<string, Promise<Map<string, StepLayout>>>();
 /** A case's step layouts, worked out in Node as the page works them out. */
 function layoutsOf(p: Project, values: Settings) {
   const key = JSON.stringify([p.file, values]);
-  if (!layoutCache.has(key)) layoutCache.set(key, stepLayouts(p.variants.find((v) => sameCase(p, v.values, values))!.Scene));
+  if (!layoutCache.has(key)) layoutCache.set(key, stepLayouts(p.cases.find((v) => sameCase(p, v.values, values))!.Scene));
   return layoutCache.get(key)!;
 }
 /** The close-ups of the current step on this stage. */
@@ -2390,7 +2390,7 @@ const urlText = fc.string({
   ),
 });
 function initialArb(p: Project) {
-  const names = [...new Set(p.variants.flatMap((v) => v.trace.steps.map((s) => s.step)))];
+  const names = [...new Set(p.cases.flatMap((v) => v.trace.steps.map((s) => s.step)))];
   return fc.record({
     values: fc.tuple(
       ...settingsOfProject(p).map((s) =>
@@ -2734,7 +2734,7 @@ test(
     for (const name of ['mr-cache', 'exgit', 'oauth-pkce']) {
       const p = projects.get(name)!;
       // mr-cache's two cases, exgit's first and PKCE's with the attacker (issue #21): diagram, code and card changes.
-      const cases = name === 'mr-cache' ? p.variants : name === 'exgit' ? p.variants.slice(0, 1) : p.variants.filter((v) => v.values.attacker === 'yes');
+      const cases = name === 'mr-cache' ? p.cases : name === 'exgit' ? p.cases.slice(0, 1) : p.cases.filter((v) => v.values.attacker === 'yes');
       for (const v of cases) {
         const list = v.trace.steps,
           layouts = await stepLayouts(v.Scene);
@@ -2803,7 +2803,7 @@ test(
 // now goes first to what the step emphasised, so one press, by touch or by keyboard, shows each.
 test('phone: one press of Next view shows what PKCE\'s captions point at, emphasised close-ups first', options, async () => {
   const p = projects.get('oauth-pkce')!,
-    v = p.variants.find((c) => c.values.attacker === 'yes')!,
+    v = p.cases.find((c) => c.values.attacker === 'yes')!,
     layouts = await stepLayouts(v.Scene);
   const evidence: Record<string, Box> = {
     secret: await restingBox(v.Scene, 'secret', (scene) => wordsOutsideCards(scene, 'code_verifier', 'SHA-256')),
@@ -2861,7 +2861,7 @@ test(
     // mr-cache has both paths: its teaching steps and, under them, its source notes.
     const name = 'mr-cache',
       p = projects.get(name)!,
-      v = p.variants[0]!,
+      v = p.cases[0]!,
       lists = [v.trace.steps.filter(s => s.meta.detail !== true), v.trace.steps.filter(s => s.meta.detail === true)];
     for (const list of lists) {
     assert.ok(list.length >= 2);
@@ -2954,7 +2954,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
     options,
     async () => {
       const choices = new Map(projects).set('playback-probe', playbackProbe);
-      const starts = ['oauth-pkce', 'exgit', 'mr-cache', 'playback-probe'].flatMap(name => choices.get(name)!.variants.flatMap(v => v.trace.steps.map(step => ({ name, values: v.values, step: step.step }))));
+      const starts = ['oauth-pkce', 'exgit', 'mr-cache', 'playback-probe'].flatMap(name => choices.get(name)!.cases.flatMap(v => v.trace.steps.map(step => ({ name, values: v.values, step: step.step }))));
       const early = fc.array(fc.constantFrom('Next step', 'Previous step', 'Whole picture', 'Copy link', 'Zoom in', 'Zoom out', 'ArrowRight', 'ArrowLeft', '+', '0'), {
         minLength: 1,
         maxLength: 8,
@@ -3040,7 +3040,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
               {
                 burst: actions as { action: Burst; gap: number }[],
                 settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })),
-                paths: p.variants.map(v=>{const list=stepsOf(p,v.values);return {values:v.values,raw:list.map(s=>s.step),next:Object.fromEntries(list.map((s,i)=>[s.step,list[neighbour(list,i,1)]!.step]))};}),
+                paths: p.cases.map(v=>{const list=stepsOf(p,v.values);return {values:v.values,raw:list.map(s=>s.step),next:Object.fromEntries(list.map((s,i)=>[s.step,list[neighbour(list,i,1)]!.step]))};}),
               },
             ));
             await scheduler.waitFor(stepReady(page, ids));
@@ -3287,9 +3287,9 @@ test(
 // Exercise the visible route to that evidence, rather than only asserting the zoom scale.
 test('PKCE mobile views expose the derivation and the unsent verifier without advancing the step', options, async () => {
   const project = projects.get('oauth-pkce')!;
-  for (const variant of project.variants) {
+  for (const theCase of project.cases) {
     const targets = new Map<string, number[][]>();
-    await new variant.Scene({
+    await new theCase.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (!['secret', 'authorize'].includes(step.name)) return;
@@ -3307,10 +3307,10 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         targets.set(step.name, found);
       },
     }, { skipUntil: Infinity }).run();
-    await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: variant.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
+    await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: theCase.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
 
       const page = await context.newPage();
-      await visitReader(page, `${embed}/oauth-pkce.html?attacker=${variant.values.attacker}&step=secret`);
+      await visitReader(page, `${embed}/oauth-pkce.html?attacker=${theCase.values.attacker}&step=secret`);
       for (const step of ['secret', 'authorize']) {
         if (step === 'authorize') await page.locator('.stepper').getByRole('button', { name: 'Next step', exact: true }).click();
         await quiet(page);
@@ -3358,9 +3358,9 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
 
 
 test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection arrows visible on a phone', options, async () => {
-  const variant = projects.get('oauth-pkce')!.variants.find((v) => v.values.attacker === 'yes')!;
+  const theCase = projects.get('oauth-pkce')!.cases.find((v) => v.values.attacker === 'yes')!;
   const ids = ['message:S->X#0', 'message:X->S#0', 'message:S->X#1'];
-  const boxes = await restingBox(variant.Scene, 'attack', (scene) => {
+  const boxes = await restingBox(theCase.Scene, 'attack', (scene) => {
     const arrows = scene.familyMembers().filter((m) => ids.includes(m.key ?? ''));
     assert.equal(arrows.length, 3, 'all three narrative arrows must exist');
     return arrows;
@@ -3390,7 +3390,7 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
 
 test('source tours show the token-cap calculation and terminal rejection in every case', options, async () => {
   const {reviewClaims} = await import('../../tools/lib/explain-review-scene.ts');
-  const {storyFrames,reviewStoryVariant,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
+  const {storyFrames,reviewStoryCase,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
     'token-bucket': ['request:R9','arrival:R9','request:R10','arrival:R10','balance:refill:R10',
       'balance:found:R10','balance:spend:R10','balance:cap','balance:label','balance:value'],
@@ -3403,16 +3403,16 @@ test('source tours show the token-cap calculation and terminal rejection in ever
   try {
     for(const id of ['token-bucket','state-machine'] as const){
       const project = projects.get(id) ?? await collectProject(`scenes/explainers/${id}`,{write:false});
-      assert.deepEqual(project.variants.map(v=>v.values),id==='token-bucket'?
+      assert.deepEqual(project.cases.map(v=>v.values),id==='token-bucket'?
         [{rate:'1'},{rate:'2'},{rate:'4'}]:[{events:'success'},{events:'failure'}]);
       if(!projects.has(id))await buildExplainer(project,join(folder,`${id}.html`));
       const sourceStep = id==='token-bucket'?'later':'terminal';
       const companion = await reviewClaims(project);
       assert.deepEqual(companion.filter(c=>c.step===sourceStep&&!c.settings).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
       const claims = await reviewClaims(project);
-      for(const variant of project.variants){
+      for(const theCase of project.cases){
         let nativeChecked=false;
-        await new variant.Scene({async frame(){},async stepEnd(scene,step){
+        await new theCase.Scene({async frame(){},async stepEnd(scene,step){
           if(step.name!==sourceStep)return;
           const members=scene.familyMembers();
           const keyed=(key:string)=>{
@@ -3424,7 +3424,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
           };
           if(id==='token-bucket'){
             // R10 arrives at 5 s: 4 tokens at 1 / s; 2 and 4 / s reach the cap of five.
-            const rate=variant.values.rate!, found={1:4,2:5,4:5}[rate as '1'|'2'|'4']!,
+            const rate=theCase.values.rate!, found={1:4,2:5,4:5}[rate as '1'|'2'|'4']!,
               after={1:3,2:4,4:4}[rate as '1'|'2'|'4']!;
             text('balance:cap','  tokens = min(5,');text('balance:label','Tokens left');
             text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 5');
@@ -3451,20 +3451,20 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         assert.equal(nativeChecked,true);
         // Keep the production reviewer: every main and source step, both
         // widths, all reachable tour stops, plus the independent 320px openings.
-        const rows=await reviewStoryVariant(page,`${embed}/${id}.html`,variant,claims);
-        assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>variant.trace.steps.map(s=>[s.step,width])));
+        const rows=await reviewStoryCase(page,`${embed}/${id}.html`,theCase,claims);
+        assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>theCase.trace.steps.map(s=>[s.step,width])));
         for(const row of rows.filter(r=>r.step===sourceStep))assert.ok(roles[id].every(role=>row.targets.includes(role)));
-        stepWidths+=rows.length;authoredSteps+=2*variant.trace.steps.length;
+        stepWidths+=rows.length;authoredSteps+=2*theCase.trace.steps.length;
         // A claim bound to settings (token-bucket's cap note, drawn only where the wait passes five)
         // is an obligation of its own cases, as the production reviewer applies it.
-        const applicable=claims.filter(c=>Object.entries(c.settings??{}).every(([k,v])=>variant.values[k]===v));
-        const frame=(await storyFrames(variant.Scene,applicable)).get(sourceStep)!;
+        const applicable=claims.filter(c=>Object.entries(c.settings??{}).every(([k,v])=>theCase.values[k]===v));
+        const frame=(await storyFrames(theCase.Scene,applicable)).get(sourceStep)!;
         const indices=new Set(frame.targets.filter(t=>roles[id].includes(t.name)).flatMap(t=>t.indices));
         const labels=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
         assert.equal(labels.length,id==='token-bucket'?9:12,'exact caption-label inventory');
         const readable=new Set<number>();
         await page.setViewportSize({width:390,height:844});
-        await page.goto(`${embed}/${id}.html?${new URLSearchParams({...variant.values,step:sourceStep})}`);
+        await page.goto(`${embed}/${id}.html?${new URLSearchParams({...theCase.values,step:sourceStep})}`);
         await page.waitForFunction(step=>(window as unknown as {raynerReviewStep?:string}).raynerReviewStep===step&&
           !document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'),sourceStep);
         const visited=new Set<string>();
@@ -3476,7 +3476,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             const ink=label.indices.map(index=>seen.ink.find(p=>p.index===index)!);
             if(ink.every(p=>p.visible&&p.complete&&covered(p.box,[seen.viewport]))){
               const pixels=label.size*Math.min(...ink.map(p=>p.scale));
-              assert.ok(pixels>=12-1e-6,`${id}/${JSON.stringify(variant.values)}: ${label.text} reads at ${pixels}px`);
+              assert.ok(pixels>=12-1e-6,`${id}/${JSON.stringify(theCase.values)}: ${label.text} reads at ${pixels}px`);
               readable.add(i);
             }
           }
@@ -3495,9 +3495,9 @@ test('source tours show the token-cap calculation and terminal rejection in ever
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {
   const {reviewClaims} = await import('../../tools/lib/explain-review-scene.ts');
-  const {storyFrames,reviewStoryVariant,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
+  const {storyFrames,reviewStoryCase,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const project=await collectProject('scenes/explainers/pen-and-pencil',{write:false});
-  assert.deepEqual(project.variants.map(v=>v.values),[{hand:'first'},{hand:'second'}]);
+  assert.deepEqual(project.cases.map(v=>v.values),[{hand:'first'},{hand:'second'}]);
   assert.deepEqual((await reviewClaims(project)).filter(c => c.step === 'marks'),[{step:'marks',targets:[
     {key:'construction:marks',paint:'stroke'},{key:'construction:tally'},
   ]}]);
@@ -3506,9 +3506,9 @@ test('both pen drawings retain every construction mark and its readable count th
   const page=await browser.newPage();
   let layout:number[][]|undefined,cases=0,stepWidths=0,readableCounts=0;
   try{
-    for(const variant of project.variants){
+    for(const theCase of project.cases){
       let strokes=0,wordBoxes=0;
-      await new variant.Scene({async frame(){},async stepEnd(scene,step){
+      await new theCase.Scene({async frame(){},async stepEnd(scene,step){
         if(step.name!=='marks')return;
         const members=scene.familyMembers(),marks=members.filter(m=>m.key==='construction:marks'),
           tallies=members.filter(m=>m.key==='construction:tally');
@@ -3551,18 +3551,18 @@ test('both pen drawings retain every construction mark and its readable count th
         if(layout)assert.deepEqual(points,layout,'changing the hand keeps all laid-out marks fixed');else layout=points;
       }},{skipUntil:Infinity}).run();
       assert.equal(strokes,53);assert.equal(wordBoxes,8);
-      const rows=await reviewStoryVariant(page,`${embed}/pen-and-pencil.html`,variant,claims);
-      assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>variant.trace.steps.map(s=>[s.step,width])));
+      const rows=await reviewStoryCase(page,`${embed}/pen-and-pencil.html`,theCase,claims);
+      assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>theCase.trace.steps.map(s=>[s.step,width])));
       for(const row of rows.filter(r=>r.step==='marks'))
         assert.ok(row.targets.includes('construction:marks')&&row.targets.includes('construction:tally'));
       stepWidths+=rows.length;
-      const frame=(await storyFrames(variant.Scene,claims)).get('marks')!,
+      const frame=(await storyFrames(theCase.Scene,claims)).get('marks')!,
         target=frame.targets.find(t=>t.name==='construction:marks')!,tally=frame.targets.find(t=>t.name==='construction:tally')!;
       assert.equal(target.indices.length,53,'all meaningful construction strokes must reach paint review');
       const labels=frame.labels.filter(l=>l.indices.some(i=>tally.indices.includes(i)));
       assert.equal(labels.length,1);
       await page.setViewportSize({width:390,height:844});
-      await page.goto(`${embed}/pen-and-pencil.html?${new URLSearchParams({...variant.values,step:'marks'})}`);
+      await page.goto(`${embed}/pen-and-pencil.html?${new URLSearchParams({...theCase.values,step:'marks'})}`);
       await page.waitForFunction(()=>(window as unknown as {raynerReviewStep?:string}).raynerReviewStep==='marks'&&
         !document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
       const visited=new Set<string>();let readable=false;
@@ -3572,7 +3572,7 @@ test('both pen drawings retain every construction mark and its readable count th
         const ink=labels[0]!.indices.map(i=>seen.ink.find(p=>p.index===i)!);
         if(ink.every(p=>p.visible&&p.complete&&covered(p.box,[seen.viewport]))){
           const pixels=labels[0]!.size*Math.min(...ink.map(p=>p.scale));
-          assert.ok(pixels>=12-1e-6,`${variant.values.hand}: construction count reads at ${pixels}px`);readable=true;
+          assert.ok(pixels>=12-1e-6,`${theCase.values.hand}: construction count reads at ${pixels}px`);readable=true;
         }
         const next=page.locator('.view-controls > button').first();
         if(!await next.isVisible()||!await next.isEnabled())break;

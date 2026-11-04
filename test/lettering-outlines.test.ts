@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { Scene, Text, NullSink, SnapshotSink, renderAt, renderElements, toSvgString } from '../src/index.ts';
 import { runKey, bindLettering, snapshotProvider, unpackLettering } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
-import { collectProject, defaultVariant, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultCase, ROOT } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
 import { pageSnapshot } from '../tools/lib/lettering.ts';
@@ -116,9 +116,9 @@ test('requested pages run offline in Chromium without errors or network requests
     for (const id of ids) {
       const project = await collectProject(join(fixtures, id), { write: false });
       const { html } = await buildExplainer(project, join(dir, id + '.html'));
-      const variant = defaultVariant(project);
-      const first = variant.trace.steps[0]!;
-      const scene = await renderAt(variant.Scene, restingTime(first, variant.trace.fps), new SnapshotSink());
+      const theCase = defaultCase(project);
+      const first = theCase.trace.steps[0]!;
+      const scene = await renderAt(theCase.Scene, restingTime(first, theCase.trace.fps), new SnapshotSink());
       const expected = renderElements(scene, { relative: false })
         .filter((record) => record.tag === 'path').map((record) => String(record.attrs.d)).sort();
       assert.ok(expected.length > 0, `${id}: the source fixture draws outlines`);

@@ -49,9 +49,9 @@ test('a middle deletion needs the marker too, and absent lookups need unused spa
   assert.throws(() => lookup(full, 24), /needs an unused slot/);
   const { collectProject } = await import('../tools/lib/explain-project.ts');
   const project = await collectProject('scenes/explainers/python-dict', { write: false });
-  for (const variant of project.variants) {
-    assert.equal(variant.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
-    assert.deepEqual(variant.trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['question', 'broken', 'marker', 'missing']);
+  for (const theCase of project.cases) {
+    assert.equal(theCase.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
+    assert.deepEqual(theCase.trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['question', 'broken', 'marker', 'missing']);
   }
 });
 

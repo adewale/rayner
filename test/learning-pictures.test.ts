@@ -5,17 +5,17 @@ import { Text, Rectangle } from '../src/index.ts';
 
 test('both piano rolls put every played pitch, onset and duration at its stated score coordinates', async () => {
   const p = await collectProject('scenes/explainers/melody-rhythm', { write: false });
-  assert.equal(p.variants.length, 4);
+  assert.equal(p.cases.length, 4);
   let pictures = 0,
     notes = 0;
-  for (const variant of p.variants)
-    await new variant.Scene(
+  for (const theCase of p.cases)
+    await new theCase.Scene(
       {
         async frame() {},
         async stepEnd(scene, step) {
           const flat = step.name === 'rhythm';
           for (const [lane, id] of ['a', 'b'].entries()) {
-            const shifted = id === 'b' && variant.values.timing === 'syncopated';
+            const shifted = id === 'b' && theCase.values.timing === 'syncopated';
             const starts = shifted ? [0, 1, 2, 3.5, 4.5, 5, 6, 7] : [0, 1, 2, 3, 4, 5, 6, 7];
             const duration = shifted ? [1, 1, 1.5, 1, 0.5, 1, 1, 1] : Array(8).fill(1);
             const names = flat ? Array(8).fill('C') : ['C', 'D', 'E', 'G', 'E', 'D', 'C', 'C'];
@@ -48,15 +48,15 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
   const project = await collectProject('scenes/explainers/monty-hall', { write: false });
   // Two host rules; the first pick is A (the strategy setting went with the step that played one round out, and the
   // first-pick setting, which only relabelled the doors, is gone).
-  assert.equal(project.variants.length, 2);
+  assert.equal(project.cases.length, 2);
   let pictures = 0,
     readouts = 0,
     comparisons = 0,
     cells = 0;
-  for (const variant of project.variants) {
+  for (const theCase of project.cases) {
     const visited: string[] = [];
-    assert.equal(variant.values.choice, undefined);
-    await new variant.Scene(
+    assert.equal(theCase.values.choice, undefined);
+    await new theCase.Scene(
       {
         async frame() {},
         async stepEnd(scene, step) {
@@ -72,7 +72,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
           };
           // Each strip draws one cell per round, as wide as the round's chance: an informed host's
           // goat openings at A's third are two sixths, his forced openings two sixths each; a random host's six are one each.
-          const hosts = step.name === 'worlds' ? ['informed', 'random'] : [variant.values.host!];
+          const hosts = step.name === 'worlds' ? ['informed', 'random'] : [theCase.values.host!];
           for (const host of hosts) {
             const strip = members(`strip:${host}`);
             assert.equal(strip.length, 1, `${step.name}: one ${host} strip`);
@@ -86,7 +86,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
           if (step.name === 'odds') {
             // Independent small-world results: an informed host preserves all
             // initial wrong choices; random-host goat reveals leave equal odds.
-            const expected = variant.values.host === 'random' ? ['50.0%', '50.0%'] : ['33.3%', '66.7%'];
+            const expected = theCase.values.host === 'random' ? ['50.0%', '50.0%'] : ['33.3%', '66.7%'];
             assert.deepEqual(words('monty-stay'), ['Stay', expected[0]]);
             assert.deepEqual(words('monty-switch'), ['Switch', expected[1]]);
             readouts += 2;

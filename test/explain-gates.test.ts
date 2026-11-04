@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { collectProject, writeSnapshots, ROOT } from '../tools/lib/explain-project.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
-import { variantsOf, resolveSettings } from '../explain/settings.ts';
+import { casesOf, resolveSettings } from '../explain/settings.ts';
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
@@ -37,7 +37,7 @@ const checked = async (dir: string) => checkProject(await collectProject(dir, { 
 
 test('a clean scene passes every gate', async () => {
   const report = await checked(await write(scene(`await this.step('one',{caption:'A label.'});${label('hello')}await this.step('two',{caption:'Another.'});${label('world', '[0,-2]')}`)));
-  assert.equal((report.variants as unknown[]).length, 1);
+  assert.equal((report.cases as unknown[]).length, 1);
 });
 
 test('numerals outside Latin draw from the fallback faces and pass every gate, in sans and mono', async () => {
@@ -48,7 +48,7 @@ test('numerals outside Latin draw from the fallback faces and pass every gate, i
       ),
     ),
   );
-  assert.equal((report.variants as unknown[]).length, 1);
+  assert.equal((report.cases as unknown[]).length, 1);
 });
 
 // A diagram whose label B is readable only in mid-sweep: focus(['B']) zooms to it, focus('all') ends the step with it at 4 px.
@@ -270,9 +270,9 @@ const casesScene = (nudgeIn?: { motion: string; size: string }) =>
 
 test('rayner check seeks two frames in each step of every case: a nudge each frame in one case’s last step fails it with a seek mismatch naming that case', async () => {
   const clean = await checked(await write(casesScene()));
-  const variants = clean.variants as { settings: Record<string, string>; steps: number; seekFrames: number }[];
-  assert.equal(variants.length, 6);
-  for (const v of variants) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
+  const cases = clean.cases as { settings: Record<string, string>; steps: number; seekFrames: number }[];
+  assert.equal(cases.length, 6);
+  for (const v of cases) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
   // The last case built, and the last step in it: a check that stopped short of either would pass.
   await assert.rejects(checked(await write(casesScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
   await assert.rejects(checked(await write(casesScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);
@@ -282,10 +282,10 @@ test('the build makes every combination of options a case, rayner check tests ea
   const dir = await write(casesScene());
   const project = await collectProject(dir, { write: false });
   const combos = ['blend', 'nudge'].flatMap((motion) => ['small', 'mid', 'large'].map((size) => ({ motion, size })));
-  assert.deepEqual(project.variants.map((v) => v.values), combos);
-  assert.deepEqual(variantsOf(project.Scene), combos);
+  assert.deepEqual(project.cases.map((v) => v.values), combos);
+  assert.deepEqual(casesOf(project.Scene), combos);
   const report = await checkProject(project, join(dir, 'checks'));
-  assert.deepEqual((report.variants as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
+  assert.deepEqual((report.cases as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
   // A value no option lists is refused, so no request reaches a case the build did not make.
   assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /Unknown .* option/);
   assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /Unknown .* option/);

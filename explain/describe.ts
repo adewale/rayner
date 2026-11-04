@@ -5,7 +5,7 @@
 import { renderAt, renderText, machinesOf } from '../src/index.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Scene, SceneState, Sink } from '../src/index.ts';
-import { variantsOf, withSettings, caseName } from './settings.ts';
+import { casesOf, withSettings, caseName } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
 import { pictureSummary, restingTime, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
@@ -101,7 +101,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 export async function describeExplainer(Scene: ExplainerClass, options: DescribeOptions = {}): Promise<ExplainerDescription> {
   const meta = Scene.meta ?? {},
     cases: CaseDescription[] = [];
-  for (const values of variantsOf(Scene)) cases.push(await describeCase(Scene, values, options));
+  for (const values of casesOf(Scene)) cases.push(await describeCase(Scene, values, options));
   return {
     schema: 1,
     id: meta.id ?? '',

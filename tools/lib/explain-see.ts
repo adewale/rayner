@@ -11,7 +11,7 @@ import type { CaseDescription } from '../../explain/describe.ts';
 import { restingTime } from '../../explain/trace.ts';
 import type { Project } from './explain-project.ts';
 
-type Variant = Project['variants'][number];
+type Case = Project['cases'][number];
 
 const value = (v: unknown) => (v === undefined ? '—' : JSON.stringify(v));
 
@@ -38,17 +38,17 @@ export function seeText(id: string, c: CaseDescription, step?: string): string {
 }
 
 /**
- * The text for `step` of the variant's case. The case is described with only that step drawn:
+ * The text for `step` of the case. The case is described with only that step drawn:
  * `see` shows one step, and drawing every step cost it up to a second on the longer explainers.
  */
-export async function seeStep(project: Project, v: Variant, step?: string): Promise<string> {
+export async function seeStep(project: Project, v: Case, step?: string): Promise<string> {
   const drawings = step ?? v.trace.steps.at(-1)!.step;
   const described = await describeCase(project.Scene, v.values, { snapshots: project.store, drawings });
   return seeText(project.Scene.meta?.id ?? 'scene', described, step);
 }
 
 /** The step's resting picture as SVG, at the time the description draws it, heading left out as `check` draws it. */
-export async function stepSvg(v: Variant, step?: string): Promise<string> {
+export async function stepSvg(v: Case, step?: string): Promise<string> {
   const s = step == null ? v.trace.steps.at(-1)! : v.trace.steps.find((x) => x.step === step)!;
   const sink: Sink = { async frame() {} };
   const scene: Scene = await renderAt(v.Scene, restingTime(s, v.trace.fps), sink);
@@ -57,7 +57,7 @@ export async function stepSvg(v: Variant, step?: string): Promise<string> {
 }
 
 /** Print the step; with `svgOut`, also write its resting picture as SVG. */
-export async function see(project: Project, v: Variant, step: string | undefined, svgOut?: string): Promise<string> {
+export async function see(project: Project, v: Case, step: string | undefined, svgOut?: string): Promise<string> {
   const text = await seeStep(project, v, step);
   if (!svgOut) return text;
   await writeFile(svgOut, await stepSvg(v, step));

@@ -102,13 +102,13 @@ export function caseName(Scene: ExplainerClass, values: Settings): string {
 }
 
 /** Finite cartesian product, in declaration order; refuse accidental build explosions. */
-export function variantsOf(Scene: ExplainerClass, limit = 64): Settings[] {
+export function casesOf(Scene: ExplainerClass, limit = 64): Settings[] {
   resolveSettings(Scene);
   const total = (Scene.settings ?? []).reduce((n, s) => n * s.options.length, 1);
   if (!(total <= limit)) throw new Error(`Settings exceed ${limit} cases`);
-  let variants: Settings[] = [Object.freeze({})];
+  let cases: Settings[] = [Object.freeze({})];
   for (const s of Scene.settings ?? []) {
-    variants = variants.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
+    cases = cases.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
   }
-  return variants;
+  return cases;
 }

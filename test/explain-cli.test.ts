@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { traceScene } from '../src/index.ts';
-import { collectProject, defaultVariant, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultCase, ROOT } from '../tools/lib/explain-project.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { seeStep, seeText } from '../tools/lib/explain-see.ts';
 import { describeExplainer } from '../explain/index.ts';
@@ -121,7 +121,7 @@ test('`rayner see` prints describeExplainer\'s words for the step, so the two ca
   const project = await collectProject(join(ROOT, 'scenes/explainers/oauth-pkce'), { write: false });
   const d = await describeExplainer(project.Scene, { snapshots: project.store });
   // The case without the attacker, so the case name is printed from the description too.
-  const v = project.variants.find((v) => v.values.attacker === 'no')!,
+  const v = project.cases.find((v) => v.values.attacker === 'no')!,
     c = d.cases.find((c) => c.values.attacker === 'no')!;
   for (const s of c.steps) assert.equal(await seeStep(project, v, s.step), seeText('oauth-pkce', c, s.step));
   // The text is the description's fields and nothing else: a made-up description prints as it says.
@@ -147,12 +147,12 @@ test(
   async () => {
     for (const { id } of EXPLAINERS) {
       const project = await collectProject(join(ROOT, 'scenes/explainers', id), { write: false });
-      for (const v of project.variants) {
+      for (const v of project.cases) {
         const c = await describeCase(project.Scene, v.values, { snapshots: project.store });
         assert.equal(await seeStep(project, v), seeText(id, c), `${id} ${JSON.stringify(v.values)}: the last step`);
         // In a case other than the default, its first step, by name.
         const named = c.steps[0]!.step;
-        if (v !== defaultVariant(project)) assert.equal(await seeStep(project, v, named), seeText(id, c, named), `${id} ${JSON.stringify(v.values)}: ${named}`);
+        if (v !== defaultCase(project)) assert.equal(await seeStep(project, v, named), seeText(id, c, named), `${id} ${JSON.stringify(v.values)}: ${named}`);
       }
     }
   },

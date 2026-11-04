@@ -50,8 +50,8 @@ import { check as henge } from './lib/fidelity/henge.ts';
 for (const entry of EXPLAINERS)
   test(`${entry.id}: every authored case exposes the program's answers at step boundaries`, async () => {
     const project = await collectProject(`scenes/explainers/${entry.id}`, { write: false });
-    for (const variant of project.variants) {
-      const { values, trace } = variant,
+    for (const theCase of project.cases) {
+      const { values, trace } = theCase,
         last = trace.steps.at(-1)!;
       // Every visible token (including sequence build-ins) names a link in a captured diagram.
       const links = Object.values(project.store)
@@ -95,7 +95,7 @@ for (const entry of EXPLAINERS)
             assert.equal(solstice.toFixed(3), '0.984');
             assert.equal(Math.round((1 / solstice ** 2 - 1) * 100), 3);
             assert.equal(Math.round((share / solstice ** 2) * 100), 27);
-            const { checks } = (variant.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
+            const { checks } = (theCase.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
             assert.match(checks[0]!.answer, /^About 27%\. On the solstice Earth is about 0\.984 of its average distance/);
             // The second: an axis that always leans north toward the Sun gives December June's values, 16.4 h and 88%.
             assert.equal(sunlight(51.5, 23.44).daylight.toFixed(1), '16.4');
@@ -119,7 +119,7 @@ for (const entry of EXPLAINERS)
             polarNight: days.filter((h) => h === 0).length,
           });
           if (lat === 69.65) assert.ok((trace.steps.find((s) => s.step === 'year')!.after!.polarDay as number) > 50);
-          await seasonsArithmetic(trace, variant.Scene);
+          await seasonsArithmetic(trace, theCase.Scene);
           break;
         }
         case 'oauth-pkce': {
@@ -156,7 +156,7 @@ for (const entry of EXPLAINERS)
             reads: values.request === 'hit' ? 0 : 1,
           });
           assert.equal(walks.filter((w) => w.step === 'request').length, values.request === 'hit' ? 3 : 4);
-          await mrCacheDiff(trace, variant.Scene);
+          await mrCacheDiff(trace, theCase.Scene);
           break;
         case 'latest-search': {
           // Independent expectation for the two controlled completions: when B
@@ -511,7 +511,7 @@ for (const entry of EXPLAINERS)
           // before and after an update, without reversing the digits.
           const rtl = values.direction === 'rtl';
           const seen: string[] = [];
-          await new variant.Scene({
+          await new theCase.Scene({
             async frame() {},
             async stepEnd(scene, step) {
               if (!['columns', 'updates', 'physical'].includes(step.name)) return;
@@ -624,12 +624,12 @@ for (const entry of EXPLAINERS)
           // token-bucket case whose trace answers R10 as the fork scene says, and its last step says
           // R10 is accepted at every rate.
           const bucketProject = await collectProject('scenes/explainers/token-bucket', { write: false });
-          const offered = bucketProject.variants.map((v) => ({
+          const offered = bucketProject.cases.map((v) => ({
             rate: Number(v.values.rate),
             r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
           }));
           assertStepState(trace, 'sentence', { offered: offered.sort((a, b) => a.rate - b.rate) });
-          for (const v of bucketProject.variants)
+          for (const v of bucketProject.cases)
             assert.match(String(v.trace.steps.find((s) => s.step === 'trace')!.meta.caption), /R10 is accepted at every rate/);
           // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
           // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.

@@ -9,7 +9,7 @@ import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
 import { SnapshotSink, renderAt } from '../../src/index.ts';
 import { chromeFor, caseNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, engineAlias, defaultVariant, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { ROOT, engineAlias, defaultCase, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences, pageSnapshot } from './lettering.ts';
@@ -31,7 +31,7 @@ export async function buildExplainer(
   project: Project,
   out: string,
 ): Promise<{ html: string; receipt: Record<string, unknown> }> {
-  const v = defaultVariant(project),
+  const v = defaultCase(project),
     first = v.trace.steps[0]!;
   // The page's own words follow the scene's language, and so do the picture descriptions where
   // explain/words.ts has words for it; elsewhere they are English, marked lang="en".
@@ -41,7 +41,7 @@ export async function buildExplainer(
   await useProjectLettering(project);
   let withAudio=false;
   // Validate every step, including clips after the first sound-bearing step.
-  for(const variant of project.variants) for(const step of variant.trace.steps)
+  for(const theCase of project.cases) for(const step of theCase.trace.steps)
     if(stepAudio(step.meta.audio)) withAudio=true;
   const sink = new SnapshotSink();
   await renderAt(v.Scene, restingTime(first, v.trace.fps), sink);
@@ -105,7 +105,7 @@ export async function buildExplainer(
   // Every case, every step: a link to it, its caption, what it changed of the state the author
   // watches (meta.watch) and what its resting picture shows.
   // The player shows the current case's section; without JavaScript every case shows.
-  const transcript = project.variants
+  const transcript = project.cases
     .map(({ values, trace }) => {
       const key = new URLSearchParams(values).toString(),
         name = caseNameIn(lang, project.Scene, values);
@@ -145,7 +145,7 @@ export async function buildExplainer(
     ...baseReceipt(project),
     title,
     artifactHash: hash(html),
-    variants: project.variants.map((v) => ({
+    cases: project.cases.map((v) => ({
       settings: v.values,
       steps: v.trace.steps.length,
       duration: v.trace.duration,

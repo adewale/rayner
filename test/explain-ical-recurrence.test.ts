@@ -277,21 +277,21 @@ test('every marker in the ER source says what the model allows', () => {
   };
   const leftOf = Object.fromEntries(Object.entries(LEFT_MARK).map(([k, v]) => [v, k as Cardinality]));
   const rightOf = Object.fromEntries(Object.entries(RIGHT_MARK).map(([k, v]) => [v, k as Cardinality]));
-  for (const [variant, want] of [
+  for (const [theCase, want] of [
     ['rfc', rfc],
     ['sabre', sabre],
   ] as const) {
-    const rels = [...erSource(variant).matchAll(/^ {2}(\w+) (\S\S)--(\S\S) (\w+) : /gm)];
-    assert.equal(rels.length, 5, variant);
+    const rels = [...erSource(theCase).matchAll(/^ {2}(\w+) (\S\S)--(\S\S) (\w+) : /gm)];
+    assert.equal(rels.length, 5, theCase);
     for (const [, from, l, r, to] of rels) {
       const name = `${from}-${to}`;
       // The left marker sits at `from` and counts `from`s per `to`; the right one counts `to`s per `from`.
-      assert.equal(rightOf[r!], want[name], `${variant} ${name}: how many ${to} per ${from}`);
-      assert.equal(leftOf[l!], back[name], `${variant} ${name}: how many ${from} per ${to}`);
+      assert.equal(rightOf[r!], want[name], `${theCase} ${name}: how many ${to} per ${from}`);
+      assert.equal(leftOf[l!], back[name], `${theCase} ${name}: how many ${from} per ${to}`);
     }
     assert.deepEqual(
-      schema(variant).map((r) => [`${r.from}-${r.to}`, r.left, r.right]),
-      schema(variant).map((r) => [`${r.from}-${r.to}`, back[`${r.from}-${r.to}`], want[`${r.from}-${r.to}`]]),
+      schema(theCase).map((r) => [`${r.from}-${r.to}`, r.left, r.right]),
+      schema(theCase).map((r) => [`${r.from}-${r.to}`, back[`${r.from}-${r.to}`], want[`${r.from}-${r.to}`]]),
     );
   }
 });
@@ -310,20 +310,20 @@ test('the captured ER diagrams draw each marker at the end it counts', () => {
   };
   const gap = (pt: { x: number; y: number }, box: number[]) => Math.hypot(Math.max(box[0]! - pt.x, 0, pt.x - box[2]!), Math.max(box[1]! - pt.y, 0, pt.y - box[3]!));
   let seen = 0;
-  for (const variant of ['rfc', 'sabre'] as const) {
-    const file = readdirSync(dir).find((f) => f !== 'index.json' && JSON.parse(readFileSync(new URL(f, dir), 'utf8')).spec.source === erSource(variant));
-    assert.ok(file, `no snapshot for the ${variant} schema`);
+  for (const theCase of ['rfc', 'sabre'] as const) {
+    const file = readdirSync(dir).find((f) => f !== 'index.json' && JSON.parse(readFileSync(new URL(f, dir), 'utf8')).spec.source === erSource(theCase));
+    assert.ok(file, `no snapshot for the ${theCase} schema`);
     const parts: Part[] = JSON.parse(readFileSync(new URL(file, dir), 'utf8')).parts;
     const get = (id: string) => parts.find((p) => p.id === id)!;
-    for (const r of schema(variant)) {
+    for (const r of schema(theCase)) {
       const rel = `${r.from}-${r.to}#0`;
       const [one, two] = [get(`card:${rel}:1`), get(`card:${rel}:2`)];
-      assert.equal(one.channels?.category, CATEGORY[r.left], `${variant} ${rel} at ${r.from}`);
-      assert.equal(two.channels?.category, CATEGORY[r.right], `${variant} ${rel} at ${r.to}`);
+      assert.equal(one.channels?.category, CATEGORY[r.left], `${theCase} ${rel} at ${r.from}`);
+      assert.equal(two.channels?.category, CATEGORY[r.right], `${theCase} ${rel} at ${r.to}`);
       const from = centre(get(`entity:${r.from}`)).box,
         to = centre(get(`entity:${r.to}`)).box;
-      assert.ok(gap(centre(one), from) < gap(centre(one), to), `${variant} ${rel}: marker 1 is drawn at ${r.from}`);
-      assert.ok(gap(centre(two), to) < gap(centre(two), from), `${variant} ${rel}: marker 2 is drawn at ${r.to}`);
+      assert.ok(gap(centre(one), from) < gap(centre(one), to), `${theCase} ${rel}: marker 1 is drawn at ${r.from}`);
+      assert.ok(gap(centre(two), to) < gap(centre(two), from), `${theCase} ${rel}: marker 2 is drawn at ${r.to}`);
       seen++;
     }
   }

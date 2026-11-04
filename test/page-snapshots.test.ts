@@ -110,7 +110,7 @@ test('compacted real flowchart, timeline and XY snapshots render byte-identical 
   for (const id of ['mr-cache', 'cert-renewal', 'tailwind-gamut']) {
     const project = await collectProject(`scenes/explainers/${id}`, {write: false});
     const compact = pageSnapshots(project.store);
-    const Source = project.variants[0]!.Scene;
+    const Source = project.cases[0]!.Scene;
     const original = await frames(Source);
     assert.ok(original.length >= 3, 'compare every resting picture, not an empty render');
     assert.deepEqual(await frames(bindSnapshots(Source, compact)), original, id);

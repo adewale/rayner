@@ -166,7 +166,7 @@ test('the Mermaid explainer’s broken step shows what the pinned verifier repor
 /** Each step's state in an explainer's default case, by step name. */
 async function steps(id: string) {
   const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-  const trace = project.variants[0]!.trace;
+  const trace = project.cases[0]!.trace;
   return new Map(trace.steps.map((s, i) => [s.step, { after: s.after, before: trace.steps[i - 1]?.after }]));
 }
 

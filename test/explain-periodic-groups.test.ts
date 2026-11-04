@@ -175,8 +175,8 @@ test('group names follow the IUPAC 1 to 18 order with the CAS and old IUPAC lett
 
 test('every case records the model’s answers at each step', async () => {
   const project = await collectProject('scenes/explainers/periodic-groups', { write: false });
-  assert.deepEqual(project.variants.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
-  for (const { values, trace } of project.variants) check(trace, values);
+  assert.deepEqual(project.cases.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
+  for (const { values, trace } of project.cases) check(trace, values);
 });
 
 test('the table and note text follow the recorded state at every resting step', async () => {

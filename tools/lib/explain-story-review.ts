@@ -629,16 +629,16 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
 /** Build-time obligations come from authored main/detail metadata and the
  * independent caption claims, before the served reader produces any receipt. */
 export async function narrowOpeningPlan(
-  variant: Pick<Project['variants'][number], 'Scene' | 'trace' | 'values'>,
+  theCase: Pick<Project['cases'][number], 'Scene' | 'trace' | 'values'>,
   claims: readonly StoryClaim[],
   frames?: Map<string, StoryFrame>,
 ): Promise<NarrowOpeningObligation[]> {
   const applicable = claims.filter((c) =>
-    Object.entries(c.settings ?? {}).every(([key, value]) => variant.values[key] === value),
+    Object.entries(c.settings ?? {}).every(([key, value]) => theCase.values[key] === value),
   );
-  const source = frames ?? (await storyFrames(variant.Scene, applicable));
-  const hasMain = variant.trace.steps.some((step) => step.meta.detail !== true);
-  return variant.trace.steps.map((step) => {
+  const source = frames ?? (await storyFrames(theCase.Scene, applicable));
+  const hasMain = theCase.trace.steps.some((step) => step.meta.detail !== true);
+  return theCase.trace.steps.map((step) => {
     if (step.meta.detail === true && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
     const targets = [
       ...new Set(
@@ -883,12 +883,12 @@ async function verifyNarrowPaint(page: Page, frame: StoryFrame, named: { name: s
 async function reviewNarrowOpening(
   page: Page,
   url: string,
-  variant: Project['variants'][number],
+  theCase: Project['cases'][number],
   step: string,
   frame: StoryFrame,
 ): Promise<NarrowOpeningReview> {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto(`${url}?${new URLSearchParams({ ...variant.values, step })}`);
+  await page.goto(`${url}?${new URLSearchParams({ ...theCase.values, step })}`);
   await page.waitForSelector('[data-ready=true]');
   await page.waitForFunction(
     (name) =>
@@ -939,10 +939,10 @@ async function reviewNarrowOpening(
 
 /** Visit every step at a real viewport width, with a fresh reader opening per width. */
 const initialized = new WeakSet<Page>();
-export async function reviewStoryVariant(
+export async function reviewStoryCase(
   page: Page,
   url: string,
-  variant: Project['variants'][number],
+  theCase: Project['cases'][number],
   claims: readonly StoryClaim[] = [],
   directory?: string,
   shell?: ReaderShell,
@@ -958,28 +958,28 @@ export async function reviewStoryVariant(
     });
     initialized.add(page);
   }
-  const applicable = claims.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v));
-  const frames = await storyFrames(variant.Scene, applicable),
+  const applicable = claims.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v));
+  const frames = await storyFrames(theCase.Scene, applicable),
     results = [];
   const narrow = new Map<string, NarrowOpeningReview>();
-  const obligations = await narrowOpeningPlan(variant, applicable, frames);
+  const obligations = await narrowOpeningPlan(theCase, applicable, frames);
   for (const obligation of obligations) {
     if (!obligation.reviewed) narrow.set(obligation.step, { reviewed: false, reason: obligation.reason });
     else
       narrow.set(
         obligation.step,
-        await reviewNarrowOpening(page, url, variant, obligation.step, frames.get(obligation.step)!),
+        await reviewNarrowOpening(page, url, theCase, obligation.step, frames.get(obligation.step)!),
       );
   }
-  assert.equal(narrow.size, variant.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
-  assert.equal(frames.size, variant.trace.steps.length, 'every traced step has a resting frame');
+  assert.equal(narrow.size, theCase.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
+  assert.equal(frames.size, theCase.trace.steps.length, 'every traced step has a resting frame');
   for (const viewport of [
     { width: 390, height: 844 },
     { width: 1180, height: 980 },
   ]) {
     await page.setViewportSize(viewport);
-    for (const [index, step] of variant.trace.steps.entries()) {
-      const query = new URLSearchParams({ ...variant.values, step: step.step });
+    for (const [index, step] of theCase.trace.steps.entries()) {
+      const query = new URLSearchParams({ ...theCase.values, step: step.step });
       // Start each width as a fresh reader. Then use the real step buttons:
       // Next view preserves automatic following, and each step must reset its
       // tour to the opening. This also exercises retained/restored DOM frames.
@@ -1050,7 +1050,7 @@ export async function reviewStoryVariant(
   }
   assert.deepEqual(
     results.map(({ step, width }) => ({ step, width })),
-    [390, 1180].flatMap((width) => variant.trace.steps.map((step) => ({ step: step.step, width }))),
+    [390, 1180].flatMap((width) => theCase.trace.steps.map((step) => ({ step: step.step, width }))),
     'every traced step must be reviewed exactly once at each width',
   );
   return results;

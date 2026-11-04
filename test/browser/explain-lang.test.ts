@@ -63,7 +63,7 @@ after(() => rm(folder, { recursive: true, force: true }));
 
 /** Every step's summary and full list, as a reader hears them (tags dropped, entities decoded). */
 const described = (project: Project) =>
-  project.variants.flatMap(({ trace }) =>
+  project.cases.flatMap(({ trace }) =>
     trace.steps.map((s, i) => ({
       step: s.step,
       summary: pictureSummary(s.after),

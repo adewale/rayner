@@ -189,13 +189,13 @@ test('zero-em native matching keeps finite geometry and a closed readability flo
 test('imported labels retain their compressed font dimension in reader layouts', async () => {
   const { collectProject } = await import('../../tools/lib/explain-project.ts');
   const p = await collectProject('test/fixtures/imported-reading', { write: false });
-  assert.equal(p.variants.length, 2);
-  for (const variant of p.variants) {
-    const layout = (await stepLayouts(variant.Scene)).get('opening')!;
+  assert.equal(p.cases.length, 2);
+  for (const theCase of p.cases) {
+    const layout = (await stepLayouts(theCase.Scene)).get('opening')!;
     assert.equal(layout.reading!.labels.length, 1);
-    const expected = variant.values.width === 'thin' ? 0.008 : 0.8;
+    const expected = theCase.values.width === 'thin' ? 0.008 : 0.8;
     assert.ok(Math.abs(layout.reading!.labels[0]!.size - expected) < 1e-5,
-      `${variant.values.width}: use the smallest transformed font dimension`);
+      `${theCase.values.width}: use the smallest transformed font dimension`);
   }
 });
 
@@ -206,12 +206,12 @@ test('the served review rejects a compressed imported word after accepting its r
     const { buildExplainer } = await import('../../tools/lib/explain-build.ts');
     const { serve } = await import('../../tools/lib/explain-serve.ts');
     const { launch } = await import('../../tools/lib/browser.ts');
-    const { reviewStoryVariant } = await import('../../tools/lib/explain-story-review.ts');
+    const { reviewStoryCase } = await import('../../tools/lib/explain-story-review.ts');
     const { mkdtemp, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
     const project = await collectProject('test/fixtures/imported-reading', { write: false });
-    assert.equal(project.variants.length, 2);
+    assert.equal(project.cases.length, 2);
     const folder = await mkdtemp(join(tmpdir(), 'rayner-imported-reading-'));
     let browser: Awaited<ReturnType<typeof launch>> | undefined, server: Awaited<ReturnType<typeof serve>> | undefined;
     try {
@@ -220,12 +220,12 @@ test('the served review rejects a compressed imported word after accepting its r
       browser = await launch();
       const page = await browser.newPage();
       const claims = [{ step: 'opening', opening: true, targets: [{ key: 'paper' }] }];
-      const normal = project.variants.find((v) => v.values.width === 'normal')!;
-      const thin = project.variants.find((v) => v.values.width === 'thin')!;
+      const normal = project.cases.find((v) => v.values.width === 'normal')!;
+      const thin = project.cases.find((v) => v.values.width === 'thin')!;
       const url = `${server.url}/index.html`;
-      const control = await reviewStoryVariant(page, url, normal, claims);
+      const control = await reviewStoryCase(page, url, normal, claims);
       assert.equal(control.length, 2, 'the normal word passes at both review widths');
-      await assert.rejects(reviewStoryVariant(page, url, thin, claims), /readable|12px|font|label/i,
+      await assert.rejects(reviewStoryCase(page, url, thin, claims), /readable|12px|font|label/i,
         'a word under one CSS pixel wide cannot pass the readable-label gate');
       await page.close();
     } finally {
@@ -269,27 +269,27 @@ test('declared label scale survives unrelated changes at generated phone sizes',
 });
 
 test('dimmed and rotated declared text retain their actual readable type size', async () => {
-  for (const variant of ['dimmed', 'dimmed-group', 'rotated'] as const) {
+  for (const theCase of ['dimmed', 'dimmed-group', 'rotated'] as const) {
     let actualSize = 0;
     class Subject extends Scene {
       override async construct() {
         const s = stage(this);
         await this.step('compare');
         const before = new Text('Before: 1', { fontSize: 0.3 }).moveTo([-2, 0]);
-        if (variant === 'rotated') before.rotate(Math.PI / 2);
-        if (variant === 'dimmed') before.setStyle({ opacity: 0.2 }, false);
+        if (theCase === 'rotated') before.rotate(Math.PI / 2);
+        if (theCase === 'dimmed') before.setStyle({ opacity: 0.2 }, false);
         actualSize = before.textSize();
-        const beforeSubject = variant === 'dimmed-group' ? new Group(before).setOpacity(0.49) : before;
+        const beforeSubject = theCase === 'dimmed-group' ? new Group(before).setOpacity(0.49) : before;
         const after = new Text('After: 2', { fontSize: 0.8 }).moveTo([2, 0]);
         await s.enter(beforeSubject, after);
         s.reading(beforeSubject, after);
       }
     }
     const layout = (await stepLayouts(Subject)).get('compare')!;
-    assert.equal(layout.reading!.labels.length, 2, `${variant}: visible declared text must participate in framing`);
+    assert.equal(layout.reading!.labels.length, 2, `${theCase}: visible declared text must participate in framing`);
     assert.ok(
       Math.abs(layout.reading!.labels[0]!.size - actualSize) < 1e-7,
-      `${variant}: the declared font size must not come from a rotated bounding box`,
+      `${theCase}: the declared font size must not come from a rotated bounding box`,
     );
     for (const width of [288, 358]) {
       const height = (width * 9) / 16,
@@ -298,7 +298,7 @@ test('dimmed and rotated declared text retain their actual readable type size', 
         want = layout.reading!.box;
       assert.ok(
         actualSize * stageScale(width, height).s * opening.k >= 12 - 1e-7,
-        `${variant}/${width}: declared text below 12px`,
+        `${theCase}/${width}: declared text below 12px`,
       );
       assert.ok(
         visible[0] <= want[0] + 1e-6 &&
@@ -506,12 +506,12 @@ test('the legibility report measures each label at a tour stop that actually con
   try {
     const p = await collectProject('test/fixtures/reading-comparison', { write: false });
     const report = await checkProject(p, folder);
-    const variants = report.variants as {
+    const cases = report.cases as {
       legibility: { labelsUnder12PxAt390: number; labelsOutsideCloseUpsAt390: number };
     }[];
-    assert.equal(variants.length, 1);
-    assert.equal(variants[0]!.legibility.labelsUnder12PxAt390, 0);
-    assert.equal(variants[0]!.legibility.labelsOutsideCloseUpsAt390, 0);
+    assert.equal(cases.length, 1);
+    assert.equal(cases[0]!.legibility.labelsUnder12PxAt390, 0);
+    assert.equal(cases[0]!.legibility.labelsOutsideCloseUpsAt390, 0);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
@@ -527,12 +527,12 @@ test('the phone report measures picture labels and excludes the undrawn stage he
   try {
     const p = await collectProject('test/fixtures/heading-closeup', { write: false });
     const report = await checkProject(p, folder);
-    const variants = report.variants as {
+    const cases = report.cases as {
       settings: { reach: string };
       legibility: { minLabelPx390: number; labelsUnder12PxAt390: number; labelsOutsideCloseUpsAt390: number };
     }[];
-    assert.equal(variants.length, 2);
-    const by = (reach: string) => variants.find((v) => v.settings.reach === reach)!.legibility;
+    assert.equal(cases.length, 2);
+    const by = (reach: string) => cases.find((v) => v.settings.reach === reach)!.legibility;
     // The narrow sink leaves the number, title and line out of its SVG, so
     // their smaller font sizes must not determine picture legibility.
     const below = by('below');

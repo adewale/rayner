@@ -37,10 +37,10 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
 test('token introductions and the ring’s fill and result steps draw the independently expected balances, responses and slot values in every case', async () => {
   const token = await collectProject('scenes/explainers/token-bucket', { write: false }),
     ring = await collectProject('scenes/explainers/ring-buffer', { write: false });
-  assert.equal(token.variants.length, 3);
-  assert.equal(ring.variants.length, 2);
+  assert.equal(token.cases.length, 3);
+  assert.equal(ring.cases.length, 2);
   let frames = 0;
-  for (const v of token.variants)
+  for (const v of token.cases)
     await new v.Scene(
       {
         async frame() {},
@@ -88,7 +88,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
       },
       { skipUntil: Infinity },
     ).run();
-  for (const v of ring.variants)
+  for (const v of ring.cases)
     await new v.Scene(
       {
         async frame() {},
@@ -118,9 +118,9 @@ test('token introductions and the ring’s fill and result steps draw the indepe
 
 test('GTFS departures preserve fixed departures and frequency patterns across all six source-feed cases', async () => {
   const p = await collectProject('scenes/explainers/gtfs', { write: false });
-  assert.equal(p.variants.length, 6);
+  assert.equal(p.cases.length, 6);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.cases)
     await new v.Scene(
       {
         async frame() {},
@@ -155,9 +155,9 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
 
 test('the occupied-date picture contains 365 days and the independently expected excluded set in every case', async () => {
   const p = await collectProject('scenes/explainers/birthday-paradox', { write: false });
-  assert.equal(p.variants.length, 3);
+  assert.equal(p.cases.length, 3);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.cases)
     await new v.Scene(
       {
         async frame() {},
@@ -181,9 +181,9 @@ test('the occupied-date picture contains 365 days and the independently expected
 
 test('the complete annual daylight picture labels its fixed zero, twelve and twenty-four-hour scale at every latitude', async () => {
   const p = await collectProject('scenes/explainers/seasons', { write: false });
-  assert.equal(p.variants.length, 4);
+  assert.equal(p.cases.length, 4);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.cases)
     await new v.Scene(
       {
         async frame() {},
@@ -209,7 +209,7 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
   const { space, SIZES } = await import('../scenes/explainers/lib/ext4-space.ts');
   const p = await collectProject('scenes/explainers/ext4-space', { write: false });
   // The 1 TiB disk formatted with -m 1, against the default -m 5 the story walks first.
-  const v = p.variants.find((x) => x.values.size === '1t' && x.values.reserve === '1');
+  const v = p.cases.find((x) => x.values.size === '1t' && x.values.reserve === '1');
   assert.ok(v);
   const fiveUsers = space(SIZES['1t'].bytes, 5).users;
   let checked = 0;
@@ -257,9 +257,9 @@ test('traffic comparisons draw each source pod share without attributing the ing
     ],
   } as const;
   const p = await collectProject('scenes/explainers/traffic-policy', { write: false });
-  assert.equal(p.variants.length, 6);
+  assert.equal(p.cases.length, 6);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.cases)
     await new v.Scene(
       {
         async frame() {},

@@ -33,7 +33,7 @@ const targets: StoryClaim['targets'] = [
 before(async () => {
   if (!enabled) return;
   project = await collectProject('scenes/explainers/monty-hall', { write: false });
-  assert.equal(project.variants.length, 2);
+  assert.equal(project.cases.length, 2);
   folder = await mkdtemp(join(tmpdir(), 'rayner-monty-reader-'));
   await buildExplainer(project, join(folder, 'monty.html'));
   server = await serve(folder, 0, 'monty.html');
@@ -48,11 +48,11 @@ after(async () => {
 
 test('every host rule opens with all three readable doors and the complete host rule', options, async () => {
   let openings = 0, checkedTargets = 0;
-  for (const variant of project.variants) {
+  for (const theCase of project.cases) {
     const claims = steps.map((step) => ({ step, opening: true, targets }));
-    const frames = await storyFrames(variant.Scene, claims);
+    const frames = await storyFrames(theCase.Scene, claims);
     const minimum = new Map<string, number>();
-    await new variant.Scene({
+    await new theCase.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (!steps.includes(step.name)) return;
@@ -68,8 +68,8 @@ test('every host rule opens with all three readable doors and the complete host 
       }));
       try {
         for (const step of steps) {
-          const caseName = `${JSON.stringify(variant.values)}/${step}/${viewport.width}`;
-          await page.goto(`${server.url}/monty.html?${new URLSearchParams({ ...variant.values, step })}`);
+          const caseName = `${JSON.stringify(theCase.values)}/${step}/${viewport.width}`;
+          await page.goto(`${server.url}/monty.html?${new URLSearchParams({ ...theCase.values, step })}`);
           await page.waitForSelector('[data-ready=true]');
           await page.waitForFunction((name) => (window as unknown as { montyStep: string }).montyStep === name &&
             !document.querySelector('#content.loading') && !document.querySelector('svg.leaving'), step);

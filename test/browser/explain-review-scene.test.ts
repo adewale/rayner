@@ -62,9 +62,9 @@ test('companion claims bind to actual scene ink', async () => {
     const visible = { step: 'one', targets: [{ text: 'Answer' }] };
     const missing = { step: 'one', targets: [{ text: 'Missing subject' }] };
     await writeFile(claims, JSON.stringify({ version: 1, claims: [missing] }));
-    await assert.rejects(storyFrames(project.variants[0]!.Scene, await reviewClaims(project)), /story target Missing subject is missing/);
+    await assert.rejects(storyFrames(project.cases[0]!.Scene, await reviewClaims(project)), /story target Missing subject is missing/);
     await writeFile(claims, JSON.stringify({ version: 1, claims: [visible] }));
-    await storyFrames(project.variants[0]!.Scene, await reviewClaims(project));
+    await storyFrames(project.cases[0]!.Scene, await reviewClaims(project));
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
@@ -73,13 +73,13 @@ test('trust-proxy range comparisons retain all factual subjects and review every
   const { buildExplainer } = await import('../../tools/lib/explain-build.ts');
   const { serve } = await import('../../tools/lib/explain-serve.ts');
   const { launch } = await import('../../tools/lib/browser.ts');
-  const { reviewStoryVariant} = await import('../../tools/lib/explain-story-review.ts');
+  const { reviewStoryCase} = await import('../../tools/lib/explain-story-review.ts');
   const folder = await mkdtemp(join(tmpdir(), 'rayner-trust-ranges-'));
   let server: Awaited<ReturnType<typeof serve>> | undefined;
   let browser: Awaited<ReturnType<typeof launch>> | undefined;
   try {
     const project = await collectProject(join(ROOT, 'scenes/explainers/trust-proxy'), { write: false });
-    assert.equal(project.variants.length, 12);
+    assert.equal(project.cases.length, 12);
     const claims = await reviewClaims(project);
     await buildExplainer(project, join(folder, 'scene.html'));
     server = await serve(folder, 0, 'scene.html');
@@ -87,15 +87,15 @@ test('trust-proxy range comparisons retain all factual subjects and review every
     const page = await browser.newPage();
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    for (const [index, variant] of project.variants.entries()) {
-      const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([key, value]) => variant.values[key] === value));
-      const frames = await storyFrames(variant.Scene, applicable);
+    for (const [index, theCase] of project.cases.entries()) {
+      const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([key, value]) => theCase.values[key] === value));
+      const frames = await storyFrames(theCase.Scene, applicable);
       assert.ok(frames.get('ranges'));
-      if (variant.values.trust !== 'list') continue;
+      if (theCase.values.trust !== 'list') continue;
       const output = join(folder, String(index));
       const { mkdir } = await import('node:fs/promises');
       await mkdir(output);
-      const reviews = await reviewStoryVariant(page, server.url + '/scene.html', variant, claims, output);
+      const reviews = await reviewStoryCase(page, server.url + '/scene.html', theCase, claims, output);
       assert.deepEqual(reviews.filter(r => r.step === 'ranges').map(r => r.width), [390, 1180]);
     }
     assert.deepEqual(errors, []);
@@ -120,15 +120,15 @@ test('trust-proxy range subjects contain both settings and all six independently
     list: ['203.0.113.7 right', '198.51.100.9 right', '198.51.100.9 right'],
   };
   const titles: Record<string, string> = { true: 'trust proxy true', '1': 'trust proxy 1', '2': 'trust proxy 2', list: "trust proxy '10.0.0.0/8, 192.0.2.0/24'" };
-  for (const variant of project.variants) {
-    const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([key, value]) => variant.values[key] === value));
-    const targets = (await storyFrames(variant.Scene, applicable)).get('ranges')!.targets.map(t => t.name);
+  for (const theCase of project.cases) {
+    const applicable = claims.filter(c => Object.entries(c.settings ?? {}).every(([key, value]) => theCase.values[key] === value));
+    const targets = (await storyFrames(theCase.Scene, applicable)).get('ranges')!.targets.map(t => t.name);
     for (const key of ['ranges-current', 'ranges-alternative', 'service:edge', 'service:balancer']) assert.ok(targets.includes(key));
     let checked = false;
-    await new variant.Scene({ async frame() {}, async stepEnd(scene, step) {
+    await new theCase.Scene({ async frame() {}, async stepEnd(scene, step) {
       if (step.name !== 'ranges') return;
       checked = true;
-      for (const [key, setting] of [['ranges-current', variant.values.trust], ['ranges-alternative', variant.values.trust === 'list' ? '2' : 'list']]) {
+      for (const [key, setting] of [['ranges-current', theCase.values.trust], ['ranges-alternative', theCase.values.trust === 'list' ? '2' : 'list']]) {
         const card = scene.familyMembers().find(m => m.key === key)!;
         assert.ok(card, key);
         const texts = card.family().filter((m): m is InstanceType<typeof Text> => m instanceof Text).map(m => m.text.replace(/\s+/g, ' '));
@@ -147,8 +147,8 @@ test('dictionary review retains six claim sets and checks four main openings plu
   const project = await collectProject(join(ROOT, 'scenes/explainers/python-dict'), {write: false});
   const claims = await reviewClaims(project);
   assert.equal(claims.length, 6);
-  for (const variant of project.variants) {
-    const openings = await narrowOpeningPlan(variant, claims);
+  for (const theCase of project.cases) {
+    const openings = await narrowOpeningPlan(theCase, claims);
     assert.deepEqual(openings.filter(o => o.reviewed).map(o => o.step),
       ['question', 'broken', 'marker', 'missing']);
     assert.deepEqual(openings.filter(o => !o.reviewed).map(o => [o.step, o.reason]),

@@ -41,8 +41,8 @@ const SEQ = { loop: [...'ABCDABCD'], reuse: [...'ABCDCDCD'] };
 
 test('each case shows the counts, evictions and cache contents the model gives', async () => {
   const project = await collectProject(DIR, { write: false });
-  assert.deepEqual(project.variants.map((v) => v.values.next).sort(), ['loop', 'reuse']);
-  for (const { values, trace } of project.variants) {
+  assert.deepEqual(project.cases.map((v) => v.values.next).sort(), ['loop', 'reuse']);
+  for (const { values, trace } of project.cases) {
     assert.deepEqual(trace.steps.map((s) => s.step), ['full', 'evict', 'rest', 'verdict']);
     const requests = SEQ[values.next as keyof typeof SEQ];
     for (const [step, n] of [['full', 3], ['evict', 4], ['rest', 8], ['verdict', 8]] as const) {
@@ -74,7 +74,7 @@ test('each case shows the counts, evictions and cache contents the model gives',
 test('the hand-written captions say what the model does', async () => {
   const project = await collectProject(DIR, { write: false });
   const meta = (next: string, step: string) =>
-    project.variants.find((v) => v.values.next === next)!.trace.steps.find((s) => s.step === step)!.meta as Record<string, string>;
+    project.cases.find((v) => v.values.next === next)!.trace.steps.find((s) => s.step === step)!.meta as Record<string, string>;
   // Both cases: "both hold C, B, A"; on D, "LRU drops A ... MRU drops C".
   for (const next of ['loop', 'reuse'] as const) {
     const lru = run('lru', 3, SEQ[next]), mru = run('mru', 3, SEQ[next]);

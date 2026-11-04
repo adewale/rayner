@@ -19,7 +19,7 @@ import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
 import type { Trace } from '../../src/index.ts';
 
-import { variantsOf, withSettings, bindSnapshots, caseName, resolveSettings } from '../../explain/index.ts';
+import { casesOf, withSettings, bindSnapshots, caseName, resolveSettings } from '../../explain/index.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { diagramKey, RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
@@ -169,7 +169,7 @@ export interface Project {
   engineHash: string;
   store: SnapshotStore;
   /** Each case: its scene, trace and final stage colours (absent without a stage). */
-  variants: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette }[];
+  cases: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -331,7 +331,7 @@ export async function collectProject(
       edits++;
     },
   };
-  const variants: Project['variants'] = [];
+  const cases: Project['cases'] = [];
   const undrawable: string[] = [];
   let lettering: Lettering | undefined;
   try {
@@ -343,7 +343,7 @@ export async function collectProject(
         request,
         async () => {
           const counted = edits;
-          for (const values of variantsOf(Source)) {
+          for (const values of casesOf(Source)) {
             const scene = await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
               skipUntil: Infinity,
             }).run();
@@ -358,7 +358,7 @@ export async function collectProject(
         Object.defineProperty(previous, key, { value: store[key], enumerable: true, writable: true, configurable: true });
     }
     await useProjectLettering({ lettering });
-    for (const values of variantsOf(Source)) {
+    for (const values of casesOf(Source)) {
       const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), { skipUntil: Infinity });
       // Text the embedded fonts cannot draw shows as nothing: name it by case and step, then fail.
       let step = '(before the first step)';
@@ -392,27 +392,27 @@ export async function collectProject(
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
-      variants.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });
+      cases.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });
     }
     if (undrawable.length)
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);
     // The state readers follow must be state the scene keeps, in some step of some case.
-    checkWatch(Source.meta?.watch, variants.flatMap((v) => v.trace.steps));
+    checkWatch(Source.meta?.watch, cases.flatMap((v) => v.trace.steps));
     // The script's answer and check questions must be usable before any case is checked against them.
     checkScriptMeta(Source.meta);
     checkClaimsMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store, loaded.sourceHash);
-    return { ...loaded, Scene: Source, store, variants, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };
+    return { ...loaded, Scene: Source, store, cases, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };
   } finally {
     await builder?.close();
     await naturalBuilder?.close();
   }
 }
 /** The default case, or the case these values choose with every other setting at its default, as a URL does. */
-export function defaultVariant(project: Project, values: Settings = {}) {
+export function defaultCase(project: Project, values: Settings = {}) {
   const want = resolveSettings(project.Scene, values);
-  return project.variants.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]))!;
+  return project.cases.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]))!;
 }
 export const sceneSlug = (p: Project) => p.Scene.meta?.id ?? basename(p.file).replace(/\.[^.]+$/, '');
 /** The fields every page receipt carries: what was built, from which sources. */

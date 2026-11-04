@@ -154,13 +154,13 @@ test('the transcript says what each step changed after its caption, and check re
   assert.ok(html.includes('<p>One.</p><p>What changed: Count: 1</p>'), 'step one');
   assert.ok(html.includes('<p>Two.</p><p>What changed: Count: 1 → 2</p>'), 'step two, case a');
   assert.ok(html.includes('<p>Two.</p><p>What changed: Count: 1 → 2; Only: yes</p>'), 'step two, case b');
-  const report = (await checkProject(p, join(folder, 'report-check'))) as { variants: { settings: Record<string, string>; watch: unknown }[] };
-  const b = report.variants.find((v) => v.settings.c === 'b')!;
+  const report = (await checkProject(p, join(folder, 'report-check'))) as { cases: { settings: Record<string, string>; watch: unknown }[] };
+  const b = report.cases.find((v) => v.settings.c === 'b')!;
   assert.deepEqual(b.watch, [
     { step: 'one', changes: [{ label: 'Count', after: '1' }], unformatted: ['box'] },
     { step: 'two', changes: [{ label: 'Count', before: '1', after: '2' }, { label: 'Only', after: 'yes' }], unformatted: ['box'] },
   ]);
-  assert.deepEqual(JSON.parse(await readFile(join(folder, 'report-check', 'report.json'), 'utf8')).variants[1].watch, b.watch);
+  assert.deepEqual(JSON.parse(await readFile(join(folder, 'report-check', 'report.json'), 'utf8')).cases[1].watch, b.watch);
 });
 
 test('a scene without watch has no "What changed" in its transcript and no watch in its check report', async () => {
@@ -170,8 +170,8 @@ test('a scene without watch has no "What changed" in its transcript and no watch
   const { html } = await buildExplainer(p, join(folder, 'none.html'));
   // The bundle carries the words; the transcript has no such line.
   assert.ok(!html.includes('<p>What changed'));
-  const report = (await checkProject(p, join(folder, 'none-check'))) as { variants: Record<string, unknown>[] };
-  assert.ok(report.variants.every((v) => !('watch' in v)));
+  const report = (await checkProject(p, join(folder, 'none-check'))) as { cases: Record<string, unknown>[] };
+  assert.ok(report.cases.every((v) => !('watch' in v)));
   const d = await describeExplainer(p.Scene, { drawings: false });
   assert.ok(d.cases.every((c) => c.steps.every((s) => !('watched' in s))));
 });
