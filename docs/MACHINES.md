@@ -42,7 +42,15 @@ a `phase` variable, so its second machine would have been drawn in the frother's
 The phase is now what the scene shows (`scene.shown.phase`), the configuration is the
 model, and the picture is a `view(this, draw)` of both, which also lets the trace's view
 check compare it at every step. A machine plays under one `shown`: it records it when it
-plays and refuses to play under another, and exploration draws every reachable state under it. A machine now refuses, when it is
+plays and refuses to play under another, and exploration draws every reachable state under it.
+
+**Exploration runs where the machine played.** `rayner check` used to explore every machine on
+the stage the run ended with. A scene whose last step clears the machine's views away would then
+be explored on a stage without them, and every check would pass with nothing to check; converting
+token-bucket found this. A machine now records the step it last played in, and exploration runs the
+scene again to that step's resting picture (a frame is a function of time, so the seek reproduces
+it exactly) and checks every reachable state there. Explored without that stage, a machine whose
+views are off the stage is reported, not passed. A machine now refuses, when it is
 made, any view that is not a `view(scene, draw)`, so the mistake cannot be written.
 
 `SetState` gained the form a machine needs: `new SetState(scene, (current) => next, { event })`

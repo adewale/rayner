@@ -53,6 +53,8 @@ export class Machine<S extends object, E extends string> {
   readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
   /** What the scene showed (`scene.shown`, as JSON) when the machine played; exploration redraws under it. */
   private shownWhenPlayed: string | null = null;
+  /** The step this machine last played in; exploration checks it on that step's stage. */
+  private playedInStep: string | null = null;
 
   constructor(scene: Scene<any>, spec: MachineSpec<S, E>) {
     if (!spec.events.length) throw new TypeError('A machine needs at least one event');
@@ -71,6 +73,13 @@ export class Machine<S extends object, E extends string> {
    * state under it, as the reader would have seen it.
    */
   get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
+
+  /**
+   * The step (its path) this machine last played in, or null before it played. Exploration runs
+   * the scene again to that step's resting picture and checks every reachable state there, on the
+   * stage the reader saw the machine on, not on whatever the run ends with.
+   */
+  get lastPlayedIn(): string | null { return this.playedInStep; }
 
   /** The state after `event` from `state`, or undefined when the state refuses it. */
   after(state: S, event: E): S | undefined {
@@ -99,6 +108,7 @@ export class Machine<S extends object, E extends string> {
         if (this.shownWhenPlayed !== null && shown !== this.shownWhenPlayed)
           throw new Error(`${String(event)} plays under shown ${shown}, but this machine played under ${this.shownWhenPlayed}; a machine plays under one`);
         this.shownWhenPlayed = shown;
+        this.playedInStep = this.scene.currentStep?.path ?? null;
         return after;
       }, { event }),
       authored

@@ -225,3 +225,39 @@ test('a machine plays under one shown: it records it, refuses another, and explo
   // Exploration put back what the run left shown.
   assert.deepEqual(scene.shown, { room: 'study' });
 });
+
+test('exploration checks a machine on the stage where it last played, not the stage the run ends with', async () => {
+  class Cleared extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => {
+        const word = new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
+        word.key = 'lamp:word';
+        return Object.assign(new Group(new Rectangle({ width: 4, height: 1.2 }), word), { key: 'lamp' });
+      });
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
+      await this.step('press', { caption: 'Press the switch.' });
+      await this.play(machine.replay(['UP', 'UP']));
+      // A later step clears the lamp away and shows something else.
+      await this.step('later', { caption: 'Something else.' });
+      await s.clear();
+      await s.enter(new Text('the end', { fontSize: 0.5 }), { describe: 'The end' });
+    }
+  }
+  const ran = await new Cleared(new NullSink()).run();
+  assert.equal(machinesOf(ran)[0]!.lastPlayedIn, 'press');
+  // On the final stage the lamp is gone: exploration says so rather than checking nothing.
+  const [blind] = await exploreMachines(ran);
+  assert.match(blind!.problems[0]!, /not on the stage where it last played/);
+  // On the stage of the step where it played, every state is checked and passes.
+  const trace = await traceScene(Cleared);
+  const [explored] = await exploreMachines(ran, async (step) => {
+    const s = trace.steps.find((x) => x.step === step)!;
+    return renderAt(Cleared, Math.max(s.t0, s.t1! - 0.5 / trace.fps), new NullSink());
+  });
+  assert.deepEqual(explored!.problems, []);
+  assert.equal(explored!.states, 3);
+});

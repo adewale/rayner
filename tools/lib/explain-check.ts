@@ -22,10 +22,11 @@ import {
   traceScene,
   renderText,
   Text,
+  NullSink,
 } from '../../src/index.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
-import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
+import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
@@ -397,40 +398,52 @@ export class LegibilitySink implements Sink {
  * reader, or a screen reader, can tell them apart. A problem is named by the shortest events
  * reaching it. Phone close-ups are not worked out for explored states.
  */
-export async function exploreMachines(scene: Scene): Promise<{ events: string[]; states: number; sampled: boolean; problems: string[] }[]> {
+export async function exploreMachines(
+  scene: Scene,
+  stageOf?: (step: string) => Promise<Scene>,
+): Promise<{ events: string[]; states: number; sampled: boolean; problems: string[] }[]> {
   const explored = [];
-  const shownAfterRun = scene.shown;
-  for (const machine of machinesOf(scene)) {
+  for (const [index, live] of machinesOf(scene).entries()) {
+    // The stage the reader saw the machine on: the run again, to the resting picture of the step it
+    // last played in (a frame is a function of time, so this is that picture exactly), rather than
+    // the stage the run ends with, which may have cleared its views away.
+    const host = stageOf && live.lastPlayedIn ? await stageOf(live.lastPlayedIn) : scene;
+    const machine = host === scene ? live : machinesOf(host)[index];
+    if (!machine || JSON.stringify(machine.spec.events) !== JSON.stringify(live.spec.events))
+      throw new Error(`exploration: the run to "${live.lastPlayedIn}" made different machines; a scene must make the same machines each run`);
     const problems: string[] = [];
+    const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
+    if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
     const reached = machine.reachable();
+    const shownThen = host.shown;
     // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
-    scene.shown = machine.playedUnder ?? shownAfterRun;
+    host.shown = machine.playedUnder ?? shownThen;
     const said = new Map<string, string>();
     for (const { state, path } of reached) {
       const at = path.length ? `after ${path.join(', ')}` : 'at the start';
-      scene.state = jsonObject(state, 'machine state');
+      host.state = jsonObject(state, 'machine state');
       for (const view of machine.spec.views) {
         view.rebuild();
-        const mismatch = viewMismatch(view, scene.state, { shown: scene.shown });
+        const mismatch = viewMismatch(view, host.state, { shown: host.shown });
         if (mismatch) problems.push(`${at}: ${mismatch}`);
       }
-      problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${at}: ${p}`));
+      problems.push(...[...restingTextProblems(host), ...restingRouteProblems(host)].map((p) => `${at}: ${p}`));
       // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside
       // the view, clipped or transparent) is never measured and stays at 0.
-      const sizes = new LegibilitySink(new Set([scene.frameCount]), new Map(), new Map(), 0);
-      await sizes.frame(scene);
+      const sizes = new LegibilitySink(new Set([host.frameCount]), new Map(), new Map(), 0);
+      await sizes.frame(host);
       for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
         if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-      const picture = scene.describeShown().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+      const picture = host.describeShown().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
       const words = JSON.stringify(picture?.entries ?? []);
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
       else said.set(words, at);
-      problems.push(...transitionProblems(scene, machine, state, path));
+      problems.push(...transitionProblems(host, machine, state, path));
     }
+    host.shown = shownThen;
     explored.push({ events: [...machine.spec.events], states: reached.length, sampled: reached.length >= machine.spec.limit, problems });
   }
-  scene.shown = shownAfterRun;
   return explored;
 }
 
@@ -571,7 +584,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       [],
       `Invariants never held ${where}: each ran but found nothing to check on every frame (a key it reads may be misspelt)`,
     );
-    const machines = await exploreMachines(ran);
+    // Each machine is explored on the stage where it last played: the scene run again to that step's resting picture.
+    const machines = await exploreMachines(ran, async (step) => {
+      const s = v.trace.steps.find((x) => x.step === step)!;
+      return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
+    });
     const staged = redrawStagedSteps(ran, v.trace);
     assert.deepEqual(
       staged.problems.slice(0, 5),
