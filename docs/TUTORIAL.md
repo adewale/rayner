@@ -2,11 +2,11 @@
 
 A Rayner explainer is a web page that answers one technical question in steps. The reader presses Next, something on the stage changes, and the picture then holds still while they read the caption. This tutorial builds one that answers this question: what is the difference between the LRU and MRU cache replacement policies?
 
-You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [editorial rubric](EXPLAINER-RUBRIC.md) reviews finished explainers against them.
+You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [rubric](EXPLAINER-RUBRIC.md) judges finished explainers against them.
 
 ## What makes an explainer work
 
-These are lessons from explainers that worked, not rules to satisfy. Rayner checks a few of them for you; the rest are judgement, and the end of the list says which is which.
+These are lessons from explainers that worked. Rayner checks a few of them for you and the rest are judgement; the paragraph after the list says which.
 
 1. Start from a reader's question. Write down who is asking, what result they saw and the answer you can support. If a screenshot or a short diff already answers the question, publish that instead.
 2. Open on the result that needs explaining. Names for the parts can wait until the reader needs them.
@@ -46,7 +46,7 @@ The scenarios line is written before any drawing, so the picture has to match a 
 
 The limit line keeps the explainer inside what it tests. It counts hits, so it cannot say anything about latency or the bookkeeping LRU needs to track recency. It does not test random access either, where Chou and DeWitt report that "the choice of a replacement algorithm is immaterial". The limit becomes the last caption (principle 8).
 
-Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version earns its place by isolating the one decision where the policies differ before it shows what that decision costs over the whole sequence.
+Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version isolates the one decision where the policies differ before it shows what that decision costs over the whole sequence, which a table cannot do.
 
 Then write the explanation you would give the reader, with the concrete problem before the names and each paragraph supplying the reason for the next. Read it straight through: does it explain the result, or merely announce what the drawing will show? `script.md` contains that reader-facing prose. It has no fixed word count. `rayner init` writes this example:
 
@@ -65,9 +65,7 @@ Change only the last four requests: C, D, C, D. LRU kept both, so all four repea
 The eviction rule has stayed the same; the useful choice has reversed. Recency records the past. Whether it predicts the next request depends on the access pattern. These two examples count eight requests through three slots; they do not measure the cost of maintaining the cache.
 ```
 
-Keep the script separate from production instructions. An optional `notes.md` can explain a non-obvious visual choice or a model limitation a future author needs. Do not copy the step table, test assertions or revision history into it; inspect the scene, run the tests and use Git for those. The script still states any limit the reader needs to interpret its conclusion.
-
-The scene is the source for the player's answer and check questions: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see the answer arrives before the explanation elaborates), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure. Keep those questions and answers in `meta.checks`, rather than maintaining a second copy in the script. Use them to review the prose: could a reader reason through an unseen case after reading it? See [working documents](EXPLAINER-RUBRIC.md#working-documents) for the small division of responsibilities.
+The script holds only the explanation addressed to the reader, including any limit the reader needs to interpret its conclusion. The answer and the check questions live in the scene: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see whether the answer arrives before the details), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure. Use the questions to review the prose: could a reader reason through an unseen condition after reading it? [Working documents](EXPLAINER-RUBRIC.md#working-documents) says what belongs in the script, the scene and an optional `notes.md`.
 
 ## 2. Generate the explainer
 
@@ -297,7 +295,7 @@ Picture: 8 labelled values. Marked: Hits (LRU): 4: C D C D; Hits (MRU): 0.
 Changed: nothing in scene.state
 ```
 
-The marked row says LRU hit four times and MRU never did, so in this case the caption is false. It was written from the loop scenario alone. Undo the change: the scene's own ending takes its title and counts from each scenario's outcome.
+The marked row says LRU hit four times and MRU never did, so in this scenario the caption is false: it was written from the loop scenario alone. Undo the change: the scene's own ending takes its title and counts from each scenario's outcome.
 
 Read every step of every scenario this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner shots lru-mru/scene.ts --scenario next=reuse` makes a contact sheet of one scenario. At each step, ask:
 

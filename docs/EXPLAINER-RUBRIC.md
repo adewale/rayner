@@ -1,8 +1,8 @@
 # Judging an explainer
 
-Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence, not a score. Earlier editions scored six, then seven, dimensions from 0 to 4; those totals measured adherence to a list, and explainers that scored well could still fail to say what they taught. Totals from those editions, such as the /24 scores in the dated assessments preserved in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), are on a retired scale and are not comparable with anything here.
+Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence rather than a score. Scores from earlier editions, such as the /24 totals in the assessments kept in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), measured adherence to a list and are not comparable with anything here.
 
-The criteria come from the communities that make the best explainers. 3Blue1Brown's Summer of Math Exposition judged thousands of entries on motivation, clarity, novelty and memorability ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice adds the craft behind them: concrete before abstract, names the reader has seen the need for, a story of a problem being solved, and the feeling of having invented the idea ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). The skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first) says how to write for them.
+The criteria are 3Blue1Brown's Summer of Math Exposition's, with Grant Sanderson's advice on the craft behind them; the skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first) cites them and says how to write for them.
 
 ## How to read
 
@@ -23,7 +23,7 @@ Keep each fact where it can be maintained:
 
 The script is an editorial draft of the explanation, not a generated transcript. If a rewrite changes the reasoning, update the corresponding scene prose and check its offered scenarios. Do not leave a stronger promise in the script than the page fulfills. Source links belong in `meta.sources`; notes can explain why a source or convention was chosen. Revision history belongs in Git.
 
-Use the ending questions from `meta.checks` to challenge the script. Can its reasoning answer a changed case, or does it merely reveal the quiz answer? This editorial judgment can expose a weak explanation before reader testing. A newcomer study is still needed to measure what readers actually understand.
+Use the ending questions in `meta.checks` to challenge the script: can its reasoning answer a changed condition, or does it only reveal the quiz answer? This can expose a weak explanation before reader testing, but only a newcomer study measures what readers understand.
 
 ## The criteria
 
@@ -62,6 +62,6 @@ When several explainers must be ordered, compare them in pairs, blind where poss
 
 ## Choosing a hero
 
-A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), the Rayner leverage (what the coordinated model, code and picture reveal that a still or diff would not, with an independent check behind it), and the consequential other scenario (one changed condition that changes the outcome, with both results inspectable). These are editorial reasons to select a lesson. The benchmark records comparative reviewer preferences for the pages it tested; it does not measure reader demand or newcomer learning.
+A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), what Rayner adds (what the coordinated model, code and picture show that a still or diff would not, with an independent check behind it), and the other scenario that matters (one changed condition that changes the outcome, with both results inspectable). These are editorial reasons to select a lesson. The benchmark records reviewers' preferences between the pages it tested; it does not measure reader demand or newcomer learning.
 
 The showcase tier selects subject examples to study, not a measured learning outcome. Prefer a small set of complementary mechanisms and consequential alternative scenarios over broad engine coverage. Keep authoring recipes in their own collection; a toolchain lesson joins the showcase only when it stands on its own as a lesson, as lantern's still-versus-playback comparison does. The catalog is the source of truth for the current selection. A lesson’s benchmark status must remain explicit; selection alone does not demonstrate that it beats another tool.

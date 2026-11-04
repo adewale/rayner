@@ -15,16 +15,13 @@ Rayner turns a TypeScript model into a step-through explanation. Readers can cha
 An explainer written by hand, or by a language model, can look right and be wrong. Rayner's job is to check what an author, human or model, cannot easily check by eye:
 
 - **Every value comes from a model, and the model is tested against the real thing.** A scene draws numbers, paths and outcomes from a separate TypeScript model; its test compares the model with the program, library or published vectors it describes (CPython, Git, XState and others in the gallery), and a fidelity test asserts that every step of every scenario shows what the model computed.
-- **Pictures are measured as painted.** `rayner check` runs every scenario and fails on undersized desktop labels, text that collides, connectors that cross labels, a picture that moves after its caption starts, a jump to a step that draws differently from playing to it, and a drawing with no description in words. It also fails an explanation that never states its declared answer (`meta.answer`), and reports the step where the answer first appears.
+- **Pictures are checked against state and measured as painted.** `rayner check` runs every scenario, redraws each staged step's picture from the state its step recorded, and draws every state an event-driven [machine](docs/MACHINES.md) can reach. It fails on undersized desktop labels, text that collides, connectors that cross labels, a picture that moves after its caption starts, a jump to a step that draws differently from playing to it, and a drawing with no description in words. It also fails an explanation that never states its declared answer (`meta.answer`), and reports the step where the answer first appears.
 - **The page is reviewed as served.** `rayner review` opens the built page at phone and desktop widths, visits every resting step of every scenario, and checks what is actually painted.
 - **Agents can read it.** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
 
-Phone label estimates use the minimum stage geometry; `rayner review` checks the actual served layout. Claims metadata links prose to named tests, but does not run them or verify their assertions. The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
-To use Rayner as a library, start with [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md),
-[frames, text and traces](docs/SCENE-OUTPUTS.md), [runnable extension recipes](docs/EXTENDING.md), and the
-[drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`).
-[Sampled parameters](docs/PARAMETERS.md) records what a general version of the
-continuous recipe would change; the recipe itself uses the supported Animation extension point.
+Phone label estimates use the minimum stage geometry; `rayner review` checks the actual served layout. `meta.claims` links prose to named tests, but does not run them or verify their assertions. The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
+
+To use Rayner as a library, start with [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md); the [engine map](docs/ENGINE.md) lists the guides and the invariants they keep, and the [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) draws the parts explanations keep needing.
 
 ## Write your first scene
 
@@ -40,7 +37,7 @@ npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the reader-facing script, `script.md`, the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
+Open the localhost URL `preview` prints. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, and reload to see the rebuilt page. `init` also writes the reader-facing script, `script.md`, the scene's model, `model.ts`, and a test of the model against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
 
 When your explanation is ready, review every scenario and save the page to publish:
 
@@ -48,11 +45,11 @@ When your explanation is ready, review every scenario and save the page to publi
 npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 ```
 
-`review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, header recipe and loader. Check the model against its sources and inspect the screenshots: automated checks cannot establish that an explanation is true. [The tutorial](docs/TUTORIAL.md) develops a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it.
+`review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, header recipe and loader. Check the model against its sources and look at the screenshots, because no automated check can establish that an explanation is true. [The tutorial](docs/TUTORIAL.md) builds a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it.
 
 ## Look up an authoring feature
 
-The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers an author's question, how do I write that?, for 15 features. Choose a feature to start at **Recipe**, which shows the lines an author writes and asks what they will draw; then advance to **Result**, which shows the picture before and after those lines run. Its excerpts need the surrounding scene to run; the [feature guide](docs/FEATURE-TOUR.md) links the full source and specialized setup. Direct links to a Result step still work.
+The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers "how do I write that?" for 15 features. Each feature opens at **Recipe**, which shows the lines an author writes and asks what they will draw; **Result** then shows the picture before and after those lines run. The excerpts need the surrounding scene to run, and the [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
 
 ## Work from this repository
 
