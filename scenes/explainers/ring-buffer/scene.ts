@@ -25,6 +25,7 @@ import {
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Card } from '../../../explain/panels.ts';
+import { emphasises } from '../../../explain/look.ts';
 import { ringStory, ringStart, ringNext, RingBuffer } from '../lib/models.ts';
 import type { RingState, RingEvent } from '../lib/models.ts';
 
@@ -287,6 +288,16 @@ export default class RingBufferExplainer extends Scene {
     this.state = { ...start } as unknown as SceneState;
     const ring = (this.ring = view(this, (st) => ringPicture(st as unknown as RingState), { place: false }));
     s.keep(ring, { describe: ringWords });
+    // What the ring marks, as emphasis the phone's close-ups visit first and review holds to the
+    // caption: each outlined slot, and the value the tray took last. Read from state.
+    emphasises(this, () => {
+      const st = this.state as unknown as RingState, out: [Mobject, string][] = [];
+      const at = (key: string, what: string) => { const m = ring.current.find(key); if (m) out.push([m, what]); };
+      for (const m of st.marks) at(`ring:mark:${m.slot}`, `outlined: ${m.kind} at slot ${m.slot}`);
+      const last = (st.tray?.values.length ?? 0) - 1;
+      if (last >= 0) at(`ring:tray:${last}`, `${st.tray!.label} ${st.tray!.values[last]}`);
+      return out;
+    });
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
     const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;
@@ -497,7 +508,8 @@ export default class RingBufferExplainer extends Scene {
       });
       await code.focus(ending.error ? 1 : replays[g]![0] === 'pop' ? [8, 12] : [2, 4]);
       await this.play(machine.replay(replays[g]!));
-      if (ending.error) {
+      // The card's Result row is marked once, when push first throws Full; it stays marked.
+      if (ending.error && !resultMarked) {
         resultMarked = true;
         await card.mark('Result');
       }

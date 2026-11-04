@@ -20,6 +20,7 @@ import {
 import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Card } from '../../../explain/panels.ts';
+import { emphasises } from '../../../explain/look.ts';
 import { reduceSession, sessionAttempt, sessionStart, sessionNext, SESSION_EVENTS } from '../lib/models.ts';
 import type { SessionState, SessionEvent } from '../lib/models.ts';
 const SOURCE =
@@ -168,39 +169,50 @@ export default class StateMachineExplainer extends Scene {
     const lit = (span: CodeSpan, color: string) => new Group(...span.children.map((g) => g.copy().setFill(color)));
     const boxOf = (span: CodeSpan, color: string) =>
       new SurroundingRectangle(span.box()!, { buff: 0.035, cornerRadius: 0.04, stroke: color, strokeWidth: 0.02 });
-    const marks = (st: SessionState) => {
+    // Three pictures of the session's state, each its own view so each change is its own region:
+    // the diagram with its travelled links in the trail's colour, the ring on the state the
+    // session is in, and the reducer row it read (or the throw it hit), lit and boxed.
+    const keyed = (m: Mobject, key: string) => Object.assign(m, { key });
+    const trails = (st: SessionState) => new Group(keyed(d.picture(Object.fromEntries(st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, d.accent]; }))), 'diagram'));
+    const ringOf = (st: SessionState) => new Group(keyed(new SurroundingRectangle(d.get(st.session), { buff: RING.buff, cornerRadius: RING.cornerRadius, stroke: NOW, strokeWidth: RING.strokeWidth }), `session:ring:${st.session}`));
+    const reading = (st: SessionState) => {
       const parts: Mobject[] = [];
-      const add = (m: Mobject, key: string) => { m.key = key; parts.push(m); };
-      // The diagram itself, its travelled links in the trail's colour.
-      add(d.picture(Object.fromEntries(st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, d.accent]; }))), 'diagram');
-      if (st.row) {
-        add(lit(rowSpan(st.row), NOW), `reducer:lit:${st.row}`);
-        add(boxOf(rowSpan(st.row), NOW), `reducer:box:${st.row}`);
-      }
-      if (st.invalid) {
-        add(lit(thrown(), REJECT), 'reducer:throw-lit');
-        add(boxOf(thrown(), REJECT), 'reducer:throw-box');
-      }
-      add(new SurroundingRectangle(d.get(st.session), { buff: RING.buff, cornerRadius: RING.cornerRadius, stroke: NOW, strokeWidth: RING.strokeWidth }), `session:ring:${st.session}`);
+      if (st.row) parts.push(keyed(lit(rowSpan(st.row), NOW), `reducer:lit:${st.row}`), keyed(boxOf(rowSpan(st.row), NOW), `reducer:box:${st.row}`));
+      if (st.invalid) parts.push(keyed(lit(thrown(), REJECT), 'reducer:throw-lit'), keyed(boxOf(thrown(), REJECT), 'reducer:throw-box'));
       return new Group(...parts);
     };
-    const marksWords = () => {
-      const st = this.state as unknown as SessionState;
-      const said = [`A ring around ${st.session}, the state the session is in`];
-      if (st.travelled.length) said.push(`Travelled: ${st.travelled.map((l) => { const [from, to, event] = l.split(':'); return `${from} → ${to}: ${event}`; }).join('; ')}`);
-      if (st.row) said.push(`A box around line ${rowOf(st.row) + 1} of the reducer: '${st.row}': '${REDUCER[rowOf(st.row)]!.split("'")[3]}', the row the reducer reads, in the ring's colour`);
-      if (st.invalid) said.push(`A box around line ${THROW + 1} of the reducer: the throw, in red, since no row matches ${st.session}:${st.event}`);
-      return said.join('. ');
-    };
+    const session = () => this.state as unknown as SessionState;
     // The drawn diagram takes the live one's place: the live diagram leaves the stage, still the
     // source of geometry and of the diagram's description, and the reader sees the state's picture.
-    const marked = view(this, (st) => marks(st as unknown as SessionState), { place: false });
-    s.keep(marked, { describe: marksWords });
+    const diagram = view(this, (st) => trails(st as unknown as SessionState), { place: false });
+    const ring = view(this, (st) => ringOf(st as unknown as SessionState), { place: false });
+    const reducer = view(this, (st) => reading(st as unknown as SessionState), { place: false });
+    s.keep(diagram, { describe: () => session().travelled.length ? `Travelled: ${session().travelled.map((l) => { const [from, to, event] = l.split(':'); return `${from} → ${to}: ${event}`; }).join('; ')}` : '' });
+    s.keep(ring, { describe: () => `A ring around ${session().session}, the state the session is in` });
+    s.keep(reducer, {
+      describe: () => {
+        const st = session();
+        if (st.row) return `A box around line ${rowOf(st.row) + 1} of the reducer: '${st.row}': '${REDUCER[rowOf(st.row)]!.split("'")[3]}', the row the reducer reads, in the ring's colour`;
+        if (st.invalid) return `A box around line ${THROW + 1} of the reducer: the throw, in red, since no row matches ${st.session}:${st.event}`;
+        return '';
+      },
+    });
+    // What the views mark, as emphasis the phone's close-ups visit first and review holds to the
+    // caption: the ring, the row read or the throw hit, and each link travelled, read from state.
+    emphasises(this, () => {
+      const st = session(), out: [Mobject, string][] = [];
+      const at = (v: View, key: string, what: string) => { const m = v.current.find(key); if (m) out.push([m, what]); };
+      at(ring, `session:ring:${st.session}`, `ring: ${st.session}`);
+      if (st.row) at(reducer, `reducer:box:${st.row}`, `row: ${st.row}`);
+      if (st.invalid) at(reducer, 'reducer:throw-box', `throw: ${st.session}:${st.event}`);
+      for (const l of st.travelled) { const [from, to] = l.split(':'); at(diagram, d.link(from!, to!).id, 'travelled'); }
+      return out;
+    });
     await this.play(new FadeIn(readout, { runTime: 0.35, shift: [0, -0.08] }));
-    this.add(marked);
+    this.add(diagram, reducer, ring);
     this.remove(d.root);
-    d.showBy(marked);
-    await this.play(new Create(marked.current.find(`session:ring:${start.session}`)!, { runTime: RING.runTime }));
+    d.showBy(diagram);
+    await this.play(new Create(ring.current.find(`session:ring:${start.session}`)!, { runTime: RING.runTime }));
     await code.focus([1, 4]);
 
     /** The card's value for `field` crossfades to its new text. */
@@ -220,21 +232,22 @@ export default class StateMachineExplainer extends Scene {
       start,
       events: SESSION_EVENTS,
       next: sessionNext,
-      views: [marked, readout],
+      views: [diagram, ring, reducer, readout],
       // An event the table has a row for walks the link (3.7 s); a throw only lights the throw (1.4 s).
       runTime: ({ after }) => (after.invalid ? 1.35 : 3.66),
       transition: Object.fromEntries(
         SESSION_EVENTS.map((event) => [
           event,
           ({ before, after, views, targets }: Transition<SessionState, SessionEvent>) => {
-            const c = choreograph(views[0]!.current, targets[0]!), k = choreograph(views[1]!.current, targets[1]!);
+            const g = choreograph(views[0]!.current, targets[0]!), o = choreograph(views[1]!.current, targets[1]!),
+              c = choreograph(views[2]!.current, targets[2]!), k = choreograph(views[3]!.current, targets[3]!);
             if (after.invalid) {
               // No row: the card shows the event and the throw, and the throw lights.
               return new Succession([
                 new AnimationGroup([...swap(k, 'event', 0.45), ...swap(k, 'returns', 0.45), k.morph('session:bar', { runTime: 0.45 }), ...putBack(c, before, true)]),
                 ...show(c, 'reducer:throw-lit', {}, 0.4),
                 ...show(c, 'reducer:throw-box', { create: true }, 0.5),
-                new AnimationGroup([c.rest({ runTime: 0.01 }), k.rest({ runTime: 0.01 })]),
+                new AnimationGroup([g.rest({ runTime: 0.01 }), o.rest({ runTime: 0.01 }), c.rest({ runTime: 0.01 }), k.rest({ runTime: 0.01 })]),
               ]);
             }
             // The event arrives on the card, the last lit row is put back, the row lights and is
@@ -242,23 +255,25 @@ export default class StateMachineExplainer extends Scene {
             // ring goes where the reducer's answer says the session now is.
             const barAtEvent = k.to('session:bar').copy().moveTo([k.to('session:bar').center()[0], (k.to('session:event') as Text).anchorPoint()[1]]);
             const bar = k.own('session:bar'), link = d.link(before.session, after.session);
-            const token = c.insert('walk:token', new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)));
+            const token = g.insert('walk:token', new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)));
             return new Succession([
               new AnimationGroup([...swap(k, 'event', 0.45), new Transform(bar, barAtEvent, { runTime: 0.45 }), ...putBack(c, before)]),
               c.enter(`reducer:lit:${after.row}`, {}, { runTime: 0.4 }),
               c.enter(`reducer:box:${after.row}`, { create: true }, { runTime: 0.5 }),
-              c.leave(`session:ring:${before.session}`, { runTime: 0.35 }),
+              o.leave(`session:ring:${before.session}`, { runTime: 0.35 }),
               new Transform(token, new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)), { runTime: 0.18 }),
               new AnimationGroup([
                 new MoveAlongPath(token, link.route, { runTime: 0.8, rateFunc: linear }),
-                c.morph('diagram', { runTime: 0.8 }),
+                g.morph('diagram', { runTime: 0.8 }),
               ]),
-              c.leave('walk:token', { runTime: 0.18 }),
+              g.leave('walk:token', { runTime: 0.18 }),
               new AnimationGroup([
-                c.enter(`session:ring:${after.session}`, { create: true }, { runTime: 0.8 }),
+                o.enter(`session:ring:${after.session}`, { create: true }, { runTime: 0.8 }),
                 ...swap(k, 'state', 0.8),
                 ...swap(k, 'returns', 0.8),
                 new Transform(bar, k.to('session:bar'), { runTime: 0.8 }),
+                g.rest({ runTime: 0.8 }),
+                o.rest({ runTime: 0.8 }),
                 c.rest({ runTime: 0.8 }),
                 k.rest({ runTime: 0.8 }),
               ]),
@@ -292,6 +307,6 @@ export default class StateMachineExplainer extends Scene {
     });
     await this.play(machine.replay(['OPENED']));
     this.state.terminal = true;
-    s.reading(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, marked.current.find('diagram')!, marked.current.find(`session:ring:${state}`)!, readout.current);
+    s.reading(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
   }
 }
