@@ -280,6 +280,11 @@ export default class OAuthExplainer extends Scene {
     const machine = new Machine<SignIn, SignInEvent>(this, {
       start,
       events: SIGN_IN_EVENTS,
+      // What the player's buttons say: who sends what.
+      labels: {
+        AUTHORIZE: 'Authorize, no challenge', AUTHORIZE_S256: 'Authorize with S256', REDIRECT: 'Redirect to the client',
+        INTERCEPT: 'App intercepts the redirect', CLIENT_REDEEMS: 'Client redeems the code', APP_REDEEMS: 'App redeems the code',
+      },
       next: signInNext,
       views: [sheet],
       // A token request travels there and its answer back (2.6 s); any other message travels once (1.4 s).

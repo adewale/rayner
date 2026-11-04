@@ -355,6 +355,8 @@ export default class BashExplainer extends Scene {
     const machine = new Machine<ShellSession, BashEvent>(this, {
       start,
       events: BASH_EVENTS,
+      // What the player's buttons say: the script's lines as the reader would run them.
+      labels: { RUN_PIPELINE: 'Run the pipeline', CAT_NEWEST: 'cat on the newest shell', CAT_S0: 'cat on s0', LS: 'ls' },
       next: sessionNextShell,
       bound: scriptBound,
       views: [chain],
