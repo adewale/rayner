@@ -1,7 +1,8 @@
 import { Group, Code, Rectangle, Line, Circle, Arrow } from '../../../../src/index.ts';
+import type { Mobject } from '../../../../src/index.ts';
 import type { Stage } from '../../../../explain/index.ts';
-import { runSearch } from '../latest-search.ts';
-import type { CompletionOrder, Query, Lifetime, PageSpan } from '../latest-search.ts';
+import { runSearch, raceLifetimes, racePage, raceReplay } from '../latest-search.ts';
+import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from '../latest-search.ts';
 import { label, tile } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
 
@@ -21,64 +22,119 @@ export const ANSWER = 'An older search can finish last, and an unguarded handler
 const tickX = (t: number) => -3.2 + t * 2.4,
   RIGHT_EDGE = 6.8,
   ROW_LABEL_X = -7.1;
-/** Each search as a bar from the tick it starts to the tick its result lands, from the model's lifetimes; beneath
- * them, one track per rule of what the page shows between events, from the model's page spans. A dashed line
- * drops from each landing to the tracks, where the page changes or, under the guard, may not. */
-function timeline(s: Stage, lifetimes: readonly Lifetime[], tracks: readonly { name: string; page: readonly PageSpan[]; key: string }[]) {
+/** A search still running: its bar reaches this far past the last event. */
+const RUNNING = 1.2;
+/** Each search's row: A on top, B under it, whichever started. */
+const ROW: Record<Query, number> = { A: 0, B: 1 };
+export const barY = (query: Query) => 2.4 - ROW[query] * 1.2;
+const TRACK_TOP = -0.75;
+/** The page track for rule `i` (0: no guard; 1: guard on). */
+export const trackY = (i: number) => TRACK_TOP - 0.95 - i * 1.25;
+export { tickX };
+
+/** One search's ticks; `land` is null while it runs. */
+export interface Life { query: Query; start: number; land: number | null }
+/** A page span, outlined in red when `stale`: published after a newer search started. */
+export type Span = PageSpan & { stale: boolean };
+export interface Track { name: string; page: readonly Span[]; key: string }
+const keyed = <M extends Mobject>(m: M, key: string): M => Object.assign(m, { key });
+
+/**
+ * Each search as a bar from the tick it starts to the tick its result lands (or, while it runs, a
+ * little past the last event `now`), from the model's lifetimes; beneath them, one track per rule of
+ * what the page shows between events, from the model's page spans. A dashed line drops from each
+ * landing to the tracks, where the page changes or, under the guard, may not. Every part is keyed,
+ * so a machine's transition can move each.
+ */
+export function timeline(s: Stage, lifetimes: readonly Life[], tracks: readonly Track[], now: number): Group {
   const rowLabel = (text: string, y: number, color = s.palette.ink) => label(text, 0, 0, color, 0.62).moveTo([ROW_LABEL_X, y], [-1, 0]);
-  const bars = new Group(
-    ...lifetimes.flatMap(({ query, start, land }, i) => {
-      const y = 2.4 - i * 1.2,
-        color = query === 'B' ? s.emphasis : s.soft,
-        a = tickX(start),
-        b = tickX(land);
-      return [
-        rowLabel(q(query), y),
-        new Rectangle({ width: b - a, height: 0.6, fill: color, fillOpacity: 0.35, stroke: color, strokeWidth: 0.03 }).moveTo([(a + b) / 2, y]),
-        new Circle({ radius: 0.18, fill: color, stroke: color }).moveTo([b, y]),
-      ];
-    }),
-  );
-  bars.key = 'timeline-searches';
-  const axisY = 0.1;
-  const axis = new Group(
-    new Arrow([tickX(0), axisY], [RIGHT_EDGE, axisY], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2, tipWidth: 0.16 }),
-    label('time', 0, 0, s.soft, 0.62).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
-  );
-  const top = -0.75,
-    rowY = (i: number) => top - 0.95 - i * 1.25;
-  const rows = tracks.map(({ name, page, key }, i) => {
-    const y = rowY(i);
-    const g = new Group(
-      rowLabel(name, y),
-      ...page.flatMap(({ from, to, shown }) => {
-        const a = tickX(from) + 0.04,
-          b = (to === null ? RIGHT_EDGE : tickX(to)) - 0.04,
-          stale = shown === 'A',
-          // A landing inside the span changed nothing here; its dashed line crosses the span, so the words sit before it.
-          inside = lifetimes.map((l) => l.land).filter((t) => t > from && (to === null || t < to)),
-          end = inside.length ? tickX(Math.min(...inside)) - 0.04 : b;
-        return [
-          new Rectangle({ width: b - a, height: 0.9, fill: s.palette.paper, stroke: stale ? s.bad : s.soft, strokeWidth: stale ? 0.055 : 0.025 }).moveTo([(a + b) / 2, y]),
-          label(shown ? q(shown) : 'nothing', (a + end) / 2, y, stale ? s.bad : shown ? s.palette.ink : s.soft, 0.62),
-        ];
-      }),
+  const parts: Mobject[] = [];
+  for (const { query, start, land } of lifetimes) {
+    const y = barY(query),
+      color = query === 'B' ? s.emphasis : s.soft,
+      a = tickX(start),
+      b = land === null ? tickX(now) + RUNNING : tickX(land);
+    parts.push(
+      keyed(rowLabel(q(query), y), `timeline-search:${query}:label`),
+      keyed(new Rectangle({ width: b - a, height: 0.6, fill: color, fillOpacity: 0.35, stroke: color, strokeWidth: 0.03 }).moveTo([(a + b) / 2, y]), `timeline-search:${query}:bar`),
     );
-    g.key = key;
-    return g;
+    if (land !== null) parts.push(keyed(new Circle({ radius: 0.18, fill: color, stroke: color }).moveTo([b, y]), `timeline-search:${query}:dot`));
+  }
+  const axisY = 0.1;
+  parts.push(
+    keyed(
+      new Group(
+        new Arrow([tickX(0), axisY], [RIGHT_EDGE, axisY], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2, tipWidth: 0.16 }),
+        label('time', 0, 0, s.soft, 0.62).moveTo([RIGHT_EDGE, axisY - 0.4], [1, 0]),
+      ),
+      'timeline-axis',
+    ),
+  );
+  const landings = lifetimes.flatMap((l) => (l.land === null ? [] : [l.land]));
+  if (tracks.length) {
+    for (const { query, land } of lifetimes) {
+      if (land === null) continue;
+      const x = tickX(land),
+        d = new Line([x, barY(query) - 0.2], [x, trackY(tracks.length - 1) - 0.55], { stroke: s.soft, strokeWidth: 0.025 });
+      d.style.dashArray = '0.12 0.1';
+      parts.push(keyed(d, `timeline-drop:${query}`));
+    }
+    parts.push(keyed(rowLabel('Page shows', TRACK_TOP, s.soft), 'timeline-page-label'));
+  }
+  tracks.forEach(({ name, page, key }, i) => {
+    const y = trackY(i);
+    parts.push(keyed(rowLabel(name, y), `${key}:name`));
+    page.forEach(({ from, to, shown, stale }, j) => {
+      const a = tickX(from) + 0.04,
+        b = (to === null ? RIGHT_EDGE : tickX(to)) - 0.04,
+        // A landing inside the span changed nothing here; its dashed line crosses the span, so the words sit before it.
+        inside = landings.filter((t) => t > from && (to === null || t < to)),
+        end = inside.length ? tickX(Math.min(...inside)) - 0.04 : b;
+      parts.push(
+        keyed(
+          new Group(
+            new Rectangle({ width: b - a, height: 0.9, fill: s.palette.paper, stroke: stale ? s.bad : s.soft, strokeWidth: stale ? 0.055 : 0.025 }).moveTo([(a + b) / 2, y]),
+            label(shown ? q(shown) : 'nothing', (a + end) / 2, y, stale ? s.bad : shown ? s.palette.ink : s.soft, 0.62),
+          ),
+          `${key}:span:${j}`,
+        ),
+      );
+    });
   });
-  const drops = tracks.length
-    ? lifetimes.map(({ land }, i) => {
-        const x = tickX(land),
-          d = new Line([x, 2.4 - i * 1.2 - 0.2], [x, rowY(tracks.length - 1) - 0.55], { stroke: s.soft, strokeWidth: 0.025 });
-        d.style.dashArray = '0.12 0.1';
-        return d;
-      })
-    : [];
-  return new Group(bars, axis, ...drops, ...(tracks.length ? [rowLabel('Page shows', top, s.soft)] : []), ...rows);
+  return new Group(...parts);
 }
 
-export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
+/** The tracks a race shows: its own page, and under the guard the page the same events make without it. */
+export function raceTracks(st: RaceState): Track[] {
+  return st.guarded
+    ? [
+        { name: 'No guard', page: racePage(raceReplay(false, st.log)), key: 'timeline-page-off' },
+        { name: 'Guard on', page: racePage(st), key: 'timeline-page-on' },
+      ]
+    : [{ name: 'No guard', page: racePage(st), key: 'timeline-page-off' }];
+}
+/** The race's timeline, drawn from its state alone. */
+export const raceTimeline = (s: Stage, st: RaceState) => keyed(timeline(s, raceLifetimes(st), raceTracks(st), st.log.length - 1), 'reader-picture');
+/** The timeline in words: each search's ticks, and what each page shows in turn. */
+export function raceWords(st: RaceState): string {
+  const lives = raceLifetimes(st);
+  const searches = (['A', 'B'] as const).map((query) => {
+    const l = lives.find((x) => x.query === query);
+    return !l ? `${q(query)} is not typed yet` : l.land === null ? `${q(query)} started at event ${l.start + 1} and is still running` : `${q(query)} started at event ${l.start + 1} and landed at event ${l.land + 1}`;
+  });
+  const pages = raceTracks(st).map(({ name, page }) => `${name}: the page shows ${page.map((p) => `${q(p.shown)}${p.stale ? ' (outlined in red)' : ''}`).join(', then ')}`);
+  return [...searches, ...pages].join('. ');
+}
+
+/** A step a machine plays: its words; its state and picture are the race's. */
+export interface RaceStep { id: string; title: string; line: string; caption: string }
+
+/**
+ * The story: the race (staged), the unguarded race played by its machine, the ticket and the two
+ * decisions (staged), and the guarded race played by its machine. `events` is the order the chosen
+ * case plays: A starts, B starts, then the two landings in the completion order.
+ */
+export async function story(order: CompletionOrder): Promise<{ race: StagedStep; overwrite: RaceStep; middle: StagedStep[]; guard: RaceStep; events: RaceEvent[] }> {
   const [off, on] = await Promise.all([runSearch(false, order), runSearch(true, order)]);
   // The order the promises resolved in, read back from the model's run.
   const done = off.snapshots.slice(1).map((x) => x.completed.at(-1)!);
@@ -119,8 +175,14 @@ export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
     };
   });
 
-  return [
-    {
+  const events: RaceEvent[] = ['start A', 'start B', `${first} lands`, `${last} lands`];
+  // Both machines play these events; their runs must agree with the real promises' runs.
+  const playedOff = raceReplay(false, events), playedOn = raceReplay(true, events);
+  if (JSON.stringify(playedOff.writes) !== JSON.stringify(off.snapshots.at(-1)!.writes) || JSON.stringify(playedOn.writes) !== JSON.stringify(on.snapshots.at(-1)!.writes))
+    throw new Error('the race machine and the promise run disagree');
+  return {
+    events,
+    race: {
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
@@ -128,11 +190,11 @@ export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
       state: { order, completion: done, lifetimes: off.lifetimes },
       draw: (_, s) =>
         new Group(
-          timeline(s, off.lifetimes, []),
-          label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75),
+          ...timeline(s, off.lifetimes, [], 3).children,
+          label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75, 'timeline-wants'),
         ),
     },
-    {
+    overwrite: {
       id: 'overwrite',
       title: staleWins
         ? `Answer: ${q('A')}. The older search lands last and replaces ${q('B')}`
@@ -145,10 +207,8 @@ export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
           ? `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}, outlined in red.`
           : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined in red; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
-      state: { order, off: off.snapshots, lifetimes: off.lifetimes, page: { off: off.page } },
-      draw: (_, s) => timeline(s, off.lifetimes, [{ name: 'No guard', page: off.page, key: 'timeline-page-off' }]),
     },
-    {
+    middle: [{
       id: 'tickets',
       title: 'Answer: number each search, and publish only the latest',
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,
@@ -165,8 +225,8 @@ export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
           }).moveTo([0, -2.1]),
         ),
     },
-    ...decisions,
-    {
+    ...decisions],
+    guard: {
       id: 'reader-guard',
       title: staleWins
         ? `With the guard the page ends on ${q('B')}; without it, on ${q('A')}`
@@ -177,12 +237,6 @@ export async function frames(order: CompletionOrder): Promise<StagedStep[]> {
           ? `Without the guard, the page ends on ${q(off.snapshots[2]!.shown)}; with it, on ${q(on.snapshots[2]!.shown)}. Older ${q('A')} lands last and would overwrite ${q('B')}; its ticket is stale, so the guarded page does not change when it lands.`
           : `Both rules end on ${q(on.snapshots[2]!.shown)}, because ${q('B')} landed last. Without the guard the page showed ${q(off.snapshots[1]!.shown)} first; with it, ${q(on.snapshots[1]!.shown)} until ${q('B')} arrived, so the guarded page does not change when ${q('A')} lands.`
       } The guard drops stale results without cancelling the old search, which still runs to the end.`,
-      state: { order, off: off.snapshots, on: on.snapshots, lifetimes: off.lifetimes, page: { off: off.page, on: on.page } },
-      draw: (_, s) =>
-        timeline(s, off.lifetimes, [
-          { name: 'No guard', page: off.page, key: 'timeline-page-off' },
-          { name: 'Guard on', page: on.page, key: 'timeline-page-on' },
-        ]),
     },
-  ];
+  };
 }

@@ -36,6 +36,82 @@ export const SEARCH_CODE = [
   '}',
 ];
 
+/**
+ * The race as a machine: its events are the searches starting and their responses landing, in any
+ * order the page could see them. "ca" is typed before "cat", so A starts before B, and a response
+ * lands only after its search started, once. Each landing goes through the handler createSearch
+ * runs: publish if there is no guard, or if the search's ticket is still the latest. `raceNext` is
+ * pure, so exploring it reaches every interleaving; the test compares each with real promises.
+ */
+export type RaceEvent = 'start A' | 'start B' | 'A lands' | 'B lands';
+export const RACE_EVENTS: readonly RaceEvent[] = ['start A', 'start B', 'A lands', 'B lands'];
+export interface RaceState {
+  guarded: boolean;
+  /** The counter a search takes its ticket from. */
+  latest: number;
+  tickets: { A: number | null; B: number | null };
+  /** Every event so far, in order: the event at tick t is log[t]. */
+  log: RaceEvent[];
+  /** What the page shows: the result last published. */
+  page: Query | null;
+  /** Every result published, in order. */
+  writes: Query[];
+}
+export function raceStart(guarded: boolean): RaceState {
+  return { guarded, latest: 0, tickets: { A: null, B: null }, log: [], page: null, writes: [] };
+}
+/** The race after one event, or undefined when it cannot happen yet (or again). Pure. */
+export function raceNext(st: RaceState, event: RaceEvent): RaceState | undefined {
+  const [first, verb] = event.split(' ') as [string, string];
+  if (first === 'start') {
+    const query = verb as Query;
+    if (st.tickets[query] !== null || (query === 'B' && st.tickets.A === null)) return undefined;
+    const ticket = st.latest + 1;
+    return { ...st, latest: ticket, tickets: { ...st.tickets, [query]: ticket }, log: [...st.log, event] };
+  }
+  const query = first as Query, ticket = st.tickets[query];
+  if (ticket === null || st.log.includes(event)) return undefined;
+  // The handler createSearch runs when the job resolves.
+  const publish = !st.guarded || ticket === st.latest;
+  return { ...st, log: [...st.log, event], ...(publish ? { page: query, writes: [...st.writes, query] } : {}) };
+}
+/** The race the same events make under the other rule (or this one): what the other page would show. */
+export function raceReplay(guarded: boolean, log: readonly RaceEvent[]): RaceState {
+  return log.reduce<RaceState>((st, e) => {
+    const next = raceNext(st, e);
+    if (!next) throw new RangeError(`${e} cannot happen after ${st.log.join(', ') || 'nothing'}`);
+    return next;
+  }, raceStart(guarded));
+}
+/** Each started search's ticks: when it started, and when it landed (null while it runs). */
+export function raceLifetimes(st: RaceState): { query: Query; start: number; land: number | null }[] {
+  return (['A', 'B'] as const)
+    .filter((query) => st.log.includes(`start ${query}`))
+    .map((query) => {
+      const land = st.log.indexOf(`${query} lands`);
+      return { query, start: st.log.indexOf(`start ${query}`), land: land < 0 ? null : land };
+    });
+}
+/**
+ * What the page shows between events, as runSearch reports it, with `stale` on a span whose result
+ * was published after a newer search had started: an older search replacing the latest intent.
+ */
+export function racePage(st: RaceState): (PageSpan & { stale: boolean })[] {
+  const spans: (PageSpan & { stale: boolean })[] = [{ from: 0, to: null, shown: null, stale: false }];
+  let at = raceStart(st.guarded);
+  st.log.forEach((event, tick) => {
+    const before = at;
+    at = raceNext(at, event)!;
+    if (at.writes.length === before.writes.length) return;
+    const query = at.page!;
+    spans.at(-1)!.to = tick;
+    spans.push({ from: tick, to: null, shown: query, stale: before.tickets[query] !== before.latest });
+  });
+  return spans;
+}
+/** Whether the page now shows a result published after a newer search started. */
+export const raceShowsStale = (st: RaceState) => racePage(st).at(-1)!.stale;
+
 /** One search's life on the run's event clock: the tick when it starts and the tick when its result lands. */
 export interface Lifetime { query: Query; start: number; land: number }
 /** What the page shows from one event's tick until the next change; `to` is null for the final display. */

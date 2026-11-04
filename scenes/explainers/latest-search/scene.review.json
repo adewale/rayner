@@ -9,7 +9,10 @@
           "key": "reader-picture"
         },
         {
-          "key": "timeline-searches"
+          "key": "timeline-search:A:bar"
+        },
+        {
+          "key": "timeline-search:B:bar"
         },
         {
           "text": "“ca”"
@@ -30,10 +33,19 @@
           "key": "reader-picture"
         },
         {
-          "key": "timeline-searches"
+          "key": "timeline-search:A:bar"
         },
         {
-          "key": "timeline-page-off"
+          "key": "timeline-search:B:bar"
+        },
+        {
+          "key": "timeline-page-off:span:0"
+        },
+        {
+          "key": "timeline-page-off:span:1"
+        },
+        {
+          "key": "timeline-page-off:span:2"
         },
         {
           "text": "Page shows"
@@ -90,13 +102,25 @@
           "key": "reader-picture"
         },
         {
-          "key": "timeline-searches"
+          "key": "timeline-search:A:bar"
         },
         {
-          "key": "timeline-page-off"
+          "key": "timeline-search:B:bar"
         },
         {
-          "key": "timeline-page-on"
+          "key": "timeline-page-off:span:0"
+        },
+        {
+          "key": "timeline-page-off:span:1"
+        },
+        {
+          "key": "timeline-page-off:span:2"
+        },
+        {
+          "key": "timeline-page-on:span:0"
+        },
+        {
+          "key": "timeline-page-on:span:1"
         },
         {
           "text": "No guard"
@@ -114,7 +138,13 @@
       "opening": true,
       "targets": [
         {
-          "key": "timeline-page-off"
+          "key": "timeline-page-off:span:0"
+        },
+        {
+          "key": "timeline-page-off:span:1"
+        },
+        {
+          "key": "timeline-page-off:span:2"
         },
         {
           "text": "No guard"
