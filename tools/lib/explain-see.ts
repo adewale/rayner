@@ -29,7 +29,11 @@ export function seeText(id: string, c: CaseDescription, step?: string): string {
     ...(s.line ? [`Line: ${s.line}`] : []),
     ...(s.caption ? [`Caption: ${s.caption}`] : []),
     ...(s.picture ? [`Picture: ${s.picture}`] : []),
+    ...(s.events ? [`Events: ${s.events.join(', ')}`] : []),
     changed.length ? `Changed: ${changed.join('; ')}` : 'Changed: nothing in scene.state',
+    // What the whole case claims and lets events drive, so a reader of one step knows what is checked.
+    ...(c.invariants ? [`Claims checked on every frame: ${c.invariants.join('; ')}`] : []),
+    ...(c.sessions ?? []).map((x) => `Events a reader could send: ${x.events.join(', ')} (${x.states} states${x.sampled ? ', sampled' : ''})`),
   ].join('\n');
 }
 

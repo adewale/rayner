@@ -2,7 +2,7 @@
 // the state the scene recorded, what each step changed and its resting picture drawn as text.
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
-import { renderAt, renderText } from '../src/index.ts';
+import { renderAt, renderText, sessionsOf } from '../src/index.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Scene, SceneState, Sink } from '../src/index.ts';
 import { variantsOf, withSettings, caseName } from './settings.ts';
@@ -37,6 +37,19 @@ export interface StepDescription {
   picture: string;
   /** The resting picture drawn as text (heading left out), when `drawings` asks for this step. */
   drawing?: string;
+  /** The events a session replayed in this step, in order (`{ kind: 'event' }` evidence); absent when none. */
+  events?: string[];
+}
+/**
+ * A model the scene lets events drive (src/session.ts): what a reader could do, and where from.
+ * `states` counts the states those events reach, breadth first up to the session's limit
+ * (`sampled` when it was reached), each of which `rayner check` draws and checks.
+ */
+export interface SessionDescription {
+  events: string[];
+  start: SceneState;
+  states: number;
+  sampled?: true;
 }
 /** One case: a combination of setting values, as a reader picks it under the title. */
 export interface CaseDescription {
@@ -46,6 +59,13 @@ export interface CaseDescription {
   duration: number;
   /** The stage's paper colour when the case ends (its palette's `paper`); absent for a scene without a stage. */
   paper?: string;
+  /**
+   * The claims the scene makes about its picture on every frame (`scene.addInvariant`), by name,
+   * as registered when the case ends; `rayner check` checks each one on every frame. Absent when none.
+   */
+  invariants?: string[];
+  /** The models the scene lets events drive; absent when none. */
+  sessions?: SessionDescription[];
   steps: StepDescription[];
 }
 export interface ExplainerDescription {
@@ -124,10 +144,30 @@ export async function describeCase(Scene: ExplainerClass, values: Settings, opti
       ...(Scene.meta?.watch ? { watched: watchedChanges(s, Scene.meta.watch, Scene.meta.lang) } : {}),
       picture: pictureSummary(s.after),
     };
+    const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
+    if (events.length) d.events = events;
     if (draw === true || draw === s.step) d.drawing = await drawing(Bound, restingTime(s, trace.fps));
     steps.push(d);
   }
-  return { values, name: caseName(Scene, values), duration: trace.duration, ...(paper ? { paper } : {}), steps };
+  const invariants = [...scene.invariants.keys()];
+  const sessions: SessionDescription[] = sessionsOf(scene).map((session) => {
+    const states = session.reachable().length;
+    return {
+      events: [...session.spec.events],
+      start: JSON.parse(JSON.stringify(session.spec.start)) as SceneState,
+      states,
+      ...(states >= session.spec.limit ? { sampled: true as const } : {}),
+    };
+  });
+  return {
+    values,
+    name: caseName(Scene, values),
+    duration: trace.duration,
+    ...(paper ? { paper } : {}),
+    ...(invariants.length ? { invariants } : {}),
+    ...(sessions.length ? { sessions } : {}),
+    steps,
+  };
 }
 
 /** The picture at `t` as text, without the heading that names the step, as `rayner check` draws it. */
