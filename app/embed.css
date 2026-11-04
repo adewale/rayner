@@ -104,8 +104,10 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .live .event{position:relative}
 .live .event[aria-disabled=true]{opacity:.55;cursor:not-allowed}
 .live .event[data-outcome=beyond]{border-style:dashed}
-.live .event .reason{display:none}
-.live .event:is(:hover,:focus-visible) .reason:not(:empty){display:block;position:absolute;inset-block-start:calc(100% + 4px);inset-inline-start:0;z-index:2;width:max-content;max-width:min(32ch,80vw);padding:4px 8px;border-radius:6px;background:var(--fg);color:var(--bg);font-size:.8125rem;line-height:1.4;text-align:start;pointer-events:none}
+.live .event .reason{display:none;position:absolute;inset-block-start:calc(100% + 4px);inset-inline-start:0;z-index:2;width:max-content;max-width:min(32ch,80vw);padding:4px 8px;border-radius:6px;background:var(--fg);color:var(--bg);font-size:.8125rem;line-height:1.4;text-align:start;pointer-events:none}
+/* On hover only where hovering is real: a tap would leave a touch screen's tooltip over the row below. */
+.live .event:focus-visible .reason:not(:empty){display:block}
+@media(hover:hover){.live .event:hover .reason:not(:empty){display:block}}
 .live-said:empty{display:none}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
