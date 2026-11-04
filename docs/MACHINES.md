@@ -150,13 +150,18 @@ That needs a way for a step to declare its machine to the player, the buttons wi
 keyboard, screen-reader and reduced-motion behaviour, and a transcript line listing the
 events. None of it changes the engine.
 
-## Three machines
+## Eight machines
 
 | Explainer | State | Events | What is drawn from state | Explored |
 | --- | --- | --- | --- | --- |
-| `statecharts` | A chart's configuration | The chart's events, through the model's `send` | The chart, its active boxes and the arrows they light | Every configuration (the keyed morph, no authored transitions) |
+| `statecharts` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send`; an event the configuration does not handle is refused, as SCXML discards it | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
 | `ring-buffer` | `RingState`: the buffer, the last operation and its result, outlines, the tray, the next value | `push`, `pop` (a pop of an empty ring, or a push past 9, is refused) | Slots, values, pointers, outlines, push(v), the next value, the tray; the readout and card values | 256 states sampled per case, every transition played |
 | `state-machine` | `SessionState`: the session, the last event and what it returned, the row read, the links travelled | `CONNECT`, `OPENED`, `ERROR`, `CLOSE` (none refused: a throw is the lesson) | The diagram with its trail (`Diagram.picture`), the ring, the lit row or throw; the card | All 21 states per case, every transition played |
+| `token-bucket` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is refused | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `Follow`, then a token leaves for its box or a 429 ring appears |
+| `monty-hall` | `Round`: what the reader knows (the pick, the door opened and what it showed, stay or switch, where the car was shown) | `pick X`, `open X: goat` or `car`, `stay`, `switch`, `car behind X`; the rules refuse a second pick, the host opening your door or opening twice, the informed host opening the car, and a decision after the car is shown | The three doors | 46 rounds with the informed host, 52 with the random one; every round is a cell of the strip, with its winner |
+| `latest-search` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
+| `oauth-pkce` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |
+| `just-bash` | `ShellSession`: the shells the caller holds and what `cat` printed on each | The script's lines: the pipeline on the newest shell, `cat` on the newest or on s0, `ls` (refused, as `exec` refuses it); a second write is refused only to bound the script | s0 and s1, the write's arrow, each cat's output, the kept shell outlined | 6 states; s0 stays the empty shell through every transition |
 
 Making `ring-buffer` and `state-machine` machines meant drawing each main picture from state.
 Their resting pictures stayed the same, except where exploration found something the story
@@ -164,6 +169,16 @@ never reached: two ring states that differed only in the next value pushed looke
 ring now shows "next N"), and a long tray ran into the bottom pointers' labels (the tray row is
 lower, and shows the most recent values that fit). `state-machine`'s diagram is drawn by the
 view, so the live diagram leaves the stage; `Diagram.showBy(view)` keeps the stage describing it.
+
+The next five kept their resting pictures too. Converting them found one engine gap and some
+smaller things. **Token-bucket's last step clears the bucket away**, so exploration on the final
+stage checked nothing; exploration now runs where each machine last played (above). A token-bucket
+built as free requests plus a refill tick would have contradicted its caption (the bucket refills
+lazily) and reached about 350,000 states; driving it by the client's own schedule keeps it honest
+and small. Motion checks caught a monty-hall door and a token that appeared in one frame, and the
+phone review caught a monty-hall emphasis that zoomed the predict step past its rule. Latest-search's
+exploration reached an order no case shows ("ca" answers before "cat" is typed), and its stale
+outline now means what it says: a result published after a newer search started.
 
 ## Tried and not kept
 

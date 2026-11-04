@@ -180,7 +180,7 @@ Each item is one commit with its own evidence, as the primitives in this PR were
 - **Renaming `Frame` to `Camera`.** It breaks a published, Manim-familiar name to free a word the 3D work does not need.
 - **`Camera` for the 3D eye.** It would clash with `Frame`'s documentation ("the scene's camera"). In Manim a camera renders the scene; here the viewpoint is state that a view draws, and it should sound like state.
 - **`Model`, `Store` or `Actor` for `Session`.** `Model` is already the plain functions. `Store` suggests a reducer with no explorable graph. `Actor` (XState) suggests concurrency and messages between machines. `Machine` says states and events, and it is #88's word.
-- **Folding `SetState` into `Machine.send`.** `SetState` is the primitive and is used without a machine (token-bucket, periodic-groups, ring-buffer). `send` is `SetState` plus syncs.
+- **Folding `SetState` into `Machine.send`.** `SetState` is the primitive and is used without a machine (periodic-groups) and by every machine's `send`. `send` is `SetState` plus syncs.
 - **`story()` for staged steps.** The script is already the story; the steps are how the stage shows it.
 - **A separate `Graph` and a second `table`.** Two names for nodes and edges, or for rows and columns, would split checks and helpers that should apply to both.
 - **Leaving `lesson` and `readerFirst` in the scene library.** They are the collection's most used step helpers (17 explainers), and their pictures are not checked against their state: the largest gap between Rayner's principle and its practice.
