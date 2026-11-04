@@ -53,7 +53,7 @@ the identity. `statecharts` uses `text: 'whole'`.
 import { TransformMatching, matchByKey } from 'rayner';
 await this.play(new TransformMatching(before, after, { key: matchByKey() }));
 // A relabelled node's old name fades and the new one grows in
-machine.sync({ match: matchByKey({ text: 'whole' }) });
+diagram.sync({ match: matchByKey({ text: 'whole' }) });
 // Keyed cells keep their identity; the same word elsewhere stays put instead of fading
 table.sync({ match: matchByKey({ fallback: (part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined }) });
 ```
@@ -72,9 +72,9 @@ fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one
 component and reduce the morph to matching by index. `View.sync({ match: 'key' })`
-is `matchByKey()` with the defaults ([views](VIEWS.md#match)). This is the
-morph the [live machine](https://github.com/adewale/rayner/issues/88) needs
-for a reader-driven redraw: the parts that stay keep their identity.
+is `matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
+[machine](MACHINES.md)'s views morph unless the machine says otherwise, so the
+parts that stay through an event keep their identity.
 
 ## How parts pair
 
@@ -170,9 +170,9 @@ boundary, about 0.02% of copies.
 
 ## Diff-driven
 
-For a code change, what stayed and what changed is not a guess about shapes:
-it is the diff. `TransformDiff` takes the pairing from it, so the animation
-cannot show a change the diff does not contain.
+For a code change, the diff already says what stayed and what changed.
+`TransformDiff` takes its pairing from the diff, so the animation cannot show a
+change the diff does not contain.
 
 ```js
 import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
@@ -230,12 +230,12 @@ or leave unequal gaps, or when the lines outside the hunks differ. Running
 ### Evidence
 
 In a scene, a matching transform records what it did as step evidence when it
-begins (`Scene.record`, see [the reference](REFERENCE.md#scene)): `{ kind: 'match', matched,
-morphed, removed, added }`, and for `TransformDiff`, `{ kind: 'diff', hunks,
-lines: { unchanged, changed, removed, added }, matched, morphed, removed, added }`.
-A View's internal morph (`view.sync()`) does not record evidence.
-The trace carries it per step, and `renderText` prints a one-line summary under the
-frame. The KV-cache explainer morphs its merge request's two texts with
+begins ([fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence)):
+`{ kind: 'match', matched, morphed, removed, added }`, and for `TransformDiff`,
+`{ kind: 'diff', hunks, lines: { unchanged, changed, removed, added }, matched,
+morphed, removed, added }`. A view's sync records its morph's `match` counts, with
+the view's key as `view`. The trace carries evidence per step, and `renderText`
+prints a one-line summary under the frame. The KV-cache explainer morphs its merge request's two texts with
 `TransformDiff`, and `test/explain-fidelity.test.ts` holds the hunks it
 records, in both of its scenarios, to `git diff --no-index --unified=0`, with its
 line counts git's. The same file checks the match evidence behind the counts
