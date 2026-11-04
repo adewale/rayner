@@ -1,0 +1,11 @@
+# Construction and scope
+
+This is a script only. It is written to need 3D: the aha is a camera move, so the explainer cannot be a sequence of flat maps without losing its point.
+
+The model is a sphere of mean radius 6,371 km. Airports are Heathrow (51.4700° N, 0.4543° W), LAX (33.9416° N, 118.4085° W), Madrid-Barajas (40.4983° N, 3.5676° W) and JFK (40.6413° N, 73.7781° W). Great-circle distance is by the haversine formula; the rhumb line by the Mercator-latitude formula. On those inputs: Heathrow–LAX 8,760 km against 9,733 km (11.1% longer), initial bearing 311.7°, highest latitude 62.27° N at 49.1° W; Madrid–JFK 5,760 km against 5,930 km, highest latitude 46.30° N at 38.9° W. Mercator's east–west stretch is sec φ: 1.61 at Heathrow, 2.15 at the route's highest point. The ellipsoid changes great-circle distances by under 0.6%; GeographicLib's geodesic solver is the independent oracle for that claim and for the sphere figures within it. "Over the southern tip of Greenland" and "across Hudson Bay" come from sampling the route against a coastline dataset, which the model test must do rather than the prose assert.
+
+The picture is a view of state: `{ camera: { yaw, pitch }, projection: 'mercator' | 'globe' | 'gnomonic', routes }`. The globe is drawn by projecting a 3D model (graticule, coastlines, keyed city dots, the cutting plane, the route) through a camera, with back faces hidden and parts ordered far to near. The turn in the aha step is a `Follow` on the camera's yaw, drawing the projected globe at each angle, so seek equals play. An invariant checks that the route stays on the sphere's projected outline when seen edge-on and that city dots stay on the visible hemisphere or are hidden. City dots and the route keep their keys from map to globe, so the change of projection is a keyed match, not a dissolve. The gnomonic step reuses the same model with the camera at the centre, which is why a camera, not a hand-made map, is the right abstraction.
+
+No lighting, shading or depth of field: they would add realism and nothing to the argument.
+
+Sources to cite when built: GeographicLib (Karney 2013, "Algorithms for geodesics"), Snyder, "Map Projections: A Working Manual" (USGS Professional Paper 1395) for Mercator and gnomonic formulas, and Natural Earth coastlines.
