@@ -3,15 +3,15 @@
 ## Use case
 
 Use this when a documentation builder, test, CLI, agent or application needs the
-outputs Lantern's JSON document produced, without adopting a JSON scene language
-or publishing a whole reader page. Write a native TypeScript scene once, then ask
-for an SVG frame, a text frame, structured state or its step index. Ordinary input
-data can select the scene's model and cases.
+outputs Lantern's JSON document produced, without a JSON scene language or a whole
+reader page. Write a native TypeScript scene once, then ask for an SVG frame, a text
+frame, structured state or its step index. Ordinary input data can choose the scene's
+inputs.
 
 Lantern's `sceneFromDoc(doc)` compiled nodes, edges, code, state and operation lists
-into a native Scene. Rayner removed that compiler and its HTTP service, not the
-underlying outputs. It does not accept old documents directly and does not promise
-pixel-identical reproduction of deleted layout defaults or historical renderers.
+into a native Scene. Rayner removed that compiler and its HTTP service and kept the
+outputs. It does not read old documents, and does not reproduce deleted layout
+defaults or renderers pixel for pixel.
 
 ## Run the complete example
 
@@ -37,8 +37,8 @@ version may not contain them. The runner writes `document.svg`, `document.txt`,
 `--frames` to write the full SVG frame sequence as `document.frames.json`.
 
 [The scene](../recipes/document.ts) explains a request's cache/database decision.
-`requestScene({ cached: true })` binds data to a Scene class; changing that to
-`false` produces the database case. Its `route()` function supplies the result,
+`requestScene({ cached: true })` binds data to a Scene class; `false` gives the
+database path. Its `route()` function supplies the result,
 and the state-derived readout follows it. Inputs are copied when binding the class
 so a caller cannot mutate a later replay by changing the original input object.
 
@@ -56,10 +56,10 @@ so a caller cannot mutate a later replay by changing the original input object.
 | Add/remove/move/style/indicate | `FadeIn`, `FadeOut`, `.animate`, `Indicate` |
 | `note`, duration and hold | `Text`, step captions, `runTime`, `wait()` |
 
-This is a mapping of capabilities, not a source-to-source compatibility layer.
-TypeScript additionally permits arbitrary model code, reusable functions, custom
-paths and animations. JSON remains appropriate for input parameters, snapshots,
-traces and output records; it need not describe the animation program itself.
+This maps capabilities; it is not a source-to-source compatibility layer. TypeScript
+also allows arbitrary model code, reusable functions, custom paths and animations. JSON
+is still the format for input parameters, snapshots, traces and output records, but
+not for the animation program itself.
 
 ## Public output APIs
 
@@ -80,7 +80,7 @@ const scene = await renderAt(Request, time, sink);
 const svg = sink.svg;                       // one SVG frame
 const text = renderText(scene);             // lossy spatial text view
 const elements = renderElements(scene);     // geometry/paint records
-const state = scene.describe();             // state at this sampled frame
+const state = scene.describe();             // the model at this frame; describeShown() for what is shown
 const trace = await traceScene(Request);    // complete step-boundary trace
 ```
 
@@ -114,8 +114,8 @@ step exists before sampling.
 
 `renderAt` samples the first frame at or after the requested time, on the scene's
 fixed frame grid. A time past the end returns the final frame. `traceScene` records
-state before/after steps, not every intermediate value. Use `scene.describe()` at
-explicit sample times if you need intermediate parameter values as well.
+the model before and after each step and what was shown at its end, not every
+intermediate value; call `scene.describe()` at chosen sample times for those.
 
 For all SVG frames:
 
@@ -141,15 +141,15 @@ if (!container) throw new Error('Missing diagram container');
 await new Request(new DomSink(container)).run();
 ```
 
-This runs the raw scene. It does not add the reader's Next/Previous controls,
-scenario selection, transcript or deep-link handling. For those use `rayner build`
-and the [publishing workflow](PUBLISHING.md). A raw engine example is not a lesson
-that has passed `rayner check` or a served reader review.
+This runs the raw scene, without the reader's Next and Previous controls, scenario
+selection, transcript or deep links; for those, use `rayner build` and the
+[publishing workflow](PUBLISHING.md). A raw scene has not passed `rayner check` or a
+served reader review.
 
 ## What is checked
 
-`test/recipes.test.ts` checks both input cases against explicit expected results,
-the displayed text and the trace's state/evidence. It also checks continuous
+`test/recipes.test.ts` checks both inputs against explicit expected results, the
+displayed text and the trace's state and evidence. It also checks continuous
 sample geometry and SVG seek/playback agreement. `npm run pack:smoke` runs the
 recipes from a fresh installation, not just from the checkout. Those checks do
 not certify arbitrary authors' models or every historical Lantern document.
