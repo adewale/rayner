@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames } from '../lib/readers/glyph.ts';
 import {
   Scene,
@@ -28,7 +27,7 @@ const SMALL = 0.6; // the smaller copy in the letterforms step
 const HEADING = 0.54;
 const STYLE = 'pen-and-ink';
 const NAME: Record<FontName, string> = { sans: 'Inter', mono: 'JetBrains Mono' };
-/** A diagram whose labels the renderer draws in Inter, in both cases. */
+/** A diagram whose labels the renderer draws in Inter, in both scenarios. */
 const PIPELINE =
   `graph TB\nFont[Inter] --> Shape[Shape text]\nShape --> Paths[Cubic paths]\nPaths --> SVG[SVG player]\nPaths --> PNG[PNG stills]`;
 
@@ -195,7 +194,7 @@ export default class GlyphExplainer extends Scene {
     const total = advance('mono') - advance('sans');
 
     // 1. The puzzle: the same words at the same size, two widths.
-    await readerFirst(this, s, [widthFrame!]);
+    await s.steps([widthFrame!], { kind: 'short' });
 
     // 2. The answer: each glyph advances the pen by its own width, and each font sets those widths.
     await this.step('measure', {
@@ -252,12 +251,14 @@ export default class GlyphExplainer extends Scene {
     );
     card.bar.style.fill = hot;
     await card.mark(named(stems));
-    this.state = {
+    // The measuring model; the outline step's short picture has a model of its own, after which this one resumes.
+    const measuring = {
       font,
       width: advance(font),
       glyphs: measured.children.length,
       gains: Object.fromEntries(groups.map(([name, is]) => [name, +sum(is).toFixed(3)])),
     };
+    this.state = { ...measuring };
 
     // 3. What fills each advance: an outline.
     const big = glyphAlone(font, 'o', 4.6, [-3.9, -1.95]);
@@ -304,7 +305,7 @@ export default class GlyphExplainer extends Scene {
     );
 
     // 4. The same letter, two outlines: the prediction.
-    await readerFirst(this, s, [shapeFrame!]);
+    await s.steps([shapeFrame!], { kind: 'short' });
 
     // 5. The answer to it: no glyph pairs across the fonts.
     await this.step('letterforms', {
@@ -340,7 +341,7 @@ export default class GlyphExplainer extends Scene {
     // Each row says how many of its glyphs found a partner, at its right end.
     await s.callout(smaller, paired(sameFont), { side: 'right', gap: 0.35, color: soft, size: 0.26 });
     await s.callout(across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 });
-    this.state.shapePairs = { sameFont: sameFont.matched, otherFont: otherFont.matched };
+    this.state = { ...measuring, shapePairs: { sameFont: sameFont.matched, otherFont: otherFont.matched } };
 
     // 6. The same words in the same font can still take another width: a diagram fitted to recorded widths.
     await this.step('tradeoff', {

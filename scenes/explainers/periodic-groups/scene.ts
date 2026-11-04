@@ -5,12 +5,13 @@ import {
   Rectangle,
   Line,
   Arrow,
-  Animation,
+  SetState,
   AnimationGroup,
   Succession,
   FadeIn,
   view,
   linear,
+  matchByKey,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -146,33 +147,13 @@ const list = (items: string[]) =>
 const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
 /**
- * A program step at its turn in a Succession: when it begins, the scene's state becomes
- * the model's answer for that point, so the syncs after it show that state. Draws nothing.
+ * Parts pair across a redraw by the keys the pictures give them: an element's cell and
+ * symbol keep their identity wherever they go, so the runs slide from their rows into the
+ * table. Anything unkeyed pairs only when it is the same thing in the same place: the same
+ * words, or a shape of the same size; a badge, a note or a block label that is new or gone
+ * fades, and no letter travels between labels.
  */
-class Apply extends Animation {
-  readonly host: Scene;
-  readonly next: SceneState;
-  constructor(host: Scene, next: SceneState) {
-    super(new Group(), { runTime: 0, remover: true });
-    this.host = host;
-    this.next = next;
-  }
-  override begin(): void {
-    this.host.state = JSON.parse(JSON.stringify(this.next)) as SceneState;
-    super.begin();
-  }
-}
-
-/**
- * Parts pair across a redraw when they are the same element's cell or symbol, wherever it
- * goes, so the runs slide from their rows into the table. Anything else pairs only when it
- * is the same thing in the same place: the same words, or a shape of the same size; a badge,
- * a note or a block label that is new or gone fades, and no letter travels between labels.
- */
-const samePlace: MatchKey = (part: Mobject) => {
-  if (part.key?.startsWith('periodic-cell:')) return part.key;
-  if (part.parent instanceof Text && part.parent.key?.startsWith('periodic-symbol:'))
-    return `${part.parent.key}#${(part as { cluster?: number }).cluster ?? ''}`;
+const samePlace: MatchKey = matchByKey({ fallback: (part: Mobject) => {
   const owner = part.parent instanceof Text ? part.parent : part;
   const b = owner.box();
   if (!b) return undefined;
@@ -180,7 +161,7 @@ const samePlace: MatchKey = (part: Mobject) => {
   return part.parent instanceof Text
     ? `${part.parent.text}@${at}#${(part as { cluster?: number }).cluster ?? ''}`
     : `${(b[2] - b[0]).toFixed(2)}x${(b[3] - b[1]).toFixed(2)}@${at}`;
-};
+} });
 
 /** The script's one-sentence answer (meta.answer), which the stack step states. */
 const ANSWER =
@@ -221,7 +202,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the stack step states the answer.
     answer: ANSWER,
-    // Sentences that speak for all 118 elements, not only the five cases, and the test that holds each.
+    // Sentences that speak for all 118 elements, not only the five scenarios, and the test that holds each.
     claims: [
       { says: 'every full run is 2, 6, 10 or 14 long', test: 'test/explain-periodic-groups.test.ts: the filling rule fills runs of 2, 6, 10 and 14' },
       { says: 'every jump down step 1’s column is one of those row lengths', test: 'test/explain-periodic-groups.test.ts: down a group, each jump in atomic number is one whole period' },
@@ -513,11 +494,11 @@ export default class PeriodicGroupsExplainer extends Scene {
         }
       }
       if (note === 'stack') {
-        // Where the case's last electron lands, in the empty first row.
+        // Where the scenario's last electron lands, in the empty first row.
         say(String(state.landingRun ?? ''), [NOTE_X, rowY(1) - 0.04], { size: 0.28 });
       }
       if (note === 'blocks') {
-        // The case's configuration and where its last electron lands, in the empty space above the d block.
+        // The scenario's configuration and where its last electron lands, in the empty space above the d block.
         say('2 + 10 + 6 = 18 numbered columns', [NOTE_X, rowY(1)], { size: 0.3, bold: true });
         ((state.landing ?? []) as string[]).forEach((line, i) => say(line, [NOTE_X, rowY(1) - 0.5 - i * 0.38], { size: 0.27 }));
       }
@@ -634,7 +615,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       return said.join(' ');
     };
     const base = { element: symbol, z, group };
-    const apply = (next: SceneState) => new Apply(this, next);
+    const apply = (next: SceneState) => new SetState(this, next);
 
     // ---- 1. the column: a puzzle to predict ------------------------------------------
     const distinct = [...new Set(jumps)].sort((a, b) => a - b);
@@ -648,6 +629,9 @@ export default class PeriodicGroupsExplainer extends Scene {
     // Both pictures are drawn from this.state, so every resting picture is the state it shows.
     const table = view(this, drawTable, { place: false });
     const notes = view(this, drawNotes, { place: false });
+    // Named, so each redraw's evidence says which picture it paired.
+    table.key = 'periodic:table';
+    notes.key = 'periodic:notes';
     this.table = table;
     this.notes = notes;
     s.keep(table, notes, { describe: () => describe(this.state) });
@@ -681,7 +665,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       });
       const seq: ScheduledAnimation[] = [];
       RUNS.forEach((run, i) => {
-        // The case's last run stops at its own electron first.
+        // The scenario's last run stops at its own electron first.
         if (run.from <= z && z < run.to) seq.push(apply(fillState(z, own.length, false)), both(0.6));
         seq.push(
           apply(fillState(run.to, Math.min(own.length, i + 1), false)),
@@ -763,7 +747,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       } satisfies Record<Choice, string[]>
     )[choice];
     await this.step('blocks', {
-      detail: true,
+      kind: 'detail',
       title: `${Name}’s ${z} electrons, written as subshells`,
       line: `The solid cells are ${name}’s ${z} electrons, in the order they fill.`,
       caption: `Chemists call each run a subshell, named by its shell n and a letter for its length (s 2, p 6, d 10, f 14): ${name}’s runs read ${configText(filling)}. A subshell holds at most that many electrons. Subshells fill lowest n + l first, with l from 0 for s to 3 for f, and lower n first on a tie: Madelung’s empirical rule, which NIST’s reference configurations follow for ${RULE_MATCHES} of the first ${NIST_UP_TO} elements. ${
@@ -802,7 +786,7 @@ export default class PeriodicGroupsExplainer extends Scene {
 
     // ---- 5. the family: the jumps, explained --------------------------------------------
     await this.step('family', {
-      detail: true,
+      kind: 'detail',
       title: (
         {
           na: 'Every group 1 element ends in one s electron',

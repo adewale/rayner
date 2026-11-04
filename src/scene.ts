@@ -6,8 +6,7 @@
 // deterministic regardless of sink.
 
 import { prepareAnimation, AnimationGroup } from './animation.ts';
-import { Succession, bindSuccessions, takeCopies } from './animation.ts';
-import { bindRecorders } from './animation.ts';
+import { Succession, bindSuccessions, takeCopies, recordEvidence } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
 import type { Mobject } from './mobject.ts';
 import { perf } from './perf.ts';
@@ -26,12 +25,16 @@ import { Frame } from './frame.ts';
  */
 export class StopScene extends Error {}
 
+/** Which path a step is on: the reader's short path, the main story, or a detail players skip. */
+export type StepKind = 'short' | 'main' | 'detail';
+
 /** Free-form data attached to a step; travels with the trace. A string `caption` holds the step until read. */
 export interface StepMeta {
   title?: string;
   line?: string;
   caption?: string;
-  detail?: boolean;
+  /** Which path the step is on (default 'main'): a 'short' path a reader can take first, or a 'detail' after the story that players skip. */
+  kind?: StepKind;
   [key: string]: unknown;
 }
 
@@ -58,6 +61,13 @@ export interface Step {
  * such as the hunks a TransformDiff animated. JSON, like the state.
  */
 export type Evidence = { kind: string } & Record<string, unknown>;
+/**
+ * An invariant of the picture, on one frame: a message when it fails, `true` when it held, and
+ * nothing (or false) when there was nothing to check, such as before the parts it reads are
+ * drawn. An invariant that never holds on any frame of a run was never tested, so rayner check
+ * fails it: a misspelt key finds nothing and cannot pass for an invariant that held.
+ */
+export type Invariant = (scene: Scene<any>) => string | boolean | null | undefined | void;
 
 /**
  * What a scene renders into: called once per frame (dt = 0 for the first),
@@ -78,6 +88,9 @@ export interface SceneOptions {
 /** The author's mutable state; describe() validates and snapshots its JSON representation. */
 export type SceneState = Record<string, unknown>;
 
+/** Where a describer's JSON goes: into the model's description, or into what is shown. */
+export type DescribeInto = 'state' | 'shown';
+
 /** A scene class, as traceScene(), renderAt() and the registries take it. */
 export type SceneClass = new (sink: Sink, opts?: SceneOptions) => Scene;
 
@@ -92,7 +105,7 @@ function assertDisjoint(anims: readonly Animation[]): void {
   // A Succession's members run one at a time, so they may share mobjects with each
   // other (each is checked on its own below), but not with anything beside them.
   const leaves = (a: Animation): Animation[] => (a instanceof AnimationGroup && !(a instanceof Succession) ? a.animations.flatMap(leaves) : [a]);
-  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a instanceof AnimationGroup ? a.mobjects.flatMap(m => m.family()) : a.mobject.family());
+  const driven = (a: Animation): Mobject[] => (a instanceof Succession ? a.animations.flatMap(leaves).flatMap(driven) : a.targets().flatMap(m => m.family()));
   for (const a of anims.flatMap(leaves)) {
     if (a instanceof Succession) for (const member of a.animations) assertDisjoint([member]);
     for (const m of driven(a)) {
@@ -130,7 +143,13 @@ export class Scene<S extends object = SceneState> {
   frameCount: number;
   steps: Step[];
   current: Step | null;
+  /** The model: what the explanation is about (a bucket's tokens, a statechart's configuration). JSON. */
   state: {[K in keyof S]: S[K]};
+  /**
+   * What is shown of it, apart from the model: which picture a phase shows, say. JSON. A view's
+   * draw may read it; a machine never changes it. Kept apart so the model holds only the domain.
+   */
+  shown: SceneState;
   /** Every Scene.record() so far, in order, across steps. */
   evidence: Evidence[];
   /**
@@ -149,7 +168,9 @@ export class Scene<S extends object = SceneState> {
   stopped: boolean;
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
-  private describers: Array<{ describer: () => SceneState }>;
+  private describers: Array<{ describer: () => SceneState; into: DescribeInto }>;
+  /** Named invariants of the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
+  readonly invariants: Map<string, Invariant>;
 
   /**
    * skipUntil: frames that end before this time are not rendered or
@@ -168,13 +189,15 @@ export class Scene<S extends object = SceneState> {
     // Named steps: the addressable unit for deep links, traces and tests
     this.steps = [];
     this.current = null;
-    // The explanation's own state; describe() snapshots it for traces
+    // The explanation's own state, and what is shown of it; describe() and describeShown() snapshot them for traces
     this.state = {} as S;
+    this.shown = {};
     this.evidence = [];
     this.frame = new Frame();
     this.stopped = false;
     this.stepListeners = [];
     this.describers = [];
+    this.invariants = new Map();
   }
 
   /** Rethrow a stop a sink already raised: nothing reaches the sink after it. */
@@ -197,13 +220,31 @@ export class Scene<S extends object = SceneState> {
   }
 
   /**
-   * Merge `describer()`'s JSON into every describe(), so helper evidence (such as
-   * recorded walks) survives an author replacing `this.state`. Returns a remover.
+   * Merge `describer()`'s JSON into every describe() (`into: 'state'`, the default), so helper
+   * evidence such as recorded walks survives an author replacing `this.state`; or into every
+   * describeShown() (`'shown'`), for what a helper says the stage shows. Returns a remover.
    */
-  addDescriber(describer: () => SceneState): () => void {
-    const entry = { describer };
+  addDescriber(describer: () => SceneState, into: DescribeInto = 'state'): () => void {
+    const entry = { describer, into };
     this.describers.push(entry);
     return () => { this.describers = this.describers.filter((e) => e !== entry); };
+  }
+
+  /**
+   * Hold an invariant of the picture on every frame from now on: `check(scene)` returns
+   * a message when it fails, `true` when it held, and nothing when there was nothing
+   * to check on this frame. It reads the scene, by key (`scene.find`), and changes nothing;
+   * an invariant that never returns `true` in a run fails `rayner check`. An InvariantSink runs every registered
+   * check on every frame it is handed, so `rayner check`, which plays every scenario in full,
+   * fails at the first frame an invariant breaks, mid-animation included. A seek skips frames
+   * and so checks nothing between them. Names are unique per scene; returns a remover.
+   */
+  addInvariant(name: string, check: Invariant): () => void {
+    if (typeof name !== 'string' || !name.trim()) throw new TypeError('An invariant needs a name');
+    if (typeof check !== 'function') throw new TypeError(`Invariant ${name}: check must be a function of the scene`);
+    if (this.invariants.has(name)) throw new Error(`Invariant ${name} is already registered`);
+    this.invariants.set(name, check);
+    return () => { if (this.invariants.get(name) === check) this.invariants.delete(name); };
   }
 
   /** Subclasses define the animation here. */
@@ -239,7 +280,8 @@ export class Scene<S extends object = SceneState> {
     if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new TypeError('step metadata must be an object');
     for (const key of ['title', 'line', 'caption'] as const)
       if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`step ${name}: ${key} must be a string`);
-    if (meta.detail !== undefined && typeof meta.detail !== 'boolean') throw new TypeError(`step ${name}: detail must be boolean`);
+    if (meta.kind !== undefined && !['short', 'main', 'detail'].includes(meta.kind as string)) throw new TypeError(`step ${name}: kind must be 'short', 'main' or 'detail'`);
+    if ('detail' in meta || 'reader' in meta) throw new TypeError(`step ${name}: say kind: 'detail' or kind: 'short'`);
     this.throwIfStopped();
     await this.endCurrentStep();
     const s: Step = { name, path: name, t0: this.time, frame0: this.frameCount, t1: null, frame1: null, meta, evidence: [] };
@@ -292,9 +334,15 @@ export class Scene<S extends object = SceneState> {
    * mutate it as the animation makes the same change on screen.
    * State is JSON: that is what traces serve and tests hash.
    */
-  describe(): JsonObject {
-    const state = jsonObject(this.state, 'scene.state');
-    for (const { describer } of this.describers) {
+  describe(): JsonObject { return this.described(this.state, 'state'); }
+
+  /** What is shown, for traces: a snapshot of `this.shown`, with what helpers say the stage shows. */
+  describeShown(): JsonObject { return this.described(this.shown, 'shown'); }
+
+  private described(base: object, into: DescribeInto): JsonObject {
+    const state = jsonObject(base, `scene.${into}`);
+    for (const { describer, into: where } of this.describers) {
+      if (where !== into) continue;
       const extra: unknown = describer();
       if (!extra || typeof extra !== 'object' || Array.isArray(extra))
         throw new TypeError('A describer must return a JSON object');
@@ -308,8 +356,10 @@ export class Scene<S extends object = SceneState> {
   /**
    * Record a fact about the step running now, for traces and fidelity tests:
    * `{ kind, ...data }` is appended to the step's `evidence` (and to the
-   * scene's, which also keeps what happens before the first step). Matching
-   * transforms record what they paired; TransformDiff the hunks it animated.
+   * scene's, which also keeps what happens before the first step). play()
+   * records each animation's `evidence()` as it begins: what a matching
+   * transform or a View's sync paired, the hunks TransformDiff animated, the
+   * interval a Follow sampled.
    * Unlike `state`, evidence is what the animation did, not what the program
    * is: it lets a test check the picture against an outside oracle. Copied
    * as JSON when recorded.
@@ -326,6 +376,18 @@ export class Scene<S extends object = SceneState> {
   // ---- mobject list ------------------------------------------------------
 
   familyMembers(): Mobject[] { return this.mobjects.flatMap((m) => m.family()); }
+
+  /** The first mobject on stage, in drawing order and depth first, whose key is `key` (see Mobject.find). */
+  find(key: string): Mobject | undefined {
+    for (const m of this.mobjects) {
+      const found = m.find(key);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /** Every mobject on stage, in drawing order, whose key is `match` or passes it. */
+  findAll(match: string | ((key: string) => boolean)): Mobject[] { return this.mobjects.flatMap((m) => m.findAll(match)); }
 
   add(...mobs: Mobject[]): this {
     // Re-adding a root moves it last; a child of a visible parent is a no-op.
@@ -454,13 +516,13 @@ export class Scene<S extends object = SceneState> {
   }
 
   beginAnimations(anims: readonly Animation[]): void {
-    bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come
-    bindRecorders(anims, this); // matching transforms record what they paired (Scene.record) as they begin
+    bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come; groups record their members' evidence
     takeCopies(anims); // every TransformFromCopy copies its source before anything in the play begins
     const present = new Set(this.familyMembers());
     for (const a of anims) {
       a.begin();
-      const mobs = a instanceof AnimationGroup ? a.mobjects : [a.mobject];
+      recordEvidence(a, this); // what it decided as it began (matching pairs, diff hunks, a sampled interval)
+      const mobs = a.targets();
       for (const m of mobs) {
         // Camera: animated like any mobject, but never added to the drawn list
         if (!m || m === this.frame || present.has(m)) continue;

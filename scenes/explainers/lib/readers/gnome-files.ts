@@ -2,7 +2,7 @@ import { Group, Rectangle } from '../../../../src/index.ts';
 import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING } from '../gnome-files.ts';
 import type { Participant, Colour } from '../gnome-files.ts';
 import { flow, label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 // Locations and observations: the report's task findings, pages 11, 21–22, 25–26, 34 and 40.
 const locations: Record<number, string[]> = {
   1: ['View options', 'Icon size'],
@@ -50,7 +50,7 @@ const phrase: Record<Colour, string> = {
   black: 'could not complete it',
   gray: 'outside the study’s scope',
 };
-export function frames(p: Participant): ReaderFrame[] {
+export function frames(p: Participant): StagedStep[] {
   const n = gaveUp(p)[0]!,
     name = task(n).name;
   const row = PARTICIPANTS.map((q) => colourOf(n, q));
@@ -65,8 +65,8 @@ export function frames(p: Participant): ReaderFrame[] {
       title: `${p} gave up on ${named[n]}`,
       line: `The command was there: ${placed[n]}.`,
       caption: `The task read: ${task(n).text}. This schematic shows where the command sat; it is not a screenshot of Files. ${observations[n]} The command existed, and ${p} still did not find it. Was ${p} unlucky, or did the same menu lose other people too?`,
-      values: { participant: p, task: n, location: locations[n] },
-      draw: (s) =>
+      state: { participant: p, task: n, location: locations[n] },
+      draw: (_, s) =>
         new Group(
           flow(s, locations[n]!),
           label('Task: ' + (n === 1 ? 'Change icon size' : name), 0, -1.5, s.palette.ink, 0.75),
@@ -78,14 +78,14 @@ export function frames(p: Participant): ReaderFrame[] {
       title: `${counted[stuck]} of the six gave up on ${named[n]}`,
       line: `The others: ${rest.join(', ')}.`,
       caption: `The same task split the six people. The report grades each completed attempt by its difficulty, from none to severe, and records separately who could not complete the task. “Outside study scope” marks an approach the study excluded, so it counts as neither a success nor a give-up. If a few weaker users caused the trouble, the same names would keep failing. The next step tests that across all eleven tasks.`,
-      values: {
+      state: {
         task: n,
         outcomes: PARTICIPANTS.map((q) => {
           const colour = colourOf(n, q);
           return { participant: q, colour, meaning: MEANING[colour] };
         }),
       },
-      draw: (s) =>
+      draw: (_, s) =>
         new Group(
           ...PARTICIPANTS.map((q, i) => {
             const color = colourOf(n, q),

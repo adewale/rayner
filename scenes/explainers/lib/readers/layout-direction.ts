@@ -1,7 +1,7 @@
 import { Group, Arrow } from '../../../../src/index.ts';
 import { tile, label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
-export function frames(): ReaderFrame[] {
+import type { StagedStep } from '../../../../explain/index.ts';
+export function frames(): StagedStep[] {
   return [
     {
       id: 'reader-place',
@@ -9,8 +9,8 @@ export function frames(): ReaderFrame[] {
       line: 'An author’s task: reuse a two-panel layout in RTL.',
       caption:
         'With direction rtl, logical Start moves to the right and End to the left. Physical Left and Right keep their coordinates. Choose logical regions when panels should follow the stage direction, or physical regions when a diagram must stay on a particular side. This does not reverse the text inside a panel.',
-      values: { direction: 'rtl', start: 'right', end: 'left' },
-      draw: (s) =>
+      state: { direction: 'rtl', start: 'right', end: 'left' },
+      draw: (_, s) =>
         new Group(
           tile('End', -3.8, 1.6, 6.3, 1.2, s),
           tile('Start', 3.8, 1.6, 6.3, 1.2, s, { active: true }),
@@ -24,8 +24,8 @@ export function frames(): ReaderFrame[] {
       line: 'Panel position and field order are separate settings.',
       caption:
         'The RTL card puts the field name to the right of its value. The LTR override puts the name on the left. Both keep the digit order 123. The following cards update that value without moving its column.',
-      values: { digits: '123', rtl: ['123', 'Field'], ltr: ['Field', '123'] },
-      draw: (s) =>
+      state: { digits: '123', rtl: ['123', 'Field'], ltr: ['Field', '123'] },
+      draw: (_, s) =>
         new Group(
           label('RTL columns', 0, 2.5, s.soft, 0.7),
           tile('123', -3.5, 1.5, 5, 1.2, s),

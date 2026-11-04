@@ -3,6 +3,18 @@
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, RIGHT, TEAL, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
+import { GrowFromEdge, PulseAlongPath, SetState, Line, Dot } from 'rayner';
+import type { GrowFromEdgeOpts } from 'rayner';
+
+export function choreography(scene: Scene<{count: number}>) {
+  const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
+  const grow = new GrowFromEdge(new Rectangle(), RIGHT, opts);
+  const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
+  const state = new SetState(scene, { count: 3 });
+  // @ts-expect-error A typed scene's count is a number.
+  new SetState(scene, { count: 'three' });
+  return [grow, pulse, state];
+}
 import type { AnimOpts, TextOpts } from 'rayner';
 import {jsonObject} from 'rayner';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
@@ -11,7 +23,7 @@ import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';
 import type { Hunk, TransformDiffOpts, Evidence, StepRecord, ColorSpan, CodeSpan, RenderOptions, Step } from 'rayner';
-import { Frame, StateReadout, View, ViewSync, stateView, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
+import { Frame, StateReadout, View, ViewSync, view, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
 import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
 import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
@@ -77,7 +89,7 @@ export class Tour extends Scene {
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
     const frame: Frame = this.frame;
-    const readout: View<StateReadout> = stateView(this, ['n'], { place: 'left' });
+    const readout: View<StateReadout> = view(this, (s) => new StateReadout([['n', s.n]]), { place: 'left' });
     const sync: SyncOpts = { match: 'text', runTime: 0.5 };
     this.state = { n: 2 };
     await this.play(new ViewSync(readout, sync));
@@ -148,4 +160,20 @@ function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
   return Counter;
 }
 
-import { view } from 'rayner';
+
+// The drawing kit, as an author imports it.
+import { label, tile, table, flow, bars, stat, segment, dot } from 'rayner/drawing';
+import type { TableColumns } from 'rayner/drawing';
+export function drawingKit(scene: Scene) {
+  const s = stage(scene);
+  const spread: TableColumns = { left: -6, right: 6 };
+  const parts = [
+    label('hit', 0, 0, s.palette.ink), tile('D1', 0, 0, 2, 1, s, { active: true, key: 'db' }),
+    table(['Key', 'Slot'], [['a', 1]], s, { xs: spread }), table(['Key'], [['a']], s, { xs: { left: 0, gap: 1 } }),
+    flow(s, ['Request', 'Cache', 'Database']), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2),
+    stat(s, 'Reads', 1, 0, 0, 'reads'), segment([0, 0], [1, 1], s.soft), dot('A', 0, 0, s),
+  ];
+  // @ts-expect-error a table's columns are centres or an edge with a right edge or a gap
+  table(['Key'], [['a']], s, { xs: { right: 2 } });
+  return parts;
+}

@@ -16,6 +16,8 @@ export type SettingsProblem =
 export interface Chrome {
   details: string;
   backToStory: string;
+  /** Back to the explanation's visible word, short so the stepper row never wraps; its name and tooltip stay backToStory. */
+  backToStoryShort: string;
   /** Accessible name of the player section. */
   player: string;
   /** The disclosure under the caption that lists what the picture shows. */
@@ -54,19 +56,19 @@ export interface Chrome {
   stepOf: (i: number, n: number, title?: string) => string;
   /** The footer mark's accessible name; its visible text is the name "Rayner", never translated. */
   madeWith: string;
-  /** The footer's way out of a frame: this page, at the reader's step and case, in a new tab. */
+  /** The footer's way out of a frame: this page, at the reader's step and scenario, in a new tab. */
   open: string;
   /** The loader's name for the frame when the host gives none. */
   frame: string;
   reducedMotion: string;
   copied: string;
-  /** A notice when the URL names a step this case does not have. */
+  /** A notice when the URL names a step this scenario does not have. */
   noStep: (step: string) => string;
   /** A notice when the URL's settings are invalid. */
   fallback: (problem: SettingsProblem) => string;
   /** The stage's accessible name: the explainer's title, the step's, and the line under it. */
   stageLabel: (title: string, step: string, line: string) => string;
-  /** "Label: option", the way a case is named in headings. */
+  /** "Label: option", the way a scenario is named in headings. */
   setting: (label: string, option: string) => string;
   transcript: string;
   sources: string;
@@ -85,7 +87,7 @@ export interface Chrome {
   startAgain: string;
   startAgainLabel: string;
   /** At rest on the last step of a scene with settings: show the next option of its first setting. */
-  tryCase: (label: string) => string;
+  tryScenario: (label: string) => string;
   /** The footer's one quiet line on how to move: with a keyboard and pointer, or by touch. */
   hintKeys: string;
   hintTouch: string;
@@ -102,6 +104,7 @@ export interface Chrome {
 const EN: Chrome = {
   details: 'Details and sources',
   backToStory: 'Back to the explanation',
+  backToStoryShort: 'Back',
   player: 'Explainer',
   picture: 'What the picture shows',
   controls: 'Steps',
@@ -130,9 +133,9 @@ const EN: Chrome = {
   frame: 'Interactive explainer',
   reducedMotion: 'Reduced motion is on, so the finished step is shown.',
   copied: 'Link copied.',
-  noStep: (step) => `This case has no “${step}” step, so it opens at the first step.`,
+  noStep: (step) => `This scenario has no “${step}” step, so it opens at the first step.`,
   fallback: (p) =>
-    `${p.kind === 'option' ? `Unknown ${p.id} option: ${p.value}` : p.kind === 'setting' ? `Unknown setting: ${p.id}` : p.message}. Showing the default case.`,
+    `${p.kind === 'option' ? `Unknown ${p.id} option: ${p.value}` : p.kind === 'setting' ? `Unknown setting: ${p.id}` : p.message}. Showing the default scenario.`,
   stageLabel: (title, step, line) => `${title}: ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',
@@ -145,7 +148,7 @@ const EN: Chrome = {
   changes: (...items) => `What changed: ${items.join('; ')}`,
   startAgain: 'Start again',
   startAgainLabel: 'Start again from step 1',
-  tryCase: (label) => `Try ‘${label}’`,
+  tryScenario: (label) => `Try ‘${label}’`,
   hintKeys: '← → to step · click a segment to jump',
   hintTouch: 'Tap a segment to jump; tap the current one to finish it',
   notYet: (i) => `Step ${i}`,
@@ -157,6 +160,7 @@ const EN: Chrome = {
 const FR: Chrome = {
   details: 'Détails et sources',
   backToStory: 'Revenir à l’explication',
+  backToStoryShort: 'Retour',
   player: 'Explication',
   picture: 'Ce que montre l’image',
   controls: 'Étapes',
@@ -185,7 +189,7 @@ const FR: Chrome = {
   frame: 'Explication interactive',
   reducedMotion: 'Les animations sont réduites : l’étape s’affiche terminée.',
   copied: 'Lien copié.',
-  noStep: (step) => `Ce cas n’a pas d’étape « ${step} » : il s’ouvre à la première étape.`,
+  noStep: (step) => `Ce scénario n’a pas d’étape « ${step} » : il s’ouvre à la première étape.`,
   fallback: (p) =>
     `${
       p.kind === 'option'
@@ -193,7 +197,7 @@ const FR: Chrome = {
         : p.kind === 'setting'
           ? `Cette explication n’a pas de réglage « ${p.id} »`
           : 'Les réglages de l’adresse ne sont pas valides'
-    }. Le cas par défaut est affiché.`,
+    }. Le scénario par défaut est affiché.`,
   stageLabel: (title, step, line) => `${title} : ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label} : ${option}`,
   transcript: 'Transcription',
@@ -206,7 +210,7 @@ const FR: Chrome = {
   changes: (...items) => `Ce qui a changé\u202f: ${items.join('\u202f; ')}`,
   startAgain: 'Recommencer',
   startAgainLabel: 'Recommencer à l’étape 1',
-  tryCase: (label) => `Essayer «\u202f${label}\u202f»`,
+  tryScenario: (label) => `Essayer «\u202f${label}\u202f»`,
   hintKeys: '← → pour changer d’étape · cliquez un segment pour y aller',
   hintTouch: 'Touchez un segment pour y aller\u202f; touchez celui en cours pour le terminer',
   notYet: (i) => `Étape ${i}`,
@@ -248,8 +252,8 @@ export function settingsProblem(Scene: ExplainerClass, values: Settings, error: 
     ? { kind: 'setting', id: unknown }
     : { kind: 'other', message: String((error as Error)?.message ?? error) };
 }
-/** A case's name, "Label: option · Label: option", with the language's punctuation. */
-export function caseNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {
+/** A scenario's name, "Label: option · Label: option", with the language's punctuation. */
+export function scenarioNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {
   const t = chromeFor(lang);
   return (Scene.settings ?? [])
     .map((s) => t.setting(s.label, s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]!))

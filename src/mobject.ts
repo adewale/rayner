@@ -87,8 +87,15 @@ export type AnimateBuilder<M extends Mobject> = AnimateBuilderBase<M> & {
 export interface HasText { text?: string }
 
 export class Mobject {
+  /**
+   * @internal The object's number, for rendering and error messages. Not part of the published
+   * types: an author names a part by its `key`.
+   */
   id: number;
-  /** A name for lookup (doc node ids); `id` stays the unique number. */
+  /**
+   * The part's identity: the same key in two pictures is the same part, so a transform, a
+   * choreography, `scene.find`, emphasis and review all follow it from picture to picture.
+   */
   key: string | undefined;
   children: Mobject[];
   parent: Mobject | null;
@@ -143,6 +150,26 @@ export class Mobject {
     out.push(this);
     for (const c of this.children) c.family(out);
     return out;
+  }
+
+  /**
+   * The first mobject in this family, depth first and this one included, whose `key` is
+   * `key`; undefined when none has it. Keys are the address a picture gives its parts:
+   * matching (matchByKey), descriptions, invariants and reviews all read the same one.
+   */
+  find(key: string): Mobject | undefined {
+    if (this.key === key) return this;
+    for (const c of this.children) {
+      const found = c.find(key);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /** Every mobject in this family, depth first, whose key is `match` or passes it. */
+  findAll(match: string | ((key: string) => boolean)): Mobject[] {
+    const test = typeof match === 'string' ? (k: string) => k === match : match;
+    return this.family().filter((m) => m.key !== undefined && test(m.key));
   }
 
   add(...mobs: Mobject[]): this {
@@ -540,6 +567,33 @@ export class Mobject {
   }
 
   /**
+   * Take `other`'s points, style and fields in place, keeping this mobject's identity, key,
+   * parent and updaters (manim's `become`): with the same family shape each member takes its
+   * counterpart's data, so children keep their identities too. With a different shape the
+   * children are replaced, which is refused when any of them carries a key. `other` is not
+   * changed. Follow writes each frame's drawing into its targets this way.
+   */
+  become(other: Mobject): this {
+    if (this.sameShapeAs(other)) {
+      adoptState(this, other, KEEP_ON_BECOME);
+      return this;
+    }
+    // A different shape can only replace this mobject's children, which loses their identities.
+    // That is safe only when none of them is addressed by key (a Text's glyphs, a rebuilt
+    // readout); otherwise a keyed part would silently vanish, so it is refused.
+    const keyed = this.family().slice(1).find((m) => m.key !== undefined);
+    if (keyed)
+      throw new TypeError(`become(): ${this.constructor.name}#${this.id} and ${other.constructor.name}#${other.id} have different family shapes, and ${keyed.key} would be lost; morph between them with a Transform instead`);
+    const fresh = other.copy();
+    adoptState(this, fresh, KEEP_ON_BECOME);
+    for (const c of this.children) c.parent = null;
+    this.children = fresh.children;
+    for (const c of this.children) c.parent = this;
+    this.invalidateBox();
+    return this;
+  }
+
+  /**
    * Same family shape as `other`: as many members, each of the same class
    * with as many children. With `points`, also the same point counts, so
    * interpolate() between the two needs no alignment.
@@ -612,9 +666,11 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
 // Fields a mobject keeps through restore(): who it is and where it sits. Caches
 // (underscore fields) stay too; touchPoints() and new arrays invalidate them.
 const KEEP_ON_RESTORE = new Set(['id', 'parent', 'children', 'updaters', 'saved']);
+// become() also keeps each member's key: the address matching, find() and invariants use.
+const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key']);
 
 /** Rewrite `m`'s data from `state` in place (see restore()); `state` itself is never touched. */
-export function adoptState(m: Mobject, state: Mobject): void {
+export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string> = KEEP_ON_RESTORE): void {
   const fresh = state.copy();
   const same = m.sameShapeAs(fresh);
   const mf = m.family(), ff = fresh.family();
@@ -630,7 +686,7 @@ export function adoptState(m: Mobject, state: Mobject): void {
   };
   for (const [to, from] of pairs) {
     const t = to as unknown as Record<string, unknown>, f = from as unknown as Record<string, unknown>;
-    const adopt = (k: string) => !KEEP_ON_RESTORE.has(k) && k[0] !== '_';
+    const adopt = (k: string) => !keep.has(k) && k[0] !== '_';
     for (const k of Object.keys(t)) if (!(k in f) && adopt(k)) delete t[k];
     for (const k of Object.keys(f)) if (adopt(k)) t[k] = place(f[k]);
     to._bbox = null;

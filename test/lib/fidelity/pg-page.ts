@@ -1,13 +1,13 @@
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { BLCKSZ, LINE_POINTER, PAGE_HEADER, SWAP, caseOf } from '../../../scenes/explainers/lib/pg-page.ts';
+import { BLCKSZ, LINE_POINTER, PAGE_HEADER, SWAP, scenarioOf } from '../../../scenes/explainers/lib/pg-page.ts';
 import type { Column } from '../../../scenes/explainers/lib/pg-page.ts';
 
-/** Every case's step state equals the model's page for its column, at the default fillfactor, 100. */
+/** Every scenario's step state equals the model's page for its column, at the default fillfactor, 100. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const column = values.column as Column;
-  const c = caseOf(column, 100),
-    w = caseOf(SWAP[column], 100),
+  const c = scenarioOf(column, 100),
+    w = scenarioOf(SWAP[column], 100),
     t = c.tuple,
     p = c.page;
   assertStepState(trace, 'page', { empty: { lower: PAGE_HEADER, upper: BLCKSZ, free: BLCKSZ - PAGE_HEADER } });
@@ -34,7 +34,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'compare', {
     compare: Object.fromEntries(
       (['int4', 'int8', 'int4-text', 'int8-text'] as Column[]).map((k) => {
-        const x = caseOf(k, 100);
+        const x = scenarioOf(k, 100);
         return [k, { perRow: x.tuple.perRow, rows: x.page.rows, pages: x.pagesFor10000 }];
       }),
     ),

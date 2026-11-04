@@ -13,12 +13,11 @@
 
 import { Mobject, Group } from './mobject.ts';
 import type { Box, HasText } from './mobject.ts';
-import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText } from './animation.ts';
+import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 import type { MatchKey, MatchSummary } from './animation.ts';
 import type { RateFunc } from './rate.ts';
 import { Text } from './text.ts';
-import { StateReadout } from './panels.ts';
-import type { Scene, SceneState } from './scene.ts';
+import type { Scene, SceneState, Evidence } from './scene.ts';
 import type { Vec } from './vec.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
@@ -34,8 +33,8 @@ export interface ViewOpts {
   place?: ViewPlace | false;
 }
 
-/** How sync() morphs: by glyph, by shape, by position in the family, or by your own key. */
-export type ViewMatch = 'text' | 'shapes' | 'index' | MatchKey;
+/** How sync() morphs: by glyph, by shape, by position in the family, by the keys the picture's parts carry, or by your own key. */
+export type ViewMatch = 'text' | 'shapes' | 'index' | 'key' | MatchKey;
 
 export interface SyncOpts {
   runTime?: number;
@@ -51,20 +50,27 @@ export interface SyncOpts {
  * (and its parent) through every sync: only its child is swapped.
  */
 export class View<M extends Mobject = Mobject> extends Group {
-  /** Makes the picture from the state as it is when called. Called at construction and at each sync's begin(). */
+  /** Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
   build: () => M;
-  /** The same picture as a function of a state snapshot, when the View was made from a scene's state: what the fidelity check calls. */
-  render: ((state: SceneState) => M) | null;
+  /** The picture as a function of the model and what is shown: what the fidelity checks and machine exploration call. */
+  draw: (state: SceneState, shown: SceneState) => M;
+  /** The scene whose `shown` a placed or rebuilt picture reads. */
+  private host: Scene<any>;
   place: ViewPlace | false;
   /** Unplaced build size [w, h] used as the scale basis; a returning sync restores the retained picture’s basis. */
   builtSize: [number, number];
   /** The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
   scaleK: number;
 
-  constructor(build: () => M, { place = 'center' }: ViewOpts = {}, render: ((state: SceneState) => M) | null = null) {
+  /**
+   * Every View is a picture of a scene's state with a draw that check can call again. A draw can
+   * still read variables outside the state; the checks catch that when a redraw disagrees.
+   */
+  constructor(scene: Scene<any>, draw: (state: SceneState, shown: SceneState) => M, { place = 'center' }: ViewOpts = {}) {
     super();
-    this.build = build; this.render = render; this.place = place; this.scaleK = 1;
-    const first = fresh(build(), null);
+    this.host = scene;
+    this.build = () => draw(scene.state, scene.shown); this.draw = draw; this.place = place; this.scaleK = 1;
+    const first = fresh(this.build(), null);
     this.builtSize = layoutSize(first);
     this.add(first);
   }
@@ -73,7 +79,7 @@ export class View<M extends Mobject = Mobject> extends Group {
   get current(): M { return this.children[0] as M; }
 
   /** The strings the picture shows, in family order: what the fidelity check compares. */
-  get shown(): string[] { return pictureText(this.current); }
+  get texts(): string[] { return pictureText(this.current); }
 
   /**
    * An animation that rebuilds the picture when its play begins (so after
@@ -82,6 +88,18 @@ export class View<M extends Mobject = Mobject> extends Group {
    * that comes out the same moves nothing and keeps the current child.
    */
   sync(opts: SyncOpts = {}): ViewSync<M> { return new ViewSync(this, opts); }
+
+  /**
+   * The picture of `state` (with what the scene shows now), placed where a sync or rebuild would
+   * put it now, without taking it: what an authored transition morphs into, so it ends where the
+   * View will land.
+   */
+  placed(state: SceneState, shown: SceneState = this.host.shown): M {
+    const keep = [this.builtSize, this.scaleK] as const;
+    const next = this.fit(fresh(this.draw(state, shown), this.current));
+    [this.builtSize, this.scaleK] = keep;
+    return next;
+  }
 
   /** Rebuild now, without animating: for a View not on screen yet (on screen it would jump). */
   rebuild(): this {
@@ -157,7 +175,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false })
       : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false })
       : match === 'index' ? new Transform(old, next)
-      : new TransformMatching(old, next, { key: match, replace: false });
+      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false });
     if (inner instanceof Transform) inner.sameStructure = old.sameShapeAs(next, true);
     inner.lagRatio = this.lagRatio;
     inner.begin();
@@ -184,39 +202,22 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
 
   /** What the matching transform paired, once begun; null for 'index' or when nothing changed. */
   summary(): MatchSummary | null { return this.inner instanceof TransformMatching ? this.inner.summary() : null; }
-}
 
-/** A View of `build()`; build reads whatever state it closes over each time it is called. */
-export function view<M extends Mobject>(build: () => M, opts?: ViewOpts): View<M>;
-/**
- * A View of the scene's state: `render(scene.state)` at each sync. Keeps
- * `render`, so the picture can be checked against a trace (see viewMismatch).
- */
-export function view<S extends object, M extends Mobject>(scene: Scene<S>, render: (state: S) => M, opts?: ViewOpts): View<M>;
-export function view<S extends object, M extends Mobject>(a: (() => M) | Scene<S>, b?: ((state: S) => M) | ViewOpts, c?: ViewOpts): View<M> {
-  if (typeof a === 'function') return new View(a, b as ViewOpts | undefined);
-  const render = b as (state: S) => M;
-  // Fidelity replay supplies a snapshot of this same scene's state.
-  return new View(() => render(a.state), c, state => render(state as S));
-}
-
-export interface StateViewOpts extends ViewOpts {
-  fontSize?: number;
-  at?: Vec;
-  gap?: number;
-  /** How a value is written (default: strings as they are, anything else as JSON). */
-  format?: (value: unknown) => string;
+  /** The morph's evidence (`match` counts), with the View's key as `view` when it has one; none for 'index' or no change. */
+  override evidence(): Evidence | null {
+    const e = this.inner?.evidence() ?? null;
+    return e && this.view.key !== undefined ? { ...e, view: this.view.key } : e;
+  }
 }
 
 /**
- * A StateReadout of `keys` from the scene's state, as a View: `key: value`
- * rows rebuilt at each sync, placed by their left edge (so the keys stay put).
+ * A View of the scene's model: `draw(scene.state, scene.shown)` at each sync. Keeps
+ * `draw`, so the picture can be checked against a trace (see viewMismatch)
+ * and redrawn for any state a Machine reaches. Most draws read only the model.
  */
-export function stateView<S extends object>(scene: Scene<S>, keys: readonly (keyof S & string)[], { fontSize = 0.3, at = [0, 0], gap = 0.5, format = formatValue, place = 'left' }: StateViewOpts = {}): View<StateReadout> {
-  return view(scene, (s) => new StateReadout(keys.map((k) => [k, format(s[k])] as const), {fontSize, at, gap, shaping: scene.textShaping}), {place});
+export function view<S extends object, M extends Mobject>(scene: Scene<S>, draw: (state: S, shown: SceneState) => M, opts?: ViewOpts): View<M> {
+  return new View(scene, (state, shown) => draw(state as S, shown), opts);
 }
-
-const formatValue = (v: unknown): string => (typeof v === 'string' ? v : JSON.stringify(v) ?? String(v));
 
 /** The strings of every Text in a picture, in family order (a Code's lines, a readout's keys and values). */
 export function pictureText(m: Mobject): string[] {
@@ -231,13 +232,14 @@ export function pictureText(m: Mobject): string[] {
 
 /**
  * The fidelity check for the picture side: null when the View shows what its
- * render() makes of `state` (a trace step's `after`), else what differs.
- * Compares the text the pictures show, not their geometry.
+ * draw() makes of `state` (a trace step's `after`) and `shown` (its `shown`),
+ * else what differs. Compares the text the pictures show, not their geometry.
  */
-export function viewMismatch(v: View, state: SceneState, render: ((state: SceneState) => Mobject) | null = v.render): string | null {
-  if (!render) throw new Error('viewMismatch: this View was not made from a scene\'s state (view(scene, render)); pass the render function');
-  const shown = v.shown, want = pictureText(render(state));
-  return JSON.stringify(shown) === JSON.stringify(want) ? null : `the view shows ${JSON.stringify(shown)}, the state ${JSON.stringify(state)} renders ${JSON.stringify(want)}`;
+export function viewMismatch(
+  v: View, state: SceneState, { shown = {}, draw = v.draw }: { shown?: SceneState; draw?: (state: SceneState, shown: SceneState) => Mobject } = {},
+): string | null {
+  const texts = v.texts, want = pictureText(draw(state, shown));
+  return JSON.stringify(texts) === JSON.stringify(want) ? null : `the view shows ${JSON.stringify(texts)}, the state ${JSON.stringify(state)} draws ${JSON.stringify(want)}`;
 }
 
 // ---- internals ---------------------------------------------------------

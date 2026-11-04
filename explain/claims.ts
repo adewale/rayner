@@ -12,7 +12,7 @@ export interface Claim {
   test?: string;
   /**
    * Instead of a test: the sentence's scope is only what its own step draws ("every round in the strip"),
-   * so the picture, computed from the model, is the evidence. A claim about cases the page doesn't
+   * so the picture, computed from the model, is the evidence. A claim about scenarios the page doesn't
    * show needs a test.
    */
   shown?: true;
@@ -58,11 +58,11 @@ export interface ClaimsReport {
   unbacked: number;
   /** Each code name in the steps' words, with the step that first uses it. */
   code: { token: string; step: string }[];
-  /** The declared claims this case states somewhere (by `says`). */
+  /** The declared claims this scenario states somewhere (by `says`). */
   stated: string[];
 }
 
-/** One case's claims report: its scope sentences, which declared claims back them, and its code names. */
+/** One scenario's claims report: its scope sentences, which declared claims back them, and its code names. */
 export function claimsReport(meta: ClaimsMeta | undefined, steps: readonly Step[]): ClaimsReport {
   const claims = checkClaimsMeta(meta);
   const scope: ClaimsReport['scope'] = [],

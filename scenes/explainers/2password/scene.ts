@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames, ANSWER } from '../lib/readers/2password.ts';
 import { Scene, Text, Arrow, Group, Line, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
@@ -48,7 +47,7 @@ export default class PasswordExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); check holds reader-boundary to stating the answer.
     answer: ANSWER,
-    // Sentences that reach past the cases on screen, and what holds each.
+    // Sentences that reach past the scenarios on screen, and what holds each.
     claims: [
       { says: 'The agent handles only an op:// reference', test: 'test/explain-models.test.ts: 2password find returns references and no field value' },
       { says: 'the agent searches titles, never values', test: 'test/explain-models.test.ts: compares queries with titles alone' },
@@ -91,7 +90,7 @@ export default class PasswordExplainer extends Scene {
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await readerFirst(this, s, readerFrames(auth));
+    await s.steps(readerFrames(auth), { kind: 'short' });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,

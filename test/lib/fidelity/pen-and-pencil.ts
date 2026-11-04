@@ -18,8 +18,8 @@ export function check(trace: Trace): void {
   });
   // The failure and the fix, from the same hand: boxes a free hand places drift apart between two
   // seeds by far more than two drawings that trace one fixed route ever differ.
-  const drift = after('reader-drift').reader as { apart: number[] };
-  const fixed = after('reader-separate').reader as { stray: number; between: number };
+  const drift = after('reader-drift') as { apart: number[] };
+  const fixed = after('reader-separate') as { stray: number; between: number };
   assert.ok(fixed.stray <= strayBound && fixed.between <= 2 * strayBound);
   assert.ok(Math.max(...drift.apart) > 50 * fixed.between, `drift ${drift.apart} against ${fixed.between}`);
   const plate = after('plate').plate as { objects: number; stray: number; letters: number };

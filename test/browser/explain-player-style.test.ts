@@ -87,7 +87,7 @@ import {stage,settingsOf} from '${ROOT}/explain/index.ts';
 export default class Demo extends Scene {
 static meta={title:'Arc<T>',${cues ? "player:{accent:true,paper:true,corners:'square',minStageWidth:880}," : ''}};
 static settings=[{id:'mode',label:'isdigit()',default:'a',options:[{value:'a',label:'-m'},{value:'b',label:'-M'}]}];
-async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff7ed',ink:'#202020',muted:'#595959',accent:'#9a3412'} : {paper:'#888888',ink:'#202020',muted:'#595959',accent:'#777777'}});this.add(new Text('Hello'));for(const name of ${long ? "Array.from({length:40},(_,i)=>'s'+i)" : "['first','middle','last','note']"}){await this.step(name,{title:name,caption:'Hello',detail:name==='note'});await this.wait(.1)}}}`;
+async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff7ed',ink:'#202020',muted:'#595959',accent:'#9a3412'} : {paper:'#888888',ink:'#202020',muted:'#595959',accent:'#777777'}});this.add(new Text('Hello'));for(const name of ${long ? "Array.from({length:40},(_,i)=>'s'+i)" : "['first','middle','last','note']"}){await this.step(name,{title:name,caption:'Hello',kind:name==='note'?'detail':'main'});await this.wait(.1)}}}`;
     let server: Awaited<ReturnType<typeof serve>> | undefined;
     let browser: Awaited<ReturnType<typeof launch>> | undefined;
     try {
@@ -148,12 +148,12 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
               : 'rgb(240, 240, 240)',
           );
           assert.equal(
-            await page.locator('.case legend').textContent(),
+            await page.locator('.scenario legend').textContent(),
             'isdigit()',
           );
           assert.equal(
             await page
-              .locator('.case legend')
+              .locator('.scenario legend')
               .evaluate((e) => getComputedStyle(e).textTransform),
             'none',
           );
@@ -229,7 +229,7 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
           assert.throws(
             () => assert.ok(poison),
             assert.AssertionError,
-            'the selected-case assertion rejects the missing rule',
+            'the selected-scenario assertion rejects the missing rule',
           );
           await page.emulateMedia({ forcedColors: 'none' });
           assert.equal(

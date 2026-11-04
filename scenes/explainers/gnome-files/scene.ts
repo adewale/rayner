@@ -1,4 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
 import { frames as readerFrames } from '../lib/readers/gnome-files.ts';
 import { Scene, Group, Line, Rectangle, Text } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -132,7 +131,7 @@ export default class GnomeFilesExplainer extends Scene {
     const ink = s.palette.ink;
 
     // ------------------------------------------------------------------ one task, then all six people
-    await readerFirst(this, s, readerFrames(p));
+    await s.steps(readerFrames(p), { kind: 'short' });
     // ------------------------------------------------------------------ every give-up, every person
     const mine = gaveUp(p),
       all = giveUps();
@@ -211,7 +210,7 @@ export default class GnomeFilesExplainer extends Scene {
     }
     this.state.giveUps = { mine, others: Object.fromEntries(mine.map((n) => [n, others(n)])), total: all.length };
     await this.step('test', {
-      detail: true,
+      kind: 'detail',
       title: 'Six first-time users, eleven tasks, one colour each',
       line: 'The report’s colours become scores: green 5 down to black 1.',
       // Page 2: "the design team wanted to assess the effectiveness of these updates… we executed a user
@@ -249,7 +248,7 @@ export default class GnomeFilesExplainer extends Scene {
 
     // ------------------------------------------------------------------ the whole heat map
     await this.step('heat-map', {
-      detail: true,
+      kind: 'detail',
       title: 'The report’s heat map: eleven tasks by six people',
       line: 'Numbers are this page’s scores; the note on a row names who gave up.',
       // Ranking by black cells is this page's rule. ARTICLE §6.1 names icon size and Bookmarks the
@@ -348,7 +347,7 @@ export default class GnomeFilesExplainer extends Scene {
                 : `${p}’s lowest score was ${lowest}, on ${and(lowAt.map(said))}`
             }.`;
       await this.step(STEPS[g]!, {
-        detail: true,
+        kind: 'detail',
         title: `${p}, ${RANGE[g]}: ${quit.length ? `gave up on ${and(quit.map(said))}` : 'no give-ups'}`,
         line: quit.length
           ? 'Each marked task is a give-up, scored 1, the lowest.'

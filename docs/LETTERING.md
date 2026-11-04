@@ -74,7 +74,7 @@ npm run rayner -- build path/to/scene.ts --out out/example.html
 ```
 
 Commit `scene.lettering.json` beside the scene, just like diagram snapshots.
-Capture visits every settings case, including text built during replay and
+Capture visits every scenario, including text built during replay and
 contact-sheet titles. HarfBuzz shapes each distinct string once at unit em;
 runs retain glyph IDs, logical source clusters, advances, offsets, and outlines.
 The subset keeps the used code points plus layout/glyph dependencies. Replacement faces also retain a bounded numeric alphabet for animated values, whose intermediate strings depend on playback FPS. Each
@@ -83,7 +83,7 @@ requested font's licence travels with its subset into the page's licence block.
 `check`, `build` and `shots` require a fresh snapshot and never
 silently recapture. Changing a caption, imported scene code, the request, or the
 lettering builder, embedded fallback fonts or core shaping code invalidates the snapshot. Cached snapshots validate their run structure and payload checksum before drawing. Run `snapshots` to refresh it.
-`preview` refreshes during authoring. Unrecorded prose fails closed; seek and playback cannot start an unrecorded language case. Formatted numeric values and known simple-script prefix/suffix templates can replay through the existing glyph shaper with the requested subset, so counters work at arbitrary animation frame rates. Missing characters
+`preview` refreshes during authoring. Unrecorded prose fails closed; seek and playback cannot start an unrecorded language scenario. Formatted numeric values and known simple-script prefix/suffix templates can replay through the existing glyph shaper with the requested subset, so counters work at arbitrary animation frame rates. Missing characters
 in an unrequested script still fail, including during capture.
 
 `rayner check` reports `lettering.bytes` (serialized snapshot payload),
@@ -103,7 +103,7 @@ left out. Receipts include
 `letteringHash`; the snapshot includes source/font/builder hashes. The legacy
 engine fingerprint deliberately excludes optional modules and type-only
 metadata, so opting out preserves receipts as well as page bytes. A regression
-test originally pinned 26 pages across 140 cases; it now pins the complete current catalog. Historical inventories belong to their recorded revisions.
+test originally pinned 26 pages across 140 scenarios; it now pins the complete current catalog. Historical inventories belong to their recorded revisions.
 
 ## Capture from an installed package
 
@@ -250,8 +250,8 @@ numbers inside it keep their own order. `test/lettering/hebrew` is the fixture.
 
 ## Changes between strings
 
-Every case is built ahead of time, so every string a case shows is shaped at
-capture and must be in a requested script; a case cannot switch to an unrequested
+Every scenario is built ahead of time, so every string a scenario shows is shaped at
+capture and must be in a requested script; a scenario cannot switch to an unrequested
 language at runtime, and an unrecorded string fails closed. Counters are the one
 bounded exception described above.
 
@@ -266,7 +266,7 @@ Text in pages without lettering keeps the old pairing by the character at a
 glyph's cluster start. Use `Transform` for whole-formula changes. A formula's
 glyphs are not characters of its source, so they carry no cluster, and both
 matching transforms pair them by shape ([Maths](REFERENCE.md#maths)).
-Replacement prose must be built into a case; numeric animations use the bounded
+Replacement prose must be built into a scenario; numeric animations use the bounded
 exception described above.
 
 Picture descriptions are generated in English or French only. Describing the

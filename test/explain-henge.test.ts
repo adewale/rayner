@@ -81,11 +81,11 @@ test('Henge overhead view: Manhattan aligns sunset only, a due-west street align
   close(west.alignment.back, 90);
   assert.deepEqual(west.backCrossings, west.half);
 });
-test('Henge both street cases expose their geometry at all seven resting steps', async () => {
+test('Henge both street scenarios expose their geometry at all seven resting steps', async () => {
   const project=await collectProject('scenes/explainers/henge',{write:false});
-  assert.equal(project.variants.length,2);
-  assert.deepEqual(project.variants.map(variant => variant.values.street).sort(), ['manhattan', 'west']);
-  for (const variant of project.variants) {
-    checkHengeScene(variant.values, variant.trace);
+  assert.equal(project.scenarios.length,2);
+  assert.deepEqual(project.scenarios.map(scenario => scenario.values.street).sort(), ['manhattan', 'west']);
+  for (const scenario of project.scenarios) {
+    checkHengeScene(scenario.values, scenario.trace);
   }
 });

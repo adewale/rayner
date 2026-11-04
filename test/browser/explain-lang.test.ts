@@ -7,9 +7,9 @@ import { serve } from '../../tools/lib/explain-serve.ts';
 import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
-import { chromeFor, caseNameIn, CHROME, descriptionLang, descriptionsLang, settingsProblem } from '../../app/embed-strings.ts';
+import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang, settingsProblem } from '../../app/embed-strings.ts';
 import type { SettingsProblem } from '../../app/embed-strings.ts';
-import { caseName, resolveSettings } from '../../explain/index.ts';
+import { scenarioName, resolveSettings } from '../../explain/index.ts';
 import { pictureSummary, pictureHtml, picture } from '../../explain/trace.ts';
 import { VOCABULARY, wordsFor, describedIn, familyNames, markHeading } from '../../explain/words.ts';
 import type { Words } from '../../explain/words.ts';
@@ -63,11 +63,11 @@ after(() => rm(folder, { recursive: true, force: true }));
 
 /** Every step's summary and full list, as a reader hears them (tags dropped, entities decoded). */
 const described = (project: Project) =>
-  project.variants.flatMap(({ trace }) =>
+  project.scenarios.flatMap(({ trace }) =>
     trace.steps.map((s, i) => ({
       step: s.step,
-      summary: pictureSummary(s.after),
-      html: pictureHtml(s.after, trace.steps[i - 1]?.after),
+      summary: pictureSummary(s.shown),
+      html: pictureHtml(s.shown, trace.steps[i - 1]?.shown),
     })),
   );
 const text = (html: string) =>
@@ -162,20 +162,20 @@ test('the invalid-settings notice names the problem in the page’s language; En
   assert.deepEqual(unknown.problem, { kind: 'setting', id: 'x' });
   // The validator checks declared settings first; so does the notice.
   assert.equal(both.problem.kind, 'option');
-  for (const p of [option, unknown, both]) assert.equal(chromeFor('en').fallback(p.problem), `${p.error}. Showing the default case.`);
+  for (const p of [option, unknown, both]) assert.equal(chromeFor('en').fallback(p.problem), `${p.error}. Showing the default scenario.`);
   assert.equal(
     chromeFor('fr').fallback(option.problem),
-    `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le cas par défaut est affiché.`,
+    `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le scénario par défaut est affiché.`,
   );
-  assert.equal(chromeFor('fr').fallback(unknown.problem), `Cette explication n’a pas de réglage «${NB}x${NB}». Le cas par défaut est affiché.`);
+  assert.equal(chromeFor('fr').fallback(unknown.problem), `Cette explication n’a pas de réglage «${NB}x${NB}». Le scénario par défaut est affiché.`);
   // The French notice never quotes the validator's English.
   assert.doesNotMatch(chromeFor('fr').fallback(PROBLEMS[2]!), /Invalid/);
 });
 
-test('a case name keeps English punctuation in English and takes French punctuation in French', () => {
+test('a scenario name keeps English punctuation in English and takes French punctuation in French', () => {
   const { Scene } = built.en.project;
-  assert.equal(caseNameIn('en', Scene, { n: '2' }), caseName(Scene, { n: '2' }));
-  assert.equal(caseNameIn('fr', built.fr.project.Scene, { n: '2' }), `Enfants à charge${NB}: 2`);
+  assert.equal(scenarioNameIn('en', Scene, { n: '2' }), scenarioName(Scene, { n: '2' }));
+  assert.equal(scenarioNameIn('fr', built.fr.project.Scene, { n: '2' }), `Enfants à charge${NB}: 2`);
 });
 
 test('every vocabulary key has a French entry; a language with none describes in English', () => {
@@ -365,7 +365,7 @@ test('a French page has French chrome and French descriptions, with no lang="en"
   assert.doesNotMatch(html, /<summary>Transcript<\/summary>/);
   // Each step's description in the transcript is French, in the page's language.
   const descriptions = [...html.matchAll(/<\/p><div( lang="en")?><ul><li>([^<]*)/g)];
-  assert.equal(descriptions.length, 2); // one step in each of two cases
+  assert.equal(descriptions.length, 2); // one step in each of two scenarios
   assert.ok(descriptions.every((m) => m[1] === undefined));
   assert.deepEqual(
     descriptions.map((m) => m[2]),
@@ -384,7 +384,7 @@ test('a page in a language with no vocabulary marks its English descriptions lan
 test('an English page is unchanged: English chrome and no lang attribute on its descriptions', () => {
   const { html } = built.en;
   assert.match(html, /^<!doctype html>\n<html lang="en">/);
-  assert.match(html, /<summary>Transcript<\/summary><section data-case="n=1"><h2>Children: 1<\/h2>/);
+  assert.match(html, /<summary>Transcript<\/summary><section data-scenario="n=1"><h2>Children: 1<\/h2>/);
   assert.match(html, /<h2>Sources<\/h2>/);
   assert.ok(html.includes('The interactive player could not start. The transcript is available below.'));
   assert.equal([...html.matchAll(/<\/p><div><ul>/g)].length, 2);
@@ -439,7 +439,7 @@ test(
       const invalid = await read('fr', '?n=9');
       assert.equal(
         invalid.notice,
-        `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le cas par défaut est affiché.`,
+        `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le scénario par défaut est affiché.`,
       );
       const de = await read('de');
       assert.deepEqual([de.summaryLang, de.pictureLang, de.summary], ['en', 'en', '1 labelled value.']);
@@ -460,7 +460,7 @@ test(
           notice: undefined,
         },
       );
-      assert.equal((await read('en', '?n=9')).notice, 'Unknown n option: 9. Showing the default case.');
+      assert.equal((await read('en', '?n=9')).notice, 'Unknown n option: 9. Showing the default scenario.');
     } finally {
       try { await browser?.close(); }
       finally { server.close(); }

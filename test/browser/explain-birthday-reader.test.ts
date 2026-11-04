@@ -10,7 +10,7 @@ import {buildExplainer} from '../../tools/lib/explain-build.ts';
 import {serve} from '../../tools/lib/explain-serve.ts';
 import {launch} from '../../tools/lib/browser.ts';
 import {storyFrames,inspectStoryFrame,covered} from '../../tools/lib/explain-story-review.ts';
-import type {StoryClaim} from '../../tools/lib/explain-story-review.ts';
+import type {StorySubject} from '../../tools/lib/explain-story-review.ts';
 
 const enabled=!!process.env.EXPLAIN_BROWSER;
 const options={skip:enabled?false:'set EXPLAIN_BROWSER=1 for served birthday reader checks'};
@@ -18,7 +18,7 @@ let project:Project,folder:string,browser:Browser,server:Awaited<ReturnType<type
 before(async()=>{
   if(!enabled)return;
   project=await collectProject('scenes/explainers/birthday-paradox',{write:false});
-  assert.deepEqual(project.variants.map(v=>v.values),[10,23,40].map(people=>({people:String(people)})));
+  assert.deepEqual(project.scenarios.map(v=>v.values),[10,23,40].map(people=>({people:String(people)})));
   folder=await mkdtemp(join(tmpdir(),'rayner-birthday-reader-'));
   await buildExplainer(project,join(folder,'birthday.html'));
   server=await serve(folder,0,'birthday.html');browser=await launch();
@@ -30,13 +30,13 @@ after(async()=>{
 
 test('every birthday card and its date are visible together in each phone opening',options,async()=>{
   let openings=0,cards=0,labels=0;
-  for(const variant of project.variants){
-    const people=Number(variant.values.people);
+  for(const scenario of project.scenarios){
+    const people=Number(scenario.values.people);
     // Name each person independently: fitting a broad group or most of a row
     // must not earn credit for the final card beyond the right-hand edge.
-    const claims:StoryClaim[]=[{step:'room',opening:true,
+    const claims:StorySubject[]=[{step:'room',opening:true,
       targets:Array.from({length:people},(_,i)=>({key:`person-${i}`}))}];
-    const frame=(await storyFrames(variant.Scene,claims)).get('room')!;
+    const frame=(await storyFrames(scenario.Scene,claims)).get('room')!;
     const targets=frame.targets.filter(t=>t.opening);
     assert.equal(targets.length,people);
     const indices=new Set(targets.flatMap(t=>t.indices));
@@ -52,7 +52,7 @@ test('every birthday card and its date are visible together in each phone openin
             (window as unknown as {birthdayStep?:string}).birthdayStep=(event as CustomEvent<{step:string}>).detail.step;
           });
         });
-        await page.goto(`${server.url}/birthday.html?${new URLSearchParams({...variant.values,step:'room'})}`);
+        await page.goto(`${server.url}/birthday.html?${new URLSearchParams({...scenario.values,step:'room'})}`);
         await page.waitForSelector('[data-ready=true]');
         await page.waitForFunction(()=>(window as unknown as {birthdayStep?:string}).birthdayStep==='room'&&
           !document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));

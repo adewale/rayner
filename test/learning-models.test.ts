@@ -8,7 +8,8 @@ import {fc,params} from './lib/pbt.ts';
 import {dictionary,deleteFirst,lookup,probeSlots,route,dictStory,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
 import {fnv1a,locations,makeFilter,membership,bloomStory,saturation} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
-import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter} from '../scenes/explainers/lib/monty-hall.ts';
+import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter,roundStart,roundNext,roundDoor,roundResult,ROUND_EVENTS} from '../scenes/explainers/lib/monty-hall.ts';
+import type {Round} from '../scenes/explainers/lib/monty-hall.ts';
 import {birthdayChance,birthdaySample,matches,birthdayStory,evenOdds,pairCount,pairShortcut,dateOf} from '../scenes/explainers/lib/birthday-paradox.ts';
 import BirthdayParadox,{ANSWER as birthdayAnswer} from '../scenes/explainers/birthday-paradox/scene.ts';
 import {phrase,musicStory,beatMs} from '../scenes/explainers/lib/melody-rhythm.ts';
@@ -49,9 +50,9 @@ test('a middle deletion needs the marker too, and absent lookups need unused spa
   assert.throws(() => lookup(full, 24), /needs an unused slot/);
   const { collectProject } = await import('../tools/lib/explain-project.ts');
   const project = await collectProject('scenes/explainers/python-dict', { write: false });
-  for (const variant of project.variants) {
-    assert.equal(variant.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
-    assert.deepEqual(variant.trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['question', 'broken', 'marker', 'missing']);
+  for (const scenario of project.scenarios) {
+    assert.equal(scenario.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
+    assert.deepEqual(scenario.trace.steps.filter(step => step.meta.kind !== 'detail').map(step => step.step), ['question', 'broken', 'marker', 'missing']);
   }
 });
 
@@ -390,6 +391,42 @@ test('the host who knows always opens the only goat left when your pick is wrong
     assert.ok(threeDoorCells(choice,'informed',prior).every(c=>c.shows==='goat'),'the host who knows never opens the car');
 });
 
+// The round machine the doors step plays: every legal round it reaches, walked event by event, is a
+// cell of the strip, and each cell is reached, with the same winner for staying and for switching.
+test('every round the round machine can play is a cell of the strip, with the strip’s winner',()=>{
+  for(const host of ['informed','random'] as const) {
+    let states=0;
+    const seen=new Set<string>(),ended:Round[]=[];
+    const queue:Round[]=[roundStart(host)];
+    while(queue.length) {
+      const r=queue.shift()!,key=JSON.stringify(r);
+      if(seen.has(key)) continue;
+      seen.add(key);states++;
+      if(r.car!==null) ended.push(r);
+      for(const e of ROUND_EVENTS) {
+        const next=roundNext(r,e);
+        if(!next) continue;
+        // The rules' refusals: he never opens your door, and the host who knows never opens the car.
+        if(e.startsWith('open')) { assert.notEqual(next.opened,r.pick); if(host==='informed') assert.equal(next.shows,'goat'); }
+        queue.push(next);
+      }
+    }
+    assert.equal(states,host==='informed'?46:52);
+    assert.ok(ROUND_EVENTS.every(e=>roundNext(roundStart(host),e)===undefined||e.startsWith('pick')),'nothing but a pick starts a round');
+    for(const choice of [0,1,2]) {
+      const mine=ended.filter(r=>r.pick===choice);
+      const cells=threeDoorCells(choice,host).map(c=>JSON.stringify([c.prize,c.opened,c.shows]));
+      assert.deepEqual([...new Set(mine.map(r=>JSON.stringify(['ABC'[r.car!],'ABC'[r.opened!],r.shows])))].sort(),[...cells].sort(),`${host}, pick ${'ABC'[choice]}`);
+      for(const r of mine) {
+        const cell=threeDoorCells(choice,host).find(c=>c.prize==='ABC'[r.car!]&&c.opened==='ABC'[r.opened!])!;
+        const said=roundResult(r)==='over'?'ends':roundResult(r);
+        assert.equal(said,r.decision==='switch'?cell.swap:cell.stay,JSON.stringify(r));
+        if(r.decision==='switch') assert.notEqual(roundDoor(r),r.pick);
+      }
+    }
+  }
+});
+
 test('birthday formulas match exhaustive small calendars and independent exact Python fractions',()=>{
   for(let days=1;days<=5;days++) for(let people=1;people<=5;people++) {
     let any=0,one=0;
@@ -474,7 +511,7 @@ test('the music comparison preserves pitches and total beats while moving exactl
   assert.deepEqual(phrase('straight').map(n=>n.midi),expected);
   assert.deepEqual(phrase('syncopated').map(n=>n.at),[0,1,2,3.5,4.5,5,6,7]);
   assert.deepEqual(phrase('syncopated').map(n=>n.duration),[1,1,1.5,1,.5,1,1,1]);
-  // A tempo no case shows (no longer a check question; the claim stands): G starts half a beat, 375 ms, before the bar line at 80 BPM...
+  // A tempo no scenario shows (no longer a check question; the claim stands): G starts half a beat, 375 ms, before the bar line at 80 BPM...
   assert.equal((4-phrase('syncopated')[3]!.at)*beatMs(80),375);
   // ...and G sounds for one beat, 750 ms, half of it on each side of the bar line.
   {const g=phrase('syncopated')[3]!;assert.equal(g.duration*beatMs(80),750);assert.equal((4-g.at)*beatMs(80),(g.at+g.duration-4)*beatMs(80));}
@@ -514,7 +551,7 @@ test('the music comparison preserves pitches and total beats while moving exactl
   }
 });
 
-test('every melody case at both tempos: A starts a note on every beat, the shifted B starts none on the 1 of bar 2, the control B starts every note on a beat',()=>{
+test('every melody scenario at both tempos: A starts a note on every beat, the shifted B starts none on the 1 of bar 2, the control B starts every note on a beat',()=>{
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     // The pitched score and the all-C score of the rhythm step.

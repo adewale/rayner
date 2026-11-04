@@ -16,6 +16,8 @@ import {
   sunDistance,
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
+import { raceLifetimes, racePage, raceReplay } from '../scenes/explainers/lib/latest-search.ts';
+import type { RaceState } from '../scenes/explainers/lib/latest-search.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
 import { pkceFlow, lanes, readable } from '../scenes/explainers/lib/pkce.ts';
 import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/index.ts';
@@ -48,10 +50,10 @@ import { check as statecharts } from './lib/fidelity/statecharts.ts';
 import { check as henge } from './lib/fidelity/henge.ts';
 
 for (const entry of EXPLAINERS)
-  test(`${entry.id}: every authored case exposes the program's answers at step boundaries`, async () => {
+  test(`${entry.id}: every authored scenario exposes the program's answers at step boundaries`, async () => {
     const project = await collectProject(`scenes/explainers/${entry.id}`, { write: false });
-    for (const variant of project.variants) {
-      const { values, trace } = variant,
+    for (const scenario of project.scenarios) {
+      const { values, trace } = scenario,
         last = trace.steps.at(-1)!;
       // Every visible token (including sequence build-ins) names a link in a captured diagram.
       const links = Object.values(project.store)
@@ -95,7 +97,7 @@ for (const entry of EXPLAINERS)
             assert.equal(solstice.toFixed(3), '0.984');
             assert.equal(Math.round((1 / solstice ** 2 - 1) * 100), 3);
             assert.equal(Math.round((share / solstice ** 2) * 100), 27);
-            const { checks } = (variant.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
+            const { checks } = (scenario.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
             assert.match(checks[0]!.answer, /^About 27%\. On the solstice Earth is about 0\.984 of its average distance/);
             // The second: an axis that always leans north toward the Sun gives December June's values, 16.4 h and 88%.
             assert.equal(sunlight(51.5, 23.44).daylight.toFixed(1), '16.4');
@@ -119,7 +121,7 @@ for (const entry of EXPLAINERS)
             polarNight: days.filter((h) => h === 0).length,
           });
           if (lat === 69.65) assert.ok((trace.steps.find((s) => s.step === 'year')!.after!.polarDay as number) > 50);
-          await seasonsArithmetic(trace, variant.Scene);
+          await seasonsArithmetic(trace, scenario.Scene);
           break;
         }
         case 'oauth-pkce': {
@@ -128,10 +130,10 @@ for (const entry of EXPLAINERS)
             accepted: true,
           });
           if (values.attacker === 'yes') assertStepState(trace, 'attack', { attackerAccepted: false });
-          const pictured = (step: string) => textOf(pictureHtml(trace.steps.find(s => s.step === step)!.after));
+          const pictured = (step: string) => textOf(pictureHtml(trace.steps.find(s => s.step === step)!.shown));
           assert.match(pictured('secret'), /code_challenge.*E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM/s);
           assert.match(pictured('exchange'), /S256\(verifier\) = E9Melh… = bound challenge/);
-          const guesses = trace.steps.filter(s => /S256\(guess\) = \S+… ≠ E9Melh…/.test(textOf(pictureHtml(s.after))));
+          const guesses = trace.steps.filter(s => /S256\(guess\) = \S+… ≠ E9Melh…/.test(textOf(pictureHtml(s.shown))));
           assert.deepEqual(guesses.map(s => s.step), values.attacker === 'yes' ? ['attack'] : []);
           // Without PKCE, the opening's theft gets a token.
           assertStepState(trace, 'stolen', { stolenAccepted: true });
@@ -156,14 +158,14 @@ for (const entry of EXPLAINERS)
             reads: values.request === 'hit' ? 0 : 1,
           });
           assert.equal(walks.filter((w) => w.step === 'request').length, values.request === 'hit' ? 3 : 4);
-          await mrCacheDiff(trace, variant.Scene);
+          await mrCacheDiff(trace, scenario.Scene);
           break;
         case 'latest-search': {
           // Independent expectation for the two controlled completions: when B
           // finishes first the unguarded old A overwrites it; when A finishes
           // first the guarded page stays empty until the latest B arrives.
           const newFirst = values.order === 'new-first', first = newFirst ? 'B' : 'A';
-          const reading = (step: string) => trace.steps.find(s => s.step === step)!.after!.reader as {
+          const reading = (step: string) => trace.steps.find(s => s.step === step)!.after! as {
             query: string; ticket: number; latest: number; accepted: boolean;
             off: {shown: string | null; completed: string[]; writes: string[]} | {shown: string | null; completed: string[]; writes: string[]}[];
             on: {shown: string | null; completed: string[]; writes: string[]} | {shown: string | null; completed: string[]; writes: string[]}[];
@@ -178,32 +180,40 @@ for (const entry of EXPLAINERS)
           const before = reading('reader-first');
           assert.equal((before.off as {shown:unknown}).shown, first);
           assert.equal((before.on as {shown:unknown}).shown, newFirst ? 'B' : null);
-          const end = reading('reader-guard');
-          const off = end.off as {shown:string;completed:string[];writes:string[]}[], on = end.on as {shown:string;completed:string[];writes:string[]}[];
-          assert.equal(off.length, 3);assert.equal(on.length, 3);
-          assert.equal(off[2]!.shown, newFirst ? 'A' : 'B');assert.equal(on[2]!.shown, 'B');
-          assert.deepEqual(off[2]!.completed, [first, newFirst ? 'A' : 'B']);
-          assert.deepEqual(on[2]!.completed, off[2]!.completed);
-          assert.deepEqual(off[2]!.writes, newFirst ? ['B','A'] : ['A','B']);
-          assert.deepEqual(on[2]!.writes, ['B']);
+          // The overwrite and last steps are the race machines' states: the unguarded race, then the guarded one,
+          // after the same events (A starts, B starts, then the landings in the completion order).
+          const race = (step: string) => trace.steps.find(s => s.step === step)!.after! as unknown as RaceState;
+          const off = race('overwrite'), on = race('reader-guard');
+          assert.equal(off.guarded, false);assert.equal(on.guarded, true);
+          assert.deepEqual(off.log, ['start A', 'start B', `${first} lands`, `${newFirst ? 'A' : 'B'} lands`]);
+          assert.deepEqual(on.log, off.log);
+          assert.equal(off.page, newFirst ? 'A' : 'B');assert.equal(on.page, 'B');
+          assert.deepEqual(off.writes, newFirst ? ['B','A'] : ['A','B']);
+          assert.deepEqual(on.writes, ['B']);
           // The timeline: A starts at tick 0 and B at 1; both run until the landings at 2 and 3. The page tracks change
           // only where a landing publishes: the unguarded page shows each arrival, the guarded one only B's.
           const lifetimes = [{ query: 'A', start: 0, land: newFirst ? 3 : 2 }, { query: 'B', start: 1, land: newFirst ? 2 : 3 }];
           const offPage = [{ from: 0, to: 2, shown: null }, { from: 2, to: 3, shown: first }, { from: 3, to: null, shown: newFirst ? 'A' : 'B' }];
           const onPage = newFirst ? [{ from: 0, to: 2, shown: null }, { from: 2, to: null, shown: 'B' }] : [{ from: 0, to: 3, shown: null }, { from: 3, to: null, shown: 'B' }];
-          assertStepState(trace, 'race', { reader: { order: values.order, completion: [first, newFirst ? 'A' : 'B'], lifetimes } });
-          const timeline = (step: string) => trace.steps.find(s => s.step === step)!.after!.reader as { lifetimes: unknown; page: unknown };
-          assert.deepEqual(timeline('overwrite').lifetimes, lifetimes);
-          assert.deepEqual(timeline('overwrite').page, { off: offPage });
-          assert.deepEqual(timeline('reader-guard').lifetimes, lifetimes);
-          assert.deepEqual(timeline('reader-guard').page, { off: offPage, on: onPage });
+          assertStepState(trace, 'race', { order: values.order, completion: [first, newFirst ? 'A' : 'B'], lifetimes });
+          // The timelines drawn from those states: the same bars, and a page track per rule, the unguarded one outlined
+          // in red where A was published after B started (in both orders), the guarded one never.
+          const spans = (st: RaceState) => racePage(st).map(({ stale: _, ...span }) => span);
+          assert.deepEqual(raceLifetimes(off), lifetimes);
+          assert.deepEqual(spans(off), offPage);
+          assert.deepEqual(raceLifetimes(on), lifetimes);
+          assert.deepEqual(spans(raceReplay(false, on.log)), offPage);
+          assert.deepEqual(spans(on), onPage);
+          assert.deepEqual(racePage(off).filter(p => p.stale).map(p => p.shown), ['A']);
+          assert.ok(!racePage(on).some(p => p.stale));
           break;
         }
         case 'feature-tour':
-          assertStepState(trace, 'recipe', { feature: values.feature, phase: 'recipe' });
-          assertStepState(trace, 'result', { feature: values.feature, phase: 'result' });
+          assertStepState(trace, 'recipe', { feature: values.feature });
+          assertStepState(trace, 'result', { feature: values.feature });
+          assert.deepEqual(['recipe', 'result'].map((name) => (trace.steps.find((s) => s.step === name)!.shown as { phase?: string }).phase), ['recipe', 'result']);
           if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
-          // The camera case says how much of the 16-unit stage its closer view frames.
+          // The camera scenario says how much of the 16-unit stage its closer view frames.
           if (values.feature === 'camera') {
             const camera = trace.steps.find((s) => s.step === 'result')!.after!.camera as { before: number; after: number };
             assert.equal(camera.before, 16);
@@ -260,14 +270,14 @@ for (const entry of EXPLAINERS)
             hit: { wrong: { edge: 'edge:A->C#0', node: 'Database' }, right: { edge: 'edge:A->B#0', node: 'Reply' } },
           });
           {
-            const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'meaning')!.after)).replace(/\s+/g, ' ');
+            const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'meaning')!.shown)).replace(/\s+/g, ' ');
             for (const heading of ['1: yes to Database;', '1: yes to Reply;']) assert.ok(shown.includes(heading), shown);
             const body = '2: ok: true; 3: warnings: 0';
             assert.equal(shown.split(body).length - 1, 2, shown);
           }
-          // The default case deletes the swapped labels to show what the verifier does flag.
+          // The default scenario deletes the swapped labels to show what the verifier does flag.
           if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
-          // Every case shows an error turning ok false: the edge to Database cut off at its arrow.
+          // Every scenario shows an error turning ok false: the edge to Database cut off at its arrow.
           assertStepState(trace, 'broken', {
             broken: {
               source: {
@@ -310,7 +320,7 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'terminal', { invalid: sessionAttempt(state, 'OPENED') });
           // The table the code panel shows, read back from the picture, is the model's: for every
           // state and event it names, a row exactly where reduceSession has a transition.
-          const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'machine')!.after));
+          const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'machine')!.shown));
           const rows = new Map([...shown.matchAll(/'(\w+):(\w+)':\s*'(\w+)'/g)].map((r) => [`${r[1]}:${r[2]}`, r[3]!]));
           assert.equal(rows.size, 4, shown);
           const states = new Set([...rows].flatMap(([k, v]) => [k.split(':')[0]!, v])),
@@ -328,6 +338,16 @@ for (const entry of EXPLAINERS)
             return ok ? 200 : 429;
           });
           assertStepState(trace, 'trace', { tokens: bucket.tokens, lastRefill: 5, responses });
+          // The gauge followed elapsed time: one Follow per request, from the previous arrival to this
+          // one, always writing the gauge, and the climbing line too when time passed. Recorded as each
+          // began, so the intervals are the ones the frames sampled.
+          const follows = trace.steps.flatMap((s) => (s.evidence ?? []).filter((e) => e.kind === 'follow'));
+          const arrivals = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5];
+          assert.deepEqual(follows.map((e) => [e.from, e.to]), arrivals.map((at, i) => [i ? arrivals[i - 1] : 0, at]));
+          for (const [i, e] of follows.entries()) {
+            const passed = i > 0 && arrivals[i]! > arrivals[i - 1]!;
+            assert.deepEqual(e.targets, passed ? ['bucket:level', `balance:refill:R${i + 1}`] : ['bucket:level']);
+          }
           // The chart and the gauge draw these balances; the trace carries them.
           assertStepState(trace, 'trace', {
             balances,
@@ -396,7 +416,7 @@ for (const entry of EXPLAINERS)
             String(hashes.meta.line),
           );
           // The labels as drawn, read back from the step's picture.
-          const shown = textOf(pictureHtml(hashes.after));
+          const shown = textOf(pictureHtml(hashes.shown));
           for (const label of [
             `Paired with an equal digit anywhere: tree ${paired.tree}, commit ${paired.commit} of 40`,
             `Same digit in the same place, coloured: tree ${inPlace.tree}, commit ${inPlace.commit} of 40`,
@@ -404,7 +424,7 @@ for (const entry of EXPLAINERS)
             assert.ok(shown.includes(label), `${label}\n${shown}`);
           // The change step no longer prints the kept and grown shape counts (the evidence above still
           // holds the redraw to keeping commit one's row whole); its picture names both commits' rows.
-          const rows = textOf(pictureHtml(stepOf('change').after));
+          const rows = textOf(pictureHtml(stepOf('change').shown));
           for (const [label, commit, tree] of [['commit one', c1, t1], ['commit two', c2, t2]] as const)
             assert.ok(rows.includes(`${label}: commit ${commit.slice(0, 7)} names tree ${tree.slice(0, 7)}`), `${label}\n${rows}`);
           break;
@@ -456,7 +476,7 @@ for (const entry of EXPLAINERS)
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));
           for (const [cut, advance] of Object.entries(expected)) assert.ok(Math.abs(actual[cut]! - advance) < 1e-6, `${cut}: raw-font advance ${advance}, scene ${actual[cut]}`);
-          const shown = pictureHtml(trace.steps.find(s => s.step === 'cuts')!.after);
+          const shown = pictureHtml(trace.steps.find(s => s.step === 'cuts')!.shown);
           for (const [cut, width] of Object.entries(expected)) assert.ok(shown.includes(`${cut}, advance ${width.toFixed(2)}`), shown);
           // Independent original-font measurements, recorded with source SHA in
           // docs/evidence/authoring-layout/font-vectors.json. No Text measurement
@@ -480,7 +500,7 @@ for (const entry of EXPLAINERS)
           // The step's notes say each word's stretch: none when measured, more than none from Inter estimates,
           // each the recorded width over the source-font advance at the run's size.
           const stretch = trace.steps.find(s => s.step === 'diagram')!.after!.stretch as Record<string, number>;
-          const diagramShown = pictureHtml(trace.steps.find(s => s.step === 'diagram')!.after);
+          const diagramShown = pictureHtml(trace.steps.find(s => s.step === 'diagram')!.shown);
           for (const run of values.widths === 'natural' ? runs : runsOf(recorded)) {
             const k = run.width! / (diagramEm[run.text]! * run.size);
             assert.ok(Math.abs(stretch[run.text]! - k) < 0.002, `${run.text}: stretch ${stretch[run.text]}, from the source font ${k}`);
@@ -488,7 +508,7 @@ for (const entry of EXPLAINERS)
             else assert.ok(k > 1.1, `${run.text}: Inter estimates stretch the Garamond word (${k})`);
             assert.ok(diagramShown.includes(`stretched ×${stretch[run.text]!.toFixed(3)}`), diagramShown);
           }
-          // The recorded case's caption: Paper is stretched more than Ink, so no single factor converts the faces.
+          // The recorded scenario's caption: Paper is stretched more than Ink, so no single factor converts the faces.
           if (values.widths === 'recorded') {
             assert.ok(stretch.Paper! > stretch.Ink! + 0.1, `Paper ${stretch.Paper}, Ink ${stretch.Ink}`);
             assert.match(String(trace.steps.find(s => s.step === 'diagram')!.meta.caption), /Paper’s is larger than Ink’s/);
@@ -501,7 +521,7 @@ for (const entry of EXPLAINERS)
           // before and after an update, without reversing the digits.
           const rtl = values.direction === 'rtl';
           const seen: string[] = [];
-          await new variant.Scene({
+          await new scenario.Scene({
             async frame() {},
             async stepEnd(scene, step) {
               if (!['columns', 'updates', 'physical'].includes(step.name)) return;
@@ -611,21 +631,21 @@ for (const entry of EXPLAINERS)
           });
           assert.ok(Math.abs(fork.t1 - fork.t0 - (words / Scene.captionWpm) * 60) <= 1 / trace.fps + 1e-9);
           // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
-          // token-bucket case whose trace answers R10 as the fork scene says, and its last step says
+          // token-bucket scenario whose trace answers R10 as the fork scene says, and its last step says
           // R10 is accepted at every rate.
           const bucketProject = await collectProject('scenes/explainers/token-bucket', { write: false });
-          const offered = bucketProject.variants.map((v) => ({
+          const offered = bucketProject.scenarios.map((v) => ({
             rate: Number(v.values.rate),
             r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
           }));
           assertStepState(trace, 'sentence', { offered: offered.sort((a, b) => a.rate - b.rate) });
-          for (const v of bucketProject.variants)
+          for (const v of bucketProject.scenarios)
             assert.match(String(v.trace.steps.find((s) => s.step === 'trace')!.meta.caption), /R10 is accepted at every rate/);
           // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
           // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.
           assertStepState(trace, 'untested', { unbuilt: { rate: 0.1, r10: 429, found: 0.5 } });
-          // The cases the choice step draws are the token bucket's own: its setting as declared, one
-          // case per option with R10's answer from that case's trace, and what its settings resolver
+          // The scenarios the choice step draws are the token bucket's own: its setting as declared, one
+          // scenario per option with R10's answer from that scenario's trace, and what its settings resolver
           // does with a link naming a listed rate and with one naming 0.1.
           const { default: TokenBucketScene } = await import('../scenes/explainers/token-bucket/scene.ts');
           const [rate] = TokenBucketScene.settings;
@@ -635,12 +655,12 @@ for (const entry of EXPLAINERS)
             } catch (e) {
               return (e as Error).message;
             }
-            assert.fail('0.1 must not resolve to a token-bucket case');
+            assert.fail('0.1 must not resolve to a token-bucket scenario');
           })();
           assertStepState(trace, 'choice', {
             choice: {
               setting: rate,
-              cases: offered.map((o) => ({ rate: String(o.rate), r10: o.r10, default: String(o.rate) === rate!.default })),
+              scenarios: offered.map((o) => ({ rate: String(o.rate), r10: o.r10, default: String(o.rate) === rate!.default })),
               links: [
                 { asked: '4', opens: resolveSettings(TokenBucketScene, { rate: '4' }).rate },
                 { asked: '0.1', opens: rate!.default, refused },
@@ -650,8 +670,8 @@ for (const entry of EXPLAINERS)
           // The price is shown on a real scene's settings: traffic-policy's two settings, in its own order.
           const { default: TrafficPolicy } = await import('../scenes/explainers/traffic-policy/scene.ts');
           const [policy, pods] = TrafficPolicy.settings;
-          assertStepState(trace, 'cases', {
-            cases: {
+          assertStepState(trace, 'scenarios', {
+            scenarios: {
               count: policy!.options.length * pods!.options.length,
               policies: policy!.options.map((o) => o.label),
               pods: pods!.options.map((o) => o.value),
@@ -806,7 +826,7 @@ function gitHunks(before: readonly string[], after: readonly string[]) {
  * year chart's "longest − shortest" dimension against the two solstice values on the curve.
  */
 async function seasonsArithmetic(
-  trace: { steps: { step: string; meta: Record<string, unknown>; after?: unknown }[] },
+  trace: { steps: { step: string; meta: Record<string, unknown>; after?: unknown; shown?: Record<string, unknown> }[] },
   Bound: new (sink: Sink) => Scene,
 ) {
   const texts = await restingTexts(Bound);
@@ -826,7 +846,7 @@ async function seasonsArithmetic(
   assert.equal(Math.sin(((90 - Math.abs(lat - decl)) * Math.PI) / 180).toFixed(2), sine[2], sines[0]!);
   assert.equal((90 - Math.abs(lat - decl)).toFixed(1), sine[1], sines[0]!);
   // The describe says the same formula.
-  const noon = textOf(pictureHtml(trace.steps.find((s) => s.step === 'noon')!.after));
+  const noon = textOf(pictureHtml(trace.steps.find((s) => s.step === 'noon')!.shown));
   assert.ok(noon.includes(formulas[0]!), noon);
 
   // The side-by-side beams: each patch length printed under its beam, and the share per m² under it, is
@@ -844,7 +864,7 @@ async function seasonsArithmetic(
   }
 
   const yearStep = trace.steps.find((s) => s.step === 'year')!,
-    year = textOf(pictureHtml(yearStep.after));
+    year = textOf(pictureHtml(yearStep.shown));
   // The solstice values as the chart labels them at their dots.
   const row = (name: string) => {
     const r = new RegExp(`${name} ([\\d.]+) h`).exec(year);

@@ -1,9 +1,9 @@
-import { Scene, Group, Rectangle, Text, CurvedArrow } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import { Scene, Group, Rectangle, CurvedArrow } from '../../../src/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
+import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED } from '../lib/python-dict.ts';
 import type { DictTable, DictLookup } from '../lib/python-dict.ts';
-import { lesson, label, tile, table } from '../lib/lesson-drawing.ts';
+import { label, tile, table } from '../lib/lesson-drawing.ts';
 
 /** What one resting picture shows beside the index: the entries and a lookup, or the start-slot table. */
 interface View {
@@ -35,20 +35,6 @@ const slotX = (i: number) => -6.3 + i * 1.8,
   HALF = 1.55 / 2,
   LEFT = slotX(0) - HALF,
   RIGHT = slotX(7) + HALF;
-/** Column centres for table(): its columns spread from left to right edge with equal gaps, measured as table() draws them. */
-function spread(headers: readonly string[], rows: readonly (readonly (string | number)[])[], size: number, left: number, right: number) {
-  const widths = headers.map((h, c) =>
-    Math.max(new Text(h, { fontSize: size, weight: 'bold' }).width(), ...rows.map((r) => new Text(String(r[c]), { fontSize: size }).width())),
-  );
-  const gap = (right - left - widths.reduce((a, b) => a + b, 0)) / (headers.length - 1);
-  let x = left;
-  return widths.map((w) => {
-    const centre = x + w / 2;
-    x += w + gap;
-    return centre;
-  });
-}
-
 /** The lookup's route as arrows under the slot row, one per hop, from each slot it reads to the next. An arrow that
  *  flies over slots does not read them; the search stops in the last slot, which has no arrow out. */
 function hops(s: Stage, v: View) {
@@ -95,7 +81,7 @@ function picture(s: Stage, v: View) {
     return new Group(
       slots,
       // The hash table spans the slot row, edge to edge.
-      table(heads, rows, s, { xs: spread(heads, rows, 0.66, LEFT + 0.2, RIGHT - 0.2), y: TOP, gap: 0.85, key: 'dict-hashes', size: 0.66 }),
+      table(heads, rows, s, { xs: { left: LEFT + 0.2, right: RIGHT - 0.2 }, y: TOP, gap: 0.85, key: 'dict-hashes', size: 0.66 }),
       note,
     );
   }
@@ -104,7 +90,7 @@ function picture(s: Stage, v: View) {
     rows = v.dict.entries.map((e, i) => [i, e.key ?? '–', e.value ?? '–']),
     rowY = (r: number) => TOP - r * 0.85;
   const entries = table(heads, rows, s, {
-    xs: spread(heads, rows, 0.66, LEFT + 0.2, slotX(3) + HALF - 0.6),
+    xs: { left: LEFT + 0.2, right: slotX(3) + HALF - 0.6 },
     y: rowY(0),
     gap: 0.85,
     key: 'dict-entries',
@@ -266,7 +252,7 @@ export default class PythonDict extends Scene {
       },
       {
         id: 'hash',
-        detail: true,
+        kind: 'detail' as const,
         title: 'Why slot 0: all three keys start there',
         line: 'An eight-slot index keeps only the hash’s low three bits.',
         caption: `For these keys, Python uses the integer itself as its hash, so the hashes are ${m.starts.map((s) => s.hash).join(', ')}. With eight slots, Python keeps only the last three bits of the hash, and all three end in 000 in binary, so all three keys start at slot 0. Key 0 was stored first and took it.`,
@@ -285,7 +271,7 @@ export default class PythonDict extends Scene {
       },
       {
         id: 'collision',
-        detail: true,
+        kind: 'detail' as const,
         title: 'A taken slot sends the search on',
         line: `Key 16 passes taken slots ${list(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
         caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${list(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,
@@ -301,9 +287,8 @@ export default class PythonDict extends Scene {
         },
       },
     ];
-    await lesson(
-      this,
-      frames.map(({ view, ...frame }) => ({ ...frame, draw: (s: Stage) => picture(s, view as View) })),
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(
+      frames.map(({ view, ...frame }): StagedStep => ({ ...frame, draw: (_, s: Stage) => picture(s, view as View) })),
     );
   }
 }

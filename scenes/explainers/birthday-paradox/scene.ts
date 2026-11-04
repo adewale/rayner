@@ -1,34 +1,8 @@
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
-import type { LessonFrame } from '../lib/lesson-drawing.ts';
 import { label, tile, table, stat } from '../lib/lesson-drawing.ts';
-
-/** lesson() from lesson-drawing, with frames that can be detail steps after the ending. */
-async function lesson(scene: Scene, frames: readonly (LessonFrame & { detail?: boolean; reading?: readonly string[] })[]) {
-  const s = stage(scene, { style: 'github-light', headingSize: 0.6 });
-  for (const frame of frames) {
-    await scene.step(frame.id, {
-      title: frame.title,
-      line: frame.line,
-      caption: frame.caption,
-      ...(frame.detail ? { detail: true } : {}),
-    });
-    await s.clear({ runTime: 0.18 });
-    scene.state = { ...JSON.parse(JSON.stringify(frame.state)), phase: frame.id };
-    const drawing = frame.draw(s);
-    // What the step is about, when that is less than the whole drawing: a phone opens on it.
-    s.reading(...(frame.reading ? drawing.family().filter((m) => frame.reading!.includes(m.key ?? '')) : [drawing]));
-    // Describe actual drawn labels, not the state object or the authored caption.
-    const words = drawing
-      .family()
-      .filter((m): m is Text => m instanceof Text)
-      .map((t) => t.text)
-      .filter(Boolean);
-    await s.enter(drawing, { runTime: 0.24, describe: words.join('. ') });
-  }
-}
 
 const pct = (p: number) => (100 * p).toFixed(1) + '%';
 const pct2 = (p: number) => (100 * p).toFixed(2) + '%';
@@ -43,7 +17,7 @@ export default class BirthdayParadox extends Scene {
     id: 'birthday-paradox',
     title: 'How many people make a shared birthday likely?',
     sources: ['https://pudding.cool/2018/04/birthday-paradox/', 'https://mathworld.wolfram.com/BirthdayProblem.html'],
-    // The script's answer and check questions (script.md); the chance step states the answer in every case.
+    // The script's answer and check questions (script.md); the chance step states the answer in every scenario.
     answer: ANSWER,
     checks: [
       {
@@ -95,7 +69,7 @@ export default class BirthdayParadox extends Scene {
       n = m.people;
     const sharedDays = new Set(m.shared.map((d) => d.day));
     /** The room as date cards; `lit` outlines the cards whose date appears more than once. */
-    const room = (lit: boolean, footer: string) => (s: Stage) => {
+    const room = (lit: boolean, footer: string) => (_: unknown, s: Stage) => {
       // A phone opening shows about 13.8 units across, so the widest row stays inside that.
       const big = n > 30,
         cols = 5,
@@ -117,7 +91,7 @@ export default class BirthdayParadox extends Scene {
      * Every pair as one square of a triangle: row k is the (k + 1)th card, with one square for each card before it,
      * so a newcomer adds a row as long as the room already is. With `you`, only the first column: the first card's pairs.
      */
-    const pairGrid = (you: boolean) => (s: Stage) => {
+    const pairGrid = (you: boolean) => (_: unknown, s: Stage) => {
       const cell = Math.min(0.32, 5.3 / (n - 1)),
         x0 = -((n - 1) * cell) / 2,
         y0 = 2.25;
@@ -157,7 +131,7 @@ export default class BirthdayParadox extends Scene {
       return g;
     };
     const shared = m.shared.map((d) => d.date);
-    const frames: (LessonFrame & { detail?: boolean; reading?: readonly string[] })[] = [
+    const frames: StagedStep[] = [
       {
         id: 'room',
         title: 'Do two of these people share a birthday?',
@@ -228,7 +202,7 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'growth',
-        detail: true,
+        kind: 'detail',
         title: 'Each newcomer pairs with everyone already in the room',
         line: 'The thick bars outrun the thin ones as the room fills.',
         caption: (() => {
@@ -236,7 +210,7 @@ export default class BirthdayParadox extends Scene {
           return `Each additional person adds one card but a comparison with everyone already present. That is why the thick pair bars grow faster than the thin people bars: doubling the room from ${five!.people} people to ${ten!.people} takes the pairs from ${five!.pairs} to ${ten!.pairs}. The bars use one scale; the outlined row is this room.`;
         })(),
         state: { people: n, growth: m.growth },
-        draw: (s: Stage) => {
+        draw: (_, s: Stage) => {
           const y0 = 2.4,
             gap = 0.82,
             x0 = 0.4,
@@ -275,12 +249,12 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'exact',
-        detail: true,
+        kind: 'detail',
         title: `Counting exactly: person ${n} must miss ${n - 1} dates already taken`,
         line: `Predict: do ${m.pairs} pairs at 1 in 365 each give the same chance?`,
         caption: `Turn the question around: what would it take for nobody to match? Add people one at a time and ask each to miss every date taken so far. Provided earlier people have all missed, each new arrival has one fewer free date. Multiply those chances to get ${pct2(m.noMatch)} for no match, then subtract from 1: ${pct2(m.chance)} for a match. The picture shows the free dates facing person ${n}.`,
         state: { people: n, factors: m.factors, noMatch: m.noMatch, chance: m.chance, occupied: n - 1, allowed: 365 - (n - 1) },
-        draw: (s: Stage) => {
+        draw: (_, s: Stage) => {
           const occupied = n - 1;
           const grid = new Group(
             ...Array.from({ length: 365 }, (_, i) =>
@@ -300,12 +274,12 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'estimate',
-        detail: true,
+        kind: 'detail',
         title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,
         line: `Close to the exact ${pct2(m.chance)}; overlapping comparisons need care.`,
         caption: `Treating the ${m.pairs} pairs as independent gives the nearby shortcut shown. It is the chance you would have of sharing your own birthday with one of ${m.pairs} other people. The room’s pairs are not jointly independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. The person-by-person calculation avoids that dependence. Comparisons with your one birthday do involve independent arrivals, so multiplying their miss chances gives the exact ${pct(m.one)} for a match with you.`,
         state: { people: n, pairs: m.pairs, shortcut: m.shortcut, chance: m.chance, one: m.one },
-        draw: (s: Stage) =>
+        draw: (_, s: Stage) =>
           new Group(
             label('One pair shares a birthday: 1 in 365', 0, 2.2, s.palette.ink, 0.66),
             label(`All ${m.pairs} pairs miss: 364/365, ${m.pairs} times over`, 0, 1.2, s.palette.ink, 0.66),
@@ -316,6 +290,6 @@ export default class BirthdayParadox extends Scene {
           ),
       },
     ];
-    await lesson(this, frames);
+    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(frames);
   }
 }

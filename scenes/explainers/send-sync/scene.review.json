@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "spawn",
       "targets": [

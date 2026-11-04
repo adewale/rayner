@@ -5,8 +5,8 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, unlink, writeFile } from 'node:
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fc, params } from './lib/pbt.ts';
-import { reviewScope, reviewCases, mergeStoryReviews, reviewCodeHash, readStoryPlan } from '../tools/lib/explain-review-plan.ts';
-import type { PlannedCase, ReviewReceipt } from '../tools/lib/explain-review-plan.ts';
+import { reviewScope, reviewScenarios, mergeStoryReviews, reviewCodeHash, readStoryPlan } from '../tools/lib/explain-review-plan.ts';
+import type { PlannedScenario, ReviewReceipt } from '../tools/lib/explain-review-plan.ts';
 
 test('story shard arguments accept complete integer scopes and reject malformed selections', () => {
   assert.deepEqual(reviewScope([]), { part: 1, total: 1 });
@@ -23,19 +23,19 @@ test('story shard arguments accept complete integer scopes and reject malformed 
   assert.throws(() => reviewScope(['--shard', '1/3', 'extra']), /usage/);
 });
 const narrowObligations = (steps: string[]) => steps.map(step => ({step, reviewed: true as const, targets: ['visible subject'], labels: ['Subject label']}));
-function receipts(expected: PlannedCase[], total: number): ReviewReceipt[] {
+function receipts(expected: PlannedScenario[], total: number): ReviewReceipt[] {
   const parts: ReviewReceipt[] = Array.from({ length: total }, (_, i) => ({
     scope: { part: i + 1, total },
     collectionChecks: i === 0,
     catalogHash: 'catalog',
     reviewCodeHash: 'code',
-    cases: 0,
+    scenarios: 0,
     stepWidths: 0,
     results: [],
     consoleErrors: [],
     runtimeConnections: [],
   }));
-  for (const p of parts) for (const c of reviewCases(expected, p.scope)) {
+  for (const p of parts) for (const c of reviewScenarios(expected, p.scope)) {
     p.results.push({
       scene: c.scene,
       settings: c.settings,
@@ -48,13 +48,13 @@ function receipts(expected: PlannedCase[], total: number): ReviewReceipt[] {
     });
   }
   for (const p of parts) {
-    p.cases = p.results.length;
+    p.scenarios = p.results.length;
     p.stepWidths = p.results.reduce((n, c) => n + c.steps.length, 0);
   }
   return parts;
 }
 test('opening receipts use the same single-precision font tolerance as the painted SVG check', () => {
-  const expected: PlannedCase[] = [{ scene: 'roundtrip', settings: {}, steps: ['begin'], narrowOpenings: narrowObligations(['begin']) }];
+  const expected: PlannedScenario[] = [{ scene: 'roundtrip', settings: {}, steps: ['begin'], narrowOpenings: narrowObligations(['begin']) }];
   const parts = receipts(expected, 1);
   const opening = parts[0]!.results[0]!.steps[0]!.openingAt320;
   assert.ok(opening?.reviewed);
@@ -68,7 +68,7 @@ test('opening receipts use the same single-precision font tolerance as the paint
     assert.throws(() => mergeStoryReviews(parts, expected, 'catalog', 'code'), /labels must reach 12px/);
   }
 });
-test('merging story shards preserves every case, final step and width across generated inventories', () => {
+test('merging story shards preserves every scenario, final step and width across generated inventories', () => {
   fc.assert(
     fc.property(
       fc.array(fc.integer({ min: 1, max: 8 }), { minLength: 5, maxLength: 20 }),
@@ -83,7 +83,7 @@ test('merging story shards preserves every case, final step and width across gen
           merged.results.map((c) => [c.scene, c.settings]),
           expected.map((c) => [c.scene, c.settings]),
         );
-        assert.equal(merged.cases, counts.length);
+        assert.equal(merged.scenarios, counts.length);
         assert.equal(merged.stepWidths, 2 * counts.reduce((a, b) => a + b, 0));
       },
     ),
@@ -110,10 +110,10 @@ test('a passing story result requires all matching shards with complete nonempty
     'duplicate shard': (p) => {
       p[1] = p[0]!;
     },
-    'missing case': (p) => {
+    'missing scenario': (p) => {
       p[0]!.results.pop();
     },
-    'duplicate case': (p) => {
+    'duplicate scenario': (p) => {
       p[0]!.results[1] = p[0]!.results[0]!;
     },
     'missing final step': (p) => {
@@ -135,7 +135,7 @@ test('a passing story result requires all matching shards with complete nonempty
       p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: true, width: 320, height: 568, targets: ['visible subject'], labels: ['Subject label'], minimumLabelPx: 11.9};
     },
     'false missing-claim exclusion': (p) => {
-      p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: false, reason: 'no-opening-claim'};
+      p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: false, reason: 'no-opening-subject'};
     },
     'false detail exclusion': (p) => {
       p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: false, reason: 'detail-step'};
@@ -195,20 +195,20 @@ test('story receipts expire when caption claims, served runtime or review depend
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
     }
     const withoutClaims = await reviewCodeHash(root);
-    const claimsFile = join(root, 'scenes/explainers/example/scene.review.json');
-    const original = JSON.stringify({version: 1, claims: [{step: 'first', targets: [{text: 'Visible subject'}]}]});
-    await mkdir(dirname(claimsFile), {recursive: true});
-    await writeFile(claimsFile, original);
+    const subjectsFile = join(root, 'scenes/explainers/example/scene.review.json');
+    const original = JSON.stringify({version: 2, subjects: [{step: 'first', targets: [{text: 'Visible subject'}]}]});
+    await mkdir(dirname(subjectsFile), {recursive: true});
+    await writeFile(subjectsFile, original);
     const current = await reviewCodeHash(root);
     assert.notEqual(current, withoutClaims, 'adding companion expectations must invalidate previous review');
     const expected = Array.from({length: 3}, (_, i) => ({scene: `scene-${i}`, settings: {}, steps: ['first', 'final'], narrowOpenings: narrowObligations(['first', 'final'])}));
     const old = receipts(expected, 3);
     for (const part of old) part.reviewCodeHash = current;
     const merge = async () => mergeStoryReviews(old, expected, 'catalog', await reviewCodeHash(root));
-    assert.equal((await merge()).cases, 3, 'unchanged claims and implementation retain valid receipts');
-    await writeFile(claimsFile, original.replace('Visible subject', 'A newly required subject'));
+    assert.equal((await merge()).scenarios, 3, 'unchanged claims and implementation retain valid receipts');
+    await writeFile(subjectsFile, original.replace('Visible subject', 'A newly required subject'));
     await assert.rejects(merge(), /stale review implementation/, 'an edited expectation cannot reuse an old passing receipt');
-    await writeFile(claimsFile, original);
+    await writeFile(subjectsFile, original);
     assert.equal(await reviewCodeHash(root), current);
     const added = join(root, 'scenes/explainers/second/scene.review.json');
     await mkdir(dirname(added), {recursive: true});
@@ -216,9 +216,9 @@ test('story receipts expire when caption claims, served runtime or review depend
     await assert.rejects(merge(), /stale review implementation/, 'identical bytes at a new companion path also add expectations');
     await unlink(added);
     assert.equal(await reviewCodeHash(root), current);
-    await unlink(claimsFile);
+    await unlink(subjectsFile);
     await assert.rejects(merge(), /stale review implementation/, 'deleted expectations cannot reuse old receipts');
-    await writeFile(claimsFile, original);
+    await writeFile(subjectsFile, original);
     await mkdir(join(root, 'docs'));
     await writeFile(join(root, 'docs/notes.md'), 'Unrelated documentation changes.');
     assert.equal(await reviewCodeHash(root), current, 'unrelated prose does not invalidate paint review');
@@ -250,7 +250,7 @@ test('story receipts expire when caption claims, served runtime or review depend
     await writeFile(raster, Buffer.concat([rasterBytes, Buffer.from('\n// changed native rasterization\n')]));
     await assert.rejects(merge(), /stale review implementation/, 'native composite evidence depends on the rasterizer');
     await writeFile(raster, rasterBytes);
-    assert.equal((await merge()).cases, 3);
+    assert.equal((await merge()).scenarios, 3);
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
@@ -262,20 +262,20 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
       {step: 'picture', reviewed: true as const, targets: ['shape'], labels: []},
       {step: 'details', reviewed: false as const, reason: 'detail-step' as const},
     ];
-    const scene = {id: 'example', cases: [{}], narrowOpenings: [{settings: {}, steps: narrowOpenings}]};
-    const writeCatalog = (s: unknown) => writeFile(join(root, 'evidence.json'), JSON.stringify({version: 2, checked: true, totals: {explainers: 1, cases: 1, diagrams: 0, styles: 0, families: 0}, scenes: [{diagrams: 0, styles: [], families: [], ...(s as object)}]}));
-    await writeFile(join(root, 'example/describe.json'), JSON.stringify({cases: [{values: {}, steps: [{step: 'picture'}, {step: 'details'}]}]}));
+    const scene = {id: 'example', scenarios: [{}], narrowOpenings: [{settings: {}, steps: narrowOpenings}]};
+    const writeCatalog = (s: unknown) => writeFile(join(root, 'evidence.json'), JSON.stringify({version: 2, checked: true, totals: {explainers: 1, scenarios: 1, diagrams: 0, styles: 0, families: 0}, scenes: [{diagrams: 0, styles: [], families: [], ...(s as object)}]}));
+    await writeFile(join(root, 'example/describe.json'), JSON.stringify({scenarios: [{values: {}, steps: [{step: 'picture'}, {step: 'details'}]}]}));
     await writeCatalog(scene);
     await assert.rejects(readStoryPlan(root, ['fixture', 'missing']), /complete source scene inventory/);
     const plan = await readStoryPlan(root);
-    assert.deepEqual(plan.cases, [{scene: 'example', settings: {}, steps: ['picture', 'details'], narrowOpenings}]);
-    const parts = receipts(plan.cases, 1);
+    assert.deepEqual(plan.scenarios, [{scene: 'example', settings: {}, steps: ['picture', 'details'], narrowOpenings}]);
+    const parts = receipts(plan.scenarios, 1);
     const rows = parts[0]!.results[0]!.steps;
     rows[0]!.openingAt320 = {reviewed: true, width: 320, height: 568, targets: ['shape'], labels: [], minimumLabelPx: null};
     rows[1]!.openingAt320 = {reviewed: false, reason: 'detail-step'};
-    assert.equal(mergeStoryReviews(parts, plan.cases, 'catalog', 'code').cases, 1);
-    rows[1]!.openingAt320 = {reviewed: false, reason: 'no-opening-claim'};
-    assert.throws(() => mergeStoryReviews(parts, plan.cases, 'catalog', 'code'), /exclusion changed/);
+    assert.equal(mergeStoryReviews(parts, plan.scenarios, 'catalog', 'code').scenarios, 1);
+    rows[1]!.openingAt320 = {reviewed: false, reason: 'no-opening-subject'};
+    assert.throws(() => mergeStoryReviews(parts, plan.scenarios, 'catalog', 'code'), /exclusion changed/);
     const broken = structuredClone(scene);
     broken.narrowOpenings[0]!.steps.pop();
     await writeCatalog(broken);
@@ -286,24 +286,24 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
   } finally { await rm(root, {recursive: true, force: true}); }
 });
 
-test('scene sharding preserves all cases once and keeps a scene on one owner', () => {
+test('scene sharding preserves all scenarios once and keeps a scene on one owner', () => {
   fc.assert(fc.property(fc.array(fc.array(fc.integer({min: 1, max: 10}), {minLength: 1, maxLength: 5}), {minLength: 3, maxLength: 16}), fc.integer({min: 1, max: 5}), (scenes, total) => {
-    const cases = scenes.flatMap((counts, i) => counts.map((count, j) => {
+    const scenarios = scenes.flatMap((counts, i) => counts.map((count, j) => {
       const steps = Array.from({length: count}, (_, k) => `step-${k}`);
       return {scene: `scene-${i}`, settings: {case: String(j)}, steps, narrowOpenings: narrowObligations(steps)};
     }));
-    const before = structuredClone(cases);
-    const parts = Array.from({length: total}, (_, i) => reviewCases(cases, {part: i + 1, total}));
-    assert.equal(parts.flat().length, cases.length);
-    assert.deepEqual(new Set(parts.flat()), new Set(cases));
-    for (const scene of new Set(cases.map(c => c.scene)))
+    const before = structuredClone(scenarios);
+    const parts = Array.from({length: total}, (_, i) => reviewScenarios(scenarios, {part: i + 1, total}));
+    assert.equal(parts.flat().length, scenarios.length);
+    assert.deepEqual(new Set(parts.flat()), new Set(scenarios));
+    for (const scene of new Set(scenarios.map(c => c.scene)))
       assert.equal(parts.filter(part => part.some(c => c.scene === scene)).length, 1);
-    assert.deepEqual(cases, before);
-    const cost = (items: PlannedCase[]) => items.reduce((sum, c) => sum + c.steps.length * 3, 0);
-    const loads = parts.map(cost), heaviest = Math.max(...scenes.map((_, i) => cost(cases.filter(c => c.scene === `scene-${i}`))));
+    assert.deepEqual(scenarios, before);
+    const cost = (items: PlannedScenario[]) => items.reduce((sum, c) => sum + c.steps.length * 3, 0);
+    const loads = parts.map(cost), heaviest = Math.max(...scenes.map((_, i) => cost(scenarios.filter(c => c.scene === `scene-${i}`))));
     assert.ok(Math.max(...loads) - Math.min(...loads) <= heaviest);
   }), params(100));
-  const cases = ['a', 'b', 'c', 'a'].map(scene => ({scene, settings: {}, steps: ['first'], narrowOpenings: narrowObligations(['first'])}));
-  assert.deepEqual(reviewCases(cases, {part: 1, total: 2}).map(c => c.scene), ['a', 'a']);
-  assert.deepEqual(reviewCases(cases, {part: 2, total: 2}).map(c => c.scene), ['b', 'c']);
+  const scenarios = ['a', 'b', 'c', 'a'].map(scene => ({scene, settings: {}, steps: ['first'], narrowOpenings: narrowObligations(['first'])}));
+  assert.deepEqual(reviewScenarios(scenarios, {part: 1, total: 2}).map(c => c.scene), ['a', 'a']);
+  assert.deepEqual(reviewScenarios(scenarios, {part: 2, total: 2}).map(c => c.scene), ['b', 'c']);
 });

@@ -8,18 +8,21 @@ import {
   FadeIn,
   FadeOut,
   Create,
+  Follow,
   Transform,
   AnimationGroup,
   Succession,
-  ViewSync,
+  Machine,
+  choreograph,
   view,
   StateReadout,
   Circle,
   Cross,
 } from '../../../src/index.ts';
-import type { ScheduledAnimation as Animation, Mobject, SceneState, SyncOpts, View } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, Mobject, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { TokenBucket } from '../lib/models.ts';
+import { TokenBucket, bucketStart, bucketRequest } from '../lib/models.ts';
+import type { BucketCall as Call, BucketState } from '../lib/models.ts';
 
 // Six at once, three within the next second, then one after a four-second quiet spell:
 // long enough at 2 and 4 tokens a second for min(5, …) to throw refill away, not at 1.
@@ -46,16 +49,11 @@ const REFILL = [1, 3] as const,
   REFUSE = [4, 4] as const,
   SPEND = [5, 6] as const;
 const fmt = (n: number) => n.toFixed(1);
+/** Seconds as the captions write them: 5, 1.5. */
+const seconds = (t: number) => (Number.isInteger(t) ? String(t) : t.toFixed(1));
 const name = (i: number) => 'R' + (i + 1);
 const perSecond = (r: number) => `${r} token${r > 1 ? 's' : ''} a second`;
 
-/** One call of allow(): when it came, what it found after refill, and what it left. */
-interface Call {
-  at: number;
-  ok: boolean;
-  found: number;
-  after: number;
-}
 /** The ten requests through the model at one refill rate. */
 function runAt(rate: number): Call[] {
   const bucket = new TokenBucket(rate, CAPACITY);
@@ -118,25 +116,6 @@ const MOVED = RATES.map((rate) => {
 const distinct = (points: [number, number][]) =>
   points.filter((p, i) => i === 0 || p[0] !== points[i - 1]![0] || p[1] !== points[i - 1]![1]);
 
-/**
- * A readout sync that first makes one call's result the scene's state. In a
- * Succession it begins when its turn comes, so each request's members show
- * that request's state, and the step ends on the last one.
- */
-class SyncToCall extends ViewSync {
-  owner: Scene;
-  result: SceneState;
-  constructor(owner: Scene, readout: View, result: SceneState, opts: SyncOpts) {
-    super(readout, opts);
-    this.owner = owner;
-    this.result = result;
-  }
-  override begin(): void {
-    this.owner.state = this.result;
-    super.begin();
-  }
-}
-
 export default class TokenBucketExplainer extends Scene {
   static meta = {
     id: 'token-bucket',
@@ -188,7 +167,6 @@ export default class TokenBucketExplainer extends Scene {
 
   override async construct() {
     const rate = Number(settingsOf(this).rate),
-      bucket = new TokenBucket(rate, CAPACITY),
       s = stage(this, { headingSize: 0.6, style: 'github-dark' });
     const ink = s.palette.ink,
       soft = s.soft;
@@ -202,23 +180,31 @@ export default class TokenBucketExplainer extends Scene {
         .map((r) => (r.ok ? 200 : 429))
         .join(', ');
     const refusedAt = (r: number) => runs.get(r)!.flatMap((c, i) => (c.ok ? [] : [name(i)]));
-    /** The calls made so far, in order: what every readout and description reports. */
-    const calls: Call[] = [];
-    /** The name tags on the chart's dots, by call. */
-    const tags: (Text | null)[] = [];
+    /** When a climb from `prev` to `call` reached the capacity, where min(capacity, …) took over; null when it stayed under. */
+    const cappedAt = (prev: { at: number; after: number }, call: Call) =>
+      prev.after + (call.at - prev.at) * rate > CAPACITY + 1e-9 ? prev.at + (CAPACITY - prev.after) / rate : null;
+    /** The model's state: the bucket and every call so far, which every picture and description is drawn from. */
+    const bucketOf = () => this.state as unknown as BucketState;
 
-    // ---- descriptions of the native drawings, read at every step boundary
+    // ---- descriptions of the drawings, read at every step boundary from the state
     const chartSays = () => {
+      const { calls } = bucketOf();
       const refused = calls.flatMap((c, i) => (c.ok ? [] : [`${name(i)} at ${fmt(c.found)}`]));
+      const capped = calls.flatMap((c, i) => {
+        const full = cappedAt(calls[i - 1] ?? START, c);
+        return full == null ? [] : [`The line reaches five at ${seconds(full)} s and runs flat until ${name(i)} arrives at ${seconds(c.at)} s`];
+      });
       return !calls.length
         ? `A chart of tokens, 0 to ${CAPACITY}, against time, 0 to ${TIMES.at(-1)} s, with a dashed line at the one token a request needs`
         : `A chart of the balance over time: it climbs at ${rate} a second between calls and drops one token for each 200. ` +
             `Dots mark what R1–${name(calls.length - 1)} found; ` +
             (refused.length
               ? `${list(refused)} ${refused.length > 1 ? 'are' : 'is'} under the one-token line and got 429`
-              : 'none is under the one-token line');
+              : 'none is under the one-token line') +
+            capped.map((c) => `. ${c}`).join('');
     };
     const chipsSay = () => {
+      const { calls } = bucketOf();
       const ok = calls.filter((c) => c.ok).length,
         no = calls.flatMap((c, i) => (c.ok ? [] : [name(i)]));
       return (
@@ -228,7 +214,7 @@ export default class TokenBucketExplainer extends Scene {
           : 'none answered yet')
       );
     };
-    const gaugeSays = () => `The bucket, filled to ${fmt(bucket.tokens)} of ${CAPACITY} tokens`;
+    const gaugeSays = () => `The bucket, filled to ${fmt(bucketOf().tokens)} of ${CAPACITY} tokens`;
 
     // ---- request chips: one per call, filled in as each answer comes back
     const PITCH = 1.46,
@@ -257,7 +243,6 @@ export default class TokenBucketExplainer extends Scene {
       request.key = `request:${name(i)}`;
       return request;
     };
-    const chips = TIMES.map((_, i) => chip(i, null));
     const times = TIMES.map((t, i) =>
       new Text('t = ' + t, { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y + 0.72]),
     );
@@ -303,17 +288,91 @@ export default class TokenBucketExplainer extends Scene {
       strokeWidth: 0.03,
       fill: s.palette.paper,
     }).moveTo([SHELL_X, (Y0 + Y5) / 2]);
-    const fill = (n: number) =>
-      new Rectangle({
+    const fill = (n: number) => {
+      const level = new Rectangle({
         width: SHELL_W - 0.16,
         height: Math.max(0.001, ((Y5 - Y0) * n) / CAPACITY),
         stroke: 'none',
         fill: s.palette.accent,
       }).moveTo([SHELL_X, Y0], [0, -1]);
-    const level = fill(CAPACITY);
+      level.key = 'bucket:level';
+      return level;
+    };
+    /** The height of `n` tokens in the bucket. */
+    const levelY = (n: number) => Y0 + ((Y5 - Y0) * n) / CAPACITY;
     shell.key = 'bucket:shell';
-    level.key = 'bucket:level';
+    // The claim the shared scale makes, checked on every frame by rayner check: wherever the balance
+    // line has got to, refilling or spending, the bucket's level stands at the same height. The line's
+    // tip is the drawn end furthest along in time; at equal times, the one drawn last.
+    this.addInvariant('the bucket stands where the balance line ends', (scene) => {
+      const gauge = scene.find('bucket:level');
+      if (!gauge || gauge.style.opacity <= 0) return;
+      let tip: [number, number] | null = null;
+      for (const m of scene.findAll((k) => k.startsWith('balance:refill:') || k.startsWith('balance:spend:'))) {
+        const shown = m.style.drawFraction ?? 1;
+        if (m.style.opacity <= 0 || shown <= 0) continue;
+        const p = (m as VMobject).pointFromProportion(shown);
+        if (!tip || p[0] >= tip[0] - 1e-6) tip = [p[0], p[1]];
+      }
+      if (!tip) return;
+      const top = gauge.box()![3];
+      // An empty bucket keeps a sliver 0.001 tall, so it can still be seen.
+      return Math.abs(top - tip[1]) <= 0.002 || `the bucket's top is at ${top.toFixed(3)}, the line ends at ${tip[1].toFixed(3)}`;
+    });
+    /** A climb drawn up to time t: the share of the line's length at or before t, as Create reveals a stroke. */
+    const climbTo = (points: [number, number][], t: number) => {
+      const path = line(points, s.palette.accent)!;
+      const ps = distinct(points),
+        ws = ps.map(([x, y]) => axes.c2p(x, y));
+      let total = 0,
+        upTo = 0;
+      for (let i = 1; i < ps.length; i++) {
+        const len = Math.hypot(ws[i]![0] - ws[i - 1]![0], ws[i]![1] - ws[i - 1]![1]),
+          [t0, t1] = [ps[i - 1]![0], ps[i]![0]];
+        total += len;
+        upTo += t >= t1 ? len : t > t0 ? (len * (t - t0)) / (t1 - t0) : 0;
+      }
+      const share = total > 0 ? upTo / total : 1;
+      if (share < 1) path.style.drawFraction = share;
+      path.style.opacity = share > 0 ? 1 : 0;
+      return path;
+    };
     const bucketLabel = new Text('bucket', { fontSize: 0.2, color: soft }).moveTo([SHELL_X, Y0 - 0.33]);
+
+    // ---- the pictures of the model's state: every part keyed, so a transition can move each
+    /** The balance in the bucket. */
+    const gaugePicture = (st: BucketState) => new Group(fill(st.tokens));
+    /** Each call's climb, its drop when it spent a token, its dot, and the tags on the calls the captions name. */
+    const chartPicture = (st: BucketState) => {
+      const parts: Mobject[] = [];
+      const add = (m: Mobject | null, key: string) => { if (m) { m.key = key; parts.push(m); } };
+      const notes: Mobject[] = [];
+      st.calls.forEach((call, i) => {
+        const prev = st.calls[i - 1] ?? START;
+        add(line(climb(prev, call, rate), s.palette.accent), `balance:refill:${name(i)}`);
+        add(call.ok ? line([[call.at, call.found], [call.at, call.after]], s.palette.accent) : null, `balance:spend:${name(i)}`);
+        const dot = axes.dot(call.at, call.found, { radius: 0.085, color: call.ok ? s.good : s.bad });
+        add(dot, `balance:found:${name(i)}`);
+        // Refused calls are named by their dot; R7, the predicted call, also shows what it found.
+        if (i === 6)
+          // R7: centred above its dot, between the climb into it and the climb out.
+          add(new Text(`${name(i)}: ${fmt(call.found)}`, { fontSize: 0.22, color: call.ok ? s.good : s.bad }).moveTo([dot.center()[0], dot.center()[1] + 0.32], [0, 0]), 'balance:found:R7:value');
+        else if (!call.ok)
+          // Refused: above and to the left, since the line climbs away to the right.
+          add(new Text(name(i), { fontSize: 0.2, color: s.bad }).moveTo([dot.center()[0] - 0.12, dot.center()[1] + 0.28], [1, 0]), `balance:tag:${name(i)}`);
+        // The flat run along five is the refill min(5, …) threw away; say so where it is.
+        const full = cappedAt(prev, call);
+        if (full != null) {
+          const [x, y] = axes.c2p((full + call.at) / 2, CAPACITY);
+          const note = new Text('full: min(5, …)', { fontSize: 0.2, color: s.palette.accent }).moveTo([x, y + 0.24]);
+          note.key = i === TIMES.length - 1 ? 'balance:cap:note' : `balance:cap:note:${name(i)}`;
+          notes.push(note);
+        }
+      });
+      return new Group(...parts, ...notes);
+    };
+    const chipsPicture = (st: BucketState) => new Group(...TIMES.map((_, i) => chip(i, st.calls[i]?.ok ?? null)));
+    const part = (v: View, key: string) => v.current.find(key)!;
 
     // ------------------------------------------------------------- balance
     await this.step('balance', {
@@ -323,16 +382,11 @@ export default class TokenBucketExplainer extends Scene {
         'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst, such as the requests a page makes as it loads, should still get through. So the server keeps a balance for the client of at most five tokens: the bucket. Each accepted request spends one token, and a request that finds less than one, under the dashed line, gets 429. Ten requests will arrive at the times written above their boxes.',
     });
     await s.clear();
-    const record = (calls: Call[]) => ({
-      rate,
-      tokens: bucket.tokens,
-      lastRefill: bucket.lastRefill,
-      responses: calls.map((c) => (c.ok ? 200 : 429)),
-      balances: calls.map((c) => c.after),
-      allowed: calls.filter((c) => c.ok).length,
-      rejected: calls.flatMap((c, i) => (c.ok ? [] : [name(i)])),
-    });
-    this.state = record([]);
+    const start = bucketStart(rate, CAPACITY);
+    this.state = start as unknown as SceneState;
+    const gauge = view(this, (st) => gaugePicture(st as unknown as BucketState), { place: false });
+    const chart = view(this, (st) => chartPicture(st as unknown as BucketState), { place: false });
+    const chips = view(this, (st) => chipsPicture(st as unknown as BucketState), { place: false });
     const readout = view(
       this,
       (state) => {
@@ -360,12 +414,15 @@ export default class TokenBucketExplainer extends Scene {
       describe: () =>
         `Bucket balance: ${formatState(this.state.tokens)} tokens left, last refill at ${formatState(this.state.lastRefill)} seconds, ${formatState(this.state.allowed)} accepted; rejected requests: ${formatState(this.state.rejected)}`,
     });
-    await s.enter(shell, level, bucketLabel, { describe: gaugeSays });
+    await s.enter(shell, gauge, bucketLabel, { describe: gaugeSays });
     s.keep(axes, { describe: chartSays });
     await this.play(new Create(axes), { runTime: 2 });
     await s.enter(need, needLabel, { describe: chartSays });
-    s.keep(chips[0]!, ...chips.slice(1), ...times, { describe: chipsSay });
-    await this.play(...chips.map((c) => new FadeIn(c, { runTime: 0.4 })), ...times.map((t) => new FadeIn(t)));
+    // The chart's balance line, dots and tags, drawn from the calls (none yet).
+    this.add(chart);
+    s.keep(chart, { describe: chartSays });
+    s.keep(chips, ...times, { describe: chipsSay });
+    await this.play(new FadeIn(chips, { runTime: 0.4 }), ...times.map((t) => new FadeIn(t)));
     const code = await s.code(CODE, {
       at: [2.15, -2.25, 7.75, 1.55],
       title: `bucket.allow(now), rate = ${rate}`,
@@ -391,6 +448,76 @@ export default class TokenBucketExplainer extends Scene {
         .moveTo([code.panel.center()[0], (top + bottom) / 2]);
     };
 
+    // ---------------------------------------- the machine: one request at a time
+    // Each request is one call of allow() on the model, at the time the schedule gives it. The
+    // client sends ten, so an eleventh is refused; every balance stays within 0 and the capacity.
+    // A call takes 0.3 s to refill and 0.6 s to answer.
+    const REFILL_S = 0.3,
+      ANSWER_S = 0.6;
+    const machine = new Machine<BucketState, 'request'>(this, {
+      start,
+      events: ['request'],
+      // The bucket would take a request at any time; this client sends ten. Past the schedule, another
+      // request at the last request's time shows the model would go on, and the bound stops the story.
+      next: (st) => bucketRequest(st, TIMES[st.calls.length] ?? TIMES.at(-1)!),
+      bound: (st) => (st.calls.length >= TIMES.length ? `The client sends ${TIMES.length} requests` : undefined),
+      views: [gauge, chart, chips, readout],
+      runTime: REFILL_S + ANSWER_S,
+      transition: {
+        request: (t) => {
+          const { before, after } = t;
+          const g = t.choreograph(gauge),
+            c = t.choreograph(chart),
+            q = t.choreograph(chips);
+          const i = before.calls.length,
+            call = after.calls[i]!,
+            prev = before.calls.at(-1) ?? START,
+            n = name(i);
+          // Refill: one elapsed time drives the line's climb and the gauge from allow()'s own
+          // formula, so the two agree at every frame, the corner where min(5, …) takes over included.
+          const level = g.own('bucket:level');
+          const rise = c.has(`balance:refill:${n}`, 'to') ? c.insert(`balance:refill:${n}`, c.to(`balance:refill:${n}`)) : null;
+          const climbed = climb(prev, call, rate);
+          const balanceAt = (t: number) => (t >= call.at ? call.found : Math.min(CAPACITY, prev.after + (t - prev.at) * rate));
+          const refill = new Follow(
+            { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(climbed, t)] : fill(balanceAt(t))) },
+            { targets: [level, ...(rise ? [rise] : [])], runTime: REFILL_S },
+          );
+          // The answer. A 200 takes the top token out of the bucket to the request, as the level
+          // and the line drop by one; a 429 finds no whole token there, and the request turns red.
+          const top = levelY(call.found);
+          const answer: Animation[] = [
+            ...(call.ok ? [c.enter(`balance:spend:${n}`, { create: true }, { runTime: ANSWER_S })] : []),
+            c.enter(`balance:found:${n}`, {}, { runTime: ANSWER_S }),
+            new Transform(level, g.to('bucket:level'), { runTime: ANSWER_S }),
+            q.leave(`request:${n}`, { runTime: ANSWER_S }),
+            q.enter(`request:${n}`, {}, { runTime: ANSWER_S }),
+            readout.sync({ match: 'index', runTime: ANSWER_S }),
+          ];
+          if (call.ok) {
+            const coin = (at: Vec) => new Circle({ radius: 0.13, fill: s.palette.accent, fillOpacity: 1, stroke: 'none' }).moveTo(at);
+            const token = g.insert('bucket:token', coin([SHELL_X, top - 0.14]));
+            answer.push(
+              new Succession([
+                new Transform(token, coin([SHELL_X, top - 0.14]), { runTime: 0.18 }),
+                new Transform(token, coin([chipX(i), CHIP_Y - 0.62]), { runTime: 0.27 }),
+                g.leave('bucket:token', { runTime: 0.15 }),
+              ]),
+            );
+          } else {
+            const ring = (opacity: number) =>
+              new Circle({ radius: 0.13, fill: 'none', stroke: s.bad, strokeWidth: 0.035, dashArray: '0.06 0.05', opacity }).moveTo([SHELL_X, levelY(Math.max(call.found, 0)) + 0.18]);
+            const missing = g.insert('bucket:missing', ring(0));
+            answer.push(new Succession([new Transform(missing, ring(1), { runTime: 0.3 }), g.leave('bucket:missing', { runTime: 0.3 })]));
+          }
+          return new Succession([
+            refill,
+            new AnimationGroup([...answer, g.rest({ runTime: ANSWER_S }), c.rest({ runTime: ANSWER_S }), q.rest({ runTime: ANSWER_S })]),
+          ]);
+        },
+      },
+    });
+
     // ---------------------------------------- burst, refill, later: the calls
     const f = (i: number) => fmt(plan[i]!.found);
     const tokens = (n: number) => `${fmt(n)} token${n === 1 ? '' : 's'}`;
@@ -412,8 +539,7 @@ export default class TokenBucketExplainer extends Scene {
     // The long wait: what refill would add without the cap, and when the balance reaches five.
     const wait = r10.at - r9.at,
       uncapped = r9.after + wait * rate,
-      fullAt = r9.at + (CAPACITY - r9.after) / rate,
-      seconds = (t: number) => (Number.isInteger(t) ? String(t) : t.toFixed(1));
+      fullAt = r9.at + (CAPACITY - r9.after) / rate;
     // The rates at which the same wait would pass five, for the case where this one does not.
     const capped = RATES.filter((r) => {
       const c = runs.get(r)!;
@@ -446,99 +572,28 @@ export default class TokenBucketExplainer extends Scene {
         line: lines[index],
         caption: captions[index],
       });
-      // Ask the program, one request at a time; each call's members show its answer.
-      const members: Animation[] = [];
-      const evidence: Mobject[] = [];
-      // R7, the call the reader predicted: what a phone reader is shown first in the refill step.
-      const predicted: Mobject[] = [];
+      // Ask the program, one request at a time. The focus bar follows allow(): on the refill lines
+      // while the bucket refills, then on the line that answered. It is the code's, not the
+      // model's, so it moves beside the machine, a call at a time.
       for (let i = from; i < to; i++) {
-        const now = TIMES[i]!,
-          prev = calls.at(-1) ?? START;
-        const ok = bucket.allow(now);
-        const call: Call = { at: now, ok, found: bucket.tokens + (ok ? 1 : 0), after: bucket.tokens };
-        calls.push(call);
-        const after = record(calls);
-        // Refill: the bar on the min(…) lines while the line climbs to what the call found.
-        const rise = line(climb(prev, call, rate), s.palette.accent);
-        if (rise) {
-          rise.key = `balance:refill:${name(i)}`;
-          s.keep(rise, { describe: chartSays });
-        }
-        members.push(
-          new AnimationGroup([new Transform(code.bar, barAt(REFILL)), ...(rise ? [new Create(rise)] : [])], {
-            runTime: 0.3,
-          }),
+        const ok = bucketRequest(bucketOf(), TIMES[i]!).calls[i]!.ok;
+        await this.play(
+          machine.send('request'),
+          new Succession([new Transform(code.bar, barAt(REFILL), { runTime: REFILL_S }), new Transform(code.bar, barAt(ok ? SPEND : REFUSE), { runTime: ANSWER_S })]),
         );
-        // The verdict: spend one token or refuse, and every readout follows.
-        const drop = ok
-          ? line(
-              [
-                [now, call.found],
-                [now, call.after],
-              ],
-              s.palette.accent,
-            )
-          : null;
-        const dot = axes.dot(now, call.found, { radius: 0.085, color: ok ? s.good : s.bad });
-        dot.key = `balance:found:${name(i)}`;
-        if (drop) drop.key = `balance:spend:${name(i)}`;
-        evidence.push(...(rise ? [rise] : []), dot, ...(drop ? [drop] : []));
-        // Refused calls are named by their dot; R7, the predicted call, also shows what it found.
-        const tag =
-          ok && i !== 6
-            ? null
-            : new Text(i === 6 ? `${name(i)}: ${fmt(call.found)}` : name(i), { fontSize: i === 6 ? 0.22 : 0.2, color: ok ? s.good : s.bad }).moveTo(
-                // Refused: above and to the left, since the line climbs away to the right.
-                // R7: centred above its dot, between the climb into it and the climb out.
-                i === 6 ? [dot.center()[0], dot.center()[1] + 0.32] : [dot.center()[0] - 0.12, dot.center()[1] + 0.28],
-                [i === 6 ? 0 : 1, 0],
-              );
-        if (tag && i === 6) tag.key = 'balance:found:R7:value';
-        tags[i] = tag;
-        s.keep(dot, ...(drop ? [drop] : []), ...(tag ? [tag] : []), { describe: chartSays });
-        if (i === 6) predicted.push(...(rise ? [rise] : []), dot, ...(drop ? [drop] : []), tag!);
-        const marks: Animation[] = [new FadeIn(dot), ...(tag ? [new FadeIn(tag)] : [])];
-        const next = chip(i, ok);
-        s.keep(next, { describe: chipsSay });
-        members.push(
-          new AnimationGroup(
-            [
-              new Transform(code.bar, barAt(ok ? SPEND : REFUSE)),
-              ...(drop ? [new Create(drop)] : []),
-              ...marks,
-              new FadeOut(chips[i]!),
-              new FadeIn(next),
-              new Transform(level, fill(call.after)),
-              // By position: a value that gains characters ("0" to "0.5") splits its
-              // glyphs outward instead of growing new ones inside a box that jumps.
-              new SyncToCall(this, readout, after, { match: 'index' }),
-            ].map((a) => a.setOptions({ runTime: 0.4 })),
-          ),
-        );
-        chips[i] = next;
-      }
-      await this.play(new Succession(members));
-      if (index === 2 && uncapped > CAPACITY) {
-        // The flat run along five is the refill min(5, …) threw away; say so where it is.
-        const [x, y] = axes.c2p((fullAt + r10.at) / 2, CAPACITY);
-        const capNote = new Text('full: min(5, …)', { fontSize: 0.2, color: s.palette.accent }).moveTo([x, y + 0.24]);
-        capNote.key = 'balance:cap:note';
-        evidence.push(capNote);
-        await s.enter(capNote, {
-          runTime: 0.3,
-          describe: `The line reaches five at ${seconds(fullAt)} s and runs flat until R10 arrives at ${seconds(r10.at)} s`,
-        });
       }
       // The bar already stands where the last call left it; this names those lines for the description.
-      const last = calls.at(-1)!;
+      const last = bucketOf().calls.at(-1)!;
       await code.focus(last.ok ? SPEND : REFUSE, { as: last.ok ? 'spend' : 'refuse', runTime: 0.2 });
       // What a phone reader is shown first: R5's 200 beside R6's 429, then what R7 found.
-      if (index === 0) s.reading(chips[4]!, chips[5]!);
-      // R6's tag, where the climb to R7 starts, is read with it.
-      if (index === 1) s.reading(...predicted, tags[5]!);
+      if (index === 0) s.reading(part(chips, 'request:R5'), part(chips, 'request:R6'));
+      // R7 (its climb, dot, drop and tag) and R6's tag, where the climb to R7 starts, are read together.
+      if (index === 1)
+        s.reading(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
       if (index === 2)
-        s.reading(code.code.lines[1]!, chips[8]!, chips[9]!, times[8]!, times[9]!,
-          readout.current.children[0]!, readout.current.values['Tokens left']!, ...evidence);
+        s.reading(code.code.lines[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!,
+          readout.current.children[0]!, readout.current.values['Tokens left']!,
+          ...['balance:refill:R10', 'balance:found:R10', 'balance:spend:R10', 'balance:cap:note'].flatMap((k) => chart.current.find(k) ?? []));
     }
 
     // --------------------------------------------------------------- trace
@@ -551,7 +606,7 @@ export default class TokenBucketExplainer extends Scene {
     await this.step('trace', {
       title: 'The same ten requests at 1, 2 and 4 tokens a second',
       line: `429s at 4 / s: ${list(refusedAt(4))}; at 1 / s: ${list(refusedAt(1))}.`,
-      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this case. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Those are the three rates offered here; below a fifth of a token a second, R10 too would find less than one token. For R7 to R9 the rate decides: at ${perSecond(4)} ${betweenSay(4)}; at ${perSecond(1)} ${betweenSay(1)}. The bucket’s capacity sets the burst, and its rate sets how soon the client can send again.`,
+      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this scenario. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Those are the three rates offered here; below a fifth of a token a second, R10 too would find less than one token. For R7 to R9 the rate decides: at ${perSecond(4)} ${betweenSay(4)}; at ${perSecond(1)} ${betweenSay(1)}. The bucket’s capacity sets the burst, and its rate sets how soon the client can send again.`,
     });
     // The curves explain refill in earlier steps. End on a large comparison of
     // their outcomes, so a phone reader sees all three rates together.

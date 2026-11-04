@@ -851,7 +851,7 @@ export default class SeasonsExplainer extends Scene {
     await this.play(new Create(axes), new FadeIn(months), { runTime: 2 });
     const curve = axes.plot(daylightAt(place.lat), { samples: 145, color: CURVE, strokeWidth: 0.05 });
     // The model's curve, drawn by pen across the year.
-    const drawnCurve = await s.draw(curve, {
+    const drawnCurve = await s.sketch(curve, {
       tool: 'pen',
       runTime: 2,
       describe:

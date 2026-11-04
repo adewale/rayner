@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, NullSink, traceScene } from '../src/index.ts';
-import { resolveSettings, variantsOf, settingsOf, withSettings, caseName } from '../explain/index.ts';
+import { resolveSettings, scenariosOf, settingsOf, withSettings, scenarioName } from '../explain/index.ts';
 import type { Setting } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
 
@@ -31,8 +31,8 @@ class Example extends Scene {
     this.state = { ...settingsOf(this) };
   }
 }
-test('every case traced at once sees its own settings, an unbound scene its defaults, and each case has its reader-facing name', async () => {
-  const traces = await Promise.all(variantsOf(Example).map((v) => traceScene(withSettings(Example, v))));
+test('every scenario traced at once sees its own settings, an unbound scene its defaults, and each scenario has its reader-facing name', async () => {
+  const traces = await Promise.all(scenariosOf(Example).map((v) => traceScene(withSettings(Example, v))));
   assert.deepEqual(
     traces.map((t) => t.steps[0]!.after),
     [
@@ -43,8 +43,8 @@ test('every case traced at once sees its own settings, an unbound scene its defa
     ],
   );
   assert.deepEqual({ ...settingsOf(new Example(new NullSink())) }, { case: 'a', rate: '1' });
-  assert.equal(caseName(Example, { case: 'b', rate: '2' }), 'Case: B · Rate: Two');
-  assert.equal(caseName(Scene, {}), '');
+  assert.equal(scenarioName(Example, { case: 'b', rate: '2' }), 'Case: B · Rate: Two');
+  assert.equal(scenarioName(Scene, {}), '');
 });
 // ---- properties ------------------------------------------------------------------
 const RESERVED = ['step', 'parentOrigin', 'theme'];
@@ -122,32 +122,32 @@ test('declarations with an invalid, reserved or duplicate id, or bad options, ar
 });
 
 
-test('variantsOf lists every case once, in declaration order with the last setting changing fastest, each a valid selection', () => {
+test('scenariosOf lists every scenario once, in declaration order with the last setting changing fastest, each a valid selection', () => {
   fc.assert(
     fc.property(declarations, (settings) => {
       const S = classOf(settings);
-      const variants = variantsOf(S, Infinity);
-      assert.equal(variants.length, product(settings));
-      // Each case as the option positions it picks: strictly increasing, read as a number, means every case once, in order.
-      const digits = variants.map((v) => settings.map((s) => s.options.findIndex((o) => o.value === v[s.id])));
+      const scenarios = scenariosOf(S, Infinity);
+      assert.equal(scenarios.length, product(settings));
+      // Each scenario as the option positions it picks: strictly increasing, read as a number, means every scenario once, in order.
+      const digits = scenarios.map((v) => settings.map((s) => s.options.findIndex((o) => o.value === v[s.id])));
       for (const d of digits) assert.ok(d.every((i) => i >= 0));
       for (let k = 1; k < digits.length; k++) {
         const [a, b] = [digits[k - 1]!, digits[k]!];
         const first = a.findIndex((x, i) => x !== b[i]);
         assert.ok(first >= 0 && a[first]! < b[first]!, `${JSON.stringify(a)} then ${JSON.stringify(b)}`);
       }
-      for (const v of variants) assert.deepEqual({ ...resolveSettings(S, v) }, { ...v });
+      for (const v of scenarios) assert.deepEqual({ ...resolveSettings(S, v) }, { ...v });
     }),
     params(),
   );
 });
 
-test('variantsOf refuses exactly when the product exceeds the limit', () => {
+test('scenariosOf refuses exactly when the product exceeds the limit', () => {
   fc.assert(
     fc.property(declarations, fc.oneof(fc.nat({ max: 300 }), fc.constantFrom(NaN, Infinity, -1, 0)), (settings, limit) => {
       const S = classOf(settings);
-      if (product(settings) <= limit) assert.equal(variantsOf(S, limit).length, product(settings));
-      else assert.throws(() => variantsOf(S, limit), /exceed/);
+      if (product(settings) <= limit) assert.equal(scenariosOf(S, limit).length, product(settings));
+      else assert.throws(() => scenariosOf(S, limit), /exceed/);
     }),
     params(),
   );

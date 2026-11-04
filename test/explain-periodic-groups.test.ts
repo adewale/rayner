@@ -173,10 +173,10 @@ test('group names follow the IUPAC 1 to 18 order with the CAS and old IUPAC lett
   assert.equal(configText(predicted(11)), '1s² 2s² 2p⁶ 3s¹');
 });
 
-test('every case records the model’s answers at each step', async () => {
+test('every scenario records the model’s answers at each step', async () => {
   const project = await collectProject('scenes/explainers/periodic-groups', { write: false });
-  assert.deepEqual(project.variants.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
-  for (const { values, trace } of project.variants) check(trace, values);
+  assert.deepEqual(project.scenarios.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
+  for (const { values, trace } of project.scenarios) check(trace, values);
 });
 
 test('the table and note text follow the recorded state at every resting step', async () => {
@@ -192,7 +192,7 @@ test('reader descriptions match the run fills and complete block fills in every 
   await loadFonts();
   // Independent table/configuration facts and authored colours, not model or renderer answers.
   // `trail`: the element's own cells, 1 to z, by block (H He Li Be ... read off the table).
-  const cases: Array<{ element: string; symbol: string; z: number; core: number; group: number; family: Record<string, number>; trail: Record<string, number> }> = [
+  const scenarios: Array<{ element: string; symbol: string; z: number; core: number; group: number; family: Record<string, number>; trail: Record<string, number> }> = [
     { element: 'na', symbol: 'Na', z: 11, core: 10, group: 1, family: { '#133e7c': 7 }, trail: { s: 5, p: 6, d: 0 } },
     { element: 'cl', symbol: 'Cl', z: 17, core: 10, group: 17, family: { '#856912': 6 }, trail: { s: 6, p: 11, d: 0 } },
     { element: 'fe', symbol: 'Fe', z: 26, core: 18, group: 8, family: { '#9e1c2c': 4 }, trail: { s: 8, p: 12, d: 6 } },
@@ -215,7 +215,7 @@ test('reader descriptions match the run fills and complete block fills in every 
   };
   const phases = ['column', 'fill', 'stack', 'names', 'blocks', 'family'];
   let checked = 0;
-  for (const expected of cases) {
+  for (const expected of scenarios) {
     const Source = withSettings(PeriodicGroupsExplainer, { element: expected.element });
     const visited: string[] = [];
     await new Source({
@@ -260,7 +260,7 @@ test('reader descriptions match the run fills and complete block fills in every 
         }
         if (step.name === 'names' || step.name === 'blocks')
           for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
-        const state = scene.describe();
+        const state = scene.describeShown();
         for (const description of [pictureSummary(state), pictureHtml(state)]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
           if (step.name === 'stack' || step.name === 'names') {
@@ -297,7 +297,7 @@ test('the opening comparison and the answer note show the independently expected
     cu: { members: [['Cu', 29], ['Ag', 47], ['Au', 79], ['Rg', 111]], jumps: [18, 32, 32] },
     he: { members: [['He', 2], ['Ne', 10], ['Ar', 18], ['Kr', 36], ['Xe', 54], ['Rn', 86], ['Og', 118]], jumps: [8, 8, 18, 18, 32, 32] },
   };
-  // The old count step's answers, now said beside the table in the blocks step: each case's
+  // The old count step's answers, now said beside the table in the blocks step: each scenario's
   // configuration and the column its last electron lands in, top to bottom.
   const landings: Record<string, readonly string[]> = {
     na: ['Sodium: 1s² 2s² 2p⁶ 3s¹', '3s¹ starts a run of 2: s column 1, group 1.'],

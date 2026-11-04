@@ -1,12 +1,12 @@
 import { Group } from '../../../../src/index.ts';
 import { exec } from '../models.ts';
 import { flow, label, table } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /** The script's answer (meta.answer), stated by the second step. */
 export const ANSWER = 'exec returns a new shell holding the write and leaves the shell you passed in unchanged';
 
-export function frames(): ReaderFrame[] {
+export function frames(): StagedStep[] {
   const original = { fs: {}, steps: 0 },
     run = exec(
       original,
@@ -25,8 +25,8 @@ export function frames(): ReaderFrame[] {
       title: 'The command ran, yet cat finds nothing in shout.txt',
       line: 'Predict: where did HELLO go?',
       caption: `Run echo hello | tr a-z A-Z > shout.txt in a small in-memory shell. echo produces hello and a newline, tr uppercases it, and the redirect stores HELLO in shout.txt instead of printing it. Then run cat shout.txt on the shell you started with: it ${prints(old)}, and nothing reported an error. This model hands strings from command to command; it does not run an operating-system shell.`,
-      values: { file: run.shell.fs['shout.txt'], stdout: run.stdout, startingCat: old },
-      draw: (s) =>
+      state: { file: run.shell.fs['shout.txt'], stdout: run.stdout, startingCat: old },
+      draw: (_, s) =>
         new Group(
           flow(s, ['echo hello', 'tr → HELLO', 'shout.txt']),
           label('hello', -2.55, 2.25, s.emphasis, 0.65),
@@ -40,8 +40,8 @@ export function frames(): ReaderFrame[] {
       title: 'Answer: the file is in the shell exec returned',
       line: 'Same command, two shell values: only the returned one holds shout.txt.',
       caption: `In this model, ${ANSWER}. cat ${prints(next)} with the returned shell and ${prints(old)} with the original, which still has no files. A caller that drops the return value has thrown away the shell that holds the write, although the command ran.`,
-      values: { old, next },
-      draw: (s) =>
+      state: { old, next },
+      draw: (_, s) =>
         table(
           ['Shell', 'shout.txt', 'cat prints'],
           [

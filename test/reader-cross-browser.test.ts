@@ -10,8 +10,8 @@ import {collectProject} from '../tools/lib/explain-project.ts';
 import type {Project} from '../tools/lib/explain-project.ts';
 import {buildExplainer, buildLoader} from '../tools/lib/explain-build.ts';
 import {serve} from '../tools/lib/explain-serve.ts';
-import {reviewStoryVariant} from '../tools/lib/explain-story-review.ts';
-import {reviewClaims} from '../tools/lib/explain-review-scene.ts';
+import {reviewStoryScenario} from '../tools/lib/explain-story-review.ts';
+import {reviewSubjects} from '../tools/lib/explain-review-scene.ts';
 
 const names = ['mr-cache', 'token-bucket', 'oauth-pkce', 'font-metrics', 'melody-rhythm', 'periodic-groups'];
 const projects = new Map<string, Project>();
@@ -34,23 +34,23 @@ after(async () => {
   if (folder) await rm(folder, {recursive: true, force: true});
 });
 
-test('WebKit checks served paint for every case of the cache, rate, PKCE, requested-font, music and periodic-table journeys', {skip: !process.env.EXPLAIN_WEBKIT && 'set EXPLAIN_WEBKIT=1; install Playwright WebKit'}, async () => {
+test('WebKit checks served paint for every scenario of the cache, rate, PKCE, requested-font, music and periodic-table journeys', {skip: !process.env.EXPLAIN_WEBKIT && 'set EXPLAIN_WEBKIT=1; install Playwright WebKit'}, async () => {
   const browser = await webkit.launch();
   try {
     const context = await browser.newContext({hasTouch: true, isMobile: true, reducedMotion: 'reduce'});
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
-    let cases = 0;
+    let scenarios = 0;
     const reviews = [];
     for (const [name, project] of projects) {
-      const claims = await reviewClaims(project);
-      for (const variant of project.variants) {
-        reviews.push({id: name, settings: variant.values, steps: await reviewStoryVariant(page, `${server!.url}/${name}.html`, variant, claims)});
-        cases++;
+      const claims = await reviewSubjects(project);
+      for (const scenario of project.scenarios) {
+        reviews.push({id: name, settings: scenario.values, steps: await reviewStoryScenario(page, `${server!.url}/${name}.html`, scenario, claims)});
+        scenarios++;
       }
     }
-    assert.equal(cases, 18, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 2 face (natural and recorded widths), 4 music, 5 periodic-table');
+    assert.equal(scenarios, 18, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 2 face (natural and recorded widths), 4 music, 5 periodic-table');
     await page.setViewportSize({width: 390, height: 667});
     await page.goto(server!.url + '/melody-rhythm.html');
     await page.waitForSelector('[data-ready=true]');
@@ -75,7 +75,7 @@ test('WebKit checks served paint for every case of the cache, rate, PKCE, reques
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.deepEqual(errors, []);
     await mkdir('out/validation', {recursive: true});
-    await writeFile('out/validation/webkit.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), browser: browser.version(), cases, reviews, errors, limitation: 'WebKit mobile emulation, not physical iPhone hardware.'}, null, 2) + '\n');
+    await writeFile('out/validation/webkit.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), browser: browser.version(), scenarios, reviews, errors, limitation: 'WebKit mobile emulation, not physical iPhone hardware.'}, null, 2) + '\n');
   } finally { await browser.close(); }
 });
 
@@ -111,7 +111,7 @@ class Safari {
   }
 }
 
-test('native macOS Safari runs the introduction, case changes, requested lettering and iframe reader', {skip: !process.env.EXPLAIN_SAFARI && 'set EXPLAIN_SAFARI=1 on macOS with safaridriver enabled'}, async () => {
+test('native macOS Safari runs the introduction, scenario changes, requested lettering and iframe reader', {skip: !process.env.EXPLAIN_SAFARI && 'set EXPLAIN_SAFARI=1 on macOS with safaridriver enabled'}, async () => {
   assert.equal(process.platform, 'darwin', 'this lane must run real Safari on Mac');
   const reservation = createServer();
   await new Promise<void>(resolve => reservation.listen(0, '127.0.0.1', resolve));
@@ -171,7 +171,7 @@ test('native macOS Safari runs the introduction, case changes, requested letteri
     await driver.wait('return !!document.querySelector("[data-ready=true]")');
     assert.equal(await driver.execute('return window.parent!==window'), true);
     await mkdir('out/validation', {recursive: true});
-    await writeFile('out/validation/native-safari.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), capabilities: created.capabilities, journeys: ['introduction', 'next', 'case-change', 'requested-face', 'rate-comparison', 'periodic-landing', 'music-play-stop', 'iframe'], platform: process.platform}, null, 2) + '\n');
+    await writeFile('out/validation/native-safari.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), capabilities: created.capabilities, journeys: ['introduction', 'next', 'scenario-change', 'requested-face', 'rate-comparison', 'periodic-landing', 'music-play-stop', 'iframe'], platform: process.platform}, null, 2) + '\n');
   } finally {
     if (driver.session) await fetch(`${driver.endpoint}/session/${driver.session}`, {method: 'DELETE'}).catch(() => {});
     processDriver.kill();

@@ -23,7 +23,7 @@ export const CARD = { width: 1080, height: 540, inner: 960, background: '#1a1a1a
 const ALT_MAX = 420,
   TITLE_MAX = 70;
 
-/** A step of an explainer's default case, as the share pages need it. */
+/** A step of an explainer's default scenario, as the share pages need it. */
 export interface ShareStep {
   step: string;
   title: string;

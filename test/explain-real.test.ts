@@ -144,7 +144,7 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
   assert.deepEqual(headless.warnings.map((w) => [w.code, WARNING_SEVERITY[w.code]]), [['RENDER_FAILED', 'error']]);
 });
 
-test('the Mermaid explainer’s broken step shows what the pinned verifier reports for an edge with no end, in every case', () => {
+test('the Mermaid explainer’s broken step shows what the pinned verifier reports for an edge with no end, in every scenario', () => {
   // These sources cannot be captured (capture refuses ok: false), so the step's report is written in the scene and held here.
   assert.deepEqual(Object.keys(BROKEN).sort(), ['complete', 'missing', 'swapped']);
   for (const [edit, source] of Object.entries(BROKEN)) {
@@ -163,16 +163,16 @@ test('the Mermaid explainer’s broken step shows what the pinned verifier repor
   }
 });
 
-/** Each step's state in an explainer's default case, by step name. */
+/** Each step's state in an explainer's default scenario, by step name. */
 async function steps(id: string) {
   const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-  const trace = project.variants[0]!.trace;
-  return new Map(trace.steps.map((s, i) => [s.step, { after: s.after, before: trace.steps[i - 1]?.after }]));
+  const trace = project.scenarios[0]!.trace;
+  return new Map(trace.steps.map((s, i) => [s.step, { after: s.after, shown: s.shown, before: trace.steps[i - 1]?.shown }]));
 }
 
 test('shipped explainers describe their steps: chart values, marks, focus, walks and what is new', async () => {
   const bucket = await steps('token-bucket');
-  const summary = (name: string) => pictureSummary(bucket.get(name)!.after);
+  const summary = (name: string) => pictureSummary(bucket.get(name)!.shown);
   // The run is a native chart drawn from the same allow() calls that move the gauge
   assert.match(summary('later'), /A chart of the balance over time: it climbs at 1 a second between calls and drops one token for each 200\./);
   assert.match(summary('trace'), /1 \/ s: R6, R7 and R9 get 429/);
@@ -182,20 +182,22 @@ test('shipped explainers describe their steps: chart values, marks, focus, walks
   assert.match(summary('burst'), /R6 at 0\.0 is under the one-token line and got 429/);
   // A step that changes only emphasis lists the rest as it was.
   const refill = bucket.get('refill')!;
-  assert.match(pictureHtml(refill.after, refill.before), /the rest as in the previous step/);
-  assert.doesNotMatch(pictureHtml(refill.after), /the rest as in the previous step/);
+  assert.match(pictureHtml(refill.shown, refill.before), /the rest as in the previous step/);
+  assert.doesNotMatch(pictureHtml(refill.shown), /the rest as in the previous step/);
 
   const machine = await steps('state-machine');
-  const connect = pictureSummary(machine.get('connect')!.after);
+  const connect = pictureSummary(machine.get('connect')!.shown);
   assert.match(connect, /^State diagram: 4 states, 4 transitions; /);
-  assert.match(connect, /Travelled: idle → connecting: CONNECT\. New in this step: /);
+  // The trail is the machine's: its picture of the diagram draws the travelled link, and its words name it.
+  assert.match(connect, /; Travelled: idle → connecting: CONNECT; /);
+  assert.match(connect, /New in this step: .*Travelled: idle → connecting: CONNECT/);
   // The reducer row is boxed, not focused: the box's description names the line and what it means
   assert.match(connect, /A box around line 2 of the reducer: 'idle:CONNECT': 'connecting', the row the reducer reads/);
   assert.match(connect, /A ring around connecting, the state the session is in/);
 
   const pkce = await steps('oauth-pkce');
   // Only the first message is revealed, and what it carries is a note on it.
-  const authorize = pictureSummary(pkce.get('authorize')!.after);
+  const authorize = pictureSummary(pkce.get('authorize')!.shown);
   assert.match(authorize, /^Sequence diagram: 3 participants, 1 message\. /);
   assert.match(authorize, /Note: “challenge \+ S256; verifier not sent” beside Client → Auth server/);
 });

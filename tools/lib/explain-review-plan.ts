@@ -15,23 +15,23 @@ export interface ReviewScope {
   part: number;
   total: number;
 }
-export interface PlannedCase {
+export interface PlannedScenario {
   scene: string;
   settings: Record<string, string>;
   steps: string[];
   narrowOpenings: NarrowOpeningObligation[];
 }
-export interface ReviewedCase {
+export interface ReviewedScenario {
   scene: string;
   settings: Record<string, string>;
   steps: { step: string; width: number; views: number; targets: string[]; openingAt320?: NarrowOpeningReview }[];
 }
 export type NarrowOpeningObligation =
   | { step: string; reviewed: true; targets: string[]; labels: string[] }
-  | { step: string; reviewed: false; reason: 'detail-step' | 'no-opening-claim' };
+  | { step: string; reviewed: false; reason: 'detail-step' | 'no-opening-subject' };
 export type NarrowOpeningReview =
   | { reviewed: true; width: 320; height: 568; targets: string[]; labels: string[]; minimumLabelPx: number | null }
-  | { reviewed: false; reason: 'detail-step' | 'no-opening-claim' };
+  | { reviewed: false; reason: 'detail-step' | 'no-opening-subject' };
 function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps: string[], scene: string) {
   assert.ok(Array.isArray(obligations), `${scene}: missing built narrow-opening obligations`);
   assert.deepEqual(
@@ -54,7 +54,7 @@ function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps
       );
     } else {
       assert.ok(
-        obligation.reason === 'detail-step' || obligation.reason === 'no-opening-claim',
+        obligation.reason === 'detail-step' || obligation.reason === 'no-opening-subject',
         `${scene}: invalid narrow-opening exclusion`,
       );
     }
@@ -65,9 +65,9 @@ export interface ReviewReceipt {
   collectionChecks: boolean;
   catalogHash: string;
   reviewCodeHash: string;
-  cases: number;
+  scenarios: number;
   stepWidths: number;
-  results: ReviewedCase[];
+  results: ReviewedScenario[];
   consoleErrors: string[];
   runtimeConnections: string[];
 }
@@ -81,9 +81,9 @@ export function reviewScope(args: readonly string[]): ReviewScope {
   return { part, total };
 }
 /** Assign each whole scene once, balancing its independently built step inventory. */
-export function reviewCases(cases: PlannedCase[], scope: ReviewScope): PlannedCase[] {
+export function reviewScenarios(scenarios: PlannedScenario[], scope: ReviewScope): PlannedScenario[] {
   const weights = new Map<string, number>();
-  for (const c of cases) weights.set(c.scene, (weights.get(c.scene) ?? 0) +
+  for (const c of scenarios) weights.set(c.scene, (weights.get(c.scene) ?? 0) +
     Math.max(1, c.steps.length * 2 + c.narrowOpenings.filter(o => o.reviewed).length));
   const loads = Array<number>(scope.total).fill(0), owners = new Map<string, number>();
   for (const [scene, weight] of [...weights].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) {
@@ -91,37 +91,37 @@ export function reviewCases(cases: PlannedCase[], scope: ReviewScope): PlannedCa
     owners.set(scene, part + 1);
     loads[part]! += weight;
   }
-  return cases.filter(c => owners.get(c.scene) === scope.part);
+  return scenarios.filter(c => owners.get(c.scene) === scope.part);
 }
 export async function readStoryPlan(directory: string, expectedScenes?: readonly string[]) {
   const raw = await readFile(join(directory, 'evidence.json'), 'utf8');
   const catalog = catalogEvidence(JSON.parse(raw));
-  const cases: PlannedCase[] = [];
+  const scenarios: PlannedScenario[] = [];
   if (expectedScenes) assert.deepEqual(catalog.scenes.map(scene => scene.id), expectedScenes, 'complete source scene inventory');
   for (const scene of catalog.scenes) {
     const description = JSON.parse(await readFile(join(directory, scene.id, 'describe.json'), 'utf8')) as {
-      cases: { values: Record<string, string>; steps: { step: string }[] }[];
+      scenarios: { values: Record<string, string>; steps: { step: string }[] }[];
     };
     assert.deepEqual(
-      description.cases.map((c) => c.values),
-      scene.cases,
-      `${scene.id}: description/case inventory differs`,
+      description.scenarios.map((c) => c.values),
+      scene.scenarios,
+      `${scene.id}: description/scenario inventory differs`,
     );
     assert.ok(Array.isArray(scene.narrowOpenings), `${scene.id}: rebuild catalog without a narrow-opening inventory`);
     const openings = scene.narrowOpenings;
     assert.deepEqual(
       openings.map((c) => c.settings),
-      scene.cases,
-      `${scene.id}: exact narrow-opening case inventory`,
+      scene.scenarios,
+      `${scene.id}: exact narrow-opening scenario inventory`,
     );
-    for (const [index, c] of description.cases.entries())
+    for (const [index, c] of description.scenarios.entries())
       validateNarrowObligations(
         openings[index]!.steps,
         c.steps.map((s) => s.step),
         scene.id,
       );
-    cases.push(
-      ...description.cases.map((c, index) => ({
+    scenarios.push(
+      ...description.scenarios.map((c, index) => ({
         scene: scene.id,
         settings: c.values,
         steps: c.steps.map((s) => s.step),
@@ -129,7 +129,7 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
       })),
     );
   }
-  return { scenes: catalog.scenes.map(scene => scene.id), cases, catalogHash: createHash('sha256').update(raw).digest('hex') };
+  return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: createHash('sha256').update(raw).digest('hex') };
 }
 export async function reviewCodeHash(root: string, buildHash?: string) {
   const files = [
@@ -176,11 +176,11 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     .update(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }))
     .digest('hex');
 }
-export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedCase[]) {
+export function validateReviewedScenarios(actual: ReviewedScenario[], expected: PlannedScenario[]) {
   assert.deepEqual(
     actual.map(({ scene, settings }) => ({ scene, settings })),
     expected.map(({ scene, settings }) => ({ scene, settings })),
-    'exact case inventory',
+    'exact scenario inventory',
   );
   for (const [i, c] of actual.entries()) {
     assert.ok(expected[i]!.steps.length, `${c.scene}: a story needs at least one step`);
@@ -229,18 +229,18 @@ export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedC
         assert.ok(!obligation.reviewed);
         assert.equal(opening.reason, obligation.reason, `${c.scene}/${step.step}: narrow-opening exclusion changed`);
         assert.ok(
-          opening.reason === 'detail-step' || opening.reason === 'no-opening-claim',
+          opening.reason === 'detail-step' || opening.reason === 'no-opening-subject',
           `${c.scene}/${step.step}: invalid narrow-opening exclusion`,
         );
       }
     }
   }
 }
-const caseKey = (c: { scene: string; settings: Record<string, string> }) =>
+const scenarioKey = (c: { scene: string; settings: Record<string, string> }) =>
   JSON.stringify([c.scene, Object.entries(c.settings).sort()]);
 export function mergeStoryReviews(
   parts: ReviewReceipt[],
-  expected: PlannedCase[],
+  expected: PlannedScenario[],
   catalogHash: string,
   codeHash: string,
 ): ReviewReceipt {
@@ -252,7 +252,7 @@ export function mergeStoryReviews(
     assert.deepEqual(p.scope, { part: i + 1, total }, 'exact shard inventory');
     assert.equal(p.catalogHash, catalogHash, 'stale catalog artifact');
     assert.equal(p.reviewCodeHash, codeHash, 'stale review implementation');
-    assert.equal(p.cases, p.results.length);
+    assert.equal(p.scenarios, p.results.length);
     assert.equal(
       p.stepWidths,
       p.results.reduce((n, c) => n + c.steps.length, 0),
@@ -260,21 +260,21 @@ export function mergeStoryReviews(
     assert.deepEqual(p.consoleErrors, []);
     assert.deepEqual(p.runtimeConnections, []);
     assert.equal(p.collectionChecks, i === 0, 'shared collection checks belong to exactly the first shard');
-    validateReviewedCases(
+    validateReviewedScenarios(
       p.results,
-      reviewCases(expected, p.scope),
+      reviewScenarios(expected, p.scope),
     );
   }
-  const byKey = new Map(ordered.flatMap((p) => p.results).map((c) => [caseKey(c), c]));
-  assert.equal(byKey.size, expected.length, 'missing or duplicate cases across shards');
-  const results = expected.map((c) => byKey.get(caseKey(c))!);
-  validateReviewedCases(results, expected);
+  const byKey = new Map(ordered.flatMap((p) => p.results).map((c) => [scenarioKey(c), c]));
+  assert.equal(byKey.size, expected.length, 'missing or duplicate scenarios across shards');
+  const results = expected.map((c) => byKey.get(scenarioKey(c))!);
+  validateReviewedScenarios(results, expected);
   return {
     scope: { part: 1, total: 1 },
     collectionChecks: true,
     catalogHash,
     reviewCodeHash: codeHash,
-    cases: results.length,
+    scenarios: results.length,
     stepWidths: results.reduce((n, c) => n + c.steps.length, 0),
     results,
     consoleErrors: [],

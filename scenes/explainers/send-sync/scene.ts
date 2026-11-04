@@ -105,7 +105,7 @@ export default class SendSyncExplainer extends Scene {
         answer: `${isSend(ARC_GUARD) ? 'Yes' : 'No'}. Arc needs T to be both Send and Sync, and MutexGuard<i32> is Sync but not Send, so ${nameOf(ARC_GUARD)} is neither.`,
       },
     ],
-    // The sentences that reach beyond the case on screen, and what holds them. The rule table test reads the
+    // The sentences that reach beyond the scenario on screen, and what holds them. The rule table test reads the
     // impl lines; the evaluator test holds the model to rustc 1.99.1's answers.
     claims: [
       { says: 'Arc<T> is Send only when T is both Send and Sync', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
@@ -235,7 +235,7 @@ export default class SendSyncExplainer extends Scene {
     };
 
     // ------------------------------------------------------------------ the refused program
-    // The opening is the same in every case: the Arc<Cell<i32>> rustc refuses. The setting picks
+    // The opening is the same in every scenario: the Arc<Cell<i32>> rustc refuses. The setting picks
     // the type built at the end.
     const opening = build('arc', 'cell'),
       openRun = threads('arc', 'cell');

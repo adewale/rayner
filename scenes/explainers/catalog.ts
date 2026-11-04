@@ -4,7 +4,7 @@ import { HOME } from '../../app/embed-share.ts';
  * The collection, in gallery order. `topic` explainers are about subjects a
  * reader might search for; `toolchain` explainers show how these explanations
  * are made (the engine, the diagrams, the text outlines). `step` chooses
- * the default case's poster step; gallery links open at step one instead.
+ * the default scenario's poster step; gallery links open at step one instead.
  */
 export const PRODUCT = {
   /** The project's home, where every page's footer mark links (app/embed-share.ts). */
@@ -12,7 +12,7 @@ export const PRODUCT = {
   summary: 'Interactive explanations of protocols, algorithms and code changes.',
   audience: 'For engineers and technical educators who write TypeScript.',
   description:
-    'Step through a picture at your own pace, or change a setting to follow another case. The model computes the numbers, diagrams and captions. Publish a portable HTML page with a transcript and no runtime network requests.',
+    'Step through a picture at your own pace, or change a setting to follow another scenario. The model computes the numbers, diagrams and captions. Publish a portable HTML page with a transcript and no runtime network requests.',
   requirements: 'Node 24 or later and Chromium. Authoring targets Ubuntu and macOS.',
   tutorial: 'https://github.com/adewale/rayner/blob/main/docs/TUTORIAL.md',
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',

@@ -185,7 +185,7 @@ test('Circumscribe keep: the outline stays drawn and stays in the scene', async 
   assert.ok(s2.mobjects.includes(c.outline), 'in scene.mobjects after play');
 });
 
-test('Circumscribe variants: circle, retract instead of fade, a Box target, inside a group', async () => {
+test('Circumscribe cases: circle, retract instead of fade, a Box target, inside a group', async () => {
   const { events } = await watch(async (s) => {
     const sq = new Rectangle({ width: 2, height: 1 }); s.add(sq);
     await s.play(new Circumscribe(sq, { shape: 'circle' }));

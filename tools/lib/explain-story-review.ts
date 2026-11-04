@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
 import { readableOpeningLabel, type NarrowOpeningReview, type NarrowOpeningObligation } from './explain-review-plan.ts';
 
-export interface StoryClaim {
+export interface StorySubject {
   step: string;
   settings?: Record<string, string>;
   opening?: boolean;
@@ -244,7 +244,7 @@ async function changedPaint(previous: readonly StoryPaint[], current: readonly S
 
 export async function storyFrames(
   Source: SceneClass,
-  claims: readonly StoryClaim[] = [],
+  declared: readonly StorySubject[] = [],
 ): Promise<Map<string, StoryFrame>> {
   const frames = new Map<string, StoryFrame>();
   let previous = new Map<Mobject, string>();
@@ -369,7 +369,7 @@ export async function storyFrames(
         const added = new Set<Mobject>();
         // Declared intent takes priority over unrelated context that a rebuild
         // happens to replace or move. With no primary subject, inspect new art.
-        const hasPrimary = targets.length > 0 || claims.some((c) => c.step === step.name);
+        const hasPrimary = targets.length > 0 || declared.some((c) => c.step === step.name);
         const [x0, y0, x1, y1] = scene.frame.box()!;
         const changed = hasPrimary ? new Set<number>() : await changedPaint(previousPaint, paint,
           [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
@@ -390,13 +390,13 @@ export async function storyFrames(
           added.add(subject);
         }
         previousPaint = paint;
-        for (const claim of claims.filter((c) => c.step === step.name))
-          for (const target of claim.targets) {
+        for (const entry of declared.filter((c) => c.step === step.name))
+          for (const target of entry.targets) {
             const name = 'key' in target ? target.key : target.text;
             add(
               name,
               members.filter((m) => ('key' in target ? m.key === target.key : labelOf(m)?.text === target.text)),
-              !!claim.opening,
+              !!entry.opening,
               false,
               target.paint === 'stroke',
             );
@@ -420,7 +420,7 @@ export async function storyFrames(
     },
     { skipUntil: Infinity },
   ).run();
-  for (const c of claims) assert.ok(frames.has(c.step), `story claim names missing step ${c.step}`);
+  for (const c of declared) assert.ok(frames.has(c.step), `story entry names missing step ${c.step}`);
   return frames;
 }
 
@@ -627,19 +627,19 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
 }
 
 /** Build-time obligations come from authored main/detail metadata and the
- * independent caption claims, before the served reader produces any receipt. */
+ * independent caption declared, before the served reader produces any receipt. */
 export async function narrowOpeningPlan(
-  variant: Pick<Project['variants'][number], 'Scene' | 'trace' | 'values'>,
-  claims: readonly StoryClaim[],
+  scenario: Pick<Project['scenarios'][number], 'Scene' | 'trace' | 'values'>,
+  declared: readonly StorySubject[],
   frames?: Map<string, StoryFrame>,
 ): Promise<NarrowOpeningObligation[]> {
-  const applicable = claims.filter((c) =>
-    Object.entries(c.settings ?? {}).every(([key, value]) => variant.values[key] === value),
+  const applicable = declared.filter((c) =>
+    Object.entries(c.settings ?? {}).every(([key, value]) => scenario.values[key] === value),
   );
-  const source = frames ?? (await storyFrames(variant.Scene, applicable));
-  const hasMain = variant.trace.steps.some((step) => step.meta.detail !== true);
-  return variant.trace.steps.map((step) => {
-    if (step.meta.detail === true && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
+  const source = frames ?? (await storyFrames(scenario.Scene, applicable));
+  const hasMain = scenario.trace.steps.some((step) => step.meta.kind !== 'detail');
+  return scenario.trace.steps.map((step) => {
+    if (step.meta.kind === 'detail' && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
     const targets = [
       ...new Set(
         applicable
@@ -647,7 +647,7 @@ export async function narrowOpeningPlan(
           .flatMap((c) => c.targets.map((t) => ('key' in t ? t.key : t.text))),
       ),
     ];
-    if (!targets.length) return { step: step.step, reviewed: false, reason: 'no-opening-claim' };
+    if (!targets.length) return { step: step.step, reviewed: false, reason: 'no-opening-subject' };
     const frame = source.get(step.step)!;
     const wanted = new Set(targets);
     const indices = new Set(frame.targets.filter((t) => t.opening && wanted.has(t.name)).flatMap((t) => t.indices));
@@ -883,12 +883,12 @@ async function verifyNarrowPaint(page: Page, frame: StoryFrame, named: { name: s
 async function reviewNarrowOpening(
   page: Page,
   url: string,
-  variant: Project['variants'][number],
+  scenario: Project['scenarios'][number],
   step: string,
   frame: StoryFrame,
 ): Promise<NarrowOpeningReview> {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto(`${url}?${new URLSearchParams({ ...variant.values, step })}`);
+  await page.goto(`${url}?${new URLSearchParams({ ...scenario.values, step })}`);
   await page.waitForSelector('[data-ready=true]');
   await page.waitForFunction(
     (name) =>
@@ -939,11 +939,11 @@ async function reviewNarrowOpening(
 
 /** Visit every step at a real viewport width, with a fresh reader opening per width. */
 const initialized = new WeakSet<Page>();
-export async function reviewStoryVariant(
+export async function reviewStoryScenario(
   page: Page,
   url: string,
-  variant: Project['variants'][number],
-  claims: readonly StoryClaim[] = [],
+  scenario: Project['scenarios'][number],
+  declared: readonly StorySubject[] = [],
   directory?: string,
   shell?: ReaderShell,
 ) {
@@ -958,28 +958,28 @@ export async function reviewStoryVariant(
     });
     initialized.add(page);
   }
-  const applicable = claims.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v));
-  const frames = await storyFrames(variant.Scene, applicable),
+  const applicable = declared.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v));
+  const frames = await storyFrames(scenario.Scene, applicable),
     results = [];
   const narrow = new Map<string, NarrowOpeningReview>();
-  const obligations = await narrowOpeningPlan(variant, applicable, frames);
+  const obligations = await narrowOpeningPlan(scenario, applicable, frames);
   for (const obligation of obligations) {
     if (!obligation.reviewed) narrow.set(obligation.step, { reviewed: false, reason: obligation.reason });
     else
       narrow.set(
         obligation.step,
-        await reviewNarrowOpening(page, url, variant, obligation.step, frames.get(obligation.step)!),
+        await reviewNarrowOpening(page, url, scenario, obligation.step, frames.get(obligation.step)!),
       );
   }
-  assert.equal(narrow.size, variant.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
-  assert.equal(frames.size, variant.trace.steps.length, 'every traced step has a resting frame');
+  assert.equal(narrow.size, scenario.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
+  assert.equal(frames.size, scenario.trace.steps.length, 'every traced step has a resting frame');
   for (const viewport of [
     { width: 390, height: 844 },
     { width: 1180, height: 980 },
   ]) {
     await page.setViewportSize(viewport);
-    for (const [index, step] of variant.trace.steps.entries()) {
-      const query = new URLSearchParams({ ...variant.values, step: step.step });
+    for (const [index, step] of scenario.trace.steps.entries()) {
+      const query = new URLSearchParams({ ...scenario.values, step: step.step });
       // Start each width as a fresh reader. Then use the real step buttons:
       // Next view preserves automatic following, and each step must reset its
       // tour to the opening. This also exercises retained/restored DOM frames.
@@ -1050,7 +1050,7 @@ export async function reviewStoryVariant(
   }
   assert.deepEqual(
     results.map(({ step, width }) => ({ step, width })),
-    [390, 1180].flatMap((width) => variant.trace.steps.map((step) => ({ step: step.step, width }))),
+    [390, 1180].flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
     'every traced step must be reviewed exactly once at each width',
   );
   return results;

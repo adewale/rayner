@@ -4,7 +4,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { INVITED, MOVED_FROM, SERIES, SERVER_CASES, copyOf, counts, expand, guestCopy, organiserCopy, schema, validate, weeks } from '../../../scenes/explainers/lib/ical-recurrence.ts';
 import type { Change, Copy } from '../../../scenes/explainers/lib/ical-recurrence.ts';
 
-/** Every case's step state equals the model's stored copies, meetings and refusals for that change and copy. */
+/** Every scenario's step state equals the model's stored copies, meetings and refusals for that change and copy. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const change = values.change as Change,
     copy = values.copy as Copy;

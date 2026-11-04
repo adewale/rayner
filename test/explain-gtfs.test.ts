@@ -275,7 +275,7 @@ test('CSV: quoted fields keep their commas, quotes and line breaks', () => {
 });
 
 test('the day chart’s edits, replayed by Agentic Mermaid, turn any day’s chart into any other’s', () => {
-  // The scene's three cases, then a sample of other pairs of dates.
+  // The scene's three scenarios, then a sample of other pairs of dates.
   for (const date of ['20070604', '20070605', '20070609'])
     replayMorph({ source: ganttSource(FEED, addDays(date, -1)) }, { source: ganttSource(FEED, date) }, ganttEdits(FEED, addDays(date, -1), date));
   fc.assert(

@@ -7,8 +7,8 @@ import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
-import { createSearch, runSearch, SEARCH_CODE } from '../scenes/explainers/lib/latest-search.ts';
-import type { Lifetime } from '../scenes/explainers/lib/latest-search.ts';
+import { createSearch, runSearch, SEARCH_CODE, raceStart, raceNext, raceReplay, raceLifetimes, racePage, raceShowsStale, RACE_EVENTS } from '../scenes/explainers/lib/latest-search.ts';
+import type { Lifetime, Query, RaceEvent, RaceState } from '../scenes/explainers/lib/latest-search.ts';
 
 test('tickets distinguish repeated query text and do not invent an error fallback', async () => {
   const deferred = () => {
@@ -85,10 +85,10 @@ test('the pictured ticket check and publish call match the executed handler', ()
   }
 });
 
-test('all four reference chart cases derive their final chart and caption from the real promise result', async () => {
+test('all four reference chart scenarios derive their final chart and caption from the real promise result', async () => {
   const project = await collectProject('test/fixtures/latest-search-view.ts', { write: false });
-  assert.equal(project.variants.length, 4);
-  for (const { values, trace } of project.variants) {
+  assert.equal(project.scenarios.length, 4);
+  for (const { values, trace } of project.scenarios) {
     const guard = values.guard === 'on';
     const order = values.order as 'new-first' | 'old-first';
     const expected = await runSearch(guard, order);
@@ -106,7 +106,7 @@ test('all four reference chart cases derive their final chart and caption from t
   }
 });
 
-test('the chart/view on every case follows the state recorded at each resting step', async () => {
+test('the chart/view on every scenario follows the state recorded at each resting step', async () => {
   await loadFonts();
   for (const guard of ['off', 'on']) for (const order of ['new-first', 'old-first']) {
     const checked = await assertViewFollowsState(
@@ -119,22 +119,84 @@ test('the chart/view on every case follows the state recorded at each resting st
 
 test('the public story compares both rules and shows each ticket decision in both finish orders', async () => {
   const p = await collectProject('scenes/explainers/latest-search', {write:false});
-  assert.equal(p.variants.length,2);
-  for(const v of p.variants){
+  assert.equal(p.scenarios.length,2);
+  for(const v of p.scenarios){
     assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard']);
     const order=v.values.order as 'new-first'|'old-first';
     const off=await runSearch(false,order),on=await runSearch(true,order);
-    const result=v.trace.steps.at(-1)!.after!.reader as {off:unknown;on:unknown};
-    // The last step's timeline: the lifetimes, and a page track for each rule.
-    assert.deepEqual(result,{order,off:off.snapshots,on:on.snapshots,lifetimes:off.lifetimes,page:{off:off.page,on:on.page}});
+    // The overwrite and last steps are the race machines' states after the scenario's events: A and B start, then
+    // the two landings in the completion order. Each machine's run matches the real promises' run.
+    const events:RaceEvent[]=['start A','start B',...(order==='new-first'?['B lands','A lands'] as const:['A lands','B lands'] as const)];
+    const result=v.trace.steps.at(-1)!.after! as unknown as RaceState;
+    assert.deepEqual(result,raceReplay(true,events));
+    const overwrite=v.trace.steps.find(s=>s.step==='overwrite')!.after! as unknown as RaceState;
+    assert.deepEqual(overwrite,raceReplay(false,events));
+    for(const [st,run] of [[overwrite,off],[result,on]] as const) {
+      assert.equal(st.page,run.snapshots.at(-1)!.shown);
+      assert.deepEqual(st.writes,run.snapshots.at(-1)!.writes);
+      // The timeline: the lifetimes and the page track drawn from the machine's state are the promise run's.
+      assert.deepEqual(raceLifetimes(st),run.lifetimes);
+      assert.deepEqual(racePage(st).map(({stale:_,...span})=>span),run.page);
+    }
     // Both runs start and land the searches at the same ticks, so one set of bars serves both tracks.
     assert.deepEqual(on.lifetimes,off.lifetimes);
-    // The unguarded run comes first: the overwrite step shows the model's no-guard snapshots and page track.
-    assert.deepEqual(v.trace.steps.find(s=>s.step==='overwrite')!.after!.reader,{order,off:off.snapshots,lifetimes:off.lifetimes,page:{off:off.page}});
-    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after!.reader,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
+    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after!,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
     for(const step of v.trace.steps.filter(s=>s.step==='reader-first'||s.step==='reader-ticket')){
-      const r=step.after!.reader as {ticket:number;latest:number;accepted:boolean};
+      const r=step.after! as {ticket:number;latest:number;accepted:boolean};
       assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
     }
+  }
+});
+
+/** The page after `events`, from createSearch and real promises resolved in that order. */
+async function promiseRun(guarded: boolean, events: readonly RaceEvent[]) {
+  const writes: Query[] = [];
+  const start = createSearch(guarded, (result) => writes.push(result));
+  const jobs: Partial<Record<Query, { resolve: (q: Query) => void; done: Promise<void> }>> = {};
+  for (const event of events) {
+    const [first, second] = event.split(' ') as [string, string];
+    if (first === 'start') {
+      let resolve!: (q: Query) => void;
+      const job = new Promise<Query>((done) => { resolve = done; });
+      jobs[second as Query] = { resolve, done: start(job) };
+    } else {
+      const job = jobs[first as Query]!;
+      job.resolve(first as Query);
+      await job.done;
+    }
+  }
+  return { page: writes.at(-1) ?? null, writes };
+}
+
+test('the race machines reach every interleaving, each as real promises run it; only the unguarded page can show a stale result', async () => {
+  for (const guarded of [false, true]) {
+    // Breadth first over raceNext, as rayner check explores it.
+    const seen = new Map<string, RaceState>([[JSON.stringify(raceStart(guarded)), raceStart(guarded)]]);
+    const queue = [raceStart(guarded)];
+    while (queue.length) {
+      const st = queue.shift()!;
+      for (const e of RACE_EVENTS) {
+        const next = raceNext(st, e);
+        if (!next || seen.has(JSON.stringify(next))) continue;
+        seen.set(JSON.stringify(next), next);
+        queue.push(next);
+      }
+    }
+    const states = [...seen.values()];
+    assert.equal(states.length, 10, 'start, A started, then every order of B starting and the two landings');
+    // A starts first ("ca" is typed before "cat"), and every response lands after its search started, once.
+    const complete = states.filter((st) => st.log.length === 4).map((st) => st.log.join(', ')).sort();
+    assert.deepEqual(complete, ['start A, A lands, start B, B lands', 'start A, start B, A lands, B lands', 'start A, start B, B lands, A lands']);
+    for (const st of states) {
+      const run = await promiseRun(guarded, st.log);
+      assert.deepEqual({ page: st.page, writes: st.writes }, run, `${guarded ? 'guarded' : 'unguarded'}: ${st.log.join(', ')}`);
+    }
+    const stale = states.filter(raceShowsStale).map((st) => st.log.join(', ')).sort();
+    if (guarded) assert.deepEqual(stale, [], 'the guard never lets a response that landed after a newer search started onto the page');
+    else
+      // Without it, A's response is published after B started: over B's result, or while B is still running.
+      assert.deepEqual(stale, ['start A, start B, A lands', 'start A, start B, B lands, A lands']);
+    // Both rules end every race on the latest search when it lands last, and only the guard when it lands first.
+    for (const st of states.filter((x) => x.log.length === 4)) assert.equal(st.page === 'B', guarded || st.log.at(-1) === 'B lands', st.log.join(', '));
   }
 });

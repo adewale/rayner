@@ -261,3 +261,140 @@ test('shapeKey: same shape at any position and size, nothing else', () => {
   const p: Vec = [1, 2];
   assert.equal(key(new Line(p, p)), key(new Line([5, 5], [5, 5])), 'points key alike');
 });
+
+test('matchByKey: a keyed component is kept wherever it moves, its parts morph inside it, and the root key is ignored', async () => {
+  const { matchByKey } = await import('../src/index.ts');
+  const cell = (z: number, symbol: string, at: Vec) => {
+    const g = new Group(new Square({ side: 1 }), new Text(symbol, { fontSize: 0.4 }), new Text(String(z), { fontSize: 0.2 }));
+    g.key = `cell:${z}`;
+    g.moveTo(at);
+    return g;
+  };
+  const picture = (shuffled: boolean, note: string) => {
+    const root = new Group(
+      ...(shuffled ? [cell(2, 'He', [4, 2]), cell(1, 'H', [-4, 0])] : [cell(1, 'H', [-4, 2]), cell(2, 'He', [-2, 2])]),
+      new Text(note, { fontSize: 0.3 }).moveTo([0, -2]),
+    );
+    root.key = 'table'; // the picture's own key names it; it must not make every part one component
+    return root;
+  };
+  const src = picture(false, 'runs'), tgt = picture(true, 'table');
+  const a = new TransformMatching(src, tgt, { key: matchByKey() });
+  a.begin();
+  assertPartition(a, parts(src), parts(tgt), 'keys');
+  // Each cell's square pairs with its own key's square across the swap, not the nearer one
+  for (const [s, t] of a.pairs) {
+    const owner = (m: Mobject) => { let p: Mobject | null = m; while (p && p.key === undefined) p = p.parent; return p?.key; };
+    assert.equal(owner(s), owner(t));
+    if (s instanceof Square) assert.notEqual(owner(s), 'table');
+  }
+  assert.equal(a.pairs.filter(([s]) => s instanceof Square).length, 2);
+  // The unkeyed note has no fallback: its glyphs fade out and in
+  assert.equal(a.removed.length, 'runs'.length);
+  assert.equal(a.added.length, 'table'.length);
+  // A fallback keys what is under no key: the same word pairs
+  const b = new TransformMatching(picture(false, 'same'), picture(true, 'same'), { key: matchByKey({ fallback: (p) => (p.parent instanceof Text ? `${p.parent.text}#${p.parent.children.indexOf(p)}` : undefined) }) });
+  b.begin();
+  assert.equal(b.removed.length + b.added.length, 0);
+  // A kept Text may change its glyphs: the symbol's parts morph inside the kept cell
+  const c = new TransformMatching(new Group(cell(3, 'Li', [0, 0])), new Group(cell(3, 'Be', [3, 0])), { key: matchByKey() });
+  c.begin();
+  assert.equal(c.summary().matched, 1 + 2 + 1, 'the square, both glyphs by place, and the digit');
+  // The root's own key is not a component: matching one keyed cell to another reads only what is below it
+  const d = new TransformMatching(cell(3, 'Li', [0, 0]), cell(3, 'Be', [3, 0]), { key: matchByKey() });
+  d.begin();
+  assert.equal(d.summary().matched, 0);
+});
+
+test('matchByKey text policy: by place, a relabelled keyed word morphs its glyphs; whole, it pairs only with the same words', async () => {
+  const { matchByKey } = await import('../src/index.ts');
+  const node = (label: string, at: Vec) => {
+    const word = new Text(label, { fontSize: 0.3 });
+    word.key = 'state:idle:label';
+    const g = new Group(new Rectangle({ width: 2, height: 1 }), word).moveTo(at);
+    g.key = 'state:idle';
+    return new Group(g);
+  };
+  const byPlace = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey() });
+  byPlace.begin();
+  assert.deepEqual(byPlace.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 1 });
+  const whole = new TransformMatching(node('idle', [0, 0]), node('ready', [1, 0]), { key: matchByKey({ text: 'whole' }) });
+  whole.begin();
+  assert.deepEqual(whole.summary(), { matched: 1, morphed: 0, removed: 4, added: 5 });
+  const same = new TransformMatching(node('idle', [0, 0]), node('idle', [1, 0]), { key: matchByKey({ text: 'whole' }) });
+  same.begin();
+  assert.deepEqual(same.summary(), { matched: 1 + 4, morphed: 0, removed: 0, added: 0 });
+});
+
+test('find and findAll address parts by key, depth first, on a mobject and across a scene', () => {
+  const cell = (z: number) => { const g = new Group(new Square({ side: 1 }), new Text(String(z))); g.key = `cell:${z}`; g.children[1]!.key = `cell:${z}:z`; return g; };
+  const table = new Group(cell(1), new Group(cell(2), cell(3)));
+  table.key = 'table';
+  assert.equal(table.find('table'), table);
+  assert.equal(table.find('cell:3:z'), table.children[1]!.children[1]!.children[1]);
+  assert.equal(table.find('cell:9'), undefined);
+  assert.deepEqual(table.findAll((k) => /^cell:\d+$/.test(k)).map((m) => m.key), ['cell:1', 'cell:2', 'cell:3']);
+  assert.deepEqual(table.findAll('cell:2').length, 1);
+  const scene = new Scene(new StringSink());
+  const other = cell(2);
+  scene.add(table, other);
+  assert.equal(scene.find('cell:2'), table.children[1]!.children[0], 'drawing order: the first on stage wins');
+  assert.deepEqual(scene.findAll('cell:2'), [table.children[1]!.children[0], other]);
+  // A copy finds its own parts
+  const copy = table.copy();
+  assert.notEqual(copy.find('cell:3'), table.find('cell:3'));
+  assert.equal(copy.find('cell:3')!.parent!.parent, copy);
+});
+
+test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
+  const { view } = await import('../src/index.ts');
+  const scene = new Scene<{ order: number[] }>(new StringSink());
+  scene.state = { order: [1, 2, 3] };
+  const v = view(scene, (st) => new Group(...st.order.map((z, i) => {
+    const g = new Group(new Square({ side: 0.8 }), new Text(`c${z}`, { fontSize: 0.3 })).moveTo([i * 2 - 2, 0]);
+    g.key = `cell:${z}`;
+    return g;
+  })), { place: false });
+  scene.add(v);
+  const before = v.current.children.map((c) => c.key);
+  scene.state = { order: [3, 1, 2] };
+  const sync = v.sync({ match: 'key', runTime: 0.4 });
+  await scene.play(sync);
+  assert.deepEqual(sync.summary(), { matched: 3 * (1 + 2), morphed: 0, removed: 0, added: 0 });
+  assert.deepEqual(v.current.children.map((c) => c.key), ['cell:3', 'cell:1', 'cell:2']);
+  assert.notDeepEqual(before, v.current.children.map((c) => c.key));
+});
+
+test('matchByKey unkeyed: by-place pairs parts under no key by their place in the picture; fade leaves them to fade', async () => {
+  const { matchByKey } = await import('../src/index.ts');
+  const picture = (word: string, at: Vec) => {
+    const cell = new Group(new Square({ side: 1 }));
+    cell.key = 'cell';
+    return new Group(cell, new Text(word, { fontSize: 0.3 }).moveTo(at), new Circle({ radius: 0.2 }).moveTo([at[0], -2]));
+  };
+  const faded = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey() });
+  faded.begin();
+  assert.deepEqual(faded.summary(), { matched: 1, morphed: 0, removed: 4 + 1, added: 4 + 1 });
+  const placed = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place' }) });
+  placed.begin();
+  assert.deepEqual(placed.summary(), { matched: 1 + 4 + 1, morphed: 0, removed: 0, added: 0 });
+  // A fallback still wins over unkeyed
+  const fallen = new TransformMatching(picture('odds', [0, 0]), picture('odds', [2, 0]), { key: matchByKey({ unkeyed: 'by-place', fallback: () => undefined }) });
+  fallen.begin();
+  assert.equal(fallen.summary().matched, 1);
+});
+
+test('become takes another mobject\'s data in place, keeping identity, children and key', () => {
+  const ptr = new Group(new Arrow([0, 0], [1, 0]), new Text('head', { fontSize: 0.24 }));
+  ptr.key = 'ring:pointer:head';
+  const ids = ptr.family().map((m) => m.id), parent = new Group(ptr);
+  const drawn = new Group(new Arrow([0, 0], [0, 2]), new Text('head', { fontSize: 0.24 }).moveTo([3, 3]));
+  const before = drawn.family().map((m) => m.pointArrays().map((a) => [...a]));
+  assert.equal(ptr.become(drawn), ptr);
+  assert.deepEqual(ptr.family().map((m) => m.id), ids, 'every member keeps its identity');
+  assert.equal(ptr.key, 'ring:pointer:head');
+  assert.equal(ptr.parent, parent);
+  assert.deepEqual(ptr.family().map((m) => m.pointArrays().map((a) => [...a])), before, 'and takes the drawn points');
+  assert.deepEqual(drawn.family().map((m) => m.pointArrays().map((a) => [...a])), before, 'the other is not changed');
+  assert.ok(Math.abs(ptr.children[1]!.center()[0] - 3) < 1e-5);
+});

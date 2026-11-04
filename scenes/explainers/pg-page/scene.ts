@@ -11,13 +11,13 @@ import {
   TUPLE_HEADER,
   INT4,
   INT8,
-  caseOf,
+  scenarioOf,
   fill,
   percent,
   shortText,
   tuple,
 } from '../lib/pg-page.ts';
-import type { Attr, Case, Column, Share } from '../lib/pg-page.ts';
+import type { Attr, Scenario, Column, Share } from '../lib/pg-page.ts';
 
 // Sources, all at postgres/postgres tag REL_18_6; lines are quoted in lib/pg-page.ts and
 // test/explain-pg-page.test.ts, which also freezes the measurements on Postgres 18.6.
@@ -56,15 +56,15 @@ const HEAD = [
   '    pieTitleTextSize: 18px',
   '---',
 ].join('\n');
-const pieTitle = (c: Case) => `One page of ${c.label} rows`;
+const pieTitle = (c: Scenario) => `One page of ${c.label} rows`;
 /** The pie of a full page. A slice of 0 bytes is left out: Mermaid refuses a zero value. */
-const pie = (c: Case) =>
+const pie = (c: Scenario) =>
   `${HEAD}\npie showData\n  title ${pieTitle(c)}\n` +
   SLICES.filter((s) => c.share[s.key] > 0)
     .map((s) => `  "${s.name}" : ${c.share[s.key]}\n`)
     .join('');
 /** The edit from one pie to another, as Agentic Mermaid's pie operations. */
-const pieOps = (from: Case, to: Case) => [
+const pieOps = (from: Scenario, to: Scenario) => [
   { kind: 'set_title', title: pieTitle(to) },
   ...SLICES.flatMap((s) => {
     const a = from.share[s.key],
@@ -166,8 +166,8 @@ export default class PgPageExplainer extends Scene {
     const column = values.column as Column;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
-    const c = caseOf(column, 100),
-      w = caseOf(SWAP[column], 100),
+    const c = scenarioOf(column, 100),
+      w = scenarioOf(SWAP[column], 100),
       t = c.tuple;
     // The opening's pair, narrow integer first: int4 against int8, with or without the text after it.
     const [narrow, wide] = column.startsWith('int4') ? [c, w] : [w, c];
@@ -204,7 +204,7 @@ export default class PgPageExplainer extends Scene {
         ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${t.stored}-byte tuple at the very end of the page.`
         : '.');
     let rowShown = false;
-    const valueBytes = (x: Case) => (x.column.endsWith('text') ? `${x.tuple.data - TEXT_CHARS - 1} + ${TEXT_CHARS + 1}` : `${x.tuple.data}`);
+    const valueBytes = (x: Scenario) => (x.column.endsWith('text') ? `${x.tuple.data - TEXT_CHARS - 1} + ${TEXT_CHARS + 1}` : `${x.tuple.data}`);
     await this.step('page', {
       title: `Do ${narrow.label} rows fit more on a page than ${wide.label} rows?`,
       line: `Predict: ${narrow.label} saves 4 bytes a row. How many more rows fit in this page?`,
@@ -270,7 +270,7 @@ export default class PgPageExplainer extends Scene {
     rowShown = true;
     // A tuple byte by byte, eight to a line: every line of the grid is one MAXALIGN unit.
     const CELL = 0.52;
-    const grid = (x: Case, gx: number, gy: number) => {
+    const grid = (x: Scenario, gx: number, gy: number) => {
       const cells = x.tuple.bytes.map((kind, i) =>
         new Rectangle({
           width: CELL,
@@ -297,7 +297,7 @@ export default class PgPageExplainer extends Scene {
       return { cells, offsets, words };
     };
     /** A colour key for one tuple's bytes, from (kx, ky) down. */
-    const keyFor = (x: Case, kx: number, ky: number) =>
+    const keyFor = (x: Scenario, kx: number, ky: number) =>
       (
         [
           [COLORS.headers, `header, ${TUPLE_HEADER} bytes`],
@@ -371,7 +371,7 @@ export default class PgPageExplainer extends Scene {
       RX = 1.7,
       TOP = 2.35;
     const theirs = grid(w, RX, TOP);
-    const titleOf = (x: Case, gx: number) =>
+    const titleOf = (x: Scenario, gx: number) =>
       text(`${x.label}: ${x.tuple.stored}-byte tuple`, { bold: true }).moveTo([gx + 4 * CELL, TOP + 0.4]);
     await this.play(
       ...[outline, header, headerLabel, pageSize, pointer, pointerLabel, tupleBox, tupleLabel, link, free2, ...keys, ...rowMarks, hoffMark].map(
@@ -380,7 +380,7 @@ export default class PgPageExplainer extends Scene {
     );
     const shift: Vec = [LX - GX, TOP - GY];
     await this.play(...[...mine.cells, ...mine.offsets].map((m) => m.animate.shift(shift)), { runTime: 0.6 });
-    const below = (x: Case) => TOP - (x.tuple.stored / 8) * CELL - 1.25;
+    const below = (x: Scenario) => TOP - (x.tuple.stored / 8) * CELL - 1.25;
     const keyY = Math.min(below(c), below(w));
     const [cx, wx] = [LX, RX];
     await s.enter(
@@ -460,8 +460,8 @@ export default class PgPageExplainer extends Scene {
     this.state.why = { used, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored, unrounded: t.lpLen };
 
     // ------------------------------------------------------------------ compare
-    const all = (['int4', 'int8', 'int4-text', 'int8-text'] as Column[]).map((k) => caseOf(k, 100));
-    const [i4, , i4t, i8t] = all as [Case, Case, Case, Case];
+    const all = (['int4', 'int8', 'int4-text', 'int8-text'] as Column[]).map((k) => scenarioOf(k, 100));
+    const [i4, , i4t, i8t] = all as [Scenario, Scenario, Scenario, Scenario];
     await this.step('compare', {
       title: `int4 and int8 fill ${i4.pagesFor10000} pages alike; with text after them, ${i4t.pagesFor10000} and ${i8t.pagesFor10000}`,
       line: `Both integer rows take ${i4.tuple.perRow} bytes; with text, ${i4t.tuple.perRow} and ${i8t.tuple.perRow}.`,
@@ -478,7 +478,7 @@ export default class PgPageExplainer extends Scene {
       ),
       { at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: '10 000 rows' },
     );
-    await compareCard.mark(c.label, { as: 'this case' });
+    await compareCard.mark(c.label, { as: 'this scenario' });
     this.state.compare = Object.fromEntries(
       all.map((x) => [x.column, { perRow: x.tuple.perRow, rows: x.page.rows, pages: x.pagesFor10000 }]),
     );

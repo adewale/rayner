@@ -10,4 +10,4 @@ Pop twice. The returned values are 1 and 2, head advances to slot 2, and the rem
 
 Tail still points to slot 0. Push 6 and 7 into slots 0 and 1, reusing the space the pops freed. The slots now read 6, 7, 3, 4, 5 from left to right, but that is not the queue's order. Start at head, slot 2, and wrap after slot 4: the queue is 3, 4, 5, 6, 7. The markers define order; the layout of the slots does not.
 
-The other case tries to push into a ring that is already full. This buffer checks length before writing and refuses push 6 with Full. No slot or marker changes, and push 7 is refused too. A fixed capacity requires such a policy: another ring buffer might overwrite the oldest value, but this one preserves the queued values and makes the caller handle refusal.
+The other scenario tries to push into a ring that is already full. This buffer checks length before writing and refuses push 6 with Full. No slot or marker changes, and push 7 is refused too. A fixed capacity requires such a policy: another ring buffer might overwrite the oldest value, but this one preserves the queued values and makes the caller handle refusal.

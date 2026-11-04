@@ -2,7 +2,7 @@ import { Group, Line, Rectangle } from '../../../../src/index.ts';
 import { rows, summarize, cssMap, linearRgb, THEME_LINES } from '../tailwind-gamut.ts';
 import type { Shade, Space } from '../tailwind-gamut.ts';
 import { label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /** The colour an sRGB screen paints for `written`, as #rrggbb, after CSS Color 4's gamut mapping. */
 function painted(L: number, C: number, h: number): string {
@@ -17,7 +17,7 @@ function painted(L: number, C: number, h: number): string {
  * The opening: the shade's colour that goes furthest past sRGB, as written and as an sRGB screen paints
  * it. The comparison is the same whichever screen the reader picks; the screen decides the last step.
  */
-export function frames(shade: Shade, screen: Space): ReaderFrame[] {
+export function frames(shade: Shade, screen: Space): StagedStep[] {
   const all = rows(shade),
     sum = summarize(shade),
     most = all.find((r) => r.family === sum.mostOfSrgb.family)!;
@@ -31,8 +31,8 @@ export function frames(shade: Shade, screen: Space): ReaderFrame[] {
       title: `You wrote ${name}; an sRGB screen paints ${preview}`,
       line: 'Left: the colour as written, which sRGB cannot show. Right: what an sRGB screen paints instead.',
       caption: `Tailwind CSS 4 writes ${name} as ${written}: lightness, chroma and hue, where chroma is how far the colour stands from grey. An sRGB screen cannot show chroma ${most.C.toFixed(3)} at that lightness and hue, so this page, drawn in sRGB, has no paint for the colour as written. CSS Color 4 says such a colour must be brought inside the screen’s range; its gamut mapping turns ${name} into ${preview}, chroma ${most.shown.toFixed(3)}, with lightness and hue nudged slightly: less vivid than written. Do the other ${shade} shades fit?`,
-      values: { shade, screen, colour: name, written: most.C, edge: most.srgb, shown: most.shown, preview },
-      draw: (s) => {
+      state: { shade, screen, colour: name, written: most.C, edge: most.srgb, shown: most.shown, preview },
+      draw: (_, s) => {
         const w = 5.2,
           h = 2.1,
           y = 0.75;

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Browser, Page, Frame } from 'playwright-core';
 import { launch } from '../../tools/lib/browser.ts';
-import { collectProject, defaultVariant } from '../../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer, buildLoader } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
@@ -128,7 +128,7 @@ export default class Leading extends Scene{
 static meta={id:'leading-note',title:'Start with the explanation'};
 static settings=[{id:'case',label:'Case',default:'one',options:[{value:'one',label:'One'},{value:'two',label:'Two'}]}];
 async construct(){const s=stage(this);for(const id of ['note','start',...(settingsOf(this).case==='one'?['extra']:[]),'ending']){
-await this.step(id,{title:id,caption:id,detail:id==='note'});await s.clear();await s.enter(new Text(id,{fontSize:1}));}}}`,
+await this.step(id,{title:id,caption:id,kind:id==='note'?'detail':'main'});await s.clear();await s.enter(new Text(id,{fontSize:1}));}}}`,
   );
   const project = await collectProject(source, { write: false });
   await buildExplainer(project, join(folder, 'leading-note.html'));
@@ -139,7 +139,7 @@ await this.step(id,{title:id,caption:id,detail:id==='note'});await s.clear();awa
     assert.equal(await page.locator('details.supporting').getAttribute('open'), null);
     assert.match((await page.locator('.notice').textContent()) ?? '', /no “missing” step/);
     await visitReader(page, entry + '?case=one&step=extra');
-    await page.locator('fieldset.case input[value="two"]').check();
+    await page.locator('fieldset.scenario input[value="two"]').check();
     await page.waitForURL(/case=two&step=start/);
     await visitReader(page, entry + '?step=note');
     assert.equal(new URL(page.url()).searchParams.get('step'), 'note', 'valid reference permalinks remain valid');
@@ -196,7 +196,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
 });
 
 test('authored phone openings keep comparison ink readable, and a narrow stage paints no heading to clip', options, async () => {
-  const { reviewClaims } = await import('../../tools/lib/explain-review-scene.ts');
+  const { reviewSubjects } = await import('../../tools/lib/explain-review-scene.ts');
   const { storyFrames, inspectStoryFrame, covered} = await import(
     '../../tools/lib/explain-story-review.ts'
   );
@@ -208,15 +208,15 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
       ['latest-search', ['reader-guard']],
     ] as const) {
       const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-      const variant = defaultVariant(project);
+      const scenario = defaultScenario(project);
       await buildExplainer(project, join(folder, `${id}-heading.html`));
-      const claims = (await reviewClaims(project)).filter((c) =>
-        Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v),
+      const claims = (await reviewSubjects(project)).filter((c) =>
+        Object.entries(c.settings ?? {}).every(([k, v]) => scenario.values[k] === v),
       );
-      const frames = await storyFrames(variant.Scene, claims);
-      const layouts = await stepLayouts(variant.Scene);
+      const frames = await storyFrames(scenario.Scene, claims);
+      const layouts = await stepLayouts(scenario.Scene);
       for (const step of names) {
-        await visitReader(page, `${embed}/${id}-heading.html?${new URLSearchParams({ ...variant.values, step })}`);
+        await visitReader(page, `${embed}/${id}-heading.html?${new URLSearchParams({ ...scenario.values, step })}`);
         await page.waitForFunction(() => !document.querySelector('svg.leaving'));
         const frame = frames.get(step)!,
           seen = await inspectStoryFrame(page, frame);
@@ -306,12 +306,12 @@ test('Next is on screen at load', options, async () => {
   }
 });
 
-readerTest('feature-tour case navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
+readerTest('feature-tour scenario navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
     assert.equal(new URL(page.url()).searchParams.get('step'), 'result', 'a direct result permalink remains valid');
     const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
-    assert.equal(links.length, 15, 'each authoring case offers one entry link');
+    assert.equal(links.length, 15, 'each authoring scenario offers one entry link');
     assert.deepEqual([...new Set(links)], ['recipe'], 'entry links start at the code, not the result');
-    await page.locator('fieldset.case input[value="state"]').check();
+    await page.locator('fieldset.scenario input[value="state"]').check();
     await page.waitForURL(/feature=state&step=recipe/);
     assert.equal(await page.locator('.steps button[aria-current="step"]').getAttribute('data-step'), 'recipe');
     await page.locator('.stepper button[aria-label="Next step"]').click();
@@ -323,7 +323,7 @@ readerTest('feature-tour case navigation starts with its recipe, including trans
     assert.equal(new URL(page.url()).searchParams.get('feature'), 'camera');
     assert.equal(new URL(page.url()).searchParams.get('step'), 'result');
     await visitReader(page, embed + '/mr-cache.html?request=hit&step=request');
-    await page.locator('fieldset.case input[value="miss"]').check();
+    await page.locator('fieldset.scenario input[value="miss"]').check();
     await page.waitForURL(/request=miss&step=request/);
     });
 
@@ -361,7 +361,7 @@ readerTest('phone: the stepper row follows the picture, the words follow it, and
     await page.getByRole('button', {name: 'Zoom in', exact: true}).click();
     assert.ok(await page.locator('.stage').evaluate(stage => {const box = stage.getBoundingClientRect(); return box.top >= 0 && box.bottom <= innerHeight;}), 'using a view tool brings the changed picture into view');
     });
-// Shell-wide assertions also run in every catalog story case. These fixtures keep the
+// Shell-wide assertions also run in every catalog story scenario. These fixtures keep the
 // independent language and hosting boundaries without rebuilding the whole collection.
 const shellFixtures = ['mr-cache', 'quotient-familial', 'feature-tour', 'lantern'];
 test('the shared tile preserves English/French chrome and headings, standalone, in a raw iframe and in the loader', options, async () => {
@@ -382,7 +382,7 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
         title: project.Scene.meta?.title ?? id,
         kicker: t.stepOf(1, first.length),
         segments: first.length,
-        cases: project.Scene.settings?.length ?? 0,
+        scenarios: project.Scene.settings?.length ?? 0,
         madeWith: t.madeWith,
         home: PRODUCT.home,
         open: null,
@@ -392,7 +392,7 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
       await page.setViewportSize({width:1280,height:800});
       await visitReader(page, src);
       const contract = { chrome: readerChrome(chromeFor(project.Scene.meta?.lang)), home: PRODUCT.home,
-        cases: project.Scene.settings?.length ?? 0, steps: teachingSpecs(project, resolveSettings(project.Scene)).map(s => s.step) };
+        scenarios: project.Scene.settings?.length ?? 0, steps: teachingSpecs(project, resolveSettings(project.Scene)).map(s => s.step) };
       assert.deepEqual(await page.evaluate(readerShellProblems, contract), [], id);
       const seen = await page.evaluate((t) => ({
         next: document.querySelectorAll(`button[aria-label="${t.nextLabel}"]`).length,
@@ -628,7 +628,7 @@ test('right to left: the changes row reads from the right and the footer hint si
     assert.deepEqual(seen, { changes: true, hint: true });
   });
 });
-// specs/player-guidance.md G2: after the last step, Start again, and for a scene with settings, its next case.
+// specs/player-guidance.md G2: after the last step, Start again, and for a scene with settings, its next scenario.
 const endOf = (page: Page) =>
   page.evaluate(() => {
     const next = document.querySelector<HTMLButtonElement>('.stepper .primary')!,
@@ -638,20 +638,20 @@ const endOf = (page: Page) =>
       text: next.querySelector('span')!.textContent,
       disabled: next.disabled,
       // The Try button follows Next straight away, in the row and in the Tab order.
-      tryCase: tries.filter((b) => !b.hidden).map((b) => [b.textContent, b.previousElementSibling === next]),
+      tryScenario: tries.filter((b) => !b.hidden).map((b) => [b.textContent, b.previousElementSibling === next]),
       step: new URL(location.href).searchParams.get('step'),
       request: new URL(location.href).searchParams.get('request'),
     };
   });
-readerTest('one-case and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/playback-probe.html`, async page => {
-    // A scene with one case (the playback probe has no settings; exgit has two): Start again, and no case button at all.
+readerTest('one-scenario and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/playback-probe.html`, async page => {
+    // A scene with one scenario (the playback probe has no settings; exgit has two): Start again, and no scenario button at all.
     await page.locator('.step-bar button').last().click();
     await page.waitForFunction(() => document.querySelector('.stepper .primary')?.getAttribute('aria-label') === 'Start again from step 1');
     assert.equal(await page.locator('.player .button.try').count(), 0);
     // French: Recommencer, and Essayer « 2 » for quotient-familial's first setting.
     await visitReader(page, `${embed}/quotient-familial.html?step=revenus-2025`);
     const fr = await endOf(page);
-    assert.deepEqual([fr.name, fr.text, fr.tryCase], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]]]);
+    assert.deepEqual([fr.name, fr.text, fr.tryScenario], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]]]);
     });
 test('the last step while it plays: Next still reads Next and rests the step; the face changes only at rest', options, async () => {
   await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, undefined, async page => {
@@ -665,12 +665,12 @@ test('the last step while it plays: Next still reads Next and rests the step; th
     // Playing the last step: busy, and Next is still Next, enabled.
     await page.waitForFunction(() => document.querySelector('.stage')!.getAttribute('aria-busy') === 'true');
     const playing = await endOf(page);
-    assert.deepEqual([playing.name, playing.disabled, playing.tryCase], ['Next step', false, []]);
+    assert.deepEqual([playing.name, playing.disabled, playing.tryScenario], ['Next step', false, []]);
     await page.getByRole('button', { name: 'Next step', exact: true }).click();
     await page.waitForFunction(() => (window as unknown as { __rests: string[] }).__rests.at(-1) === 'request');
     assert.equal(await page.locator('.stage').getAttribute('aria-busy'), null);
     const rested = await endOf(page);
-    assert.deepEqual([rested.name, rested.step, rested.tryCase], ['Start again from step 1', 'request', [['Try ‘Cache miss’', true]]]);
+    assert.deepEqual([rested.name, rested.step, rested.tryScenario], ['Start again from step 1', 'request', [['Try ‘Cache miss’', true]]]);
   });
 });
 // specs/player-redesign.md R3: the step bar. One segment per step, the current one filling as it plays.
@@ -757,7 +757,7 @@ test('arrow keys inside the step bar move the step and the focus', options, asyn
 
 test('pressing the current segment while a step plays rests the picture', options, async () => {
   const p = projects.get('mr-cache')!,
-    step = p.variants.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
+    step = p.scenarios.find((v) => v.values.request === 'hit')!.trace.steps[1]!,
     motion = (step.hold ?? step.t1!) - step.t0;
   assert.equal(step.step, 'reader-outcome');
   await readerContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, async context => {
@@ -1272,14 +1272,14 @@ test('the loader passes theme=light or theme=dark from the host page\'s computed
   });
   }
 });
-// specs/player-tile.md T5: no catalog explainer changes style between cases, so this scene does.
+// specs/player-tile.md T5: no catalog explainer changes style between scenarios, so this scene does.
 const TWO_PAPERS = `import{Scene,Text}from'rayner';import{stage,settingsOf}from'rayner/explain';
 export default class TwoPapers extends Scene{static meta={id:'two-papers',title:'Two papers'};
 static settings=[{id:'look',label:'Look',default:'cream',options:[{value:'cream',label:'Cream'},{value:'night',label:'Night'}]}];
 async construct(){const s=stage(this,{style:settingsOf(this).look==='night'?'nord':'hand-drawn'});
 await this.step('one',{caption:'A label.'});await s.enter(new Text('paper',{fontSize:0.4}),{describe:'paper'});
 await this.step('two',{caption:'Another.'});await s.enter(new Text('again',{fontSize:0.4}).moveTo([0,-1]),{describe:'again'});}}`;
-test('the neutral tile stays independent of the case palette, including before its script runs', options, async () => {
+test('the neutral tile stays independent of the scenario palette, including before its script runs', options, async () => {
   const dir = join(folder, 'two-papers');
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, 'scene.ts'), TWO_PAPERS);
@@ -1292,7 +1292,7 @@ test('the neutral tile stays independent of the case palette, including before i
     const first = await paper(page);
     assert.equal(first.player, '');
     assert.ok(['rgb(255, 255, 255)', 'color(srgb 1 1 1)'].includes(first.tile), first.tile);
-    await page.locator('.case input[value=night]').check();
+    await page.locator('.scenario input[value=night]').check();
     await page.waitForFunction(() => !document.querySelector('#content.loading'));
     await page.waitForTimeout(300); // observe the settled chrome, beyond its background transition
     const second = await paper(page);
@@ -1327,7 +1327,7 @@ test('known heights: mr-cache measures three heights above the floor, and the lo
   });
 });
 // The rest of URL cases, step fallback, history, copy link and reduced motion is the player
-// model's (below), including the fixed fallback scenario.
+// model's (below), including the fixed fallback run.
 test('?theme=dark, light and auto (following the reader\'s colour scheme) set the page colours', options, async () => {
   await readerContext({ colorScheme: 'dark' }, async context => {
   const page = await context.newPage();
@@ -1344,8 +1344,8 @@ test('?theme=dark, light and auto (following the reader\'s colour scheme) set th
     assert.deepEqual(await background('auto'), { theme: 'auto', background: 'rgb(20, 20, 20)' });
   });
 });
-// site:export --origin gives each step of the default case a share page, <path>/<id>/<step>, and
-// marks the player; Copy link then gives that page, whose link preview is the step. Any other case,
+// site:export --origin gives each step of the default scenario a share page, <path>/<id>/<step>, and
+// marks the player; Copy link then gives that page, whose link preview is the step. Any other scenario,
 // a step whose name is not path-safe, or a page published without share pages copies ?step=.
 test('Copy link gives the step\'s share page when site:export published one, else the player URL', options, async () => {
   const site = join(folder, 'site');
@@ -1386,7 +1386,7 @@ test('Copy link gives the step\'s share page when site:export published one, els
 
     await open(`${embed}/site/mr-cache.html?step=diff`);
     assert.equal(await copied(), 'https://example.org/projects/rayner/mr-cache/diff');
-    // The share page sends readers to the default case, so another case keeps the player URL.
+    // The share page sends readers to the default scenario, so another scenario keeps the player URL.
     const pick = (value: string) => page.locator(`input[name="request"][value="${value}"]`).locator('xpath=..').click();
     await pick('miss');
     await page.waitForURL(/request=miss/);
@@ -1408,8 +1408,10 @@ test('Copy link gives the step\'s share page when site:export published one, els
     assert.equal(await copied(), `${embed}/mr-cache.html?step=diff&request=hit`);
   });
 });
-test('stepping keeps Next in place while headings and captions use their natural height', options, async () => {
-  // Caption lengths and tour controls cannot shift a path while the reader steps.
+test('stepping keeps Next, the heading line and the caption in place', options, async () => {
+  // Heading and caption lengths and tour controls cannot shift a path while the reader steps:
+  // the heading keeps the tallest heading's height, its line the tallest title's place, and the
+  // caption the tallest caption's height, so what follows the caption does not move either.
   // Opening the separate source disclosure deliberately changes the page's height.
   let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
@@ -1441,9 +1443,11 @@ test('stepping keeps Next in place while headings and captions use their natural
           if (await page.locator('.lede .line').isVisible())
             path.lines.add(await page.locator('.lede .line').evaluate((line) => (line.getBoundingClientRect().top + scrollY).toFixed(1)));
           path.places.add(
-            await page.evaluate(() =>
-              ['.stepper'].map((s) => (document.querySelector(s)!.getBoundingClientRect().top + scrollY).toFixed(1)).join(' '),
-            ),
+            await page.evaluate(() => {
+              const top = (s: string) => document.querySelector(s)!.getBoundingClientRect().top + scrollY;
+              const caption = document.querySelector('.words > .caption')!.getBoundingClientRect();
+              return [top('.stepper'), caption.top + scrollY, caption.bottom + scrollY].map((v) => v.toFixed(1)).join(' ');
+            }),
           );
         }
         // A scene's notes, when it has any, form the detail path; token-bucket tells one story.
@@ -1452,7 +1456,8 @@ test('stepping keeps Next in place while headings and captions use their natural
         for(const [name,path] of Object.entries(paths)){
           if (name === 'detail' && !notes) { assert.equal(path.places.size, 0, `${scene}: no detail path without notes`); continue; }
           assert.ok(path.places.size, `${scene}: ${name} path was exercised`);
-          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: navigation tops per step ${[...path.places].join(' | ')}`);
+          assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: stepper top, caption top and bottom per step ${[...path.places].join(' | ')}`);
+          assert.ok(path.lines.size <= 1, `${scene}/${name} at ${width} px: heading line tops per step ${[...path.lines].join(' | ')}`);
 
         }
   });
@@ -1483,7 +1488,7 @@ test(
     try {
       await visitReader(page, embed + '/mr-cache.html?request=miss&step=after');
       assert.match(await page.locator('.caption').innerText(), /removes the handler’s edge to D1/);
-      // The first Tab stop is the case picker; the page's main region is not one (WCAG 2.4.7).
+      // The first Tab stop is the scenario picker; the page's main region is not one (WCAG 2.4.7).
       await page.keyboard.press('Tab');
       assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('type')), 'radio');
       const viewport = await page.locator('.stage svg').evaluate((svg) => {
@@ -1515,7 +1520,7 @@ test(
       const project = projects.get('mr-cache')!,
         values = resolveSettings(project.Scene, { request: 'miss' });
       const size = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
-      const layout = (await stepLayouts(project.variants.find((v) => v.values.request === values.request)!.Scene)).get('after')!;
+      const layout = (await stepLayouts(project.scenarios.find((v) => v.values.request === values.request)!.Scene)).get('after')!;
       const tour = closeUps(layout, size.w, size.h);
       const painted = () => settledZoom(page);
       const near = (a: ReturnType<typeof zoomOf>, b: { k: number; x: number; y: number }) =>
@@ -1586,7 +1591,7 @@ test(
       await page.waitForFunction(
         () => document.querySelector('[aria-current=step]')?.getAttribute('data-step') === 'diff',
       );
-      // The first Tab reaches the case picker; its focus ring is drawn on the segment around the radio.
+      // The first Tab reaches the scenario picker; its focus ring is drawn on the segment around the radio.
       await page.keyboard.press('Tab');
       assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('type')), 'radio');
       assert.equal(
@@ -1662,7 +1667,7 @@ test(
         await quiet(small);
         const p = await paintedView(small);
         assert.equal(p.camera, author.camera, 'the phone shows the same author frame');
-        const layout = (await stepLayouts(projects.get('lantern')!.variants[0]!.Scene)).get('begin');
+        const layout = (await stepLayouts(projects.get('lantern')!.scenarios[0]!.Scene)).get('begin');
         const want = closeUps(layout, p.w, p.h)[0]!,
           got = zoomOf(p);
         if (want.k === 1) assert.equal(got, null);
@@ -1679,7 +1684,7 @@ test(
   },
 );
 test(
-  'raw iframe and standalone artifact contain a useful poster and all-case transcript without JavaScript',
+  'raw iframe and standalone artifact contain a useful poster and all-scenario transcript without JavaScript',
   options,
   async () => {
     await readerContext({ javaScriptEnabled: false }, async context => {
@@ -1701,7 +1706,7 @@ test(
 // ---------------------------------------------------------------------------
 // Property tests. The player is a state machine: fast-check generates command
 // sequences (fc.commands), runs them against a real page, and after every
-// command compares the page with a model built in Node from each case's trace.
+// command compares the page with a model built in Node from each scenario's trace.
 // Browser runs are expensive, so counts are modest (test/lib/pbt.ts; FC_RUNS
 // sets them all). A failure prints seed, path and the commands' replayPath;
 // replay with FC_SEED=<seed> FC_PATH=<path> FC_REPLAY_PATH=<replayPath>.
@@ -1711,7 +1716,7 @@ test(
 // animation in wall-clock time for an unpredictable number of frames, so the
 // model's per-command assertions would race it; the motion-on path has its own
 // property further down (Next ends on the step's resting picture), which waits
-// for each animation to settle. Commands that land while a case is still loading
+// for each animation to settle. Commands that land while a scenario is still loading
 // are covered by the racing property, which checks consistency, not a model.
 // size 'max' spreads sequence lengths up to maxCommands (the default size keeps them under ~10).
 const commandOptions = (maxCommands: number) => ({
@@ -1761,25 +1766,25 @@ interface PlayerReal {
   parsed: number;
 }
 const settingsOfProject = (p: Project) => p.Scene.settings ?? [];
-const sameCase = (p: Project, a: Settings, b: Settings) => settingsOfProject(p).every((s) => a[s.id] === b[s.id]);
+const sameScenario = (p: Project, a: Settings, b: Settings) => settingsOfProject(p).every((s) => a[s.id] === b[s.id]);
 function stepsOf(p: Project, values: Settings): StepSpec[] {
-  const v = p.variants.find((v) => sameCase(p, v.values, values));
-  assert.ok(v, `no prebuilt case ${JSON.stringify(values)}`);
+  const v = p.scenarios.find((v) => sameScenario(p, v.values, values));
+  assert.ok(v, `no prebuilt scenario ${JSON.stringify(values)}`);
   return v.trace.steps.map((s) => ({
-    detail: s.meta.detail === true,
+    detail: s.meta.kind === 'detail',
     step: s.step,
     caption: stepWords(s).caption,
     title: stepWords(s).title,
     line: stepWords(s).line,
-    summary: pictureSummary(s.after),
-    picture: pictureHtml(s.after),
+    summary: pictureSummary(s.shown),
+    picture: pictureHtml(s.shown),
   }));
 }
 const current = (m: PlayerModel) => m.entries[m.index]!;
 const steps = (m: PlayerModel) => stepsOf(m.project, current(m).values);
 const selected = (m: PlayerModel) => steps(m).findIndex((s) => s.step === current(m).step);
 /** Independent reader contract: main controls skip notes; an opened note follows
- * source order. An all-notes case keeps its complete sequence usable. */
+ * source order. An all-notes scenario keeps its complete sequence usable. */
 function teachingSteps(list: StepSpec[]) {
   const main = list.map((s, i) => !s.detail ? i : -1).filter(i => i >= 0);
   return main.length ? main : list.map((_, i) => i);
@@ -1800,7 +1805,7 @@ function push(m: PlayerModel, entry: Entry) {
   m.entries = [...m.entries.slice(0, m.index + 1), entry];
   m.index = m.entries.length - 1;
 }
-/** What the documented load does: resolve the case, keep the step by name or fall back to the first with a notice. */
+/** What the documented load does: resolve the scenario, keep the step by name or fall back to the first with a notice. */
 function resolveLoad(p: Project, request: Record<string, string>, step: string | undefined) {
   let values: Settings;
   const notices: string[] = [];
@@ -1808,14 +1813,14 @@ function resolveLoad(p: Project, request: Record<string, string>, step: string |
     values = resolveSettings(p.Scene, request);
   } catch (error) {
     values = resolveSettings(p.Scene);
-    notices.push(`${(error as Error).message}. Showing the default case.`);
+    notices.push(`${(error as Error).message}. Showing the default scenario.`);
   }
   const list = stepsOf(p, values);
   let found = step ? list.findIndex((s) => s.step === step) : teachingSteps(list)[0]!;
   // Both fallbacks are announced when both apply.
   if (found < 0) {
     found = teachingSteps(list)[0]!;
-    notices.push(`This case has no “${step}” step, so it opens at the first step.`);
+    notices.push(`This scenario has no “${step}” step, so it opens at the first step.`);
   }
   return { entry: { values, step: list[found]!.step }, notice: notices.join(' ') };
 }
@@ -1839,7 +1844,7 @@ function observe(ids: string[]) {
     loading: document.getElementById('content')!.classList.contains('loading'),
     url: location.href,
     urlStep: q.get('step'),
-    urlCase: Object.fromEntries(ids.map((id) => [id, q.get(id)])),
+    urlScenario: Object.fromEntries(ids.map((id) => [id, q.get(id)])),
     current: [...document.querySelectorAll<HTMLElement>('.steps [aria-current=step]')].map((b) => b.dataset.step),
     list: [...document.querySelectorAll<HTMLElement>('.steps button')].map((b) => b.dataset.step),
     bar: [...document.querySelectorAll<HTMLElement>('.step-bar button')].map((b) => [b.dataset.step, b.dataset.state, b.getAttribute('aria-current')]),
@@ -1861,7 +1866,7 @@ function observe(ids: string[]) {
     next: ((b) => ({ name: b.getAttribute('aria-label'), text: b.querySelector('span')!.textContent, disabled: b.disabled }))(
       document.querySelector<HTMLButtonElement>('.stepper .primary')!,
     ),
-    tryCase: [...document.querySelectorAll<HTMLButtonElement>('.player .button.try')].map((b) => (b.hidden ? null : b.textContent)),
+    tryScenario: [...document.querySelectorAll<HTMLButtonElement>('.player .button.try')].map((b) => (b.hidden ? null : b.textContent)),
     notice: document.querySelector('.notice')!.textContent,
     checked: Object.fromEntries(
       ids.map((id) => [id, document.querySelector<HTMLInputElement>(`input[name="${id}"]:checked`)?.value ?? null]),
@@ -1992,8 +1997,8 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   // Reduced motion: the only pictures ever attached are the resting frames shown on settling.
   eq('pictures attached to the stage', seen.attaches - r.parsed, m.settles + m.redraws);
   eq('URL step', seen.urlStep, entry.step);
-  eq('URL case', seen.urlCase, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
-  eq('checked case', seen.checked, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
+  eq('URL scenario', seen.urlScenario, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
+  eq('checked scenario', seen.checked, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
   eq('last settled step', seen.last && { step: seen.last.step, settings: seen.last.settings }, {
     step: entry.step,
     settings: Object.fromEntries(ids.map((id) => [id, entry.values[id]])),
@@ -2026,7 +2031,7 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
     ? { name: 'Start again from step 1', text: 'Start again', disabled: false }
     : { name: 'Next step', text: 'Next', disabled: false });
   const first = settingsOfProject(m.project)[0];
-  eq('Try another case', seen.tryCase, first ? [last ? `Try ‘${nextOption(m).label}’` : null] : []);
+  eq('Try another scenario', seen.tryScenario, first ? [last ? `Try ‘${nextOption(m).label}’` : null] : []);
   const phone = r.page.viewportSize()!.width <= 640;
   eq('Try follows Next', seen.tryAfterNext, first && last && !phone ? [true] : []);
   eq('Try follows explanation', seen.tryWithTools, first && last && phone ? [true] : []);
@@ -2106,10 +2111,10 @@ async function stageSize(r: PlayerReal) {
   return { w: last.w, h: last.h, narrow: last.cw > 0 && last.cw < NARROW_PX };
 }
 const layoutCache = new Map<string, Promise<Map<string, StepLayout>>>();
-/** A case's step layouts, worked out in Node as the page works them out. */
+/** A scenario's step layouts, worked out in Node as the page works them out. */
 function layoutsOf(p: Project, values: Settings) {
   const key = JSON.stringify([p.file, values]);
-  if (!layoutCache.has(key)) layoutCache.set(key, stepLayouts(p.variants.find((v) => sameCase(p, v.values, values))!.Scene));
+  if (!layoutCache.has(key)) layoutCache.set(key, stepLayouts(p.scenarios.find((v) => sameScenario(p, v.values, values))!.Scene));
   return layoutCache.get(key)!;
 }
 /** The close-ups of the current step on this stage. */
@@ -2123,7 +2128,7 @@ async function reframe(m: PlayerModel, r: PlayerReal) {
   if (narrow && m.follow) m.k = (await tourOf(m, w, h))[0]!.k;
 }
 const button = (r: PlayerReal, name: string) => r.page.locator(`.player button[aria-label="${name}"]`);
-/** Show a step of this case: a history entry when the step changes, a fresh resting picture always. */
+/** Show a step of this scenario: a history entry when the step changes, a fresh resting picture always. */
 function goTo(m: PlayerModel, index: number) {
   const step = steps(m)[index]!.step;
   if (step !== current(m).step) push(m, { values: current(m).values, step });
@@ -2143,15 +2148,15 @@ const StartAgain = command('StartAgain', isLast, async (m, r) => {
   goTo(m, teachingSteps(steps(m))[0]!);
 });
 /** At rest on the last step of a scene with settings: the first setting's next option, the others kept, at step 1. */
-const TryCase = command(
-  'TryCase',
+const TryScenario = command(
+  'TryScenario',
   (m) => isLast(m) && settingsOfProject(m.project).length > 0,
   async (m, r) => {
     const s = settingsOfProject(m.project)[0]!,
       option = nextOption(m);
     await r.page.locator('.player .button.try', { hasText: `Try ‘${option.label}’` }).click();
     const { entry, notice } = resolveLoad(m.project, { ...current(m).values, [s.id]: option.value }, undefined);
-    if (!sameCase(m.project, entry.values, current(m).values)) m.k = 1;
+    if (!sameScenario(m.project, entry.values, current(m).values)) m.k = 1;
     push(m, entry);
     m.notice = notice;
     m.settles++;
@@ -2210,9 +2215,9 @@ const TranscriptLink = (i: number) =>
       goTo(m, i);
     },
   );
-const ChooseCase = (setting: number, option: number) =>
+const ChooseScenario = (setting: number, option: number) =>
   command(
-    `ChooseCase(${setting}, ${option})`,
+    `ChooseScenario(${setting}, ${option})`,
     (m) => {
       const s = settingsOfProject(m.project)[setting];
       return !!s && option < s.options.length;
@@ -2221,9 +2226,9 @@ const ChooseCase = (setting: number, option: number) =>
       const s = settingsOfProject(m.project)[setting]!,
         value = s.options[option]!.value;
       await r.page.locator(`input[name="${s.id}"][value="${value}"]`).locator('xpath=..').click();
-      // Choosing the case already shown changes nothing.
+      // Choosing the scenario already shown changes nothing.
       if (current(m).values[s.id] === value) return;
-      // A new case keeps the step by name, or falls back to the first with a notice; zoom resets.
+      // A new scenario keeps the step by name, or falls back to the first with a notice; zoom resets.
       const { entry, notice } = resolveLoad(m.project, { ...current(m).values, [s.id]: value }, current(m).step);
       push(m, entry);
       m.notice = notice;
@@ -2231,12 +2236,12 @@ const ChooseCase = (setting: number, option: number) =>
       m.settles++;
     },
   );
-/** Back/Forward restore case and step; zoom keeps its place across steps and resets when the case changes (docs/REFERENCE.md). */
+/** Back/Forward restore scenario and step; zoom keeps its place across steps and resets when the scenario changes (docs/REFERENCE.md). */
 function traverse(m: PlayerModel, by: number) {
   const was = current(m).values;
   m.index += by;
   m.notice = '';
-  if (!sameCase(m.project, was, current(m).values)) m.k = 1;
+  if (!sameScenario(m.project, was, current(m).values)) m.k = 1;
   m.settles++;
 }
 const Back = command(
@@ -2385,7 +2390,7 @@ const urlText = fc.string({
   ),
 });
 function initialArb(p: Project) {
-  const names = [...new Set(p.variants.flatMap((v) => v.trace.steps.map((s) => s.step)))];
+  const names = [...new Set(p.scenarios.flatMap((v) => v.trace.steps.map((s) => s.step)))];
   return fc.record({
     values: fc.tuple(
       ...settingsOfProject(p).map((s) =>
@@ -2402,12 +2407,12 @@ function commandArbs(p: Project): fc.Arbitrary<Cmd>[] {
     fc.constant(Next),
     fc.constant(Previous),
     fc.constant(StartAgain),
-    fc.constant(TryCase),
+    fc.constant(TryScenario),
     fc.nat({ max: 7 }).map(ClickStep),
     fc.nat({ max: 7 }).map(ClickSegment),
     fc.nat({ max: 7 }).map(TranscriptLink),
     ...(settings.length
-      ? [fc.tuple(fc.nat({ max: settings.length - 1 }), fc.nat({ max: 2 })).map(([s, o]) => ChooseCase(s, o))]
+      ? [fc.tuple(fc.nat({ max: settings.length - 1 }), fc.nat({ max: 2 })).map(([s, o]) => ChooseScenario(s, o))]
       : []),
     fc.constant(Back),
     fc.constant(Forward),
@@ -2459,14 +2464,14 @@ async function openPlayer(name: string, initial: { values: (string | undefined)[
     throw error;
   }
 }
-/** Model fixtures close their browser context after every fixed or generated scenario. */
-async function playerScenario(name: string, initial: Parameters<typeof openPlayer>[1], run: (model: PlayerModel, real: PlayerReal) => Promise<void>) {
+/** Model fixtures close their browser context after every fixed or generated run. */
+async function withPlayer(name: string, initial: Parameters<typeof openPlayer>[1], run: (model: PlayerModel, real: PlayerReal) => Promise<void>) {
   const {context,model,real}=await openPlayer(name,initial);
   try { await run(model,real); }
   finally { await context.close(); }
 }
 test('Left at the first story step leaves its picture, URL and settle count unchanged', options, async () => {
-  await playerScenario('oauth-pkce', {
+  await withPlayer('oauth-pkce', {
     values: [undefined], viewport: {width: 200, height: 400},
   }, async (model,real) => {
     await fc.asyncModelRun(() => ({model, real}), [Key('ArrowLeft'), Key('ArrowLeft')]);
@@ -2480,7 +2485,7 @@ test('crossing the narrow width redraws the resting picture in place, including 
   // Since oauth-pkce has no notes, no step change alters the heading reserve. At 704 px tall the
   // header and heading measured at the phone width keep the stage under 600 px; at 800 px the
   // resize reaches the full 600 px, so it crosses NARROW_PX itself.
-  await playerScenario('oauth-pkce', {
+  await withPlayer('oauth-pkce', {
     values: [undefined], viewport: {width: 200, height: 400},
   }, async (model, real) => {
     await fc.asyncModelRun(() => ({model, real}), [ClickStep(3), Resize(632, 800), ToggleTranscript, TranscriptLink(0)]);
@@ -2490,7 +2495,7 @@ test('crossing the narrow width redraws the resting picture in place, including 
 test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
   // Explicit comparison labels and a smaller implementation note require different
   // scales regardless of incidental wording or heading placement in a subject lesson.
-  await playerScenario('reading-comparison', {
+  await withPlayer('reading-comparison', {
     values: [], step: 'compare', viewport: {width: 320, height: 400},
   }, async (model,real) => {
     const {w, h} = await stageSize(real), tour = await tourOf(model, w, h);
@@ -2499,7 +2504,7 @@ test('Next view uses each detail view’s scale after a comparison opening', opt
   });
 });
 
-// oauth-pkce's cases have different step lists (only "yes" has an attack), the case the player finds hardest.
+// oauth-pkce's scenarios have different step lists (only "yes" has an attack), the case the player finds hardest.
 for (const [name, runs, maxCommands] of [['oauth-pkce', 10, 40]] as const)
   test(
     `player (${name}): any sequence of reader actions keeps the URL, step list, caption, controls, zoom and history in step with the model`,
@@ -2508,7 +2513,7 @@ for (const [name, runs, maxCommands] of [['oauth-pkce', 10, 40]] as const)
       const p = projects.get(name)!;
       await fc.assert(
         fc.asyncProperty(initialArb(p), fc.commands(commandArbs(p), commandOptions(maxCommands)), async (initial, cmds) => {
-          await playerScenario(name, initial, async (model,real) => {
+          await withPlayer(name, initial, async (model,real) => {
             await fc.asyncModelRun(() => ({ model, real }), cmds);
   });
           // Each case leaves the browser as it found it, so a leak fails here rather than crashing a later case.
@@ -2519,27 +2524,27 @@ for (const [name, runs, maxCommands] of [['oauth-pkce', 10, 40]] as const)
     },
   );
 
-// Fixed segment, case and ending owners share the independent teaching/source model.
-test('reader model fixed scenarios: teaching and source navigation, segments, case rebuilding and ending controls', options, async () => {
+// Fixed segment, scenario and ending owners share the independent teaching/source model.
+test('reader model fixed runs: teaching and source navigation, segments, scenario rebuilding and ending controls', options, async () => {
   const references=projects.get('references')!, list=teachingSpecs(references,{case:'one'}), pkce=projects.get('oauth-pkce')!;
   assert.equal(new Set(list.map(s=>s.caption)).size,list.length,'the teaching steps have distinct captions');
   assert.notEqual(stepsOf(pkce,{attacker:'no'}).length,stepsOf(pkce,{attacker:'yes'}).length,'the attacker adds a source step');
-  assert.notEqual(stepsOf(references,{case:'one'}).length,stepsOf(references,{case:'two'}).length,'the second case adds a source step');
+  assert.notEqual(stepsOf(references,{case:'one'}).length,stepsOf(references,{case:'two'}).length,'the second scenario adds a source step');
   assert.equal(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'two'}).length,'the teaching inventory stays fixed');
-  assert.notEqual(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'all'}).length,'all-notes case rebuilds the inventory');
-  const scenarios = [
+  assert.notEqual(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'all'}).length,'all-notes scenario rebuilds the inventory');
+  const runs = [
     ...[{width:390,height:568},{width:1280,height:800}].flatMap(viewport=>['reader-request','before'].map(step=>({name:'mr-cache',values:['hit'],step,viewport,commands:[Next]}))),
     {name:'references',values:['one'],commands:[ClickSegment(0),ClickSegment(1),ClickSegment(0),ClickSegment(1)]},
     {name:'mr-cache',values:['hit'],step:'after',commands:[Next,Key('ArrowRight'),StartAgain]},
-    {name:'mr-cache',values:['hit'],step:'request',commands:[TryCase,ClickSegment(1),Previous]},
-    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes'],['references','one','two'],['references','one','all']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseCase(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
+    {name:'mr-cache',values:['hit'],step:'request',commands:[TryScenario,ClickSegment(1),Previous]},
+    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes'],['references','one','two'],['references','one','all']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseScenario(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
   ];
   let placementPoisoned = false;
-  for(const scenario of scenarios) {
-    await playerScenario(scenario.name, {...scenario,viewport:'viewport' in scenario?scenario.viewport:{width:1280,height:800}}, async (model,real) => {
-      await fc.asyncModelRun(()=>({model,real}),scenario.commands);
-      if (scenario.name === 'mr-cache' && 'step' in scenario && scenario.step === 'reader-request' &&
-          'viewport' in scenario && scenario.viewport.width === 390) {
+  for(const run of runs) {
+    await withPlayer(run.name, {...run,viewport:'viewport' in run?run.viewport:{width:1280,height:800}}, async (model,real) => {
+      await fc.asyncModelRun(()=>({model,real}),run.commands);
+      if (run.name === 'mr-cache' && 'step' in run && run.step === 'reader-request' &&
+          'viewport' in run && run.viewport.width === 390) {
         const tryButton = real.page.locator('.player .button.try');
         await tryButton.evaluate(button => document.querySelector('.stepper .primary')!.after(button));
         await assert.rejects(verify(model, real, 'misplaced phone Try'), /Try follows explanation/);
@@ -2554,7 +2559,7 @@ test('reader model fixed scenarios: teaching and source navigation, segments, ca
 
 test('phone tours cross the actual 600 px stage boundary and retain every resized view’s scale and pan', options, async () => {
   for (const height of [400,1200]) for (const width of [200,390,632]) for (const step of ['stolen','secret']) {
-    await playerScenario('oauth-pkce', {values:[undefined],step,viewport:{width,height}}, async (model,real) => {
+    await withPlayer('oauth-pkce', {values:[undefined],step,viewport:{width,height}}, async (model,real) => {
       if(width===632&&height===1200) assert.ok((await stageSize(real)).w>=NARROW_PX,'the tall desktop stage crosses the actual 600 px boundary');
       const commands = width === 632
         ? [Resize(390,height),DoubleClick(0,0),ZoomButton('Zoom in'),OverviewButton]
@@ -2577,8 +2582,8 @@ test(
   'player: from ?attacker=yes&step=attack, choosing "no" falls back to the first step with a notice; Back restores the attack step',
   options,
   async () => {
-    await playerScenario('oauth-pkce', { values: ['yes'], step: 'attack', viewport: { width: 700, height: 900 } }, async (model,real) => {
-      await fc.asyncModelRun(() => ({ model, real }), [ChooseCase(0, 1), Back, CopyLink]);
+    await withPlayer('oauth-pkce', { values: ['yes'], step: 'attack', viewport: { width: 700, height: 900 } }, async (model,real) => {
+      await fc.asyncModelRun(() => ({ model, real }), [ChooseScenario(0, 1), Back, CopyLink]);
       // Every command ran (a command whose precondition fails is skipped silently), and verify() held after each.
       const first = stepsOf(model.project, { attacker: 'no' })[0]!.step;
       assert.deepEqual(model.entries.map((e) => [e.values.attacker, e.step]), [['yes', 'attack'], ['no', first]]);
@@ -2613,7 +2618,7 @@ async function counted(context: import('playwright-core').BrowserContext, url: s
   await visitReader(page, url);
   return { page, errors };
 }
-/** The latest accepted URL must have a matching resting-step event, including its case. */
+/** The latest accepted URL must have a matching resting-step event, including its scenario. */
 async function stepReady(page: Page, ids: string[]) {
   await page.waitForFunction(ids => {
     const last = (window as unknown as {__last: {step:string;settings:Record<string,string>} | null}).__last;
@@ -2642,7 +2647,7 @@ async function quiet(page: Page, ms = 300) {
 }
 // The picture on the stage, not one still fading out under reduced motion.
 const stagePicture = (page: Page) => page.locator('.stage').evaluate((s) => s.querySelector('svg:not(.leaving)')?.outerHTML);
-const caseQuery = (p: Project, values: Settings, step: string) => {
+const scenarioQuery = (p: Project, values: Settings, step: string) => {
   const q = new URLSearchParams();
   for (const s of settingsOfProject(p)) q.set(s.id, values[s.id]!);
   q.set('step', step);
@@ -2728,16 +2733,16 @@ test(
   async () => {
     for (const name of ['mr-cache', 'exgit', 'oauth-pkce']) {
       const p = projects.get(name)!;
-      // mr-cache's two cases, exgit's first and PKCE's with the attacker (issue #21): diagram, code and card changes.
-      const cases = name === 'mr-cache' ? p.variants : name === 'exgit' ? p.variants.slice(0, 1) : p.variants.filter((v) => v.values.attacker === 'yes');
-      for (const v of cases) {
+      // mr-cache's two scenarios, exgit's first and PKCE's with the attacker (issue #21): diagram, code and card changes.
+      const scenarios = name === 'mr-cache' ? p.scenarios : name === 'exgit' ? p.scenarios.slice(0, 1) : p.scenarios.filter((v) => v.values.attacker === 'yes');
+      for (const v of scenarios) {
         const list = v.trace.steps,
           layouts = await stepLayouts(v.Scene);
         const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
         const desk = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
         try {
-          const a = await counted(phone, `${embed}/${name}.html?${caseQuery(p, v.values, list[0]!.step)}`);
-          const d = await counted(desk, `${embed}/${name}.html?${caseQuery(p, v.values, list[0]!.step)}`);
+          const a = await counted(phone, `${embed}/${name}.html?${scenarioQuery(p, v.values, list[0]!.step)}`);
+          const d = await counted(desk, `${embed}/${name}.html?${scenarioQuery(p, v.values, list[0]!.step)}`);
           for (let i = 0; i < list.length; i++) {
             const step = list[i]!.step;
             if (i > 0) {
@@ -2773,7 +2778,7 @@ test(
             // Hold still: the picture Next rests on is the picture a link to the step shows, close-up and all.
             const rested = await stagePicture(a.page);
             const b = await phone.newPage();
-            await visitReader(b, `${embed}/${name}.html?${caseQuery(p, v.values, step)}`);
+            await visitReader(b, `${embed}/${name}.html?${scenarioQuery(p, v.values, step)}`);
             await quiet(b);
             assert.equal(await stagePicture(b), rested, `${where}: Next and a link rest on different pictures`);
             await b.close();
@@ -2798,7 +2803,7 @@ test(
 // now goes first to what the step emphasised, so one press, by touch or by keyboard, shows each.
 test('phone: one press of Next view shows what PKCE\'s captions point at, emphasised close-ups first', options, async () => {
   const p = projects.get('oauth-pkce')!,
-    v = p.variants.find((c) => c.values.attacker === 'yes')!,
+    v = p.scenarios.find((c) => c.values.attacker === 'yes')!,
     layouts = await stepLayouts(v.Scene);
   const evidence: Record<string, Box> = {
     secret: await restingBox(v.Scene, 'secret', (scene) => wordsOutsideCards(scene, 'code_verifier', 'SHA-256')),
@@ -2856,8 +2861,8 @@ test(
     // mr-cache has both paths: its teaching steps and, under them, its source notes.
     const name = 'mr-cache',
       p = projects.get(name)!,
-      v = p.variants[0]!,
-      lists = [v.trace.steps.filter(s => s.meta.detail !== true), v.trace.steps.filter(s => s.meta.detail === true)];
+      v = p.scenarios[0]!,
+      lists = [v.trace.steps.filter(s => s.meta.kind !== 'detail'), v.trace.steps.filter(s => s.meta.kind === 'detail')];
     for (const list of lists) {
     assert.ok(list.length >= 2);
     await readerContext({ reducedMotion: 'no-preference' }, async context => {
@@ -2878,7 +2883,7 @@ test(
               for (const n of r.addedNodes) if (n.nodeName === 'svg') w.__shown.push({ at: performance.now(), born: born.get(n) ?? null });
         }).observe(document, { childList: true, subtree: true });
       });
-      const { page, errors } = await counted(context, `${embed}/${name}.html?${caseQuery(p, v.values, list[0]!.step)}`);
+      const { page, errors } = await counted(context, `${embed}/${name}.html?${scenarioQuery(p, v.values, list[0]!.step)}`);
       /** Run `act`, wait for the player to settle, and return the stage pictures shown meanwhile. */
       const shownDuring = async (act: () => Promise<void>) => {
         await quiet(page);
@@ -2927,14 +2932,14 @@ test('pre-ready Previous, Left and Next retain the first teaching permalink', op
   });
 });
 
-// Commands fired in a burst, without waiting for the player: case changes race
-// navigation while a new case's trace is still being computed.
-type Burst = { kind: 'case'; setting: number; option: number } | { kind: 'next' | 'prev' | 'back' | 'forward' | 'left' | 'right' } | { kind: 'step'; i: number };
+// Commands fired in a burst, without waiting for the player: scenario changes race
+// navigation while a new scenario's trace is still being computed.
+type Burst = { kind: 'scenario'; setting: number; option: number } | { kind: 'next' | 'prev' | 'back' | 'forward' | 'left' | 'right' } | { kind: 'step'; i: number };
 const burstArb = (p: Project) =>
   fc.array(
     fc.record({
       action: fc.oneof(
-        fc.record({ kind: fc.constant('case' as const), setting: fc.nat({ max: Math.max(0, settingsOfProject(p).length - 1) }), option: fc.nat({ max: 2 }) }),
+        fc.record({ kind: fc.constant('scenario' as const), setting: fc.nat({ max: Math.max(0, settingsOfProject(p).length - 1) }), option: fc.nat({ max: 2 }) }),
         fc.record({ kind: fc.constantFrom('next' as const, 'prev' as const, 'back' as const, 'forward' as const, 'left' as const, 'right' as const) }),
         fc.record({ kind: fc.constant('step' as const), i: fc.nat({ max: 7 }) }),
       ),
@@ -2945,11 +2950,11 @@ const burstArb = (p: Project) =>
   );
 for (const motion of ['reduce', 'no-preference'] as const)
   test(
-    `player (motion ${motion}): any burst of case changes and navigation, unawaited, ends with the URL, choice, list, caption and picture all on one case and step`,
+    `player (motion ${motion}): any burst of scenario changes and navigation, unawaited, ends with the URL, choice, list, caption and picture all on one scenario and step`,
     options,
     async () => {
       const choices = new Map(projects).set('playback-probe', playbackProbe);
-      const starts = ['oauth-pkce', 'exgit', 'mr-cache', 'playback-probe'].flatMap(name => choices.get(name)!.variants.flatMap(v => v.trace.steps.map(step => ({ name, values: v.values, step: step.step }))));
+      const starts = ['oauth-pkce', 'exgit', 'mr-cache', 'playback-probe'].flatMap(name => choices.get(name)!.scenarios.flatMap(v => v.trace.steps.map(step => ({ name, values: v.values, step: step.step }))));
       const early = fc.array(fc.constantFrom('Next step', 'Previous step', 'Whole picture', 'Copy link', 'Zoom in', 'Zoom out', 'ArrowRight', 'ArrowLeft', '+', '0'), {
         minLength: 1,
         maxLength: 8,
@@ -2978,7 +2983,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
                   else run();
                 }, delay)) as typeof window.setTimeout;
             });
-            const { page, errors } = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, initialValues, step)}`, page=>earlyControls(page,earlyActions)));
+            const { page, errors } = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${scenarioQuery(p, initialValues, step)}`, page=>earlyControls(page,earlyActions)));
             assert.equal(await page.evaluate(() => (window as unknown as { __early: number }).__early), earlyActions.length);
             assert.deepEqual(errors, []);
             assert.equal(new URL(page.url()).searchParams.get('step'), step, 'early controls keep the requested step');
@@ -3008,7 +3013,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
                   if (nav.currentEntry.index !== seenIndex) [queued, seenIndex] = [0, nav.currentEntry.index];
                   // A Back still to land restarts the scene itself, so it would be blamed on this Next.
                   const continuing = a.kind === 'next' && queued === 0 && inventory.raw.indexOf(nextStep!)===inventory.raw.indexOf(at!)+1 && !!document.querySelector('.stage[aria-busy=true]') && w.__attachedStep === new URLSearchParams(location.search).get('step');
-                  if (a.kind === 'case') {
+                  if (a.kind === 'scenario') {
                     const s = settings[a.setting];
                     const input = s && document.querySelector<HTMLInputElement>(`input[name="${s.id}"][value="${s.options[a.option % s.options.length]}"]`);
                     input?.click();
@@ -3035,7 +3040,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
               {
                 burst: actions as { action: Burst; gap: number }[],
                 settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })),
-                paths: p.variants.map(v=>{const list=stepsOf(p,v.values);return {values:v.values,raw:list.map(s=>s.step),next:Object.fromEntries(list.map((s,i)=>[s.step,list[neighbour(list,i,1)]!.step]))};}),
+                paths: p.scenarios.map(v=>{const list=stepsOf(p,v.values);return {values:v.values,raw:list.map(s=>s.step),next:Object.fromEntries(list.map((s,i)=>[s.step,list[neighbour(list,i,1)]!.step]))};}),
               },
             ));
             await scheduler.waitFor(stepReady(page, ids));
@@ -3043,7 +3048,7 @@ for (const motion of ['reduce', 'no-preference'] as const)
             await scheduler.waitFor(quiet(page));
             await scheduler.waitFor(stepReady(page, ids));
             const seen = await page.evaluate(observe, ids);
-            const values = Object.fromEntries(ids.map((id) => [id, seen.urlCase[id]!])) as Settings;
+            const values = Object.fromEntries(ids.map((id) => [id, seen.urlScenario[id]!])) as Settings;
             const list = stepsOf(p, values),
               at = list.findIndex((s) => s.step === seen.urlStep);
             assert.ok(at >= 0, `URL step ${seen.urlStep} is not a step of ${JSON.stringify(values)}`);
@@ -3057,16 +3062,16 @@ for (const motion of ['reduce', 'no-preference'] as const)
                 errors,
               },
               {
-                checked: seen.urlCase,
+                checked: seen.urlScenario,
                 list: presentedSteps(list).map((s) => s.step),
                 current: [seen.urlStep],
                 caption: list[at]!.caption,
-                last: { step: seen.urlStep, settings: seen.urlCase },
+                last: { step: seen.urlStep, settings: seen.urlScenario },
                 errors: [],
               },
             );
             // Ledger P5: include post-hold additions in the resting picture a fresh link shows.
-            const fresh = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, values, seen.urlStep!)}`));
+            const fresh = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${scenarioQuery(p, values, seen.urlStep!)}`));
             assert.deepEqual(fresh.errors,[]);
             const freshWhole = fresh.page.getByRole('button', { name: 'Whole picture', exact: true });
             if (closeUpsOff && await freshWhole.isVisible()) {
@@ -3106,12 +3111,12 @@ async function recordPosts(context: import('playwright-core').BrowserContext) {
 const postsOf = (frame: Frame) => frame.evaluate(() => (window as unknown as { __posts: Post[] }).__posts);
 type HeightAction =
   | { kind: 'transcript' | 'next' | 'prev' | 'away' | 'back' }
-  | { kind: 'case'; option: number }
+  | { kind: 'scenario'; option: number }
   | { kind: 'resize'; width: number; height: number };
 const heightActions = fc.array(
   fc.oneof(
     fc.record({ kind: fc.constantFrom('transcript' as const, 'next' as const, 'prev' as const, 'away' as const, 'back' as const) }),
-    fc.record({ kind: fc.constant('case' as const), option: fc.nat({ max: 2 }) }),
+    fc.record({ kind: fc.constant('scenario' as const), option: fc.nat({ max: 2 }) }),
     fc.record({ kind: fc.constant('resize' as const), width: fc.integer({ min: 200, max: 1600 }), height: fc.integer({ min: 300, max: 1200 }) }),
   ),
   { minLength: 1, maxLength: 10 },
@@ -3126,8 +3131,8 @@ async function heightAct(page: Page, frame: Frame, a: HeightAction) {
     // On the last step Next is Start again, named otherwise; pressing nothing there is as before.
     else if (a.kind === 'next') document.querySelector<HTMLButtonElement>('button[aria-label="Next step"]')?.click();
     else if (a.kind === 'prev') document.querySelector<HTMLButtonElement>('button[aria-label="Previous step"]')!.click();
-    else if (a.kind === 'case') {
-      const inputs = document.querySelectorAll<HTMLInputElement>('.case input');
+    else if (a.kind === 'scenario') {
+      const inputs = document.querySelectorAll<HTMLInputElement>('.scenario input');
       inputs[a.option % inputs.length]?.click();
     }
   }, a);
@@ -3148,7 +3153,7 @@ async function heightsSettle(page: Page, frame: Frame) {
   return last!;
 }
 test(
-  'reportHeight: after any mix of transcript, case, step, viewport and scroll changes, the last posted height equals the content root\'s height, every resize message is a new height the host accepts, and every other message is a step report it accepts',
+  'reportHeight: after any mix of transcript, scenario, step, viewport and scroll changes, the last posted height equals the content root\'s height, every resize message is a new height the host accepts, and every other message is a step report it accepts',
   options,
   async () => {
     const { resizeHeight, stepDetail } = await import('../../app/embed-protocol.ts');
@@ -3230,7 +3235,7 @@ const parentOriginArb = (hostOrigin: string) =>
     fc.constant({ value: undefined, exact: false }),
   );
 test(
-  'framed with any parentOrigin: messages go to exactly that origin when it is an exact HTTP(S) origin and nowhere otherwise; the footer\'s "Open the explainer" link shows with or without parentOrigin and opens this step and case without it',
+  'framed with any parentOrigin: messages go to exactly that origin when it is an exact HTTP(S) origin and nowhere otherwise; the footer\'s "Open the explainer" link shows with or without parentOrigin and opens this step and scenario without it',
   options,
   async () => {
     await fc.assert(
@@ -3248,7 +3253,7 @@ test(
           const posts = await postsOf(frame);
           assert.deepEqual([...new Set(posts.map((p) => p.origin))], exact ? [value] : [], `parentOrigin ${JSON.stringify(value)}`);
           // specs/player-tile.md T3: in any frame the footer's way out opens this page at the reader's step
-          // and case, in a new tab, without parentOrigin.
+          // and scenario, in a new tab, without parentOrigin.
           const out = await frame.evaluate(() => ({
             links: [...document.querySelectorAll<HTMLAnchorElement>('.player > .foot a.open')].map((a) => ({ href: a.href, target: a.target, text: a.textContent })),
             page: location.origin + location.pathname,
@@ -3262,7 +3267,7 @@ test(
             { path: out.page, step: out.step, attacker: out.attacker, parentOrigin: false, target: '_blank', text: 'Open the explainer' },
             `parentOrigin ${JSON.stringify(value)}`,
           );
-          assert.ok(out.step && out.attacker, `the player shows a step and a case: ${JSON.stringify(out)}`);
+          assert.ok(out.step && out.attacker, `the player shows a step and a scenario: ${JSON.stringify(out)}`);
   });
       }),
       {
@@ -3282,9 +3287,9 @@ test(
 // Exercise the visible route to that evidence, rather than only asserting the zoom scale.
 test('PKCE mobile views expose the derivation and the unsent verifier without advancing the step', options, async () => {
   const project = projects.get('oauth-pkce')!;
-  for (const variant of project.variants) {
+  for (const scenario of project.scenarios) {
     const targets = new Map<string, number[][]>();
-    await new variant.Scene({
+    await new scenario.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (!['secret', 'authorize'].includes(step.name)) return;
@@ -3302,10 +3307,10 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         targets.set(step.name, found);
       },
     }, { skipUntil: Infinity }).run();
-    await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: variant.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
+    await readerContext({ viewport: { width: 390, height: 844 }, reducedMotion: scenario.values.attacker === 'yes' ? 'no-preference' : 'reduce' }, async context => {
 
       const page = await context.newPage();
-      await visitReader(page, `${embed}/oauth-pkce.html?attacker=${variant.values.attacker}&step=secret`);
+      await visitReader(page, `${embed}/oauth-pkce.html?attacker=${scenario.values.attacker}&step=secret`);
       for (const step of ['secret', 'authorize']) {
         if (step === 'authorize') await page.locator('.stepper').getByRole('button', { name: 'Next step', exact: true }).click();
         await quiet(page);
@@ -3353,9 +3358,9 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
 
 
 test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection arrows visible on a phone', options, async () => {
-  const variant = projects.get('oauth-pkce')!.variants.find((v) => v.values.attacker === 'yes')!;
+  const scenario = projects.get('oauth-pkce')!.scenarios.find((v) => v.values.attacker === 'yes')!;
   const ids = ['message:S->X#0', 'message:X->S#0', 'message:S->X#1'];
-  const boxes = await restingBox(variant.Scene, 'attack', (scene) => {
+  const boxes = await restingBox(scenario.Scene, 'attack', (scene) => {
     const arrows = scene.familyMembers().filter((m) => ids.includes(m.key ?? ''));
     assert.equal(arrows.length, 3, 'all three narrative arrows must exist');
     return arrows;
@@ -3383,9 +3388,9 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
   }
 });
 
-test('source tours show the token-cap calculation and terminal rejection in every case', options, async () => {
-  const {reviewClaims} = await import('../../tools/lib/explain-review-scene.ts');
-  const {storyFrames,reviewStoryVariant,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
+test('source tours show the token-cap calculation and terminal rejection in every scenario', options, async () => {
+  const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
+  const {storyFrames,reviewStoryScenario,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
     'token-bucket': ['request:R9','arrival:R9','request:R10','arrival:R10','balance:refill:R10',
       'balance:found:R10','balance:spend:R10','balance:cap','balance:label','balance:value'],
@@ -3394,20 +3399,20 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       'State','session:state','Event','session:event','Returns','session:returns'],
   };
   const page = await browser.newPage();
-  let cases=0,stepWidths=0,authoredSteps=0,labelChecks=0;
+  let scenarios=0,stepWidths=0,authoredSteps=0,labelChecks=0;
   try {
     for(const id of ['token-bucket','state-machine'] as const){
       const project = projects.get(id) ?? await collectProject(`scenes/explainers/${id}`,{write:false});
-      assert.deepEqual(project.variants.map(v=>v.values),id==='token-bucket'?
+      assert.deepEqual(project.scenarios.map(v=>v.values),id==='token-bucket'?
         [{rate:'1'},{rate:'2'},{rate:'4'}]:[{events:'success'},{events:'failure'}]);
       if(!projects.has(id))await buildExplainer(project,join(folder,`${id}.html`));
       const sourceStep = id==='token-bucket'?'later':'terminal';
-      const companion = await reviewClaims(project);
+      const companion = await reviewSubjects(project);
       assert.deepEqual(companion.filter(c=>c.step===sourceStep&&!c.settings).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
-      const claims = await reviewClaims(project);
-      for(const variant of project.variants){
+      const claims = await reviewSubjects(project);
+      for(const scenario of project.scenarios){
         let nativeChecked=false;
-        await new variant.Scene({async frame(){},async stepEnd(scene,step){
+        await new scenario.Scene({async frame(){},async stepEnd(scene,step){
           if(step.name!==sourceStep)return;
           const members=scene.familyMembers();
           const keyed=(key:string)=>{
@@ -3419,7 +3424,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
           };
           if(id==='token-bucket'){
             // R10 arrives at 5 s: 4 tokens at 1 / s; 2 and 4 / s reach the cap of five.
-            const rate=variant.values.rate!, found={1:4,2:5,4:5}[rate as '1'|'2'|'4']!,
+            const rate=scenario.values.rate!, found={1:4,2:5,4:5}[rate as '1'|'2'|'4']!,
               after={1:3,2:4,4:4}[rate as '1'|'2'|'4']!;
             text('balance:cap','  tokens = min(5,');text('balance:label','Tokens left');
             text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 5');
@@ -3446,20 +3451,20 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         assert.equal(nativeChecked,true);
         // Keep the production reviewer: every main and source step, both
         // widths, all reachable tour stops, plus the independent 320px openings.
-        const rows=await reviewStoryVariant(page,`${embed}/${id}.html`,variant,claims);
-        assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>variant.trace.steps.map(s=>[s.step,width])));
+        const rows=await reviewStoryScenario(page,`${embed}/${id}.html`,scenario,claims);
+        assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>scenario.trace.steps.map(s=>[s.step,width])));
         for(const row of rows.filter(r=>r.step===sourceStep))assert.ok(roles[id].every(role=>row.targets.includes(role)));
-        stepWidths+=rows.length;authoredSteps+=2*variant.trace.steps.length;
+        stepWidths+=rows.length;authoredSteps+=2*scenario.trace.steps.length;
         // A claim bound to settings (token-bucket's cap note, drawn only where the wait passes five)
-        // is an obligation of its own cases, as the production reviewer applies it.
-        const applicable=claims.filter(c=>Object.entries(c.settings??{}).every(([k,v])=>variant.values[k]===v));
-        const frame=(await storyFrames(variant.Scene,applicable)).get(sourceStep)!;
+        // is an obligation of its own scenarios, as the production reviewer applies it.
+        const applicable=claims.filter(c=>Object.entries(c.settings??{}).every(([k,v])=>scenario.values[k]===v));
+        const frame=(await storyFrames(scenario.Scene,applicable)).get(sourceStep)!;
         const indices=new Set(frame.targets.filter(t=>roles[id].includes(t.name)).flatMap(t=>t.indices));
         const labels=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
         assert.equal(labels.length,id==='token-bucket'?9:12,'exact caption-label inventory');
         const readable=new Set<number>();
         await page.setViewportSize({width:390,height:844});
-        await page.goto(`${embed}/${id}.html?${new URLSearchParams({...variant.values,step:sourceStep})}`);
+        await page.goto(`${embed}/${id}.html?${new URLSearchParams({...scenario.values,step:sourceStep})}`);
         await page.waitForFunction(step=>(window as unknown as {raynerReviewStep?:string}).raynerReviewStep===step&&
           !document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'),sourceStep);
         const visited=new Set<string>();
@@ -3471,7 +3476,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             const ink=label.indices.map(index=>seen.ink.find(p=>p.index===index)!);
             if(ink.every(p=>p.visible&&p.complete&&covered(p.box,[seen.viewport]))){
               const pixels=label.size*Math.min(...ink.map(p=>p.scale));
-              assert.ok(pixels>=12-1e-6,`${id}/${JSON.stringify(variant.values)}: ${label.text} reads at ${pixels}px`);
+              assert.ok(pixels>=12-1e-6,`${id}/${JSON.stringify(scenario.values)}: ${label.text} reads at ${pixels}px`);
               readable.add(i);
             }
           }
@@ -3480,30 +3485,30 @@ test('source tours show the token-cap calculation and terminal rejection in ever
           await next.click();await page.evaluate(()=>new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r()))));
         }
         assert.equal(readable.size,labels.length,'every named source label has a complete readable tour stop');
-        labelChecks+=readable.size;cases++;
+        labelChecks+=readable.size;scenarios++;
       }
     }
   }finally{await page.close();}
-  // Every step of every case at both widths, whatever each scene's step count.
-  assert.equal(cases,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,51);
+  // Every step of every scenario at both widths, whatever each scene's step count.
+  assert.equal(scenarios,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,51);
 });
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {
-  const {reviewClaims} = await import('../../tools/lib/explain-review-scene.ts');
-  const {storyFrames,reviewStoryVariant,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
+  const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
+  const {storyFrames,reviewStoryScenario,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const project=await collectProject('scenes/explainers/pen-and-pencil',{write:false});
-  assert.deepEqual(project.variants.map(v=>v.values),[{hand:'first'},{hand:'second'}]);
-  assert.deepEqual((await reviewClaims(project)).filter(c => c.step === 'marks'),[{step:'marks',targets:[
+  assert.deepEqual(project.scenarios.map(v=>v.values),[{hand:'first'},{hand:'second'}]);
+  assert.deepEqual((await reviewSubjects(project)).filter(c => c.step === 'marks'),[{step:'marks',targets:[
     {key:'construction:marks',paint:'stroke'},{key:'construction:tally'},
   ]}]);
   await buildExplainer(project,join(folder,'pen-and-pencil.html'));
-  const claims=await reviewClaims(project);
+  const claims=await reviewSubjects(project);
   const page=await browser.newPage();
-  let layout:number[][]|undefined,cases=0,stepWidths=0,readableCounts=0;
+  let layout:number[][]|undefined,scenarios=0,stepWidths=0,readableCounts=0;
   try{
-    for(const variant of project.variants){
+    for(const scenario of project.scenarios){
       let strokes=0,wordBoxes=0;
-      await new variant.Scene({async frame(){},async stepEnd(scene,step){
+      await new scenario.Scene({async frame(){},async stepEnd(scene,step){
         if(step.name!=='marks')return;
         const members=scene.familyMembers(),marks=members.filter(m=>m.key==='construction:marks'),
           tallies=members.filter(m=>m.key==='construction:tally');
@@ -3546,18 +3551,18 @@ test('both pen drawings retain every construction mark and its readable count th
         if(layout)assert.deepEqual(points,layout,'changing the hand keeps all laid-out marks fixed');else layout=points;
       }},{skipUntil:Infinity}).run();
       assert.equal(strokes,53);assert.equal(wordBoxes,8);
-      const rows=await reviewStoryVariant(page,`${embed}/pen-and-pencil.html`,variant,claims);
-      assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>variant.trace.steps.map(s=>[s.step,width])));
+      const rows=await reviewStoryScenario(page,`${embed}/pen-and-pencil.html`,scenario,claims);
+      assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>scenario.trace.steps.map(s=>[s.step,width])));
       for(const row of rows.filter(r=>r.step==='marks'))
         assert.ok(row.targets.includes('construction:marks')&&row.targets.includes('construction:tally'));
       stepWidths+=rows.length;
-      const frame=(await storyFrames(variant.Scene,claims)).get('marks')!,
+      const frame=(await storyFrames(scenario.Scene,claims)).get('marks')!,
         target=frame.targets.find(t=>t.name==='construction:marks')!,tally=frame.targets.find(t=>t.name==='construction:tally')!;
       assert.equal(target.indices.length,53,'all meaningful construction strokes must reach paint review');
       const labels=frame.labels.filter(l=>l.indices.some(i=>tally.indices.includes(i)));
       assert.equal(labels.length,1);
       await page.setViewportSize({width:390,height:844});
-      await page.goto(`${embed}/pen-and-pencil.html?${new URLSearchParams({...variant.values,step:'marks'})}`);
+      await page.goto(`${embed}/pen-and-pencil.html?${new URLSearchParams({...scenario.values,step:'marks'})}`);
       await page.waitForFunction(()=>(window as unknown as {raynerReviewStep?:string}).raynerReviewStep==='marks'&&
         !document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
       const visited=new Set<string>();let readable=false;
@@ -3567,14 +3572,14 @@ test('both pen drawings retain every construction mark and its readable count th
         const ink=labels[0]!.indices.map(i=>seen.ink.find(p=>p.index===i)!);
         if(ink.every(p=>p.visible&&p.complete&&covered(p.box,[seen.viewport]))){
           const pixels=labels[0]!.size*Math.min(...ink.map(p=>p.scale));
-          assert.ok(pixels>=12-1e-6,`${variant.values.hand}: construction count reads at ${pixels}px`);readable=true;
+          assert.ok(pixels>=12-1e-6,`${scenario.values.hand}: construction count reads at ${pixels}px`);readable=true;
         }
         const next=page.locator('.view-controls > button').first();
         if(!await next.isVisible()||!await next.isEnabled())break;
         await next.click();await page.evaluate(()=>new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r()))));
       }
-      assert.equal(readable,true);readableCounts++;cases++;
+      assert.equal(readable,true);readableCounts++;scenarios++;
     }
   }finally{await page.close();}
-  assert.equal(cases,2);assert.equal(stepWidths,32);assert.equal(readableCounts,2);
+  assert.equal(scenarios,2);assert.equal(stepWidths,32);assert.equal(readableCounts,2);
 });

@@ -68,21 +68,21 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
   type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; paper?: string; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
-  type CaseHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
-  type CasePhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
-  let casePhase: CasePhase = { kind: 'loading', scope: new StateScope() };
+  type ScenarioHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
+  type ScenarioPhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
+  let scenarioPhase: ScenarioPhase = { kind: 'loading', scope: new StateScope() };
   const cache = new Map<string, Entry>();
   const currentStep = () => trace.steps[selected]!;
   const stepCount = () => trace.steps.length;
 
-  // The card's header: the title, then the cases it can show, so the choice sits next to what
+  // The card's header: the title, then the scenarios it can show, so the choice sits next to what
   // it changes. The built page's heading is the title, so the live page says what the static one did.
   const title = el('h1', root.querySelector('h1')?.textContent ?? Source.meta?.title ?? '');
   const head = el('header', undefined, 'head');
   head.append(title);
   const choices = new Map<string, HTMLInputElement[]>();
   for (const s of Source.settings ?? []) {
-    const group = el('fieldset', undefined, 'case');
+    const group = el('fieldset', undefined, 'scenario');
     group.append(el('legend', s.label));
     const segments = el('div', undefined, 'segments');
     const inputs = s.options.map((o) => {
@@ -92,10 +92,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       input.name = s.id;
       input.value = o.value;
       input.addEventListener('change', () => {
-        // A scene may start each new case with its opening step; otherwise keep
-        // the current step by name, read when the new case actually arrives.
+        // A scene may start each new scenario with its opening step; otherwise keep
+        // the current step by name, read when the new scenario actually arrives.
         if (input.checked) void load({ ...(wanted ?? values), [s.id]: o.value },
-          Source.meta?.caseNavigation === 'first' ? undefined : () => trace?.steps[selected]?.step, true);
+          Source.meta?.scenarioNavigation === 'first' ? undefined : () => trace?.steps[selected]?.step, true);
       });
       label.append(input, el('span', o.label));
       segments.append(label);
@@ -145,15 +145,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const prev = button(t.previous, 'previous'),
     next = button(t.nextLabel, 'next', { text: t.next, className: 'button primary' });
   next.append(next.querySelector('svg')!); // the arrow follows the word
-  const backToStory = button(t.backToStory, 'previous', {text: t.backToStory});
+  next.querySelector('span')!.dataset.other = t.startAgain; // reserves Start again's width (embed.css)
+  const backToStory = button(t.backToStory, 'previous', {text: t.backToStory, className: 'button back'});
+  backToStory.querySelector('span')!.dataset.short = t.backToStoryShort; // its visible word (embed.css)
+  backToStory.title = t.backToStory; // the full words, as its name says them
   backToStory.hidden = true;
   let lastStory = 0;
-  // At rest on the last step Next is Start again, and a scene with settings offers its next case
+  // At rest on the last step Next is Start again, and a scene with settings offers its next scenario
   // after it: the first setting's next option, keeping the others, from the first step.
   const firstSetting = Source.settings?.[0],
-    tryCase = el('button', undefined, 'button try');
-  tryCase.type = 'button';
-  tryCase.hidden = true;
+    tryScenario = el('button', undefined, 'button try');
+  tryScenario.type = 'button';
+  tryScenario.hidden = true;
   const nextOption = () => {
     const options = firstSetting!.options,
       i = options.findIndex((o) => o.value === values[firstSetting!.id]);
@@ -170,17 +173,19 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         next.title = t.startAgainLabel;
         next.removeAttribute('aria-keyshortcuts');
       } else keyed(next, t.nextLabel, 'ArrowRight', '→');
-      next.querySelector('span')!.textContent = end ? t.startAgain : t.next;
+      const word = next.querySelector('span')!;
+      word.textContent = end ? t.startAgain : t.next;
+      word.dataset.other = end ? t.next : t.startAgain;
       next.querySelector('svg')!.replaceWith(icon(end ? 'restart' : 'next'));
     }
-    tryCase.hidden = !end || !firstSetting;
+    tryScenario.hidden = !end || !firstSetting;
     // On phones Try lives with the secondary tools after the explanation.
-    stepper.classList.toggle('end', !tryCase.hidden);
-    if (tryCase.textContent !== tryLabel) tryCase.textContent = tryLabel;
+    stepper.classList.toggle('end', !tryScenario.hidden);
+    if (tryScenario.textContent !== tryLabel) { tryScenario.textContent = tryLabel; tryScenario.title = tryLabel; }
   }
   /** At rest on the last step: the end of the explanation, not of a step still playing. */
   const atEnd = () => !!trace && !isPlaying() && adjacentStep(trace.steps, selected, 1) === selected;
-  const tryLabel = () => (firstSetting ? t.tryCase(nextOption().label) : '');
+  const tryLabel = () => (firstSetting ? t.tryScenario(nextOption().label) : '');
   const tools = el('div', undefined, 'tools');
   tools.setAttribute('role', 'group');
   tools.setAttribute('aria-label', t.viewTools);
@@ -202,12 +207,12 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const closer = button(t.closeUp, 'closeUp');
   closer.hidden = true;
   tools.append(zoomOut, zoomIn, wholePicture, closer, copy, ...(document.fullscreenEnabled ? [enlarge] : []));
-  // The step bar: one segment per step of the case, between Next and the tools. It shows how
+  // The step bar: one segment per step of the scenario, between Next and the tools. It shows how
   // many steps there are, where the reader is, and the current step filling as it plays; it is
   // a stepper's timeline, never a seek bar.
   const bar = el('ol', undefined, 'step-bar');
   bar.setAttribute('aria-label', t.stepBar);
-  stepper.append(prev, next, ...(firstSetting ? [tryCase] : []), backToStory, bar, tools);
+  stepper.append(prev, next, ...(firstSetting ? [tryScenario] : []), backToStory, bar, tools);
   const notice = el('p', undefined, 'notice');
   notice.setAttribute('role', 'status');
   // Keep navigation outside the picture so controls cannot cover its lettering.
@@ -244,10 +249,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // The step's words, under the controls, so a long caption never moves Next.
   const words = el('div', undefined, 'words');
   words.append(lede, caption, ...(changes ? [changes] : []), ...(checks ? [checks] : []), described);
-  // Measure the tallest heading for the stage cap without reserving empty space in the prose.
+  // Measure the tallest heading and title: the stage cap budgets them and the heading keeps their height.
   const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
-  // The page's transcript holds every case; the player shows the current one, and its links move
+  // And the tallest caption, measured where the caption sits, so its rules and width apply: the
+  // caption keeps that height, so nothing after it moves as captions change length.
+  // Its own class, styled with .caption's text rules in embed.css, so `.caption` still names one element.
+  const captionRuler = el('p', undefined, 'caption-ruler');
+  captionRuler.setAttribute('aria-hidden', 'true');
+  words.append(captionRuler);
+  // The page's transcript holds every scenario; the player shows the current one, and its links move
   // the player. It is a closed row of the card, under the words (and the steps, on a narrow page).
   const transcript = root.querySelector<HTMLDetailsElement>('.transcript')!;
   transcript.open = false;
@@ -285,7 +296,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   wayOut.rel = 'noopener';
   wayOut.append(icon('open'));
   if (window.parent !== window) foot.append(wayOut);
-  // One card: its header (the title and the cases), the picture mounted under it, the stepper
+  // One card: its header (the title and the scenarios), the picture mounted under it, the stepper
   // row, the words, the rows that open under them, then the footer.
   player.append(head, frame, stepper, words, notice, transcript, foot, summary, ledeRuler);
   // A frame the loader sizes to its content has no viewport height to fit: the card takes
@@ -337,13 +348,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const compactTools = matchMedia('(max-width:640px)');
   const placeTools = () => {
     const active = document.activeElement;
-    const focused = active instanceof HTMLElement && (tools.contains(active) || active === tryCase) ? active : undefined;
+    const focused = active instanceof HTMLElement && (tools.contains(active) || active === tryScenario) ? active : undefined;
     if (compactTools.matches) {
       words.append(tools);
-      if (firstSetting) tools.prepend(tryCase);
+      if (firstSetting) tools.prepend(tryScenario);
     } else {
       stepper.append(tools);
-      if (firstSetting) next.after(tryCase);
+      if (firstSetting) next.after(tryScenario);
     }
     focused?.focus({preventScroll:true});
   };
@@ -382,7 +393,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       step = a && new URLSearchParams(a.search).get('step');
     if (!step) return;
     e.preventDefault();
-    if (casePhase.kind === 'ready') void show(casePhase.entry.trace.steps.findIndex((s) => s.step === step));
+    if (scenarioPhase.kind === 'ready') void show(scenarioPhase.entry.trace.steps.findIndex((s) => s.step === step));
   });
   root.replaceChildren(layout);
   // Measured now, before the first step is shown, so the stage has its final size when the first
@@ -428,15 +439,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     drawnNarrow = now;
     if (first) return;
     for (const entry of cache.values()) entry.resting.clear();
-    if (casePhase.kind === 'ready' && !isPlaying()) void redrawResting(casePhase.entry, selected);
+    if (scenarioPhase.kind === 'ready' && !isPlaying()) void redrawResting(scenarioPhase.entry, selected);
   }
   async function redrawResting(at: Entry, index: number) {
     const step = at.trace.steps[index]!,
       scope = playback.scope,
       container = el('div');
     await renderAt(at.Scene, restingTime(step, at.trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow));
-    // Superseded while drawing: a step, case or playback change owns the stage now.
-    if (scope.signal.aborted || playback.scope !== scope || casePhase.kind !== 'ready' || casePhase.entry !== at || selected !== index) return;
+    // Superseded while drawing: a step, scenario or playback change owns the stage now.
+    if (scope.signal.aborted || playback.scope !== scope || scenarioPhase.kind !== 'ready' || scenarioPhase.entry !== at || selected !== index) return;
     at.resting.set(step.step, clones(container.childNodes));
     stage.replaceChildren(...container.childNodes);
     zoom.apply();
@@ -447,17 +458,20 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (box.top < 0 || box.bottom > innerHeight) stage.scrollIntoView({block: 'nearest'});
   };
   let shownLayout: StepLayout | undefined,
-    caseLayouts: Map<string, StepLayout> | undefined,
+    scenarioLayouts: Map<string, StepLayout> | undefined,
     tourSize = '',
     // The close-ups of the step on show, where it opened first; `stop` is the one last visited.
     tour: Zoom[] = [],
+    scenarioTours = false,
     stop = 0;
   function refreshTour() {
     const [w, h] = stageSize(stage), key = `${w} ${h}`;
-    if (!caseLayouts || w <= 0 || h <= 0 || key === tourSize) return;
+    if (!scenarioLayouts || w <= 0 || h <= 0 || key === tourSize) return;
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
     stop = Math.min(stop, tour.length - 1);
+    // Whether any step of this case tours: then a single-view step keeps the row's place.
+    scenarioTours = [...scenarioLayouts.values()].some((layout) => layout === shownLayout ? tour.length > 1 : closeUps(layout, w, h, zoom.max).length > 1);
   }
   // An authored opening can be the whole frame while its later detail stops
   // zoom in. Whole picture opts out of that tour; manually zooming out from a
@@ -471,10 +485,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     player.classList.toggle('narrow', narrow());
     redrawIfNarrowChanged();
     const multiple = tour.length > 1;
+    // A reserved row also keeps the next close-up's slot (embed.css), so Next view never slides.
+    const reserved = narrow() && (multiple || scenarioTours);
     overview.hidden = !on || !multiple;
-    // Next is above this row. A single-view step needs neither controls nor reserved space.
+    // Next is above this row. A single-view step needs no controls; it keeps the row's place,
+    // hidden, when another step of the scenario tours, so stepping between them moves nothing.
     const activeTour = narrow() && multiple;
-    views.hidden = !activeTour;
+    views.hidden = !reserved;
+    views.style.visibility = activeTour ? '' : 'hidden';
     if (touring !== activeTour) {
       touring = activeTour;
       sayHint();
@@ -515,7 +533,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const reader = new ReaderView(stage),
     readerView = (author: string) => reader.view(author);
   /**
-   * A sink's options for a case: its paper as the SVG's background. A narrow stage is taller
+   * A sink's options for a scenario: its paper as the SVG's background. A narrow stage is taller
    * than the picture, so the whole picture, and a close-up near its top or bottom edge, shows
    * past the frame; that margin should read as more paper, not as the engine's dark default.
    */
@@ -546,8 +564,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   };
   wholePicture.onclick = () => whole(true);
   closer.onclick = async () => {
-    if (casePhase.kind === 'loading') return;
-    const scope = playback.scope, at = casePhase.entry;
+    if (scenarioPhase.kind === 'loading') return;
+    const scope = playback.scope, at = scenarioPhase.entry;
     return scope.run(function* () {
       follow = true;
       const target = yield* wait(framing(currentStep(), scope, at));
@@ -576,7 +594,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const mainIndices = () => storyIndices(trace.steps);
   const firstMain = () => mainIndices()[0] ?? 0;
   function isDetail(index: number) {
-    return trace.steps[index]?.meta.detail === true && trace.steps.some(step => step.meta.detail !== true);
+    return trace.steps[index]?.meta.kind === 'detail' && trace.steps.some(step => step.meta.kind !== 'detail');
   }
   function chrome() {
     const step = currentStep(),
@@ -615,11 +633,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Busy while a step plays: the resting picture, and its description, are still to come.
     if (isPlaying()) stage.setAttribute('aria-busy', 'true');
     else stage.removeAttribute('aria-busy');
-    summary.textContent = pictureSummary(step.after);
-    picture.innerHTML = pictureHtml(step.after);
+    summary.textContent = pictureSummary(step.shown);
+    picture.innerHTML = pictureHtml(step.shown);
     described.hidden = !picture.innerHTML;
   }
-  // The steps the reader has reached, by name, across cases. The rail and the step bar name a
+  // The steps the reader has reached, by name, across scenarios. The rail and the step bar name a
   // teaching step only once it is reached (or an earlier step's later one is), so a later title
   // such as "Answer: …" cannot give away a prediction; meta.player.outline names them all.
   const reached = new Set<string>(),
@@ -655,7 +673,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (top < railBody.scrollTop) railBody.scrollTop = top;
     else if (bottom > railBody.scrollTop + railBody.clientHeight) railBody.scrollTop = bottom - railBody.clientHeight;
   }
-  let shownCase = '',
+  let shownScenario = '',
     reservedFor = '';
   /** The lede's words for step `i`: its number of the total, its title, then its line when it has one. */
   function fillLede(kicker: HTMLElement, strong: HTMLElement, span: HTMLElement, i: number, words: { title: string; line: string }) {
@@ -665,7 +683,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     span.textContent = words.line;
     span.hidden = !words.line;
   }
-  // The tallest heading sets the stage cap; the displayed words keep their natural height.
+  // The tallest heading sets the stage cap and the heading's reserved height; the tallest caption the caption's.
   // Recheck when the cap changes the card width, which can wrap the heading again.
   function reserve() {
     for (let pass = 0; pass < 3; pass++) {
@@ -677,9 +695,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   }
   function reserveOnce(): boolean {
     player.classList.toggle('narrow', narrow());
-    if (casePhase.kind==='loading' || !caption.clientWidth) return false;
-    const detail = isDetail(selected);
-    const key = `${caption.clientWidth} ${lede.clientWidth} ${shownCase} ${detail}`;
+    if (scenarioPhase.kind==='loading' || !caption.clientWidth) return false;
+    // Measured over both paths, so moving between the explanation and its details resizes nothing.
+    const key = `${caption.clientWidth} ${lede.clientWidth} ${shownScenario}`;
     if (key === reservedFor) return false;
     reservedFor = key;
     ledeRuler.style.width = `${lede.clientWidth}px`;
@@ -687,15 +705,46 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       strong = el('strong'),
       span = el('span', undefined, 'line');
     ledeRuler.replaceChildren(kicker, strong, span);
-    let tallest = 0;
+    captionRuler.style.width = `${caption.clientWidth}px`;
+    let tallest = 0,
+      tallestTitle = 0,
+      tallestCaption = 0;
     for (const [i, step] of trace.steps.entries()) {
-      if (isDetail(i) !== detail) continue;
-      fillLede(kicker, strong, span, i, stepWords(step));
+      const shown = stepWords(step);
+      fillLede(kicker, strong, span, i, shown);
       tallest = Math.max(tallest, ledeRuler.getBoundingClientRect().height);
+      tallestTitle = Math.max(tallestTitle, strong.getBoundingClientRect().height);
+      captionRuler.textContent = shown.caption;
+      tallestCaption = Math.max(tallestCaption, captionRuler.getBoundingClientRect().height);
     }
     ledeRuler.replaceChildren();
+    captionRuler.textContent = '';
+    root.style.setProperty('--caption-h', `${tallestCaption}px`);
+    // The stage cap budgets the tallest heading, and the heading keeps that height (embed.css),
+    // its title the tallest title's, so stepping never moves the line or the caption.
     root.style.setProperty('--lede-h', `${tallest}px`);
+    root.style.setProperty('--lede-title-h', `${tallestTitle}px`);
+    reserveStepper(trace.steps);
     return true;
+  }
+  /** The stepper row at its widest: Start again, Try beside it when it is in the row, and Back when
+   *  the scenario has details. When the tools do not fit beside that, they take their own line on every
+   *  step; the row keeps that scenario's height, so no step wraps it differently or moves what follows. */
+  function reserveStepper(steps: Trace['steps']) {
+    const saved = { face, tryHidden: tryScenario.hidden, tryText: tryScenario.textContent, backHidden: backToStory.hidden };
+    endControls(true, tryLabel());
+    tryScenario.hidden = tryScenario.parentElement !== stepper || !firstSetting;
+    backToStory.hidden = !steps.some((_, i) => isDetail(i));
+    stepper.removeAttribute('data-stacked');
+    root.style.setProperty('--stepper-h', '0px');
+    const row = next.offsetTop;
+    const wraps = [...stepper.children].some((c) => c instanceof HTMLElement && !c.hidden && c.offsetTop >= row + next.offsetHeight);
+    stepper.toggleAttribute('data-stacked', wraps); // an attribute, so the row's class still names it alone
+    const height = stepper.getBoundingClientRect().height;
+    endControls(saved.face === 'end', saved.tryText ?? '');
+    tryScenario.hidden = saved.tryHidden;
+    backToStory.hidden = saved.backHidden;
+    root.style.setProperty('--stepper-h', `${height}px`);
   }
   // Measuring the heading changes the observed layout. Write in the next
   // frame, outside ResizeObserver delivery (WebKit otherwise reports a loop).
@@ -703,21 +752,22 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   /**
    * The close-up a step opens on: on a narrow stage while close-ups are on, the zoom that
    * frames what the step changed (app/embed-closeup.ts); otherwise null, and the zoom keeps
-   * its place. Layouts are prepared once per case, including on desktop, so a later
+   * its place. Layouts are prepared once per scenario, including on desktop, so a later
    * resize can refresh tour metadata without rerunning the scene or changing zoom.
    */
   function framing(step: Trace['steps'][number], scope: StateScope, at: Entry) {
     return scope.run(function* () {
       shownLayout = undefined;
-      caseLayouts = undefined;
+      scenarioLayouts = undefined;
       tourSize = '';
       tour = [];
+      scenarioTours = false;
       stop = 0;
       at.layouts ??= stepLayouts(at.Scene);
       const layouts = yield* wait(at.layouts);
       const layout = layouts.get(step.step);
-      // A case or step shown while the layouts were worked out owns the overview now.
-      caseLayouts = layouts;
+      // A scenario or step shown while the layouts were worked out owns the overview now.
+      scenarioLayouts = layouts;
       shownLayout = layout;
       refreshTour();
       return narrow() && follow ? tour[0]! : null;
@@ -733,9 +783,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     primeNext(at);
   }
   async function show(index: number, push = true) {
-    if (casePhase.kind === 'loading') return;
+    if (scenarioPhase.kind === 'loading') return;
     if (push) revealStage();
-    const at=casePhase.entry;
+    const at=scenarioPhase.entry;
     const scope = new StateScope();
     leaveStep({ kind: 'resting', scope });
     return scope.run(function* () {
@@ -762,7 +812,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Forward the way the author wrote it: play the step, then rest on its last frame. */
   async function advance() {
-    if (casePhase.kind === 'loading') return;
+    if (scenarioPhase.kind === 'loading') return;
     const target = adjacentStep(trace.steps, selected, 1);
     if (target === selected) return;
     revealStage();
@@ -897,10 +947,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     });
   }
   async function animate(force = false) {
-    if (casePhase.kind === 'loading') return;
+    if (scenarioPhase.kind === 'loading') return;
     if (isPlaying() && !force) return show(selected, false);
     if (reduced()) { notice.textContent = t.reducedMotion; return show(selected, false); }
-    const at = casePhase.entry, step = currentStep(), previous = playback;
+    const at = scenarioPhase.entry, step = currentStep(), previous = playback;
     const available = 'run' in previous ? previous.run : undefined;
     const followed = available?.at === at && available.index() === selected - 1 && available.follow();
     const run = followed ? available! : previous.kind === 'primed' && available?.at === at && available.index() === selected ? available : prepare(at, selected);
@@ -919,16 +969,16 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     });
   }
   /**
-   * Show a case. Until its trace is ready the player keeps showing (and linking to) the
-   * case it has, so navigation meanwhile stays consistent; a newer load supersedes this one.
+   * Show a scenario. Until its trace is ready the player keeps showing (and linking to) the
+   * scenario it has, so navigation meanwhile stays consistent; a newer load supersedes this one.
    * `step` may be a function, captured before loading freezes child navigation.
    */
   async function load(request: Settings, step?: string | (() => string | undefined), push = false) {
-    if (casePhase.kind === 'loading') casePhase.scope.abort();
+    if (scenarioPhase.kind === 'loading') scenarioPhase.scope.abort();
     const scope = new StateScope();
-    const history: CaseHistory = typeof step === 'function' ? {kind:'keep-step',name:step()} :
+    const history: ScenarioHistory = typeof step === 'function' ? {kind:'keep-step',name:step()} :
       step ? {kind:'step',name:step} : {kind:'first'};
-    casePhase = { kind: 'loading', scope };
+    scenarioPhase = { kind: 'loading', scope };
     leaveStep({ kind: 'cancelled', scope: playback.scope });
     return scope.run(function* () {
       root.classList.add('loading');
@@ -951,13 +1001,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         cache.set(key, entry);
       }
       const name = history.kind === 'first' ? undefined : history.name;
-      casePhase = { kind: 'ready',entry };
-      // Zoom keeps its place across steps, including Back and Forward within a case.
+      scenarioPhase = { kind: 'ready',entry };
+      // Zoom keeps its place across steps, including Back and Forward within a scenario.
       const changed = !values || JSON.stringify(values) !== key;
       values = next;
       wanted = undefined;
       trace = entry.trace;
-      // Apply this case's validated cues, clearing any cue inherited from the previous case.
+      // Apply this scenario's validated cues, clearing any cue inherited from the previous scenario.
       for (const [property, value] of Object.entries(playerProperties(Source.meta?.player, entry.palette)))
         document.documentElement.style.setProperty(property, value);
       if (changed) {
@@ -966,7 +1016,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         detailDisclosure.open = false;
       }
       selected = name ? trace.steps.findIndex((s) => s.step === name) : firstMain();
-      // A previous case's fallback must not describe the restored case; both of this one's show.
+      // A previous scenario's fallback must not describe the restored scenario; both of this one's show.
       const notices = fallback ? [fallback] : [];
       if (selected < 0) {
         selected = firstMain();
@@ -986,6 +1036,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       detailSteps.replaceChildren(...buttons.filter((_, i) => isDetail(i)));
       detailDisclosure.hidden = !detailSteps.childElementCount;
       railSummary.textContent = t.allSteps(mainIndices().length);
+      bar.style.setProperty('--segments', String(mainIndices().length)); // its least width (embed.css)
       bar.replaceChildren(...mainIndices().map((i, ordinal, all) => {
         const step = trace.steps[i]!, li = el('li'), b = el('button'), label = stepWords(step).title;
         b.type = 'button'; b.dataset.step = step.step; b.dataset.index = String(i); b.title = label;
@@ -996,21 +1047,21 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         li.append(b); return li;
       }));
       const shown = new URLSearchParams(values).toString();
-      for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.case !== shown;
-      shownCase = shown;
+      for (const section of transcript.querySelectorAll<HTMLElement>('section')) section.hidden = section.dataset.scenario !== shown;
+      shownScenario = shown;
       reserve();
       yield* wait(show(selected, push));
     });
   }
   for (const type of ['click', 'wheel', 'dblclick', 'pointerdown', 'pointermove']) root.addEventListener(type, event => {
     if (type === 'wheel' && !(event as WheelEvent).ctrlKey) return;
-    if (casePhase.kind === 'loading' && (event.target as Element).closest('.stage,button')) {
+    if (scenarioPhase.kind === 'loading' && (event.target as Element).closest('.stage,button')) {
       event.preventDefault();
       event.stopImmediatePropagation();
     }
   }, {capture:true,passive:false});
   const previous = () => {
-    if (casePhase.kind === 'loading') return;
+    if (scenarioPhase.kind === 'loading') return;
     const target = adjacentStep(trace.steps, selected, -1);
     if (target !== selected) void show(target);
   };
@@ -1018,18 +1069,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   backToStory.onclick = () => void show(lastStory);
   // On the last step Next rests the step while it plays, and at rest starts again from step 1.
   next.onclick = () => {
-    if (casePhase.kind==='ready' && adjacentStep(trace.steps, selected, 1) === selected) void (isPlaying() ? animate() : show(firstMain()));
+    if (scenarioPhase.kind==='ready' && adjacentStep(trace.steps, selected, 1) === selected) void (isPlaying() ? animate() : show(firstMain()));
     else void advance();
   };
-  tryCase.onclick = () => {
-    // The button goes once the new case shows its first step; Next keeps the focus.
+  tryScenario.onclick = () => {
+    // The button goes once the new scenario shows its first step; Next keeps the focus.
     next.focus();
     void load({ ...values, [firstSetting!.id]: nextOption().value }, undefined, true);
   };
   // Inside the step bar, arrows move a step and Home and End go to the ends; focus follows the
   // current segment (a roving Tab stop). The root's arrows skip buttons, so the bar has its own.
   bar.addEventListener('keydown', (e) => {
-    if (casePhase.kind==='loading') return;
+    if (scenarioPhase.kind==='loading') return;
     const first = firstMain(), last = mainIndices().at(-1)!;
     const keys: Record<string, () => unknown> = {
       ArrowRight: () => advance(),
@@ -1059,11 +1110,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     zoom.apply();
   });
   // A page `site:export --origin` published names <origin><path>/<id>/ here: each step of the
-  // default case with a path-safe name has a share page there, whose link preview is that step.
+  // default scenario with a path-safe name has a share page there, whose link preview is that step.
   const shared = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_META}"]`)?.content;
   const sharedSteps = document.querySelector<HTMLMetaElement>(`meta[name="${SHARE_STEPS_META}"]`)?.content.split(/\s+/);
   copy.onclick = async () => {
-    if (casePhase.kind==='loading') return;
+    if (scenarioPhase.kind==='loading') return;
     const url = urlFor();
     url.searchParams.delete('parentOrigin');
     const step = currentStep().step,
@@ -1076,7 +1127,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
   };
   const onKey = (e: KeyboardEvent) => {
-    if (casePhase.kind === 'loading') return;
+    if (scenarioPhase.kind === 'loading') return;
     const tag = (e.target as HTMLElement).tagName;
     if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SUMMARY'].includes(tag) || e.ctrlKey || e.metaKey) return;
     // Zoom keys act only on the focused stage, so they never take a key from the page; once
@@ -1120,7 +1171,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   };
   // A host page drives the player through the loader (specs/player-guidance.md G4): a step by name
   // and settings by id, validated as the URL's are (an undeclared id is ignored, as in a URL; an
-  // unknown value falls back with the same notice). Given settings replace those of the case on
+  // unknown value falls back with the same notice). Given settings replace those of the scenario on
   // show; a request without a step keeps the step by name. It replaces the frame's history entry.
   const toHost = connectHost((request) => {
     const given: Record<string, string> = {};

@@ -1,9 +1,9 @@
 import { Scene, Group, Rectangle, Circle } from '../../../src/index.ts';
-import { settingsOf } from '../../../explain/index.ts';
+import { settingsOf, stage } from '../../../explain/index.ts';
 import type { AudioClip, Stage } from '../../../explain/index.ts';
 import { musicStory, NOTE_NAMES } from '../lib/melody-rhythm.ts';
 import type { Timing } from '../lib/melody-rhythm.ts';
-import { lesson, label, segment } from '../lib/lesson-drawing.ts';
+import { label, segment } from '../lib/lesson-drawing.ts';
 
 interface Look {
   /** No beat lines, beat numbers or bar labels: the opening, before the pulse is counted. */
@@ -220,8 +220,7 @@ export default class MelodyRhythm extends Scene {
         },
       },
     ];
-    await lesson(
-      this,
+    await stage(this, { style: 'nord', headingSize: 0.6 }).steps(
       steps.map(({ clips, look, ...step }) => ({
         ...step,
         state: {
@@ -234,9 +233,8 @@ export default class MelodyRhythm extends Scene {
           crossing: clips[1]!.notes.filter((n) => n.at < 4 && n.at + n.duration > 4),
         },
         audio: { clips },
-        draw: (s: Stage) => scorePicture(s, clips, look),
+        draw: (_: unknown, s: Stage) => scorePicture(s, clips, look),
       })),
-      'nord',
     );
   }
 }

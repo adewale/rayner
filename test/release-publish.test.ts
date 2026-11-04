@@ -44,7 +44,7 @@ async function attempt({env = {}, change = (m: Record<string, unknown>) => {}, c
 }
 
 test('publication refuses invalid context, unvalidated bytes and existing versions before external writes', async () => {
-  const cases = [
+  const scenarios = [
     {env: {GITHUB_ACTIONS: 'false'}}, {env: {GITHUB_REPOSITORY: 'someone/else'}},
     {env: {GITHUB_REF: 'refs/heads/main'}}, {env: {GITHUB_SHA: 'b'.repeat(40)}},
     {env: {NPM_DIST_TAG: 'unexpected'}}, {change: (m: Record<string, unknown>) => {m.dirty = true;}},
@@ -55,7 +55,7 @@ test('publication refuses invalid context, unvalidated bytes and existing versio
     {corrupt: true}, {mode: 'exists'}, {mode: 'registry-fails'},
     {undated: true}, {staleReport: true},
   ];
-  for (const input of cases) {
+  for (const input of scenarios) {
     const result = await attempt(input);
     assert.notEqual(result.code, 0, JSON.stringify(input));
     assert.match(result.stderr, /AssertionError/, 'the documented gate must refuse, not an unrelated process or setup error');

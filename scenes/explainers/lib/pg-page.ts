@@ -177,7 +177,7 @@ export function share(t: Tuple, p: Page): Share {
 export const total = (s: Share) => s.data + s.headers + s.padding + s.pointers + s.pageHeader + s.reserved + s.free;
 
 /** Everything the scene says about one column type at one fillfactor. */
-export interface Case {
+export interface Scenario {
   column: Column;
   label: string;
   fillfactor: number;
@@ -187,7 +187,7 @@ export interface Case {
   /** Pages for 10 000 rows: every page full but the last. */
   pagesFor10000: number;
 }
-export function caseOf(column: Column, fillfactor: number): Case {
+export function scenarioOf(column: Column, fillfactor: number): Scenario {
   const t = tuple(COLUMNS[column].attrs),
     p = fill(t.stored, fillfactor);
   return { column, label: COLUMNS[column].label, fillfactor, tuple: t, page: p, share: share(t, p), pagesFor10000: Math.ceil(10000 / p.rows) };

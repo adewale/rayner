@@ -16,7 +16,7 @@ import {
 } from '../../../scenes/explainers/lib/isdigit.ts';
 import type { CharId, Predicate } from '../../../scenes/explainers/lib/isdigit.ts';
 
-/** Every case's step state equals the model's answers for its character and its check. */
+/** Every scenario's step state equals the model's answers for its character and its check. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const c = CHARS[values.char as CharId],
     guard = values.guard as Predicate;

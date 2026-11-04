@@ -426,7 +426,7 @@ export default class GitExplainer extends Scene {
     const inPlace = { tree: samePlace(t1, t2), commit: samePlace(c1, c2) },
       kept = inPlace.tree + inPlace.commit;
     await this.step('hashes', {
-      detail: true,
+      kind: 'detail',
       title: 'Commit two’s bytes hold its tree’s and parent’s ids',
       line: `${kept} of 80 digits match in place, about the ${80 / 16} chance gives.`,
       caption: `The tree and parent ids are part of the commit’s bytes, and a tree’s bytes hold its blobs’ ids in turn, so a change to any file below changes the commit’s id even when most of its text stays the same. The new ids share digits with the old ones about as often as random digits would, so the matches say nothing about how similar the files are.`,

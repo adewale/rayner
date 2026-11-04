@@ -1,5 +1,5 @@
 // Share pages (tools/lib/explain-share.ts, written by `site:export --origin`): one static page per
-// step of the default case, at <path>/<id>/<step>, whose link preview is that step. The exported
+// step of the default scenario, at <path>/<id>/<step>, whose link preview is that step. The exported
 // player carries SHARE_META, whose content is <origin><path>/<id>/, so Copy link can give that URL.
 
 /** Where the footer's mark of the maker goes: the project's home (also `PRODUCT.home`). */

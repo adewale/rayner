@@ -17,7 +17,7 @@ import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { loadFont } from '../../vendor/glyph.js';
 import type { Font } from '../../vendor/glyph.js';
 import { typeset } from '../../vendor/glyph-math.js';
-import { collectProject, defaultVariant, ROOT } from '../../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { checkProject } from '../../tools/lib/explain-check.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
@@ -44,7 +44,7 @@ const fontOf = async (bytes: Uint8Array): Promise<Font> => {
   return (r as { value: Font }).value;
 };
 // The fixture scene's source, with one formula swapped, in a folder of its own
-async function variant(from: string, to: string, withSnapshot: boolean): Promise<string> {
+async function scenario(from: string, to: string, withSnapshot: boolean): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'lettering-math-'));
   const source = await readFile(join(fixture, 'scene.ts'), 'utf8');
   assert.ok(source.includes(from), from);
@@ -107,14 +107,14 @@ test('capture fails the build on unsupported TeX and names the error', { skip: n
     ['\\\\color{red}{x}', /UnknownCommand.*color/],
     ['\\\\mathcal{a}', /MissingGlyph/],
   ] as const) {
-    const dir = await variant('"\\\\frac{1}{2}+x^2"', `"${tex}"`, false);
+    const dir = await scenario('"\\\\frac{1}{2}+x^2"', `"${tex}"`, false);
     try { await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), error); }
     finally { await rm(dir, { recursive: true, force: true }); }
   }
 });
 
 test('a formula changed without refreshing the snapshot fails before anything is drawn', async () => {
-  const dir = await variant('"\\\\frac{1}{2}+x^2"', '"\\\\frac{1}{3}+x^2"', true);
+  const dir = await scenario('"\\\\frac{1}{2}+x^2"', '"\\\\frac{1}{3}+x^2"', true);
   try {
     await assert.rejects(collectProject(dir, { write: false }), /stale lettering snapshot/);
     assert.throws(() => snapshotProvider(snapshot).math('\\frac{1}{3}+x^2', 1, false), /no run/);
@@ -191,7 +191,7 @@ test('the page draws the same maths paths as Node at every step', { skip: !proce
   const server = await serve(folder, 0, 'math.html');
   const browser = await launch();
   try {
-    const v = defaultVariant(project, {});
+    const v = defaultScenario(project, {});
     assert.equal(v.trace.steps.length, 4);
     for (const step of v.trace.steps) {
       // The step's resting picture as the build draws it in Node, as the player's DomSink writes it

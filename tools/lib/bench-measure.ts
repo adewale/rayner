@@ -159,7 +159,13 @@ export async function measure(
       gap: longestGap(r.frames, next, rested),
       jump: jumped - jump,
       blocking: blocking(r.tasks, next, rested) + blocking(r.tasks, jump, jumped),
-      shift: r.shifts.filter(([t]) => t >= r.ready).reduce((s, [, v]) => s + v, 0),
+      // Opening a disclosure inserts the content the reader asked for, so what lies below it moves;
+      // the project's own tests treat that as deliberate. A shift that begins after the first such
+      // click and before the jump's own click cannot come from stepping, so it is left out. Every
+      // other shift counts, including one just after a step click, which CLS would excuse.
+      shift: r.shifts
+        .filter(([t]) => t >= r.ready && !(disclosureClicks && t >= r.clicks[1]! && t < r.clicks.at(-1)!))
+        .reduce((s, [, v]) => s + v, 0),
     };
     for (const [key, value] of Object.entries(sample))
       if (!Number.isFinite(value) || value < 0) throw new Error(url + ': invalid measured ' + key);

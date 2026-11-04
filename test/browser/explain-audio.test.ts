@@ -157,9 +157,9 @@ test('audio: resume completion cannot restart sound after microtask Stop, Next o
   });
 });
 
-test('audio, motion on: scheduled resumes and reader actions never sound a departed step or case',options,async()=>{
+test('audio, motion on: scheduled resumes and reader actions never sound a departed step or scenario',options,async()=>{
   await fc.assert(fc.asyncProperty(
-    fc.array(fc.record({action:fc.constantFrom('play','stop','next','previous','case','pulse'),release:fc.boolean()}),{minLength:1,maxLength:16}),
+    fc.array(fc.record({action:fc.constantFrom('play','stop','next','previous','scenario','pulse'),release:fc.boolean()}),{minLength:1,maxLength:16}),
     fc.scheduler(),async(actions,scheduler)=>{
       const page=await browser.newPage({reducedMotion:'no-preference'});
       try {
@@ -185,7 +185,7 @@ test('audio, motion on: scheduled resumes and reader actions never sound a depar
         await page.goto(server.url+'/melody-rhythm.html');await ready(page);
         await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
         await scheduler.waitFor(page.waitForFunction(()=>document.querySelector<HTMLElement>('.score-audio')?.dataset.playing==='true'));
-        for(const {action,release} of [{action:'case',release:false},{action:'play',release:false},{action:'next',release:true},...actions]) {
+        for(const {action,release} of [{action:'scenario',release:false},{action:'play',release:false},{action:'next',release:true},...actions]) {
           const playing=await page.evaluate(action=>{
             const click=(selector:string|HTMLButtonElement|undefined)=>{
               const b=typeof selector==='string'?document.querySelector<HTMLButtonElement>(selector):selector;
@@ -195,11 +195,11 @@ test('audio, motion on: scheduled resumes and reader actions never sound a depar
             if(action==='stop') click(Array.from(document.querySelectorAll<HTMLButtonElement>('.score-audio button')).find(b=>b.textContent==='Stop'));
             if(action==='next') click('.stepper button[aria-label="Next step"]');
             if(action==='previous') click('.stepper button[aria-label="Previous step"]');
-            if(action==='case') click('.case input:not(:checked)');
+            if(action==='scenario') click('.scenario input:not(:checked)');
             if(action==='pulse') click('.score-audio input');
             return document.querySelector<HTMLElement>('.score-audio')?.dataset.playing;
           },action);
-          if(action==='case') assert.equal(playing,'false','case changes stop sound before loading');
+          if(action==='scenario') assert.equal(playing,'false','scenario changes stop sound before loading');
           if(release&&scheduler.count()) await scheduler.waitOne();
           await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
           assert.equal(await page.evaluate(()=>(window as any).owners?.some((o:any)=>o.live&&o.owner!==location.search+'|'+(window as any).__audioEpoch)??false),false,action);

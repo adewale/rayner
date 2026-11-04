@@ -104,17 +104,17 @@ async function main() {
     assert.ok(path === manifestPath || pins.has(path), `unlisted local collection file: ${path}`);
   }
   assert.ok(pins.has('/_headers') && pins.has(prefix + '/catalog.json') && pins.has(prefix + '/loader.js'), 'manifest must include headers, catalog and loader');
-  const catalog = JSON.parse(await readFile(join(root, prefix, 'catalog.json'), 'utf8')) as {version: number; totals: {explainers: number; cases: number}; scenes: {id: string; cases: number}[]};
+  const catalog = JSON.parse(await readFile(join(root, prefix, 'catalog.json'), 'utf8')) as {version: number; totals: {explainers: number; scenarios: number}; scenes: {id: string; scenarios: number}[]};
   assert.ok(catalog.version === 1 && Array.isArray(catalog.scenes) && catalog.scenes.length, 'invalid catalog');
   const ids = new Set<string>();
   for (const scene of catalog.scenes) {
     assert.match(scene.id, /^[a-z0-9-]+$/, 'invalid catalog id');
-    assert.ok(!ids.has(scene.id) && Number.isSafeInteger(scene.cases) && scene.cases > 0, 'duplicate catalog id or invalid case count');
+    assert.ok(!ids.has(scene.id) && Number.isSafeInteger(scene.scenarios) && scene.scenarios > 0, 'duplicate catalog id or invalid scenario count');
     assert.ok(pins.has(`${prefix}/${scene.id}.html`), `missing reviewed reader: ${scene.id}`);
     ids.add(scene.id);
   }
   assert.equal(catalog.totals.explainers, ids.size, 'catalog explainer count differs');
-  assert.equal(catalog.totals.cases, catalog.scenes.reduce((n, scene) => n + scene.cases, 0), 'catalog case count differs');
+  assert.equal(catalog.totals.scenarios, catalog.scenes.reduce((n, scene) => n + scene.scenarios, 0), 'catalog scenario count differs');
   const rules = exactHeaders(await readFile(join(root, '_headers'), 'utf8'));
   const expectedHeaders = new Map<string, Map<string, string>>();
   for (const id of ids) for (const path of [`${prefix}/${id}.html`, ...(values['clean-urls'] ? [`${prefix}/${id}`] : [])]) {

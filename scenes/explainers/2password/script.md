@@ -8,6 +8,6 @@ The agent still needs to find the right item, and 2password’s find command com
 
 Finding by title separates choosing an item from using its secret. The wrapper obtains the selected item information, drops field values while decoding the reply, and returns references. In the shown search, two op calls provide the titles and the selected items. The agent gets names it can pass onward rather than the credentials themselves.
 
-The run command passes API_KEY’s reference to op, which starts the app with the resolved value in its environment. In the service-account case, the wrapper also removes OP_SERVICE_ACCOUNT_TOKEN from the app’s environment. The app needs its API key; it does not need the token used to obtain that key.
+The run command passes API_KEY’s reference to op, which starts the app with the resolved value in its environment. In the service-account scenario, the wrapper also removes OP_SERVICE_ACCOUNT_TOKEN from the app’s environment. The app needs its API key; it does not need the token used to obtain that key.
 
 This boundary reduces what must enter the agent’s conversation. It does not make the app unable to disclose a secret: an app can print its environment or send a value elsewhere. The distinction is between handing a credential to the process that uses it and exposing it to the agent as part of choosing and launching that process.

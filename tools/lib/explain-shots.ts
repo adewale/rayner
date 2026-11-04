@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
 import { Scene, Text, NullSink, SnapshotSink, renderAt } from '../../src/index.ts';
 import { rasterize, band } from './explain-raster.ts';
-import { defaultVariant } from './explain-project.ts';
+import { defaultScenario } from './explain-project.ts';
 import { restingTime, stepWords } from '../../explain/trace.ts';
 import type { Project } from './explain-project.ts';
 import { CARD } from './explain-share.ts';
@@ -61,7 +61,7 @@ export async function cardPng(Source: Project['Scene'], time: number): Promise<B
 export async function contactSheet(
   project: Project,
   out: string,
-  v: Project['variants'][number] = defaultVariant(project),
+  v: Project['scenarios'][number] = defaultScenario(project),
 ): Promise<string> {
   await useProjectLettering(project);
   const

@@ -47,6 +47,17 @@ try {
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, version);
   for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'explain/audio.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'tools/lib/lettering.ts', 'vendor/glyph-math.js', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(installed, file)), `archive is missing ${file}`);
+  // Public-API extension recipes must work from the installed archive too.
+  await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
+  const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
+  assert.equal(recipeTrace.steps.find((s: {step: string}) => s.step === 'result').after.destination, 'cache');
+  assert.match(await readFile(join(folder, 'recipe-output/continuous.txt'), 'utf8'), /1\.57/);
+  const choreographyTrace = JSON.parse(await readFile(join(folder, 'recipe-output/choreography.trace.json'), 'utf8'));
+  assert.equal(choreographyTrace.steps.at(-1).after.count, 9);
+  assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
+  // The drawing kit resolves from the installed archive as rayner/drawing.
+  const kit = await run(process.execPath, ['--input-type=module', '-e', "const k = await import('rayner/drawing'); console.log(Object.keys(k).sort().join(','))"], { cwd: folder });
+  assert.equal(kit.stdout.trim(), 'bars,dot,flow,keyed,label,segment,stat,table,tile');
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
@@ -129,7 +140,7 @@ try {
   await writeFile(join(folder, 'first/scene.ts'), native);
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // `see` reads a step from the terminal with no browser installed.
-  const seen = await run(process.execPath, [cli, 'see', 'first', 'one', '--case', 'case=b'], { cwd: folder });
+  const seen = await run(process.execPath, [cli, 'see', 'first', 'one', '--scenario', 'case=b'], { cwd: folder });
   assert.match(seen.stdout, /^outside · step 1 of 1: one · Case: B$/m);
   await run(process.execPath, [cli, 'build', 'first', '--out', 'public/outside.html'], { cwd: folder });
   const html = await readFile(join(folder, 'public/outside.html'), 'utf8');
@@ -137,10 +148,10 @@ try {
   assert.match(html, /id="licenses"/);
   assert.ok(!html.includes('node_modules/agentic-mermaid'));
   if (process.env.EXPLAIN_BROWSER) {
-    await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 1, claims: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
+    await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 2, subjects: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
     await run(bin, ['review', 'first', '--out', 'review'], { cwd: folder });
     const reviewed = JSON.parse(await readFile(join(folder, 'review/review.json'), 'utf8'));
-    assert.equal(reviewed.cases, 2);
+    assert.equal(reviewed.scenarios, 2);
     assert.equal(reviewed.stepWidths, 4);
     assert.deepEqual(reviewed.consoleErrors, []);
     assert.equal(reviewed.artifactHash, JSON.parse(await readFile(join(folder, 'public/outside.html.receipt.json'), 'utf8')).artifactHash, 'review checks the same page that build publishes');
@@ -305,13 +316,13 @@ try {
   );
   // The stage adds the paper, the heading's band and the heading.
   assert.equal(result.stdout.trim(), '3');
-  // describeExplainer from the installed package: the outside author's scene, both cases.
+  // describeExplainer from the installed package: the outside author's scene, both scenarios.
   const described = await run(
     process.execPath,
     [
       '--input-type=module',
       '-e',
-      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.cases.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
+      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
     ],
     { cwd: folder },
   );

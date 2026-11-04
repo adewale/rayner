@@ -1,12 +1,12 @@
 import { Group } from '../../../../src/index.ts';
 import { find, run } from '../2password.ts';
 import { flow, label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /** The script's answer, stated by the second step. */
 export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';
 
-export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
+export function frames(auth: 'desktop' | 'service'): StagedStep[] {
   const found = find(['cloud api']),
     ref = found.matches[0]!.ref,
     launched = run(auth, { API_KEY: ref }, ['app']);
@@ -17,8 +17,8 @@ export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
       line: 'Predict: what could the agent pass along instead of the key?',
       caption:
         'The app needs API_KEY in its environment. Printing that value for the agent would also put it into the conversation, though the agent’s job is to choose the credential and start the app, not to read it. What can name the credential without exposing its value?',
-      values: { needs: 'API_KEY', agentHasValue: false },
-      draw: (s) =>
+      state: { needs: 'API_KEY', agentHasValue: false },
+      draw: (_, s) =>
         new Group(
           flow(s, ['Agent', '?', 'Application']),
           // As large as the tiles' names and no wider than the tiles, so a phone opens on all of it.
@@ -32,8 +32,8 @@ export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
       title: 'Answer: hand over a reference, and let op swap in the value',
       line: `The agent passes ${ref}; op gives its value to the app.`,
       caption: `${ANSWER}. The reference names a vault, item and field without containing the key. Authenticated op resolves that name when it starts the app. This keeps the value out of the launch request, but the app can still read or print its own environment.`,
-      values: { ref, agentHasValue: false, childHasValue: !!launched.childEnv.API_KEY },
-      draw: (s) =>
+      state: { ref, agentHasValue: false, childHasValue: !!launched.childEnv.API_KEY },
+      draw: (_, s) =>
         new Group(
           flow(s, ['Agent', 'op CLI', 'Application']),
           label('op:// reference', -2.6, 2.25, s.emphasis, 0.65),

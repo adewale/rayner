@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 import { CRITERIA, LEVELS, PRINCIPLES, VERSIONS, change, criteria, opened, tally, totals } from '../../../scenes/explainers/lib/wcag-map.ts';
 import type { Level, Version } from '../../../scenes/explainers/lib/wcag-map.ts';
 
-/** Every case's step state equals the model's counts for its level and the guideline it opens. */
+/** Every scenario's step state equals the model's counts for its level and the guideline it opens. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const level = values.level as Level,
     open = values.guideline!;
   if (!LEVELS.includes(level)) throw new Error(`Unknown level ${level}`);
   // The reading path's version picture: the same level's totals in each version, and what 2.1 and 2.2 changed.
-  const versions = trace.steps.find((s) => s.step === 'reader-versions')?.after?.reader as
+  const versions = trace.steps.find((s) => s.step === 'reader-versions')?.after as
     | ({ columns: string[]; rows: Record<Version, string[]> } & Record<string, unknown>)
     | undefined;
   assert.ok(versions, 'No completed step: reader-versions');

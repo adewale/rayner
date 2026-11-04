@@ -1,7 +1,7 @@
 import { Group, Text, Line, Rectangle, shaperFor } from '../../../../src/index.ts';
 import type { FontName } from '../../../../src/index.ts';
 import { label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 const word = 'Hello, outlines',
   size = 0.9;
 const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
@@ -9,7 +9,7 @@ const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
 const advanceOf = (f: FontName, ch: string) => shaperFor(f)(ch, size).width;
 
 /** The opening question, and the two l's that set up the shape-matching prediction. */
-export function frames(font: FontName): ReaderFrame[] {
+export function frames(font: FontName): StagedStep[] {
   const other: FontName = font === 'sans' ? 'mono' : 'sans';
   const widths = [font, other].map((f) => shaperFor(f)(word, size).width);
   const w = Object.fromEntries([font, other].map((f, i) => [f, widths[i]!])) as Record<FontName, number>;
@@ -20,8 +20,8 @@ export function frames(font: FontName): ReaderFrame[] {
       title: `Same words, same size: ${w.sans.toFixed(2)} or ${w.mono.toFixed(2)} units wide`,
       line: `Which letters make up the ${Math.abs(w.mono - w.sans).toFixed(2)}-unit difference?`,
       caption: `At size ${size}, “${word}” is ${widths[0]!.toFixed(2)} units wide in ${name(font)} and ${widths[1]!.toFixed(2)} in ${name(other)}. The same characters start from the same left edge at the same size. The rulers disagree because the fonts assign different spacing. Which letters account for most of the difference?`,
-      values: { font, other, word, widths },
-      draw: (s) => {
+      state: { font, other, word, widths },
+      draw: (_, s) => {
         const g = new Group();
         [font, other].forEach((f, i) => {
           const y = 1.5 - i * 3,
@@ -43,8 +43,8 @@ export function frames(font: FontName): ReaderFrame[] {
       title: 'To fill its wider cell, JetBrains Mono draws a different l',
       line: 'Will shape matching pair any Inter glyph with a JetBrains Mono one?',
       caption: `The dashed boxes mark the l’s advances. JetBrains Mono gives it more room and draws a flag and a foot; Inter uses a simpler stem. The character is the same, but its path has changed. A shape matcher ignores position and size, so the outlines themselves must supply the correspondence.`,
-      values: { font, other, l },
-      draw: (s) => {
+      state: { font, other, l },
+      draw: (_, s) => {
         const big = 3.4,
           g = new Group();
         [font, other].forEach((f, i) => {

@@ -2,7 +2,7 @@
 // test/explain-exgit.test.ts replays each change with the Git CLI and compares the objects it writes.
 import { Repo, AUTHOR, parseTree } from '../lib/git.ts';
 
-/** add and edit are the scene's cases; rename and copy are its check questions. */
+/** add and edit are the scene's scenarios; rename and copy are its check questions. */
 export type Change = 'add' | 'edit' | 'rename' | 'copy';
 
 /** A commit's stored text, one line per row. */

@@ -96,7 +96,7 @@ export function letteringReport(l: Lettering) {
 }
 
 /**
- * Work out an explainer's lettering. `draw` runs every case once and shapes
+ * Work out an explainer's lettering. `draw` runs every scenario once and shapes
  * other build-time text drawn as outlines,
  * with the whole source faces in place; what each face drew, in the requested
  * scripts, is what its cut holds. Letters outside the request are left out, so

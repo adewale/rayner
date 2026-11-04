@@ -5,7 +5,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { SINGLES, WRAPS, build, nameOf, isSend, isSync, threads } from '../../../scenes/explainers/lib/send-sync.ts';
 import type { Inner, Wrapper } from '../../../scenes/explainers/lib/send-sync.ts';
 
-/** Every case's step state equals the evaluator's answers for its wrapper and inner type. */
+/** Every scenario's step state equals the evaluator's answers for its wrapper and inner type. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const wrapper = values.wrapper as Wrapper,
     inner = values.inner as Inner;
@@ -20,14 +20,14 @@ export function check(trace: Trace, values: Record<string, string>): void {
   ] as const)
     assertStepState(trace, step, { shown: name });
   const layers = build(wrapper, inner);
-  // The opening is the same refused program in every case: x is an Arc<Cell<i32>>, and its
+  // The opening is the same refused program in every scenario: x is an Arc<Cell<i32>>, and its
   // answer step shows the point that wrapping Cell<i32> in Arc moves to Neither.
   assertStepState(trace, 'spawn', { opening: threads('arc', 'cell') });
   assertStepState(trace, 'arc-cell', { opened: build('arc', 'cell')[1] });
   // The input type's two answers are said on its point where it is placed (once, among the
   // single types), and the built type's on its point in the last wrapper step.
   const said = (step: string, send: boolean, sync: boolean) => {
-    const text = pictureHtml(trace.steps.find((s) => s.step === step)!.after);
+    const text = pictureHtml(trace.steps.find((s) => s.step === step)!.shown);
     assert.ok(text.includes(`Send: ${send ? 'yes' : 'no'}, Sync: ${sync ? 'yes' : 'no'}`), `${step}: ${text}`);
   };
   said(({ i32: 'i32', cell: 'cell', rc: 'rc' } as const)[inner], layers[0]!.send, layers[0]!.sync);

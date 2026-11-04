@@ -304,7 +304,7 @@ test('blob ids are SHA-1 of the typed bytes, across the hash\'s padding boundari
     assert.equal(new Repo().blob(content), expected, JSON.stringify(content));
   }
 });
-test('both git cases hash the exact typed bytes used by the Git CLI', () => {
+test('both git scenarios hash the exact typed bytes used by the Git CLI', () => {
   for (const change of ['add', 'edit']) {
     const repo = new Repo(),
       hello = repo.blob('hello\n'),
@@ -384,7 +384,7 @@ test('2password run strips the service token only when op holds one', () => {
 
 // Picture side of the fidelity pattern for state-machine and ring-buffer: each View of scene.state
 // (state-machine's Session card; ring-buffer's readout, card values and waiting push argument)
-// shows, at the end of every step of every case, exactly what that step's traced state renders.
+// shows, at the end of every step of every scenario, exactly what that step's traced state renders.
 // Imports are aliased so that blocks like this one can sit side by side in this file.
 import { collectProject as collectViewProject } from '../tools/lib/explain-project.ts';
 import { assertViewFollowsState as viewFollowsState } from './lib/view-fidelity.ts';
@@ -392,23 +392,23 @@ import { loadFonts as loadViewFonts } from '../src/index.ts';
 import type { Scene as ViewScene, View as StateView } from '../src/index.ts';
 import { withSettings as viewSettings } from '../explain/index.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
-test('state-machine: its Session card shows the traced state at every step, in every case', async () => {
+test('state-machine: its Session card shows the traced state at every step, in every scenario', async () => {
   const project = await collectViewProject('scenes/explainers/state-machine', { write: false });
-  for (const variant of project.variants) {
+  for (const scenario of project.scenarios) {
     const checked = await viewFollowsState(
-      variant.Scene,
+      scenario.Scene,
       (scene) => (scene as unknown as { readout?: StateView }).readout,
     );
-    const expected=variant.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
-    assert.deepEqual(variant.trace.steps.filter(s=>s.meta.detail===true).map(s=>s.step),expected);
-    assert.equal(checked, expected.length, `${JSON.stringify(variant.values)}: the Session card is checked at every program-walkthrough step`);
+    const expected=scenario.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
+    assert.deepEqual(scenario.trace.steps.filter(s=>s.meta.kind === 'detail').map(s=>s.step),expected);
+    assert.equal(checked, expected.length, `${JSON.stringify(scenario.values)}: the Session card is checked at every program-walkthrough step`);
   }
 });
-test('ring-buffer views show the traced state at every step, in both cases', async () => {
+test('ring-buffer views show the traced state at every step, in both scenarios', async () => {
   await loadViewFonts();
   for (const operations of ['wrap', 'full']) {
     const Ring = viewSettings(RingBufferExplainer, { operations });
-    for (const name of ['readout', 'results', 'incoming'] as const) {
+    for (const name of ['ring', 'readout', 'results'] as const) {
       const pick = (scene: ViewScene) => (scene as unknown as Record<typeof name, StateView | undefined>)[name];
       assert.equal(await viewFollowsState(Ring, pick), 4, `${operations}: ${name} checked at all four steps`);
     }

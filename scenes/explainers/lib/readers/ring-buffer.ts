@@ -1,6 +1,6 @@
 import { Group, Arrow } from '../../../../src/index.ts';
 import { label, tile } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /**
  * The queue a ring buffer replaces: values kept in array order, popped with
@@ -14,7 +14,7 @@ export function arrayQueue(values: readonly number[]) {
   return { before: [...values], after, popped, moved: after.length };
 }
 
-export function frames(): ReaderFrame[] {
+export function frames(): StagedStep[] {
   const q = arrayQueue([1, 2, 3, 4, 5]),
     big = arrayQueue(Array.from({ length: 1000 }, (_, i) => i + 1));
   const x = (i: number) => (i - 2) * 2.3,
@@ -28,8 +28,8 @@ export function frames(): ReaderFrame[] {
       title: 'A queue in an array: each pop moves every value left',
       line: `Predict: how could pop take ${q.popped} without moving the other ${q.moved}?`,
       caption: `The simplest queue keeps its values in order in an array. Push writes at the end; pop takes the front, then copies every other value one slot left, as the language’s definition of Array.prototype.shift does. Popping from five values moves ${q.moved}; from a thousand, ${big.moved}. Engines may store some arrays differently, but these are the copies the definition describes. The order stays right because every pop pays for every value left behind.`,
-      values: { before: q.before, after: q.after, popped: q.popped, moved: q.moved },
-      draw: (s) => {
+      state: { before: q.before, after: q.after, popped: q.popped, moved: q.moved },
+      draw: (_, s) => {
         const g = new Group();
         q.before.forEach((v, i) =>
           g.add(

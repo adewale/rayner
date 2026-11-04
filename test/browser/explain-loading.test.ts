@@ -12,7 +12,7 @@ import {launch} from '../../tools/lib/browser.ts';
 
 const enabled=!!process.env.EXPLAIN_BROWSER;
 const options={skip:enabled?false:'set EXPLAIN_BROWSER=1 for loading and host transport checks'};
-type Gate = Window & {holdCase:boolean; releaseCase?:()=>void; receivedLatest:boolean};
+type Gate = Window & {holdScenario:boolean; releaseScenario?:()=>void; receivedLatest:boolean};
 type Host = Window & {reader:{goTo(step:string,settings:Record<string,string>):void}; heard:StepDetail[]};
 let browser:Browser,folder:string,server:Awaited<ReturnType<typeof serve>>;
 before(async()=>{
@@ -21,20 +21,20 @@ before(async()=>{
   const fixture=join(folder,'fixture');await mkdir(fixture);
   // An authored async construct is held by the test, not by a production reset hook.
   await writeFile(join(fixture,'scene.ts'),`import{Scene,Text}from'rayner';import{settingsOf}from'rayner/explain';
-    export default class PendingCase extends Scene {
+    export default class PendingScenario extends Scene {
       static settings=[{id:'mode',label:'Mode',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];
       async construct(){const mode=settingsOf(this).mode;
-        if(mode==='b'&&typeof window!=='undefined'&&(window as any).holdCase)
-          await new Promise<void>(resolve=>{(window as any).releaseCase=resolve;});
-        await this.step('one',{title:'One',caption:'Case '+mode});this.add(new Text(mode));await this.wait(.1);
-        await this.step('two',{title:'Two',caption:'Case '+mode});await this.wait(.1);
+        if(mode==='b'&&typeof window!=='undefined'&&(window as any).holdScenario)
+          await new Promise<void>(resolve=>{(window as any).releaseScenario=resolve;});
+        await this.step('one',{title:'One',caption:'Scenario '+mode});this.add(new Text(mode));await this.wait(.1);
+        await this.step('two',{title:'Two',caption:'Scenario '+mode});await this.wait(.1);
       }
     }`);
   await buildExplainer(await collectProject(fixture,{write:false}),join(folder,'probe.html'));
   await buildLoader(join(folder,'loader.js'));
   server=await serve(folder,0,'host.html');
   await writeFile(join(folder,'host.html'),`<!doctype html><div id="reader"></div><script src="loader.js"></script><script>
-    window.heard=[];window.reader=RaynerEmbed.mountExplainer(document.getElementById('reader'),${JSON.stringify(server.url+'/probe.html?mode=a&step=one')},{title:'Pending case',onStep:detail=>heard.push(detail)});
+    window.heard=[];window.reader=RaynerEmbed.mountExplainer(document.getElementById('reader'),${JSON.stringify(server.url+'/probe.html?mode=a&step=one')},{title:'Pending scenario',onStep:detail=>heard.push(detail)});
   </script>`);
   browser=await launch();
 });
@@ -50,7 +50,7 @@ async function opened(run:(page:Page,frame:Frame)=>Promise<void>) {
     await frame.waitForSelector('[data-ready=true]');
     await page.waitForFunction(()=>(window as unknown as Host).heard.length===1);
     await frame.evaluate(()=>{
-      const w=window as unknown as Gate;w.holdCase=true;w.receivedLatest=false;
+      const w=window as unknown as Gate;w.holdScenario=true;w.receivedLatest=false;
       window.addEventListener('message',event=>{if(event.source===parent&&event.data?.type==='rayner:goto'&&event.data.step==='two'&&event.data.settings?.mode==='a')w.receivedLatest=true;});
     });
     await run(page,frame);
@@ -60,9 +60,9 @@ async function opened(run:(page:Page,frame:Frame)=>Promise<void>) {
 const go=(page:Page,mode:string,step='one')=>page.evaluate(({mode,step})=>(window as unknown as Host).reader.goTo(step,{mode}),{mode,step});
 async function held(page:Page,frame:Frame) {
   await go(page,'b');
-  await frame.waitForFunction(()=>typeof(window as unknown as Gate).releaseCase==='function'&&!!document.querySelector('#content.loading'));
+  await frame.waitForFunction(()=>typeof(window as unknown as Gate).releaseScenario==='function'&&!!document.querySelector('#content.loading'));
 }
-const release=(frame:Frame)=>frame.evaluate(()=>{const w=window as unknown as Gate;w.holdCase=false;w.releaseCase!();});
+const release=(frame:Frame)=>frame.evaluate(()=>{const w=window as unknown as Gate;w.holdScenario=false;w.releaseScenario!();});
 const twoFrames=(frame:Frame)=>frame.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
 const view=(frame:Frame)=>frame.locator('.stage svg:not(.leaving)').getAttribute('viewBox');
 async function wheel(page:Page,frame:Frame,deltaY:number) {
@@ -70,7 +70,7 @@ async function wheel(page:Page,frame:Frame,deltaY:number) {
   await page.mouse.wheel(0,deltaY);await page.keyboard.up('Control');await twoFrames(frame);
 }
 
-test('a later trusted host request supersedes a case still loading and replaces history',options,async()=>opened(async(page,frame)=>{
+test('a later trusted host request supersedes a scenario still loading and replaces history',options,async()=>opened(async(page,frame)=>{
   const history=await frame.evaluate(()=>window.history.length);
   await held(page,frame);await go(page,'a','two');
   // Observe message delivery before releasing B; a queued-but-undelivered A cannot hide a dropped request.
@@ -78,12 +78,12 @@ test('a later trusted host request supersedes a case still loading and replaces 
   await release(frame);
   await page.waitForFunction(()=>{const last=(window as unknown as Host).heard.at(-1);return last?.step==='two'&&last.settings.mode==='a';},undefined,{timeout:3000});
   await twoFrames(frame);
-  assert.deepEqual(await frame.evaluate(()=>({step:new URLSearchParams(location.search).get('step'),mode:new URLSearchParams(location.search).get('mode'),chosen:document.querySelector<HTMLInputElement>('.case input:checked')?.value})),{step:'two',mode:'a',chosen:'a'});
+  assert.deepEqual(await frame.evaluate(()=>({step:new URLSearchParams(location.search).get('step'),mode:new URLSearchParams(location.search).get('mode'),chosen:document.querySelector<HTMLInputElement>('.scenario input:checked')?.value})),{step:'two',mode:'a',chosen:'a'});
   assert.deepEqual(await page.evaluate(()=>(window as unknown as Host).heard.map(d=>[d.settings.mode,d.step])),[['a','one'],['a','two']]);
   assert.equal(await frame.evaluate(()=>window.history.length),history);
 }));
 
-test('both footer links keep their native new-tab navigation while a case loads',options,async()=>opened(async(page,frame)=>{
+test('both footer links keep their native new-tab navigation while a scenario loads',options,async()=>opened(async(page,frame)=>{
   await page.context().route('https://github.com/**',route=>route.fulfill({contentType:'text/html',body:'<title>Footer destination</title>'}));
   await held(page,frame);let opened=0;
   for(const selector of ['a.mark','a.open']) {

@@ -40,7 +40,7 @@ const UNBUILT = 0.1;
 // scenes/explainers/traffic-policy/scene.ts: its two settings, externalTrafficPolicy and where the pods run.
 const POLICIES = ['Local', 'Cluster'];
 const PODS = Object.keys(PLACEMENTS);
-const CASES = PODS.length * POLICIES.length;
+const SCENARIOS = PODS.length * POLICIES.length;
 /** The diagram families the explainers name and describe (explain/words.ts). */
 const FAMILIES = Object.keys(VOCABULARY.en!.families!).length;
 const GONE = ['Doc', 'Parser', 'Player', 'Worker'];
@@ -60,7 +60,7 @@ const perSecond = (r: number) => `${r} token${r === 1 ? '' : 's'} a second`;
 
 /** The script's one-sentence answer (meta.answer), which the untested step states. */
 const ANSWER =
-  'Rayner builds every case before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a case the build made';
+  'Rayner builds every scenario before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a scenario the build made';
 
 export default class ForkExplainer extends Scene {
   static meta = {
@@ -75,35 +75,35 @@ export default class ForkExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the untested step states the answer.
     answer: ANSWER,
-    // Sentences about every rate, case or combination, and the test that holds each.
+    // Sentences about every rate, scenario or combination, and the test that holds each.
     claims: [
       {
         says: 'R10 is accepted at every rate',
-        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+        test: "test/explain-fidelity.test.ts: every authored scenario exposes the program's answers at step boundaries",
       },
       {
         says: 'the only rates its reader can choose',
-        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+        test: "test/explain-fidelity.test.ts: every authored scenario exposes the program's answers at step boundaries",
       },
       {
         says: 'The sentence holds at every rate the page built',
-        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+        test: "test/explain-fidelity.test.ts: every authored scenario exposes the program's answers at step boundaries",
       },
       {
         says: 'tokens have come back, so R10 gets 429',
-        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+        test: "test/explain-fidelity.test.ts: every authored scenario exposes the program's answers at step boundaries",
       },
       {
-        says: 'Rayner builds every case before anyone reads it',
-        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+        says: 'Rayner builds every scenario before anyone reads it',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other',
       },
       {
         says: 'A reader can choose only a rate the scene lists',
-        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other',
       },
       {
-        says: 'Every combination of options is a case the build makes and rayner check tests',
-        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+        says: 'Every combination of options is a scenario the build makes and rayner check tests',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other',
       },
     ],
     checks: [
@@ -111,17 +111,17 @@ export default class ForkExplainer extends Scene {
         question:
           'On the token bucket page, R8 and R9 arrive together at 1 s. If its author moved R10 from 5 s to 1.5 s, at which offered rate would ‘R10 is accepted at every rate’ become false, and could a reader see the false sentence?',
         answer:
-          'At 1 token a second. There R8 spends the one token that has come back by 1 s, so at 1.5 s the bucket holds half a token and R10 gets 429; at 2 and 4 tokens a second it is still accepted. A reader could see it only if the author published without reading that case, because 1 token a second is a case the build makes and the author can run and read.',
+          'At 1 token a second. There R8 spends the one token that has come back by 1 s, so at 1.5 s the bucket holds half a token and R10 gets 429; at 2 and 4 tokens a second it is still accepted. A reader could see it only if the author published without reading that scenario, because 1 token a second is a scenario the build makes and the author can run and read.',
       },
       {
         question:
           'Someone shares a link to the token bucket page that ends in ?rate=0.1. What does the reader see, and do they meet the false sentence about R10?',
         answer:
-          'The player looks for 0.1 among the rates the scene lists, finds none, and opens the default case, 2 tokens a second, with the notice “Unknown rate option: 0.1. Showing the default case.” The reader sees a case the author ran, where R10 is accepted; the 0.1 row exists only in this explainer.',
+          'The player looks for 0.1 among the rates the scene lists, finds none, and opens the default scenario, 2 tokens a second, with the notice “Unknown rate option: 0.1. Showing the default scenario.” The reader sees a scenario the author ran, where R10 is accepted; the 0.1 row exists only in this explainer.',
       },
       {
         question:
-          'The traffic-policy page has two policies and three pod placements. Its author wants a third setting, the number of nodes, with four values. How many cases would the build make and the author need to read, and when is such a setting worth adding?',
+          'The traffic-policy page has two policies and three pod placements. Its author wants a third setting, the number of nodes, with four values. How many scenarios would the build make and the author need to read, and when is such a setting worth adding?',
         answer:
           'Twenty-four: 2 × 3 × 4. Each is built, checked and must be read before publishing, so a setting earns its place when one of its values changes what the page concludes, not merely a number on it.',
       },
@@ -136,7 +136,7 @@ export default class ForkExplainer extends Scene {
     if (!RATES.every((r) => r10(r).ok) || r10(UNBUILT).ok)
       throw new Error('R10 must be accepted at every offered rate and refused at the unbuilt one');
 
-    // 1. A sentence that is true of every case the page offers.
+    // 1. A sentence that is true of every scenario the page offers.
     const pitch = 0.82,
       x0 = -2.9,
       labelX = -7.4,
@@ -213,7 +213,7 @@ export default class ForkExplainer extends Scene {
     });
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
 
-    // 3. Why no reader meets that row: a link picks one of the cases the build made, or gets the default.
+    // 3. Why no reader meets that row: a link picks one of the scenarios the build made, or gets the default.
     const resolver = { settings: [RATE_SETTING] } as unknown as ExplainerClass;
     const open = (asked: string) => {
       try {
@@ -225,11 +225,11 @@ export default class ForkExplainer extends Scene {
     const links = [open('4'), open(String(UNBUILT))];
     const fallback = links[1]!;
     const byDefault = perSecond(Number(RATE_SETTING.default));
-    if (!fallback.refused || links[0]!.opens !== '4') throw new Error('A listed rate must open its case and 0.1 must be refused');
+    if (!fallback.refused || links[0]!.opens !== '4') throw new Error('A listed rate must open its scenario and 0.1 must be refused');
     await this.step('choice', {
-      title: `The build made ${RATES.length} cases, and a link opens one of them`,
-      line: `A link naming ${UNBUILT} matches no case, so the page opens the default, ${byDefault}.`,
-      caption: `The rate setting lists ${RATES.length} options, so the build ran the scene once for each and rayner check tested each of the ${RATES.length} cases; R10 is accepted in all three. A link picks a case by naming its option: ?rate=4 opens the 4-token case. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default case, ${byDefault}. The ${UNBUILT} row from the last step exists in this explainer, not on the token-bucket page.`,
+      title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
+      line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
+      caption: `The rate setting lists ${RATES.length} options, so the build ran the scene once for each and rayner check tested each of the ${RATES.length} scenarios; R10 is accepted in all three. A link picks a scenario by naming its option: ?rate=4 opens the 4-token scenario. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default scenario, ${byDefault}. The ${UNBUILT} row from the last step exists in this explainer, not on the token-bucket page.`,
     });
     await s.clear();
     {
@@ -246,24 +246,24 @@ export default class ForkExplainer extends Scene {
           new Text(a, { fontSize: 0.28, color, anchor: 'start' }).moveTo([left + 0.18, at + 0.15], [-1, 0]),
           new Text(b, { fontSize: 0.25, color: colorB, anchor: 'start' }).moveTo([left + 0.18, at - 0.16], [-1, 0]),
         );
-      const cases = new Group();
+      const scenarios = new Group();
       RATE_SETTING.options.forEach((o, i) => {
         const r = Number(o.value),
           isDefault = o.value === RATE_SETTING.default;
-        cases.add(
+        scenarios.add(
           new Rectangle({ width: W, height: H, stroke: isDefault ? s.emphasis : ink, strokeWidth: isDefault ? 0.05 : 0.025, cornerRadius: 0.08 }).moveTo([0, y(i)]),
           two(perSecond(r), `R10: ${r10(r).ok ? 200 : 429}, checked`, y(i), ink, r10(r).ok ? s.good : s.bad),
         );
       });
-      // Where a 0.1 case would sit: the build made none.
+      // Where a 0.1 scenario would sit: the build made none.
       const slot = new Rectangle({ width: W, height: H, stroke: s.bad, strokeWidth: 0.03, cornerRadius: 0.08, fill: 'none' }).moveTo([0, slotY]);
       slot.style.dashArray = '0.14 0.1';
-      cases.add(slot, two(`${perSecond(UNBUILT)}`, 'no case: never built', slotY, s.bad, s.bad));
-      cases.key = 'fork-choice-cases';
-      // The setting's name labels the column, beside its first case, clear of the fallback's path below.
+      scenarios.add(slot, two(`${perSecond(UNBUILT)}`, 'no scenario: never built', slotY, s.bad, s.bad));
+      scenarios.key = 'fork-choice-scenarios';
+      // The setting's name labels the column, beside its first scenario, clear of the fallback's path below.
       const heading = new Group(
         new Text(RATE_SETTING.label, { fontSize: 0.3, color: ink, weight: 'bold', anchor: 'end' }).moveTo([left - 0.3, top + 0.16], [1, 0]),
-        new Text(`${RATES.length} cases`, { fontSize: 0.26, color: s.soft, anchor: 'end' }).moveTo([left - 0.3, top - 0.17], [1, 0]),
+        new Text(`${RATES.length} scenarios`, { fontSize: 0.26, color: s.soft, anchor: 'end' }).moveTo([left - 0.3, top - 0.17], [1, 0]),
       );
       // Links come in from the right.
       const arrow = (from: number, to: number, at: number, color: string) =>
@@ -277,8 +277,8 @@ export default class ForkExplainer extends Scene {
       const four = link(`?rate=${links[0]!.asked}`, y(RATES.indexOf(Number(links[0]!.opens))), ink);
       const slow = link(`?rate=${fallback.asked}`, slotY, s.bad);
       const defaultY = y(RATE_SETTING.options.findIndex((o) => o.value === RATE_SETTING.default));
-      const tag = new Text('the default case', { fontSize: 0.3, color: s.emphasis, anchor: 'start' }).moveTo([right + 0.3, defaultY], [-1, 0]);
-      // Refused, the link falls back along the left side to the default case.
+      const tag = new Text('the default scenario', { fontSize: 0.3, color: s.emphasis, anchor: 'start' }).moveTo([right + 0.3, defaultY], [-1, 0]);
+      // Refused, the link falls back along the left side to the default scenario.
       const back = left - 0.5,
         to = y(RATE_SETTING.options.findIndex((o) => o.value === fallback.opens));
       const redirect = new Group(
@@ -289,22 +289,22 @@ export default class ForkExplainer extends Scene {
       redirect.key = 'fork-choice-fallback';
       const refusal = new Group(
         new Text(String(fallback.refused), { fontSize: 0.28, color: s.bad }).moveTo([0, slotY - H / 2 - 0.4]),
-        new Text('so the page opens the default case', { fontSize: 0.28, color: s.emphasis }).moveTo([0, slotY - H / 2 - 0.8]),
+        new Text('so the page opens the default scenario', { fontSize: 0.28, color: s.emphasis }).moveTo([0, slotY - H / 2 - 0.8]),
       );
-      await s.enter(heading, cases, tag, four, slow, redirect, refusal, {
-        describe: `The ${RATES.length} cases the build made for the token bucket’s rate setting, ${RATE_SETTING.options.map((o) => perSecond(Number(o.value))).join(', ')}, each checked, with R10 accepted; the default is ${byDefault}. Below them a dashed, empty slot for ${perSecond(UNBUILT)}: no case. A link ?rate=4 points at the 4-token case; ?rate=${UNBUILT} points at the empty slot and is redirected, “${fallback.refused}”, to the default case.`,
+      await s.enter(heading, scenarios, tag, four, slow, redirect, refusal, {
+        describe: `The ${RATES.length} scenarios the build made for the token bucket’s rate setting, ${RATE_SETTING.options.map((o) => perSecond(Number(o.value))).join(', ')}, each checked, with R10 accepted; the default is ${byDefault}. Below them a dashed, empty slot for ${perSecond(UNBUILT)}: no scenario. A link ?rate=4 points at the 4-token scenario; ?rate=${UNBUILT} points at the empty slot and is redirected, “${fallback.refused}”, to the default scenario.`,
       });
     }
     this.state.choice = {
       setting: RATE_SETTING,
-      cases: RATE_SETTING.options.map((o) => ({ rate: o.value, r10: r10(Number(o.value)).ok ? 200 : 429, default: o.value === RATE_SETTING.default })),
+      scenarios: RATE_SETTING.options.map((o) => ({ rate: o.value, r10: r10(Number(o.value)).ok ? 200 : 429, default: o.value === RATE_SETTING.default })),
       links,
     };
 
     // 4. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
     await this.step('live', {
       title: 'Lantern, the engine Rayner was forked from, rendered frames on request',
-      line: 'A reader can choose only a rate the scene lists, and each listed rate is a case the build runs.',
+      line: 'A reader can choose only a rate the scene lists, and each listed rate is a scenario the build runs.',
       caption: `Lantern’s Worker rendered requested scene times on demand. Rayner prepares the page and diagrams ahead of reading instead. A reader can choose only a rate the scene lists. That gives an author a finite set of outcomes to inspect, but publishing a prepared page still does not make an unchecked caption true for arbitrary inputs.`,
     });
     await s.clear();
@@ -321,27 +321,27 @@ export default class ForkExplainer extends Scene {
     );
     await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
 
-    // 5. The price, the ending: every combination of settings is a case to build and check.
-    await this.step('cases', {
-      title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${CASES} cases to build`,
-      line: 'Every combination of options is a case the build makes and rayner check tests.',
-      caption: `Prepared inputs have a cost: settings multiply. ${POLICIES.length} policies combined with ${PODS.length} pod placements produce ${CASES} cases, and another setting multiplies that collection again. Finite review becomes more work as the number of combinations grows.`,
+    // 5. The price, the ending: every combination of settings is a scenario to build and check.
+    await this.step('scenarios', {
+      title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${SCENARIOS} scenarios to build`,
+      line: 'Every combination of options is a scenario the build makes and rayner check tests.',
+      caption: `Prepared inputs have a cost: settings multiply. ${POLICIES.length} policies combined with ${PODS.length} pod placements produce ${SCENARIOS} scenarios, and another setting multiplies that collection again. Finite review becomes more work as the number of combinations grows.`,
     });
     await s.clear();
     const grid = table(
       ['Pods per node', ...POLICIES],
-      PODS.map((pods, r) => [pods.replaceAll('-', ', '), ...POLICIES.map((_, p) => `case ${r * POLICIES.length + p + 1}`)]),
+      PODS.map((pods, r) => [pods.replaceAll('-', ', '), ...POLICIES.map((_, p) => `scenario ${r * POLICIES.length + p + 1}`)]),
       s,
-      { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-cases' },
+      { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-scenarios' },
     );
     await s.enter(grid, {
-      describe: `A table of the traffic-policy explainer’s ${PODS.length} pod placements by its ${POLICIES.length} policies, ${POLICIES.join(' and ')}: ${CASES} cases, numbered 1 to ${CASES}`,
+      describe: `A table of the traffic-policy explainer’s ${PODS.length} pod placements by its ${POLICIES.length} policies, ${POLICIES.join(' and ')}: ${SCENARIOS} scenarios, numbered 1 to ${SCENARIOS}`,
     });
-    this.state.cases = { count: CASES, policies: POLICIES, pods: PODS };
+    this.state.scenarios = { count: SCENARIOS, policies: POLICIES, pods: PODS };
 
-    // Details after the ending: what the build does for each case, and what replaced Lantern's live parts.
+    // Details after the ending: what the build does for each scenario, and what replaced Lantern's live parts.
     await this.step('fork', {
-      detail: true,
+      kind: 'detail',
       title: 'The build draws the diagrams ahead of the page',
       line: 'Diagrams are captured at build time, so the page runs no diagram renderer.',
       caption: 'The build captures Agentic Mermaid’s diagrams and saves their geometry. The finished page draws those snapshots without a diagram renderer. Chromium is needed for capture, while stored snapshots can be used to build a page without recapturing them.',
@@ -372,7 +372,7 @@ export default class ForkExplainer extends Scene {
     const motion = (shown.hold ?? shown.t1!) - shown.t0,
       held = shown.hold == null ? 0 : shown.t1! - shown.hold;
     await this.step('timing', {
-      detail: true,
+      kind: 'detail',
       title: 'The page holds each resting picture for its caption',
       line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
       caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,

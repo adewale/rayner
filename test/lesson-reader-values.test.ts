@@ -34,13 +34,13 @@ test('comparison bars preserve a common scale, exact ends and an empty zero', ()
   );
 });
 
-test('token introductions and the ring’s fill and result steps draw the independently expected balances, responses and slot values in every case', async () => {
+test('token introductions and the ring’s fill and result steps draw the independently expected balances, responses and slot values in every scenario', async () => {
   const token = await collectProject('scenes/explainers/token-bucket', { write: false }),
     ring = await collectProject('scenes/explainers/ring-buffer', { write: false });
-  assert.equal(token.variants.length, 3);
-  assert.equal(ring.variants.length, 2);
+  assert.equal(token.scenarios.length, 3);
+  assert.equal(ring.scenarios.length, 2);
   let frames = 0;
-  for (const v of token.variants)
+  for (const v of token.scenarios)
     await new v.Scene(
       {
         async frame() {},
@@ -88,7 +88,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
       },
       { skipUntil: Infinity },
     ).run();
-  for (const v of ring.variants)
+  for (const v of ring.scenarios)
     await new v.Scene(
       {
         async frame() {},
@@ -97,7 +97,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           const expected =
             step.name === 'fill' || v.values.operations === 'full' ? [1, 2, 3, 4, 5] : [6, 7, 3, 4, 5];
           for (const [i, n] of expected.entries()) {
-            const slot = scene.familyMembers().find((m) => m.key === `slot:${i}`);
+            const slot = scene.familyMembers().find((m) => m.key === `ring:value:${i}`);
             assert.ok(slot);
             assert.deepEqual(
               slot
@@ -112,15 +112,15 @@ test('token introductions and the ring’s fill and result steps draw the indepe
       },
       { skipUntil: Infinity },
     ).run();
-  // Three token steps in each of three cases, two ring introductions in each of two.
+  // Three token steps in each of three scenarios, two ring introductions in each of two.
   assert.equal(frames, 13);
 });
 
-test('GTFS departures preserve fixed departures and frequency patterns across all six source-feed cases', async () => {
+test('GTFS departures preserve fixed departures and frequency patterns across all six source-feed scenarios', async () => {
   const p = await collectProject('scenes/explainers/gtfs', { write: false });
-  assert.equal(p.variants.length, 6);
+  assert.equal(p.scenarios.length, 6);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.scenarios)
     await new v.Scene(
       {
         async frame() {},
@@ -153,11 +153,11 @@ test('GTFS departures preserve fixed departures and frequency patterns across al
   assert.equal(checked, 6);
 });
 
-test('the occupied-date picture contains 365 days and the independently expected excluded set in every case', async () => {
+test('the occupied-date picture contains 365 days and the independently expected excluded set in every scenario', async () => {
   const p = await collectProject('scenes/explainers/birthday-paradox', { write: false });
-  assert.equal(p.variants.length, 3);
+  assert.equal(p.scenarios.length, 3);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.scenarios)
     await new v.Scene(
       {
         async frame() {},
@@ -181,9 +181,9 @@ test('the occupied-date picture contains 365 days and the independently expected
 
 test('the complete annual daylight picture labels its fixed zero, twelve and twenty-four-hour scale at every latitude', async () => {
   const p = await collectProject('scenes/explainers/seasons', { write: false });
-  assert.equal(p.variants.length, 4);
+  assert.equal(p.scenarios.length, 4);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.scenarios)
     await new v.Scene(
       {
         async frame() {},
@@ -209,7 +209,7 @@ test('the ext4 reserve comparison actually changes reserve and preserves the met
   const { space, SIZES } = await import('../scenes/explainers/lib/ext4-space.ts');
   const p = await collectProject('scenes/explainers/ext4-space', { write: false });
   // The 1 TiB disk formatted with -m 1, against the default -m 5 the story walks first.
-  const v = p.variants.find((x) => x.values.size === '1t' && x.values.reserve === '1');
+  const v = p.scenarios.find((x) => x.values.size === '1t' && x.values.reserve === '1');
   assert.ok(v);
   const fiveUsers = space(SIZES['1t'].bytes, 5).users;
   let checked = 0;
@@ -257,9 +257,9 @@ test('traffic comparisons draw each source pod share without attributing the ing
     ],
   } as const;
   const p = await collectProject('scenes/explainers/traffic-policy', { write: false });
-  assert.equal(p.variants.length, 6);
+  assert.equal(p.scenarios.length, 6);
   let checked = 0;
-  for (const v of p.variants)
+  for (const v of p.scenarios)
     await new v.Scene(
       {
         async frame() {},
@@ -294,7 +294,7 @@ test('traffic comparisons draw each source pod share without attributing the ing
   assert.equal(checked, 6);
 });
 
-test('GNOME sample labels explain every participant outcome and retain the report categories in every case', async () => {
+test('GNOME sample labels explain every participant outcome and retain the report categories in every scenario', async () => {
   const { frames } = await import('../scenes/explainers/lib/readers/gnome-files.ts');
   // Report page 7, in participant order P1..P6; the selected participant's first
   // abandoned task is fixed by the session ordering, not the report's chapter order.
@@ -325,10 +325,10 @@ test('GNOME sample labels explain every participant outcome and retain the repor
   let participants = 0;
   for (const selected of ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] as const) {
     const sample = frames(selected)[1]!;
-    assert.equal(sample.values.task, tasks[selected]);
-    const picture = sample.draw(stage(new Scene(new NullSink())));
+    assert.equal(sample.state.task, tasks[selected]);
+    const picture = sample.draw(sample.state, stage(new Scene(new NullSink())));
     assert.equal(picture.children.length, 6);
-    const outcomes = sample.values.outcomes as { participant: string; colour: string; meaning: string }[];
+    const outcomes = sample.state.outcomes as { participant: string; colour: string; meaning: string }[];
     assert.equal(outcomes.length, 6);
     for (let i = 0; i < 6; i++) {
       const participant = `P${i + 1}`;

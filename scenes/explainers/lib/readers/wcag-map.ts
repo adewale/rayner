@@ -3,7 +3,7 @@ import type { Stage } from '../../../../explain/index.ts';
 import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from '../wcag-map.ts';
 import type { Criterion, Level, Version } from '../wcag-map.ts';
 import { tile, label, table } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
 
 /**
  * Every criterion some version asks for at `level`, one column each: grouped by level, and within a
@@ -67,7 +67,7 @@ function lists(level: Level, s: Stage) {
 
 /** The page's one-sentence answer, stated by the version step. */
 export const ANSWER = 'A level asks for its own criteria and those of the levels below it, in the WCAG version you name';
-export function frames(level: Level, guideline: string): ReaderFrame[] {
+export function frames(level: Level, guideline: string): StagedStep[] {
   const t20 = tally('2.0', level),
     t21 = tally('2.1', level),
     total = tally('2.2', level),
@@ -86,8 +86,8 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
           ? `At level ${level}, the selected level, Focus Visible is on the list.`
           : `At level ${level}, the selected level, it is not on the list, because it is a level AA criterion.`
       }`,
-      values: { level, focusRequired: focus },
-      draw: (s) =>
+      state: { level, focusRequired: focus },
+      draw: (_, s) =>
         new Group(
           label('No visible focus', 0, 2.5, s.soft, 0.7),
           tile('Cancel', -3.5, 1.3, 5, 1, s),
@@ -105,8 +105,8 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
       title: `Level ${level} asks for ${total.total} criteria in WCAG 2.2`,
       line: 'Each row includes the rows above it.',
       caption: `Does aiming for AA mean checking the criteria labelled AA? WCAG’s conformance requirements say a level AA page satisfies all the level A and level AA criteria, or offers an alternate version that does, so level AA’s list in WCAG 2.2 is ${a} at level A plus ${tally('2.2', 'AA').total - a} at AA. At level ${level}, the selected level, the list holds ${total.total} criteria, ${selected.length} of them under guideline ${guideline}. A count names the set to evaluate; it is not a conformance result.`,
-      values: { level, total: total.total, guideline, count: selected.length },
-      draw: (s) =>
+      state: { level, total: total.total, guideline, count: selected.length },
+      draw: (_, s) =>
         table(
           ['Level', 'Includes', 'WCAG 2.2'],
           [
@@ -123,7 +123,7 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
       title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
       line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,
       caption: `The list changes with the version as well. Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, grouped by level and coloured by the version that added it: grey 2.0, blue 2.1, green 2.2, with 4.1.1 Parsing in red; each row is one version’s list, so an empty place is a criterion that version does not ask for. WCAG 2.1 added ${c21.added.length} criteria at ${level === 'A' ? 'level A' : `level ${level} or below`}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete because assistive technology no longer needs to parse HTML directly. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${ANSWER}.`,
-      values: {
+      state: {
         level,
         totals: [t20.total, t21.total, total.total],
         added21: c21.added.length,
@@ -134,7 +134,7 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
           VERSIONS.map((v) => [v, columns(level).filter((c) => inVersion(c, v)).map((c) => c.num)]),
         ),
       },
-      draw: (s) => lists(level, s),
+      draw: (_, s) => lists(level, s),
     },
   ];
 }

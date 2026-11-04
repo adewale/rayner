@@ -16,7 +16,7 @@ export default class References extends Scene {
   ];
   override async construct() {
     const s = stage(this);
-    // The second case adds a note of its own, so a case change can alter the source
+    // The second scenario adds a note of its own, so a scenario change can alter the source
     // steps while the teaching steps stay fixed.
     const steps: (readonly [string, boolean])[] = [
       ['alpha', false],
@@ -29,7 +29,7 @@ export default class References extends Scene {
       await this.step(id, {
         title: id,
         caption: `${id} in ${settingsOf(this).case}`,
-        detail: settingsOf(this).case === 'all' || detail,
+        kind: settingsOf(this).case === 'all' || detail ? 'detail' : 'main',
       });
       await s.clear();
       if (detail) await s.enter(new Rectangle({ width: 4, height: 2, fill: '#ff0044', stroke: 'none' }));

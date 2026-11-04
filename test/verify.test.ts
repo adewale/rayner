@@ -78,7 +78,7 @@ test('a left-anchored counter changing digit count is not a resize', async () =>
 });
 
 // Each kind the verifier reports, seeded once into an otherwise smooth scene: the explain
-// check's motion gate fails a case on any of them, so each must actually be reported.
+// check's motion gate fails a scenario on any of them, so each must actually be reported.
 const seeded: Array<[string, (s: Scene) => Promise<void>, string[]]> = [
   ['an opacity jump with no fade is a pop', async (s) => { const r = new Rectangle(); await s.play(new FadeIn(r)); r.setOpacity(0.3); await s.wait(0.2); }, ['pop']],
   ['a size jump between plays is a resize', async (s) => { const r = new Rectangle(); await s.play(new FadeIn(r)); r.scale(2); await s.wait(0.3); }, ['resize']],

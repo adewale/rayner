@@ -16,7 +16,7 @@ Five commitments define the project:
 2. **A helper library does the repetitive work.** Small functions for common explanation techniques: show a diagram and build it in, send a token along its links, move it to its next version, focus on a part, show a card. Scenes call them like any other Lantern code and mix them freely with native drawing.
 3. **Agentic Mermaid's styles are honoured.** A diagram keeps Agentic Mermaid's marks and colours. Default labels use embedded Inter; scenes can explicitly request replacement faces, including a style's face, through the lettering workflow. Labels still fit the captured layout's widths, and styles do not choose a font automatically. Every mark is addressable by its Mermaid id.
 4. **The stepper comes first.** A reader moves through the explanation one step at a time, at their own pace, and can go back or link to any step.
-5. **Reader settings offer another case to step through.** A scene may declare a few named options, such as whether an attacker is present, or a city. Each choice is a complete, stepped case, built and tested ahead of time.
+5. **Reader settings offer another scenario to step through.** A scene may declare a few named options, such as whether an attacker is present, or a city. Each choice is a complete, stepped scenario, built and tested ahead of time.
 
 ## The problem, and why a fork
 
@@ -39,7 +39,7 @@ Lantern supplies the execution and rendering model. Agentic Mermaid supplies lay
 | Animation engine | Mobjects, animations, deterministic frames and seeking | Semantics preserved; general fixes listed in [upstream](../docs/UPSTREAM.md). The helpers run groups on linear time, because easing compounds in nested groups |
 | Explanation helpers | `title`, `CodePanel` and `StateReadout` | Replaced by `explain/`: the stage, diagrams, cards, code panels and settings. Of the panels only `StateReadout` remains in the engine, because `stateView` builds one |
 | Diagrams | `flowchart()` and Lantern's own Mermaid layout | Replaced by Agentic Mermaid capture, which honours its styles across families |
-| Player | `app/player.ts` | Replaced by the embed player (`app/embed.ts`): stepper first, cases, zoom, accessibility |
+| Player | `app/player.ts` | Replaced by the embed player (`app/embed.ts`): stepper first, scenarios, zoom, accessibility |
 | Builds | Bundled HTML | External scenes, snapshot build, portable pages, receipts |
 | Inspection | Traces, text views, motion verifier | Kept; the helpers record every walk in the trace so tests can check it |
 
@@ -47,12 +47,12 @@ The owner chose to delete the inherited player, Lantern's Mermaid layout and the
 
 ## Architecture
 
-One scene file drives everything. At build time it runs once per case so Agentic Mermaid can draw the diagrams it asks for; the page runs the same scene again on Lantern alone.
+One scene file drives everything. At build time it runs once per scenario so Agentic Mermaid can draw the diagrams it asks for; the page runs the same scene again on Lantern alone.
 
 ```mermaid
 flowchart LR
   subgraph build["Build time: Node"]
-    scene["scene.ts"] -->|every case| capture["Agentic Mermaid in Chromium"]
+    scene["scene.ts"] -->|every scenario| capture["Agentic Mermaid in Chromium"]
     capture --> snaps["scene.snapshots/"]
   end
   subgraph run["Lantern only"]
@@ -84,25 +84,25 @@ A diagram therefore looks as it does in Agentic Mermaid's own renderer, and is m
 
 The helpers are plain functions in `explain/`; [the reference](../docs/REFERENCE.md#stage) lists them. A scene calls `stage(this, { style })` once, then uses what it needs, and everything else stays native Lantern: the ring buffer has no diagram at all, and the seasons draw an orbit beside a chart.
 
-Diagrams are plain Mermaid strings. At build time every scene runs once per case, and each diagram it asks for is rendered and stored as a snapshot. A scene therefore never declares its diagrams in advance, and a case that fails to run fails the build.
+Diagrams are plain Mermaid strings. At build time every scene runs once per scenario, and each diagram it asks for is rendered and stored as a snapshot. A scene therefore never declares its diagrams in advance, and a scenario that fails to run fails the build.
 
 ## Reader settings
 
 The stepper is the primary way to read an explainer, because the author decides the order of ideas and the reader decides the pace. The player stops after each step, so the caption can be read before the next idea arrives. Previous, Next, the steps list and the keyboard all work on steps, and `?step=` links to one. A step bar under the picture shows every step and fills as the current one plays; it is a stepper, not a seek bar.
 
-Reader settings serve the stepper. A setting offers another *case* of the same explanation, and that case is again a full, stepped sequence. It is not a slider or a free input.
+Reader settings serve the stepper. A setting offers another *scenario* of the same explanation, and that scenario is again a full, stepped sequence. It is not a slider or a free input.
 
 - **Declared by the scene.** `static settings = [{ id, label, options, default }]`. The scene reads the values with `settingsOf(this)` and may change its diagrams, captions, numbers and even which steps exist.
 - **Finite and built ahead.** The build runs every combination. Authors run `check` or `review` before publishing; `build` does not repeat validation.
-- **Under the title.** Cases are a segmented choice next to what they change. Switching keeps the reader's step, matched by name.
-- **The page is the tile.** The title, the cases, the picture, the stepper, the words, the steps, the transcript, the maker's mark and the way out are one bounded object; outside it the page has only background, and in a frame the host's.
-- **Optional.** The Lantern self-explainer has none, because nothing in it has a case worth choosing.
+- **Under the title.** Scenarios are a segmented choice next to what they change. Switching keeps the reader's step, matched by name.
+- **The page is the tile.** The title, the scenarios, the picture, the stepper, the words, the steps, the transcript, the maker's mark and the way out are one bounded object; outside it the page has only background, and in a frame the host's.
+- **Optional.** The Lantern self-explainer has none, because nothing in it has a scenario worth choosing.
 
 A good setting changes what the reader learns. In OAuth with PKCE, "Show an attacker" adds a step in which a stolen code fails. In the seasons explainer, "Observe from" Tromsø, London, Quito or Sydney shows polar day, Sydney's winter in June and the equator's flat year. In the merge-request explainer, "Follow a request" shows a cache hit or a miss after the change. An earlier prototype let readers switch a diagram's style; that was dropped, because a palette change teaches nothing, and each explainer now has one style chosen for it.
 
 ## The examples
 
-The explainers rebuild every scene Lantern shipped with, including its self-explainer, and add topics of their own, among them OAuth with PKCE, the seasons, how Git names objects, and 2password. Each exercises a different teaching technique. Their cases, diagrams, styles and families are listed in `out/explainers/evidence.json`, written by `npm run demos:build`.
+The explainers rebuild every scene Lantern shipped with, including its self-explainer, and add topics of their own, among them OAuth with PKCE, the seasons, how Git names objects, and 2password. Each exercises a different teaching technique. Their scenarios, diagrams, styles and families are listed in `out/explainers/evidence.json`, written by `npm run demos:build`.
 
 Three principles from Lantern carry through every example:
 
@@ -118,7 +118,7 @@ Rebuilding Lantern's examples in a prototype (the `agentic-mermaid` branch of a 
 
 | What happened | Change to the spec |
 | --- | --- |
-| The ring buffer wrapped its animations in a `try`/`catch` for `Full`. The catch also swallowed the player's internal stop signal, so jumping to a step showed a different picture from playing to it. Lantern's seek test caught it | `check` runs the seek, motion and bare-runtime tests on every case of every scene, and fails a broad `catch` in `construct()` |
+| The ring buffer wrapped its animations in a `try`/`catch` for `Full`. The catch also swallowed the player's internal stop signal, so jumping to a step showed a different picture from playing to it. Lantern's seek test caught it | `check` runs the seek, motion and bare-runtime tests on every scenario of every scene, and fails a broad `catch` in `construct()` |
 | Three scenes flashed black before their first diagram, because the stage's default paper was not the style's | The stage takes paper, ink and accent from the Agentic Mermaid style itself; hand-written palettes are optional |
 | Decision chains laid out left to right became tall staircases; top to bottom became too narrow to read | Choose direction by shape, and check legibility: `check` now fails labels under 14 px at a 1280 px stage, and `shots` prints a contact sheet of every step |
 | A node used in an edge before its labelled definition lost its label in Agentic Mermaid | Report upstream; until fixed, the build warns |
@@ -173,7 +173,7 @@ MCP suits live access to a system, like a vault or a ticket queue. An explainer 
 | Agentic Mermaid's output changes | It changes when its owner releases it: pin versions, keep one snapshot file per diagram so a release's effect is a reviewable diff |
 | Styles drift from the real renderer | Capture asserts byte equality with `renderMermaidSVG` and fails on unread SVG |
 | Small text in tall or wide diagrams | Direction per diagram, `focus()`, the legibility check, and close-ups on phones |
-| Settings multiply cases | Keep settings few and meaningful; the build runs every combination, so cost shows in CI time; 64 is the limit |
+| Settings multiply scenarios | Keep settings few and meaningful; the build runs every combination, so cost shows in CI time; 64 is the limit |
 | An explainer that looks right but is wrong | Walks travel real links; morph ops are replayed; scenes ask the real program; cite sources; have an expert read it |
 | Duplicate engine copies | Resolve scenes, helpers and player to one engine instance; the package smoke test checks it |
 

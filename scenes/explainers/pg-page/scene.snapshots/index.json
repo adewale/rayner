@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "89d69039d85faee9e98d33a34207e52feb7dc22ed80e62ec3a344ecc552b2973",
+  "sourceHash": "d5a00b45a17eb938b64bce15e4d5ff1fd4d8770e2c5d5e90245b9b4b166fd51c",
   "diagrams": {
     "[\"---\\nconfig:\\n  pie:\\n    legendPosition: right\\n    textPosition: 0.72\\n  themeVariables:\\n    pie1: '#d9480f'\\n    pie2: '#9a9087'\\n    pie3: '#e8dcc4'\\n    pie4: '#3b6ea5'\\n    pie5: '#241f1a'\\n    pie6: '#fffdf7'\\n    pie7: '#7fb08a'\\n    pieLegendTextSize: 17px\\n    pieSectionTextSize: 15px\\n    pieTitleTextSize: 18px\\n---\\npie showData\\n  title One page of int4 + text rows\\n  \\\"Row data\\\" : 2960\\n  \\\"Tuple headers\\\" : 4255\\n  \\\"Alignment padding\\\" : 185\\n  \\\"Line pointers\\\" : 740\\n  \\\"Page header\\\" : 24\\n  \\\"Free space\\\" : 28\",\"pen-and-ink\"]": "aacc7ef4c2387aae.json",
     "[\"---\\nconfig:\\n  pie:\\n    legendPosition: right\\n    textPosition: 0.72\\n  themeVariables:\\n    pie1: '#d9480f'\\n    pie2: '#9a9087'\\n    pie3: '#e8dcc4'\\n    pie4: '#3b6ea5'\\n    pie5: '#241f1a'\\n    pie6: '#fffdf7'\\n    pie7: '#7fb08a'\\n    pieLegendTextSize: 17px\\n    pieSectionTextSize: 15px\\n    pieTitleTextSize: 18px\\n---\\npie showData\\n  title One page of int4 rows\\n  \\\"Row data\\\" : 904\\n  \\\"Tuple headers\\\" : 5198\\n  \\\"Alignment padding\\\" : 1130\\n  \\\"Line pointers\\\" : 904\\n  \\\"Page header\\\" : 24\\n  \\\"Free space\\\" : 32\",\"pen-and-ink\"]": "9cc32f74895338f9.json",

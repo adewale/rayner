@@ -4,7 +4,7 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
 
 ## Publish a page
 
-1. Review every case and retain the exact reviewed page:
+1. Review every scenario and retain the exact reviewed page:
 
    ```sh
    rayner review scene.ts --out public/cache.html
@@ -12,7 +12,7 @@ How to put a built page on a website. The contracts (URL parameters, the resize,
 
    Review runs the checks and served-reader audit, then saves the reviewed HTML, receipt, header recipe and `loader.js`. Test the model and inspect the screenshots under `out/review/<id>/` too. A failed review removes the success receipt and leaves the previous published page alone.
 
-   In a checkout, use `npm run rayner -- review ...`. The HTML contains every case, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
+   In a checkout, use `npm run rayner -- review ...`. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
 
 2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader.
 
@@ -42,7 +42,7 @@ npm run demos:review -- --from out/showcase
 npm run site:export -- <site-root> --from out/showcase --only python-dict,bloom-filter --entry python-dict
 ```
 
-The exporter checks shared files and selected page bytes against their build pins. Unselected pages need not exist. Full catalog CI still requires every source lesson, case, resting step and reading width.
+The exporter checks shared files and selected page bytes against their build pins. Unselected pages need not exist. Full catalog CI still requires every source lesson, scenario, resting step and reading width.
 
 `--entry` must name a selected lesson. If omitted, export keeps the catalog entry when selected, otherwise it uses the first requested id. No particular subject is mandatory. The exported catalog, evidence and `llms.txt` report only the selected lessons; complete collection checks remain separate.
 
@@ -64,7 +64,7 @@ For a custom selection, pass explicit IDs to `--only`. Their `toolchain` groups 
            loading="lazy"></iframe>
    ```
 
-   In a frame the page draws only the explainer's tile: no background or padding of its own, so your page's background shows around it, and the tile is the only edge. Write no card or border around it. Pass `theme=light` or `theme=dark` to match your page's colour scheme; without it the reader's device scheme is used, and a browser may then paint an opaque background behind the tile. The iframe keeps its height and scrolls when the content is taller; captions make the page taller on phones. The heights in `<id>.embed.json` (below) give the page's natural height at 390, 640 and 900 px. `allow="fullscreen"` lets the reader's Enlarge button work; without it the button is hidden. The tile's footer carries "Open the explainer", which opens the page at the reader's step and case in a new tab.
+   In a frame the page draws only the explainer's tile: no background or padding of its own, so your page's background shows around it, and the tile is the only edge. Write no card or border around it. Pass `theme=light` or `theme=dark` to match your page's colour scheme; without it the reader's device scheme is used, and a browser may then paint an opaque background behind the tile. The iframe keeps its height and scrolls when the content is taller; captions make the page taller on phones. The heights in `<id>.embed.json` (below) give the page's natural height at 390, 640 and 900 px. `allow="fullscreen"` lets the reader's Enlarge button work; without it the button is hidden. The tile's footer carries "Open the explainer", which opens the page at the reader's step and scenario in a new tab.
 
    Or let the loader size the iframe to its content:
 
@@ -87,7 +87,7 @@ For a custom selection, pass explicit IDs to `--only`. Their `toolchain` groups 
 
    **Paste-to-embed.** `site:export --origin https://your.site` also writes `<id>.oembed.json` beside each page and a discovery link in its head, so a CMS that speaks oEmbed can turn a pasted page URL into the iframe. The response is fixed at 640 px wide with the page's height there; a static host cannot honour `maxwidth`, and the iframe shrinks with `max-width:100%`. Without `--origin` neither the file nor the link is written. `<id>.embed.json`, written with or without `--origin`, gives `{ "schema": 1, "aspect": "16/9", "heights": { "390": n, "640": n, "900": n } }`, the page's framed height at those widths, for a host that sizes its iframe before loading.
 
-   **Drive an explainer from the host page.** The loader tells the host each step the reader settles on, and lets the host move the player: a scrolling essay can follow along, or a button elsewhere on the page can show a step or a case.
+   **Drive an explainer from the host page.** The loader tells the host each step the reader settles on, and lets the host move the player: a scrolling essay can follow along, or a button elsewhere on the page can show a step or a scenario.
 
    ```html
    <div id="cache-explainer"></div>
@@ -106,7 +106,7 @@ For a custom selection, pass explicit IDs to `--only`. Their `toolchain` groups 
 
 5. Check what the host actually serves; the repository's tests run against local files.
    - `curl -sI https://your.site/explainers/cache.html` shows the CSP and `Cache-Control` from the recipe.
-   - The page opens at the step and case in its URL, Next plays, and the transcript opens.
+   - The page opens at the step and scenario in its URL, Next plays, and the transcript opens.
    - With two embeds on one page, opening one transcript resizes only that iframe.
    - Inside a frame, your page's background shows at the tile's corners, and the tile's footer has "Open the explainer".
    - With `--origin`, `<id>.oembed.json` is served as JSON and the page's head links to it.
