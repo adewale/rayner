@@ -17,7 +17,6 @@ import { Animation, Transform, TransformMatching, TransformMatchingShapes, Trans
 import type { MatchKey, MatchSummary } from './animation.ts';
 import type { RateFunc } from './rate.ts';
 import { Text } from './text.ts';
-import { StateReadout } from './panels.ts';
 import type { Scene, SceneState, Evidence } from './scene.ts';
 import type { Vec } from './vec.ts';
 
@@ -51,20 +50,21 @@ export interface SyncOpts {
  * (and its parent) through every sync: only its child is swapped.
  */
 export class View<M extends Mobject = Mobject> extends Group {
-  /** Makes the picture from the state as it is when called. Called at construction and at each sync's begin(). */
+  /** Makes the picture from the scene's state as it is when called. Called at construction and at each sync's begin(). */
   build: () => M;
-  /** The same picture as a function of a state snapshot, when the View was made from a scene's state: what the fidelity check calls. */
-  render: ((state: SceneState) => M) | null;
+  /** The picture as a function of a state snapshot: what the fidelity checks and machine exploration call. */
+  draw: (state: SceneState) => M;
   place: ViewPlace | false;
   /** Unplaced build size [w, h] used as the scale basis; a returning sync restores the retained picture’s basis. */
   builtSize: [number, number];
   /** The scale the last sync applied: kept while the measured one only differs from it in the last bits. */
   scaleK: number;
 
-  constructor(build: () => M, { place = 'center' }: ViewOpts = {}, render: ((state: SceneState) => M) | null = null) {
+  /** Every View is a picture of a scene's state: there is no way to make one that closes over anything else. */
+  constructor(scene: Scene<any>, draw: (state: SceneState) => M, { place = 'center' }: ViewOpts = {}) {
     super();
-    this.build = build; this.render = render; this.place = place; this.scaleK = 1;
-    const first = fresh(build(), null);
+    this.build = () => draw(scene.state); this.draw = draw; this.place = place; this.scaleK = 1;
+    const first = fresh(this.build(), null);
     this.builtSize = layoutSize(first);
     this.add(first);
   }
@@ -192,37 +192,14 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   }
 }
 
-/** A View of `build()`; build reads whatever state it closes over each time it is called. */
-export function view<M extends Mobject>(build: () => M, opts?: ViewOpts): View<M>;
 /**
- * A View of the scene's state: `render(scene.state)` at each sync. Keeps
- * `render`, so the picture can be checked against a trace (see viewMismatch).
+ * A View of the scene's state: `draw(scene.state)` at each sync. Keeps
+ * `draw`, so the picture can be checked against a trace (see viewMismatch)
+ * and redrawn for any state a Machine reaches.
  */
-export function view<S extends object, M extends Mobject>(scene: Scene<S>, render: (state: S) => M, opts?: ViewOpts): View<M>;
-export function view<S extends object, M extends Mobject>(a: (() => M) | Scene<S>, b?: ((state: S) => M) | ViewOpts, c?: ViewOpts): View<M> {
-  if (typeof a === 'function') return new View(a, b as ViewOpts | undefined);
-  const render = b as (state: S) => M;
-  // Fidelity replay supplies a snapshot of this same scene's state.
-  return new View(() => render(a.state), c, state => render(state as S));
+export function view<S extends object, M extends Mobject>(scene: Scene<S>, draw: (state: S) => M, opts?: ViewOpts): View<M> {
+  return new View(scene, (state) => draw(state as S), opts);
 }
-
-export interface StateViewOpts extends ViewOpts {
-  fontSize?: number;
-  at?: Vec;
-  gap?: number;
-  /** How a value is written (default: strings as they are, anything else as JSON). */
-  format?: (value: unknown) => string;
-}
-
-/**
- * A StateReadout of `keys` from the scene's state, as a View: `key: value`
- * rows rebuilt at each sync, placed by their left edge (so the keys stay put).
- */
-export function stateView<S extends object>(scene: Scene<S>, keys: readonly (keyof S & string)[], { fontSize = 0.3, at = [0, 0], gap = 0.5, format = formatValue, place = 'left' }: StateViewOpts = {}): View<StateReadout> {
-  return view(scene, (s) => new StateReadout(keys.map((k) => [k, format(s[k])] as const), {fontSize, at, gap, shaping: scene.textShaping}), {place});
-}
-
-const formatValue = (v: unknown): string => (typeof v === 'string' ? v : JSON.stringify(v) ?? String(v));
 
 /** The strings of every Text in a picture, in family order (a Code's lines, a readout's keys and values). */
 export function pictureText(m: Mobject): string[] {
@@ -237,13 +214,12 @@ export function pictureText(m: Mobject): string[] {
 
 /**
  * The fidelity check for the picture side: null when the View shows what its
- * render() makes of `state` (a trace step's `after`), else what differs.
+ * draw() makes of `state` (a trace step's `after`), else what differs.
  * Compares the text the pictures show, not their geometry.
  */
-export function viewMismatch(v: View, state: SceneState, render: ((state: SceneState) => Mobject) | null = v.render): string | null {
-  if (!render) throw new Error('viewMismatch: this View was not made from a scene\'s state (view(scene, render)); pass the render function');
-  const shown = v.shown, want = pictureText(render(state));
-  return JSON.stringify(shown) === JSON.stringify(want) ? null : `the view shows ${JSON.stringify(shown)}, the state ${JSON.stringify(state)} renders ${JSON.stringify(want)}`;
+export function viewMismatch(v: View, state: SceneState, draw: (state: SceneState) => Mobject = v.draw): string | null {
+  const shown = v.shown, want = pictureText(draw(state));
+  return JSON.stringify(shown) === JSON.stringify(want) ? null : `the view shows ${JSON.stringify(shown)}, the state ${JSON.stringify(state)} draws ${JSON.stringify(want)}`;
 }
 
 // ---- internals ---------------------------------------------------------

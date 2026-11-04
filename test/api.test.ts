@@ -11,7 +11,7 @@ const EXPECTED = [
   'Arc', 'ArcBetweenPoints', 'Arrow', 'Circle', 'CurvedArrow', 'Dot', 'Labeled', 'Line', 'Polygon', 'Rectangle', 'Square',
   'Text', 'Math', 'MathTex', 'ItalicText', 'DecimalNumber', 'Code', 'StateReadout',
   'NumberLine', 'Axes',
-  'View', 'ViewSync', 'view', 'stateView', 'viewMismatch',
+  'View', 'ViewSync', 'view', 'viewMismatch',
   // motion
   'Animation', 'Transform', 'FadeIn', 'FadeOut', 'Create', 'Write', 'Indicate', 'Flash', 'MoveAlongPath', 'AnimationGroup', 'LaggedStart',
   'Restore', 'TransformFromCopy', 'Succession',

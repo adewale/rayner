@@ -10,14 +10,13 @@ class ShownSink extends TraceSink {
   /** Per step: null before the View exists, else viewMismatch's answer (null when they agree). */
   checks: Array<{ mismatch: string | null } | null> = [];
   pick: (scene: Scene) => View | null | undefined;
-  render?: (state: SceneState) => Mobject;
-  constructor(pick: (scene: Scene) => View | null | undefined, render?: (state: SceneState) => Mobject) { super(); this.pick = pick; this.render = render; }
+  draw?: (state: SceneState) => Mobject;
+  constructor(pick: (scene: Scene) => View | null | undefined, draw?: (state: SceneState) => Mobject) { super(); this.pick = pick; this.draw = draw; }
   override async stepEnd(scene: Scene, s: Step): Promise<void> {
     await super.stepEnd(scene, s);
     const v = this.pick(scene);
     if (!v) { this.checks.push(null); return; }
-    const draw = this.render ?? v.render;
-    assert.ok(draw, 'the View was made from the scene\'s state (view(scene, render)), or a render is passed');
+    const draw = this.draw ?? v.draw;
     // The state this step's trace entry records as `after`
     this.checks.push({ mismatch: viewMismatch(v, this.events.at(-1)!.state, draw) });
   }
@@ -25,7 +24,7 @@ class ShownSink extends TraceSink {
 
 /**
  * Named pattern, picture side: at the end of every step, the View `pick`
- * finds shows what `render` (default: the View's own) makes of that step's
+ * finds shows what `draw` (default: the View's own) makes of that step's
  * traced `after` state (viewMismatch). The state side is assertStepState / the
  * fidelity replays; this says the picture tells the same story. Returns the
  * number of steps checked (steps before the View exists are skipped).
@@ -33,9 +32,9 @@ class ShownSink extends TraceSink {
 export async function assertViewFollowsState(
   SceneClass: SceneClass,
   pick: (scene: Scene) => View | null | undefined,
-  render?: (state: SceneState) => Mobject,
+  draw?: (state: SceneState) => Mobject,
 ): Promise<number> {
-  const sink = new ShownSink(pick, render);
+  const sink = new ShownSink(pick, draw);
   const scene = new SceneClass(sink, { skipUntil: Infinity });
   await scene.run();
   const steps = sink.steps();

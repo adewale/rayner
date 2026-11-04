@@ -242,7 +242,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     result: 'Two end points, then the line the pen drew between them',
     code: [
       'const path = new Line([-4,-1],[4,1]);',
-      "await s.draw(path, {tool: 'pen',",
+      "await s.sketch(path, {tool: 'pen',",
       "  describe: 'A rising line'});",
     ],
     recipe: "s.draw reveals a path along its length with a tool riding its tip, and describe says what the finished stroke shows.",
@@ -587,7 +587,7 @@ export default class FeatureTour extends Scene {
         'the path’s two ends, nothing drawn',
       );
       const path = new Line([ax - 3.6, ay - 0.9], [ax + 3.6, ay + 0.9], { stroke: accent, strokeWidth: 0.08 });
-      await s.draw(path, { tool: 'pen', describe: 'After: a rising line, drawn' });
+      await s.sketch(path, { tool: 'pen', describe: 'After: a rising line, drawn' });
     }
   }
 }

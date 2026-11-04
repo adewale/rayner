@@ -90,8 +90,8 @@ No adjacency assertion or walk record is implied by moving along an arbitrary pa
 ## SetState
 
 ```ts
-import { SetState, Succession, stateView } from 'rayner';
-const readout = stateView(this, ['count']);
+import { SetState, Succession, StateReadout, view } from 'rayner';
+const readout = view(this, (s) => new StateReadout([['count', s.count]]), { place: 'left' });
 await this.play(new Succession([
   new SetState(this, { count: 3 }), readout.sync(),
   new SetState(this, { count: 9 }), readout.sync(),

@@ -408,10 +408,8 @@ export async function exploreMachines(scene: Scene): Promise<{ events: string[];
       scene.state = jsonObject(state, 'machine state');
       for (const view of machine.spec.views) {
         view.rebuild();
-        if (view.render) {
-          const mismatch = viewMismatch(view, scene.state);
-          if (mismatch) problems.push(`${at}: ${mismatch}`);
-        }
+        const mismatch = viewMismatch(view, scene.state);
+        if (mismatch) problems.push(`${at}: ${mismatch}`);
       }
       problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${at}: ${p}`));
       // Each label this state shows, at the size a 1280 px stage draws it; one not shown (outside

@@ -521,7 +521,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * and keep it. `m` must not be on stage yet. A path of several strokes is split into one path
      * per stroke first; the result is what was drawn and kept. `describe` says what it shows.
      */
-    async draw(
+    async sketch(
       m: Mobject,
       {
         tool: kind = 'pen',

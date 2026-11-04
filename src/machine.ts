@@ -15,7 +15,7 @@ export interface MachineSpec<S extends object, E extends string> {
   events: readonly E[];
   /** The model's step: pure, from the model module, and it returns a new state. */
   next: (state: S, event: E) => S;
-  /** Pictures of the scene's state, made with view(scene, render), synced after each event. */
+  /** Pictures of the scene's state, made with view(scene, draw), synced after each event. */
   views: readonly View[];
   /** How the views morph (default 'key': keyed parts keep their identity). */
   match?: ViewMatch;
@@ -34,11 +34,8 @@ export class Machine<S extends object, E extends string> {
     if (!spec.events.length) throw new TypeError('A machine needs at least one event');
     if (new Set(spec.events).size !== spec.events.length) throw new TypeError('A machine\'s events must be distinct');
     if (typeof spec.next !== 'function') throw new TypeError('A machine needs next(state, event)');
-    // Exploration redraws any reachable state after the run, so each picture must be a function of
-    // the scene's state alone: a View made with view(scene, render), never one that closes over
-    // other variables, which would be drawn as the run left them.
-    const closed = spec.views.find((v) => !v.render);
-    if (closed) throw new TypeError(`A machine's views must be pictures of the scene's state, made with view(scene, render); View#${closed.id} is not`);
+    // Exploration redraws any reachable state after the run, which needs each picture to be a function
+    // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;
     this.spec = { match: 'key', runTime: 0.6, limit: 256, ...spec };
     machinesOf(scene).push(this as unknown as Machine<object, string>);

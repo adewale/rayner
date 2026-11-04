@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, MoveAlongPath,
   GrowFromEdge, PulseAlongPath, SetState, AnimationGroup, LaggedStart, Succession,
-  SnapshotSink, StringSink, NullSink, TraceSink, renderAt, traceScene, stateView,
+  SnapshotSink, StringSink, NullSink, TraceSink, renderAt, traceScene, StateReadout, view,
   loadFonts, toSvgString, linear, easeInQuad, UP, DOWN, LEFT, RIGHT,
 } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
@@ -160,7 +160,7 @@ test('SetState sequences state-derived views at the correct turn and leaves no d
   class Demo extends Scene<{count: number}> {
     override state = { count: 0 };
     override async construct() {
-      const readout = stateView(this, ['count']); this.add(readout);
+      const readout = view(this, (s) => new StateReadout([['count', s.count]]), { place: 'left' }); this.add(readout);
       await this.step('updates');
       await this.play(new Succession([
         new SetState(this, { count: 3 }), readout.sync({ runTime: 0.5 }),

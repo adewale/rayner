@@ -1,5 +1,5 @@
 import type {TextShaping} from './text-context.ts';
-// Panels: a key/value state readout (stateView builds one).
+// Panels: a key/value state readout, which a view of state draws: view(scene, (s) => new StateReadout(...)).
 import {Group} from './mobject.ts';
 import type {Mobject} from './mobject.ts';
 import { Text } from './text.ts';

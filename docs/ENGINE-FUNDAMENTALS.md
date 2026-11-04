@@ -135,7 +135,7 @@ when they are no longer needed. An updater that integrates `velocity * dt` depen
 on previous frames. The engine conservatively replays any play or wait with active
 updaters, including an updater that merely reads the current value.
 
-`view(scene, render).sync()` is different: it rebuilds a target from state at the
+`view(scene, draw).sync()` is different: it rebuilds a target from state at the
 start of the play and morphs to that target. It is useful for discrete updates.
 It does not continually reevaluate a nonlinear relationship between endpoints.
 

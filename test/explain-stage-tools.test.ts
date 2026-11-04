@@ -153,7 +153,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
         many.startNewPath([x, y]);
         many.addLineTo([x + (i % 3 ? 0.6 : 0.03), y + 0.02]);
       }
-      const drawn = await s.draw(many, { tool: 'pen', runTime: 2, describe: 'twelve strokes' });
+      const drawn = await s.sketch(many, { tool: 'pen', runTime: 2, describe: 'twelve strokes' });
       assert.ok(drawn instanceof Group && drawn.children.length === 12, 'one path per stroke');
       await this.step('two', { title: 'Done' });
       await this.wait(0.2);

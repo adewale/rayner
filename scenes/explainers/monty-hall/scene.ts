@@ -159,7 +159,6 @@ export default class MontyHall extends Scene {
     // The first strip shows every round; from the next on, only the rounds where he opened B to a goat count and the rest are greyed.
     const dim = (c: Cell) => c.opened !== B || c.shows === 'car';
     const KEY = 'Each cell: opens · shows · wins';
-    let phase: Phase = 'choice';
     let words: string[] = [];
 
     const doors = (result: string) => {
@@ -197,7 +196,8 @@ export default class MontyHall extends Scene {
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
     const cellKey = (y: number) => label(KEY, 0, y, s.soft, F, 'monty-key');
 
-    const picture = (): Group => {
+    /** The picture for a phase: a function of the scene's state alone, so the trace's view check and rayner check can redraw it. */
+    const picture = (phase: Phase): Group => {
       switch (phase) {
         case 'choice':
           return doors(`The car is behind ${X} or ${C}.`);
@@ -240,17 +240,19 @@ export default class MontyHall extends Scene {
         }
       }
     };
-    const main = view(() => keyed(picture(), 'monty-picture'), { place: false });
+    // Before the first step the picture is the choice.
+    const main = view(this, (st) => keyed(picture((st as { phase?: Phase }).phase ?? 'choice'), 'monty-picture'), { place: false });
+    const shown = (next: Phase) => { this.state = { ...this.state, phase: next }; };
     const describe = { describe: () => words.join('. ') };
     const fresh = async (next: Phase) => {
       await s.clear({ runTime: 0.3 });
-      phase = next;
+      shown(next);
       main.rebuild();
       s.keep(main, describe);
       await this.play(new FadeIn(main, { runTime: 0.5 }));
     };
     const morph = async (next: Phase, runTime = 1.1) => {
-      phase = next;
+      shown(next);
       await this.play(main.sync({ match: byKey, runTime }));
     };
     const at = (id: string, state: Record<string, unknown>) => {

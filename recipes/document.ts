@@ -1,6 +1,6 @@
 // The native-scene equivalent of Lantern's nodes/code/state/steps document.
 // Imports are public package imports, so this also runs from an installed archive.
-import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Indicate, Transform, stateView } from 'rayner';
+import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Indicate, Transform, StateReadout, view } from 'rayner';
 
 export interface RequestInput { cached: boolean }
 export function route(input: RequestInput): 'cache' | 'database' {
@@ -19,7 +19,7 @@ export function requestScene(input: RequestInput) {
       const destination = new Labeled(new Rectangle({ width: 2.4, height: 1 }), new Text('Pending', { fontSize: 0.3 })).moveTo([1, 1]);
       const edge = new Arrow([-2.7, 1], [-0.3, 1]);
       const code = new Code(['if (cached) return cache;', 'return database;'], { fontSize: 0.28 }).moveTo([-2, -1]);
-      const readout = stateView(this, ['cached', 'destination'], { at: [3, -1.5] });
+      const readout = view(this, (s) => new StateReadout([['cached', s.cached], ['destination', s.destination]], { at: [3, -1.5] }), { place: 'left' });
       await this.step('intro', { caption: 'A request can use a cached result or read the database.' });
       await this.play(new FadeIn(request), new FadeIn(destination), new Create(edge), new FadeIn(code), new FadeIn(readout), { runTime: 0.4 });
 

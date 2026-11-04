@@ -7,10 +7,13 @@ import assert from 'node:assert/strict';
 import {
   Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
   StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, perf, loadFonts,
-  view, stateView, viewMismatch, View, ViewSync, RIGHT,
+  view, viewMismatch, View, ViewSync, RIGHT,
 } from '../src/index.ts';
 import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
+
+/** A scene holding `st` as its state, for views tested without running a scene. */
+const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
 
 await loadFonts();
 Scene.captionWpm = Infinity;
@@ -165,7 +168,7 @@ test('the fidelity helper: the picture at every step is what the traced state re
 
 test('match: index morphs by position (a DecimalNumber counts), shapes and keys pair parts', () => {
   const st = { n: 0 };
-  const v = view(() => new DecimalNumber(st.n, { anchor: 'start' }), { place: 'left' });
+  const v = view(held(st), () => new DecimalNumber(st.n, { anchor: 'start' }), { place: 'left' });
   st.n = 10;
   const sync = v.sync({ match: 'index' });
   sync.begin();
@@ -178,7 +181,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
   // Shapes: the circle that stays pairs with itself, the square fades, a new one grows
   let kids = 2;
-  const g = view(() => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Square({ side: 0.4 }).shift([i + 1, 0]))));
+  const g = view(held(), () => new Group(new Circle({ radius: 0.5 }), ...Array.from({ length: kids - 1 }, (_, i) => new Square({ side: 0.4 }).shift([i + 1, 0]))));
   const before = g.current;
   kids = 3;
   const sh = g.sync({ match: 'shapes' });
@@ -195,7 +198,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
   // Your own key
   const fills = ['#ff0000', '#00ff00'];
-  const k = view(() => new Group(...fills.map((f, i) => new Square({ side: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
+  const k = view(held(), () => new Group(...fills.map((f, i) => new Square({ side: 0.4, fill: f, fillOpacity: 1 }).shift([i, 0]))));
   fills.reverse();
   const ks = k.sync({ match: (p) => p.style.fill });
   ks.begin(); ks.finish();
@@ -204,7 +207,7 @@ test('match: index morphs by position (a DecimalNumber counts), shapes and keys 
 
 test('placement: a moved and scaled View stays moved and scaled; place: false leaves it to build()', () => {
   const st = { s: 'ab' };
-  const v = view(() => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
+  const v = view(held(st), () => new Text(st.s, { fontSize: 0.4 }), { place: 'right' });
   v.scale(0.5).moveTo([3, -2]);
   const right = v.current.frameBox[2]!, h = v.current.height();
   st.s = 'abcdef';
@@ -213,7 +216,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
   assert.ok(Math.abs(v.current.height() - h) < 1e-5, 'half size held');
   assert.equal(v.current.text, 'abcdef');
 
-  const free = view(() => new Text(st.s).moveTo([1, 1]), { place: false });
+  const free = view(held(st), () => new Text(st.s).moveTo([1, 1]), { place: false });
   free.shift([5, 0]);
   st.s = 'x';
   free.rebuild();
@@ -221,7 +224,7 @@ test('placement: a moved and scaled View stays moved and scaled; place: false le
 
   // A picture build() hands back twice cannot morph into itself
   const fixed = new Text('same');
-  const bad = view(() => fixed);
+  const bad = view(held(), () => fixed);
   assert.throws(() => bad.sync().begin(), /build a new one each time/);
 });
 
@@ -235,12 +238,13 @@ test('a StateReadout copy() names its own value Texts', () => {
   assert.deepEqual(Object.keys(c.values), ['n', 'm']);
 });
 
-test('stateView: a StateReadout of the scene\'s state whose keys stay put as values grow', async () => {
+test('a StateReadout view of the scene\'s state keeps its keys put as values grow', async () => {
   class Counter extends Scene {
     rv?: View<StateReadout>;
     override async construct(): Promise<void> {
       this.state = { tokens: 10, responses: [] as number[] };
-      const rv = (this.rv = stateView(this, ['tokens', 'responses'], { at: [-3, 1] }));
+      const text = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
+      const rv = (this.rv = view(this, (st) => new StateReadout((['tokens', 'responses'] as const).map((k) => [k, text(st[k])] as const), { at: [-3, 1], shaping: this.textShaping }), { place: 'left' }));
       await this.step('show');
       await this.play(new FadeIn(rv));
       for (const [i, code] of [200, 200, 429].entries()) {
@@ -265,7 +269,7 @@ test('stateView: a StateReadout of the scene\'s state whose keys stay put as val
 test('a returning sync preserves inherited scale for the next rebuild or sync', () => {
   for (const next of ['rebuild', 'sync'] as const) {
     let side = 1;
-    const v = view(() => new Rectangle({ width: side, height: side }));
+    const v = view(held(), () => new Rectangle({ width: side, height: side }));
     v.scale(2);
     const original = v.current;
     side = 3;

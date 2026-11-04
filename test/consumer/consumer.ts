@@ -23,7 +23,7 @@ import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';
 import type { Hunk, TransformDiffOpts, Evidence, StepRecord, ColorSpan, CodeSpan, RenderOptions, Step } from 'rayner';
-import { Frame, StateReadout, View, ViewSync, stateView, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
+import { Frame, StateReadout, View, ViewSync, view, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
 import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
 import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
@@ -89,7 +89,7 @@ export class Tour extends Scene {
     const code = new Code(['let n = 1;']);
     await this.play(this.frame.animate.fit(code, fit));
     const frame: Frame = this.frame;
-    const readout: View<StateReadout> = stateView(this, ['n'], { place: 'left' });
+    const readout: View<StateReadout> = view(this, (s) => new StateReadout([['n', s.n]]), { place: 'left' });
     const sync: SyncOpts = { match: 'text', runTime: 0.5 };
     this.state = { n: 2 };
     await this.play(new ViewSync(readout, sync));
@@ -160,7 +160,6 @@ function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
   return Counter;
 }
 
-import { view } from 'rayner';
 
 // The drawing kit, as an author imports it.
 import { label, tile, table, flow, bars, stat, segment, dot } from 'rayner/drawing';

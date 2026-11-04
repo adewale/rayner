@@ -77,7 +77,6 @@ test('a machine replays events through the model as one schedule: state, evidenc
   assert.throws(() => ran.machine.send('DOWN' as 'UP'), RangeError);
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: [], next, views: [] }), TypeError);
   // A picture that closes over variables outside the state cannot be redrawn for an explored state
-  assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP'], next, views: [view(() => new Text('lamp'))] }), /made with view\(scene, render\)/);
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), TypeError);
 });
 

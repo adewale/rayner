@@ -1,6 +1,6 @@
 import {
   Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath, SetState,
-  Succession, stateView, DOWN,
+  Succession, StateReadout, view, DOWN,
 } from 'rayner';
 
 export default class ChoreographyScene extends Scene<{count: number}> {
@@ -10,7 +10,7 @@ export default class ChoreographyScene extends Scene<{count: number}> {
     const bar = new Rectangle({ width: 2, height: 3, fill: '#58c4dd', fillOpacity: 0.3 }).moveTo([-3, 0]);
     const route = new Line([0, 0], [4, 0]);
     const token = new Dot().moveTo([0, 0]);
-    const readout = stateView(this, ['count'], { at: [1, -2] });
+    const readout = view(this, (s) => new StateReadout([['count', s.count]], { at: [1, -2] }), { place: 'left' });
     this.add(route, readout);
     await this.step('grow-and-travel');
     await this.play(new GrowFromEdge(bar, DOWN), new PulseAlongPath(token, route), { runTime: 1 });

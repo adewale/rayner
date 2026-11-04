@@ -1,6 +1,6 @@
 # Vocabulary: one name per idea
 
-**Status: in progress.** Step 1 of the [order of work](#order-of-work) is done: `Machine`, `match: 'key'` and invariants named as invariants. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
+**Status: in progress.** Steps 1 and 2 of the [order of work](#order-of-work) are done: `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
 
 ## Why
 
@@ -14,7 +14,7 @@ Correctness by construction rests on five invariants (see [Engine](ENGINE.md)): 
 
 | Path | Explainers | Is the picture checked against the state? |
 | --- | --- | --- |
-| `view(scene, render)` | 4 (feature-tour, periodic-groups, statecharts, token-bucket) | Yes: `viewMismatch`, and exploration for sessions |
+| `view(scene, render)` | 6 (feature-tour, periodic-groups, ring-buffer, state-machine, statecharts, token-bucket) | Yes: `viewMismatch`, and exploration for sessions |
 | `Session` | 1 (statecharts) | Yes, in every reachable state |
 | The scene library's `lesson()` (6) and `readerFirst()` (11) | 17 | No. Each step sets `scene.state` and, separately, calls `draw(stage)`, which never receives the state. Nothing checks that the picture shows it. |
 | `scene.state = …` written in the scene's own code | 34 | Only where a view also exists |
@@ -121,13 +121,16 @@ Each of these has no adopter, or breaks an invariant, or says something the engi
 
 | Cut | Users | Why |
 | --- | --- | --- |
-| `addUpdater`, `clearUpdaters`, `Updater` | 0 explainers | A function of `dt` run every frame makes a frame depend on the frames before it, so it cannot be sought directly (invariant 1). `Follow` covers continuous motion from a value. |
 | `stateView` | 0 | A readout of state keys; `StateReadout` in a `view` does the same. |
-| `view(build)` | 1 (monty-hall) | A view not made from state cannot be checked against it. Monty-hall moves to `view(scene, draw)`. |
-| `GrowFromEdge`, `PulseAlongPath` as public exports | 0 directly | Only `Diagram` uses them. They stay, internal. |
+| `view(build)` | 1 (monty-hall) | A view not made from state cannot be checked against it. Monty-hall moves to `view(scene, draw)`, and the `View` constructor itself takes `(scene, draw)`, so no View can close over anything else. |
 | `Diagram.fromGraph` (proposed) | 0 needed | Git-branches and exgit draw their graphs with the kit, and `Diagram.morph` already handles graph edits. |
 | `allows` (proposed) | — | Folded into `next` returning `undefined`. |
 | `viewpoint` as an engine type (proposed) | — | It is state; `projected` is a drawing function. |
+
+Kept after review, though first listed as cuts:
+
+- **Updaters** (`addUpdater`). No explainer registers one, but the Lantern explainer teaches them as its counterexample, with claims backed by tests that use them. Under the fixed clock a scene with updaters is still deterministic: a seek computes every frame before it rather than skipping. They cost seek speed, not invariant 1.
+- **`GrowFromEdge`, `PulseAlongPath`.** Stock animation vocabulary, as `Indicate` and `Flash` are, with a documented recipe. Adopter counts are the wrong test for a stock animation.
 
 Deferred: `{ cue }` for narration belongs with video export on `claude/video-pacing` (#7). Lighting, shading and depth of field for 3D: nothing the scripts argue needs them.
 

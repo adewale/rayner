@@ -514,7 +514,7 @@ export default class PenAndPencil extends Scene {
     });
     await drop(width);
     await d.hide();
-    const traced = await s.draw(construction, {
+    const traced = await s.sketch(construction, {
       tool: 'pencil',
       color: CONSTRUCTION,
       runTime: 3,
@@ -546,7 +546,7 @@ export default class PenAndPencil extends Scene {
     });
     await this.play(traced.animate.setOpacity(0), { runTime: 0.3 });
     await s.focus(ring, { margin: 0.55 });
-    await s.draw(polylines([ringInk], INK, INK_WIDTH), {
+    await s.sketch(polylines([ringInk], INK, INK_WIDTH), {
       tool: 'pen',
       runTime: 2,
       describe: 'Close on the Midnight marker: the pen’s ink lying on the blue ring it follows',
@@ -580,23 +580,23 @@ export default class PenAndPencil extends Scene {
       describe: `Light pencil tints on the chart: ochre on the ${facts.length} period planks, blue on the ${facts.length} event tags, every word’s box left clear`,
     });
     await this.play(new Create(tints, { runTime: 1.2, lagRatio: 0.02 }));
-    await s.draw(inked, {
+    await s.sketch(inked, {
       tool: 'pen',
       runTime: 3.2,
       describe: `The timeline drawn as objects in warm-black ink over its blue construction: ${facts.length} periods as planks, ${facts.length} events as tags on strings, marker rings and a rope rail`,
     });
-    await s.draw(wordGroup, {
+    await s.sketch(wordGroup, {
       tool: 'pen',
       runTime: 2.4,
       describe: `Every word of the chart in Hershey single-stroke letters, and the title “${TITLE}” in the sky`,
     });
     if (firstScenery) {
-      await s.draw(firstScenery, {
+      await s.sketch(firstScenery, {
         tool: false,
         runTime: 1,
         describe: 'The first drawing’s sea strokes and gulls laid over this one in grey, in other places than this drawing’s',
       });
-      await s.draw(sharedBoxes, {
+      await s.sketch(sharedBoxes, {
         tool: false,
         runTime: 0.8,
         describe: `Dashed red outlines on the ${facts.length * 2} laid-out period and event boxes, the same for both drawings; every plank and tag sits on them`,

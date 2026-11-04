@@ -50,7 +50,7 @@ so a caller cannot mutate a later replay by changing the original input object.
 | `edges` and labels | `Arrow`/`CurvedArrow` with `Labeled`, or captured Agentic Mermaid diagrams |
 | `at`, relative placement | `moveTo`, `nextTo`, `alignTo`, `arrange` |
 | `code`, `focus` | `Code`, `highlight`, spans and emphasis animations |
-| `state`, `readout`, `set` | Typed `Scene` state, a model function and `stateView(...).sync()` |
+| `state`, `readout`, `set` | Typed `Scene` state, a model function and `view(this, draw).sync()` |
 | Named `steps` and metadata | `await this.step(name, metadata)` |
 | Sequential ops / arrays of simultaneous ops | Sequential `await this.play(...)` / one `this.play(a, b)` |
 | Add/remove/move/style/indicate | `FadeIn`, `FadeOut`, `.animate`, `Indicate` |
