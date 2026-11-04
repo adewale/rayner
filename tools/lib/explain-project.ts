@@ -9,7 +9,7 @@ import { dirname, resolve, join, basename, relative, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { Scene, NullSink } from '../../src/index.ts';
+import { Scene, NullSink, machinesOf } from '../../src/index.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
@@ -17,9 +17,7 @@ import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
-import type { Trace } from '../../src/index.ts';
-import { liveSteps } from '../../app/embed-live.ts';
-import type { Live } from '../../app/embed-live.ts';
+import type { Machine, Trace } from '../../src/index.ts';
 
 import { scenariosOf, withSettings, bindSnapshots, scenarioName, resolveSettings } from '../../explain/index.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
@@ -171,7 +169,7 @@ export interface Project {
   engineHash: string;
   store: SnapshotStore;
   /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
-  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, Live> }[];
+  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, { index: number; machine: Machine<object, string> }> }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -395,7 +393,9 @@ export async function collectProject(
         }
       }));
       // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
-      const live = liveSteps(ran);
+      // Each machine at the step it last played in (as liveSteps in app/embed-live.ts finds them; a later machine wins a step).
+      const live = new Map<string, { index: number; machine: Machine<object, string> }>();
+      for (const [index, machine] of machinesOf(ran).entries()) if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, machine });
       scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
