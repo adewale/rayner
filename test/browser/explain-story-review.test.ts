@@ -860,7 +860,7 @@ test(
     try {
       await writeFile(join(dir, 'scene.ts'), `import{Scene,Text,Group}from'rayner';import{stage,settingsOf}from'rayner/explain';
 export default class Narrow extends Scene{static meta={id:'narrow',title:'Width-sensitive comparison'};static settings=[{id:'spacing',label:'Spacing',default:'compact',options:[{value:'compact',label:'Compact'},{value:'wide',label:'Wide'},{value:'all-detail',label:'All detail fallback'}]}];async construct(){
-const s=stage(this);await this.step('comparison',{detail:settingsOf(this).spacing==='all-detail',caption:'Keep both values together.'});const x=settingsOf(this).spacing==='wide'?6.5:3;
+const s=stage(this);await this.step('comparison',{kind:settingsOf(this).spacing==='all-detail'?'detail':'main',caption:'Keep both values together.'});const x=settingsOf(this).spacing==='wide'?6.5:3;
 const left=new Text('Before 1',{fontSize:.6}).moveTo([-x,0]),right=new Text('After 2',{fontSize:.6}).moveTo([x,0]);left.key='left';right.key='right';const g=new Group(left,right);s.reading(g);await s.enter(g,{describe:'Before one, after two'});
 await this.step('reference',{kind:'detail',caption:'Reference implementation value.'});await s.clear();const r=new Text('Reference',{fontSize:.2});r.key='reference';await s.enter(r,{describe:'Reference value'});
 }}`);
