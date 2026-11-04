@@ -408,7 +408,7 @@ test('ring-buffer views show the traced state at every step, in both cases', asy
   await loadViewFonts();
   for (const operations of ['wrap', 'full']) {
     const Ring = viewSettings(RingBufferExplainer, { operations });
-    for (const name of ['readout', 'results', 'incoming'] as const) {
+    for (const name of ['ring', 'readout', 'results'] as const) {
       const pick = (scene: ViewScene) => (scene as unknown as Record<typeof name, StateView | undefined>)[name];
       assert.equal(await viewFollowsState(Ring, pick), 4, `${operations}: ${name} checked at all four steps`);
     }

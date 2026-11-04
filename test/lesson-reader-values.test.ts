@@ -97,7 +97,7 @@ test('token introductions and the ring’s fill and result steps draw the indepe
           const expected =
             step.name === 'fill' || v.values.operations === 'full' ? [1, 2, 3, 4, 5] : [6, 7, 3, 4, 5];
           for (const [i, n] of expected.entries()) {
-            const slot = scene.familyMembers().find((m) => m.key === `slot:${i}`);
+            const slot = scene.familyMembers().find((m) => m.key === `ring:value:${i}`);
             assert.ok(slot);
             assert.deepEqual(
               slot

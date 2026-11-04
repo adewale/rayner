@@ -95,6 +95,63 @@ export function ringStory(which: string) {
   }
   return events;
 }
+/**
+ * A ring a reader can drive: push (the next value, 1 upward) and pop, one at a time, on the
+ * RingBuffer above. Beside the buffer it records what the picture needs: the operation and its
+ * result, the slots it outlined, the values in the tray under the ring (a run of pops, or of
+ * refused pushes, adds to the tray; anything else starts it afresh) and which slots are being
+ * reused. A pop of an empty ring, or a push past 9, is refused (undefined).
+ */
+export interface RingState {
+  head: number; tail: number; length: number; data: (number | null)[];
+  /** Slots that have held a value, and slots holding a value written into a slot used before. */
+  used: boolean[]; reused: boolean[];
+  /** The value the next push hands the buffer. */
+  next: number;
+  operation: string | null; error: string | null; returned: number[] | null;
+  marks: { slot: number; kind: 'push' | 'pop' | 'refused' }[];
+  tray: { label: string; values: number[]; refused: boolean } | null;
+}
+export type RingEvent = 'push' | 'pop';
+export function ringStart(capacity: number): RingState {
+  const empty = () => Array<boolean>(capacity).fill(false);
+  return { head: 0, tail: 0, length: 0, data: Array(capacity).fill(null), used: empty(), reused: empty(), next: 1, operation: null, error: null, returned: null, marks: [], tray: null };
+}
+export function ringNext(st: RingState, event: RingEvent): RingState | undefined {
+  const ring = new RingBuffer<number>(st.data.length);
+  Object.assign(ring, { head: st.head, tail: st.tail, length: st.length, data: [...st.data] });
+  if (event === 'pop') {
+    if (!st.length) return undefined;
+    const slot = ring.head, value = ring.pop();
+    const run = st.operation === 'pop';
+    return {
+      ...st, ...ring.snapshot(),
+      reused: st.reused.map((r, i) => r && i !== slot),
+      operation: 'pop', error: null, returned: [value],
+      marks: run ? [...st.marks, { slot, kind: 'pop' }] : [{ slot, kind: 'pop' }],
+      tray: { label: 'popped:', values: run && st.tray && !st.tray.refused ? [...st.tray.values, value] : [value], refused: false },
+    };
+  }
+  if (st.next > 9) return undefined;
+  const value = st.next, slot = ring.tail;
+  try {
+    ring.push(value);
+  } catch (error) {
+    if (!(error instanceof Full)) throw error;
+    return {
+      ...st, next: value + 1, operation: `push ${value}`, error: 'Full', returned: null,
+      marks: [{ slot, kind: 'refused' }],
+      tray: { label: 'refused, Full:', values: st.tray?.refused ? [...st.tray.values, value] : [value], refused: true },
+    };
+  }
+  return {
+    ...st, ...ring.snapshot(), next: value + 1,
+    used: st.used.map((u, i) => u || i === slot),
+    reused: st.reused.map((r, i) => (i === slot ? st.used[slot]! : r)),
+    operation: `push ${value}`, error: null, returned: null,
+    marks: [{ slot, kind: 'push' }],
+  };
+}
 export interface Shell {
   fs: Record<string, string>;
   steps: number;

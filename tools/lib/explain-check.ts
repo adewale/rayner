@@ -453,6 +453,13 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
  * is checked a quarter, half, three quarters and all the way through, and when it ends the views
  * must show the pictures of the state it reaches, as rendered, so the landing sync moves nothing.
  */
+/**
+ * A rendered frame's marks in any stacking order: a part a transition brought in is added last,
+ * so it may sit above parts it sits below in the target picture; the landing puts it back a frame
+ * later. Every mark must still be there, drawn the same.
+ */
+const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
+
 function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[]): string[] {
   const problems: string[] = [];
   const { views, transition, events } = machine.spec;
@@ -465,10 +472,13 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
     // now (a rebuilt picture keeps its place), before the transition can move them.
     scene.state = jsonObject(after, 'machine state');
     for (const v of views) v.rebuild();
-    const expected = toSvgString(scene);
+    const expected = marksOf(toSvgString(scene));
     scene.state = jsonObject(state, 'machine state');
     for (const v of views) v.rebuild();
     const motion = authored({ event, before: state, after, views, targets: views.map((v) => v.placed(after as Record<string, unknown>)) });
+    // As in a play: the event's SetState has already moved the scene to `after` when its transition
+    // begins, so a sync inside the transition draws the state reached.
+    scene.state = jsonObject(after, 'machine state');
     scene.beginAnimations([motion]);
     for (const alpha of [0.25, 0.5, 0.75, 1]) {
       motion.interpolate(motion.rateFunc(alpha));
@@ -479,9 +489,9 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
     }
     motion.finish();
     motion.cleanUpFromScene(scene);
-    // Compared as rendered, since a morph lands glyphs without retyping a Text. A transition that
+    // Compared as rendered marks, since a morph lands glyphs without retyping a Text. A transition that
     // ends elsewhere would leave the views there: their next rebuild keeps the place it left them.
-    if (toSvgString(scene) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
+    if (marksOf(toSvgString(scene)) !== expected) problems.push(`${at}: the transition ends somewhere other than the picture of the state it reaches`);
     scene.state = jsonObject(after, 'machine state');
     for (const v of views) v.rebuild();
   }

@@ -34,8 +34,8 @@ export interface MachineSpec<S extends object, E extends string> {
   views: readonly View[];
   /** How the views morph (default 'key': keyed parts keep their identity). */
   match?: ViewMatch;
-  /** Each event's morph, in seconds (default 0.6). */
-  runTime?: number;
+  /** Each event's morph or transition, in seconds (default 0.6), or a function of the event and the states either side. */
+  runTime?: number | ((t: { event: E; before: S; after: S }) => number);
   /** The most states `rayner check` explores (default 256); a larger machine is sampled breadth first up to it. */
   limit?: number;
 }
@@ -79,7 +79,8 @@ export class Machine<S extends object, E extends string> {
     const before = JSON.parse(JSON.stringify(from)) as S;
     const after = this.after(before, event);
     if (after === undefined) throw new RangeError(`${String(event)} is refused in ${JSON.stringify(before)}`);
-    const { views, match, runTime } = this.spec;
+    const { views, match } = this.spec;
+    const runTime = typeof this.spec.runTime === 'function' ? this.spec.runTime({ event, before, after }) : this.spec.runTime;
     const authored = this.spec.transition?.[event];
     const built = JSON.stringify(before);
     return new Succession([
@@ -91,8 +92,8 @@ export class Machine<S extends object, E extends string> {
         // The transition's motion, then the views take the pictures of `after`: a sync that moves
         // nothing when the transition ended where the model says (rayner check holds it to that).
         ? new Succession([
-          new WhenItsTurnComes(() => authored({ event, before, after, views, targets: views.map((v) => v.placed(after as SceneState)) }), views, runTime),
-          new AnimationGroup(views.map((v) => v.sync({ match, runTime: LAND }))),
+          new WhenItsTurnComes(this.scene, () => authored({ event, before, after, views, targets: views.map((v) => v.placed(after as SceneState)) }), views, runTime),
+          new Landing(this.scene, views),
         ])
         : new AnimationGroup(views.map((v) => v.sync({ match, runTime }))),
     ]);
@@ -144,11 +145,14 @@ class WhenItsTurnComes extends Animation {
   make: () => Animation | AnimationGroup;
   declared: Mobject[];
   made: Animation | AnimationGroup | null;
-  constructor(make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
+  scene: Scene<any>;
+  constructor(scene: Scene<any>, make: () => Animation | AnimationGroup, declared: readonly Mobject[], runTime: number) {
     super(declared[0] ?? new Group(), { runTime, rateFunc: linear });
-    this.make = make; this.declared = [...declared]; this.made = null;
+    this.scene = scene; this.make = make; this.declared = [...declared]; this.made = null;
   }
-  override begin(): void { this.made = this.make(); this.made.begin(); }
+  // Begun through the scene, as play() begins anything: a Succession in it then cleans up each
+  // member as it finishes (a part faded out leaves the picture), and its evidence is recorded.
+  override begin(): void { this.made = this.make(); this.scene.beginAnimations([this.made]); }
   override interpolate(alpha: number): void { if (this.made) this.made.interpolate(this.made.rateFunc(alpha)); }
   override finish(): void { this.made?.finish(); }
   override cleanUpFromScene(scene: Parameters<Animation['cleanUpFromScene']>[0]): void { this.made?.cleanUpFromScene(scene); }
@@ -156,8 +160,40 @@ class WhenItsTurnComes extends Animation {
   override evidence(): Evidence | null { return this.made?.evidence() ?? null; }
 }
 
-/** How long the views take to land after an authored transition: one frame's worth, still when it ended right. */
+/** How long the views take to land after an authored transition: one frame's worth. */
 const LAND = 1 / 30;
+
+/**
+ * The views take the pictures of the state reached, with no motion: an authored transition already
+ * brought what is on screen there (rayner check holds it to that). Each keyed part takes its drawn
+ * counterpart's data in place (a morphed Text gets its new string) and the parts go back into the
+ * drawn picture's stacking order, so every part keeps its identity for the next event. A picture
+ * whose parts do not line up by key is swapped for the drawn one instead.
+ */
+class Landing extends Animation {
+  views: readonly View[];
+  scene: Scene<any>;
+  constructor(scene: Scene<any>, views: readonly View[]) {
+    super(views[0] ?? new Group(), { runTime: LAND, rateFunc: linear });
+    this.scene = scene; this.views = views;
+  }
+  override begin(): void {}
+  override interpolate(): void {}
+  override finish(): void {
+    for (const v of this.views) {
+      const drawn = v.placed(this.scene.state), current = v.current;
+      const byKey = new Map(current.children.map((c) => [c.key, c] as const));
+      const lines = drawn.children.length === current.children.length && drawn.children.every((d) => d.key !== undefined && byKey.get(d.key)?.sameShapeAs(d));
+      if (!lines) { v.rebuild(); continue; }
+      const order = drawn.children.map((d) => byKey.get(d.key)!.become(d));
+      current.children = order;
+      current.invalidateBox();
+    }
+  }
+
+  override cleanUpFromScene(): void {}
+  override targets(): Mobject[] { return [...this.views]; }
+}
 
 const registry = new WeakMap<object, Machine<object, string>[]>();
 /** The machines a scene made, in order: what `rayner check` explores after a run. */
