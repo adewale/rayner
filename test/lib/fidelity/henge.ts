@@ -3,7 +3,7 @@ import type { Trace } from '../../../src/trace.ts';
 import { henge, type Street } from '../../../scenes/explainers/lib/henge.ts';
 import { assertStepState } from '../explainer-state.ts';
 
-/** The coordinate model has an independent ERFA oracle; this binds each published case to it. */
+/** The coordinate model has an independent ERFA oracle; this binds each published scenario to it. */
 export function check(values: Record<string, string>, trace: Trace): void {
   const model = henge(values.street as Street);
   assert.deepEqual(trace.steps.map(step => step.step), ['street', 'overhead', 'tilt', 'paths', 'sweep', 'crossings', 'disc']);

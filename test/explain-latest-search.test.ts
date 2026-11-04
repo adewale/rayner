@@ -85,10 +85,10 @@ test('the pictured ticket check and publish call match the executed handler', ()
   }
 });
 
-test('all four reference chart cases derive their final chart and caption from the real promise result', async () => {
+test('all four reference chart scenarios derive their final chart and caption from the real promise result', async () => {
   const project = await collectProject('test/fixtures/latest-search-view.ts', { write: false });
-  assert.equal(project.cases.length, 4);
-  for (const { values, trace } of project.cases) {
+  assert.equal(project.scenarios.length, 4);
+  for (const { values, trace } of project.scenarios) {
     const guard = values.guard === 'on';
     const order = values.order as 'new-first' | 'old-first';
     const expected = await runSearch(guard, order);
@@ -106,7 +106,7 @@ test('all four reference chart cases derive their final chart and caption from t
   }
 });
 
-test('the chart/view on every case follows the state recorded at each resting step', async () => {
+test('the chart/view on every scenario follows the state recorded at each resting step', async () => {
   await loadFonts();
   for (const guard of ['off', 'on']) for (const order of ['new-first', 'old-first']) {
     const checked = await assertViewFollowsState(
@@ -119,12 +119,12 @@ test('the chart/view on every case follows the state recorded at each resting st
 
 test('the public story compares both rules and shows each ticket decision in both finish orders', async () => {
   const p = await collectProject('scenes/explainers/latest-search', {write:false});
-  assert.equal(p.cases.length,2);
-  for(const v of p.cases){
+  assert.equal(p.scenarios.length,2);
+  for(const v of p.scenarios){
     assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard']);
     const order=v.values.order as 'new-first'|'old-first';
     const off=await runSearch(false,order),on=await runSearch(true,order);
-    // The overwrite and last steps are the race machines' states after the case's events: A and B start, then
+    // The overwrite and last steps are the race machines' states after the scenario's events: A and B start, then
     // the two landings in the completion order. Each machine's run matches the real promises' run.
     const events:RaceEvent[]=['start A','start B',...(order==='new-first'?['B lands','A lands'] as const:['A lands','B lands'] as const)];
     const result=v.trace.steps.at(-1)!.after! as unknown as RaceState;

@@ -23,9 +23,9 @@ const ENFANTS = ['sans enfant', 'un enfant', 'deux enfants', 'trois enfants'];
 const eur2 = (x: number) => euros(x, 2);
 const tauxTexte = (q: number) => pourcent(BAREME[2024][tranche(q)]!.rate);
 
-/** The script's one-sentence answer, stated in the multiplie step of every case. */
+/** The script's one-sentence answer, stated in the multiplie step of every scenario. */
 const REPONSE = `Diviser change l’impôt parce que le barème est progressif${deux} chaque part repart du bas du barème, donc moins d’euros atteignent les tranches les plus taxées que sur le revenu entier`;
-// The check questions' cases: one child at three incomes, and the childless couple at 30 000 €.
+// The check questions' scenarios: one child at three incomes, and the childless couple at 30 000 €.
 const DEFAUT = impot(65673.88, 1),
   UN30 = impot(30000, 1),
   UN150 = impot(150000, 1),
@@ -115,7 +115,7 @@ export default class QuotientFamilialExplainer extends Scene {
         answer: `La décote${deux} ${euros(PARAMS[2024].decoteSeuil)} − ${pourcent(PARAMS[2024].decoteTaux)} × ${eur2(BAS.plafQf)} = ${euros(BAS.decote)}, plus que l’impôt, qui tombe à 0. Pour ${euros(4000)}, elle vaudrait ${euros(PARAMS[2024].decoteSeuil)} − ${euros(PARAMS[2024].decoteTaux * 4000)}, moins que zéro${deux} elle ne retire plus rien dès ${euros(FIN_DECOTE)} d’impôt.`,
       },
     ],
-    // The French sentences that reach beyond the case on screen, and the tests that hold them.
+    // The French sentences that reach beyond the scenario on screen, and the tests that hold them.
     claims: [
       {
         says: 'moins d’euros atteignent les tranches les plus taxées que sur le revenu entier',

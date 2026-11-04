@@ -5,7 +5,7 @@ import type {NarrowOpeningObligation} from './explain-review-plan.ts';
 export interface SceneInputs {
   version: '2'; sourceHash: string; engineHash: string; importer: string; files: string; buildHash: string;
 }
-export interface CatalogTotals { explainers: number; cases: number; diagrams: number; styles: number; families: number }
+export interface CatalogTotals { explainers: number; scenarios: number; diagrams: number; styles: number; families: number }
 export interface CatalogEntry { id: string; step?: string; settings?: Record<string, string>; label?: string }
 export interface SceneEntry { step: string; settings: Record<string, string> }
 export interface CatalogProduct {
@@ -14,7 +14,7 @@ export interface CatalogProduct {
   tutorial?: string; reference?: string; skill?: string;
 }
 export interface CatalogScene {
-  id: string; cases: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
+  id: string; scenarios: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
   step?: string; entry?: SceneEntry;
   /** Accepted when reading older catalogs; new catalogs use tier alone. */
   showcase?: boolean;
@@ -23,7 +23,7 @@ export interface CatalogScene {
 }
 export interface Catalog { version: 1; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
-  id: string; cases: Record<string, string>[]; diagrams: number; styles: string[]; families: string[];
+  id: string; scenarios: Record<string, string>[]; diagrams: number; styles: string[]; families: string[];
   title?: string; lang?: string; entry?: SceneEntry; sourceHash?: string; engineHash?: string; snapshotHashes?: string[];
   narrowOpenings?: {settings: Record<string, string>; steps: NarrowOpeningObligation[]}[];
 }
@@ -34,7 +34,7 @@ const stringMap = (value: unknown) => object(value) && Object.values(value).ever
 const count = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
 const strings = (value: unknown) => Array.isArray(value) && value.every(v => typeof v === 'string');
 const entry = (value: unknown) => object(value) && typeof value.step === 'string' && stringMap(value.settings);
-const totals = (value: unknown) => object(value) && ['explainers','cases','diagrams','styles','families'].every(key => count(value[key]));
+const totals = (value: unknown) => object(value) && ['explainers','scenarios','diagrams','styles','families'].every(key => count(value[key]));
 
 /** Validate serialized producer boundaries once; consumers use the same contracts. */
 export function catalog(value: unknown): Catalog {
@@ -48,7 +48,7 @@ export function catalog(value: unknown): Catalog {
       (opening.settings !== undefined && !stringMap(opening.settings))) return fail();
   const ids = new Set<string>();
   for (const scene of value.scenes) {
-    if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || ids.has(scene.id) || !count(scene.cases)) return fail();
+    if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || ids.has(scene.id) || !count(scene.scenarios)) return fail();
     ids.add(scene.id);
     if (['title','lang','step'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
         (scene.group !== undefined && scene.group !== 'topic' && scene.group !== 'toolchain') ||
@@ -63,7 +63,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
   const ids = new Set<string>();
   for (const scene of value.scenes) {
     if (!object(scene) || typeof scene.id !== 'string' || !/^[a-z0-9-]+$/.test(scene.id) || ids.has(scene.id) ||
-        !Array.isArray(scene.cases) || !scene.cases.every(stringMap) || !count(scene.diagrams) || !strings(scene.styles) || !strings(scene.families))
+        !Array.isArray(scene.scenarios) || !scene.scenarios.every(stringMap) || !count(scene.diagrams) || !strings(scene.styles) || !strings(scene.families))
       throw new Error('Invalid evidence scene');
     ids.add(scene.id);
     if (scene.entry !== undefined && !entry(scene.entry)) throw new Error('Invalid evidence entry');
@@ -72,7 +72,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
     if (scene.narrowOpenings !== undefined) {
       if (!Array.isArray(scene.narrowOpenings)) throw new Error('Invalid opening inventory');
       for (const opening of scene.narrowOpenings) {
-        if (!object(opening) || !stringMap(opening.settings) || !Array.isArray(opening.steps)) throw new Error('Invalid opening case');
+        if (!object(opening) || !stringMap(opening.settings) || !Array.isArray(opening.steps)) throw new Error('Invalid opening scenario');
         for (const step of opening.steps) {
           if (!object(step) || typeof step.step !== 'string' || typeof step.reviewed !== 'boolean' ||
               (step.reviewed ? !strings(step.targets) || !step.targets.length || !strings(step.labels)

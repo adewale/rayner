@@ -31,7 +31,7 @@ const STYLE = 'pen-and-ink';
 /** The page's warm-black pen, from the study. */
 const INK = '#2b2320';
 const CONSTRUCTION = '#5b8fd0';
-/** Light pencil tints; the palette is the same in every case. */
+/** Light pencil tints; the palette is the same in every scenario. */
 const TINTS: Record<string, string> = {
   hills: '#7f9a6c',
   sea: '#6f93b3',

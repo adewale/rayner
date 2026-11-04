@@ -17,11 +17,11 @@ test('route and chart annotations leave the expected paper visible behind their 
   ];
   for (const [id, stepName, words, settings, paper] of cases) {
     const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-    const cases = project.cases.filter((v) => Object.entries(settings).every(([k, value]) => v.values[k] === value));
-    assert.ok(cases.length > 0, `${id}: the named case must exist`);
-    for (const theCase of cases) {
+    const scenarios = project.scenarios.filter((v) => Object.entries(settings).every(([k, value]) => v.values[k] === value));
+    assert.ok(scenarios.length > 0, `${id}: the named scenario must exist`);
+    for (const scenario of scenarios) {
       let checked = 0;
-      await new theCase.Scene({
+      await new scenario.Scene({
         async frame() {},
         async stepEnd(scene, step) {
           if (step.name !== stepName) return;

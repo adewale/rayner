@@ -106,7 +106,7 @@ const EXPECTED: Record<`${Policy} ${PlacementKey}`, { shares: string[]; percent:
   'cluster 1-1-1': { shares: ['1/3', '1/3', '1/3'], percent: ['33.3%', '33.3%', '33.3%'], hop: '2/3', passes: [true, true, true] },
 };
 
-test('each case’s pod shares, second hops and health checks', () => {
+test('each scenario’s pod shares, second hops and health checks', () => {
   for (const [name, want] of Object.entries(EXPECTED)) {
     const [policy, key] = name.split(' ') as [Policy, PlacementKey];
     const counts = PLACEMENTS[key];
@@ -194,7 +194,7 @@ test('traffic-policy flow view: each band is a node’s share times its rule’s
     }),
     params(300),
   );
-  // The default case: under Local, Node 2's whole half is one band into pod d, three times as wide as each of Node 1's.
+  // The default scenario: under Local, Node 2's whole half is one band into pod d, three times as wide as each of Node 1's.
   const local = flows([3, 1, 0], 'local');
   assert.deepEqual(local.map((b) => [b.node, b.pod, frac(b.share)]), [[0, 'a', '1/6'], [0, 'b', '1/6'], [0, 'c', '1/6'], [1, 'd', '1/2']]);
   const cl = flows([3, 1, 0], 'cluster');

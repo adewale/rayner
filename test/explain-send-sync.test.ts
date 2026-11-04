@@ -102,7 +102,7 @@ test('the evaluator gives rustc’s answers for every type the scene shows', () 
   }
 });
 
-test('the nine cases, built inside out, end where rustc puts them', () => {
+test('the nine scenarios, built inside out, end where rustc puts them', () => {
   const expected: Record<string, [string, boolean, boolean]> = {
     'arc/i32': ['Arc<i32>', true, true],
     'arc/cell': ['Arc<Cell<i32>>', false, false],

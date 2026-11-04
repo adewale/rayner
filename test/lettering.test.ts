@@ -9,7 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { collectProject, defaultCase, ROOT, loadScene } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT, loadScene } from '../tools/lib/explain-project.ts';
 import type { Project } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
@@ -194,7 +194,7 @@ test('a lettered explainer draws its Greek as outlines, and without its faces th
   }
   assert.deepEqual([...takeMissingGlyphs()], []);
   // The poster is the resting picture of the first step, drawn with those outlines
-  const v = defaultCase(project, { word: 'phos' });
+  const v = defaultScenario(project, { word: 'phos' });
   const step = v.trace.steps.find((s) => s.step === 'code')!;
   const sink = new SnapshotSink();
   await renderAt(v.Scene, restingTime(step, v.trace.fps), sink);

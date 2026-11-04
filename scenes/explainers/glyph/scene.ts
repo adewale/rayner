@@ -27,7 +27,7 @@ const SMALL = 0.6; // the smaller copy in the letterforms step
 const HEADING = 0.54;
 const STYLE = 'pen-and-ink';
 const NAME: Record<FontName, string> = { sans: 'Inter', mono: 'JetBrains Mono' };
-/** A diagram whose labels the renderer draws in Inter, in both cases. */
+/** A diagram whose labels the renderer draws in Inter, in both scenarios. */
 const PIPELINE =
   `graph TB\nFont[Inter] --> Shape[Shape text]\nShape --> Paths[Cubic paths]\nPaths --> SVG[SVG player]\nPaths --> PNG[PNG stills]`;
 

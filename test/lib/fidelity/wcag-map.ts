@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { CRITERIA, LEVELS, PRINCIPLES, VERSIONS, change, criteria, opened, tally, totals } from '../../../scenes/explainers/lib/wcag-map.ts';
 import type { Level, Version } from '../../../scenes/explainers/lib/wcag-map.ts';
 
-/** Every case's step state equals the model's counts for its level and the guideline it opens. */
+/** Every scenario's step state equals the model's counts for its level and the guideline it opens. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const level = values.level as Level,
     open = values.guideline!;

@@ -47,7 +47,7 @@ export default class PasswordExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); check holds reader-boundary to stating the answer.
     answer: ANSWER,
-    // Sentences that reach past the cases on screen, and what holds each.
+    // Sentences that reach past the scenarios on screen, and what holds each.
     claims: [
       { says: 'The agent handles only an op:// reference', test: 'test/explain-models.test.ts: 2password find returns references and no field value' },
       { says: 'the agent searches titles, never values', test: 'test/explain-models.test.ts: compares queries with titles alone' },

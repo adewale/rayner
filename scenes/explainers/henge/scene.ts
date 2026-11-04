@@ -186,7 +186,7 @@ export default class Henge extends Scene {
       { id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
         caption: manhattan
           ? 'Look west down 42nd Street. On a few evenings a year, in late May and mid-July, the low Sun fits between the buildings; the Hayden Planetarium calls it Manhattanhenge. The buildings point the same way all year, so what changes must be where the Sun sets.'
-          : 'This case turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
+          : 'This scenario turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
         state: { bearing: m.bearing }, draw: (_, s) => tagged(new Group(streetView(false, s.palette.paper), words(manhattan ? '42nd Street: about 29° north of west' : 'A street pointing due west', 0, -3.7)), 'henge-street') },
       { id: 'overhead',
         title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',

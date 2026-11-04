@@ -5,19 +5,19 @@ import { selectExport } from '../tools/lib/explain-export-selection.ts';
 const catalog: import('../tools/lib/explain-artifacts.ts').Catalog = {
   version: 1,
   product: { entry: { id: 'cache' } },
-  totals: { explainers: 3, cases: 7, diagrams: 5, styles: 2, families: 2 },
+  totals: { explainers: 3, scenarios: 7, diagrams: 5, styles: 2, families: 2 },
   scenes: [
-    { id: 'old', group: 'topic', cases: 2 },
-    { id: 'cache', group: 'topic', cases: 3 },
-    { id: 'small', group: 'toolchain', cases: 2, title: 'A small lesson', entry: { step: 'question', settings: { mode: 'one' } } },
+    { id: 'old', group: 'topic', scenarios: 2 },
+    { id: 'cache', group: 'topic', scenarios: 3 },
+    { id: 'small', group: 'toolchain', scenarios: 2, title: 'A small lesson', entry: { step: 'question', settings: { mode: 'one' } } },
   ],
 };
 const evidence: import('../tools/lib/explain-artifacts.ts').CatalogEvidence = {
   version: 2, checked: true, totals: catalog.totals,
   scenes: [
-    { id: 'old', cases: [{}, {}], diagrams: 2, styles: ['a'], families: ['flowchart'] },
-    { id: 'cache', cases: [{}, {}, {}], diagrams: 2, styles: ['a', 'b'], families: ['flowchart'] },
-    { id: 'small', cases: [{}, {}], diagrams: 1, styles: ['b'], families: ['pie'] },
+    { id: 'old', scenarios: [{}, {}], diagrams: 2, styles: ['a'], families: ['flowchart'] },
+    { id: 'cache', scenarios: [{}, {}, {}], diagrams: 2, styles: ['a', 'b'], families: ['flowchart'] },
+    { id: 'small', scenarios: [{}, {}], diagrams: 1, styles: ['b'], families: ['pie'] },
   ],
 };
 
@@ -26,7 +26,7 @@ test('selection keeps catalog order, derives honest totals and removes unselecte
   assert.deepEqual(selected.ids, ['cache', 'small']);
   assert.deepEqual(selected.catalog.scenes.map(s => s.id), ['cache', 'small']);
   assert.deepEqual(selected.evidence.scenes.map(s => s.id), ['cache', 'small']);
-  assert.deepEqual(selected.catalog.totals, { explainers: 2, cases: 5, diagrams: 3, styles: 2, families: 2 });
+  assert.deepEqual(selected.catalog.totals, { explainers: 2, scenarios: 5, diagrams: 3, styles: 2, families: 2 });
   assert.deepEqual(selected.evidence.totals, selected.catalog.totals);
   assert.deepEqual(catalog.scenes.map(s => s.id), ['old', 'cache', 'small']);
 });

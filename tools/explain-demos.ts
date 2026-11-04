@@ -4,7 +4,7 @@ import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPLAINERS, PRODUCT, SHOWCASE } from '../scenes/explainers/catalog.ts';
-import { collectProject, defaultCase, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { restingTime, htmlEscape, pictureSummary, stepWords } from '../explain/trace.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
@@ -60,16 +60,16 @@ for (const item of items) {
     `${item.id}: requested outlines have a hash`,
   );
   assert.equal(Buffer.byteLength(html), receipt.bytes, `${item.id}: receipt reports actual page bytes`);
-  // The poster uses a representative step of the default case; tile links start at step one.
-  const theCase = defaultCase(project),
-    step = theCase.trace.steps.find((s) => s.step === item.step) ?? theCase.trace.steps[0]!;
+  // The poster uses a representative step of the default scenario; tile links start at step one.
+  const scenario = defaultScenario(project),
+    step = scenario.trace.steps.find((s) => s.step === item.step) ?? scenario.trace.steps[0]!;
   await writeFile(
     join(directory, item.id + '.png'),
-    await stillPng(theCase.Scene, restingTime(step, theCase.trace.fps), 960),
+    await stillPng(scenario.Scene, restingTime(step, scenario.trace.fps), 960),
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });
-  const pictured = theCase.trace.steps.filter((x) => x.meta.kind !== 'detail' && shareable(x.step));
+  const pictured = scenario.trace.steps.filter((x) => x.meta.kind !== 'detail' && shareable(x.step));
   const share: ShareManifest = {
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -99,27 +99,27 @@ for (const item of items) {
   );
   const subjects = await reviewSubjects(project);
   const narrowOpenings = [];
-  for (const theCase of project.cases)
-    narrowOpenings.push({ settings: theCase.values, steps: await narrowOpeningPlan(theCase, subjects) });
+  for (const scenario of project.scenarios)
+    narrowOpenings.push({ settings: scenario.values, steps: await narrowOpeningPlan(scenario, subjects) });
   evidence.push({
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
     lang: project.Scene.meta?.lang ?? 'en',
-    cases: project.cases.map((v) => v.values),
+    scenarios: project.scenarios.map((v) => v.values),
     narrowOpenings,
     diagrams: Object.keys(project.store).length,
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],
     entry: {
-      step: theCase.trace.steps.find((step) => step.meta.kind !== 'detail')?.step ?? theCase.trace.steps[0]!.step,
-      settings: theCase.values,
+      step: scenario.trace.steps.find((step) => step.meta.kind !== 'detail')?.step ?? scenario.trace.steps[0]!.step,
+      settings: scenario.values,
     },
     sourceHash: project.sourceHash,
     engineHash: project.engineHash,
     snapshotHashes: baseReceipt(project).snapshotHashes,
   });
   console.log(
-    `${item.id}: ${project.cases.length} cases · ${Object.keys(project.store).length} diagrams${check ? ' · checks passed' : ''}`,
+    `${item.id}: ${project.scenarios.length} scenarios · ${Object.keys(project.store).length} diagrams${check ? ' · checks passed' : ''}`,
   );
 }
 await buildLoader(join(directory, 'loader.js'));
@@ -140,13 +140,13 @@ await buildLoader(join(directory, 'loader.js'));
   }
   console.log(`Embed heights at 390, 640 and 900 px: ${items.length} explainers`);
 }
-const cases = evidence.reduce((n, s) => n + s.cases.length, 0),
+const scenarios = evidence.reduce((n, s) => n + s.scenarios.length, 0),
   diagrams = evidence.reduce((n, s) => n + s.diagrams, 0),
   styles = new Set(evidence.flatMap((s) => s.styles)),
   families = new Set(evidence.flatMap((s) => s.families));
 const totals = {
   explainers: evidence.length,
-  cases,
+  scenarios,
   diagrams,
   styles: styles.size,
   families: families.size,
@@ -162,7 +162,7 @@ const catalog: import('./lib/explain-artifacts.ts').Catalog = {
       ...item,
       title: data.title,
       lang: data.lang,
-      cases: data.cases.length,
+      scenarios: data.scenarios.length,
       entry: data.entry,
     };
   }),

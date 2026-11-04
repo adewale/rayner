@@ -144,7 +144,7 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
   assert.deepEqual(headless.warnings.map((w) => [w.code, WARNING_SEVERITY[w.code]]), [['RENDER_FAILED', 'error']]);
 });
 
-test('the Mermaid explainer’s broken step shows what the pinned verifier reports for an edge with no end, in every case', () => {
+test('the Mermaid explainer’s broken step shows what the pinned verifier reports for an edge with no end, in every scenario', () => {
   // These sources cannot be captured (capture refuses ok: false), so the step's report is written in the scene and held here.
   assert.deepEqual(Object.keys(BROKEN).sort(), ['complete', 'missing', 'swapped']);
   for (const [edit, source] of Object.entries(BROKEN)) {
@@ -163,10 +163,10 @@ test('the Mermaid explainer’s broken step shows what the pinned verifier repor
   }
 });
 
-/** Each step's state in an explainer's default case, by step name. */
+/** Each step's state in an explainer's default scenario, by step name. */
 async function steps(id: string) {
   const project = await collectProject(`scenes/explainers/${id}`, { write: false });
-  const trace = project.cases[0]!.trace;
+  const trace = project.scenarios[0]!.trace;
   return new Map(trace.steps.map((s, i) => [s.step, { after: s.after, shown: s.shown, before: trace.steps[i - 1]?.shown }]));
 }
 

@@ -64,7 +64,7 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
   }
 });
 
-test("an explainer's llms.txt summary is the first sentence of its default case's first caption", () => {
+test("an explainer's llms.txt summary is the first sentence of its default scenario's first caption", () => {
   const step = (caption: string) => ({ step: 's', title: 'T', line: '', caption, start: 0, end: 1, state: {}, changed: {}, picture: '' });
   const d: ExplainerDescription = {
     schema: 1,
@@ -73,7 +73,7 @@ test("an explainer's llms.txt summary is the first sentence of its default case'
     lang: 'en',
     sources: [],
     settings: [{ id: 'n', label: 'N', default: 'b', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }],
-    cases: [
+    scenarios: [
       { values: { n: 'a' }, name: 'N: A', duration: 1, steps: [step('Not the default.')] },
       { values: { n: 'b' }, name: 'N: B', duration: 1, steps: [step('Version 4.3.3 sets  it.\nThe rest is detail.')] },
     ],
@@ -114,7 +114,7 @@ test("site:export refuses an explainer's built files when demos:build has not ru
 
 test('llms.txt leaves out coverage-tier explainers', async () => {
   const { llmsTxt } = await import('../tools/lib/explain-site-describe.ts');
-  const d = (title: string) => ({ title, settings: [], cases: [{ values: {}, steps: [{ caption: `${title} opens here.` }] }] }) as unknown as Parameters<typeof llmsTxt>[0][number]['d'];
+  const d = (title: string) => ({ title, settings: [], scenarios: [{ values: {}, steps: [{ caption: `${title} opens here.` }] }] }) as unknown as Parameters<typeof llmsTxt>[0][number]['d'];
   const llms = llmsTxt(
     [
       { item: { id: 'shown', group: 'topic', tier: 'gallery' }, d: d('Shown') },

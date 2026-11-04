@@ -6,12 +6,12 @@ import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
 import { traceScene } from '../src/index.ts';
-import { collectProject, defaultCase, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { seeStep, seeText } from '../tools/lib/explain-see.ts';
 import { describeExplainer } from '../explain/index.ts';
-import { describeCase } from '../explain/describe.ts';
-import type { CaseDescription } from '../explain/index.ts';
+import { describeScenario } from '../explain/describe.ts';
+import type { ScenarioDescription } from '../explain/index.ts';
 
 /** The error a child process failed with, or undefined when it succeeded. */
 const failure = (run: () => unknown) => {
@@ -75,23 +75,23 @@ test('`rayner --version` and `rayner version` print the version; the word as an 
   for (const args of [['--version'], ['version']])
     assert.equal(execFileSync(process.execPath, [cli, ...args], { encoding: 'utf8' }).trim(), version, args.join(' '));
   const scene = join(ROOT, 'scenes/explainers/fork/scene.ts');
-  for (const args of [['shots', scene, '--case', 'x=--version'], ['shots', scene, '--out', '--version']]) {
+  for (const args of [['shots', scene, '--scenario', 'x=--version'], ['shots', scene, '--out', '--version']]) {
     const r = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
     assert.notEqual(r.stdout.trim(), version, args.join(' '));
     assert.equal(r.status, 1, args.join(' '));
   }
 });
 
-test('`rayner describe` prints the explainer as JSON, every case and step', async () => {
+test('`rayner describe` prints the explainer as JSON, every scenario and step', async () => {
   const out = execFileSync(process.execPath, [join(ROOT, 'tools/explain.ts'), 'describe', join(ROOT, 'scenes/explainers/oauth-pkce/scene.ts')], {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
   });
-  const d = JSON.parse(out) as { schema: number; id: string; cases: { values: Record<string, string>; steps: { step: string; drawing?: string }[] }[] };
+  const d = JSON.parse(out) as { schema: number; id: string; scenarios: { values: Record<string, string>; steps: { step: string; drawing?: string }[] }[] };
   assert.equal(d.schema, 1);
   assert.equal(d.id, 'oauth-pkce');
-  assert.deepEqual(d.cases.map((c) => c.values.attacker).sort(), ['no', 'yes']);
-  assert.ok(d.cases.every((c) => c.steps.length && c.steps.every((s) => typeof s.drawing === 'string')));
+  assert.deepEqual(d.scenarios.map((c) => c.values.attacker).sort(), ['no', 'yes']);
+  assert.ok(d.scenarios.every((c) => c.steps.length && c.steps.every((s) => typeof s.drawing === 'string')));
 });
 
 test('`rayner see` prints a step: its resting picture as text, title, caption, picture and state changes', async () => {
@@ -120,13 +120,13 @@ test('`rayner see` prints a step: its resting picture as text, title, caption, p
 test('`rayner see` prints describeExplainer\'s words for the step, so the two cannot disagree', async () => {
   const project = await collectProject(join(ROOT, 'scenes/explainers/oauth-pkce'), { write: false });
   const d = await describeExplainer(project.Scene, { snapshots: project.store });
-  // The case without the attacker, so the case name is printed from the description too.
-  const v = project.cases.find((v) => v.values.attacker === 'no')!,
-    c = d.cases.find((c) => c.values.attacker === 'no')!;
+  // The scenario without the attacker, so the scenario name is printed from the description too.
+  const v = project.scenarios.find((v) => v.values.attacker === 'no')!,
+    c = d.scenarios.find((c) => c.values.attacker === 'no')!;
   for (const s of c.steps) assert.equal(await seeStep(project, v, s.step), seeText('oauth-pkce', c, s.step));
   // The text is the description's fields and nothing else: a made-up description prints as it says.
   const step = { step: 'a', title: 'One', line: '', caption: '', start: 0, end: 1, state: {}, changed: {}, picture: '' };
-  const made: CaseDescription = {
+  const made: ScenarioDescription = {
     values: {},
     name: 'Size: 3',
     duration: 2,
@@ -142,17 +142,17 @@ test('`rayner see` prints describeExplainer\'s words for the step, so the two ca
 
 // `see` draws only the step it shows; its text must still be what the whole description gives.
 test(
-  '`rayner see` prints what the whole description gives: each case\'s last step, and the first step by name in other cases, for every explainer',
-  { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it describes every case of every explainer' },
+  '`rayner see` prints what the whole description gives: each scenario\'s last step, and the first step by name in other scenarios, for every explainer',
+  { skip: !process.env.FULL && 'set FULL=1 (npm run test:full): it describes every scenario of every explainer' },
   async () => {
     for (const { id } of EXPLAINERS) {
       const project = await collectProject(join(ROOT, 'scenes/explainers', id), { write: false });
-      for (const v of project.cases) {
-        const c = await describeCase(project.Scene, v.values, { snapshots: project.store });
+      for (const v of project.scenarios) {
+        const c = await describeScenario(project.Scene, v.values, { snapshots: project.store });
         assert.equal(await seeStep(project, v), seeText(id, c), `${id} ${JSON.stringify(v.values)}: the last step`);
-        // In a case other than the default, its first step, by name.
+        // In a scenario other than the default, its first step, by name.
         const named = c.steps[0]!.step;
-        if (v !== defaultCase(project)) assert.equal(await seeStep(project, v, named), seeText(id, c, named), `${id} ${JSON.stringify(v.values)}: ${named}`);
+        if (v !== defaultScenario(project)) assert.equal(await seeStep(project, v, named), seeText(id, c, named), `${id} ${JSON.stringify(v.values)}: ${named}`);
       }
     }
   },

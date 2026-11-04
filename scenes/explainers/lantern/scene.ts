@@ -201,7 +201,7 @@ export default class LanternExplainer extends Scene {
       },
       {
         says: 'the nudged dot never passes its first step',
-        test: "test/explain-fidelity.test.ts: every authored case exposes the program's answers at step boundaries",
+        test: "test/explain-fidelity.test.ts: every authored scenario exposes the program's answers at step boundaries",
       },
       {
         says: 'Frame 30 is t = 1.00 s in every run',
@@ -216,8 +216,8 @@ export default class LanternExplainer extends Scene {
         test: 'test/explain-lantern.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
       },
       {
-        says: 'in every step of every case it seeks one frame midway and one just before the step ends',
-        test: 'test/explain-gates.test.ts: rayner check seeks two frames in each step of every case',
+        says: 'in every step of every scenario it seeks one frame midway and one just before the step ends',
+        test: 'test/explain-gates.test.ts: rayner check seeks two frames in each step of every scenario',
       },
       {
         says: 'in a scene with updaters, a still computes every frame before t',
@@ -263,14 +263,14 @@ export default class LanternExplainer extends Scene {
       accent = s.emphasis,
       soft = s.soft;
 
-    // The tiny scene with both kinds of motion: this case's, and the other one the last step compares.
+    // The tiny scene with both kinds of motion: this scenario's, and the other one the last step compares.
     const runs = {
       blend: await runDemo(ink, accent, soft, 'blend'),
       nudge: await runDemo(ink, accent, soft, 'nudge'),
     };
     const run = runs[motion];
     const match = run.played === run.seeked;
-    // The captions below say which way each case comes out; refuse to say it if the engine disagrees.
+    // The captions below say which way each scenario comes out; refuse to say it if the engine disagrees.
     if (runs.blend.played !== runs.blend.seeked || runs.nudge.played === runs.nudge.seeked)
       throw new Error('Blending must match playback and the nudge must not; the seek step would be false');
     if (runs.blend.played !== runs.nudge.played)
@@ -353,7 +353,7 @@ export default class LanternExplainer extends Scene {
     await this.step('timeline', {
       title: 'Seeked frame by frame, the nudged dot never passes its first step',
       line: 'Line: where playback has the dot. Dots: a still taken at each frame.',
-      caption: `Each panel plots the dot’s place on its track against the frame number, for all ${total} frames of the tiny scene. The line is playback; each dot is a separate still, seeked to that frame. Through the fade, frames 1–${moveStarts - 1}, the dot has not moved and the two agree. From frame ${moveStarts} the dot moves: played, the blend eases in and out and the nudge climbs evenly, and both are halfway at frame ${run.seekAt}, the dashed line, where the story took its still. A blended dot is placed by the frame’s time, so in this scene each still lands on playback’s line. A nudged still computes one frame of the move and makes one nudge, so its dots stay at the first step while playback climbs a nudge a frame. This case’s panel, on the ${motion === 'blend' ? 'left' : 'right'}, has the bold title.`,
+      caption: `Each panel plots the dot’s place on its track against the frame number, for all ${total} frames of the tiny scene. The line is playback; each dot is a separate still, seeked to that frame. Through the fade, frames 1–${moveStarts - 1}, the dot has not moved and the two agree. From frame ${moveStarts} the dot moves: played, the blend eases in and out and the nudge climbs evenly, and both are halfway at frame ${run.seekAt}, the dashed line, where the story took its still. A blended dot is placed by the frame’s time, so in this scene each still lands on playback’s line. A nudged still computes one frame of the move and makes one nudge, so its dots stay at the first step while playback climbs a nudge a frame. This scenario’s panel, on the ${motion === 'blend' ? 'left' : 'right'}, has the bold title.`,
     });
     await s.clear();
     {
@@ -533,7 +533,7 @@ export default class LanternExplainer extends Scene {
     await this.step('check', {
       title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
       line: 'rayner check fails a page on the first seeked frame that differs from playback.',
-      caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every case it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
+      caption: `The strips compare each of those ${total} stills with its played frame, the whole SVG, box and dot together. Blending agrees throughout; the nudge first differs at frame ${firstMiss}. rayner check samples less: in every step of every scenario it seeks one frame midway and one just before the step ends. A mismatch fails the check, but agreement at those two times proves nothing about the times between them. An updater follows a different path: in a scene with updaters, a still computes every frame before t.`,
     });
     await s.clear();
     const cell = 0.29,

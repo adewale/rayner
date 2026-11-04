@@ -158,13 +158,13 @@ const specArb = fc.record(
 test('diagramKey ignores CRLF, surrounding space, and the default style however it is written', () => {
   fc.assert(
     fc.property(specArb, fc.constantFrom('', ' ', '\n', '\r\n', '\t '), fc.constantFrom('default', '', undefined), (spec, pad, unstyled) => {
-      const theCase = { ...spec, source: pad + spec.source.replace(/\r?\n/g, '\r\n') + pad };
+      const scenario = { ...spec, source: pad + spec.source.replace(/\r?\n/g, '\r\n') + pad };
       // The default style is the same render whether named, empty or absent.
       if (spec.style === 'default' || spec.style === '') {
-        if (unstyled === undefined) delete (theCase as { style?: string }).style;
-        else theCase.style = unstyled;
+        if (unstyled === undefined) delete (scenario as { style?: string }).style;
+        else scenario.style = unstyled;
       }
-      assert.equal(diagramKey(theCase as never), diagramKey(spec as never));
+      assert.equal(diagramKey(scenario as never), diagramKey(spec as never));
     }),
     params(),
   );
@@ -628,8 +628,8 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Diagram', 'REGIONS', 'bindSnapshots', 'caseName', 'casesOf', 'describeExplainer', 'edgePartOf', 'findingsOf',
-    'palette', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStepsOf', 'withSettings',
+    'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'edgePartOf', 'findingsOf',
+    'palette', 'regionBox', 'resolveSettings', 'scenarioName', 'scenariosOf', 'settingsOf', 'stage', 'stagedStepsOf', 'withSettings',
   ]);
 });
 

@@ -144,7 +144,7 @@ const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 /** The script's one-sentence answer (meta.answer), which the new-rule step states. */
 const ANSWER = 'renew at a share of the certificate’s life, not a fixed time before expiry';
-/** The check answers' numbers, from the model: lifetimes and settings no case offers. */
+/** The check answers' numbers, from the model: lifetimes and settings no scenario offers. */
 const CHECK = (() => {
   // A 20-day certificate, shorter than the 30-day margin but longer than ten days.
   const twenty = 20 * DAY,
@@ -308,7 +308,7 @@ export default class CertRenewalExplainer extends Scene {
 
     // ----------------------------------------------------------------- margin
     let marginPicture: Group | undefined;
-    // The cause behind old-rule's answer: a 90-day certificate and this case's, drawn to one time scale and lined up
+    // The cause behind old-rule's answer: a 90-day certificate and this scenario's, drawn to one time scale and lined up
     // at expiry, each with the 30-day rule's due point counted back from its expiry. Where that point lies left of a
     // bar, the certificate is due from issue.
     const percent = (x: number) => `${Math.round(x * 100)}%`;
@@ -416,7 +416,7 @@ export default class CertRenewalExplainer extends Scene {
         : byRule.fixed30.due === byRule.fraction.due
           ? `On a ${adjective} certificate both fall due at ${at(byRule.fraction.due, short)}.`
           : `On a ${adjective} certificate the old rule falls due at ${at(byRule.fixed30.due, short)}, the new one at ${at(byRule.fraction.due, short)}.`;
-    // The case's own lifetime, with the replacement each rule makes: the answer to the old-rule step's prediction.
+    // The scenario's own lifetime, with the replacement each rule makes: the answer to the old-rule step's prediction.
     const share = short ? 'half' : 'two thirds',
       both = byRule.fixed30.renewsAt === byRule.fraction.renewsAt,
       // The default's due time, and the run that renews when that run comes noticeably later.

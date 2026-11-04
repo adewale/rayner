@@ -94,7 +94,7 @@ test('Let’s Encrypt’s validity window: backdated 58.5 minutes, one second sh
   assert.equal(BACKDATE, 0.975);
 });
 
-test('the explainer’s eight cases', () => {
+test('the explainer’s eight scenarios', () => {
   const expect: Record<LifetimeKey, Record<Rule, [number, number, number]>> = {
     // [run that renews, hours after issue; renewals in 365 days; refused in 365 days]
     '90d': { fraction: [60 * DAY, 6, 0], fixed30: [60 * DAY, 6, 0] },

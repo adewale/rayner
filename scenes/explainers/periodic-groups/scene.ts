@@ -202,7 +202,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the stack step states the answer.
     answer: ANSWER,
-    // Sentences that speak for all 118 elements, not only the five cases, and the test that holds each.
+    // Sentences that speak for all 118 elements, not only the five scenarios, and the test that holds each.
     claims: [
       { says: 'every full run is 2, 6, 10 or 14 long', test: 'test/explain-periodic-groups.test.ts: the filling rule fills runs of 2, 6, 10 and 14' },
       { says: 'every jump down step 1’s column is one of those row lengths', test: 'test/explain-periodic-groups.test.ts: down a group, each jump in atomic number is one whole period' },
@@ -494,11 +494,11 @@ export default class PeriodicGroupsExplainer extends Scene {
         }
       }
       if (note === 'stack') {
-        // Where the case's last electron lands, in the empty first row.
+        // Where the scenario's last electron lands, in the empty first row.
         say(String(state.landingRun ?? ''), [NOTE_X, rowY(1) - 0.04], { size: 0.28 });
       }
       if (note === 'blocks') {
-        // The case's configuration and where its last electron lands, in the empty space above the d block.
+        // The scenario's configuration and where its last electron lands, in the empty space above the d block.
         say('2 + 10 + 6 = 18 numbered columns', [NOTE_X, rowY(1)], { size: 0.3, bold: true });
         ((state.landing ?? []) as string[]).forEach((line, i) => say(line, [NOTE_X, rowY(1) - 0.5 - i * 0.38], { size: 0.27 }));
       }
@@ -665,7 +665,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       });
       const seq: ScheduledAnimation[] = [];
       RUNS.forEach((run, i) => {
-        // The case's last run stops at its own electron first.
+        // The scenario's last run stops at its own electron first.
         if (run.from <= z && z < run.to) seq.push(apply(fillState(z, own.length, false)), both(0.6));
         seq.push(
           apply(fillState(run.to, Math.min(own.length, i + 1), false)),

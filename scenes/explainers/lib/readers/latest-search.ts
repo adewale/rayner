@@ -15,7 +15,7 @@ const TICKET: Record<Query, number> = { A: 1, B: 2 };
  * same size, so it sits in the same place in every step that shows it. */
 const CHECK = 'if (ticket === latest) publish(result)';
 const CODE_SIZE = 0.58;
-/** The script's answer, stated in the second step of both cases. */
+/** The script's answer, stated in the second step of both scenarios. */
 export const ANSWER = 'An older search can finish last, and an unguarded handler publishes whatever finishes last';
 
 /** The timeline's event clock: tick t sits at x(t); the last span runs on to the right edge. */

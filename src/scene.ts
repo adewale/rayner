@@ -235,7 +235,7 @@ export class Scene<S extends object = SceneState> {
    * a message when it fails, `true` when it held, and nothing when there was nothing
    * to check on this frame. It reads the scene, by key (`scene.find`), and changes nothing;
    * an invariant that never returns `true` in a run fails `rayner check`. An InvariantSink runs every registered
-   * check on every frame it is handed, so `rayner check`, which plays every case in full,
+   * check on every frame it is handed, so `rayner check`, which plays every scenario in full,
    * fails at the first frame an invariant breaks, mid-animation included. A seek skips frames
    * and so checks nothing between them. Names are unique per scene; returns a remover.
    */

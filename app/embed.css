@@ -18,16 +18,16 @@ a{color:var(--accent);text-underline-offset:.2em}
 h1{font-size:1.5rem;line-height:1.25;font-weight:650;letter-spacing:-.015em;margin:0;text-wrap:balance}
 h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 
-/* The card's header: the title, then the cases it can show, over a rule; the stage is mounted under it.
+/* The card's header: the title, then the scenarios it can show, over a rule; the stage is mounted under it.
    Without JavaScript the page's h1 stands in the card alone. */
 .head,.player>h1{padding:16px var(--inset);border-bottom:1px solid var(--line)}
 .head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px}
 .head h1{flex:1 1 20rem}
-.case{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
-.case legend{float:left;padding:0}
-/* One label style: the case legend, the step kicker, the rail heading and the view count. */
-.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
-.case legend+*{clear:left}
+.scenario{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.scenario legend{float:left;padding:0}
+/* One label style: the scenario legend, the step kicker, the rail heading and the view count. */
+.scenario legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
+.scenario legend+*{clear:left}
 .segments{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:var(--player-control-radius,11px);background:color-mix(in srgb,var(--line) 55%,transparent)}
 .segments label{position:relative;display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:var(--player-control-radius,8px);font-size:.9375rem;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease}
 .segments input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}

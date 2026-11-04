@@ -6,7 +6,7 @@ import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesO
 
 const STOPS: Record<string, string> = { airport: 'BEATTY_AIRPORT', stagecoach: 'STAGECOACH' };
 
-/** Every case's step state equals the model's answers for its date and stop, over the vendored feed. */
+/** Every scenario's step state equals the model's answers for its date and stop, over the vendored feed. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const feed = readFeed(SAMPLE_FEED);
   const date = values.date!.replace(/-/g, ''),

@@ -25,7 +25,7 @@ import type { Position, Reading, RequestKey, TrustKey } from '../lib/trust-proxy
 
 // Sources, each fetched at the pinned tag or commit; the lines each claim rests on are quoted in
 // lib/trust-proxy.ts and beside the steps below. test/explain-trust-proxy.test.ts holds real Express
-// 5.3.0's answers for every case.
+// 5.3.0's answers for every scenario.
 const EXPRESS = 'https://github.com/expressjs/express/blob/v5.3.0/lib/';
 const PROXY_ADDR = 'https://github.com/jshttp/proxy-addr/blob/v2.0.8/index.js';
 const FORWARDED = 'https://github.com/jshttp/forwarded/blob/v0.2.0/index.js';
@@ -88,7 +88,7 @@ const NUMBER = ['none', 'one', 'two', 'three', 'four'] as const;
 /** "one address", "two addresses". */
 const count = (n: number, noun: string) => `${NUMBER[n] ?? n} ${n === 1 ? noun : `${noun}es`}`;
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
-/** The script's one-sentence answer, stated in the read step of every case. */
+/** The script's one-sentence answer, stated in the read step of every scenario. */
 const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
 // Check 1: two made-up entries on the short route. 2 stops at the nearer one; true takes the farther.
 const TWO_FORGED = `5.6.7.8, ${ADDR.forged}`;
@@ -185,7 +185,7 @@ export default class TrustProxyExplainer extends Scene {
       PROXY_ADDR + '#L222-L235',
       FORWARDED + '#L24-L36',
     ],
-    // The script's answer and check questions (script.md); the read step states the answer in every case.
+    // The script's answer and check questions (script.md); the read step states the answer in every scenario.
     answer: ANSWER,
     // Sentences that reach past one step's picture, and the test that holds each.
     claims: [
@@ -303,7 +303,7 @@ export default class TrustProxyExplainer extends Scene {
         ['trust proxy setting', TRUST_CODE[trustKey]],
         ['Request followed', REQUEST_LABEL[reqKey]],
       ],
-      { at: regionBox(BELOW, { left: 0.15 }), align: 'top', fontSize: SIZE, title: 'This case', enter: false },
+      { at: regionBox(BELOW, { left: 0.15 }), align: 'top', fontSize: SIZE, title: 'This scenario', enter: false },
     );
     await s.enter(addresses, chosen);
     this.state.addresses = { ...ADDR };
@@ -766,7 +766,7 @@ export default class TrustProxyExplainer extends Scene {
     await this.step('table', {
       title: 'Twelve answers from real Express 5.3.0',
       line: `Green is the real sender; ${allRight.length ? `only ${allRight.join(' and ')} ${allRight.length === 1 ? 'gets' : 'get'} all three` : 'no setting gets all three'}.`,
-      caption: `Each row is a setting and each column a request; green marks the real sender’s address. Out of three requests, true gets ${rights[0]} right, 1 gets ${rights[1]}, 2 gets ${rights[2]} and the address list gets ${rights[3]}. This case, ${TRUST_LABEL[trustKey]} with ${lowerFirst(REQUEST_LABEL[reqKey])}, is outlined.`,
+      caption: `Each row is a setting and each column a request; green marks the real sender’s address. Out of three requests, true gets ${rights[0]} right, 1 gets ${rights[1]}, 2 gets ${rights[2]} and the address list gets ${rights[3]}. This scenario, ${TRUST_LABEL[trustKey]} with ${lowerFirst(REQUEST_LABEL[reqKey])}, is outlined.`,
     });
     await s.clearOverlays();
     await d.hide();
@@ -828,7 +828,7 @@ export default class TrustProxyExplainer extends Scene {
                 `${REQUEST_LABEL[q].toLowerCase()} ${TABLE[t][q].ip} (${TABLE[t][q].outcome === 'sender' ? 'real sender' : TABLE[t][q].whose})`,
             ).join(', '),
         ).join('. ') +
-        `. This case, ${TRUST_LABEL[trustKey]} with ${REQUEST_LABEL[reqKey].toLowerCase()}, is outlined.`,
+        `. This scenario, ${TRUST_LABEL[trustKey]} with ${REQUEST_LABEL[reqKey].toLowerCase()}, is outlined.`,
     });
     this.state.table = Object.fromEntries(TRUST_KEYS.map((t) => [t, REQUEST_KEYS.map((q) => TABLE[t][q].ip)]));
   }

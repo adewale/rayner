@@ -23,7 +23,7 @@ const REQUEST_LABEL_CHECK: Record<RequestKey, string> = {
   direct: 'Attacker, skipping the CDN',
 };
 
-/** Every case's step state equals the req.ip model's answers for that setting and request. */
+/** Every scenario's step state equals the req.ip model's answers for that setting and request. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const t = values.trust as TrustKey,
     q = values.request as RequestKey;

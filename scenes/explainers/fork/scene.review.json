@@ -6,7 +6,7 @@
       "opening": true,
       "targets": [
         {
-          "key": "fork-choice-cases"
+          "key": "fork-choice-scenarios"
         },
         {
           "key": "fork-choice-fallback"
@@ -14,11 +14,11 @@
       ]
     },
     {
-      "step": "cases",
+      "step": "scenarios",
       "opening": true,
       "targets": [
         {
-          "key": "fork-cases"
+          "key": "fork-scenarios"
         },
         {
           "text": "Local"
@@ -27,10 +27,10 @@
           "text": "Cluster"
         },
         {
-          "text": "case 1"
+          "text": "scenario 1"
         },
         {
-          "text": "case 6"
+          "text": "scenario 6"
         }
       ]
     }

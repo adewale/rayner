@@ -58,7 +58,7 @@ const number = (n: number) => ['no', 'one', 'two', 'three', 'four', 'five', 'six
 const plural = (n: number, word: string) => `${number(n)} ${word}${n === 1 ? '' : 's'}`;
 const upperFirst = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
-/** The script's one-sentence answer (meta.answer), which the copy step states in every case. */
+/** The script's one-sentence answer (meta.answer), which the copy step states in every scenario. */
 const ANSWER =
   'a guest’s calendar keeps only the meetings it was sent, and on this server a cancellation marks the guest’s copy CANCELLED instead of deleting it';
 
@@ -118,7 +118,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     ],
     // The script's answer and check questions (script.md); the copy step states the answer.
     answer: ANSWER,
-    // Sentences that reach past the cases on screen, and the test that holds each.
+    // Sentences that reach past the scenarios on screen, and the test that holds each.
     claims: [
       { says: 'invites Bob to the third meeting only', shown: true as const },
       { says: 'keeps only the meetings it was sent', test: 'test/explain-ical-recurrence.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },

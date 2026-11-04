@@ -30,7 +30,7 @@ const row: StorySubject['targets'] = [
 before(async () => {
   if (!enabled) return;
   project = await collectProject('scenes/explainers/ring-buffer', { write: false });
-  assert.equal(project.cases.length, 2);
+  assert.equal(project.scenarios.length, 2);
   folder = await mkdtemp(join(tmpdir(), 'rayner-ring-reader-'));
   await buildExplainer(project, join(folder, 'ring.html'));
   server = await serve(folder, 0, 'ring.html');
@@ -43,16 +43,16 @@ after(async () => {
   if (folder) await rm(folder, { recursive: true, force: true });
 });
 
-test('both operation cases open with the whole array queue: both rows, every slot and the pop’s result', options, async () => {
+test('both operation scenarios open with the whole array queue: both rows, every slot and the pop’s result', options, async () => {
   let openings = 0, checkedTargets = 0;
-  for (const theCase of project.cases) {
+  for (const scenario of project.scenarios) {
     const claims = steps.map((step) => ({
       step, opening: true,
       targets: row,
     }));
-    const frames = await storyFrames(theCase.Scene, claims);
+    const frames = await storyFrames(scenario.Scene, claims);
     const minimum = new Map<string, number>();
-    await new theCase.Scene({
+    await new scenario.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (!steps.includes(step.name)) return;
@@ -68,8 +68,8 @@ test('both operation cases open with the whole array queue: both rows, every slo
       }));
       try {
         for (const step of steps) {
-          const caseName = `${theCase.values.operations}/${step}/${viewport.width}`;
-          await page.goto(`${server.url}/ring.html?${new URLSearchParams({ ...theCase.values, step })}`);
+          const scenarioName = `${scenario.values.operations}/${step}/${viewport.width}`;
+          await page.goto(`${server.url}/ring.html?${new URLSearchParams({ ...scenario.values, step })}`);
           await page.waitForSelector('[data-ready=true]');
           await page.waitForFunction((name) => (window as unknown as { ringStep: string }).ringStep === name &&
             !document.querySelector('#content.loading') && !document.querySelector('svg.leaving'), step);
@@ -80,15 +80,15 @@ test('both operation cases open with the whole array queue: both rows, every slo
           for (const target of claimed) for (const index of target.indices) {
             const ink = seen.ink.find((paint) => paint.index === index)!;
             assert.ok(ink.visible && ink.complete && covered(ink.box, [seen.viewport]),
-              `${caseName}: ${target.name} must be completely painted in the opening`);
+              `${scenarioName}: ${target.name} must be completely painted in the opening`);
           }
           const scale = await page.locator('.stage svg:not(.leaving)').evaluate((node) => {
             const matrix = (node as SVGSVGElement).getScreenCTM()!;
             return Math.hypot(matrix.a, matrix.b) * 1000;
           });
           const pixels = minimum.get(step)! * scale;
-          assert.ok(pixels >= 12 - 1e-6, `${caseName}: smallest body label is ${pixels}px`);
-          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, caseName);
+          assert.ok(pixels >= 12 - 1e-6, `${scenarioName}: smallest body label is ${pixels}px`);
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, scenarioName);
           openings++;
           checkedTargets += claimed.length;
         }

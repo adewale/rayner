@@ -134,7 +134,7 @@ export default class LatestSearchExplainer extends Scene {
         });
       return out;
     });
-    /** A step whose timeline a machine plays: the race starts empty and the case's events play through it. */
+    /** A step whose timeline a machine plays: the race starts empty and the scenario's events play through it. */
     const played = async (words: RaceStep, { timeline, machine }: { timeline: View; machine: Machine<RaceState, RaceEvent> }, guarded: boolean) => {
       await this.step(words.id, { title: words.title, line: words.line, caption: words.caption, kind: 'short' });
       await s.clear({ runTime: 0.18 });

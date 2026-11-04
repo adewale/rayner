@@ -194,11 +194,11 @@ test('a free hand without error reaches every corner it means to; with error, ea
 // drawing lands in the boxes the first used: the layout's marks owe nothing to the seed.
 test('both drawings trace the same marks: the construction strokes match path for path, so the boxes are shared', async () => {
   const project = await collectProject('scenes/explainers/pen-and-pencil', { write: false });
-  assert.deepEqual(project.cases.map((v) => v.values), [{ hand: 'first' }, { hand: 'second' }]);
+  assert.deepEqual(project.scenarios.map((v) => v.values), [{ hand: 'first' }, { hand: 'second' }]);
   const marks: number[][][][] = [];
-  for (const theCase of project.cases) {
+  for (const scenario of project.scenarios) {
     let paths: number[][][] | undefined;
-    await new theCase.Scene({
+    await new scenario.Scene({
       async frame() {},
       async stepEnd(scene: Scene, step: { name: string }) {
         if (step.name !== 'marks') return;
@@ -207,7 +207,7 @@ test('both drawings trace the same marks: the construction strokes match path fo
         paths = traced[0]!.children.map((m) => (m as VMobject).subpaths.map((a) => [...a]));
       },
     }).run();
-    assert.ok(paths && paths.length === 53, `${theCase.values.hand}: ${paths?.length} construction strokes`);
+    assert.ok(paths && paths.length === 53, `${scenario.values.hand}: ${paths?.length} construction strokes`);
     marks.push(paths);
   }
   assert.deepEqual(marks[1], marks[0]);

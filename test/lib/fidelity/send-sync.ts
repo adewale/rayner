@@ -5,7 +5,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { SINGLES, WRAPS, build, nameOf, isSend, isSync, threads } from '../../../scenes/explainers/lib/send-sync.ts';
 import type { Inner, Wrapper } from '../../../scenes/explainers/lib/send-sync.ts';
 
-/** Every case's step state equals the evaluator's answers for its wrapper and inner type. */
+/** Every scenario's step state equals the evaluator's answers for its wrapper and inner type. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const wrapper = values.wrapper as Wrapper,
     inner = values.inner as Inner;
@@ -20,7 +20,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   ] as const)
     assertStepState(trace, step, { shown: name });
   const layers = build(wrapper, inner);
-  // The opening is the same refused program in every case: x is an Arc<Cell<i32>>, and its
+  // The opening is the same refused program in every scenario: x is an Arc<Cell<i32>>, and its
   // answer step shows the point that wrapping Cell<i32> in Arc moves to Neither.
   assertStepState(trace, 'spawn', { opening: threads('arc', 'cell') });
   assertStepState(trace, 'arc-cell', { opened: build('arc', 'cell')[1] });

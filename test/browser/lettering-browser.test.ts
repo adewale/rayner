@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Browser } from 'playwright-core';
 import { launch } from '../../tools/lib/browser.ts';
-import { collectProject, defaultCase, ROOT } from '../../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { SnapshotSink, renderAt, renderElements } from '../../src/index.ts';
 import { restingTime } from '../../explain/trace.ts';
@@ -46,7 +46,7 @@ after(async () => {
 test('the live stage of a lettered page draws the Greek outlines the build draws in Node', options, async () => {
   for (const word of ['logos', 'phos']) {
     // The first step's resting picture as the build draws it, with the lettering in place
-    const v = defaultCase(project, { word });
+    const v = defaultScenario(project, { word });
     const scene = await renderAt(v.Scene, restingTime(v.trace.steps[0]!, v.trace.fps), new SnapshotSink());
     // As the player's DomSink draws it: absolute path data, a line of text one path
     const expected = renderElements(scene, { relative: false })
@@ -71,9 +71,9 @@ test('the live stage of a lettered page draws the Greek outlines the build draws
   }
 });
 
-/** Every resting picture of `project`'s default case, as Node draws it: absolute path data, sorted. */
+/** Every resting picture of `project`'s default scenario, as Node draws it: absolute path data, sorted. */
 async function nodePaths(p: Project): Promise<string[][]> {
-  const v = defaultCase(p);
+  const v = defaultScenario(p);
   const out: string[][] = [];
   for (const step of v.trace.steps) {
     const scene = await renderAt(v.Scene, restingTime(step, v.trace.fps), new SnapshotSink());
@@ -84,7 +84,7 @@ async function nodePaths(p: Project): Promise<string[][]> {
 
 test('each outline-snapshot page draws, at every step, the paths Node draws from the same runs', options, async () => {
   for (const id of OUTLINES) {
-    const p = outlines[id]!, expected = await nodePaths(p), steps = defaultCase(p).trace.steps;
+    const p = outlines[id]!, expected = await nodePaths(p), steps = defaultScenario(p).trace.steps;
     const page = await browser.newPage();
     const errors: string[] = [];
     page.on('console', (m) => void (m.type() === 'error' && errors.push(m.text())));

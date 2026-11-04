@@ -142,7 +142,7 @@ await new Request(new DomSink(container)).run();
 ```
 
 This runs the raw scene. It does not add the reader's Next/Previous controls,
-case selection, transcript or deep-link handling. For those use `rayner build`
+scenario selection, transcript or deep-link handling. For those use `rayner build`
 and the [publishing workflow](PUBLISHING.md). A raw engine example is not a lesson
 that has passed `rayner check` or a served reader review.
 

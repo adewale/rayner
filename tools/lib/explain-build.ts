@@ -7,9 +7,9 @@ import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
 import { SnapshotSink, renderAt } from '../../src/index.ts';
-import { chromeFor, caseNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
+import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, engineAlias, defaultCase, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences, pageSnapshot } from './lettering.ts';
@@ -31,7 +31,7 @@ export async function buildExplainer(
   project: Project,
   out: string,
 ): Promise<{ html: string; receipt: Record<string, unknown> }> {
-  const v = defaultCase(project),
+  const v = defaultScenario(project),
     first = v.trace.steps[0]!;
   // The page's own words follow the scene's language, and so do the picture descriptions where
   // explain/words.ts has words for it; elsewhere they are English, marked lang="en".
@@ -41,7 +41,7 @@ export async function buildExplainer(
   await useProjectLettering(project);
   let withAudio=false;
   // Validate every step, including clips after the first sound-bearing step.
-  for(const theCase of project.cases) for(const step of theCase.trace.steps)
+  for(const scenario of project.scenarios) for(const step of scenario.trace.steps)
     if(stepAudio(step.meta.audio)) withAudio=true;
   const sink = new SnapshotSink();
   await renderAt(v.Scene, restingTime(first, v.trace.fps), sink);
@@ -102,27 +102,27 @@ export async function buildExplainer(
   const js = scriptEscape(bundled.outputFiles[0]!.text),
     css = (await readFile(join(ROOT, 'app/embed.css'), 'utf8')) + (rightToLeftPage(project) ? RTL_CSS : '') +
       (withAudio ? '\n'+await readFile(join(ROOT,'app/embed-audio.css'),'utf8') : '') + playerCss(project.Scene.meta?.player, v.palette);
-  // Every case, every step: a link to it, its caption, what it changed of the state the author
+  // Every scenario, every step: a link to it, its caption, what it changed of the state the author
   // watches (meta.watch) and what its resting picture shows.
-  // The player shows the current case's section; without JavaScript every case shows.
-  const transcript = project.cases
+  // The player shows the current scenario's section; without JavaScript every scenario shows.
+  const transcript = project.scenarios
     .map(({ values, trace }) => {
       const key = new URLSearchParams(values).toString(),
-        name = caseNameIn(lang, project.Scene, values);
+        name = scenarioNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
         const href = `?${key ? key + '&' : ''}${new URLSearchParams({ step: s.step })}`,
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
-        const entry = project.Scene.meta?.caseNavigation === 'first' && i > 0
+        const entry = project.Scene.meta?.scenarioNavigation === 'first' && i > 0
           ? `<span>${htmlEscape(words.title)}</span>`
           : `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
         return `<li>${entry}${wordsHtml(words)}${changes.length ? `<p>${htmlEscape(t.changes(...changes))}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
       });
-      return `<section data-case="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
+      return `<section data-scenario="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
     })
     .join('');
-  // The scene's check questions after every case: the questions, each answer behind a disclosure.
+  // The scene's check questions after every scenario: the questions, each answer behind a disclosure.
   const checks = (project.Scene.meta?.checks ?? [])
     .map((c) => `<li><p>${htmlEscape(c.question)}</p><details><summary>${htmlEscape(t.showAnswer)}</summary><p>${htmlEscape(c.answer)}</p></details></li>`)
     .join('');
@@ -145,7 +145,7 @@ export async function buildExplainer(
     ...baseReceipt(project),
     title,
     artifactHash: hash(html),
-    cases: project.cases.map((v) => ({
+    scenarios: project.scenarios.map((v) => ({
       settings: v.values,
       steps: v.trace.steps.length,
       duration: v.trace.duration,

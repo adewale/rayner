@@ -139,7 +139,7 @@ on a View that is not on screen yet adds it, and it appears abruptly.
 
 `specs/rayner.md` asks for a named pattern: "a scene's state at each step must
 equal the program's". The state side already exists: `test/explain-fidelity.test.ts`
-compares every case's step states with the program's answers, using
+compares every scenario's step states with the program's answers, using
 `assertStepState` from `test/lib/explainer-state.ts`. A View adds the picture
 side: **at the end of every step, the View shows what the traced state
 renders.**
@@ -236,7 +236,7 @@ its demo receipts would need regenerating when it does.
   panel and labels and makes only its values a view, beside two more views (the
   head, tail and length readout, and the waiting push argument).
   `test/explain-models.test.ts` runs `assertViewFollowsState` on all of them and on
-  the token bucket's readout, at every step of every case.
+  the token bucket's readout, at every step of every scenario.
 - **State that changes inside one play.** A sync builds at its turn, but
   `scene.state` is whatever the scene last wrote, so a `Succession` of several
   operations would show the last one's state at every sync. Two scenes add a member

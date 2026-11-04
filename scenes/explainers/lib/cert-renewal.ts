@@ -242,7 +242,7 @@ export function simulate(rule: Rule, lifetimeHours: number, horizon: number, ari
   return { issued, refused };
 }
 
-export interface CaseSummary {
+export interface ScenarioSummary {
   lifetime: number;
   /** Hours after notBefore when the rule says "renew", clamped to 0 ("from issue"). */
   due: number;
@@ -260,7 +260,7 @@ export interface CaseSummary {
   firstRefused: number | null;
 }
 
-export function summarize(rule: Rule, key: LifetimeKey): CaseSummary {
+export function summarize(rule: Rule, key: LifetimeKey): ScenarioSummary {
   const lifetime = LIFETIMES[key].hours,
     c = issue(0, lifetime),
     due = Math.max(c.notBefore, dueAt(rule, c));

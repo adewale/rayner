@@ -50,10 +50,10 @@ import { check as statecharts } from './lib/fidelity/statecharts.ts';
 import { check as henge } from './lib/fidelity/henge.ts';
 
 for (const entry of EXPLAINERS)
-  test(`${entry.id}: every authored case exposes the program's answers at step boundaries`, async () => {
+  test(`${entry.id}: every authored scenario exposes the program's answers at step boundaries`, async () => {
     const project = await collectProject(`scenes/explainers/${entry.id}`, { write: false });
-    for (const theCase of project.cases) {
-      const { values, trace } = theCase,
+    for (const scenario of project.scenarios) {
+      const { values, trace } = scenario,
         last = trace.steps.at(-1)!;
       // Every visible token (including sequence build-ins) names a link in a captured diagram.
       const links = Object.values(project.store)
@@ -97,7 +97,7 @@ for (const entry of EXPLAINERS)
             assert.equal(solstice.toFixed(3), '0.984');
             assert.equal(Math.round((1 / solstice ** 2 - 1) * 100), 3);
             assert.equal(Math.round((share / solstice ** 2) * 100), 27);
-            const { checks } = (theCase.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
+            const { checks } = (scenario.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
             assert.match(checks[0]!.answer, /^About 27%\. On the solstice Earth is about 0\.984 of its average distance/);
             // The second: an axis that always leans north toward the Sun gives December June's values, 16.4 h and 88%.
             assert.equal(sunlight(51.5, 23.44).daylight.toFixed(1), '16.4');
@@ -121,7 +121,7 @@ for (const entry of EXPLAINERS)
             polarNight: days.filter((h) => h === 0).length,
           });
           if (lat === 69.65) assert.ok((trace.steps.find((s) => s.step === 'year')!.after!.polarDay as number) > 50);
-          await seasonsArithmetic(trace, theCase.Scene);
+          await seasonsArithmetic(trace, scenario.Scene);
           break;
         }
         case 'oauth-pkce': {
@@ -158,7 +158,7 @@ for (const entry of EXPLAINERS)
             reads: values.request === 'hit' ? 0 : 1,
           });
           assert.equal(walks.filter((w) => w.step === 'request').length, values.request === 'hit' ? 3 : 4);
-          await mrCacheDiff(trace, theCase.Scene);
+          await mrCacheDiff(trace, scenario.Scene);
           break;
         case 'latest-search': {
           // Independent expectation for the two controlled completions: when B
@@ -213,7 +213,7 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'result', { feature: values.feature });
           assert.deepEqual(['recipe', 'result'].map((name) => (trace.steps.find((s) => s.step === name)!.shown as { phase?: string }).phase), ['recipe', 'result']);
           if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
-          // The camera case says how much of the 16-unit stage its closer view frames.
+          // The camera scenario says how much of the 16-unit stage its closer view frames.
           if (values.feature === 'camera') {
             const camera = trace.steps.find((s) => s.step === 'result')!.after!.camera as { before: number; after: number };
             assert.equal(camera.before, 16);
@@ -275,9 +275,9 @@ for (const entry of EXPLAINERS)
             const body = '2: ok: true; 3: warnings: 0';
             assert.equal(shown.split(body).length - 1, 2, shown);
           }
-          // The default case deletes the swapped labels to show what the verifier does flag.
+          // The default scenario deletes the swapped labels to show what the verifier does flag.
           if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
-          // Every case shows an error turning ok false: the edge to Database cut off at its arrow.
+          // Every scenario shows an error turning ok false: the edge to Database cut off at its arrow.
           assertStepState(trace, 'broken', {
             broken: {
               source: {
@@ -508,7 +508,7 @@ for (const entry of EXPLAINERS)
             else assert.ok(k > 1.1, `${run.text}: Inter estimates stretch the Garamond word (${k})`);
             assert.ok(diagramShown.includes(`stretched ×${stretch[run.text]!.toFixed(3)}`), diagramShown);
           }
-          // The recorded case's caption: Paper is stretched more than Ink, so no single factor converts the faces.
+          // The recorded scenario's caption: Paper is stretched more than Ink, so no single factor converts the faces.
           if (values.widths === 'recorded') {
             assert.ok(stretch.Paper! > stretch.Ink! + 0.1, `Paper ${stretch.Paper}, Ink ${stretch.Ink}`);
             assert.match(String(trace.steps.find(s => s.step === 'diagram')!.meta.caption), /Paper’s is larger than Ink’s/);
@@ -521,7 +521,7 @@ for (const entry of EXPLAINERS)
           // before and after an update, without reversing the digits.
           const rtl = values.direction === 'rtl';
           const seen: string[] = [];
-          await new theCase.Scene({
+          await new scenario.Scene({
             async frame() {},
             async stepEnd(scene, step) {
               if (!['columns', 'updates', 'physical'].includes(step.name)) return;
@@ -631,21 +631,21 @@ for (const entry of EXPLAINERS)
           });
           assert.ok(Math.abs(fork.t1 - fork.t0 - (words / Scene.captionWpm) * 60) <= 1 / trace.fps + 1e-9);
           // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
-          // token-bucket case whose trace answers R10 as the fork scene says, and its last step says
+          // token-bucket scenario whose trace answers R10 as the fork scene says, and its last step says
           // R10 is accepted at every rate.
           const bucketProject = await collectProject('scenes/explainers/token-bucket', { write: false });
-          const offered = bucketProject.cases.map((v) => ({
+          const offered = bucketProject.scenarios.map((v) => ({
             rate: Number(v.values.rate),
             r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
           }));
           assertStepState(trace, 'sentence', { offered: offered.sort((a, b) => a.rate - b.rate) });
-          for (const v of bucketProject.cases)
+          for (const v of bucketProject.scenarios)
             assert.match(String(v.trace.steps.find((s) => s.step === 'trace')!.meta.caption), /R10 is accepted at every rate/);
           // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
           // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.
           assertStepState(trace, 'untested', { unbuilt: { rate: 0.1, r10: 429, found: 0.5 } });
-          // The cases the choice step draws are the token bucket's own: its setting as declared, one
-          // case per option with R10's answer from that case's trace, and what its settings resolver
+          // The scenarios the choice step draws are the token bucket's own: its setting as declared, one
+          // scenario per option with R10's answer from that scenario's trace, and what its settings resolver
           // does with a link naming a listed rate and with one naming 0.1.
           const { default: TokenBucketScene } = await import('../scenes/explainers/token-bucket/scene.ts');
           const [rate] = TokenBucketScene.settings;
@@ -655,12 +655,12 @@ for (const entry of EXPLAINERS)
             } catch (e) {
               return (e as Error).message;
             }
-            assert.fail('0.1 must not resolve to a token-bucket case');
+            assert.fail('0.1 must not resolve to a token-bucket scenario');
           })();
           assertStepState(trace, 'choice', {
             choice: {
               setting: rate,
-              cases: offered.map((o) => ({ rate: String(o.rate), r10: o.r10, default: String(o.rate) === rate!.default })),
+              scenarios: offered.map((o) => ({ rate: String(o.rate), r10: o.r10, default: String(o.rate) === rate!.default })),
               links: [
                 { asked: '4', opens: resolveSettings(TokenBucketScene, { rate: '4' }).rate },
                 { asked: '0.1', opens: rate!.default, refused },
@@ -670,8 +670,8 @@ for (const entry of EXPLAINERS)
           // The price is shown on a real scene's settings: traffic-policy's two settings, in its own order.
           const { default: TrafficPolicy } = await import('../scenes/explainers/traffic-policy/scene.ts');
           const [policy, pods] = TrafficPolicy.settings;
-          assertStepState(trace, 'cases', {
-            cases: {
+          assertStepState(trace, 'scenarios', {
+            scenarios: {
               count: policy!.options.length * pods!.options.length,
               policies: policy!.options.map((o) => o.label),
               pods: pods!.options.map((o) => o.value),

@@ -31,7 +31,7 @@ import type { RingState, RingEvent } from '../lib/models.ts';
 
 /** The check questions' answers, from the same model: rings and queues no step draws. */
 const CHECK = (() => {
-  // Carry on from the wrap case's last step: three pops, then push 8.
+  // Carry on from the wrap scenario's last step: three pops, then push 8.
   const ring = new RingBuffer<number>(5);
   for (let v = 1; v <= 5; v++) ring.push(v);
   ring.pop();

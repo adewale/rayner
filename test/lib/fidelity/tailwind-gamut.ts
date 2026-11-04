@@ -4,7 +4,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { SHADES, rows, summarize } from '../../../scenes/explainers/lib/tailwind-gamut.ts';
 import type { Shade } from '../../../scenes/explainers/lib/tailwind-gamut.ts';
 
-/** Every case's step state equals the gamut model's answers for that shade and screen. */
+/** Every scenario's step state equals the gamut model's answers for that shade and screen. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const shade = values.shade as Shade,
     screen = values.screen;

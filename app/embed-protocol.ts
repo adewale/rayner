@@ -1,7 +1,7 @@
 export const RESIZE_TYPE = 'rayner:resize',
   STEP_TYPE = 'rayner:step',
   GOTO_TYPE = 'rayner:goto';
-/** A settled step as the host hears it: its name, its place of how many, and the case. No captions or other content. */
+/** A settled step as the host hears it: its name, its place of how many, and the scenario. No captions or other content. */
 export interface StepDetail {
   step: string;
   index: number;
@@ -43,7 +43,7 @@ export function stepDetail(event: Message, origin: string, source: MessageEventS
     ? { step, index, total, settings }
     : null;
 }
-/** A host's request to show a step or a case; only what is given is sent. */
+/** A host's request to show a step or a scenario; only what is given is sent. */
 export const gotoMessage = (step?: string, settings?: Record<string, string>) => ({
   type: GOTO_TYPE,
   version: 1 as const,

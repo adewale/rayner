@@ -167,7 +167,7 @@ export default class GtfsExplainer extends Scene {
         answer: `Like Monday: FULLW would be removed for the day and WE does not run on Tuesdays, so ${TUESDAY ? `${TUESDAY} trips would run` : `none of the ${FEED.trips.length} trips would run`}, though all ${FEED.routes.length} routes stay in routes.txt.`,
       },
     ],
-    // The sentences that reach beyond the case on screen, and the tests that hold them.
+    // The sentences that reach beyond the scenario on screen, and the tests that hold them.
     claims: [
       { says: 'A route has departures only on dates its trips’ service runs', test: 'test/explain-gtfs.test.ts: a route has departures only on dates' },
       { says: 'AB1 runs only on the dates its service', test: 'test/explain-gtfs.test.ts: a route has departures only on dates' },

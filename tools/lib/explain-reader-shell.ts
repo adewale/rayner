@@ -7,7 +7,7 @@ export function readerChrome({ wholePicture, nextLabel, previous, madeWith, view
   return { wholePicture, nextLabel, previous, madeWith, viewHelp, hintKeys };
 }
 export interface ReaderShell {
-  chrome: ReaderChrome; home: string; cases: number; steps: string[]; crop?: CropExpectation;
+  chrome: ReaderChrome; home: string; scenarios: number; steps: string[]; crop?: CropExpectation;
 }
 /** Serializable: this function runs in the served page, under its real stylesheet. */
 export function readerShellProblems(e: ReaderShell): string[] {
@@ -23,7 +23,7 @@ export function readerShellProblems(e: ReaderShell): string[] {
   say('title and header', [h1s.length, !!player && h1s[0]?.closest('.player') === player,
     !!head && h1s[0]?.parentElement === head, !!player && player.firstElementChild === head,
     head?.nextElementSibling?.className,
-    document.querySelectorAll('.case input').length === document.querySelectorAll('.player .head .case input').length], [1, true, true, true, 'frame', true]);
+    document.querySelectorAll('.scenario input').length === document.querySelectorAll('.player .head .scenario input').length], [1, true, true, true, 'frame', true]);
   say('maker mark', [...document.querySelectorAll<HTMLAnchorElement>('a.mark')].map(a =>
     [a.parentElement?.matches('.player > footer.foot'), a.textContent, a.href, a.getAttribute('aria-label'), a.target, a.rel]),
     [[true, 'Rayner', e.home, t.madeWith, '_blank', 'noopener']]);
@@ -34,7 +34,7 @@ export function readerShellProblems(e: ReaderShell): string[] {
   const touring = controls && !controls.hidden && controls.style.visibility !== 'hidden';
   say('guidance', [...document.querySelectorAll<HTMLElement>('.foot .hint')].map(h =>
     [h.textContent, h.previousElementSibling?.classList.contains('mark'), h.checkVisibility()]), [[touring ? t.viewHelp : t.hintKeys, true, true]]);
-  if (e.cases && !document.querySelector('.player .case input')) problems.push('case picker is missing from the card');
+  if (e.scenarios && !document.querySelector('.player .scenario input')) problems.push('scenario picker is missing from the card');
   const lede = document.querySelector<HTMLElement>('.lede');
   const caption = document.querySelector<HTMLElement>('.caption');
   const stepper = document.querySelector<HTMLElement>('.stepper');
@@ -59,7 +59,7 @@ export interface CropExpectation {
   title: string;
   kicker: string;
   segments: number;
-  cases: number;
+  scenarios: number;
   madeWith: string;
   home: string;
   /** For a framed page: the way out's path and query, without parentOrigin. */
@@ -79,7 +79,7 @@ export function cropTest(e: CropExpectation) {
   // 2. What it is about.
   say('h1', all('h1').map((h) => h.textContent), [e.title]);
   say('.lede .kicker', all('.lede .kicker').map((k) => k.textContent), [e.kicker]);
-  say('.case fieldsets', all('fieldset.case').length, e.cases);
+  say('.scenario fieldsets', all('fieldset.scenario').length, e.scenarios);
   // 3. Who made it.
   say('.foot a.mark', all('.foot a.mark').map((a) => [a.textContent, (a as HTMLAnchorElement).href, a.getAttribute('aria-label')]), [['Rayner', e.home, e.madeWith]]);
   // 4. Where to go.

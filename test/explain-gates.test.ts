@@ -1,6 +1,6 @@
 // One seeded defect per gate, through the entry points `rayner check` uses:
-// collectProject (load, cases, named steps, drawable text) and checkProject
-// (every check on every case). Each scene breaks exactly one rule and must fail
+// collectProject (load, scenarios, named steps, drawable text) and checkProject
+// (every check on every scenario). Each scene breaks exactly one rule and must fail
 // with that gate's own message; the clean scene shows the same shape passes.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { collectProject, writeSnapshots, ROOT } from '../tools/lib/explain-project.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
-import { casesOf, resolveSettings } from '../explain/settings.ts';
+import { scenariosOf, resolveSettings } from '../explain/settings.ts';
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
@@ -37,7 +37,7 @@ const checked = async (dir: string) => checkProject(await collectProject(dir, { 
 
 test('a clean scene passes every gate', async () => {
   const report = await checked(await write(scene(`await this.step('one',{caption:'A label.'});${label('hello')}await this.step('two',{caption:'Another.'});${label('world', '[0,-2]')}`)));
-  assert.equal((report.cases as unknown[]).length, 1);
+  assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
 test('numerals outside Latin draw from the fallback faces and pass every gate, in sans and mono', async () => {
@@ -48,7 +48,7 @@ test('numerals outside Latin draw from the fallback faces and pass every gate, i
       ),
     ),
   );
-  assert.equal((report.cases as unknown[]).length, 1);
+  assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
 // A diagram whose label B is readable only in mid-sweep: focus(['B']) zooms to it, focus('all') ends the step with it at 4 px.
@@ -200,7 +200,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Every drawing needs words for readers who cannot see it/,
   },
   {
-    gate: 'missing glyphs, named by case, step and code point',
+    gate: 'missing glyphs, named by scenario, step and code point',
     source: scene(
       `await this.step('one');${label('ok')}await this.step('two');await s.enter(new Text(settingsOf(this).k==='b'?'a中b':'ab',{fontSize:.4}).moveTo([0,-2]),{describe:'text'});`,
       '',
@@ -221,9 +221,9 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Duplicate step names/,
   },
   {
-    gate: 'a case with no steps',
+    gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
-    message: /Each case needs non-empty named steps/,
+    message: /Each scenario needs non-empty named steps/,
   },
   {
     gate: 'one scene export',
@@ -253,12 +253,12 @@ test('rayner check exits 1 and names the failing gate on stderr', async () => {
   assert.match(String(refused?.stderr), /^rayner: Seek mismatch at frame \d+ in the scene$/m);
 });
 
-// A scene with two settings (2 × 3 cases) and three steps; `nudgeIn` names the one case whose last
+// A scene with two settings (2 × 3 scenarios) and three steps; `nudgeIn` names the one scenario whose last
 // step moves its dot by a nudge each frame instead of by blending, as the lantern explainer's tiny scene does.
 const CASES_HEAD = `import{Scene,Text,Dot,Animation}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
-const casesScene = (nudgeIn?: { motion: string; size: string }) =>
+const scenariosScene = (nudgeIn?: { motion: string; size: string }) =>
   `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}begin(){super.begin();this.live=true}interpolate(){if(this.live)this.mobject.shift([0.1,0])}finish(){}}` +
-  `export default class Cases extends Scene{static settings=[` +
+  `export default class Scenarios extends Scene{static settings=[` +
   `{id:'motion',label:'Motion',default:'blend',options:[{value:'blend',label:'Blend'},{value:'nudge',label:'Nudge'}]},` +
   `{id:'size',label:'Size',default:'small',options:[{value:'small',label:'Small'},{value:'mid',label:'Mid'},{value:'large',label:'Large'}]}];` +
   `async construct(){const s=stage(this);const v=settingsOf(this);` +
@@ -268,25 +268,25 @@ const casesScene = (nudgeIn?: { motion: string; size: string }) =>
   `const nudge=${nudgeIn ? `v.motion===${JSON.stringify(nudgeIn.motion)}&&v.size===${JSON.stringify(nudgeIn.size)}` : 'false'};` +
   `await this.play(nudge?new Nudge(d):d.animate.moveTo([0,-2]),{runTime:1});}}`;
 
-test('rayner check seeks two frames in each step of every case: a nudge each frame in one case’s last step fails it with a seek mismatch naming that case', async () => {
-  const clean = await checked(await write(casesScene()));
-  const cases = clean.cases as { settings: Record<string, string>; steps: number; seekFrames: number }[];
-  assert.equal(cases.length, 6);
-  for (const v of cases) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
-  // The last case built, and the last step in it: a check that stopped short of either would pass.
-  await assert.rejects(checked(await write(casesScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
-  await assert.rejects(checked(await write(casesScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);
+test('rayner check seeks two frames in each step of every scenario: a nudge each frame in one scenario’s last step fails it with a seek mismatch naming that scenario', async () => {
+  const clean = await checked(await write(scenariosScene()));
+  const scenarios = clean.scenarios as { settings: Record<string, string>; steps: number; seekFrames: number }[];
+  assert.equal(scenarios.length, 6);
+  for (const v of scenarios) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
+  // The last scenario built, and the last step in it: a check that stopped short of either would pass.
+  await assert.rejects(checked(await write(scenariosScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
+  await assert.rejects(checked(await write(scenariosScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);
 });
 
-test('the build makes every combination of options a case, rayner check tests each, and a reader can open no other', async () => {
-  const dir = await write(casesScene());
+test('the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other', async () => {
+  const dir = await write(scenariosScene());
   const project = await collectProject(dir, { write: false });
   const combos = ['blend', 'nudge'].flatMap((motion) => ['small', 'mid', 'large'].map((size) => ({ motion, size })));
-  assert.deepEqual(project.cases.map((v) => v.values), combos);
-  assert.deepEqual(casesOf(project.Scene), combos);
+  assert.deepEqual(project.scenarios.map((v) => v.values), combos);
+  assert.deepEqual(scenariosOf(project.Scene), combos);
   const report = await checkProject(project, join(dir, 'checks'));
-  assert.deepEqual((report.cases as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
-  // A value no option lists is refused, so no request reaches a case the build did not make.
+  assert.deepEqual((report.scenarios as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
+  // A value no option lists is refused, so no request reaches a scenario the build did not make.
   assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /Unknown .* option/);
   assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /Unknown .* option/);
 });

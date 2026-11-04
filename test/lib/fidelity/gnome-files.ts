@@ -4,7 +4,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { COLOURS, GROUPS, PARTICIPANTS, SCORE, gaveUp, giveUps, quitters, scoreOf } from '../../../scenes/explainers/lib/gnome-files.ts';
 import type { Participant } from '../../../scenes/explainers/lib/gnome-files.ts';
 
-/** Every case's step state equals the heat map's answers for that participant. */
+/** Every scenario's step state equals the heat map's answers for that participant. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const p = values.participant as Participant;
   assert.ok(PARTICIPANTS.includes(p), `unknown participant ${p}`);

@@ -13,7 +13,7 @@ These are lessons from explainers that worked, not rules to satisfy. Rayner chec
 3. Get every value from a model. The numbers, paths and outcomes on screen come from a small program, which you check against the real system by running the tool, using its test vectors or citing the exact source version you read. A caption never states an answer the model did not give.
 4. Give each step one inference. A step answers a question the previous step raised. One arrangement that works: the title says what the picture proves, the line says where to look, and the caption connects what is visible to what follows from it.
 5. Leave the evidence on screen. Readers read the caption while the picture is still, so the item, mark or value the caption mentions must be there when the motion stops. Put a value beside the thing it measures.
-6. Use a second case to test the tempting shortcut. Change one input that could prove the reader's guess wrong, keep everything else fixed, and write each case's caption for that case's own outcome. A change that only recolours the picture tests nothing.
+6. Use a second scenario to test the tempting shortcut. Change one input that could prove the reader's guess wrong, keep everything else fixed, and write each scenario's caption for that scenario's own outcome. A change that only recolours the picture tests nothing.
 7. Move things only to show order, identity or cause. If the final picture already tells the whole story, show it at once. When something changes form, keep it recognisable, because a morph on its own does not prove that the before and after are the same thing.
 8. End on the specific result and its limit: what the explainer showed, and where the claim stops holding.
 
@@ -36,13 +36,13 @@ Answer:    on a miss in a full cache, LRU evicts the item used longest ago and M
            recently; which one gets more hits depends on the order of requests
 Model:     run(policy, size, requests) returns each request's hit, eviction and cache contents
 Sources:   the worked examples in Wikipedia's "Cache replacement policies"; Chou and DeWitt, VLDB 1985
-Case:      baseline A B C D A B C D | changed: last four are C D C D | fixed: three slots, same first four
+Scenarios: baseline A B C D A B C D | changed: last four are C D C D | fixed: three slots, same first four
            requests, both policies | predicted hits: LRU 0, MRU 3 → LRU 4, MRU 0
 Limit:     hit counts for eight requests through three slots; not the cost of tracking recency, and no claim
            about random access
 ```
 
-The case line is written before any drawing, so the picture has to match a prediction (principle 6). The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that could prove it wrong. Chou and DeWitt wrote that a file being repeatedly scanned should be kept in memory if possible, and that if it is too large to fit, "an MRU replacement algorithm should be used to manage the buffer pool". The two cases share their first four requests, so the first eviction is identical in both and only what follows it differs.
+The scenarios line is written before any drawing, so the picture has to match a prediction (principle 6). The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that could prove it wrong. Chou and DeWitt wrote that a file being repeatedly scanned should be kept in memory if possible, and that if it is too large to fit, "an MRU replacement algorithm should be used to manage the buffer pool". The two scenarios share their first four requests, so the first eviction is identical in both and only what follows it differs.
 
 The limit line keeps the explainer inside what it tests. It counts hits, so it cannot say anything about latency or the bookkeeping LRU needs to track recency. It does not test random access either, where Chou and DeWitt report that "the choice of a replacement algorithm is immaterial". The limit becomes the last caption (principle 8).
 
@@ -230,15 +230,15 @@ export default class LruMru extends Scene {
 Read it from the top:
 
 - `static meta` holds the id, which names the output files, the page title and the sources the model was checked against.
-- `static settings` declares one setting with two options. Each option is a case: the reader can switch between them, and `check` and `review` visit both. Both cases send A B C D first, then either repeat the loop or alternate C and D.
-- `trace` asks the model once per case. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests, and `show(n)` updates the card and records the same values on `this.state`, where tests and `rayner describe` can read them.
+- `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
+- `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests, and `show(n)` updates the card and records the same values on `this.state`, where tests and `rayner describe` can read them.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
 - `s.card` draws one card with an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
 - There are four steps. Each has a stable name used in links, a title and a caption, and the first two have a line under the title. The page prints the caption beside the picture.
 
 The first step opens on the moment the policies are about to diverge (principle 2): both caches hold the same items in the same order and D is about to miss. The second step is the whole difference between the policies, so it gets a step of its own (principle 4), and its mark on the Evicted row stays on screen while the reader reads why (principle 5). Its captions take the evicted items from the model. Because the two policies share one card, a reader sees both columns of every row at once, including on a phone, where the player zooms onto the card.
 
-The third step's captions are written by hand for each case; they are claims about the model too, so the repository's copy of this scene has [a test](../test/explain-tutorial.test.ts) that checks each one. The last step marks the Hits row, gives each case a title and caption written for its own outcome (principle 6), and ends on the plan's limit (principle 8). In the loop case that limit is Chou and DeWitt's condition: MRU suits a repeated scan only when the file is too large to fit.
+The third step's captions are written by hand for each scenario; they are claims about the model too, so the repository's copy of this scene has [a test](../test/explain-tutorial.test.ts) that checks each one. The last step marks the Hits row, gives each scenario a title and caption written for its own outcome (principle 6), and ends on the plan's limit (principle 8). In the loop scenario that limit is Chou and DeWitt's condition: MRU suits a repeated scan only when the file is too large to fit.
 
 ## 6. Preview it
 
@@ -248,7 +248,7 @@ npx rayner preview lru-mru/scene.ts --watch
 
 Open http://127.0.0.1:5174/ and press Next. Each step plays and then stops on its resting picture, which is what the reader looks at while reading the caption. After step 3 the Evicted row lists every eviction in order. On the loop, LRU's evictions read A B C D A: each item LRU evicts is the next one the loop asks for.
 
-Choose C D C D above the stage. The URL names the case and step (`lru-mru.html?next=reuse&step=rest`), so a link opens that exact picture. Now MRU's evictions read C D C D C, and each item MRU evicts is the next one requested. In both cases the losing policy evicts the item needed soonest, the opposite of Bélády's optimal algorithm, which discards the information that "would not be needed for the longest time". Leave the preview running; it rebuilds when you save.
+Choose C D C D above the stage. The URL names the scenario and step (`lru-mru.html?next=reuse&step=rest`), so a link opens that exact picture. Now MRU's evictions read C D C D C, and each item MRU evicts is the next one requested. In both scenarios the losing policy evicts the item needed soonest, the opposite of Bélády's optimal algorithm, which discards the information that "would not be needed for the longest time". Leave the preview running; it rebuilds when you save.
 
 ## 7. Break a check
 
@@ -268,7 +268,7 @@ rayner: Each step must change the picture; these end exactly as the step before 
 - []
 ```
 
-Without the mark, the last step plays nothing, so it rests on exactly the picture step 3 left. A reader pressing Next would get a new caption and nothing new on the stage to read it against. The check reports the first case where this happens. Put the line back and run `check` again: it passes. The report it saves to `out/checks/lru-mru/report.json` includes `legibility.labelsUnder12PxAt390`, the number of labels a phone reader sees smaller than 12 px. Keep it at 0 in every case.
+Without the mark, the last step plays nothing, so it rests on exactly the picture step 3 left. A reader pressing Next would get a new caption and nothing new on the stage to read it against. The check reports the first scenario where this happens. Put the line back and run `check` again: it passes. The report it saves to `out/checks/lru-mru/report.json` includes `legibility.labelsUnder12PxAt390`, the number of labels a phone reader sees smaller than 12 px. Keep it at 0 in every scenario.
 
 ## 8. Break a caption
 
@@ -281,10 +281,10 @@ The next mistake passes every check. Replace the last step's title and caption w
     });
 ```
 
-`rayner check` still passes. Print the step as text in the other case:
+`rayner check` still passes. Print the step as text in the other scenario:
 
 ```sh
-npx rayner see lru-mru/scene.ts verdict --case next=reuse
+npx rayner see lru-mru/scene.ts verdict --scenario next=reuse
 ```
 
 After a rough text drawing of the resting picture, it prints:
@@ -297,14 +297,14 @@ Picture: 8 labelled values. Marked: Hits (LRU): 4: C D C D; Hits (MRU): 0.
 Changed: nothing in scene.state
 ```
 
-The marked row says LRU hit four times and MRU never did, so in this case the caption is false. It was written from the loop case alone. Undo the change: the scene's own ending takes its title and counts from each case's outcome.
+The marked row says LRU hit four times and MRU never did, so in this case the caption is false. It was written from the loop scenario alone. Undo the change: the scene's own ending takes its title and counts from each scenario's outcome.
 
-Read every step of every case this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner shots lru-mru/scene.ts --case next=reuse` makes a contact sheet of one case. At each step, ask:
+Read every step of every scenario this way. `npx rayner describe lru-mru/scene.ts --out out/lru-mru.json` writes the whole explainer as JSON, and `npx rayner shots lru-mru/scene.ts --scenario next=reuse` makes a contact sheet of one scenario. At each step, ask:
 
 - Does the caption name a value, item or comparison that the picture does not show?
 - Could a reader work out the cause from the resting pictures alone, without watching the motion?
-- Would any sentence be false in another case?
-- Does the first step deliver what the title promises, and does the last step earn its conclusion in every case?
+- Would any sentence be false in another scenario?
+- Does the first step deliver what the title promises, and does the last step earn its conclusion in every scenario?
 - Does any sentence claim more than the sources say? Chou and DeWitt recommend MRU for a looping file only when it is too large to fit, which is why the loop's ending says so.
 
 ## 9. Review and build
@@ -313,7 +313,7 @@ Read every step of every case this way. `npx rayner describe lru-mru/scene.ts --
 npx rayner review lru-mru/scene.ts
 ```
 
-`review` runs the checks, then opens every step of every case at phone and desktop widths in Chromium and saves screenshots in `out/review/lru-mru/`. Look at them yourself; a passing review shows that the pictures render, not that they explain.
+`review` runs the checks, then opens every step of every scenario at phone and desktop widths in Chromium and saves screenshots in `out/review/lru-mru/`. Look at them yourself; a passing review shows that the pictures render, not that they explain.
 
 ```sh
 npx rayner build lru-mru/scene.ts --out public/lru-mru.html

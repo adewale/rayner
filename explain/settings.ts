@@ -22,8 +22,8 @@ export type ExplainerClass = SceneClass & {
     lettering?: LetteringRequest;
     /** Use Scene.text()/TextOpts.shaping instead of ambient lettering constructors. */
     textContext?: 'explicit';
-    /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
-    caseNavigation?: 'first';
+    /** A scenario picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
+    scenarioNavigation?: 'first';
     /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
     /**
      * Palette/corner cues, an optional standalone stage-width floor in CSS pixels (at most 4096), and
@@ -45,7 +45,7 @@ export type ExplainerClass = SceneClass & {
      */
     checks?: readonly { question: string; answer: string }[];
     /**
-     * Claims that reach beyond the cases shown (a sentence with "every", "never", "only" and the like),
+     * Claims that reach beyond the scenarios shown (a sentence with "every", "never", "only" and the like),
      * each with the test that holds it: `says` is a phrase of the sentence, `test` is
      * "test/<file>.test.ts: <part of the test's name>"; or `shown: true` when the sentence speaks only of
      * what its own step draws. `check` fails a claim no step states or whose test is not there, and
@@ -94,21 +94,21 @@ export function withSettings(Source: ExplainerClass, values: Settings = {}): Exp
   return Bound;
 }
 
-/** A case as readers see it, "Label: option · Label: option"; empty for a scene without settings. */
-export function caseName(Scene: ExplainerClass, values: Settings): string {
+/** A scenario as readers see it, "Label: option · Label: option"; empty for a scene without settings. */
+export function scenarioName(Scene: ExplainerClass, values: Settings): string {
   return (Scene.settings ?? [])
     .map((s) => `${s.label}: ${s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]}`)
     .join(' · ');
 }
 
 /** Finite cartesian product, in declaration order; refuse accidental build explosions. */
-export function casesOf(Scene: ExplainerClass, limit = 64): Settings[] {
+export function scenariosOf(Scene: ExplainerClass, limit = 64): Settings[] {
   resolveSettings(Scene);
   const total = (Scene.settings ?? []).reduce((n, s) => n * s.options.length, 1);
-  if (!(total <= limit)) throw new Error(`Settings exceed ${limit} cases`);
-  let cases: Settings[] = [Object.freeze({})];
+  if (!(total <= limit)) throw new Error(`Settings exceed ${limit} scenarios`);
+  let scenarios: Settings[] = [Object.freeze({})];
   for (const s of Scene.settings ?? []) {
-    cases = cases.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
+    scenarios = scenarios.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
   }
-  return cases;
+  return scenarios;
 }

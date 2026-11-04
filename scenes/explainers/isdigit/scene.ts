@@ -48,7 +48,7 @@ if (predicates(SPACE).isdigit || SPACED !== ' 7') throw new Error('The ideograph
 /** Check 2: float() runs the same rewrite: '٣.5' becomes '3.5', and '2.²' becomes '2.?'. */
 const FLOATS = { arabic: rewrite([CHARS.arabic, '.5']), super: rewrite(['2.', CHARS.super]) };
 if (FLOATS.arabic !== '3.5' || !FLOATS.super.endsWith('?')) throw new Error('float() must see 3.5 and a ?');
-/** The script's one-sentence answer, stated in the lineup step of every case. */
+/** The script's one-sentence answer, stated in the lineup step of every scenario. */
 const ANSWER = `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
 
 /** The row as three lines: fields 0 to 4, fields 5 to 9 (the numeric ones in the middle), fields 10 to 14. */
@@ -93,7 +93,7 @@ export default class IsDigitExplainer extends Scene {
       UCD + 'Unihan.zip',
       'https://www.unicode.org/reports/tr44/tr44-38.html#UnicodeData.txt',
     ],
-    // The script's answer and check questions (script.md); the lineup step states the answer in every case.
+    // The script's answer and check questions (script.md); the lineup step states the answer in every scenario.
     answer: ANSWER,
     // Sentences that reach past the eight characters on screen, and the test that holds each.
     claims: [
@@ -155,7 +155,7 @@ export default class IsDigitExplainer extends Scene {
       run = guarded(c, guard);
     const parsed = 'value' in int;
 
-    /** The nested sets with every character in place; `lit` draws one set heavier, `mark` colours this case's character. */
+    /** The nested sets with every character in place; `lit` draws one set heavier, `mark` colours this scenario's character. */
     const sets = async (lit: Predicate | null, mark: string, as: string) => {
       const mobs: Mobject[] = [];
       for (const set of SETS) {
@@ -280,7 +280,7 @@ export default class IsDigitExplainer extends Scene {
       title: 'Eight numerals; int() accepts only the first four',
       line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
       // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this case’s character. If all eight have a numeric value, what does each check look up?`,
+      caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this scenario’s character. If all eight have a numeric value, what does each check look up?`,
     });
     await s.clear();
     // One row in lineup order; a bracket spans the characters each call accepts, which the model
@@ -382,7 +382,7 @@ export default class IsDigitExplainer extends Scene {
     this.state.predicates = p;
 
     // ------------------------------------------------------------------ the nested sets, and where the check leaves this character
-    // One step: the counts, the nesting, and the check's own box drawn heavy with this case's character marked.
+    // One step: the counts, the nesting, and the check's own box drawn heavy with this scenario's character marked.
     const where =
       type === 'Decimal' ? 'in the innermost box' : type === 'Digit' ? 'in the middle box but outside the innermost' : 'in the outer box only';
     await this.step('outcome', {
@@ -433,7 +433,7 @@ export default class IsDigitExplainer extends Scene {
       PREDICATES.map((k) => [`${k}() but not int()`, grouped(accepts(k))] as const),
       { at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11 },
     );
-    await counts.mark(`${guard}() but not int()`, { as: 'this case’s check' });
+    await counts.mark(`${guard}() but not int()`, { as: 'this scenario’s check' });
     // The answer's code right under the counts, the pair centred down the stage.
     await s.code(['try: n = int(s)', 'except ValueError: n = None'], {
       at: [-7.55, BOTTOM, 7.55, counts.box()![1] - 0.5],

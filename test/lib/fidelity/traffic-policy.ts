@@ -16,7 +16,7 @@ import {
 } from '../../../scenes/explainers/lib/traffic-policy.ts';
 import type { PlacementKey, Policy } from '../../../scenes/explainers/lib/traffic-policy.ts';
 
-/** Every case's step state equals the model's answers for its policy and placement. */
+/** Every scenario's step state equals the model's answers for its policy and placement. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const policy = values.policy as Policy,
     counts = PLACEMENTS[values.pods as PlacementKey];

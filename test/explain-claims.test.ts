@@ -94,7 +94,7 @@ test('claims need a phrase and a test named as "file: part of its name"', () => 
   assert.deepEqual(checkClaimsMeta({ claims: [{ says: 'every round in the strip', shown: true }] }), [{ says: 'every round in the strip', shown: true }]);
 });
 
-test('check fails a declared claim no case states, or one whose test is not there', async () => {
+test('check fails a declared claim no scenario states, or one whose test is not there', async () => {
   const real = { says: 'never hold together', test: 'test/statecharts.test.ts: a region is in at most one state' };
   assert.deepEqual(await declaredClaimProblems([real], ['never hold together']), []);
   assert.match((await declaredClaimProblems([real], []))[0]!, /no step states/);

@@ -233,7 +233,7 @@ export function space(bytes: number, percent: number): Space {
   return { layout: l, percent, root, kernel, users: Math.max(l.free - root - kernel, 0) };
 }
 
-// ---------------------------------------------------------------- the scene's cases
+// ---------------------------------------------------------------- the scene's scenarios
 export type Size = '1g' | '1t' | '20t';
 export const SIZES: Record<Size, { bytes: number; label: string }> = {
   '1g': { bytes: GiB, label: '1 GiB' },

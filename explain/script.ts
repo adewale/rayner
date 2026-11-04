@@ -49,7 +49,7 @@ function teaching<T extends Step>(steps: readonly T[]): T[] {
 }
 
 /**
- * Where a case's steps first state `answer`: the teaching step (1-based) whose title, line or
+ * Where a scenario's steps first state `answer`: the teaching step (1-based) whose title, line or
  * caption contains it, or null when none does.
  */
 export function answerStep(answer: string, steps: readonly Step[]): { step: string; at: number } | null {
@@ -68,11 +68,11 @@ export interface ScriptReport {
   checks: number;
   /** What the scene's script leaves undeclared: `answer`, `checks`. */
   missing: ('answer' | 'checks')[];
-  /** Why the case fails the script gate; empty when it passes. */
+  /** Why the scenario fails the script gate; empty when it passes. */
   problems: string[];
 }
 /**
- * The script gate for one case: some teaching step must state a declared answer. Where it first
+ * The script gate for one scenario: some teaching step must state a declared answer. Where it first
  * does is reported (`answer.at`), not gated: whether it arrives before the explanation elaborates
  * is a reader's judgement, and a fixed step number would only stand in for it. An undeclared
  * answer or check list is reported as missing, not failed, so older scenes still check; new

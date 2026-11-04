@@ -12,12 +12,12 @@ test('retired Hello World is absent from source and active authoring paths', () 
     assert.doesNotMatch(readFileSync(path, 'utf8'), /hello.world|BY-EXAMPLE|Learn by example/i, path);
 });
 
-test('every authoring feature offers a case with its user-side code before its result', async () => {
+test('every authoring feature offers a scenario with its user-side code before its result', async () => {
   const project = await collectProject('scenes/explainers/feature-tour', { write: false });
-  assert.equal(project.cases.length, Object.keys(RECIPES).length);
-  assert.ok(project.cases.length >= 15, 'documented authoring families are represented');
+  assert.equal(project.scenarios.length, Object.keys(RECIPES).length);
+  assert.ok(project.scenarios.length >= 15, 'documented authoring families are represented');
   const seen = new Set<string>();
-  for (const { values, trace } of project.cases) {
+  for (const { values, trace } of project.scenarios) {
     const feature = values.feature as keyof typeof RECIPES;
     assert.ok(RECIPES[feature], `unexpected setting ${feature}`);
     seen.add(feature);
@@ -34,8 +34,8 @@ test('every authoring feature offers a case with its user-side code before its r
   }
   assert.deepEqual([...seen].sort(), Object.keys(RECIPES).sort());
   assert.equal(EXPLAINERS.find(e => e.id === 'feature-tour')?.step, 'result');
-  assert.equal((project.Scene.meta as { caseNavigation?: string }).caseNavigation, 'first', 'changing an authoring feature starts its recipe');
-  const state = project.cases.find(v => v.values.feature === 'state')!;
-  assert.equal(state.trace.steps[1]!.after!.count, 1, 'the view case must update recorded state');
+  assert.equal((project.Scene.meta as { scenarioNavigation?: string }).scenarioNavigation, 'first', 'changing an authoring feature starts its recipe');
+  const state = project.scenarios.find(v => v.values.feature === 'state')!;
+  assert.equal(state.trace.steps[1]!.after!.count, 1, 'the view scenario must update recorded state');
   assert.match(JSON.stringify(state.trace.steps[1]!.shown!.picture), /Recorded count: 1/);
 });

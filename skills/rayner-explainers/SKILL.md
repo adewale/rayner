@@ -44,13 +44,13 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 
 | The explainer… | Checked by |
 | --- | --- |
-| Draws every value from a model, tested against the real source | A fidelity test per case and step ([Test the model](#test-the-model)) |
+| Draws every value from a model, tested against the real source | A fidelity test per scenario and step ([Test the model](#test-the-model)) |
 | Motivates the question early, starts from a concrete case, earns each name and builds to one aha | Reading it against [Script first](#script-first) and the [rubric](../../docs/EXPLAINER-RUBRIC.md) |
 | Names its answer within the first few steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` for desktop and conservative phone estimates; `rayner review` for actual served geometry |
-| Works as served: every step from a fresh link, every case, phone and desktop | `rayner review` |
-| Says nothing a setting would make false, and claims no more than it tests | Reading every case against the model and its sources; `rayner check` lists each sentence with "every", "never" or "only" that no declared claim backs ([Claims, words and limits](#claims-words-and-limits)) |
+| Works as served: every step from a fresh link, every scenario, phone and desktop | `rayner review` |
+| Says nothing a setting would make false, and claims no more than it tests | Reading every scenario against the model and its sources; `rayner check` lists each sentence with "every", "never" or "only" that no declared claim backs ([Claims, words and limits](#claims-words-and-limits)) |
 | Uses the reader's words, introducing any code name where it first appears | `rayner check` lists each code name in the steps' words with the step that first uses it |
 | Teaches better than the alternative: a still, a code diff, or a page written without Rayner | Asking honestly; [the benchmark](../../bench/explainers/README.md) for changes to Rayner itself |
 
@@ -61,17 +61,17 @@ Checks establish deterministic, readable pictures; they cannot establish that a 
 Readers learn from what they do, not from what they watch. In a blind comparison of three Rayner explainers with pages the same models wrote without Rayner, from one script, the reviewer preferred the plain page in all three pairs, twice over, mainly because those let the reader commit to predictions and drive a live machine ([the benchmark](../../bench/explainers/README.md)). Rayner cannot yet take the reader's input inside a step ([the live machine](https://github.com/adewale/rayner/issues/88) is proposed). Until it can, use what exists:
 
 - **Ask, then answer.** A step asks a check question and the next step answers it. The rail hides a step's title until the reader reaches it, so "Answer: …" is safe on the answering step; keep the answer out of the asking step itself.
-- **A case that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion.
+- **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion.
 - **The check questions at the end**, from `meta.checks`.
 
 ## Loop
 
 Commands are `rayner <command>`, or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the install lines for capture and PNG output.
 
-1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`. Rewrite the script first. Keep one default-exported `Scene` subclass with static `meta` (id, title, sources, answer, checks, and `lang` if not English) and, if a second case teaches something, static `settings`.
+1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`. Rewrite the script first. Keep one default-exported `Scene` subclass with static `meta` (id, title, sources, answer, checks, and `lang` if not English) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.
 3. `rayner check scene.ts` until it passes.
-4. `rayner review scene.ts --out public/<id>.html` when the scene settles. It checks every case, reviews the served page at phone and desktop widths, and keeps that exact page with its receipt. Look at its screenshots.
+4. `rayner review scene.ts --out public/<id>.html` when the scene settles. It checks every scenario, reviews the served page at phone and desktop widths, and keeps that exact page with its receipt. Look at its screenshots.
 
 The [engine map](https://github.com/adewale/rayner/blob/main/docs/ENGINE.md) lists what already exists (a camera that zooms without moving anything, code that morphs along its diff, morphs matched by text or shape, charts of the model's numbers, pictures rebuilt from `scene.state`), and [the reference](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#engine-features) names an explainer that uses each. Read it before building something by hand.
 
@@ -81,9 +81,9 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 
 | You are explaining | Start from | It shows |
 | --- | --- | --- |
-| Two algorithms or policies on the same input | `scenes/tutorial/lru-mru` (what `rayner init` writes) | One card with a column per policy, read from the model's trace; one case that favours each policy; captions tested against the model |
+| Two algorithms or policies on the same input | `scenes/tutorial/lru-mru` (what `rayner init` writes) | One card with a column per policy, read from the model's trace; one scenario that favours each policy; captions tested against the model |
 | A code change and what it does to a system | `mr-cache` | `TransformDiff` on the code, the same edit replayed on the diagram with `ops`, a setting for hit or miss |
-| Authoring feature reference | `feature-tour` | Choose a feature case: the recipe step shows the author-written API, the result step runs it. See [scope and specialized APIs](../../docs/FEATURE-TOUR.md) |
+| Authoring feature reference | `feature-tour` | Choose a feature scenario: the recipe step shows the author-written API, the result step runs it. See [scope and specialized APIs](../../docs/FEATURE-TOUR.md) |
 | A protocol or request flow | `oauth-pkce` | A sequence diagram revealed message by message (`build: 'frame'`, `reveal`); a setting that adds the attacker's step |
 | A data structure changing step by step | `ring-buffer` | No diagram: native shapes, `Succession`, a `view` of `scene.state` |
 | A state machine | `state-machine` | A state diagram driven by the real reducer, code spans, `Restore` |
@@ -110,16 +110,16 @@ The scene asks the model; it never states an answer it did not get from one. Thi
 1. Put the model in its own module, with no drawing in it. In this repository, a model of an outside tool or format gets `scenes/explainers/lib/<id>.ts`; the small models behind `ring-buffer`, `state-machine`, `token-bucket` and `seasons` share `scenes/explainers/lib/models.ts`.
 2. Check the model against its source: run the real program or library, or use its published test vectors, and pin the version you ran in the `meta.sources` links (`isdigit` links CPython at tag `v3.15.1`). If you cannot run the source, pin exactly what you relied on instead (the tagged source file, the RFC section or the published test vectors) and say in your report that you read it but did not run it. Never leave a placeholder where a pin belongs.
 3. At each step, record what the picture shows on `this.state` (`isdigit` sets `this.state.outcome = run.outcome` from the model's run).
-4. Add a test that runs every case and asserts each step's state equals the model. In this repository, a model of an outside tool gets `test/lib/fidelity/<id>.ts`, using `assertStepState(trace, step, { … })`, called from `test/explain-fidelity.test.ts`; a model in `lib/models.ts` is tested in `test/explain-models.test.ts`, and a picture built with `view` adds `assertViewFollowsState`. Make the test fail first: break the model and watch it go red.
+4. Add a test that runs every scenario and asserts each step's state equals the model. In this repository, a model of an outside tool gets `test/lib/fidelity/<id>.ts`, using `assertStepState(trace, step, { … })`, called from `test/explain-fidelity.test.ts`; a model in `lib/models.ts` is tested in `test/explain-models.test.ts`, and a picture built with `view` adds `assertViewFollowsState`. Make the test fail first: break the model and watch it go red.
 
 ## Claims, words and limits
 
 These follow the statechart skill that checks a TLA+ model and draws it for the person deciding whether its behaviour is right: every rule the reader accepts is checked, the chart speaks the reader's words, simplifying never hides an outcome, and the hand-off says what the model leaves out.
 
-- **A sweeping sentence is a rule; check it or narrow it.** A sentence with "every", "never", "only", "always" or "whenever" claims more than the cases on screen. Back it with `meta.claims: [{ says, test }]`: `says` is a phrase of the sentence and `test` names the test that holds it, as `"test/<file>.test.ts: <part of its name>"`. Write the test if there is none, and make it fail first. When the sentence speaks only of what its own step draws ("every round in the strip"), mark it `{ says, shown: true }` instead. Otherwise narrow the sentence until it says only what the explainer shows. Never weaken a test to make a claim hold. `rayner check` lints declared phrases and evidence references, and lists unlinked scope sentences. Test paths are relative to the directory where you invoke the command; static `node:test` names are checked, but tests are not run and their assertions are not verified. Read the referenced test and run it yourself. The scan covers step prose, not stage labels or check answers.
+- **A sweeping sentence is a rule; check it or narrow it.** A sentence with "every", "never", "only", "always" or "whenever" claims more than the scenarios on screen. Back it with `meta.claims: [{ says, test }]`: `says` is a phrase of the sentence and `test` names the test that holds it, as `"test/<file>.test.ts: <part of its name>"`. Write the test if there is none, and make it fail first. When the sentence speaks only of what its own step draws ("every round in the strip"), mark it `{ says, shown: true }` instead. Otherwise narrow the sentence until it says only what the explainer shows. Never weaken a test to make a claim hold. `rayner check` lints declared phrases and evidence references, and lists unlinked scope sentences. Test paths are relative to the directory where you invoke the command; static `node:test` names are checked, but tests are not run and their assertions are not verified. Read the referenced test and run it yourself. The scan covers step prose, not stage labels or check answers.
 - **Speak the reader's words.** A title, line or caption names what the reader sees, not the code behind it. A code name (`int()`, `skipUntil`, `A->C#0`) belongs only where the reader needs it, introduced where it first appears. `rayner check` lists each one with the step that first uses it.
-- **Simplify without hiding an outcome.** When a picture or a story is too busy, coarsen labels first, then leave out steps, but keep every case a setting offers reachable, never merge two cases that end differently, and never show part of a comparison. Record a consequential omission in `notes.md`; state it in the script too when the reader needs it to interpret the result.
-- **Say what the model leaves out.** Keep material model assumptions and unshown cases in `notes.md`, and keep every caption inside those limits. End the reader's explanation with its practical boundary, rather than an inventory of implementation omissions: the token-bucket page's "accepted at every rate" held at the three rates it offered and failed at one it never built (`fork`).
+- **Simplify without hiding an outcome.** When a picture or a story is too busy, coarsen labels first, then leave out steps, but keep every scenario a setting offers reachable, never merge two scenarios that end differently, and never show part of a comparison. Record a consequential omission in `notes.md`; state it in the script too when the reader needs it to interpret the result.
+- **Say what the model leaves out.** Keep material model assumptions and unshown scenarios in `notes.md`, and keep every caption inside those limits. End the reader's explanation with its practical boundary, rather than an inventory of implementation omissions: the token-bucket page's "accepted at every rate" held at the three rates it offered and failed at one it never built (`fork`).
 - **Doubt the model before the source.** Replay a claim against the real thing where you can, one step at a time. When they disagree, the model is wrong until shown otherwise. A claim that rests on the explainer's own model and nothing outside it (a hand model, a perception claim) says so in its sentence.
 
 ## Engine constraints
@@ -131,7 +131,7 @@ These are how the engine works, not advice; breaking one breaks the build or the
 - Finish every change before a step's last `play()` ends: the picture must not move during the caption hold.
 - Walks use real links; a missing link is a bug in the diagram or the model, never a reason to draw a shortcut.
 - Morphs with `ops` must reproduce the next diagram through Agentic Mermaid's mutation replay. Without `ops`, call it a visual transition.
-- A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. A scene may have at most 64 cases.
+- A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. A scene may have at most 64 scenarios.
 - Default lettering is embedded Inter and JetBrains Mono. Other scripts, replacement faces, real bold and italic, and maths need a `lettering` request in `static meta` and committed snapshots; unsupported or unrequested characters fail the build. See [Lettering on request](https://github.com/adewale/rayner/blob/main/docs/LETTERING.md) and REFERENCE, Maths.
 - Arabic or Hebrew text sets its own reading direction; `stage` and card `direction` choose spatial order; set a diagram's flow in its Mermaid source.
 

@@ -5,7 +5,7 @@ import { collectProject } from '../tools/lib/explain-project.ts';
 
 test('font metrics: every Garamond glyph in the phrase advances less than a JetBrains Mono cell', async () => {
   const project = await collectProject('scenes/explainers/font-metrics', { write: false });
-  for (const { trace } of project.cases) {
+  for (const { trace } of project.scenarios) {
     const step = trace.steps.find((s) => s.step === 'rulers')!;
     const { measured, drawn } = step.after!.rulers as { measured: number[]; drawn: number[] };
     const advances = (stops: number[]) => stops.slice(1).map((x, i) => x - stops[i]!);

@@ -35,7 +35,7 @@ One row per idea. **Bold** marks a change.
 | What is shown | **`scene.shown`** | JSON; which picture a phase shows, and the stage's description of its picture; a view's draw may read it, a machine never changes it; the trace records it as `shown` | `phase` and `reader` inside `scene.state` |
 | Step | `scene.step(id, meta)` | A stop with a title, line and caption | |
 | Step kind | **`kind: 'short' \| 'main' \| 'detail'`** | Which path a step is on: the reader's short path, the story, or a detail players skip | `reader: true`, `detail: true` |
-| Case | **`case`**, `casesOf`, `cases` | One value for every setting; a single one is `theCase` in code, since `case` is reserved | `variant`, `variantsOf`, `variants` |
+| Scenario | **`scenario`**, `scenariosOf`, `scenarios` | One value for every setting | `variant`, `variantsOf`, `variants`, and `case`, `casesOf`, `cases` (`case` is reserved in JavaScript) |
 | Picture | a `Mobject` tree | What a frame shows | |
 | State to picture | **`draw(state, shown?)`** | The one name for a function from state to picture, wherever it appears | `render` (views), the parameterless `draw(stage)` (steps), `build` |
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there | `View.render` becomes **`View.draw`** |
@@ -94,7 +94,7 @@ await s.steps([
 
 Each step clears the stage, makes its state the model, and shows its drawing with the reading order and description `presentFrame` gave. `{ kind: 'short' }` covers `readerFirst`: its steps are marked as the reader's short path, and each one's state is the model like any other step's.
 
-**The new check.** After the run, `rayner check` redraws every step from its recorded state alone and compares it with the resting picture, by text and geometry, as session exploration already does for machine states. A `draw` that reads a variable changed by another step, rather than its own state, fails with the step's name. Constants computed once per case, such as henge's model, are fine: they are the same in both runs.
+**The new check.** After the run, `rayner check` redraws every step from its recorded state alone and compares it with the resting picture, by text and geometry, as session exploration already does for machine states. A `draw` that reads a variable changed by another step, rather than its own state, fails with the step's name. Constants computed once per scenario, such as henge's model, are fine: they are the same in both runs.
 
 This changes the 6 `lesson()` explainers (birthday-paradox, bloom-filter, git-branches, henge, melody-rhythm, python-dict) and the 11 `readerFirst()` explainers (2password, glyph, gnome-files, just-bash, latest-search, mr-cache, pen-and-pencil, ring-buffer, state-machine, tailwind-gamut, wcag-map). The scene library keeps `lesson` and `readerFirst` as one-line wrappers until the collection has moved.
 
@@ -141,9 +141,9 @@ Deferred: `{ cue }` for narration belongs with video export on `claude/video-pac
 
 ## The domain-driven review
 
-A Domain-Driven Design reading found five vocabularies leaking into each other: the engine (Manim's words, kept on purpose), the explanation (step, caption, stage, case), verification (invariant, claim, trace, evidence), the reader's controls, and each explainer's own domain. `draw(state)` is where an explainer's domain becomes pictures, which is why it is one name everywhere. The review's renames are done:
+A Domain-Driven Design reading found five vocabularies leaking into each other: the engine (Manim's words, kept on purpose), the explanation (step, caption, stage, scenario), verification (invariant, claim, trace, evidence), the reader's controls, and each explainer's own domain. `draw(state)` is where an explainer's domain becomes pictures, which is why it is one name everywhere. The review's renames are done:
 
-- **One word, case.** `variant` and its family became `case` words in code, reports and docs.
+- **One word, scenario.** `variant` and its family became `case` words, and then `scenario` words, in code, reports and docs: `case` is reserved in JavaScript, so a single one could not be named `case` in code.
 - **The model apart from what is shown.** `scene.state` holds only the model; `scene.shown` holds which picture a phase shows, and the stage's description of its picture. monty-hall, statecharts and feature-tour moved their `phase` there; `stage.steps` no longer writes one, and short paths no longer nest under `state.reader`. A machine plays under one `shown`, and exploration draws its states under it.
 - **A step kind.** `kind: 'short' | 'main' | 'detail'` replaced `reader: true` and `detail: true`.
 - **Subjects, not claims, in review.** `scene.review.json` declares `subjects` (version 2); `claims` means only `meta.claims`. The CLI flag is `--subjects`.

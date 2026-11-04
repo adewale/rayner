@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
-import { collectProject, defaultCase, sceneSlug, ROOT } from './lib/explain-project.ts';
+import { collectProject, defaultScenario, sceneSlug, ROOT } from './lib/explain-project.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
 
@@ -22,15 +22,15 @@ Usage: rayner <command> <scene.ts | directory> [options]
 Commands:
   init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test
   preview <scene>     Build and serve on localhost
-  snapshots <scene>   Run every case, capture/verify diagrams and replay morph edits
-  check <scene>       Every case: seek, motion, skipped trace, bare runtime, step
+  snapshots <scene>   Run every scenario, capture/verify diagrams and replay morph edits
+  check <scene>       Every scenario: seek, motion, skipped trace, bare runtime, step
                       change, still after the caption hold, text collision,
                       legibility, words for every drawing, catch lint
-  review <scene>      Check every case, then review its served reader at phone
+  review <scene>      Check every scenario, then review its served reader at phone
                       and desktop widths; retain reviewed HTML with --out page.html
   build <scene>       HTML, receipt, header recipe, loader.js
   shots <scene>       Step contact sheet as SVG and PNG
-  describe <scene>    Every case and step as JSON for agents: words, state, what
+  describe <scene>    Every scenario and step as JSON for agents: words, state, what
                       changed, the picture in words and drawn as text
   see <scene> [step]  One step's resting picture as text, with its caption, its
                       picture in words and what it changed in scene.state
@@ -43,7 +43,7 @@ asks for that script with meta.lettering.
 Options:
   --out <path>        Artifact destination
   --refresh           Re-render snapshots instead of using the pinned cache
-  --case id=value     Show (shots, see) one case; repeat for multiple settings
+  --scenario id=value Show (shots, see) one scenario; repeat for multiple settings
   --port <integer>    Preview server port (default 5174)
   --watch             Preview: rebuild the page on save
   --subjects <path>   Review: use this JSON file instead of <scene>.review.json
@@ -68,7 +68,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     allowPositionals: true,
     options: {
       out: { type: 'string' },
-      case: { type: 'string', multiple: true },
+      scenario: { type: 'string', multiple: true },
       port: { type: 'string', default: '5174' },
       refresh: { type: 'boolean' },
       watch: { type: 'boolean' },
@@ -106,7 +106,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       JSON.stringify(
         {
           scene: slug,
-          cases: project.cases.length,
+          scenarios: project.scenarios.length,
           diagrams: Object.keys(project.store).length,
           replayedEdits: project.edits,
         },
@@ -130,25 +130,25 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     );
     return;
   }
-  /** The case every --case id=value chooses, other settings at their defaults. */
-  function selectedCase() {
+  /** The scenario every --scenario id=value chooses, other settings at their defaults. */
+  function selectedScenario() {
     const values: Record<string, string> = {};
-    for (const assignment of flags.case ?? []) {
+    for (const assignment of flags.scenario ?? []) {
       const at = assignment.indexOf('=');
-      if (at < 1) throw new Error('--case requires id=value');
+      if (at < 1) throw new Error('--scenario requires id=value');
       values[assignment.slice(0, at)] = assignment.slice(at + 1);
     }
-    return defaultCase(project, values);
+    return defaultScenario(project, values);
   }
   if (command === 'see') {
     const { see } = await import('./lib/explain-see.ts');
-    console.log(await see(project, selectedCase(), step, flags.out));
+    console.log(await see(project, selectedScenario(), step, flags.out));
     return;
   }
   if (command === 'shots') {
     const { contactSheet } = await import('./lib/explain-shots.ts');
     console.log(
-      await contactSheet(project, flags.out ?? resolve('out/shots', slug + '.png'), selectedCase()),
+      await contactSheet(project, flags.out ?? resolve('out/shots', slug + '.png'), selectedScenario()),
     );
     return;
   }
@@ -156,7 +156,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const result = await buildExplainer(project, out);
   await buildLoader(join(dirname(resolve(out)), 'loader.js'));
   console.log(
-    `Built ${out} (${Math.round(Buffer.byteLength(result.html) / 1024)} KiB; ${project.cases.length} cases)`,
+    `Built ${out} (${Math.round(Buffer.byteLength(result.html) / 1024)} KiB; ${project.scenarios.length} scenarios)`,
   );
   if (command === 'preview') {
     // The page is served from disk with its header recipe, so a rebuild shows on reload.
@@ -179,7 +179,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
             try {
               const next = await collectProject(input!, collection);
               await buildExplainer(next, out);
-              console.log(`Rebuilt ${slug}: ${next.cases.length} cases`);
+              console.log(`Rebuilt ${slug}: ${next.scenarios.length} scenarios`);
             } catch (error) {
               console.error(`rayner: ${(error as Error).message} (still serving the last good build)`);
             }

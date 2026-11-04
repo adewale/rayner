@@ -155,10 +155,10 @@ function flowPanel(counts: readonly number[], policy: Policy, cx: number, ink: s
   const podX = new Map<string, number>();
   counts.forEach((c, j) => pods.filter((p) => p.node === j).forEach((p, i) => podX.set(p.id, nodeX[j]! + (i - (c - 1) / 2) * 0.95)));
   const parts: Mobject[] = [];
-  // The policy's name sits left of the load balancer, with "this case" under it for the case's own policy.
+  // The policy's name sits left of the load balancer, with "this scenario" under it for the scenario's own policy.
   const nameAt: [number, number] = [cx - FLOW_W / 2 - 0.2, LB_Y + BAR_H / 2];
   const title = new Group(text(POLICY[policy], ink, 0.34, true).moveTo(nameAt, [1, 0]));
-  if (mine) title.add(text('this case', ink).moveTo([nameAt[0], nameAt[1] - 0.42], [1, 0]));
+  if (mine) title.add(text('this scenario', ink).moveTo([nameAt[0], nameAt[1] - 0.42], [1, 0]));
   // Load balancer bar, its bottom cut into one segment per node, in node order.
   const lb = new Group(box(cx - FLOW_W / 2, cx + FLOW_W / 2, LB_Y, ink), text('Load balancer', paper).moveTo([cx, LB_Y + BAR_H / 2]));
   let lbAt = cx - FLOW_W / 2;
@@ -274,7 +274,7 @@ export default class TrafficPolicyExplainer extends Scene {
         answer: `Only ${EVEN4_SHAPES.join(' and ')}, in any order of the nodes. Under Local each healthy node gets an equal share and splits it among its own pods, so the shares are even exactly when every node with pods runs the same number.`,
       },
     ],
-    // The sentences that reach beyond the case on screen, and the tests that hold them.
+    // The sentences that reach beyond the scenario on screen, and the tests that hold them.
     claims: [
       { says: 'every pod sees a node’s address', test: 'test/explain-traffic-policy.test.ts: under Cluster every outside request' },
       { says: 'kube-proxy marks every outside request for source NAT', test: 'test/explain-traffic-policy.test.ts: under Cluster every outside request' },
@@ -525,7 +525,7 @@ export default class TrafficPolicyExplainer extends Scene {
     const flowLeft = flowPanel(counts, 'cluster', -3.85, s.palette.ink, s.palette.paper, policy === 'cluster'),
       flowRight = flowPanel(counts, 'local', 3.85, s.palette.ink, s.palette.paper, policy === 'local');
     await s.enter(flowLeft.group, flowRight.group, { describe: () => `${flowLeft.words()} ${flowRight.words()}` });
-    // A phone opens on this case's own policy; the other panel is the next stop of the tour.
+    // A phone opens on this scenario's own policy; the other panel is the next stop of the tour.
     s.reading(policy === 'cluster' ? flowLeft.group : flowRight.group);
     const flowState = (p: Policy) => ({
       nodes: nodeShares(counts, p).map(frac),

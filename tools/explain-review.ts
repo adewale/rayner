@@ -1,6 +1,6 @@
 import { readerChrome } from './lib/explain-reader-shell.ts';
 // Review the built collection as served, not just its source. Run demos:build (or demos:check) first;
-// Checks every resting step in every served case on desktop and phone.
+// Checks every resting step in every served scenario on desktop and phone.
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -16,12 +16,12 @@ import { chromeFor } from '../app/embed-strings.ts';
 import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 import {
   reviewScope,
-  reviewCases,
+  reviewScenarios,
   readStoryPlan,
   reviewCodeHash,
-  validateReviewedCases,
+  validateReviewedScenarios,
 } from './lib/explain-review-plan.ts';
-import { reviewStoryCase} from './lib/explain-story-review.ts';
+import { reviewStoryScenario} from './lib/explain-story-review.ts';
 import { checkBuilt } from './lib/explain-site-describe.ts';
 import { reviewSubjects } from './lib/explain-review-scene.ts';
 
@@ -66,10 +66,10 @@ try {
   }
   const plan = await readStoryPlan(built, values.from ? undefined : EXPLAINERS.map(entry => entry.id));
   assert.deepEqual(plan.scenes, EXPLAINERS.filter(entry => plan.scenes.includes(entry.id)).map(entry => entry.id), 'built scenes must match the source inventory order');
-  const planned = reviewCases(plan.cases, scope);
-  assert.ok(planned.length, 'story shard selects no cases');
+  const planned = reviewScenarios(plan.scenarios, scope);
+  assert.ok(planned.length, 'story shard selects no scenarios');
   const selectedScenes = new Set(planned.map(c => c.scene));
-  const cases = [];
+  const scenarios = [];
   for (const entry of EXPLAINERS.filter(entry => selectedScenes.has(entry.id))) {
     const project = await collectProject(join(ROOT, 'scenes/explainers', entry.id), { write: false });
     const subjects = await reviewSubjects(project);
@@ -79,29 +79,29 @@ try {
       `${entry.id}: rebuild stale collection output before reviewing`,
     );
     let selected = 0;
-    for (const [index, theCase] of project.cases.entries()) {
+    for (const [index, scenario] of project.scenarios.entries()) {
       selected++;
       const directory = join(review, 'story', entry.id, String(index));
       await mkdir(directory, { recursive: true });
       const t = chromeFor(project.Scene.meta?.lang);
-      const teaching = theCase.trace.steps.some(s => s.meta.kind !== 'detail') ? theCase.trace.steps.filter(s => s.meta.kind !== 'detail') : theCase.trace.steps;
-      const steps = await reviewStoryCase(
+      const teaching = scenario.trace.steps.some(s => s.meta.kind !== 'detail') ? scenario.trace.steps.filter(s => s.meta.kind !== 'detail') : scenario.trace.steps;
+      const steps = await reviewStoryScenario(
         page,
         `${base}/${entry.id}.html`,
-        theCase,
+        scenario,
         subjects,
         directory,
-        { chrome: readerChrome(t), home: PRODUCT.home, cases: project.Scene.settings?.length ?? 0, steps: teaching.map(s => s.step),
+        { chrome: readerChrome(t), home: PRODUCT.home, scenarios: project.Scene.settings?.length ?? 0, steps: teaching.map(s => s.step),
           crop: { player: t.player, next: t.nextLabel, title: project.Scene.meta?.title ?? entry.id,
-            kicker: t.stepOf(1, teaching.length), segments: teaching.length, cases: project.Scene.settings?.length ?? 0,
+            kicker: t.stepOf(1, teaching.length), segments: teaching.length, scenarios: project.Scene.settings?.length ?? 0,
             madeWith: t.madeWith, home: PRODUCT.home, open: null } },
       );
-      cases.push({ scene: entry.id, settings: theCase.values, steps });
+      scenarios.push({ scene: entry.id, settings: scenario.values, steps });
     }
-    if (selected) console.log(`${entry.id}: ${selected} selected cases, every resting step passed both widths`);
+    if (selected) console.log(`${entry.id}: ${selected} selected scenarios, every resting step passed both widths`);
   }
 
-  validateReviewedCases(cases, planned);
+  validateReviewedScenarios(scenarios, planned);
   // One shard owns the shared gallery, headers, host and publication boundary.
   if (scope.part === 1) {
     const headers = await fetch(base + '/' + planned[0]!.scene + '.html', { method: 'HEAD' });
@@ -153,9 +153,9 @@ try {
         collectionChecks: scope.part === 1,
         catalogHash: plan.catalogHash,
         reviewCodeHash: codeHash,
-        cases: cases.length,
-        stepWidths: cases.reduce((n, c) => n + c.steps.length, 0),
-        results: cases,
+        scenarios: scenarios.length,
+        stepWidths: scenarios.reduce((n, c) => n + c.steps.length, 0),
+        results: scenarios,
         consoleErrors: errors,
         runtimeConnections: connections,
       },
@@ -164,7 +164,7 @@ try {
     ) + '\n',
   );
   console.log(
-    `${cases.length} served cases, every resting step at both widths, passed caption, actual paint, story-target, no-error and no-external-connection checks. Shared collection checks run once in shard 1. Screenshots: ${review}`,
+    `${scenarios.length} served scenarios, every resting step at both widths, passed caption, actual paint, story-target, no-error and no-external-connection checks. Shared collection checks run once in shard 1. Screenshots: ${review}`,
   );
 } catch (error) {
   await mkdir(review, { recursive: true });

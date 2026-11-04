@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { Scene, NullSink, Text, MathTex, TransformMatchingText, loadFonts } from '../src/index.ts';
 import { bindLettering, runKey, unpackLettering, rightToLeft } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
-import { collectProject, defaultCase, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { pageSnapshot } from '../tools/lib/lettering.ts';
 
@@ -69,7 +69,7 @@ test('a page that asks for a right-to-left script sets each caption\'s direction
 
 test('TransformMatchingText pairs whole clusters: a conjunct that replaces a letter fades, kept clusters morph', async () => {
   const project = await collectProject(join(ROOT, 'test/lettering/matching'), { write: false });
-  const steps = defaultCase(project).trace.steps;
+  const steps = defaultScenario(project).trace.steps;
   const match = (name: string) => {
     const e = steps.find((s) => s.step === name)!.evidence!.find((r) => r.kind === 'match')!;
     return { matched: e.matched, morphed: e.morphed, removed: e.removed, added: e.added };

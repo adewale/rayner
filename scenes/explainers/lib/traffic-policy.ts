@@ -145,7 +145,7 @@ export function secondHop(counts: readonly number[], policy: Policy): Q {
 /** The source address a pod sees on an outside request that arrived at `node`. */
 export const seenSource = (policy: Policy, node: number) => (policy === 'cluster' ? nodeIp(node) : CLIENT_IP);
 
-/** Everything the scene shows for one case. */
+/** Everything the scene shows for one scenario. */
 export function story(key: PlacementKey, policy: Policy) {
   const counts = PLACEMENTS[key];
   const pods = podsOf(counts);

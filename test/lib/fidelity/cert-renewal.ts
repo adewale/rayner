@@ -4,7 +4,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { BR_PHASES, EMISSION, FIXED_INTERVAL, LE_DATES, LIFETIMES, LIMIT, ariSummary, dueOffset, simulate, summarize, windowFor } from '../../../scenes/explainers/lib/cert-renewal.ts';
 import type { LifetimeKey, Rule } from '../../../scenes/explainers/lib/cert-renewal.ts';
 
-/** Every case's step state equals the renewal model's answers for that lifetime and rule. */
+/** Every scenario's step state equals the renewal model's answers for that lifetime and rule. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const key = values.lifetime as LifetimeKey,
     rule = values.rule as Rule,
@@ -21,7 +21,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
     fixed = summarize('fixed30', key),
     share = summarize('fraction', key);
   assertStepState(trace, 'old-rule', { oldRule: { due: old.due, renewsAt: old.renewsAt } });
-  // The margin step draws a 90-day certificate and this case's, lined up at expiry, each with the 30-day rule's due
+  // The margin step draws a 90-day certificate and this scenario's, lined up at expiry, each with the 30-day rule's due
   // point measured back from its expiry: negative is before notBefore, so the certificate is due from issue.
   const rows = [...new Set<LifetimeKey>(['90d', key])].map((k) => ({
     lifetime: k,
@@ -31,7 +31,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   }));
   assertStepState(trace, 'margin', { margin: { rows, renewsAt: fixed.renewsAt } });
   if (key === '160h') assert.ok(rows[1]!.due < 0 && Math.round(-rows[1]!.due) === 560, `${rows[1]!.due}`);
-  // The new-rule step draws this case's lifetime with the replacement each rule makes.
+  // The new-rule step draws this scenario's lifetime with the replacement each rule makes.
   assertStepState(trace, 'new-rule', {
     newRule: {
       lifetime: key,

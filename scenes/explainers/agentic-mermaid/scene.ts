@@ -18,7 +18,7 @@ const SWAP = [
 ];
 type Edit = 'missing' | 'complete' | 'swapped';
 const FIRST: Record<Edit, string> = { missing: BAD, swapped: SWAPPED, complete: GOOD };
-/** Each case's first edit with the edge to Database cut off after its arrow: an edge with no node at its end. */
+/** Each scenario's first edit with the edge to Database cut off after its arrow: an edge with no node at its end. */
 export const BROKEN: Record<Edit, string> = Object.fromEntries(
   Object.entries(FIRST).map(([edit, source]) => [edit, source.replace(/ C\[Database\]$/, '')]),
 ) as Record<Edit, string>;
@@ -40,7 +40,7 @@ const SIDE = REGIONS.side,
 /** Where the meaning step's reports start, and their type size: each report sits beside its own diagram. */
 const REPORT_X = SIDE[0],
   REPORT_SIZE = 0.42;
-/** The script's one-sentence answer, stated in the verify step of every case. */
+/** The script's one-sentence answer, stated in the verify step of every scenario. */
 const ANSWER =
   'Verify fails a diagram that Agentic Mermaid’s renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked';
 /** How Agentic Mermaid names an edge, said in the first step whose findings or edits name one. */
@@ -59,7 +59,7 @@ export default class MermaidExplainer extends Scene {
       'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',
       'https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md',
     ],
-    // The script's answer and check questions (script.md); the verify step states the answer in every case.
+    // The script's answer and check questions (script.md); the verify step states the answer in every scenario.
     // test/explain-real.test.ts runs the pinned verifier on each check's diagram.
     answer: ANSWER,
     checks: [
@@ -269,8 +269,8 @@ export default class MermaidExplainer extends Scene {
       caption: swapped ? 'Two set_label edits, each naming one edge, put yes on the path to Reply and no on the path to Database. The corrected diagram sits below the backwards one, and both reports say ok: true with no warnings. Following yes out of Cached tells them apart: a hit reaches Database above and Reply below. A check that a cache hit reaches Reply without querying Database would catch the backwards one; this page describes that missing check rather than implementing it.' : `${missing ? 'Two further set_label edits' : `${NAMING} A set_label edit changes the label on one named edge; two of them`} reverse the behavior in the upper diagram: a hit now follows yes to Database, while in the lower one it still reaches Reply. Both reports say ok: true with no warnings. Both drawings meet the same structural rules, so those rules cannot tell which one performs the cache’s job; following the yes path can.`,
     });
     await s.clear();
-    // The wrong diagram above and the right one below, each with its report beside it. The case's own edit makes
-    // one from the other: the swapped case repairs the unlabelled diagram, the others swap the right one's labels.
+    // The wrong diagram above and the right one below, each with its report beside it. The scenario's own edit makes
+    // one from the other: the swapped scenario repairs the unlabelled diagram, the others swap the right one's labels.
     const rows = {
       wrong: regionBox('full', { right: REPORT_X - 0.4, bottom: -0.2 }),
       right: regionBox('full', { right: REPORT_X - 0.4, top: -0.8 }),
@@ -281,7 +281,7 @@ export default class MermaidExplainer extends Scene {
     await d.morph({ source: swapped ? GOOD : SWAPPED }, { ops: swapped ? OPS : SWAP });
     record();
     if (!swapped) this.state.swappedWarnings = d.findings().length;
-    // This case's caption names an edge by its id for the first time here, so the edited diagram's edges carry their ids.
+    // This scenario's caption names an edge by its id for the first time here, so the edited diagram's edges carry their ids.
     if (edit === 'complete') await nameEdges();
     /** Where a cache hit goes: the edge carrying the yes label, and the node at its end, read from the drawn snapshot. */
     const hitOf = (g: Diagram) => {

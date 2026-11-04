@@ -56,8 +56,8 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     point: 'This picture and its caption are all a reader gets from a link ending ?step=hello.',
   },
   settings: {
-    title: 'Declare a setting; each option becomes a case',
-    result: 'The default case, then the case you chose',
+    title: 'Declare a setting; each option becomes a scenario',
+    result: 'The default scenario, then the scenario you chose',
     code: [
       'static settings = [{',
       "  id: 'feature',",
@@ -68,9 +68,9 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '}];',
       'const choice = settingsOf(this).feature;',
     ],
-    recipe: "static settings declares an option list, the build makes one case for every option, and settingsOf(this) tells construct which case it is building. The two options shown are excerpts from this page’s own feature picker.",
-    caption: "The left card names the default case and the right card this one, with the number of cases the build made: one per option in the feature picker. Choosing a feature switches between those prepared cases; it does not run the scene on new input.",
-    point: 'The default case is Animations; this page is the Settings case.',
+    recipe: "static settings declares an option list, the build makes one scenario for every option, and settingsOf(this) tells construct which scenario it is building. The two options shown are excerpts from this page’s own feature picker.",
+    caption: "The left card names the default scenario and the right card this one, with the number of scenarios the build made: one per option in the feature picker. Choosing a feature switches between those prepared scenarios; it does not run the scene on new input.",
+    point: 'The default scenario is Animations; this page is the Settings scenario.',
   },
   diagram: {
     title: 'Capture a diagram, then follow one of its edges',
@@ -81,7 +81,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  {box: 'main'});",
       "await d.walk([['A', 'B']], {trail: true});",
     ],
-    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; trail: true is the walk option this case is about.",
+    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; trail: true is the walk option this scenario is about.",
     caption: "The trail stays on Start → Finish after the token has gone, so the route can be inspected at rest, and it follows the captured edge rather than a shortcut. The unmarked copy on the left is a separate drawing of the flowchart before the walk.",
     point: 'The trail stays on Start → Finish after the walk ends.',
   },
@@ -166,7 +166,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "  {describe: 'Box round 42'});",
       'await this.play(circle);',
     ],
-    recipe: "Circumscribe animates an outline round its target; keep: true is the option this case is about, and s.keep gives the outline a description for readers who cannot see it.",
+    recipe: "Circumscribe animates an outline round its target; keep: true is the option this scenario is about, and s.keep gives the outline a description for readers who cannot see it.",
     caption: "Circumscribe normally removes its outline when the animation ends. keep: true leaves the box round 42, and the description says what it marks. The plain 42 on the left is a separate drawing.",
     point: 'The box round 42 is still drawn once the motion ends.',
   },
@@ -251,10 +251,10 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
   },
 };
 
-/** What an author choosing Rayner wants to do, as the question each case answers. */
+/** What an author choosing Rayner wants to do, as the question each scenario answers. */
 const QUESTIONS: Record<Feature, string> = {
   steps: 'How do I give an idea its own link and picture?',
-  settings: 'How do I let a reader switch between prepared cases?',
+  settings: 'How do I let a reader switch between prepared scenarios?',
   diagram: 'How do I trace a path through a flowchart?',
   code: 'How do I point at one line of code?',
   'code-diff': 'How do I show an edit without redrawing the code?',
@@ -272,7 +272,7 @@ const QUESTIONS: Record<Feature, string> = {
 /** What the reader predicts on each recipe, about what these lines leave; the result step answers it. */
 const PREDICT: Record<Feature, string> = {
   steps: 'Predict: what address would a link to this step end with?',
-  settings: 'Predict: which case is this page showing, and how many did the build make?',
+  settings: 'Predict: which scenario is this page showing, and how many did the build make?',
   diagram: 'Predict: once the walk ends, what stays on the flowchart?',
   code: 'Predict: once the focus ends, is any line still marked?',
   'code-diff': 'Predict: after the morph, which line carries the added mark?',
@@ -288,7 +288,7 @@ const PREDICT: Record<Feature, string> = {
   drawing: 'Predict: opened from a link, what is left of the pen’s motion?',
 };
 
-/** The script's one-sentence answer, which opens every case's recipe caption. */
+/** The script's one-sentence answer, which opens every scenario's recipe caption. */
 const ANSWER =
   'Each feature takes a few lines of the scene, and the picture they leave at rest is what a reader who opens the step from a link sees';
 
@@ -301,7 +301,7 @@ export default class FeatureTour extends Scene {
   static meta = {
     id: 'feature-tour',
     title: 'How do I write that in Rayner?',
-    caseNavigation: 'first' as const,
+    scenarioNavigation: 'first' as const,
     sources: [
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts',
       'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
@@ -309,13 +309,13 @@ export default class FeatureTour extends Scene {
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/mr-cache',
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/layout-direction',
     ],
-    // The script's answer and check questions (script.md); every case's recipe step states the answer.
+    // The script's answer and check questions (script.md); every scenario's recipe step states the answer.
     answer: ANSWER,
     // Scope sentences: the build rule and the drawing tool rule have tests; the result picture is the evidence for the rest.
     claims: [
       {
-        says: 'the build makes one case for every option',
-        test: 'test/explain-gates.test.ts: the build makes every combination of options a case, rayner check tests each, and a reader can open no other',
+        says: 'the build makes one scenario for every option',
+        test: 'test/explain-gates.test.ts: the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other',
       },
       { says: 'Only count += 2 carries the added mark', shown: true as const },
       { says: 'Only the square comes from the recipe', shown: true as const },
@@ -334,15 +334,15 @@ export default class FeatureTour extends Scene {
       },
       {
         question:
-          'In the camera case, the author also enters a second circle at (5, 0) before calling s.focus(subject). Is it in the result picture, and where is it?',
+          'In the camera scenario, the author also enters a second circle at (5, 0) before calling s.focus(subject). Is it in the result picture, and where is it?',
         answer:
           'It is out of the picture. The closer view frames 6 of the stage’s 16 units around the first circle, roughly x = −3 to 3, so a circle at x = 5 falls outside it. It is still at (5, 0), because s.focus moves only the camera, and s.focus(‘all’) would bring it back into view.',
       },
       {
         question:
-          'An author wants the chart case to plot numbers that each reader types into a box. Can a Rayner page do that, and what can the author offer instead?',
+          'An author wants the chart scenario to plot numbers that each reader types into a box. Can a Rayner page do that, and what can the author offer instead?',
         answer:
-          'No. A reader can only choose among the options a setting declares, and the build makes one case per option before anyone reads the page. The author can declare a setting whose options are a few prepared data sets, so each one is a case the build makes and the author can read.',
+          'No. A reader can only choose among the options a setting declares, and the build makes one scenario per option before anyone reads the page. The author can declare a setting whose options are a few prepared data sets, so each one is a scenario the build makes and the author can read.',
       },
     ],
   };
@@ -405,7 +405,7 @@ export default class FeatureTour extends Scene {
       );
       await s.enter(heads, ...before, { describe: `Before: ${describe}` });
     };
-    // Each result names its own before and after; the camera case has no before panel.
+    // Each result names its own before and after; the camera scenario has no before panel.
     await this.step('result', { title: example.result, line: example.point, caption: example.caption });
     this.shown.phase = 'result';
     await s.clear();
@@ -425,9 +425,9 @@ export default class FeatureTour extends Scene {
       );
     } else if (feature === 'settings') {
       const options = FeatureTour.settings[0]!;
-      await panels([], `the default case, feature = ${options.default}`);
-      await s.card([['Default case', options.default]], { at: BEFORE, fontSize: 0.45 });
-      await s.card([['This case', feature], ['Cases built', String(options.options.length)]], { at: AFTER, fontSize: 0.55 });
+      await panels([], `the default scenario, feature = ${options.default}`);
+      await s.card([['Default scenario', options.default]], { at: BEFORE, fontSize: 0.45 });
+      await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, fontSize: 0.55 });
     } else if (feature === 'diagram') {
       await panels([], 'the captured flowchart, no path marked');
       await s.show({ source: 'graph LR\nA[Start] --> B[Finish]' }, { box: BEFORE });

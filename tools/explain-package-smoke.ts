@@ -140,7 +140,7 @@ try {
   await writeFile(join(folder, 'first/scene.ts'), native);
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // `see` reads a step from the terminal with no browser installed.
-  const seen = await run(process.execPath, [cli, 'see', 'first', 'one', '--case', 'case=b'], { cwd: folder });
+  const seen = await run(process.execPath, [cli, 'see', 'first', 'one', '--scenario', 'case=b'], { cwd: folder });
   assert.match(seen.stdout, /^outside · step 1 of 1: one · Case: B$/m);
   await run(process.execPath, [cli, 'build', 'first', '--out', 'public/outside.html'], { cwd: folder });
   const html = await readFile(join(folder, 'public/outside.html'), 'utf8');
@@ -151,7 +151,7 @@ try {
     await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 2, subjects: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
     await run(bin, ['review', 'first', '--out', 'review'], { cwd: folder });
     const reviewed = JSON.parse(await readFile(join(folder, 'review/review.json'), 'utf8'));
-    assert.equal(reviewed.cases, 2);
+    assert.equal(reviewed.scenarios, 2);
     assert.equal(reviewed.stepWidths, 4);
     assert.deepEqual(reviewed.consoleErrors, []);
     assert.equal(reviewed.artifactHash, JSON.parse(await readFile(join(folder, 'public/outside.html.receipt.json'), 'utf8')).artifactHash, 'review checks the same page that build publishes');
@@ -316,13 +316,13 @@ try {
   );
   // The stage adds the paper, the heading's band and the heading.
   assert.equal(result.stdout.trim(), '3');
-  // describeExplainer from the installed package: the outside author's scene, both cases.
+  // describeExplainer from the installed package: the outside author's scene, both scenarios.
   const described = await run(
     process.execPath,
     [
       '--input-type=module',
       '-e',
-      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.cases.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
+      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
     ],
     { cwd: folder },
   );

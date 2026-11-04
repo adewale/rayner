@@ -117,7 +117,7 @@ this.addInvariant('the dot stays on its circle', (scene) => {
 A check reads the scene by key and changes nothing; it returns a message when the
 invariant fails, `true` when it held, and nothing when there was nothing to check on that
 frame. An invariant that never holds in a whole run tested nothing, so `rayner check` fails
-it: a misspelt key finds nothing and cannot pass for an invariant that held. `rayner check` runs every registered invariant on every frame of every case,
+it: a misspelt key finds nothing and cannot pass for an invariant that held. `rayner check` runs every registered invariant on every frame of every scenario,
 so an invariant about what happens between steps (a gauge meeting a line, a pointer on its
 circle) fails at the first frame that breaks it. Sampled from its angle with `Follow`,
 the dot holds; morphed between its two ends with `Transform`, it cuts through the

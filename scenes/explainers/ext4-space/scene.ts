@@ -167,7 +167,7 @@ export default class Ext4SpaceExplainer extends Scene {
     const of = (n: number) => percent(n, l.blocks);
     const ofMeta = (n: number) => percent(n, l.metadata);
 
-    // Every whole-disk pie in this case, so that one config colours all of them.
+    // Every whole-disk pie in this scenario, so that one config colours all of them.
     const stages: [Space, WholeStage][] = [
       [sp, 'free'],
       [sp, 'reserves'],
@@ -440,7 +440,7 @@ export default class Ext4SpaceExplainer extends Scene {
         title: `mkfs.ext4 -m ${m}, shares of each disk`,
       },
     );
-    await sizeCard.mark(name, { as: 'this case' });
+    await sizeCard.mark(name, { as: 'this scenario' });
     this.state.sizes = Object.fromEntries(
       all.map((a) => [a.k, { metadata: a.x.layout.metadata, root: a.x.root, users: a.x.users }]),
     );

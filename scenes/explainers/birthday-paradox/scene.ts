@@ -17,7 +17,7 @@ export default class BirthdayParadox extends Scene {
     id: 'birthday-paradox',
     title: 'How many people make a shared birthday likely?',
     sources: ['https://pudding.cool/2018/04/birthday-paradox/', 'https://mathworld.wolfram.com/BirthdayProblem.html'],
-    // The script's answer and check questions (script.md); the chance step states the answer in every case.
+    // The script's answer and check questions (script.md); the chance step states the answer in every scenario.
     answer: ANSWER,
     checks: [
       {

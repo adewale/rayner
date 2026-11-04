@@ -237,7 +237,7 @@ A View's internal morph (`view.sync()`) does not record evidence.
 The trace carries it per step, and `renderText` prints a one-line summary under the
 frame. The KV-cache explainer morphs its merge request's two texts with
 `TransformDiff`, and `test/explain-fidelity.test.ts` holds the hunks it
-records, in both of its cases, to `git diff --no-index --unified=0`, with its
+records, in both of its scenarios, to `git diff --no-index --unified=0`, with its
 line counts git's. The same file checks the match evidence behind the counts
 the glyph and git explainers put on screen.
 

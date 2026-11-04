@@ -50,9 +50,9 @@ test('a middle deletion needs the marker too, and absent lookups need unused spa
   assert.throws(() => lookup(full, 24), /needs an unused slot/);
   const { collectProject } = await import('../tools/lib/explain-project.ts');
   const project = await collectProject('scenes/explainers/python-dict', { write: false });
-  for (const theCase of project.cases) {
-    assert.equal(theCase.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
-    assert.deepEqual(theCase.trace.steps.filter(step => step.meta.kind !== 'detail').map(step => step.step), ['question', 'broken', 'marker', 'missing']);
+  for (const scenario of project.scenarios) {
+    assert.equal(scenario.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
+    assert.deepEqual(scenario.trace.steps.filter(step => step.meta.kind !== 'detail').map(step => step.step), ['question', 'broken', 'marker', 'missing']);
   }
 });
 
@@ -511,7 +511,7 @@ test('the music comparison preserves pitches and total beats while moving exactl
   assert.deepEqual(phrase('straight').map(n=>n.midi),expected);
   assert.deepEqual(phrase('syncopated').map(n=>n.at),[0,1,2,3.5,4.5,5,6,7]);
   assert.deepEqual(phrase('syncopated').map(n=>n.duration),[1,1,1.5,1,.5,1,1,1]);
-  // A tempo no case shows (no longer a check question; the claim stands): G starts half a beat, 375 ms, before the bar line at 80 BPM...
+  // A tempo no scenario shows (no longer a check question; the claim stands): G starts half a beat, 375 ms, before the bar line at 80 BPM...
   assert.equal((4-phrase('syncopated')[3]!.at)*beatMs(80),375);
   // ...and G sounds for one beat, 750 ms, half of it on each side of the bar line.
   {const g=phrase('syncopated')[3]!;assert.equal(g.duration*beatMs(80),750);assert.equal((4-g.at)*beatMs(80),(g.at+g.duration-4)*beatMs(80));}
@@ -551,7 +551,7 @@ test('the music comparison preserves pitches and total beats while moving exactl
   }
 });
 
-test('every melody case at both tempos: A starts a note on every beat, the shifted B starts none on the 1 of bar 2, the control B starts every note on a beat',()=>{
+test('every melody scenario at both tempos: A starts a note on every beat, the shifted B starts none on the 1 of bar 2, the control B starts every note on a beat',()=>{
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     // The pitched score and the all-C score of the rhythm step.

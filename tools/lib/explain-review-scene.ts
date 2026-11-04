@@ -10,7 +10,7 @@ import { ROOT, hash, loadScene } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { serve } from './explain-serve.ts';
 import { launch } from './browser.ts';
-import { reviewStoryCase } from './explain-story-review.ts';
+import { reviewStoryScenario } from './explain-story-review.ts';
 import type { StorySubject } from './explain-story-review.ts';
 
 /** Independent caption expectations belong beside the author's scene, outside its runtime. */
@@ -35,10 +35,10 @@ export async function reviewSubjects(project: Project, file?: string): Promise<S
       assert.ok(object(target) && ((typeof target.key === 'string' && !!target.key.trim() && target.text === undefined) ||
         (typeof target.text === 'string' && !!target.text.trim() && target.key === undefined)) &&
         (target.paint === undefined || target.paint === 'stroke') && Object.keys(target).every(key => ['key', 'text', 'paint'].includes(key)), `${path}: targets need a key or text, with optional paint: "stroke"`);
-    const applicable = project.cases.filter(v => Object.entries(subject.settings ?? {}).every(([key, value]) => v.values[key] === value));
-    assert.ok(applicable.length, `${path}: subject settings select no case`);
-    for (const theCase of applicable)
-      assert.ok(theCase.trace.steps.some(s => s.step === subject.step), `${path}: ${subject.step} is missing from a selected case`);
+    const applicable = project.scenarios.filter(v => Object.entries(subject.settings ?? {}).every(([key, value]) => v.values[key] === value));
+    assert.ok(applicable.length, `${path}: subject settings select no scenario`);
+    for (const scenario of applicable)
+      assert.ok(scenario.trace.steps.some(s => s.step === subject.step), `${path}: ${subject.step} is missing from a selected scenario`);
   }
   return value.subjects as StorySubject[];
 }
@@ -71,10 +71,10 @@ export async function reviewScene(project: Project, directory: string, subjectsF
     });
     const results = [];
     try {
-      for (const [index, theCase] of project.cases.entries()) {
+      for (const [index, scenario] of project.scenarios.entries()) {
         const output = join(directory, String(index));
         await mkdir(output, { recursive: true });
-        results.push({ settings: theCase.values, steps: await reviewStoryCase(page, server.url + '/scene.html', theCase, subjects, output) });
+        results.push({ settings: scenario.values, steps: await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, output) });
       }
       assert.deepEqual(errors, [], 'reader console errors');
       assert.deepEqual(connections, [], 'reader external connections');
@@ -97,7 +97,7 @@ export async function reviewScene(project: Project, directory: string, subjectsF
     const report = {
       version: 1, scene: project.Scene.meta?.id ?? 'scene', sourceHash: project.sourceHash,
       buildHash: inputs.hash, reviewCodeHash: reviewer, artifact: retained, artifactHash: receipt.artifactHash, subjectsHash: hash(JSON.stringify(subjects)),
-      cases: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0), results,
+      scenarios: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0), results,
       consoleErrors: errors, runtimeConnections: connections,
     };
     await rm(join(directory, 'failure.json'), { force: true });

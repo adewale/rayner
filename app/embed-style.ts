@@ -35,7 +35,7 @@ const contrast = (a: string, b: string) => {
     y = lum(b);
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 };
-/** Complete, resettable properties: a case without a valid cue clears the preceding case's cue. */
+/** Complete, resettable properties: a scenario without a valid cue clears the preceding scenario's cue. */
 export function playerProperties(
   cues: Cues = {},
   palette?: Palette,

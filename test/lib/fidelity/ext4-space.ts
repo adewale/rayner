@@ -4,7 +4,7 @@ import { assertStepState } from '../explainer-state.ts';
 import { DEFAULT_RESERVE, SIZES, metadataPie, space, wholePie } from '../../../scenes/explainers/lib/ext4-space.ts';
 import type { Size } from '../../../scenes/explainers/lib/ext4-space.ts';
 
-/** Every case's step state equals the model's layout for its size and reserve. */
+/** Every scenario's step state equals the model's layout for its size and reserve. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const size = values.size as Size,
     m = Number(values.reserve);

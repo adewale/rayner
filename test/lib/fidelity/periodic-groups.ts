@@ -8,7 +8,7 @@ import type { Symbol } from '../../../scenes/explainers/lib/periodic-groups.ts';
 
 const CHOSEN: Record<string, Symbol> = { na: 'Na', cl: 'Cl', fe: 'Fe', cu: 'Cu', he: 'He' };
 
-/** Every case's step state equals the model's answers for its element. */
+/** Every scenario's step state equals the model's answers for its element. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const symbol = CHOSEN[values.element!]!;
   const z = atomicNumber(symbol), p = position(z), group = p.group!, core = coreOf(z);

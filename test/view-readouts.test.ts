@@ -67,7 +67,7 @@ test('token-bucket: reader labels and comparison marks pair balances, refill tim
       if (step === 'trace') {
         assert.deepEqual(shown, [...Array.from({length: 10}, (_, i) => String(i + 1)), '1 / s', '2 / s', '4 / s', 'Request', 'Circle: 200     Cross: 429']);
         const responses = Array.from({length: 10}, (_, i) => expected429.get(Number(rate))!.includes(i + 1) ? 429 : 200);
-        assert.deepEqual(state.responses, responses, 'selected case has the independently fixed outcomes');
+        assert.deepEqual(state.responses, responses, 'selected scenario has the independently fixed outcomes');
         const expected = [...expected429].flatMap(([r, rejected]) => Array.from({length: 10}, (_, i) => `result:${r}:R${i + 1}:${rejected.includes(i + 1) ? 429 : 200}`));
         assert.deepEqual(marks.sort(), expected.sort(), 'all thirty pictured outcomes agree with the independently fixed schedule');
         continue;

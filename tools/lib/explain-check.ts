@@ -25,7 +25,7 @@ import {
   NullSink,
 } from '../../src/index.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
-import { caseName } from '../../explain/index.ts';
+import { scenarioName } from '../../explain/index.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
@@ -203,7 +203,7 @@ export function restingTextProblems(scene: Viewed): string[] {
 const PHONE_PAGE = 390,
   PHONE_W = PHONE_PAGE - 32,
   PHONE_H = PHONE_W * 9 / 16;
-/** One label across a case: its largest size at 1280 px, and in the phone's close-ups at rest. */
+/** One label across a scenario: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;
   px: number;
@@ -243,7 +243,7 @@ function legibilityReport(records: LabelSizes[]) {
 }
 
 // ---- the checks' sinks --------------------------------------------------
-// `rayner check` plays each case once and hands every frame to these, through FanSink, as
+// `rayner check` plays each scenario once and hands every frame to these, through FanSink, as
 // InvariantSink and MotionSink are handed it. Each reads the scene and keeps what its check
 // needs; a scene's `mobjects` changed to read a frame are put back before the next sink runs.
 
@@ -519,17 +519,17 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
   return problems;
 }
 
-/** Run every check on every case; write the report to `out`/report.json and return it. */
+/** Run every check on every scenario; write the report to `out`/report.json and return it. */
 export async function checkProject(project: Project, out: string): Promise<Record<string, unknown>> {
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
   assert.deepEqual(lint, [], lint.join('\n'));
   await mkdir(out, { recursive: true });
   await useProjectLettering(project);
-  const cases = [];
-  // The lettering the page carries, once for every case: the bare runtime below runs it
+  const scenarios = [];
+  // The lettering the page carries, once for every scenario: the bare runtime below runs it
   const shipped = project.outlineLettering ? JSON.stringify(await pageSnapshot(project.outlineLettering)) : '';
-  for (const v of project.cases) {
-    const where = `in ${caseName(project.Scene, v.values) || 'the scene'}`;
+  for (const v of project.scenarios) {
+    const where = `in ${scenarioName(project.Scene, v.values) || 'the scene'}`;
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
     const invariants = new InvariantSink();
     const motion = new MotionSink();
@@ -669,7 +669,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.ok(result.svg.includes('<path'), bare);
     const script = scriptReport(project.Scene.meta, v.trace.steps);
     assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
-    cases.push({
+    scenarios.push({
       settings: v.values,
       trace: v.trace,
       steps: v.trace.steps.length,
@@ -709,15 +709,15 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ),
     });
   }
-  // A declared claim must be stated by some case and held by a test that is there.
+  // A declared claim must be stated by some scenario and held by a test that is there.
   const claimProblems = await declaredClaimProblems(
     checkClaimsMeta(project.Scene.meta),
-    cases.flatMap((v) => v.claims.stated),
+    scenarios.flatMap((v) => v.claims.stated),
   );
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
-    cases,
+    scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,
     ...(project.outlineLettering ? { lettering: await letteringWeight(project.outlineLettering) } : {}),
@@ -729,7 +729,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
 }
 
 /**
- * What is wrong with a scene's declared claims: one no case states, or one whose test file is not
+ * What is wrong with a scene's declared claims: one no scenario states, or one whose test file is not
  * there or holds no test whose name contains the given part.
  */
 export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
@@ -791,7 +791,7 @@ function testNames(source: string): string[] {
       const callback = node.arguments.at(-1);
       if (isTest && callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && name) {
         if (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)) names.push(name.text);
-        // A title built per case, as in test(`${entry.id}: …`): only its fixed text can match, so
+        // A title built per scenario, as in test(`${entry.id}: …`): only its fixed text can match, so
         // each substitution becomes a character no claim's test name contains.
         else if (ts.isTemplateExpression(name)) names.push(name.head.text + name.templateSpans.map((span) => '\u0000' + span.literal.text).join(''));
       }

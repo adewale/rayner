@@ -20,7 +20,7 @@ const families:Record<string,string[]>={
   na:['H','Li','Na','K','Rb','Cs','Fr'],cl:['F','Cl','Br','I','At','Ts'],
   fe:['Fe','Ru','Os','Hs'],cu:['Cu','Ag','Au','Rg'],he:['He','Ne','Ar','Kr','Xe','Rn','Og'],
 };
-const frameCache=new Map<Project['cases'][number],ReturnType<typeof storyFrames>>();
+const frameCache=new Map<Project['scenarios'][number],ReturnType<typeof storyFrames>>();
 const openingSubjects=(element:string):StorySubject[]=>{
   const members=families[element]!;
   const familyTargets=[...members.map(symbol=>({key:`periodic-member:${symbol}`})),
@@ -32,16 +32,16 @@ const openingSubjects=(element:string):StorySubject[]=>{
   // The count step's compact comparison is gone: its answers are said beside the full table in blocks.
   return [{step:'column',opening:true,targets:familyTargets},{step:'blocks',targets:blockTargets}];
 };
-function framesFor(theCase:Project['cases'][number]){
-  let frames=frameCache.get(theCase);
-  if(!frames){frames=storyFrames(theCase.Scene,openingSubjects(theCase.values.element!));frameCache.set(theCase,frames);}
+function framesFor(scenario:Project['scenarios'][number]){
+  let frames=frameCache.get(scenario);
+  if(!frames){frames=storyFrames(scenario.Scene,openingSubjects(scenario.values.element!));frameCache.set(scenario,frames);}
   return frames;
 }
 const settled=(page:Page)=>page.evaluate(async()=>{for(let n=0;n<4;n++)await new Promise<void>(r=>requestAnimationFrame(()=>r()));});
 before(async()=>{
   if(!enabled)return;
   project=await collectProject('scenes/explainers/periodic-groups',{write:false});
-  assert.equal(project.cases.length,5);
+  assert.equal(project.scenarios.length,5);
   folder=await mkdtemp(join(tmpdir(),'rayner-periodic-reader-'));
   await buildExplainer(project,join(folder,'periodic.html'));
   server=await serve(folder,0,'periodic.html');browser=await launch();
@@ -53,9 +53,9 @@ after(async()=>{
 
 test('phone openings show each complete family comparison without a close-up tour',options,async()=>{
   let openings=0,targets=0;
-  for(const theCase of project.cases){
-    const element=theCase.values.element!;
-    const claims=openingSubjects(element),frames=await framesFor(theCase);
+  for(const scenario of project.scenarios){
+    const element=scenario.values.element!;
+    const claims=openingSubjects(element),frames=await framesFor(scenario);
     for(const viewport of [{width:320,height:568},{width:390,height:844}]){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{
@@ -85,9 +85,9 @@ test('phone openings show each complete family comparison without a close-up tou
 
 test('opening-comparison labels stay at least 12 CSS pixels in actual short laptop stages',options,async()=>{
   let stages=0;
-  for(const theCase of project.cases){
+  for(const scenario of project.scenarios){
     let minimum=Infinity;
-    await new theCase.Scene({async frame(){},async stepEnd(scene,step){
+    await new scenario.Scene({async frame(){},async stepEnd(scene,step){
       if(step.name!=='column')return;
       const labels=scene.familyMembers().filter((m):m is Text=>m instanceof Text&&!!m.text.trim());
       assert.ok(labels.length>0);
@@ -97,13 +97,13 @@ test('opening-comparison labels stay at least 12 CSS pixels in actual short lapt
     for(const viewport of [1100,1212,1280].flatMap(width=>[720,800].map(height=>({width,height})))){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{
-        await page.goto(`${server.url}/periodic.html?element=${theCase.values.element}&step=column`);
+        await page.goto(`${server.url}/periodic.html?element=${scenario.values.element}&step=column`);
         await page.waitForSelector('[data-ready=true]');
         await page.waitForFunction(()=>!document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
         const scale=await page.locator('.stage svg:not(.leaving)').evaluate(svg=>{
           const matrix=(svg as SVGSVGElement).getScreenCTM()!;return Math.hypot(matrix.a,matrix.b)*1000;
         });
-        assert.ok(minimum*scale>=12-1e-6,`${theCase.values.element}/${viewport.width}×${viewport.height}: smallest opening-comparison label is ${minimum*scale}px`);
+        assert.ok(minimum*scale>=12-1e-6,`${scenario.values.element}/${viewport.width}×${viewport.height}: smallest opening-comparison label is ${minimum*scale}px`);
         stages++;
       }finally{await page.close();}
     }
@@ -113,8 +113,8 @@ test('opening-comparison labels stay at least 12 CSS pixels in actual short lapt
 
 test('all 118 atomic numbers and the block strip read at least 12 CSS pixels in short standalone and fullscreen windows',options,async()=>{
   let stages=0,fullscreen=0,labels=0;
-  for(const theCase of project.cases){
-    const frame=(await framesFor(theCase)).get('blocks')!;
+  for(const scenario of project.scenarios){
+    const frame=(await framesFor(scenario)).get('blocks')!;
     const small=frame.labels.filter(label=>label.size<.23);
     assert.equal(small.length,124,'118 atomic numbers and six block-strip labels');
     assert.deepEqual(small.filter(label=>/^\d+$/.test(label.text)).map(label=>Number(label.text)).sort((a,b)=>a-b),
@@ -131,16 +131,16 @@ test('all 118 atomic numbers and the block strip read at least 12 CSS pixels in 
     for(const viewport of [{width:1280,height:720},{width:1366,height:768}]){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{
-        await page.goto(`${server.url}/periodic.html?element=${theCase.values.element}&step=blocks`);
+        await page.goto(`${server.url}/periodic.html?element=${scenario.values.element}&step=blocks`);
         await page.waitForSelector('[data-ready=true]');
         await page.waitForFunction(()=>!document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
         const seen=await inspectStoryFrame(page,frame);
-        readable(seen,`${theCase.values.element}/${viewport.width}×${viewport.height}`);
+        readable(seen,`${scenario.values.element}/${viewport.width}×${viewport.height}`);
         labels+=small.length;
         assert.ok(seen.stage[2]-seen.stage[0]>=880-1,'the served stage respects the per-page floor');
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
         stages++;
-        if(theCase===project.cases[0]){
+        if(scenario===project.scenarios[0]){
           await page.getByRole('button',{name:'Enlarge'}).click();
           await page.waitForFunction(()=>!!document.fullscreenElement);await settled(page);
           readable(await inspectStoryFrame(page,frame),`fullscreen/${viewport.width}×${viewport.height}`);

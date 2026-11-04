@@ -148,12 +148,12 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
               : 'rgb(240, 240, 240)',
           );
           assert.equal(
-            await page.locator('.case legend').textContent(),
+            await page.locator('.scenario legend').textContent(),
             'isdigit()',
           );
           assert.equal(
             await page
-              .locator('.case legend')
+              .locator('.scenario legend')
               .evaluate((e) => getComputedStyle(e).textTransform),
             'none',
           );
@@ -229,7 +229,7 @@ async construct(){stage(this,{palette:settingsOf(this).mode==='a' ? {paper:'#fff
           assert.throws(
             () => assert.ok(poison),
             assert.AssertionError,
-            'the selected-case assertion rejects the missing rule',
+            'the selected-scenario assertion rejects the missing rule',
           );
           await page.emulateMedia({ forcedColors: 'none' });
           assert.equal(

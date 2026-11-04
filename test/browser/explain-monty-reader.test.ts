@@ -33,7 +33,7 @@ const targets: StorySubject['targets'] = [
 before(async () => {
   if (!enabled) return;
   project = await collectProject('scenes/explainers/monty-hall', { write: false });
-  assert.equal(project.cases.length, 2);
+  assert.equal(project.scenarios.length, 2);
   folder = await mkdtemp(join(tmpdir(), 'rayner-monty-reader-'));
   await buildExplainer(project, join(folder, 'monty.html'));
   server = await serve(folder, 0, 'monty.html');
@@ -48,11 +48,11 @@ after(async () => {
 
 test('every host rule opens with all three readable doors and the complete host rule', options, async () => {
   let openings = 0, checkedTargets = 0;
-  for (const theCase of project.cases) {
+  for (const scenario of project.scenarios) {
     const claims = steps.map((step) => ({ step, opening: true, targets }));
-    const frames = await storyFrames(theCase.Scene, claims);
+    const frames = await storyFrames(scenario.Scene, claims);
     const minimum = new Map<string, number>();
-    await new theCase.Scene({
+    await new scenario.Scene({
       async frame() {},
       async stepEnd(scene, step) {
         if (!steps.includes(step.name)) return;
@@ -68,8 +68,8 @@ test('every host rule opens with all three readable doors and the complete host 
       }));
       try {
         for (const step of steps) {
-          const caseName = `${JSON.stringify(theCase.values)}/${step}/${viewport.width}`;
-          await page.goto(`${server.url}/monty.html?${new URLSearchParams({ ...theCase.values, step })}`);
+          const scenarioName = `${JSON.stringify(scenario.values)}/${step}/${viewport.width}`;
+          await page.goto(`${server.url}/monty.html?${new URLSearchParams({ ...scenario.values, step })}`);
           await page.waitForSelector('[data-ready=true]');
           await page.waitForFunction((name) => (window as unknown as { montyStep: string }).montyStep === name &&
             !document.querySelector('#content.loading') && !document.querySelector('svg.leaving'), step);
@@ -80,15 +80,15 @@ test('every host rule opens with all three readable doors and the complete host 
           for (const target of claimed) for (const index of target.indices) {
             const ink = seen.ink.find((paint) => paint.index === index)!;
             assert.ok(ink.visible && ink.complete && covered(ink.box, [seen.viewport]),
-              `${caseName}: ${target.name} must be completely painted in the opening`);
+              `${scenarioName}: ${target.name} must be completely painted in the opening`);
           }
           const scale = await page.locator('.stage svg:not(.leaving)').evaluate((node) => {
             const matrix = (node as SVGSVGElement).getScreenCTM()!;
             return Math.hypot(matrix.a, matrix.b) * 1000;
           });
           const pixels = minimum.get(step)! * scale;
-          assert.ok(readableOpeningLabel(pixels), `${caseName}: smallest body label is ${pixels}px`);
-          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, caseName);
+          assert.ok(readableOpeningLabel(pixels), `${scenarioName}: smallest body label is ${pixels}px`);
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, scenarioName);
           openings++;
           checkedTargets += claimed.length;
         }
