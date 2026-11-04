@@ -9,7 +9,7 @@ They are ordinary animations on native mobjects: pass them to `play`,
 | Stretch from a baseline while fading in | `GrowFromEdge` | Captured chart bars grow from the bottom; Gantt tasks from the left |
 | Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins |
 | Adopt the next model state at a particular point inside a schedule | `SetState` | Every [machine](MACHINES.md) event; periodic-groups' configuration steps |
-| Drive several drawings from one sampled number | `Follow` | Token bucket: the gauge and the chart's climb from the same elapsed time |
+| Drive several drawings from one sampled number | `Follow` | Token bucket: the gauge and the chart's climb from the same elapsed time; ring-buffer pointers turning round the ring |
 
 The first two replaced private classes in `explain/diagrams.ts`, whose diagram
 controller keeps the graph adjacency and reveal checks, recording and descriptions:
