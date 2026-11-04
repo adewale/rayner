@@ -1,10 +1,8 @@
 # Graphing
 
-`NumberLine` and `Axes` map the program's numbers to points in the scene. A chart drawn with them
-comes straight from the scene's own model: a plot samples the scene's own function, and bars take
-the values the program computed. There is no build step, and nothing can drift out of sync with
-the code the explainer is about. This is the explainers' principle, that the animation shows what
-the program does, applied to charts.
+`NumberLine` and `Axes` map the program's numbers to points in the scene. A plot samples the
+scene's own function and bars take the values the program computed, so the chart is drawn from the
+model at run time, with no build step, and cannot disagree with it.
 
 Everything is an ordinary mobject. Axes are Lines, Polygons and Text in Groups. A plot is one
 VMobject made of cubic Béziers, and bars are Rectangles. So `Create` draws a chart in,

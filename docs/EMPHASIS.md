@@ -5,14 +5,14 @@ plus `Circumscribe`, which can either pulse or stay.
 
 ## Why emphasis should stay
 
-A reader stepping through an explainer stops on each step's last frame and looks
-at it while reading the caption (its resting picture; see [the reference](REFERENCE.md)). An emphasis
-that pulses and fades is gone by then. When the explainers were first reviewed as
-a reader would see them, nine of fourteen had steps that ended exactly like the
-step before: highlights had pulsed and faded, tokens had walked and vanished. A
-mark that stays on screen still says "this one" on the frame the reader actually
-sees. `Indicate` and `Flash` are still right for a passing glance during a longer
-step. Use these shapes when the step is about the thing being marked.
+A reader stops on each step's last frame, its resting picture, and looks at it
+while reading the caption. An emphasis that pulses and fades is gone by then. When
+the first fourteen explainers were reviewed as a reader sees them, nine had steps
+that ended exactly like the step before, because highlights had pulsed away and
+tokens had walked off; `rayner check` now fails such a step. A mark that stays still
+says "this one" on the frame the reader sees. Use these shapes when the step is
+about the thing marked, and `Indicate` or `Flash` for a passing glance during a
+longer step.
 
 ## The shapes
 
@@ -58,7 +58,7 @@ fades out (`fadeOut: false` retracts it along its path instead), and the scene
 removes it when the play ends. With `keep: true`, the outline stays at full
 strength after drawing in and remains in `scene.mobjects`, so the step's last
 frame shows it. That also means the step's last frame differs from the previous
-step's, which `rayner check` requires. Take it away later with
+step's, which `rayner check` requires. Remove it later with
 `new FadeOut(c.outline)`.
 
 Options: `color` (yellow), `shape` (`'rect'`, or `'circle'` through the box's
@@ -89,23 +89,23 @@ await this.play(new Create(new SurroundingRectangle(span, { buff: 0.06, cornerRa
 await this.play(new Create(new BraceLabel(span, 'the retry loop', RIGHT, { fontSize: 0.22 })));
 ```
 
-`Code.highlight(i)` is a filled bar behind one line, used to mark the line about
-to run. An outline or brace is for pointing at a span while saying something
-about it. The explainers' `CodeBlock.focus` and diagram `note`/`mark` helpers are
-higher-level versions built for the stage. These shapes are the general-purpose
-pieces that any scene can use.
+`Code.highlight(i)` is a filled bar behind one line, for the line about to run;
+an outline or brace points at a span while the caption says something about it.
+The stage's `CodeBlock.focus` and the diagram helpers `note` and `mark` build on
+the same idea for explainers.
 
 ## In the explainers
 
 - `SurroundingRectangle`: [glyph](../scenes/explainers/glyph/scene.ts) (advance cells),
   [mr-cache](../scenes/explainers/mr-cache/scene.ts) (lines that run, from a `Box` of code lines),
-  [state-machine](../scenes/explainers/state-machine/scene.ts) (the reducer row, from a code span's box),
+  [state-machine](../scenes/explainers/state-machine/scene.ts) (the reducer row, from a code span's box,
+  and a ring on the current state, drawn in a view so it moves with the state),
   [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
-- `Circumscribe({ keep: true })`: [state-machine](../scenes/explainers/state-machine/scene.ts) (a ring on
-  the current state, faded with `FadeOut(ring.outline)` when the state changes) and
-  [mr-cache](../scenes/explainers/mr-cache/scene.ts) (the KV lookup).
-- `Underline` and `Cross`: [glyph](../scenes/explainers/glyph/scene.ts) (letters that grow in and shrink
-  away). `Cross` also in [ring-buffer](../scenes/explainers/ring-buffer/scene.ts), on a refused value. On
-  one flat line of code a `Cross` reads as a strikethrough rather than an X.
+- `Circumscribe({ keep: true })`: [mr-cache](../scenes/explainers/mr-cache/scene.ts) (the KV lookup)
+  and the feature tour's `emphasis` scenario.
+- `Underline`: [glyph](../scenes/explainers/glyph/scene.ts) (the letter it then draws large as outlines).
+- `Cross`: [ring-buffer](../scenes/explainers/ring-buffer/scene.ts), on a refused value, and
+  [latest-search](../scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
+  line of code a `Cross` reads as a strikethrough rather than an X.
 - `BraceLabel`: [glyph](../scenes/explainers/glyph/scene.ts) (each font's measured width) and
   [exgit](../scenes/explainers/exgit/scene.ts) (the seven digits that name a blob).

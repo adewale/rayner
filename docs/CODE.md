@@ -90,8 +90,7 @@ to it (as explainers already do). Styling applied after construction (a
 node tools/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]
 ```
 
-prints the spans as a JSON array, one span per line, ready to paste into a
-scene. The language defaults to the file extension; stdin needs `--lang`.
+prints the spans as a JSON array, one span per line, to paste into a scene. The language defaults to the file extension; stdin needs `--lang`.
 The engine used goes to stderr. From code, the module `tools/lib/tokenize.ts`
 exports `tokenize(source, lang, { engine, palette })`, which returns the same
 `ColorSpan[]` (the `rayner` CLI can call it at build time). It is not the
@@ -166,4 +165,4 @@ default) costs a fraction of one that colours it.
 - [state-machine](../scenes/explainers/state-machine/scene.ts): finds the reducer
   row it read with `code.token(line, text)`, takes `code.span` from the key to
   the value, and rings it with a `SurroundingRectangle` built from the span's
-  `box()`; `saveState`/`Restore` put the row back.
+  `box()`.

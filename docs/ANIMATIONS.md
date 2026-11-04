@@ -1,11 +1,9 @@
 # Restore, copies and sequencing
 
-[Reusable choreography](CHOREOGRAPHY.md) covers `GrowFromEdge`, `PulseAlongPath`
-and `SetState`, extracted from the example collection, with a complete runnable recipe.
-
-Three animations from manim's set, with Lantern's guarantees: every frame is a pure
-function of alpha over endpoints fixed when the animation begins, and a seek renders
-the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
+Three animations from manim's set. Each fixes its endpoints when it begins, so a
+seek renders the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
+[Reusable choreography](CHOREOGRAPHY.md) covers the animations extracted from the
+example collection.
 
 ## Restore: come back exactly
 
@@ -88,10 +86,10 @@ whose member brings an updater matches the full run").
 
 ## In the explainers
 
-- `saveState`/`Restore`: [state-machine](../scenes/explainers/state-machine/scene.ts) saves every reducer
-  line, recolours the row that fired, and restores it when the next event arrives.
-- `TransformFromCopy`: [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) copies values into and out
-  of slots; [exgit](../scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
+- `saveState`/`Restore`: the [feature tour](../scenes/explainers/feature-tour/scene.ts)'s
+  `restore` scenario moves a circle and restores it.
+- `TransformFromCopy`: [exgit](../scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
 - `Succession`: [state-machine](../scenes/explainers/state-machine/scene.ts),
   [token-bucket](../scenes/explainers/token-bucket/scene.ts) and
-  [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) each play a step's events as one `Succession`.
+  [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) build each event's authored
+  transition as a `Succession`, and a [machine](MACHINES.md) replays its events as one.
