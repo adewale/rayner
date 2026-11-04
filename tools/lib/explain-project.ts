@@ -65,6 +65,7 @@ export function engineAlias(node = false, outlines = false): Plugin {
         let file: string | undefined;
         if (args.path === 'rayner') file = join(ROOT, 'src/index.ts');
         else if (args.path === 'rayner/explain') file = join(ROOT, 'explain/index.ts');
+        else if (args.path === 'rayner/drawing') file = join(ROOT, 'explain/drawing.ts');
         else if (args.path === 'rayner/lettering') file = join(ROOT, 'src/lettering.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);

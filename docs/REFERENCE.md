@@ -178,6 +178,22 @@ await card.set({ Hits: [0, 3] });
 
 A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `mark` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". `card.cells` holds each row's values; `card.values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
 
+### Drawing kit
+
+`rayner/drawing` draws the parts explanations keep needing, as ordinary mobjects coloured from a stage's palette. Each returns a keyed Group or mobject, so `matchByKey`, `find`, invariants and reviews can address its parts; nothing here animates or reads scene state.
+
+| Function | Draws |
+| --- | --- |
+| `label(text, x, y, color, size?, key?)` | A centred line of text |
+| `tile(text, x, y, width, height, s, { active?, bad?, key?, size? })` | A labelled box, emphasised or marked bad |
+| `segment(a, b, color, width?)`, `dot(text, x, y, s, active?)` | A stroke; a labelled circle |
+| `table(headers, rows, s, { xs, y, gap, key, size })` | Bold headers over rows; text columns start-aligned, numeric ones end-aligned, a rule spanning exactly the columns. `xs` is column centres, `{ left, right }` to spread the measured columns between two edges, or `{ left, gap }` to set them a gap apart; the group's box is the table's measured extent |
+| `stat(s, title, value, x, y, key)` | A title over a large value |
+| `flow(s, names, { y, key })` | Named steps in boxes of one size joined by arrows; long names wrap; each box keyed `key:i` |
+| `bars(s, rows, maximum, { key, y })` | Bars on one scale with aligned starts, labels keyed `key:i:label` and values `key:i:value` |
+
+The collection's scenes import the same functions through `scenes/explainers/lib/lesson-drawing.ts`.
+
 ### Spatial direction
 
 ```ts
@@ -325,7 +341,7 @@ Other exports: `withSettings(Scene, values)` binds a case without mutating the c
 
 ## Describe
 
-`describeExplainer(Scene, { snapshots?, drawings? })`, from `rayner/explain`, returns the explainer as one JSON-safe object for agents and tools: `schema` (1), `id`, `title`, `lang`, `sources`, `settings`, `answer` and `checks` when the scene declares them, and `cases`. Each case has its setting `values`, its `name` ("Label: option"), its `duration`, its `paper` (the stage's paper colour when the case ends, absent for a scene without a stage) and its `steps`. Each step has its `step` name, `title`, `caption`, `start`, `end` and `hold` in seconds, the `state` the scene recorded (`scene.state` when the step ends), `changed` (each value the step changed, as `{ before, after }`, with a side left out when the value was not set), `watched` when the scene declares [`meta.watch`](#scene) (the step's watched changes as the player shows them, `{ label, before?, after? }` formatted strings, at most four), the resting `picture` in words, and its `drawing` as text unless `drawings: false`. `drawings: 'name'` draws only the step of that name, which is how `rayner see` draws the one step it prints.
+`describeExplainer(Scene, { snapshots?, drawings? })`, from `rayner/explain`, returns the explainer as one JSON-safe object for agents and tools: `schema` (1), `id`, `title`, `lang`, `sources`, `settings`, `answer` and `checks` when the scene declares them, and `cases`. Each case has its setting `values`, its `name` ("Label: option"), its `duration`, its `paper` (the stage's paper colour when the case ends, absent for a scene without a stage), its `invariants` (the names of the claims `rayner check` checks on every frame, absent when none), its `sessions` (each [session](SESSIONS.md)'s `events`, `start` and the number of `states` they reach, `sampled` when the limit was reached; absent when none) and its `steps`. Each step has its `step` name, `title`, `caption`, `start`, `end` and `hold` in seconds, the `state` the scene recorded (`scene.state` when the step ends), `changed` (each value the step changed, as `{ before, after }`, with a side left out when the value was not set), `watched` when the scene declares [`meta.watch`](#scene) (the step's watched changes as the player shows them, `{ label, before?, after? }` formatted strings, at most four), the resting `picture` in words, its `events` when a session replayed some in the step, and its `drawing` as text unless `drawings: false`. `drawings: 'name'` draws only the step of that name, which is how `rayner see` draws the one step it prints.
 
 It runs the scene once per case, in Node or a browser, with no Chromium. A scene with diagrams needs its pinned snapshots (`snapshots`, as `rayner` reads them from `scene.snapshots/`) or it throws. `rayner describe <scene>` prints the same object; `--out file.json` writes it. Diagram labels are outlines, so the text drawing shows them as strokes; their words are in `picture`.
 

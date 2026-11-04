@@ -21,7 +21,8 @@ An explainer written by hand, or by a language model, can look right and be wron
 
 Phone label estimates use the minimum stage geometry; `rayner review` checks the actual served layout. Claims metadata links prose to named tests, but does not run them or verify their assertions. The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
 To use Rayner as a library, start with [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md),
-[frames, text and traces](docs/SCENE-OUTPUTS.md), and [runnable extension recipes](docs/EXTENDING.md).
+[frames, text and traces](docs/SCENE-OUTPUTS.md), [runnable extension recipes](docs/EXTENDING.md), and the
+[drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`).
 [Sampled parameters](docs/PARAMETERS.md) records what a general version of the
 continuous recipe would change; the recipe itself uses the supported Animation extension point.
 

@@ -161,3 +161,20 @@ function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
 }
 
 import { view } from 'rayner';
+
+// The drawing kit, as an author imports it.
+import { label, tile, table, flow, bars, stat, segment, dot } from 'rayner/drawing';
+import type { TableColumns } from 'rayner/drawing';
+export function drawingKit(scene: Scene) {
+  const s = stage(scene);
+  const spread: TableColumns = { left: -6, right: 6 };
+  const parts = [
+    label('hit', 0, 0, s.palette.ink), tile('D1', 0, 0, 2, 1, s, { active: true, key: 'db' }),
+    table(['Key', 'Slot'], [['a', 1]], s, { xs: spread }), table(['Key'], [['a']], s, { xs: { left: 0, gap: 1 } }),
+    flow(s, ['Request', 'Cache', 'Database']), bars(s, [{ label: 'reads', value: 1, display: '1' }], 2),
+    stat(s, 'Reads', 1, 0, 0, 'reads'), segment([0, 0], [1, 1], s.soft), dot('A', 0, 0, s),
+  ];
+  // @ts-expect-error a table's columns are centres or an edge with a right edge or a gap
+  table(['Key'], [['a']], s, { xs: { right: 2 } });
+  return parts;
+}
