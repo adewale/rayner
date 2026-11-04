@@ -21,7 +21,7 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 | Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
 | Staged steps | `rayner check` redraws every `stage.steps` picture from the state its trace recorded; `staged-steps.test.ts` shows a draw that reads a counter instead of its state failing, named by its step |
 | Machines | `rayner check` explores every machine's reachable states and checks each picture, its labels at 1280 px included; `machine.test.ts` checks replay, seeking, shortest paths and a picture that cannot tell states apart |
-| Scene invariants | `rayner check` runs each `addInvariant` invariant on every frame of every scenario; `recipes.test.ts` proves an invariant fails on the counterexample, and each explainer's claim was shown to fail on its old behaviour |
+| Scene invariants | `rayner check` runs each `addInvariant` invariant on every frame of every scenario; `recipes.test.ts` proves an invariant fails on the counterexample, and each explainer's invariant was shown to fail on its old behaviour |
 | Extracted choreography | `choreography.test.ts` checks geometric anchors, route/opacity samples, legacy frame equivalence, JSON state boundaries, nested schedules and writer conflicts |
 | Requested lettering | `lettering.test.ts` checks declarations, isolation and glyph contracts; the catalog builder checks actual receipt fields and page bytes |
 | Shared player shell | `explain-reader-shell.ts` runs during every catalog scenario at both reading widths; embed tests retain English/French standalone, raw iframe and loader crop checks |
