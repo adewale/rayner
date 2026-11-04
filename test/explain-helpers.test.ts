@@ -647,3 +647,45 @@ test('htmlEscape output has no markup characters and decodes back to the text', 
     params(),
   );
 });
+
+// ---- state diagrams: composites and regions ---------------------------------------
+
+test('state diagrams name [*] dots by their state and region, count composites as states, and dim keeps a composite whole', async () => {
+  const { readSnapshots } = await import('../tools/lib/explain-project.ts');
+  const { COMPOSITE, REGIONS } = await import('./fixtures/state-composite/scene.ts');
+  const { wordsFor } = await import('../explain/words.ts');
+  const store = await readSnapshots('test/fixtures/state-composite/scene');
+  const draw = async (source: string) => {
+    const captured = Object.values(store).find((s) => s.spec.source === source);
+    assert.ok(captured, 'the fixture snapshot is captured');
+    const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), captured.spec, captured, { box: 'full' });
+    await d.build();
+    return d;
+  };
+  const names = (d: Diagram) => d.describe().parts.map((p) => p.name);
+
+  // A composite's start dot is named by its state; links to it use that name, not on_start.
+  const composite = await draw(COMPOSITE);
+  assert.equal(composite.describe().blank, undefined);
+  assert.match(composite.describe().what, /\b5 states, 6 transitions$/, 'off, on, idle, brewing, ready; the dot is not a state');
+  for (const name of ['start of on', 'start of on → idle', 'on → off: POWER_OFF']) assert.ok(names(composite).includes(name), name);
+
+  // Each concurrent region's start is numbered; the diagram's own start is just "start".
+  const regions = await draw(REGIONS);
+  assert.equal(regions.describe().blank, undefined);
+  assert.match(regions.describe().what, /\b6 states, 9 transitions$/, 'off, on and four region states');
+  for (const name of ['start', 'start → off', 'start of on, region 1 → paused', 'start of on, region 2 → unmuted'])
+    assert.ok(names(regions).includes(name), name);
+  assert.ok(!names(regions).some((n) => /__r\d|_start\b/.test(n)), 'no part falls back to a capture id');
+
+  // Keeping the composite keeps what is drawn inside it; the outside state and its links fade.
+  await regions.dim(['on']);
+  const dimmed = new Set(regions.describe().parts.filter((p) => p.dimmed).map((p) => p.name));
+  for (const name of ['off', 'start → off', 'on → off: POWER_OFF', 'off → on: POWER']) assert.ok(dimmed.has(name), `${name} fades`);
+  for (const name of ['paused', 'muted', 'start of on, region 2', 'paused → playing: PLAY', 'unmuted → muted: MUTE'])
+    assert.ok(!dimmed.has(name), `${name} stays`);
+
+  assert.equal(wordsFor('fr').pseudostate('start', 'on', 2), 'début d’on, région 2');
+  assert.equal(wordsFor('fr').pseudostate('end', 'veille'), 'fin de veille');
+  assert.equal(wordsFor('en').pseudostate('end'), 'end');
+});

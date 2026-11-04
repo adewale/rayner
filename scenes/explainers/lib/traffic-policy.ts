@@ -118,6 +118,20 @@ export function shares(counts: readonly number[], policy: Policy): Record<string
   });
   return out;
 }
+/** One band of the flow picture: the share of all outside requests that enter at `node` and reach `pod`. */
+export interface Flow {
+  node: number;
+  pod: string;
+  share: Q;
+}
+/** Every band with traffic, node by node and pod by pod in each node's chain: the node's share times the rule's share. */
+export function flows(counts: readonly number[], policy: Policy): Flow[] {
+  return nodeShares(counts, policy).flatMap((share, node) => {
+    const eps = endpointsOn(counts, policy, node);
+    const each = ruleShares(eps.length);
+    return value(share) === 0 ? [] : eps.map((p, i) => ({ node, pod: p.id, share: mul(share, each[i]!) }));
+  });
+}
 /** The share of outside requests that a node sends on to a pod on another node: the second hop. */
 export function secondHop(counts: readonly number[], policy: Policy): Q {
   let out = q(0);

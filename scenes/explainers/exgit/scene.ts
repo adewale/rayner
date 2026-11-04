@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/exgit.ts';
 import type { Evidence } from '../../../src/index.ts';
 import {
   Scene,
@@ -17,6 +15,7 @@ import {
 } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from '../lib/git.ts';
+import { objectLines, reachable, secondCommit } from './objects.ts';
 
 const STYLE = 'catppuccin-mocha';
 const short = (id: string) => id.slice(0, 7);
@@ -37,26 +36,6 @@ const treeLines = (repo: Repo, id: string) => [
   ...entryLines(repo, id, 40),
   `sha1    ${id}`,
 ];
-/** A commit's stored text, one line per row. */
-const objectLines = (repo: Repo, id: string) => repo.text(id).replace(/\n$/, '').split('\n');
-/** Every object a commit reaches through its tree and parent lines: what a clone has to fetch. */
-const reachable = (repo: Repo, from: string): string[] => {
-  const seen = new Set<string>();
-  const walk = (id: string): void => {
-    if (seen.has(id)) return;
-    seen.add(id);
-    const o = repo.objects[id]!;
-    if (o.type === 'commit')
-      for (const line of objectLines(repo, id)) {
-        if (line === '') break;
-        const [k, v] = line.split(' ');
-        if (k === 'tree' || k === 'parent') walk(v!);
-      }
-    else if (o.type === 'tree') for (const [, , child] of parseTree(o.bytes)) walk(child);
-  };
-  walk(from);
-  return [...seen];
-};
 /** What the last `n` matching transforms of the scene recorded (Scene.record): their pairing, as evidence. */
 const lastMatches = (scene: Scene, n: number): Evidence[] => {
   const found = scene.evidence.filter((e) => e.kind === 'match').slice(-n);
@@ -68,6 +47,20 @@ const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).
 /** How a byte reads in a cell: printable, or its escape. */
 const glyph = (b: number) => (b === 0 ? '\\0' : b === 10 ? '\\n' : b === 32 ? 'sp' : String.fromCharCode(b));
 
+/** The script's one-sentence answer (meta.answer), which the change step states. */
+const ANSWER = 'Git writes only the objects whose bytes are new, and names unchanged content again by its id';
+/** The check questions' commits, from the same model: a rename and a copy of hello.txt after commit one. */
+const RENAMED = secondCommit('rename'),
+  COPIED = secondCommit('copy');
+/** What a commit wrote, in words: "a tree and a commit". */
+const kinds = (c: ReturnType<typeof secondCommit>) => {
+  const types = c.written.map((id) => c.repo.objects[id]!.type);
+  return ['blob', 'tree', 'commit']
+    .filter((k) => types.includes(k))
+    .map((k) => `a ${k}`)
+    .join(' and ');
+};
+
 export default class GitExplainer extends Scene {
   static meta = {
     id: 'exgit',
@@ -75,6 +68,25 @@ export default class GitExplainer extends Scene {
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',
+    ],
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'Starting again from commit one, a commit renames hello.txt to greeting.txt and changes nothing else. Which new objects does Git write, and why is no blob among them?',
+        answer: `${RENAMED.written.length} objects, ${kinds(RENAMED)}. The name lives in the tree’s bytes, so the tree changes, and so does the commit that names it. The file’s bytes are unchanged, so its id is still ${short(RENAMED.hello)} and the new tree names the stored blob.`,
+      },
+      {
+        question: 'Starting again from commit one, a commit adds copy.txt containing exactly hello and a newline. How many new blobs does Git write?',
+        answer: `None. Its bytes hash to ${short(COPIED.hello)}, which is already stored, so the new tree lists both names against that one blob. The commit writes ${COPIED.written.length} objects, ${kinds(COPIED)}.`,
+      },
+      {
+        question: 'Two people on different machines each commit a file containing hello and a newline. Do their blobs have the same id? Do their commits?',
+        answer: `The blobs do: both are ${short(COPIED.hello)}, because a blob’s id depends only on its bytes. Commits match only if all their bytes match, including the tree, the parents, the author and committer lines with their timestamps, and the message, so in practice they differ.`,
+      },
+    ],
+    claims: [
+      { says: 'Git writes only the objects whose bytes are new', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
+      { says: 'Changed bytes change every id above them', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
     ],
   };
   static settings = [
@@ -97,20 +109,19 @@ export default class GitExplainer extends Scene {
       accent = s.emphasis;
 
     // ── blob: the bytes that are hashed ────────────────────────────────
-    await readerFirst(this, s, readerFrames(which!));
-    await this.step('blob', {
-      detail: true,
-      title: 'A blob id is the SHA-1 of typed bytes',
-      line: 'Header bytes, then content bytes: 13 in all, hashed together.',
-      caption:
-        'Git hashes a header (the type, the byte length and a zero byte) followed by the content. The id is the SHA-1 of exactly these 13 bytes, and the brace marks the seven digits that name it in later pictures.',
-    });
-    await s.clear();
     const hello = repo.blob('hello\n');
-    this.state.hello = hello;
     const object = repo.objects[hello]!,
       header = new TextEncoder().encode(`${object.type} ${object.bytes.length}\0`),
       all = [...header, ...object.bytes];
+    await this.step('blob', {
+      title: `Git hashes ${all.length} bytes to name this blob`,
+      line: add
+        ? 'Predict: a second commit adds world.txt. Does Git store these bytes again?'
+        : 'Predict: a second commit edits hello.txt to “hello again”. What must Git write?',
+      caption: `A Git commit records a snapshot of the whole project, which sounds as if each commit copies all its files. Look at what Git stores for one file. hello.txt holds hello and a newline; Git puts a header with the type and length in front of those bytes and hashes the lot, and the 40-digit result names a blob. The file’s name is not among the hashed bytes, so any file holding exactly these bytes gets this same id, ${short(hello)}.`,
+    });
+    await s.clear();
+    this.state.hello = hello;
     const cell = 0.98,
       gap = 0.1,
       x0 = -((all.length - 1) * (cell + gap)) / 2,
@@ -183,15 +194,14 @@ export default class GitExplainer extends Scene {
 
     // ── tree: names live in the tree ────────────────────────────────────
     await this.step('tree', {
-      detail: true,
       title: 'A tree gives those bytes a name',
       line: 'The name hello.txt is in the tree entry, not in the blob.',
-      caption:
-        'A tree entry stores a mode, the name hello.txt and the blob’s id. Hashing the tree’s own bytes gives it an id too. The name lives in the tree, never in the blob.',
+      caption: 'A tree associates the name hello.txt and its mode with the blob’s id. The same content object can therefore be named by different trees without copying it. Hashing the tree’s own bytes gives that collection of names and references an id too.',
     });
     // The bytes go; their id is carried into the tree entry that names it, where the tree's bytes take it up.
+    // The cells fade as their groups, so the groups leave the scene and its description with them.
     await this.play(
-      ...[...cells, headLabel, bodyLabel, arrow, how, abbrev].map((m) => new FadeOut(m, { runTime: 0.4 })),
+      ...[headCells, bodyCells, headLabel, bodyLabel, arrow, how, abbrev].map((m) => new FadeOut(m, { runTime: 0.4 })),
     );
     const t1 = repo.tree([['100644', 'hello.txt', hello]]);
     const treeCode = await s.code(treeLines(repo, t1), { at: BOTTOM, enter: false });
@@ -205,11 +215,9 @@ export default class GitExplainer extends Scene {
 
     // ── commit: a commit names a tree; a branch names a commit ─────────
     await this.step('commit', {
-      detail: true,
       title: 'A commit names a tree; a branch names a commit',
       line: 'main → commit → tree → blob: each holds the next one’s id.',
-      caption:
-        'The commit’s first line is its tree’s id. The branch main is just a reference holding the commit’s id. Follow main to the commit, its tree and the file bytes.',
+      caption: 'The branch main holds a commit’s id, and that commit names a tree. Following the references reaches the snapshot’s file names and contents. The commit describes the whole snapshot by naming objects that other commits can name too, without holding any file’s bytes itself.',
     });
     const c1 = repo.commit({ tree: t1, author: AUTHOR, message: 'first\n' });
     repo.refs['refs/heads/main'] = c1;
@@ -244,14 +252,13 @@ export default class GitExplainer extends Scene {
     const before = reachable(repo, c1),
       written = reachable(repo, c2).filter((id) => !before.includes(id)).length;
     await this.step('change', {
-      detail: true,
-      title: add ? 'Add a file: the old blob is reused' : 'Edit a file: new blob, new tree, new commit',
+      title: add
+        ? `Answer: no. Tree two names blob ${short(hello)} again`
+        : `Answer: ${written} new objects, a blob, a tree and a commit`,
       line: add
-        ? `Tree two names blob ${short(hello)} again; ${written} new objects are written.`
-        : `Changed bytes change every id above them: ${written} new objects.`,
-      caption: add
-        ? `Tree two lists hello.txt with the very same blob id, plus world.txt. Below, commit one’s row stays put, ${written} new objects grow in, and the hello blob moves into tree two as the same object: git does not write it again.`
-        : `New bytes hash to a new blob id. The tree naming it changes, so its id changes, and so does the commit’s. Below, commit one’s row stays put and all ${written} of commit two’s objects grow in new.`,
+        ? `${written} new objects: world’s blob, tree two and commit two.`
+        : 'Changed bytes change every id above them.',
+      caption: add ? `${ANSWER}. The new tree adds world.txt while naming hello’s original blob again. It needs a new tree, world’s blob and a new commit, but the two snapshots share hello’s unchanged content.` : `${ANSWER}. Editing hello changes its blob’s bytes and id. That id changes the tree’s bytes, and the changed tree id changes the commit. The old objects remain intact; the new commit’s parent reference leads back to the earlier history.`,
     });
     const B2 = `New["blob<br/>${short(nextBlob)}"]`,
       T2 = `T2["tree ${short(t2)}<br/>${add ? 'hello.txt, world.txt' : 'hello.txt'}"]`,
@@ -375,18 +382,7 @@ export default class GitExplainer extends Scene {
     await this.play(new TransformMatchingShapes(one.row, rows, { runTime: 1.2 }));
     const [grown] = lastMatches(this, 1);
     if (grown!.removed !== 0 || grown!.morphed !== 0) throw new Error('The morph did not keep commit one’s row whole');
-    const morphNote = s.keep(
-      new Text(`The redraw kept all ${grown!.matched} shapes of commit one’s row and grew ${grown!.added} new ones.`, {
-        fontSize: 0.22,
-        color: s.soft,
-      }).moveTo([0, -4.07]),
-    );
-    await this.play(new FadeIn(morphNote, { runTime: 0.4 }));
-    if (shared) {
-      // Tree two names the very object tree one names: the same box moves across, id and all.
-      const same = s.keep(two.blobs.get(shared)!, { describe: bothRows });
-      await this.play(new TransformFromCopy(oneAgain.blobs.get(shared)!, same, { runTime: 0.9 }));
-    }
+    // The diagram's marks come first, so commit one's redrawn row has settled before anything copies from it.
     if (add) {
       await d.mark(['Hello', 'edge:T1->Hello#0', 'edge:T2->Hello#0']);
       await d.note('Hello', 'one blob, two trees', { side: 'above' });
@@ -394,16 +390,18 @@ export default class GitExplainer extends Scene {
       await d.mark(['C2', 'T2', 'New']);
       await d.note('New', 'new bytes, new id', { side: 'below' });
     }
+    if (shared) {
+      // Tree two names the very object tree one names: the same box moves across, id and all.
+      const same = s.keep(two.blobs.get(shared)!, { describe: bothRows });
+      await this.play(new TransformFromCopy(oneAgain.blobs.get(shared)!, same, { runTime: 0.9 }));
+    }
 
     // ── head: the branch moves; HEAD follows it ─────────────────────────
     await this.step('head', {
-      detail: true,
       title: 'Moving main to commit two changes one reference',
       line: 'refs/heads/main now holds commit two’s id; no object is copied.',
-      caption:
-        'HEAD names refs/heads/main, and moving the branch rewrote the id main holds from commit one to commit two, as the note under main says. No object was copied: both rows below are as they were, and commit one stays reachable through commit two’s parent link.',
+      caption: 'main now names commit two. Moving this reference does not copy the objects it reaches, and the parent link keeps commit one reachable. The content objects remain immutable while the branch name moves. This is the logical object model; compression of those objects on disk is a separate question.',
     });
-    await this.play(new FadeOut(morphNote, { runTime: 0.3 }));
     repo.refs['refs/heads/main'] = c2;
     repo.refs.HEAD = { symbolic: 'refs/heads/main' };
     this.state.head = repo.resolve('HEAD');
@@ -429,9 +427,9 @@ export default class GitExplainer extends Scene {
       kept = inPlace.tree + inPlace.commit;
     await this.step('hashes', {
       detail: true,
-      title: 'Commit two’s id depends on every object it reaches',
+      title: 'Commit two’s bytes hold its tree’s and parent’s ids',
       line: `${kept} of 80 digits match in place, about the ${80 / 16} chance gives.`,
-      caption: `Commit two’s bytes hold its tree’s id and its parent’s id, so its id depends on everything it reaches. Of the 80 digits in the new tree and commit ids, ${kept} are the same digit in the same place as in the old ids, about the ${80 / 16} that chance alone gives: SHA-1 changes everywhere. A test checks every id against git hash-object.`,
+      caption: `The tree and parent ids are part of the commit’s bytes, and a tree’s bytes hold its blobs’ ids in turn, so a change to any file below changes the commit’s id even when most of its text stays the same. The new ids share digits with the old ones about as often as random digits would, so the matches say nothing about how similar the files are.`,
     });
     this.record('samePlace', inPlace);
     await s.clearOverlays();

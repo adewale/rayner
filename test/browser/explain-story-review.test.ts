@@ -1095,7 +1095,7 @@ test('traffic policy reviews every case and step while binding its comparison to
         compared++;
       }
     }
-    assert.equal(reviewed, 108, 'six cases, nine steps each, at both production review widths');
+    assert.equal(reviewed, 96, 'six cases, eight steps each, at both production review widths');
     assert.equal(compared, 12, 'all six comparisons at both widths');
     assert.ok(readableLabels >= 96, 'both policy cards checked at every width');
     await page.close();
@@ -1265,7 +1265,7 @@ export default class StrokeTour extends Scene{static meta={id:'stroke-tour',titl
 await this.step('outlined',{caption:'The red outline surrounds the region.'});
 const heading=new Rectangle({width:12,height:.6,fill:'gray',stroke:'none'}).moveTo([0,3.5]);heading.key='__heading';
 const outline=new Rectangle({width:7.6,height:7.6,fill:'none',stroke:'red',strokeWidth:.126}).moveTo([-3.95,-.6]);outline.key='outlined-region';
-const label=new Text('Region',{fontSize:.3}).moveTo([-4,0]);this.add(heading,outline,label);
+const label=new Text('Region',{fontSize:.2}).moveTo([-4,0]);this.add(heading,outline,label);
 await this.step('refocus',{caption:'The outline stays while Region becomes Area.'});label.setText('Area');
 emphasises(this,()=>[[outline,'same region, newly focused']]);}}`);
     const project = await collectProject(dir, {write: false});
@@ -1276,6 +1276,7 @@ emphasises(this,()=>[[outline,'same region, newly focused']]);}}`);
       [{step: 'outlined', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Region'}]},
         {step: 'refocus', targets: [{key: 'outlined-region', paint: 'stroke'}, {text: 'Area'}]}]);
     assert.deepEqual(rows.map(row => [row.step, row.width]), [['outlined', 390], ['refocus', 390], ['outlined', 1180], ['refocus', 1180]]);
+    // A label small enough that even the phone's taller stage needs a tour of several close-ups.
     assert.ok(rows[0]!.views > 1, 'the phone assertion covers the whole tour, not an unzoomed overview');
   } finally { await browser.close(); server?.close(); await rm(dir, {recursive: true, force: true}); }
 });

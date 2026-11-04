@@ -1,0 +1,7 @@
+# Construction and scope
+
+The default follows Bob's copy after Alice skips his meeting. The copy setting exposes the organizer's different stored object; the change setting contrasts cancellation with moving a meeting Bob does not attend. The schema and server-validation steps are details, not prerequisites for the cancellation result.
+
+The model is a six-occurrence weekly series in UTC, compared with sabre/vobject 4.5.7 and sabre/dav 4.7.0. It omits time zones, daylight-saving transitions, general recurrence expansion and other scheduling clients' display policies. Keeping STATUS:CANCELLED is the shown server's delivery behaviour, not a claim that every calendar UI leaves a cancelled event visible. The stored-copy view is not sabre/vobject’s `expand()` result: that function drops a masterless override when its RECURRENCE-ID equals its DTSTART. This implementation quirk is tested separately and does not mean the stored VEVENT was deleted. The server's rejection of a second RRULE is stricter than RFC 5545's SHOULD NOT language.
+
+Sources: [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545), [RFC 4791 §4.1](https://www.rfc-editor.org/rfc/rfc4791#section-4.1), [pinned vobject implementation](https://github.com/sabre-io/vobject/tree/ff22611a53782e90c97be0d0bc4a5f98a5c0a12c/lib), and [pinned CalDAV implementation](https://github.com/sabre-io/dav/tree/074373bcd689a30bcf5aaa6bbb20a3395964ce7a/lib/CalDAV). `../lib/ical-recurrence.ts` identifies the storage and scheduling branches.

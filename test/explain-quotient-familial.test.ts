@@ -5,6 +5,7 @@ import {
   impot,
   bareme,
   parts,
+  repartition,
   around,
   nombre,
   euros,
@@ -140,6 +141,47 @@ test('each year’s cap bounds the children’s tax advantage per half-part', ()
     }),
     params(500),
   );
+});
+test('split into parts, fewer euros reach each tranche and above than on the whole income', () => {
+  fc.assert(
+    fc.property(income, children, fc.constantFrom<Year>(2024, 2025), (rni, n, year) => {
+      const p = parts(n),
+        split = bareme(rni / p, year).slices,
+        whole = bareme(rni, year).slices;
+      // From each tranche up: p × the quotient's euros there never exceed the whole income's.
+      for (let k = 0; k < whole.length; k++) {
+        const above = (xs: typeof whole) => xs.slice(k).reduce((s, x) => s + x.base, 0);
+        assert.ok(p * above(split) <= above(whole) + 1e-6, `${rni} € with ${n} children, tranche ${k}`);
+      }
+    }),
+    params(500),
+  );
+});
+test('quotient-familial euros view: the same euros, cut into tranches whole and by parts', () => {
+  fc.assert(
+    fc.property(income, children, fc.constantFrom<Year>(2024, 2025), (rni, n, year) => {
+      const rows = repartition(rni, n, year),
+        p = parts(n);
+      // Both rulers hold every euro of the income, and each parts entry is p × the quotient's euros in that tranche.
+      assert.ok(Math.abs(rows.reduce((s, x) => s + x.entier, 0) - rni) < 1e-6);
+      assert.ok(Math.abs(rows.reduce((s, x) => s + x.parts, 0) - rni) < 1e-6);
+      rows.forEach((x, k) => {
+        assert.equal(x.rate, BAREME[year][k]!.rate);
+        assert.ok(Math.abs(x.entier - bareme(rni, year).slices[k]!.base) < 1e-9);
+        assert.ok(Math.abs(x.parts - p * bareme(rni / p, year).slices[k]!.base) < 1e-6);
+      });
+    }),
+    params(300),
+  );
+  // 65 673,88 € with one child: 36 358,88 € of the whole income reach 30 %, none of the parts' euros do.
+  const rows = repartition(65673.88, 1);
+  assert.deepEqual(rows.map((x) => [x.rate, cents(x.entier), cents(x.parts)]), [
+    [0, 11497, 28742.5],
+    [0.11, 17818, 36931.38],
+    [0.3, 36358.88, 0],
+    [0.41, 0, 0],
+    [0.45, 0, 0],
+  ]);
 });
 test('more income never lowers the tax, and another child never raises it', () => {
   fc.assert(

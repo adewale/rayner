@@ -14,7 +14,7 @@ The layout checks are adapted rather than copied wholesale: Rayner's diagram lab
 
 The Worker/JSON service, Cloudflare tooling and Lantern's fixed portrait-camera API are not included. Its blanket crossfade and phone composition policies would reject deliberate Rayner effects and teaching diagrams, so they are not adopted. Local SVG export retains widths above 4096px; that service-oriented ceiling is not needed here. SVG option formats are documented in the [reference](REFERENCE.md#engine-output-and-admission).
 
-[The testing follow-up](evidence/upstream-backport/README.md) records why the earlier tests missed these bugs, the corrected contracts and the validation limits. WebKit's stroke fix is present; actual Safari execution remains separate platform evidence.
+[The testing follow-up](https://github.com/adewale/rayner/blob/d3db60dc14124472903c0366ef64a819d57f2fe7/docs/evidence/upstream-backport/README.md) records why the earlier tests missed these bugs, the corrected contracts and the validation limits. WebKit's stroke fix is present; actual Safari execution remains separate platform evidence.
 
 ## Merging
 
@@ -122,3 +122,12 @@ The build pins Agentic Mermaid 0.5.1 as an authoring dependency; pages never loa
 The earlier 0.4.1 limitations around late node labels and state-family reporting are fixed upstream. Rayner retains a diagnostic for a rendered bare node id that contradicts an explicit source label. The catalog and capture tests exercise the pinned renderer; changing it requires real snapshot recapture and review of all supported families.
 
 For natural captures, `verifyMermaid` supplies source diagnostics and semantic endpoints only: its default-font layout cannot certify Rayner's custom geometry. Rayner checks the captured geometry, label collisions and visible routes, and reviews the actual served paint at both reader widths.
+
+## Agentic Mermaid state edits
+
+Two limitations found while building the statecharts lesson are tracked upstream:
+
+- [#596](https://github.com/adewale/agentic-mermaid/issues/596): `make_composite` fails after `remove_transition`.
+- [#597](https://github.com/adewale/agentic-mermaid/issues/597): no edit creates a concurrency region.
+
+The reports include reproduction snippets and pinned links to the original renderer-validation controls. Observations cover versions 0.5.1, 0.5.5 and 0.5.6.

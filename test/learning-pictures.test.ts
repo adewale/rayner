@@ -28,7 +28,7 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
               assert.ok(rect instanceof Rectangle && text instanceof Text);
               const [x, y] = rect.center();
               assert.ok(Math.abs(x - (-6 + (starts[i]! + duration[i]! / 2) * 1.65)) < 1e-5);
-              assert.ok(Math.abs(y - ((lane === 0 ? 0.25 : -2.75) + heights[i]!)) < 1e-5);
+              assert.ok(Math.abs(y - ((lane === 0 ? 0.25 : -2.5) + heights[i]!)) < 1e-5);
               assert.ok(Math.abs(rect.width() - (duration[i]! * 1.65 - 0.08)) < 1e-5);
               assert.equal(text.text, names[i]);
               notes++;
@@ -39,76 +39,82 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
       },
       { skipUntil: Infinity },
     ).run();
-  assert.equal(pictures, 32);
-  assert.equal(notes, 512);
+  // Four steps in each of four cases, sixteen notes a picture (timing merged into bar, phrase cut).
+  assert.equal(pictures, 16);
+  assert.equal(notes, 256);
 });
 
-test('Monty Hall paints the host-conditioned percentages beside the correct strategies in every case', async () => {
+test('Monty Hall paints every round at its chance and the host-conditioned percentages beside the correct strategies in every case', async () => {
   const project = await collectProject('scenes/explainers/monty-hall', { write: false });
-  assert.equal(project.variants.length, 12);
+  // Two host rules; the first pick is A (the strategy setting went with the step that played one round out, and the
+  // first-pick setting, which only relabelled the doors, is gone).
+  assert.equal(project.variants.length, 2);
   let pictures = 0,
     readouts = 0,
-    comparisons = 0;
+    comparisons = 0,
+    cells = 0;
   for (const variant of project.variants) {
     const visited: string[] = [];
+    assert.equal(variant.values.choice, undefined);
     await new variant.Scene(
       {
         async frame() {},
         async stepEnd(scene, step) {
-          if (!['odds', 'many', 'rules'].includes(step.name)) return;
+          if (!['rounds', 'odds', 'worlds'].includes(step.name)) return;
+          const members = (key: string) => scene.familyMembers().filter((m) => m.key === key);
           const words = (key: string) => {
-            const groups = scene.familyMembers().filter((m) => m.key === key);
+            const groups = members(key);
             assert.equal(groups.length, 1, `${step.name}: exactly one ${key} must be drawn`);
             return groups[0]!
               .family()
               .filter((m): m is Text => m instanceof Text)
               .map((m) => m.text);
           };
-          if (step.name === 'many') {
-            const removed = scene.familyMembers().find((m) => m.key === 'monty-removed');
-            assert.ok(removed);
-            assert.equal(removed.children.length, 98, 'show each door opened by the 100-door host');
-            for (const door of removed.children) {
-              assert.ok(door instanceof Rectangle);
-              assert.equal(door.style.fill, 'none');
-              assert.ok((door.style.strokeWidth ?? 0) >= 0.03);
-            }
+          // Each strip draws one cell per round, as wide as the round's chance: an informed host's
+          // goat openings at A's third are two sixths, his forced openings two sixths each; a random host's six are one each.
+          const hosts = step.name === 'worlds' ? ['informed', 'random'] : [variant.values.host!];
+          for (const host of hosts) {
+            const strip = members(`strip:${host}`);
+            assert.equal(strip.length, 1, `${step.name}: one ${host} strip`);
+            const sixths = strip[0]!.children.map((cell) => {
+              const box = cell.children.find((m): m is Rectangle => m instanceof Rectangle)!;
+              return Math.round((box.width() / (13 / 6)) * 100) / 100;
+            });
+            assert.deepEqual(sixths, host === 'informed' ? [1, 1, 2, 2] : [1, 1, 1, 1, 1, 1], `${step.name}: ${host} widths`);
+            cells += sixths.length;
           }
-          if (step.name === 'rules') {
-            assert.deepEqual(words('monty-rules'), [
-              'Host',
-              'Goat reveal',
-              'Switch wins',
-              'informed',
-              'always',
-              '66.7%',
-              'random',
-              '66.7%',
-              '50.0%',
-            ]);
-            comparisons++;
-          } else {
+          if (step.name === 'odds') {
             // Independent small-world results: an informed host preserves all
             // initial wrong choices; random-host goat reveals leave equal odds.
-            const expected =
-              variant.values.host === 'random'
-                ? ['50.0%', '50.0%']
-                : step.name === 'many'
-                  ? ['1.0%', '99.0%']
-                  : ['33.3%', '66.7%'];
+            const expected = variant.values.host === 'random' ? ['50.0%', '50.0%'] : ['33.3%', '66.7%'];
             assert.deepEqual(words('monty-stay'), ['Stay', expected[0]]);
             assert.deepEqual(words('monty-switch'), ['Switch', expected[1]]);
             readouts += 2;
+            comparisons++;
+          } else if (step.name === 'rounds') {
+            // Every round before the reader rules any out: no odds are drawn yet.
+            for (const key of ['monty-stay', 'monty-switch', 'monty-readout-informed', 'monty-readout-random'])
+              assert.equal(members(key).length, 0, `rounds: ${key} must wait for the next step`);
+          } else {
+            // The old summary table's switch-wins column, now beside each host's strip; counting only the rounds that
+            // show a goat behind the opened door gives the same odds (the old rules step's comparison).
+            assert.deepEqual(words('monty-readout-informed'), ['switch wins 66.7%']);
+            assert.deepEqual(words('monty-readout-random'), ['switch wins 50.0%']);
+            readouts += 2;
           }
+          // Each strip picture carries the key to its cells.
+          assert.deepEqual(words('monty-key'), ['Each cell: opens · shows · wins']);
           pictures++;
           visited.push(step.name);
         },
       },
       { skipUntil: Infinity },
     ).run();
-    assert.deepEqual(visited, ['odds', 'many', 'rules']);
+    assert.deepEqual(visited, ['rounds', 'odds', 'worlds']);
   }
-  assert.equal(pictures, 36);
-  assert.equal(readouts, 48);
-  assert.equal(comparisons, 12);
+  assert.equal(pictures, 6);
+  assert.equal(readouts, 8);
+  assert.equal(comparisons, 2);
+  // Per case: one strip in rounds and one in odds (4 or 6 cells each), two in worlds (10).
+  assert.equal(cells, 2 * (4 + 6) + 2 * 10);
 });

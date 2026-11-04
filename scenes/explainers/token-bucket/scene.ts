@@ -1,5 +1,3 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/token-bucket.ts';
 import {
   Scene,
   Rectangle,
@@ -23,7 +21,9 @@ import type { ScheduledAnimation as Animation, Mobject, SceneState, SyncOpts, Vi
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { TokenBucket } from '../lib/models.ts';
 
-const TIMES = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 2];
+// Six at once, three within the next second, then one after a four-second quiet spell:
+// long enough at 2 and 4 tokens a second for min(5, …) to throw refill away, not at 1.
+const TIMES = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5];
 const GROUPS = [
   [0, 6],
   [6, 9],
@@ -89,6 +89,31 @@ const formatState = (v: unknown) =>
         ? String(v)
         : v.toFixed(1)
       : String(v);
+/** "R6", "R6 and R9", "R6, R7 and R9". */
+const list = (names: string[]) =>
+  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+
+// The check questions' runs, from the same model (test/explain-token-bucket.test.ts checks them).
+/** The schedule at 2 a second with a bucket of six tokens. */
+const SIX_TOKENS = (() => {
+  const bucket = new TokenBucket(2, 6);
+  return TIMES.map((at) => (bucket.allow(at) ? 200 : 429));
+})();
+/** One request every 0.4 s at 2 a second: the first refused, and how many of requests 101–200 get through. */
+const STEADY = (() => {
+  const bucket = new TokenBucket(2, CAPACITY),
+    ok = Array.from({ length: 200 }, (_, n) => bucket.allow(n * 0.4));
+  return { first: ok.indexOf(false) + 1, share: ok.slice(100).filter(Boolean).length };
+})();
+/** R10 moved to 1.5 s, at each rate: what R9 left, what R10 found, and its answer. */
+const MOVED = RATES.map((rate) => {
+  const bucket = new TokenBucket(rate, CAPACITY);
+  TIMES.slice(0, 9).forEach((at) => bucket.allow(at));
+  const left = bucket.tokens,
+    ok = bucket.allow(1.5);
+  return { rate, left, found: bucket.tokens + (ok ? 1 : 0), ok };
+});
+
 /** Drop repeated points; a line needs two distinct ones. */
 const distinct = (points: [number, number][]) =>
   points.filter((p, i) => i === 0 || p[0] !== points[i - 1]![0] || p[1] !== points[i - 1]![1]);
@@ -115,10 +140,36 @@ class SyncToCall extends ViewSync {
 export default class TokenBucketExplainer extends Scene {
   static meta = {
     id: 'token-bucket',
-    title: 'Why can a token bucket reject a burst?',
-    sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts'],
+    title: 'How does a token bucket let a burst through but refuse a flood?',
+    sources: [
+      'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts',
+      // The oracle: tools/oracle/token-bucket runs this schedule through rate.Limiter.
+      'https://pkg.go.dev/golang.org/x/time@v0.15.0/rate',
+      'https://www.rfc-editor.org/rfc/rfc6585#section-4',
+    ],
     // The readout's own words, which the captions use too.
     watch: { tokens: 'Tokens left', allowed: 'Accepted', rejected: 'Rejected' },
+    // check holds the burst step to stating the answer.
+    answer: 'A burst can spend only the tokens saved up, and only elapsed time adds more',
+    checks: [
+      {
+        question: 'R6 is refused at all three rates. Would a faster refill or a bigger bucket let it through, and why?',
+        answer: `A bigger bucket. R1 to R6 arrive at the same instant, so no time passes and refill adds nothing at any rate. A bucket of six tokens, still at 2 a second, answers R6 with ${SIX_TOKENS[5]}.`,
+      },
+      {
+        question: 'At 2 tokens a second, a client sends one request every 0.4 seconds from a full bucket and never pauses. Is any request refused, and what share gets through in the long run?',
+        answer: `Yes. Each gap earns 0.8 tokens and each request spends one, so the saved five drain by 0.2 a request and request ${STEADY.first} is the first refused. From then on ${STEADY.share} of every 100 get through, 2 a second: the refill rate, however long the flood lasts.`,
+      },
+      {
+        question: 'Suppose R10 arrived at 1.5 s instead of 5 s. At which of the three rates would it be refused?',
+        answer: `At ${list(MOVED.filter((m) => !m.ok).map((m) => perSecond(m.rate)))} only. ${MOVED.map((m, i) => `${i ? 'at' : 'At'} ${m.rate} a second R9 leaves ${formatState(m.left)} and R10 finds ${formatState(m.found)}`).join('; ')}. Half a second has to earn the token R9 did not leave.`,
+      },
+    ],
+    claims: [
+      { says: 'A burst can spend only the tokens saved up, and only elapsed time adds more', test: 'test/explain-token-bucket.test.ts: a burst can spend only the tokens saved up' },
+      { says: 'R6 is refused at every rate', test: 'test/explain-token-bucket.test.ts: R6 is refused at every refill rate' },
+      { says: 'R10 is accepted at every rate', test: 'test/explain-token-bucket.test.ts: R10 is accepted at the three offered rates and refused below a fifth of a token a second' },
+    ],
   };
   static settings = [
     {
@@ -151,16 +202,16 @@ export default class TokenBucketExplainer extends Scene {
         .map((r) => (r.ok ? 200 : 429))
         .join(', ');
     const refusedAt = (r: number) => runs.get(r)!.flatMap((c, i) => (c.ok ? [] : [name(i)]));
-    const list = (names: string[]) =>
-      names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
     /** The calls made so far, in order: what every readout and description reports. */
     const calls: Call[] = [];
+    /** The name tags on the chart's dots, by call. */
+    const tags: (Text | null)[] = [];
 
     // ---- descriptions of the native drawings, read at every step boundary
     const chartSays = () => {
       const refused = calls.flatMap((c, i) => (c.ok ? [] : [`${name(i)} at ${fmt(c.found)}`]));
       return !calls.length
-        ? `A chart of tokens, 0 to ${CAPACITY}, against time, 0 to 2.5 s, with a dashed line at the one token a request needs`
+        ? `A chart of tokens, 0 to ${CAPACITY}, against time, 0 to ${TIMES.at(-1)} s, with a dashed line at the one token a request needs`
         : `A chart of the balance over time: it climbs at ${rate} a second between calls and drops one token for each 200. ` +
             `Dots mark what R1–${name(calls.length - 1)} found; ` +
             (refused.length
@@ -217,25 +268,24 @@ export default class TokenBucketExplainer extends Scene {
     const Y0 = -3.87,
       Y5 = 0.57;
     const axes = new Axes({
-      xRange: [0, 2.5, 0.5],
+      xRange: [0, TIMES.at(-1)!, 1],
       yRange: [0, CAPACITY, 1],
-      width: 5.8,
+      width: 7.2,
       height: Y5 - Y0,
       axisStyle: { stroke: s.palette.muted, labelColor: soft, labelFontSize: 0.2, includeNumbers: true },
-      xAxisStyle: { decimals: 1 },
       xLabel: 's',
       yLabel: 'tokens',
       axisLabelFontSize: 0.2,
     });
-    axes.shift([-5.2 - axes.c2p(0, 0)[0], Y0 - axes.c2p(0, 0)[1]]);
+    axes.shift([-5.6 - axes.c2p(0, 0)[0], Y0 - axes.c2p(0, 0)[1]]);
     const need = axes.horizontalLine(1, {
       stroke: soft,
       strokeWidth: 0.02,
       dashArray: '0.1 0.08',
-      to: 2,
+      to: TIMES.at(-1)! - 0.6,
     });
     const needLabel = new Text('1 token', { fontSize: 0.2, color: soft }).moveTo(
-      [axes.c2p(2.05, 1)[0], axes.c2p(2.05, 1)[1] + 0.17],
+      [axes.c2p(TIMES.at(-1)! - 0.55, 1)[0], axes.c2p(TIMES.at(-1)! - 0.55, 1)[1] + 0.17],
       [-1, 0],
     );
     const line = (points: [number, number][], color: string, width = 0.045) => {
@@ -261,16 +311,16 @@ export default class TokenBucketExplainer extends Scene {
         fill: s.palette.accent,
       }).moveTo([SHELL_X, Y0], [0, -1]);
     const level = fill(CAPACITY);
+    shell.key = 'bucket:shell';
+    level.key = 'bucket:level';
     const bucketLabel = new Text('bucket', { fontSize: 0.2, color: soft }).moveTo([SHELL_X, Y0 - 0.33]);
 
     // ------------------------------------------------------------- balance
-    await readerFirst(this, s, readerFrames(rate));
     await this.step('balance', {
-      detail: true,
-      title: 'Five tokens of burst capacity',
-      line: 'allow(now) adds refill on each call; no timer runs.',
+      title: 'Ten requests from one client, and a bucket of five tokens',
+      line: 'Predict: R1–R6 arrive at the same instant. How many get 200?',
       caption:
-        'The bucket starts full at five tokens, and each accepted request spends one. allow(now) adds refill for the time since the last call, so no background timer runs. The chart will plot the balance over time; the dashed line is the one token a request needs.',
+        'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst, such as the requests a page makes as it loads, should still get through. So the server keeps a balance for the client of at most five tokens: the bucket. Each accepted request spends one token, and a request that finds less than one, under the dashed line, gets 429. Ten requests will arrive at the times written above their boxes.',
     });
     await s.clear();
     const record = (calls: Call[]) => ({
@@ -317,9 +367,9 @@ export default class TokenBucketExplainer extends Scene {
     s.keep(chips[0]!, ...chips.slice(1), ...times, { describe: chipsSay });
     await this.play(...chips.map((c) => new FadeIn(c, { runTime: 0.4 })), ...times.map((t) => new FadeIn(t)));
     const code = await s.code(CODE, {
-      at: [1.3, -2.25, 7.55, 1.55],
+      at: [2.15, -2.25, 7.75, 1.55],
       title: `bucket.allow(now), rate = ${rate}`,
-      fontSize: 0.25,
+      fontSize: 0.22,
     });
     code.code.lines[1]!.key = 'balance:cap';
     await this.play(new FadeIn(readout), new FadeIn(readoutTitle));
@@ -342,31 +392,56 @@ export default class TokenBucketExplainer extends Scene {
     };
 
     // ---------------------------------------- burst, refill, later: the calls
-    const titles = [
-      'Six at once: five 200s, then a 429',
-      `Refill at ${rate}/s: R7–R9 get ${codes(6, 9)}`,
-      `R10 arrives at 2 s and gets ${codes(9, 10)}`,
-    ];
     const f = (i: number) => fmt(plan[i]!.found);
+    const tokens = (n: number) => `${fmt(n)} token${n === 1 ? '' : 's'}`;
+    const r7 = plan[6]!,
+      r9 = plan[8]!,
+      r10 = plan[9]!;
+    const code7 = r7.ok ? 200 : 429;
+    // What the same half second buys at each rate, from the same dry runs.
+    const halfSecond = RATES.map((r) => {
+      const c = runs.get(r)![6]!;
+      return `${tokens(c.found)} at ${r} a second (${c.ok ? 200 : 429})`;
+    });
     // Which of R7–R9 found under one token, with the balance each one found.
     const low = [6, 7, 8].filter((i) => !plan[i]!.ok),
       lowNames = low.map((i) => `${name(i)} (${f(i)})`).join(' and ');
     const verdict = !low.length
       ? 'All three dots stay at or above the dashed line, so all three get 200.'
       : `${lowNames} ${low.length > 1 ? 'are' : 'is'} under the dashed line, so ${low.length > 1 ? 'they get' : 'it gets'} 429.`;
+    // The long wait: what refill would add without the cap, and when the balance reaches five.
+    const wait = r10.at - r9.at,
+      uncapped = r9.after + wait * rate,
+      fullAt = r9.at + (CAPACITY - r9.after) / rate,
+      seconds = (t: number) => (Number.isInteger(t) ? String(t) : t.toFixed(1));
+    // The rates at which the same wait would pass five, for the case where this one does not.
+    const capped = RATES.filter((r) => {
+      const c = runs.get(r)!;
+      return c[8]!.after + wait * r > CAPACITY;
+    });
+    const titles = [
+      'Answer: five 200s, then a 429',
+      `Answer: ${code7}. R7 finds ${tokens(r7.found)} after half a second`,
+      uncapped > CAPACITY
+        ? `R10 waits ${seconds(wait)} s, but the bucket stops at ${formatState(r10.found)} tokens`
+        : `R10 waits ${seconds(wait)} s and finds ${formatState(r10.found)} tokens`,
+    ];
     const lines = [
-      `No time passes, so no refill: R6 finds ${f(5)} tokens.`,
-      `Between calls the balance climbs ${perSecond(rate)}.`,
-      `R10 finds ${f(9)}; min(5, …) keeps the balance at five or below.`,
+      'Predict: R7 arrives half a second later, at 0.5 s. 200 or 429?',
+      `R8 at 1 s finds ${f(7)}; R9 at the same instant finds what R8 left.`,
+      uncapped > CAPACITY
+        ? 'The line runs flat along five: min(5, …) throws the rest away.'
+        : `The line climbs to ${fmt(uncapped)}, under the cap of five.`,
     ];
     const captions = [
-      `Six requests arrive at time zero. No time has passed, so refill adds nothing and the line drops one token per request. The sixth finds ${f(5)} tokens, under the dashed line, and gets 429.`,
-      `Between calls the line climbs at ${rate} a second: (now − lastRefill) × ${rate}. R7 at 0.5 s finds ${f(6)} and R8 at 1 s finds ${f(7)}; R9 arrives at the same instant as R8 and finds what R8 left. ${verdict}`,
-      `R10 arrives at 2 s, one second after R9, and finds ${f(9)}. The min(5, …) cap keeps the balance at five or below however long a client waits. R10 spends one token and leaves ${fmt(plan[9]!.after)}.`,
+      `No time passed between R1 and R6, so the line drops one token per request and R6 finds ${f(5)}, under the dashed line: 429. A burst can spend only the tokens saved up, and only elapsed time adds more. On each arrival the server adds elapsed time multiplied by the refill rate, here ${perSecond(rate)}, before deciding whether to spend a token. The line between arrivals shows available credit; no background timer needs to update the balance.`,
+      `Between calls the line climbs ${perSecond(rate)}. Half a second after the burst, R7 finds ${tokens(r7.found)}, ${r7.ok ? 'enough for one request' : 'less than the one a request needs'}, so it gets ${code7}. The rate decides it: the same half second buys ${list(halfSecond)}. R8 at 1 s finds ${f(7)}; R9 arrives at the same instant, so nothing is added and it finds what R8 left. Fractional tokens are saved, but a request must spend a whole one. ${verdict}`,
+      uncapped > CAPACITY
+        ? `R9 left ${formatState(r9.after)}. A wait of ${seconds(wait)} s at ${perSecond(rate)} would bring the balance to ${formatState(uncapped)}, but min(5, …) stops it at five, reached at ${seconds(fullAt)} s, and the line runs flat from there. However long a client waits, its next burst is at most five requests. R10 spends one and leaves ${formatState(r10.after)}.`
+        : `R9 left ${formatState(r9.after)}, and a wait of ${seconds(wait)} s at ${perSecond(rate)} brings the balance to ${formatState(uncapped)}, under min(5, …)'s cap. R10 spends one and leaves ${formatState(r10.after)}.${capped.length ? ` At ${list(capped.map(perSecond))} the same wait would pass five, and min(5, …) would stop the balance there.` : ''}`,
     ];
     for (const [index, [from, to]] of GROUPS.entries()) {
       await this.step(['burst', 'refill', 'later'][index]!, {
-        detail: true,
         title: titles[index],
         line: lines[index],
         caption: captions[index],
@@ -374,6 +449,8 @@ export default class TokenBucketExplainer extends Scene {
       // Ask the program, one request at a time; each call's members show its answer.
       const members: Animation[] = [];
       const evidence: Mobject[] = [];
+      // R7, the call the reader predicted: what a phone reader is shown first in the refill step.
+      const predicted: Mobject[] = [];
       for (let i = from; i < to; i++) {
         const now = TIMES[i]!,
           prev = calls.at(-1) ?? START;
@@ -406,14 +483,20 @@ export default class TokenBucketExplainer extends Scene {
         dot.key = `balance:found:${name(i)}`;
         if (drop) drop.key = `balance:spend:${name(i)}`;
         evidence.push(...(rise ? [rise] : []), dot, ...(drop ? [drop] : []));
-        const tag = ok
-          ? null
-          : new Text(name(i), { fontSize: 0.2, color: s.bad }).moveTo(
-              // Above and to the left: the line climbs away to the right.
-              [dot.center()[0] - 0.12, dot.center()[1] + 0.28],
-              [1, 0],
-            );
+        // Refused calls are named by their dot; R7, the predicted call, also shows what it found.
+        const tag =
+          ok && i !== 6
+            ? null
+            : new Text(i === 6 ? `${name(i)}: ${fmt(call.found)}` : name(i), { fontSize: i === 6 ? 0.22 : 0.2, color: ok ? s.good : s.bad }).moveTo(
+                // Refused: above and to the left, since the line climbs away to the right.
+                // R7: centred above its dot, between the climb into it and the climb out.
+                i === 6 ? [dot.center()[0], dot.center()[1] + 0.32] : [dot.center()[0] - 0.12, dot.center()[1] + 0.28],
+                [i === 6 ? 0 : 1, 0],
+              );
+        if (tag && i === 6) tag.key = 'balance:found:R7:value';
+        tags[i] = tag;
         s.keep(dot, ...(drop ? [drop] : []), ...(tag ? [tag] : []), { describe: chartSays });
+        if (i === 6) predicted.push(...(rise ? [rise] : []), dot, ...(drop ? [drop] : []), tag!);
         const marks: Animation[] = [new FadeIn(dot), ...(tag ? [new FadeIn(tag)] : [])];
         const next = chip(i, ok);
         s.keep(next, { describe: chipsSay });
@@ -435,21 +518,40 @@ export default class TokenBucketExplainer extends Scene {
         chips[i] = next;
       }
       await this.play(new Succession(members));
+      if (index === 2 && uncapped > CAPACITY) {
+        // The flat run along five is the refill min(5, …) threw away; say so where it is.
+        const [x, y] = axes.c2p((fullAt + r10.at) / 2, CAPACITY);
+        const capNote = new Text('full: min(5, …)', { fontSize: 0.2, color: s.palette.accent }).moveTo([x, y + 0.24]);
+        capNote.key = 'balance:cap:note';
+        evidence.push(capNote);
+        await s.enter(capNote, {
+          runTime: 0.3,
+          describe: `The line reaches five at ${seconds(fullAt)} s and runs flat until R10 arrives at ${seconds(r10.at)} s`,
+        });
+      }
       // The bar already stands where the last call left it; this names those lines for the description.
       const last = calls.at(-1)!;
       await code.focus(last.ok ? SPEND : REFUSE, { as: last.ok ? 'spend' : 'refuse', runTime: 0.2 });
+      // What a phone reader is shown first: R5's 200 beside R6's 429, then what R7 found.
+      if (index === 0) s.reading(chips[4]!, chips[5]!);
+      // R6's tag, where the climb to R7 starts, is read with it.
+      if (index === 1) s.reading(...predicted, tags[5]!);
       if (index === 2)
         s.reading(code.code.lines[1]!, chips[8]!, chips[9]!, times[8]!, times[9]!,
           readout.current.children[0]!, readout.current.values['Tokens left']!, ...evidence);
     }
 
     // --------------------------------------------------------------- trace
-    const refused = RATES.map((r) => `${perSecond(r)}, ${list(refusedAt(r))}`);
+    // R7–R9, the requests whose answer the rate decides on this schedule.
+    const between = (r: number) => refusedAt(r).filter((n) => ['R7', 'R8', 'R9'].includes(n));
+    const betweenSay = (r: number) =>
+      between(r).length ? `${list(between(r))} ${between(r).length > 1 ? 'are' : 'is'} refused` : 'none of them is refused';
+    // Below a fifth of a token a second, R6–R9 all fail, the bucket refills from empty at 0 s, and R10 at 5 s finds
+    // under 5 × 0.2 = 1 token (test/explain-token-bucket.test.ts).
     await this.step('trace', {
-      detail: true,
       title: 'The same ten requests at 1, 2 and 4 tokens a second',
       line: `429s at 4 / s: ${list(refusedAt(4))}; at 1 / s: ${list(refusedAt(1))}.`,
-      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this case. Circles are accepted requests and crosses are 429s. At ${refused[2]} gets 429; at ${refused[0]} do.`,
+      caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this case. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Those are the three rates offered here; below a fifth of a token a second, R10 too would find less than one token. For R7 to R9 the rate decides: at ${perSecond(4)} ${betweenSay(4)}; at ${perSecond(1)} ${betweenSay(1)}. The bucket’s capacity sets the burst, and its rate sets how soon the client can send again.`,
     });
     // The curves explain refill in earlier steps. End on a large comparison of
     // their outcomes, so a phone reader sees all three rates together.
@@ -493,7 +595,7 @@ export default class TokenBucketExplainer extends Scene {
     await s.enter(comparison, {
       describe: () =>
         'Requests R1 to R10, left to right. ' +
-        RATES.map((r) => `${r} / s: ${list(refusedAt(r))} get 429; all other requests get 200`).join('. ') +
+        RATES.map((r) => `${r} / s: ${list(refusedAt(r))} ${refusedAt(r).length > 1 ? 'get' : 'gets'} 429; all other requests get 200`).join('. ') +
         `. The ${rate} / s row is outlined.`,
     });
   }

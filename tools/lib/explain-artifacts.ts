@@ -15,7 +15,11 @@ export interface CatalogProduct {
 }
 export interface CatalogScene {
   id: string; cases: number; title?: string; lang?: string; group?: 'topic' | 'toolchain';
-  step?: string; entry?: SceneEntry; showcase?: boolean;
+  step?: string; entry?: SceneEntry;
+  /** Accepted when reading older catalogs; new catalogs use tier alone. */
+  showcase?: boolean;
+  /** Where the gallery lists it (scenes/explainers/catalog.ts): showcase cards, the gallery behind "More", or no card for coverage. */
+  tier?: 'showcase' | 'gallery' | 'coverage';
 }
 export interface Catalog { version: 1; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
@@ -48,7 +52,8 @@ export function catalog(value: unknown): Catalog {
     ids.add(scene.id);
     if (['title','lang','step'].some(key => scene[key] !== undefined && typeof scene[key] !== 'string') ||
         (scene.group !== undefined && scene.group !== 'topic' && scene.group !== 'toolchain') ||
-        (scene.showcase !== undefined && typeof scene.showcase !== 'boolean') || (scene.entry !== undefined && !entry(scene.entry))) return fail();
+        (scene.showcase !== undefined && typeof scene.showcase !== 'boolean') ||
+        (scene.tier !== undefined && scene.tier !== 'showcase' && scene.tier !== 'gallery' && scene.tier !== 'coverage') || (scene.entry !== undefined && !entry(scene.entry))) return fail();
   }
   return value as unknown as Catalog;
 }

@@ -11,12 +11,17 @@ import {
   ringStory,
   exec,
   sunlight,
+  noonShare,
+  noonPatch,
+  sunDistance,
   daylightYear,
 } from '../scenes/explainers/lib/models.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
-import { Scene, Text, Code, loadFonts, parseUnifiedDiff } from '../src/index.ts';
+import { pkceFlow, lanes, readable } from '../scenes/explainers/lib/pkce.ts';
+import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/index.ts';
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
+import { resolveSettings } from '../explain/settings.ts';
 import type { VMobject, Sink } from '../src/index.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -39,6 +44,8 @@ import { check as gnomeFiles } from './lib/fidelity/gnome-files.ts';
 import { check as wcagMap } from './lib/fidelity/wcag-map.ts';
 import { check as penAndPencil } from './lib/fidelity/pen-and-pencil.ts';
 import { check as periodicGroups } from './lib/fidelity/periodic-groups.ts';
+import { check as statecharts } from './lib/fidelity/statecharts.ts';
+import { check as henge } from './lib/fidelity/henge.ts';
 
 for (const entry of EXPLAINERS)
   test(`${entry.id}: every authored case exposes the program's answers at step boundaries`, async () => {
@@ -57,6 +64,12 @@ for (const entry of EXPLAINERS)
           `Trace invents link ${walk.from}->${walk.to}`,
         );
       switch (entry.id) {
+        case 'henge':
+          henge(values, trace);
+          break;
+        case 'statecharts':
+          statecharts(values, trace);
+          break;
         case 'python-dict': case 'bloom-filter': case 'git-branches':
         case 'monty-hall': case 'birthday-paradox': case 'melody-rhythm':
           learning(entry.id, values, trace);
@@ -67,6 +80,28 @@ for (const entry of EXPLAINERS)
           ]!;
           assertStepState(trace, 'june', { latitude: lat, june: sunlight(lat, 23.44) });
           assertStepState(trace, 'december', { december: sunlight(lat, -23.44) });
+          // The noon sunlight per square metre said under each globe, and the orbit's extremes the distance step argues from.
+          assertStepState(trace, 'december', { noonShare: { june: noonShare(lat, 23.44), december: noonShare(lat, -23.44) } });
+          // The ground each 1 m noon beam lands on, drawn side by side; null where the noon Sun is down (Tromsø's December).
+          assertStepState(trace, 'spread', { patch: { june: noonPatch(lat, 23.44), december: noonPatch(lat, -23.44) } });
+          assert.equal(lat === 69.65, (trace.steps.find((s) => s.step === 'spread')!.after!.patch as { december: number | null }).december === null);
+          const orbit = Array.from({ length: 365 }, (_, d) => sunDistance(d));
+          assertStepState(trace, 'distance', { distance: { nearest: Math.min(...orbit), farthest: Math.max(...orbit) } });
+          // The first check question: London's December-solstice noon share, 26% at average distance, is about 27% once
+          // the solstice's distance (day 355, the model's declination minimum) is counted, about 3% stronger sunlight.
+          if (values.place === 'london') {
+            const solstice = sunDistance(365 - 10), share = noonShare(51.5, -23.44);
+            assert.equal(Math.round(share * 100), 26);
+            assert.equal(solstice.toFixed(3), '0.984');
+            assert.equal(Math.round((1 / solstice ** 2 - 1) * 100), 3);
+            assert.equal(Math.round((share / solstice ** 2) * 100), 27);
+            const { checks } = (variant.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta;
+            assert.match(checks[0]!.answer, /^About 27%\. On the solstice Earth is about 0\.984 of its average distance/);
+            // The second: an axis that always leans north toward the Sun gives December June's values, 16.4 h and 88%.
+            assert.equal(sunlight(51.5, 23.44).daylight.toFixed(1), '16.4');
+            assert.equal(Math.round(noonShare(51.5, 23.44) * 100), 88);
+            assert.match(checks[1]!.answer, /^The same as in June: 16\.4 h of daylight and 88% of overhead sunlight at noon\./);
+          }
           assertStepState(trace, 'year', { daylight: daylightYear(lat) });
           // The chart samples the model through the year, and its counts of polar days run it on every day, with
           // daylightYear's own declination, δ = −23.44° × cos(360° × (day + 10) / 365), which the scene restates
@@ -93,9 +128,26 @@ for (const entry of EXPLAINERS)
             accepted: true,
           });
           if (values.attacker === 'yes') assertStepState(trace, 'attack', { attackerAccepted: false });
-          const pictured = textOf(pictureHtml(trace.steps.find(s => s.step === 'reader-check')!.after));
-          assert.match(pictured, /Saved challenge.*E9Melhoa.*Client hash.*E9Melhoa/s);
-          assert.equal(pictured.includes('Attacker hash'), values.attacker === 'yes');
+          const pictured = (step: string) => textOf(pictureHtml(trace.steps.find(s => s.step === step)!.after));
+          assert.match(pictured('secret'), /code_challenge.*E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM/s);
+          assert.match(pictured('exchange'), /S256\(verifier\) = E9Melh… = bound challenge/);
+          const guesses = trace.steps.filter(s => /S256\(guess\) = \S+… ≠ E9Melh…/.test(textOf(pictureHtml(s.after))));
+          assert.deepEqual(guesses.map(s => s.step), values.attacker === 'yes' ? ['attack'] : []);
+          // Without PKCE, the opening's theft gets a token.
+          assertStepState(trace, 'stolen', { stolenAccepted: true });
+          // The channel map draws the client's messages lane by lane, as the model routes them, and names what
+          // another app can read: the challenge, its method and the code, without the verifier.
+          const flow = pkceFlow(values.attacker === 'yes');
+          assertStepState(trace, 'channels', { lanes: lanes(flow), readable: Object.keys(readable(flow)) });
+          assert.deepEqual(Object.keys(readable(flow)), ['code_challenge', 'code_challenge_method', 'code']);
+          // The picture in words says the same lanes.
+          const lanesShown = pictured('channels');
+          for (const words of [
+            'which another app can read: Client to Auth server, code_challenge and code_challenge_method; Auth server to Client, code.',
+            'token endpoint: Client to Auth server, code and code_verifier; Auth server to Client, access token.',
+            'Another app can read code_challenge, code_challenge_method and code, and not the code_verifier.',
+          ])
+            assert.ok(lanesShown.includes(words), `${words}\n${lanesShown}`);
           break;
         }
         case 'mr-cache':
@@ -134,21 +186,106 @@ for (const entry of EXPLAINERS)
           assert.deepEqual(on[2]!.completed, off[2]!.completed);
           assert.deepEqual(off[2]!.writes, newFirst ? ['B','A'] : ['A','B']);
           assert.deepEqual(on[2]!.writes, ['B']);
+          // The timeline: A starts at tick 0 and B at 1; both run until the landings at 2 and 3. The page tracks change
+          // only where a landing publishes: the unguarded page shows each arrival, the guarded one only B's.
+          const lifetimes = [{ query: 'A', start: 0, land: newFirst ? 3 : 2 }, { query: 'B', start: 1, land: newFirst ? 2 : 3 }];
+          const offPage = [{ from: 0, to: 2, shown: null }, { from: 2, to: 3, shown: first }, { from: 3, to: null, shown: newFirst ? 'A' : 'B' }];
+          const onPage = newFirst ? [{ from: 0, to: 2, shown: null }, { from: 2, to: null, shown: 'B' }] : [{ from: 0, to: 3, shown: null }, { from: 3, to: null, shown: 'B' }];
+          assertStepState(trace, 'race', { reader: { order: values.order, completion: [first, newFirst ? 'A' : 'B'], lifetimes } });
+          const timeline = (step: string) => trace.steps.find(s => s.step === step)!.after!.reader as { lifetimes: unknown; page: unknown };
+          assert.deepEqual(timeline('overwrite').lifetimes, lifetimes);
+          assert.deepEqual(timeline('overwrite').page, { off: offPage });
+          assert.deepEqual(timeline('reader-guard').lifetimes, lifetimes);
+          assert.deepEqual(timeline('reader-guard').page, { off: offPage, on: onPage });
           break;
         }
         case 'feature-tour':
           assertStepState(trace, 'recipe', { feature: values.feature, phase: 'recipe' });
           assertStepState(trace, 'result', { feature: values.feature, phase: 'result' });
           if (values.feature === 'state') assertStepState(trace, 'result', { count: 1 });
+          // The camera case says how much of the 16-unit stage its closer view frames.
+          if (values.feature === 'camera') {
+            const camera = trace.steps.find((s) => s.step === 'result')!.after!.camera as { before: number; after: number };
+            assert.equal(camera.before, 16);
+            assert.ok(camera.after > 1.2 && camera.after < 8, `the view frames ${camera.after} units`);
+          }
           break;
-        case 'lantern':
+        case 'lantern': {
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Browser'));
           assert.ok(walks.some((w) => w.from === 'Clock' && w.to === 'Trace'));
+          // Independent expectation for the tiny scene: a 0.5 s fade (frames 1-15), then a 1 s move
+          // (frames 16-45). Blending matches playback at every frame; the nudge moves once per
+          // computed frame, so playback has made 15 nudges at t = 1 s and the seek has made one, and
+          // only the fade's frames and the move's first frame match.
+          const nudge = values.motion === 'nudge';
+          assertStepState(trace, 'seek', {
+            seek: {
+              ...(trace.steps.find((s) => s.step === 'seek')!.after!.seek as object),
+              motion: values.motion,
+              match: !nudge,
+              playedMoves: nudge ? 15 : 0,
+              seekedMoves: nudge ? 1 : 0,
+            },
+          });
+          assertStepState(trace, 'check', { check: { frames: 45, matched: { blend: 45, nudge: 16 } } });
+          // The timeline plots the dot's x at every frame, played and seeked. Independently: still at
+          // -6 through the fade; then played, blending eases from -6 to 6 by smooth((f - 15) / 30) and
+          // the nudge adds 0.4 per frame; seeked, blending lands where playback is and the nudge has
+          // made its one step, to -5.6, at every frame of the move.
+          const x = (v: number) => +v.toFixed(3) + 0;
+          const frames = Array.from({ length: 45 }, (_, i) => i + 1);
+          const blended = frames.map((f) => x(f <= 15 ? -6 : -6 + 12 * smooth((f - 15) / 30)));
+          assertStepState(trace, 'timeline', {
+            timeline: {
+              frames: 45,
+              moveStarts: 16,
+              played: { blend: blended, nudge: frames.map((f) => x(f <= 15 ? -6 : -6 + 0.4 * (f - 15))) },
+              seeked: { blend: blended, nudge: frames.map((f) => x(f <= 15 ? -6 : -5.6)) },
+            },
+          });
           break;
+        }
         case 'agentic-mermaid': {
           const warnings = trace.steps.find((s) => s.step === 'verify')!.after!.warnings as unknown[];
           assert.equal(warnings.length, values.edit === 'missing' ? 2 : 0);
-          assertStepState(trace, 'evidence', { finalWarnings: 0 });
+          // The swapped labels draw the wrong diagram and the verifier still finds nothing.
+          assertStepState(trace, 'meaning', { swappedWarnings: 0 });
+          // The aha: the wrong diagram and the right one get the same report.
+          assertStepState(trace, 'meaning', {
+            reports: { wrong: { ok: true, warnings: 0 }, right: { ok: true, warnings: 0 } },
+          });
+          // Both diagrams on show at once, each traced from its own yes label: a cache hit ends at Database in the
+          // wrong one and at Reply in the right one, while the verifier's lines in the two reports beside them are the same.
+          assertStepState(trace, 'meaning', {
+            hit: { wrong: { edge: 'edge:A->C#0', node: 'Database' }, right: { edge: 'edge:A->B#0', node: 'Reply' } },
+          });
+          {
+            const shown = textOf(pictureHtml(trace.steps.find((s) => s.step === 'meaning')!.after)).replace(/\s+/g, ' ');
+            for (const heading of ['1: yes to Database;', '1: yes to Reply;']) assert.ok(shown.includes(heading), shown);
+            const body = '2: ok: true; 3: warnings: 0';
+            assert.equal(shown.split(body).length - 1, 2, shown);
+          }
+          // The default case deletes the swapped labels to show what the verifier does flag.
+          if (values.edit === 'swapped') assertStepState(trace, 'flagged', { flaggedWarnings: 2 });
+          // Every case shows an error turning ok false: the edge to Database cut off at its arrow.
+          assertStepState(trace, 'broken', {
+            broken: {
+              source: {
+                swapped: 'graph LR\nA{Cached} -->|no| B[Reply]\nA -->|yes|',
+                missing: 'graph LR\nA{Cached} --> B[Reply]\nA -->',
+                complete: 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no|',
+              }[values.edit!],
+              ok: false,
+              warnings: [
+                { code: 'RENDER_FAILED', severity: 'error' },
+                { code: 'UNSUPPORTED_SYNTAX', severity: 'warning', syntax: 'flowchart_dangling_edge' },
+              ],
+              checks: { renderability: 'failed', taskCorrectness: 'not-checked' },
+            },
+          });
+          // The verifier's own scope line, read from the snapshot of the first edit.
+          assertStepState(trace, 'verify', { taskCorrectness: 'not-checked' });
+          assertStepState(trace, 'history', { finalWarnings: 0 });
           break;
         }
         case '2password': {
@@ -158,7 +295,7 @@ for (const entry of EXPLAINERS)
             ['app'],
           );
           assertStepState(trace, 'match', { matches: { 'cloud api': ['Cloud API'], databse: [] } });
-          assertStepState(trace, 'suggest', { found: find(['cloud api', 'databse']) });
+          assertStepState(trace, 'match', { found: find(['cloud api', 'databse']) });
           assertStepState(trace, 'run', { argv: launched.argv, childEnv: launched.childEnv });
           break;
         }
@@ -185,12 +322,12 @@ for (const entry of EXPLAINERS)
         case 'token-bucket': {
           const bucket = new TokenBucket(Number(values.rate)),
             balances: number[] = [];
-          const responses = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 2].map((at) => {
+          const responses = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5].map((at) => {
             const ok = bucket.allow(at);
             balances.push(bucket.tokens);
             return ok ? 200 : 429;
           });
-          assertStepState(trace, 'trace', { tokens: bucket.tokens, lastRefill: 2, responses });
+          assertStepState(trace, 'trace', { tokens: bucket.tokens, lastRefill: 5, responses });
           // The chart and the gauge draw these balances; the trace carries them.
           assertStepState(trace, 'trace', {
             balances,
@@ -249,16 +386,14 @@ for (const entry of EXPLAINERS)
             ids.map((e) => e.matched),
             [paired.tree, paired.commit],
           );
-          // The digits equal place for place, the coloured ones: recorded, and what the caption counts.
+          // The digits equal place for place, the coloured ones: recorded, and counted in the line.
           const same = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
           const inPlace = { tree: same(t1, t2), commit: same(c1, c2) };
           assert.deepEqual(evidence('hashes', 'samePlace'), [{ kind: 'samePlace', ...inPlace }]);
           const hashes = stepOf('hashes');
           assert.ok(
-            String(hashes.meta.caption).includes(
-              `Of the 80 digits in the new tree and commit ids, ${inPlace.tree + inPlace.commit} are the same digit in the same place`,
-            ),
-            String(hashes.meta.caption),
+            String(hashes.meta.line).startsWith(`${inPlace.tree + inPlace.commit} of 80 digits match in place`),
+            String(hashes.meta.line),
           );
           // The labels as drawn, read back from the step's picture.
           const shown = textOf(pictureHtml(hashes.after));
@@ -267,11 +402,11 @@ for (const entry of EXPLAINERS)
             `Same digit in the same place, coloured: tree ${inPlace.tree}, commit ${inPlace.commit} of 40`,
           ])
             assert.ok(shown.includes(label), `${label}\n${shown}`);
-          assert.ok(
-            textOf(pictureHtml(stepOf('change').after)).includes(
-              `The redraw kept all ${grown.matched} shapes of commit one’s row and grew ${grown.added} new ones.`,
-            ),
-          );
+          // The change step no longer prints the kept and grown shape counts (the evidence above still
+          // holds the redraw to keeping commit one's row whole); its picture names both commits' rows.
+          const rows = textOf(pictureHtml(stepOf('change').after));
+          for (const [label, commit, tree] of [['commit one', c1, t1], ['commit two', c2, t2]] as const)
+            assert.ok(rows.includes(`${label}: commit ${commit.slice(0, 7)} names tree ${tree.slice(0, 7)}`), `${label}\n${rows}`);
           break;
         }
         case 'just-bash': {
@@ -294,7 +429,29 @@ for (const entry of EXPLAINERS)
           const em = {Regular: 4.901, Bold: 5.386, Italic: 4.71};
           // Text's advance box uses float32 endpoints; allow their rounding,
           // while keeping the printed hundredths independently exact below.
-          assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 1.2) < 1e-6);
+          // The ruler measures the opening's lower row again, at its size 0.9.
+          assert.ok(Math.abs(Number(trace.steps.find(s => s.step === 'advance')!.after!.advance) - em.Regular * 0.9) < 1e-6);
+          // The first check reverses the opening: measured in Garamond, drawn in JetBrains Mono (12 cells of 0.54),
+          // the marker 0.5 after the measured width lands 1.57 before the drawn phrase ends.
+          const layout = trace.steps.find(s => s.step === 'layout')!.after!.layout as { wrong: number; actual: number };
+          assert.ok(Math.abs(layout.wrong - 12 * 0.54) < 1e-5 && Math.abs(layout.actual - em.Regular * 0.9) < 1e-6);
+          const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
+          assert.equal(overlap, '1.57');
+          assert.ok(String((project.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta.checks[0]!.answer).includes(`about ${overlap} units before the phrase ends`));
+          // The rulers step draws both measurements under the opening's upper row, pen stop by pen stop from the
+          // phrase's start: JetBrains Mono's 12 cells of 0.54 and Garamond's own advances. Every Garamond advance is
+          // narrower than the cell, so the gap between matching stops grows at each glyph, ending at the opening's
+          // 2.07; the marker sits 0.5 past the Mono ruler's end, where the opening's upper row put it.
+          const rulers = trace.steps.find(s => s.step === 'rulers')!.after!.rulers as { measured: number[]; drawn: number[]; markers: { measured: number; drawn: number } };
+          assert.equal(rulers.measured.length, 13);
+          assert.equal(rulers.drawn.length, 13);
+          rulers.measured.forEach((x, i) => assert.ok(Math.abs(x - i * 0.54) < 1e-5, `Mono stop ${i}: ${x}`));
+          assert.ok(Math.abs(rulers.drawn[12]! - em.Regular * 0.9) < 1e-5);
+          const drift = rulers.measured.map((x, i) => x - rulers.drawn[i]!);
+          for (let i = 1; i < drift.length; i++) assert.ok(drift[i]! > drift[i - 1]!, `drift falls at glyph ${i}: ${drift}`);
+          assert.equal(drift[12]!.toFixed(2), (layout.wrong - layout.actual).toFixed(2));
+          assert.ok(Math.abs(rulers.markers.measured - (layout.wrong + 0.5)) < 1e-5 && Math.abs(rulers.markers.drawn - (layout.actual + 0.5)) < 1e-5);
+          assert.deepEqual(trace.steps.map(s => s.step), ['layout', 'advance', 'rulers', 'cuts', 'diagram']);
           const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));
@@ -304,40 +461,93 @@ for (const entry of EXPLAINERS)
           // Independent original-font measurements, recorded with source SHA in
           // docs/evidence/authoring-layout/font-vectors.json. No Text measurement
           // is used as the expected diagram width.
+          // Two diagrams of the same source: measured in the drawn face (natural), and
+          // laid out from Agentic Mermaid's default Inter estimates (recorded).
           const diagrams = Object.values(project.store);
-          assert.equal(diagrams.length, 1);
-          assert.equal(diagrams[0]!.spec.lettering, 'natural');
-          const runs = diagrams[0]!.parts.flatMap(p => p.shapes.flatMap(s => s.textRun ? [s.textRun] : []));
+          assert.equal(diagrams.length, 2);
+          const runsOf = (d: (typeof diagrams)[number]) => d.parts.flatMap(p => p.shapes.flatMap(s => s.textRun ? [s.textRun] : []));
+          const natural = diagrams.find(d => d.spec.lettering === 'natural')!,
+            recorded = diagrams.find(d => d.spec.lettering === undefined)!;
+          assert.ok(natural && recorded);
+          assert.equal(natural.spec.source, recorded.spec.source);
+          const runs = runsOf(natural);
           assert.deepEqual(runs.map(r => r.text).sort(), ['Ink', 'Paper']);
           const diagramEm: Record<string, number> = {Ink: 1.337, Paper: 2.144};
           for (const run of runs) {
             assert.equal(run.natural, true);
             assert.ok(Math.abs(run.width! - diagramEm[run.text]! * run.size) < 0.001, `${run.text}: layout reserves the actual source-font advance`);
           }
+          // The step's notes say each word's stretch: none when measured, more than none from Inter estimates,
+          // each the recorded width over the source-font advance at the run's size.
+          const stretch = trace.steps.find(s => s.step === 'diagram')!.after!.stretch as Record<string, number>;
+          const diagramShown = pictureHtml(trace.steps.find(s => s.step === 'diagram')!.after);
+          for (const run of values.widths === 'natural' ? runs : runsOf(recorded)) {
+            const k = run.width! / (diagramEm[run.text]! * run.size);
+            assert.ok(Math.abs(stretch[run.text]! - k) < 0.002, `${run.text}: stretch ${stretch[run.text]}, from the source font ${k}`);
+            if (values.widths === 'natural') assert.equal(k.toFixed(3), '1.000');
+            else assert.ok(k > 1.1, `${run.text}: Inter estimates stretch the Garamond word (${k})`);
+            assert.ok(diagramShown.includes(`stretched ×${stretch[run.text]!.toFixed(3)}`), diagramShown);
+          }
+          // The recorded case's caption: Paper is stretched more than Ink, so no single factor converts the faces.
+          if (values.widths === 'recorded') {
+            assert.ok(stretch.Paper! > stretch.Ink! + 0.1, `Paper ${stretch.Paper}, Ink ${stretch.Ink}`);
+            assert.match(String(trace.steps.find(s => s.step === 'diagram')!.meta.caption), /Paper’s is larger than Ink’s/);
+          }
           break;
         }
         case 'layout-direction': {
-          // The public story promises both cards at once, opposite field sides
-          // and unchanged digit order before and after an update.
+          // Measured from the cards themselves: logical start/end take the stage's halves, physical
+          // left/right keep theirs, and a card's field columns follow the stage unless it overrides them,
+          // before and after an update, without reversing the digits.
+          const rtl = values.direction === 'rtl';
           const seen: string[] = [];
           await new variant.Scene({
             async frame() {},
             async stepEnd(scene, step) {
-              if (step.name !== 'columns' && step.name !== 'updates') return;
+              if (!['columns', 'updates', 'physical'].includes(step.name)) return;
               const cards = scene.familyMembers().filter((m): m is Card => m instanceof Card);
               assert.equal(cards.length, 2);
               const [left, right] = cards.sort((a, b) => a.center()[0] - b.center()[0]);
-              assert.ok(left!.center()[0] < 0 && right!.center()[0] > 0, 'RTL logical end/start occupy left/right');
-              const expected = step.name === 'columns' ? '123' : '456';
+              assert.ok(left!.center()[0] < 0 && right!.center()[0] > 0, 'one card on each half');
+              const expected = step.name === 'updates' ? '456' : '123';
               for (const card of cards) assert.equal(card.values.get('Field')!.text, expected);
-              assert.ok(left!.labels.get('Field')!.box()![2] < left!.values.get('Field')!.box()![0], 'LTR override puts label before value');
-              assert.ok(right!.values.get('Field')!.box()![2] < right!.labels.get('Field')!.box()![0], 'RTL default puts value before label');
-              assert.equal(left!.direction, 'ltr');
-              assert.equal(right!.direction, 'rtl');
+              const nameFirst = (card: Card) => card.labels.get('Field')!.box()![2] < card.values.get('Field')!.box()![0];
+              const valueFirst = (card: Card) => card.values.get('Field')!.box()![2] < card.labels.get('Field')!.box()![0];
+              // Which card is which, from the titles the reader sees.
+              const titled = (t: string) => cards.find((c) => c.describe().what.includes(t))!;
+              if (step.name === 'physical') {
+                assert.ok(titled('Left,') === left && titled('Right,') === right, 'left and right keep their halves');
+                for (const card of cards) {
+                  assert.equal(card.direction, values.direction);
+                  assert.ok(rtl ? valueFirst(card) : nameFirst(card), 'physical cards take the stage columns');
+                }
+              } else {
+                const start = titled('Start,'),
+                  end = titled('End,');
+                assert.equal(start, rtl ? right : left, 'start follows the stage');
+                assert.equal(end, rtl ? left : right, 'end follows the stage');
+                assert.equal(start.direction, values.direction);
+                assert.equal(end.direction, 'ltr');
+                assert.ok(rtl ? valueFirst(start) : nameFirst(start), 'the Start card inherits the stage columns');
+                assert.ok(nameFirst(end), 'the End card’s ltr override puts the name before the value');
+              }
               seen.push(step.name);
             },
           }, {skipUntil: Infinity}).run();
-          assert.deepEqual(seen, ['columns', 'updates']);
+          assert.deepEqual(seen, ['columns', 'updates', 'physical']);
+          // The state the scene records says the same.
+          assertStepState(trace, 'columns', {
+            cards: {
+              start: { side: rtl ? 'right' : 'left', name: rtl ? 'right of value' : 'left of value', value: '123' },
+              end: { side: rtl ? 'left' : 'right', name: 'left of value', value: '123' },
+            },
+          });
+          assertStepState(trace, 'physical', {
+            cards: {
+              left: { side: 'left', name: rtl ? 'right of value' : 'left of value', value: '123' },
+              right: { side: 'right', name: rtl ? 'right of value' : 'left of value', value: '123' },
+            },
+          });
           break;
         }
         case 'glyph': {
@@ -349,14 +559,27 @@ for (const entry of EXPLAINERS)
             width: new Text('Hello, outlines', { font, fontSize: 0.9 }).advance(),
           });
           const evidenceOf = (step: string) => trace.steps.find((s) => s.step === step)!.evidence ?? [];
-          // The morph pairs the letters the two words share, longest common runs first;
-          // a space has no glyph, so it is not a part.
-          const [a, b] = ['cache miss', 'cache hit'].map((w) => w.replaceAll(' ', ''));
-          const shared = commonRuns(a!, b!);
-          assert.equal(shared, 6); // "cache" and the i
-          assert.deepEqual(evidenceOf('morph'), [
-            { kind: 'match', matched: shared, morphed: 0, removed: a!.length - shared, added: b!.length - shared },
-          ]);
+          // The measure step's caption adds the line up: JetBrains Mono gives each of the line's
+          // characters one advance, and the l gains most from it.
+          const advances = (f: 'sans' | 'mono') => [...'Hello, outlines'].map((c) => new Text(c, { font: f, fontSize: 0.9 }).advance());
+          const [sansAdv, monoAdv] = [advances('sans'), advances('mono')];
+          assert.ok(monoAdv.every((a) => Math.abs(a - monoAdv[0]!) < 1e-4), 'JetBrains Mono: one advance for every character');
+          const caption = String(trace.steps.find((s) => s.step === 'measure')!.meta.caption);
+          assert.ok(caption.includes(`all 15 characters ${monoAdv[0]!.toFixed(3)}, so its line is 15 × ${monoAdv[0]!.toFixed(3)} = 8.10`), caption);
+          const gains = sansAdv.map((a, i) => monoAdv[i]! - a);
+          assert.equal('Hello, outlines'[gains.indexOf(Math.max(...gains))], 'l', 'the l gains most');
+          // The card adds the difference up by groups: Inter's narrowest letters, the other narrow
+          // characters, the one letter Inter draws wider, and the rest.
+          const group = (keep: (c: string) => boolean) =>
+            +[...'Hello, outlines'].reduce((n, c, i) => (keep(c) ? n + gains[i]! : n), 0).toFixed(3);
+          assertStepState(trace, 'measure', {
+            gains: {
+              'l, l, l, i': group((c) => c === 'l' || c === 'i'),
+              'comma, space, t': group((c) => c === ',' || c === ' ' || c === 't'),
+              H: group((c) => c === 'H'),
+              'the other 7': group((c) => 'eousne'.includes(c)),
+            },
+          });
           // Outline shapes, compared point by point once each glyph is centred and scaled
           // to one size: each glyph pairs with itself at 60%, and the other font's pairs
           // only where an outline really is the same.
@@ -387,6 +610,53 @@ for (const entry of EXPLAINERS)
             timing: { motion: +(fork.hold - fork.t0).toFixed(2), held: +(fork.t1 - fork.hold).toFixed(2), words },
           });
           assert.ok(Math.abs(fork.t1 - fork.t0 - (words / Scene.captionWpm) * 60) <= 1 / trace.fps + 1e-9);
+          // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
+          // token-bucket case whose trace answers R10 as the fork scene says, and its last step says
+          // R10 is accepted at every rate.
+          const bucketProject = await collectProject('scenes/explainers/token-bucket', { write: false });
+          const offered = bucketProject.variants.map((v) => ({
+            rate: Number(v.values.rate),
+            r10: (v.trace.steps.find((s) => s.step === 'trace')!.after!.responses as number[])[9],
+          }));
+          assertStepState(trace, 'sentence', { offered: offered.sort((a, b) => a.rate - b.rate) });
+          for (const v of bucketProject.variants)
+            assert.match(String(v.trace.steps.find((s) => s.step === 'trace')!.meta.caption), /R10 is accepted at every rate/);
+          // Independently, at 0.1 tokens a second: R1-R5 spend the bucket, R7-R9 find under one
+          // token, and R10 at 5 s finds 5 × 0.1 = 0.5, so it is refused.
+          assertStepState(trace, 'untested', { unbuilt: { rate: 0.1, r10: 429, found: 0.5 } });
+          // The cases the choice step draws are the token bucket's own: its setting as declared, one
+          // case per option with R10's answer from that case's trace, and what its settings resolver
+          // does with a link naming a listed rate and with one naming 0.1.
+          const { default: TokenBucketScene } = await import('../scenes/explainers/token-bucket/scene.ts');
+          const [rate] = TokenBucketScene.settings;
+          const refused = (() => {
+            try {
+              resolveSettings(TokenBucketScene, { rate: '0.1' });
+            } catch (e) {
+              return (e as Error).message;
+            }
+            assert.fail('0.1 must not resolve to a token-bucket case');
+          })();
+          assertStepState(trace, 'choice', {
+            choice: {
+              setting: rate,
+              cases: offered.map((o) => ({ rate: String(o.rate), r10: o.r10, default: String(o.rate) === rate!.default })),
+              links: [
+                { asked: '4', opens: resolveSettings(TokenBucketScene, { rate: '4' }).rate },
+                { asked: '0.1', opens: rate!.default, refused },
+              ],
+            },
+          });
+          // The price is shown on a real scene's settings: traffic-policy's two settings, in its own order.
+          const { default: TrafficPolicy } = await import('../scenes/explainers/traffic-policy/scene.ts');
+          const [policy, pods] = TrafficPolicy.settings;
+          assertStepState(trace, 'cases', {
+            cases: {
+              count: policy!.options.length * pods!.options.length,
+              policies: policy!.options.map((o) => o.label),
+              pods: pods!.options.map((o) => o.value),
+            },
+          });
           break;
         }
         case 'cert-renewal':
@@ -548,9 +818,30 @@ async function seasonsArithmetic(
   // Evaluated at the precision printed: the result to as many places as its most precise operand.
   const places = Math.max(...m.slice(1).map((v) => v.split('.')[1]?.length ?? 0));
   assert.equal((90 - Math.abs(lat - decl)).toFixed(places), result.toFixed(places), formulas[0]!);
+  // The share of overhead sunlight on the close-up is sin of that altitude, to the hundredth it prints.
+  const sines = (texts.get('noon') ?? []).filter((t) => t.startsWith('sin '));
+  assert.equal(sines.length, 1, `one sine on the close-up: ${sines.join(' / ')}`);
+  const sine = /^sin ([\d.]+)° = ([\d.]+)$/.exec(sines[0]!);
+  assert.ok(sine, sines[0]!);
+  assert.equal(Math.sin(((90 - Math.abs(lat - decl)) * Math.PI) / 180).toFixed(2), sine[2], sines[0]!);
+  assert.equal((90 - Math.abs(lat - decl)).toFixed(1), sine[1], sines[0]!);
   // The describe says the same formula.
   const noon = textOf(pictureHtml(trace.steps.find((s) => s.step === 'noon')!.after));
   assert.ok(noon.includes(formulas[0]!), noon);
+
+  // The side-by-side beams: each patch length printed under its beam, and the share per m² under it, is
+  // 1 ÷ that length as printed; the caption's "1 ÷ x = y%" sums hold as printed too.
+  const spreadTexts = texts.get('spread') ?? [];
+  const lengths = spreadTexts.filter((t) => /^\d+\.\d\d m$/.test(t)), shares = spreadTexts.filter((t) => /^\d+% per m²$/.test(t));
+  assert.ok(lengths.length >= 1 && lengths.length === shares.length, `one share under each patch: ${spreadTexts.join(' / ')}`);
+  lengths.forEach((length, i) => assert.equal(Math.round(100 / parseFloat(length)) + '% per m²', shares[i], `${length} against ${shares[i]}`));
+  const spreadCaption = String(trace.steps.find((s) => s.step === 'spread')!.meta.caption);
+  const sums = [...spreadCaption.matchAll(/1 ÷ ([\d.]+) = (\d+)%/g)];
+  assert.ok(sums.length >= 1, spreadCaption);
+  for (const [, x, y] of sums) {
+    assert.equal(Math.round(100 / Number(x)), Number(y), spreadCaption);
+    assert.ok(lengths.includes(`${x} m`), `the caption's ${x} m is drawn: ${spreadCaption}`);
+  }
 
   const yearStep = trace.steps.find((s) => s.step === 'year')!,
     year = textOf(pictureHtml(yearStep.after));
@@ -668,6 +959,9 @@ test('fork: what it says Lantern had and the fork deleted matches both trees', a
   const show = (path: string) => git('show', `${BASE}:${path}`);
   const worker = show('app/worker.ts');
   for (const route of ['/frame.svg', '/text', '/trace.json', '/llms.txt']) assert.ok(worker.includes(`'${route}'`), route);
+  // The fork scene's opening: the Worker rendered any step or time on request and cached nothing.
+  assert.match(worker, /url\.searchParams\.has\('t'\)/);
+  assert.match(worker, /Seeking re-runs the scene to the requested time \(~10ms\), so nothing is\n\/\/ cached here/);
   assert.match(show('src/mermaid.ts'), /expected "flowchart <dir>" or "graph <dir>"/);
   const scenes = git('ls-tree', '--name-only', `${BASE}:scenes`)
     .split('\n')

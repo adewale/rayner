@@ -1,10 +1,12 @@
+import { scriptReport } from '../../explain/script.ts';
+import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
 import { isHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {
@@ -17,7 +19,6 @@ import {
   renderText,
   Text,
 } from '../../src/index.ts';
-import { Card } from '../../explain/panels.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { caseName } from '../../explain/index.ts';
 import { restingFrame, undescribed, watchedChanges } from '../../explain/trace.ts';
@@ -190,13 +191,13 @@ export function restingTextProblems(scene: Viewed): string[] {
 }
 
 /**
- * The phone the legibility report measures: a 390 px page, whose stage (inside the
- * page's 16 px gutters) is 358 × 201 px. The player opens each step there on its
- * close-up (app/embed-closeup.ts), so a label's phone size is its size at that zoom.
+ * Conservative preflight at the narrow stage's minimum height (16:9). Actual height
+ * depends on the served page's headings and viewport; only browser review measures it.
+ * Do not duplicate the player's CSS/DOM height calculation here or assume its 4:5 maximum.
  */
 const PHONE_PAGE = 390,
   PHONE_W = PHONE_PAGE - 32,
-  PHONE_H = Math.round((PHONE_W * 9) / 16);
+  PHONE_H = PHONE_W * 9 / 16;
 /** One label across a case: its largest size at 1280 px, and in the phone's close-ups at rest. */
 interface LabelSizes {
   text: string;
@@ -205,12 +206,13 @@ interface LabelSizes {
   phone: number;
   /** Whole inside one of a resting picture's close-ups (where the step opens, or its tour), so no panning finds it. */
   inView: boolean;
+  /** The resting step where `phone` was measured: where a small label is, for the report. */
+  phoneStep?: string;
 }
 const round1 = (n: number) => Math.round(n * 10) / 10;
 /**
- * Smallest label sizes at a 1280 px stage, and on a 390 px phone as the player shows
- * each resting picture there (its close-up); the whole-stage phone size is what the
- * reader would get without close-ups.
+ * Desktop label sizes and phone estimates at the minimum stage geometry.
+ * Actual phone sizes and visible coverage belong to served-page review.
  */
 function legibilityReport(records: LabelSizes[]) {
   const sizes = records.filter((r) => r.px > 0),
@@ -219,9 +221,15 @@ function legibilityReport(records: LabelSizes[]) {
     phoneMin = atRest.length ? Math.min(...atRest.map((r) => r.phone)) : null;
   const whole = stageScale(PHONE_W, PHONE_H).s / STAGE_PX_PER_UNIT;
   return {
+    phoneEstimate: { stageWidth: PHONE_W, stageHeight: PHONE_H, geometry: 'minimum-stage' },
     minLabelPx1280: min == null ? null : round1(min),
     minLabelPx390: phoneMin == null ? null : round1(phoneMin),
     labelsUnder12PxAt390: atRest.filter((r) => round1(r.phone) < 12).length,
+    // Which they are, smallest first: each label's words, its phone size and its step.
+    smallLabelsAt390: atRest
+      .filter((r) => round1(r.phone) < 12)
+      .sort((a, b) => a.phone - b.phone)
+      .map((r) => ({ text: r.text, px: round1(r.phone), step: r.phoneStep ?? '' })),
     // Labels no close-up shows whole, at rest: the reader pans to them (at the same size).
     labelsOutsideCloseUpsAt390: atRest.filter((r) => !r.inView).length,
     minLabelPx390WholeStage: min == null ? null : round1(min * whole),
@@ -255,6 +263,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // Each resting frame's close-ups on the phone, worked out as the player works them out.
     const layouts = await stepLayouts(v.Scene),
       phoneUnit = stageScale(PHONE_W, PHONE_H).s;
+    const stepAt = new Map(v.trace.steps.map((s) => [restingFrame(s), s.step] as const));
     const phoneViews = new Map(
       v.trace.steps.map((s) => {
         const tour = closeUps(layouts.get(s.step), PHONE_W, PHONE_H);
@@ -269,18 +278,29 @@ export async function checkProject(project: Project, out: string): Promise<Recor
      * frame is a resting one. `px` is already on screen (world size × the author's camera
      * zoom); the phone's close-up is the reader's zoom over that view, so the two multiply.
      * `box` is in the camera's view units, where close-ups are worked out.
+     *
+     * A picture label no close-up shows is measured at the opening's zoom, where a reader
+     * panning to it finds it. The stage's heading (`chrome`) is not measured on the phone at
+     * all: a narrow stage draws its pictures without it (ReaderSink in app/embed-zoom.ts) and
+     * the player sets the step's number, title and line as page text under the stepper row.
+     * It is still measured at 1280 px, where the stage draws it.
      */
-    const seen = (record: LabelSizes, px: number, box: Box | null, frame: number) => {
+    const seen = (record: LabelSizes, px: number, box: Box | null, frame: number, chrome = false) => {
       record.px = Math.max(record.px, px);
       const close = phoneViews.get(frame);
       if (!close) return;
       const inside = (v: Box) =>
         !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
+      if (chrome) return;
       const complete = close.views.filter((v) => inside(v.box));
       // The opening can frame a comparison at a smaller scale than its detail
       // stops. Measure each label where the tour actually shows it whole.
       const k = complete.length ? Math.max(...complete.map((v) => v.k)) : close.k;
-      record.phone = Math.max(record.phone, (px / STAGE_PX_PER_UNIT) * phoneUnit * k);
+      const size = (px / STAGE_PX_PER_UNIT) * phoneUnit * k;
+      if (size > record.phone) {
+        record.phone = size;
+        record.phoneStep = stepAt.get(frame);
+      }
       if (complete.length) record.inView = true;
     };
     const resting = new Map<number, string>();
@@ -296,8 +316,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     const held = new Map<string, string>(),
       moved = new Set<string>();
-    // Cards on screen at each resting picture: a step that ends on a card says its values in a panel.
-    const cardsAtRest: Record<string, number> = {};
     await new v.Scene({
       async frame(scene, dt) {
         await motion.frame(scene);
@@ -315,10 +333,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
           resting.set(scene.frameCount, toSvgString(scene));
           scene.mobjects = all;
           restingText.set(scene.frameCount, renderText(scene));
-          if (scene.currentStep)
-            cardsAtRest[scene.currentStep.name] = scene
-              .familyMembers()
-              .filter((m) => m instanceof Card && (m.style.opacity ?? 1) >= 0.5).length;
           collisions.push(
             ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map(
               (p) => `${scene.currentStep?.name}: ${p}`,
@@ -352,7 +366,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
             const credited = completedFrames.has(scene.frameCount)
               ? px
               : Math.min(px, readingLabelSize(m)! * STAGE_PX_PER_UNIT);
-            if (readable(m, m.box(), viewport)) seen(labels.get(m)!, credited, shown(m.box()), scene.frameCount);
+            if (readable(m, m.box(), viewport))
+              seen(labels.get(m)!, credited, shown(m.box()), scene.frameCount, isHeading(m));
           }
         }
       },
@@ -422,6 +437,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     assert.deepEqual(JSON.parse(JSON.stringify(result.state)), v.trace.steps.at(-1)!.after, bare);
     assert.ok(result.svg.includes('<path'), bare);
+    const script = scriptReport(project.Scene.meta, v.trace.steps);
+    assert.deepEqual(script.problems, [], `Script ${where}: ${script.problems.join('; ')}`);
     variants.push({
       settings: v.values,
       trace: v.trace,
@@ -433,8 +450,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
       legibility: legibilityReport([...labels.values(), ...staticLabels.values()]),
-      // Cards in each step's resting picture: values said in a panel rather than on the drawing.
-      cardsAtRest,
+      // The script gate (explain/script.ts): a declared meta.answer stated by some step (where, reported), and how many
+      // check questions the page asks. Undeclared parts are reported as missing.
+      script,
+      // Sentences with scope words, the declared claim (meta.claims) backing each, and the code names
+      // reaching the steps' words (explain/claims.ts). Reported, not gated; see claimProblems below.
+      claims: claimsReport(project.Scene.meta, v.trace.steps),
       // What each step changed of the state the author watches (meta.watch), as readers see it, and
       // the watched keys skipped because their value cannot be said briefly. Reported, not gated.
       ...(project.Scene.meta?.watch
@@ -452,6 +473,12 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ),
     });
   }
+  // A declared claim must be stated by some case and held by a test that is there.
+  const claimProblems = await declaredClaimProblems(
+    checkClaimsMeta(project.Scene.meta),
+    variants.flatMap((v) => v.claims.stated),
+  );
+  assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
     variants,
@@ -463,4 +490,78 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   };
   await writeFile(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   return report;
+}
+
+/**
+ * What is wrong with a scene's declared claims: one no case states, or one whose test file is not
+ * there or holds no test whose name contains the given part.
+ */
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
+  const problems: string[] = [];
+  const files = new Map<string, string[] | null>();
+  for (const c of claims) {
+    if (!stated.includes(c.says)) problems.push(`no step states the claim "${c.says}"`);
+    if (!c.test) continue;
+    const at = c.test.indexOf(': '),
+      file = c.test.slice(0, at),
+      name = c.test.slice(at + 2);
+    if (!files.has(file)) {
+      const source = await readFile(resolve(directory, file), 'utf8').catch(() => null);
+      files.set(file, source === null ? null : testNames(source));
+    }
+    const names = files.get(file);
+    if (names == null) problems.push(`the claim "${c.says}" names ${file}, which is not there`);
+    else if (!names.some((test) => test.includes(name))) problems.push(`the claim "${c.says}" names a test in ${file} called "${name}", and there is none`);
+  }
+  return problems;
+}
+
+/** Evidence-link lint: static node:test declarations, not comments or arbitrary strings.
+ * This neither runs a test nor proves that its assertions support the sentence.
+ */
+function testNames(source: string): string[] {
+  const file = ts.createSourceFile('claim.test.ts', source, ts.ScriptTarget.Latest, true);
+  const functions = new Set<string>(), suites = new Set<string>(), namespaces = new Set<string>(), names: string[] = [];
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== 'node:test') continue;
+    const clause = statement.importClause;
+    if (clause?.isTypeOnly) continue;
+    if (clause?.name) functions.add(clause.name.text);
+    const bindings = clause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) namespaces.add(bindings.name.text);
+    if (bindings && ts.isNamedImports(bindings)) for (const specifier of bindings.elements) {
+      if (specifier.isTypeOnly) continue;
+      const imported = (specifier.propertyName ?? specifier.name).text;
+      if (['test', 'it'].includes(imported)) functions.add(specifier.name.text);
+      if (['describe', 'suite'].includes(imported)) suites.add(specifier.name.text);
+    }
+  }
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node)) {
+      let call = node.expression;
+      let modifier = '';
+      if (ts.isPropertyAccessExpression(call) && ['skip', 'todo', 'only'].includes(call.name.text)) {
+        modifier = call.name.text;
+        call = call.expression;
+      }
+      const [name, options] = node.arguments;
+      const isTest = ts.isIdentifier(call) ? functions.has(call.text)
+        : ts.isPropertyAccessExpression(call) && ts.isIdentifier(call.expression) && namespaces.has(call.expression.text) && ['test', 'it'].includes(call.name.text);
+      const isSuite = ts.isIdentifier(call) ? suites.has(call.text)
+        : ts.isPropertyAccessExpression(call) && ts.isIdentifier(call.expression) && namespaces.has(call.expression.text) && ['describe', 'suite'].includes(call.name.text);
+      const skipped = options && ts.isObjectLiteralExpression(options) && options.properties.some((property) =>
+        ts.isPropertyAssignment(property) && ['skip', 'todo'].includes(property.name.getText(file).replace(/['"]/g, '')) && property.initializer.kind !== ts.SyntaxKind.FalseKeyword);
+      if ((isTest || isSuite) && (skipped || modifier === 'skip' || modifier === 'todo')) return;
+      const callback = node.arguments.at(-1);
+      if (isTest && callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && name) {
+        if (ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name)) names.push(name.text);
+        // A title built per case, as in test(`${entry.id}: …`): only its fixed text can match, so
+        // each substitution becomes a character no claim's test name contains.
+        else if (ts.isTemplateExpression(name)) names.push(name.head.text + name.templateSpans.map((span) => '\u0000' + span.literal.text).join(''));
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return names;
 }

@@ -2,8 +2,9 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "da510cacde9ad0d1d0ef05b1313cdc9916a02310ff6ab52a0d87767b4903c46d",
+  "sourceHash": "102cde80eabe7a57acf2c9dc21fae8e74db87c2b56a8dbe1e4e0775a220e8b0c",
   "diagrams": {
-    "[\"graph LR\\nA[\\\"Ink\\\"] --> B[\\\"Paper\\\"]\",\"pen-and-ink\",\"natural\"]": "4ee0d75a90dc9b78.json"
+    "[\"graph LR\\nA[\\\"Ink\\\"] --> B[\\\"Paper\\\"]\",\"pen-and-ink\",\"natural\"]": "4ee0d75a90dc9b78.json",
+    "[\"graph LR\\nA[\\\"Ink\\\"] --> B[\\\"Paper\\\"]\",\"pen-and-ink\"]": "d4e8b92930bc4409.json"
   }
 }

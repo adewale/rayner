@@ -104,11 +104,20 @@
       ]
     },
     {
-      "step": "hashes",
+      "step": "full",
       "opening": true,
       "targets": [
         {
-          "key": "bloom-hash-mapping"
+          "key": "bloom-bits"
+        },
+        {
+          "key": "bloom-taken"
+        },
+        {
+          "key": "bloom-query"
+        },
+        {
+          "key": "bloom-answer"
         }
       ]
     },

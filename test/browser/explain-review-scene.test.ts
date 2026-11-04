@@ -141,15 +141,17 @@ test('trust-proxy range subjects contain both settings and all six independently
 });
 
 
-test('public review discovers all eight Python dictionary phone-opening claims beside its scene', async () => {
+test('dictionary review retains six claim sets and checks four main openings plus two reference steps', async () => {
   const {ROOT} = await import('../../tools/lib/explain-project.ts');
   const {narrowOpeningPlan} = await import('../../tools/lib/explain-story-review.ts');
   const project = await collectProject(join(ROOT, 'scenes/explainers/python-dict'), {write: false});
   const claims = await reviewClaims(project);
-  assert.equal(claims.length, 8);
+  assert.equal(claims.length, 6);
   for (const variant of project.variants) {
     const openings = await narrowOpeningPlan(variant, claims);
     assert.deepEqual(openings.filter(o => o.reviewed).map(o => o.step),
-      ['question', 'hash', 'collision', 'lookup', 'predict', 'broken', 'marker', 'missing']);
+      ['question', 'broken', 'marker', 'missing']);
+    assert.deepEqual(openings.filter(o => !o.reviewed).map(o => [o.step, o.reason]),
+      [['hash', 'detail-step'], ['collision', 'detail-step']]);
   }
 });

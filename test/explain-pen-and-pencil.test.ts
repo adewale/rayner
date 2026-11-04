@@ -4,9 +4,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { SIMPLEX } from '../scenes/explainers/lib/hershey-simplex.ts';
+import { collectProject } from '../tools/lib/explain-project.ts';
+import type { Scene, VMobject } from '../src/index.ts';
 import {
   WORLD,
   HAND,
+  FREEHAND,
+  freehand,
   rng,
   timelineFacts,
   hand,
@@ -154,4 +158,81 @@ test('the world is a timeline of four periods, one event each, with no positions
     { period: 'Dawn', events: ['Lamp put out'] },
   ]);
   assert.doesNotMatch(WORLD, /\d/);
+});
+
+test('a free hand without error reaches every corner it means to; with error, each corner carries the ones before', () => {
+  fc.assert(
+    fc.property(point, fc.array(point, { minLength: 1, maxLength: 12 }), fc.integer(), (start, moves, seed) => {
+      const exact = freehand(start, moves, { angle: 0, length: 0 }, rng(seed));
+      let [x, y] = start;
+      moves.forEach(([dx, dy], i) => {
+        x += dx;
+        y += dy;
+        assert.ok(Math.abs(exact[i + 1]![0] - x) < 1e-9 && Math.abs(exact[i + 1]![1] - y) < 1e-9);
+      });
+      // With error, each move is the intended one turned by at most FREEHAND.angle and
+      // stretched by at most FREEHAND.length, measured from where the last move ended.
+      const drawn = freehand(start, moves, FREEHAND, rng(seed));
+      assert.deepEqual(drawn[0], start);
+      moves.forEach(([dx, dy], i) => {
+        const [ax, ay] = drawn[i]!,
+          [bx, by] = drawn[i + 1]!;
+        const want = Math.hypot(dx, dy),
+          got = Math.hypot(bx - ax, by - ay);
+        assert.ok(Math.abs(got - want) <= FREEHAND.length * want + 1e-9);
+        if (want > 1e-6) {
+          const turn = Math.atan2(dx * (by - ay) - dy * (bx - ax), dx * (bx - ax) + dy * (by - ay));
+          assert.ok(Math.abs(turn) <= (FREEHAND.angle * Math.PI) / 180 + 1e-9);
+        }
+      });
+    }),
+    params(),
+  );
+});
+
+// The marks step says the marks "are the same in both drawings", and the plate step that the second
+// drawing lands in the boxes the first used: the layout's marks owe nothing to the seed.
+test('both drawings trace the same marks: the construction strokes match path for path, so the boxes are shared', async () => {
+  const project = await collectProject('scenes/explainers/pen-and-pencil', { write: false });
+  assert.deepEqual(project.variants.map((v) => v.values), [{ hand: 'first' }, { hand: 'second' }]);
+  const marks: number[][][][] = [];
+  for (const variant of project.variants) {
+    let paths: number[][][] | undefined;
+    await new variant.Scene({
+      async frame() {},
+      async stepEnd(scene: Scene, step: { name: string }) {
+        if (step.name !== 'marks') return;
+        const traced = scene.familyMembers().filter((m) => m.key === 'construction:marks');
+        assert.equal(traced.length, 1);
+        paths = traced[0]!.children.map((m) => (m as VMobject).subpaths.map((a) => [...a]));
+      },
+    }).run();
+    assert.ok(paths && paths.length === 53, `${variant.values.hand}: ${paths?.length} construction strokes`);
+    marks.push(paths);
+  }
+  assert.deepEqual(marks[1], marks[0]);
+});
+
+// The answer's claim, over seeds: a hand that traces laid-out marks leaves each box where the layout
+// put it, whichever seed draws it. Within the explainer's own hand model, with its own tolerance.
+test('traced on its laid-out marks, a drawing with any seed leaves every box where the layout put it', () => {
+  const bound = HAND.tremor * Math.SQRT2 * 2;
+  const laid = fc
+    .tuple(point, fc.double({ min: 0.8, max: 3.2, noNaN: true }), fc.double({ min: 0.4, max: 1.2, noNaN: true }))
+    .map(([[x, y], w, h]) => [x, y, x + w, y + h] as Box);
+  fc.assert(
+    fc.property(laid, fc.integer(), (b, seed) => {
+      const corners = boxPolygon(b),
+        rand = rng(seed);
+      // A plank's four sides, one stroke each, then the tag's outline in one stroke, as the plate draws them.
+      const lines: Pt[][] = [...corners.map((p, i) => [p, corners[(i + 1) % 4]!]), [...tag(b), tag(b)[0]!]];
+      for (const line of lines) {
+        const ink = hand(line, HAND, rand);
+        assert.ok(deviation(ink, line) <= bound, `${deviation(ink, line)} from its mark`);
+        const [x0, y0, x1, y1] = boundsOf([ink]);
+        assert.ok(x0 >= b[0] - bound && y0 >= b[1] - bound && x1 <= b[2] + bound && y1 <= b[3] + bound, `ink outside ${b}`);
+      }
+    }),
+    params(200),
+  );
 });

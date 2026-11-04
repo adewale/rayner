@@ -25,6 +25,7 @@ import {
   quitters,
   scoreOf,
   source,
+  struggled,
 } from '../scenes/explainers/lib/gnome-files.ts';
 import type { Colour, Journey, Participant } from '../scenes/explainers/lib/gnome-files.ts';
 
@@ -90,6 +91,17 @@ test('the title’s claim: every participant gave up at least once, and only on 
     SESSION.flatMap((n) => PARTICIPANTS.filter((p) => colourOf(n, p) === 'gray').map((p) => `${n} ${p}`)),
     ['3 P6'],
   );
+});
+
+test('counting moderate difficulty or worse puts icon size and Bookmarks first, as the article ranks them', () => {
+  // ARTICLE §6.1 names changing the icon size and Add To Bookmarks the hardest tasks; the heat-map step says
+  // that counting orange, red and black cells agrees, while counting give-ups alone puts Select All and Undo first.
+  const ranked = [...SESSION].sort((a, b) => struggled(b).length - struggled(a).length || a - b);
+  assert.deepEqual(ranked.slice(0, 2).sort((a, b) => a - b), [1, 9]);
+  assert.ok(struggled(ranked[2]!).length < Math.min(struggled(1).length, struggled(9).length));
+  assert.deepEqual([struggled(1).length, struggled(9).length], [4, 5]);
+  const byGiveUps = Math.max(...SESSION.map((n) => quitters(n).length));
+  assert.deepEqual(SESSION.filter((n) => quitters(n).length === byGiveUps), [3, 4]);
 });
 
 test('the session order covers every task once, and its groups are journeys of at most four', () => {

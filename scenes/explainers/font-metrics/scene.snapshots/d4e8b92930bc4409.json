@@ -1,0 +1,519 @@
+{
+  "version": 1,
+  "renderer": "agentic-mermaid@0.5.1",
+  "spec": {
+    "source": "graph LR\nA[\"Ink\"] --> B[\"Paper\"]",
+    "style": "pen-and-ink"
+  },
+  "family": "flowchart",
+  "width": 267,
+  "height": 116.9,
+  "palette": {
+    "paper": "#faf6ec",
+    "ink": "#241f1a",
+    "accent": "#2b241d",
+    "muted": "#241f1a"
+  },
+  "parts": [
+    {
+      "id": "__frame",
+      "role": "frame",
+      "kind": "shape",
+      "shapes": [
+        {
+          "subpaths": [
+            [
+              1.734723437202716e-20,
+              0,
+              0.8899999856948853,
+              0,
+              1.7799999713897705,
+              0,
+              2.6700000762939453,
+              0,
+              2.6700000762939453,
+              -0.38966667652130127,
+              2.6700000762939453,
+              -0.7793333530426025,
+              2.6700000762939453,
+              -1.1690000295639038,
+              1.7799999713897705,
+              -1.1690000295639038,
+              0.8899999856948853,
+              -1.1690000295639038,
+              1.734723437202716e-20,
+              -1.1690000295639038,
+              1.734723437202716e-20,
+              -0.7793333530426025,
+              1.734723437202716e-20,
+              -0.38966667652130127,
+              1.734723437202716e-20,
+              0
+            ]
+          ],
+          "closed": [
+            true
+          ],
+          "style": {
+            "fill": "#faf6ec",
+            "stroke": "none",
+            "strokeWidth": 0.01,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          }
+        }
+      ]
+    },
+    {
+      "id": "edge:A->B#0",
+      "role": "edge",
+      "kind": "connector",
+      "shapes": [
+        {
+          "subpaths": [
+            [
+              1,
+              -0.5845000147819519,
+              1.159999966621399,
+              -0.5845000147819519,
+              1.3200000524520874,
+              -0.5845000147819519,
+              1.4800000190734863,
+              -0.5845000147819519
+            ]
+          ],
+          "closed": [
+            false
+          ],
+          "style": {
+            "fill": "none",
+            "stroke": "#2b241d",
+            "strokeWidth": 0.01,
+            "fillOpacity": 1,
+            "strokeOpacity": 0,
+            "opacity": 1,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          }
+        },
+        {
+          "subpaths": [
+            [
+              1.399999976158142,
+              -0.559499979019165,
+              1.4266666173934937,
+              -0.5678333640098572,
+              1.4533333778381348,
+              -0.5761666893959045,
+              1.4800000190734863,
+              -0.5845000147819519,
+              1.4533333778381348,
+              -0.5928333401679993,
+              1.4266666173934937,
+              -0.6011666655540466,
+              1.399999976158142,
+              -0.609499990940094,
+              1.399999976158142,
+              -0.5928333401679993,
+              1.399999976158142,
+              -0.5761666893959045,
+              1.399999976158142,
+              -0.559499979019165
+            ]
+          ],
+          "closed": [
+            true
+          ],
+          "style": {
+            "fill": "#2b241d",
+            "stroke": "#2b241d",
+            "strokeWidth": 0.0075,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "butt",
+            "lineJoin": "round",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          }
+        },
+        {
+          "subpaths": [
+            [
+              0.9998000264167786,
+              -0.5920000076293945,
+              1.1319999694824219,
+              -0.5764999985694885,
+              1.2617000341415405,
+              -0.5759000182151794,
+              1.4824999570846558,
+              -0.5745999813079834
+            ]
+          ],
+          "closed": [
+            false
+          ],
+          "style": {
+            "fill": "none",
+            "stroke": "#2b241d",
+            "strokeWidth": 0.015,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          }
+        }
+      ],
+      "from": "A",
+      "to": "B",
+      "route": [
+        [
+          1,
+          -0.5845
+        ],
+        [
+          1.48,
+          -0.5845
+        ]
+      ]
+    },
+    {
+      "id": "A",
+      "role": "node",
+      "kind": "group",
+      "shapes": [
+        {
+          "subpaths": [
+            [
+              0.4092999994754791,
+              -0.4052000045776367,
+              0.625499963760376,
+              -0.3920999765396118,
+              0.8705999851226807,
+              -0.40119999647140503,
+              1.0095000267028809,
+              -0.40950000286102295
+            ],
+            [
+              0.9923000335693359,
+              -0.4047999978065491,
+              0.9973999857902527,
+              -0.5163000226020813,
+              1.0027999877929688,
+              -0.609000027179718,
+              1.00190007686615,
+              -0.7667999863624573
+            ],
+            [
+              1.0023999214172363,
+              -0.7599999904632568,
+              0.8148000240325928,
+              -0.7757999897003174,
+              0.6356000304222107,
+              -0.7626999616622925,
+              0.400299996137619,
+              -0.7616000175476074
+            ],
+            [
+              0.4018000066280365,
+              -0.7701999545097351,
+              0.39169996976852417,
+              -0.691100001335144,
+              0.4081000089645386,
+              -0.6101999878883362,
+              0.4081999957561493,
+              -0.4065000116825104
+            ]
+          ],
+          "closed": [
+            false,
+            false,
+            false,
+            false
+          ],
+          "style": {
+            "fill": "none",
+            "stroke": "#2b241d",
+            "strokeWidth": 0.01125,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          }
+        },
+        {
+          "subpaths": [],
+          "closed": [],
+          "style": {
+            "fill": "#241f1a",
+            "stroke": "#faf6ec",
+            "strokeWidth": 0.03,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "stroke"
+          },
+          "text": "Ink",
+          "fontSize": 0.13,
+          "textRun": {
+            "text": "Ink",
+            "x": 70,
+            "y": 63,
+            "size": 13,
+            "anchor": "middle",
+            "matrix": [
+              1,
+              0,
+              0,
+              1,
+              1.734723475976807e-18,
+              0
+            ],
+            "width": 19.734
+          }
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "role": "node",
+      "kind": "group",
+      "shapes": [
+        {
+          "subpaths": [
+            [
+              1.4802000522613525,
+              -0.4043999910354614,
+              1.6523000001907349,
+              -0.39740002155303955,
+              1.8319000005722046,
+              -0.3972000181674957,
+              2.277899980545044,
+              -0.40720000863075256
+            ],
+            [
+              2.264699935913086,
+              -0.40450000762939453,
+              2.2676000595092773,
+              -0.519599974155426,
+              2.272599935531616,
+              -0.649399995803833,
+              2.263700008392334,
+              -0.7615000009536743
+            ],
+            [
+              2.2723000049591064,
+              -0.7669999599456787,
+              2.0196001529693604,
+              -0.7666000127792358,
+              1.7792999744415283,
+              -0.7785999774932861,
+              1.4711999893188477,
+              -0.7634999752044678
+            ],
+            [
+              1.4767999649047852,
+              -0.765500009059906,
+              1.4838000535964966,
+              -0.6866999864578247,
+              1.489400029182434,
+              -0.5873000025749207,
+              1.486799955368042,
+              -0.40790000557899475
+            ]
+          ],
+          "closed": [
+            false,
+            false,
+            false,
+            false
+          ],
+          "style": {
+            "fill": "none",
+            "stroke": "#2b241d",
+            "strokeWidth": 0.01125,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "normal"
+          }
+        },
+        {
+          "subpaths": [],
+          "closed": [],
+          "style": {
+            "fill": "#241f1a",
+            "stroke": "#faf6ec",
+            "strokeWidth": 0.03,
+            "fillOpacity": 1,
+            "strokeOpacity": 1,
+            "opacity": 1,
+            "lineCap": "round",
+            "lineJoin": "round",
+            "fillRule": "nonzero",
+            "miterLimit": 4,
+            "paintOrder": "stroke"
+          },
+          "text": "Paper",
+          "fontSize": 0.13,
+          "textRun": {
+            "text": "Paper",
+            "x": 187.5,
+            "y": 63,
+            "size": 13,
+            "anchor": "middle",
+            "matrix": [
+              1,
+              0,
+              0,
+              1,
+              1.734723475976807e-18,
+              0
+            ],
+            "width": 39
+          }
+        }
+      ]
+    }
+  ],
+  "findings": {
+    "ok": true,
+    "warnings": [],
+    "layout": {
+      "version": 1,
+      "kind": "flowchart",
+      "nodes": [
+        {
+          "id": "A",
+          "x": 40,
+          "y": 40,
+          "w": 60,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Ink",
+          "labelBounds": {
+            "x": 60.133,
+            "y": 50,
+            "w": 19.733999999999998,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 40,
+            "y": 40,
+            "w": 60,
+            "h": 36.900000000000006
+          }
+        },
+        {
+          "id": "B",
+          "x": 148,
+          "y": 40,
+          "w": 79,
+          "h": 36.900000000000006,
+          "shape": "rectangle",
+          "label": "Paper",
+          "labelBounds": {
+            "x": 168,
+            "y": 50,
+            "w": 39,
+            "h": 16.900000000000002
+          },
+          "labelContainer": {
+            "x": 148,
+            "y": 40,
+            "w": 79,
+            "h": 36.900000000000006
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "A->B",
+          "from": "A",
+          "to": "B",
+          "path": [
+            [
+              100,
+              58.45
+            ],
+            [
+              148,
+              58.45
+            ]
+          ]
+        }
+      ],
+      "groups": [],
+      "bounds": {
+        "w": 267,
+        "h": 116.9
+      }
+    },
+    "checks": {
+      "renderability": "passed",
+      "sourceLoss": "not-detected",
+      "taskCorrectness": "not-checked"
+    },
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 267,
+        "height": 116.9
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 5,
+        "unmeasured": 0,
+        "preparedText": 2,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 8,
+        "labels": 2,
+        "occlusionPairs": 8,
+        "maxOcclusionPairs": 100000,
+        "operations": 200,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ]
+    }
+  }
+}

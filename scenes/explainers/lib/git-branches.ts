@@ -20,3 +20,25 @@ export function currentFiles(frame: GitFrame) {
   const commit = frame.commits.find(c => c.id === frame.current)!;
   return {colour: commit.colour, title: commit.title};
 }
+/** The commits reachable from `id` by following parents: what a branch on it contains. */
+export function history(frame: GitFrame, id: string): string[] {
+  const seen: string[] = [], todo = [id];
+  while (todo.length) {
+    const next = todo.shift()!;
+    if (seen.includes(next)) continue;
+    seen.push(next);
+    todo.push(...frame.commits.find(c => c.id === next)!.parents);
+  }
+  return seen;
+}
+/** What a merge would do if it only moved labels: main points at feature's commit, and HEAD's files follow. */
+export function moveMainToFeature(frame: GitFrame): GitFrame {
+  if (!frame.feature) throw new Error('No feature branch to move main onto');
+  return {...frame, commits: frame.commits.map(c => ({...c, parents: [...c.parents]})), main: frame.feature,
+    current: frame.head === 'main' ? frame.feature : frame.current, merge: 'none'};
+}
+/** Commits no branch label reaches: what that label-only move would leave behind. */
+export function unreachable(frame: GitFrame): string[] {
+  const kept = new Set([frame.main, ...(frame.feature ? [frame.feature] : [])].flatMap(id => history(frame, id)));
+  return frame.commits.map(c => c.id).filter(id => !kept.has(id));
+}

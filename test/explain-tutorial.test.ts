@@ -16,7 +16,7 @@ import '../scenes/tutorial/lru-mru/model.test.ts';
 const DIR = 'scenes/tutorial/lru-mru/';
 const tutorial = readFileSync('docs/TUTORIAL.md', 'utf8');
 const block = (name: string) => {
-  const code = tutorial.match(new RegExp(`<!-- ${name} -->\\n\`\`\`ts\\n([\\s\\S]*?)\`\`\``))?.[1];
+  const code = tutorial.match(new RegExp(`<!-- ${name} -->\\n\`\`\`(?:ts|md)\\n([\\s\\S]*?)\`\`\``))?.[1];
   assert.ok(code, `docs/TUTORIAL.md shows ${name}`);
   return code;
 };

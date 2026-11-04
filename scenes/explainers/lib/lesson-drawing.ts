@@ -12,6 +12,7 @@ export interface LessonFrame {
   state: Record<string, unknown>;
   draw: (s: Stage) => Group;
   audio?: StepAudio;
+  detail?: boolean;
 }
 export function label(text: string | number, x: number, y: number, color: string, size = 0.6, key?: string): Text {
   const t = new Text(String(text), { fontSize: size, color }).moveTo([x, y]);
@@ -63,14 +64,12 @@ export function table(
 ): Group {
   const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.palette.ink, weight: 'bold' }));
   const cells = rows.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.palette.ink })));
+  const isNumber = (v: string | number | undefined) =>
+    typeof v === 'number' || /^[+−-]?\d[\d.,\s/]*(?:%|€|h|days|pages|tokens|bytes|GiB|TiB)?$/u.test(String(v));
+  // A dash stands for an empty cell; it keeps a column of numbers aligned as numbers.
+  const isBlank = (v: string | number | undefined) => typeof v === 'string' && /^[–—-]?$/u.test(v);
   const numeric = headers.map(
-    (_, c) =>
-      rows.length > 0 &&
-      rows.every(
-        (row) =>
-          typeof row[c] === 'number' ||
-          /^[+−-]?\d[\d.,\s/]*(?:%|€|h|days|pages|tokens|bytes|GiB|TiB)?$/u.test(String(row[c])),
-      ),
+    (_, c) => rows.some((row) => isNumber(row[c])) && rows.every((row) => isNumber(row[c]) || isBlank(row[c])),
   );
   const widths = headers.map((_, c) => Math.max(heads[c]!.width(), ...cells.map((row) => row[c]!.width())));
   const place = (text: Text, c: number, at: number) =>
@@ -99,7 +98,7 @@ export type NarrativeFrame = Omit<LessonFrame, 'state'>;
 /** Present the common caption, drawing, readable subjects and description sequence. */
 export async function presentFrame(scene: Scene, s: Stage, frame: NarrativeFrame, setState: () => void, reader = false) {
   await scene.step(frame.id, {title: frame.title, line: frame.line, caption: frame.caption,
-    ...(frame.audio ? {audio: frame.audio} : {}), ...(reader ? {reader: true} : {})});
+    ...(frame.audio ? {audio: frame.audio} : {}), ...(frame.detail ? {detail: true} : {}), ...(reader ? {reader: true} : {})});
   await s.clear({runTime: 0.18});
   setState();
   const drawing = frame.draw(s);

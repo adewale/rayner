@@ -2,32 +2,51 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-due",
+      "step": "margin",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "margin:90d"
         },
         {
-          "text": "Fixed: 30 days before"
-        },
-        {
-          "text": "Default: lifetime fraction"
+          "text": "due at day 60"
         }
       ]
     },
     {
-      "step": "reader-retries",
+      "step": "margin",
+      "settings": {
+        "lifetime": "160h"
+      },
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "margin:160h"
         },
         {
-          "text": "Time before renewal is due"
+          "text": "due 23.3 days before issue"
+        }
+      ]
+    },
+    {
+      "step": "other-rule",
+      "targets": [
+        {
+          "text": "30 days before expiry"
         },
         {
-          "text": "Time left to retry"
+          "text": "Certbot 4.1+ default"
+        }
+      ]
+    },
+    {
+      "step": "slack",
+      "targets": [
+        {
+          "text": "Retry window, the default rule"
+        },
+        {
+          "text": "Retry window, the 30-day rule"
         }
       ]
     }

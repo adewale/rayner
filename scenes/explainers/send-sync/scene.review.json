@@ -2,53 +2,16 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-threads",
-      "opening": true,
+      "step": "spawn",
       "targets": [
         {
-          "key": "reader-picture"
+          "text": "thread::spawn(move || x.set(1));"
         },
         {
-          "text": "Thread A"
+          "text": "= help: the trait `Sync` is not implemented"
         },
         {
-          "text": "Thread B"
-        }
-      ]
-    },
-    {
-      "step": "reader-requirements",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Wrapper"
-        },
-        {
-          "text": "Needs from T"
-        },
-        {
-          "text": "Met?"
-        }
-      ]
-    },
-    {
-      "step": "reader-wrappers",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Type"
-        },
-        {
-          "text": "Send"
-        },
-        {
-          "text": "Sync"
+          "text": "= note: required for `Arc<Cell<i32>>` to"
         }
       ]
     }

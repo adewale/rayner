@@ -2,26 +2,14 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-burst",
+      "step": "burst",
       "opening": true,
       "targets": [
         {
-          "key": "burst:0:200"
+          "key": "request:R5"
         },
         {
-          "key": "burst:1:200"
-        },
-        {
-          "key": "burst:2:200"
-        },
-        {
-          "key": "burst:3:200"
-        },
-        {
-          "key": "burst:4:200"
-        },
-        {
-          "key": "burst:5:429"
+          "key": "request:R6"
         }
       ]
     },
@@ -33,6 +21,29 @@
         },
         {
           "text": "Tokens left"
+        }
+      ]
+    },
+    {
+      "step": "refill",
+      "opening": true,
+      "targets": [
+        {
+          "key": "balance:found:R7"
+        },
+        {
+          "key": "balance:found:R7:value"
+        }
+      ]
+    },
+    {
+      "step": "later",
+      "settings": {
+        "rate": "2"
+      },
+      "targets": [
+        {
+          "key": "balance:cap:note"
         }
       ]
     },
@@ -72,42 +83,6 @@
         {
           "key": "result:4:R6:429",
           "paint": "stroke"
-        }
-      ]
-    },
-    {
-      "step": "reader-burst",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "R1"
-        },
-        {
-          "text": "R6"
-        },
-        {
-          "text": "200"
-        },
-        {
-          "text": "429"
-        }
-      ]
-    },
-    {
-      "step": "reader-refill",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Before the wait"
-        },
-        {
-          "text": "On arrival: add elapsed × rate"
         }
       ]
     },

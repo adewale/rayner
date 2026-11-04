@@ -25,8 +25,33 @@ export type ExplainerClass = SceneClass & {
     /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
     caseNavigation?: 'first';
     /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
-    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number };
+    /**
+     * Palette/corner cues, an optional standalone stage-width floor in CSS pixels (at most 4096), and
+     * `outline`: show every step's title in the steps rail from the start. By default the rail names
+     * only the steps the reader has reached, so a later step's title cannot answer an earlier question.
+     */
+    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number; outline?: boolean };
     watch?: Readonly<Record<string, string>>;
+    /**
+     * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
+     * step's title, line or caption contains it, and reports the step where it first appears; it
+     * should come before the explanation elaborates.
+     */
+    answer?: string;
+    /**
+     * Questions a reader should be able to answer afterwards, each with its answer (at most six). The
+     * player asks them after the last step, with each answer behind a disclosure; the transcript and
+     * `describeExplainer` carry them too.
+     */
+    checks?: readonly { question: string; answer: string }[];
+    /**
+     * Claims that reach beyond the cases shown (a sentence with "every", "never", "only" and the like),
+     * each with the test that holds it: `says` is a phrase of the sentence, `test` is
+     * "test/<file>.test.ts: <part of the test's name>"; or `shown: true` when the sentence speaks only of
+     * what its own step draws. `check` fails a claim no step states or whose test is not there, and
+     * reports scope sentences no claim backs (explain/claims.ts).
+     */
+    claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
   };
   settings?: readonly Setting[];
 };

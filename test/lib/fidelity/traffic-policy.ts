@@ -3,7 +3,9 @@ import { assertStepState } from '../explainer-state.ts';
 import {
   PLACEMENTS,
   endpointsOn,
+  flows,
   frac,
+  nodeShares,
   passes,
   podsOf,
   ruleShares,
@@ -38,5 +40,12 @@ export function check(trace: Trace, values: Record<string, string>): void {
     assertStepState(trace, 'local-path', { seen: seenSource('local', 0) });
   }
   assertStepState(trace, 'shares', { shares: table(policy) });
+  // The flow picture: each policy's node shares and every band, node to pod, as wide as its share.
+  const NODE = ['Node 1', 'Node 2', 'Node 3'];
+  const flow = (p: Policy) => ({
+    nodes: nodeShares(counts, p).map(frac),
+    bands: flows(counts, p).map((b) => [NODE[b.node], b.pod, frac(b.share)]),
+  });
+  assertStepState(trace, 'flow', { flow: { cluster: flow('cluster'), local: flow('local') } });
   assertStepState(trace, 'compare', { compare: { cluster: table('cluster'), local: table('local') } });
 }

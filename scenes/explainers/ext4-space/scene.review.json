@@ -2,23 +2,17 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-allocation",
-      "opening": true,
+      "step": "reserve",
+      "settings": {
+        "size": "1t",
+        "reserve": "5"
+      },
       "targets": [
         {
-          "key": "reader-picture"
-        }
-      ]
-    },
-    {
-      "step": "reader-reserve",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
+          "text": "Root reserve (5.0%)"
         },
         {
-          "text": "Users at 5% reserve"
+          "text": "Root / metadata"
         }
       ]
     }

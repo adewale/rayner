@@ -1,0 +1,174 @@
+{
+  "burst": 5,
+  "module": "golang.org/x/time v0.15.0",
+  "runs": {
+    "1": [
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 4
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 3
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 2
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 1
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 0
+      },
+      {
+        "at": 0,
+        "status": 429,
+        "tokens": 0
+      },
+      {
+        "at": 0.5,
+        "status": 429,
+        "tokens": 0.5
+      },
+      {
+        "at": 1,
+        "status": 200,
+        "tokens": 0
+      },
+      {
+        "at": 1,
+        "status": 429,
+        "tokens": 0
+      },
+      {
+        "at": 5,
+        "status": 200,
+        "tokens": 3
+      }
+    ],
+    "2": [
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 4
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 3
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 2
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 1
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 0
+      },
+      {
+        "at": 0,
+        "status": 429,
+        "tokens": 0
+      },
+      {
+        "at": 0.5,
+        "status": 200,
+        "tokens": 0
+      },
+      {
+        "at": 1,
+        "status": 200,
+        "tokens": 0
+      },
+      {
+        "at": 1,
+        "status": 429,
+        "tokens": 0
+      },
+      {
+        "at": 5,
+        "status": 200,
+        "tokens": 4
+      }
+    ],
+    "4": [
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 4
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 3
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 2
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 1
+      },
+      {
+        "at": 0,
+        "status": 200,
+        "tokens": 0
+      },
+      {
+        "at": 0,
+        "status": 429,
+        "tokens": 0
+      },
+      {
+        "at": 0.5,
+        "status": 200,
+        "tokens": 1
+      },
+      {
+        "at": 1,
+        "status": 200,
+        "tokens": 2
+      },
+      {
+        "at": 1,
+        "status": 200,
+        "tokens": 1
+      },
+      {
+        "at": 5,
+        "status": 200,
+        "tokens": 4
+      }
+    ]
+  },
+  "schedule": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.5,
+    1,
+    1,
+    5
+  ]
+}

@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { collectProject, writeSnapshots, ROOT } from '../tools/lib/explain-project.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
+import { variantsOf, resolveSettings } from '../explain/settings.ts';
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
@@ -250,4 +251,42 @@ test('rayner check exits 1 and names the failing gate on stderr', async () => {
   assert.equal(refused?.status, 1, 'check must exit 1 on a scene whose seek differs from play');
   // The source CLI can follow Node's experimental type-stripping warning.
   assert.match(String(refused?.stderr), /^rayner: Seek mismatch at frame \d+ in the scene$/m);
+});
+
+// A scene with two settings (2 × 3 cases) and three steps; `nudgeIn` names the one case whose last
+// step moves its dot by a nudge each frame instead of by blending, as the lantern explainer's tiny scene does.
+const CASES_HEAD = `import{Scene,Text,Dot,Animation}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
+const casesScene = (nudgeIn?: { motion: string; size: string }) =>
+  `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}begin(){super.begin();this.live=true}interpolate(){if(this.live)this.mobject.shift([0.1,0])}finish(){}}` +
+  `export default class Cases extends Scene{static settings=[` +
+  `{id:'motion',label:'Motion',default:'blend',options:[{value:'blend',label:'Blend'},{value:'nudge',label:'Nudge'}]},` +
+  `{id:'size',label:'Size',default:'small',options:[{value:'small',label:'Small'},{value:'mid',label:'Mid'},{value:'large',label:'Large'}]}];` +
+  `async construct(){const s=stage(this);const v=settingsOf(this);` +
+  `await this.step('one',{caption:'A label.'});${label('one')}await this.wait(0.3);` +
+  `await this.step('two',{caption:'Another.'});${label('two', '[0,2]')}await this.wait(0.3);` +
+  `await this.step('three',{caption:'The dot moves.'});const d=new Dot({radius:0.2}).moveTo([-3,-2]);await s.enter(d,{describe:'A dot'});` +
+  `const nudge=${nudgeIn ? `v.motion===${JSON.stringify(nudgeIn.motion)}&&v.size===${JSON.stringify(nudgeIn.size)}` : 'false'};` +
+  `await this.play(nudge?new Nudge(d):d.animate.moveTo([0,-2]),{runTime:1});}}`;
+
+test('rayner check seeks two frames in each step of every case: a nudge each frame in one case’s last step fails it with a seek mismatch naming that case', async () => {
+  const clean = await checked(await write(casesScene()));
+  const variants = clean.variants as { settings: Record<string, string>; steps: number; seekFrames: number }[];
+  assert.equal(variants.length, 6);
+  for (const v of variants) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
+  // The last case built, and the last step in it: a check that stopped short of either would pass.
+  await assert.rejects(checked(await write(casesScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
+  await assert.rejects(checked(await write(casesScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);
+});
+
+test('the build makes every combination of options a case, rayner check tests each, and a reader can open no other', async () => {
+  const dir = await write(casesScene());
+  const project = await collectProject(dir, { write: false });
+  const combos = ['blend', 'nudge'].flatMap((motion) => ['small', 'mid', 'large'].map((size) => ({ motion, size })));
+  assert.deepEqual(project.variants.map((v) => v.values), combos);
+  assert.deepEqual(variantsOf(project.Scene), combos);
+  const report = await checkProject(project, join(dir, 'checks'));
+  assert.deepEqual((report.variants as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
+  // A value no option lists is refused, so no request reaches a case the build did not make.
+  assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /Unknown .* option/);
+  assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /Unknown .* option/);
 });

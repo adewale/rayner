@@ -373,8 +373,7 @@ test('unchanged declared labels stay readable when only unrelated larger text ch
     }
 });
 
-test('an authored opening keeps its complete comparison and shows either all or none of the stage heading', async () => {
-  let chrome: Box | undefined;
+test('an authored opening uses the space of the hidden stage heading to keep its complete comparison readable', async () => {
   class WithHeading extends Scene {
     override async construct() {
       const s = stage(this, { headingSize: 0.6 });
@@ -390,28 +389,6 @@ test('an authored opening keeps its complete comparison and shows either all or 
       s.reading(subject);
     }
   }
-  // Read the visible native heading independently of the framing layout.
-  await new WithHeading(
-    {
-      async frame() {},
-      async stepEnd(scene) {
-        const boxes = scene
-          .familyMembers()
-          .filter((m) => (m.key === '__heading' || m.key === '__chrome') && (m.style.opacity ?? 1) > 0.05)
-          .map((m) => m.box())
-          .filter((b): b is Box => !!b);
-        assert.ok(boxes.length >= 2);
-        chrome = [
-          Math.min(...boxes.map((b) => b[0])),
-          Math.min(...boxes.map((b) => b[1])),
-          Math.max(...boxes.map((b) => b[2])),
-          Math.max(...boxes.map((b) => b[3])),
-        ];
-      },
-    },
-    { skipUntil: Infinity },
-  ).run();
-  assert.ok(chrome);
   const layout = (await stepLayouts(WithHeading)).get('comparison')!;
   for (const width of [288, 358]) {
     const height = (width * 9) / 16,
@@ -421,10 +398,7 @@ test('an authored opening keeps its complete comparison and shows either all or 
       visible[0] <= b[0] + 1e-6 && visible[1] <= b[1] + 1e-6 && visible[2] >= b[2] - 1e-6 && visible[3] >= b[3] - 1e-6;
     assert.ok(contains(layout.reading!.box), 'the comparison must still be complete');
     assert.ok(layout.reading!.labels.every((l) => l.size * stageScale(width, height).s * opening.k >= 12 - 1e-7));
-    assert.ok(
-      visible[3] <= chrome[1] + 1e-6 || contains(chrome),
-      `${width}: a close-up must not clip part of the heading or leave only its subtitle`,
-    );
+    assert.ok(!('heading' in layout) && !('top' in layout), 'undrawn chrome has no framing obligation');
   }
 });
 
@@ -538,6 +512,37 @@ test('the legibility report measures each label at a tour stop that actually con
     assert.equal(variants.length, 1);
     assert.equal(variants[0]!.legibility.labelsUnder12PxAt390, 0);
     assert.equal(variants[0]!.legibility.labelsOutsideCloseUpsAt390, 0);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('the phone report measures picture labels and excludes the undrawn stage heading', async () => {
+  const { collectProject } = await import('../../tools/lib/explain-project.ts');
+  const { checkProject } = await import('../../tools/lib/explain-check.ts');
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-heading-closeup-'));
+  try {
+    const p = await collectProject('test/fixtures/heading-closeup', { write: false });
+    const report = await checkProject(p, folder);
+    const variants = report.variants as {
+      settings: { reach: string };
+      legibility: { minLabelPx390: number; labelsUnder12PxAt390: number; labelsOutsideCloseUpsAt390: number };
+    }[];
+    assert.equal(variants.length, 2);
+    const by = (reach: string) => variants.find((v) => v.settings.reach === reach)!.legibility;
+    // The narrow sink leaves the number, title and line out of its SVG, so
+    // their smaller font sizes must not determine picture legibility.
+    const below = by('below');
+    assert.equal(below.labelsUnder12PxAt390, 0);
+    assert.equal(below.labelsOutsideCloseUpsAt390, 0);
+    assert.ok(below.minLabelPx390 >= 12, `picture labels at their reading scale: ${below.minLabelPx390}`);
+    // Extending picture ink into the old heading area introduces no chrome obligation.
+    const into = by('into');
+    assert.equal(into.labelsUnder12PxAt390, 0);
+    assert.ok(into.minLabelPx390 >= 12, `box labels, not the undrawn heading: ${into.minLabelPx390}`);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

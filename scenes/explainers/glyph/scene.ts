@@ -6,8 +6,6 @@ import {
   Write,
   Create,
   FadeIn,
-  Transform,
-  TransformMatchingText,
   TransformMatchingShapes,
   Group,
   Line,
@@ -15,11 +13,10 @@ import {
   Underline,
   SurroundingRectangle,
   BraceLabel,
-  Cross,
   DOWN,
   shaperFor,
 } from '../../../src/index.ts';
-import type { Box, Mobject, Vec, MatchSummary, FontName } from '../../../src/index.ts';
+import type { Mobject, Vec, MatchSummary, FontName } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 
 const WORD = 'Hello, outlines';
@@ -31,8 +28,9 @@ const SMALL = 0.6; // the smaller copy in the letterforms step
 const HEADING = 0.54;
 const STYLE = 'pen-and-ink';
 const NAME: Record<FontName, string> = { sans: 'Inter', mono: 'JetBrains Mono' };
-const pipeline = (font: string) =>
-  `graph TB\nFont[${font}] --> Shape[Shape text]\nShape --> Paths[Cubic paths]\nPaths --> SVG[SVG player]\nPaths --> PNG[PNG stills]`;
+/** A diagram whose labels the renderer draws in Inter, in both cases. */
+const PIPELINE =
+  `graph TB\nFont[Inter] --> Shape[Shape text]\nShape --> Paths[Cubic paths]\nPaths --> SVG[SVG player]\nPaths --> PNG[PNG stills]`;
 
 type Pathed = Mobject & { subpaths: Float32Array[] };
 const segmentsOf = (g: Mobject) => (g as Pathed).subpaths.reduce((n, a) => n + (a.length - 2) / 6, 0);
@@ -117,6 +115,41 @@ export default class GlyphExplainer extends Scene {
     id: 'glyph',
     title: 'Why does the same text take different space?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
+    // The script's answer and check questions (script.md); check holds a step (measure) to stating the answer.
+    answer: 'Width is the sum of the glyphs’ advances, and each font sets its own',
+    claims: [
+      {
+        says: 'Inter gives each l and i only 0.218',
+        test: 'test/explain-glyph.test.ts: Inter gives l and i its narrowest advance',
+      },
+      {
+        says: 'Only the H is wider in Inter',
+        test: 'test/explain-glyph.test.ts: only the H is wider than JetBrains Mono’s cell',
+      },
+      { says: 'Every glyph pairs with its 60% copy; with the other font, none do', shown: true as const },
+    ],
+    checks: [
+      {
+        question: 'A space adds no outline. Why can adding one still move the next word farther right?',
+        answer:
+          'A space has an advance even though it draws no ink. The pen moves by that advance before the next glyph, so the line grows without another outline.',
+      },
+      {
+        question:
+          '“illicit” and “mammoth” both have seven letters. Set each in JetBrains Mono instead of Inter: which one grows, and could the other shrink?',
+        answer:
+          'In JetBrains Mono both are 7 × 0.540 = 3.78 units. “illicit” is mostly thin stems that Inter gives 0.218 each, so it grows from 1.90 to 3.78. Inter gives m 0.788, more than JetBrains Mono’s cell, so “mammoth” shrinks from 4.24 to 3.78.',
+      },
+      {
+        question: 'Could moving or uniformly resizing the Inter glyphs make them match the JetBrains Mono paths that failed to pair?',
+        answer: 'No. The matcher already removes position and uniform size before comparing paths. Those operations cannot remove differences in the outlines themselves.',
+      },
+      {
+        question: 'The label “Hello, outlines” is measured in Inter, then drawn in JetBrains Mono to fit that width. Is this label stretched or squeezed?',
+        answer:
+          'Squeezed: this phrase advances 8.10 units in Mono against 6.02 in Inter. The renderer presses it into the narrower recorded width. A different label needs its own measurements.',
+      },
+    ],
   };
   static settings = [
     {
@@ -138,14 +171,102 @@ export default class GlyphExplainer extends Scene {
       soft = s.soft;
     const mine = shape(font, WORD),
       theirs = shape(other, WORD);
+    const [widthFrame, shapeFrame] = readerFrames(font);
+    // Measured on fresh runs: moving the drawn copy re-rounds its float32 box.
+    const advance = (f: FontName) => new Text(WORD, { font: f, fontSize: SIZE }).advance();
+    const runs = { [font]: mine, [other]: theirs } as Record<FontName, ReturnType<typeof shape>>;
+    const sans = runs.sans,
+      mono = runs.mono;
+    const wideAt = sans.advances.indexOf(Math.max(...sans.advances)),
+      narrowAt = sans.advances.indexOf(Math.min(...sans.advances));
+    // Where the difference comes from, character by character: JetBrains Mono's advance minus Inter's.
+    const gains = mono.advances.map((a, i) => a - sans.advances[i]!);
+    const narrowest = sans.advances[narrowAt]!;
+    const stems = sans.chars.flatMap((_, i) => (Math.abs(sans.advances[i]! - narrowest) < 1e-6 ? [i] : []));
+    const narrow = gains.flatMap((g, i) => (g > 0.2 && !stems.includes(i) ? [i] : []));
+    const wider = gains.flatMap((g, i) => (g < 0 ? [i] : []));
+    const rest = gains.flatMap((_, i) => (stems.includes(i) || narrow.includes(i) || wider.includes(i) ? [] : [i]));
+    const sum = (is: number[]) => is.reduce((n, i) => n + gains[i]!, 0);
+    const spoken = (c: string) => (c === ' ' ? 'space' : c === ',' ? 'comma' : c);
+    const named = (is: number[]) => is.map((i) => spoken(sans.chars[i]!)).join(', ');
+    /** The same characters as a phrase: “comma, space and t”. */
+    const phrase = (is: number[]) => named(is).replace(/, ([^,]+)$/, ' and $1');
+    const signed = (x: number) => `${x < 0 ? '−' : '+'}${Math.abs(x).toFixed(3)}`;
+    const total = advance('mono') - advance('sans');
 
-    await readerFirst(this, s, readerFrames(font));
+    // 1. The puzzle: the same words at the same size, two widths.
+    await readerFirst(this, s, [widthFrame!]);
+
+    // 2. The answer: each glyph advances the pen by its own width, and each font sets those widths.
+    await this.step('measure', {
+      title: 'Each glyph moves the pen on by its own advance',
+      line: `Boxed in both rows: Inter’s narrowest letters, ${named(stems)}, and its widest, ${sans.chars[wideAt]}.`,
+      caption: `A tick marks where the pen starts the next glyph; the distance between ticks is its advance. Width is the sum of the glyphs’ advances, and each font sets its own. JetBrains Mono gives all ${mono.advances.length} characters ${mono.advances[0]!.toFixed(3)}, so its line is ${mono.advances.length} × ${mono.advances[0]!.toFixed(3)} = ${advance('mono').toFixed(2)}. Inter gives each ${[...new Set(stems.map((i) => sans.chars[i]!))].join(' and ')} only ${narrowest.toFixed(3)}, so those ${stems.length} letters supply ${sum(stems).toFixed(2)} of the ${total.toFixed(2)}-unit difference, and the ${phrase(narrow)} add ${sum(narrow).toFixed(2)}. Only the ${phrase(wider)} is wider in Inter, and it gives back ${Math.abs(sum(wider)).toFixed(2)}.`,
+    });
+    await s.clear();
+    const wide = Math.max(mine.width, theirs.width);
+    const measured = new Text(WORD, { font, fontSize: SIZE, color: ink });
+    measured.setStroke(ink, 0.012);
+    measured.moveTo([-wide / 2, 2.4], [-1, 0]);
+    const compare = new Text(WORD, { font: other, fontSize: SIZE, color: soft }).moveTo([-wide / 2, 0.1], [-1, 0]);
+    const units = (f: FontName) => `${advance(f).toFixed(4)} units · ${NAME[f]}`;
+    const mineRule = ruler(measured, mine.stops, units(font), hot);
+    const theirRule = ruler(compare, theirs.stops, units(other), soft);
+    await s.enter(measured, { runTime: 0.5 });
+    s.keep(compare, mineRule, theirRule);
+    await this.play(new Create(mineRule, { runTime: 0.9, lagRatio: 0 }));
+    await this.play(new FadeIn(compare, { runTime: 0.5 }), new Create(theirRule, { runTime: 0.9, lagRatio: 0 }));
+    // Inter's widest letter and all its narrowest ones, boxed by their advance cells in both rows.
+    const cells = new Group();
+    for (const [row, run, color] of [
+      [measured, mine, hot],
+      [compare, theirs, soft],
+    ] as const) {
+      const [x0, y0, , y1] = row.box()!;
+      for (const i of [wideAt, ...stems]) {
+        const x = x0 + run.stops[i]!;
+        cells.add(
+          new SurroundingRectangle([x, y0, x + run.advances[i]!, y1], {
+            buff: 0.02,
+            cornerRadius: 0.03,
+            stroke: color,
+            strokeWidth: 0.018,
+          }),
+        );
+      }
+    }
+    s.keep(cells, {
+      describe: `Boxes around ${NAME.sans}’s widest letter, “${sans.chars[wideAt]}”, and its narrowest, ${stems.map((i) => `“${sans.chars[i]}”`).join(', ')}, in both rows`,
+    });
+    await this.play(new Create(cells, { runTime: 0.8, lagRatio: 0 }));
+    // The opening's question answered: the difference, JetBrains Mono minus Inter, by groups of characters.
+    const groups: [string, number[]][] = [
+      [named(stems), stems],
+      [named(narrow), narrow],
+      [named(wider), wider],
+      [`the other ${rest.length}`, rest],
+    ];
+    const card = await s.card(
+      groups.map(([name, is]) => [name, signed(sum(is))]),
+      { at: [-4.6, -4.25, 4.6, -1.3], title: `${NAME.mono} − ${NAME.sans}: +${total.toFixed(2)} units` },
+    );
+    card.bar.style.fill = hot;
+    await card.mark(named(stems));
+    this.state = {
+      font,
+      width: advance(font),
+      glyphs: measured.children.length,
+      gains: Object.fromEntries(groups.map(([name, is]) => [name, +sum(is).toFixed(3)])),
+    };
+
+    // 3. What fills each advance: an outline.
+    const big = glyphAlone(font, 'o', 4.6, [-3.9, -1.95]);
+    const contours = measured.children.reduce((n, g) => n + contoursOf(g), 0),
+      segments = measured.children.reduce((n, g) => n + segmentsOf(g), 0);
     await this.step('write', {
-      detail: true,
-      title: 'A letter needs both an outline and a measured width',
-      line: 'Write traces the contour; the next step measures its advance.',
-      caption:
-        'Why can the same word take different space in two fonts? Each letter is an outline from a font bundled with Rayner, with an advance that tells the next letter where to start. Write traces those contours here; the close-up shows points and handles. The next step compares the measured widths before later steps show what changes during a morph. No installed font is needed.',
+      title: 'The ink is closed outlines, and the space has none',
+      line: 'The large o: dots on its outline, and the handles that bend each curve.',
+      caption: `The pen traces ${measured.children.length} outlines for ${WORD.length} characters, because the space has an advance but no outline. The large o has ${contoursOf(big)} contours, its outside and its hole. A font supplies both parts of each glyph: the outline that makes its ink and the advance that places the next one.`,
     });
     await s.clear();
     const text = new Text(WORD, { font, fontSize: font === 'sans' ? 1.5 : 1.15, color: ink, fillOpacity: 0 });
@@ -154,7 +275,6 @@ export default class GlyphExplainer extends Scene {
     await this.play(new Write(text, { runTime: 2.2 }));
     // The first 'o' of the run, drawn large with its control net.
     const oIndex = text.children.findIndex((g) => charOf(text, g) === 'o');
-    const big = glyphAlone(font, 'o', 4.6, [-3.9, -1.95]);
     big.setStyle({ fill: ink, fillOpacity: 0 });
     big.setStroke(hot, 0.022);
     const net = controlNet(big, hot, soft);
@@ -173,108 +293,41 @@ export default class GlyphExplainer extends Scene {
     });
     s.keep(glyphNote);
     await this.play(new FadeIn(net, { runTime: 0.6 }), new FadeIn(glyphNote, { runTime: 0.6 }));
-    const contours = text.children.reduce((n, g) => n + contoursOf(g), 0),
-      segments = text.children.reduce((n, g) => n + segmentsOf(g), 0);
     await s.card(
       [
         ['Characters', WORD.length],
-        ['Glyph outlines', `${text.children.length} (a space has none)`],
+        ['Glyph outlines', text.children.length],
         ['Closed contours', contours],
         ['Cubic curves', segments],
       ],
       { at: [0.6, -4.25, 7.4, -0.75], title: `${NAME[font]}, as paths` },
     );
 
-    await this.step('measure', {
-      detail: true,
-      title: 'Inter and JetBrains Mono give the same words different widths',
-      line: 'Ticks mark each pen position; the brace spans the measured width.',
-      caption:
-        'The shaper gives every glyph an exact advance; the ticks mark each pen position and the brace spans the measured width. The boxed letters are Inter’s widest and narrowest; in JetBrains Mono every glyph has the same advance.',
-    });
-    await s.clearOverlays();
-    const measured = new Text(WORD, { font, fontSize: SIZE, color: ink });
-    measured.setStroke(ink, 0.012);
-    const wide = Math.max(mine.width, theirs.width);
-    measured.moveTo([-wide / 2, 2.15], [-1, 0]);
-    await this.play(new Transform(text, measured, { replace: true }));
-    const compare = new Text(WORD, { font: other, fontSize: SIZE, color: soft }).moveTo([-wide / 2, -0.15], [-1, 0]);
-    // Measured on fresh runs: moving the drawn copy re-rounds its float32 box.
-    const advance = (f: FontName) => new Text(WORD, { font: f, fontSize: SIZE }).advance();
-    const units = (f: FontName) => `${advance(f).toFixed(4)} units · ${NAME[f]}`;
-    const mineRule = ruler(measured, mine.stops, units(font), hot);
-    const theirRule = ruler(compare, theirs.stops, units(other), soft);
-    s.keep(compare, mineRule, theirRule);
-    await this.play(new Create(mineRule, { runTime: 0.9, lagRatio: 0 }));
-    await this.play(new FadeIn(compare, { runTime: 0.5 }), new Create(theirRule, { runTime: 0.9, lagRatio: 0 }));
-    // Inter's widest and narrowest letters, boxed by their advance cells in both rows.
-    const sans = font === 'sans' ? mine : theirs;
-    const widest = sans.advances.indexOf(Math.max(...sans.advances)),
-      narrowest = sans.advances.indexOf(Math.min(...sans.advances));
-    const cells = new Group();
-    for (const [row, run, color] of [
-      [measured, mine, hot],
-      [compare, theirs, soft],
-    ] as const) {
-      const [x0, y0, , y1] = row.box()!;
-      for (const i of [widest, narrowest]) {
-        const x = x0 + run.stops[i]!;
-        cells.add(
-          new SurroundingRectangle([x, y0, x + run.advances[i]!, y1], {
-            buff: 0.02,
-            cornerRadius: 0.03,
-            stroke: color,
-            strokeWidth: 0.018,
-          }),
-        );
-      }
-    }
-    s.keep(cells, {
-      describe: `Boxes around ${NAME.sans}’s widest and narrowest letters, “${sans.chars[widest]}” and “${sans.chars[narrowest]}”, in both rows`,
-    });
-    await this.play(new Create(cells, { runTime: 0.8, lagRatio: 0 }));
-    const spread = (run: ReturnType<typeof shape>) => {
-      const a = run.advances,
-        lo = Math.min(...a),
-        hi = Math.max(...a);
-      return hi - lo < 1e-6
-        ? `${lo.toFixed(3)} each`
-        : `${lo.toFixed(3)} (${run.chars[a.indexOf(lo)]}) to ${hi.toFixed(3)} (${run.chars[a.indexOf(hi)]})`;
-    };
-    const runs = { [font]: mine, [other]: theirs } as Record<FontName, ReturnType<typeof shape>>;
-    const card = await s.card(
-      [
-        [`${NAME.sans} advances`, spread(runs.sans)],
-        [`${NAME.mono} advances`, spread(runs.mono)],
-        [`${NAME[font]} − ${NAME[other]}`, `${(advance(font) - advance(other)).toFixed(4)} units`],
-      ],
-      { at: [-4.2, -4.25, 4.2, -2.3] },
-    );
-    card.bar.style.fill = hot;
-    await card.mark(`${NAME[font]} advances`);
-    this.state = { font, width: advance(font), glyphs: measured.children.length };
+    // 4. The same letter, two outlines: the prediction.
+    await readerFirst(this, s, [shapeFrame!]);
 
+    // 5. The answer to it: no glyph pairs across the fonts.
     await this.step('letterforms', {
-      detail: true,
-      title: 'The same letter is a different outline in each font',
-      line: `Every glyph pairs with its ${SMALL * 100}% copy; across fonts, none pair.`,
-      caption: `TransformMatchingShapes pairs glyphs whose outlines are the same path once each is centred and scaled to one size, so position and size do not count. Every glyph pairs with its own copy at ${SMALL * 100}% size; across the two fonts nothing pairs, not even the same letter.`,
+      title: `Answer: across the two fonts, none of the ${measured.children.length} glyphs pair`,
+      line: `Every glyph pairs with its ${SMALL * 100}% copy; with the other font, none do.`,
+      caption: `Rayner’s shape matcher, TransformMatchingShapes, compares outlines after removing position and size. The ${SMALL * 100}% copy preserves those paths, so its glyphs pair with the originals. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
-    await s.clearOverlays();
-    await this.play(measured.animate.moveTo([-wide / 2, 2.35], [-1, 0]), { runTime: 0.5 });
-    const [mx0, , mx1] = measured.box()!;
+    await s.clear();
+    const row = new Text(WORD, { font, fontSize: SIZE, color: ink }).moveTo([-wide / 2, 2.35], [-1, 0]);
+    await s.enter(row, { runTime: 0.5 });
+    const [mx0, , mx1] = row.box()!;
     const smaller = new Text(WORD, { font, fontSize: SIZE * SMALL, color: ink }).moveTo([(mx0 + mx1) / 2, 0.55]);
     const across = new Text(WORD, { font: other, fontSize: SIZE, color: hot }).moveTo([-wide / 2, -1.15], [-1, 0]);
     s.keep(smaller, across);
     // Each morph starts from a copy, so the original row stays to compare against.
-    const first = measured.copy(),
-      second = measured.copy();
+    const first = row.copy(),
+      second = row.copy();
     const index = new Map(first.children.map((g, i) => [g, i]));
     const toSmaller = new TransformMatchingShapes(first, smaller, { runTime: 1.4 });
     await this.play(toSmaller);
     const sameFont = toSmaller.summary();
     const links = s.keep(
-      pairLines(toSmaller.pairs, (g) => measured.children[index.get(g)!]!, soft),
+      pairLines(toSmaller.pairs, (g) => row.children[index.get(g)!]!, soft),
       {
         describe: `Lines join each of the ${sameFont.matched} glyphs of the top row to its smaller copy; nothing joins the ${NAME[other]} row`,
       },
@@ -289,149 +342,29 @@ export default class GlyphExplainer extends Scene {
     await s.callout(across, paired(otherFont), { side: 'right', gap: 0.35, color: hot, size: 0.26 });
     this.state.shapePairs = { sameFont: sameFont.matched, otherFont: otherFont.matched };
 
-    await this.step('pipeline', {
-      detail: true,
-      title: 'Rayner converts every font segment to a cubic',
-      line: `${mine.quads + mine.lines + mine.cubics} font segments in, as many cubics out, for SVG and PNG.`,
-      caption:
-        'The font stores quadratic curves and lines, as the note beside it counts. Rayner raises every segment to a cubic, so one kind of path feeds both the SVG player and PNG stills.',
-    });
-    await s.clear();
-    const d = await s.show({ source: pipeline(NAME[font]) }, { box: regionBox('full', { right: -0.4 }) });
-    await d.walk(
-      [
-        ['Font', 'Shape'],
-        ['Shape', 'Paths'],
-        ['Paths', 'SVG'],
-      ],
-      { trail: true, color: hot },
-    );
-    await d.walk([['Paths', 'PNG']], { trail: true, color: hot });
-    const raw = mine.cubics
-      ? `${mine.quads} quads, ${mine.lines} lines, ${mine.cubics} cubics`
-      : `${mine.quads} quads + ${mine.lines} lines`;
-    await d.note('Font', raw, { side: 'right', color: hot });
-    await d.note('Paths', `${mine.quads + mine.lines + mine.cubics} cubics`, { side: 'right', color: hot });
-    const solid = glyphAlone(font, 'o', 3.6, [3.85, 1.95]);
-    solid.setStyle({ fill: ink, fillOpacity: 1, stroke: 'none' });
-    const o = solid as Pathed;
-    const fmt = (a: Float32Array, i: number, n: number) => Array.from(a.slice(i, i + n), (v) => v.toFixed(2)).join(' ');
-    const lines = ['<path d="'];
-    o.subpaths.forEach((a, c) => {
-      const curves = (a.length - 2) / 6;
-      lines.push(`  M ${fmt(a, 0, 2)}`);
-      lines.push(`  C ${fmt(a, 2, 6)}`);
-      if (c === 0) lines.push(`  C ${fmt(a, 8, 6)}`);
-      lines.push(`  … ${curves - (c === 0 ? 2 : 1)} more C … Z`);
-    });
-    lines.push('"/>');
-    await s.enter(solid, { runTime: 0.5, describe: 'A solid “o”, the glyph whose path the code shows' });
-    await s.code(lines, {
-      at: regionBox('right', { top: 0.7 }),
-      title: `the 'o' as SVG path data (scene units)`,
-      fontSize: 0.22,
-    });
-
-    await this.step('morph', {
-      detail: true,
-      title: 'A text diff becomes a glyph morph',
-      line: 'Paired letters move down; m and s shrink away, h and t grow.',
-      caption:
-        'TransformMatchingText pairs glyphs of the same letter, longest runs first. The glyphs of cache and the i travel down into the new word, the crossed m and both s glyphs shrink away, and the underlined h and t grow in.',
-    });
-    await s.clear();
-    const before = new Text('cache miss', { font, fontSize: 1.1, color: ink }).moveTo([-7, 1.9], [-1, 0]);
-    const after = new Text('cache hit', { font, fontSize: 1.1, color: ink }).moveTo([-7, -1.6], [-1, 0]);
-    await s.enter(before, { runTime: 0.5 });
-    await s.code(['- cache miss', '+ cache hit'], {
-      at: regionBox('full', { left: 3.0, bottom: -0.2 }),
-      fontSize: 0.3,
-      title: 'label.txt',
-      diff: true,
-    });
-    // The ghost keeps the old word on screen; its glyphs stand for the ones that move.
-    const ghost = before.copy().setFill(soft);
-    const at = new Map(before.children.map((g, i) => [g, i]));
-    const ghostOf = (g: Mobject) => ghost.children[at.get(g)!]!;
-    s.keep(ghost, after);
-    const morph = new TransformMatchingText(before, after, { runTime: 1.6 });
-    await this.play(morph, new FadeIn(ghost, { runTime: 1.6 }));
-    const result = morph.summary();
-    const letters = (t: Text, gs: Mobject[]) => gs.map((g) => charOf(t, g)).join(' ');
-    const pairs = pairLines(morph.pairs, ghostOf, soft);
-    const marks = new Group(
-      ...morph.removed.map((g) => new Cross(ghostOf(g), { stroke: hot, strokeWidth: 0.035, scale: 0.8 })),
-      ...morph.added.map((g) => new Underline(g, { buff: 0.14, stroke: hot, strokeWidth: 0.045 })),
-    );
-    s.keep(pairs, marks, {
-      describe: `Lines join the ${result.matched} paired letters of “cache miss” (${letters(
-        before,
-        morph.pairs.map(([a]) => a),
-      )}) to their places in “cache hit”; the dropped ${letters(before, morph.removed)} are crossed out and the new ${letters(after, morph.added)} underlined`,
-    });
-    await this.play(new Create(pairs, { runTime: 0.8, lagRatio: 0 }), new Create(marks, { runTime: 0.8, lagRatio: 0 }));
-    // The counts, each beside the marks it counts: right of the crossed letters and of the paired lines, under the underlined ones.
-    const around = (gs: Mobject[]) => {
-      const bs = gs.map((g) => g.box()!);
-      return [
-        Math.min(...bs.map((b) => b[0])),
-        Math.min(...bs.map((b) => b[1])),
-        Math.max(...bs.map((b) => b[2])),
-        Math.max(...bs.map((b) => b[3])),
-      ] as Box;
-    };
-    await s.callout(
-      around(morph.removed.map(ghostOf)),
-      `${result.removed} shrink away: ${letters(before, morph.removed)}`,
-      { side: 'right', gap: 0.3, color: hot, size: 0.26 },
-    );
-    await s.callout(
-      pairs,
-      `${result.matched} paired: ${letters(
-        before,
-        morph.pairs.map(([a]) => a),
-      )}`,
-      { side: 'right', gap: 0.35, color: soft, size: 0.26 },
-    );
-    await s.callout(around(morph.added), `${result.added} grow in: ${letters(after, morph.added)}`, {
-      side: 'below',
-      gap: 0.45,
-      color: hot,
-      size: 0.26,
-    });
-
+    // 6. The same words in the same font can still take another width: a diagram fitted to recorded widths.
     await this.step('tradeoff', {
-      detail: true,
-      title: 'This diagram fits Inter labels to recorded widths',
-      line: 'Pen-and-ink does not request EB Garamond for this scene.',
-      caption:
-        'This scene uses pen-and-ink paper and strokes but makes no font-face request. Its diagram labels use embedded Inter, stretched to the textLength widths stored by agentic-mermaid; the two “PNG stills” rulers show the change. The font-metrics example explicitly requests EB Garamond and measures its labels before layout.',
+      title: 'In a diagram, Inter takes the width the layout recorded',
+      line: 'Upper ruler: Inter’s own advance. Lower: the width the layout recorded.',
+      caption: 'The layout estimated each label’s width before any glyph was drawn, and the renderer fits the real Inter glyphs to that estimate. “PNG stills” is drawn to the lower ruler, a little narrower than its own advance above, so its letters are squeezed. A label drawn at a width the font did not measure changes shape; the font-metrics example measures the drawn face before it places the boxes.',
     });
     await s.clear();
-    const again = await s.show({ source: pipeline(NAME[font]) }, { box: regionBox('full', { right: -1.4 }) });
+    const again = await s.show({ source: PIPELINE }, { box: regionBox('full', { right: -1.4 }) });
     const run = again.snapshot.parts.flatMap((p) => p.shapes).find((sh) => sh.textRun?.text === 'PNG stills')!.textRun!;
     const natural = new Text(run.text, { fontSize: run.size }).advance();
     const k = (run.width ?? natural) / natural;
-    await again.mark(['PNG'], { color: hot });
-    await again.note('PNG', `stretched ×${k.toFixed(3)}`, { side: 'below', color: hot });
     const plain = new Text(run.text, { fontSize: 0.9, color: soft }).moveTo([-0.6, 2.4], [-1, 0]);
     const fitted = new Text(run.text, { fontSize: 0.9, color: ink });
     fitted.stretch(k, 0);
     fitted.moveTo([-0.6, 0.2], [-1, 0]);
     const w0 = plain.advance(),
       w1 = w0 * k;
+    await again.mark(['PNG'], { color: hot });
+    await again.note('PNG', `squeezed ×${k.toFixed(3)}`, { side: 'below', color: hot });
     const plainRule = ruler(plain, [0], `Inter's own advance: ${w0.toFixed(3)}`, soft, 0.22);
-    const fitRule = ruler(fitted, [0], `textLength width: ${w1.toFixed(3)}`, hot, 0.22);
+    const fitRule = ruler(fitted, [0], `recorded width: ${w1.toFixed(3)}`, hot, 0.22);
     s.keep(plain, fitted, plainRule, fitRule);
     await this.play(new FadeIn(plain), new Create(plainRule, { lagRatio: 0 }));
     await this.play(new FadeIn(fitted), new Create(fitRule, { lagRatio: 0 }));
-    await s.card(
-      [
-        ['Shapes and strokes', 'from the style'],
-        ['Label width', 'from textLength'],
-        ['Letterforms', 'embedded Inter'],
-      ],
-      { at: [-0.6, -4.25, 7.55, -1.75], title: 'What survives import' },
-    );
   }
 }

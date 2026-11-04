@@ -2,35 +2,51 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-series",
-      "opening": true,
+      "step": "series",
       "targets": [
         {
-          "key": "reader-picture"
+          "text": "Mon 2 Nov, 09:00"
         },
         {
-          "text": "Mon 2 Nov"
+          "text": "Mon 9 Nov, 09:00"
         },
         {
-          "text": "Mon 9 Nov"
-        },
-        {
-          "text": "Mon 7 Dec"
+          "text": "Mon 7 Dec, 09:00"
         }
       ]
     },
     {
-      "step": "reader-copies",
+      "step": "copies",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "copies-weeks"
+        }
+      ]
+    },
+    {
+      "step": "copies",
+      "targets": [
+        {
+          "key": "copies-alice"
         },
         {
-          "text": "Alice"
+          "key": "copies-bob"
+        }
+      ]
+    },
+    {
+      "step": "copy",
+      "settings": {
+        "copy": "guest",
+        "change": "skip"
+      },
+      "targets": [
+        {
+          "text": "Mon 16 Nov, 09:00, cancelled"
         },
         {
-          "text": "Bob"
+          "text": "STATUS:CANCELLED"
         }
       ]
     }

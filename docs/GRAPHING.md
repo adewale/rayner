@@ -129,7 +129,7 @@ are any.
 
 ## In the explainers
 
-- [seasons](../scenes/explainers/seasons/scene.ts), "year" to "compare": `plot` of `sunlight()` over twelve
+- [seasons](../scenes/explainers/seasons/scene.ts), "year" to "distance": `plot` of `sunlight()` over twelve
   months (145 samples), `verticalLine`s and `dot`s at the solstices and equinoxes, a second
   plot at the mirrored latitude, then all four places on one axes. Ticks carry numbers, not
   text, so the scene places its own month names under the x axis.

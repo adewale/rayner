@@ -1,61 +1,147 @@
-import { Scene, Group, Rectangle } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Circle } from '../../../src/index.ts';
 import { settingsOf } from '../../../explain/index.ts';
 import type { AudioClip, Stage } from '../../../explain/index.ts';
 import { musicStory, NOTE_NAMES } from '../lib/melody-rhythm.ts';
 import type { Timing } from '../lib/melody-rhythm.ts';
 import { lesson, label, segment } from '../lib/lesson-drawing.ts';
 
-function scorePicture(s: Stage, clips: AudioClip[], phase: number) {
+interface Look {
+  /** No beat lines, beat numbers or bar labels: the opening, before the pulse is counted. */
+  bare?: boolean;
+  /** Every beat line drawn strong, for the step about the pulse. */
+  pulse?: boolean;
+  /** The 1 that opens each bar drawn large, in the emphasis colour: the strong beat. */
+  accent?: boolean;
+  /** Notes outlined in red, as `${clip id}-${index}`. */
+  marked?: readonly string[];
+  /** Notes outlined boldly in the emphasis colour, as `${clip id}-${index}`. */
+  lit?: readonly string[];
+  /** A dot under each note's start: emphasis on a beat, red between beats. */
+  onsets?: boolean;
+  /** Words under the score in place of the two bar labels. */
+  footer?: string;
+}
+const X0 = -6,
+  DX = (7.2 - X0) / 8;
+function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   const figure = new Group();
   figure.key = 'music-score';
   clips.forEach((clip, lane) => {
-    const base = lane === 0 ? 0.25 : -2.75,
-      top = base + 1.5,
-      x0 = -6,
-      x1 = 7.2,
-      dx = (x1 - x0) / 8;
+    const base = lane === 0 ? 0.25 : -2.5,
+      top = base + 1.5;
     const row = new Group(label(lane === 0 ? 'A' : 'B', -7.05, base + 0.7, s.palette.ink, 0.7));
     row.key = `score-${clip.id}`;
+    if (!look.bare)
     for (let beat = 0; beat <= 8; beat++)
       row.add(
         segment(
-          [x0 + beat * dx, base - 0.3],
-          [x0 + beat * dx, top + 0.25],
-          beat === 4 || phase === 1 ? s.emphasis : s.soft,
-          beat === 4 ? 0.04 : phase === 1 ? 0.035 : 0.012,
+          [X0 + beat * DX, base - 0.3],
+          [X0 + beat * DX, top + 0.25],
+          beat === 4 || look.pulse ? s.emphasis : s.soft,
+          beat === 4 ? 0.04 : look.pulse ? 0.035 : 0.012,
         ),
       );
-    if (lane === 0)
-      for (let beat = 0; beat < 8; beat++)
-        row.add(label(String((beat % 4) + 1), x0 + beat * dx, top + 0.8, s.soft, 0.7, `beat-${beat}`));
+    if (lane === 0 && !look.bare)
+      for (let beat = 0; beat < 8; beat++) {
+        const strong = look.accent && beat % 4 === 0;
+        row.add(
+          label(String((beat % 4) + 1), X0 + beat * DX, top + 0.8, strong ? s.emphasis : s.soft, strong ? 0.95 : 0.7, `beat-${beat}`),
+        );
+      }
     clip.notes.forEach((note, i) => {
       const y = base + [60, 62, 64, 67].indexOf(note.midi) * 0.5,
-        x = x0 + (note.at + note.duration / 2) * dx;
-      const marked = (phase === 5 && lane === 1 && i === 3) || (phase === 4 && (i === 3 || i === 4));
+        x = X0 + (note.at + note.duration / 2) * DX;
+      const marked = look.marked?.includes(`${clip.id}-${i}`),
+        lit = look.lit?.includes(`${clip.id}-${i}`);
       const rect = new Rectangle({
-        width: note.duration * dx - 0.08,
+        width: note.duration * DX - 0.08,
         height: 0.7,
         fill: s.palette.paper,
         stroke: marked ? s.bad : s.emphasis,
-        strokeWidth: marked ? 0.055 : 0.03,
+        strokeWidth: marked || lit ? 0.065 : 0.03,
       }).moveTo([x, y]);
       const g = new Group(rect, label(NOTE_NAMES[note.midi]!, x, y, s.palette.ink, 0.7));
       g.key = `note-${clip.id}-${i}`;
       row.add(g);
+      if (look.onsets) {
+        const onBeat = Number.isInteger(note.at);
+        const dot = new Circle({ radius: 0.1, fill: onBeat ? s.emphasis : s.bad, stroke: 'none' }).moveTo([
+          X0 + note.at * DX,
+          base - 0.55,
+        ]);
+        dot.key = `onset-${clip.id}-${i}`;
+        row.add(dot);
+      }
     });
     figure.add(row);
   });
-  figure.add(label('Bar 1: four beats', -2.7, -3.6, s.soft, 0.7), label('Bar 2: four beats', 4.0, -3.6, s.soft, 0.7));
+  // One footer line for every step, clear of B's notes and of its onset dots.
+  const y = -3.75;
+  if (look.footer) figure.add(label(look.footer, 0.6, y, s.soft, 0.66, 'score-footer'));
+  else figure.add(label('Bar 1: four beats', -2.7, y, s.soft, 0.7), label('Bar 2: four beats', 4.0, y, s.soft, 0.7));
   return figure;
 }
+/** Milliseconds as a reader would say them: 312.5, 625. */
+const ms = (n: number) => String(Math.round(n * 10) / 10);
+
 export default class MelodyRhythm extends Scene {
   static meta = {
     id: 'melody-rhythm',
-    title: 'How do melody and rhythm shape a phrase?',
+    title: 'Why does one version of a tune sound off the beat?',
     sources: [
       'https://learningmusic.ableton.com/make-beats/make-beats.html',
       'https://learningmusic.ableton.com/melodies/melodies.html',
+      'https://openmusictheory.github.io/syncopation.html',
       'https://www.w3.org/TR/2021/REC-webaudio-20210617/#OscillatorNode',
+    ],
+    // The script's answer and check questions (script.md); check holds the bar step to stating the answer.
+    answer: 'The shifted B sounds off the beat because its G starts halfway through beat 4 and holds across the bar line, so the 1 of bar 2 brings no new note',
+    checks: [
+      {
+        question:
+          'A version C starts from A, cuts the first D to half a beat and holds the E after it for one and a half beats, so G is back on beat 4. Which beat now brings no new note, and does any note cross the bar line?',
+        answer:
+          'Beat 3 of bar 1: E starts halfway through beat 2 and is still sounding on beat 3. Nothing crosses the bar line, so the 1 of bar 2 brings E, as in A.',
+      },
+      {
+        question:
+          'Count B in threes instead, 1 2 3 1 2 3, so a bar line falls after every third beat. Which note now holds across a bar line, and does the 1 of bar 3 bring a new note?',
+        answer:
+          'The first E. It starts on beat 3 of bar 1 and lasts one and a half beats, so it is still sounding when bar 2 begins, and G starts half a beat into bar 2. The 1 of bar 3, the seventh beat, brings a C that starts exactly there.',
+      },
+      {
+        question:
+          'Suppose the E after G lasted a full beat, as in A, with every later note following straight after it. Which notes of bar 2 would start on a beat?',
+        answer:
+          'None. D and both Cs would each start half a beat late, halfway through beats 2, 3 and 4, and the last C would run half a beat past the end of bar 2. Cutting that E to half a beat is what lets B land back on the beat.',
+      },
+    ],
+    // Sentences about every note or every beat, held at both tempos and in both versions of B.
+    claims: [
+      {
+        says: 'a new note starts on every click',
+        test: 'test/learning-models.test.ts: A starts a note on every beat',
+      },
+      {
+        says: 'B still skips the 1',
+        test: 'test/learning-models.test.ts: the shifted B starts none on the 1 of bar 2',
+      },
+      {
+        says: 'keeps its own starts and lengths',
+        test: 'test/learning-models.test.ts: the music comparison preserves pitches and total beats',
+      },
+      {
+        says: 'A and B play one rhythm',
+        test: 'test/learning-models.test.ts: the control B starts every note on a beat',
+      },
+      {
+        says: 'every start on a beat',
+        test: 'test/learning-models.test.ts: the control B starts every note on a beat',
+      },
+      {
+        says: 'Only that version starts G late enough',
+        test: 'test/learning-models.test.ts: the shifted B starts none on the 1 of bar 2',
+      },
     ],
   };
   static settings = [
@@ -64,7 +150,7 @@ export default class MelodyRhythm extends Scene {
       label: 'Version B',
       default: 'syncopated',
       options: [
-        { value: 'syncopated', label: 'Shift two note starts' },
+        { value: 'syncopated', label: 'Start two notes half a beat later' },
         { value: 'straight', label: 'Keep the same timing as A' },
       ],
     },
@@ -82,71 +168,75 @@ export default class MelodyRhythm extends Scene {
     const v = settingsOf(this),
       m = musicStory(v.timing as Timing, Number(v.tempo)),
       different = m.movedStarts > 0;
-    const titles = [
-      'Compare A and B',
-      'The grid supplies a steady pulse',
-      'Keep the timing and flatten the pitches',
-      'Restore the rising and falling pitches',
-      different ? 'Two note starts change' : 'The two versions keep identical timing',
-      different ? 'G crosses the strong bar boundary' : 'G ends at the bar boundary',
-      different ? 'Timing changes the heard phrase' : 'Matching pitches and timing give the same phrase',
+    // B's notes that start on bar 2's 1, by index: none when G holds across the bar line.
+    const onTheOne = (clip: AudioClip) => clip.notes.flatMap((n, i) => (n.at === 4 ? [`${clip.id}-${i}`] : []));
+    const answer = 'The shifted B sounds off the beat because its G starts halfway through beat 4 and holds across the bar line, so the 1 of bar 2 brings no new note.';
+    const steps = [
+      {
+        id: 'listen',
+        title: 'Eight notes in one order: which version sounds off the beat?',
+        line: different ? 'Listen to both. Predict: where does B pull against the beat?' : 'Listen to both: in this case B is the control.',
+        caption: `Each rectangle is a note: left to right is time, height is pitch and width is how long it sounds. Both versions play C D E G E D C C on the same instrument at ${m.bpm} BPM. ${different ? 'Play A, then B. Does one of them seem to pull against the beat somewhere? Where?' : 'Here B’s starts and lengths match A’s exactly; the shifted version of B starts two notes half a beat later.'}`,
+        clips: m.clips,
+        look: { bare: true, footer: 'Left to right: time. Higher: a higher pitch.' },
+      },
+      {
+        id: 'pulse',
+        title: 'Count 1 2 3 4: the 1 that opens each bar is the strong beat',
+        line: 'Predict: in B, which note starts on the 1 of bar 2?',
+        caption: `Count along with the clicks: 1 2 3 4, then again. Each large 1 opens a bar and gets a different click. In A a new note starts on every click. At the start of bar 2 it is E, outlined in the picture. Which note starts there in B?`,
+        clips: m.clips,
+        look: { pulse: true, accent: true, lit: ['a-0', ...onTheOne(m.clips[0]!)], footer: 'Large 1: the strong beat that opens each bar' },
+      },
+      {
+        id: 'bar',
+        title: different ? 'In B, no new note starts on the 1 of bar 2' : 'E starts on the 1 in both versions; nothing crosses the bar line',
+        line: different
+          ? 'The red outline is G, the note still sounding when bar 2 begins.'
+          : 'The red outline: G ends exactly as bar 2 begins.',
+        caption: different
+          ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)} ms, so G starts ${ms(m.beatMs / 2)} ms before the bar line; the other tempo changes that gap but keeps G halfway through beat 4.`
+          : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. The other version of B differs at exactly this bar line. ${answer} Only that version starts G late enough to hold it across the bar line.`,
+        clips: m.clips,
+        look: {
+          accent: true,
+          marked: ['b-3'],
+          lit: [...onTheOne(m.clips[0]!), ...onTheOne(m.clips[1]!)],
+          footer: different ? 'G starts mid-beat 4 and holds over the 1' : 'G ends at the bar line; E starts on the 1',
+        },
+      },
+      {
+        id: 'rhythm',
+        title: different ? 'With every pitch C, B still skips the 1' : 'With every pitch C, A and B play one rhythm',
+        line: 'Each version keeps its own starts and lengths; only the pitches go.',
+        caption: different
+          ? 'Could the climb to G be what sounds off? Each version keeps its own starts and lengths, but all pitches are now C. Red dots mark starts between beats. Listen again: with the climb to G gone, B still holds a note across the bar line instead of starting one on the 1. Removing the melody leaves the timing difference intact. The score shows that difference; how strongly you hear its pull can vary.'
+          : 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts. With the pitches gone, A and B play the identical rhythm, every start on a beat. Choose “Start two notes half a beat later” to hear a note hold across the bar line.',
+        clips: m.flat,
+        look: {
+          accent: true,
+          onsets: true,
+          footer: different ? 'Every pitch C. Red dot: a start between beats' : 'Every pitch C. Blue dot: a start on a beat',
+        },
+      },
     ];
-    const lines = [
-      'Compare the note positions and lengths in A and B.',
-      'Each bar contains four beats; horizontal position is time.',
-      'Every event is C; starts and durations are retained.',
-      'The original pitch order returns without moving the events.',
-      different
-        ? 'The pitch sequence stays C D E G E D C C.'
-        : 'A and B share the same pitch order, starts and durations.',
-      different ? 'The red outline marks G crossing into bar 2.' : 'The red outline marks G ending as bar 2 starts.',
-      'Both versions use the same instrument, loudness and tempo.',
-    ];
-    const captions = [
-      different
-        ? 'A and B use the same eight notes in the same pitch order. Two note starts and two durations differ. Listen to both, or compare the horizontal positions and lengths of their rectangles.'
-        : 'A and B use identical pitches, starts and durations. This control case gives the same phrase twice; the shifted-timing setting changes the comparison.',
-      `The eight-beat phrase occupies two bars of four beats at ${m.bpm} BPM. During playback, the playhead follows the same beat positions used to schedule the sound. A rectangle’s vertical position gives pitch; its width gives duration.`,
-      'All events now play C, while each version keeps its own note starts and durations. Removing the rising and falling pitch pattern makes the timing easier to hear.',
-      'The pitch order C D E G E D C C returns. Those rises and falls now combine with the timing pattern to make the heard phrase.',
-      different
-        ? 'Version A starts each note on a beat. In B, G starts half a beat before the second bar and the following E starts half a beat into that bar. The pitch order stays fixed.'
-        : 'Version B has not moved any note starts or changed any durations. Its piano roll coincides with A’s timing, so this setting supplies a comparison with no rhythmic change.',
-      different
-        ? 'B’s G begins between beats and continues across the first beat of bar 2. Its onset falls before that strong beat, while its duration carries it through the beat.'
-        : 'In this straight-timing case, G occupies the last beat of bar 1 and ends at its boundary. A new E begins on the first beat of bar 2; no note is held across that boundary.',
-      different
-        ? 'The two versions preserve all eight notes, their pitch order, instrument, loudness and tempo. Moving two starts and changing two durations changes how that pitch contour meets the beat.'
-        : 'All pitches, their order, starts and durations match. With the same instrument, loudness and tempo, A and B produce the same phrase. Select shifted timing to compare the rhythmic change.',
-    ];
-    const frames = titles.map((title, i) => {
-      const clips = i === 2 ? m.flat : m.clips;
-      return {
-        id: ['listen', 'pulse', 'rhythm', 'contour', 'timing', 'bar', 'phrase'][i]!,
-        title,
-        line: lines[i]!,
-        caption: captions[i]!,
+    await lesson(
+      this,
+      steps.map(({ clips, look, ...step }) => ({
+        ...step,
         state: {
           timing: m.timing,
           bpm: m.bpm,
+          beatMs: m.beatMs,
           clips,
           movedStarts: m.movedStarts,
           movedDurations: m.movedDurations,
           crossing: clips[1]!.notes.filter((n) => n.at < 4 && n.at + n.duration > 4),
         },
         audio: { clips },
-        draw: (s: Stage) => scorePicture(s, clips, i),
-      };
-    });
-    frames.splice(5, 0, {
-      ...frames[3]!,
-      id: 'predict',
-      title: 'Which note is sounding as bar 2 starts?',
-      line: 'Follow the strong vertical bar line through A and B.',
-      caption:
-        'Trace the rectangles across the boundary into bar 2, or listen to both versions. Which note is already sounding in B at that boundary? The unchanged-timing setting provides a control.',
-      draw: (s: Stage) => scorePicture(s, m.clips, 3),
-    });
-    await lesson(this, frames, 'nord');
+        draw: (s: Stage) => scorePicture(s, clips, look),
+      })),
+      'nord',
+    );
   }
 }

@@ -18,53 +18,66 @@ export const PRODUCT = {
   reference: 'https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md',
   skill: 'https://github.com/adewale/rayner/blob/main/skills/rayner-explainers/SKILL.md',
   entry: {
-    id: 'python-dict',
+    id: 'bloom-filter',
     step: 'question',
-    settings: { key: '8' },
-    label: 'See why deleting a dictionary entry needs a marker',
+    settings: { bits: '16' },
+    label: 'See why a Bloom filter answers “maybe”',
   },
 } as const;
 
-export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain' }[] = [
-  { id: 'periodic-groups', step: 'reader-filling', group: 'topic' },
-  { id: 'python-dict', step: 'marker', group: 'topic' },
-  { id: 'bloom-filter', step: 'false-positive', group: 'topic' },
-  { id: 'git-branches', step: 'merge', group: 'topic' },
-  { id: 'monty-hall', step: 'odds', group: 'topic' },
-  { id: 'birthday-paradox', step: 'chance', group: 'topic' },
-  { id: 'melody-rhythm', step: 'bar', group: 'topic' },
-  { id: 'seasons', step: 'reader-year', group: 'topic' },
-  { id: 'oauth-pkce', step: 'reader-redeem', group: 'topic' },
-  { id: 'exgit', step: 'reader-change', group: 'topic' },
-  { id: 'token-bucket', step: 'reader-refill', group: 'topic' },
-  { id: 'mr-cache', step: 'reader-outcome', group: 'topic' },
-  { id: 'latest-search', step: 'reader-guard', group: 'topic' },
-  { id: 'state-machine', step: 'reader-reject', group: 'topic' },
-  { id: 'ring-buffer', step: 'reader-reuse', group: 'topic' },
-  { id: '2password', step: 'reader-auth', group: 'topic' },
-  { id: 'just-bash', step: 'reader-values', group: 'topic' },
-  { id: 'cert-renewal', step: 'reader-retries', group: 'topic' },
-  { id: 'quotient-familial', step: 'reader-cap', group: 'topic' },
-  { id: 'send-sync', step: 'reader-wrappers', group: 'topic' },
-  { id: 'gtfs', step: 'reader-stop', group: 'topic' },
-  { id: 'pg-page', step: 'reader-page', group: 'topic' },
-  { id: 'traffic-policy', step: 'reader-shares', group: 'topic' },
-  { id: 'isdigit', step: 'reader-result', group: 'topic' },
-  { id: 'ical-recurrence', step: 'reader-copies', group: 'topic' },
-  { id: 'ext4-space', step: 'reader-reserve', group: 'topic' },
-  { id: 'trust-proxy', step: 'reader-answer', group: 'topic' },
-  { id: 'tailwind-gamut', step: 'reader-display', group: 'topic' },
-  { id: 'gnome-files', step: 'reader-sample', group: 'topic' },
-  { id: 'wcag-map', step: 'reader-levels', group: 'topic' },
-  { id: 'feature-tour', step: 'result', group: 'toolchain' },
-  { id: 'lantern', step: 'reader-outputs', group: 'toolchain' },
-  { id: 'fork', step: 'reader-cost', group: 'toolchain' },
-  { id: 'agentic-mermaid', step: 'reader-repair', group: 'toolchain' },
-  { id: 'glyph', step: 'reader-shape', group: 'toolchain' },
-  { id: 'font-metrics', step: 'diagram', group: 'toolchain' },
-  { id: 'layout-direction', step: 'updates', group: 'toolchain' },
-  { id: 'pen-and-pencil', step: 'reader-labels', group: 'toolchain' },
+/**
+ * Where an explainer is shown. `showcase`: the selected exemplars, leading the gallery;
+ * mostly subjects, plus any toolchain lesson that stands on its own. Selection is editorial; it is not evidence of learning or benchmark superiority.
+ * `gallery`: worth reading, behind "More". `coverage`: kept because it is
+ * the only scene exercising some engine feature, diagram family or check (or until it is rebuilt);
+ * its page is built and tested but not listed in the gallery or llms.txt.
+ */
+export type Tier = 'showcase' | 'gallery' | 'coverage';
+
+export const EXPLAINERS: readonly { id: string; step: string; group: 'topic' | 'toolchain'; tier: Tier }[] = [
+  { id: 'periodic-groups', step: 'stack', group: 'topic', tier: 'showcase' },
+  { id: 'python-dict', step: 'marker', group: 'topic', tier: 'showcase' },
+  { id: 'bloom-filter', step: 'false-positive', group: 'topic', tier: 'showcase' },
+  { id: 'git-branches', step: 'merge', group: 'topic', tier: 'showcase' },
+  { id: 'latest-search', step: 'reader-guard', group: 'topic', tier: 'showcase' },
+  { id: 'monty-hall', step: 'worlds', group: 'topic', tier: 'showcase' },
+  { id: 'birthday-paradox', step: 'chance', group: 'topic', tier: 'gallery' },
+  { id: 'melody-rhythm', step: 'bar', group: 'topic', tier: 'showcase' },
+  { id: 'seasons', step: 'latitude', group: 'topic', tier: 'showcase' },
+  { id: 'henge', step: 'crossings', group: 'topic', tier: 'showcase' },
+  { id: 'oauth-pkce', step: 'attack', group: 'topic', tier: 'gallery' },
+  { id: 'exgit', step: 'change', group: 'topic', tier: 'gallery' },
+  { id: 'token-bucket', step: 'later', group: 'topic', tier: 'gallery' },
+  { id: 'mr-cache', step: 'reader-outcome', group: 'topic', tier: 'coverage' },
+  { id: 'state-machine', step: 'reader-reject', group: 'topic', tier: 'coverage' },
+  { id: 'statecharts', step: 'regions', group: 'topic', tier: 'showcase' },
+  { id: 'ring-buffer', step: 'result', group: 'topic', tier: 'gallery' },
+  { id: '2password', step: 'reader-boundary', group: 'topic', tier: 'gallery' },
+  { id: 'just-bash', step: 'reader-values', group: 'topic', tier: 'coverage' },
+  { id: 'cert-renewal', step: 'year', group: 'topic', tier: 'gallery' },
+  { id: 'quotient-familial', step: 'multiplie', group: 'topic', tier: 'gallery' },
+  { id: 'send-sync', step: 'arc-cell', group: 'topic', tier: 'gallery' },
+  { id: 'gtfs', step: 'day', group: 'topic', tier: 'gallery' },
+  { id: 'pg-page', step: 'swap', group: 'topic', tier: 'gallery' },
+  { id: 'traffic-policy', step: 'shares', group: 'topic', tier: 'gallery' },
+  { id: 'isdigit', step: 'outcome', group: 'topic', tier: 'showcase' },
+  { id: 'ical-recurrence', step: 'copy', group: 'topic', tier: 'gallery' },
+  { id: 'ext4-space', step: 'reserve', group: 'topic', tier: 'gallery' },
+  { id: 'trust-proxy', step: 'read', group: 'topic', tier: 'gallery' },
+  { id: 'tailwind-gamut', step: 'reader-display', group: 'topic', tier: 'gallery' },
+  { id: 'gnome-files', step: 'reader-sample', group: 'topic', tier: 'coverage' },
+  { id: 'wcag-map', step: 'reader-levels', group: 'topic', tier: 'coverage' },
+  { id: 'feature-tour', step: 'result', group: 'toolchain', tier: 'gallery' },
+  { id: 'lantern', step: 'seek', group: 'toolchain', tier: 'showcase' },
+  { id: 'fork', step: 'untested', group: 'toolchain', tier: 'gallery' },
+  { id: 'agentic-mermaid', step: 'meaning', group: 'toolchain', tier: 'gallery' },
+  { id: 'glyph', step: 'letterforms', group: 'toolchain', tier: 'gallery' },
+  { id: 'font-metrics', step: 'diagram', group: 'toolchain', tier: 'gallery' },
+  { id: 'layout-direction', step: 'updates', group: 'toolchain', tier: 'coverage' },
+  { id: 'pen-and-pencil', step: 'plate', group: 'toolchain', tier: 'gallery' },
 ];
 
-/** Public selection; the complete collection above remains the coverage inventory. */
-export const SHOWCASE = ['python-dict', 'bloom-filter', 'git-branches', 'melody-rhythm', 'monty-hall', 'token-bucket'] as const;
+/** The showcase tier, in gallery order; the complete collection above remains the coverage inventory. */
+export const SHOWCASE: readonly string[] = EXPLAINERS.filter((e) => e.tier === 'showcase').map((e) => e.id);
+/** Explainers listed in the gallery and llms.txt: every tier but coverage. */
+export const LISTED: readonly string[] = EXPLAINERS.filter((e) => e.tier !== 'coverage').map((e) => e.id);

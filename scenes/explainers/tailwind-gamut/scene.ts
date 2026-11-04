@@ -4,7 +4,7 @@ import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SHADES, THEME_LINES, rows, summarize } from '../lib/tailwind-gamut.ts';
+import { SHADES, THEME_LINES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
 import type { Row, Shade } from '../lib/tailwind-gamut.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
@@ -56,6 +56,22 @@ const SIZE = 0.24;
 const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
 
 const pct = (v: number) => `${v.toFixed(1)}%`;
+
+// The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
+// at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
+const OPEN = summarize('500');
+const OPENING = swatch(OPEN.mostOfSrgb.family, '500');
+const OPEN_MAPPED = cssMap(OPENING.L, OPENING.C, OPENING.h, 'srgb');
+const OPEN_ROW = rows('500').find((r) => r.family === OPENING.family)!;
+if (inside(OPENING.L, OPEN_ROW.shown, OPENING.h, 'srgb')) throw new Error('The mapped chroma must not fit at the written lightness and hue');
+// Check 2: the raw and relative leaders differ at shade 500.
+const RAW = rows('500').find((r) => r.family === OPEN.furthest.family)!;
+if (OPEN.furthest.family === OPEN.mostOfSrgb.family || RAW.srgb <= OPEN_ROW.srgb) throw new Error('The raw leader must sit on a higher edge than the relative one');
+// Check 3: a family that fits at 500 need not fit at 700.
+const ROOMY = OPEN.leastOfSrgb.family;
+const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
+if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
+const deg = (h: number) => `${h.toFixed(1)}°`;
 const list = (xs: readonly string[]) =>
   xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
@@ -70,6 +86,28 @@ export default class TailwindGamutExplainer extends Scene {
       CSS4 + 'Overview.bs#L5998-L6230',
       CSS4 + 'Overview.bs#L6383-L6609',
       'https://www.npmjs.com/package/colorjs.io/v/0.7.1',
+    ],
+    // The script's answer and check questions (script.md); check holds a step (palette) to stating the answer.
+    answer: 'Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written',
+    // Sentences about everything one radar draws.
+    claims: [
+      { says: 'lie outside, and only', shown: true as const },
+      { says: 'every colour past it shows', shown: true as const },
+      { says: 'lies beyond sRGB’s on every spoke', shown: true as const },
+    ],
+    checks: [
+      {
+        question: `An sRGB screen paints ${OPENING.family}-500 with chroma ${OPEN_ROW.shown.toFixed(3)}. Suppose you write that chroma yourself, at ${OPENING.family}-500’s own lightness and hue: oklch(${(OPENING.L * 100).toFixed(1)}% ${OPEN_ROW.shown.toFixed(3)} ${OPENING.h}). Does it fit sRGB?`,
+        answer: `No. The sRGB edge at that lightness and hue is ${OPEN_ROW.srgb.toFixed(3)}, below ${OPEN_ROW.shown.toFixed(3)}. The mapped colour fits because the final clip also moved it, to lightness ${(OPEN_MAPPED.L * 100).toFixed(1)}% and hue ${deg(OPEN_MAPPED.h)}, where the edge is higher. Whether a chroma fits depends on the lightness and hue it comes with.`,
+      },
+      {
+        question: `In raw chroma, ${RAW.family}-500 is the 500 colour furthest past the sRGB edge. Why does the share view put ${OPENING.family}-500 first instead?`,
+        answer: `The edge sits at a different chroma on every spoke. ${RAW.family}-500 overshoots by ${OPEN.furthest.value.toFixed(3)} on an edge at ${RAW.srgb.toFixed(3)}; ${OPENING.family}’s edge is ${OPEN_ROW.srgb.toFixed(3)}, so its smaller overshoot is a larger share of it.`,
+      },
+      {
+        question: `${ROOMY}-500 has the most room of the 500 shades, at ${pct(OPEN.leastOfSrgb.value)} of its sRGB edge. Does that make ${ROOMY}-700 safe on an sRGB screen?`,
+        answer: `No: ${ROOMY}-700 asks for ${pct(ROOMY_700.ofSrgb)} of its edge, so an sRGB screen maps it. The darker shade has its own lightness and chroma, and the edge moves with lightness, so a family’s name says nothing about whether it fits.`,
+      },
     ],
   };
   static settings = [
@@ -234,11 +272,12 @@ export default class TailwindGamutExplainer extends Scene {
     // color palette from rgb to oklch, taking advantage of the wider gamut to make the colors more vivid in
     // places where we were previously limited by the sRGB color space."
     await readerFirst(this, s, readerFrames(shade, screen));
+    // Colours that round to the leader's share: the radar draws them at the same radius.
+    const level = all.filter((r) => r.family !== sum.mostOfSrgb.family && r.ofSrgb === sum.mostOfSrgb.value).map((r) => r.family);
     await this.step('oklch', {
-      detail: true,
-      title: 'Tailwind 4 writes each colour as lightness, chroma and hue',
-      line: 'Each line reads oklch(L C h); C, chroma, is distance from grey.',
-      caption: `Tailwind CSS 4.3.3’s theme.css writes all 286 palette shades as oklch(L C h): lightness, chroma (how far from grey) and hue angle. The v4.0 announcement says the move from rgb to oklch makes colours more vivid where sRGB had limited them. This page takes the ${shade} shade of the ${n} coloured families. We will compare each shade with the limits of sRGB and Display P3, then show what the selected screen does when a colour lies outside its range.`,
+      title: `${sum.mostOfSrgb.family}-${shade} is one of ${n} colours at shade ${shade}, all written in oklch`,
+      line: 'Each line reads oklch(L C h): lightness, chroma, hue angle.',
+      caption: `These are the ${shade} shades of Tailwind’s ${n} coloured families, written as lightness, chroma and hue. Chroma is distance from grey. The opening colour asks for more of it than sRGB can reproduce. To find whether the other families fit, compare each requested chroma with the limit at that colour’s own lightness and hue.`,
     });
     await s.clear();
     const code = await s.code(
@@ -261,10 +300,9 @@ export default class TailwindGamutExplainer extends Scene {
     const twCurve: Curve = { id: 'tw', label: tw, values: all.map((r) => r.C) };
     const gap = sum.hueGap;
     await this.step('srgb-edge', {
-      detail: true,
       title: 'An sRGB screen’s edge sits at a different chroma for each colour',
       line: 'The outline is the most chroma sRGB can show on each spoke.',
-      caption: `Each spoke is one family, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, found by bisection with CSS Color 4’s sample code. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
+      caption: `Each spoke is one family, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, its sRGB edge. A single chroma cutoff would not work: the limit depends on lightness and hue together. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
     });
     await s.clear();
     const d = await s.show({ source: radar(all, [srgbCurve, twCurve], CHROMA) }, { box: 'main', build: 'frame' });
@@ -283,10 +321,9 @@ export default class TailwindGamutExplainer extends Scene {
 
     // ------------------------------------------------------------------ palette
     await this.step('palette', {
-      detail: true,
       title: `${out} of the ${n} ${shade} shades lie outside sRGB`,
       line: `Furthest past the edge: ${sum.furthest.family}-${shade}, by ${sum.furthest.value.toFixed(3)} chroma.`,
-      caption: `Tailwind’s own chroma for each colour, drawn over the edge. ${out} of ${n} lie outside sRGB; only ${list(sum.insideSrgb)} fit. At this scale the overshoot is a sliver: the furthest out in chroma, ${sum.furthest.family}-${shade}, is ${sum.furthest.value.toFixed(3)} past the edge.`,
+      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${list(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; the furthest out in raw chroma, ${sum.furthest.family}-${shade}, is ${sum.furthest.value.toFixed(3)} past the edge. Yet the first step showed what a sliver does to ${sum.mostOfSrgb.family}-${shade}.`,
     });
     await s.clearOverlays();
     said.length = 0;
@@ -303,10 +340,11 @@ export default class TailwindGamutExplainer extends Scene {
       { ...twCurve, values: all.map((r) => r.ofSrgb) },
     ];
     await this.step('share', {
-      detail: true,
       title: `As a share of the edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
-      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family} goes furthest, to ${pct(sum.mostOfSrgb.value)}; ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
+      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${
+        sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
+      }.${level.length ? ` ${list(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. A value above 100% asks for more chroma than that spoke can hold. The centre is now 50%, and the rings are 25 points apart; this is relative capacity, not raw chroma.`,
     });
     await s.clearOverlays();
     said.length = 0;
@@ -330,7 +368,6 @@ export default class TailwindGamutExplainer extends Scene {
     const withP3 = [...shareCurves, p3Curve];
     const near = sum.nearestP3;
     await this.step('p3-edge', {
-      detail: true,
       title: `None of the ${n} lie outside Display P3`,
       line: `Closest to the P3 edge: ${near.family}-${shade}, at ${pct(near.value)} of it.`,
       caption: `The Display P3 edge on the same scale lies beyond sRGB’s on every spoke, from ${pct(sum.p3OfSrgb.lo.value)} at ${sum.p3OfSrgb.lo.family} to ${pct(sum.p3OfSrgb.hi.value)} at ${sum.p3OfSrgb.hi.family}. All ${n} colours fit inside it. The closest is ${near.family}-${shade}, at ${pct(near.value)} of the P3 edge, ${near.spare.toFixed(3)} chroma short of it.`,
@@ -366,8 +403,7 @@ export default class TailwindGamutExplainer extends Scene {
       const mapped: Curve = { id: 'tw', label: `${tw} on sRGB`, values: all.map((r) => r.shownOfSrgb) };
       const lost = sum.lost;
       await this.step('srgb-screen', {
-        detail: true,
-        title: `On an sRGB screen, the ${out} land on its edge`,
+          title: `On an sRGB screen, the ${out} land on its edge`,
         line: `Chroma drops to the edge; ${lost.family}-${shade} loses most, ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
         caption: `CSS Color 4 says a colour outside the screen’s gamut must be mapped into it. Its binary search lowers chroma at fixed lightness and hue until clipping changes the colour by under 0.02, then clips; hue moves by up to ${sum.hueShift.value}°. All ${out} land on the edge. ${lost.family}-${shade} loses most chroma: ${lost.from.toFixed(3)} to ${lost.to.toFixed(3)}.`,
       });
@@ -404,8 +440,7 @@ export default class TailwindGamutExplainer extends Scene {
         { ...p3Curve, values: edge100 },
       ];
       await this.step('p3-screen', {
-        detail: true,
-        title: `On a Display P3 screen, all ${n} show as written`,
+          title: `On a Display P3 screen, all ${n} show as written`,
         line: `Ring 100 is now the P3 edge; sRGB’s falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of it.`,
         caption: `Now each spoke is measured against the Display P3 edge, the new 100 ring. CSS Color 4’s gamut mapping leaves a colour inside the screen’s gamut unchanged, so a P3 screen shows all ${n} as written. The sRGB edge falls to ${pct(sum.srgbOfP3.lo.value)}–${pct(sum.srgbOfP3.hi.value)} of P3’s; ${near.family} comes closest, at ${pct(near.value)}.`,
       });

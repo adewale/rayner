@@ -126,10 +126,14 @@ test(
     assert.equal(project.variants.length, 4);
     const claims = await reviewClaims(project);
     const expected = {
-      tromso: { name: 'Tromsø', formula: '90° − |69.65° − 23.44°| = 43.79°', june: '24.0 h of daylight', december: ['0.0 h of daylight', 'Noon Sun -3.1°, below the horizon'], january: '0.0 h', other: '24.0 h' },
-      london: { name: 'London', formula: '90° − |51.5° − 23.44°| = 61.94°', june: '16.4 h of daylight', december: ['7.6 h of daylight'], january: '8.0 h', other: '16.0 h' },
-      quito: { name: 'Quito', formula: '90° − |0° − 23.44°| = 66.56°', june: '12.0 h of daylight', december: ['12.0 h of daylight'], january: '15 January: 12.0 h', other: '15 July: 12.0 h' },
-      sydney: { name: 'Sydney', formula: '90° − |-33.87° − 23.44°| = 32.69°', june: '9.7 h of daylight', december: ['14.3 h of daylight'], january: '14.0 h', other: '10.0 h' },
+      tromso: { name: 'Tromsø', formula: '90° − |69.65° − 23.44°| = 43.79°', june: '24.0 h of daylight', december: ['0.0 h of daylight', 'Noon Sun -3.1°, below the horizon'], january: '0.0 h', other: '24.0 h',
+        spread: ['December', 'Sun below the horizon', 'June, 43.8°', '1.45 m', '69% per m²', '1 m'] },
+      london: { name: 'London', formula: '90° − |51.5° − 23.44°| = 61.94°', june: '16.4 h of daylight', december: ['7.6 h of daylight'], january: '8.0 h', other: '16.0 h',
+        spread: ['December, 15.1°', '3.85 m', '26% per m²', 'June, 61.9°', '1.13 m', '88% per m²', '1 m'] },
+      quito: { name: 'Quito', formula: '90° − |0° − 23.44°| = 66.56°', june: '12.0 h of daylight', december: ['12.0 h of daylight'], january: '15 January: 12.0 h', other: '15 July: 12.0 h',
+        spread: ['December, 66.6°', 'June, 66.6°', '1.09 m', '92% per m²', '1 m'] },
+      sydney: { name: 'Sydney', formula: '90° − |-33.87° − 23.44°| = 32.69°', june: '9.7 h of daylight', december: ['14.3 h of daylight'], january: '14.0 h', other: '10.0 h',
+        spread: ['December, 79.6°', '1.02 m', '98% per m²', 'June, 32.7°', '1.85 m', '54% per m²', '1 m'] },
     };
     const folder = await mkdtemp(join(tmpdir(), 'rayner-seasons-references-'));
     let browser: Awaited<ReturnType<typeof launch>> | undefined, server: Awaited<ReturnType<typeof serve>> | undefined;
@@ -144,13 +148,14 @@ test(
         // detail step. Before the subject declarations it rejects the noon
         // globe revealed incidentally when the old callout disappears.
         const reviewed = await reviewStoryVariant(page, `${server.url}/seasons.html`, variant, claims);
-        assert.equal(reviewed.length, 22);
+        // Nine steps, each reviewed on two stages; the compare step's curves now sit in distance.
+        assert.equal(reviewed.length, 18);
         formalRows += reviewed.length;
         const applicable = claims.filter((claim) => Object.entries(claim.settings ?? {}).every(([key, value]) => variant.values[key] === value));
         const frames = await storyFrames(variant.Scene, applicable);
         const values = expected[variant.values.place as keyof typeof expected];
         await page.setViewportSize({ width: 320, height: 568 });
-        for (const step of ['noon', 'december', 'latitude', 'distance']) {
+        for (const step of ['noon', 'december', 'spread', 'latitude', 'distance']) {
           await page.goto(`${server.url}/seasons.html?${new URLSearchParams({ ...variant.values, step })}`);
           await page.waitForFunction((name) => (window as unknown as { raynerReviewStep: string }).raynerReviewStep === name &&
             !document.querySelector('#content.loading') && !document.querySelector('svg.leaving'), step);
@@ -172,10 +177,12 @@ test(
           const expectedKeys = step === 'noon'
             ? ['june-horizon', 'june-place', 'june-noon-ray', 'noon-notes']
             : step === 'december'
-              ? ['june-latitude', 'december-latitude', 'june-north', 'december-north', 'solstice-months', 'june-daylight-callout', 'december-daylight-callout', 'december-noon-ray']
+              ? ['june-daylight-latitude', 'emphasis: june-daylight-latitude', 'december-latitude', 'june-north', 'december-north', 'solstice-months', 'june-daylight-callout', 'december-daylight-callout', 'december-noon-ray']
+              : step === 'spread'
+                ? ['spread-ground', 'spread-december', 'spread-june']
               : step === 'latitude'
                 ? ['june-latitude', 'december-latitude', 'latitude-circles', 'june-daylight-table', 'december-daylight-table', `emphasis: row ${values.name}`, `emphasis: row ${values.name}`]
-                : ['distance-orbit', 'daylight-curve', 'january-point', 'january-value', ...(variant.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
+                : ['effect-bars', 'daylight-curve', 'january-point', 'january-value', ...(variant.values.place === 'quito' ? ['july-point', 'july-value'] : ['mirror-daylight-curve', 'mirror-january-point', 'mirror-january-value'])];
           assert.deepEqual(frame.targets.map((target) => target.name).sort(), [...expectedKeys].sort());
           const indices = new Set(frame.targets.flatMap((target) => target.indices));
           for (const target of frame.targets) for (const index of target.indices) {
@@ -185,11 +192,12 @@ test(
             });
             assert.ok(eligible.length, `${variant.values.place}/${step}/320: ${target.name} needs complete native paint`);
             const paint = eligible[0]!.ink.find((ink) => ink.index === index)!;
-            assert.ok(covered(paint.box, eligible.map((view) => view.viewport)), `${target.name}: the reachable tour must cover all claimed ink`);
+            assert.ok(covered(paint.box, eligible.map((view) => view.viewport)), `${variant.values.place}/${step}/320: ${target.name}: the reachable tour must cover all claimed ink (${JSON.stringify(paint.box)} in ${JSON.stringify(eligible.map((view) => view.viewport))})`);
           }
           const labels = frame.labels.filter((label) => label.indices.some((index) => indices.has(index)));
           const words = step === 'noon' ? ['horizon', 'noon sunlight', values.formula]
             : step === 'december' ? ['June', 'December', values.june, ...values.december]
+              : step === 'spread' ? values.spread
               : step === 'latitude' ? ['Tromsø', 'London', 'Quito', 'Sydney', '24.0 h', '0.0 h', '16.4 h', '7.6 h', '12.0 h', '9.7 h', '14.3 h']
                 : ['January', 'July', values.january, values.other];
           for (const word of words) assert.ok(labels.some((label) => label.text === word), `${step}: missing independent expected value ${word}`);
@@ -208,8 +216,8 @@ test(
           phoneRows++;
         }
       }
-      assert.equal(formalRows, 88);
-      assert.equal(phoneRows, 16);
+      assert.equal(formalRows, 72);
+      assert.equal(phoneRows, 20);
     } finally {
       await browser?.close();
       server?.close();

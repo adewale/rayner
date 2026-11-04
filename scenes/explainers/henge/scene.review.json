@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "claims": [
+    {
+      "step": "street",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-street"
+        }
+      ]
+    },
+    {
+      "step": "overhead",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-map-street"
+        },
+        {
+          "key": "henge-map-sun"
+        },
+        {
+          "text": "Sunset"
+        },
+        {
+          "text": "Sunrise"
+        }
+      ]
+    },
+    {
+      "step": "tilt",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-orbit"
+        },
+        {
+          "text": "June"
+        },
+        {
+          "text": "December"
+        },
+        {
+          "text": "New York: red dot and horizon."
+        }
+      ]
+    },
+    {
+      "step": "paths",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-arcs"
+        },
+        {
+          "text": "December"
+        },
+        {
+          "text": "Equinox"
+        },
+        {
+          "text": "June"
+        },
+        {
+          "text": "New York’s horizon"
+        },
+        {
+          "key": "henge-paths-street"
+        }
+      ]
+    },
+    {
+      "step": "sweep",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-annual"
+        },
+        {
+          "text": "Yellow: sunset direction"
+        }
+      ]
+    },
+    {
+      "step": "crossings",
+      "settings": {
+        "street": "manhattan"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-annual"
+        },
+        {
+          "text": "May"
+        },
+        {
+          "text": "July"
+        }
+      ]
+    },
+    {
+      "step": "crossings",
+      "settings": {
+        "street": "west"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-annual"
+        },
+        {
+          "text": "March"
+        },
+        {
+          "text": "September"
+        }
+      ]
+    },
+    {
+      "step": "disc",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-disc"
+        },
+        {
+          "text": "Half Sun"
+        },
+        {
+          "text": "Full Sun"
+        },
+        {
+          "text": "Centre on horizon"
+        },
+        {
+          "text": "Bottom on horizon"
+        }
+      ]
+    }
+  ]
+}

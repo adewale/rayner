@@ -1,18 +1,91 @@
-import { Group, Rectangle } from '../../../../src/index.ts';
-import { tally, criteria } from '../wcag-map.ts';
-import type { Level } from '../wcag-map.ts';
+import { Group, Line, Rectangle } from '../../../../src/index.ts';
+import type { Stage } from '../../../../explain/index.ts';
+import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from '../wcag-map.ts';
+import type { Criterion, Level, Version } from '../wcag-map.ts';
 import { tile, label, table } from '../reader-drawing.ts';
 import type { ReaderFrame } from '../reader-drawing.ts';
+
+/**
+ * Every criterion some version asks for at `level`, one column each: grouped by level, and within a
+ * level 2.0's kept criteria, then the one 2.2 removed, then 2.1's additions, then 2.2's.
+ */
+export function columns(level: Level): Criterion[] {
+  const at = (c: Criterion) => (c.removed ? 1 : c.added === '2.0' ? 0 : c.added === '2.1' ? 2 : 3);
+  const num = (c: Criterion) => c.num.split('.').map(Number);
+  return CRITERIA.filter((c) => atLevel(c, level) && VERSIONS.some((v) => inVersion(c, v))).sort((a, b) => {
+    const d = LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level) || at(a) - at(b);
+    if (d) return d;
+    const [x, y] = [num(a), num(b)];
+    for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i]! - y[i]!;
+    return 0;
+  });
+}
+
+/** One row per version, one cell per column it asks for, coloured by the version that added it;
+ *  level brackets above, each version's count at the right, and 4.1.1 Parsing's gap named below. */
+function lists(level: Level, s: Stage) {
+  const cols = columns(level);
+  const levels = LEVELS.slice(0, LEVELS.indexOf(level) + 1);
+  const GAP = 0.3,
+    x0 = -5.0,
+    x1 = 5.0;
+  const pitch = (x1 - x0 - GAP * (levels.length - 1)) / cols.length;
+  const x = (i: number) => x0 + pitch * (i + 0.5) + GAP * levels.indexOf(cols[i]!.level);
+  const rowY = (r: number) => 0.95 - r * 1.2;
+  const colour: Record<Version, string> = { '2.0': s.soft, '2.1': s.emphasis, '2.2': s.good };
+  const g = new Group();
+  for (const l of levels) {
+    const at = cols.flatMap((c, i) => (c.level === l ? [i] : []));
+    const a = x(at[0]!) - pitch / 2,
+      b = x(at.at(-1)!) + pitch / 2;
+    g.add(new Line([a, 1.75], [b, 1.75], { stroke: s.palette.ink, strokeWidth: 0.03 }), label(l, (a + b) / 2, 2.25, s.palette.ink, 0.6));
+  }
+  g.add(label('Criteria', 6.45, 2.25, s.palette.ink, 0.6));
+  VERSIONS.forEach((v, r) => {
+    const y = rowY(r);
+    g.add(label(v, -5.85, y, s.palette.ink, 0.62), label(tally(v, level).total, 6.45, y, s.palette.ink, 0.62));
+    cols.forEach((c, i) => {
+      if (inVersion(c, v))
+        g.add(
+          new Rectangle({ width: pitch * 0.78, height: 0.8, fill: c.removed ? s.bad : colour[c.added], stroke: 'none' }).moveTo([x(i), y]),
+        );
+      else if (c.removed && v === c.removed) {
+        const gap = new Rectangle({ width: pitch * 0.78, height: 0.8, fill: 'none', stroke: s.bad, strokeWidth: 0.03 }).moveTo([x(i), y]);
+        gap.style.dashArray = '0.08 0.06';
+        g.add(gap);
+      }
+    });
+  });
+  const parsing = cols.findIndex((c) => c.removed);
+  const below = rowY(VERSIONS.length - 1) - 0.4;
+  g.add(
+    new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.bad, strokeWidth: 0.03 }),
+    label('4.1.1 Parsing', x(parsing), below - 0.95, s.bad, 0.6),
+  );
+  return g;
+}
+
+/** The page's one-sentence answer, stated by the version step. */
+export const ANSWER = 'A level asks for its own criteria and those of the levels below it, in the WCAG version you name';
 export function frames(level: Level, guideline: string): ReaderFrame[] {
-  const total = tally('2.2', level),
+  const t20 = tally('2.0', level),
+    t21 = tally('2.1', level),
+    total = tally('2.2', level),
+    a = tally('2.2', 'A').total,
     selected = criteria('2.2', level, guideline),
     focus = criteria('2.2', level).some((c) => c.num === '2.4.7');
+  const c21 = change('2.0', '2.1', level),
+    c22 = change('2.1', '2.2', level);
   return [
     {
       id: 'reader-focus',
-      title: 'Can you see where Tab went?',
-      line: 'A concrete example: 2.4.7 Focus Visible, level AA.',
-      caption: `The lower drawing marks focus on Pay. A keyboard user can identify which button will activate. Focus Visible is ${focus ? 'included' : 'not included'} at the selected level ${level}. This illustrates that criterion; conformance requires checking all applicable criteria.`,
+      title: 'The outline shows which button Tab reached',
+      line: 'Success criterion 2.4.7 Focus Visible asks for the lower drawing; WCAG files it at level AA.',
+      caption: `Press Tab on a payment form and focus moves to Cancel or Pay. In the upper drawing nothing shows which, so pressing Enter is a guess; in the lower one an outline marks Pay. Focus Visible requires that keyboard focus be visible. Whether a site must meet it depends on two choices its accessibility policy makes: a conformance level and a WCAG version. ${
+        focus
+          ? `At level ${level}, the selected level, Focus Visible is on the list.`
+          : `At level ${level}, the selected level, it is not on the list, because it is a level AA criterion.`
+      }`,
       values: { level, focusRequired: focus },
       draw: (s) =>
         new Group(
@@ -29,9 +102,9 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
     },
     {
       id: 'reader-levels',
-      title: 'Does AA mean “only the AA criteria”?',
-      line: `WCAG 2.2, selected level ${level}.`,
-      caption: `Level ${level} includes ${total.total} success criteria in WCAG 2.2 because each level includes the levels below it. Guideline ${guideline} contributes ${selected.length} of them. A criterion count helps scope the checks; each applicable requirement still needs testing on the page.`,
+      title: `Level ${level} asks for ${total.total} criteria in WCAG 2.2`,
+      line: 'Each row includes the rows above it.',
+      caption: `Does aiming for AA mean checking the criteria labelled AA? WCAG’s conformance requirements say a level AA page satisfies all the level A and level AA criteria, or offers an alternate version that does, so level AA’s list in WCAG 2.2 is ${a} at level A plus ${tally('2.2', 'AA').total - a} at AA. At level ${level}, the selected level, the list holds ${total.total} criteria, ${selected.length} of them under guideline ${guideline}. A count names the set to evaluate; it is not a conformance result.`,
       values: { level, total: total.total, guideline, count: selected.length },
       draw: (s) =>
         table(
@@ -44,6 +117,24 @@ export function frames(level: Level, guideline: string): ReaderFrame[] {
           s,
           { xs: [-5, -0.8, 5.4], y: 2.6, gap: 1.5 },
         ),
+    },
+    {
+      id: 'reader-versions',
+      title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
+      line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,
+      caption: `The list changes with the version as well. Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, grouped by level and coloured by the version that added it: grey 2.0, blue 2.1, green 2.2, with 4.1.1 Parsing in red; each row is one version’s list, so an empty place is a criterion that version does not ask for. WCAG 2.1 added ${c21.added.length} criteria at ${level === 'A' ? 'level A' : `level ${level} or below`}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete because assistive technology no longer needs to parse HTML directly. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${ANSWER}.`,
+      values: {
+        level,
+        totals: [t20.total, t21.total, total.total],
+        added21: c21.added.length,
+        added22: c22.added.length,
+        removed22: c22.removed,
+        columns: columns(level).map((c) => c.num),
+        rows: Object.fromEntries(
+          VERSIONS.map((v) => [v, columns(level).filter((c) => inVersion(c, v)).map((c) => c.num)]),
+        ),
+      },
+      draw: (s) => lists(level, s),
     },
   ];
 }

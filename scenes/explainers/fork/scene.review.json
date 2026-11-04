@@ -2,44 +2,29 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-build",
+      "step": "choice",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "fork-choice-cases"
         },
         {
-          "text": "Author"
-        },
-        {
-          "text": "scene"
-        },
-        {
-          "text": "Build"
-        },
-        {
-          "text": "diagrams"
-        },
-        {
-          "text": "Portable"
-        },
-        {
-          "text": "page"
+          "key": "fork-choice-fallback"
         }
       ]
     },
     {
-      "step": "reader-cost",
+      "step": "cases",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "fork-cases"
         },
         {
-          "text": "Policy A"
+          "text": "Local"
         },
         {
-          "text": "Policy B"
+          "text": "Cluster"
         },
         {
           "text": "case 1"

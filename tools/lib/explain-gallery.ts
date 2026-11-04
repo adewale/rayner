@@ -8,8 +8,8 @@ export function galleryTile(item: { id: string; title: string; lang: string }, l
   return `<li${lead ? ' class="lead"' : ''}><a href="${htmlEscape(href)}"${hreflang}><img src="${htmlEscape(item.id)}.png" width="960" height="540" alt="" loading="${lead ? 'eager' : 'lazy'}"><span${lang}>${htmlEscape(item.title)}</span></a></li>`;
 }
 
-type GalleryCatalog = Pick<import('./explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('./explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'showcase'>[]};
-/** Full collections lead with the showcase; an explicit subset shows its selected cards. */
+type GalleryCatalog = Pick<import('./explain-artifacts.ts').Catalog, 'product'> & {scenes: Pick<import('./explain-artifacts.ts').CatalogScene, 'id' | 'title' | 'lang' | 'group' | 'tier'>[]};
+/** Full collections lead with the showcase tier, of either group, and list the gallery tier behind "More"; coverage scenes get no card. An explicit subset shows its selected cards. */
 export function galleryPage(catalog: GalleryCatalog, tokens: string, collection = true): string {
   const { product, scenes } = catalog,
     entry = product.entry;
@@ -17,17 +17,17 @@ export function galleryPage(catalog: GalleryCatalog, tokens: string, collection 
   const tile = (item: GalleryCatalog['scenes'][number], lead = false) =>
     galleryTile({ id: item.id, title: item.title ?? item.id, lang: item.lang ?? 'en' }, lead);
   const featured = collection
-    ? scenes.filter((scene) => scene.showcase === true || scene.id === entry.id)
+    ? scenes.filter((scene) => scene.tier === 'showcase')
     : scenes;
   const topics = [
     ...featured.filter((scene) => scene.id === entry.id),
     ...featured.filter((scene) => scene.id !== entry.id),
   ];
   const library = collection
-    ? scenes.filter((scene) => scene.group === 'topic' && !featured.includes(scene))
+    ? scenes.filter((scene) => scene.group === 'topic' && scene.tier === 'gallery' && !featured.includes(scene))
     : [];
   const toolchain = collection
-    ? scenes.filter((scene) => scene.group === 'toolchain' && !featured.includes(scene))
+    ? scenes.filter((scene) => scene.group === 'toolchain' && scene.tier === 'gallery' && !featured.includes(scene))
     : [];
   const query = new URLSearchParams({ ...entry.settings, ...(entry.step ? { step: entry.step } : {}) });
   const entryUrl = entry.id + '.html' + (query.size ? '?' + query : '');

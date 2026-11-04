@@ -1,1 +1,0 @@
-explain: meta.lettering asks for an unknown script "Arab". Ask for { scripts: [...] } with some of Latn, Grek, Cyrl

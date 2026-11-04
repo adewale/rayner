@@ -2,57 +2,6 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-tilt",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Sun"
-        },
-        {
-          "text": "June"
-        },
-        {
-          "text": "December"
-        }
-      ]
-    },
-    {
-      "step": "reader-solstices",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "June daylight"
-        },
-        {
-          "text": "December daylight"
-        }
-      ]
-    },
-    {
-      "step": "reader-year",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Jan"
-        },
-        {
-          "text": "Dec"
-        },
-        {
-          "text": "Hours of daylight"
-        }
-      ]
-    },
-    {
       "step": "noon",
       "targets": [
         {
@@ -75,7 +24,7 @@
       "step": "december",
       "targets": [
         {
-          "key": "june-latitude",
+          "key": "june-daylight-latitude",
           "paint": "stroke"
         },
         {
@@ -100,6 +49,22 @@
         {
           "key": "december-noon-ray",
           "paint": "stroke"
+        }
+      ]
+    },
+    {
+      "step": "spread",
+      "opening": true,
+      "targets": [
+        {
+          "key": "spread-ground",
+          "paint": "stroke"
+        },
+        {
+          "key": "spread-december"
+        },
+        {
+          "key": "spread-june"
         }
       ]
     },
@@ -130,8 +95,7 @@
       "step": "distance",
       "targets": [
         {
-          "key": "distance-orbit",
-          "paint": "stroke"
+          "key": "effect-bars"
         },
         {
           "key": "daylight-curve",

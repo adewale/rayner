@@ -252,7 +252,8 @@ function fakeStage(w: number, h: number) {
     addEventListener(name: string, f: Handler) {
       (handlers[name] ??= []).push(f);
     },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h }),
+    // A resize assigns clientWidth and clientHeight; the box follows them, as a real element's does.
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: stage.clientWidth, height: stage.clientHeight }),
     classList: { toggle: (c: string, on: boolean) => (on ? classes.add(c) : classes.delete(c)) },
     setPointerCapture() {},
   };
@@ -451,7 +452,7 @@ test('ReaderView captures the author camera, follows updates through a glide, an
     const attrs = new Map<string, string>([['viewBox', HOME_VIEW]]);
     const svg = { getAttribute: (key: string) => attrs.get(key) ?? null, setAttribute: (key: string, value: string) => attrs.set(key, value) };
     let present = false;
-    const stage = { clientWidth: 800, clientHeight: 450, querySelector: () => present ? svg : null } as unknown as HTMLElement;
+    const stage = { clientWidth: 800, clientHeight: 450, getBoundingClientRect: () => ({ width: 800, height: 450 }), querySelector: () => present ? svg : null } as unknown as HTMLElement;
     const reader = new ReaderView(stage);
     reader.paint({ k: 2, x: -200, y: -100 }, false); // SVG can be inserted after the reader exists.
     present = true;
@@ -502,4 +503,18 @@ test('ReaderView captures the author camera, follows updates through a glide, an
       else Reflect.deleteProperty(globalThis, key);
     }
   }
+});
+
+test('a fractional stage preserves the planned zoom scale when SVG fits its viewBox', async () => {
+  const { ReaderView } = await import('../app/embed-zoom.ts');
+  const width = 358, height = 385.625;
+  const stage = { clientWidth: width, clientHeight: Math.round(height),
+    getBoundingClientRect: () => ({ width, height }) } as unknown as HTMLElement;
+  const reader = new ReaderView(stage);
+  reader.shown = { k: 2, x: 0, y: 0 };
+  const [, , vw, vh] = reader.view('-8000 -4500 16000 9000').split(' ').map(Number);
+  // Native SVG preserveAspectRatio chooses the smaller scale. A rounded height
+  // would make the second term smaller and shrink an otherwise 12px label.
+  const paintedScale = Math.min(width / vw!, height / vh!);
+  assert.ok(Math.abs(paintedScale - width * 2 / 16000) < 1e-8);
 });

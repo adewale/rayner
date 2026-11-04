@@ -105,7 +105,7 @@ so a camera that glides past a small label does not make it read
   view, and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
   line on screen over a paper band while the camera is away, so the box keeps the band's strip
   free of content.
-- [lantern](../scenes/explainers/lantern/scene.ts), "points": the diagram helper `d.focus(ids, { camera: true, also })`,
+- [lantern](../scenes/explainers/lantern/scene.ts), "begin": the diagram helper `d.focus(ids, { camera: true, also })`,
   which moves the same camera; without `camera` a focus enlarges the artwork inside the diagram's box
   ([reference](REFERENCE.md#diagrams)).
 

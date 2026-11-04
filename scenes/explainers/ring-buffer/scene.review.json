@@ -2,22 +2,7 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-capacity",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "head = tail = 0"
-        },
-        {
-          "text": "Occupied: 5 / 5"
-        }
-      ]
-    },
-    {
-      "step": "reader-reuse",
+      "step": "shift",
       "opening": true,
       "targets": [
         {
@@ -28,6 +13,15 @@
         },
         {
           "text": "slot 4"
+        },
+        {
+          "key": "array:0"
+        },
+        {
+          "key": "array-after:0"
+        },
+        {
+          "text": "pop() returned 1 and moved 4 values"
         }
       ]
     }

@@ -72,6 +72,11 @@ export interface Words {
   eachHas: (entity: string, cardinality: string, other: string) => string;
   /** An architecture junction, named by its id. */
   junction: (id: string) => string;
+  /**
+   * A state diagram's start or end dot (`[*]`), named by the state it belongs to and, in a
+   * state split into concurrent regions, its region's number: "start of on, region 2".
+   */
+  pseudostate: (kind: 'start' | 'end', parent?: string, region?: number) => string;
   /** A line's lowest and highest values and where they fall. */
   extremes: (name: string, lo: string, atLo: string, hi: string, atHi: string) => string;
   /** A journey task's score, which the chart draws only as a face's height: "score 3 of 5". */
@@ -152,6 +157,7 @@ const EN: Words = {
   cardinality: { one: 'exactly one', 'zero-one': 'zero or one', 'zero-many': 'zero or more', many: 'one or more' },
   eachHas: (entity, cardinality, other) => `each ${entity} has ${cardinality} ${other}`,
   junction: (id) => `junction ${id}`,
+  pseudostate: (kind, parent, region) => (parent ? `${kind} of ${parent}${region ? `, region ${region}` : ''}` : kind),
   extremes: (name, lo, atLo, hi, atHi) => `${name}: lowest ${lo} (${atLo}), highest ${hi} (${atHi})`,
   score: (value, top) => `score ${value} of ${top}`,
   curve: 'Experience curve',
@@ -244,6 +250,10 @@ const FR: Partial<Words> = {
   cardinality: { one: 'exactement 1', 'zero-one': 'au plus 1', 'zero-many': 'zéro, 1 ou plusieurs', many: 'au moins 1' },
   eachHas: (entity, cardinality, other) => `chaque ${entity} a ${cardinality} ${other}`,
   junction: (id) => `jonction ${id}`,
+  pseudostate: (kind, parent, region) => {
+    const word = kind === 'start' ? 'début' : 'fin';
+    return parent ? `${word} ${de(parent)}${region ? `, région ${region}` : ''}` : word;
+  },
   extremes: (name, lo, atLo, hi, atHi) => `${name}${NB}: minimum ${lo} (${atLo}), maximum ${hi} (${atHi})`,
   // Une tâche est notée: "note 3 sur 5"; the tasks are "notées de 1 à 5".
   score: (value, top) => `note ${value} sur ${top}`,

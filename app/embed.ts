@@ -7,11 +7,11 @@ import { bindSnapshots, withSettings, resolveSettings } from '../explain/index.t
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { restingTime, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';
-import { paletteOf } from '../explain/stage.ts';
+import { paletteOf, paperOf } from '../explain/stage.ts';
 import { connectHost, reportHeight } from './embed-protocol.ts';
 import { icon } from './embed-icons.ts';
 import type { IconName } from './embed-icons.ts';
-import { ReaderSink, ReaderView, StageZoom } from './embed-zoom.ts';
+import { ReaderSink, ReaderView, StageZoom, stageSize } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 import { NARROW_PX, closeUps, stageScale, stepLayouts } from './embed-closeup.ts';
 import type { StepLayout } from './embed-closeup.ts';
@@ -67,7 +67,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     selected = 0,
     // On a narrow stage, whether each step opens on its close-up; Whole picture turns it off, Close-up on.
     follow = true;
-  type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
+  type Entry = { Scene: ExplainerClass; trace: Trace; palette?: ReturnType<typeof paletteOf>; paper?: string; layouts?: Promise<Map<string, StepLayout>>; resting: Map<string, Node[]> };
   type CaseHistory = {kind:'keep-step' | 'step'; name:string | undefined} | {kind:'first'};
   type CasePhase = { kind: 'loading'; scope: StateScope } | { kind: 'ready'; entry: Entry };
   let casePhase: CasePhase = { kind: 'loading', scope: new StateScope() };
@@ -224,9 +224,26 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Spaces between the items keep them apart for assistive technology; flex layout drops them.
     row.replaceChildren(...(said.length ? [el('span', t.changed), ...said.flatMap((c) => [' ', el('span', c, 'change')])] : []));
   };
+  // The scene's check questions (meta.checks), asked after its last teaching step: each question
+  // in view, its answer behind a disclosure, so the reader answers before looking.
+  const checks = Source.meta?.checks?.length ? el('section', undefined, 'checks') : undefined;
+  if (checks) {
+    const heading = el('h2', t.checkYourself);
+    heading.id = 'check-yourself';
+    checks.setAttribute('aria-labelledby', heading.id);
+    const list = el('ol');
+    for (const c of Source.meta!.checks!) {
+      const item = el('li'), answer = el('details');
+      answer.append(el('summary', t.showAnswer), el('p', c.answer));
+      item.append(el('p', c.question, 'question'), answer);
+      list.append(item);
+    }
+    checks.append(heading, el('p', t.checkHint, 'hint'), list);
+    checks.hidden = true;
+  }
   // The step's words, under the controls, so a long caption never moves Next.
   const words = el('div', undefined, 'words');
-  words.append(lede, caption, ...(changes ? [changes] : []), described);
+  words.append(lede, caption, ...(changes ? [changes] : []), ...(checks ? [checks] : []), described);
   // Measure the tallest heading for the stage cap without reserving empty space in the prose.
   const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
@@ -273,7 +290,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   player.append(head, frame, stepper, words, notice, transcript, foot, summary, ledeRuler);
   // A frame the loader sizes to its content has no viewport height to fit: the card takes
   // the page's width, and the host page scrolls (embed.css, --player-reserve).
-  if (window.parent !== window && params.has('parentOrigin')) root.style.setProperty('--player-reserve', '0px');
+  if (window.parent !== window && params.has('parentOrigin')) {
+    root.style.setProperty('--player-reserve', '0px');
+    // The frame's height follows the content, so a narrow stage's height must not follow the frame's.
+    root.style.setProperty('--stage-narrow-max', '100000px');
+  }
   // The header's height depends on how the title wraps in the reader's fonts, so the stage's cap
   // takes the measured header rather than a guess: a title that wraps to two lines makes the stage
   // smaller, not the step heading fall off the screen. Written in the next frame, outside
@@ -395,6 +416,31 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   views.append(viewCount, nextView, overview);
   stepper.after(views);
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
+  // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
+  // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
+  // drop them and redraw the resting picture in place. That is not a new step: no step event,
+  // no host message, no history. A step playing finishes as drawn and rests anew.
+  let drawnNarrow: boolean | undefined;
+  function redrawIfNarrowChanged() {
+    const now = narrow();
+    if (stage.clientWidth <= 0 || now === drawnNarrow) return;
+    const first = drawnNarrow === undefined;
+    drawnNarrow = now;
+    if (first) return;
+    for (const entry of cache.values()) entry.resting.clear();
+    if (casePhase.kind === 'ready' && !isPlaying()) void redrawResting(casePhase.entry, selected);
+  }
+  async function redrawResting(at: Entry, index: number) {
+    const step = at.trace.steps[index]!,
+      scope = playback.scope,
+      container = el('div');
+    await renderAt(at.Scene, restingTime(step, at.trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow));
+    // Superseded while drawing: a step, case or playback change owns the stage now.
+    if (scope.signal.aborted || playback.scope !== scope || casePhase.kind !== 'ready' || casePhase.entry !== at || selected !== index) return;
+    at.resting.set(step.step, clones(container.childNodes));
+    stage.replaceChildren(...container.childNodes);
+    zoom.apply();
+  }
   const revealStage = () => {
     if (!narrow()) return;
     const box = stage.getBoundingClientRect();
@@ -407,7 +453,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tour: Zoom[] = [],
     stop = 0;
   function refreshTour() {
-    const w = stage.clientWidth, h = stage.clientHeight, key = `${w} ${h}`;
+    const [w, h] = stageSize(stage), key = `${w} ${h}`;
     if (!caseLayouts || w <= 0 || h <= 0 || key === tourSize) return;
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
@@ -419,11 +465,11 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const showingWhole = () => zoom.k <= 1 && !(follow && tour[stop]?.k === 1);
   function drawOverview() {
     refreshTour();
-    const w = stage.clientWidth,
-      h = stage.clientHeight,
+    const [w, h] = stageSize(stage),
       on = narrow() && zoom.k > 1;
     stage.classList.toggle('narrow', narrow());
     player.classList.toggle('narrow', narrow());
+    redrawIfNarrowChanged();
     const multiple = tour.length > 1;
     overview.hidden = !on || !multiple;
     // Next is above this row. A single-view step needs neither controls nor reserved space.
@@ -468,6 +514,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // Whole picture is the author's own frame. Close-ups are reader zooms over that frame too.
   const reader = new ReaderView(stage),
     readerView = (author: string) => reader.view(author);
+  /**
+   * A sink's options for a case: its paper as the SVG's background. A narrow stage is taller
+   * than the picture, so the whole picture, and a close-up near its top or bottom edge, shows
+   * past the frame; that margin should read as more paper, not as the engine's dark default.
+   */
+  const sinkOptions = (at: Entry, realtime: boolean) => ({
+    realtime,
+    ...(at.paper && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(at.paper) ? { background: at.paper } : {}),
+  });
   const zoom = new StageZoom(
     stage,
     () => {
@@ -539,6 +594,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
     else lastStory = selected;
     endControls(atEnd(), atEnd() ? tryLabel() : '');
+    if (checks) checks.hidden = selected !== mainIndices().at(-1);
+    reached.add(step.step);
+    nameSteps();
     // Done, current, to do, in the rail and on the step bar. Only the current segment is a Tab
     // stop, full at rest and empty as its step starts.
     for (const list of [steps, detailSteps, bar]) for (const b of list.querySelectorAll<HTMLButtonElement>('button')) {
@@ -560,6 +618,32 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     summary.textContent = pictureSummary(step.after);
     picture.innerHTML = pictureHtml(step.after);
     described.hidden = !picture.innerHTML;
+  }
+  // The steps the reader has reached, by name, across cases. The rail and the step bar name a
+  // teaching step only once it is reached (or an earlier step's later one is), so a later title
+  // such as "Answer: …" cannot give away a prediction; meta.player.outline names them all.
+  const reached = new Set<string>(),
+    outline = Source.meta?.player?.outline === true;
+  function nameSteps() {
+    let furthest = selected;
+    trace.steps.forEach((s, i) => { if (reached.has(s.step) && i > furthest) furthest = i; });
+    const main = mainIndices();
+    for (const b of steps.querySelectorAll<HTMLButtonElement>('button')) {
+      const i = Number(b.dataset.index), shown = outline || i <= furthest;
+      if (b.dataset.shown === String(shown)) continue;
+      b.dataset.shown = String(shown);
+      const words = stepWords(trace.steps[i]!), title = b.querySelector<HTMLElement>('.title')!, line = b.querySelector<HTMLElement>('.line');
+      title.textContent = shown ? words.title : t.notYet(main.indexOf(i) + 1);
+      b.classList.toggle('unseen', !shown);
+      if (line) line.hidden = !shown;
+    }
+    main.forEach((i, ordinal) => {
+      const b = bar.querySelector<HTMLButtonElement>(`button[data-index="${i}"]`);
+      if (!b) return;
+      const shown = outline || i <= furthest, label = stepWords(trace.steps[i]!).title;
+      b.title = shown ? label : t.notYet(ordinal + 1);
+      b.setAttribute('aria-label', shown ? t.stepOf(ordinal + 1, main.length, label) : t.stepOf(ordinal + 1, main.length));
+    });
   }
   /** Beside the card, scroll the rail, never the page, so the current step is in view in it. */
   function keepInRail() {
@@ -663,7 +747,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const kept = at.resting.get(step.step);
       const container = el('div');
       const [, target] = yield* wait(Promise.all([
-        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, { realtime: false }, readerView, scope.signal)),
+        kept ? container.append(...clones(kept)) : renderAt(at.Scene, restingTime(step, trace.fps), new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow)),
         framing(step, scope, at),
       ]));
       if (!kept) at.resting.set(step.step, clones(container.childNodes));
@@ -724,7 +808,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     const aimAt = (index: number) => {
       const step = at.trace.steps[index]!,
         container = el('div'), scope = new StateScope(),
-        sink = new ReaderSink(container, {}, readerView, scope.signal);
+        sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
       return {
         index, scope, sink,
         start: step.t0,
@@ -766,7 +850,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         return go.scope.run(function* () {
           if (scene.time > aim.end + 1e-8) {
             if (scene.time + 1e-9 < aim.rest) return;
-            yield* wait(new ReaderSink(aim.container, { realtime: false }, readerView, go.scope.signal).frame(scene, 0));
+            yield* wait(new ReaderSink(aim.container, sinkOptions(at, false), readerView, go.scope.signal, narrow).frame(scene, 0));
             attach(go, true);
             finish(true);
             throw new StopScene();
@@ -863,7 +947,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       if (!entry) {
         const Scene = withSettings(Bound, next),
           { trace, scene } = yield* wait(traceRun(Scene));
-        entry = { Scene, trace, palette: paletteOf(scene), resting: new Map() };
+        entry = { Scene, trace, palette: paletteOf(scene), paper: paperOf(scene), resting: new Map() };
         cache.set(key, entry);
       }
       const name = history.kind === 'first' ? undefined : history.name;
@@ -991,14 +1075,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       notice.textContent = share;
     }
   };
-  root.addEventListener('keydown', (e) => {
+  const onKey = (e: KeyboardEvent) => {
     if (casePhase.kind === 'loading') return;
     const tag = (e.target as HTMLElement).tagName;
     if (['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SUMMARY'].includes(tag) || e.ctrlKey || e.metaKey) return;
     // Zoom keys act only on the focused stage, so they never take a key from the page; once
     // zoomed, the focused stage's arrows pan, a tenth of the stage at a time.
     const onStage = e.target === stage,
-      pan = (dx: number, dy: number) => () => zoom.pan((dx * stage.clientWidth) / 10, (dy * stage.clientHeight) / 10);
+      pan = (dx: number, dy: number) => () => zoom.pan((dx * stageSize(stage)[0]) / 10, (dy * stageSize(stage)[1]) / 10);
     const keys: Record<string, () => void> =
       onStage && zoom.k > 1
         ? { ArrowLeft: pan(1, 0), ArrowRight: pan(-1, 0), ArrowUp: pan(0, 1), ArrowDown: pan(0, -1) }
@@ -1018,6 +1102,13 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (!action) return;
     e.preventDefault();
     action();
+  };
+  root.addEventListener('keydown', onKey);
+  // Before the reader clicks anything, keys go to the body, outside the tile: the arrows step from
+  // the moment the page loads. In a frame the frame only receives keys once it has focus, so this
+  // never takes a key from the host page.
+  document.addEventListener('keydown', (e) => {
+    if (e.target === document.body || e.target === document.documentElement) onKey(e);
   });
   // Focusable for the arrow keys once clicked, but not a Tab stop: its focus is not drawn.
   root.tabIndex = -1;

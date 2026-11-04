@@ -6,12 +6,22 @@
  * so does a click or tap, which centres the point under it (no drag needed).
  */
 import { DomSink } from '../src/index.ts';
-import type { ElementRecord } from '../src/index.ts';
+import type { ElementRecord, Scene } from '../src/index.ts';
+import { isHeading } from '../explain/stage.ts';
 /** A zoom: scale `k` about the stage's top-left corner, then a pan of (x, y) stage pixels. */
 export interface Zoom {
   k: number;
   x: number;
   y: number;
+}
+/**
+ * The stage's size as drawn, in CSS pixels with their fractions. clientWidth and clientHeight round
+ * to whole pixels, so a close-up planned for the rounded size draws a hair smaller than planned: a
+ * label framed at exactly 12 px came out at 11.99 on a 314.67 px stage.
+ */
+export function stageSize(stage: HTMLElement): [number, number] {
+  const r = stage.getBoundingClientRect();
+  return [r.width, r.height];
 }
 export const ZOOM_MAX = 6;
 export const IDENTITY: Readonly<Zoom> = Object.freeze({ k: 1, x: 0, y: 0 });
@@ -104,7 +114,9 @@ export class ReaderView {
   }
   /** The viewBox for an author's frame at the zoom on screen, on this stage. */
   view(author: string): string {
-    return readerViewBox(author, this.shown, this.stage.clientWidth, this.stage.clientHeight);
+    // clientHeight rounds CSS pixels. A rounded viewBox can letterbox the SVG and
+    // shrink a label below the close-up's readability floor on a fractional stage.
+    return readerViewBox(author, this.shown, ...stageSize(this.stage));
   }
   private show(z: Zoom): void {
     this.shown = { k: z.k, x: z.x, y: z.y };
@@ -133,15 +145,32 @@ export class ReaderView {
  * frame the camera's box arrives as `viewBox`; it is kept as the SVG's `data-camera`,
  * and the reader's zoom is read then, so a camera move and a reader zoom both land in
  * that frame's one viewBox write.
+ *
+ * `withoutHeading`, when it says so, leaves the stage's heading (its number, title and line)
+ * out of the picture: on a narrow stage the player sets them as page text under the stepper
+ * row, and the stage's own copy would be drawn too small to read.
  */
 export class ReaderSink extends DomSink {
   private readonly reader: (author: string) => string;
   private readonly signal:AbortSignal;
-  constructor(container: Element, options: ConstructorParameters<typeof DomSink>[1], reader: (author: string) => string, signal:AbortSignal) {
+  private readonly withoutHeading: () => boolean;
+  constructor(container: Element, options: ConstructorParameters<typeof DomSink>[1], reader: (author: string) => string, signal:AbortSignal, withoutHeading: () => boolean = () => false) {
     super(container, options);
     this.reader = reader;
     this.signal = signal;
+    this.withoutHeading = withoutHeading;
     this.svg.setAttribute('data-camera', this.svg.getAttribute('viewBox') ?? HOME_VIEW);
+  }
+  override async frame(scene: Scene, dt = 0): Promise<void> {
+    if (!this.withoutHeading()) return super.frame(scene, dt);
+    // The scene waits for its sink, so its objects stay put while this frame is drawn without them.
+    const all = scene.mobjects;
+    scene.mobjects = all.filter((m) => !isHeading(m));
+    try {
+      await super.frame(scene, dt);
+    } finally {
+      scene.mobjects = all;
+    }
   }
   override apply(els: readonly ElementRecord[], viewBox?: string): void {
     // DomSink can wake from its browser clock after this step was left.
@@ -190,7 +219,8 @@ export class StageZoom {
     stage.addEventListener('click', (e) => {
       if (this.k <= 1 || travel > 4) return;
       const [px, py] = local(e);
-      this.pan(stage.clientWidth / 2 - px, stage.clientHeight / 2 - py, true);
+      const [w, h] = stageSize(stage);
+      this.pan(w / 2 - px, h / 2 - py, true);
     });
     // A pinch measures from the distance between exactly two fingers when that pair formed;
     // any change to the set of fingers starts a new measurement.
@@ -232,8 +262,7 @@ export class StageZoom {
 
   /** Clamp so the drawing always covers the stage, then paint. `glide` eases discrete steps. */
   apply(glide = false): void {
-    const w = this.stage.clientWidth,
-      h = this.stage.clientHeight;
+    const [w, h] = stageSize(this.stage);
     // A resize (a phone turning) keeps the same part of the drawing in view: the pan is in
     // stage pixels, so it scales with the stage.
     const z = this.size && this.size[0] > 0 && this.size[1] > 0 && (this.size[0] !== w || this.size[1] !== h)
@@ -255,25 +284,24 @@ export class StageZoom {
   }
 
   /** Zoom by `factor`, keeping the stage point (px, py) still. */
-  zoomAt(factor: number, px = this.stage.clientWidth / 2, py = this.stage.clientHeight / 2, glide = false): void {
-    this.set(zoomAt(this, factor, px, py, this.stage.clientWidth, this.stage.clientHeight, this.max), glide);
+  zoomAt(factor: number, px = stageSize(this.stage)[0] / 2, py = stageSize(this.stage)[1] / 2, glide = false): void {
+    this.set(zoomAt(this, factor, px, py, ...stageSize(this.stage), this.max), glide);
   }
 
   /** Move the drawing by (dx, dy) stage pixels. */
   pan(dx: number, dy: number, glide = false): void {
-    this.set(panBy(this, dx, dy, this.stage.clientWidth, this.stage.clientHeight, this.max), glide);
+    this.set(panBy(this, dx, dy, ...stageSize(this.stage), this.max), glide);
   }
 
   /** Go to a zoom worked out elsewhere (a step's close-up), clamped to this stage. */
   to(z: Zoom, glide = false): void {
-    const w = this.stage.clientWidth,
-      h = this.stage.clientHeight;
+    const [w, h] = stageSize(this.stage);
     // Worked out for this size, so a later resize scales the pan from here.
     this.size = [w, h];
     this.set(clampZoom(z, w, h, this.max), glide);
   }
 
   reset(glide = false): void {
-    this.set(clampZoom(IDENTITY, this.stage.clientWidth, this.stage.clientHeight, this.max), glide);
+    this.set(clampZoom(IDENTITY, ...stageSize(this.stage), this.max), glide);
   }
 }

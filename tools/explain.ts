@@ -20,7 +20,7 @@ const HELP = `Rayner ${pkg.version} (Node 24+)
 Usage: rayner <command> <scene.ts | directory> [options]
 
 Commands:
-  init <directory>    Write the tutorial's LRU/MRU explainer: scene, model, test
+  init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test
   preview <scene>     Build and serve on localhost
   snapshots <scene>   Run every case, capture/verify diagrams and replay morph edits
   check <scene>       Every case: seek, motion, skipped trace, bare runtime, step
@@ -86,7 +86,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     await mkdir(dir, { recursive: false });
     for (const file of STARTER_FILES)
       await writeFile(join(dir, file), packageImports(await readFile(join(STARTER, file), 'utf8')));
-    console.log(`Created ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
+    console.log(`Created ${join(dir, 'script.md')}, the script to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
   if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))

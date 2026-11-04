@@ -9,22 +9,7 @@
           "key": "reader-picture"
         },
         {
-          "text": "Fixed route + simulated stroke"
-        }
-      ]
-    },
-    {
-      "step": "reader-labels",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Midnight"
-        },
-        {
-          "text": "Reserved for the label"
+          "text": "Blue: the route the layout fixed"
         }
       ]
     },

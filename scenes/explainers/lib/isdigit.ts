@@ -24,7 +24,8 @@ export type NumericType = 'Decimal' | 'Digit' | 'Numeric' | 'None';
 export const PREDICATES: readonly Predicate[] = ['isdecimal', 'isdigit', 'isnumeric'];
 
 export interface Char {
-  id: CharId;
+  /** One of the lineup's eight, or `unshown`: a character only a check question names. */
+  id: CharId | 'unshown';
   char: string;
   /** "U+00B2". */
   code: string;
@@ -34,6 +35,8 @@ export interface Char {
   ucdLine: number;
   /** For an ideograph: its numeric tag and value in Unihan_NumericValues.txt, and that line's number. */
   unihan?: { tag: 'kPrimaryNumeric' | 'kAccountingNumeric' | 'kOtherNumeric'; value: string; line: number };
+  /** Python counts it as whitespace (Py_UNICODE_ISSPACE), so int() and float() rewrite it as ' '. */
+  space?: true;
 }
 
 const row = (id: CharId, char: string, name: string, ucd: string, ucdLine: number, unihan?: Char['unihan']): Char => ({
@@ -62,6 +65,26 @@ export const CHARS: Readonly<Record<CharId, Char>> = {
   }),
 };
 export const LINEUP: readonly CharId[] = ['ascii', 'arabic', 'devanagari', 'fullwidth', 'super', 'half', 'roman', 'han'];
+/** A character the steps never show, for a check question: its row is given and the reader applies fields 6, 7 and 8 to it. */
+export const UNSHOWN: Char = {
+  ...row('super', '⑤', 'CIRCLED DIGIT FIVE', '2464;CIRCLED DIGIT FIVE;No;0;ON;<circle> 0035;;5;5;N;;;;;', 8433),
+  id: 'unshown',
+};
+/** A second unshown character, for a check question: a styled digit whose row fills field 6. */
+export const UNSHOWN_DECIMAL: Char = {
+  ...row('ascii', '𝟗', 'MATHEMATICAL BOLD DIGIT NINE', '1D7D7;MATHEMATICAL BOLD DIGIT NINE;Nd;0;EN;<font> 0039;9;9;9;N;;;;;', 35286),
+  id: 'unshown',
+};
+
+/**
+ * A third unshown character, for a check question: U+3000, a space by its General_Category Zs, so Python counts it as
+ * whitespace and unicodeobject.c:9541 rewrites it as ' '. UnicodeData.txt 17.0.0 line 11279.
+ */
+export const SPACE: Char = {
+  ...row('ascii', '\u3000', 'IDEOGRAPHIC SPACE', '3000;IDEOGRAPHIC SPACE;Zs;0;WS;<wide> 0020;;;;N;;;;;', 11279),
+  id: 'unshown',
+  space: true,
+};
 
 /** UnicodeData.txt fields 6, 7 and 8 for the character, with Unihan's value in field 8 as CPython puts it. */
 export function fields(c: Char): { decimal: string; digit: string; numeric: string } {
@@ -95,7 +118,8 @@ export function predicates(c: Char): Record<Predicate, boolean> {
 export function asciiFor(c: Char): string {
   const cp = c.char.codePointAt(0)!;
   if (cp < 127) return c.char;
-  // None of the eight is a space, so line 9541 never applies here
+  // None of the eight is a space, so line 9541 applies only to SPACE.
+  if (c.space) return ' ';
   const { decimal } = fields(c);
   return decimal ? String.fromCharCode(48 + Number(decimal)) : '?';
 }
@@ -106,6 +130,20 @@ export function intOf(c: Char): { value: number } | { error: string } {
   return /^[0-9]$/.test(ascii)
     ? { value: Number(ascii) }
     : { error: `invalid literal for int() with base 10: '${c.char}'` };
+}
+
+/**
+ * The text int() and float() parse (floatobject.c:189 calls the same rewrite): ASCII kept, each character
+ * rewritten by asciiFor, and everything after the first '?' dropped, as unicodeobject.c:9548-9549 does.
+ */
+export function rewrite(parts: readonly (Char | string)[]): string {
+  let out = '';
+  for (const part of parts) for (const ch of typeof part === 'string' ? [...part] : [asciiFor(part)]) {
+    if (ch.codePointAt(0)! >= 127) throw new Error(`Give ${ch} as a Char, with its row`);
+    out += ch;
+    if (ch === '?') return out;
+  }
+  return out;
 }
 
 /** The value the database gives the character, as written in its field 8 or Unihan tag: "1/2", "12". */

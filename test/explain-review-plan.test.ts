@@ -53,6 +53,21 @@ function receipts(expected: PlannedCase[], total: number): ReviewReceipt[] {
   }
   return parts;
 }
+test('opening receipts use the same single-precision font tolerance as the painted SVG check', () => {
+  const expected: PlannedCase[] = [{ scene: 'roundtrip', settings: {}, steps: ['begin'], narrowOpenings: narrowObligations(['begin']) }];
+  const parts = receipts(expected, 1);
+  const opening = parts[0]!.results[0]!.steps[0]!.openingAt320;
+  assert.ok(opening?.reviewed);
+  // The browser's SVG transform can put a planned 12px label a few millionths below 12.
+  for (const pixels of [12, 11.9999987]) {
+    opening.minimumLabelPx = pixels;
+    assert.doesNotThrow(() => mergeStoryReviews(parts, expected, 'catalog', 'code'));
+  }
+  for (const pixels of [11.99998, 11.9, NaN, Infinity]) {
+    opening.minimumLabelPx = pixels;
+    assert.throws(() => mergeStoryReviews(parts, expected, 'catalog', 'code'), /labels must reach 12px/);
+  }
+});
 test('merging story shards preserves every case, final step and width across generated inventories', () => {
   fc.assert(
     fc.property(

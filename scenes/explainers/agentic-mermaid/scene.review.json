@@ -2,44 +2,20 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-branches",
+      "step": "meaning",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "mermaid-report-wrong"
         },
         {
-          "text": "Cached?"
+          "key": "mermaid-report-right"
         },
         {
-          "text": "Reply"
+          "text": "yes to Database"
         },
         {
-          "text": "Database"
-        }
-      ]
-    },
-    {
-      "step": "reader-repair",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Cached?"
-        },
-        {
-          "text": "Reply"
-        },
-        {
-          "text": "Database"
-        },
-        {
-          "text": "yes"
-        },
-        {
-          "text": "no"
+          "text": "yes to Reply"
         }
       ]
     }

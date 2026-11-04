@@ -9,7 +9,28 @@
           "text": "Ink on paper"
         },
         {
-          "text": "5.88 units"
+          "text": "4.41 units"
+        }
+      ]
+    },
+    {
+      "step": "rulers",
+      "opening": true,
+      "targets": [
+        {
+          "key": "font-rulers-drawn"
+        },
+        {
+          "key": "font-rulers-measured"
+        },
+        {
+          "text": "Ink on paper"
+        },
+        {
+          "text": "Garamond: 4.41"
+        },
+        {
+          "text": "JetBrains Mono: 6.48"
         }
       ]
     },

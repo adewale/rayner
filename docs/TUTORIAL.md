@@ -2,20 +2,22 @@
 
 A Rayner explainer is a web page that answers one technical question in steps. The reader presses Next, something on the stage changes, and the picture then holds still while they read the caption. This tutorial builds one that answers this question: what is the difference between the LRU and MRU cache replacement policies?
 
-You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [editorial rubric](EXPLAINER-RUBRIC.md) scores finished explainers against them.
+You will plan the explainer, generate it with `rayner init`, test its model against a published source, read how the scene draws the model's answers, break it on purpose to see what the checks catch and what they miss, and build the page. Each step applies one of the principles below. The [authoring skill](../skills/rayner-explainers/SKILL.md) gives coding agents the same principles, and the [editorial rubric](EXPLAINER-RUBRIC.md) reviews finished explainers against them.
 
 ## What makes an explainer work
+
+These are lessons from explainers that worked, not rules to satisfy. Rayner checks a few of them for you; the rest are judgement, and the end of the list says which is which.
 
 1. Start from a reader's question. Write down who is asking, what result they saw and the answer you can support. If a screenshot or a short diff already answers the question, publish that instead.
 2. Open on the result that needs explaining. Names for the parts can wait until the reader needs them.
 3. Get every value from a model. The numbers, paths and outcomes on screen come from a small program, which you check against the real system by running the tool, using its test vectors or citing the exact source version you read. A caption never states an answer the model did not give.
-4. Give each step one inference. A step answers a question the previous step raised. Its title says what the picture proves, its line says where to look, and its caption connects what is visible to what follows from it.
+4. Give each step one inference. A step answers a question the previous step raised. One arrangement that works: the title says what the picture proves, the line says where to look, and the caption connects what is visible to what follows from it.
 5. Leave the evidence on screen. Readers read the caption while the picture is still, so the item, mark or value the caption mentions must be there when the motion stops. Put a value beside the thing it measures.
 6. Use a second case to test the tempting shortcut. Change one input that could prove the reader's guess wrong, keep everything else fixed, and write each case's caption for that case's own outcome. A change that only recolours the picture tests nothing.
 7. Move things only to show order, identity or cause. If the final picture already tells the whole story, show it at once. When something changes form, keep it recognisable, because a morph on its own does not prove that the before and after are the same thing.
 8. End on the specific result and its limit: what the explainer showed, and where the claim stops holding.
 
-`rayner check` and `rayner review` find missing, overlapping and unreadable ink. Because they cannot tell whether a caption is true, principles 1, 3, 6 and 8 stay with you.
+What Rayner checks: the model's test, against the real system, checks principle 3; `rayner check` checks that the evidence of principle 5 stays still and readable while the caption is read, that every drawing has a description in words, and that the script's answer is stated; `rayner review` checks the page as served. None of them can tell whether a caption is true or whether a reader learns, so principles 1, 2, 4, 6, 7 and 8 stay with you.
 
 ## Before you start
 
@@ -46,13 +48,34 @@ The limit line keeps the explainer inside what it tests. It counts hits, so it c
 
 Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version earns its place by isolating the one decision where the policies differ before it shows what that decision costs over the whole sequence.
 
+Then write the explanation you would give the reader, with the concrete problem before the names and each paragraph supplying the reason for the next. Read it straight through: does it explain the result, or merely announce what the drawing will show? `script.md` contains that reader-facing prose. It has no fixed word count. `rayner init` writes this example:
+
+<!-- lru-mru/script.md -->
+```md
+# What is the difference between LRU and MRU?
+
+A cache has three slots. Requests for A, B and C have filled them, in that order. Now D arrives. It is missing, and there is no spare slot. Which item should make room: A, which has waited longest, or C, which was just used?
+
+LRU evicts the item used longest ago: A. Its name means least recently used. MRU, most recently used, evicts C instead. Both put D in the freed slot. Keeping the recent item sounds sensible, but the next requests decide whether it helps.
+
+Suppose A, B, C and D repeat. LRU has just evicted A, the next item needed. Bringing A back evicts B, which comes next. The same mistake repeats: all eight requests miss. MRU kept A and B when it made room for D. On the second pass, A, B and D hit; C misses. Evicting the newest item preserved more of this loop.
+
+Change only the last four requests: C, D, C, D. LRU kept both, so all four repeats hit. MRU dropped C for D. Bringing C back now drops D, then bringing D back drops C. All four repeats miss.
+
+The eviction rule has stayed the same; the useful choice has reversed. Recency records the past. Whether it predicts the next request depends on the access pattern. These two examples count eight requests through three slots; they do not measure the cost of maintaining the cache.
+```
+
+Keep the script separate from production instructions. An optional `notes.md` can explain a non-obvious visual choice or a model limitation a future author needs. Do not copy the step table, test assertions or revision history into it; inspect the scene, run the tests and use Git for those. The script still states any limit the reader needs to interpret its conclusion.
+
+The scene is the source for the player's answer and check questions: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see the answer arrives before the explanation elaborates), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure. Keep those questions and answers in `meta.checks`, rather than maintaining a second copy in the script. Use them to review the prose: could a reader reason through an unseen case after reading it? See [working documents](EXPLAINER-RUBRIC.md#working-documents) for the small division of responsibilities.
+
 ## 2. Generate the explainer
 
 ```sh
 npx rayner init lru-mru
 ```
 
-This writes three files into `lru-mru/`: the model, the model's test and the scene. Together they are the finished explainer for the plan above, and the same files are in this repository at [`scenes/tutorial/lru-mru/`](../scenes/tutorial/lru-mru/). The rest of the tutorial reads them against the plan, then breaks the scene on purpose twice: once to see what `rayner check` catches, and once to see what it cannot.
+This writes four files into `lru-mru/`: the script, the model, the model's test and the scene. Together they are the finished explainer for the plan above, and the same files are in this repository at [`scenes/tutorial/lru-mru/`](../scenes/tutorial/lru-mru/). The rest of the tutorial reads them against the plan, then breaks the scene on purpose twice: once to see what `rayner check` catches, and once to see what it cannot.
 
 ## 3. Read the model
 
@@ -136,6 +159,13 @@ export default class LruMru extends Scene {
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
+    ],
+    // From script.md: check holds the first two steps to the answer; the player asks the questions at the end.
+    answer: 'LRU evicts the item used longest ago',
+    checks: [
+      { question: 'A full cache misses. Which item does each policy evict?', answer: 'LRU evicts the item used longest ago; MRU evicts the item used most recently.' },
+      { question: 'Why does LRU miss every request when a loop is one item larger than the cache?', answer: 'Each miss evicts the oldest item, which is exactly the item the loop asks for next.' },
+      { question: 'Which policy should manage a buffer for a file scanned over and over that does not fit in memory?', answer: 'MRU: it keeps most of the loop in the cache, while LRU evicts each item just before it is needed again.' },
     ],
   };
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
@@ -295,4 +325,4 @@ npx rayner build lru-mru/scene.ts --out public/lru-mru.html
 
 - To explain another kind of subject, start from the nearest example. The [skill's table](../skills/rayner-explainers/SKILL.md#start-from-an-example) matches subjects such as a protocol, a race, a state machine or a code change to explainers in `scenes/explainers/`.
 - The [reference](REFERENCE.md) covers the stage, card, diagram and check APIs. The [engine map](ENGINE.md) covers camera moves, code diffs, charts and pictures rebuilt from state.
-- The [editorial rubric](EXPLAINER-RUBRIC.md) scores a finished explainer against the principles at the top of this page.
+- [Judging an explainer](EXPLAINER-RUBRIC.md) asks whether a finished explainer teaches a newcomer, and whether it beats the alternative.

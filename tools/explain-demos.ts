@@ -27,7 +27,8 @@ import { selectedIds, selectExport } from './lib/explain-export-selection.ts';
 const { values } = parseArgs({ options: {
   check: { type: 'boolean' }, only: { type: 'string' }, entry: { type: 'string' }, out: { type: 'string' },
 } });
-const requested = selectedIds(values.only, EXPLAINERS.map(item => item.id));
+const only = values.only === 'showcase' ? SHOWCASE.join(',') : values.only;
+const requested = selectedIds(only, EXPLAINERS.map(item => item.id));
 if (values.entry && !requested.includes(values.entry)) throw new Error(`--entry must name a selected explainer: ${values.entry}`);
 const items = EXPLAINERS.filter(item => requested.includes(item.id));
 const collection = items.length === EXPLAINERS.length;
@@ -163,11 +164,10 @@ const catalog: import('./lib/explain-artifacts.ts').Catalog = {
       lang: data.lang,
       cases: data.cases.length,
       entry: data.entry,
-      showcase: SHOWCASE.some((id) => id === item.id),
     };
   }),
 };
-const selected = selectExport(values.only, catalog, evidenceDocument, values.entry);
+const selected = selectExport(only, catalog, evidenceDocument, values.entry);
 await writeFile(join(directory, 'evidence.json'), JSON.stringify(selected.evidence, null, 2) + '\n');
 await writeFile(join(directory, 'catalog.json'), JSON.stringify(selected.catalog, null, 2) + '\n');
 const css = await readFile(join(ROOT, 'app/embed.css'), 'utf8'),

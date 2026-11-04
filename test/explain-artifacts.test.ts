@@ -14,6 +14,7 @@ test('catalog and evidence readers validate known fields before returning typed 
     (v: typeof c) => {v.product.entry.settings.case = 7 as never;},
     (v: typeof c) => {v.scenes[0]!.group = 'unknown';},
     (v: typeof c) => {v.scenes[0]!.showcase = 'yes' as never;},
+    (v: typeof c) => {(v.scenes[0] as Record<string, unknown>).tier = 'featured';},
     (v: typeof c) => {v.totals.cases = NaN;},
   ]) {const bad = structuredClone(c); defect(bad); assert.throws(() => catalog(bad), /Invalid catalog/);}
   for (const defect of [

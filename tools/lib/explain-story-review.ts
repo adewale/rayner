@@ -9,11 +9,12 @@ import type { SceneClass, Mobject, ElementRecord } from '../../src/index.ts';
 import { emphasisOf } from '../../explain/look.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { isHeading } from '../../explain/stage.ts';
+import { NARROW_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
 import type { Project } from './explain-project.ts';
 import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
-import type { NarrowOpeningReview, NarrowOpeningObligation } from './explain-review-plan.ts';
+import { readableOpeningLabel, type NarrowOpeningReview, type NarrowOpeningObligation } from './explain-review-plan.ts';
 
 export interface StoryClaim {
   step: string;
@@ -34,6 +35,17 @@ export interface StoryFrame {
   targets: Target[];
   camera: number[];
   labels: { text: string; size: number; indices: number[] }[];
+  /**
+   * The records that draw the stage's heading. A narrow stage leaves them out
+   * (ReaderSink in app/embed-zoom.ts), so its elements skip them.
+   */
+  chrome: number[];
+}
+/** Where each record's element is on a stage `width` px wide: its index among the painted elements, or -1 when that stage leaves it out. */
+export function elementSlots(frame: Pick<StoryFrame, 'records' | 'chrome'>, width: number): number[] {
+  const skip = new Set(width > 0 && width < NARROW_PX ? frame.chrome : []);
+  let next = 0;
+  return frame.records.map((_, i) => (skip.has(i) ? -1 : next++));
 }
 
 interface StoryPaint {
@@ -399,7 +411,11 @@ export async function storyFrames(
             ? [{ text: label.text, size: readingLabelSize(m)!, indices }]
             : [];
         });
-        frames.set(step.name, { records, targets, camera: [...scene.frame.box()!], labels });
+        const chrome = records.flatMap((r, index) => {
+          const m = byId.get(r.id);
+          return m && isHeading(m) ? [index] : [];
+        });
+        frames.set(step.name, { records, targets, camera: [...scene.frame.box()!], labels, chrome });
       },
     },
     { skipUntil: Infinity },
@@ -431,13 +447,23 @@ export function covered(target: Rect, views: readonly Rect[]): boolean {
 
 /** Inspect actual DOM paths, rather than projecting an expected box over potentially absent artwork. */
 export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
-  return page.locator('.stage svg:not(.leaving)').evaluate((node, expected) => {
+  const width = await page.locator('.stage').evaluate((stage) => stage.clientWidth);
+  const slots = elementSlots(frame, width);
+  return page.locator('.stage svg:not(.leaving)').evaluate((node, { expected, slots }) => {
     const svg = node as SVGSVGElement,
       stage = svg.parentElement!.getBoundingClientRect();
-    const elements = [...svg.children].filter((e) => e.tagName.toLowerCase() !== 'defs') as SVGGraphicsElement[];
-    if (elements.length !== expected.records.length)
-      throw new Error(`painted record count: ${elements.length}, expected ${expected.records.length}`);
+    const painted = [...svg.children].filter((e) => e.tagName.toLowerCase() !== 'defs') as SVGGraphicsElement[];
+    const drawn = slots.filter((s) => s >= 0).length;
+    if (painted.length !== drawn)
+      throw new Error(`painted record count: ${painted.length}, expected ${drawn}`);
+    // Each record's element, by record index; a record the stage leaves out (its heading, on a
+    // narrow stage) has none, and no story subject may name one.
+    const elements = slots.map((s, i) => {
+      if (s >= 0) return painted[s]!;
+      return new Proxy({} as SVGGraphicsElement, { get() { throw new Error(`record ${i} is not drawn on this stage`); } });
+    });
     for (const [i, r] of expected.records.entries()) {
+      if (slots[i]! < 0) continue;
       const e = elements[i]!;
       if (
         e.tagName.toLowerCase() !== r.tag ||
@@ -597,7 +623,7 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
       };
     });
     return { viewport, ink, stage: rect(stage), viewBox: svg.getAttribute('viewBox') };
-  }, frame);
+  }, { expected: frame, slots });
 }
 
 /** Build-time obligations come from authored main/detail metadata and the
@@ -694,7 +720,14 @@ function verifyStoryTargets(
 /** Named subjects must contribute pixels and their labels must retain their
  * glyph cores in the actual opening. Small native-browser rasters preserve
  * clips, paint order and effective styles without per-glyph screenshots. */
-async function verifyNarrowPaint(page: Page, subjects: { name: string; indices: number[]; label?: boolean }[], step: string) {
+async function verifyNarrowPaint(page: Page, frame: StoryFrame, named: { name: string; indices: number[]; label?: boolean }[], step: string) {
+  // Record indices to painted-element indices: a narrow stage leaves its heading's records out.
+  const width = await page.locator('.stage').evaluate((stage) => stage.clientWidth),
+    slots = elementSlots(frame, width);
+  const subjects = named.map((subject) => ({ ...subject, indices: subject.indices.map((index) => {
+    assert.ok(slots[index]! >= 0, `${step}: ${subject.name} names a record this stage does not draw`);
+    return slots[index]!;
+  }) }));
   const missing = await page.locator('.stage svg:not(.leaving)').evaluate(async (node, subjects) => {
     const svg = node as SVGSVGElement, clone = svg.cloneNode(true) as SVGSVGElement;
     const painted = [...svg.children].filter(element => element.tagName.toLowerCase() !== 'defs');
@@ -886,11 +919,11 @@ async function reviewNarrowOpening(
           .filter((index) => indices.has(index))
           .map((index) => opening.ink.find((ink) => ink.index === index)!.scale),
       );
-    assert.ok(pixels >= 12 - 1e-6, `${step} at 320px: ${label.text} reads at ${pixels}px, below 12px`);
+    assert.ok(readableOpeningLabel(pixels), `${step} at 320px: ${label.text} reads at ${pixels}px, below 12px`);
     minimumLabelPx = minimumLabelPx === null ? pixels : Math.min(minimumLabelPx, pixels);
   }
   assert.ok(verified.size, `${step} at 320px: no opening subject is painted`);
-  await verifyNarrowPaint(page, [
+  await verifyNarrowPaint(page, frame, [
     ...targets.map(target => ({name: target.name, indices: target.indices})),
     ...labels.map(label => ({name: `label ${label.text}`, indices: label.indices.filter(index => indices.has(index)), label: true})),
   ], step);

@@ -35,6 +35,7 @@ import {
   schema,
   toMs,
   validate,
+  weeks,
 } from '../scenes/explainers/lib/ical-recurrence.ts';
 import type { Cardinality, Change, Copy, VEvent } from '../scenes/explainers/lib/ical-recurrence.ts';
 import { RFC_EXAMPLES, inputsDigest, runSabre } from './lib/ical-recurrence-sabre.ts';
@@ -404,5 +405,30 @@ test('property: a guest gets exactly the overrides they attend, never the master
       assert.deepEqual(validate(result ?? []), []);
     }),
     params(300),
+  );
+});
+
+test('the copies view: Alice’s rule excludes the cancelled week; Bob’s copy has no rule, so every other week is absent', () => {
+  const w = (cs: readonly VEvent[]) => weeks(cs).map((x) => x.week);
+  const RULE = occurrences(DTSTART, parseRule(RRULE));
+  assert.deepEqual(weeks(organiserCopy('skip')).map((x) => x.slot), RULE);
+  assert.deepEqual(w(organiserCopy('skip')), ['meeting', 'meeting', 'excluded', 'meeting', 'meeting', 'meeting']);
+  assert.deepEqual(w(guestCopy('skip').copy), ['absent', 'absent', 'cancelled', 'absent', 'absent', 'absent']);
+  assert.deepEqual(w(organiserCopy('move')), ['meeting', 'moved', 'meeting', 'meeting', 'meeting', 'meeting']);
+  assert.deepEqual(w(organiserCopy('none')), ['meeting', 'meeting', 'meeting', 'meeting', 'meeting', 'meeting']);
+  for (const change of CHANGES) {
+    // Bob holds no master, so nothing in his copy generates or excludes a week: only his own meeting is there.
+    for (const x of weeks(guestCopy(change).copy))
+      assert.equal(x.week === 'absent', x.slot !== GUEST_MEETING, `${change} ${x.slot}`);
+    assert.ok(weeks(organiserCopy(change)).every((x) => x.week !== 'absent'), change);
+  }
+  // Whatever the master excludes, a week is excluded exactly when its start is an EXDATE and no override fills it.
+  fc.assert(
+    fc.property(fc.subarray(RULE), (exdates) => {
+      const ws = weeks([{ ...MASTER, exdates }]);
+      for (const x of ws) assert.equal(x.week === 'excluded', exdates.includes(x.slot));
+      assert.equal(ws.filter((x) => x.week === 'meeting').length, recurrenceSet({ ...MASTER, exdates }).length);
+    }),
+    params(),
   );
 });

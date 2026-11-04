@@ -257,10 +257,45 @@ async function described(text: string) {
 
 test('the captured 1 TiB pie says what users can write, as the model does', async () => {
   const sp = space(TiB, 5);
-  const seen = await described(`"Users can write" : ${sp.users}\n`);
+  // The answer's pie, not the opening's two-slice one, which also names what users can write.
+  const seen = await described(`"Users can write" : ${sp.users}\n  "Root reserve" : ${sp.root}\n`);
   assert.equal(seen.what, 'Pie chart “Every 4 KiB block of 1 TiB”: 3 slices');
   assert.deepEqual(
     seen.parts.map((p) => p.name),
     ['Metadata: 1.7%', 'Users can write: 93.3%', 'Root reserve: 5.0%'],
   );
+});
+
+test('the captured 1 TiB opening pie says only what users can write and what they cannot', async () => {
+  const sp = space(TiB, 5);
+  const seen = await described(`"Not available" : ${sp.layout.blocks - sp.users}\n`);
+  assert.equal(seen.what, 'Pie chart “Every 4 KiB block of 1 TiB”: 2 slices');
+  assert.deepEqual(
+    seen.parts.map((p) => p.name),
+    ['Not available: 6.7%', 'Users can write: 93.3%'],
+  );
+});
+
+test('at 2 GiB, a measured size, the default 5% root reserve falls short of the metadata, so meta.answer names its disks', () => {
+  // From the recorded mkfs.ext4 run: metadata is every block statfs does not count as free.
+  const [, , counts, , free] = RUNS.find(([size, m]) => size === '2G' && m === 5)!;
+  const [blocks, root] = counts, fBfree = free[1];
+  assert.ok(blocks !== undefined && root !== undefined && fBfree !== undefined, 'the 2 GiB run records its block counts');
+  assert.ok(root < blocks - fBfree, `measured 2 GiB: root ${root}, metadata ${blocks - fBfree}`);
+  const sp = space(2 * GiB, 5);
+  assert.deepEqual([sp.root, sp.layout.metadata], [root, blocks - fBfree]);
+  assert.equal(sp.layout.journal, 2 * space(GiB, 5).layout.journal);
+});
+
+test('on each of the scene’s disks the default 5% root reserve is at least all the metadata, its meta.answer', () => {
+  const cases: [number, string][] = [
+    [GiB, '1.0'],
+    [TiB, '3.0'],
+    [20 * TiB, '12.4'],
+  ];
+  for (const [bytes, ratio] of cases) {
+    const sp = space(bytes, 5);
+    assert.ok(sp.root >= sp.layout.metadata, `${bytes}: root ${sp.root} < metadata ${sp.layout.metadata}`);
+    assert.equal((sp.root / sp.layout.metadata).toFixed(1), ratio);
+  }
 });

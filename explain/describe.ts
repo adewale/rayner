@@ -56,6 +56,10 @@ export interface ExplainerDescription {
   lang: string;
   sources: string[];
   settings: Setting[];
+  /** The script's one-sentence answer (`meta.answer`), when the scene declares it. */
+  answer?: string;
+  /** The questions a reader should be able to answer afterwards, with answers (`meta.checks`). */
+  checks?: { question: string; answer: string }[];
   cases: CaseDescription[];
 }
 export interface DescribeOptions {
@@ -85,6 +89,8 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
     lang: meta.lang ?? 'en',
     sources: [...(meta.sources ?? [])],
     settings: (Scene.settings ?? []).map((s) => ({ ...s, options: s.options.map((o) => ({ ...o })) })),
+    ...(meta.answer ? { answer: meta.answer } : {}),
+    ...(meta.checks?.length ? { checks: meta.checks.map((c) => ({ question: c.question, answer: c.answer })) } : {}),
     cases,
   };
 }

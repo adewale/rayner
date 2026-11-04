@@ -2,29 +2,24 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-objects",
-      "opening": true,
+      "step": "blob",
       "targets": [
         {
-          "key": "reader-picture"
+          "text": "header"
         },
         {
-          "text": "commit"
-        },
-        {
-          "text": "tree"
-        },
-        {
-          "text": "blob"
+          "text": "content"
         }
       ]
     },
     {
-      "step": "reader-change",
-      "opening": true,
+      "step": "change",
       "targets": [
         {
-          "key": "reader-picture"
+          "text": "commit one"
+        },
+        {
+          "text": "commit two"
         },
         {
           "text": "parent"

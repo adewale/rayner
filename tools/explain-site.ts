@@ -17,7 +17,7 @@ import type { ShareManifest } from './lib/explain-share.ts';
 import { join, resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
-import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
+import { EXPLAINERS, SHOWCASE } from '../scenes/explainers/catalog.ts';
 import { ROOT, collectProject, defaultVariant } from './lib/explain-project.ts';
 import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
 import { replaceHeaderBlocks } from './lib/site-headers.ts';
@@ -61,8 +61,9 @@ const exists = (file: string) =>
     () => true,
     () => false,
   );
+const only = values.only === 'showcase' ? SHOWCASE.join(',') : values.only;
 const selected = selectExport(
-  values.only,
+  only,
   await readArtifact(join(built, 'catalog.json'), parseCatalog),
   await readArtifact(join(built, 'evidence.json'), catalogEvidence),
   values.entry,

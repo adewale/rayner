@@ -2,32 +2,22 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-row",
-      "opening": true,
+      "step": "swap",
+      "settings": {
+        "column": "int4"
+      },
       "targets": [
         {
-          "key": "reader-picture"
+          "text": "int4: 32-byte tuple"
         },
         {
-          "text": "Grey: header  ·  Pale: padding  ·  Orange: data"
-        }
-      ]
-    },
-    {
-      "step": "reader-page",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
+          "text": "int8: 32-byte tuple"
         },
         {
-          "text": "Type"
+          "text": "padding here"
         },
         {
-          "text": "Rows/page"
-        },
-        {
-          "text": "10,000 rows"
+          "text": "int8’s value here"
         }
       ]
     }

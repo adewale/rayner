@@ -51,6 +51,9 @@ before(async () => {
     projects.set(name, project);
     await buildExplainer(project, join(folder, name + '.html'));
   }
+  const comparison = await collectProject('test/fixtures/reading-comparison', {write: false});
+  projects.set('reading-comparison', comparison);
+  await buildExplainer(comparison, join(folder, 'reading-comparison.html'));
   const references = await collectProject('test/fixtures/reference-steps', {write: false});
   projects.set('references', references);
   await buildExplainer(references, join(folder, 'references.html'));
@@ -156,7 +159,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
   const project = await collectProject(source, {write: false});
   await buildExplainer(project, join(folder, 'identity-opening.html'));
   await readerPage({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'}, `${embed}/identity-opening.html`, async page => {
-    const [w, h] = await page.locator('.stage').evaluate(e => [e.clientWidth, e.clientHeight]);
+    const [w, h] = await page.locator('.stage').evaluate(e => { const b = e.getBoundingClientRect(); return [b.width, b.height]; });
     const tour = closeUps((await stepLayouts(project.Scene)).get('compare'), w!, h!);
     assert.ok(tour.length > 1 && tour[0]!.k === 1 && tour[1]!.k > 1,
       'large comparison labels need the whole frame while smaller implementation labels need detail stops');
@@ -192,7 +195,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
     });
 });
 
-test('authored phone openings keep comparison ink readable without painting a clipped heading', options, async () => {
+test('authored phone openings keep comparison ink readable, and a narrow stage paints no heading to clip', options, async () => {
   const { reviewClaims } = await import('../../tools/lib/explain-review-scene.ts');
   const { storyFrames, inspectStoryFrame, covered} = await import(
     '../../tools/lib/explain-story-review.ts'
@@ -201,8 +204,7 @@ test('authored phone openings keep comparison ink readable without painting a cl
   let openings = 0;
   try {
     for (const [id, names] of [
-      ['gtfs', ['reader-date', 'reader-stop']],
-      ['token-bucket', ['reader-refill']],
+      ['token-bucket', ['refill']],
       ['latest-search', ['reader-guard']],
     ] as const) {
       const project = await collectProject(`scenes/explainers/${id}`, { write: false });
@@ -211,38 +213,19 @@ test('authored phone openings keep comparison ink readable without painting a cl
       const claims = (await reviewClaims(project)).filter((c) =>
         Object.entries(c.settings ?? {}).every(([k, v]) => variant.values[k] === v),
       );
-      const frames = await storyFrames(variant.Scene, [
-        ...claims,
-        ...names.map((step) => ({ step, targets: [{ key: '__heading' }, { key: '__chrome' }] })),
-      ]);
+      const frames = await storyFrames(variant.Scene, claims);
       const layouts = await stepLayouts(variant.Scene);
       for (const step of names) {
         await visitReader(page, `${embed}/${id}-heading.html?${new URLSearchParams({ ...variant.values, step })}`);
         await page.waitForFunction(() => !document.querySelector('svg.leaving'));
         const frame = frames.get(step)!,
           seen = await inspectStoryFrame(page, frame);
-        const headingIndices = new Set(
-          frame.targets.filter((t) => t.name === '__heading' || t.name === '__chrome').flatMap((t) => t.indices),
-        );
-        const headingInk = seen.ink.filter((p) => headingIndices.has(p.index));
-        assert.ok(headingInk.length > 1, 'the observation control contains native heading and chrome ink');
-        // Use the actual stage for admission; the paint checker expands its
-        // viewport by one pixel for coverage rounding, including off-screen ink.
-        const viewport = await page.locator('.stage svg:not(.leaving)').evaluate((node) => {
-          const svg = node as SVGSVGElement,
-            stage = svg.parentElement!.getBoundingClientRect(),
-            inverse = svg.getScreenCTM()!.inverse();
-          const a = new DOMPoint(stage.left, stage.top).matrixTransform(inverse),
-            b = new DOMPoint(stage.right, stage.bottom).matrixTransform(inverse);
-          return [a.x, a.y, b.x, b.y];
-        });
-        const overlaps = (b: number[]) =>
-          b[0]! < viewport[2]! && b[2]! > viewport[0]! && b[1]! < viewport[3]! && b[3]! > viewport[1]!;
-        assert.ok(
-          !headingInk.some((p) => overlaps(p.box)) ||
-            headingInk.every((p) => p.visible && p.complete && covered(p.box, [seen.viewport])),
-          `${id}/${step}: the opening must show all heading ink or leave it outside the picture`,
-        );
+        // The scene draws a heading and its chrome, but a narrow stage paints none of it: the
+        // player sets the step's number, title and line as page text instead. inspectStoryFrame
+        // matched every other record to a painted element, so no heading ink can be clipped.
+        assert.ok(frame.chrome.length > 1, `${id}/${step}: the scene draws a heading on a wide stage`);
+        const painted = await page.locator('.stage svg:not(.leaving)').evaluate((node) => [...node.children].filter((e) => e.tagName.toLowerCase() !== 'defs').length);
+        assert.equal(painted, frame.records.length - frame.chrome.length, `${id}/${step}: the narrow stage paints no heading`);
         const subjects = frame.targets.filter((t) => t.opening);
         assert.ok(subjects.length > 0);
         for (const target of subjects)
@@ -264,7 +247,7 @@ test('authored phone openings keep comparison ink readable without painting a cl
         openings++;
       }
     }
-    assert.equal(openings, 4);
+    assert.equal(openings, 2);
   } finally {
     await page.close();
   }
@@ -314,7 +297,7 @@ test('Next is on screen at load', options, async () => {
         assert.ok(v.scrollWidth <= v.width, `${where}: no horizontal scroll (${v.scrollWidth} > ${v.width})`);
     });
     }
-  // specs/player-tile.md T1: with the header inside the card, the French ten-step page too.
+  // specs/player-tile.md T1: with the header inside the card, the French eleven-step page too.
   for (const [width, height] of [[1280, 800], [1440, 900]] as const) {
     await readerPage({ viewport: { width, height } }, embed + '/quotient-familial.html', async page => {
       const v = await boxesOf(page, { next: '.stepper .primary', lede: '.lede' });
@@ -466,7 +449,10 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
         await page.setViewportSize(viewport);
         await visitReader(page, src);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${id} at ${viewport.width}: no horizontal overflow`);
-        if(id==='quotient-familial') assert.equal(await page.locator('.step-bar button').count(),2,'two teaching steps exclude technical notes');
+        if(id==='quotient-familial') {
+          assert.ok(stepsOf(project, values).length > first.length, 'the fixture has technical notes to exclude');
+          assert.equal(await page.locator('.step-bar button').count(),first.length,'the teaching steps exclude technical notes');
+        }
         if((viewport.width===390&&viewport.height===844)||viewport.height===800) {
         const lede = await page.locator('.lede').evaluate((p) => ({
           visible: (p as HTMLElement).offsetParent !== null,
@@ -476,7 +462,7 @@ test('the shared tile preserves English/French chrome and headings, standalone, 
           // The caption announces the step; the heading is not a second live region.
           live: p.closest('[aria-live]') !== null,
         }));
-        const kicker: string=id==='mr-cache'?'Step 1 of 2':'Étape 1 sur 2', total=2;
+        const total=first.length, kicker: string=id==='mr-cache'?`Step 1 of ${total}`:`Étape 1 sur ${total}`;
         const where: string = `${id} at ${viewport.width}`;
         assert.deepEqual(lede, { visible: true, kicker, title: first[0]!.title, line: first[0]!.line || null, live: false }, where);
         assert.match(lede.kicker!, new RegExp(` ${total}$`), `${where}: the kicker names the total`);
@@ -657,8 +643,8 @@ const endOf = (page: Page) =>
       request: new URL(location.href).searchParams.get('request'),
     };
   });
-readerTest('one-case and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/lantern.html`, async page => {
-    // A scene with one case (lantern; exgit has two): Start again, and no case button at all.
+readerTest('one-case and French endings retain their localized Start again and Try controls', { viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }, () => `${embed}/playback-probe.html`, async page => {
+    // A scene with one case (the playback probe has no settings; exgit has two): Start again, and no case button at all.
     await page.locator('.step-bar button').last().click();
     await page.waitForFunction(() => document.querySelector('.stepper .primary')?.getAttribute('aria-label') === 'Start again from step 1');
     assert.equal(await page.locator('.player .button.try').count(), 0);
@@ -854,8 +840,9 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       assert.equal(await page.locator('details.supporting').evaluate((d) => (d as HTMLDetailsElement).open), false, `${where}: source details start closed`);
       assert.ok(seen.box.left >= seen.card.right, `${where}: the rail is beside the card ${JSON.stringify(seen)}`);
       assert.ok(Math.abs(seen.box.top - seen.card.top) <= 2, `${where}: the rail's top is the card's ${JSON.stringify(seen)}`);
-      // Every item shows its title and its line; none is bold, current or not.
-      const items = await page.locator('.steps:not(.supporting-steps) button').evaluateAll((bs) =>
+      // A reached step shows its title and its line; a step not yet reached shows only its number,
+      // so a later title cannot answer an earlier question. None is bold, current or not.
+      const items = () => page.locator('.steps:not(.supporting-steps) button').evaluateAll((bs) =>
         bs.map((b) => ({
           title: b.querySelector('.title')?.textContent,
           line: b.querySelector('.line')?.textContent,
@@ -863,7 +850,12 @@ test('the rail is a pane beside the card when wide and a closed details row insi
           weight: getComputedStyle(b.querySelector('.title')!).fontWeight,
         })),
       );
-      assert.deepEqual(items, list.map((s) => ({ title: s.title, line: s.line, shown: true, weight: '400' })), where);
+      const expected = (reached: number) =>
+        list.map((s, i) => (i < reached ? { title: s.title, line: s.line, shown: true, weight: '400' } : { title: `Step ${i + 1}`, line: s.line, shown: false, weight: '400' }));
+      assert.equal(list.length, 2, 'mr-cache has two teaching steps');
+      assert.deepEqual(await items(), expected(1), `${where}: only the first step is named at load`);
+      const segment = (i: number) => page.locator('.step-bar button').nth(i).evaluate((b) => [b.getAttribute('title'), b.getAttribute('aria-label')]);
+      assert.deepEqual(await segment(1), ['Step 2', 'Step 2 of 2'], `${where}: the unreached segment does not name its step`);
       // Changing step moves neither the page nor the card.
       const place = () => page.evaluate(() => [scrollY, document.querySelector('.player')!.getBoundingClientRect().top, document.querySelector('.rail')!.getBoundingClientRect().top]);
       const before = await place();
@@ -876,6 +868,9 @@ test('the rail is a pane beside the card when wide and a closed details row insi
       await page.getByRole('button', { name: 'Next step', exact: true }).click();
       await page.waitForFunction((step) => document.querySelector('.steps [aria-current=step]')?.getAttribute('data-step') === step, list[1]!.step);
       assert.deepEqual(await place(), before, `${where}: Next kept the page and the card in place`);
+      // Reaching a step names it, and going back keeps it named.
+      assert.deepEqual(await items(), expected(2), `${where}: both steps are named once reached`);
+      assert.deepEqual(await segment(1), [list[1]!.title, `Step 2 of 2: ${list[1]!.title}`], `${where}: the reached segment names its step`);
     });
   }
   for (const [width, height] of [[390, 844], [768, 1024]] as const) {
@@ -1416,8 +1411,9 @@ test('Copy link gives the step\'s share page when site:export published one, els
 test('stepping keeps Next in place while headings and captions use their natural height', options, async () => {
   // Caption lengths and tour controls cannot shift a path while the reader steps.
   // Opening the separate source disclosure deliberately changes the page's height.
+  let detailScenes = 0;
   for (const [width, height] of [[1180, 800], [390, 844]] as const)
-    for (const scene of ['exgit', 'mr-cache', 'send-sync', 'token-bucket']) {
+    for (const scene of ['exgit', 'mr-cache', 'send-sync', 'token-bucket', 'quotient-familial']) {
       await readerPage({ viewport: { width, height } }, undefined, async page => {
         await page.addInitScript(() => {
           (window as unknown as { __layoutSettles: number }).__layoutSettles = 0;
@@ -1450,13 +1446,18 @@ test('stepping keeps Next in place while headings and captions use their natural
             ),
           );
         }
+        // A scene's notes, when it has any, form the detail path; token-bucket tells one story.
+        const project = projects.get(scene)!, notes = stepsOf(project, resolveSettings(project.Scene)).some(s => s.detail);
+        if (notes) detailScenes++;
         for(const [name,path] of Object.entries(paths)){
+          if (name === 'detail' && !notes) { assert.equal(path.places.size, 0, `${scene}: no detail path without notes`); continue; }
           assert.ok(path.places.size, `${scene}: ${name} path was exercised`);
           assert.equal(path.places.size, 1, `${scene}/${name} at ${width} px: navigation tops per step ${[...path.places].join(' | ')}`);
 
         }
   });
     }
+  assert.ok(detailScenes >= 2 * 3, `the detail path was exercised in at least three scenes at each width (${detailScenes / 2})`);
 });
 test(
   'mobile controls and transcript work offline with storage disabled and no page errors',
@@ -1513,7 +1514,7 @@ test(
       // 12 px or more, and the overview over the stage's corner steps through the rest of the change.
       const project = projects.get('mr-cache')!,
         values = resolveSettings(project.Scene, { request: 'miss' });
-      const size = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+      const size = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
       const layout = (await stepLayouts(project.variants.find((v) => v.values.request === values.request)!.Scene)).get('after')!;
       const tour = closeUps(layout, size.w, size.h);
       const painted = () => settledZoom(page);
@@ -1603,7 +1604,7 @@ test(
     }
   },
 );
-// The author's camera (lantern's 'points' step focuses the camera on Mobject) and the reader's
+// The author's camera (lantern's 'begin' step focuses the camera on Mobject and Animation) and the reader's
 // zoom compose: Whole picture is the author's frame, a zoom narrows it, and the camera's glide home in the
 // next step plays under a held zoom.
 test(
@@ -1615,7 +1616,7 @@ test(
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
 
-      await visitReader(page, embed + '/lantern.html?step=points');
+      await visitReader(page, embed + '/lantern.html?step=begin');
       await quiet(page);
       const rect = (v: string) => v.split(' ').map(Number);
       const home = '-8000 -4500 16000 9000';
@@ -1633,7 +1634,7 @@ test(
       const [cx, cy, cw, ch] = rect(zoomed.camera) as [number, number, number, number],
         [vx, vy, vw, vh] = rect(zoomed.view) as [number, number, number, number];
       assert.ok(vx >= cx - 1e-3 && vy >= cy - 1e-3 && vx + vw <= cx + cw + 1e-3 && vy + vh <= cy + ch + 1e-3, 'the view stays inside the author frame');
-      // Next plays 'clock', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
+      // Next plays 'check', whose s.clear() glides the camera home: every frame keeps the reader's 2.56×.
       const seen: Painted[] = [];
       await page.locator('.stepper').getByRole('button', { name: 'Next step' }).click();
       const end = Date.now() + 3000;
@@ -1657,11 +1658,11 @@ test(
       try {
         const small = await phone.newPage();
         small.on('pageerror', (e) => errors.push(e.message));
-        await visitReader(small, embed + '/lantern.html?step=points');
+        await visitReader(small, embed + '/lantern.html?step=begin');
         await quiet(small);
         const p = await paintedView(small);
         assert.equal(p.camera, author.camera, 'the phone shows the same author frame');
-        const layout = (await stepLayouts(projects.get('lantern')!.variants[0]!.Scene)).get('points');
+        const layout = (await stepLayouts(projects.get('lantern')!.variants[0]!.Scene)).get('begin');
         const want = closeUps(layout, p.w, p.h)[0]!,
           got = zoomOf(p);
         if (want.k === 1) assert.equal(got, null);
@@ -1744,6 +1745,12 @@ interface PlayerModel {
   follow: boolean;
   /** The selected close-up ordinal; comparison openings and later details may use different scales. */
   tourStop: number;
+  /** Every step shown so far, by name: the rail and step bar name a teaching step once it, or a later one, is reached. */
+  reached: Set<string>;
+  /** Resting pictures redrawn in place because the stage crossed NARROW_PX (a narrow stage draws no heading): an attachment, not a settle. */
+  redraws: number;
+  /** Whether the stage was narrow when last verified; undefined before the first verification. */
+  narrow?: boolean;
 }
 interface PlayerReal {
   page: Page;
@@ -1865,8 +1872,9 @@ function observe(ids: string[]) {
       const svg = stage.querySelector('svg');
       return svg && { view: svg.getAttribute('viewBox')!, camera: svg.getAttribute('data-camera') ?? svg.getAttribute('viewBox')! };
     })(),
-    stageW: stage.clientWidth,
-    stageH: stage.clientHeight,
+    stageClientW: stage.clientWidth,
+    stageW: stage.getBoundingClientRect().width,
+    stageH: stage.getBoundingClientRect().height,
     zoomOutDisabled: button('Zoom out')!.disabled,
     zoomInDisabled: button('Zoom in')!.disabled,
     // Unseen, whether removed or holding its place (Whole picture keeps its place so the controls do not wrap).
@@ -1910,8 +1918,9 @@ const paintedView = (page: Page | Frame): Promise<Painted> =>
   page.locator('.stage svg:not(.leaving)').evaluate((svg) => ({
     view: svg.getAttribute('viewBox')!,
     camera: svg.getAttribute('data-camera') ?? svg.getAttribute('viewBox')!,
-    w: svg.parentElement!.clientWidth,
-    h: svg.parentElement!.clientHeight,
+    // Invert actual SVG fitting geometry, including fractional CSS pixels.
+    w: svg.parentElement!.getBoundingClientRect().width,
+    h: svg.parentElement!.getBoundingClientRect().height,
   }));
 /** The reader's zoom painted over the author's frame; null when the stage shows the author's frame (Whole picture). */
 function zoomOf(p: Painted | null) {
@@ -1955,6 +1964,18 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
     .catch(() => {});
   await twoFrames(r.page);
   await settledZoom(r.page);
+  // Whatever moved the stage across NARROW_PX (a resize, or a scrollbar appearing when the
+  // transcript opens at a width on the boundary), the player redraws the resting picture in
+  // place, with or without the stage's heading: one more attachment, not a settle.
+  const narrowNow = (await stageSize(r)).narrow;
+  if (m.narrow !== undefined && narrowNow !== m.narrow) {
+    m.redraws++;
+    await r.page
+      .waitForFunction((n) => (window as unknown as { __attaches: number }).__attaches >= n, r.parsed + m.settles + m.redraws, { timeout: 10_000 })
+      .catch(() => {});
+    await twoFrames(r.page);
+  }
+  m.narrow = narrowNow;
   const seen = await r.page.evaluate(observe, ids);
   const entry = current(m),
     list = steps(m),
@@ -1969,7 +1990,7 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   eq('page errors', r.errors, []);
   eq('settled steps (rayner:step events)', seen.settles, m.settles);
   // Reduced motion: the only pictures ever attached are the resting frames shown on settling.
-  eq('pictures attached to the stage', seen.attaches - r.parsed, m.settles);
+  eq('pictures attached to the stage', seen.attaches - r.parsed, m.settles + m.redraws);
   eq('URL step', seen.urlStep, entry.step);
   eq('URL case', seen.urlCase, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
   eq('checked case', seen.checked, Object.fromEntries(ids.map((id) => [id, entry.values[id]])));
@@ -1980,7 +2001,12 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   eq('step list', seen.list, presentedSteps(list).map(s => s.step));
   const main = teachingSteps(list);
   eq('step bar', seen.bar, main.map(j => [list[j]!.step, j < i ? 'done' : j === i ? 'current' : 'todo', j === i ? 'step' : 'false']));
-  eq('step bar names and Tab stops', seen.barNames, main.map((j,index)=>[`Step ${index+1} of ${main.length}: ${list[j]!.title}`,list[j]!.title,j===i?0:-1]));
+  // The step on show is reached; a teaching step is named once it, or a later step, has been reached.
+  m.reached.add(entry.step);
+  const furthest = Math.max(i, ...list.flatMap((s, j) => (m.reached.has(s.step) ? [j] : [])));
+  eq('step bar names and Tab stops', seen.barNames, main.map((j,index)=> j <= furthest
+    ? [`Step ${index+1} of ${main.length}: ${list[j]!.title}`,list[j]!.title,j===i?0:-1]
+    : [`Step ${index+1} of ${main.length}`,`Step ${index+1}`,j===i?0:-1]));
   eq('step bar label', seen.barLabel, 'Step progress');
   eq('current segment is full at rest', seen.barProgress, main.includes(i)?'1':null);
   eq('aria-current', seen.current, [entry.step]);
@@ -2022,7 +2048,7 @@ async function verify(m: PlayerModel, r: PlayerReal, what: string) {
   eq('Zoom out disabled', seen.zoomOutDisabled, m.k <= 1);
   eq('Zoom in disabled', seen.zoomInDisabled, m.k >= ZOOM_MAX);
   eq('Whole picture hidden', seen.wholeHidden, m.k <= 1);
-  const narrow = seen.stageW > 0 && seen.stageW < NARROW_PX;
+  const narrow = seen.stageClientW > 0 && seen.stageClientW < NARROW_PX;
   eq('Close-up hidden', seen.closeUpHidden, !(narrow && !m.follow));
   const tour = await tourOf(m, seen.stageW, seen.stageH),
     multipleViews = narrow && tour.length > 1;
@@ -2067,7 +2093,9 @@ const command = (
 /** The stage's size now, and whether it is narrow enough for close-ups. */
 /** The stage's size once it holds: after a resize the header and the heading settle within a frame or two. */
 async function stageSize(r: PlayerReal) {
-  const read = () => r.page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+  // The player plans close-ups at the stage's fractional size and calls it narrow by its rounded
+  // clientWidth (app/embed.ts), so the model reads both.
+  const read = () => r.page.locator('.stage').evaluate((s) => { const b = s.getBoundingClientRect(); return { w: b.width, h: b.height, cw: s.clientWidth }; });
   let last = await read();
   for (let i = 0; i < 30; i++) {
     await r.page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
@@ -2075,7 +2103,7 @@ async function stageSize(r: PlayerReal) {
     if (now.w === last.w && now.h === last.h) break;
     last = now;
   }
-  return { w: last.w, h: last.h, narrow: last.w > 0 && last.w < NARROW_PX };
+  return { w: last.w, h: last.h, narrow: last.cw > 0 && last.cw < NARROW_PX };
 }
 const layoutCache = new Map<string, Promise<Map<string, StepLayout>>>();
 /** A case's step layouts, worked out in Node as the page works them out. */
@@ -2421,7 +2449,7 @@ async function openPlayer(name: string, initial: { values: (string | undefined)[
     const {page,errors}=await counted(context,`${embed}/${name}.html${query.size ? '?' + query : ''}`);
     const base = (await page.evaluate(() => history.length)) - 1;
     const parsed = (await page.evaluate(() => (window as unknown as { __attaches: number }).__attaches)) - 1;
-    const model: PlayerModel = { project: p, entries: [entry], index: 0, notice, k: 1, transcript: false, settles: 1, follow: true, tourStop: 0 };
+    const model: PlayerModel = { project: p, entries: [entry], index: 0, notice, k: 1, transcript: false, settles: 1, follow: true, tourStop: 0, reached: new Set(), redraws: 0 };
     const real: PlayerReal = { page, errors, base, parsed };
     await reframe(model, real);
     await verify(model, real, `opening ${page.url()}`);
@@ -2446,9 +2474,24 @@ test('Left at the first story step leaves its picture, URL and settle count unch
     assert.equal(model.entries.length, 1);
   });
 });
-test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
+test('crossing the narrow width redraws the resting picture in place, including when a scrollbar moves the stage across it', options, async () => {
+  // Found by the property test (seed 1364731003): at 632 px the stage is exactly 600 px wide, so
+  // the transcript's scrollbar narrows it again and the heading-less picture is redrawn.
+  // Since oauth-pkce has no notes, no step change alters the heading reserve. At 704 px tall the
+  // header and heading measured at the phone width keep the stage under 600 px; at 800 px the
+  // resize reaches the full 600 px, so it crosses NARROW_PX itself.
   await playerScenario('oauth-pkce', {
-    values: ['yes'], step: 'reader-redeem', viewport: {width: 308, height: 400},
+    values: [undefined], viewport: {width: 200, height: 400},
+  }, async (model, real) => {
+    await fc.asyncModelRun(() => ({model, real}), [ClickStep(3), Resize(632, 800), ToggleTranscript, TranscriptLink(0)]);
+    assert.ok(model.redraws >= 1, 'the stage crossed NARROW_PX at least once');
+  });
+});
+test('Next view uses each detail view’s scale after a comparison opening', options, async () => {
+  // Explicit comparison labels and a smaller implementation note require different
+  // scales regardless of incidental wording or heading placement in a subject lesson.
+  await playerScenario('reading-comparison', {
+    values: [], step: 'compare', viewport: {width: 320, height: 400},
   }, async (model,real) => {
     const {w, h} = await stageSize(real), tour = await tourOf(model, w, h);
     assert.ok(tour.length > 1 && tour[0]!.k !== tour[1]!.k, 'the fixture changes scale between the opening and first detail view');
@@ -2481,14 +2524,15 @@ test('reader model fixed scenarios: teaching and source navigation, segments, ca
   const references=projects.get('references')!, list=teachingSpecs(references,{case:'one'}), pkce=projects.get('oauth-pkce')!;
   assert.equal(new Set(list.map(s=>s.caption)).size,list.length,'the teaching steps have distinct captions');
   assert.notEqual(stepsOf(pkce,{attacker:'no'}).length,stepsOf(pkce,{attacker:'yes'}).length,'the attacker adds a source step');
-  assert.equal(teachingSpecs(pkce,{attacker:'no'}).length,teachingSpecs(pkce,{attacker:'yes'}).length,'the teaching inventory stays fixed');
+  assert.notEqual(stepsOf(references,{case:'one'}).length,stepsOf(references,{case:'two'}).length,'the second case adds a source step');
+  assert.equal(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'two'}).length,'the teaching inventory stays fixed');
   assert.notEqual(teachingSpecs(references,{case:'one'}).length,teachingSpecs(references,{case:'all'}).length,'all-notes case rebuilds the inventory');
   const scenarios = [
     ...[{width:390,height:568},{width:1280,height:800}].flatMap(viewport=>['reader-request','before'].map(step=>({name:'mr-cache',values:['hit'],step,viewport,commands:[Next]}))),
     {name:'references',values:['one'],commands:[ClickSegment(0),ClickSegment(1),ClickSegment(0),ClickSegment(1)]},
     {name:'mr-cache',values:['hit'],step:'after',commands:[Next,Key('ArrowRight'),StartAgain]},
     {name:'mr-cache',values:['hit'],step:'request',commands:[TryCase,ClickSegment(1),Previous]},
-    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes'],['references','one','all']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseCase(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
+    ...[['mr-cache','hit','miss'],['oauth-pkce','no','yes'],['references','one','two'],['references','one','all']].map(([name,from,to])=>({name:name!,values:[from!],commands:[ChooseCase(0,settingsOfProject(projects.get(name!)!)[0]!.options.findIndex(o=>o.value===to))]})),
   ];
   let placementPoisoned = false;
   for(const scenario of scenarios) {
@@ -2509,7 +2553,7 @@ test('reader model fixed scenarios: teaching and source navigation, segments, ca
 });
 
 test('phone tours cross the actual 600 px stage boundary and retain every resized view’s scale and pan', options, async () => {
-  for (const height of [400,1200]) for (const width of [200,390,632]) for (const step of ['reader-bind','secret']) {
+  for (const height of [400,1200]) for (const width of [200,390,632]) for (const step of ['stolen','secret']) {
     await playerScenario('oauth-pkce', {values:[undefined],step,viewport:{width,height}}, async (model,real) => {
       if(width===632&&height===1200) assert.ok((await stageSize(real)).w>=NARROW_PX,'the tall desktop stage crosses the actual 600 px boundary');
       const commands = width === 632
@@ -2714,7 +2758,7 @@ test(
             }
             await quiet(a.page);
             await quiet(d.page);
-            const size = await a.page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+            const size = await a.page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
             assert.ok(size.w < NARROW_PX);
             const tour = closeUps(layouts.get(step), size.w, size.h), want = tour[0]!;
             const t = await settledZoom(a.page);
@@ -2764,7 +2808,7 @@ test('phone: one press of Next view shows what PKCE\'s captions point at, emphas
 
     const { page, errors } = await counted(context, `${embed}/oauth-pkce.html?attacker=yes&step=secret`);
     await quiet(page);
-    const { w, h } = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+    const { w, h } = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
     const count = page.locator('.view-controls>span'),
       nextView = page.getByRole('button', { name: 'Next view', exact: true });
     const near = (a: ReturnType<typeof zoomOf>, b: { k: number; x: number; y: number }) =>
@@ -2809,7 +2853,8 @@ test(
   'player, motion on: Next plays a run prepared before the tap, and a revisited step is a copy, not a re-run',
   options,
   async () => {
-    const name = 'oauth-pkce',
+    // mr-cache has both paths: its teaching steps and, under them, its source notes.
+    const name = 'mr-cache',
       p = projects.get(name)!,
       v = p.variants[0]!,
       lists = [v.trace.steps.filter(s => s.meta.detail !== true), v.trace.steps.filter(s => s.meta.detail === true)];
@@ -2875,10 +2920,10 @@ const earlyControls = (page: Page, actions: string[]) => page.addInitScript((act
 test('pre-ready Previous, Left and Next retain the first teaching permalink', options, async () => {
   await readerContext({reducedMotion:'reduce',permissions:['clipboard-read','clipboard-write']}, async context => {
     const actions=['Previous step','ArrowLeft','Next step'];
-    const {page,errors}=await counted(context,`${embed}/oauth-pkce.html?step=reader-bind`,page=>earlyControls(page,actions));
+    const {page,errors}=await counted(context,`${embed}/oauth-pkce.html?step=stolen`,page=>earlyControls(page,actions));
     assert.equal(await page.evaluate(()=>(window as unknown as {__early:number}).__early),actions.length);
     assert.deepEqual(errors,[]);
-    assert.equal(new URL(page.url()).searchParams.get('step'),'reader-bind');
+    assert.equal(new URL(page.url()).searchParams.get('step'),'stolen');
   });
 });
 
@@ -2914,10 +2959,12 @@ for (const motion of ['reduce', 'no-preference'] as const)
         fc.constant([{ action: { kind: 'next' as const }, gap: 250 }, { action: { kind: 'next' as const }, gap: 0 }]),
         fc.constant([{ action: { kind: 'next' as const }, gap: 0 }]), burstArb(choices.get(start.name)!))));
       await fc.assert(
-        fc.asyncProperty(inputs, early, fc.scheduler(), async ([start, burst], earlyActions, scheduler) => {
+        // A phone-sized page as well as Playwright's default: whether 1280 × 720 gives a narrow stage
+        // depends on the fonts, which wrap the header differently on CI.
+        fc.asyncProperty(inputs, early, fc.constantFrom(undefined, { width: 390, height: 844 }), fc.scheduler(), async ([start, burst], earlyActions, viewport, scheduler) => {
           const { name, values: initialValues, step } = start, p = choices.get(name)!, ids = settingsOfProject(p).map(s => s.id);
           const actions=name==='playback-probe'?[{action:{kind:'next' as const},gap:250},{action:{kind:'next' as const},gap:0},...burst]:burst;
-          await readerContext({ reducedMotion: motion }, async context => {
+          await readerContext({ reducedMotion: motion, ...(viewport && { viewport }) }, async context => {
 
             // Schedule the player's zero-delay yields (preloading and step boundaries),
             // retaining the browser's native animation clock and paint timing.
@@ -2936,6 +2983,9 @@ for (const motion of ['reduce', 'no-preference'] as const)
             assert.deepEqual(errors, []);
             assert.equal(new URL(page.url()).searchParams.get('step'), step, 'early controls keep the requested step');
             const whole=page.getByRole('button',{name:'Whole picture',exact:true});
+            // On a narrow stage Whole picture also turns close-ups off for the steps that follow,
+            // so the fresh link compared below gets the same press.
+            const closeUpsOff = await whole.isVisible() && await page.locator('.stage.narrow').count() > 0;
             if(await whole.isVisible()) await whole.click();
             await scheduler.waitFor(page.evaluate(
               async ({ burst, settings, paths }) => {
@@ -2955,8 +3005,9 @@ for (const motion of ['reduce', 'no-preference'] as const)
                   const inventory=paths.find(row=>Object.entries(row.values).every(([id,value])=>query.get(id)===value))!;
                   const nextStep=inventory.next[at!];
                   const expectedNext=a.kind==='next'&&!document.querySelector('#content.loading')&&button('Next step')?.disabled===false?nextStep!==at?nextStep:undefined:undefined;
-                  const continuing = a.kind === 'next' && inventory.raw.indexOf(nextStep!)===inventory.raw.indexOf(at!)+1 && !!document.querySelector('.stage[aria-busy=true]') && w.__attachedStep === new URLSearchParams(location.search).get('step');
                   if (nav.currentEntry.index !== seenIndex) [queued, seenIndex] = [0, nav.currentEntry.index];
+                  // A Back still to land restarts the scene itself, so it would be blamed on this Next.
+                  const continuing = a.kind === 'next' && queued === 0 && inventory.raw.indexOf(nextStep!)===inventory.raw.indexOf(at!)+1 && !!document.querySelector('.stage[aria-busy=true]') && w.__attachedStep === new URLSearchParams(location.search).get('step');
                   if (a.kind === 'case') {
                     const s = settings[a.setting];
                     const input = s && document.querySelector<HTMLInputElement>(`input[name="${s.id}"][value="${s.options[a.option % s.options.length]}"]`);
@@ -3017,6 +3068,11 @@ for (const motion of ['reduce', 'no-preference'] as const)
             // Ledger P5: include post-hold additions in the resting picture a fresh link shows.
             const fresh = await scheduler.waitFor(counted(context, `${embed}/${name}.html?${caseQuery(p, values, seen.urlStep!)}`));
             assert.deepEqual(fresh.errors,[]);
+            const freshWhole = fresh.page.getByRole('button', { name: 'Whole picture', exact: true });
+            if (closeUpsOff && await freshWhole.isVisible()) {
+              await freshWhole.click();
+              await settledZoom(fresh.page);
+            }
             assert.equal(await stagePicture(page), await stagePicture(fresh.page), 'stage picture');
   });
         }),
@@ -3258,7 +3314,7 @@ test('PKCE mobile views expose the derivation and the unsent verifier without ad
         assert.equal(await page.getByRole('button', {name: 'Next view', exact: true}).getAttribute('aria-describedby'),
           await page.locator('.view-help').getAttribute('id'), 'view navigation announces how it differs from step navigation');
         assert.match(await page.locator('.view-help').innerText(), /Next step continues the explanation/);
-        const size = await page.locator('.stage').evaluate((s) => ({ w: s.clientWidth, h: s.clientHeight }));
+        const size = await page.locator('.stage').evaluate((s) => { const r = s.getBoundingClientRect(); return { w: r.width, h: r.height }; });
         const count = Number((await page.locator('.view-controls>span').innerText()).match(/of (\d+)/)![1]);
         assert.ok(count > 1);
         const evidence = targets.get(step)!;
@@ -3338,7 +3394,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       'State','session:state','Event','session:event','Returns','session:returns'],
   };
   const page = await browser.newPage();
-  let cases=0,stepWidths=0,labelChecks=0;
+  let cases=0,stepWidths=0,authoredSteps=0,labelChecks=0;
   try {
     for(const id of ['token-bucket','state-machine'] as const){
       const project = projects.get(id) ?? await collectProject(`scenes/explainers/${id}`,{write:false});
@@ -3347,7 +3403,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       if(!projects.has(id))await buildExplainer(project,join(folder,`${id}.html`));
       const sourceStep = id==='token-bucket'?'later':'terminal';
       const companion = await reviewClaims(project);
-      assert.deepEqual(companion.filter(c=>c.step===sourceStep).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
+      assert.deepEqual(companion.filter(c=>c.step===sourceStep&&!c.settings).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
       const claims = await reviewClaims(project);
       for(const variant of project.variants){
         let nativeChecked=false;
@@ -3362,13 +3418,14 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             const m=keyed(key);assert.ok(m instanceof Text);assert.equal(m.text,value);
           };
           if(id==='token-bucket'){
-            const rate=variant.values.rate!, found={1:1,2:2,4:5}[rate as '1'|'2'|'4']!,
-              after={1:0,2:1,4:4}[rate as '1'|'2'|'4']!;
+            // R10 arrives at 5 s: 4 tokens at 1 / s; 2 and 4 / s reach the cap of five.
+            const rate=variant.values.rate!, found={1:4,2:5,4:5}[rate as '1'|'2'|'4']!,
+              after={1:3,2:4,4:4}[rate as '1'|'2'|'4']!;
             text('balance:cap','  tokens = min(5,');text('balance:label','Tokens left');
-            text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 2');
+            text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 5');
             assert.deepEqual(keyed('request:R10').family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),['R10','200']);
             const dot=keyed('balance:found:R10').center(),drop=keyed('balance:spend:R10').box()!;
-            assert.ok(Math.abs(dot[0]+0.56)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
+            assert.ok(Math.abs(dot[0]-1.6)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
             assert.equal(scene.state.tokens,after);
           }else{
@@ -3392,8 +3449,11 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         const rows=await reviewStoryVariant(page,`${embed}/${id}.html`,variant,claims);
         assert.deepEqual(rows.map(r=>[r.step,r.width]),[390,1180].flatMap(width=>variant.trace.steps.map(s=>[s.step,width])));
         for(const row of rows.filter(r=>r.step===sourceStep))assert.ok(roles[id].every(role=>row.targets.includes(role)));
-        stepWidths+=rows.length;
-        const frame=(await storyFrames(variant.Scene,claims)).get(sourceStep)!;
+        stepWidths+=rows.length;authoredSteps+=2*variant.trace.steps.length;
+        // A claim bound to settings (token-bucket's cap note, drawn only where the wait passes five)
+        // is an obligation of its own cases, as the production reviewer applies it.
+        const applicable=claims.filter(c=>Object.entries(c.settings??{}).every(([k,v])=>variant.values[k]===v));
+        const frame=(await storyFrames(variant.Scene,applicable)).get(sourceStep)!;
         const indices=new Set(frame.targets.filter(t=>roles[id].includes(t.name)).flatMap(t=>t.indices));
         const labels=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
         assert.equal(labels.length,id==='token-bucket'?9:12,'exact caption-label inventory');
@@ -3424,7 +3484,8 @@ test('source tours show the token-cap calculation and terminal rejection in ever
       }
     }
   }finally{await page.close();}
-  assert.equal(cases,5);assert.equal(stepWidths,68);assert.equal(labelChecks,51);
+  // Every step of every case at both widths, whatever each scene's step count.
+  assert.equal(cases,5);assert.equal(stepWidths,authoredSteps);assert.equal(labelChecks,51);
 });
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {

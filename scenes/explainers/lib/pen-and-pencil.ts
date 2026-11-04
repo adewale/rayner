@@ -113,6 +113,32 @@ export function hand(line: readonly Pt[], o: HandOptions, rand: () => number): P
   return out;
 }
 
+export interface FreehandOptions {
+  /** The largest turn of each move away from the direction intended, in degrees. */
+  angle: number;
+  /** The largest stretch or shrink of each move, as a fraction of its intended length. */
+  length: number;
+}
+/**
+ * A hand that places its own strokes, the failure a fixed layout prevents: an assumption of this
+ * explainer, not pele's method. Each corner is drawn where the last move ended, turned by up to
+ * ±`angle` and stretched by up to ±`length`.
+ */
+export const FREEHAND: FreehandOptions = { angle: 2, length: 0.03 };
+/** The corners a free hand reaches from `start` by relative `moves`; each error is carried into every later corner. */
+export function freehand(start: Pt, moves: readonly Pt[], o: FreehandOptions, rand: () => number): Pt[] {
+  let [x, y] = start;
+  const out: Pt[] = [[x, y]];
+  for (const [dx, dy] of moves) {
+    const a = ((rand() * 2 - 1) * o.angle * Math.PI) / 180,
+      k = 1 + (rand() * 2 - 1) * o.length;
+    x += k * (Math.cos(a) * dx - Math.sin(a) * dy);
+    y += k * (Math.sin(a) * dx + Math.cos(a) * dy);
+    out.push([x, y]);
+  }
+  return out;
+}
+
 /** Pen pressure for each of `n` strokes in drawing order: a random walk kept between 0.8 and 1.2. */
 export function pressures(n: number, rand: () => number): number[] {
   let p = 1;

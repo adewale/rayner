@@ -2,41 +2,14 @@
   "version": 1,
   "claims": [
     {
-      "step": "reader-quotient",
+      "step": "tranches",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "qf-tranches:entier"
         },
         {
-          "text": "Revenu"
-        },
-        {
-          "text": "÷ parts"
-        },
-        {
-          "text": "Barème"
-        },
-        {
-          "text": "× parts"
-        }
-      ]
-    },
-    {
-      "step": "reader-cap",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Calcul brut"
-        },
-        {
-          "text": "Après plafond"
-        },
-        {
-          "text": "Après décote"
+          "key": "qf-tranches:parts"
         }
       ]
     }

@@ -56,6 +56,11 @@ try {
   // and it draws no diagram, so it checks without a browser.
   await run(process.execPath, ['--test', 'first/model.test.ts'], { cwd: folder });
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
+  // Evidence references must resolve in the author's project, not the installed package.
+  const starter = join(folder, 'first/scene.ts');
+  await writeFile(starter, (await readFile(starter, 'utf8')).replace('static meta = {',
+    `static meta = { claims: [{ says: 'LRU evicts the item used longest ago', test: "first/model.test.ts: LRU matches Wikipedia" }],`));
+  await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // Diagram capture and PNG tools ship in the default authoring install.
   assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
   if (process.env.EXPLAIN_BROWSER) {
@@ -214,6 +219,12 @@ try {
     const target = join(folder, 'outline-' + name);
     await mkdir(target);
     await copyAuthorSource(join(source, 'scene.ts'), join(target, 'scene.ts'));
+    // A claim names the test that backs it. An outside project keeps its tests beside its scenes,
+    // so carry each named test file over; check still fails if the named test is not in it.
+    for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {
+      await mkdir(dirname(join(folder, file!)), { recursive: true });
+      await copyFile(join(ROOT, file!), join(folder, file!));
+    }
     if (name !== 'layout-direction') await copyFile(join(source, 'scene.lettering.json'), join(target, 'scene.lettering.json'));
     if (name === 'style' || name === 'font-metrics') {
       await cp(join(source, 'scene.snapshots'), join(target, 'scene.snapshots'), { recursive: true });

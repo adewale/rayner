@@ -1,51 +1,44 @@
 import { Group } from '../../../../src/index.ts';
-import { find, run, PROMPTS_PER_COMMAND } from '../2password.ts';
-import { flow, label, table } from '../reader-drawing.ts';
+import { find, run } from '../2password.ts';
+import { flow, label } from '../reader-drawing.ts';
 import type { ReaderFrame } from '../reader-drawing.ts';
+
+/** The script's answer, stated by the second step. */
+export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';
+
 export function frames(auth: 'desktop' | 'service'): ReaderFrame[] {
   const found = find(['cloud api']),
     ref = found.matches[0]!.ref,
     launched = run(auth, { API_KEY: ref }, ['app']);
   return [
     {
-      id: 'reader-boundary',
-      title: 'Who gets the secret value?',
-      line: 'op resolves a reference when it starts the application.',
+      id: 'ask',
+      title: 'An agent must start an app without reading its key',
+      line: 'Predict: what could the agent pass along instead of the key?',
       caption:
-        'Discovery returns an op:// reference. When the command runs, op resolves it and starts the application with the secret in its environment. The application can still read or print that environment; the reference keeps the value out of discovery output.',
+        'The app needs API_KEY in its environment. Printing that value for the agent would also put it into the conversation, though the agent’s job is to choose the credential and start the app, not to read it. What can name the credential without exposing its value?',
+      values: { needs: 'API_KEY', agentHasValue: false },
+      draw: (s) =>
+        new Group(
+          flow(s, ['Agent', '?', 'Application']),
+          // As large as the tiles' names and no wider than the tiles, so a phone opens on all of it.
+          label('needs API_KEY', 4.8, -0.3, s.palette.ink, 0.62),
+          label('must not read', -4.8, -0.3, s.bad, 0.62),
+          label('the value', -4.8, -1.15, s.bad, 0.62),
+        ),
+    },
+    {
+      id: 'reader-boundary',
+      title: 'Answer: hand over a reference, and let op swap in the value',
+      line: `The agent passes ${ref}; op gives its value to the app.`,
+      caption: `${ANSWER}. The reference names a vault, item and field without containing the key. Authenticated op resolves that name when it starts the app. This keeps the value out of the launch request, but the app can still read or print its own environment.`,
       values: { ref, agentHasValue: false, childHasValue: !!launched.childEnv.API_KEY },
       draw: (s) =>
         new Group(
           flow(s, ['Agent', 'op CLI', 'Application']),
           label('op:// reference', -2.6, 2.25, s.emphasis, 0.65),
           label('secret value', 2.6, 2.25, s.emphasis, 0.65),
-          label('Discover a reference; deliver a value', 0, -1.8, s.palette.ink, 0.7),
-        ),
-    },
-    {
-      id: 'reader-auth',
-      title: 'Does the service token reach the app?',
-      line: `Authentication: ${auth === 'desktop' ? 'desktop approval' : 'service account'}.`,
-      caption:
-        auth === 'service'
-          ? 'The op process receives the service-account token. Its child command unsets OP_SERVICE_ACCOUNT_TOKEN and receives the resolved API key. Other inherited variables still pass through; removing this token does not isolate the whole environment.'
-          : 'In the upstream README’s desktop model, each command asks for approval. There is no service-account token to pass on, but the application still receives the resolved API key.',
-      values: {
-        auth,
-        prompts: PROMPTS_PER_COMMAND[auth],
-        opToken: 'OP_SERVICE_ACCOUNT_TOKEN' in launched.opEnv,
-        childToken: 'OP_SERVICE_ACCOUNT_TOKEN' in launched.childEnv,
-      },
-      draw: (s) =>
-        table(
-          ['Process', 'Service token', 'Resolved key'],
-          [
-            ['Agent', 'not shown', 'no'],
-            ['op CLI', auth === 'service' ? 'yes' : 'no', 'resolves'],
-            ['Application', 'no', 'yes'],
-          ],
-          s,
-          { xs: [-5.4, 0, 5.1], y: 2.6, gap: 1.5 },
+          label(ref, 0, -1.6, s.palette.ink, 0.62),
         ),
     },
   ];

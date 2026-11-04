@@ -2,6 +2,24 @@
   "version": 1,
   "claims": [
     {
+      "step": "stolen",
+      "opening": true,
+      "targets": [
+        {
+          "key": "message:S->M#0",
+          "paint": "stroke"
+        },
+        {
+          "key": "message:M->S#0",
+          "paint": "stroke"
+        },
+        {
+          "key": "message:S->M#1",
+          "paint": "stroke"
+        }
+      ]
+    },
+    {
       "step": "attack",
       "settings": {
         "attacker": "yes"
@@ -68,65 +86,20 @@
       ]
     },
     {
-      "step": "reader-bind",
+      "step": "channels",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "pkce-lane-browser"
         },
         {
-          "text": "Client"
+          "key": "pkce-lane-tls"
         },
         {
-          "text": "Auth server"
+          "text": "code_challenge (S256)"
         },
         {
-          "text": "Code"
-        },
-        {
-          "text": "issued"
-        }
-      ]
-    },
-    {
-      "step": "reader-check",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Saved challenge"
-        },
-        {
-          "text": "Client hash"
-        },
-        {
-          "text": "Prefix (8)"
-        }
-      ]
-    },
-    {
-      "step": "reader-redeem",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Caller"
-        },
-        {
-          "text": "S256 matches?"
-        },
-        {
-          "text": "Result"
-        },
-        {
-          "text": "Client"
-        },
-        {
-          "text": "token"
+          "text": "code_verifier"
         }
       ]
     }

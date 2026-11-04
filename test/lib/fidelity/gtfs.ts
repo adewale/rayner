@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import { SAMPLE_FEED } from '../../../scenes/explainers/gtfs/feed.ts';
-import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf } from '../../../scenes/explainers/lib/gtfs.ts';
+import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf, weekGrid } from '../../../scenes/explainers/lib/gtfs.ts';
 
 const STOPS: Record<string, string> = { airport: 'BEATTY_AIRPORT', stagecoach: 'STAGECOACH' };
 
@@ -14,17 +14,6 @@ export function check(trace: Trace, values: Record<string, string>): void {
     stop = STOPS[values.stop!];
   assert.ok(stop, `unknown stop ${values.stop}`);
 
-  assertStepState(trace, 'files', {
-    tables: {
-      'routes.txt': feed.routes.length,
-      'trips.txt': feed.trips.length,
-      'stop_times.txt': feed.stopTimes.length,
-      'stops.txt': feed.stops.length,
-      'frequencies.txt': feed.frequencies.length,
-      'calendar.txt': feed.calendar.length,
-      'calendar_dates.txt': feed.calendarDates.length,
-    },
-  });
   assertStepState(trace, 'route-trip', {
     tripsByRoute: Object.fromEntries(feed.routes.map((r) => [r.route_id, feed.trips.filter((t) => t.route_id === r.route_id).map((t) => t.trip_id)])),
   });
@@ -44,6 +33,8 @@ export function check(trace: Trace, values: Record<string, string>): void {
     })),
   });
   assertStepState(trace, 'evaluate', { today: servicesOn(feed, date) });
+  // The week grid: each service's cell per date and each date's trips.
+  assertStepState(trace, 'week', { week: weekGrid(feed, date) });
   assertStepState(trace, 'day-before', { dayBefore: { date: before, running: tripsOn(feed, before).map((t) => t.trip_id) } });
   const running = tripsOn(feed, date);
   assertStepState(trace, 'day', { day: { date, running: running.map((t) => t.trip_id), edits: ganttEdits(feed, before, date).length } });
