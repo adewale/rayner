@@ -1,5 +1,5 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view, matchByKey, Machine } from 'rayner';
-import type { Mobject, MatchKey, Vec, Box } from 'rayner';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, Transform, MoveAlongPath, AnimationGroup, Succession, view, matchByKey, Machine, choreograph, linear } from 'rayner';
+import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from 'rayner';
 import { stage, regionBox } from 'rayner/explain';
 import { keyed } from 'rayner/drawing';
 import type { Stage } from 'rayner/explain';
@@ -631,16 +631,58 @@ export default class Statecharts extends Scene {
     // The two charts a reader could drive, as Machines: each event is the model's send(), and
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
+    type Driven = { config: string[]; current: string[] };
+    /** The boxes the picture draws green for a state: the parent step follows the configuration, the frother step every box it is in. */
+    const followed = (st: Driven) => ((this.shown as Shown).phase === 'parent' ? st.config : st.current);
+    /** The arrow an event takes: the transition written on the state that handled it (its own, or its parent's), keyed as coffeePicture keys it. */
+    const arrowFor = (chart: StateNode, from: string, event: string) => {
+      const find = (n: StateNode): StateNode | undefined => (n.id === from ? n : (n.children ?? []).map(find).find(Boolean));
+      const to = find(chart)!.on![event]!;
+      return from === 'on' ? 'c:arrow:grinding:POWER_OFF:off' : to === 'on' ? 'c:arrow:off:POWER_ON:idle' : `c:arrow:${from}:${event}:${to}`;
+    };
+    // An event the configuration does not handle is discarded (SCXML), so its button would be
+    // disabled: the model refuses it. One that is handled travels: the boxes it leaves stop being
+    // green, a token runs along the arrow of the state that took it (on's own POWER_OFF when the
+    // current state has none), and the boxes it enters turn green.
     const driven = (chart: StateNode) =>
-      new Machine<{ config: string[]; current: string[] }, string>(this, {
+      new Machine<Driven, string>(this, {
         start: { config: initial(chart), current: activeStates(chart, initial(chart)) },
         events: chartEvents(chart),
         next: (state, event) => {
-          const config = send(chart, state.config, event).config;
-          return { config, current: activeStates(chart, config) };
+          const step = send(chart, state.config, event);
+          return step.handled ? { config: step.config, current: activeStates(chart, step.config) } : undefined;
         },
         views: [main],
         match: byKey,
+        // 0.35 s to leave, 0.8 s along the arrow, 0.5 s to arrive.
+        runTime: 1.65,
+        transition: Object.fromEntries(
+          chartEvents(chart).map((event) => [
+            event,
+            ({ before, after, views, targets }: Transition<Driven, string>) => {
+              const c = choreograph(views[0]!.current, targets[0]!);
+              const was = followed(before), now = followed(after);
+              const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
+              const routes = send(chart, before.config, event).sources.map((from, i) => {
+                const shaft = c.from(arrowFor(chart, from, event)).children[0] as VMobject,
+                  token = () => new Dot({ radius: 0.11, color: s.emphasis }).moveTo(shaft.pointFromProportion(0));
+                return { shaft, key: `walk:token:${i}`, part: c.insert(`walk:token:${i}`, token()), token };
+              });
+              return new Succession([
+                new AnimationGroup([
+                  ...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })),
+                  ...routes.map((r) => new Transform(r.part, r.token(), { runTime: 0.35 })),
+                ]),
+                new AnimationGroup(routes.map((r) => new MoveAlongPath(r.part, r.shaft, { runTime: 0.8, rateFunc: linear }))),
+                new AnimationGroup([
+                  ...routes.map((r) => c.leave(r.key, { runTime: 0.25 })),
+                  ...entering.map((id) => c.morph(`c:${id}`, { runTime: 0.5 })),
+                  c.rest({ runTime: 0.5 }),
+                ]),
+              ]);
+            },
+          ]),
+        ),
       });
     const brew = driven(coffee());
     const frother = driven(coffeeWithFrother());
