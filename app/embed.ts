@@ -145,7 +145,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const prev = button(t.previous, 'previous'),
     next = button(t.nextLabel, 'next', { text: t.next, className: 'button primary' });
   next.append(next.querySelector('svg')!); // the arrow follows the word
-  const backToStory = button(t.backToStory, 'previous', {text: t.backToStory});
+  next.querySelector('span')!.dataset.other = t.startAgain; // reserves Start again's width (embed.css)
+  const backToStory = button(t.backToStory, 'previous', {text: t.backToStory, className: 'button back'});
+  backToStory.querySelector('span')!.dataset.short = t.backToStoryShort; // its word on a phone (embed.css)
   backToStory.hidden = true;
   let lastStory = 0;
   // At rest on the last step Next is Start again, and a scene with settings offers its next case
@@ -170,7 +172,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         next.title = t.startAgainLabel;
         next.removeAttribute('aria-keyshortcuts');
       } else keyed(next, t.nextLabel, 'ArrowRight', '→');
-      next.querySelector('span')!.textContent = end ? t.startAgain : t.next;
+      const word = next.querySelector('span')!;
+      word.textContent = end ? t.startAgain : t.next;
+      word.dataset.other = end ? t.next : t.startAgain;
       next.querySelector('svg')!.replaceWith(icon(end ? 'restart' : 'next'));
     }
     tryCase.hidden = !end || !firstSetting;
@@ -244,7 +248,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // The step's words, under the controls, so a long caption never moves Next.
   const words = el('div', undefined, 'words');
   words.append(lede, caption, ...(changes ? [changes] : []), ...(checks ? [checks] : []), described);
-  // Measure the tallest heading for the stage cap without reserving empty space in the prose.
+  // Measure the tallest heading and title: the stage cap budgets them and the heading keeps their height.
   const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
   // The page's transcript holds every case; the player shows the current one, and its links move
@@ -451,6 +455,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tourSize = '',
     // The close-ups of the step on show, where it opened first; `stop` is the one last visited.
     tour: Zoom[] = [],
+    caseTours = false,
     stop = 0;
   function refreshTour() {
     const [w, h] = stageSize(stage), key = `${w} ${h}`;
@@ -458,6 +463,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
     stop = Math.min(stop, tour.length - 1);
+    // Whether any step of this case tours: then a single-view step keeps the row's place.
+    caseTours = [...caseLayouts.values()].some((layout) => layout === shownLayout ? tour.length > 1 : closeUps(layout, w, h, zoom.max).length > 1);
   }
   // An authored opening can be the whole frame while its later detail stops
   // zoom in. Whole picture opts out of that tour; manually zooming out from a
@@ -471,10 +478,14 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     player.classList.toggle('narrow', narrow());
     redrawIfNarrowChanged();
     const multiple = tour.length > 1;
+    // A reserved row also keeps the next close-up's slot (embed.css), so Next view never slides.
+    const reserved = narrow() && (multiple || caseTours);
     overview.hidden = !on || !multiple;
-    // Next is above this row. A single-view step needs neither controls nor reserved space.
+    // Next is above this row. A single-view step needs no controls; it keeps the row's place,
+    // hidden, when another step of the case tours, so stepping between them moves nothing.
     const activeTour = narrow() && multiple;
-    views.hidden = !activeTour;
+    views.hidden = !reserved;
+    views.style.visibility = activeTour ? '' : 'hidden';
     if (touring !== activeTour) {
       touring = activeTour;
       sayHint();
@@ -665,7 +676,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     span.textContent = words.line;
     span.hidden = !words.line;
   }
-  // The tallest heading sets the stage cap; the displayed words keep their natural height.
+  // The tallest heading sets the stage cap and the heading's reserved height; captions keep their natural height.
   // Recheck when the cap changes the card width, which can wrap the heading again.
   function reserve() {
     for (let pass = 0; pass < 3; pass++) {
@@ -678,8 +689,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   function reserveOnce(): boolean {
     player.classList.toggle('narrow', narrow());
     if (casePhase.kind==='loading' || !caption.clientWidth) return false;
-    const detail = isDetail(selected);
-    const key = `${caption.clientWidth} ${lede.clientWidth} ${shownCase} ${detail}`;
+    // Measured over both paths, so moving between the explanation and its details resizes nothing.
+    const key = `${caption.clientWidth} ${lede.clientWidth} ${shownCase}`;
     if (key === reservedFor) return false;
     reservedFor = key;
     ledeRuler.style.width = `${lede.clientWidth}px`;
@@ -687,14 +698,18 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       strong = el('strong'),
       span = el('span', undefined, 'line');
     ledeRuler.replaceChildren(kicker, strong, span);
-    let tallest = 0;
+    let tallest = 0,
+      tallestTitle = 0;
     for (const [i, step] of trace.steps.entries()) {
-      if (isDetail(i) !== detail) continue;
       fillLede(kicker, strong, span, i, stepWords(step));
       tallest = Math.max(tallest, ledeRuler.getBoundingClientRect().height);
+      tallestTitle = Math.max(tallestTitle, strong.getBoundingClientRect().height);
     }
     ledeRuler.replaceChildren();
+    // The stage cap budgets the tallest heading, and the heading keeps that height (embed.css),
+    // its title the tallest title's, so stepping never moves the line or the caption.
     root.style.setProperty('--lede-h', `${tallest}px`);
+    root.style.setProperty('--lede-title-h', `${tallestTitle}px`);
     return true;
   }
   // Measuring the heading changes the observed layout. Write in the next
@@ -712,6 +727,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       caseLayouts = undefined;
       tourSize = '';
       tour = [];
+      caseTours = false;
       stop = 0;
       at.layouts ??= stepLayouts(at.Scene);
       const layouts = yield* wait(at.layouts);

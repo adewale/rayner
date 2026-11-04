@@ -16,6 +16,8 @@ export type SettingsProblem =
 export interface Chrome {
   details: string;
   backToStory: string;
+  /** Back to the explanation's word on a phone, where the full words would wrap the stepper row; its name stays backToStory. */
+  backToStoryShort: string;
   /** Accessible name of the player section. */
   player: string;
   /** The disclosure under the caption that lists what the picture shows. */
@@ -102,6 +104,7 @@ export interface Chrome {
 const EN: Chrome = {
   details: 'Details and sources',
   backToStory: 'Back to the explanation',
+  backToStoryShort: 'Back',
   player: 'Explainer',
   picture: 'What the picture shows',
   controls: 'Steps',
@@ -157,6 +160,7 @@ const EN: Chrome = {
 const FR: Chrome = {
   details: 'Détails et sources',
   backToStory: 'Revenir à l’explication',
+  backToStoryShort: 'Retour',
   player: 'Explication',
   picture: 'Ce que montre l’image',
   controls: 'Étapes',
