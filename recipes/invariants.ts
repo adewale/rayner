@@ -1,4 +1,4 @@
-// A claim about the picture, checked on every frame: the supported way to say what must stay
+// An invariant of the picture, checked on every frame: the supported way to say what must stay
 // true while things move, and a sink that checks it. The same dot goes half way round a circle
 // twice: sampled from its angle it stays on the circle; morphed between its two ends it cuts
 // across, and the invariant names the frames where it does.
@@ -7,15 +7,15 @@ import type { SceneClass, InvariantFailure, Sink } from 'rayner';
 
 const RADIUS = 2;
 
-/** The dot half way round the circle, one way or the other, claiming on every frame that it stays on it. */
+/** The dot half way round the circle, one way or the other, holding on every frame that it stays on it. */
 function orbit(turn: 'sampled' | 'morphed'): SceneClass {
   return class Orbit extends Scene {
     override async construct() {
       const dot = new Dot({ radius: 0.12 }).moveTo([RADIUS, 0]);
       dot.key = 'orbit:dot';
       this.add(new Circle({ radius: RADIUS }), dot);
-      // Read by key, changing nothing: a message when the claim fails, true when it held, nothing
-      // when the part is not there to check. A claim that never holds is reported as vacuous.
+      // Read by key, changing nothing: a message when it fails, true when it held, nothing
+      // when the part is not there to check. An invariant that never holds is reported as vacuous.
       this.addInvariant('the dot stays on its circle', (scene) => {
         const dot = scene.find('orbit:dot');
         if (!dot) return;

@@ -101,10 +101,10 @@ The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow): one sample
 number, a `draw` that returns the picture at it, and the targets Follow writes it
 into, named for the one-writer check. [Sampled parameters](PARAMETERS.md) records the survey behind it.
 
-## Claim something on every frame
+## Hold an invariant on every frame
 
 [invariants.ts](../recipes/invariants.ts) moves a dot half way round a circle twice
-and registers one claim: the dot stays on its circle.
+and registers one invariant: the dot stays on its circle.
 
 ```ts
 this.addInvariant('the dot stays on its circle', (scene) => {
@@ -115,20 +115,20 @@ this.addInvariant('the dot stays on its circle', (scene) => {
 ```
 
 A check reads the scene by key and changes nothing; it returns a message when the
-claim fails, `true` when it held, and nothing when there was nothing to check on that
-frame. A claim that never holds in a whole run tested nothing, so `rayner check` fails
-it: a misspelt key finds nothing and cannot pass for a claim that held. `rayner check` runs every registered claim on every frame of every case,
-so a claim about what happens between steps (a gauge meeting a line, a pointer on its
+invariant fails, `true` when it held, and nothing when there was nothing to check on that
+frame. An invariant that never holds in a whole run tested nothing, so `rayner check` fails
+it: a misspelt key finds nothing and cannot pass for an invariant that held. `rayner check` runs every registered invariant on every frame of every case,
+so an invariant about what happens between steps (a gauge meeting a line, a pointer on its
 circle) fails at the first frame that breaks it. Sampled from its angle with `Follow`,
 the dot holds; morphed between its two ends with `Transform`, it cuts through the
 centre and the recipe's test finds the frames. `token-bucket` and `ring-buffer`
-declare claims of this kind.
+declare invariants of this kind.
 
 `InvariantSink` is the sink that runs them, and it shows how to write a check of your
 own: a sink receives every frame of a full run, reads the scene, and hands the frame on
 to an inner sink, so several checks ride on one run. `rayner check` composes it with
 its motion and legibility sampling the same way. A seek skips frames, so it checks
-nothing between them; run claims in full.
+nothing between them; run invariants in full.
 
 ## Consume a scene in another application
 

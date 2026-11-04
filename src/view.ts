@@ -35,7 +35,7 @@ export interface ViewOpts {
 }
 
 /** How sync() morphs: by glyph, by shape, by position in the family, by the keys the picture's parts carry, or by your own key. */
-export type ViewMatch = 'text' | 'shapes' | 'index' | 'keys' | MatchKey;
+export type ViewMatch = 'text' | 'shapes' | 'index' | 'key' | MatchKey;
 
 export interface SyncOpts {
   runTime?: number;
@@ -157,7 +157,7 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false })
       : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false })
       : match === 'index' ? new Transform(old, next)
-      : new TransformMatching(old, next, { key: match === 'keys' ? matchByKey() : match, replace: false });
+      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false });
     if (inner instanceof Transform) inner.sameStructure = old.sameShapeAs(next, true);
     inner.lagRatio = this.lagRatio;
     inner.begin();

@@ -23,7 +23,7 @@ export function check(_values: Record<string, string>, trace: Trace): void {
   // The transfer answer: grinding with the frother frothing, inside on.
   assertStepState(trace, 'frother', { current: activeStates(CHARTS.coffeeWithFrother!.chart, x.coffeeWithFrother!.follow[2]!.config) });
   // It gets there by the events XState was sent, replayed through the model one at a time: the
-  // session records each as it begins, and the configuration after the last is XState's.
+  // machine records each as it begins, and the configuration after the last is XState's.
   assert.deepEqual(replayed('frother'), RUNS.frother.slice(0, 3));
   assertStepState(trace, 'frother', { config: x.coffeeWithFrother!.follow[2]!.config });
 }

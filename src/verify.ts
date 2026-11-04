@@ -247,7 +247,7 @@ export interface InvariantFailure {
  * hands the frame on to `inner` if given, so it rides along with any other sink. A check
  * that throws fails with what it threw. `failures` lists every failing frame, `checked`
  * how many frames each invariant ran on, and `held` how many it returned `true` on. A
- * claim that ran but never held found nothing to check: `vacuous()` names those.
+ * invariant that ran but never held found nothing to check: `vacuous()` names those.
  */
 export class InvariantSink implements Sink {
   readonly inner: Sink | null;
@@ -256,7 +256,7 @@ export class InvariantSink implements Sink {
   held: Map<string, number>;
   constructor(inner: Sink | null = null) { this.inner = inner; this.failures = []; this.checked = new Map(); this.held = new Map(); }
 
-  /** The invariants that ran on some frame and held on none: claims that tested nothing. */
+  /** The invariants that ran on some frame and held on none: invariants that tested nothing. */
   vacuous(): string[] { return [...this.checked.keys()].filter((name) => !this.held.get(name)); }
 
   /** Run every invariant against the scene as it is now. */

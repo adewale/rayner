@@ -22,8 +22,8 @@ reading for this API.
 | `text.ts`: `Code` spans and token colours; `svg.ts`: run merging; `tools/tokens.ts` | [CODE.md](CODE.md) | How do I address, colour and box part of a line of code, and what does colour cost? |
 | `diff.ts`, `animation.ts`: `TransformDiff`; `scene.ts`: `record()` | [MATCHING.md, "Diff-driven"](MATCHING.md#diff-driven) and [the reference, "Scene"](REFERENCE.md#scene) | How does a code morph follow the diff, and how does the trace prove it did? |
 | `svg.ts`, `ascii.ts`, `trace.ts`, `timeline.ts` | [Scene outputs](SCENE-OUTPUTS.md) | How do I get frames, text, elements, step indexes and traces without a JSON scene document? |
-| `session.ts`: `Session`, `sessionsOf`; `SetState` with a model step | [Sessions](SESSIONS.md) | How do I drive a scene's model with events, replay them as one play, and have every reachable state checked? |
-| `scene.ts`: `addInvariant`; `verify.ts`: `InvariantSink` | [Extension recipes, "Claim something on every frame"](EXTENDING.md#claim-something-on-every-frame) | How do I say what must stay true while things move, and have every frame checked? |
+| `machine.ts`: `Machine`, `machinesOf`; `SetState` with a model step | [Machines](MACHINES.md) | How do I drive a scene's model with events, replay them as one play, and have every reachable state checked? |
+| `scene.ts`: `addInvariant`; `verify.ts`: `InvariantSink` | [Extension recipes, "Hold an invariant on every frame"](EXTENDING.md#hold-an-invariant-on-every-frame) | How do I say what must stay true while things move, and have every frame checked? |
 | `verify.ts`, `trace.ts`, `timeline.ts` | [Testing](TESTING.md), [fundamentals](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance) and [the reference, "Checks"](REFERENCE.md#checks) | Is the animation true, correct and smooth, and what does each check establish? |
 | `perf.ts`, `svg.ts` | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance); run merging in [CODE.md](CODE.md#cost-elements-per-line) | Where does a frame's time go, and how should I measure it? |
 | `fonts.ts`, `font-data.ts` | [The reference, "Scene"](REFERENCE.md#scene) (the fallback chain) and [upstream](UPSTREAM.md#engine-changes) | Which face draws a character, and what fails? |
@@ -49,7 +49,7 @@ Sort a feature request with one question: does it check, ground or publish the r
 
 When a request is the second kind, the answer is usually to expose the data the author needs, not to build the behaviour.
 
-**Design records.** A design document ends with what was tried and not kept, and why, as Lantern's performance notes did: [sampled parameters](PARAMETERS.md), [sessions](SESSIONS.md), the primitives below and the proposed [vocabulary](VOCABULARY.md) do. A proposal that cannot name its rejected alternatives, or the existing explainers it changes, is not ready. A claim of success names the check that proves it and the deliberate defect that check was shown to reject.
+**Design records.** A design document ends with what was tried and not kept, and why, as Lantern's performance notes did: [sampled parameters](PARAMETERS.md), [machines](MACHINES.md), the primitives below and the proposed [vocabulary](VOCABULARY.md) do. A proposal that cannot name its rejected alternatives, or the existing explainers it changes, is not ready. A claim of success names the check that proves it and the deliberate defect that check was shown to reject.
 
 ## Next primitives
 
@@ -62,7 +62,7 @@ layer.
 - **Keyed components, in the engine (done).** `matchByKey()` pairs the parts
   under containers with the same `mobject.key`, so a keyed cell or node is kept
   as one component wherever it moves ([matching](MATCHING.md#keyed-components)),
-  and `View.sync({ match: 'keys' })` uses it. `periodic-groups` keys its element
+  and `View.sync({ match: 'key' })` uses it. `periodic-groups` keys its element
   cells and symbols this way. The [live machine](https://github.com/adewale/rayner/issues/88)
   is the next consumer: a reader-driven redraw whose parts keep their identity.
 - **A table that places its measured columns, in the explainer library (done).**
@@ -84,7 +84,7 @@ Not built, and why:
   the diagram `note()` cover static anchors. The contracts an attachment system
   needs (a geometry plan, cycle rejection, missing-target policy) are a reactive
   constraint graph, which "points are the truth" deliberately excludes.
-- **The live machine, authoring half (done).** [Sessions](SESSIONS.md) replay events
+- **The live machine, authoring half (done).** [Machines](MACHINES.md) replay events
   through a scene's model as one play and `rayner check` explores every reachable state;
   `statecharts` reaches its transfer answer this way. The player's buttons remain.
 - **A parameter rig.** [Sampled parameters](PARAMETERS.md) records the survey:

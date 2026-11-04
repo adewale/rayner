@@ -71,7 +71,7 @@ picture works this way). Pass a
 fallback to keep unkeyed parts that are the same thing in the same place
 (`periodic-groups` keys them by their words or size and position). The root's
 own key, and keys above it, are never read: they would make every part one
-component and reduce the morph to matching by index. `View.sync({ match: 'keys' })`
+component and reduce the morph to matching by index. `View.sync({ match: 'key' })`
 is `matchByKey()` with the defaults ([views](VIEWS.md#match)). This is the
 morph the [live machine](https://github.com/adewale/rayner/issues/88) needs
 for a reader-driven redraw: the parts that stay keep their identity.

@@ -1,6 +1,6 @@
 # Vocabulary: one name per idea
 
-**Status: proposed, not built.** This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
+**Status: in progress.** Step 1 of the [order of work](#order-of-work) is done: `Machine`, `match: 'key'` and invariants named as invariants. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
 
 ## Why
 
@@ -8,7 +8,7 @@ Correctness by construction rests on five invariants (see [Engine](ENGINE.md)): 
 
 **One role, three names.** Turning state into a picture is called `render` in `view(scene, render)` and `View.render`, `draw` in `Follow({ draw })` and in the scene library's step lists, and `build` in `view(build)`. Each of those words also means something else. `render` is the output pipeline (`renderAt`, `renderElements`, `renderText`). `draw` is also `stage.draw(m)`, which animates a pen tracing `m`.
 
-**One word, three ideas.** "Frame" is the 2D camera (`Frame`, `scene.frame`), one instant of a run ("every frame", `FrameCaptureSink`), and one step of the scene library (`LessonFrame`, `NarrativeFrame`, `ReaderFrame`, `presentFrame`). "Claim" is both a sentence backed by a test (`meta.claims`) and a frame-level check: the docstrings for `Scene.invariants` and `InvariantSink.vacuous()` call invariants "claims". "Session" clashes with the HTTP sessions in the state-machine explainer and with the general meaning on the web, while issue #88 already calls the same thing "the live machine".
+**One word, three ideas.** "Frame" is the 2D camera (`Frame`, `scene.frame`), one instant of a run ("every frame", `FrameCaptureSink`), and one step of the scene library (`LessonFrame`, `NarrativeFrame`, `ReaderFrame`, `presentFrame`). "Claim" is a sentence backed by a test (`meta.claims`), a frame-level check (the docstrings for `Scene.invariants` and `InvariantSink.vacuous()` called invariants "claims"), and a subject a caption names for review (`scene.review.json`'s `claims`). "Session" clashes with the HTTP sessions in the state-machine explainer and with the general meaning on the web, while issue #88 already calls the same thing "the live machine".
 
 **The heart is mostly bypassed.** Of the 40 explainers:
 

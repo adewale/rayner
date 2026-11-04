@@ -1,4 +1,4 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view, matchByKey, Session } from 'rayner';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, FadeIn, view, matchByKey, Machine } from 'rayner';
 import type { Mobject, MatchKey, Vec, Box } from 'rayner';
 import { stage, regionBox } from 'rayner/explain';
 import { keyed } from 'rayner/drawing';
@@ -579,8 +579,8 @@ export default class Statecharts extends Scene {
 
     type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
     // The picture is a function of the scene's state alone: which picture (`phase`), and for the two
-    // machines a session drives, their configuration (`config`) and the boxes it is in (`current`).
-    // So a View checks it against the trace, and rayner check can draw any state a session reaches.
+    // charts a reader could drive, their configuration (`config`) and the boxes it is in (`current`).
+    // So a View checks it against the trace, and rayner check can draw any state a Machine reaches.
     type Shown = { phase: Phase; current: string[] | null; config?: string[] };
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
@@ -625,11 +625,11 @@ export default class Statecharts extends Scene {
       shown({ phase: next });
       await this.play(main.sync({ match: byKey, runTime: 1.2 }));
     };
-    // The two machines a reader could drive, as sessions: each event is the model's send(), and
+    // The two charts a reader could drive, as Machines: each event is the model's send(), and
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
-    const machine = (phase: 'parent' | 'frother', chart: StateNode) =>
-      new Session<Shown & { config: string[] }, string>(this, {
+    const driven = (phase: 'parent' | 'frother', chart: StateNode) =>
+      new Machine<Shown & { config: string[] }, string>(this, {
         start: { phase, config: initial(chart), current: activeStates(chart, initial(chart)) },
         events: chartEvents(chart),
         next: (state, event) => {
@@ -639,13 +639,13 @@ export default class Statecharts extends Scene {
         views: [main],
         match: byKey,
       });
-    const brew = machine('parent', coffee());
-    const frother = machine('frother', coffeeWithFrother());
-    /** Start a session's machine in its picture, then replay its events through the model. */
-    const replay = async (session: typeof brew, events: readonly string[]) => {
-      this.state = session.spec.start;
+    const brew = driven('parent', coffee());
+    const frother = driven('frother', coffeeWithFrother());
+    /** Start a chart in its picture, then replay its events through the model. */
+    const replay = async (machine: typeof brew, events: readonly string[]) => {
+      this.state = machine.spec.start;
       await this.play(main.sync({ match: byKey, runTime: 1.2 }));
-      await this.play(session.replay(events));
+      await this.play(machine.replay(events));
     };
 
     // 1. A concrete machine, and the change that will hurt it.

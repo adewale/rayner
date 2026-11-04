@@ -1,4 +1,4 @@
-# Sessions: a model driven by events
+# Machines: a model driven by events
 
 **Status: the authoring and checking half of [the live machine](https://github.com/adewale/rayner/issues/88) is built; the player half is not.**
 A scene can replay events through its own model as one schedule, and `rayner check`
@@ -9,20 +9,20 @@ send the same events from the page, are the remaining work, described at the end
 
 Lantern made seeking a re-run with frames skipped: a frame is a function of the time and
 of endpoints fixed when each animation begins. A reader's events can be the same kind of
-input. A session turns each event into a member of an ordinary `Succession`: a `SetState`
+input. A machine turns each event into a member of an ordinary `Succession`: a `SetState`
 whose next state the model computes from the state when it plays, then a keyed sync of
 every view drawn from that state. Nothing about it is special to the engine, so a replayed
-session seeks, traces and records like any other play.
+machine seeks, traces and records like any other play.
 
 ```ts
-import { Session } from 'rayner';
+import { Machine } from 'rayner';
 
-const machine = new Session(this, {
+const machine = new Machine(this, {
   start: machineAt(initial(chart)),       // where exploring starts
   events: events(chart),                  // what a reader's buttons would be
   next: (state, event) => machineAt(send(chart, state.config, event).config), // the tested model
   views: [main],                          // pictures of this.state, synced after each event
-  match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (default 'keys')
+  match: matchByKey({ text: 'whole' }),   // keyed parts keep their identity (default 'key')
 });
 this.state = machine.spec.start;
 await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
@@ -35,21 +35,21 @@ draws: the parent step reaches brewing by replaying POWER_ON, START and GROUND, 
 frother step reaches the transfer answer by replaying POWER_ON, START and FROTH. The test
 checks the events and each final configuration against the XState fixture.
 
-**A session's views must be functions of the scene's state alone.** Exploration redraws
+**A machine's views must be functions of the scene's state alone.** Exploration redraws
 a state after the run, so a picture that also reads a variable outside the state is drawn
-wrongly. Adding the coffee machine's session showed this: statecharts' picture depended on
-a `phase` variable, so its second session would have been drawn in the frother's layout.
+wrongly. Adding the coffee machine as a second Machine showed this: statecharts' picture depended on
+a `phase` variable, so its second machine would have been drawn in the frother's layout.
 The phase now lives in the state, and the picture is a `view(this, render)`, which also
-lets the trace's view check compare it at every step. A session now refuses, when it is
+lets the trace's view check compare it at every step. A machine now refuses, when it is
 made, any view that is not a `view(scene, render)`, so the mistake cannot be written.
 
-`SetState` gained the form a session needs: `new SetState(scene, (current) => next, { event })`
+`SetState` gained the form a machine needs: `new SetState(scene, (current) => next, { event })`
 computes the next state from a copy of the state when it begins, so each member of a replay
 starts where the one before left it.
 
-## What check does with a session
+## What check does with a machine
 
-After each case runs, `rayner check` explores every session breadth first from its start,
+After each case runs, `rayner check` explores every machine breadth first from its start,
 up to `limit` states (256 by default), and redraws each state as a resting picture. It
 fails a state whose picture
 
@@ -62,7 +62,7 @@ fails a state whose picture
 
 Breadth first means the events reported for a failing state are the shortest that reach
 it, which is the shrinking a generated-sequence check would otherwise need. The report
-lists each session's events and the number of states reached. `statecharts` reaches all
+lists each machine's events and the number of states reached. `statecharts` reaches all
 9 configurations of the frother machine. A picture that marks only the outer box fails at
 `after POWER_ON`, `after POWER_ON, START` and `after POWER_ON, FROTH`.
 
@@ -71,7 +71,7 @@ lists each session's events and the number of states reached. `statecharts` reac
 - **Distinguishable is not correct.** The description check proves states are told apart,
   not that each is drawn rightly: a picture that never marks frothing still differs between
   grinding-and-still and grinding-and-frothing, and passes. Say what must be true with an
-  [invariant](EXTENDING.md#claim-something-on-every-frame) or a fidelity test.
+  [invariant](EXTENDING.md#hold-an-invariant-on-every-frame) or a fidelity test.
 - **Phone close-ups are not explored.** Each explored state's labels are measured at a
   1280 px stage by the same legibility sink a run uses; the phone's close-ups are worked
   out for the authored run only.
@@ -84,22 +84,22 @@ lists each session's events and the number of states reached. `statecharts` reac
 ## Not built yet: the player
 
 Issue 88 asks for event buttons under a step's resting picture. The page already runs the
-scene, so the design that keeps every guarantee is to treat a reader's events as a session
+scene, so the design that keeps every guarantee is to treat a reader's events as a machine
 replayed from the step's resting state: the player appends the event to a log, re-runs
-the scene to the step with `skipUntil`, and plays `session.send(event)`. The log is the
-reader's state: it can sit in the URL beside `step`, so a session is a deep link that seeks
+the scene to the step with `skipUntil`, and plays `machine.send(event)`. The log is the
+reader's state: it can sit in the URL beside `step`, so the log is a deep link that seeks
 like any step. Leaving the step, opening a fresh link or switching case clears the log.
-That needs a way for a step to declare its session to the player, the buttons with their
+That needs a way for a step to declare its machine to the player, the buttons with their
 keyboard, screen-reader and reduced-motion behaviour, and a transcript line listing the
 events. None of it changes the engine.
 
 ## Where it does not fit
 
 `ring-buffer` and `state-machine` also replay events one at a time, and neither became a
-session. Between events each animates its main picture by hand: a value token copied into
+machine. Between events each animates its main picture by hand: a value token copied into
 its slot, an outline drawn, a diagram walked, a code row boxed. Their main pictures are
 therefore not views of the state, only their readouts are, and exploring their states
-would redraw the readouts over a stale picture and judge it. Making them sessions would
+would redraw the readouts over a stale picture and judge it. Making them machines would
 first mean drawing each main picture from the state, which would change two published
 lessons' animations; that is a separate decision from adopting the API.
 

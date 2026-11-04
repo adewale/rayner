@@ -2,7 +2,7 @@
 // the state the scene recorded, what each step changed and its resting picture drawn as text.
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
-import { renderAt, renderText, sessionsOf } from '../src/index.ts';
+import { renderAt, renderText, machinesOf } from '../src/index.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Scene, SceneState, Sink } from '../src/index.ts';
 import { variantsOf, withSettings, caseName } from './settings.ts';
@@ -37,15 +37,15 @@ export interface StepDescription {
   picture: string;
   /** The resting picture drawn as text (heading left out), when `drawings` asks for this step. */
   drawing?: string;
-  /** The events a session replayed in this step, in order (`{ kind: 'event' }` evidence); absent when none. */
+  /** The events a machine replayed in this step, in order (`{ kind: 'event' }` evidence); absent when none. */
   events?: string[];
 }
 /**
- * A model the scene lets events drive (src/session.ts): what a reader could do, and where from.
- * `states` counts the states those events reach, breadth first up to the session's limit
+ * A model the scene lets events drive (src/machine.ts): what a reader could do, and where from.
+ * `states` counts the states those events reach, breadth first up to the machine's limit
  * (`sampled` when it was reached), each of which `rayner check` draws and checks.
  */
-export interface SessionDescription {
+export interface MachineDescription {
   events: string[];
   start: SceneState;
   states: number;
@@ -60,12 +60,12 @@ export interface CaseDescription {
   /** The stage's paper colour when the case ends (its palette's `paper`); absent for a scene without a stage. */
   paper?: string;
   /**
-   * The claims the scene makes about its picture on every frame (`scene.addInvariant`), by name,
+   * The invariants the scene holds of its picture on every frame (`scene.addInvariant`), by name,
    * as registered when the case ends; `rayner check` checks each one on every frame. Absent when none.
    */
   invariants?: string[];
   /** The models the scene lets events drive; absent when none. */
-  sessions?: SessionDescription[];
+  machines?: MachineDescription[];
   steps: StepDescription[];
 }
 export interface ExplainerDescription {
@@ -150,13 +150,13 @@ export async function describeCase(Scene: ExplainerClass, values: Settings, opti
     steps.push(d);
   }
   const invariants = [...scene.invariants.keys()];
-  const sessions: SessionDescription[] = sessionsOf(scene).map((session) => {
-    const states = session.reachable().length;
+  const machines: MachineDescription[] = machinesOf(scene).map((machine) => {
+    const states = machine.reachable().length;
     return {
-      events: [...session.spec.events],
-      start: JSON.parse(JSON.stringify(session.spec.start)) as SceneState,
+      events: [...machine.spec.events],
+      start: JSON.parse(JSON.stringify(machine.spec.start)) as SceneState,
       states,
-      ...(states >= session.spec.limit ? { sampled: true as const } : {}),
+      ...(states >= machine.spec.limit ? { sampled: true as const } : {}),
     };
   });
   return {
@@ -165,7 +165,7 @@ export async function describeCase(Scene: ExplainerClass, values: Settings, opti
     duration: trace.duration,
     ...(paper ? { paper } : {}),
     ...(invariants.length ? { invariants } : {}),
-    ...(sessions.length ? { sessions } : {}),
+    ...(machines.length ? { machines } : {}),
     steps,
   };
 }

@@ -1049,7 +1049,7 @@ export interface MatchByKeyOpts {
  * Anything under no key below the root pairs by `fallback`, by default not at
  * all. The root's own key, and keys above it, are not read: they would make
  * every part the same component. A key two containers share pairs by distance,
- * as any repeated key does. `View.sync({ match: 'keys' })` uses the defaults.
+ * as any repeated key does. `View.sync({ match: 'key' })` uses the defaults.
  */
 export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: MatchByKeyOpts = {}): MatchKey {
   return (part, root) => {

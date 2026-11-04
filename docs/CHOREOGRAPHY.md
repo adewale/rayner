@@ -102,7 +102,7 @@ Signature: `new SetState(scene, nextState | (current) => nextState, { event? })`
 
 Given a function, it computes the next state from a copy of the state when it begins,
 so a member of a replay starts where the one before left it; with `event`, it records
-`{ kind: 'event', event }` as it begins. [Sessions](SESSIONS.md) build on this form.
+`{ kind: 'event', event }` as it begins. [Machines](MACHINES.md) build on this form.
 
 It draws nothing and defaults to zero duration. When its turn begins, it replaces
 the whole scene state. This puts model updates inside an existing schedule, so a
@@ -173,7 +173,7 @@ refuse that follows stays a discrete `Transform` in the next member.
 
 The ring buffer's pointers use it too: one angle, from the slot a pointer leaves to
 the slot it reaches the short way round, draws its arrow and its word. That replaced
-two hand-written path functions, and the ring buffer's claim that its pointers stay
+two hand-written path functions, and the ring buffer's invariant that its pointers stay
 on their circle holds exactly on every frame.
 
 `mobject.become(other)` (manim's name) is the write Follow makes: take `other`'s

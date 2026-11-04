@@ -58,10 +58,10 @@ export interface Step {
  */
 export type Evidence = { kind: string } & Record<string, unknown>;
 /**
- * A claim about the picture on one frame: a message when it fails, `true` when it held, and
+ * An invariant of the picture, on one frame: a message when it fails, `true` when it held, and
  * nothing (or false) when there was nothing to check, such as before the parts it reads are
- * drawn. A claim that never holds on any frame of a run was never tested, so rayner check
- * fails it: a misspelt key finds nothing and cannot pass for a claim that held.
+ * drawn. An invariant that never holds on any frame of a run was never tested, so rayner check
+ * fails it: a misspelt key finds nothing and cannot pass for an invariant that held.
  */
 export type Invariant = (scene: Scene<any>) => string | boolean | null | undefined | void;
 
@@ -156,7 +156,7 @@ export class Scene<S extends object = SceneState> {
   // One entry per registration, so each remover removes exactly its own.
   private stepListeners: Array<{ listener: (step: Step) => unknown; on: boolean }>;
   private describers: Array<{ describer: () => SceneState }>;
-  /** Named claims about the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
+  /** Named invariants of the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
   readonly invariants: Map<string, Invariant>;
 
   /**
@@ -216,12 +216,12 @@ export class Scene<S extends object = SceneState> {
   }
 
   /**
-   * Claim something about the picture on every frame from now on: `check(scene)` returns
-   * a message when the claim fails, `true` when it held, and nothing when there was nothing
+   * Hold an invariant of the picture on every frame from now on: `check(scene)` returns
+   * a message when it fails, `true` when it held, and nothing when there was nothing
    * to check on this frame. It reads the scene, by key (`scene.find`), and changes nothing;
-   * a claim that never returns `true` in a run fails `rayner check`. An InvariantSink runs every registered
+   * an invariant that never returns `true` in a run fails `rayner check`. An InvariantSink runs every registered
    * check on every frame it is handed, so `rayner check`, which plays every case in full,
-   * fails at the first frame a claim breaks, mid-animation included. A seek skips frames
+   * fails at the first frame an invariant breaks, mid-animation included. A seek skips frames
    * and so checks nothing between them. Names are unique per scene; returns a remover.
    */
   addInvariant(name: string, check: Invariant): () => void {
