@@ -155,9 +155,9 @@ export default class CacheMRExplainer extends Scene {
     const which = settingsOf(this).request as 'hit' | 'miss',
       s = stage(this, { headingSize: 0.6, style: STYLE });
 
-    await s.steps(readerFrames(which), { reader: true });
+    await s.steps(readerFrames(which), { kind: 'short' });
     await this.step('before', {
-      detail: true,
+      kind: 'detail',
       title: 'Before: every request reads D1',
       line: 'getUser is one D1 query, the outlined line 2.',
       caption:
@@ -196,7 +196,7 @@ export default class CacheMRExplainer extends Scene {
     this.state.databaseReads = 'every request';
 
     await this.step('diff', {
-      detail: true,
+      kind: 'detail',
       title: 'Four added lines and one rewritten',
       line: 'The old return keeps its D1 call; green lines check KV first.',
       caption:
@@ -264,7 +264,7 @@ export default class CacheMRExplainer extends Scene {
     await this.play(lookup);
 
     await this.step('after', {
-      detail: true,
+      kind: 'detail',
       title: 'Replayed on the diagram, the diff adds KV and a hit path',
       line: 'A hit goes from KV to Reply; a miss falls through to D1.',
       caption:
@@ -277,7 +277,7 @@ export default class CacheMRExplainer extends Scene {
     this.state.databaseReads = 'misses only';
 
     await this.step('request', {
-      detail: true,
+      kind: 'detail',
       title:
         which === 'hit'
           ? 'A cache hit returns from KV with no D1 read'

@@ -400,7 +400,7 @@ test('state-machine: its Session card shows the traced state at every step, in e
       (scene) => (scene as unknown as { readout?: StateView }).readout,
     );
     const expected=theCase.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
-    assert.deepEqual(theCase.trace.steps.filter(s=>s.meta.detail===true).map(s=>s.step),expected);
+    assert.deepEqual(theCase.trace.steps.filter(s=>s.meta.kind === 'detail').map(s=>s.step),expected);
     assert.equal(checked, expected.length, `${JSON.stringify(theCase.values)}: the Session card is checked at every program-walkthrough step`);
   }
 });

@@ -341,7 +341,7 @@ export default class ForkExplainer extends Scene {
 
     // Details after the ending: what the build does for each case, and what replaced Lantern's live parts.
     await this.step('fork', {
-      detail: true,
+      kind: 'detail',
       title: 'The build draws the diagrams ahead of the page',
       line: 'Diagrams are captured at build time, so the page runs no diagram renderer.',
       caption: 'The build captures Agentic Mermaid’s diagrams and saves their geometry. The finished page draws those snapshots without a diagram renderer. Chromium is needed for capture, while stored snapshots can be used to build a page without recapturing them.',
@@ -372,7 +372,7 @@ export default class ForkExplainer extends Scene {
     const motion = (shown.hold ?? shown.t1!) - shown.t0,
       held = shown.hold == null ? 0 : shown.t1! - shown.hold;
     await this.step('timing', {
-      detail: true,
+      kind: 'detail',
       title: 'The page holds each resting picture for its caption',
       line: `Moving ${motion.toFixed(1)} s, then still for ${held.toFixed(1)} s.`,
       caption: `The scene clock reserves reading time after motion. This caption needs ${(motion + held).toFixed(1)} seconds at ${Scene.captionWpm} words a minute; the ${motion.toFixed(1)}-second animation leaves ${held.toFixed(1)} seconds at rest. The caption therefore does not have to compete with a still-changing picture.`,

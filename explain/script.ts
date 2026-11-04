@@ -44,7 +44,7 @@ export function normalise(text: string): string {
 type Step = { step: string; meta: Record<string, unknown> };
 /** Teaching steps, as the player counts them: every step not marked `detail`, or every step. */
 function teaching<T extends Step>(steps: readonly T[]): T[] {
-  const main = steps.filter((s) => s.meta.detail !== true);
+  const main = steps.filter((s) => s.meta.kind !== 'detail');
   return main.length ? main : [...steps];
 }
 

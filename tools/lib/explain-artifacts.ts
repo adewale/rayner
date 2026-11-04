@@ -76,7 +76,7 @@ export function catalogEvidence(value: unknown): CatalogEvidence {
         for (const step of opening.steps) {
           if (!object(step) || typeof step.step !== 'string' || typeof step.reviewed !== 'boolean' ||
               (step.reviewed ? !strings(step.targets) || !step.targets.length || !strings(step.labels)
-                : step.reason !== 'detail-step' && step.reason !== 'no-opening-claim')) throw new Error('Invalid opening obligation');
+                : step.reason !== 'detail-step' && step.reason !== 'no-opening-subject')) throw new Error('Invalid opening obligation');
         }
       }
     }

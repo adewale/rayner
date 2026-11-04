@@ -77,9 +77,9 @@ export default class BashExplainer extends Scene {
       accent = s.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
     // ── command: a line of text and a shell value ──────────────────────
-    await s.steps(readerFrames(), { reader: true });
+    await s.steps(readerFrames(), { kind: 'short' });
     await this.step('command', {
-      detail: true,
+      kind: 'detail',
       title: 'A command line and the empty shell it runs on',
       line: 'Two commands, a pipe and a redirect; the shell starts with no files.',
       caption:
@@ -124,7 +124,7 @@ export default class BashExplainer extends Scene {
     await api.focus(0);
     // ── parse: the command is a tree ────────────────────────────────────
     await this.step('parse', {
-      detail: true,
+      kind: 'detail',
       title: 'The command line parses into a tree',
       line: 'Echo and tr sit under the pipeline; the redirect is not a command.',
       caption:
@@ -152,7 +152,7 @@ export default class BashExplainer extends Scene {
     const afterEcho = exec(old, [PIPELINE[0]]).stdout,
       afterTr = exec(old, PIPELINE).stdout;
     await this.step('reduce', {
-      detail: true,
+      kind: 'detail',
       title: 'A pipeline is a reduce over strings',
       line: `Echo sets stdout to ${q(afterEcho)}; tr turns it into ${q(afterTr)}.`,
       caption:
@@ -222,7 +222,7 @@ export default class BashExplainer extends Scene {
     await before.mark('files');
     // ── lookup: names resolve through a policy ──────────────────────────
     await this.step('lookup', {
-      detail: true,
+      kind: 'detail',
       title: 'The model runs echo, tr and cat and refuses ls',
       line: 'A name with no branch falls to the last line and throws.',
       caption:
@@ -278,7 +278,7 @@ export default class BashExplainer extends Scene {
       other = exec(old, [['cat', FILE]]);
     const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
     await this.step('cat', {
-      detail: true,
+      kind: 'detail',
       title: 'cat reads the returned shell',
       line: `The returned shell has ${FILE}, so cat ${prints(result.stdout)}.`,
       caption:

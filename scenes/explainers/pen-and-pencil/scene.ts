@@ -488,7 +488,7 @@ export default class PenAndPencil extends Scene {
     this.state.periods = facts.length;
 
     // 2. Why the boxes wander, and the fix in miniature: the route is fixed first, and the hand only follows it.
-    await s.steps(readerFrames(seed), { reader: true });
+    await s.steps(readerFrames(seed), { kind: 'short' });
 
     // 3. For the real timeline, the layout comes first.
 

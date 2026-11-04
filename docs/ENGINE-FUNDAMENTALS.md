@@ -108,15 +108,20 @@ timestamps.
 
 `await this.step(name, metadata)` closes the previous step and begins the next.
 Names should be stable, unique URL identifiers. `title`, `line`, `caption` and
-`detail` have reader meanings; other metadata can describe the model's inputs.
+`kind` (`'short'`, `'main'` or `'detail'`) have reader meanings; other metadata can
+describe the model's inputs.
 A caption may extend the step to allow reading. The resting picture is therefore
 different from the picture at a step's start.
 
-`this.state` contains what the subject program is doing. Use `Scene<MyState>` for
-typed access. `describe()` snapshots its JSON representation plus registered
-describers. State and recorded evidence accept plain JSON data and finite numbers;
-functions, class instances, cycles and nonfinite values are refused. Shape objects
-belong in the scene tree, not in `state`.
+`this.state` is the model: what the subject program is doing, and nothing about
+how it is shown. Use `Scene<MyState>` for typed access. `this.shown` holds what is
+shown of it apart from the model, such as which of several pictures a phase shows;
+a view's draw may read it, and a machine never changes it. `describe()` snapshots
+the model plus describers registered into it; `describeShown()` snapshots `shown`
+plus describers registered with `addDescriber(fn, 'shown')`, such as the stage's
+description of its picture. Traces record both. State and recorded evidence accept
+plain JSON data and finite numbers; functions, class instances, cycles and nonfinite
+values are refused. Shape objects belong in the scene tree, not in `state`.
 
 `this.record(kind, data)` records what an animation or operation did. It is evidence
 attached to a step, distinct from subject state. `onStep` and `addDescriber` are

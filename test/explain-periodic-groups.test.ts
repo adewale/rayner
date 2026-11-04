@@ -260,7 +260,7 @@ test('reader descriptions match the run fills and complete block fills in every 
         }
         if (step.name === 'names' || step.name === 'blocks')
           for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
-        const state = scene.describe();
+        const state = scene.describeShown();
         for (const description of [pictureSummary(state), pictureHtml(state)]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
           if (step.name === 'stack' || step.name === 'names') {

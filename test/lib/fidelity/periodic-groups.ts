@@ -13,7 +13,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const symbol = CHOSEN[values.element!]!;
   const z = atomicNumber(symbol), p = position(z), group = p.group!, core = coreOf(z);
   assert.deepEqual(trace.steps.map((s) => s.step), ['column', 'fill', 'stack', 'names', 'blocks', 'family']);
-  assert.deepEqual(trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['column', 'fill', 'stack', 'names']);
+  assert.deepEqual(trace.steps.filter(step => step.meta.kind !== 'detail').map(step => step.step), ['column', 'fill', 'stack', 'names']);
   assertStepState(trace, 'column', { element: symbol, z, group, members: membersOf(group).map((m) => m.z), gaps: gaps(group) });
   // The fill step runs the filling rule over all 118 cells; its note is the element's own runs.
   // Laid side by side, a new row at each run of 2, its rows are the periods: 2, 8, 8, 18, 18, 32, 32.

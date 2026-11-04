@@ -39,8 +39,10 @@ checks the events and each final configuration against the XState fixture.
 a state after the run, so a picture that also reads a variable outside the state is drawn
 wrongly. Adding the coffee machine as a second Machine showed this: statecharts' picture depended on
 a `phase` variable, so its second machine would have been drawn in the frother's layout.
-The phase now lives in the state, and the picture is a `view(this, draw)`, which also
-lets the trace's view check compare it at every step. A machine now refuses, when it is
+The phase is now what the scene shows (`scene.shown.phase`), the configuration is the
+model, and the picture is a `view(this, draw)` of both, which also lets the trace's view
+check compare it at every step. A machine plays under one `shown`: it records it when it
+plays and refuses to play under another, and exploration draws every reachable state under it. A machine now refuses, when it is
 made, any view that is not a `view(scene, draw)`, so the mistake cannot be written.
 
 `SetState` gained the form a machine needs: `new SetState(scene, (current) => next, { event })`

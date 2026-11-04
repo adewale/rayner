@@ -46,7 +46,7 @@ Options:
   --case id=value     Show (shots, see) one case; repeat for multiple settings
   --port <integer>    Preview server port (default 5174)
   --watch             Preview: rebuild the page on save
-  --claims <path>     Review: use this JSON file instead of <scene>.review.json
+  --subjects <path>   Review: use this JSON file instead of <scene>.review.json
   --version           Print the version
 
 Diagram capture is included. Install Chromium once:
@@ -72,7 +72,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       port: { type: 'string', default: '5174' },
       refresh: { type: 'boolean' },
       watch: { type: 'boolean' },
-      claims: { type: 'string' },
+      subjects: { type: 'string' },
     },
   });
   const [command, input, ...extra] = positionals;
@@ -98,7 +98,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const { reviewScene } = await import('./lib/explain-review-scene.ts');
     const artifact = flags.out?.endsWith('.html') ? resolve(flags.out) : undefined;
     const directory = artifact ? resolve('out/review', slug) : flags.out ?? resolve('out/review', slug);
-    console.log(JSON.stringify(await reviewScene(project, directory, flags.claims, artifact), null, 2));
+    console.log(JSON.stringify(await reviewScene(project, directory, flags.subjects, artifact), null, 2));
     return;
   }
   if (command === 'snapshots') {

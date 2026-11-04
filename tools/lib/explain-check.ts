@@ -399,16 +399,19 @@ export class LegibilitySink implements Sink {
  */
 export async function exploreMachines(scene: Scene): Promise<{ events: string[]; states: number; sampled: boolean; problems: string[] }[]> {
   const explored = [];
+  const shownAfterRun = scene.shown;
   for (const machine of machinesOf(scene)) {
     const problems: string[] = [];
     const reached = machine.reachable();
+    // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
+    scene.shown = machine.playedUnder ?? shownAfterRun;
     const said = new Map<string, string>();
     for (const { state, path } of reached) {
       const at = path.length ? `after ${path.join(', ')}` : 'at the start';
       scene.state = jsonObject(state, 'machine state');
       for (const view of machine.spec.views) {
         view.rebuild();
-        const mismatch = viewMismatch(view, scene.state);
+        const mismatch = viewMismatch(view, scene.state, { shown: scene.shown });
         if (mismatch) problems.push(`${at}: ${mismatch}`);
       }
       problems.push(...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${at}: ${p}`));
@@ -418,7 +421,7 @@ export async function exploreMachines(scene: Scene): Promise<{ events: string[];
       await sizes.frame(scene);
       for (const r of [...sizes.labels.values(), ...sizes.staticLabels.values()])
         if (r.px > 0 && r.px < MIN_PX) problems.push(`${at}: “${r.text}” is ${r.px.toFixed(1)} px at a 1280 px stage, under ${MIN_PX}`);
-      const picture = scene.describe().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
+      const picture = scene.describeShown().picture as { entries?: { what?: string; items?: string[] }[] } | undefined;
       const words = JSON.stringify(picture?.entries ?? []);
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
@@ -427,6 +430,7 @@ export async function exploreMachines(scene: Scene): Promise<{ events: string[];
     }
     explored.push({ events: [...machine.spec.events], states: reached.length, sampled: reached.length >= machine.spec.limit, problems });
   }
+  scene.shown = shownAfterRun;
   return explored;
 }
 
@@ -443,7 +447,7 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
     const traced = trace.steps.find((s) => s.step === record.step);
     if (!traced?.after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); continue; }
     if (pictureFingerprint(record.redraw(traced.after)) !== record.drawn)
-      problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than ${record.reader ? 'state.reader' : 'its state'}`);
+      problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than its state`);
   }
   return { redrawn: records.length, problems };
 }
@@ -610,7 +614,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     const small = [...labels.values()].filter((label) => label.px < MIN_PX).map(({ text, px }) => ({ text, px }));
     assert.deepEqual(small, [], `Labels never reach ${MIN_PX}px at 1280px stage ${where}: ${JSON.stringify(small)}`);
-    const blank = v.trace.steps.flatMap((s) => undescribed(s.after).map((m) => `${s.step}: ${m}`));
+    const blank = v.trace.steps.flatMap((s) => undescribed(s.shown).map((m) => `${s.step}: ${m}`));
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
     // A lettered explainer's bare runtime puts its faces in place first, as its page does.
     const lettered = project.lettering

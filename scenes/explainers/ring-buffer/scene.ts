@@ -275,7 +275,7 @@ export default class RingBufferExplainer extends Scene {
     };
 
     // The queue the ring replaces: an array whose pop moves every value left.
-    await s.steps(readerFrames(), { reader: true });
+    await s.steps(readerFrames(), { kind: 'short' });
     const shifted = [arrayQueue([1, 2, 3, 4, 5]), arrayQueue([2, 3, 4, 5])];
     await this.step('slots', {
       title: 'Answer: keep the values still, and move two markers instead',

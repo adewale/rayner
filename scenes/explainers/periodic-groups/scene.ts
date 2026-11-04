@@ -747,7 +747,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       } satisfies Record<Choice, string[]>
     )[choice];
     await this.step('blocks', {
-      detail: true,
+      kind: 'detail',
       title: `${Name}’s ${z} electrons, written as subshells`,
       line: `The solid cells are ${name}’s ${z} electrons, in the order they fill.`,
       caption: `Chemists call each run a subshell, named by its shell n and a letter for its length (s 2, p 6, d 10, f 14): ${name}’s runs read ${configText(filling)}. A subshell holds at most that many electrons. Subshells fill lowest n + l first, with l from 0 for s to 3 for f, and lower n first on a tie: Madelung’s empirical rule, which NIST’s reference configurations follow for ${RULE_MATCHES} of the first ${NIST_UP_TO} elements. ${
@@ -786,7 +786,7 @@ export default class PeriodicGroupsExplainer extends Scene {
 
     // ---- 5. the family: the jumps, explained --------------------------------------------
     await this.step('family', {
-      detail: true,
+      kind: 'detail',
       title: (
         {
           na: 'Every group 1 element ends in one s electron',

@@ -51,6 +51,8 @@ export interface Transition<S, E> { event: E; before: S; after: S; views: readon
 export class Machine<S extends object, E extends string> {
   readonly scene: Scene<S>;
   readonly spec: Required<Pick<MachineSpec<S, E>, 'match' | 'runTime' | 'limit'>> & MachineSpec<S, E>;
+  /** What the scene showed (`scene.shown`, as JSON) when the machine played; exploration redraws under it. */
+  private shownWhenPlayed: string | null = null;
 
   constructor(scene: Scene<any>, spec: MachineSpec<S, E>) {
     if (!spec.events.length) throw new TypeError('A machine needs at least one event');
@@ -62,6 +64,13 @@ export class Machine<S extends object, E extends string> {
     this.spec = { match: 'key', runTime: 0.6, limit: 256, ...spec };
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
+
+  /**
+   * What the scene showed while this machine played (`scene.shown`), or null before it played. A
+   * machine never changes what is shown, and plays under one: exploration draws every reachable
+   * state under it, as the reader would have seen it.
+   */
+  get playedUnder(): SceneState | null { return this.shownWhenPlayed === null ? null : JSON.parse(this.shownWhenPlayed) as SceneState; }
 
   /** The state after `event` from `state`, or undefined when the state refuses it. */
   after(state: S, event: E): S | undefined {
@@ -86,6 +95,10 @@ export class Machine<S extends object, E extends string> {
     return new Succession([
       new SetState<S>(this.scene, (current) => {
         if (JSON.stringify(current) !== built) throw new Error(`${String(event)} was built for ${built} but plays from ${JSON.stringify(current)}`);
+        const shown = JSON.stringify(this.scene.shown);
+        if (this.shownWhenPlayed !== null && shown !== this.shownWhenPlayed)
+          throw new Error(`${String(event)} plays under shown ${shown}, but this machine played under ${this.shownWhenPlayed}; a machine plays under one`);
+        this.shownWhenPlayed = shown;
         return after;
       }, { event }),
       authored

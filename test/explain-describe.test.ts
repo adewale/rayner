@@ -24,10 +24,10 @@ test('describeExplainer gives every case and step: the words, the state the trac
       assert.equal(s.title, t.meta.title);
       assert.equal(s.line, t.meta.line ?? '', `${s.step}: the line under the title`);
       assert.equal(s.caption, t.meta.caption);
-      const { picture, ...state } = t.after ?? {};
-      assert.deepEqual(s.state, state, `${s.step}: state is the trace's, without the picture`);
+      const state = t.after ?? {}, picture = t.shown?.picture;
+      assert.deepEqual(s.state, state, `${s.step}: state is the trace's model; the picture is traced as shown`);
       assert.ok(picture === undefined || s.picture.length > 0, `${s.step}: the picture in words`);
-      const before = Object.fromEntries(Object.entries(t.before).filter(([key]) => key !== 'picture'));
+      const before = t.before;
       const changedKeys = [...new Set([...Object.keys(before), ...Object.keys(state)])]
         .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(state[key]));
       assert.deepEqual(Object.keys(s.changed).sort(), changedKeys.sort(), `${s.step}: complete changed-key set`);

@@ -111,7 +111,7 @@ export async function buildExplainer(
         name = caseNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
         const href = `?${key ? key + '&' : ''}${new URLSearchParams({ step: s.step })}`,
-          shows = pictureHtml(s.after, trace.steps[i - 1]?.after),
+          shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
         const entry = project.Scene.meta?.caseNavigation === 'first' && i > 0

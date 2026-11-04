@@ -51,7 +51,7 @@ test('a middle deletion needs the marker too, and absent lookups need unused spa
   const project = await collectProject('scenes/explainers/python-dict', { write: false });
   for (const theCase of project.cases) {
     assert.equal(theCase.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
-    assert.deepEqual(theCase.trace.steps.filter(step => !step.meta.detail).map(step => step.step), ['question', 'broken', 'marker', 'missing']);
+    assert.deepEqual(theCase.trace.steps.filter(step => step.meta.kind !== 'detail').map(step => step.step), ['question', 'broken', 'marker', 'missing']);
   }
 });
 

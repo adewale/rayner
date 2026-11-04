@@ -578,17 +578,19 @@ export default class Statecharts extends Scene {
     const big = (b: Box) => fit(b, FULL, scaleFor(b, FULL));
 
     type Phase = 'machine' | 'copies' | 'parent' | 'multiply' | 'grid' | 'regions' | 'flatten' | 'question' | 'frother';
-    // The picture is a function of the scene's state alone: which picture (`phase`), and for the two
-    // charts a reader could drive, their configuration (`config`) and the boxes it is in (`current`).
-    // So a View checks it against the trace, and rayner check can draw any state a Machine reaches.
-    type Shown = { phase: Phase; current: string[] | null; config?: string[] };
+    // The picture is a function of the model and of which picture is shown. The model, for the two
+    // charts a reader could drive, is their configuration (`config`) and the boxes it is in
+    // (`current`); which picture is `shown.phase`. So a View checks it against the trace, and
+    // rayner check can draw any state a Machine reaches.
+    type Model = { current: string[] | null; config?: string[] };
+    type Shown = { phase: Phase };
     const [, playing] = PLAYBACK.states,
       [, muted] = VOLUME.states;
     const followCell = cellKey(cellOf([playing, muted]));
     const ACTIVE = activeStates(playerChart, run(playerChart, RUNS.player)[2]!.config);
     let drawn: Drawn = { group: new Group(), words: [] };
-    const picture = (st: Shown): Drawn => {
-      switch (st.phase) {
+    const picture = (st: Model, { phase }: Shown): Drawn => {
+      switch (phase) {
         case 'machine':
           return coffeePicture(s, big(coffeeLayout('flat').bounds), 'plain', { follow: [], lit: [] });
         case 'copies':
@@ -609,40 +611,42 @@ export default class Statecharts extends Scene {
           return coffeePicture(s, big(coffeeLayout('frother').bounds), 'frother', { follow: st.current ?? [], lit: [] });
       }
     };
-    this.state = { phase: 'machine', current: null } satisfies Shown;
-    const main = view(this, (st) => (drawn = picture(st as Shown)).group, { place: false });
+    this.state = { current: null } satisfies Model;
+    this.shown = { phase: 'machine' } satisfies Shown;
+    const main = view(this, (st, sh) => (drawn = picture(st as Model, sh as Shown)).group, { place: false });
     const describe = { describe: () => drawn.words.join('; ') };
-    const shown = (next: Partial<Shown>) => { this.state = { ...(this.state as Shown), ...next } satisfies Shown; };
+    const show = (phase: Phase) => { this.shown = { phase } satisfies Shown; };
     /** A new picture: clear the stage and fade the next one in. */
     const fresh = async (next: Phase) => {
       await s.clear({ runTime: 0.35 });
-      shown({ phase: next });
+      show(next);
       main.rebuild();
       s.keep(main, describe);
       await this.play(new FadeIn(main, { runTime: 0.6 }));
     };
     const morph = async (next: Phase) => {
-      shown({ phase: next });
+      show(next);
       await this.play(main.sync({ match: byKey, runTime: 1.2 }));
     };
     // The two charts a reader could drive, as Machines: each event is the model's send(), and
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
-    const driven = (phase: 'parent' | 'frother', chart: StateNode) =>
-      new Machine<Shown & { config: string[] }, string>(this, {
-        start: { phase, config: initial(chart), current: activeStates(chart, initial(chart)) },
+    const driven = (chart: StateNode) =>
+      new Machine<{ config: string[]; current: string[] }, string>(this, {
+        start: { config: initial(chart), current: activeStates(chart, initial(chart)) },
         events: chartEvents(chart),
         next: (state, event) => {
           const config = send(chart, state.config, event).config;
-          return { phase, config, current: activeStates(chart, config) };
+          return { config, current: activeStates(chart, config) };
         },
         views: [main],
         match: byKey,
       });
-    const brew = driven('parent', coffee());
-    const frother = driven('frother', coffeeWithFrother());
+    const brew = driven(coffee());
+    const frother = driven(coffeeWithFrother());
     /** Start a chart in its picture, then replay its events through the model. */
-    const replay = async (machine: typeof brew, events: readonly string[]) => {
+    const replay = async (machine: typeof brew, phase: 'parent' | 'frother', events: readonly string[]) => {
+      show(phase);
       this.state = machine.spec.start;
       await this.play(main.sync({ match: byKey, runTime: 1.2 }));
       await this.play(machine.replay(events));
@@ -673,7 +677,7 @@ export default class Statecharts extends Scene {
       caption: `Put the four in a box called on, and give the box the one POWER_OFF: the ${coffeeFlat.transitions} transitions a complete flat machine needs become ${coffeeChart.transitions}. The shared rule is written once on the parent rather than copied onto each child. When POWER_OFF arrives while brewing, brewing is asked first; it has no POWER_OFF arrow, so the box around it, its parent, takes the event. The box is half of the answer: a statechart is a state machine whose states can contain other states, active one at a time or several at once. Inside on, one state is active at a time; the next machine needs several at once.`,
     });
     // The machine starts off; switching it on and starting a brew takes it to brewing, where POWER_OFF arrives.
-    await replay(brew, RUNS.coffee.slice(0, 3));
+    await replay(brew, 'parent', RUNS.coffee.slice(0, 3));
 
     // 4. Independent features multiply.
     await this.step('multiply', {
@@ -682,7 +686,7 @@ export default class Statecharts extends Scene {
       caption: `A media player is playing or paused, and muted or unmuted, and playback and volume never affect each other. A plain state machine is in one state at a time, so each state must name both: four combinations, which with off make ${playerFlat.states} states and ${playerFlat.transitions} transitions. Changing playback needs the same transition in both volume settings, and changing volume repeats it for both playback settings. Every name is two words, one per feature, and every arrow between them changes one word and keeps the other. States named by two independent words are the second sign.`,
     });
     await fresh('multiply');
-    this.state = { phase: 'multiply', current: null } satisfies Shown; // the coffee machine's configuration ends with its pictures
+    this.state = { current: null } satisfies Model; // the coffee machine's configuration ends with its pictures
 
     // 5. Regions: the grid's own words move into two small machines.
     await this.step('regions', {
@@ -692,7 +696,7 @@ export default class Statecharts extends Scene {
     });
     await fresh('grid');
     await morph('regions');
-    shown({ current: ACTIVE });
+    this.state = { current: ACTIVE } satisfies Model;
 
     // 6. Same behaviour, smaller drawing.
     await this.step('flatten', {
@@ -702,7 +706,7 @@ export default class Statecharts extends Scene {
         'Each row sends the next event to the statechart and to its flat version, and both end in the same states. At run time the player is still in one combination of playback and volume. Only the drawing changes: the statechart describes each feature separately, while the flat machine repeats it for the combinations. The possible combinations still exist; writing their shared behaviour once is what saves space.',
     });
     await fresh('flatten');
-    shown({ current: null });
+    this.state = { current: null } satisfies Model;
 
     // 7. Transfer: the reader places a new feature.
     await this.step('question', {
@@ -720,6 +724,6 @@ export default class Statecharts extends Scene {
       caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The green boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
     });
     // The machine starts off; the transfer answer's events take it to grinding and frothing.
-    await replay(frother, RUNS.frother.slice(0, 3));
+    await replay(frother, 'frother', RUNS.frother.slice(0, 3));
   }
 }

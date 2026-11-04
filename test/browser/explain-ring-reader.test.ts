@@ -12,7 +12,7 @@ import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { storyFrames, inspectStoryFrame, covered } from '../../tools/lib/explain-story-review.ts';
-import type { StoryClaim } from '../../tools/lib/explain-story-review.ts';
+import type { StorySubject } from '../../tools/lib/explain-story-review.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
 const options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for served ring-buffer reader checks' };
@@ -20,7 +20,7 @@ let project: Project, folder: string, browser: Browser, server: Awaited<ReturnTy
 const steps = ['shift'];
 // The shift claim needs both whole rows, before and after the pop, with every slot named
 // and the pop's result: the fifth slot is the one the last value leaves.
-const row: StoryClaim['targets'] = [
+const row: StorySubject['targets'] = [
   ...Array.from({ length: 5 }, (_, i) => ({ key: `array:${i}` })),
   ...Array.from({ length: 5 }, (_, i) => ({ text: `slot ${i}` })),
   ...Array.from({ length: 5 }, (_, i) => ({ key: `array-after:${i}` })),

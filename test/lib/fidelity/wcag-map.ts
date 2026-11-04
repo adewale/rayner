@@ -10,7 +10,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
     open = values.guideline!;
   if (!LEVELS.includes(level)) throw new Error(`Unknown level ${level}`);
   // The reading path's version picture: the same level's totals in each version, and what 2.1 and 2.2 changed.
-  const versions = trace.steps.find((s) => s.step === 'reader-versions')?.after?.reader as
+  const versions = trace.steps.find((s) => s.step === 'reader-versions')?.after as
     | ({ columns: string[]; rows: Record<Version, string[]> } & Record<string, unknown>)
     | undefined;
   assert.ok(versions, 'No completed step: reader-versions');

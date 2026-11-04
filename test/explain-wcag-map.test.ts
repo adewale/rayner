@@ -320,7 +320,7 @@ test('every authored case is collected, and the mind map reads as its outline', 
   // The description lists a mind map's topics depth first, each principle followed by its own
   // guidelines, rather than alternating between the root's two sides (1.1, 2.1, 1.2, …).
   const v20 = project.cases[0]!.trace.steps.find((s) => s.step === 'v20')!;
-  const items = (v20.after!.picture as { entries: { items: string[] }[] }).entries[0]!.items.filter((x) => !x.includes('→'));
+  const items = (v20.shown!.picture as { entries: { items: string[] }[] }).entries[0]!.items.filter((x) => !x.includes('→'));
   const outline = [
     `WCAG 2.0`,
     ...PRINCIPLES.flatMap((p) => [`${p.num} ${p.name}`, ...guidelinesIn('2.0').filter((g) => g.num.startsWith(p.num + '.')).map((g) => `${g.num} ${g.name}`)]),

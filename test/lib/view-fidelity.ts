@@ -10,15 +10,16 @@ class ShownSink extends TraceSink {
   /** Per step: null before the View exists, else viewMismatch's answer (null when they agree). */
   checks: Array<{ mismatch: string | null } | null> = [];
   pick: (scene: Scene) => View | null | undefined;
-  draw?: (state: SceneState) => Mobject;
-  constructor(pick: (scene: Scene) => View | null | undefined, draw?: (state: SceneState) => Mobject) { super(); this.pick = pick; this.draw = draw; }
+  draw?: (state: SceneState, shown: SceneState) => Mobject;
+  constructor(pick: (scene: Scene) => View | null | undefined, draw?: (state: SceneState, shown: SceneState) => Mobject) { super(); this.pick = pick; this.draw = draw; }
   override async stepEnd(scene: Scene, s: Step): Promise<void> {
     await super.stepEnd(scene, s);
     const v = this.pick(scene);
     if (!v) { this.checks.push(null); return; }
     const draw = this.draw ?? v.draw;
     // The state this step's trace entry records as `after`
-    this.checks.push({ mismatch: viewMismatch(v, this.events.at(-1)!.state, draw) });
+    const end = this.events.at(-1)!;
+    this.checks.push({ mismatch: viewMismatch(v, end.state, { shown: end.phase === 'end' ? end.shown : {}, draw }) });
   }
 }
 
@@ -32,7 +33,7 @@ class ShownSink extends TraceSink {
 export async function assertViewFollowsState(
   SceneClass: SceneClass,
   pick: (scene: Scene) => View | null | undefined,
-  draw?: (state: SceneState) => Mobject,
+  draw?: (state: SceneState, shown: SceneState) => Mobject,
 ): Promise<number> {
   const sink = new ShownSink(pick, draw);
   const scene = new SceneClass(sink, { skipUntil: Infinity });

@@ -11,12 +11,12 @@ import { redrawStagedSteps } from '../tools/lib/explain-check.ts';
 
 const words = (s: Stage, n: number) => new Group(s.scene.text(`count ${n}`, { fontSize: 0.5, color: s.palette.ink }));
 
-async function run(steps: (bump: () => number) => StagedStep<{ n: number }>[], reader = false) {
+async function run(steps: (bump: () => number) => StagedStep<{ n: number }>[], kind: 'short' | 'main' = 'main') {
   let counter = 0;
   const bump = () => ++counter;
   class Steps extends Scene {
     override async construct() {
-      await stage(this).steps(steps(bump), { reader });
+      await stage(this).steps(steps(bump), { kind });
     }
   }
   const sink = new TraceSink();
@@ -30,7 +30,9 @@ const step = (id: string, n: number, draw: StagedStep<{ n: number }>['draw']): S
 
 test('stage.steps records each state, draws from it, and every step redraws the same from its trace', async () => {
   const { scene, trace } = await run(() => [1, 2, 3].map((n) => step(`s${n}`, n, (st, s) => words(s, st.n))));
-  assert.deepEqual(trace.steps.map((s) => ({ n: s.after!.n, phase: s.after!.phase })), [{ n: 1, phase: 's1' }, { n: 2, phase: 's2' }, { n: 3, phase: 's3' }]);
+  // The model is the step's state and nothing else: which picture is showing is not part of it.
+  assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 1 }, { n: 2 }, { n: 3 }]);
+  assert.ok(trace.steps.every((s) => (s.shown as { picture?: unknown }).picture), 'what the stage shows is traced apart, as shown');
   assert.deepEqual(stagedStepsOf(scene).map((r) => r.step), ['s1', 's2', 's3']);
   assert.deepEqual(redrawStagedSteps(scene, trace), { redrawn: 3, problems: [] });
   // The shown picture is the step's drawing, described by its words.
@@ -38,10 +40,10 @@ test('stage.steps records each state, draws from it, and every step redraws the 
   assert.ok(shown.includes('count 3'), JSON.stringify(shown));
 });
 
-test('a reader path records each state under state.reader and redraws from it', async () => {
-  const { scene, trace } = await run(() => [4, 5].map((n) => step(`r${n}`, n, (st, s) => words(s, st.n))), true);
-  assert.deepEqual(trace.steps.map((s) => (s.after as { reader: unknown }).reader), [{ n: 4 }, { n: 5 }]);
-  assert.deepEqual(trace.steps.map((s) => s.meta.reader), [true, true]);
+test('a short path records each model as the state, marks its steps short, and redraws from it', async () => {
+  const { scene, trace } = await run(() => [4, 5].map((n) => step(`r${n}`, n, (st, s) => words(s, st.n))), 'short');
+  assert.deepEqual(trace.steps.map((s) => s.after), [{ n: 4 }, { n: 5 }]);
+  assert.deepEqual(trace.steps.map((s) => s.meta.kind), ['short', 'short']);
   assert.deepEqual(redrawStagedSteps(scene, trace), { redrawn: 2, problems: [] });
 });
 

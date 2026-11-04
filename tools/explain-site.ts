@@ -112,7 +112,7 @@ try {
     await useProjectLettering(project);
     for (const s of share.steps) {
       const step = theCase.trace.steps.find((step) => step.step === s.step);
-      if (!step || step.meta.detail) throw new Error(`Invalid public step: ${id}/${s.step}`);
+      if (!step || step.meta.kind === 'detail') throw new Error(`Invalid public step: ${id}/${s.step}`);
       await writeFile(
         join(target, id, s.step + '.png'),
         await cardPng(theCase.Scene, restingTime(step, theCase.trace.fps)),

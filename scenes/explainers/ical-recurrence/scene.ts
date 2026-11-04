@@ -370,7 +370,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     // A detail step: before Alice's copy, which counts its parts on the schema, or after Bob's.
     const schemaStep = async () => {
       await this.step('schema', {
-        detail: true,
+        kind: 'detail',
         title: 'One UID: at most one master, any number of overrides',
         line: 'At a line’s end, a bar is one, a circle zero, a crow’s foot many.',
         // RFC 4791 §4.1, lines 479–487.
@@ -463,7 +463,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       ]),
     );
     await this.step('server', {
-      detail: true,
+      kind: 'detail',
       title: 'The server refuses a second master or a second RRULE',
       line: 'It answers 415, though RFC 5545 says just that RRULE SHOULD NOT repeat.',
       // sabre/dav Plugin.php:843–874; sabre/vobject VCalendar.php:448–455, Component.php:626–647.

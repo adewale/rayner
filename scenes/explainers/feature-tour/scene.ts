@@ -392,7 +392,7 @@ export default class FeatureTour extends Scene {
     });
     await s.code(example.code, { at: 'full', fontSize: 0.6 });
     this.state.feature = feature;
-    this.state.phase = 'recipe';
+    this.shown.phase = 'recipe';
 
     // 2. The result, at rest: before on the left, after on the right.
     const panels = async (before: Mobject[], describe: string) => {
@@ -407,7 +407,7 @@ export default class FeatureTour extends Scene {
     };
     // Each result names its own before and after; the camera case has no before panel.
     await this.step('result', { title: example.result, line: example.point, caption: example.caption });
-    this.state.phase = 'result';
+    this.shown.phase = 'result';
     await s.clear();
     const [ax, ay] = centre(AFTER),
       [bx, by] = centre(BEFORE);

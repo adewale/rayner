@@ -57,7 +57,7 @@ test('each case shows the counts, evictions and cache contents the model gives',
       };
       assertStepState(trace, step, expected);
       // Read the card's own description, independently of the scene's copied model state.
-      const picture = trace.steps.find((s) => s.step === step)!.after?.picture as Picture | undefined;
+      const picture = trace.steps.find((s) => s.step === step)!.shown?.picture as Picture | undefined;
       assert.ok(picture, `${values.next}.${step} has a resting picture`);
       assert.equal(picture.entries.length, 1, 'one comparison card');
       const entry = picture.entries[0]!;

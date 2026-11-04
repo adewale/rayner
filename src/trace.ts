@@ -16,8 +16,11 @@ export interface StepRecord {
   /** When the caption-reading hold began, if there was one. */
   hold?: number;
   meta: StepMeta;
+  /** The model when the step began and when it ended (Scene.describe). */
   before: SceneState;
   after?: SceneState;
+  /** What was shown when the step ended, apart from the model (Scene.describeShown); absent when nothing was. */
+  shown?: SceneState;
   /** What the step recorded with Scene.record(), when it recorded anything. */
   evidence?: Evidence[];
 }
@@ -32,7 +35,7 @@ export interface Trace {
 
 type TraceEvent =
   | { step: string; phase: 'begin'; t: number; frame: number; meta: StepMeta; state: SceneState }
-  | { step: string; phase: 'end'; t: number; frame: number; state: SceneState; hold?: number; evidence: Evidence[] };
+  | { step: string; phase: 'end'; t: number; frame: number; state: SceneState; shown: SceneState; hold?: number; evidence: Evidence[] };
 
 export class TraceSink implements Sink {
   events: TraceEvent[];
@@ -42,7 +45,7 @@ export class TraceSink implements Sink {
     this.events.push({ step: s.path, phase: 'begin', t: round(scene.time), frame: scene.frameCount, meta: s.meta, state: scene.describe() });
   }
   async stepEnd(scene: Scene, s: Step): Promise<void> {
-    this.events.push({ step: s.path, phase: 'end', t: round(scene.time), frame: scene.frameCount, state: scene.describe(), ...(s.hold != null ? { hold: round(s.hold) } : {}), evidence: s.evidence?.slice() ?? [] });
+    this.events.push({ step: s.path, phase: 'end', t: round(scene.time), frame: scene.frameCount, state: scene.describe(), shown: scene.describeShown(), ...(s.hold != null ? { hold: round(s.hold) } : {}), evidence: s.evidence?.slice() ?? [] });
   }
   /** Compact form: one entry per step with begin/end state. */
   steps(): StepRecord[] {
@@ -51,7 +54,7 @@ export class TraceSink implements Sink {
       if (e.phase === 'begin') out.push({ step: e.step, t0: e.t, frame0: e.frame, meta: e.meta, before: e.state });
       else {
         const s = out.findLast((x) => x.step === e.step && x.t1 == null);
-        if (s) { s.t1 = e.t; s.frame1 = e.frame; if (e.hold != null) s.hold = e.hold; s.after = e.state; if (e.evidence.length) s.evidence = e.evidence; }
+        if (s) { s.t1 = e.t; s.frame1 = e.frame; if (e.hold != null) s.hold = e.hold; s.after = e.state; if (Object.keys(e.shown).length) s.shown = e.shown; if (e.evidence.length) s.evidence = e.evidence; }
       }
     }
     return out;

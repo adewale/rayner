@@ -35,8 +35,11 @@ test('state and evidence refuse silent data loss and cycles with a useful field 
 test('known step metadata fields fail before the existing step is ended', async () => {
   const scene = new Scene(new NullSink());
   await scene.step('first');
-  for (const meta of [{caption: 4}, {title: false}, {line: []}, {detail: 'yes'}])
+  for (const meta of [{caption: 4}, {title: false}, {line: []}, {kind: 'yes'}])
     await assert.rejects(scene.step('bad', meta as never), /must be/);
+  // The old flags are refused by name, so a scene written for them says what to write instead.
+  for (const meta of [{detail: true}, {reader: true}])
+    await assert.rejects(scene.step('bad', meta as never), /say kind: 'detail' or kind: 'short'/);
   assert.equal(scene.steps.length, 1);
   assert.equal(scene.current?.name, 'first');
 });

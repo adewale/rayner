@@ -41,7 +41,7 @@ export type { DiffOp, Hunk, Token, TokenOp } from './diff.ts';
 export { linear, smooth, rushInto, rushFrom, thereAndBack, easeInQuad, easeOutQuad, easeOutBack, wiggle } from './rate.ts';
 export type { RateFunc } from './rate.ts';
 export { Scene, StopScene } from './scene.ts';
-export type { Sink, Step, StepMeta, SceneOptions, SceneState, SceneClass } from './scene.ts';
+export type { Sink, Step, StepMeta, StepKind, SceneOptions, SceneState, SceneClass } from './scene.ts';
 export type { Evidence, Invariant } from './scene.ts';
 // Camera: scene.frame, a box the sinks use as the viewBox
 export { Frame } from './frame.ts';

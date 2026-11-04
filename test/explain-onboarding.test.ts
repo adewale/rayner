@@ -23,13 +23,13 @@ test('every authoring feature offers a case with its user-side code before its r
     seen.add(feature);
     assert.deepEqual(trace.steps.map(s => s.step), ['recipe', 'result'], feature);
     const recipe = trace.steps[0]!, resultStep = trace.steps[1]!;
-    assert.equal(recipe.after!.phase, 'recipe');
-    assert.equal(resultStep.after!.phase, 'result');
+    assert.equal(recipe.shown!.phase, 'recipe');
+    assert.equal(resultStep.shown!.phase, 'result');
     assert.equal(resultStep.after!.feature, feature);
-    const pictured = recipe.after!.picture as { entries: { items?: string[] }[] };
+    const pictured = recipe.shown!.picture as { entries: { items?: string[] }[] };
     const lines = pictured.entries.flatMap(entry => entry.items ?? []);
     assert.deepEqual(lines.map(line => line.replace(/^\d+: /, '')), RECIPES[feature].code, feature);
-    const result = resultStep.after!.picture as { entries: unknown[] };
+    const result = resultStep.shown!.picture as { entries: unknown[] };
     assert.ok(result.entries.length > 0, `${feature}: show the actual feature result, not just source text`);
   }
   assert.deepEqual([...seen].sort(), Object.keys(RECIPES).sort());
@@ -37,5 +37,5 @@ test('every authoring feature offers a case with its user-side code before its r
   assert.equal((project.Scene.meta as { caseNavigation?: string }).caseNavigation, 'first', 'changing an authoring feature starts its recipe');
   const state = project.cases.find(v => v.values.feature === 'state')!;
   assert.equal(state.trace.steps[1]!.after!.count, 1, 'the view case must update recorded state');
-  assert.match(JSON.stringify(state.trace.steps[1]!.after!.picture), /Recorded count: 1/);
+  assert.match(JSON.stringify(state.trace.steps[1]!.shown!.picture), /Recorded count: 1/);
 });

@@ -46,6 +46,6 @@ export default class LatestSearchExplainer extends Scene {
   ];
   override async construct() {
     const order = settingsOf(this).order as CompletionOrder;
-    await stage(this, { style: 'github-dark', headingSize: 0.6 }).steps(await frames(order), { reader: true });
+    await stage(this, { style: 'github-dark', headingSize: 0.6 }).steps(await frames(order), { kind: 'short' });
   }
 }

@@ -90,7 +90,7 @@ export default class PasswordExplainer extends Scene {
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await s.steps(readerFrames(auth), { reader: true });
+    await s.steps(readerFrames(auth), { kind: 'short' });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,

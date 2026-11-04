@@ -6,7 +6,7 @@ import { storyIndices, adjacentStep } from '../app/embed-steps.ts';
 test('the reading path skips optional notes; direct note navigation retains them in source order', () => {
   fc.assert(
     fc.property(fc.array(fc.boolean(), { minLength: 1, maxLength: 30 }), (flags) => {
-      const steps = flags.map((detail) => ({ meta: { detail } }));
+      const steps = flags.map((detail) => ({ meta: { kind: detail ? 'detail' : 'main' } }));
       const expected = flags.flatMap((d, i) => (d ? [] : [i]));
       assert.deepEqual(storyIndices(steps), expected.length ? expected : flags.map((_, i) => i));
       for (let i = 0; i < steps.length; i++)

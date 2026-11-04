@@ -108,9 +108,9 @@ export default class StateMachineExplainer extends Scene {
   override async construct() {
     const which = settingsOf(this).events,
       s = stage(this, { headingSize: 0.6, style: 'dracula' });
-    await s.steps(readerFrames(which!), { reader: true });
+    await s.steps(readerFrames(which!), { kind: 'short' });
     await this.step('machine', {
-      detail: true,
+      kind: 'detail',
       title: 'Four reducer rows, one per arrow',
       line: 'The session starts idle; a pair with no row throws.',
       caption:
@@ -288,7 +288,7 @@ export default class StateMachineExplainer extends Scene {
     for (const [i, event] of events.entries()) {
       const next = reduceSession(state, event);
       await this.step(event.toLowerCase(), {
-        detail: true,
+        kind: 'detail',
         title: `${event}: ${state} → ${next}`,
         line: `Row ${state}:${event} returns ${next}, and the ring moves there.`,
         caption: `${event} arrives while the session is ${state}. The reducer finds the boxed row ${state}:${event} and returns ${next}, where the ring now sits.`,
@@ -299,7 +299,7 @@ export default class StateMachineExplainer extends Scene {
       state = next;
     }
     await this.step('terminal', {
-      detail: true,
+      kind: 'detail',
       title: 'Closed has no row, so OPENED throws',
       line: `The reducer, reduceSession, throws InvalidTransition; the ring stays on ${state}.`,
       caption:

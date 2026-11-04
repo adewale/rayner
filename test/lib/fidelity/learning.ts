@@ -17,7 +17,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
   const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':7,'melody-rhythm':4};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
-    assertStepState(trace,step.step,{phase:step.step});
+    // Which picture is showing is not part of the model; monty-hall names it in shown.
+    assert.equal((step.after as {phase?:unknown}).phase,undefined,`${id}/${step.step}: no phase in the model`);
+    if(id==='monty-hall') assert.equal((step.shown as {phase?:unknown}|undefined)?.phase,step.step,`${id}/${step.step}: shown names the picture`);
   }
   if(id==='python-dict') {
     const key=Number(values.key),m=dictStory(key);

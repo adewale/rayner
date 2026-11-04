@@ -11,7 +11,7 @@ import {buildExplainer} from '../../tools/lib/explain-build.ts';
 import {serve} from '../../tools/lib/explain-serve.ts';
 import {launch} from '../../tools/lib/browser.ts';
 import {storyFrames,inspectStoryFrame,covered} from '../../tools/lib/explain-story-review.ts';
-import type {StoryClaim} from '../../tools/lib/explain-story-review.ts';
+import type {StorySubject} from '../../tools/lib/explain-story-review.ts';
 
 const enabled=!!process.env.EXPLAIN_BROWSER;
 const options={skip:enabled?false:'set EXPLAIN_BROWSER=1 for served periodic-table reader checks'};
@@ -21,7 +21,7 @@ const families:Record<string,string[]>={
   fe:['Fe','Ru','Os','Hs'],cu:['Cu','Ag','Au','Rg'],he:['He','Ne','Ar','Kr','Xe','Rn','Og'],
 };
 const frameCache=new Map<Project['cases'][number],ReturnType<typeof storyFrames>>();
-const openingClaims=(element:string):StoryClaim[]=>{
+const openingSubjects=(element:string):StorySubject[]=>{
   const members=families[element]!;
   const familyTargets=[...members.map(symbol=>({key:`periodic-member:${symbol}`})),
     ...members.slice(1).map((symbol,i)=>({key:`periodic-jump:${members[i]}:${symbol}`}))];
@@ -34,7 +34,7 @@ const openingClaims=(element:string):StoryClaim[]=>{
 };
 function framesFor(theCase:Project['cases'][number]){
   let frames=frameCache.get(theCase);
-  if(!frames){frames=storyFrames(theCase.Scene,openingClaims(theCase.values.element!));frameCache.set(theCase,frames);}
+  if(!frames){frames=storyFrames(theCase.Scene,openingSubjects(theCase.values.element!));frameCache.set(theCase,frames);}
   return frames;
 }
 const settled=(page:Page)=>page.evaluate(async()=>{for(let n=0;n<4;n++)await new Promise<void>(r=>requestAnimationFrame(()=>r()));});
@@ -55,7 +55,7 @@ test('phone openings show each complete family comparison without a close-up tou
   let openings=0,targets=0;
   for(const theCase of project.cases){
     const element=theCase.values.element!;
-    const claims=openingClaims(element),frames=await framesFor(theCase);
+    const claims=openingSubjects(element),frames=await framesFor(theCase);
     for(const viewport of [{width:320,height:568},{width:390,height:844}]){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{

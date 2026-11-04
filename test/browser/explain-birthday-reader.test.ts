@@ -10,7 +10,7 @@ import {buildExplainer} from '../../tools/lib/explain-build.ts';
 import {serve} from '../../tools/lib/explain-serve.ts';
 import {launch} from '../../tools/lib/browser.ts';
 import {storyFrames,inspectStoryFrame,covered} from '../../tools/lib/explain-story-review.ts';
-import type {StoryClaim} from '../../tools/lib/explain-story-review.ts';
+import type {StorySubject} from '../../tools/lib/explain-story-review.ts';
 
 const enabled=!!process.env.EXPLAIN_BROWSER;
 const options={skip:enabled?false:'set EXPLAIN_BROWSER=1 for served birthday reader checks'};
@@ -34,7 +34,7 @@ test('every birthday card and its date are visible together in each phone openin
     const people=Number(theCase.values.people);
     // Name each person independently: fitting a broad group or most of a row
     // must not earn credit for the final card beyond the right-hand edge.
-    const claims:StoryClaim[]=[{step:'room',opening:true,
+    const claims:StorySubject[]=[{step:'room',opening:true,
       targets:Array.from({length:people},(_,i)=>({key:`person-${i}`}))}];
     const frame=(await storyFrames(theCase.Scene,claims)).get('room')!;
     const targets=frame.targets.filter(t=>t.opening);

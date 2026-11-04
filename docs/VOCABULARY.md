@@ -31,13 +31,16 @@ One row per idea. **Bold** marks a change.
 | Idea | Name | Meaning | Replaces |
 | --- | --- | --- | --- |
 | Model | (plain functions) | Pure, tested functions in `model.ts`; `next(state, event)` for a machine | |
-| State | `scene.state` | JSON only; what a step records and `describe` reports | |
+| Model state | `scene.state` | JSON only; the domain (a bucket's tokens, a statechart's configuration) and nothing about how it is shown; a step records it as `before` and `after` | |
+| What is shown | **`scene.shown`** | JSON; which picture a phase shows, and the stage's description of its picture; a view's draw may read it, a machine never changes it; the trace records it as `shown` | `phase` and `reader` inside `scene.state` |
 | Step | `scene.step(id, meta)` | A stop with a title, line and caption | |
+| Step kind | **`kind: 'short' \| 'main' \| 'detail'`** | Which path a step is on: the reader's short path, the story, or a detail players skip | `reader: true`, `detail: true` |
+| Case | **`case`**, `casesOf`, `cases` | One value for every setting; a single one is `theCase` in code, since `case` is reserved | `variant`, `variantsOf`, `variants` |
 | Picture | a `Mobject` tree | What a frame shows | |
-| State to picture | **`draw(state)`** | The one name for a function from state to picture, wherever it appears | `render` (views), the parameterless `draw(stage)` (steps), `build` |
+| State to picture | **`draw(state, shown?)`** | The one name for a function from state to picture, wherever it appears | `render` (views), the parameterless `draw(stage)` (steps), `build` |
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there | `View.render` becomes **`View.draw`** |
-| Staged steps | **`stage.steps([...])`** | A list of steps, each `{ id, title, line, caption, state, draw }`; the state is set with `SetState` and the picture is a view of it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
-| Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs | |
+| Staged steps | **`stage.steps([...])`** | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and the picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
+| Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | **`Mobject.id`** leaves the published types; it is the renderer's number |
 | Matching by key | `matchByKey()`, **`match: 'key'`** | Keyed parts pair with keyed parts | `match: 'keys'` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
 | Event-driven model | **`Machine`**, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay`, `reachable` | `Session`, `sessionsOf`; describe's `sessions` field becomes **`machines`** |
@@ -47,9 +50,11 @@ One row per idea. **Bold** marks a change.
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | **`stage.sketch(m)`** | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
-| 3D picture | **`projected(model, viewpoint)`** (new, in `rayner/drawing`) | Draws a 3D model through a viewpoint, `{ yaw, pitch, kind }`, that is ordinary state turned by an ordinary `Follow`. Not an engine type. | |
+| 3D picture | **`seenFrom(model, viewpoint)`** (new, in `rayner/drawing`) | Draws a 3D model through a viewpoint, `{ yaw, pitch, kind }`, that is ordinary state turned by an ordinary `Follow`. Not an engine type. | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
+| Review subjects | **`scene.review.json`'s `subjects`** | What a caption names, for the reader review to find on screen | that file's `claims` |
+| Authored transition parts | `choreograph(current, target)`: `morph`, `enter`, `leave`, `insert`, `own`, `rest` | One event's motion, part by part, by key | |
 | Decisions | `evidence()` | What an animation decided, recorded as it begins | |
 | Frames recorded | trace, `traceScene` | What each frame showed | |
 | Output record | receipt (`claude/video-pacing`) | What a render produced | |
@@ -84,10 +89,10 @@ await s.steps([
   { id: 'paths', title, line, caption,
     state: { sunsets },
     draw: (state, kit) => arcs(state.sunsets, kit) },
-], { reader: false });
+]);
 ```
 
-Each step clears the stage, sets the state with `SetState`, and shows `view(scene, draw)` with the reading order and description `presentFrame` gives today. `{ reader: true }` covers `readerFirst`, whose values now go under `state.reader` the same way.
+Each step clears the stage, makes its state the model, and shows its drawing with the reading order and description `presentFrame` gave. `{ kind: 'short' }` covers `readerFirst`: its steps are marked as the reader's short path, and each one's state is the model like any other step's.
 
 **The new check.** After the run, `rayner check` redraws every step from its recorded state alone and compares it with the resting picture, by text and geometry, as session exploration already does for machine states. A `draw` that reads a variable changed by another step, rather than its own state, fails with the step's name. Constants computed once per case, such as henge's model, are fine: they are the same in both runs.
 
@@ -113,7 +118,7 @@ These are new rather than renames, and each has two adopters:
 | Addition | First adopter | Second adopter |
 | --- | --- | --- |
 | `table(..., { key })` | python-dict (insert and delete as a machine) | bloom-filter |
-| `projected(model, viewpoint)` in `rayner/drawing` | great-circle ([script](../scenes/explainers/great-circle/script.md)) | henge's fixed-axis globes, whose resting pictures must stay identical |
+| `seenFrom(model, viewpoint)` in `rayner/drawing` | great-circle ([script](../scenes/explainers/great-circle/script.md)) | henge's fixed-axis globes, whose resting pictures must stay identical |
 
 ### 5. Cuts
 
@@ -125,7 +130,7 @@ Each of these has no adopter, or breaks an invariant, or says something the engi
 | `view(build)` | 1 (monty-hall) | A view not made from state cannot be checked against it. Monty-hall moves to `view(scene, draw)`, and the `View` constructor itself takes `(scene, draw)`, so every View keeps a `draw` the checks can call again; a `draw` that reads anything outside the state is caught when a redraw disagrees. |
 | `Diagram.fromGraph` (proposed) | 0 needed | Git-branches and exgit draw their graphs with the kit, and `Diagram.morph` already handles graph edits. |
 | `allows` (proposed) | — | Folded into `next` returning `undefined`. |
-| `viewpoint` as an engine type (proposed) | — | It is state; `projected` is a drawing function. |
+| `viewpoint` as an engine type (proposed) | — | It is state; `seenFrom` is a drawing function. |
 
 Kept after review, though first listed as cuts:
 
@@ -133,6 +138,19 @@ Kept after review, though first listed as cuts:
 - **`GrowFromEdge`, `PulseAlongPath`.** Stock animation vocabulary, as `Indicate` and `Flash` are, with a documented recipe. Adopter counts are the wrong test for a stock animation.
 
 Deferred: `{ cue }` for narration belongs with video export on `claude/video-pacing` (#7). Lighting, shading and depth of field for 3D: nothing the scripts argue needs them.
+
+## The domain-driven review
+
+A Domain-Driven Design reading found five vocabularies leaking into each other: the engine (Manim's words, kept on purpose), the explanation (step, caption, stage, case), verification (invariant, claim, trace, evidence), the reader's controls, and each explainer's own domain. `draw(state)` is where an explainer's domain becomes pictures, which is why it is one name everywhere. The review's renames are done:
+
+- **One word, case.** `variant` and its family became `case` words in code, reports and docs.
+- **The model apart from what is shown.** `scene.state` holds only the model; `scene.shown` holds which picture a phase shows, and the stage's description of its picture. monty-hall, statecharts and feature-tour moved their `phase` there; `stage.steps` no longer writes one, and short paths no longer nest under `state.reader`. A machine plays under one `shown`, and exploration draws its states under it.
+- **A step kind.** `kind: 'short' | 'main' | 'detail'` replaced `reader: true` and `detail: true`.
+- **Subjects, not claims, in review.** `scene.review.json` declares `subjects` (version 2); `claims` means only `meta.claims`. The CLI flag is `--subjects`.
+- **One identity.** `key` is the part's identity; `Mobject.id` is marked internal and left out of the published types.
+- **`seenFrom`, not `projected`.** "Projection" is the CQRS word for a picture derived from state; the 3D function is named for what it does.
+
+Not taken: `events` → `commands` (statecharts and XState, the explainers' own domain, say events; a refused event never reaches the trace), `view` → `projection`, `Follow` → `Sweep` (two adopters and a recipe already), and `evidence` → `decisions` (only checks read it).
 
 ## Compatibility
 

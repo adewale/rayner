@@ -23,7 +23,7 @@ import {
 } from './lib/explain-review-plan.ts';
 import { reviewStoryCase} from './lib/explain-story-review.ts';
 import { checkBuilt } from './lib/explain-site-describe.ts';
-import { reviewClaims } from './lib/explain-review-scene.ts';
+import { reviewSubjects } from './lib/explain-review-scene.ts';
 
 let server: Awaited<ReturnType<typeof serve>> | undefined;
 let browser: Browser | undefined, page: Page | undefined;
@@ -72,7 +72,7 @@ try {
   const cases = [];
   for (const entry of EXPLAINERS.filter(entry => selectedScenes.has(entry.id))) {
     const project = await collectProject(join(ROOT, 'scenes/explainers', entry.id), { write: false });
-    const claims = await reviewClaims(project);
+    const subjects = await reviewSubjects(project);
     assert.deepEqual(
       JSON.parse(await readFile(join(built, entry.id, 'inputs.json'), 'utf8')),
       await sceneInputs(project, inputs.hash),
@@ -84,12 +84,12 @@ try {
       const directory = join(review, 'story', entry.id, String(index));
       await mkdir(directory, { recursive: true });
       const t = chromeFor(project.Scene.meta?.lang);
-      const teaching = theCase.trace.steps.some(s => s.meta.detail !== true) ? theCase.trace.steps.filter(s => s.meta.detail !== true) : theCase.trace.steps;
+      const teaching = theCase.trace.steps.some(s => s.meta.kind !== 'detail') ? theCase.trace.steps.filter(s => s.meta.kind !== 'detail') : theCase.trace.steps;
       const steps = await reviewStoryCase(
         page,
         `${base}/${entry.id}.html`,
         theCase,
-        claims,
+        subjects,
         directory,
         { chrome: readerChrome(t), home: PRODUCT.home, cases: project.Scene.settings?.length ?? 0, steps: teaching.map(s => s.step),
           crop: { player: t.player, next: t.nextLabel, title: project.Scene.meta?.title ?? entry.id,
@@ -141,7 +141,7 @@ try {
   assert.deepEqual(connections, []);
   const after = await buildInputs(ROOT);
   assert.equal(after.hash, inputs.hash, 'build inputs changed during review');
-  assert.equal(await reviewCodeHash(ROOT, after.hash), codeHash, 'review implementation or caption claims changed during review');
+  assert.equal(await reviewCodeHash(ROOT, after.hash), codeHash, 'review implementation or caption subjects changed during review');
   for (const id of selectedScenes) await checkBuilt(join(built, id), join(ROOT, 'scenes/explainers', id), after.hash);
   await mkdir(join(ROOT, 'out/validation'), { recursive: true });
   await writeFile(

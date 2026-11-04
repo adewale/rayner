@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { collectProject } from '../../tools/lib/explain-project.ts';
-import { reviewClaims, reviewScene } from '../../tools/lib/explain-review-scene.ts';
+import { reviewSubjects, reviewScene } from '../../tools/lib/explain-review-scene.ts';
 import { storyFrames } from '../../tools/lib/explain-story-review.ts';
 
 const source = `import{Scene,Text,FadeIn}from'rayner';import{stage}from'rayner/explain';export default class Example extends Scene{static meta={id:'outside-author',title:'Outside author'};static settings=[{id:'case',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this,{heading:false});await this.step('one',{caption:'A visible answer.'});await this.play(new FadeIn(new Text('Answer',{color:s.palette.ink})));}}`;
@@ -14,14 +14,14 @@ test('author-side claims reject unknown cases, steps, malformed targets and miss
     const file = join(folder, 'scene.ts'), claims = join(folder, 'scene.review.json');
     await writeFile(file, source);
     const project = await collectProject(file, { write: false });
-    assert.deepEqual(await reviewClaims(project), []);
-    await assert.rejects(reviewClaims(project, claims), { code: 'ENOENT' });
+    assert.deepEqual(await reviewSubjects(project), []);
+    await assert.rejects(reviewSubjects(project, claims), { code: 'ENOENT' });
     const valid = { step: 'one', opening: true, settings: { case: 'b' }, targets: [{ text: 'Answer' }] };
-    await writeFile(claims, JSON.stringify({ version: 1, claims: [valid] }));
-    assert.deepEqual(await reviewClaims(project), [valid]);
+    await writeFile(claims, JSON.stringify({ version: 2, subjects: [valid] }));
+    assert.deepEqual(await reviewSubjects(project), [valid]);
     for (const invalid of [{ ...valid, settings: { case: 'missing' } }, { ...valid, step: 'absent' }, { ...valid, targets: [] }, { ...valid, targets: [{ text: 'Answer', key: 'ambiguous' }] }, { ...valid, opening: 'yes' }]) {
-      await writeFile(claims, JSON.stringify({ version: 1, claims: [invalid] }));
-      await assert.rejects(reviewClaims(project));
+      await writeFile(claims, JSON.stringify({ version: 2, subjects: [invalid] }));
+      await assert.rejects(reviewSubjects(project));
     }
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
@@ -32,7 +32,7 @@ test('an outside author reviews every served case and width; a false caption cla
     const file = join(folder, 'scene.ts'), claims = join(folder, 'scene.review.json'), output = join(folder, 'review');
     await writeFile(file, source);
     const project = await collectProject(file, { write: false });
-    await writeFile(claims, JSON.stringify({ version: 1, claims: [{ step: 'one', opening: true, targets: [{ text: 'Answer' }] }] }));
+    await writeFile(claims, JSON.stringify({ version: 2, subjects: [{ step: 'one', opening: true, targets: [{ text: 'Answer' }] }] }));
     const published = join(folder, 'public', 'answer.html');
     const result = await reviewScene(project, output, undefined, published);
     assert.equal(result.artifact, published);
@@ -46,7 +46,7 @@ test('an outside author reviews every served case and width; a false caption cla
     assert.deepEqual(result.results.map(c => c.steps.map(s => s.width)), [[390, 1180], [390, 1180]]);
     assert.deepEqual(result.consoleErrors, []);
     assert.deepEqual(result.runtimeConnections, []);
-    await writeFile(claims, JSON.stringify({ version: 1, claims: [{ step: 'one', targets: [{ text: 'Missing answer' }] }] }));
+    await writeFile(claims, JSON.stringify({ version: 2, subjects: [{ step: 'one', targets: [{ text: 'Missing answer' }] }] }));
     await assert.rejects(reviewScene(project, output), /story target Missing answer is missing/);
     await assert.rejects(readFile(join(output, 'review.json')), { code: 'ENOENT' });
     assert.deepEqual(await readFile(published), artifact, 'a failed review preserves the last reviewed page');
@@ -61,10 +61,10 @@ test('companion claims bind to actual scene ink', async () => {
     const project = await collectProject(file, { write: false });
     const visible = { step: 'one', targets: [{ text: 'Answer' }] };
     const missing = { step: 'one', targets: [{ text: 'Missing subject' }] };
-    await writeFile(claims, JSON.stringify({ version: 1, claims: [missing] }));
-    await assert.rejects(storyFrames(project.cases[0]!.Scene, await reviewClaims(project)), /story target Missing subject is missing/);
-    await writeFile(claims, JSON.stringify({ version: 1, claims: [visible] }));
-    await storyFrames(project.cases[0]!.Scene, await reviewClaims(project));
+    await writeFile(claims, JSON.stringify({ version: 2, subjects: [missing] }));
+    await assert.rejects(storyFrames(project.cases[0]!.Scene, await reviewSubjects(project)), /story target Missing subject is missing/);
+    await writeFile(claims, JSON.stringify({ version: 2, subjects: [visible] }));
+    await storyFrames(project.cases[0]!.Scene, await reviewSubjects(project));
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
@@ -80,7 +80,7 @@ test('trust-proxy range comparisons retain all factual subjects and review every
   try {
     const project = await collectProject(join(ROOT, 'scenes/explainers/trust-proxy'), { write: false });
     assert.equal(project.cases.length, 12);
-    const claims = await reviewClaims(project);
+    const claims = await reviewSubjects(project);
     await buildExplainer(project, join(folder, 'scene.html'));
     server = await serve(folder, 0, 'scene.html');
     browser = await launch();
@@ -110,7 +110,7 @@ test('trust-proxy range subjects contain both settings and all six independently
 
   const { Text } = await import('../../src/index.ts');
   const project = await collectProject(join(ROOT, 'scenes/explainers/trust-proxy'), { write: false });
-  const claims = await reviewClaims(project);
+  const claims = await reviewSubjects(project);
   // The twelve Express answers are independently pinned in explain-trust-proxy.test.ts.
   // Keep literal card expectations here: two renderers sharing TABLE cannot prove these facts.
   const answers: Record<string, string[]> = {
@@ -145,7 +145,7 @@ test('dictionary review retains six claim sets and checks four main openings plu
   const {ROOT} = await import('../../tools/lib/explain-project.ts');
   const {narrowOpeningPlan} = await import('../../tools/lib/explain-story-review.ts');
   const project = await collectProject(join(ROOT, 'scenes/explainers/python-dict'), {write: false});
-  const claims = await reviewClaims(project);
+  const claims = await reviewSubjects(project);
   assert.equal(claims.length, 6);
   for (const theCase of project.cases) {
     const openings = await narrowOpeningPlan(theCase, claims);

@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
 import { readableOpeningLabel, type NarrowOpeningReview, type NarrowOpeningObligation } from './explain-review-plan.ts';
 
-export interface StoryClaim {
+export interface StorySubject {
   step: string;
   settings?: Record<string, string>;
   opening?: boolean;
@@ -244,7 +244,7 @@ async function changedPaint(previous: readonly StoryPaint[], current: readonly S
 
 export async function storyFrames(
   Source: SceneClass,
-  claims: readonly StoryClaim[] = [],
+  declared: readonly StorySubject[] = [],
 ): Promise<Map<string, StoryFrame>> {
   const frames = new Map<string, StoryFrame>();
   let previous = new Map<Mobject, string>();
@@ -369,7 +369,7 @@ export async function storyFrames(
         const added = new Set<Mobject>();
         // Declared intent takes priority over unrelated context that a rebuild
         // happens to replace or move. With no primary subject, inspect new art.
-        const hasPrimary = targets.length > 0 || claims.some((c) => c.step === step.name);
+        const hasPrimary = targets.length > 0 || declared.some((c) => c.step === step.name);
         const [x0, y0, x1, y1] = scene.frame.box()!;
         const changed = hasPrimary ? new Set<number>() : await changedPaint(previousPaint, paint,
           [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
@@ -390,13 +390,13 @@ export async function storyFrames(
           added.add(subject);
         }
         previousPaint = paint;
-        for (const claim of claims.filter((c) => c.step === step.name))
-          for (const target of claim.targets) {
+        for (const entry of declared.filter((c) => c.step === step.name))
+          for (const target of entry.targets) {
             const name = 'key' in target ? target.key : target.text;
             add(
               name,
               members.filter((m) => ('key' in target ? m.key === target.key : labelOf(m)?.text === target.text)),
-              !!claim.opening,
+              !!entry.opening,
               false,
               target.paint === 'stroke',
             );
@@ -420,7 +420,7 @@ export async function storyFrames(
     },
     { skipUntil: Infinity },
   ).run();
-  for (const c of claims) assert.ok(frames.has(c.step), `story claim names missing step ${c.step}`);
+  for (const c of declared) assert.ok(frames.has(c.step), `story entry names missing step ${c.step}`);
   return frames;
 }
 
@@ -627,19 +627,19 @@ export async function inspectStoryFrame(page: Page, frame: StoryFrame) {
 }
 
 /** Build-time obligations come from authored main/detail metadata and the
- * independent caption claims, before the served reader produces any receipt. */
+ * independent caption declared, before the served reader produces any receipt. */
 export async function narrowOpeningPlan(
   theCase: Pick<Project['cases'][number], 'Scene' | 'trace' | 'values'>,
-  claims: readonly StoryClaim[],
+  declared: readonly StorySubject[],
   frames?: Map<string, StoryFrame>,
 ): Promise<NarrowOpeningObligation[]> {
-  const applicable = claims.filter((c) =>
+  const applicable = declared.filter((c) =>
     Object.entries(c.settings ?? {}).every(([key, value]) => theCase.values[key] === value),
   );
   const source = frames ?? (await storyFrames(theCase.Scene, applicable));
-  const hasMain = theCase.trace.steps.some((step) => step.meta.detail !== true);
+  const hasMain = theCase.trace.steps.some((step) => step.meta.kind !== 'detail');
   return theCase.trace.steps.map((step) => {
-    if (step.meta.detail === true && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
+    if (step.meta.kind === 'detail' && hasMain) return { step: step.step, reviewed: false, reason: 'detail-step' };
     const targets = [
       ...new Set(
         applicable
@@ -647,7 +647,7 @@ export async function narrowOpeningPlan(
           .flatMap((c) => c.targets.map((t) => ('key' in t ? t.key : t.text))),
       ),
     ];
-    if (!targets.length) return { step: step.step, reviewed: false, reason: 'no-opening-claim' };
+    if (!targets.length) return { step: step.step, reviewed: false, reason: 'no-opening-subject' };
     const frame = source.get(step.step)!;
     const wanted = new Set(targets);
     const indices = new Set(frame.targets.filter((t) => t.opening && wanted.has(t.name)).flatMap((t) => t.indices));
@@ -943,7 +943,7 @@ export async function reviewStoryCase(
   page: Page,
   url: string,
   theCase: Project['cases'][number],
-  claims: readonly StoryClaim[] = [],
+  declared: readonly StorySubject[] = [],
   directory?: string,
   shell?: ReaderShell,
 ) {
@@ -958,7 +958,7 @@ export async function reviewStoryCase(
     });
     initialized.add(page);
   }
-  const applicable = claims.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v));
+  const applicable = declared.filter((c) => Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v));
   const frames = await storyFrames(theCase.Scene, applicable),
     results = [];
   const narrow = new Map<string, NarrowOpeningReview>();

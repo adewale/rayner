@@ -87,8 +87,15 @@ export type AnimateBuilder<M extends Mobject> = AnimateBuilderBase<M> & {
 export interface HasText { text?: string }
 
 export class Mobject {
+  /**
+   * @internal The object's number, for rendering and error messages. Not part of the published
+   * types: an author names a part by its `key`.
+   */
   id: number;
-  /** A name for lookup (doc node ids); `id` stays the unique number. */
+  /**
+   * The part's identity: the same key in two pictures is the same part, so a transform, a
+   * choreography, `scene.find`, emphasis and review all follow it from picture to picture.
+   */
   key: string | undefined;
   children: Mobject[];
   parent: Mobject | null;

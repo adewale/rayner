@@ -7,7 +7,7 @@ import { collectProject } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
-import { reviewClaims } from '../../tools/lib/explain-review-scene.ts';
+import { reviewSubjects } from '../../tools/lib/explain-review-scene.ts';
 import { reviewStoryCase, storyFrames, inspectStoryFrame, covered } from '../../tools/lib/explain-story-review.ts';
 const enabled = !!process.env.EXPLAIN_BROWSER;
 test(
@@ -124,7 +124,7 @@ test(
   async () => {
     const project = await collectProject('scenes/explainers/seasons', { write: false });
     assert.equal(project.cases.length, 4);
-    const claims = await reviewClaims(project);
+    const claims = await reviewSubjects(project);
     const expected = {
       tromso: { name: 'Tromsø', formula: '90° − |69.65° − 23.44°| = 43.79°', june: '24.0 h of daylight', december: ['0.0 h of daylight', 'Noon Sun -3.1°, below the horizon'], january: '0.0 h', other: '24.0 h',
         spread: ['December', 'Sun below the horizon', 'June, 43.8°', '1.45 m', '69% per m²', '1 m'] },

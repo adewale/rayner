@@ -135,7 +135,7 @@ test('a passing story result requires all matching shards with complete nonempty
       p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: true, width: 320, height: 568, targets: ['visible subject'], labels: ['Subject label'], minimumLabelPx: 11.9};
     },
     'false missing-claim exclusion': (p) => {
-      p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: false, reason: 'no-opening-claim'};
+      p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: false, reason: 'no-opening-subject'};
     },
     'false detail exclusion': (p) => {
       p[0]!.results[0]!.steps[0]!.openingAt320 = {reviewed: false, reason: 'detail-step'};
@@ -195,10 +195,10 @@ test('story receipts expire when caption claims, served runtime or review depend
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
     }
     const withoutClaims = await reviewCodeHash(root);
-    const claimsFile = join(root, 'scenes/explainers/example/scene.review.json');
-    const original = JSON.stringify({version: 1, claims: [{step: 'first', targets: [{text: 'Visible subject'}]}]});
-    await mkdir(dirname(claimsFile), {recursive: true});
-    await writeFile(claimsFile, original);
+    const subjectsFile = join(root, 'scenes/explainers/example/scene.review.json');
+    const original = JSON.stringify({version: 2, subjects: [{step: 'first', targets: [{text: 'Visible subject'}]}]});
+    await mkdir(dirname(subjectsFile), {recursive: true});
+    await writeFile(subjectsFile, original);
     const current = await reviewCodeHash(root);
     assert.notEqual(current, withoutClaims, 'adding companion expectations must invalidate previous review');
     const expected = Array.from({length: 3}, (_, i) => ({scene: `scene-${i}`, settings: {}, steps: ['first', 'final'], narrowOpenings: narrowObligations(['first', 'final'])}));
@@ -206,9 +206,9 @@ test('story receipts expire when caption claims, served runtime or review depend
     for (const part of old) part.reviewCodeHash = current;
     const merge = async () => mergeStoryReviews(old, expected, 'catalog', await reviewCodeHash(root));
     assert.equal((await merge()).cases, 3, 'unchanged claims and implementation retain valid receipts');
-    await writeFile(claimsFile, original.replace('Visible subject', 'A newly required subject'));
+    await writeFile(subjectsFile, original.replace('Visible subject', 'A newly required subject'));
     await assert.rejects(merge(), /stale review implementation/, 'an edited expectation cannot reuse an old passing receipt');
-    await writeFile(claimsFile, original);
+    await writeFile(subjectsFile, original);
     assert.equal(await reviewCodeHash(root), current);
     const added = join(root, 'scenes/explainers/second/scene.review.json');
     await mkdir(dirname(added), {recursive: true});
@@ -216,9 +216,9 @@ test('story receipts expire when caption claims, served runtime or review depend
     await assert.rejects(merge(), /stale review implementation/, 'identical bytes at a new companion path also add expectations');
     await unlink(added);
     assert.equal(await reviewCodeHash(root), current);
-    await unlink(claimsFile);
+    await unlink(subjectsFile);
     await assert.rejects(merge(), /stale review implementation/, 'deleted expectations cannot reuse old receipts');
-    await writeFile(claimsFile, original);
+    await writeFile(subjectsFile, original);
     await mkdir(join(root, 'docs'));
     await writeFile(join(root, 'docs/notes.md'), 'Unrelated documentation changes.');
     assert.equal(await reviewCodeHash(root), current, 'unrelated prose does not invalidate paint review');
@@ -274,7 +274,7 @@ test('the built catalog supplies exact narrow-opening obligations; receipts cann
     rows[0]!.openingAt320 = {reviewed: true, width: 320, height: 568, targets: ['shape'], labels: [], minimumLabelPx: null};
     rows[1]!.openingAt320 = {reviewed: false, reason: 'detail-step'};
     assert.equal(mergeStoryReviews(parts, plan.cases, 'catalog', 'code').cases, 1);
-    rows[1]!.openingAt320 = {reviewed: false, reason: 'no-opening-claim'};
+    rows[1]!.openingAt320 = {reviewed: false, reason: 'no-opening-subject'};
     assert.throws(() => mergeStoryReviews(parts, plan.cases, 'catalog', 'code'), /exclusion changed/);
     const broken = structuredClone(scene);
     broken.narrowOpenings[0]!.steps.pop();

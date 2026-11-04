@@ -24,8 +24,10 @@ export interface StepDescription {
   end: number;
   /** When the caption-reading hold begins, if the step has one. */
   hold?: number;
-  /** `scene.state` when the step ends, without the picture description (see `picture`). */
+  /** The model, `scene.state`, when the step ends. */
   state: SceneState;
+  /** What was shown apart from the model (`scene.shown`), when anything was; the picture is described in `picture`. */
+  shown?: SceneState;
   /** Each state value the step changed, before and after; a side is left out when the value was not set. */
   changed: Record<string, { before?: unknown; after?: unknown }>;
   /**
@@ -124,8 +126,9 @@ export async function describeCase(Scene: ExplainerClass, values: Settings, opti
     draw = options.drawings ?? true,
     steps: StepDescription[] = [];
   for (const s of trace.steps) {
-    const before = withoutPicture(s.before),
-      after = withoutPicture(s.after),
+    const before = s.before,
+      after = s.after ?? {},
+      shown = withoutPicture(s.shown),
       changed: StepDescription['changed'] = {};
     for (const k of new Set([...Object.keys(before), ...Object.keys(after)]))
       if (!same(before[k], after[k]))
@@ -140,9 +143,10 @@ export async function describeCase(Scene: ExplainerClass, values: Settings, opti
       end: s.t1 ?? trace.duration,
       ...(s.hold == null ? {} : { hold: s.hold }),
       state: after,
+      ...(Object.keys(shown).length ? { shown } : {}),
       changed,
       ...(Scene.meta?.watch ? { watched: watchedChanges(s, Scene.meta.watch, Scene.meta.lang) } : {}),
-      picture: pictureSummary(s.after),
+      picture: pictureSummary(s.shown),
     };
     const events = (s.evidence ?? []).filter((e) => e.kind === 'event').map((e) => String(e.event));
     if (events.length) d.events = events;

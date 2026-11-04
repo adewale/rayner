@@ -252,7 +252,7 @@ export default class PythonDict extends Scene {
       },
       {
         id: 'hash',
-        detail: true,
+        kind: 'detail' as const,
         title: 'Why slot 0: all three keys start there',
         line: 'An eight-slot index keeps only the hash’s low three bits.',
         caption: `For these keys, Python uses the integer itself as its hash, so the hashes are ${m.starts.map((s) => s.hash).join(', ')}. With eight slots, Python keeps only the last three bits of the hash, and all three end in 000 in binary, so all three keys start at slot 0. Key 0 was stored first and took it.`,
@@ -271,7 +271,7 @@ export default class PythonDict extends Scene {
       },
       {
         id: 'collision',
-        detail: true,
+        kind: 'detail' as const,
         title: 'A taken slot sends the search on',
         line: `Key 16 passes taken slots ${list(sixteen.slots.slice(0, -1).map(String))} to reach slot ${sixteen.slots.at(-1)}.`,
         caption: `When a key’s slot is taken, Python works out the next slot from the hash and tries again. Storing 8, it found slot 0 taken and used slot ${eight.slots.at(-1)}; storing 16, it found ${list(sixteen.slots.slice(0, -1).map(String))} taken and used slot ${sixteen.slots.at(-1)}. A lookup retraces the same path, checking the key in each taken slot, until the key matches or it reads a never-used slot. That is why an emptied slot 0 stops the search for 8 and for 16.`,

@@ -270,7 +270,7 @@ export default class TailwindGamutExplainer extends Scene {
     // (l.322–323) are hex. The 17 coloured families come first (l.10–212), then nine greys. Blog l.358–360: "We've upgraded the entire default
     // color palette from rgb to oklch, taking advantage of the wider gamut to make the colors more vivid in
     // places where we were previously limited by the sRGB color space."
-    await s.steps(readerFrames(shade, screen), { reader: true });
+    await s.steps(readerFrames(shade, screen), { kind: 'short' });
     // Colours that round to the leader's share: the radar draws them at the same radius.
     const level = all.filter((r) => r.family !== sum.mostOfSrgb.family && r.ofSrgb === sum.mostOfSrgb.value).map((r) => r.family);
     await this.step('oklch', {

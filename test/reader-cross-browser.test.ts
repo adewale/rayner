@@ -11,7 +11,7 @@ import type {Project} from '../tools/lib/explain-project.ts';
 import {buildExplainer, buildLoader} from '../tools/lib/explain-build.ts';
 import {serve} from '../tools/lib/explain-serve.ts';
 import {reviewStoryCase} from '../tools/lib/explain-story-review.ts';
-import {reviewClaims} from '../tools/lib/explain-review-scene.ts';
+import {reviewSubjects} from '../tools/lib/explain-review-scene.ts';
 
 const names = ['mr-cache', 'token-bucket', 'oauth-pkce', 'font-metrics', 'melody-rhythm', 'periodic-groups'];
 const projects = new Map<string, Project>();
@@ -44,7 +44,7 @@ test('WebKit checks served paint for every case of the cache, rate, PKCE, reques
     let cases = 0;
     const reviews = [];
     for (const [name, project] of projects) {
-      const claims = await reviewClaims(project);
+      const claims = await reviewSubjects(project);
       for (const theCase of project.cases) {
         reviews.push({id: name, settings: theCase.values, steps: await reviewStoryCase(page, `${server!.url}/${name}.html`, theCase, claims)});
         cases++;

@@ -128,7 +128,7 @@ export default class Leading extends Scene{
 static meta={id:'leading-note',title:'Start with the explanation'};
 static settings=[{id:'case',label:'Case',default:'one',options:[{value:'one',label:'One'},{value:'two',label:'Two'}]}];
 async construct(){const s=stage(this);for(const id of ['note','start',...(settingsOf(this).case==='one'?['extra']:[]),'ending']){
-await this.step(id,{title:id,caption:id,detail:id==='note'});await s.clear();await s.enter(new Text(id,{fontSize:1}));}}}`,
+await this.step(id,{title:id,caption:id,kind:id==='note'?'detail':'main'});await s.clear();await s.enter(new Text(id,{fontSize:1}));}}}`,
   );
   const project = await collectProject(source, { write: false });
   await buildExplainer(project, join(folder, 'leading-note.html'));
@@ -196,7 +196,7 @@ await s.enter(subject,detail);s.reading(subject);}}`);
 });
 
 test('authored phone openings keep comparison ink readable, and a narrow stage paints no heading to clip', options, async () => {
-  const { reviewClaims } = await import('../../tools/lib/explain-review-scene.ts');
+  const { reviewSubjects } = await import('../../tools/lib/explain-review-scene.ts');
   const { storyFrames, inspectStoryFrame, covered} = await import(
     '../../tools/lib/explain-story-review.ts'
   );
@@ -210,7 +210,7 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
       const project = await collectProject(`scenes/explainers/${id}`, { write: false });
       const theCase = defaultCase(project);
       await buildExplainer(project, join(folder, `${id}-heading.html`));
-      const claims = (await reviewClaims(project)).filter((c) =>
+      const claims = (await reviewSubjects(project)).filter((c) =>
         Object.entries(c.settings ?? {}).every(([k, v]) => theCase.values[k] === v),
       );
       const frames = await storyFrames(theCase.Scene, claims);
@@ -1771,13 +1771,13 @@ function stepsOf(p: Project, values: Settings): StepSpec[] {
   const v = p.cases.find((v) => sameCase(p, v.values, values));
   assert.ok(v, `no prebuilt case ${JSON.stringify(values)}`);
   return v.trace.steps.map((s) => ({
-    detail: s.meta.detail === true,
+    detail: s.meta.kind === 'detail',
     step: s.step,
     caption: stepWords(s).caption,
     title: stepWords(s).title,
     line: stepWords(s).line,
-    summary: pictureSummary(s.after),
-    picture: pictureHtml(s.after),
+    summary: pictureSummary(s.shown),
+    picture: pictureHtml(s.shown),
   }));
 }
 const current = (m: PlayerModel) => m.entries[m.index]!;
@@ -2862,7 +2862,7 @@ test(
     const name = 'mr-cache',
       p = projects.get(name)!,
       v = p.cases[0]!,
-      lists = [v.trace.steps.filter(s => s.meta.detail !== true), v.trace.steps.filter(s => s.meta.detail === true)];
+      lists = [v.trace.steps.filter(s => s.meta.kind !== 'detail'), v.trace.steps.filter(s => s.meta.kind === 'detail')];
     for (const list of lists) {
     assert.ok(list.length >= 2);
     await readerContext({ reducedMotion: 'no-preference' }, async context => {
@@ -3389,7 +3389,7 @@ test('the PKCE attack opens with the stolen-code, guessed-verifier and rejection
 });
 
 test('source tours show the token-cap calculation and terminal rejection in every case', options, async () => {
-  const {reviewClaims} = await import('../../tools/lib/explain-review-scene.ts');
+  const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
   const {storyFrames,reviewStoryCase,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
     'token-bucket': ['request:R9','arrival:R9','request:R10','arrival:R10','balance:refill:R10',
@@ -3407,9 +3407,9 @@ test('source tours show the token-cap calculation and terminal rejection in ever
         [{rate:'1'},{rate:'2'},{rate:'4'}]:[{events:'success'},{events:'failure'}]);
       if(!projects.has(id))await buildExplainer(project,join(folder,`${id}.html`));
       const sourceStep = id==='token-bucket'?'later':'terminal';
-      const companion = await reviewClaims(project);
+      const companion = await reviewSubjects(project);
       assert.deepEqual(companion.filter(c=>c.step===sourceStep&&!c.settings).flatMap(c=>c.targets.map(t=>'key' in t?t.key:t.text)),roles[id]);
-      const claims = await reviewClaims(project);
+      const claims = await reviewSubjects(project);
       for(const theCase of project.cases){
         let nativeChecked=false;
         await new theCase.Scene({async frame(){},async stepEnd(scene,step){
@@ -3494,15 +3494,15 @@ test('source tours show the token-cap calculation and terminal rejection in ever
 });
 
 test('both pen drawings retain every construction mark and its readable count through source tours', options, async () => {
-  const {reviewClaims} = await import('../../tools/lib/explain-review-scene.ts');
+  const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
   const {storyFrames,reviewStoryCase,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const project=await collectProject('scenes/explainers/pen-and-pencil',{write:false});
   assert.deepEqual(project.cases.map(v=>v.values),[{hand:'first'},{hand:'second'}]);
-  assert.deepEqual((await reviewClaims(project)).filter(c => c.step === 'marks'),[{step:'marks',targets:[
+  assert.deepEqual((await reviewSubjects(project)).filter(c => c.step === 'marks'),[{step:'marks',targets:[
     {key:'construction:marks',paint:'stroke'},{key:'construction:tally'},
   ]}]);
   await buildExplainer(project,join(folder,'pen-and-pencil.html'));
-  const claims=await reviewClaims(project);
+  const claims=await reviewSubjects(project);
   const page=await browser.newPage();
   let layout:number[][]|undefined,cases=0,stepWidths=0,readableCounts=0;
   try{

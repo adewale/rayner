@@ -169,7 +169,7 @@ test('descriptions read chart values as written, name marks by their word, and r
     }
   }
   const steps = (await traceScene(bindSnapshots(Described, { [diagramKey(chartSpec)]: chart }))).steps;
-  const [first, drawn, faint, described] = steps.map((s) => s.after);
+  const [first, drawn, faint, described] = steps.map((s) => s.shown);
   assert.equal(
     pictureSummary(first),
     'XY chart: Tokens from 0 to 5, 2 categories from R1 to R2. Note: “full” beside R1: 4; rejected: R2: 0.5.',

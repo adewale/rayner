@@ -12,7 +12,7 @@ import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';
 import { launch } from '../../tools/lib/browser.ts';
 import { storyFrames, inspectStoryFrame, covered } from '../../tools/lib/explain-story-review.ts';
-import type { StoryClaim } from '../../tools/lib/explain-story-review.ts';
+import type { StorySubject } from '../../tools/lib/explain-story-review.ts';
 import { readableOpeningLabel } from '../../tools/lib/explain-review-plan.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
@@ -23,7 +23,7 @@ let project: Project, folder: string, browser: Browser, server: Awaited<ReturnTy
 const steps = ['choice', 'predict'];
 // The inference compares all three doors under the pictured host rule. A later
 // tour stop cannot repair a door or the rule missing beside the opening caption.
-const targets: StoryClaim['targets'] = [
+const targets: StorySubject['targets'] = [
   ...[0, 1, 2].map((i) => ({ key: `door-${i}` })),
   ...['A', 'B', 'C'].map((text) => ({ text })),
   { key: 'monty-rule' },

@@ -11,10 +11,10 @@ import type { Project } from './explain-project.ts';
 import { serve } from './explain-serve.ts';
 import { launch } from './browser.ts';
 import { reviewStoryCase } from './explain-story-review.ts';
-import type { StoryClaim } from './explain-story-review.ts';
+import type { StorySubject } from './explain-story-review.ts';
 
 /** Independent caption expectations belong beside the author's scene, outside its runtime. */
-export async function reviewClaims(project: Project, file?: string): Promise<StoryClaim[]> {
+export async function reviewSubjects(project: Project, file?: string): Promise<StorySubject[]> {
   const path = file ? resolve(file) : project.file.replace(/\.[^.]+$/, '.review.json');
   const raw = await readFile(path, 'utf8').catch((error: NodeJS.ErrnoException) => {
     if (!file && error.code === 'ENOENT') return undefined;
@@ -23,33 +23,33 @@ export async function reviewClaims(project: Project, file?: string): Promise<Sto
   if (raw === undefined) return [];
   const value = JSON.parse(raw);
   const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-  assert.ok(object(value) && value.version === 1 && Array.isArray(value.claims), `${path}: expected { version: 1, claims: [...] }`);
-  assert.ok(Object.keys(value).every(key => ['version', 'claims'].includes(key)), `${path}: unknown review field`);
-  for (const claim of value.claims) {
-    assert.ok(object(claim) && typeof claim.step === 'string' && claim.step.trim(), `${path}: a claim needs a step`);
-    assert.ok(Object.keys(claim).every(key => ['step', 'settings', 'opening', 'targets'].includes(key)), `${path}: unknown claim field`);
-    assert.ok(claim.opening === undefined || typeof claim.opening === 'boolean', `${path}: opening must be boolean`);
-    assert.ok(claim.settings === undefined || (object(claim.settings) && Object.values(claim.settings).every(v => typeof v === 'string')), `${path}: settings must map names to values`);
-    assert.ok(Array.isArray(claim.targets) && claim.targets.length, `${path}: a claim needs targets`);
-    for (const target of claim.targets)
+  assert.ok(object(value) && value.version === 2 && Array.isArray(value.subjects), `${path}: expected { version: 2, subjects: [...] }`);
+  assert.ok(Object.keys(value).every(key => ['version', 'subjects'].includes(key)), `${path}: unknown review field`);
+  for (const subject of value.subjects) {
+    assert.ok(object(subject) && typeof subject.step === 'string' && subject.step.trim(), `${path}: a subject needs a step`);
+    assert.ok(Object.keys(subject).every(key => ['step', 'settings', 'opening', 'targets'].includes(key)), `${path}: unknown subject field`);
+    assert.ok(subject.opening === undefined || typeof subject.opening === 'boolean', `${path}: opening must be boolean`);
+    assert.ok(subject.settings === undefined || (object(subject.settings) && Object.values(subject.settings).every(v => typeof v === 'string')), `${path}: settings must map names to values`);
+    assert.ok(Array.isArray(subject.targets) && subject.targets.length, `${path}: a subject needs targets`);
+    for (const target of subject.targets)
       assert.ok(object(target) && ((typeof target.key === 'string' && !!target.key.trim() && target.text === undefined) ||
         (typeof target.text === 'string' && !!target.text.trim() && target.key === undefined)) &&
         (target.paint === undefined || target.paint === 'stroke') && Object.keys(target).every(key => ['key', 'text', 'paint'].includes(key)), `${path}: targets need a key or text, with optional paint: "stroke"`);
-    const applicable = project.cases.filter(v => Object.entries(claim.settings ?? {}).every(([key, value]) => v.values[key] === value));
-    assert.ok(applicable.length, `${path}: claim settings select no case`);
+    const applicable = project.cases.filter(v => Object.entries(subject.settings ?? {}).every(([key, value]) => v.values[key] === value));
+    assert.ok(applicable.length, `${path}: subject settings select no case`);
     for (const theCase of applicable)
-      assert.ok(theCase.trace.steps.some(s => s.step === claim.step), `${path}: ${claim.step} is missing from a selected case`);
+      assert.ok(theCase.trace.steps.some(s => s.step === subject.step), `${path}: ${subject.step} is missing from a selected case`);
   }
-  return value.claims as StoryClaim[];
+  return value.subjects as StorySubject[];
 }
 
 /** The same served-paint reviewer used by the catalog, for any installed author's scene. */
-export async function reviewScene(project: Project, directory: string, claimsFile?: string, artifact?: string) {
+export async function reviewScene(project: Project, directory: string, subjectsFile?: string, artifact?: string) {
   directory = resolve(directory);
   await mkdir(directory, { recursive: true });
   const receiptFile = join(directory, 'review.json');
   await rm(receiptFile, { force: true });
-  const claims = await reviewClaims(project, claimsFile);
+  const subjects = await reviewSubjects(project, subjectsFile);
   const inputs = await buildInputs(ROOT);
   const reviewer = await reviewCodeHash(ROOT, inputs.hash);
   await checkProject(project, join(directory, 'checks'));
@@ -74,7 +74,7 @@ export async function reviewScene(project: Project, directory: string, claimsFil
       for (const [index, theCase] of project.cases.entries()) {
         const output = join(directory, String(index));
         await mkdir(output, { recursive: true });
-        results.push({ settings: theCase.values, steps: await reviewStoryCase(page, server.url + '/scene.html', theCase, claims, output) });
+        results.push({ settings: theCase.values, steps: await reviewStoryCase(page, server.url + '/scene.html', theCase, subjects, output) });
       }
       assert.deepEqual(errors, [], 'reader console errors');
       assert.deepEqual(connections, [], 'reader external connections');
@@ -87,7 +87,7 @@ export async function reviewScene(project: Project, directory: string, claimsFil
     assert.equal(after.hash, inputs.hash, 'build inputs changed during review');
     assert.equal(await reviewCodeHash(ROOT, after.hash), reviewer, 'review inputs changed during review');
     assert.equal((await loadScene(project.file)).sourceHash, project.sourceHash, 'scene changed during review');
-    assert.deepEqual(await reviewClaims(project, claimsFile), claims, 'caption claims changed during review');
+    assert.deepEqual(await reviewSubjects(project, subjectsFile), subjects, 'caption subjects changed during review');
     const retained = resolve(artifact ?? join(directory, 'scene.html'));
     await mkdir(dirname(retained), { recursive: true });
     for (const suffix of ['', '.headers.json', '.receipt.json'])
@@ -96,7 +96,7 @@ export async function reviewScene(project: Project, directory: string, claimsFil
     await buildLoader(join(dirname(retained), 'loader.js'));
     const report = {
       version: 1, scene: project.Scene.meta?.id ?? 'scene', sourceHash: project.sourceHash,
-      buildHash: inputs.hash, reviewCodeHash: reviewer, artifact: retained, artifactHash: receipt.artifactHash, claimsHash: hash(JSON.stringify(claims)),
+      buildHash: inputs.hash, reviewCodeHash: reviewer, artifact: retained, artifactHash: receipt.artifactHash, subjectsHash: hash(JSON.stringify(subjects)),
       cases: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0), results,
       consoleErrors: errors, runtimeConnections: connections,
     };

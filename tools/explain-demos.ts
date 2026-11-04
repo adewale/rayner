@@ -18,7 +18,7 @@ import type { ShareManifest } from './lib/explain-share.ts';
 import { measureEmbed, embedSizeProblems } from './lib/explain-embed-size.ts';
 import { serve } from './lib/explain-serve.ts';
 import { launch } from './lib/browser.ts';
-import { reviewClaims } from './lib/explain-review-scene.ts';
+import { reviewSubjects } from './lib/explain-review-scene.ts';
 import { narrowOpeningPlan } from './lib/explain-story-review.ts';
 import type { NarrowOpeningObligation } from './lib/explain-review-plan.ts';
 import { buildInputs } from './lib/build-inputs.ts';
@@ -69,7 +69,7 @@ for (const item of items) {
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });
-  const pictured = theCase.trace.steps.filter((x) => !x.meta.detail && shareable(x.step));
+  const pictured = theCase.trace.steps.filter((x) => x.meta.kind !== 'detail' && shareable(x.step));
   const share: ShareManifest = {
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -85,7 +85,7 @@ for (const item of items) {
       step: s.step,
       title: stepWords(s).title,
       caption: stepWords(s).caption,
-      picture: pictureSummary(s.after),
+      picture: pictureSummary(s.shown),
     });
   }
   await writeFile(join(directory, item.id, 'steps.json'), JSON.stringify(share, null, 2) + '\n');
@@ -97,10 +97,10 @@ for (const item of items) {
     join(directory, item.id, 'inputs.json'),
     JSON.stringify(await sceneInputs(project, inputs.hash), null, 2) + '\n',
   );
-  const claims = await reviewClaims(project);
+  const subjects = await reviewSubjects(project);
   const narrowOpenings = [];
   for (const theCase of project.cases)
-    narrowOpenings.push({ settings: theCase.values, steps: await narrowOpeningPlan(theCase, claims) });
+    narrowOpenings.push({ settings: theCase.values, steps: await narrowOpeningPlan(theCase, subjects) });
   evidence.push({
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -111,7 +111,7 @@ for (const item of items) {
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],
     entry: {
-      step: theCase.trace.steps.find((step) => !step.meta.detail)?.step ?? theCase.trace.steps[0]!.step,
+      step: theCase.trace.steps.find((step) => step.meta.kind !== 'detail')?.step ?? theCase.trace.steps[0]!.step,
       settings: theCase.values,
     },
     sourceHash: project.sourceHash,

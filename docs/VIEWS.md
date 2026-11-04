@@ -59,13 +59,15 @@ middle of a sync (`test/view.test.ts`).
 ## API
 
 ```ts
-view(scene: Scene<S>, draw: (state: S) => M, opts?): View<M>   // draw(scene.state) at each sync; kept for fidelity checks
+view(scene: Scene<S>, draw: (state: S, shown) => M, opts?): View<M>   // draw(scene.state, scene.shown) at each sync; kept for fidelity checks
 
 view.current            // the picture on screen (the View's one child)
-view.shown              // the strings it shows, in family order
+view.texts              // the strings it shows, in family order
 view.sync({ runTime, rateFunc, lagRatio, match }?)   // an Animation: play it, compose it
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 ```
+
+Most draws read only the model, `state`. A picture that depends on which of several pictures is showing (a phase, not part of the model) reads it from `shown`, the scene's `this.shown`.
 
 - **Identity.** The View is what scenes hold, add, put in groups and lay out. A
   sync only swaps its child, so the View stays in the scene and in any Group
@@ -145,7 +147,7 @@ renders.**
 ```ts
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 
-// Runs the scene once. At each step's end it records view.shown, then compares
+// Runs the scene once. At each step's end it records view.texts, then compares
 // it with draw(step.after) from the trace.
 await assertViewFollowsState(Ring, (scene) => (scene as Ring).readout);
 ```

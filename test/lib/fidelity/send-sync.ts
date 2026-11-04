@@ -27,7 +27,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   // The input type's two answers are said on its point where it is placed (once, among the
   // single types), and the built type's on its point in the last wrapper step.
   const said = (step: string, send: boolean, sync: boolean) => {
-    const text = pictureHtml(trace.steps.find((s) => s.step === step)!.after);
+    const text = pictureHtml(trace.steps.find((s) => s.step === step)!.shown);
     assert.ok(text.includes(`Send: ${send ? 'yes' : 'no'}, Sync: ${sync ? 'yes' : 'no'}`), `${step}: ${text}`);
   };
   said(({ i32: 'i32', cell: 'cell', rc: 'rc' } as const)[inner], layers[0]!.send, layers[0]!.sync);

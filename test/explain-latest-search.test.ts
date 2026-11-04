@@ -124,16 +124,16 @@ test('the public story compares both rules and shows each ticket decision in bot
     assert.deepEqual(v.trace.steps.map(s=>s.step),['race','overwrite','tickets','reader-first','reader-ticket','reader-guard']);
     const order=v.values.order as 'new-first'|'old-first';
     const off=await runSearch(false,order),on=await runSearch(true,order);
-    const result=v.trace.steps.at(-1)!.after!.reader as {off:unknown;on:unknown};
+    const result=v.trace.steps.at(-1)!.after! as {off:unknown;on:unknown};
     // The last step's timeline: the lifetimes, and a page track for each rule.
     assert.deepEqual(result,{order,off:off.snapshots,on:on.snapshots,lifetimes:off.lifetimes,page:{off:off.page,on:on.page}});
     // Both runs start and land the searches at the same ticks, so one set of bars serves both tracks.
     assert.deepEqual(on.lifetimes,off.lifetimes);
     // The unguarded run comes first: the overwrite step shows the model's no-guard snapshots and page track.
-    assert.deepEqual(v.trace.steps.find(s=>s.step==='overwrite')!.after!.reader,{order,off:off.snapshots,lifetimes:off.lifetimes,page:{off:off.page}});
-    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after!.reader,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
+    assert.deepEqual(v.trace.steps.find(s=>s.step==='overwrite')!.after!,{order,off:off.snapshots,lifetimes:off.lifetimes,page:{off:off.page}});
+    assert.deepEqual(v.trace.steps.find(s=>s.step==='race')!.after!,{order,completion:off.snapshots.slice(1).map(x=>x.completed.at(-1)),lifetimes:off.lifetimes});
     for(const step of v.trace.steps.filter(s=>s.step==='reader-first'||s.step==='reader-ticket')){
-      const r=step.after!.reader as {ticket:number;latest:number;accepted:boolean};
+      const r=step.after! as {ticket:number;latest:number;accepted:boolean};
       assert.equal(r.latest,2);assert.equal(r.accepted,r.ticket===2);
     }
   }

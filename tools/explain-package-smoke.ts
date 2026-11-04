@@ -148,7 +148,7 @@ try {
   assert.match(html, /id="licenses"/);
   assert.ok(!html.includes('node_modules/agentic-mermaid'));
   if (process.env.EXPLAIN_BROWSER) {
-    await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 1, claims: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
+    await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 2, subjects: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
     await run(bin, ['review', 'first', '--out', 'review'], { cwd: folder });
     const reviewed = JSON.parse(await readFile(join(folder, 'review/review.json'), 'utf8'));
     assert.equal(reviewed.cases, 2);

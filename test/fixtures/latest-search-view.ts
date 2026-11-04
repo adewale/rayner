@@ -73,7 +73,7 @@ export default class LatestSearchExplainer extends Scene {
     };
 
     await this.step('start', {
-      detail: true,
+      kind: 'detail',
       title: 'Why can a search for B end by showing older A?',
       line: 'First A, then B: which promise settles last?',
       caption:
@@ -153,7 +153,7 @@ export default class LatestSearchExplainer extends Scene {
 
     const firstResult = run.snapshots[1]!;
     await this.step('first', {
-      detail: true,
+      kind: 'detail',
       title: `${first} completes first; the page shows ${shown(firstResult.shown)}`,
       line:
         guarded && first === 'A'
@@ -172,7 +172,7 @@ export default class LatestSearchExplainer extends Scene {
 
     const last = run.snapshots[2]!;
     await this.step('second', {
-      detail: true,
+      kind: 'detail',
       title: `${second} completes second; the page shows ${shown(last.shown)}`,
       caption:
         order === 'new-first'
@@ -185,7 +185,7 @@ export default class LatestSearchExplainer extends Scene {
     await this.play(chart.sync({ match: 'index', runTime: 0.55 }));
 
     await this.step('compare', {
-      detail: true,
+      kind: 'detail',
       title:
         order === 'new-first'
           ? 'When B finishes first, the guard prevents A from replacing it'

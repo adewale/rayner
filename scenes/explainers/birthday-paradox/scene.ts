@@ -202,7 +202,7 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'growth',
-        detail: true,
+        kind: 'detail',
         title: 'Each newcomer pairs with everyone already in the room',
         line: 'The thick bars outrun the thin ones as the room fills.',
         caption: (() => {
@@ -249,7 +249,7 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'exact',
-        detail: true,
+        kind: 'detail',
         title: `Counting exactly: person ${n} must miss ${n - 1} dates already taken`,
         line: `Predict: do ${m.pairs} pairs at 1 in 365 each give the same chance?`,
         caption: `Turn the question around: what would it take for nobody to match? Add people one at a time and ask each to miss every date taken so far. Provided earlier people have all missed, each new arrival has one fewer free date. Multiply those chances to get ${pct2(m.noMatch)} for no match, then subtract from 1: ${pct2(m.chance)} for a match. The picture shows the free dates facing person ${n}.`,
@@ -274,7 +274,7 @@ export default class BirthdayParadox extends Scene {
       },
       {
         id: 'estimate',
-        detail: true,
+        kind: 'detail',
         title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,
         line: `Close to the exact ${pct2(m.chance)}; overlapping comparisons need care.`,
         caption: `Treating the ${m.pairs} pairs as independent gives the nearby shortcut shown. It is the chance you would have of sharing your own birthday with one of ${m.pairs} other people. The room’s pairs are not jointly independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. The person-by-person calculation avoids that dependence. Comparisons with your one birthday do involve independent arrivals, so multiplying their miss chances gives the exact ${pct(m.one)} for a match with you.`,

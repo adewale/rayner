@@ -19,7 +19,7 @@ test('an answer is found in the title, line or caption, ignoring case, quotes, s
 });
 
 test('reference steps are not teaching steps: the answer is counted among the steps the reader steps through', () => {
-  const withDetail = [step('ref', { title: 'Source notes', detail: true, caption: 'LRU evicts the item used longest ago.' }), ...steps];
+  const withDetail = [step('ref', { title: 'Source notes', kind: 'detail', caption: 'LRU evicts the item used longest ago.' }), ...steps];
   assert.deepEqual(answerStep('LRU evicts the item used longest ago', withDetail), { step: 'rule', at: 2 });
 });
 

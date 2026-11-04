@@ -196,7 +196,7 @@ export default class MontyHall extends Scene {
       list.map((c) => `car behind ${c.prize}, he opens ${c.opened}: ${c.shows}, ${c.stay === 'ends' ? 'game over' : c.stay === 'win' ? 'staying wins' : 'switching wins'}, ${c.sixths} sixth${c.sixths > 1 ? 's' : ''}${dim(c) ? ' (greyed)' : ''}`).join('; ');
     const cellKey = (y: number) => label(KEY, 0, y, s.soft, F, 'monty-key');
 
-    /** The picture for a phase: a function of the scene's state alone, so the trace's view check and rayner check can redraw it. */
+    /** The picture for a phase: a function of what is shown alone, so the trace's view check and rayner check can redraw it. */
     const picture = (phase: Phase): Group => {
       switch (phase) {
         case 'choice':
@@ -241,8 +241,9 @@ export default class MontyHall extends Scene {
       }
     };
     // Before the first step the picture is the choice.
-    const main = view(this, (st) => keyed(picture((st as { phase?: Phase }).phase ?? 'choice'), 'monty-picture'), { place: false });
-    const shown = (next: Phase) => { this.state = { ...this.state, phase: next }; };
+    // Which picture is shown (`shown.phase`) is not part of the model: the doors, the host and the odds are.
+    const main = view(this, (_, sh) => keyed(picture((sh as { phase?: Phase }).phase ?? 'choice'), 'monty-picture'), { place: false });
+    const shown = (next: Phase) => { this.shown = { phase: next }; };
     const describe = { describe: () => words.join('. ') };
     const fresh = async (next: Phase) => {
       await s.clear({ runTime: 0.3 });
@@ -255,8 +256,9 @@ export default class MontyHall extends Scene {
       shown(next);
       await this.play(main.sync({ match: byKey, runTime }));
     };
-    const at = (id: string, state: Record<string, unknown>) => {
-      this.state = { ...JSON.parse(JSON.stringify(state)), phase: id };
+    const at = (id: Phase, state: Record<string, unknown>) => {
+      this.state = JSON.parse(JSON.stringify(state));
+      shown(id);
     };
 
     await this.step('choice', {

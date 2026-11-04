@@ -518,7 +518,7 @@ export default class QuotientFamilialExplainer extends Scene {
     const hausses = [1, 2, 3, 4].map((i) => pourcent(BAREME[2025][i]!.from / BAREME[2024][i]!.from - 1, 1)),
       hausse = hausses.every((h) => h === hausses[0]) ? hausses[0]! : `${hausses[0]} à ${hausses.at(-1)}`;
     await this.step('revenus-2025', {
-      detail: true,
+      kind: 'detail',
       title: `Pour les revenus 2025, les seuils montent de ${hausse}`,
       line:
         r25.impot === r.impot

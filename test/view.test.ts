@@ -257,7 +257,7 @@ test('a StateReadout view of the scene\'s state keeps its keys put as values gro
   }
   const s = await new Counter(new StringSink()).run();
   const keys = () => s.rv!.current.children.filter((c, i) => i % 2 === 0) as Text[];
-  assert.deepEqual(s.rv!.shown, ['tokens', '0', 'responses', '[200,200,429]']);
+  assert.deepEqual(s.rv!.texts, ['tokens', '0', 'responses', '[200,200,429]']);
   const first = new StateReadout([['tokens', '10'], ['responses', '[]']], { at: [-3, 1] });
   keys().forEach((k, i) => assert.ok(Math.abs(k.frameBox[2]! - (first.children[2 * i] as Text).frameBox[2]!) < 1e-5, 'key right edge held'));
   assert.equal(await assertViewFollowsState(Counter, (sc) => (sc as Counter).rv), 4);

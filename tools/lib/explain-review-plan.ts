@@ -28,10 +28,10 @@ export interface ReviewedCase {
 }
 export type NarrowOpeningObligation =
   | { step: string; reviewed: true; targets: string[]; labels: string[] }
-  | { step: string; reviewed: false; reason: 'detail-step' | 'no-opening-claim' };
+  | { step: string; reviewed: false; reason: 'detail-step' | 'no-opening-subject' };
 export type NarrowOpeningReview =
   | { reviewed: true; width: 320; height: 568; targets: string[]; labels: string[]; minimumLabelPx: number | null }
-  | { reviewed: false; reason: 'detail-step' | 'no-opening-claim' };
+  | { reviewed: false; reason: 'detail-step' | 'no-opening-subject' };
 function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps: string[], scene: string) {
   assert.ok(Array.isArray(obligations), `${scene}: missing built narrow-opening obligations`);
   assert.deepEqual(
@@ -54,7 +54,7 @@ function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps
       );
     } else {
       assert.ok(
-        obligation.reason === 'detail-step' || obligation.reason === 'no-opening-claim',
+        obligation.reason === 'detail-step' || obligation.reason === 'no-opening-subject',
         `${scene}: invalid narrow-opening exclusion`,
       );
     }
@@ -229,7 +229,7 @@ export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedC
         assert.ok(!obligation.reviewed);
         assert.equal(opening.reason, obligation.reason, `${c.scene}/${step.step}: narrow-opening exclusion changed`);
         assert.ok(
-          opening.reason === 'detail-step' || opening.reason === 'no-opening-claim',
+          opening.reason === 'detail-step' || opening.reason === 'no-opening-subject',
           `${c.scene}/${step.step}: invalid narrow-opening exclusion`,
         );
       }

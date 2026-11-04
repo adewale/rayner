@@ -594,7 +594,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   const mainIndices = () => storyIndices(trace.steps);
   const firstMain = () => mainIndices()[0] ?? 0;
   function isDetail(index: number) {
-    return trace.steps[index]?.meta.detail === true && trace.steps.some(step => step.meta.detail !== true);
+    return trace.steps[index]?.meta.kind === 'detail' && trace.steps.some(step => step.meta.kind !== 'detail');
   }
   function chrome() {
     const step = currentStep(),
@@ -633,8 +633,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Busy while a step plays: the resting picture, and its description, are still to come.
     if (isPlaying()) stage.setAttribute('aria-busy', 'true');
     else stage.removeAttribute('aria-busy');
-    summary.textContent = pictureSummary(step.after);
-    picture.innerHTML = pictureHtml(step.after);
+    summary.textContent = pictureSummary(step.shown);
+    picture.innerHTML = pictureHtml(step.shown);
     described.hidden = !picture.innerHTML;
   }
   // The steps the reader has reached, by name, across cases. The rail and the step bar name a

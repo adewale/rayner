@@ -40,7 +40,7 @@ test('custom geometry owns its copy and a copied composite exposes its own child
 });
 
 test('one parameter keeps the point on the circle at intermediate values, preserves identity, and resamples without history', () => {
-  const rig = makeOrbit(), ids = [rig.dot.id, rig.radius.id, rig.readout.id];
+  const rig = makeOrbit(), parts = [rig.dot, rig.radius, rig.readout];
   const animation = new FollowAngle(rig, Math.PI);
   animation.begin();
   for (const alpha of [0.5, 0.9, 0.1, 0.5, 1, 0]) {
@@ -52,7 +52,7 @@ test('one parameter keeps the point on the circle at intermediate values, preser
     assert.equal(rig.readout.text, (Math.PI * alpha).toFixed(2));
     const end = rig.radius.end();
     assert.ok(Math.abs(end[0] - x) < 1e-5 && Math.abs(end[1] - y) < 1e-5);
-    assert.deepEqual([rig.dot.id, rig.radius.id, rig.readout.id], ids);
+    [rig.dot, rig.radius, rig.readout].forEach((part, i) => assert.equal(part, parts[i]));
   }
   for (const bad of [NaN, Infinity, -1, Math.PI + 1]) assert.throws(() => orbit(bad), /finite and in/);
 });

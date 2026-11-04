@@ -66,8 +66,8 @@ const described = (project: Project) =>
   project.cases.flatMap(({ trace }) =>
     trace.steps.map((s, i) => ({
       step: s.step,
-      summary: pictureSummary(s.after),
-      html: pictureHtml(s.after, trace.steps[i - 1]?.after),
+      summary: pictureSummary(s.shown),
+      html: pictureHtml(s.shown, trace.steps[i - 1]?.shown),
     })),
   );
 const text = (html: string) =>

@@ -27,7 +27,7 @@ function lampScene(blind = false, size = 0.5) {
         g.key = 'lamp';
         return g;
       });
-      s.keep(picture, { describe: () => picture.shown.join(' ') });
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
       await this.step('press');
@@ -125,7 +125,7 @@ function litLamp(transition: (t: Transition<Lamp, 'UP' | 'OFF'>) => import('../s
         g.key = 'lamp';
         return g;
       });
-      s.keep(picture, { describe: () => picture.shown.join(' ') });
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
       if (invariant) this.addInvariant('the box stays on screen', (scene) => {
         const b = scene.find('lamp:box')?.box();
@@ -189,4 +189,39 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
   };
   const [explored] = await exploreMachines(await new (litLamp(swing, true))(new NullSink()).run());
   assert.ok(explored!.problems.some((p) => /^UP: the invariant "the box stays on screen" fails 50% through the transition/.test(p)), JSON.stringify(explored!.problems));
+});
+
+test('a machine plays under one shown: it records it, refuses another, and exploration draws its states under it', async () => {
+  class Shown extends Scene<Lamp> {
+    machine!: Machine<Lamp, 'UP' | 'OFF'>;
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      // Which room the lamp is in is what is shown, not part of the lamp's model.
+      const picture = view(this, (st: Lamp, shown) => {
+        const word = new Text(`${String(shown.room ?? 'hall')} lamp ${LEVELS[st.level]}`, { fontSize: 0.5 });
+        word.key = 'lamp:word';
+        return Object.assign(new Group(new Rectangle({ width: 6, height: 1.2 }), word), { key: 'lamp' });
+      });
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
+      this.shown = { room: 'kitchen' };
+      await this.step('press');
+      await this.play(this.machine.replay(['UP', 'UP']));
+      // Afterwards the scene shows another room; the machine's states were seen in the kitchen.
+      this.shown = { room: 'study' };
+      await this.play(picture.sync({ runTime: 0.2 }));
+      await assert.rejects(this.play(this.machine.send('OFF')), /plays under shown \{"room":"study"\}, but this machine played under \{"room":"kitchen"\}/);
+    }
+  }
+  const scene = await new Shown(new NullSink()).run() as Shown;
+  assert.deepEqual(scene.machine.playedUnder, { room: 'kitchen' });
+  const [explored] = await exploreMachines(scene);
+  assert.deepEqual(explored!.problems, []);
+  assert.equal(explored!.states, 3);
+  // The states were drawn in the kitchen, where the machine played, not the study the run ended in.
+  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /kitchen lamp/);
+  // Exploration put back what the run left shown.
+  assert.deepEqual(scene.shown, { room: 'study' });
 });

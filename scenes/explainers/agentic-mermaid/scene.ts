@@ -329,7 +329,7 @@ export default class MermaidExplainer extends Scene {
     if (scope().renderability !== 'passed' || taskCorrectness() !== 'not-checked') throw new Error('Unexpected verifier scope');
 
     await this.step('history', {
-      detail: true,
+      kind: 'detail',
       title: 'The saved report still says the task was not checked',
       line: 'Three commits in order, the last with the verifier’s findings.',
       caption: `The history keeps source, edit and checked snapshot as separate commits. The snapshot records what this renderer drew and the findings it returned, including taskCorrectness: not-checked. Committing a clean report keeps that evidence; it does not widen what the verifier checked.`,
