@@ -1,5 +1,7 @@
-import { Scene, Group, Line, Rectangle, Text, FadeOut } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { Scene, Group, Line, Rectangle, Text, FadeOut, view } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import type { CardOptions, CardRow } from '../../../explain/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import {
   BACKDATE,
   BR_PHASES,
@@ -141,6 +143,11 @@ const days = (hours: number) => +(hours / DAY).toFixed(1);
 const at = (hours: number, short: boolean) => (short ? `hour ${Math.round(hours)}` : `day ${days(hours)}`);
 const length = (hours: number, short: boolean) => (short ? `${Math.round(hours)} hours` : `${days(hours)} days`);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
+/** A card's rows in words, as the card describes itself: for a card drawn in a view, which the stage describes by its words. */
+const cardWords = (card: Card) => {
+  const seen = card.describe();
+  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
+};
 
 /** The script's one-sentence answer (meta.answer), which the new-rule step states. */
 const ANSWER = 'renew at a share of the certificate’s life, not a fixed time before expiry';
@@ -248,6 +255,12 @@ export default class CertRenewalExplainer extends Scene {
       life = LIFETIMES[key],
       short = key === '160h',
       s = stage(this, { style: STYLE, headingSize: 0.6 });
+    /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
+    const cardOf = async (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions) => {
+      const v = view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.08], describe: () => cardWords(v.current) });
+      return v;
+    };
     const mine = summarize(rule, key),
       theirs = summarize(other, key),
       byRule = { [rule]: mine, [other]: theirs } as Record<Rule, typeof mine>;
@@ -307,7 +320,6 @@ export default class CertRenewalExplainer extends Scene {
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
 
     // ----------------------------------------------------------------- margin
-    let marginPicture: Group | undefined;
     // The cause behind old-rule's answer: a 90-day certificate and this scenario's, drawn to one time scale and lined up
     // at expiry, each with the 30-day rule's due point counted back from its expiry. Where that point lies left of a
     // bar, the certificate is due from issue.
@@ -349,17 +361,26 @@ export default class CertRenewalExplainer extends Scene {
     });
     await chart.hide();
     await code.focus([7, 8]);
-    {
-      // The rows are the phone's opening, so their words are large enough to read when the rows fill a narrow stage;
-      // the words left of the bars, each row's share of its life, wait for the close-up tour.
-      const XE = 6.5,
-        perHour = 7.2 / LIFETIMES['90d'].hours,
-        xOf = (fromExpiry: number) => XE + fromExpiry * perHour,
+    // The rows' state first: the picture is a view of it.
+    this.state.margin = {
+      rows: rows.map(({ lifetime, hours, due, share }) => ({ lifetime, hours, due, share })),
+      renewsAt: renewsHere,
+    };
+    type MarginRow = (typeof rows)[number];
+    const marginState = (st: Record<string, unknown>) => st.margin as { rows: MarginRow[]; renewsAt: number };
+    // The rows are the phone's opening, so their words are large enough to read when the rows fill a narrow stage;
+    // the words left of the bars, each row's share of its life, wait for the close-up tour. The time scale is
+    // the 90-day certificate's, the same in every scenario.
+    const XE = 6.5,
+      perHour = 7.2 / LIFETIMES['90d'].hours,
+      xOfExpiry = (fromExpiry: number) => XE + fromExpiry * perHour;
+    const marginPicture = (st: Record<string, unknown>) => {
+      const marginRows = marginState(st).rows,
         size = 0.32,
         ink = s.palette.ink;
-      const row = (r: (typeof rows)[number], y: number) => {
-        const left = xOf(-r.hours),
-          dueX = xOf(-FIXED_INTERVAL),
+      const row = (r: MarginRow, y: number) => {
+        const left = xOfExpiry(-r.hours),
+          dueX = xOfExpiry(-FIXED_INTERVAL),
           yb = y - 0.4;
         const bar = new Rectangle({
           width: XE - left,
@@ -380,34 +401,29 @@ export default class CertRenewalExplainer extends Scene {
           new Text('30 days', { fontSize: size, color: s.bad }).moveTo([(dueX + XE) / 2, yb - 0.33]),
           new Text(marginWords(r), { fontSize: size, color: s.bad, anchor: 'end' }).moveTo([dueX - 0.15, yb], [1, 0]),
         );
-        const g = new Group(bar, name, bracket);
-        g.key = `margin:${r.lifetime}`;
-        return g;
+        return new Group(bar, name, bracket);
       };
-      const ys = rows.length === 1 ? [1.6] : [2.45, 0.78];
-      const subjects = rows.map((r, i) => row(r, ys[i]!));
-      const shares = rows.map((r, i) =>
+      const ys = marginRows.length === 1 ? [1.6] : [2.45, 0.78];
+      const subjects = marginRows.map((r, i) => keyed(row(r, ys[i]!), `margin:${r.lifetime}`));
+      const shares = marginRows.map((r, i) =>
         new Text(`30 days is ${ofLife(r.share, r.lifetime)}`, {
           fontSize: 0.24,
           color: s.soft,
           anchor: 'end',
-        }).moveTo([xOf(-LIFETIMES['90d'].hours) - 0.35, ys[i]!], [1, 0]),
+        }).moveTo([xOfExpiry(-LIFETIMES['90d'].hours) - 0.35, ys[i]!], [1, 0]),
       );
-      const picture = new Group(...subjects, ...shares);
-      picture.key = 'margin';
-      await s.enter(picture, {
-        describe: () =>
-          `${rows.length === 1 ? 'One certificate' : 'Two certificates'} drawn to one time scale and lined up at expiry, each with a red 30-day bracket counted back from its right-hand end: ${rows
-            .map((r) => `a ${named(r.lifetime)}, ${marginWords(r)}, 30 days being ${ofLife(r.share, r.lifetime)}`)
-            .join('; ')}.`,
-      });
-      s.opening(...subjects);
-      marginPicture = picture;
-    }
-    this.state.margin = {
-      rows: rows.map(({ lifetime, hours, due, share }) => ({ lifetime, hours, due, share })),
-      renewsAt: renewsHere,
+      return keyed(new Group(...subjects, ...shares), 'margin');
     };
+    const marginView = view(this, marginPicture, { place: false });
+    await s.enter(marginView, {
+      describe: () => {
+        const marginRows = marginState(this.state).rows;
+        return `${marginRows.length === 1 ? 'One certificate' : 'Two certificates'} drawn to one time scale and lined up at expiry, each with a red 30-day bracket counted back from its right-hand end: ${marginRows
+          .map((r) => `a ${named(r.lifetime)}, ${marginWords(r)}, 30 days being ${ofLife(r.share, r.lifetime)}`)
+          .join('; ')}.`;
+      },
+    });
+    s.opening(...marginState(this.state).rows.map((r) => this.find(`margin:${r.lifetime}`)!));
 
     // --------------------------------------------------------------- new-rule
     const payoff =
@@ -445,7 +461,7 @@ export default class CertRenewalExplainer extends Scene {
       caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
     });
     // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
-    await this.play(new FadeOut(marginPicture!, { runTime: 0.3 }));
+    await this.play(new FadeOut(marginView, { runTime: 0.3 }));
     const replaced = await s.show({ source: replacements }, { box: regionBox('top', { bottom: -0.25 }) });
     await code.morph(NEW_CODE);
     await code.focus([6, 9]);
@@ -478,30 +494,33 @@ export default class CertRenewalExplainer extends Scene {
           ? 'the next twice-daily run, under an hour later,'
           : `the next twice-daily run, at ${at(c.renewsAt, short)},`;
     };
+    // The strips are views of the year's runs: each step's state holds the run its strip draws, and the
+    // lifetime and window the axis is drawn to.
+    interface YearRun { rule: Rule; issued: number[]; refused: number[]; lifetime: LifetimeKey; window: number }
     const X0 = -6.6,
       X1 = 6.0,
-      xOf = (hours: number) => X0 + ((X1 - X0) * hours) / window;
+      xIn = (run: YearRun) => (hours: number) => X0 + ((X1 - X0) * hours) / run.window;
     const ink = s.palette.ink;
-    const axisMarks = (() => {
-      const marks: [number, string][] = [];
-      if (short) for (let d = 0; d <= 14; d += 2) marks.push([d * DAY, stamp(d * DAY).slice(8, 10) + ' Mar']);
+    const AXIS_Y = -1.9;
+    const axisLine = (run: YearRun) => {
+      const xOf = xIn(run),
+        marks: [number, string][] = [];
+      if (run.lifetime === '160h') for (let d = 0; d <= 14; d += 2) marks.push([d * DAY, stamp(d * DAY).slice(8, 10) + ' Mar']);
       else
         for (let m = 0; m <= 12; m += 1) {
           const hours = (Date.UTC(2028, 2 + m, 1) - BASE) / 3600e3;
-          if (hours <= window) marks.push([hours, new Date(BASE + hours * 3600e3).toUTCString().slice(8, 11)]);
+          if (hours <= run.window) marks.push([hours, new Date(BASE + hours * 3600e3).toUTCString().slice(8, 11)]);
         }
-      return marks;
-    })();
-    const AXIS_Y = -1.9;
-    const axisLine = new Group(
-      new Line([X0, AXIS_Y], [X1, AXIS_Y], { stroke: s.soft, strokeWidth: 0.02 }),
-      ...axisMarks.flatMap(([h, label]) => [
-        new Line([xOf(h), AXIS_Y], [xOf(h), AXIS_Y - 0.1], { stroke: s.soft, strokeWidth: 0.02 }),
-        new Text(label, { fontSize: 0.22, color: s.soft }).moveTo([xOf(h), AXIS_Y - 0.32]),
-      ]),
-    );
-    const strip = (r: Rule, y: number) => {
-      const run = perWindow(r);
+      return new Group(
+        new Line([X0, AXIS_Y], [X1, AXIS_Y], { stroke: s.soft, strokeWidth: 0.02 }),
+        ...marks.flatMap(([h, label]) => [
+          new Line([xOf(h), AXIS_Y], [xOf(h), AXIS_Y - 0.1], { stroke: s.soft, strokeWidth: 0.02 }),
+          new Text(label, { fontSize: 0.22, color: s.soft }).moveTo([xOf(h), AXIS_Y - 0.32]),
+        ]),
+      );
+    };
+    const strip = (run: YearRun, y: number) => {
+      const xOf = xIn(run);
       // The first certificate is grey; each later tick is a renewal.
       const ticks = run.issued.map((t, i) =>
         new Rectangle({ width: 0.07, height: 0.62, fill: i ? s.emphasis : s.soft, stroke: 'none' }).moveTo([xOf(t), y]),
@@ -510,7 +529,7 @@ export default class CertRenewalExplainer extends Scene {
         new Rectangle({ width: 0.07, height: 0.26, fill: s.bad, stroke: 'none' }).moveTo([xOf(t), y - 0.52]),
       );
       const base = new Line([X0, y - 0.31], [X1, y - 0.31], { stroke: s.soft, strokeWidth: 0.015 });
-      const name = new Text(RULES[r].name, { fontSize: 0.26, color: ink, weight: 'bold', anchor: 'start' }).moveTo(
+      const name = new Text(RULES[run.rule].name, { fontSize: 0.26, color: ink, weight: 'bold', anchor: 'start' }).moveTo(
         [X0, y + 0.62],
         [-1, 0],
       );
@@ -526,16 +545,18 @@ export default class CertRenewalExplainer extends Scene {
       );
       return new Group(base, ...ticks, ...refusals, name, total, unit);
     };
-    const words = (r: Rule) => {
-      const run = perWindow(r);
-      const renewals = run.issued.slice(1);
-      return `${RULES[r].name}: a first certificate on 1 March, then ${renewals.length} renewals in ${span}, at ${renewals
+    const words = (run: YearRun) => {
+      const renewals = run.issued.slice(1),
+        isShort = run.lifetime === '160h';
+      return `${RULES[run.rule].name}: a first certificate on 1 March, then ${renewals.length} renewals in ${isShort ? 'two weeks' : 'a year'}, at ${renewals
         .slice(0, 3)
-        .map((t) => at(t, short))
+        .map((t) => at(t, isShort))
         .join(', ')}${renewals.length > 3 ? ' and so on' : ''}${
         run.refused.length ? `; ${run.refused.length} runs refused, the first at hour ${run.refused[0]}` : ''
       }`;
     };
+    const yearRun = (st: Record<string, unknown>) => st.year as YearRun,
+      otherRun = (st: Record<string, unknown>) => ({ ...yearRun(st), ...(st.otherRule as Omit<YearRun, 'lifetime' | 'window'>) });
     const limitedGaps = (() => {
       const run = perWindow(rule),
         after = run.issued.filter((t) => run.refused.length && t > run.refused[0]!);
@@ -555,16 +576,20 @@ export default class CertRenewalExplainer extends Scene {
       }`,
     });
     await s.clear();
-    const upperStrip = strip(rule, 1.2);
-    await s.enter(axisLine, upperStrip, {
-      describe: () => `A ${span} axis from 1 March 2028 with one strip of ticks. ${words(rule)}`,
-    });
     this.state.year = {
       rule,
       issued: perWindow(rule).issued,
       refused: perWindow(rule).refused,
       renewalsPerYear: mine.renewalsPerYear,
+      lifetime: key,
+      window,
     };
+    const axisView = view(this, (st) => axisLine(yearRun(st)), { place: false }),
+      upperStrip = view(this, (st) => strip(yearRun(st), 1.2), { place: false });
+    await s.enter(axisView, upperStrip, {
+      describe: () =>
+        `A ${yearRun(this.state).lifetime === '160h' ? 'two weeks' : 'a year'} axis from 1 March 2028 with one strip of ticks. ${words(yearRun(this.state))}`,
+    });
 
     // ------------------------------------------------------------- other-rule
     const f30 = byRule.fixed30,
@@ -589,16 +614,17 @@ export default class CertRenewalExplainer extends Scene {
           : `Over 365 days ${RULES.fixed30.short} renews ${f30.renewalsPerYear} times and ${RULES.fraction.short} ${frac.renewalsPerYear}: ${compare}.`
       }`,
     });
-    const lowerStrip = strip(other, -0.55);
-    await s.enter(lowerStrip, { describe: () => `A second strip. ${words(other)}` });
-    // The step compares the two rules, so a phone's tour reads both strips, not only the new one.
-    s.opening(upperStrip, lowerStrip);
     this.state.otherRule = {
       rule: other,
       issued: perWindow(other).issued,
       refused: perWindow(other).refused,
       renewalsPerYear: theirs.renewalsPerYear,
     };
+    // The lower strip is drawn to the year's axis: the lifetime and window come from the year step's run.
+    const lowerStrip = view(this, (st) => strip(otherRun(st), -0.55), { place: false });
+    await s.enter(lowerStrip, { describe: () => `A second strip. ${words(otherRun(this.state))}` });
+    // The step compares the two rules, so a phone's tour reads both strips, not only the new one.
+    s.opening(upperStrip, lowerStrip);
 
     // ------------------------------------------------------------------ slack
     const limited = rule === 'fixed30' && mine.firstRefused != null;
@@ -687,16 +713,19 @@ export default class CertRenewalExplainer extends Scene {
     });
     await s.clear();
     await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), fontSize: 0.22 });
-    await s.card(
-      [
-        ['Names its predecessor, inside the window', 'no limit check'],
-        ['Anything else, Certbot 5.8 included', `${LIMIT.burst} per 7 days`],
-        ['Refused order', 'costs no token'],
-        ['Issued certificate', 'takes a token if one is left'],
-      ],
+    this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
+    await cardOf(
+      (st) => {
+        const { burst } = st.replaces as { burst: number };
+        return [
+          ['Names its predecessor, inside the window', 'no limit check'],
+          ['Anything else, Certbot 5.8 included', `${burst} per 7 days`],
+          ['Refused order', 'costs no token'],
+          ['Issued certificate', 'takes a token if one is left'],
+        ];
+      },
       { at: regionBox('full', { top: -1.5 }), width: 11 },
     );
-    this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
 
     // -------------------------------------------------------------------- ari
     // The window and the runs come from Boulder's RenewalInfoSimple and Certbot's draw (lib/cert-renewal.ts).
@@ -704,13 +733,6 @@ export default class CertRenewalExplainer extends Scene {
       when = (h: number) => (short ? `hour ${h.toFixed(1)}` : `day ${days(h)}`),
       pct = (p: number) => (p < 0.005 ? 'under 1%' : `${Math.round(p * 100)}%`),
       runList = ari.runs.map((r) => `${at(r.at, short)} (${pct(r.p)})`),
-      // The card says the unit once: "day 42 (<1%), 42.5 (39%), …".
-      runCard = ari.runs
-        .map(
-          (r, i) =>
-            `${i ? '' : short ? 'hour ' : 'day '}${short ? Math.round(r.at) : days(r.at)} (${r.p < 0.005 ? '<1%' : pct(r.p)})`,
-        )
-        .join(', '),
       listed =
         runList.length > 1 ? `${runList.slice(0, -1).join(', ')} or ${runList[runList.length - 1]}` : runList[0]!;
     // Under the 30-day rule a set renew_before_expiry can fire before the window opens.
@@ -735,14 +757,29 @@ export default class CertRenewalExplainer extends Scene {
     await s.clear();
     const ariCode = await s.code(ARI_CODE, { at: regionBox('full', { bottom: -1.0 }), fontSize: 0.22 });
     await ariCode.focus(settingFirst ? [10, 12] : [4, 9], { as: settingFirst ? 'the setting first' : 'a fresh draw' });
-    await s.card(
-      [
-        ['Window', `${when(ari.start)} to ${when(ari.end)}`],
-        ['Runs that renew', runCard],
-        ['Renewals in 365 days', `${yearly} (${mine.renewalsPerYear} with no answer)`],
-      ],
+    this.state.ari = {
+      start: ari.start,
+      end: ari.end,
+      runs: ari.runs,
+      perYear: ari.perYear,
+      lifetime: key,
+      withoutAnswer: mine.renewalsPerYear,
+    };
+    await cardOf(
+      (st) => {
+        const a = st.ari as typeof ari & { lifetime: LifetimeKey; withoutAnswer: number },
+          isShort = a.lifetime === '160h',
+          on = (h: number) => (isShort ? `hour ${h.toFixed(1)}` : `day ${days(h)}`),
+          share = (p: number) => (p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`),
+          [low, high] = a.perYear;
+        return [
+          ['Window', `${on(a.start)} to ${on(a.end)}`],
+          // The card says the unit once: "day 42 (<1%), 42.5 (39%), …".
+          ['Runs that renew', a.runs.map((r, i) => `${i ? '' : isShort ? 'hour ' : 'day '}${isShort ? Math.round(r.at) : days(r.at)} (${share(r.p)})`).join(', ')],
+          ['Renewals in 365 days', `${low === high ? `${low}` : `${low} ${high - low === 1 ? 'or' : 'to'} ${high}`} (${a.withoutAnswer} with no answer)`],
+        ];
+      },
       { at: regionBox('full', { top: -1.25 }), width: 11 },
     );
-    this.state.ari = { start: ari.start, end: ari.end, runs: ari.runs, perYear: ari.perYear };
   }
 }

@@ -39,8 +39,9 @@ export function check(trace: Trace, values: Record<string, string>): void {
       fraction: { due: share.due, renewsAt: share.renewsAt },
     },
   });
+  // The year's strips are views of these runs, so the state also holds the lifetime and window the axis is drawn to.
   assertStepState(trace, 'year', {
-    year: { rule, issued: run(rule).issued, refused: run(rule).refused, renewalsPerYear: mine.renewalsPerYear },
+    year: { rule, issued: run(rule).issued, refused: run(rule).refused, renewalsPerYear: mine.renewalsPerYear, lifetime: key, window },
   });
   assertStepState(trace, 'other-rule', {
     otherRule: { rule: other, issued: run(other).issued, refused: run(other).refused, renewalsPerYear: theirs.renewalsPerYear },
@@ -56,7 +57,10 @@ export function check(trace: Trace, values: Record<string, string>): void {
     },
   });
   const ari = ariSummary(rule, key);
-  assertStepState(trace, 'ari', { ari: { start: ari.start, end: ari.end, runs: ari.runs, perYear: ari.perYear } });
+  // The ARI card is a view of this state: the lifetime sets its units, and it gives the renewals with no ARI answer beside the window's.
+  assertStepState(trace, 'ari', {
+    ari: { start: ari.start, end: ari.end, runs: ari.runs, perYear: ari.perYear, lifetime: key, withoutAnswer: mine.renewalsPerYear },
+  });
   assertStepState(trace, 'replaces', { replaces: { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION } });
 
   // The headings say the model's counts.
