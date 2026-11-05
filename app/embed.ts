@@ -19,7 +19,7 @@ import { changeText, chromeFor, descriptionsLang, settingsProblem } from './embe
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { SENT, acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from './embed-live.ts';
-import type { Live, LogStart } from './embed-live.ts';
+import type { Live, LiveDraw, LiveRun, LiveSession, LogStart } from './embed-live.ts';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag);
@@ -903,12 +903,30 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
     const sink = new ReaderSink(container, sinkOptions(at, false), readerView, scope.signal, narrow);
     const drawn: Promise<SceneStateLike | undefined> = log.length && live
-      ? runLive(at.Scene, step, live.live.index, log, { sink, from: live.base.from }).then((run) => run.shown as SceneStateLike)
+      ? liveRun(at, live, log, { sink }).then((run) => run.shown as SceneStateLike)
       : renderAt(at.Scene, restingTime(step, at.trace.fps), sink).then(() => undefined);
     return drawn.then((shown) => {
       at.resting.set(key, clones(container.childNodes));
       if (shown) at.said.set(key, shown);
       return shown;
+    });
+  }
+  /**
+   * The run held at the picture of the reader's last log (runLive with `keep`), so a press that
+   * extends it plays only the new event instead of running the scene to the step again. Any other
+   * log (Undo, Reset, a link, another step) runs afresh and is held in its place.
+   */
+  let held: { at: Entry; step: string; from: LogStart; session: LiveSession } | null = null;
+  /** `log` at `now`'s step, drawn by `draw`: from the held run when `log` extends its log by one event, else a fresh run. */
+  function liveRun(at: Entry, now: LiveNow, log: readonly string[], draw: LiveDraw): Promise<LiveRun> {
+    const h = held, step = now.step;
+    if (h && h.at === at && h.step === step.step && h.from === now.base.from && h.session.open && !h.session.busy &&
+      log.length === h.session.log.length + 1 && h.session.log.every((e, i) => e === log[i]))
+      return h.session.send(log.at(-1)!, draw);
+    return runLive(at.Scene, step, now.live.index, log, { ...draw, from: now.base.from, keep: true }).then((run) => {
+      held?.session.close();
+      held = run.session ? { at, step: step.step, from: now.base.from, session: run.session } : null;
+      return run;
     });
   }
   /** Why an event is not sent: the story's bound, the model's reason, or that it is not possible here. */
@@ -1011,8 +1029,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       let shown: SceneStateLike | undefined;
       if (animated && log.length) {
         const sink = new ReaderSink(container, sinkOptions(at, true), readerView, scope.signal, narrow);
-        const run = yield* wait(runLive(at.Scene, step, now.live.index, log, {
-          animate: sink, from: now.base.from,
+        const run = yield* wait(liveRun(at, now, log, {
+          animate: sink,
           onStart: () => { stage.replaceChildren(...container.childNodes); zoom.apply(); },
         }));
         shown = run.shown as SceneStateLike;

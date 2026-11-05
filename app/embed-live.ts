@@ -106,6 +106,31 @@ export interface LiveRun {
   rest: object;
   /** What the scene shows after the log (`describeShown()`), for the stage's description. */
   shown: SceneState;
+  /** With `keep`, the run held at this picture, to play the reader's next event from it. */
+  session?: LiveSession;
+}
+
+/** How a kept run's next event is drawn: as `runLive` draws a log's last event. */
+export interface LiveDraw {
+  sink?: Sink;
+  animate?: Sink;
+  onStart?: () => void;
+}
+/**
+ * A live run held at the picture its log lands on (`runLive` with `keep`). `send` plays one more
+ * event from there, as a fresh run of the longer log would play its last event, without running
+ * the scene to the step again. A send that fails (a sink aborted mid-play, say) closes the
+ * session, since its scene may have stopped part-way; start a fresh run then.
+ */
+export interface LiveSession {
+  /** The events played so far, from where the log starts. */
+  readonly log: readonly string[];
+  /** False once closed or failed. */
+  readonly open: boolean;
+  /** True while a send plays. */
+  readonly busy: boolean;
+  send(event: string, draw?: LiveDraw): Promise<LiveRun>;
+  close(): void;
 }
 
 /**
@@ -115,6 +140,7 @@ export interface LiveRun {
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
  * before it (drawn at dt 0, after which `onStart` is called), and then lands. `onRest` sees the
  * scene at the step's resting picture, before any event (the review compares a state with it).
+ * With `keep`, the run is held at the picture the log lands on, as the result's `session`.
  *
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
  * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
@@ -127,10 +153,14 @@ export async function runLive(
   times: LiveStepTimes,
   index: number,
   log: readonly string[],
-  { sink, animate, onStart, onRest, from = 'rest' }: { sink?: Sink; animate?: Sink; onStart?: () => void; onRest?: (scene: Scene<any>) => void; from?: LogStart } = {},
+  { sink, animate, onStart, onRest, from = 'rest', keep = false }: LiveDraw & { onRest?: (scene: Scene<any>) => void; from?: LogStart; keep?: boolean } = {},
 ): Promise<LiveRun> {
   const end = times.hold ?? times.t1 ?? Infinity;
   let result: LiveRun | undefined;
+  // A kept run waits in the step for the next event; `wake` hands it one, or null to stop.
+  type Command = { event: string; draw: LiveDraw; done: (run: LiveRun) => void; failed: (error: unknown) => void };
+  let wake: ((command: Command | null) => void) | null = null, held!: () => void;
+  const holding = new Promise<void>((resolve) => (held = resolve));
   const Base = Source as unknown as new (sink: Sink, opts?: { skipUntil?: number }) => Scene<any>;
   class Live extends Base {
     reached = false;
@@ -158,6 +188,36 @@ export async function runLive(
       const drawn = animate ?? sink;
       if (drawn) await drawn.frame(this, 0);
       result = { scene: this, machine, rest, shown: this.describeShown() };
+      if (!keep) throw new StopScene();
+      const kept = (result.session = session(log));
+      // A session closed while it played lets the run end once that play is done.
+      while (kept.open) {
+        const command = await new Promise<Command | null>((resolve) => {
+          wake = resolve;
+          held();
+        });
+        if (!command) break;
+        const { event, draw } = command;
+        try {
+          // As a fresh run plays a log's last event: animated from the picture now, or skipped, then drawn.
+          if (draw.animate) {
+            this.sink = draw.animate;
+            this.skipUntil = 0;
+            await draw.animate.frame(this, 0);
+            draw.onStart?.();
+          } else {
+            this.sink = new NullSink();
+            this.skipUntil = Infinity;
+          }
+          await this.play(machine.send(event));
+          const landing = draw.animate ?? draw.sink;
+          if (landing) await landing.frame(this, 0);
+          command.done({ scene: this, machine, rest, shown: this.describeShown() });
+        } catch (error) {
+          command.failed(error);
+          break;
+        }
+      }
       throw new StopScene();
     }
     private due(): boolean {
@@ -177,7 +237,36 @@ export async function runLive(
       return super.endCurrentStep();
     }
   }
-  await new Live(new NullSink(), { skipUntil: Infinity }).run();
+  function session(played: readonly string[]): LiveSession {
+    const s = {
+      log: [...played] as readonly string[],
+      open: true,
+      busy: false,
+      send(event: string, draw: LiveDraw = {}): Promise<LiveRun> {
+        if (!s.open || s.busy || !wake) return Promise.reject(new Error('This live session is closed or busy; start a fresh run'));
+        s.busy = true;
+        const go = wake;
+        wake = null;
+        return new Promise<LiveRun>((done, failed) => go({ event, draw, done, failed })).then(
+          (run) => { s.busy = false; s.log = [...s.log, event]; return run; },
+          (error: unknown) => { s.busy = false; s.open = false; throw error; },
+        );
+      },
+      close() {
+        s.open = false;
+        const go = wake;
+        wake = null;
+        go?.(null);
+      },
+    };
+    return s;
+  }
+  const running = new Live(new NullSink(), { skipUntil: Infinity }).run();
+  if (keep) {
+    // The run stays in the step; it is enough that it got there.
+    void running.catch(() => {});
+    await Promise.race([holding, running]);
+  } else await running;
   if (!result) throw new Error(`The scene never reached the step "${times.step}"`);
   return result;
 }

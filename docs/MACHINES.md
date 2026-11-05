@@ -194,15 +194,16 @@ it (`logStart` in `app/embed-live.ts`).
 
 **The events are the reader's state, and sit in the URL.** A press appends the event to a log,
 written beside the step as `sent=push,push,pop` (commas between events, a space as `+`, a colon
-kept: `sent=open+B:+goat,stay`; `sent` is a reserved setting id). The picture of a log is the
-scene run again to the step's resting picture, then the log played through `machine.send` with
-every frame skipped (`runLive`); a press plays its last event frame by frame from the picture of
-the log before it. A fresh load of the URL runs the same, all skipped, so a link reopens the same
-picture, and seeking keeps its guarantee: a frame is a function of time and of the log. The run
-stops in the live step as soon as its picture stops changing (at the end of the play or wait
-that reaches the step's hold, or as the step ends), so code a scene runs between its last play
-and its next step never reaches the reader's stage. The machine plays under what the scene
-showed when it played, as exploration draws it.
+kept: `sent=open+B:+goat,stay`; `sent` is a reserved setting id). The picture of a log is the scene
+run again to the step's resting picture, then the log played through `machine.send` with every
+frame skipped (`runLive`); a press plays its last event frame by frame from the picture of the log
+before it, from a run held there when there is one ([what a press costs](#the-player)). A fresh
+load of the URL runs the same, all skipped, so a link reopens the same picture, and seeking keeps
+its guarantee: a frame is a function of time and of the log. The run stops in the live step as soon
+as its picture stops changing (at the end of the play or wait that reaches the step's hold, or as
+the step ends), so code a scene runs between its last play and its next step never reaches the
+reader's stage. The machine plays under what the scene showed when it played, as exploration draws
+it.
 
 A link's events are checked against the machine before anything is drawn: the longest prefix it
 takes is replayed, and a notice names the first event it refused or that is past where the story
@@ -239,15 +240,53 @@ and the reader's views showing what the events newly emphasised, else the artwor
 whole and unclipped), that the buttons are what `outcome` gives, and that every label the whole
 picture paints reads at least 14 px as at a 1280 px stage, measured from the served page's own
 transform. For the nine machines that is 107 states over 21 live steps and every scenario, 214
-visits, adding about three minutes to the catalog review (about a minute a shard) and, for
-ring-buffer's two scenarios, about 25 seconds to `rayner review`. A label drawn tiny only in a
+visits: the catalog review of those nine explainers took 7 min 13 s, 181 s of it the live states
+(about a minute for each of CI's three shards), and ring-buffer's `rayner review` went from 44 s
+to 75 s. The first state at each width opens as a fresh load of its link and the rest through the
+history, as Back reaches them, which draws the same picture at a third of the time. A label drawn tiny only in a
 state an event reaches fails it (`test/browser/explain-live-review.test.ts`, the deliberate
 defect); `rayner check` fails the same label first, in Node.
 
+**What a press costs.** Running the scene again to the step is most of a press's cost: the
+events themselves take a few milliseconds each. So the player holds the run at the picture of the
+reader's last log (`runLive` with `keep`, its `session`), and a press that extends that log by one
+event plays only the new event from the held picture, exactly as a fresh run of the longer log
+plays its last event. The first press at a step, Undo, Reset, Back and a link run afresh, and the
+run they make is held in its turn. A held run whose play was cut short (a press during a play) is
+dropped, since its scene may have stopped part-way. `test/embed-live.test.ts` checks that a held
+run's every frame is the fresh run's, and `test/browser/explain-live.test.ts` that pictures
+reached by pressing, now through held runs, are the ones a fresh load of the link draws.
+
+`node tools/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
+default scenario it presses six events in Chromium at 1280 × 900 (after one unmeasured press),
+each press extending the log, with Reset where no event goes on, and times each from the click to
+the first new picture on the stage (the animation starting), to the landing, and to the landing
+with motion reduced; in Node it times `runLive` of the same logs, no frame drawn. Median / worst
+in milliseconds, on a shared 4-core container (load about 3), before and after holding the run;
+4× is Chromium's CPU throttling, a stand-in for a phone:
+
+| Live step | Node: run to the step and the log | First frame, before: 1× / 4× | First frame, held: 1× / 4× | Reduced motion, landed, held: 4× |
+| --- | --- | --- | --- | --- |
+| `ring-buffer` `result` | 139 / 194 | 127 / 144 · 579 / 625 | 10 / 37 · 31 / 53 | 93 / 112 |
+| `state-machine` `terminal` | 110 / 127 | 102 / 128 · 521 / 629 | 7 / 16 · 22 / 43 | 50 / 79 |
+| `statecharts` `parent` | 103 / 183 | 95 / 114 · 403 / 651 | 6 / 17 · 20 / 25 | 57 / 67 |
+| `statecharts` `frother` | 166 / 213 | 170 / 196 · 600 / 947 | 14 / 17 · 25 / 45 | 54 / 107 |
+| `token-bucket` `later` | 190 / 220 | 124 / 194 · 647 / 668 | 5 / 9 · 18 / 29 | 46 / 83 |
+| `monty-hall` `choice` | 23 / 30 | 27 / 35 · 151 / 292 | 12 / 22 · 41 / 79 | 19 / 57 |
+| `latest-search` `overwrite` | 29 / 41 | 31 / 35 · 137 / 197 | 8 / 40 · 21 / 110 | 38 / 59 |
+| `latest-search` `reader-guard` | 89 / 167 | 78 / 93 · 327 / 515 | 7 / 89 · 17 / 267 | 19 / 52 |
+| `oauth-pkce` `any-order` | 147 / 168 | 139 / 173 · 509 / 657 | 12 / 159 · 27 / 479 | 76 / 555 |
+| `just-bash` `lesson` | 138 / 157 | 117 / 168 · 519 / 822 | 13 / 18 · 29 / 40 | 59 / 95 |
+| `python-dict` `broken` | 42 / 49 | 49 / 70 · 249 / 289 | 11 / 16 · 19 / 28 | 55 / 100 |
+| `python-dict` `missing` | 84 / 91 | 74 / 106 · 347 / 401 | 13 / 16 · 26 / 39 | 42 / 54 |
+
+Before, every press ran the scene again, and at 4× six of the twelve steps took over half a second
+to start moving (ring-buffer, state-machine, frother, token-bucket, oauth-pkce, just-bash). Held,
+a press starts in tens of milliseconds; the worsts left are the presses after a Reset, which run
+afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's own motion on top:
+0.8 to 2.1 s, which is authored, not overhead.
+
 **Not done.**
-- Each press runs the scene again to the step before the event starts to move: from about 10 to
-  250 ms in Node for these nine. Keeping a run suspended at the step would avoid it, at the cost
-  of a second way to reach a picture.
 - The [benchmark](../bench/explainers/README.md) has not been re-run with the buttons.
 - An event whose name has a comma cannot be written in a link.
 

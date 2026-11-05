@@ -150,6 +150,48 @@ test('a live run stops at the step’s resting picture, plays the log there, and
   await assert.rejects(runLive(Lamp, { step: 'nowhere', t1: 1 }, 0, []), /never reached/);
 });
 
+test('a kept run plays the next event from its picture, landing where a fresh run of the longer log lands', async () => {
+  let ranAfter = 0;
+  const Lamp = lampScene({ after: () => { ranAfter++; } });
+  const press = (await traceScene(Lamp)).steps.find((s) => s.step === 'press')!;
+  ranAfter = 0;
+  const kept = await runLive(Lamp, press, 0, ['UP'], { keep: true });
+  const session = kept.session!;
+  assert.deepEqual([session.log, session.open, session.busy], [['UP'], true, false]);
+  // Skipped, then drawn: the picture of the fresh run of the same log.
+  const a = new StringSink(), fresh = new StringSink();
+  const down = await session.send('DOWN', { sink: a });
+  await runLive(Lamp, press, 0, ['UP', 'DOWN'], { sink: fresh });
+  assert.deepEqual(down.scene.state, { level: 1 });
+  assert.equal(svgOf(a), svgOf(fresh));
+  assert.deepEqual(session.log, ['UP', 'DOWN']);
+  // Animated: frame by frame from the picture now, onStart after the first, landing on the fresh run's picture.
+  const frames: string[] = [], animated = new StringSink(), freshAnimated = new StringSink();
+  let started = 0;
+  const counting: Sink = { frame: async (scene, dt) => { frames.push(String(dt)); return animated.frame(scene); } };
+  const up = await session.send('UP', { animate: counting, onStart: () => { started = frames.length; } });
+  await runLive(Lamp, press, 0, ['UP', 'DOWN', 'UP'], { animate: freshAnimated });
+  assert.equal(started, 1);
+  assert.equal(animated.frames[0], svgOf(a), 'the animation starts from the picture the session held');
+  assert.deepEqual(animated.frames, freshAnimated.frames, 'every frame is the fresh run’s');
+  assert.match(JSON.stringify(up.shown), /lamp bright/);
+  assert.equal(ranAfter, 0, 'a kept run stays in the step');
+  // A refused event fails the send and closes the session; so does close().
+  await assert.rejects(session.send('UP'), /refused/);
+  assert.equal(session.open, false);
+  await assert.rejects(session.send('DOWN'), /closed or busy/);
+  const other = (await runLive(Lamp, press, 0, [], { keep: true })).session!;
+  other.close();
+  assert.equal(other.open, false);
+  await assert.rejects(other.send('UP'), /closed or busy/);
+  // One event at a time.
+  const third = (await runLive(Lamp, press, 0, [], { keep: true })).session!;
+  const first = third.send('UP');
+  await assert.rejects(third.send('DOWN'), /closed or busy/);
+  await first;
+  third.close();
+});
+
 test('an event is announced by what it changed of the picture', () => {
   const at = (...entries: object[]) => ({ picture: { entries } });
   assert.equal(pictureChange(at({ what: 'A lamp, dim', items: [] }, { what: 'Code' }), at({ what: 'A lamp, bright', marked: { lit: ['bulb'] }, items: [] }, { what: 'Code' })), 'A lamp, bright, bulb (lit)');
