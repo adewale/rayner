@@ -76,7 +76,7 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
 });
 
 test('legend draws swatches with words, keyed by label, describes itself as its swatch→meaning pairs, and matches s.legend', async () => {
-  const { Scene, NullSink, loadFonts } = await import('../src/index.ts');
+  const { Scene } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
   const s = stage(new Scene(new NullSink()));

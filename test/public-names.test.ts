@@ -33,7 +33,7 @@ test('the rule rejects a name with no reason, a stale reason and an entry for a 
   };
   assert.match(await found((l) => delete l.names['rayner']!['Scene']), /Scene \(rayner\) has no reason to be public/);
   assert.match(await found((l) => (l.names['rayner']!['Gone'] = { reason: 'used' })), /Gone \(rayner\) is in test\/public-names\.json but rayner does not export it/);
-  assert.match(await found((l) => (l.names['rayner']!['Brace'] = { reason: 'used' })), /Brace \(rayner\) is said to be used, but no explainer/);
+  assert.match(await found((l) => (l.names['rayner']!['Frame'] = { reason: 'used' })), /Frame \(rayner\) is said to be used, but no explainer/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { reason: 'taught', guide: 'docs/EMPHASIS.md#no-such-section', test: 'test/emphasis.test.ts' })), /docs\/EMPHASIS\.md has no section #no-such-section/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { reason: 'taught', guide: 'docs/EMPHASIS.md#circumscribe', test: 'test/emphasis.test.ts' })), /docs\/EMPHASIS\.md#circumscribe does not mention it/);
   assert.match(await found((l) => (l.names['rayner']!['Brace'] = { reason: 'taught', guide: 'docs/EMPHASIS.md#the-shapes', test: 'test/no-such.test.ts' })), /its test test\/no-such\.test\.ts does not exist/);
@@ -59,6 +59,7 @@ test('the tables cannot claim what their scenes do not do', async () => {
   // A feature row's "used by" is computed, so a scene that stops using a name drops out of it.
   const before = rendered(ledger, ROOT, u), after = rendered(ledger, ROOT, { ...u, names: new Map([...u.names].map(([e, m]) => [e, new Map([...m].map(([n, s]) => [n, new Set([...s].filter((x) => x !== 'mr-cache'))]))])), code: new Map([...u.code].filter(([k]) => k !== 'mr-cache')) });
   const reference = [...before.keys()].find((f) => f.endsWith('REFERENCE.md'))!;
-  assert.ok(before.get(reference)!.includes('`TransformDiff`: `mr-cache`'));
-  assert.ok(after.get(reference)!.includes('no explainer yet: `TransformDiff`'));
+  const usersOfDiff = /`TransformDiff`: [^;|]*`mr-cache`/;
+  assert.match(before.get(reference)!, usersOfDiff);
+  assert.doesNotMatch(after.get(reference)!, usersOfDiff);
 });

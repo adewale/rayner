@@ -11,9 +11,7 @@
         "reason": "used"
       },
       "ArcBetweenPoints": {
-        "reason": "taught",
-        "guide": "docs/ENGINE.md#public-names",
-        "test": "test/core.test.ts"
+        "reason": "used"
       },
       "Arrow": {
         "reason": "used"
@@ -22,9 +20,7 @@
         "reason": "used"
       },
       "Brace": {
-        "reason": "taught",
-        "guide": "docs/EMPHASIS.md#the-shapes",
-        "test": "test/emphasis.test.ts"
+        "reason": "used"
       },
       "BraceLabel": {
         "reason": "used"
@@ -91,9 +87,7 @@
         "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
       },
       "MathTex": {
-        "reason": "taught",
-        "guide": "docs/REFERENCE.md#maths",
-        "test": "test/lettering-styles.test.ts",
+        "reason": "used",
         "check": "Glyphs: a formula the lettering snapshot does not hold fails every command"
       },
       "Mobject": {
@@ -101,14 +95,10 @@
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
       "MoveAlongPath": {
-        "reason": "taught",
-        "guide": "docs/CHOREOGRAPHY.md#pulsealongpath",
-        "test": "test/verify.test.ts"
+        "reason": "used"
       },
       "NumberLine": {
-        "reason": "taught",
-        "guide": "docs/GRAPHING.md#numberline",
-        "test": "test/graphing.test.ts"
+        "reason": "used"
       },
       "Polygon": {
         "reason": "used"
@@ -153,14 +143,10 @@
         "reason": "used"
       },
       "TransformFromCopy": {
-        "reason": "taught",
-        "guide": "docs/ANIMATIONS.md#transformfromcopy-derive-one-thing-from-another",
-        "test": "test/anim-utils.test.ts"
+        "reason": "used"
       },
       "TransformMatching": {
-        "reason": "taught",
-        "guide": "docs/MATCHING.md#which-key",
-        "test": "test/matching.test.ts"
+        "reason": "used"
       },
       "TransformMatchingShapes": {
         "reason": "used",
@@ -171,9 +157,7 @@
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
       "Underline": {
-        "reason": "taught",
-        "guide": "docs/EMPHASIS.md#the-shapes",
-        "test": "test/emphasis.test.ts"
+        "reason": "used"
       },
       "VMobject": {
         "reason": "used"
@@ -183,18 +167,14 @@
         "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       },
       "Write": {
-        "reason": "taught",
-        "guide": "docs/ENGINE-FUNDAMENTALS.md#geometry-and-paint",
-        "test": "test/code-spans.test.ts"
+        "reason": "used"
       },
       "choreograph": {
         "reason": "used",
         "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
       },
       "diffLines": {
-        "reason": "taught",
-        "guide": "docs/MATCHING.md#diff-driven",
-        "test": "test/diff.test.ts"
+        "reason": "used"
       },
       "isRefusal": {
         "reason": "used"
@@ -210,36 +190,26 @@
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
       "parseUnifiedDiff": {
-        "reason": "taught",
-        "guide": "docs/MATCHING.md#diff-driven",
-        "test": "test/diff.test.ts"
+        "reason": "used"
       },
       "refuse": {
         "reason": "used",
         "check": "Machines: a bound that stops an event the model refuses anyway fails"
       },
       "rushFrom": {
-        "reason": "taught",
-        "guide": "docs/ENGINE.md#public-names",
-        "test": "test/manim.test.ts"
+        "reason": "used"
       },
       "rushInto": {
-        "reason": "taught",
-        "guide": "docs/ENGINE.md#public-names",
-        "test": "test/manim.test.ts"
+        "reason": "used"
       },
       "shaperFor": {
         "reason": "used"
       },
       "smooth": {
-        "reason": "taught",
-        "guide": "docs/ENGINE.md#public-names",
-        "test": "test/manim.test.ts"
+        "reason": "used"
       },
       "thereAndBack": {
-        "reason": "taught",
-        "guide": "docs/ENGINE.md#public-names",
-        "test": "test/manim.test.ts"
+        "reason": "used"
       },
       "view": {
         "reason": "used",
@@ -265,10 +235,11 @@
       "diagramsOf": {
         "reason": "used"
       },
+      "mermaid": {
+        "reason": "used"
+      },
       "palette": {
-        "reason": "taught",
-        "guide": "docs/REFERENCE.md#stage",
-        "test": "test/explain-stage-tools.test.ts"
+        "reason": "used"
       },
       "regionBox": {
         "reason": "used"
@@ -290,14 +261,10 @@
     },
     "rayner/drawing": {
       "bars": {
-        "reason": "taught",
-        "guide": "docs/REFERENCE.md#drawing-kit",
-        "test": "test/lesson-layout.test.ts"
+        "reason": "used"
       },
       "between": {
-        "reason": "taught",
-        "guide": "docs/REFERENCE.md#3d-seenfrommodel-viewpoint",
-        "test": "test/seen-from.test.ts"
+        "reason": "used"
       },
       "callout": {
         "reason": "used"
@@ -335,10 +302,12 @@
       "latLon": {
         "reason": "used"
       },
+      "legend": {
+        "reason": "used",
+        "check": "Looks: a caption or line naming a colour or pattern that no word on the stage says fails; a legend that keys the look answers it"
+      },
       "pin": {
-        "reason": "taught",
-        "guide": "docs/REFERENCE.md#drawing-kit",
-        "test": "test/drawing.test.ts"
+        "reason": "used"
       },
       "project": {
         "reason": "used"
