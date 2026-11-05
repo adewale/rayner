@@ -5,13 +5,15 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { STARTER_FILES, packageImports } from '../tools/lib/explain-init.ts';
+import { MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/lib/explain-init.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import type { Picture } from '../explain/trace.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
 // The tutorial's own model tests: Wikipedia's worked LRU and MRU examples.
 import '../scenes/tutorial/lru-mru/model.test.ts';
+// The machine starter's model tests: every event from every state, and every refusal's reason.
+import '../scenes/tutorial/door/model.test.ts';
 
 const DIR = 'scenes/tutorial/lru-mru/';
 const tutorial = readFileSync('docs/TUTORIAL.md', 'utf8');
@@ -35,6 +37,40 @@ test('`rayner init` writes the tutorial\'s explainer, and the tutorial prints wh
   } finally {
     await rm(folder, { recursive: true, force: true });
   }
+});
+
+test('`rayner init --machine` writes the machine starter, and `rayner check` passes it as written', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-init-machine-'));
+  try {
+    const dir = join(folder, 'door');
+    execFileSync(process.execPath, ['tools/explain.ts', 'init', '--machine', dir], { stdio: 'pipe' });
+    assert.deepEqual((await readdir(dir)).sort(), [...MACHINE_STARTER_FILES].sort());
+    for (const file of MACHINE_STARTER_FILES) {
+      const written = readFileSync(join(dir, file), 'utf8');
+      assert.equal(written, packageImports(readFileSync('scenes/tutorial/door/' + file, 'utf8')), `${file} is the checked-in file with package imports`);
+      assert.doesNotMatch(written, /\.\.\/\.\.\/\.\.\//, `${file} has no repository imports`);
+    }
+    // What it starts from: a model that refuses with reasons, a view of the state, and a live last step.
+    assert.match(readFileSync(join(dir, 'model.ts'), 'utf8'), /refuse\('the door is locked, so unlock it first'\)/);
+    const report = JSON.parse(execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', join(folder, 'checks')], { encoding: 'utf8' }));
+    const scenario = report.scenarios[0];
+    assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
+    assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');
+    // An option for init alone.
+    assert.throws(() => execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--machine'], { stdio: 'pipe' }), /--machine is for init/);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('the machine starter is live at its last step, from a state that refuses open with its reason and takes unlock', async () => {
+  const project = await collectProject('scenes/tutorial/door/', { write: false });
+  const [scenario] = project.scenarios;
+  const live = scenario!.live!.get('locked')!;
+  assert.deepEqual([...scenario!.live!.keys()], ['locked']);
+  assert.deepEqual(live.machine.outcome({ door: 'locked' }, 'open'), { refused: 'the door is locked, so unlock it first' });
+  assert.deepEqual(live.machine.outcome({ door: 'locked' }, 'unlock'), { next: { door: 'closed' } });
+  assertStepState(scenario!.trace, 'locked', { door: 'locked' });
 });
 
 const SEQ = { loop: [...'ABCDABCD'], reuse: [...'ABCDCDCD'] };

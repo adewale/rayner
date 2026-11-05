@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { Machine, NullSink, Scene } from '../../src/index.ts';
 import { collectProject } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
@@ -113,6 +114,19 @@ test('rayner review visits the live states and records them in its receipt', opt
     assert.equal(result.liveStateWidths, 4);
     assert.deepEqual(result.results[0]!.live!.map((s) => [s.step, s.sent, s.width]), [['press', ['UP'], 390], ['press', ['DOWN'], 390], ['press', ['UP'], 1180], ['press', ['DOWN'], 1180]]);
     assert.deepEqual(JSON.parse(await readFile(join(dir, 'review/review.json'), 'utf8')).results[0].live, result.results[0]!.live);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('`rayner init --machine` writes a scene that `rayner review` passes as written, live states included', options, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rayner-init-machine-review-'));
+  try {
+    execFileSync(process.execPath, ['tools/explain.ts', 'init', '--machine', join(dir, 'door')], { stdio: 'pipe' });
+    const result = await reviewScene(await collectProject(join(dir, 'door'), { write: false }), join(dir, 'review'));
+    // From the locked door one press (unlock) reaches closed, and a second (open) the open door: two states, both widths.
+    assert.deepEqual(result.results[0]!.live!.map((s) => [s.sent.join(','), s.width]), [['unlock', 390], ['unlock,open', 390], ['unlock', 1180], ['unlock,open', 1180]]);
+    for (const s of result.results[0]!.live!.filter((s) => s.width === 390)) assert.ok(s.changedLabelPx! >= 12, `${s.sent}: what the press changed reads at ${s.changedLabelPx} px on a phone`);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

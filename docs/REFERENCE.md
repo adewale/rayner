@@ -537,7 +537,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 
 | Command | What it does |
 | --- | --- |
-| `init <directory>` | Write the tutorial's explainer: `scene.ts` with one setting, its model `model.ts`, and `model.test.ts`, which tests the model against published examples |
+| `init <directory>` | Write the tutorial's explainer: `scene.ts` with one setting, its model `model.ts`, and `model.test.ts`, which tests the model against published examples. With `--machine`, write a [machine](MACHINES.md) explainer instead (a door that opens, closes, locks and unlocks): `model.ts`, whose `next` refuses events with `refuse(reason)`; `model.test.ts`, which pins every event from every state and every reason; `scene.ts`, a view of the state and a machine whose last step is live; and `scene.review.json`. It passes `check` and `review` as written |
 | `preview <scene>` | Build and serve the page; use `shots` for a contact sheet |
 | `snapshots <scene>` | Capture and verify diagrams; replay morph edits |
 | `check <scene>` | The checks above |
@@ -554,6 +554,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `--scenario id=value` | `shots`, `see` | One scenario; repeat for several settings |
 | `--port <n>` | `preview` | Default 5174 |
 | `--watch` | `preview` | Rebuild the page when a source file changes; reload the browser to see it |
+| `--machine` | `init` | Write the machine starter instead of the tutorial's explainer |
 
 `CHROMIUM_EXECUTABLE_PATH` selects a Chromium for capture; otherwise it is looked up in `PLAYWRIGHT_BROWSERS_PATH` and Playwright's cache. If an authoring package is missing, the command prints the line that installs it.
 

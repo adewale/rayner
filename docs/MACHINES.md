@@ -7,6 +7,11 @@ where the machine last played the player gives the reader a button per event
 
 ## Making one
 
+`rayner init --machine <directory>` writes one to start from: a door that opens, closes, locks
+and unlocks, whose model refuses with reasons, with the model's test, a view of the state, a live
+last step and the review's subjects (`scenes/tutorial/door`). It passes `rayner check` and
+`rayner review` as written.
+
 ```ts
 import { Machine } from 'rayner';
 
