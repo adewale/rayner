@@ -53,15 +53,6 @@
       ]
     },
     {
-      "step": "growth",
-      "opening": true,
-      "targets": [
-        {
-          "key": "birthday-growth"
-        }
-      ]
-    },
-    {
       "step": "exact",
       "opening": true,
       "targets": [

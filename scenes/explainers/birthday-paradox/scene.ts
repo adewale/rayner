@@ -2,7 +2,7 @@ import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
-import { label, tile, table, stat } from '../lib/lesson-drawing.ts';
+import { label, tile, stat } from '../lib/lesson-drawing.ts';
 import { staged } from '../lib/staged.ts';
 
 const pct = (p: number) => (100 * p).toFixed(1) + '%';
@@ -126,6 +126,8 @@ export default class BirthdayParadox extends Scene {
       return g;
     };
     const shared = m.shared.map((d) => d.date);
+    const five = m.growth.find((r) => r.people === 5)!,
+      ten = m.growth.find((r) => r.people === 10)!;
     const frames: StagedStep[] = [
       staged({
         id: 'room',
@@ -180,14 +182,14 @@ export default class BirthdayParadox extends Scene {
           n === m.even
             ? `${m.pairs} squares: the number of comparisons your own even chance needed.`
             : `Your column of ${m.others} is one edge of a triangle of ${m.pairs}.`,
-        caption: `Each newcomer can match everyone already in the room. Each card adds a row with one square for every card before it, building a triangle of ${m.pairs} pairs instead of your column of ${m.others}. ${
+        caption: `Each newcomer can match everyone already there, so each card adds a row with one square for every card before it: ${m.pairs} pairs, against your column of ${m.others}. Pairs outgrow people: doubling a room from ${five.people} to ${ten.people} takes its pairs from ${five.pairs} to ${ten.pairs}. ${
           m.matchedPairs.length
-            ? `The ${words[m.matchedPairs.length] ?? m.matchedPairs.length} red squares are this room’s matches, the pairs that drew ${list(shared)}.`
-            : `No square pairs two cards with the same date in this room.`
-        } Across all rooms of ${n}, at least one pair matches with chance ${pct(m.chance)}. ${
+            ? `The red squares are this room’s matches, on ${list(shared)}.`
+            : `No square here pairs two cards with the same date.`
+        } ${
           n === m.even
-            ? `Here the room makes the ${m.evenPairs} comparisons you would need alone by sharing them among ${n} people.`
-            : `A room of ${m.even} makes ${m.evenPairs} pairs: enough comparisons for a better than even chance of a match under these assumptions.`
+            ? `The room shares among ${n} people the ${m.evenPairs} comparisons you would need alone.`
+            : `A room of ${m.even} makes ${m.evenPairs} pairs, enough for a better than even chance.`
         }`,
         state: {
           people: n,
@@ -200,6 +202,8 @@ export default class BirthdayParadox extends Scene {
           matchedPairs: m.matchedPairs,
           // The dates the matched pairs share, which the footer names.
           sharedDates: shared,
+          // The doubling the caption quotes, from the model's table of room sizes.
+          doubling: [five, ten],
         },
         draw: (st, s) =>
           pairGrid(s, {
@@ -213,53 +217,6 @@ export default class BirthdayParadox extends Scene {
               : `One square per pair: ${st.people} × ${st.people - 1} / 2 = ${st.pairs}`,
           }),
         opening: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
-      }),
-      staged({
-        id: 'growth',
-        kind: 'detail',
-        title: 'Each newcomer pairs with everyone already in the room',
-        line: 'The thick bars outrun the thin ones as the room fills.',
-        caption: (() => {
-          const [, , five, ten] = m.growth;
-          return `Each additional person adds one card but a comparison with everyone already present. That is why the thick pair bars grow faster than the thin people bars: doubling the room from ${five!.people} people to ${ten!.people} takes the pairs from ${five!.pairs} to ${ten!.pairs}. The bars use one scale; the outlined row is this room.`;
-        })(),
-        state: { people: n, growth: m.growth },
-        draw: (st, s) => {
-          const y0 = 2.4,
-            gap = 0.82,
-            x0 = 0.4,
-            scale = 6.7 / st.growth.at(-1)!.pairs;
-          const g = new Group(
-            table(
-              ['People', 'Pairs', 'Chance'],
-              st.growth.map((row) => [row.people, row.pairs, pct(row.chance)]),
-              s,
-              { xs: [-6.1, -3.8, -1.4], y: y0, gap, key: 'birthday-growth', size: 0.6 },
-            ),
-          );
-          st.growth.forEach((row, r) => {
-            const y = y0 - (r + 1) * gap;
-            const bars = new Group(
-              new Rectangle({ width: Math.max(0.02, row.people * scale), height: 0.14, fill: s.soft, stroke: 'none' }).moveTo(
-                [x0 + (row.people * scale) / 2, y + 0.15],
-                [0, 0],
-              ),
-              new Rectangle({ width: Math.max(0.02, row.pairs * scale), height: 0.3, fill: s.emphasis, stroke: 'none' }).moveTo(
-                [x0 + (row.pairs * scale) / 2, y - 0.1],
-                [0, 0],
-              ),
-            );
-            bars.key = `birthday-bars-${row.people}`;
-            g.add(bars);
-            if (row.people === st.people) {
-              const outline = new Rectangle({ width: 14.6, height: 0.74, fill: 'none', stroke: s.emphasis, strokeWidth: 0.03 }).moveTo([0, y]);
-              outline.key = 'birthday-this-room';
-              g.add(outline);
-            }
-          });
-          g.add(label('Thin bars: people. Thick bars: pairs, on one scale.', 0, -3.65, s.palette.ink, 0.6, 'birthday-footer'));
-          return g;
-        },
       }),
       staged({
         id: 'exact',

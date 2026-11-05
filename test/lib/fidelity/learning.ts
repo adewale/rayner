@@ -14,7 +14,7 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':7,'melody-rhythm':4};
+  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':6,'melody-rhythm':4};
   assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model; monty-hall names it in shown.
@@ -109,9 +109,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     // The red lines in the web are the room's own matches, the same people the chance step outlines.
     assertStepState(trace,'pairs',{matchedPairs:m.matchedPairs});
     assert.ok(trace.steps.findIndex(s=>s.step==='exact')<trace.steps.findIndex(s=>s.step==='estimate'),'the exact count comes before the shortcut that is measured against it');
-    // Two, three and five people make one, three and ten pairs.
-    assert.deepEqual((trace.steps.find(s=>s.step==='growth')!.after!.growth as {pairs:number}[]).slice(0,3).map(r=>r.pairs),[1,3,10]);
-    assertStepState(trace,'growth',{growth:[2,3,5,10,23,40].map(n=>({people:n,pairs:pairCount(n),chance:birthdayChance(n,'any')}))});
+    // The doubling the pairs caption quotes: five people make ten pairs, ten make 45. The growth step it replaced is gone.
+    assertStepState(trace,'pairs',{doubling:[5,10].map(n=>({people:n,pairs:pairCount(n),chance:birthdayChance(n,'any')}))});
+    assert.ok(!trace.steps.some(s=>s.step==='growth'));
     assertStepState(trace,'estimate',{pairs:m.pairs,shortcut:1-(364/365)**m.pairs,chance:m.chance});
     assertStepState(trace,'exact',{factors:m.factors,noMatch:m.noMatch,chance:m.chance,occupied:m.people-1});
     // The figures readers quote: 50.7% for any pair among 23, 5.9% for matching one marked person among 23, 11.7% among 10.
