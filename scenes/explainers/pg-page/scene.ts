@@ -1,9 +1,11 @@
-import { Scene, Group, Rectangle, Text, Arrow, FadeOut } from '../../../src/index.ts';
-import type { Box, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import type { Diagram } from '../../../explain/index.ts';
+import { Scene, Group, Rectangle, Text, Arrow, FadeOut, view } from '../../../src/index.ts';
+import type { Box, Vec, View, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,
+  COLUMNS,
   LINE_POINTER,
   PAGE_HEADER,
   SWAP,
@@ -17,7 +19,7 @@ import {
   shortText,
   tuple,
 } from '../lib/pg-page.ts';
-import type { Attr, Scenario, Column, Share } from '../lib/pg-page.ts';
+import type { Attr, Scenario, Column, Share, Tuple } from '../lib/pg-page.ts';
 
 // Sources, all at postgres/postgres tag REL_18_6; lines are quoted in lib/pg-page.ts and
 // test/explain-pg-page.test.ts, which also freezes the measurements on Postgres 18.6.
@@ -56,9 +58,9 @@ const HEAD = [
   '    pieTitleTextSize: 18px',
   '---',
 ].join('\n');
-const pieTitle = (c: Scenario) => `One page of ${c.label} rows`;
+const pieTitle = (c: { label: string }) => `One page of ${c.label} rows`;
 /** The pie of a full page. A slice of 0 bytes is left out: Mermaid refuses a zero value. */
-const pie = (c: Scenario) =>
+const pie = (c: { label: string; share: Share }) =>
   `${HEAD}\npie showData\n  title ${pieTitle(c)}\n` +
   SLICES.filter((s) => c.share[s.key] > 0)
     .map((s) => `  "${s.name}" : ${c.share[s.key]}\n`)
@@ -75,6 +77,43 @@ const pieOps = (from: Scenario, to: Scenario) => [
     return [{ kind: 'set_slice_value', label: s.name, value: b }];
   }),
 ];
+
+/** One tuple as the steps record it: its column, its bytes one by one, and the sizes its key states. */
+interface TupleState {
+  column: Column;
+  label: string;
+  bytes: Tuple['bytes'];
+  stored: number;
+  padding: number;
+  data: number;
+}
+const tupleOf = (x: Scenario): TupleState => ({
+  column: x.column,
+  label: x.label,
+  bytes: [...x.tuple.bytes],
+  stored: x.tuple.stored,
+  padding: x.tuple.padding,
+  data: x.tuple.data,
+});
+/** A column with a text after its integer. */
+const textual = (column: Column) => column !== 'int4' && column !== 'int8';
+/** What the steps record, accumulated: the fields the views below draw from. */
+interface PgState {
+  column: Column;
+  empty: { lower: number; upper: number; free: number };
+  pair: { label: string; valueBytes: string }[];
+  row: { lpOff: number; lpLen: number; hoff: number; stored: number; perRow: number; lower: number; upper: number };
+  tuple: TupleState;
+  tuples: [TupleState, TupleState];
+  full: { rows: number; share: Share };
+  why: { used: number; free: number; lower: number; upper: number; heapFree: number; needs: number; unrounded: number };
+  compare: Record<Column, { perRow: number; rows: number; pages: number }>;
+}
+/** A card as a reader hears it: its title or count, then each row's label and value, and what is marked. */
+const said = (card: Card) => {
+  const seen = card.describe();
+  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join(', ')}`;
+};
 
 const SIZE = 0.34;
 const SMALL = 0.28;
@@ -175,6 +214,22 @@ export default class PgPageExplainer extends Scene {
     const text = (words: string, opts: { size?: number; color?: string; bold?: boolean } = {}) =>
       new Text(words, { fontSize: opts.size ?? SIZE, color: opts.color ?? ink, weight: opts.bold ? 'bold' : 'normal' });
 
+    /** The scene's state, as the steps record it. */
+    const st = () => this.state as unknown as PgState;
+    /** A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state. */
+    const cardOf = (rows: (st: PgState) => readonly CardRow[], opts: CardOptions | ((st: PgState) => CardOptions)): View<Card> =>
+      view(
+        this,
+        (state) => {
+          const st = state as unknown as PgState;
+          return new Card(this, s.palette, rows(st), typeof opts === 'function' ? opts(st) : opts);
+        },
+        { place: false },
+      );
+    /** Enter a card view as s.card enters a card, described as the card describes itself. */
+    const enterCard = (card: View<Card>) => s.enter(card, { runTime: 0.35, shift: [0, -0.08], describe: () => said(card.current) });
+    this.state.column = column;
+
     // ------------------------------------------------------------------ the question, on an empty page
     // bufpage.h:28-44 draws the page this way: header, line pointers growing down, tuples growing up.
     const PAGE: Box = [-7.2, -4.0, -2.0, 3.0];
@@ -187,23 +242,19 @@ export default class PgPageExplainer extends Scene {
       ]);
     const HEADER_H = 0.6,
       ROW_H = 0.55;
+    // The page's outline, header and size are the same in every scenario.
     const outline = box(PAGE[0], PAGE[1], PAGE[2], PAGE[3], COLORS.free);
     const header = box(PAGE[0], PAGE[3] - HEADER_H, PAGE[2], PAGE[3], COLORS.pageHeader);
     const headerLabel = text(`page header, ${PAGE_HEADER} bytes`, { size: SMALL, color: s.palette.paper }).moveTo([
       PAGE[0] + pw / 2,
       PAGE[3] - HEADER_H / 2,
     ]);
-    const freeLabel = text(`${BLCKSZ - PAGE_HEADER} bytes free`, { color: s.soft }).moveTo([
-      PAGE[0] + pw / 2,
-      PAGE[1] + ph * 0.45,
-    ]);
     const pageSize = text(`${BLCKSZ} bytes`, { size: SMALL, color: s.soft }).moveTo([PAGE[0] + pw / 2, PAGE[1] - 0.22]);
     const pageWords = () =>
       `An 8192-byte page drawn top to bottom, not to scale: a ${PAGE_HEADER}-byte header, then free space` +
-      (rowShown
-        ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${t.stored}-byte tuple at the very end of the page.`
+      (st().tuple
+        ? `, then one ${LINE_POINTER}-byte line pointer under the header and one ${st().tuple.stored}-byte tuple at the very end of the page.`
         : '.');
-    let rowShown = false;
     const valueBytes = (x: Scenario) => (x.column.endsWith('text') ? `${x.tuple.data - TEXT_CHARS - 1} + ${TEXT_CHARS + 1}` : `${x.tuple.data}`);
     await this.step('page', {
       title: `Do ${narrow.label} rows fit more on a page than ${wide.label} rows?`,
@@ -212,6 +263,16 @@ export default class PgPageExplainer extends Scene {
       // bufpage.c:55-57 PageInit sets pd_lower = SizeOfPageHeaderData and pd_upper = pageSize - specialSize (0 for a table).
       caption: `Postgres stores a table in pages of ${BLCKSZ} bytes, and every page starts with a ${PAGE_HEADER}-byte header, so an empty page has ${BLCKSZ - PAGE_HEADER} bytes free. A common way to save space is to declare an integer column int4 rather than int8 (bigint): 4 bytes a value instead of 8${isText ? `, here followed by an ${TEXT_CHARS}-character text column` : ''}. Predict how many more ${narrow.label} rows than ${wide.label} rows fit on one page.`,
     });
+    this.state.empty = { lower: PAGE_HEADER, upper: BLCKSZ, free: BLCKSZ - PAGE_HEADER };
+    // The two value sizes the question compares, narrow integer first.
+    this.state.pair = [narrow, wide].map((x) => ({ label: x.label, valueBytes: valueBytes(x) }));
+    // The free space the empty page records, said in it.
+    const freeLabel = view(
+      this,
+      (state) =>
+        text(`${(state as unknown as PgState).empty.free} bytes free`, { color: s.soft }).moveTo([PAGE[0] + pw / 2, PAGE[1] + ph * 0.45]),
+      { place: false },
+    );
     await s.enter(outline, header, headerLabel, freeLabel, pageSize, { describe: pageWords });
     // pd_lower and pd_upper, said where they point: the free space's top and bottom edges.
     const lowerAt = (x: number, y: number, value: number) =>
@@ -219,15 +280,12 @@ export default class PgPageExplainer extends Scene {
     const upperAt = (x: number, y: number, value: number) =>
       s.callout([x, y], `pd_upper ${value}`, { side: 'above', gap: 0.45, size: SMALL });
     const mid = PAGE[0] + pw / 2;
-    const emptyMarks = [await lowerAt(mid, PAGE[3] - HEADER_H, PAGE_HEADER), await upperAt(mid, PAGE[1], BLCKSZ)];
-    const question = await s.card(
-      [
-        ...[narrow, wide].map((x) => [`${x.label}, value bytes`, valueBytes(x)] as [string, string]),
-        ['Rows a page', '?'],
-      ],
+    const emptyMarks = [await lowerAt(mid, PAGE[3] - HEADER_H, st().empty.lower), await upperAt(mid, PAGE[1], st().empty.upper)];
+    const question = cardOf(
+      (state) => [...state.pair.map((x) => [`${x.label}, value bytes`, x.valueBytes] as [string, string]), ['Rows a page', '?']],
       { at: ROW_RIGHT, fontSize: SIZE, title: 'Two ways to store the same rows' },
     );
-    this.state.empty = { lower: PAGE_HEADER, upper: BLCKSZ, free: BLCKSZ - PAGE_HEADER };
+    await enterCard(question);
 
     // ------------------------------------------------------------------ one row
     const valueWords = isText ? `the int4, then ${TEXT_CHARS} characters after a 1-byte length` : `the ${c.label}`;
@@ -241,68 +299,89 @@ export default class PgPageExplainer extends Scene {
     });
     // The same page carries on: only the free-space label, the two offsets and the question give way.
     await this.play(...[freeLabel, ...emptyMarks, question].map((m) => new FadeOut(m, { runTime: 0.3 })));
+    this.state.row = {
+      lpOff: BLCKSZ - t.stored,
+      lpLen: t.lpLen,
+      hoff: t.hoff,
+      stored: t.stored,
+      perRow: t.perRow,
+      lower: PAGE_HEADER + LINE_POINTER,
+      upper: BLCKSZ - t.stored,
+    };
+    // The tuple byte by byte, which the grid and its colour key draw.
+    this.state.tuple = tupleOf(c);
     // The pointer sits under the header; the tuple fills the last bytes of the page.
     // Widths in the two strips share one scale, so the pointer is an eighth of an int4 tuple.
     const perByte = (pw - 0.2) / 48;
-    const pointer = box(
-      PAGE[0],
-      PAGE[3] - HEADER_H - ROW_H,
-      PAGE[0] + LINE_POINTER * perByte,
-      PAGE[3] - HEADER_H,
-      COLORS.pointers,
-    );
-    const pointerLabel = text(`line pointer, ${LINE_POINTER} bytes`, { size: SMALL }).moveTo(
-      [pointer.box()![2] + 0.15, PAGE[3] - HEADER_H - ROW_H / 2],
-      [-1, 0],
-    );
-    const tupleW = t.stored * perByte;
-    const tupleBox = box(PAGE[2] - tupleW, PAGE[1], PAGE[2], PAGE[1] + ROW_H, COLORS.data);
-    const tupleLabel = text(`tuple, ${t.stored} bytes`, { size: SMALL, color: s.palette.paper }).moveTo(
-      tupleBox.center(),
-    );
-    const linkFrom: Vec = [PAGE[0] + (LINE_POINTER * perByte) / 2, PAGE[3] - HEADER_H - ROW_H - 0.05],
-      linkTo: Vec = [PAGE[2] - tupleW + 0.3, PAGE[1] + ROW_H + 0.05];
-    const link = new Arrow(linkFrom, linkTo, { stroke: ink, strokeWidth: 0.025, tipLength: 0.18 });
-    const free2 = text(`${BLCKSZ - PAGE_HEADER - t.perRow} bytes free`, { color: s.soft }).moveTo([
-      PAGE[0] + pw / 2 + 0.5,
-      PAGE[1] + ph * 0.42,
-    ]);
-    rowShown = true;
+    const tupleWidth = (stored: number) => stored * perByte;
+    const linkAt = (stored: number): [Vec, Vec] => [
+      [PAGE[0] + (LINE_POINTER * perByte) / 2, PAGE[3] - HEADER_H - ROW_H - 0.05],
+      [PAGE[2] - tupleWidth(stored) + 0.3, PAGE[1] + ROW_H + 0.05],
+    ];
+    /** The first row on the page, from what the row step records: its pointer, its tuple, the link and what is left free. */
+    const firstRow = (state: PgState) => {
+      const pointer = box(
+        PAGE[0],
+        PAGE[3] - HEADER_H - ROW_H,
+        PAGE[0] + LINE_POINTER * perByte,
+        PAGE[3] - HEADER_H,
+        COLORS.pointers,
+      );
+      const pointerLabel = text(`line pointer, ${LINE_POINTER} bytes`, { size: SMALL }).moveTo(
+        [pointer.box()![2] + 0.15, PAGE[3] - HEADER_H - ROW_H / 2],
+        [-1, 0],
+      );
+      const tupleW = tupleWidth(state.row.stored);
+      const tupleBox = box(PAGE[2] - tupleW, PAGE[1], PAGE[2], PAGE[1] + ROW_H, COLORS.data);
+      const tupleLabel = text(`tuple, ${state.row.stored} bytes`, { size: SMALL, color: s.palette.paper }).moveTo(tupleBox.center());
+      const [from, to] = linkAt(state.row.stored);
+      const link = new Arrow(from, to, { stroke: ink, strokeWidth: 0.025, tipLength: 0.18 });
+      const free = text(`${state.row.upper - state.row.lower} bytes free`, { color: s.soft }).moveTo([
+        PAGE[0] + pw / 2 + 0.5,
+        PAGE[1] + ph * 0.42,
+      ]);
+      return new Group(pointer, pointerLabel, tupleBox, tupleLabel, link, free);
+    };
     // A tuple byte by byte, eight to a line: every line of the grid is one MAXALIGN unit.
     const CELL = 0.52;
-    const grid = (x: Scenario, gx: number, gy: number) => {
-      const cells = x.tuple.bytes.map((kind, i) =>
-        new Rectangle({
-          width: CELL,
-          height: CELL,
-          fill: kind === 'header' ? COLORS.headers : kind === 'padding' ? COLORS.padding : COLORS.data,
-          stroke: ink,
-          strokeWidth: 0.015,
-        }).moveTo([gx + (i % 8) * CELL + CELL / 2, gy - Math.floor(i / 8) * CELL - CELL / 2]),
+    const grid = (x: TupleState, gx: number, gy: number) => {
+      const cells = x.bytes.map((kind, i) =>
+        keyed(
+          new Rectangle({
+            width: CELL,
+            height: CELL,
+            fill: kind === 'header' ? COLORS.headers : kind === 'padding' ? COLORS.padding : COLORS.data,
+            stroke: ink,
+            strokeWidth: 0.015,
+          }).moveTo([gx + (i % 8) * CELL + CELL / 2, gy - Math.floor(i / 8) * CELL - CELL / 2]),
+          `pg-byte:${x.column}:${i}`,
+        ),
       );
-      const offsets = Array.from({ length: x.tuple.stored / 8 }, (_, r) =>
+      const offsets = Array.from({ length: x.stored / 8 }, (_, r) =>
         text(`${r * 8}`, { size: SMALL, color: s.soft }).moveTo([gx - 0.12, gy - r * CELL - CELL / 2], [1, 0]),
       );
-      const words = () => {
-        const runs: string[] = [];
-        let i = 0;
-        while (i < x.tuple.bytes.length) {
-          let j = i;
-          while (j < x.tuple.bytes.length && x.tuple.bytes[j] === x.tuple.bytes[i]) j++;
-          runs.push(`${j - i} ${x.tuple.bytes[i]} byte${j - i > 1 ? 's' : ''}`);
-          i = j;
-        }
-        return `The ${x.label} row’s ${x.tuple.stored}-byte tuple in lines of 8 bytes, starting at offsets ${offsets.map((o) => o.text).join(', ')}: ${runs.join(', ')}.`;
-      };
-      return { cells, offsets, words };
+      return { cells, offsets };
+    };
+    /** The grid in words: its lines' offsets, then its runs of header, padding and data bytes. */
+    const gridWords = (x: TupleState) => {
+      const runs: string[] = [];
+      let i = 0;
+      while (i < x.bytes.length) {
+        let j = i;
+        while (j < x.bytes.length && x.bytes[j] === x.bytes[i]) j++;
+        runs.push(`${j - i} ${x.bytes[i]} byte${j - i > 1 ? 's' : ''}`);
+        i = j;
+      }
+      const offsets = Array.from({ length: x.stored / 8 }, (_, r) => `${r * 8}`);
+      return `The ${x.label} row’s ${x.stored}-byte tuple in lines of 8 bytes, starting at offsets ${offsets.join(', ')}: ${runs.join(', ')}.`;
     };
     /** A colour key for one tuple's bytes, from (kx, ky) down. */
-    const keyFor = (x: Scenario, kx: number, ky: number) =>
+    const keyFor = (x: TupleState, kx: number, ky: number) =>
       (
         [
           [COLORS.headers, `header, ${TUPLE_HEADER} bytes`],
-          [COLORS.padding, `padding, ${x.tuple.padding} byte${x.tuple.padding === 1 ? '' : 's'}`],
-          [COLORS.data, `${isText ? 'values' : 'value'}, ${x.tuple.data} bytes`],
+          [COLORS.padding, `padding, ${x.padding} byte${x.padding === 1 ? '' : 's'}`],
+          [COLORS.data, `${textual(x.column) ? 'values' : 'value'}, ${x.data} bytes`],
         ] as const
       ).map(([color, words], row) => {
         const y = ky - row * 0.62;
@@ -313,35 +392,43 @@ export default class PgPageExplainer extends Scene {
       });
     const GX = ROW_RIGHT[0] + 0.75,
       GY = ROW_RIGHT[3] - 0.15;
-    const mine = grid(c, GX, GY);
-    const keys = keyFor(c, GX + 8 * CELL + 0.45, GY - 0.25);
-    await s.enter(pointer, pointerLabel, tupleBox, tupleLabel, link, free2, { describe: pageWords });
-    await s.enter(...mine.cells, ...mine.offsets, ...keys, { describe: mine.words });
+    // The answer step moves this row's grid left, to make room for the other type's; where it sits is what is shown.
+    const LX = -5.9,
+      RX = 1.7,
+      TOP = 2.35;
+    const rowAt = (shown: SceneState): [number, number] => (shown.grid === 'left' ? [LX, TOP] : [GX, GY]);
+    const row = view(this, (state) => firstRow(state as unknown as PgState), { place: false });
+    const mine = view(
+      this,
+      (state, shown) => {
+        const g = grid((state as unknown as PgState).tuple, ...rowAt(shown));
+        return new Group(...g.cells, ...g.offsets);
+      },
+      { place: false },
+    );
+    const keys = view(this, (state) => new Group(...keyFor((state as unknown as PgState).tuple, GX + 8 * CELL + 0.45, GY - 0.25)), {
+      place: false,
+    });
+    await s.enter(row, { describe: pageWords });
+    await s.enter(mine, keys, { describe: () => gridWords(st().tuple) });
     // pageinspect on Postgres 18.6 (heap_page_items and page_header of block 0 after one insert),
     // each value said where it points: the new free-space edges, the pointer's target and the data's start.
+    const byte = (v: View, x: TupleState, i: number) => v.current.family().find((m) => m.key === `pg-byte:${x.column}:${i}`)!;
     const rowMarks = [
-      await lowerAt(mid, PAGE[3] - HEADER_H - ROW_H, PAGE_HEADER + LINE_POINTER),
-      await upperAt(PAGE[2] - tupleW / 2, PAGE[1] + ROW_H, BLCKSZ - t.stored),
+      await lowerAt(mid, PAGE[3] - HEADER_H - ROW_H, st().row.lower),
+      await upperAt(PAGE[2] - tupleWidth(st().row.stored) / 2, PAGE[1] + ROW_H, st().row.upper),
     ];
-    const [l0, l1] = [linkFrom, linkTo],
+    const [l0, l1] = linkAt(st().row.stored),
       along: Vec = [l0[0] + 0.3 * (l1[0] - l0[0]), l0[1] + 0.3 * (l1[1] - l0[1])];
     rowMarks.push(
-      await s.callout(along, `lp_off ${BLCKSZ - t.stored}, lp_len ${t.lpLen}`, { side: 'right', gap: 0.3, size: SMALL }),
+      await s.callout(along, `lp_off ${st().row.lpOff}, lp_len ${st().row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL }),
     );
-    const hoffMark = await s.callout(mine.cells[t.hoff]!, `t_hoff ${t.hoff}: data starts here`, {
+    const start = byte(mine, st().tuple, st().row.hoff);
+    const hoffMark = await s.callout(start, `t_hoff ${st().row.hoff}: data starts here`, {
       side: 'below',
-      gap: mine.cells[t.hoff]!.box()![1] - (GY - (t.stored / 8) * CELL) + 0.35,
+      gap: start.box()![1] - (GY - (st().tuple.stored / 8) * CELL) + 0.35,
       size: SMALL,
     });
-    this.state.row = {
-      lpOff: BLCKSZ - t.stored,
-      lpLen: t.lpLen,
-      hoff: t.hoff,
-      stored: t.stored,
-      perRow: t.perRow,
-      lower: PAGE_HEADER + LINE_POINTER,
-      upper: BLCKSZ - t.stored,
-    };
 
     // ------------------------------------------------------------------ the answer: the two tuples side by side
     const same = w.page.rows === c.page.rows;
@@ -367,53 +454,52 @@ export default class PgPageExplainer extends Scene {
       }`,
     });
     // The page gives way; this row's grid moves left and the other type's grid appears beside it.
-    const LX = -5.9,
-      RX = 1.7,
-      TOP = 2.35;
-    const theirs = grid(w, RX, TOP);
-    const titleOf = (x: Scenario, gx: number) =>
-      text(`${x.label}: ${x.tuple.stored}-byte tuple`, { bold: true }).moveTo([gx + 4 * CELL, TOP + 0.4]);
     await this.play(
-      ...[outline, header, headerLabel, pageSize, pointer, pointerLabel, tupleBox, tupleLabel, link, free2, ...keys, ...rowMarks, hoffMark].map(
-        (m) => new FadeOut(m, { runTime: 0.3 }),
-      ),
+      ...[outline, header, headerLabel, pageSize, row, keys, ...rowMarks, hoffMark].map((m) => new FadeOut(m, { runTime: 0.3 })),
     );
-    const shift: Vec = [LX - GX, TOP - GY];
-    await this.play(...[...mine.cells, ...mine.offsets].map((m) => m.animate.shift(shift)), { runTime: 0.6 });
-    const below = (x: Scenario) => TOP - (x.tuple.stored / 8) * CELL - 1.25;
-    const keyY = Math.min(below(c), below(w));
-    const [cx, wx] = [LX, RX];
-    await s.enter(
-      titleOf(c, cx),
-      titleOf(w, wx),
-      ...keyFor(c, cx + 0.15, keyY),
-      ...theirs.cells,
-      ...theirs.offsets,
-      ...keyFor(w, wx + 0.15, keyY),
-      { describe: () => `${mine.words()} ${theirs.words()}` },
-    );
-    // Where the two differ: the bytes one type uses for its value and the other leaves as padding.
-    const differ = t.bytes.flatMap((b, i) => (w.tuple.bytes[i] !== b ? [i] : []));
-    if (differ.length) {
-      const first = differ[0]!;
-      await s.callout(mine.cells[first]!, c.tuple.bytes[first] === 'padding' ? 'padding here' : `${c.label}’s value`, {
-        side: 'below',
-        gap: mine.cells[first]!.box()![1] - (TOP - (t.stored / 8) * CELL) + 0.3,
-        size: SMALL,
-      });
-      const other = theirs.cells[first]!;
-      await s.callout(other, w.tuple.bytes[first] === 'padding' ? 'padding here' : `${w.label}’s value here`, {
-        side: 'below',
-        gap: other.box()![1] - (TOP - (w.tuple.stored / 8) * CELL) + 0.3,
-        size: SMALL,
-      });
-    }
     this.state.swap = {
       from: column,
       to: w.column,
       rows: [c.page.rows, w.page.rows],
       perRow: [t.perRow, w.tuple.perRow],
     };
+    // Both tuples byte by byte, this scenario's first, which the two grids and their keys draw.
+    this.state.tuples = [tupleOf(c), tupleOf(w)];
+    await this.play(mine.animate.shift([LX - GX, TOP - GY]), { runTime: 0.6 });
+    this.shown.grid = 'left';
+    const titleOf = (x: TupleState, gx: number) =>
+      text(`${x.label}: ${x.stored}-byte tuple`, { bold: true }).moveTo([gx + 4 * CELL, TOP + 0.4]);
+    const below = (x: TupleState) => TOP - (x.stored / 8) * CELL - 1.25;
+    /** The titles and keys of both tuples, with the other type's grid on the right. */
+    const pair = view(
+      this,
+      (state) => {
+        const [x, y] = (state as unknown as PgState).tuples;
+        const keyY = Math.min(below(x), below(y));
+        const theirs = grid(y, RX, TOP);
+        return new Group(titleOf(x, LX), titleOf(y, RX), ...keyFor(x, LX + 0.15, keyY), ...theirs.cells, ...theirs.offsets, ...keyFor(y, RX + 0.15, keyY));
+      },
+      { place: false },
+    );
+    await s.enter(pair, { describe: () => `${gridWords(st().tuples[0])} ${gridWords(st().tuples[1])}` });
+    // Where the two differ: the bytes one type uses for its value and the other leaves as padding.
+    const [ours, other] = st().tuples;
+    const differ = ours.bytes.flatMap((b, i) => (other.bytes[i] !== b ? [i] : []));
+    if (differ.length) {
+      const first = differ[0]!;
+      const here = byte(mine, ours, first),
+        there = byte(pair, other, first);
+      await s.callout(here, ours.bytes[first] === 'padding' ? 'padding here' : `${ours.label}’s value`, {
+        side: 'below',
+        gap: here.box()![1] - (TOP - (ours.stored / 8) * CELL) + 0.3,
+        size: SMALL,
+      });
+      await s.callout(there, other.bytes[first] === 'padding' ? 'padding here' : `${other.label}’s value here`, {
+        side: 'below',
+        gap: there.box()![1] - (TOP - (other.stored / 8) * CELL) + 0.3,
+        size: SMALL,
+      });
+    }
 
     // ------------------------------------------------------------------ a full page
     const sh = c.share,
@@ -426,9 +512,11 @@ export default class PgPageExplainer extends Scene {
       } the ${percent(sh.data)} that is the values${isText ? ', counting the text’s length byte' : ''}: of each row’s ${t.perRow} bytes, ${t.data} are data. ${same ? `Each of these rows pays ${TUPLE_HEADER} header bytes for ${t.data} bytes of value, so the integer’s width is a small part of the page whichever type is chosen.` : `Here the 4 bytes did matter: they pushed the ${wide.label} tuple past a multiple of 8.`}`,
     });
     await s.clear();
-    // The whole stage for the pie, so its narrow slices have room for their labels.
-    let d: Diagram = await s.show({ source: pie(c) }, { box: WIDE_PIE });
     this.state.full = { rows: p.rows, share: sh };
+    /** The full page's pie, from the share the full step records. */
+    const fullPie = () => pie({ label: COLUMNS[st().column].label, share: st().full.share });
+    // The whole stage for the pie, so its narrow slices have room for their labels.
+    let d: Diagram = await s.show({ source: fullPie() }, { box: WIDE_PIE });
 
     // ------------------------------------------------------------------ why that many
     const used = p.rows * t.perRow;
@@ -443,21 +531,23 @@ export default class PgPageExplainer extends Scene {
       }`,
     });
     await s.clear();
-    d = await s.show({ source: pie(c) }, { box: PIE_BOX });
-    await d.mark(['slice:Free space'], { as: 'too small for another row' });
-    await s.card(
-      [
-        ['Free when empty', `${BLCKSZ - PAGE_HEADER}`],
-        [`${p.rows} rows x ${t.perRow} bytes`, `${used}`],
-        ['Left', `${p.free}`],
-        ['pd_lower, pd_upper', `${p.lower}, ${p.upper}`],
-        [`Left less a pointer`, `${p.heapFree}`],
-        ['Next tuple, unrounded', `${t.lpLen}`],
-        ['Next tuple, rounded up', `${t.stored}`],
-      ],
-      { at: RIGHT, fontSize: SIZE, title: `Why ${p.rows} rows` },
-    );
     this.state.why = { used, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored, unrounded: t.lpLen };
+    d = await s.show({ source: fullPie() }, { box: PIE_BOX });
+    await d.mark(['slice:Free space'], { as: 'too small for another row' });
+    // The arithmetic, from the full page's row count, the row's cost and what the why step records.
+    const why = cardOf(
+      (state) => [
+        ['Free when empty', `${state.empty.free}`],
+        [`${state.full.rows} rows x ${state.row.perRow} bytes`, `${state.why.used}`],
+        ['Left', `${state.why.free}`],
+        ['pd_lower, pd_upper', `${state.why.lower}, ${state.why.upper}`],
+        [`Left less a pointer`, `${state.why.heapFree}`],
+        ['Next tuple, unrounded', `${state.why.unrounded}`],
+        ['Next tuple, rounded up', `${state.why.needs}`],
+      ],
+      (state) => ({ at: RIGHT, fontSize: SIZE, title: `Why ${state.full.rows} rows` }),
+    );
+    await enterCard(why);
 
     // ------------------------------------------------------------------ compare
     const all = (['int4', 'int8', 'int4-text', 'int8-text'] as Column[]).map((k) => scenarioOf(k, 100));
@@ -468,19 +558,18 @@ export default class PgPageExplainer extends Scene {
       caption: `Each line is a table of 10 000 rows, as measured on Postgres 18.6. int4 and int8 rows both take ${i4.tuple.perRow} bytes, so both tables take ${i4.pagesFor10000} pages. Put an ${TEXT_CHARS}-character text column after the integer and the padding is used up differently: the int8 table takes ${i8t.pagesFor10000} pages to the int4 table’s ${i4t.pagesFor10000}. Whether a narrower type saves space depends on where the 8-byte boundaries fall.`,
     });
     await s.clear();
-    const compareCard = await s.card(
-      all.map(
-        (x) =>
-          [x.label, `${x.tuple.perRow} bytes a row, ${x.page.rows} a page, ${x.pagesFor10000} pages`] as [
-            string,
-            string,
-          ],
-      ),
-      { at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: '10 000 rows' },
-    );
-    await compareCard.mark(c.label, { as: 'this scenario' });
     this.state.compare = Object.fromEntries(
       all.map((x) => [x.column, { perRow: x.tuple.perRow, rows: x.page.rows, pages: x.pagesFor10000 }]),
     );
+    // One row per column type, from what the compare step records; the scenario's own row is marked.
+    const compareCard = cardOf(
+      (state) =>
+        (Object.entries(state.compare) as [Column, PgState['compare'][Column]][]).map(
+          ([k, x]) => [COLUMNS[k].label, `${x.perRow} bytes a row, ${x.rows} a page, ${x.pages} pages`] as [string, string],
+        ),
+      { at: regionBox('full', { top: 2.6, bottom: -3.6 }), fontSize: 0.42, title: '10 000 rows' },
+    );
+    await enterCard(compareCard);
+    await compareCard.current.mark(COLUMNS[st().column].label, { as: 'this scenario' });
   }
 }
