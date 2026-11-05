@@ -1,6 +1,6 @@
-import { Scene, Text, Rectangle } from '../../../src/index.ts';
+import { Scene, Text, Rectangle, Group, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from '../lib/send-sync.ts';
 import type { Inner, Wrapper, Quadrant, Layer, RustType } from '../lib/send-sync.ts';
@@ -71,6 +71,19 @@ const CELL = {
   scope: isSend(t('&', INNERS.cell)),
 };
 const [RC_MUTEX, ARC_GUARD] = CHECK_TYPES as [RustType, RustType];
+/** What the steps record, accumulated: the fields the views below draw from. */
+interface SendSyncState {
+  /** The quadrant the step's point is in, which the small map fills. */
+  here: Quadrant;
+  /** In a wrapper step: the wrapper, and the type it wraps. */
+  wrap: { ctor: string; inside: Layer };
+  threads: { name: string; spawnMove: boolean; scopeBorrow: boolean };
+}
+/** A card as a reader hears it: its title or count, then each row's label and value. */
+const said = (card: Card) => {
+  const seen = card.describe();
+  return `${seen.what}: ${seen.parts.map((p) => p.name).join(', ')}`;
+};
 
 export default class SendSyncExplainer extends Scene {
   static meta = {
@@ -146,6 +159,7 @@ export default class SendSyncExplainer extends Scene {
       inner = values.inner as Inner;
     const s = stage(this, { style: 'hand-drawn', headingSize: 0.6 });
     const ink = s.palette.ink;
+    const st = () => this.state as unknown as SendSyncState;
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */
     const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => {
@@ -176,19 +190,24 @@ export default class SendSyncExplainer extends Scene {
       }
       return out;
     };
-    /** A card at the top of the right column, with lines under it. */
-    const column = async (rows: readonly (readonly [string, string])[], words: readonly string[], title?: string) => {
-      const card = await s.card(rows, {
-        at: RIGHT,
-        align: 'top',
-        fontSize: SIZE,
-        enter: false,
-        ...(title ? { title } : {}),
-      });
-      // Left-aligned with the lines under it.
-      card.shift([RIGHT[0] + 0.1 - card.box()![0], 0]);
-      const text = lines(words, RIGHT[3] - card.height() - 0.35);
-      await s.enter(card, ...text);
+    /** A card at the top of the right column, drawn from the state by `rows`: a view check holds to it. */
+    const column = async (rows: (st: SendSyncState) => readonly (readonly [string, string])[], title?: string) => {
+      const card = view(
+        this,
+        (state) => {
+          const c = new Card(this, s.palette, rows(state as unknown as SendSyncState), {
+            at: RIGHT,
+            align: 'top',
+            fontSize: SIZE,
+            ...(title ? { title } : {}),
+          });
+          // Left-aligned with the column's lines.
+          c.shift([RIGHT[0] + 0.1 - c.box()![0], 0]);
+          return c;
+        },
+        { place: false },
+      );
+      await s.enter(card, { describe: () => said(card.current) });
       return card;
     };
 
@@ -197,25 +216,33 @@ export default class SendSyncExplainer extends Scene {
      * of one quadrant keeps its place in the 2 × 2.
      */
     const locator = async (here: Quadrant) => {
-      const parts = ([1, 2, 3, 4] as const).map((n) =>
-        new Rectangle({
-          width: 2.1,
-          height: 0.92,
-          fill: n === here ? s.emphasis : s.palette.paper,
-          stroke: s.soft,
-          strokeWidth: 0.025,
-        }).moveTo(MAP[n]),
+      this.state.here = here;
+      const map = view(
+        this,
+        (state) => {
+          const filled = (state as unknown as SendSyncState).here;
+          const parts = ([1, 2, 3, 4] as const).map((n) =>
+            new Rectangle({
+              width: 2.1,
+              height: 0.92,
+              fill: n === filled ? s.emphasis : s.palette.paper,
+              stroke: s.soft,
+              strokeWidth: 0.025,
+            }).moveTo(MAP[n]),
+          );
+          const word = (text: string, at: [number, number], edge: [number, number]) =>
+            new Text(text, { fontSize: SIZE, color: ink }).moveTo(at, edge);
+          return new Group(
+            ...parts,
+            word('Sync', [3.0, MAP[2][1]], [1, 0]),
+            word('Not Sync', [3.0, MAP[3][1]], [1, 0]),
+            word('Not Send', [MAP[3][0], -3.8], [0, 0]),
+            word('Send', [MAP[4][0], -3.8], [0, 0]),
+          );
+        },
+        { place: false },
       );
-      const word = (text: string, at: [number, number], edge: [number, number]) =>
-        new Text(text, { fontSize: SIZE, color: ink }).moveTo(at, edge);
-      await s.enter(
-        ...parts,
-        word('Sync', [3.0, MAP[2][1]], [1, 0]),
-        word('Not Sync', [3.0, MAP[3][1]], [1, 0]),
-        word('Not Send', [MAP[3][0], -3.8], [0, 0]),
-        word('Send', [MAP[4][0], -3.8], [0, 0]),
-        { describe: `Map of the four quadrants, “${QUADRANT[here]}” filled` },
-      );
+      await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[st().here]}” filled` });
     };
     /** A point's two answers, said on the point, with the column's words and the map beside the chart. */
     const tell = async (
@@ -224,13 +251,13 @@ export default class SendSyncExplainer extends Scene {
       send: boolean,
       sync: boolean,
       here: Quadrant,
-      words: readonly string[],
+      words: (st: SendSyncState) => readonly string[],
     ) => {
       await chartOf.note(`point:${point}:label`, `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, {
         side: 'below',
         size: SIZE,
       });
-      await s.enter(...lines(words, RIGHT[3]));
+      await s.enter(view(this, (state) => new Group(...lines(words(state as unknown as SendSyncState), RIGHT[3])), { place: false }));
       await locator(here);
     };
 
@@ -347,7 +374,7 @@ export default class SendSyncExplainer extends Scene {
       const chartOf = d;
       await chartOf.reveal([`point:${p.name}`, `point:${p.name}:label`]);
       await chartOf.focus([`plate:${p.q}`], { zoom: ZOOM });
-      await tell(chartOf, p.name, p.send, p.sync, p.q, [
+      await tell(chartOf, p.name, p.send, p.sync, p.q, () => [
         meta.source,
         ...(p.name === 'i32' ? ['Only the quadrant counts: a point’s place inside it means nothing.'] : []),
       ]);
@@ -376,7 +403,8 @@ export default class SendSyncExplainer extends Scene {
       { ops: [{ kind: 'move_point', label: shared, x: ax, y: ay }] },
     );
     await d.focus([`plate:${arcCell.quadrant}`], { zoom: ZOOM });
-    await tell(d, shared, arcCell.send, arcCell.sync, arcCell.quadrant, [
+    // The opening's wrap is the same in every scenario.
+    await tell(d, shared, arcCell.send, arcCell.sync, arcCell.quadrant, () => [
       'Arc needs T: Send + Sync',
       `T here: ${cellLayer.name}`,
       'See sync.rs:284, 286.',
@@ -472,11 +500,13 @@ export default class SendSyncExplainer extends Scene {
         await q.morph({ source: chart(points) }, { ops: [{ kind: 'move_point', label: to, x, y }] });
       }
       await q.focus([`plate:${now.quadrant}`], { zoom: ZOOM });
-      await tell(q, to, now.send, now.sync, now.quadrant, [
-        `${ctor} needs T: ${ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
-        `T here: ${was.name}`,
-      ]);
       this.state.built = now;
+      // The wrapper and the type it wraps, which the column's lines state.
+      this.state.wrap = { ctor, inside: was };
+      await tell(q, to, now.send, now.sync, now.quadrant, (st) => [
+        `${st.wrap.ctor} needs T: ${st.wrap.ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
+        `T here: ${st.wrap.inside.name}`,
+      ]);
     }
 
     // ------------------------------------------------------------------ what the thread APIs accept
@@ -510,15 +540,14 @@ export default class SendSyncExplainer extends Scene {
       color: both ? s.good : s.bad,
       as: both ? 'accepted' : 'rejected',
     });
+    this.state.threads = run;
     await column(
-      [
-        ['spawn, needs Send', yesNo(run.spawnMove)],
-        ['scope, needs Sync', yesNo(run.scopeBorrow)],
+      (st) => [
+        ['spawn, needs Send', yesNo(st.threads.spawnMove)],
+        ['scope, needs Sync', yesNo(st.threads.scopeBorrow)],
       ],
-      [],
       'Compiles?',
     );
     await locator(layers.at(-1)!.quadrant);
-    this.state.threads = run;
   }
 }
