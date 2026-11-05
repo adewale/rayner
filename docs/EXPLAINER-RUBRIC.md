@@ -32,18 +32,19 @@ For each, say how well it is met (strong, adequate or weak) and cite the steps t
 - **Motivation.** Is it clear early why the topic matters and why someone should want the answer? A problem the reader feels, or a surprising result, before the machinery.
 - **Concrete before abstract.** Does it start from a specific case and let the general idea emerge, or open on a definition, a taxonomy or an inventory of parts and fill it in later?
 - **Earned names and discovery.** Does each term arrive after the reader has seen why it is needed? Could the reader nearly see each next idea before it is shown, or are ideas handed down?
-- **Story.** Do the steps solve a problem, each following from the last, or list facts in a sensible order?
-- **Clarity.** Is jargon explained when it arrives, is the goal easy to follow, and does each resting picture teach on its own (opened from a direct link with the caption hidden, it still says what it shows and which values matter)? Does each step fit one screen, with its point in the caption's first lines, on a phone too?
+- **Story.** Do the steps solve a problem, each following from the last, or list facts in a sensible order? Does it end on the practical boundary or the strongest comparison, rather than on a list of what the model leaves out or a second topic? Those belong in notes or a detail step.
+- **Economy.** Could any step be removed without losing an inference? The common cases are an opening that states the answer followed by a walkthrough that derives it again, and two steps that make the same point with different numbers.
+- **Clarity.** Is jargon explained when it arrives, is the goal easy to follow, and does each resting picture teach on its own (opened from a direct link with the caption hidden, it still says what it shows and which values matter)? Does each step fit one screen, with its point in the caption's first sentence, on a phone too? A caption over about 80 words rarely does; move history and side facts to notes or a detail step.
 - **Novelty.** Does the presentation feel fresh: a better example, an angle the usual explanations miss, an obscure idea brought into the light? Or is it the standard treatment, redrawn?
 - **Memorability.** Is there a moment that would stick months later, an aha or shift in perspective, and does the explainer build up to it? Does motion earn its place there?
-- **The reader's own work.** Does the reader commit to a prediction, choose a scenario that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Ask for reasoning or transfer, not recall of arbitrary details. An expert answering without the lesson does not invalidate a question; evaluate what newcomers learn.
+- **The reader's own work.** Does the reader commit to a prediction, choose a scenario that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Does every setting change the conclusion? A setting whose other option only changes the numbers doubles the scenarios and teaches nothing. Where a check question is about events (press this, then that), can the reader answer it on the page with a live machine? Ask for reasoning or transfer, not recall of arbitrary details. An expert answering without the lesson does not invalidate a question; evaluate what newcomers learn.
 - **Grounding.** Does every claimed value, path or comparison trace to a model tested against the real thing, with a scenario that could prove a tempting generalisation wrong? Is every sentence that reaches beyond the scenarios shown ("every", "never", "only") backed by a test or narrowed, does the script say what the model leaves out, and does a claim resting only on the explainer's own model say so? `rayner check` lists the sweeping sentences nothing backs and the code names reaching the reader's words.
 
 ## Fix first
 
 These are failures, not shortcomings to weigh:
 
-- **No answer.** The explainer never makes clear what it is answering, or names the answer only after the details: the reader should know what the explainer is about within the first few steps. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears.
+- **No answer.** The explainer never makes clear what it is answering, or names the answer only after the details: the reader should know what the explainer is about within the first third of the steps. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears.
 - **Untrue.** A known false claim, a picture that misleads, a sentence that a setting makes false, or a claim beyond what the model and its sources support.
 - **Broken.** A failing build or check, a step or scenario that restores wrongly from a fresh link, or a continuation a keyboard or screen-reader user cannot reach.
 
@@ -57,6 +58,8 @@ End with one of these, and the one change that would help most:
 - **Improve.** The subject and the model are worth it, and a rewrite of the script, a reordering of steps or a few pictures would make it good. Say whether that is easy (the existing pictures can be reused) or a rebuild.
 - **Keep for coverage.** As a lesson it is weak or redundant, but it is the only scene exercising an engine feature, diagram family, language or check, so it stays in the collection as a test, out of the gallery.
 - **Delete.** Weak as a lesson, and anything it covers is covered elsewhere.
+
+For an explainer about Rayner itself (its checks, its player, its lettering), the reader is someone writing explainers: judge motivation and novelty for that reader, or keep it for coverage.
 
 When several explainers must be ordered, compare them in pairs, blind where possible, rather than adding up judgements.
 
