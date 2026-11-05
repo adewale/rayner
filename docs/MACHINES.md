@@ -104,6 +104,7 @@ transition: {
 | `leave(key)` | A part only the current picture has fades out and leaves the picture |
 | `insert(key, like)` | An unseen copy of `like`, for the author to animate; it must end as the target part, or leave when the target has none (a token walking a link) |
 | `own(key)` | The author animates this current part (with `Follow`, say) and must end it as the target part |
+| `travel(key, token, path)` | A token passing along a path, which the target does not have (a message on its arrow, an event walking a link): returns `appear`, `move` and `leave` for the author to place beside other motion. state-machine, statecharts and oauth-pkce use it |
 | `rest()` | Every keyed part not yet handled: morphed, faded in or faded out |
 
 `from(key)`, `to(key)`, `has(key, side?)` and `keys(side)` read the two pictures without animating.

@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "588c72b84e511a10457992717e26776998c4514b70a59a9c8460508e33946776",
+  "sourceHash": "a53ba57cd348143367d62874e26221fbfab12b2fdd19b982eecc61467e9b3b1b",
   "diagrams": {
     "[\"graph LR\\nV[code_verifier] -->|SHA-256| H[32-byte digest]\\nH -->|base64url| C[code_challenge]\",\"github-light\"]": "1f4ad8136c46ab15.json",
     "[\"sequenceDiagram\\n participant C as Client\\n participant S as Auth server\\n C->>S: Authorize request + code_challenge\\n S-->>C: Redirect with code\\n C->>S: Token request: code + code_verifier\\n S-->>C: Access token\",\"github-light\"]": "4e627967b7070cfb.json",

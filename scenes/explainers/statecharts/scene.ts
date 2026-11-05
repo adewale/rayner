@@ -1,4 +1,4 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, Transform, MoveAlongPath, AnimationGroup, Succession, view, matchByKey, Machine, choreograph, linear } from '../../../src/index.ts';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, AnimationGroup, Succession, view, matchByKey, Machine, choreograph } from '../../../src/index.ts';
 import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
@@ -663,19 +663,14 @@ export default class Statecharts extends Scene {
               const { before, after } = t, c = t.choreograph(main);
               const was = followed(before), now = followed(after);
               const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
-              const routes = send(chart, before.config, event).sources.map((from, i) => {
-                const shaft = c.from(arrowFor(chart, from, event)).children[0] as VMobject,
-                  token = () => new Dot({ radius: 0.11, color: s.emphasis }).moveTo(shaft.pointFromProportion(0));
-                return { shaft, key: `walk:token:${i}`, part: c.insert(`walk:token:${i}`, token()), token };
-              });
+              // One token per state that handled the event, travelling its arrow.
+              const walks = send(chart, before.config, event).sources.map((from, i) =>
+                c.travel(`walk:token:${i}`, new Dot({ radius: 0.11, color: s.emphasis }), c.from(arrowFor(chart, from, event)).children[0] as VMobject, { appear: 0.35, move: 0.8, leave: 0.25 }));
               return new Succession([
+                new AnimationGroup([...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })), ...walks.map((w) => w.appear)]),
+                new AnimationGroup(walks.map((w) => w.move)),
                 new AnimationGroup([
-                  ...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })),
-                  ...routes.map((r) => new Transform(r.part, r.token(), { runTime: 0.35 })),
-                ]),
-                new AnimationGroup(routes.map((r) => new MoveAlongPath(r.part, r.shaft, { runTime: 0.8, rateFunc: linear }))),
-                new AnimationGroup([
-                  ...routes.map((r) => c.leave(r.key, { runTime: 0.25 })),
+                  ...walks.map((w) => w.leave),
                   ...entering.map((id) => c.morph(`c:${id}`, { runTime: 0.5 })),
                   c.rest({ runTime: 0.5 }),
                 ]),
