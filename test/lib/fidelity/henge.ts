@@ -8,7 +8,7 @@ export function check(values: Record<string, string>, trace: Trace): void {
   const model = henge(values.street as Street);
   const [december, , june] = model.seasons;
   const day = (d: { declination: number; hourAngle: number }) => ({ declination: d.declination, hourAngle: d.hourAngle });
-  assert.deepEqual(trace.steps.map(step => step.step), ['street', 'overhead', 'tilt', 'sky', 'sweep', 'crossings', 'look', 'disc']);
+  assert.deepEqual(trace.steps.map(step => step.step), ['street', 'overhead', 'sky', 'sweep', 'crossings', 'tilt', 'look', 'disc']);
   assertStepState(trace, 'street', { bearing: model.bearing });
   assertStepState(trace, 'overhead', { alignment: model.alignment, backCrossings: model.backCrossings });
   // The globes cut New York's daily circle at the model's own sunset hour angles for the solstices.
