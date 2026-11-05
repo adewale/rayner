@@ -18,7 +18,7 @@ import {
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { diagramsOf, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
@@ -419,6 +419,14 @@ export class Diagram {
   spec: DiagramSpec;
   snapshot: DiagramSnapshot;
   root = new Group();
+  /** Each part's id in the snapshot, by its mobject (a part's key is its id, but for the frame's). */
+  private partIds = new WeakMap<Mobject, string>();
+  /**
+   * The frame's key. Every family that draws a frame calls it `__frame`, so it is keyed by the
+   * diagram as first shown instead: the frames of two diagrams on one stage are two parts, and a
+   * morph keeps the frame's key.
+   */
+  private frameKey: string;
   parts = new Map<string, Part>();
   visible = new Set<string>();
   order: string[];
@@ -452,6 +460,7 @@ export class Diagram {
   ) {
     const box = regionBox(where);
     this.scene = scene;
+    this.frameKey = `frame:${diagramKey(spec)}`;
     this.spec = spec;
     this.snapshot = snapshot;
     this.frameBox = box;
@@ -461,7 +470,8 @@ export class Diagram {
     emphasises(scene, () => this.emphasised());
     for (const info of partsOf(snapshot)) {
       const mob = new Group();
-      mob.key = info.id;
+      this.partIds.set(mob, info.id);
+      mob.key = info.id === '__frame' ? this.frameKey : info.id;
       if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
       for (const shape of info.shapes) {
@@ -653,7 +663,7 @@ export class Diagram {
       // Draw in snapshot order, sorted once (by rank, not a search per comparison). Transient
       // route tokens (and notes) stay above artwork; the sort is stable among them.
       const rank = new Map(this.snapshot.parts.map((p, i) => [p.id, i]));
-      const at = (m: Mobject) => rank.get(m.key!) ?? this.snapshot.parts.length;
+      const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.snapshot.parts.length;
       this.root.children.sort((a, b) => at(a) - at(b));
       await this.scene.play(new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear }));
     }
@@ -874,9 +884,10 @@ export class Diagram {
         const text = within(m, (a) => !!labelOf(a));
         // Labels and other owned subjects keep their look. Cardinality marks
         // and explicitly captured marker carriers take their connector's mark.
-        const owned = within(m, (a) => a.key != null && a.key !== id && !a.key.startsWith('card:') &&
-          !this.parts.get(a.key)?.info.markerCarrier);
-        const marker = p.info.markerCarrier || within(m, (a) => !!a.key && !!this.parts.get(a.key)?.info.markerCarrier);
+        const partId = (a: Mobject) => this.partIds.get(a);
+        const owned = within(m, (a) => partId(a) != null && partId(a) !== id && !partId(a)!.startsWith('card:') &&
+          !this.parts.get(partId(a)!)?.info.markerCarrier);
+        const marker = p.info.markerCarrier || within(m, (a) => !!partId(a) && !!this.parts.get(partId(a)!)?.info.markerCarrier);
         // Paper inside an aggregation diamond or inheritance triangle denotes
         // a hollow marker. Colour its outline without turning it solid.
         const paper = parseColor(this.snapshot.palette.paper);
@@ -1203,7 +1214,7 @@ export class Diagram {
       const target = targetFor(m);
       targets.set(m, target);
       const animation = new Transform(m, target, { runTime });
-      if (this.visible.has(m.key!)) shown.push(animation);
+      if (this.visible.has(this.partIds.get(m)!)) shown.push(animation);
       else {
         animation.begin();
         animation.finish();
@@ -1334,6 +1345,9 @@ export class Diagram {
     if (ops && resolver.morph) await resolver.morph(this.spec, next, ops);
     const snapshot = await resolver.diagram(next);
     const target = new Diagram(this.scene, next, snapshot, { box: this.frameBox });
+    // The frame keeps its key through the morph.
+    const frame = target.parts.get('__frame');
+    if (frame) frame.mob.key = target.frameKey = this.frameKey;
     const animations = [];
     for (const [id, p] of this.parts)
       if (!p.info.owner && this.visible.has(id)) {
@@ -1354,6 +1368,7 @@ export class Diagram {
       }
     this.scene.add(target.root);
     this.parts = target.parts;
+    this.partIds = target.partIds;
     this.order = target.order;
     this.root = target.root;
     this.home = target.home;

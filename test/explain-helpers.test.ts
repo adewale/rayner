@@ -268,6 +268,18 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
   );
 });
 
+test('two diagrams on one stage have two frames, each a part of its own with the role frame', async () => {
+  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const other = fixedSnapshot({ ...spec, source: spec.source + '\n%% another' }, fixture().parts, { palette: fixture().palette });
+  const [a, b] = [new Diagram(scene, spec, fixture(), { box: 'left' }), new Diagram(scene, other.spec, other, { box: 'right' })];
+  await a.build();
+  await b.build();
+  const frames = scene.familyMembers().filter((m) => m.role === 'frame');
+  assert.equal(frames.length, 2);
+  assert.notEqual(frames[0]!.key, frames[1]!.key, 'one key per part, the frames too');
+  assert.equal(a.get('__frame'), frames[0], 'the frame is still found by its id in the snapshot');
+});
+
 test('a hidden diagram leaves the stage, so nothing describes it, and reveal brings it back', async () => {
   const s = fixture();
   const ok = await snapshotResolver({ [diagramKey(s.spec)]: s }).diagram(s.spec);
