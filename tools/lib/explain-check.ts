@@ -514,12 +514,6 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
   return { redrawn: records.length, problems, ignoring };
 }
 
-/**
- * Explainers whose staged draws are being moved onto their state on other branches: a step of
- * theirs that ignores its state is reported, not failed. Delete an entry when its explainer's
- * draws read their state; an entry whose steps all read it already changes nothing.
- */
-const AWAITING_STATE_DRAWS: ReadonlySet<string> = new Set(['henge']);
 
 /**
  * Each authored transition from `state`, played through on the explored scene: every invariant
@@ -650,9 +644,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
     });
     const staged = redrawStagedSteps(ran, v.trace);
-    const ignoresState = AWAITING_STATE_DRAWS.has(project.Scene.meta?.id ?? '') ? staged.ignoring : [];
     assert.deepEqual(
-      staged.problems.filter((p) => !ignoresState.some((step) => p.startsWith(`step "${step}": its draw ignores its state`))).slice(0, 5),
+      staged.problems.slice(0, 5),
       [],
       `Staged steps ${where}: a step's picture must be a function of the state it records (the first five)`,
     );
@@ -739,8 +732,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       // How many stage.steps pictures were redrawn from their recorded state and matched.
       ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
-      // Steps of an explainer awaiting conversion (AWAITING_STATE_DRAWS) whose draw ignores its state. Reported, not gated.
-      ...(ignoresState.length ? { ignoresState } : {}),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.
