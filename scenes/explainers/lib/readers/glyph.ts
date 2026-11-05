@@ -43,7 +43,7 @@ export function frames(font: FontName): StagedStep[] {
       id: 'reader-shape',
       title: 'To fill its wider cell, JetBrains Mono draws a different l',
       line: 'Will shape matching pair any Inter glyph with a JetBrains Mono one?',
-      caption: `The dashed boxes mark the l’s advances. JetBrains Mono gives it more room and draws a flag and a foot; Inter uses a simpler stem. The character is the same, but its path has changed. A shape matcher ignores position and size, so the outlines themselves must supply the correspondence.`,
+      caption: `The dashed boxes mark the l’s advances. JetBrains Mono gives it more room and draws a flag and a foot; Inter uses a simpler stem. The character is the same, but its outline, the closed path that makes its ink, has changed. A shape matcher ignores position and size, so the outlines themselves must supply the correspondence.`,
       state: { font, other, l },
       draw: (st, s) => {
         const big = 3.4,

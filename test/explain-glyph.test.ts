@@ -43,7 +43,6 @@ test('glyph: the check answers’ widths are the shapers’ own', async () => {
   assert.equal(width('sans', 'mammoth').toFixed(2), '4.24');
   assert.equal(advances('sans', 'm')[0]!.ax.toFixed(3), '0.788');
   for (const quoted of ['3.78', '1.90', '4.24', '0.788']) assert.ok(answers.includes(quoted), quoted);
-  // The label measured in Inter and drawn in JetBrains Mono is squeezed: Mono's line is the wider.
-  assert.ok(width('mono', 'Hello, outlines') > width('sans', 'Hello, outlines'));
-  assert.ok(answers.includes('8.10') && answers.includes('6.02'));
+  // The diagram-measurement question (a label measured in Inter, drawn in Mono) left with the diagram step.
+  assert.ok(!answers.includes('recorded width'));
 });
