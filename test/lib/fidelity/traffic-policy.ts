@@ -1,6 +1,7 @@
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import {
+  CLIENT_IP,
   PLACEMENTS,
   endpointsOn,
   flows,
@@ -25,12 +26,15 @@ export function check(trace: Trace, values: Record<string, string>): void {
     const s = shares(counts, p);
     return Object.fromEntries(ids.map((id) => [id, frac(s[id]!)]));
   };
-  assertStepState(trace, 'topology', { placement: [...counts] });
+  // The setup card is a view of the policy, the placement and the client's address the step records.
+  assertStepState(trace, 'topology', { placement: [...counts], policy, client: CLIENT_IP });
   // The chain shown is Node 1's: every pod under Cluster, Node 1's own under Local.
   const chain = endpointsOn(counts, policy, 0).map((p) => p.id);
   assertStepState(trace, 'rules', {
     chain: rules(chain).map((r) => r.probability),
     chainShares: ruleShares(chain.length).map(frac),
+    // The code panel is a view of the chain: each rule's probability and the pod it jumps to.
+    chainPods: chain,
   });
   if (policy === 'cluster') {
     assertStepState(trace, 'second-hop', { secondHop: frac(secondHop(counts, 'cluster')) });
@@ -47,5 +51,9 @@ export function check(trace: Trace, values: Record<string, string>): void {
     bands: flows(counts, p).map((b) => [NODE[b.node], b.pod, frac(b.share)]),
   });
   assertStepState(trace, 'flow', { flow: { cluster: flow('cluster'), local: flow('local') } });
-  assertStepState(trace, 'compare', { compare: { cluster: table('cluster'), local: table('local') } });
+  // Each policy's card is a view of its shares and of its second hop, which the step records beside them.
+  assertStepState(trace, 'compare', {
+    compare: { cluster: table('cluster'), local: table('local') },
+    hops: { cluster: frac(secondHop(counts, 'cluster')), local: frac(secondHop(counts, 'local')) },
+  });
 }
