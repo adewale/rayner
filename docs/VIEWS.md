@@ -147,6 +147,56 @@ Because every View keeps its `draw`, `rayner check` can also redraw a View for a
 state a [`Machine`](MACHINES.md) reaches. A `draw` that reads a variable outside the
 state is caught the same way: the redraw disagrees with what was shown.
 
+## Cards, code, annotations and notes from state
+
+The stage's helpers enter and animate: `card.mark`, `code.focus`, `s.callout` and `d.note`
+each play. A draw is synchronous and builds its picture whole, so each of them has a builder
+a draw can call, which puts the mark in the picture and lets the part describe itself:
+
+```ts
+import { Card, CodeBlock } from 'rayner/explain';
+import { callout } from 'rayner/drawing';
+
+// A marked card: the row the state names is lit, and the description says so.
+const counts = view(this, (st) =>
+  new Card(this, s.palette, rows(st), { at: box, lit: st.chosen, litAs: 'this check' }), { place: false });
+await s.enter(counts);                      // no describe: the card describes itself, its lit row too
+
+// A focused code panel, and a callout beside the focused line, from the same state.
+const program = view(this, (st) => {
+  const code = new CodeBlock(this, s.palette, lines(st), { at: box, focus: st.passes ? [1, 2] : 1, focusAs: 'run' });
+  const line = code.code.lines[1]!.box()!;
+  return new Group(code, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.good : s.bad }));
+}, { place: false });
+
+// A diagram note, placed as d.note places one, from the state's words.
+const note = view(this, (st) => d.notePicture('Capture', `${st.families} families`, { side: 'below' }), { place: false });
+
+// The whole diagram with its marks and notes, keyed apart from a second picture of the same diagram.
+const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), prefix: 'wrong:' }), { place: false });
+```
+
+- **Marks are part of the picture.** `lit` and `focus` put the card's or panel's bar where
+  `mark` and `focus` leave it; unlit, the bar is there and hidden, so a sync from unlit to lit
+  morphs one family shape. A staged step's redraw from its recorded state draws the bar again,
+  so `rayner check` compares it with what was drawn. The view check compares text, so it covers a
+  mark through the description rather than the bar's place.
+- **Parts describe themselves.** A card, a code panel, a note, a dimension line and a pin say
+  what they are wherever they sit: kept, inside a view, inside a group, inside a staged step's
+  picture. A `describe` on `s.keep`, `s.enter` or a staged step speaks for the rest of the
+  picture, not for those parts, so it never repeats a card.
+- **They say what they emphasise.** A lit row, a focused line and a note report themselves to
+  the phone's close-ups as `mark` and `focus` do, so a scene that draws them needs no
+  `s.emphasise`. Marks on a diagram picture still need one, since the picture copies the
+  diagram's look and not its words.
+- **Two pictures of one diagram.** Every part of a diagram picture is keyed by its id, so two
+  on the stage at once would give one key to two parts. `prefix` puts a word before every key in
+  the picture (keys that start `__` are roles and keep theirs); marks, notes and dimming still
+  name parts by their ids in the diagram.
+- **Annotations without the camera.** `callout`, `dimension` and `pin` build at the draw's own
+  coordinates and size. The stage's helpers build the same pictures in screen coordinates while
+  the camera is away, so prefer the helpers for an annotation drawn into a zoomed view.
+
 ## Other readouts
 
 - **`StateReadout`** keeps its fixed layout of `Text` slots and is not built on

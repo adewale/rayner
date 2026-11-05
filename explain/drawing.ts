@@ -4,8 +4,10 @@
 // keyed Group or mobject, so matching (matchByKey), find(), invariants and reviews can address
 // its parts; nothing here animates, registers or reads scene state.
 import { Group, Text, Rectangle, Circle, Line, Arrow } from '../src/index.ts';
-import type { Mobject, Vec } from '../src/index.ts';
+import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
+import { callout as calloutLook, dimension as dimensionLook, pin as pinLook } from './annotate.ts';
+import type { Side } from './annotate.ts';
 
 /** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
 export function keyed<T extends Mobject>(m: T, key: string): T {
@@ -260,5 +262,48 @@ export function bars(
     );
   });
   return g;
+}
+
+// Annotations, as the stage's s.callout, s.dimension and s.pin draw them but without drawing them in:
+// a view's draw or a staged step's draw builds them from state, beside the parts they annotate.
+// The stage's helpers build these same pictures, mapped to the camera, and then draw them in.
+
+/**
+ * Words beside a target (a point, a box or a mobject) with a leader line from the words to the
+ * target's nearest edge, ending in a dot, on the stage's paper: `s.callout`'s picture. `gap` is how
+ * far the words stand off the target. Described by its words.
+ */
+export function callout(
+  s: Stage,
+  target: Vec | Box | Mobject,
+  text: string,
+  { side = 'right', gap = 0.55, color = s.palette.ink, size = 0.24, key }: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
+): Group {
+  const g = calloutLook(target, text, { color, size, side, gap, background: s.palette.paper, shaping: s.scene.textShaping });
+  return key ? keyed(g, key) : g;
+}
+/**
+ * A dimension line from `a` to `b`, set off by `offset` (positive: to the left of a→b), with ticks
+ * at both ends and `label` at its middle, in the stage's emphasis on its paper: `s.dimension`'s
+ * picture. Described as “A dimension line marked …”.
+ */
+export function dimension(
+  s: Stage,
+  a: Vec,
+  b: Vec,
+  label: string,
+  { offset = 0.3, color = s.emphasis, size = 0.24, key }: { offset?: number; color?: string; size?: number; key?: string } = {},
+): Group {
+  const g = dimensionLook(a, b, label, { color, size, offset, background: s.palette.paper, shaping: s.scene.textShaping });
+  return key ? keyed(g, key) : g;
+}
+/** A pin stuck in at `at`, with an optional label beside its head, in the stage's emphasis: `s.pin`'s picture. Described as “A pin marked …”. */
+export function pin(
+  s: Stage,
+  at: Vec,
+  { label, color = s.emphasis, size = 0.24, key }: { label?: string; color?: string; size?: number; key?: string } = {},
+): Group {
+  const g = pinLook(at, { color, size, shaping: s.scene.textShaping, ...(label ? { label } : {}) });
+  return key ? keyed(g, key) : g;
 }
 export * from './seen-from.ts';

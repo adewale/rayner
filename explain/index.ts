@@ -1,9 +1,9 @@
-export { stage } from './stage.ts';
+export { stage, stagedStep } from './stage.ts';
 export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions } from './stage.ts';
 export type { LayoutDirection } from './layout-direction.ts';
 export type {AudioClip, ScoreNote, StepAudio} from './audio.ts';
 export { Diagram } from './diagrams.ts';
-export type { ShowOptions, NoteSide } from './diagrams.ts';
+export type { ShowOptions, NoteSide, PictureNote } from './diagrams.ts';
 export { Card, CodeBlock } from './panels.ts';
 export type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 export { REGIONS, regionBox } from './look.ts';

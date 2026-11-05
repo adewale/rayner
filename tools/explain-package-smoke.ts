@@ -221,13 +221,14 @@ try {
   // keep their relative paths, so missing author-owned dependencies still fail.
   const copyAuthorSource = async (source: string, target: string) => {
     const code = (await readFile(source, 'utf8')).replace(
-      /(['"])(?:\.\.\/)+(src|explain)\/index\.ts\1/g,
-      (_match, quote: string, area: string) => `${quote}${area === 'src' ? 'rayner' : 'rayner/explain'}${quote}`,
+      /(['"])(?:\.\.\/)+(src\/index|explain\/index|explain\/drawing)\.ts\1/g,
+      (_match, quote: string, area: string) =>
+        `${quote}${area === 'src/index' ? 'rayner' : area === 'explain/index' ? 'rayner/explain' : 'rayner/drawing'}${quote}`,
     );
     await writeFile(target, code);
   };
   await mkdir(join(folder, 'lib/readers'), { recursive: true });
-  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'staged.ts', 'readers/layout-direction.ts'])
+  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'readers/layout-direction.ts'])
     await copyAuthorSource(join(ROOT, 'scenes/explainers/lib', file), join(folder, 'lib', file));
   for (const [name, source] of replayFixtures) {
     const target = join(folder, 'outline-' + name);

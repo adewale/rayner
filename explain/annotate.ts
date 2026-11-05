@@ -5,6 +5,7 @@ import type {TextShaping} from '../src/text-context.ts';
 import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject } from '../src/index.ts';
 import type { Box as BoxT } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
+import { selfDescribed } from './look.ts';
 
 const paperFor = (text: Text, fill: string): Rectangle => new Rectangle({
   width: text.width() + 0.12, height: text.height() + 0.08, fill, stroke: 'none',
@@ -52,7 +53,7 @@ export function dimension(a: Vec, b: Vec, label: string, { color, background, si
   t.moveTo([mid[0] + n[0] * side * gap, mid[1] + n[1] * side * gap]);
   if (background) g.add(paperFor(t, background));
   g.add(t);
-  return g;
+  return selfDescribed(g, () => ({ what: `A dimension line marked “${label}”`, parts: [] }));
 }
 
 /** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head. */
@@ -63,7 +64,7 @@ export function pin(at: Vec, { color, size = 0.24, shaping, label }: AnnotationL
     new Circle({ radius: 0.075, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(head),
   );
   if (label) g.add(new Text(label, { fontSize: size, color, anchor: 'start', shaping }).moveTo([head[0] + 0.14, head[1]], [-1, 0]));
-  return g;
+  return selfDescribed(g, () => ({ what: label ? `A pin marked “${label}”` : 'A pin', parts: [] }));
 }
 
 export type Side = 'above' | 'below' | 'left' | 'right';

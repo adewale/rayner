@@ -16,7 +16,7 @@ import {
   Text,
 } from '../src/index.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
-import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises } from './look.ts';
+import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
 import { diagramsOf, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
@@ -45,6 +45,8 @@ interface Part {
   route?: VMobject;
 }
 export type NoteSide = 'above' | 'below' | 'left' | 'right';
+/** A note in a diagram's picture: beside part `id`, as `note(id, text, { side, color, size })` draws it. */
+export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
 interface Note {
   id: string;
   side: NoteSide;
@@ -916,18 +918,30 @@ export class Diagram {
    * them: a picture of the diagram that a view can draw from state, so marks such as a trail are
    * part of that state. It carries the diagram's keys; once a view shows it, take the live
    * diagram off the stage and call showBy(view), so each key is on stage once.
+   *
+   * `notes` adds a note beside each named part, as `note` draws and places one (see notePicture):
+   * the picture is then a Group of the diagram and its notes, which sit over it unclipped. `dim`
+   * fades every part but these, as `dim` does. `prefix` goes in front of every key in the picture
+   * (a note's is `note:<id>`; keys starting `__` are roles and keep their names), so two pictures
+   * of one diagram can be on stage together. Marks, notes and dimming name parts by their ids in
+   * the diagram, unprefixed.
    */
-  picture(marks: Readonly<Record<string, string>> = {}): Group {
+  picture(
+    marks: Readonly<Record<string, string>> = {},
+    { notes = [], dim, prefix = '' }: { notes?: readonly PictureNote[]; dim?: readonly string[] | null; prefix?: string } = {},
+  ): Group {
     const copy = this.root.copy();
     const live = this.root.family(), drawn = copy.family();
     const at = new Map(live.map((m, i) => [m, i] as const));
     const marked = new Map(Object.entries(marks).map(([id, color]) => [this.top(id), color] as const));
+    const kept = dim ? this.keptOf(dim) : null;
     // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
     // drawn or marked, the rest unseen.
     for (const [id, part] of this.parts) {
       // An owned part (a link's label) is styled with its owner's family.
       if (!this.base.has(id)) continue;
-      const styles = this.styled(id, marked.get(id), false), shown = this.visible.has(id);
+      const dimmed = !!kept && !kept.has(id) && !isScaffold(part.info);
+      const styles = this.styled(id, marked.get(id), dimmed), shown = this.visible.has(id);
       part.mob.family().forEach((m, k) => {
         const i = at.get(m);
         if (i === undefined) return;
@@ -936,7 +950,43 @@ export class Diagram {
       });
     }
     copy.setStyle({ opacity: 1 }, false);
-    return copy;
+    if (prefix) for (const m of copy.family()) if (m.key !== undefined && !m.key.startsWith('__')) m.key = prefix + m.key;
+    if (!notes.length) return copy;
+    return new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` })));
+  }
+  /**
+   * A note beside part `id` as `note` draws and places one, without drawing it in: for a view's
+   * draw to build from state. It describes itself (“text” beside the part) and says that it
+   * emphasises it, as a note does; keyed `note:<id>` unless `key` says otherwise.
+   */
+  notePicture(
+    id: string,
+    text: string,
+    { side = 'above', color = this.accent, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
+  ): Group {
+    const g = this.noteLook(text, color, size);
+    g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
+    g.key = key;
+    const w = wordsOf(this.scene);
+    return selfDescribed(
+      g,
+      () => ({ what: w.note, parts: [{ name: w.beside(text, this.nameOf(id)) }] }),
+      () => [[g, `note ${text}`]],
+    );
+  }
+  /** A note's label on its raised, outlined paper, at the origin. */
+  private noteLook(text: string, color: string, size: number): Group {
+    const label = this.scene.text(text, {fontSize: size, color});
+    const bg = new Rectangle({
+      width: label.width() + size * 1.4,
+      height: size * 1.85,
+      fill: raised(this.snapshot.palette),
+      stroke: color,
+      strokeWidth: 0.014,
+      cornerRadius: 0.08,
+    });
+    label.moveTo(bg.center());
+    return new Group(bg, label);
   }
   /**
    * Colour parts (and links' arrowheads) and thicken their outlines until unmarked. Labels keep
@@ -964,32 +1014,33 @@ export class Diagram {
    * `null` restores.
    */
   async dim(keep: readonly string[] | null, { runTime = 0.5 } = {}): Promise<void> {
-    if (keep == null) this.kept = null;
-    else {
-      const kept = new Set(keep.map((id) => this.top(id)));
-      // Members are not recorded on a group's parts, but the layout draws them inside its box.
-      const within = (inner: Box, outer: Box) =>
-        inner[0] >= outer[0] - 1e-6 && inner[1] >= outer[1] - 1e-6 && inner[2] <= outer[2] + 1e-6 && inner[3] <= outer[3] + 1e-6;
-      for (const id of [...kept]) {
-        const group = this.parts.get(id)!;
-        const outer = group.info.role === 'group' ? group.mob.box() : null;
-        if (outer)
-          for (const p of this.parts.values()) {
-            const box = !p.info.owner && p !== group && !(p.info.from && p.info.to) ? p.mob.box() : null;
-            if (box && within(box, outer)) kept.add(p.info.id);
-          }
-      }
-      for (const p of this.parts.values())
-        if (!p.info.owner && p.info.from && p.info.to && !kept.has(p.info.id)) {
-          if ([p.info.from, p.info.to].every((n) => kept.has(this.end(n)))) kept.add(p.info.id);
-        }
-      this.kept = kept;
-    }
+    this.kept = keep == null ? null : this.keptOf(keep);
     const anims = this.looks(
       [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id),
       runTime,
     );
     if (anims.length) await this.scene.play(...anims);
+  }
+  /** The parts `dim(keep)` keeps: these, what a kept group draws inside it, and the links between kept parts. */
+  private keptOf(keep: readonly string[]): Set<string> {
+    const kept = new Set(keep.map((id) => this.top(id)));
+    // Members are not recorded on a group's parts, but the layout draws them inside its box.
+    const within = (inner: Box, outer: Box) =>
+      inner[0] >= outer[0] - 1e-6 && inner[1] >= outer[1] - 1e-6 && inner[2] <= outer[2] + 1e-6 && inner[3] <= outer[3] + 1e-6;
+    for (const id of [...kept]) {
+      const group = this.parts.get(id)!;
+      const outer = group.info.role === 'group' ? group.mob.box() : null;
+      if (outer)
+        for (const p of this.parts.values()) {
+          const box = !p.info.owner && p !== group && !(p.info.from && p.info.to) ? p.mob.box() : null;
+          if (box && within(box, outer)) kept.add(p.info.id);
+        }
+    }
+    for (const p of this.parts.values())
+      if (!p.info.owner && p.info.from && p.info.to && !kept.has(p.info.id)) {
+        if ([p.info.from, p.info.to].every((n) => kept.has(this.end(n)))) kept.add(p.info.id);
+      }
+    return kept;
   }
   /**
    * A short label beside a part, at a readable size whatever the diagram's
@@ -1002,17 +1053,7 @@ export class Diagram {
     { side = 'above', color = this.accent, size = 0.22 }: { side?: NoteSide; color?: string; size?: number } = {},
   ): Promise<Group> {
     const anchor = this.get(id);
-    const label = this.scene.text(text, {fontSize: size, color});
-    const bg = new Rectangle({
-      width: label.width() + size * 1.4,
-      height: size * 1.85,
-      fill: raised(this.snapshot.palette),
-      stroke: color,
-      strokeWidth: 0.014,
-      cornerRadius: 0.08,
-    });
-    label.moveTo(bg.center());
-    const g = new Group(bg, label);
+    const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, anchor.box()!, side, this.frameBox));
     this.root.add(g);
     this.attach();

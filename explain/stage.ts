@@ -10,7 +10,7 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, emphasises } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, emphasises, partsSeen } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
@@ -67,7 +67,21 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
   kind?: StepKind;
   /** Keys of the parts the step is about, when that is less than the whole picture: a phone opens on them. */
   opening?: readonly string[];
+  /**
+   * What the picture shows, in words, from the step's state: for a picture whose meaning is its
+   * geometry rather than its labels. Without it the picture is described by its text. Either way,
+   * a part that describes itself (a card, a code panel, a note, a dimension line) is described by
+   * its own words as well.
+   */
+  describe?: (state: S) => string;
 }
+/**
+ * A staged step whose state has its own type, for a list that mixes them: `stage.steps` takes one
+ * state type per list, and TypeScript cannot infer a type per element of one array literal. Each
+ * draw still reads its own step's state typed, which is the state `stage.steps` hands it; `rayner
+ * check` also draws each step from other states, and a draw that throws on one has read its state.
+ */
+export const stagedStep = <S extends object>(step: StagedStep<S>): StagedStep => step as unknown as StagedStep;
 /** Options for `stage.steps`: `kind` puts every step on that path (default 'main'). */
 export interface StagedStepsOptions { kind?: StepKind }
 /** One staged step as `rayner check` redraws it: from the recorded state, compared with what was drawn. */
@@ -259,7 +273,11 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         s.name,
       ),
     );
-  /** What a sighted reader sees: diagrams, then panels and described drawings, then other kept text. */
+  /**
+   * What a sighted reader sees: diagrams, then each kept object's parts that describe themselves
+   * (cards, code, notes, dimension lines, wherever they sit, a view's current picture included) and
+   * its `describe`, then other kept text.
+   */
   function look(): Seen[] {
     const w = wordsOf(scene);
     const present = new Set(scene.familyMembers());
@@ -268,19 +286,19 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     const told = new Set<() => string>();
     const labels: string[] = [];
     let blank = 0;
-    for (const [m, describe] of overlays)
+    for (const [m, describe] of overlays) {
       if (!present.has(m)) continue;
-      else if (m instanceof Card || m instanceof CodeBlock) seen.push(m.describe());
-      else if (describe) {
+      // A part that describes itself says so whatever else describes the object; `describe` speaks for the rest.
+      const parts = partsSeen(m, (t) => !!t.text.trim() && (t.style.opacity ?? 1) >= 0.5);
+      seen.push(...parts.seen);
+      if (describe) {
         if (!told.has(describe)) seen.push({ what: describe(), parts: [] });
         told.add(describe);
       } else {
-        const words = m
-          .family()
-          .filter((t): t is Text => t instanceof Text && !!t.text.trim() && (t.style.opacity ?? 1) >= 0.5);
-        labels.push(...words.map((t) => t.text));
-        if (!words.length) blank++;
+        labels.push(...parts.words);
+        if (!parts.words.length && !parts.seen.length) blank++;
       }
+    }
     if (labels.length) seen.push({ what: w.count(labels.length, w.label), parts: labels.map((name) => ({ name })) });
     if (blank)
       seen.push({
@@ -544,14 +562,15 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           ...opts,
         }),
       );
-      keepAll([g], { describe: () => `A dimension line marked “${label}”` });
+      // The line describes itself.
+      keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       return g;
     },
     /** A pin stuck in at `at`, with an optional label; drawn in, and kept. */
     async pin(at: Vec, opts: { label?: string; color?: string; size?: number } = {}) {
       const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
-      keepAll([g], { describe: () => (opts.label ? `A pin marked “${opts.label}”` : 'A pin') });
+      keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
       return g;
     },
@@ -630,9 +649,10 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         // What the step is about, when that is less than the whole drawing: a phone opens on it.
         const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];
         this.opening(...about);
-        // Describe the drawn labels, not the state object or the authored caption.
-        const words = drawing.family().filter((m): m is Text => m instanceof Text).map((t) => t.text).filter(Boolean);
-        await this.enter(drawing, { runTime: kind === 'short' ? 0.25 : 0.24, describe: words.join('. ') });
+        // Describe the drawn labels (or the step's own words for its picture), not the state object or the
+        // authored caption; a part that describes itself is described by itself, so its text is not repeated.
+        const words = partsSeen(drawing).words.filter(Boolean).join('. ');
+        await this.enter(drawing, { runTime: kind === 'short' ? 0.25 : 0.24, describe: step.describe ? step.describe(state) : words });
       }
     },
   };

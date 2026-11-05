@@ -136,12 +136,12 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
 | `s.carry(m, to, { runTime })` | Glide a kept object to a point, or into a box or region it is shrunk to fit (never enlarged): carry an idea on instead of clearing it |
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
-| `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)`, described by its words. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. |
+| `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)`, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. A list takes one state type; `stagedStep(step)` (from `rayner/explain`) types one step's state for a list whose steps' states differ |
 | `s.opening(...subjects)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)) |
 | `s.emphasise(now)` | Say what the scene's own marks emphasise: `now()` returns `[mobject, what it shows]` pairs read from state whenever asked ([below](#the-phones-opening-emphasis-and-review-subjects)) |
-| `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept |
-| `s.pin(at, { label, color, size })` | A pin stuck in at `at`, with an optional label |
-| `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge |
+| `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw |
+| `s.pin(at, { label, color, size })` | A pin stuck in at `at`, with an optional label; the kit's `pin` for a draw |
+| `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge; the kit's `callout` for a draw |
 | `s.emphasis`, `s.soft`, `s.good`, `s.bad` | Colours that read on this paper: emphasis, secondary text, accepted, rejected |
 | `s.raised`, `s.rule` | A panel surface one shade off the paper, and a hairline that separates; the colours of the stage's own card and code panels |
 | `s.palette`, `s.paper`, `s.heading` | The current palette, paper rectangle and heading text |
@@ -150,7 +150,7 @@ Annotations say a value where it is. Prefer a dimension, pin or callout on the d
 
 `{ enter: false }` creates a card or code panel without playing it, so `s.enter(card, code)` can bring several in together.
 
-`describe` says in words what kept objects show together: a sentence, or a function for a drawing that changes. Without it, the description lists their visible text, and `check` fails a kept drawing that has no text.
+`describe` says in words what kept objects show together: a sentence, or a function for a drawing that changes. Without it, the description lists their visible text, and `check` fails a kept drawing that has no text. Either way, a part that describes itself is described by its own words wherever it sits, a view's current picture included: a card or code panel as the stage describes one it entered, its lit row or focused lines with their word; a diagram note; a dimension line or pin. So a view of a card needs no `describe`, and one given says what else the view shows.
 
 Emphasis is the style's accent, or orange for styles whose accent is grey or near-black (hand-drawn, pen-and-ink, blueprint). `s.soft` keeps at least 4.5:1 contrast with the paper.
 
@@ -178,12 +178,13 @@ s.emphasise(() => (this.state.full ? [[outline, 'outlined: the full slot']] : []
 | `card.set({ Label: value })` | Crossfade changed values; unchanged values stay still. A row with a value per column takes an array, `{ Hits: [0, 3] }`. A card sizes to its first values, so pass `width` if later ones are longer; a wider card gives its columns the spare room |
 | `card.mark(label \| null, { as })` | A bar on one row that stays until moved |
 | `code.focus(i \| [a, b] \| null, { as })` | A bar on zero-based line `i`, or lines `a` to `b` inclusive |
+| `new Card(…, { lit, litAs })`, `new CodeBlock(…, { focus, focusAs })` | The same bar from the start, as `mark(lit, { as: litAs })` or `focus(focus, { as: focusAs })` leaves it, for a card or code drawn from state: the bar is part of the picture, described and emphasised, and a redraw from the state draws it again |
 | `code.morph(next, { markAdded })` | Pair lines by text: survivors move, removed lines fade, added lines arrive, marked if `markAdded` |
 | `code.clearMarks()` | Fade out the added and removed bars |
 
 `as` is the word the description gives the mark, such as `'rejected'`. Both are native `Group`s.
 
-`new Card(scene, s.palette, rows, options)` builds a card without entering it, for a [view](VIEWS.md) that rebuilds the card from state at every sync, as `state-machine` and `ring-buffer` do; `s.card` is the same card, placed on the stage and faded in. `new CodeBlock(scene, s.palette, lines, options)` does the same for a code panel, for a view or a staged step's draw whose code (a report, a listing) comes from state; `s.code` is that panel, placed and faded in.
+`new Card(scene, s.palette, rows, options)` builds a card without entering it, for a [view](VIEWS.md) that rebuilds the card from state at every sync, as `state-machine` and `ring-buffer` do; `s.card` is the same card, placed on the stage and faded in. `new CodeBlock(scene, s.palette, lines, options)` does the same for a code panel, for a view or a staged step's draw whose code (a report, a listing) comes from state; `s.code` is that panel, placed and faded in. A built card or panel takes its mark from state with `lit` or `focus` (`isdigit`, `seasons`, `trust-proxy`, `exgit`, `agentic-mermaid`), and describes itself wherever it is drawn ([views](VIEWS.md#cards-code-annotations-and-notes-from-state)).
 
 `columns` lays values side by side under headings, so a phone close-up of one card shows a comparison whole:
 
@@ -208,6 +209,9 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | `stat(s, title, value, x, y, key)` | A title over a large value |
 | `flow(s, names, { y, key })` | Named steps in boxes of one size joined by arrows; long names wrap; each box keyed `key:i` |
 | `bars(s, rows, maximum, { key, y })` | Bars on one scale with aligned starts, labels keyed `key:i:label` and values `key:i:value` |
+| `callout(s, target, text, { side, gap, color, size, key })` | `s.callout`'s picture, without drawing it in: words beside a point, box or mobject with a leader line, on the stage's paper. Described by its words |
+| `dimension(s, a, b, label, { offset, color, size, key })` | `s.dimension`'s picture: a dimension line in the stage's emphasis. Describes itself, “A dimension line marked …” |
+| `pin(s, at, { label, color, size, key })` | `s.pin`'s picture. Describes itself, “A pin marked …” |
 
 **Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (`match: 'key'`) or `choreograph` keeps it wherever it moves:
 
@@ -298,7 +302,8 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 | --- | --- |
 | `d.reveal(n \| ids \| 'rest')` | Bring in the next `n` parts in reading order, named parts, or the rest |
 | `d.walk(hops, { trail, parallel, color })` | A token travels real links; `trail` leaves them marked; `parallel` runs several journeys in one play |
-| `d.picture(marks)`, `d.link(from, to)`, `d.showBy(view)` | The diagram copied with the parts in `marks` (id to colour) as a mark draws them, for a view to draw the diagram, and a trail, from state; a link's id, part and route; and, once that view shows it and the live diagram is off the stage, the view that keeps the stage describing it (see `state-machine`) |
+| `d.picture(marks, { notes, dim, prefix })`, `d.link(from, to)`, `d.showBy(view)` | The diagram copied with the parts in `marks` (id to colour) as a mark draws them, for a view to draw the diagram, and a trail, from state; with `notes` (`{ id, text, side?, color?, size? }`, a Group of the diagram and its notes), `dim` (the parts `dim` keeps) and `prefix` (put before every key, so two pictures of one diagram can share the stage; `agentic-mermaid`, `feature-tour`); a link's id, part and route; and, once that view shows it and the live diagram is off the stage, the view that keeps the stage describing it (see `state-machine`) |
+| `d.notePicture(id, text, { side, color, size, key })` | A note placed as `note` places one, without drawing it in, for a view's draw (`exgit`, `fork`); keyed `note:<id>`, it describes itself and says it emphasises the part |
 | `d.mark(ids, { color, as })`, `d.unmark(ids?)` | Colour parts and thicken their outlines until unmarked; labels keep their ink; `as` names the mark in the description |
 | `d.dim(keep \| null)` | Fade everything but `keep`, links between kept parts and scaffolding; `null` restores. Dimmed parts keep 3:1 contrast with the paper |
 | `d.note(id, text, { side })` | A short label beside a part at a fixed readable size; `side` is `above`, `below`, `left` or `right` |

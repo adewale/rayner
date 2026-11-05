@@ -1,7 +1,7 @@
 import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
-import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource } from './look.ts';
+import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource, seenSource } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import type { Seen } from './trace.ts';
 import { wordsOf } from './words.ts';
@@ -29,6 +29,13 @@ export interface CardOptions {
   fontSize?: number;
   /** Field arrangement only: RTL puts labels on the right and values on the left. */
   direction?: LayoutDirection;
+  /**
+   * The row lit from the start, as `mark(label)` leaves it: a card drawn from state (in a view's
+   * draw or a staged step's) shows its mark as part of the picture, described and emphasised.
+   */
+  lit?: string | null;
+  /** The word the description gives the lit row (default "marked", in the scene's language), as `mark`'s `as`. */
+  litAs?: string;
 }
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
@@ -244,9 +251,15 @@ export class Card extends Group {
       });
     }
     place(this, at, height, options.align);
+    if (options.lit != null) {
+      // Where mark() leaves the bar: across the panel, on the row's last value.
+      this.bar.moveTo([this.panel.center()[0], this.row(options.lit).cells.at(-1)!.anchorPoint()[1]]).setOpacity(1);
+      this.lit = { label: options.lit, as: options.litAs ?? wordsOf(scene).marked };
+    }
   }
 
   [emphasisSource](): Emphasis { return this.lit ? [[this.bar, `row ${this.lit.label}`]] : []; }
+  [seenSource](): Seen { return this.describe(); }
 
   override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     const from = source as Card;
@@ -384,6 +397,13 @@ export interface CodeOptions {
   title?: string;
   /** Lines beginning `+ ` or `- ` get added/removed bars (the marker is kept). */
   diff?: boolean;
+  /**
+   * The focus bar from the start, on line i or lines [a, b] inclusive, as `focus(lines)` leaves it:
+   * a code panel drawn from state shows its focus as part of the picture, described and emphasised.
+   */
+  focus?: number | readonly [number, number] | null;
+  /** The word the description gives the focused lines (default "focused", in the scene's language), as `focus`'s `as`. */
+  focusAs?: string;
 }
 /** A bar behind an added or removed line. */
 interface LineMark {
@@ -457,6 +477,25 @@ export class CodeBlock extends Group {
     this.add(this.bar, this.code);
     if (head) this.add(head);
     place(this, at, height, options.align);
+    if (options.focus != null) {
+      const [a, b] = this.lines(options.focus);
+      const to = this.lineBar(a, b);
+      this.bar.subpaths = to.subpaths.map((p) => p.slice());
+      this.bar.closed = [...to.closed];
+      this.bar.invalidateBox();
+      this.bar.setOpacity(1);
+      this.focused = { lines: [a, b], as: options.focusAs ?? wordsOf(scene).focused };
+    }
+  }
+
+  [seenSource](): Seen { return this.describe(); }
+
+  /** Lines i, or [a, b] inclusive, checked against the code. */
+  private lines(lines: number | readonly [number, number]): [number, number] {
+    const [a, b] = typeof lines === 'number' ? [lines, lines] : lines;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b >= this.code.lines.length || a > b)
+      throw new Error(`No code lines ${a}..${b}`);
+    return [a, b];
   }
 
   [emphasisSource](): Emphasis {
@@ -534,9 +573,7 @@ export class CodeBlock extends Group {
       this.focused = null;
       return moveBar(this.scene, this.bar, null, runTime);
     }
-    const [a, b] = typeof lines === 'number' ? [lines, lines] : lines;
-    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b >= this.code.lines.length || a > b)
-      throw new Error(`No code lines ${a}..${b}`);
+    const [a, b] = this.lines(lines);
     this.focused = { lines: [a, b], as };
     await moveBar(this.scene, this.bar, this.lineBar(a, b), runTime);
   }
