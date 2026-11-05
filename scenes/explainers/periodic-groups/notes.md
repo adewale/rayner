@@ -1,6 +1,6 @@
 # Author notes
 
-Configuration notation, column arithmetic, Madelung's empirical order and the NIST comparison remain optional details: they qualify the geometric story without making its first payoff depend on learning all the notation.
+The names step introduces subshell notation once, with the followed element's configuration, and handles helium. Madelung's empirical order, column arithmetic and the NIST comparison remain optional details: they qualify the geometric story without making its first payoff depend on the filling order.
 
 The model takes subshell capacities and filling order as inputs. It does not derive either from quantum mechanics. It uses the filling rule for all 118 placements and compares ground configurations with NIST through element 108; 88 of those configurations agree. Configurations for 109–118 are predictions here. No selectable scenario follows an f-block element.
 
