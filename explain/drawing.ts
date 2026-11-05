@@ -297,13 +297,16 @@ export function dimension(
   const g = dimensionLook(a, b, label, { color, size, offset, background: s.palette.paper, shaping: s.scene.textShaping });
   return key ? keyed(g, key) : g;
 }
-/** A pin stuck in at `at`, with an optional label beside its head, in the stage's emphasis: `s.pin`'s picture. Described as “A pin marked …”. */
+/**
+ * A pin stuck in at `at`, with an optional label beside its head on its `side` (right by default), in the
+ * stage's emphasis: `s.pin`'s picture. Described as “A pin marked …”.
+ */
 export function pin(
   s: Stage,
   at: Vec,
-  { label, color = s.emphasis, size = 0.24, key }: { label?: string; color?: string; size?: number; key?: string } = {},
+  { label, color = s.emphasis, size = 0.24, side = 'right', key }: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {},
 ): Group {
-  const g = pinLook(at, { color, size, shaping: s.scene.textShaping, ...(label ? { label } : {}) });
+  const g = pinLook(at, { color, size, side, shaping: s.scene.textShaping, ...(label ? { label } : {}) });
   return key ? keyed(g, key) : g;
 }
 export * from './seen-from.ts';

@@ -140,7 +140,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.opening(...subjects)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)) |
 | `s.emphasise(now)` | Say what the scene's own marks emphasise: `now()` returns `[mobject, what it shows]` pairs read from state whenever asked ([below](#the-phones-opening-emphasis-and-review-subjects)) |
 | `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw |
-| `s.pin(at, { label, color, size })` | A pin stuck in at `at`, with an optional label; the kit's `pin` for a draw |
+| `s.pin(at, { label, color, size, side })` | A pin stuck in at `at`, with an optional label to the head's `side` (`'right'` by default, or `'left'`); the kit's `pin` for a draw |
 | `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge; the kit's `callout` for a draw |
 | `s.emphasis`, `s.soft`, `s.good`, `s.bad` | Colours that read on this paper: emphasis, secondary text, accepted, rejected |
 | `s.raised`, `s.rule` | A panel surface one shade off the paper, and a hairline that separates; the colours of the stage's own card and code panels |
@@ -211,7 +211,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | `bars(s, rows, maximum, { key, y })` | Bars on one scale with aligned starts, labels keyed `key:i:label` and values `key:i:value` |
 | `callout(s, target, text, { side, gap, color, size, key })` | `s.callout`'s picture, without drawing it in: words beside a point, box or mobject with a leader line, on the stage's paper. Described by its words |
 | `dimension(s, a, b, label, { offset, color, size, key })` | `s.dimension`'s picture: a dimension line in the stage's emphasis. Describes itself, “A dimension line marked …” |
-| `pin(s, at, { label, color, size, key })` | `s.pin`'s picture. Describes itself, “A pin marked …” |
+| `pin(s, at, { label, color, size, side, key })` | `s.pin`'s picture. Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe |
 
 **Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (`match: 'key'`) or `choreograph` keeps it wherever it moves:
 

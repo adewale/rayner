@@ -56,14 +56,15 @@ export function dimension(a: Vec, b: Vec, label: string, { color, background, si
   return selfDescribed(g, () => ({ what: `A dimension line marked “${label}”`, parts: [] }));
 }
 
-/** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head. */
-export function pin(at: Vec, { color, size = 0.24, shaping, label }: AnnotationLook & { label?: string }): Group {
+/** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head, on its `side` (right by default). */
+export function pin(at: Vec, { color, size = 0.24, shaping, label, side = 'right' }: AnnotationLook & { label?: string; side?: 'left' | 'right' }): Group {
   const head: Vec = [at[0], at[1] + 0.32];
   const g = new Group(
     new Line(at, [head[0], head[1] - 0.07], { stroke: color, strokeWidth: 0.025 }),
     new Circle({ radius: 0.075, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(head),
   );
-  if (label) g.add(new Text(label, { fontSize: size, color, anchor: 'start', shaping }).moveTo([head[0] + 0.14, head[1]], [-1, 0]));
+  const out = side === 'left' ? -1 : 1;
+  if (label) g.add(new Text(label, { fontSize: size, color, anchor: side === 'left' ? 'end' : 'start', shaping }).moveTo([head[0] + out * 0.14, head[1]], [-out, 0]));
   return selfDescribed(g, () => ({ what: label ? `A pin marked “${label}”` : 'A pin', parts: [] }));
 }
 
@@ -295,3 +296,4 @@ export function oneStrokeEach(m: Mobject): Mobject {
   }
   return m;
 }
+

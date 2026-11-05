@@ -1,8 +1,8 @@
 import { Scene, Group, Rectangle, Circle, VMobject, Follow, SetState, Succession, view } from '../../../src/index.ts';
 import type { Vec, Text } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { StagedStep } from '../../../explain/index.ts';
-import { seenFrom, depthOrder, seenPictures, project, latLon, toLatLon, circleOn, label, keyed } from '../../../explain/drawing.ts';
+import type { StagedStep, Stage } from '../../../explain/index.ts';
+import { seenFrom, depthOrder, seenPictures, project, latLon, toLatLon, circleOn, label, keyed, pin } from '../../../explain/drawing.ts';
 import type { Model3D, Part, Viewpoint, Vec3, SeenOptions, SeenPicture, Seen } from '../../../explain/drawing.ts';
 import { LAND } from './land.ts';
 import { greatCircle, rhumbLine, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from '../lib/great-circle.ts';
@@ -122,13 +122,21 @@ function stretched(st: StretchState): Group {
 }
 interface GlobeState { viewpoint: Viewpoint; route: Route }
 /** The globe: string, cities, and the sheet the string lies in, seen from the step's viewpoint. */
-function globe(st: GlobeState, { sheet = true, top = false, equatorLine = false } = {}): Group {
+function globe(st: GlobeState, s: Stage, { sheet = true, top = false, equatorLine = false } = {}): Group {
   const r = st.route, vp = st.viewpoint;
+  // The caption pins both cities and pulls a string between them: each city is a pin stuck in where
+  // the globe shows it, named by its label, and like a name it is transparent while out of sight.
+  const pinned = (p: Place & { city: string }, side: 'left' | 'right', key: string) => {
+    const { at, seen } = project(at3(p), vp, 1, GLOBE);
+    const g = pin(s, at, { label: p.city, color: INK, size: NAME, side, key });
+    if (!seen) g.setOpacity(0);
+    return g;
+  };
   const parts = [...grid(30, 0), land, ...(equatorLine ? [equator] : []), ...(sheet ? [sheetOf(r), circleOf(r)] : []), arc(r), city(r.from), city(r.to),
     ...(top ? [{ kind: 'point', key: 'route:top', at: at3(r.top), color: ROUTE, radius: 0.07 } as Part] : [])];
   const g = new Group(seenFrom(model(parts), vp, { ...GLOBE, key: 'globe:seen' }),
-    nameAt(r.from.city, r.from, vp, GLOBE, [0.2, 0.32], -1, INK, 'name:from'),
-    nameAt(r.to.city, r.to, vp, GLOBE, [-0.2, -0.34], 1, INK, 'name:to'));
+    pinned(r.from, 'right', 'name:from'),
+    pinned(r.to, 'left', 'name:to'));
   if (top) g.add(nameAt(`${Math.round(r.top.lat)}° N`, r.top, vp, GLOBE, [0, 0.42], 0, ROUTE, 'name:top', NUMBER));
   return keyed(g, 'globe');
 }
@@ -275,12 +283,12 @@ export default class GreatCircle extends Scene {
         state: { viewpoint: MERCATOR, route: L, km: 1000, stretch: L.stretch }, draw: stretched },
       { id: 'globe', title: 'On a globe, a tight string swings north', line: 'The pale sheet passes through both cities and the Earth’s centre.',
         caption: 'Now hold a globe, pin London and Los Angeles, and pull a string tight between them. A tight string takes the shortest path along the surface, and it swings north of both pins. Every point on the string lies on one flat sheet through London, Los Angeles and the centre of the globe. That sheet cuts the largest circle the sphere can hold, a great circle, and the shortest route between two places always runs along one.',
-        state: { viewpoint: HELD, route: L }, draw: (st: GlobeState) => globe(st), opening: ['globe:seen'] },
+        state: { viewpoint: HELD, route: L }, draw: (st: GlobeState, s) => globe(st, s), opening: ['globe:seen'] },
     ];
     const after: StagedStep<any>[] = [
       { id: 'north', title: `The sheet tips north, so the route peaks at ${Math.round(L.top.lat)}° N`, line: 'Grey: the equator, the one line of latitude that is a great circle.',
         caption: `That also explains the northward swing. Both cities lie north of the equator, so the sheet through them and the Earth’s centre tips toward the North Pole, and the great circle rises to its highest point between them: ${Math.round(L.top.lat)} degrees north, over southern Greenland. Lines of latitude are not great circles. Every line of latitude except the equator is a smaller circle, centred on the Earth’s axis rather than its middle, so following one wastes distance.`,
-        state: { viewpoint: TILTED, route: L }, draw: (st: GlobeState) => globe(st, { sheet: true, top: true, equatorLine: true }) },
+        state: { viewpoint: TILTED, route: L }, draw: (st: GlobeState, s) => globe(st, s, { sheet: true, top: true, equatorLine: true }) },
       second === 'madrid'
         ? { id: 'another', title: `Madrid to New York: due west is ${tens(westKm - M.km)} km longer`, line: 'Blue: Madrid’s line of latitude, a smaller circle. Red: the great circle.',
           caption: `Madrid and New York lie almost on the same line of latitude. Heading due west from Madrid covers ${tens(westKm)} kilometres; the great circle starts out west-north-west, reaches ${Math.round(M.top.lat)} degrees north and arrives after ${tens(M.km)}. The saving is smaller because the cities are closer together and farther from the pole. Only on the equator, or on a route running due north or south, do the ruler and the string agree: set the second route to the equator to see it.`,
@@ -321,11 +329,11 @@ export default class GreatCircle extends Scene {
     await s.clear({ runTime: 0.18 });
     // The step's model starts where the last picture was seen from and ends edge-on.
     this.state = { viewpoint: HELD, route: L, turn: { from: HELD.pitch, via: PAST.pitch, to: EDGE_ON.pitch } } as typeof this.state;
-    const picture = view(this, (st) => globe(st as unknown as GlobeState), { place: false });
+    const picture = view(this, (st) => globe(st as unknown as GlobeState, s), { place: false });
     s.opening(picture);
     await s.enter(picture, { runTime: 0.24, describe: () => turnWords(this.state.viewpoint as Viewpoint) });
     const pitchTo = (from: number, to: number, runTime: number) =>
-      new Follow({ from, to, draw: (pitch) => globe({ viewpoint: { ...EDGE_ON, pitch }, route: L }) }, { targets: [picture.current], runTime });
+      new Follow({ from, to, draw: (pitch) => globe({ viewpoint: { ...EDGE_ON, pitch }, route: L }, s) }, { targets: [picture.current], runTime });
     await this.play(new Succession([
       pitchTo(HELD.pitch, PAST.pitch, 2.6),
       pitchTo(PAST.pitch, EDGE_ON.pitch, 1.4),

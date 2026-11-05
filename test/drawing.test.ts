@@ -7,6 +7,7 @@ import * as lesson from '../scenes/explainers/lib/lesson-drawing.ts';
 import * as reader from '../scenes/explainers/lib/reader-drawing.ts';
 import { readFileSync } from 'node:fs';
 import { stage } from '../explain/index.ts';
+import type { Box } from '../src/index.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
   assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'callout', 'circleOn', 'depthOrder', 'dimension', 'dot', 'flow', 'greatArc', 'keyed', 'keyedParts', 'label', 'latLon', 'pin', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
@@ -64,4 +65,10 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
   assert.equal((line as unknown as Record<symbol, () => { what: string }>)[seenSource]!().what, 'A dimension line marked “2 units”');
   assert.equal((stuck as unknown as Record<symbol, () => { what: string }>)[seenSource]!().what, 'A pin marked “centre”');
   assert.equal(drawing.pin(s, [0, 0]).key, undefined);
+  // side: 'left' puts the label's end beside the head instead of its start, mirrored about the needle.
+  const left = drawing.pin(s, [3, 1], { label: 'centre', side: 'left' });
+  assert.equal(points(left), points(await s.pin([3, 1], { label: 'centre', side: 'left' })));
+  const [rightLabel, leftLabel] = [stuck, left].map((g) => g.children.at(-1)!.box()!) as [Box, Box];
+  assert.ok(leftLabel[2] < 3 && rightLabel[0] > 3, 'the left label ends before the needle; the right one starts after it');
+  assert.ok(Math.abs((3 - leftLabel[2]) - (rightLabel[0] - 3)) < 1e-6, 'both labels stand off the needle by the same gap');
 });

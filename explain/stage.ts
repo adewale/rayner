@@ -568,7 +568,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       return g;
     },
     /** A pin stuck in at `at`, with an optional label; drawn in, and kept. */
-    async pin(at: Vec, opts: { label?: string; color?: string; size?: number } = {}) {
+    async pin(at: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right' } = {}) {
       const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
       keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
