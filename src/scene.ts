@@ -547,7 +547,7 @@ export class Scene<S extends object = SceneState> {
       for (const m of mobs) {
         // Camera: animated like any mobject, but never added to the drawn list
         if (!m || m === this.frame || present.has(m)) continue;
-        // A new wrapper around things already on screen (Indicate(new Group(a, b))) must not
+        // A new wrapper around things already on screen (a Transform of new Group(a, b)) must not
         // draw them a second time on top: add it only if some drawable member is new.
         const drawn = m.family().filter((f) => f.boundingPointArrays().some((a) => a.length > 0));
         if (drawn.length && drawn.every((f) => present.has(f))) continue;

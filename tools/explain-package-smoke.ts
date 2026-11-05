@@ -257,7 +257,7 @@ try {
   if (process.env.EXPLAIN_LETTERING === '1') {
     const target = join(folder, 'captured-lettering');
     await mkdir(target);
-    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,Math as Formula}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new Formula('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
+    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,MathTex}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new MathTex('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
     await run(bin, ['snapshots', target, '--refresh'], {
       cwd: folder,
       env: { ...process.env, RAYNER_LETTERING_FONTS: process.env.RAYNER_LETTERING_FONTS ?? join(ROOT, 'out/lettering-fonts') },

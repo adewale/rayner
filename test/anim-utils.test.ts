@@ -5,10 +5,11 @@ import assert from 'node:assert/strict';
 import {
   Scene, StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, indexScene, toSvgString,
   Mobject, Group, Rectangle, Circle, Square, Polygon, Text, Code,
-  Transform, FadeIn, FadeOut, Indicate, Flash, Create, AnimationGroup, LaggedStart,
+  Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart,
   Restore, TransformFromCopy, Succession, TransformMatchingText,
   loadFonts,
 } from '../src/index.ts';
+import { Indicate, Flash } from './lib/transient.ts';
 import type { SceneOptions, Sink } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.

@@ -5,8 +5,9 @@
 import { join } from 'node:path';
 import {
   Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber,
-  FadeIn, FadeOut, Write, Create, Transform, Indicate, MoveAlongPath, LaggedStart,
+  FadeIn, FadeOut, Write, Create, Transform, MoveAlongPath, LaggedStart,
 } from '../../src/index.ts';
+import { Indicate } from './transient.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
 import { labelOf } from '../../explain/diagrams.ts';
 import { Card } from '../../explain/panels.ts';

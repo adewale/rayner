@@ -7,9 +7,10 @@
 import { fc } from './pbt.ts';
 import {
   Scene, Group, Rectangle, Circle, Square, Line, Polygon, Arc, Dot, Text, Labeled,
-  Transform, FadeIn, FadeOut, Create, Write, Indicate, Flash, MoveAlongPath, LaggedStart, AnimationGroup,
+  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, LaggedStart, AnimationGroup,
   linear, smooth, rushInto, thereAndBack,
 } from '../../src/index.ts';
+import { Indicate, Flash } from './transient.ts';
 import type { Animation, AnimateBuilder, Mobject, Playable, SceneClass, Style, Vec } from '../../src/index.ts';
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];

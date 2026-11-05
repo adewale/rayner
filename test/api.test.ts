@@ -9,11 +9,11 @@ const EXPECTED = [
   // model
   'Mobject', 'Group', 'VMobject',
   'Arc', 'ArcBetweenPoints', 'Arrow', 'Circle', 'CurvedArrow', 'Dot', 'Labeled', 'Line', 'Polygon', 'Rectangle', 'Square',
-  'Text', 'Math', 'MathTex', 'ItalicText', 'DecimalNumber', 'Code', 'StateReadout',
+  'Text', 'MathTex', 'ItalicText', 'DecimalNumber', 'Code', 'StateReadout',
   'NumberLine', 'Axes',
   'View', 'view', 'viewMismatch',
   // motion
-  'Animation', 'Transform', 'FadeIn', 'FadeOut', 'Create', 'Write', 'Indicate', 'Flash', 'MoveAlongPath', 'AnimationGroup', 'LaggedStart',
+  'Animation', 'Transform', 'FadeIn', 'FadeOut', 'Create', 'Write', 'MoveAlongPath', 'AnimationGroup', 'LaggedStart',
   'Restore', 'TransformFromCopy', 'Succession',
   'GrowFromEdge', 'PulseAlongPath', 'SetState', 'Follow', 'Machine', 'machinesOf', 'refuse', 'isRefusal',
   'TransformMatching', 'TransformMatchingShapes', 'TransformMatchingText', 'matchByKey',

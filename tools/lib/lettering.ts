@@ -262,7 +262,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, sou
     },
     math(text, size, display) {
       if (replay) return replay.math(text, size, display);
-      if (!request.math || !typeset || mathFont?.tag !== 'Ok') throw new Error('Math requires meta.lettering.math: true');
+      if (!request.math || !typeset || mathFont?.tag !== 'Ok') throw new Error('MathTex requires meta.lettering.math: true');
       const key = runKey('math', text, display);
       seen(key);
       let run = snapshot.runs[key];

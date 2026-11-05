@@ -2,7 +2,7 @@
 // begin() settles the endpoints (and aligns their structure); every frame
 // is then `mobject = blend(start, end, rateFunc(t / runTime))`.
 
-import { smooth, thereAndBack, linear, clip } from './rate.ts';
+import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
 import { Group, adoptState, followScene, Mobject as MobjectClass } from './mobject.ts';
@@ -325,7 +325,7 @@ export class Transform extends Animation {
   override paints(): Mobject[] { return [this.mobject, this.target]; }
 
   override begin(): void {
-    // An animation that built its own target (FadeIn, Indicate, .animate) hands it
+    // An animation that built its own target (FadeIn, .animate) hands it
     // over as is: nothing else holds it, so copying it again is pure cost. And a
     // target that is a copy of the mobject needs no alignment: same structure.
     this.targetCopy = this.ownsTarget ? this.target : this.target.copy();
@@ -550,28 +550,6 @@ export class Write extends Create {
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { lagRatio: 0.3, ...opts }); }
 }
 
-export interface IndicateOpts extends TransformOpts { scaleFactor?: number; color?: string }
-
-/** Scale up and recolor, there and back. */
-export class Indicate extends Transform {
-  scaleFactor: number;
-  color: string;
-
-  constructor(mobject: Mobject, { scaleFactor = 1.2, color = '#ffff00', ...opts }: IndicateOpts = {}) {
-    super(mobject, mobject, { rateFunc: thereAndBack, ...opts });
-    this.scaleFactor = scaleFactor; this.color = color;
-  }
-  override begin(): void {
-    const t = this.mobject.copy().scale(this.scaleFactor);
-    for (const m of t.family()) {
-      if (m.style.stroke !== 'none') m.style.stroke = this.color;
-      if (m.style.fill !== 'none') m.style.fill = this.color;
-    }
-    this.target = t; this.ownsTarget = true; this.sameStructure = true;
-    super.begin();
-  }
-}
-
 /** Run several animations together; lagRatio staggers their start times. */
 export class AnimationGroup extends AnimationTiming {
   animations: ScheduledAnimation[];
@@ -730,14 +708,6 @@ export class PulseAlongPath extends MoveAlongPath {
   }
 }
 
-/** Fade in, hold, fade out around a mobject: a one-shot "look here". */
-export class Flash extends Animation {
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { rateFunc: linear, ...opts }); }
-  override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
-    sub.style.opacity = start.style.opacity * Math.sin(Math.PI * alpha);
-  }
-}
-
 // ---- emphasis ----
 
 export interface CircumscribeOpts extends AnimOpts {
@@ -882,7 +852,7 @@ export class Restore extends Transform {
  * animation in the play begins (see takeCopies), so it is `source` as the
  * play found it whatever the argument order; until then `mobject` is an empty
  * placeholder, so the copy, a different mobject from `source`, conflicts with
- * nothing: `play(new TransformFromCopy(a, b), new Indicate(a))` and
+ * nothing: `play(new TransformFromCopy(a, b), a.animate.scale(1.2))` and
  * `play(new Create(a), new TransformFromCopy(a, b))` are fine.
  */
 export class TransformFromCopy extends Transform {
@@ -931,7 +901,7 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * Run animations one after another: each begins when the previous ends, as
  * consecutive play() calls would, so members may drive the same mobject:
  *
- *   await this.play(new Succession([new Indicate(box), box.animate.shift(RIGHT), new FadeOut(box)]));
+ *   await this.play(new Succession([new Create(box), box.animate.shift([1, 0]), new FadeOut(box)]));
  *
  * Each member begins at its turn (its endpoints are fixed from the state the
  * previous one left) and is finished and cleaned up at its end, through the

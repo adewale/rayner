@@ -169,7 +169,7 @@ export class Text extends Group {
   shapeRun(text: string, size: number): Run {
     if (this.shaping) return this.shaping.shape(this, text, size);
     if (this.italic) throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
-    if (this.formula) throw new Error('Math requires meta.lettering.math and a fresh lettering snapshot');
+    if (this.formula) throw new Error('MathTex requires meta.lettering.math and a fresh lettering snapshot');
     return embeddedShaperFor(this.font)(text, size);
   }
   get clusterMatching(): boolean { return !!this.shaping?.clusterKey && !this.formula; }
@@ -442,7 +442,7 @@ export class Code extends Group {
  * A span is not a scene member. `span.animate` plays as a Transform of its
  * line, so the span never joins the scene (two spans of one line can't then
  * animate in one play(): recolour a copy of the Code and Transform to it). An
- * animation built on the span itself (`new Indicate(span)`) would add the span
+ * animation built on the span itself (`new Create(span)`) would add the span
  * to the scene and draw its glyphs twice; draw a shape from span.box() instead.
  *
  * Fixed at creation. Once the line's text changes (Text.setText, or a

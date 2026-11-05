@@ -1,6 +1,6 @@
 // The native-scene equivalent of Lantern's nodes/code/state/steps document.
 // Imports are public package imports, so this also runs from an installed archive.
-import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Indicate, Transform, StateReadout, view, jsonObject } from 'rayner';
+import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe, StateReadout, view, jsonObject } from 'rayner';
 
 export interface RequestInput { cached: boolean }
 export function route(input: RequestInput): 'cache' | 'database' {
@@ -29,7 +29,7 @@ export function requestScene(input: RequestInput) {
       this.state.destination = route({ cached });
       const next = new Text(this.state.destination, { fontSize: 0.3 }).moveTo(destination.label!);
       // Semantic state is assigned; the picture is derived from that state.
-      await this.play(new Transform(destination.label!, next), readout.sync(), new Indicate(code.lines[cached ? 0 : 1]!), { runTime: 0.5 });
+      await this.play(new Transform(destination.label!, next), readout.sync(), new Circumscribe(code.lines[cached ? 0 : 1]!, { keep: true }), { runTime: 0.5 });
       this.record('route', { cached, destination: this.state.destination });
       await this.step('result', { caption: `The request uses the ${this.state.destination}.` });
       await this.wait(0.2);

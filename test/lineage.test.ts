@@ -7,10 +7,11 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
   Scene, StringSink, NullSink, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Polygon, Text, Code, DecimalNumber,
-  Transform, FadeIn, FadeOut, Create, Write, Indicate, MoveAlongPath, AnimationGroup, LaggedStart,
+  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, AnimationGroup, LaggedStart,
   linear, smooth, rushInto, rushFrom, thereAndBack,
   toSvgString, renderElements, renderAt, indexScene, loadFonts, shaperFor,
 } from '../src/index.ts';
+import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, Vec, RateFunc, Animation, Style } from '../src/index.ts';
 
 await loadFonts();

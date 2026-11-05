@@ -163,7 +163,7 @@ test('capture of the Hebrew and matching fixtures is deterministic', { skip: !ca
 
 test('morphing maths reshapes nothing: no run for the TeX source is captured', { skip: !capture && 'set EXPLAIN_LETTERING=1 to capture' }, async () => {
   const dir = await mkdtemp(join(folder, 'math-'));
-  await writeFile(join(dir, 'scene.ts'), `import{Scene,Math,TransformMatchingText}from'rayner';export default class L extends Scene{static meta={id:'m',lettering:{math:true,faces:{sans:'eb-garamond'}}};async construct(){await this.step('one');const a=new Math('a+b');this.add(a);await this.play(new TransformMatchingText(a,new Math('a+c')));}}`);
+  await writeFile(join(dir, 'scene.ts'), `import{Scene,MathTex,TransformMatchingText}from'rayner';export default class L extends Scene{static meta={id:'m',lettering:{math:true,faces:{sans:'eb-garamond'}}};async construct(){await this.step('one');const a=new MathTex('a+b');this.add(a);await this.play(new TransformMatchingText(a,new MathTex('a+c')));}}`);
   const project = await collectProject(join(dir, 'scene.ts'), { captureLettering: true, write: false });
   const keys = Object.keys(project.outlineLettering!.runs).map((k) => JSON.parse(k) as [string, string, boolean]);
   assert.ok(keys.some(([f, t]) => f === 'math' && t === 'a+b'));

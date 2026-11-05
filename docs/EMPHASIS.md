@@ -11,8 +11,8 @@ the first fourteen explainers were reviewed as a reader sees them, nine had step
 that ended exactly like the step before, because highlights had pulsed away and
 tokens had walked off; `rayner check` now fails such a step. A mark that stays still
 says "this one" on the frame the reader sees. Use these shapes when the step is
-about the thing marked, and `Indicate` or `Flash` for a passing glance during a
-longer step.
+about the thing marked. There is no passing glance: `Indicate` and `Flash` were cut
+in 0.2.0, because a mark that is gone by the resting picture is what the check rejects.
 
 ## The shapes
 

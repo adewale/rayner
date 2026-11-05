@@ -110,9 +110,14 @@ The renames came with refactors that make a name's promise checkable:
   its counterexample, with claims backed by tests that use them. Under the fixed clock a scene
   with updaters is still deterministic: a seek computes every frame before it rather than
   skipping. They cost seek speed, not invariant 1.
-- `GrowFromEdge` and `PulseAlongPath`. They are stock animation vocabulary, as `Indicate` and
-  `Flash` are, with a documented recipe, and adopter counts are the wrong test for a stock
-  animation.
+- `GrowFromEdge` and `PulseAlongPath`. They are stock animation vocabulary with a documented
+  recipe, and adopter counts are the wrong test for a stock animation.
+
+`Indicate` and `Flash` were kept on the same grounds until 0.2.0, and cut then. Each is emphasis
+that is gone by the step's resting picture, which `rayner check` rejects. In a namespace that
+agents mostly write, a name that invites what the checks reject is worse than no name: it costs
+a failed check and a rewrite every time it is used. `Circumscribe` stays, because it can `keep`.
+`MathTex`'s alias `Math` went too, since importing it hides JavaScript's `Math`.
 
 ## Not chosen, and why
 

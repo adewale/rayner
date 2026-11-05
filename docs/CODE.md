@@ -38,9 +38,9 @@ copies, and not re-parented (they stay children of the line). So:
   span never joins the scene. Two spans of one line can't animate in the same
   `play()` (both would drive the line); recolour a `code.copy()` and Transform
   to it instead (`Code.copy()` gives the copy its own `lines`).
-- Don't build animations on the span itself (`new Indicate(span)`,
+- Don't build animations on the span itself (`new Create(span)`,
   `new Transform(span, ...)`): `play()` would add the span to the scene and its
-  glyphs would draw twice. Indicate a shape drawn from its box instead.
+  glyphs would draw twice. Mark a shape drawn from its box instead.
 
 A span is fixed when taken. After its line's text changes (`Text.setText`, or a
 Transform that lands another string on the line) it is `stale` and `box()`

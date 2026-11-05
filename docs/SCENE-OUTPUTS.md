@@ -53,7 +53,7 @@ so a caller cannot mutate a later replay by changing the original input object.
 | `state`, `readout`, `set` | Typed `Scene` state, a model function and `view(this, draw).sync()` |
 | Named `steps` and metadata | `await this.step(name, metadata)` |
 | Sequential ops / arrays of simultaneous ops | Sequential `await this.play(...)` / one `this.play(a, b)` |
-| Add/remove/move/style/indicate | `FadeIn`, `FadeOut`, `.animate`, `Indicate` |
+| Add/remove/move/style/indicate | `FadeIn`, `FadeOut`, `.animate`, `Circumscribe` and the [emphasis shapes](EMPHASIS.md) |
 | `note`, duration and hold | `Text`, step captions, `runTime`, `wait()` |
 
 This maps capabilities; it is not a source-to-source compatibility layer. TypeScript

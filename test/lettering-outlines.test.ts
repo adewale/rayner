@@ -92,7 +92,7 @@ test('math: fraction rules and script scales are stored; symbol glyphs agree wit
   assert.ok(new Set(glyphs.filter((p) => p.gid >= 0).map((p) => p.s)).size > 1, 'superscript scales');
 });
 
-test('capture rejects an unrequested script and a Math object without opt-in', { skip: !capture && 'set EXPLAIN_LETTERING=1 to refresh snapshots' }, async () => {
+test('capture rejects an unrequested script and a MathTex object without opt-in', { skip: !capture && 'set EXPLAIN_LETTERING=1 to refresh snapshots' }, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lettering-closed-'));
   try {
     const source = await readFile(join(fixtures, 'arabic/scene.ts'), 'utf8');
@@ -100,7 +100,7 @@ test('capture rejects an unrequested script and a Math object without opt-in', {
     await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /Script not requested/);
     const math = await readFile(join(fixtures, 'math/scene.ts'), 'utf8');
     await writeFile(join(dir, 'scene.ts'), math.replace('lettering: {math:true}', 'lettering: {math:false}'));
-    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /Math requires/);
+    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /MathTex requires/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 

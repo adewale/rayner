@@ -75,6 +75,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - The fourteen Manim colours (`WHITE`, `BLACK`, `GREY`, `GREY_D`, `BLUE`, `BLUE_D`, `TEAL`, `GREEN`, `YELLOW`, `GOLD`, `RED`, `MAROON`, `PURPLE`, `ORANGE`) are gone: colour from the stage (`s.palette`, `s.emphasis`, `s.bad`), or write the hex value.
 - `easeInQuad`, `easeOutQuad`, `easeOutBack` and `wiggle` are gone; any `(t) => number` is a rate function.
 - `tokenize`, `diffTokens` and `hunkHeader` are internal; `diffLines` and `parseUnifiedDiff` still make hunks for `TransformDiff`.
+- `Indicate` and `Flash` are gone: a mark that is gone by the resting picture fails `rayner check`. Mark with `Circumscribe({ keep: true })` or the [emphasis shapes](docs/EMPHASIS.md). `MathTex`'s alias `Math` is gone too, since it hid JavaScript's `Math`; import `MathTex`.
 - `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `ViewSync` is exported as a type only: `view.sync()` makes one.
 
 ### Known limits
