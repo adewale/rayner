@@ -193,16 +193,20 @@ export default class IcalRecurrenceExplainer extends Scene {
     this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start), components: SERIES };
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: Record<string, unknown>) => ((st.change ?? st.invite ?? st.series) as { components: VEvent[] }).components;
+    // `shown.listMark`: the meeting the list lights and what the description calls it, or none.
     const list = view(
       this,
-      (st) =>
-        new Card(this, s.palette, rows(stored(st)), {
+      (st, shown) => {
+        const mark = shown.listMark as { row: string; as: string } | null | undefined;
+        return new Card(this, s.palette, rows(stored(st)), {
           at: LIST,
           align: 'top',
           width: LIST_WIDTH,
           fontSize: LIST_SIZE,
           title: 'Meetings Alice’s calendar shows',
-        }),
+          ...(mark ? { lit: mark.row, litAs: mark.as } : {}),
+        });
+      },
       { place: false },
     );
     await s.enter(list, { runTime: 0.35, shift: [0, -0.08] });
@@ -216,8 +220,8 @@ export default class IcalRecurrenceExplainer extends Scene {
     });
     await code.morph(lines(INVITED), { markAdded: true });
     this.state.invite = { stored: counts(INVITED), meetings: expand(INVITED).map((m) => m.start), components: INVITED };
+    this.shown.listMark = { row: week(GUEST_MEETING), as: 'the override' };
     await this.play(list.sync({ runTime: 0.45, match: sameWords }));
-    await list.current.mark(week(GUEST_MEETING), { as: 'the override' });
 
     // ------------------------------------------------------------------ change
     const moved = expand(after).find((m) => m.slot === MOVED_FROM)!;
@@ -254,13 +258,12 @@ export default class IcalRecurrenceExplainer extends Scene {
     if (change === 'none') {
       await code.clearMarks();
       await code.focus([0, 4], { as: 'the master' });
-      await list.current.mark(null);
+      this.shown.listMark = null;
+      await this.play(list.sync({ runTime: 0.3, match: sameWords }));
     } else {
       await code.morph(lines(after), { markAdded: true });
+      this.shown.listMark = { row: week(change === 'move' ? MOVED_FROM : GUEST_MEETING), as: change === 'move' ? 'moved' : 'skipped' };
       await this.play(list.sync({ runTime: 0.45, match: sameWords }));
-      await list.current.mark(week(change === 'move' ? MOVED_FROM : GUEST_MEETING), {
-        as: change === 'move' ? 'moved' : 'skipped',
-      });
     }
 
     // ------------------------------------------------------------------ copies

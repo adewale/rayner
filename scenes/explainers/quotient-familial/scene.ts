@@ -191,26 +191,24 @@ export default class QuotientFamilialExplainer extends Scene {
     const st = () => this.state as unknown as QfState;
     /**
      * A card drawn from the state: a view that builds it from `rows(state)`, values in the card's
-     * monospaced face, so check holds it to the state. `mark` names the row it lights, if any.
+     * monospaced face, so check holds it to the state. `mark` names the row it lights, if any; the
+     * lit row is part of the drawn card, so check holds the bar too.
      */
-    const cardOf = (rows: (st: QfState) => readonly CardRow[], opts: CardOptions | ((st: QfState) => CardOptions)): View<Card> =>
-      view(
+    const cardOf = (rows: (st: QfState) => readonly CardRow[], opts: CardOptions | ((st: QfState) => CardOptions)) => ({ rows, opts });
+    /** Enter a card view as s.card enters a card, with its row `mark` lit. */
+    const enterCard = async ({ rows, opts }: ReturnType<typeof cardOf>, mark?: string, as?: string) => {
+      const v: View<Card> = view(
         this,
         (state) => {
           const st = state as unknown as QfState;
-          return new Card(
-            this,
-            s.palette,
-            rows(st).map(([label, value]) => [label, mono(String(value))] as const),
-            typeof opts === 'function' ? opts(st) : opts,
-          );
+          return new Card(this, s.palette, rows(st).map(([label, value]) => [label, mono(String(value))] as const), {
+            ...(typeof opts === 'function' ? opts(st) : opts),
+            ...(mark ? { lit: mark, ...(as ? { litAs: as } : {}) } : {}),
+          });
         },
         { place: false },
       );
-    /** Enter a card view as s.card enters a card, then light its row `mark`, as card(...).then(c => c.mark(...)) did. */
-    const enterCard = async (v: View<Card>, mark?: string, as?: string) => {
       await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
-      if (mark) await v.current.mark(mark, as ? { as } : {});
     };
 
     // The pipeline sits on top for the first ten steps; each step's picture is below it.
