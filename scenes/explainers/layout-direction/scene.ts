@@ -1,5 +1,6 @@
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, CodeBlock } from '../../../explain/index.ts';
+import { staged } from '../lib/staged.ts';
 import type { LayoutDirection, Card } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
@@ -67,22 +68,30 @@ export default class LayoutDirectionExplainer extends Scene {
     const s = stage(this, { style: 'nord', direction, headingSize: 0.6 });
     const reading = rtl ? 'right-to-left' : 'left-to-right';
 
-    // 1. The author's input: a layout that names logical places, and a prediction.
-    await this.step('code', {
-      title: `One layout on a ${reading} stage: which side is Start?`,
-      line: 'Each card names a logical place, start or end, not a side of the page.',
-      caption: `In a ${reading} page the reader starts at the ${rtl ? 'right' : 'left'}, so the card read first belongs there. This layout never says left or right: one card goes at start, the other at end, and the End card also sets its own field direction. On this ${direction} stage, which half will the Start card land in, and on which side of 123 will each card put its Field name?`,
-    });
-    const code = await s.code(
-      [
-        `stage(this, { direction: '${direction}' })`,
-        `s.card(rows, { at: '${START.at}' })`,
-        `s.card(rows, { at: '${END.at}',`,
-        `               direction: '${END.direction}' })`,
-      ],
-      { at: 'full', fontSize: 0.56, enter: false },
-    );
-    await s.enter(code);
+    // 1. The author's input: a layout that names logical places, and a prediction. The code panel is
+    // drawn from the layout the step's state records: the stage's direction and each card's options.
+    const layout = { direction, start: { ...START }, end: { ...END } };
+    await s.steps([
+      staged({
+        id: 'code',
+        title: `One layout on a ${reading} stage: which side is Start?`,
+        line: 'Each card names a logical place, start or end, not a side of the page.',
+        caption: `In a ${reading} page the reader starts at the ${rtl ? 'right' : 'left'}, so the card read first belongs there. This layout never says left or right: one card goes at start, the other at end, and the End card also sets its own field direction. On this ${direction} stage, which half will the Start card land in, and on which side of 123 will each card put its Field name?`,
+        state: layout,
+        draw: (st, s) =>
+          new CodeBlock(
+            this,
+            s.palette,
+            [
+              `stage(this, { direction: '${st.direction}' })`,
+              `s.card(rows, { at: '${st.start.at}' })`,
+              `s.card(rows, { at: '${st.end.at}',`,
+              `               direction: '${st.end.direction}' })`,
+            ],
+            { at: 'full', fontSize: 0.56 },
+          ),
+      }),
+    ]);
 
     // 2. The output: placement from the stage, columns from the stage unless the card overrides them.
     await this.step('columns', {
@@ -95,8 +104,9 @@ export default class LayoutDirectionExplainer extends Scene {
         : `The ltr stage maps start to the left half and end to the right. The Start card takes ltr columns from the stage, so both cards put Field before 123, and the End card’s own ltr makes no visible difference. ${ANSWER}; on an rtl stage the Start card’s columns flip while the End card’s stay.`,
     });
     await s.clear();
-    const start = await s.card(ROWS, { ...START, ...CARD, title: `Start, ${direction}` });
-    const end = await s.card(ROWS, { ...END, ...CARD, title: `End, own ${END.direction}` });
+    // The engine places the cards from the options the state records; the state then records where they landed.
+    const start = await s.card(ROWS, { ...layout.start, ...CARD, title: `Start, ${layout.direction}` });
+    const end = await s.card(ROWS, { ...layout.end, ...CARD, title: `End, own ${layout.end.direction}` });
     await s.enter(start, end);
     s.opening(start, end);
     this.state.cards = { start: layoutOf(start), end: layoutOf(end) };
