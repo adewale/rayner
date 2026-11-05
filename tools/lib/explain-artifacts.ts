@@ -39,7 +39,7 @@ const totals = (value: unknown) => object(value) && ['explainers','scenarios','d
 /** Validate serialized producer boundaries once; consumers use the same contracts. */
 export function catalog(value: unknown): Catalog {
   const fail = (): never => {throw new Error('Invalid catalog artifact');};
-  if (!object(value) || value.version !== 1 || !totals(value.totals) || !object(value.product) ||
+  if (!object(value) || value.version !== 2 || !totals(value.totals) || !object(value.product) ||
       !object(value.product.entry) || typeof value.product.entry.id !== 'string' || !Array.isArray(value.scenes)) return fail();
   for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill'])
     if (value.product[key] !== undefined && typeof value.product[key] !== 'string') return fail();
