@@ -65,6 +65,17 @@ function lists(st: Lists, s: Stage) {
     new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.bad, strokeWidth: 0.03 }),
     label('4.1.1 Parsing', x(parsing), below - 0.95, s.bad, 0.6),
   );
+  // The key: each cell's colour names the version that added its criterion.
+  const lead = label('Added in', 0, 0, s.palette.ink, 0.6).moveTo([0, 0], [-1, 0]);
+  const key = new Group(lead);
+  let cursor = lead.width() + 0.6;
+  for (const [text, fill] of [['2.0', colour['2.0']], ['2.1', colour['2.1']], ['2.2', colour['2.2']], ['Removed', s.bad]] as const) {
+    const words = label(text, 0, 0, s.palette.ink, 0.6).moveTo([cursor + 0.75, 0], [-1, 0]);
+    key.add(new Rectangle({ width: 0.5, height: 0.5, fill, stroke: 'none' }).moveTo([cursor + 0.25, 0]), words);
+    cursor += 0.75 + words.width() + 0.6;
+  }
+  key.key = 'versions-key';
+  g.add(key.moveTo([0, -3.75]));
   return g;
 }
 
@@ -129,7 +140,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
       id: 'reader-versions',
       title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
       line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,
-      caption: `The list changes with the version as well. Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, grouped by level and coloured by the version that added it: grey 2.0, blue 2.1, green 2.2, with 4.1.1 Parsing in red; each row is one version’s list, so an empty place is a criterion that version does not ask for. WCAG 2.1 added ${c21.added.length} criteria at ${level === 'A' ? 'level A' : `level ${level} or below`}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete because assistive technology no longer needs to parse HTML directly. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${ANSWER}.`,
+      caption: `Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, coloured by the version that added it; each row is one version’s list. WCAG 2.1 added ${c21.added.length}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${ANSWER}.`,
       state: {
         level,
         totals: [t20.total, t21.total, total.total],

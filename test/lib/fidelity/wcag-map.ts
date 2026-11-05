@@ -1,7 +1,7 @@
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import assert from 'node:assert/strict';
-import { CRITERIA, LEVELS, PRINCIPLES, VERSIONS, change, criteria, opened, tally, totals } from '../../../scenes/explainers/lib/wcag-map.ts';
+import { CRITERIA, LEVELS, VERSIONS, change, criteria, opened, tally } from '../../../scenes/explainers/lib/wcag-map.ts';
 import type { Level, Version } from '../../../scenes/explainers/lib/wcag-map.ts';
 
 /** Every scenario's step state equals the model's counts for its level and the guideline it opens. */
@@ -48,16 +48,6 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'open', {
     opened: opened(open, level).map((c) => ({ num: c.num, level: c.level, added: c.added, ...(c.removed ? { removed: c.removed } : {}) })),
   });
-  // The 2.4.7 step exists only where the opened guideline shows it.
-  const focusVisible = trace.steps.some((s) => s.step === 'focus-visible');
-  if (focusVisible !== (open === '2.4' && level !== 'A')) throw new Error(`focus-visible step present: ${focusVisible}`);
-  if (focusVisible) assertStepState(trace, 'focus-visible', { focusVisible: 'AA' });
-  const all = totals();
-  assertStepState(trace, 'totals', {
-    totals: {
-      versions: VERSIONS.map((v) => all[v][level]),
-      principles: Object.fromEntries(PRINCIPLES.map((p) => [p.num, criteria('2.2', level, p.num).length])),
-      levels: all['2.2'],
-    },
-  });
+  // The opener states the totals; no detail step repeats them, and 2.4.7's draft history lives in notes.md.
+  assert.deepEqual(trace.steps.map((s) => s.step), ['reader-focus', 'reader-levels', 'reader-versions', 'v20', 'v21', 'v22', 'parsing', 'open']);
 }
