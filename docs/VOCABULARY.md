@@ -29,6 +29,7 @@ One row per idea.
 | State to picture | `draw(state, shown?)` | The one name for a function from state to picture, wherever it appears | `render` (views), the parameterless `draw(stage)` (steps), `build` |
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. Every `View` is one: the constructor takes `(scene, draw)` | `View.render` (now `View.draw`), `view(build)`, `stateView` |
 | Staged steps | `stage.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
+| The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
@@ -99,7 +100,7 @@ The renames came with refactors that make a name's promise checkable:
 - `Frame`, because Manim authors know `camera.frame`.
 - `SetState`, `Follow`, `become` and `Transform`: animations named as verbs follow Manim's
   convention.
-- `keep`, `enter`, `focus`, `carry` and `reading`: stage verbs read well at their call sites.
+- `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
 - `describe`, which already meant one thing everywhere: words for what is shown.
 - trace, evidence and receipt: three different records, each answering a different question.
 - Updaters (`addUpdater`). No explainer registers one, but the Lantern explainer teaches them as

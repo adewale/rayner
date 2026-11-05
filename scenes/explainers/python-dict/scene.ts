@@ -275,7 +275,7 @@ export default class PythonDict extends Scene {
         runTime: ({ event }) => (event.startsWith('del ') ? 1 : 0.8),
       });
       s.keep(pictures, { describe: () => words(pictures.current) });
-      s.reading(pictures);
+      s.opening(pictures);
       await this.play(new FadeIn(pictures, { runTime: 0.24 }));
       await this.play(machine.replay(events));
       return machine;

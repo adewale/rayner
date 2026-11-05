@@ -315,7 +315,7 @@ export default class MermaidExplainer extends Scene {
     await s.enter(wrongReport, rightReport, { runTime: 0.35 });
     // On a phone the step opens on the two reports, whose first lines name where each yes path ends;
     // the diagrams and their coloured paths follow in the close-up tour.
-    s.reading(wrongReport, rightReport);
+    s.opening(wrongReport, rightReport);
     const brief = (source: string) => {
       const { ok, warnings } = reports.get(source)!;
       return { ok, warnings };

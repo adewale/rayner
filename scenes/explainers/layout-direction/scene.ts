@@ -98,7 +98,7 @@ export default class LayoutDirectionExplainer extends Scene {
     const start = await s.card(ROWS, { ...START, ...CARD, title: `Start, ${direction}` });
     const end = await s.card(ROWS, { ...END, ...CARD, title: `End, own ${END.direction}` });
     await s.enter(start, end);
-    s.reading(start, end);
+    s.opening(start, end);
     this.state.cards = { start: layoutOf(start), end: layoutOf(end) };
 
     // 3. An update keeps each card's columns.
@@ -113,7 +113,7 @@ export default class LayoutDirectionExplainer extends Scene {
     await end.set({ Field: 456 });
     await start.mark('Field', { as: 'updated' });
     await end.mark('Field', { as: 'updated' });
-    s.reading(start, end);
+    s.opening(start, end);
     this.state.cards = { start: layoutOf(start), end: layoutOf(end) };
 
     // 4. The countercase: physical regions do not follow the stage.
@@ -128,7 +128,7 @@ export default class LayoutDirectionExplainer extends Scene {
     const left = await s.card(ROWS, { at: 'left', ...CARD, title: `Left, ${direction}` });
     const right = await s.card(ROWS, { at: 'right', ...CARD, title: `Right, ${direction}` });
     await s.enter(left, right);
-    s.reading(left, right);
+    s.opening(left, right);
     this.state.cards = { left: layoutOf(left), right: layoutOf(right) };
   }
 }

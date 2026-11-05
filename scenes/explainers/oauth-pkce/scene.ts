@@ -98,7 +98,7 @@ export default class OAuthExplainer extends Scene {
     await theft.mark(thief, { color: s.bad, as: 'theft' });
     await theft.note(thief.at(-1)!, 'a token for the wrong app', { side: 'below', color: s.bad });
     // A phone opens on the theft, not on the sign-in above it.
-    s.reading(...thief.map((id) => theft.get(id)));
+    s.opening(...thief.map((id) => theft.get(id)));
     this.state = { stolenAccepted: stolen.at(-1)!.text === 'Access token' };
 
     // 2. The fix: a secret the code is bound to, sent ahead only as its hash.
@@ -304,7 +304,7 @@ export default class OAuthExplainer extends Scene {
     });
     await this.play(machine.replay(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'REDIRECT', 'CLIENT_REDEEMS']));
     // A phone opens on the malicious app's request and the server's refusal.
-    s.reading(...['app-request', 'app-answer'].map((id) => sheet.current.find(`sign-in:label:${id}`)!));
+    s.opening(...['app-request', 'app-answer'].map((id) => sheet.current.find(`sign-in:label:${id}`)!));
   }
 }
 

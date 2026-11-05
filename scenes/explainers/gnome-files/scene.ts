@@ -201,7 +201,7 @@ export default class GnomeFilesExplainer extends Scene {
         stroke: s.emphasis,
         strokeWidth: 0.06,
       }).moveTo([col(at), (top + 0.4 + sumY - RH / 2) / 2]);
-      s.reading(table, rest);
+      s.opening(table, rest);
       await s.enter(table, rest, outline, {
         describe: `Give-ups by task and participant, ${p} outlined: ${lost
           .map((n) => `${n} ${name(n)}: ${and(quitters(n))} gave up`)

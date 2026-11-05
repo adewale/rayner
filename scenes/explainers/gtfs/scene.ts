@@ -486,7 +486,7 @@ export default class GtfsExplainer extends Scene {
         `. Trips that run: ${grid.trips.join(', ')}. ${longDate(date)} is framed.`,
     });
     // A phone opens on the date asked about, with its neighbours either side as room allows.
-    s.reading(columns[col]!);
+    s.opening(columns[col]!);
     this.state.week = grid;
 
     // ------------------------------------------------------------------ trip-stops

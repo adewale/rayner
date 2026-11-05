@@ -724,7 +724,7 @@ export default class SeasonsExplainer extends Scene {
         `Level ground at ${place.name}, with both noon beams drawn to one scale, each 1 m across: June’s, at ${degrees(june.altitude)}, lands on ${metres(junePatch!)}, ${percent(juneShare)} per m²; ` +
         (decPatch === null ? `December’s noon Sun is below the horizon, so no beam lands` : `December’s, at ${degrees(december.altitude)}, lands on ${metres(decPatch)}, ${percent(decShare)} per m²`),
     });
-    s.reading(spread);
+    s.opening(spread);
     this.state.patch = { june: junePatch, december: decPatch };
 
     // ------------------------------------------------------------ latitude

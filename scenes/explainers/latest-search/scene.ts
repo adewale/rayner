@@ -140,7 +140,7 @@ export default class LatestSearchExplainer extends Scene {
       await s.clear({ runTime: 0.18 });
       this.state = { ...raceStart(guarded) } as unknown as SceneState;
       timeline.rebuild();
-      s.reading(timeline);
+      s.opening(timeline);
       await s.enter(timeline, { runTime: 0.24, describe: () => raceWords(this.state as unknown as RaceState) });
       await this.play(machine.replay(events));
     };

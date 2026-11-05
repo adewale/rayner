@@ -161,7 +161,7 @@ export default class BirthdayParadox extends Scene {
           const dates = st.shared.map((d) => d.date);
           return room(s, st.days, st.dates, st.shared.map((d) => d.day), `${dates.length ? `Shared: ${list(dates)}` : 'No shared date'}. Chance: ${pct(st.chance)}`);
         },
-        reading: ['birthday-people', 'birthday-footer'],
+        opening: ['birthday-people', 'birthday-footer'],
       }),
       staged({
         id: 'you',
@@ -171,7 +171,7 @@ export default class BirthdayParadox extends Scene {
         state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
         draw: (st, s) =>
           pairGrid(s, { you: true, people: st.people, count: st.others, chance: st.one, matched: [], footer: `Your ${st.others} comparisons, one square each` }),
-        reading: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
+        opening: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
       }),
       staged({
         id: 'pairs',
@@ -212,7 +212,7 @@ export default class BirthdayParadox extends Scene {
               ? `One square per pair: ${st.pairs}. Red: ${list(st.sharedDates)}`
               : `One square per pair: ${st.people} × ${st.people - 1} / 2 = ${st.pairs}`,
           }),
-        reading: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
+        opening: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
       }),
       staged({
         id: 'growth',

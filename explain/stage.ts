@@ -10,7 +10,7 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, regionBox, reading } from './look.ts';
+import { soft, emphasis, good, bad, regionBox, opening } from './look.ts';
 import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
@@ -66,7 +66,7 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
   /** Which path this step is on, when not the list's (see StagedStepsOptions). */
   kind?: StepKind;
   /** Keys of the parts the step is about, when that is less than the whole picture: a phone opens on them. */
-  reading?: readonly string[];
+  opening?: readonly string[];
 }
 /** Options for `stage.steps`: `kind` puts every step on that path (default 'main'). */
 export interface StagedStepsOptions { kind?: StepKind }
@@ -120,7 +120,7 @@ const HOME: Box = [-8, -4.5, 8, 4.5];
 
 export function stage(scene: Scene, options: StageOptions = {}) {
   // Each caption owns its opening; a previous step's subjects must not leak.
-  scene.onStep(() => reading(scene));
+  scene.onStep(() => opening(scene));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     (at === 'start'
@@ -425,8 +425,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step(). */
-    reading(...subjects: Mobject[]) {
-      reading(scene, ...subjects);
+    opening(...subjects: Mobject[]) {
+      opening(scene, ...subjects);
     },
     /** Code on a panel; `code.focus(line)` keeps a bar on it. */
     async code(
@@ -610,8 +610,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           drawn: pictureFingerprint(drawing),
         });
         // What the step is about, when that is less than the whole drawing: a phone opens on it.
-        const about = step.reading ? drawing.family().filter((m) => step.reading!.includes(m.key ?? '')) : [drawing];
-        this.reading(...about);
+        const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];
+        this.opening(...about);
         // Describe the drawn labels, not the state object or the authored caption.
         const words = drawing.family().filter((m): m is Text => m instanceof Text).map((t) => t.text).filter(Boolean);
         await this.enter(drawing, { runTime: kind === 'short' ? 0.25 : 0.24, describe: words.join('. ') });

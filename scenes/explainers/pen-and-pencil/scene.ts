@@ -484,7 +484,7 @@ export default class PenAndPencil extends Scene {
     await s.enter(source, opening, tallyLine, {
       describe: `The timeline’s four lines of text, and below them the timeline drawn by a hand that sets off each line from where the last stopped: its boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes.`,
     });
-    s.reading(opening);
+    s.opening(opening);
     this.state.periods = facts.length;
 
     // 2. Why the boxes wander, and the fix in miniature: the route is fixed first, and the hand only follows it.
@@ -526,7 +526,7 @@ export default class PenAndPencil extends Scene {
       { side: 'above', gap: 0.45 },
     );
     tally.key = 'construction:tally';
-    s.reading(traced, tally);
+    s.opening(traced, tally);
     this.state.marks = { outlines: outlineCount, filled: filledCount, words: wordCount };
 
     const INK_WIDTH = 0.006;
@@ -600,9 +600,9 @@ export default class PenAndPencil extends Scene {
         runTime: 0.8,
         describe: `Dashed red outlines on the ${facts.length * 2} laid-out period and event boxes, the same for both drawings; every plank and tag sits on them`,
       });
-      s.reading(firstScenery, sharedBoxes);
+      s.opening(firstScenery, sharedBoxes);
     }
-    s.reading(tints, inked, wordGroup, ...sceneGroups);
+    s.opening(tints, inked, wordGroup, ...sceneGroups);
     this.state.scene = { layers: layers.map((l) => l.name), trespass };
     this.state.plate = { objects, stray: Number(fmt(chartStray)), letters: letterCount, sharpenings };
 
@@ -624,7 +624,7 @@ export default class PenAndPencil extends Scene {
     await s.enter(heads, freePanel, tracedPanel, {
       describe: `Two drawings of the timeline. Above, drawn by a hand that sets off each line from where the last stopped: the boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes. Below, the same chart traced on the layout’s marks, every word inside its box.`,
     });
-    s.reading(freePanel, tracedPanel);
+    s.opening(freePanel, tracedPanel);
     this.state.freehand = { misses: misses.length, words: wordCountFree, maxOff: Number(fmt(maxOff)) };
   }
 }

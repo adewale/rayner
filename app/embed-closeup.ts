@@ -23,7 +23,7 @@
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
 import { Text } from '../src/index.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
-import { emphasisOf, readingOf } from '../explain/look.ts';
+import { emphasisOf, openingOf } from '../explain/look.ts';
 import { isHeading } from '../explain/stage.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
@@ -52,7 +52,7 @@ export interface LayoutLabel {
 /** What a step's resting picture holds, for framing it; boxes and sizes in the camera's view units. */
 export interface StepLayout {
   /** Authored comparison, independent of incidental changed code or notes. */
-  reading?: { box: Box; labels: LayoutLabel[] };
+  opening?: { box: Box; labels: LayoutLabel[] };
   /**
    * What changed or received fresh helper emphasis, in the camera's view units, as
    * separate parts in reading order (rows top to bottom, each left to right); empty
@@ -333,12 +333,12 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
       const changes = changed(leaves, before).map((c) => ({ ...c, box: toView(c.box, view), painted: toView(c.painted!, view) }));
       const intent = emphasised(leaves).map(c => ({box: toView(c.box, view), painted: toView(c.painted, view), text: false})),
         stress = intent.map(c => c.box);
-      const subjects = new Set(readingOf(scene).flatMap((m) => m.family()));
+      const subjects = new Set(openingOf(scene).flatMap((m) => m.family()));
       const subjectLeaves = leaves.filter((l) => subjects.has(l.m));
-      for (const subject of readingOf(scene)) {
+      for (const subject of openingOf(scene)) {
         const family = new Set(subject.family());
         if (!subjectLeaves.some((l) => family.has(l.m)))
-          throw new Error(`reading(): ${step.name} names a subject with no painted ink`);
+          throw new Error(`opening(): ${step.name} names a subject with no painted ink`);
       }
       const box = subjectLeaves.reduce<Box | null>((b, l) => union(b, l.box), null);
       const labels = labelsOf(scene);
@@ -348,7 +348,7 @@ export async function stepLayouts(Scene: SceneClass): Promise<Map<string, StepLa
         // in the tour even when only a nearby label changed this step.
         ...partsOf([...changes, ...intent]),
         labels,
-        ...(box ? { reading: { box: toView(box, view), labels: subjectLabels } } : {}),
+        ...(box ? { opening: { box: toView(box, view), labels: subjectLabels } } : {}),
         ...(stress.length ? { stress } : {}),
       });
       before = leaves;
@@ -461,11 +461,11 @@ export function stressStarts(layout: StepLayout): [number, number][] {
  */
 export function closeUps(layout: StepLayout | undefined, w: number, h: number, max = ZOOM_MAX): Zoom[] {
   const whole = [clampZoom(IDENTITY, w, h, max)];
-  if (!layout || (!layout.parts.length && !layout.reading) || !(w > 0) || !(h > 0) || w >= NARROW_PX) return whole;
-  if (!layout.parts.length && layout.reading) layout = { ...layout, parts: [layout.reading.box], lead: 0 };
+  if (!layout || (!layout.parts.length && !layout.opening) || !(w > 0) || !(h > 0) || w >= NARROW_PX) return whole;
+  if (!layout.parts.length && layout.opening) layout = { ...layout, parts: [layout.opening.box], lead: 0 };
   // Declared subjects can stay unchanged while another part of the picture changes.
   // Their smaller labels still determine whether the opening needs enlargement.
-  const read = [...labelsToRead(layout), ...(layout.reading?.labels ?? [])];
+  const read = [...labelsToRead(layout), ...(layout.opening?.labels ?? [])];
   if (!read.length) return whole;
   const { s, ox, oy } = stageScale(w, h);
   const smallest = Math.min(...read.map((l) => l.size));
@@ -543,9 +543,9 @@ export function closeUps(layout: StepLayout | undefined, w: number, h: number, m
   for (const v of [...views.slice(open + 1), ...views.slice(0, open), ...extra])
     (starts.some(([x, y]) => inside(x, y, v.box)) ? first : rest).push(v.zoom);
   const opening: Zoom[] = [];
-  if (layout.reading) {
-    const box = intersect(padded(layout.reading.box), FRAME) ?? layout.reading.box,
-      size = layout.reading.labels.length ? Math.min(...layout.reading.labels.map((l) => l.size)) : Infinity,
+  if (layout.opening) {
+    const box = intersect(padded(layout.opening.box), FRAME) ?? layout.opening.box,
+      size = layout.opening.labels.length ? Math.min(...layout.opening.labels.map((l) => l.size)) : Infinity,
       minimum = Math.max(1, READ_PX / (size * s)),
       fit = Math.min(w / ((box[2] - box[0]) * s), h / ((box[3] - box[1]) * s));
     if (minimum <= Math.min(max, fit) + 1e-9) {

@@ -861,7 +861,7 @@ test(
       await writeFile(join(dir, 'scene.ts'), `import{Scene,Text,Group}from'rayner';import{stage,settingsOf}from'rayner/explain';
 export default class Narrow extends Scene{static meta={id:'narrow',title:'Width-sensitive comparison'};static settings=[{id:'spacing',label:'Spacing',default:'compact',options:[{value:'compact',label:'Compact'},{value:'wide',label:'Wide'},{value:'all-detail',label:'All detail fallback'}]}];async construct(){
 const s=stage(this);await this.step('comparison',{kind:settingsOf(this).spacing==='all-detail'?'detail':'main',caption:'Keep both values together.'});const x=settingsOf(this).spacing==='wide'?6.5:3;
-const left=new Text('Before 1',{fontSize:.6}).moveTo([-x,0]),right=new Text('After 2',{fontSize:.6}).moveTo([x,0]);left.key='left';right.key='right';const g=new Group(left,right);s.reading(g);await s.enter(g,{describe:'Before one, after two'});
+const left=new Text('Before 1',{fontSize:.6}).moveTo([-x,0]),right=new Text('After 2',{fontSize:.6}).moveTo([x,0]);left.key='left';right.key='right';const g=new Group(left,right);s.opening(g);await s.enter(g,{describe:'Before one, after two'});
 await this.step('reference',{kind:'detail',caption:'Reference implementation value.'});await s.clear();const r=new Text('Reference',{fontSize:.2});r.key='reference';await s.enter(r,{describe:'Reference value'});
 }}`);
       const project = await collectProject(dir, {write: false});
@@ -1153,7 +1153,7 @@ const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:transparent?'tran
 const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:transparent?'rgba(255,255,255,0)':'white',strokeWidth:.2,strokeOpacity:transparent?1:0}).moveTo([3,-2.5]);
 const haloPlate=new Rectangle({width:4,height:1.4,fill:'red',stroke:'none'}).moveTo([0,2]);
 const halo=new Text('Halo',{fontSize:.8}).setStyle({fill:'white',stroke:'red',strokeWidth:.08,paintOrder:'stroke'}).moveTo([0,2]);
-const labelled=new Group(label,accent,outlined,filled,haloPlate,halo);labelled.key='label-subject';s.reading(shape,labelled);
+const labelled=new Group(label,accent,outlined,filled,haloPlate,halo);labelled.key='label-subject';s.opening(shape,labelled);
 const shapeCover=new Rectangle({width:2,height:2,fill:'red',stroke:'none'}).moveTo([-3,0]).setOpacity(.2);
 const labelCover=new Rectangle({width:6,height:2,fill:'red',stroke:'none'}).moveTo([2,0]).setOpacity(.2);
 const halfCover=new Rectangle({width:3,height:2,fill:'green',stroke:'none'}).moveTo([3.5,0]).setOpacity(.2);

@@ -526,7 +526,7 @@ export default class TrafficPolicyExplainer extends Scene {
       flowRight = flowPanel(counts, 'local', 3.85, s.palette.ink, s.palette.paper, policy === 'local');
     await s.enter(flowLeft.group, flowRight.group, { describe: () => `${flowLeft.words()} ${flowRight.words()}` });
     // A phone opens on this scenario's own policy; the other panel is the next stop of the tour.
-    s.reading(policy === 'cluster' ? flowLeft.group : flowRight.group);
+    s.opening(policy === 'cluster' ? flowLeft.group : flowRight.group);
     const flowState = (p: Policy) => ({
       nodes: nodeShares(counts, p).map(frac),
       bands: flows(counts, p).map((b) => [NODES[b.node], b.pod, frac(b.share)]),

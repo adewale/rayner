@@ -306,6 +306,6 @@ export default class StateMachineExplainer extends Scene {
         'No row starts at closed. A late OPENED finds no closed:OPENED entry, so reduceSession throws InvalidTransition at the boxed line and the ring stays on closed.',
     });
     await this.play(machine.replay(['OPENED']));
-    s.reading(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
+    s.opening(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
   }
 }

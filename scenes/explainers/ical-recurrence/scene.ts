@@ -358,7 +358,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       await s.enter(column('alice', -7.55), column('bob', 0.35), weeksBlock, {
         describe: `Alice’s stored object: ${alice.map((c) => detail(c, true)).join('; ')}. Bob’s stored object: no master, ${bob.copy.map((c) => detail(c, false)).join('; ')}. The six weeks of Alice’s rule, Alice’s calendar: ${say(wa)}. Bob’s calendar: ${say(wb)}.`,
       });
-      s.reading(weeksBlock);
+      s.opening(weeksBlock);
       this.state.copies = {
         alice: { stored: na, weeks: wa.map((w) => w.week) },
         bob: { stored: nb, weeks: wb.map((w) => w.week), sent },

@@ -87,7 +87,7 @@ export default class FontMetrics extends Scene {
       );
     }
     this.state.layout = { wrong, actual };
-    s.reading(comparison);
+    s.opening(comparison);
     await s.enter(comparison);
 
     // 2. The answer: a phrase's width is the sum of its glyphs' advances, which belong to the face.
@@ -122,7 +122,7 @@ export default class FontMetrics extends Scene {
       size: 0.7,
       offset: -0.4,
     });
-    s.reading(ruled, ticks);
+    s.opening(ruled, ticks);
     this.state.advance = ruled.advance();
 
     // 3. The opening's upper row again, with both measurements under it, pen stop by pen stop: the marker's
@@ -181,7 +181,7 @@ export default class FontMetrics extends Scene {
     });
     await this.play(new Create(drawnRuler, { runTime: 0.6, lagRatio: 0 }), new Create(measuredRuler, { runTime: 0.6, lagRatio: 0 }));
     await this.play(new Create(links, { runTime: 0.8, lagRatio: 0.1 }), new Create(guides, { runTime: 0.5, lagRatio: 0 }), new Create(ring, { runTime: 0.5 }), new Create(names, { runTime: 0.5, lagRatio: 0 }));
-    s.reading(upper, drawnRuler, measuredRuler, marker, ring, names);
+    s.opening(upper, drawnRuler, measuredRuler, marker, ring, names);
     this.state.rulers = {
       drawn: drawnStops,
       measured: measuredStops,
@@ -214,7 +214,7 @@ export default class FontMetrics extends Scene {
       );
     }
     this.state.advances = advances;
-    s.reading(rows);
+    s.opening(rows);
     await s.enter(rows, {
       describe: () =>
         `The same words in three EB Garamond cuts: ${Object.entries(advances)
@@ -247,7 +247,7 @@ export default class FontMetrics extends Scene {
       stretch[text] = (run.width ?? natural) / natural;
       annotations.push(await d.note(id, `stretched ×${stretch[text]!.toFixed(3)}`, { side: 'below', color: s.emphasis, size: 0.66 }));
     }
-    s.reading(d.get('A'), d.get('B'), d.get('edge:A->B#0'), ...annotations);
+    s.opening(d.get('A'), d.get('B'), d.get('edge:A->B#0'), ...annotations);
     this.state.stretch = stretch;
   }
 }

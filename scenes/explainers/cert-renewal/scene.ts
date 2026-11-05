@@ -401,7 +401,7 @@ export default class CertRenewalExplainer extends Scene {
             .map((r) => `a ${named(r.lifetime)}, ${marginWords(r)}, 30 days being ${ofLife(r.share, r.lifetime)}`)
             .join('; ')}.`,
       });
-      s.reading(...subjects);
+      s.opening(...subjects);
       marginPicture = picture;
     }
     this.state.margin = {
@@ -592,7 +592,7 @@ export default class CertRenewalExplainer extends Scene {
     const lowerStrip = strip(other, -0.55);
     await s.enter(lowerStrip, { describe: () => `A second strip. ${words(other)}` });
     // The step compares the two rules, so a phone's tour reads both strips, not only the new one.
-    s.reading(upperStrip, lowerStrip);
+    s.opening(upperStrip, lowerStrip);
     this.state.otherRule = {
       rule: other,
       issued: perWindow(other).issued,

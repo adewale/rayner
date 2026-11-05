@@ -261,7 +261,7 @@ export default class GreatCircle extends Scene {
     const before: StagedStep<any>[] = [
       { id: 'question', title: 'Why does a flight from London to Los Angeles pass over Greenland?', line: 'Predict: which line is shorter, the bent one or the ruler’s?',
         caption: 'Open the seat-back map on a flight from London to Los Angeles. The line it draws leaves Heathrow heading north-west, climbs past the southern tip of Greenland, crosses Hudson Bay and only then turns south toward California. Los Angeles is far to the south of London, yet the plane goes north. Lay a ruler across the same map from Heathrow to LAX and you get a tidy line heading west-south-west across the Atlantic. Which route is shorter?',
-        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, false), reading: ['map'] },
+        state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, false), opening: ['map'] },
       { id: 'shorter', title: `Answer: the bent line, by ${tens(L.extraKm)} km`, line: 'Red: the plane’s route. Blue dashed: the ruler’s line.',
         caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${ANSWER}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
         state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, true) },
@@ -270,7 +270,7 @@ export default class GreatCircle extends Scene {
         state: { viewpoint: MERCATOR, route: L, km: 1000, stretch: L.stretch }, draw: stretched },
       { id: 'globe', title: 'On a globe, a tight string swings north', line: 'The pale sheet passes through both cities and the Earth’s centre.',
         caption: 'Now hold a globe. Put a pin in London and another in Los Angeles, and pull a string tight between them. A tight string takes the shortest path along the surface, and you can watch it swing north of both pins. Every point on the string lies on one flat sheet through London, Los Angeles and the centre of the globe. Where that sheet meets the globe it cuts the largest circle the sphere can hold, with its centre at the centre of the Earth. That circle is called a great circle, and the shortest route between two places always runs along one.',
-        state: { viewpoint: HELD, route: L }, draw: (st: GlobeState) => globe(st), reading: ['globe:seen'] },
+        state: { viewpoint: HELD, route: L }, draw: (st: GlobeState) => globe(st), opening: ['globe:seen'] },
     ];
     const after: StagedStep<any>[] = [
       { id: 'north', title: `The sheet tips north, so the route peaks at ${Math.round(L.top.lat)}° N`, line: 'Grey: the equator, the one line of latitude that is a great circle.',
@@ -281,7 +281,7 @@ export default class GreatCircle extends Scene {
         state: { viewpoint: ATLANTIC, route: M, westKm }, draw: westward },
       { id: 'gnomonic', title: 'A map seen from the Earth’s centre draws shortest routes straight', line: 'The gnomonic map: the eye at the centre, the paper touching the globe.',
         caption: 'Is there a flat map on which every shortest route is a ruler’s line? Put the eye at the centre of the Earth and project each place outward onto a flat sheet touching the globe. Every great circle lies in a plane through the eye, and a plane through the eye meets the sheet in a straight line. On this map, the gnomonic map, every shortest route is drawn straight: it is the edge-on view from the turned globe, held still for every route at once. The price is that it cannot show even half the world, and it stretches shapes badly far from where the sheet touches. Navigators used both maps: they ruled the course on a gnomonic chart, copied its points onto a Mercator chart, and steered a few straight headings between them.',
-        state: { viewpoint: GNOMONIC, routes: [L, M] }, draw: gnomonic, reading: ['gnomonic:seen'] },
+        state: { viewpoint: GNOMONIC, routes: [L, M] }, draw: gnomonic, opening: ['gnomonic:seen'] },
       { id: 'equator', title: 'On the equator, the ruler and the string agree', line: 'Red and blue dashed lie on the same line here.',
         caption: 'What if both cities sat on the equator? The equator is a great circle, so the shortest route would follow it, and Mercator’s ruler line and the string would agree. Only on the equator, or on a route running due north or south, do the two maps draw the same line.',
         state: { viewpoint: TROPICS, pairs }, draw: onEquator },
@@ -316,7 +316,7 @@ export default class GreatCircle extends Scene {
     // The step's model starts where the last picture was seen from and ends edge-on.
     this.state = { viewpoint: HELD, route: L, turn: { from: HELD.pitch, via: PAST.pitch, to: EDGE_ON.pitch } } as typeof this.state;
     const picture = view(this, (st) => globe(st as unknown as GlobeState), { place: false });
-    s.reading(picture);
+    s.opening(picture);
     await s.enter(picture, { runTime: 0.24, describe: () => turnWords(this.state.viewpoint as Viewpoint) });
     const pitchTo = (from: number, to: number, runTime: number) =>
       new Follow({ from, to, draw: (pitch) => globe({ viewpoint: { ...EDGE_ON, pitch }, route: L }) }, { targets: [picture.current], runTime });

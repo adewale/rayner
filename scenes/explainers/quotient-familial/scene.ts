@@ -339,7 +339,7 @@ export default class QuotientFamilialExplainer extends Scene {
       describe: () =>
         `Deux barres de ${rniTexte} à la même échelle, coupées par tranche du barème${deux} revenu entier, ${ligne('entier')}${pv} par parts, ${ligne('parts')}.`,
     });
-    s.reading(...regles);
+    s.opening(...regles);
     this.state.tranches = rep;
 
     // --------------------------------------------------------- multiplie

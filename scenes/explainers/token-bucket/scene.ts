@@ -586,12 +586,12 @@ export default class TokenBucketExplainer extends Scene {
       const last = bucketOf().calls.at(-1)!;
       await code.focus(last.ok ? SPEND : REFUSE, { as: last.ok ? 'spend' : 'refuse', runTime: 0.2 });
       // What a phone reader is shown first: R5's 200 beside R6's 429, then what R7 found.
-      if (index === 0) s.reading(part(chips, 'request:R5'), part(chips, 'request:R6'));
+      if (index === 0) s.opening(part(chips, 'request:R5'), part(chips, 'request:R6'));
       // R7 (its climb, dot, drop and tag) and R6's tag, where the climb to R7 starts, are read together.
       if (index === 1)
-        s.reading(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
+        s.opening(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
       if (index === 2)
-        s.reading(code.code.lines[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!,
+        s.opening(code.code.lines[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!,
           readout.current.children[0]!, readout.current.values['Tokens left']!,
           ...['balance:refill:R10', 'balance:found:R10', 'balance:spend:R10', 'balance:cap:note'].flatMap((k) => chart.current.find(k) ?? []));
     }

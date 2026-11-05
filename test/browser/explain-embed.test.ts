@@ -155,7 +155,7 @@ export default class IdentityOpening extends Scene{
 static meta={id:'identity-opening',title:'Readable comparison'};
 async construct(){const s=stage(this);await this.step('compare',{title:'Compare',caption:'The large labels compare.'});
 const subject=new Text('COMPARISON',{fontSize:1}),detail=new Text('tiny detail',{fontSize:0.15}).moveTo([4,-3]);
-await s.enter(subject,detail);s.reading(subject);}}`);
+await s.enter(subject,detail);s.opening(subject);}}`);
   const project = await collectProject(source, {write: false});
   await buildExplainer(project, join(folder, 'identity-opening.html'));
   await readerPage({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'}, `${embed}/identity-opening.html`, async page => {
@@ -240,7 +240,7 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
           const matrix = (svg as SVGSVGElement).getScreenCTM()!;
           return Math.hypot(matrix.a, matrix.b) * 1000;
         });
-        const labels = layouts.get(step)!.reading!.labels;
+        const labels = layouts.get(step)!.opening!.labels;
         assert.ok(labels.length > 0);
         for (const label of labels)
           assert.ok(label.size * scale >= 12 - 1e-5, `${id}/${step}: ${label.size * scale}px declared label`);

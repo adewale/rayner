@@ -532,7 +532,7 @@ export default class TrustProxyExplainer extends Scene {
     await s.enter(positionsPanel, addressesPanel, {
       describe: `Two panels of the addresses Express reads, counted from Express, for the attacker through the CDN and skipping it. Left, trust proxy ${counted}: ${tell(counted, byCount)}. Right, the address list: ${tell('list', byList)}.`,
     });
-    s.reading(positionsSubject);
+    s.opening(positionsSubject);
     this.state.routes = Object.fromEntries(
       [
         [counted, byCount],
@@ -753,7 +753,7 @@ export default class TrustProxyExplainer extends Scene {
     a.key = 'ranges-current';
     b.key = 'ranges-alternative';
     await s.enter(a, b);
-    s.reading(a, b, d.get('service:edge'), d.get('service:balancer'));
+    s.opening(a, b, d.get('service:edge'), d.get('service:balancer'));
     this.state.compare = Object.fromEntries(
       [trustKey, other].map((t) => [t, Object.fromEntries(REQUEST_KEYS.map((q) => [q, TABLE[t][q].ip]))]),
     );
