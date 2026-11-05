@@ -4,7 +4,7 @@ You choose cyan-500. Tailwind writes it as oklch(71.5% 0.143 215.221): lightness
 
 Compare the seventeen coloured families at shade 500. To judge each one, we need the sRGB limit at that colour's own lightness and hue. The radar gives each family a spoke; its outline marks the greatest chroma that still fits sRGB. The outline changes from spoke to spoke because a display's limit is not the same for every lightness and hue.
 
-Overlay Tailwind's requested chroma. Fourteen of these seventeen colours extend beyond the sRGB outline. Red, fuchsia and pink fit. The overshoots look small in the raw chroma view: lime-500 extends furthest, about 0.024 past its edge. But a small distance can consume a large share of the range available at that hue.
+Overlay Tailwind's requested chroma. Fourteen of these seventeen colours extend beyond the sRGB outline. Red, fuchsia and pink fit. The overshoots look small in the raw chroma view: lime-500 extends furthest, about 0.024 past its edge. But each spoke's edge sits at a different chroma. Measured as a share of its own edge, which colour goes furthest?
 
 Now measure each colour relative to its own edge. The sRGB edge becomes the 100% ring. Cyan reaches 113.1%, the largest relative overshoot, with yellow level with it to one decimal, even though lime had the largest absolute one. Cyan's available range is smaller, so its smaller excess is larger as a proportion. Pink sits at 90.4%, leaving more room before its edge. These are two comparisons of the same colours: extra chroma in absolute units, and chroma relative to the display's limit.
 

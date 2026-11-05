@@ -30,7 +30,7 @@ export function frames(shade: Shade, screen: Space): StagedStep[] {
       id: 'reader-display',
       title: `You wrote ${name}; an sRGB screen paints ${preview}`,
       line: 'Left: the colour as written, which sRGB cannot show. Right: what an sRGB screen paints instead.',
-      caption: `Tailwind CSS 4 writes ${name} as ${written}: lightness, chroma and hue, where chroma is how far the colour stands from grey. An sRGB screen cannot show chroma ${most.C.toFixed(3)} at that lightness and hue, so this page, drawn in sRGB, has no paint for the colour as written. CSS Color 4 says such a colour must be brought inside the screen’s range; its gamut mapping turns ${name} into ${preview}, chroma ${most.shown.toFixed(3)}, with lightness and hue nudged slightly: less vivid than written. Do the other ${shade} shades fit?`,
+      caption: `Tailwind CSS 4 writes ${name} as ${written}: lightness, chroma and hue, where chroma is how far the colour stands from grey. An sRGB screen cannot show chroma ${most.C.toFixed(3)} at that lightness and hue, so this page, drawn in sRGB, has no paint for the colour as written. CSS Color 4’s gamut mapping brings it inside the screen’s range as ${preview}, chroma ${most.shown.toFixed(3)}, with lightness and hue nudged slightly: less vivid than written. Do the other ${shade} shades fit?`,
       // `written` is the chroma as written; `writtenAs`, the theme's oklch() value the picture shows.
       state: { shade, screen, colour: name, written: most.C, writtenAs: written, edge: most.srgb, shown: most.shown, preview },
       draw: (st, s) => {
