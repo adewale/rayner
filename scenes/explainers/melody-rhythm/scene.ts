@@ -21,6 +21,8 @@ interface Look {
   /** Words under the score in place of the two bar labels. */
   footer?: string;
 }
+/** What a step's score is drawn from: its clips, and how many of B's starts moved. */
+interface Music { clips: AudioClip[]; movedStarts: number }
 const X0 = -6,
   DX = (7.2 - X0) / 8;
 function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
@@ -178,7 +180,7 @@ export default class MelodyRhythm extends Scene {
         line: different ? 'Listen to both. Predict: where does B pull against the beat?' : 'Listen to both: in this case B is the control.',
         caption: `Each rectangle is a note: left to right is time, height is pitch and width is how long it sounds. Both versions play C D E G E D C C on the same instrument at ${m.bpm} BPM. ${different ? 'Play A, then B. Does one of them seem to pull against the beat somewhere? Where?' : 'Here B’s starts and lengths match A’s exactly; the shifted version of B starts two notes half a beat later.'}`,
         clips: m.clips,
-        look: { bare: true, footer: 'Left to right: time. Higher: a higher pitch.' },
+        look: (): Look => ({ bare: true, footer: 'Left to right: time. Higher: a higher pitch.' }),
       },
       {
         id: 'pulse',
@@ -186,7 +188,7 @@ export default class MelodyRhythm extends Scene {
         line: 'Predict: in B, which note starts on the 1 of bar 2?',
         caption: `Count along with the clicks: 1 2 3 4, then again. Each large 1 opens a bar and gets a different click. In A a new note starts on every click. At the start of bar 2 it is E, outlined in the picture. Which note starts there in B?`,
         clips: m.clips,
-        look: { pulse: true, accent: true, lit: ['a-0', ...onTheOne(m.clips[0]!)], footer: 'Large 1: the strong beat that opens each bar' },
+        look: (st: Music): Look => ({ pulse: true, accent: true, lit: ['a-0', ...onTheOne(st.clips[0]!)], footer: 'Large 1: the strong beat that opens each bar' }),
       },
       {
         id: 'bar',
@@ -198,12 +200,12 @@ export default class MelodyRhythm extends Scene {
           ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)} ms, so G starts ${ms(m.beatMs / 2)} ms before the bar line; the other tempo changes that gap but keeps G halfway through beat 4.`
           : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. The other version of B differs at exactly this bar line. ${answer} Only that version starts G late enough to hold it across the bar line.`,
         clips: m.clips,
-        look: {
+        look: (st: Music): Look => ({
           accent: true,
           marked: ['b-3'],
-          lit: [...onTheOne(m.clips[0]!), ...onTheOne(m.clips[1]!)],
-          footer: different ? 'G starts mid-beat 4 and holds over the 1' : 'G ends at the bar line; E starts on the 1',
-        },
+          lit: [...onTheOne(st.clips[0]!), ...onTheOne(st.clips[1]!)],
+          footer: st.movedStarts > 0 ? 'G starts mid-beat 4 and holds over the 1' : 'G ends at the bar line; E starts on the 1',
+        }),
       },
       {
         id: 'rhythm',
@@ -213,11 +215,11 @@ export default class MelodyRhythm extends Scene {
           ? 'Could the climb to G be what sounds off? Each version keeps its own starts and lengths, but all pitches are now C. Red dots mark starts between beats. Listen again: with the climb to G gone, B still holds a note across the bar line instead of starting one on the 1. Removing the melody leaves the timing difference intact. The score shows that difference; how strongly you hear its pull can vary.'
           : 'Every note now plays C, and each version keeps its own starts and lengths; a dot under each note marks where it starts. With the pitches gone, A and B play the identical rhythm, every start on a beat. Choose “Start two notes half a beat later” to hear a note hold across the bar line.',
         clips: m.flat,
-        look: {
+        look: (st: Music): Look => ({
           accent: true,
           onsets: true,
-          footer: different ? 'Every pitch C. Red dot: a start between beats' : 'Every pitch C. Blue dot: a start on a beat',
-        },
+          footer: st.movedStarts > 0 ? 'Every pitch C. Red dot: a start between beats' : 'Every pitch C. Blue dot: a start on a beat',
+        }),
       },
     ];
     await stage(this, { style: 'nord', headingSize: 0.6 }).steps(
@@ -233,7 +235,8 @@ export default class MelodyRhythm extends Scene {
           crossing: clips[1]!.notes.filter((n) => n.at < 4 && n.at + n.duration > 4),
         },
         audio: { clips },
-        draw: (_: unknown, s: Stage) => scorePicture(s, clips, look),
+        // The score from the step's own clips; what it outlines and says, from them and whether B moved any start.
+        draw: (st: Music, s: Stage) => scorePicture(s, st.clips, look(st)),
       })),
     );
   }
