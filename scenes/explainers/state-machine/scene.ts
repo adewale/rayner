@@ -8,14 +8,12 @@ import {
   FadeIn,
   Create,
   Transform,
-  MoveAlongPath,
   AnimationGroup,
   Succession,
   SurroundingRectangle,
   Machine,
   choreograph,
   view,
-  linear,
 } from '../../../src/index.ts';
 import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
@@ -253,18 +251,15 @@ export default class StateMachineExplainer extends Scene {
             // ring goes where the reducer's answer says the session now is.
             const barAtEvent = k.to('session:bar').copy().moveTo([k.to('session:bar').center()[0], (k.to('session:event') as Text).anchorPoint()[1]]);
             const bar = k.own('session:bar'), link = d.link(before.session, after.session);
-            const token = g.insert('walk:token', new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)));
+            const walk = g.travel('walk:token', new Dot({ radius: 0.08, color: d.accent }), link.route, { appear: 0.18, move: 0.8, leave: 0.18 });
             return new Succession([
               new AnimationGroup([...swap(k, 'event', 0.45), new Transform(bar, barAtEvent, { runTime: 0.45 }), ...putBack(c, before)]),
               c.enter(`reducer:lit:${after.row}`, {}, { runTime: 0.4 }),
               c.enter(`reducer:box:${after.row}`, { create: true }, { runTime: 0.5 }),
               o.leave(`session:ring:${before.session}`, { runTime: 0.35 }),
-              new Transform(token, new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)), { runTime: 0.18 }),
-              new AnimationGroup([
-                new MoveAlongPath(token, link.route, { runTime: 0.8, rateFunc: linear }),
-                g.morph('diagram', { runTime: 0.8 }),
-              ]),
-              g.leave('walk:token', { runTime: 0.18 }),
+              walk.appear,
+              new AnimationGroup([walk.move, g.morph('diagram', { runTime: 0.8 })]),
+              walk.leave,
               new AnimationGroup([
                 o.enter(`session:ring:${after.session}`, { create: true }, { runTime: 0.8 }),
                 ...swap(k, 'state', 0.8),

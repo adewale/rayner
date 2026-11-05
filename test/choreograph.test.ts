@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Circle, Square, Dot, NullSink, Succession, Transform, choreograph, toSvgString } from '../src/index.ts';
+import { Scene, Group, Circle, Square, Dot, Line, NullSink, Succession, Transform, choreograph, toSvgString } from '../src/index.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
 
@@ -87,4 +87,27 @@ test('a passing part the target does not have comes in, moves and goes out, and 
 test('a picture with two parts under one key is refused', () => {
   const twice = new Group(Object.assign(new Circle(), { key: 'x' }), Object.assign(new Square(), { key: 'x' }));
   assert.throws(() => choreograph(twice, after()), /two parts are keyed x/);
+});
+
+test('travel: a token appears at the path start, moves along it, and leaves; the picture still lands', async () => {
+  const target = after();
+  const path = new Line([-3, -1], [3, -1]);
+  let seen: { appeared?: number[]; moved?: number[] } = {};
+  const done = await play(before(), (cur) => {
+    const c = choreograph(cur, target);
+    const t = c.travel('token', new Dot(), path, { appear: 0.1, move: 0.4, leave: 0.1 });
+    const part = cur.children.find((m) => m.key === 'token')!;
+    // Unseen until its turn, then carried from one end of the path to the other.
+    assert.ok(part.family().every((m) => m.style.opacity === 0));
+    const watch = (anim: Animation, into: 'appeared' | 'moved') => Object.assign(anim, {
+      finish: ((orig) => function (this: Animation) { orig.call(this); seen[into] = [...part.center()]; })(anim.finish),
+    });
+    return new Succession([watch(t.appear, 'appeared'), watch(t.move, 'moved'), t.leave, c.rest({ runTime: 0.2 })]);
+  });
+  assert.deepEqual(seen.appeared!.map((v) => Math.round(v * 1e6) / 1e6), [-3, -1]);
+  assert.deepEqual(seen.moved!.map((v) => Math.round(v * 1e6) / 1e6), [3, -1]);
+  assert.equal(marks(done), marks(after()));
+  assert.ok(!done.children.some((m) => m.key === 'token'), 'the token left the picture');
+  // A key the target has is a part to morph, not a token passing through.
+  assert.throws(() => choreograph(before(), after()).travel('a', new Dot(), path), /passes through/);
 });
