@@ -303,7 +303,7 @@ export class ViewSink implements Sink {
 /**
  * Text alone misses a mark: a card's lit bar on the wrong row, or a bar left showing, reads the
  * same words. Each part's kind, text, box and opacity, rounded, must match a fresh draw of the
- * step's state.
+ * step's state, placed where a sync would put it (a placed view keeps its anchor as it changes).
  */
 function viewGeometryMismatch(v: View, scene: Scene): string | null {
   const round = (x: number) => Math.round(x * 100) / 100;
@@ -311,7 +311,7 @@ function viewGeometryMismatch(v: View, scene: Scene): string | null {
   const parts = (ms: Mobject[]) => ms.map((x) => JSON.stringify([
     x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null, round(x.style.opacity ?? 1),
   ]));
-  const shown = family(v.current), shows = parts(shown), draws = parts(family(v.draw(scene.state, scene.shown)));
+  const shown = family(v.current), shows = parts(shown), draws = parts(family(v.placed(scene.state, scene.shown)));
   if (shows.join() === draws.join()) return null;
   // Name the first part that differs and has no parts of its own: the bar that moved, not its card.
   const differs = shows.map((p, k) => p !== draws[k]);
