@@ -107,6 +107,7 @@ The [engine map](https://github.com/adewale/rayner/blob/main/docs/ENGINE.md) lis
 
 Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/main/scenes/explainers) shows a technique. Copy the nearest one rather than starting blank; these are ways that worked, not rules:
 
+<!-- generated from test/public-names.json by `node tools/public-names.ts --write`: examples -->
 | You are explaining | Start from | It shows |
 | --- | --- | --- |
 | Two algorithms or policies on the same input | `scenes/tutorial/lru-mru` (what `rayner init` writes) | One card with a column per policy, read from the model's trace; one scenario that favours each policy; captions tested against the model |
@@ -120,7 +121,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | Nested or parallel states | A Mermaid `stateDiagram-v2` with composites and regions ([recipe](../../docs/REFERENCE.md#state-machines-and-graphs)); `statecharts` when position carries meaning | `statecharts`: native boxes and arrows drawn from a model's states and transitions; a keyed `view` whose parts keep their identity as a grid becomes regions; a flat and a structured drawing side by side |
 | A race or ordering bug | `latest-search` | A real controlled-promise run that opens on the unguarded race (the page ends on the older query) before naming the ticket that fixes it; guard and completion order change the displayed result |
 | A rate or a model's numbers over time | `token-bucket`, `seasons` | `token-bucket`: `Axes`, `lineGraph`, `Follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model |
-| Identity, hashing or text that changes | `exgit` | `TransformMatchingText`, `TransformMatchingShapes`, `TransformFromCopy` |
+| Identity, hashing or text that changes | `exgit`, `glyph` | `exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: `TransformMatchingShapes` pairs letters by their outlines |
 | Keyed cells or nodes rearranged between pictures of the same state | `periodic-groups` | `view(...).sync({ match: 'key' })`; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part |
 | A real tool's behaviour, checked against it | `isdigit`, `gtfs`, `traffic-policy` | A model checked against the tool's own output, with a fidelity test |
 | Records, schedules or shares | `gtfs` (ER, gantt), `pg-page` (pie), `cert-renewal` (timeline) | Diagram families beyond flowcharts |
@@ -130,6 +131,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | A requested face in text and diagrams | `font-metrics` | EB Garamond, real cuts and `lettering: 'natural'` diagram measurements |
 | Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, an unchanged-timing control; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
 | Explicit panel placement and field order | `layout-direction` | RTL `start`/`end` placement, a card's LTR override and updates that keep their columns |
+<!-- end of generated examples -->
 
 A state machine, statechart or graph is usually best as a Mermaid `stateDiagram-v2` or flowchart with `s.show`: layout and connector routing come with it, and composite states, regions, marks, walks and keyed morphs work on its parts. Draw by hand when position itself carries meaning the layout cannot keep.
 

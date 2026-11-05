@@ -1,0 +1,879 @@
+{
+  "names": {
+    "rayner": {
+      "Animation": {
+        "reason": "used"
+      },
+      "AnimationGroup": {
+        "reason": "used"
+      },
+      "Arc": {
+        "reason": "used"
+      },
+      "ArcBetweenPoints": {
+        "reason": "taught",
+        "guide": "docs/ENGINE.md#public-names",
+        "test": "test/core.test.ts"
+      },
+      "Arrow": {
+        "reason": "used"
+      },
+      "Axes": {
+        "reason": "used"
+      },
+      "Brace": {
+        "reason": "taught",
+        "guide": "docs/EMPHASIS.md#the-shapes",
+        "test": "test/emphasis.test.ts"
+      },
+      "BraceLabel": {
+        "reason": "used"
+      },
+      "Circle": {
+        "reason": "used"
+      },
+      "Circumscribe": {
+        "reason": "used"
+      },
+      "Code": {
+        "reason": "used"
+      },
+      "Create": {
+        "reason": "used"
+      },
+      "Cross": {
+        "reason": "used"
+      },
+      "CurvedArrow": {
+        "reason": "used"
+      },
+      "DecimalNumber": {
+        "reason": "used"
+      },
+      "Dot": {
+        "reason": "used"
+      },
+      "FadeIn": {
+        "reason": "used"
+      },
+      "FadeOut": {
+        "reason": "used"
+      },
+      "Follow": {
+        "reason": "used",
+        "check": "Seek: a seeked frame that differs from the played one fails, so a Follow must draw from its sampled value alone"
+      },
+      "Frame": {
+        "reason": "taught",
+        "guide": "docs/CAMERA.md#what-it-is",
+        "test": "test/camera.test.ts"
+      },
+      "Group": {
+        "reason": "used"
+      },
+      "GrowFromEdge": {
+        "reason": "used"
+      },
+      "ItalicText": {
+        "reason": "used"
+      },
+      "Labeled": {
+        "reason": "used"
+      },
+      "LaggedStart": {
+        "reason": "used"
+      },
+      "Line": {
+        "reason": "used"
+      },
+      "Machine": {
+        "reason": "used",
+        "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
+      },
+      "MathTex": {
+        "reason": "taught",
+        "guide": "docs/REFERENCE.md#maths",
+        "test": "test/lettering-styles.test.ts",
+        "check": "Glyphs: a formula the lettering snapshot does not hold fails every command"
+      },
+      "Mobject": {
+        "reason": "used",
+        "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "MoveAlongPath": {
+        "reason": "taught",
+        "guide": "docs/CHOREOGRAPHY.md#pulsealongpath",
+        "test": "test/verify.test.ts"
+      },
+      "NumberLine": {
+        "reason": "taught",
+        "guide": "docs/GRAPHING.md#numberline",
+        "test": "test/graphing.test.ts"
+      },
+      "Polygon": {
+        "reason": "used"
+      },
+      "PulseAlongPath": {
+        "reason": "used"
+      },
+      "Rectangle": {
+        "reason": "used"
+      },
+      "Restore": {
+        "reason": "used"
+      },
+      "Scene": {
+        "reason": "used",
+        "check": "Seek, Trace, Hold: every scenario is played and seeked; a seeked frame or trace that differs from the played one, or a picture that changes after its caption's hold begins, fails"
+      },
+      "SetState": {
+        "reason": "used"
+      },
+      "Square": {
+        "reason": "used"
+      },
+      "StateReadout": {
+        "reason": "used"
+      },
+      "Succession": {
+        "reason": "used"
+      },
+      "SurroundingRectangle": {
+        "reason": "used"
+      },
+      "Text": {
+        "reason": "used",
+        "check": "Text, Legibility, Glyphs: native text that overlaps other text, reads under 14 px at 1280 px, or has characters the fonts cannot draw fails"
+      },
+      "Transform": {
+        "reason": "used",
+        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
+      },
+      "TransformDiff": {
+        "reason": "used"
+      },
+      "TransformFromCopy": {
+        "reason": "taught",
+        "guide": "docs/ANIMATIONS.md#transformfromcopy-derive-one-thing-from-another",
+        "test": "test/anim-utils.test.ts"
+      },
+      "TransformMatching": {
+        "reason": "taught",
+        "guide": "docs/MATCHING.md#which-key",
+        "test": "test/matching.test.ts"
+      },
+      "TransformMatchingShapes": {
+        "reason": "used",
+        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
+      },
+      "TransformMatchingText": {
+        "reason": "used",
+        "check": "Motion: a part that pops, cuts in or out, or teleports fails"
+      },
+      "Underline": {
+        "reason": "taught",
+        "guide": "docs/EMPHASIS.md#the-shapes",
+        "test": "test/emphasis.test.ts"
+      },
+      "VMobject": {
+        "reason": "used"
+      },
+      "View": {
+        "reason": "used",
+        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
+      },
+      "Write": {
+        "reason": "taught",
+        "guide": "docs/ENGINE-FUNDAMENTALS.md#geometry-and-paint",
+        "test": "test/code-spans.test.ts"
+      },
+      "choreograph": {
+        "reason": "used",
+        "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
+      },
+      "diffLines": {
+        "reason": "taught",
+        "guide": "docs/MATCHING.md#diff-driven",
+        "test": "test/diff.test.ts"
+      },
+      "isRefusal": {
+        "reason": "used"
+      },
+      "lerpColor": {
+        "reason": "used"
+      },
+      "linear": {
+        "reason": "used"
+      },
+      "matchByKey": {
+        "reason": "used",
+        "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "parseUnifiedDiff": {
+        "reason": "taught",
+        "guide": "docs/MATCHING.md#diff-driven",
+        "test": "test/diff.test.ts"
+      },
+      "refuse": {
+        "reason": "used",
+        "check": "Machines: a bound that stops an event the model refuses anyway fails"
+      },
+      "rushFrom": {
+        "reason": "taught",
+        "guide": "docs/ENGINE.md#public-names",
+        "test": "test/manim.test.ts"
+      },
+      "rushInto": {
+        "reason": "taught",
+        "guide": "docs/ENGINE.md#public-names",
+        "test": "test/manim.test.ts"
+      },
+      "shaperFor": {
+        "reason": "used"
+      },
+      "smooth": {
+        "reason": "taught",
+        "guide": "docs/ENGINE.md#public-names",
+        "test": "test/manim.test.ts"
+      },
+      "thereAndBack": {
+        "reason": "taught",
+        "guide": "docs/ENGINE.md#public-names",
+        "test": "test/manim.test.ts"
+      },
+      "view": {
+        "reason": "used",
+        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
+      }
+    },
+    "rayner/explain": {
+      "Card": {
+        "reason": "used",
+        "check": "Views: a card drawn from state is compared part by part, its lit row included, with a fresh draw"
+      },
+      "CodeBlock": {
+        "reason": "used",
+        "check": "Views: a code panel drawn from state is compared part by part, its focus bar included, with a fresh draw"
+      },
+      "Diagram": {
+        "reason": "used",
+        "check": "Routes over labels, Legibility: an imported connector over label ink, or an imported label under 14 px in its viewport, fails"
+      },
+      "REGIONS": {
+        "reason": "used"
+      },
+      "diagramsOf": {
+        "reason": "used"
+      },
+      "palette": {
+        "reason": "taught",
+        "guide": "docs/REFERENCE.md#stage",
+        "test": "test/explain-stage-tools.test.ts"
+      },
+      "regionBox": {
+        "reason": "used"
+      },
+      "resolveSettings": {
+        "reason": "used"
+      },
+      "settingsOf": {
+        "reason": "used"
+      },
+      "stage": {
+        "reason": "used",
+        "check": "Words, Step change: a kept drawing with no text and no describe, or a step whose resting picture equals the previous step's, fails"
+      },
+      "stagedStep": {
+        "reason": "used",
+        "check": "Staged steps: a step redrawn from the state its trace recorded that differs, or whose draw ignores its state, fails"
+      }
+    },
+    "rayner/drawing": {
+      "bars": {
+        "reason": "taught",
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/lesson-layout.test.ts"
+      },
+      "between": {
+        "reason": "taught",
+        "guide": "docs/REFERENCE.md#3d-seenfrommodel-viewpoint",
+        "test": "test/seen-from.test.ts"
+      },
+      "callout": {
+        "reason": "used"
+      },
+      "circleOn": {
+        "reason": "used"
+      },
+      "depthOrder": {
+        "reason": "used",
+        "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
+      },
+      "dimension": {
+        "reason": "used"
+      },
+      "dot": {
+        "reason": "used"
+      },
+      "flow": {
+        "reason": "used"
+      },
+      "greatArc": {
+        "reason": "used"
+      },
+      "keyed": {
+        "reason": "used",
+        "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "keyedParts": {
+        "reason": "used",
+        "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "label": {
+        "reason": "used"
+      },
+      "latLon": {
+        "reason": "used"
+      },
+      "pin": {
+        "reason": "taught",
+        "guide": "docs/REFERENCE.md#drawing-kit",
+        "test": "test/drawing.test.ts"
+      },
+      "project": {
+        "reason": "used"
+      },
+      "seenFrom": {
+        "reason": "used"
+      },
+      "seenPictures": {
+        "reason": "used"
+      },
+      "segment": {
+        "reason": "used"
+      },
+      "stat": {
+        "reason": "used"
+      },
+      "table": {
+        "reason": "used",
+        "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      },
+      "tile": {
+        "reason": "used"
+      },
+      "toLatLon": {
+        "reason": "used"
+      }
+    },
+    "rayner/lettering": {
+      "takeLetteringUse": {
+        "reason": "tooling"
+      },
+      "takeMissingGlyphs": {
+        "reason": "tooling"
+      },
+      "useLettering": {
+        "reason": "tooling"
+      }
+    },
+    "rayner/output": {
+      "DomSink": {
+        "reason": "tooling"
+      },
+      "NullSink": {
+        "reason": "tooling"
+      },
+      "SeekSink": {
+        "reason": "tooling"
+      },
+      "SnapshotSink": {
+        "reason": "tooling"
+      },
+      "StopScene": {
+        "reason": "tooling"
+      },
+      "StringSink": {
+        "reason": "tooling"
+      },
+      "indexScene": {
+        "reason": "tooling"
+      },
+      "renderAt": {
+        "reason": "tooling"
+      },
+      "renderElements": {
+        "reason": "tooling"
+      },
+      "renderText": {
+        "reason": "tooling"
+      },
+      "stepTime": {
+        "reason": "tooling"
+      },
+      "toSvgString": {
+        "reason": "tooling"
+      }
+    },
+    "rayner/testing": {
+      "InvariantSink": {
+        "reason": "tooling"
+      },
+      "MotionSink": {
+        "reason": "tooling"
+      },
+      "TraceSink": {
+        "reason": "tooling"
+      },
+      "analyzeMotion": {
+        "reason": "tooling"
+      },
+      "bindSnapshots": {
+        "reason": "tooling"
+      },
+      "describeExplainer": {
+        "reason": "tooling"
+      },
+      "jsonObject": {
+        "reason": "tooling"
+      },
+      "loadFonts": {
+        "reason": "tooling"
+      },
+      "machinesOf": {
+        "reason": "tooling"
+      },
+      "perf": {
+        "reason": "tooling"
+      },
+      "scenarioName": {
+        "reason": "tooling"
+      },
+      "scenariosOf": {
+        "reason": "tooling"
+      },
+      "takeMissingGlyphs": {
+        "reason": "tooling"
+      },
+      "traceScene": {
+        "reason": "tooling"
+      },
+      "viewMismatch": {
+        "reason": "tooling"
+      },
+      "withSettings": {
+        "reason": "tooling"
+      }
+    }
+  },
+  "features": [
+    {
+      "feature": "Matching transforms",
+      "uses": "`TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added`",
+      "guide": "[Matching](MATCHING.md)",
+      "items": [
+        {
+          "name": "TransformMatchingText"
+        },
+        {
+          "name": "TransformMatchingShapes"
+        },
+        {
+          "name": "TransformMatching"
+        },
+        {
+          "name": "matchByKey"
+        },
+        {
+          "label": "match: 'key'",
+          "pattern": "match:\\s*'key'"
+        }
+      ]
+    },
+    {
+      "feature": "Diff-driven code morph",
+      "uses": "`new TransformDiff(before, after, { hunks })` and its `plan`; `diffLines`, `parseUnifiedDiff` for hunks",
+      "guide": "[Diff-driven](MATCHING.md#diff-driven)",
+      "items": [
+        {
+          "name": "TransformDiff"
+        },
+        {
+          "label": "hunks",
+          "pattern": "\\bhunks:"
+        },
+        {
+          "name": "diffLines"
+        },
+        {
+          "name": "parseUnifiedDiff"
+        }
+      ]
+    },
+    {
+      "feature": "Camera",
+      "uses": "`this.frame.animate.fit(...)`, `.reset()`; `d.focus(…, { camera: true })`",
+      "guide": "[Camera](CAMERA.md)",
+      "items": [
+        {
+          "label": "this.frame.animate",
+          "pattern": "frame\\.animate"
+        },
+        {
+          "label": "s.focus",
+          "pattern": "\\bs\\.focus\\("
+        },
+        {
+          "label": "d.focus(…, { camera: true })",
+          "pattern": "camera:\\s*true"
+        }
+      ]
+    },
+    {
+      "feature": "Emphasis that stays",
+      "uses": "`SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })`",
+      "guide": "[Emphasis](EMPHASIS.md)",
+      "items": [
+        {
+          "name": "SurroundingRectangle"
+        },
+        {
+          "name": "Underline"
+        },
+        {
+          "name": "Cross"
+        },
+        {
+          "name": "Brace"
+        },
+        {
+          "name": "BraceLabel"
+        },
+        {
+          "name": "Circumscribe"
+        },
+        {
+          "label": "tip()",
+          "pattern": "\\.tip\\(\\)"
+        },
+        {
+          "label": "putAtTip()",
+          "pattern": "\\.putAtTip\\("
+        }
+      ]
+    },
+    {
+      "feature": "Charts of the model's numbers",
+      "uses": "`NumberLine`, `Axes` with `plot`, `lineGraph`, `bar`, `dot`, guide lines, `areaUnder`",
+      "guide": "[Graphing](GRAPHING.md)",
+      "items": [
+        {
+          "name": "NumberLine"
+        },
+        {
+          "name": "Axes"
+        },
+        {
+          "label": "plot",
+          "pattern": "\\.plot\\("
+        },
+        {
+          "label": "lineGraph",
+          "pattern": "\\.lineGraph\\("
+        },
+        {
+          "label": "bar",
+          "pattern": "\\.bar\\("
+        },
+        {
+          "label": "areaUnder",
+          "pattern": "\\.areaUnder\\("
+        }
+      ]
+    },
+    {
+      "feature": "Pictures rebuilt from state",
+      "uses": "`view(scene, draw)`, `view.sync()`; `viewMismatch`, and `assertViewFollowsState` in `test/lib/view-fidelity.ts`",
+      "guide": "[Views](VIEWS.md)",
+      "items": [
+        {
+          "name": "view"
+        },
+        {
+          "label": "view.sync()",
+          "pattern": "\\.sync\\("
+        }
+      ]
+    },
+    {
+      "feature": "Parts of a line of code",
+      "uses": "`code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/tokens.ts`",
+      "guide": "[Code](CODE.md)",
+      "items": [
+        {
+          "label": "code.span",
+          "pattern": "\\.span\\("
+        },
+        {
+          "label": "code.token",
+          "pattern": "\\.token\\("
+        },
+        {
+          "label": "code.lineSpan",
+          "pattern": "\\.lineSpan\\("
+        },
+        {
+          "label": "spans",
+          "pattern": "\\bspans:\\s*[A-Z_\\[]"
+        }
+      ]
+    },
+    {
+      "feature": "Restore, copies, sequencing",
+      "uses": "`saveState()` and `Restore`, `TransformFromCopy`, `Succession`",
+      "guide": "[Animations](ANIMATIONS.md)",
+      "items": [
+        {
+          "label": "saveState()",
+          "pattern": "\\.saveState\\("
+        },
+        {
+          "name": "Restore"
+        },
+        {
+          "label": "restore()",
+          "pattern": "\\.restore\\("
+        },
+        {
+          "name": "TransformFromCopy"
+        },
+        {
+          "name": "Succession"
+        }
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "explaining": "Two algorithms or policies on the same input",
+      "start": "`scenes/tutorial/lru-mru` (what `rayner init` writes)",
+      "shows": "One card with a column per policy, read from the model's trace; one scenario that favours each policy; captions tested against the model",
+      "scenes": [
+        "tutorial/lru-mru"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A code change and what it does to a system",
+      "start": "`mr-cache`",
+      "shows": "`TransformDiff` on the code, the same edit replayed on the diagram with `ops`, a setting for hit or miss",
+      "scenes": [
+        "mr-cache"
+      ],
+      "names": [
+        "TransformDiff"
+      ]
+    },
+    {
+      "explaining": "Authoring feature reference",
+      "start": "`feature-tour`",
+      "shows": "Choose a feature scenario: the recipe step shows the author-written API, the result step runs it. See [scope and specialized APIs](../../docs/FEATURE-TOUR.md)",
+      "scenes": [
+        "feature-tour"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A protocol or request flow",
+      "start": "`oauth-pkce`",
+      "shows": "A sequence diagram revealed message by message (`build: 'frame'`, `reveal`); a setting that adds the attacker's step",
+      "scenes": [
+        "oauth-pkce"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A sequence of separate pictures, one per step",
+      "start": "`bloom-filter`, `git-branches`",
+      "shows": "`s.steps([...])`: each step carries its `state` and a `draw(state, s)` for its picture; `rayner check` redraws every step after the run and fails one that comes out different",
+      "scenes": [
+        "bloom-filter",
+        "git-branches"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A data structure changing step by step",
+      "start": "`ring-buffer`",
+      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with `choreograph`, `Follow` for the pointers",
+      "scenes": [
+        "ring-buffer"
+      ],
+      "names": [
+        "Machine",
+        "choreograph",
+        "Follow"
+      ]
+    },
+    {
+      "explaining": "A state machine",
+      "start": "`state-machine`",
+      "shows": "A state diagram driven by the real reducer as a `Machine`, code spans boxed from the row it read",
+      "scenes": [
+        "state-machine"
+      ],
+      "names": [
+        "Machine"
+      ]
+    },
+    {
+      "explaining": "A model the reader could drive with events",
+      "start": "`scenes/tutorial/door` (what `rayner init --machine` writes), `statecharts` (the frother)",
+      "shows": "A `Machine` over the model's step, refusals with reasons, a live last step; `rayner check` draws every reachable state",
+      "scenes": [
+        "tutorial/door",
+        "statecharts"
+      ],
+      "names": [
+        "Machine"
+      ]
+    },
+    {
+      "explaining": "Nested or parallel states",
+      "start": "A Mermaid `stateDiagram-v2` with composites and regions ([recipe](../../docs/REFERENCE.md#state-machines-and-graphs)); `statecharts` when position carries meaning",
+      "shows": "`statecharts`: native boxes and arrows drawn from a model's states and transitions; a keyed `view` whose parts keep their identity as a grid becomes regions; a flat and a structured drawing side by side",
+      "scenes": [
+        "statecharts"
+      ],
+      "names": [
+        "view"
+      ]
+    },
+    {
+      "explaining": "A race or ordering bug",
+      "start": "`latest-search`",
+      "shows": "A real controlled-promise run that opens on the unguarded race (the page ends on the older query) before naming the ticket that fixes it; guard and completion order change the displayed result",
+      "scenes": [
+        "latest-search"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A rate or a model's numbers over time",
+      "start": "`token-bucket`, `seasons`",
+      "shows": "`token-bucket`: `Axes`, `lineGraph`, `Follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model",
+      "scenes": [
+        "token-bucket",
+        "seasons"
+      ],
+      "names": [
+        "Axes",
+        "Follow"
+      ]
+    },
+    {
+      "explaining": "Identity, hashing or text that changes",
+      "start": "`exgit`, `glyph`",
+      "shows": "`exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: `TransformMatchingShapes` pairs letters by their outlines",
+      "scenes": [
+        "exgit",
+        "glyph"
+      ],
+      "names": [
+        "view",
+        "BraceLabel",
+        "TransformMatchingShapes"
+      ]
+    },
+    {
+      "explaining": "Keyed cells or nodes rearranged between pictures of the same state",
+      "start": "`periodic-groups`",
+      "shows": "`view(...).sync({ match: 'key' })`; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part",
+      "scenes": [
+        "periodic-groups"
+      ],
+      "names": [
+        "view",
+        "matchByKey"
+      ]
+    },
+    {
+      "explaining": "A real tool's behaviour, checked against it",
+      "start": "`isdigit`, `gtfs`, `traffic-policy`",
+      "shows": "A model checked against the tool's own output, with a fidelity test",
+      "scenes": [
+        "isdigit",
+        "gtfs",
+        "traffic-policy"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "Records, schedules or shares",
+      "start": "`gtfs` (ER, gantt), `pg-page` (pie), `cert-renewal` (timeline)",
+      "shows": "Diagram families beyond flowcharts",
+      "scenes": [
+        "gtfs",
+        "pg-page",
+        "cert-renewal"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A subject in another language",
+      "start": "`quotient-familial`",
+      "shows": "`meta.lang: 'fr'`; descriptions in French",
+      "scenes": [
+        "quotient-familial"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A drawing made by hand, values said on it",
+      "start": "`pen-and-pencil`",
+      "shows": "`s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards",
+      "scenes": [
+        "pen-and-pencil"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "A claim about viewpoint or projection",
+      "start": "`great-circle`",
+      "shows": "`seenFrom` and a turned model in the drawing kit: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays",
+      "scenes": [
+        "great-circle"
+      ],
+      "names": [
+        "seenFrom"
+      ]
+    },
+    {
+      "explaining": "A requested face in text and diagrams",
+      "start": "`font-metrics`",
+      "shows": "EB Garamond, real cuts and `lettering: 'natural'` diagram measurements",
+      "scenes": [
+        "font-metrics"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "Sound compared with a visible score",
+      "start": "`melody-rhythm`",
+      "shows": "Optional `step.audio`, two piano rolls from the played notes, an unchanged-timing control; see [score audio](../../docs/REFERENCE.md#optional-score-audio)",
+      "scenes": [
+        "melody-rhythm"
+      ],
+      "names": []
+    },
+    {
+      "explaining": "Explicit panel placement and field order",
+      "start": "`layout-direction`",
+      "shows": "RTL `start`/`end` placement, a card's LTR override and updates that keep their columns",
+      "scenes": [
+        "layout-direction"
+      ],
+      "names": []
+    }
+  ]
+}
