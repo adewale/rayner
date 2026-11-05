@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {fc,params} from './lib/pbt.ts';
-import {dictionary,deleteFirst,lookup,probeSlots,route,dictStory,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
+import {dictionary,deleteFirst,lookup,probeSlots,route,dictStory,dictStart,dictNext,dictRefusal,DICT_EVENTS,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
 import {fnv1a,locations,makeFilter,membership,bloomStory,saturation} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
 import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter,roundStart,roundNext,roundDoor,roundResult,ROUND_EVENTS} from '../scenes/explainers/lib/monty-hall.ts';
@@ -80,6 +80,36 @@ test('a probe route reads each visited slot in turn: taken and D send it on, a n
     for (const slot of r.passedOver) {
       assert.equal(table.indices[slot], EMPTY);
       assert.ok(!result.slots.includes(slot));
+    }
+  }), params());
+});
+
+test('the dict machine deletes and looks up as a Python dict does: a missing key is a result, a deletion it cannot find is refused', () => {
+  // del d[0] writes D where 0's search found it and empties its entry: the captured CPython storage.
+  const deleted = dictNext(dictStart('CPython marker'), 'del d[0]')!;
+  assert.deepEqual(deleted.dict, deleteFirst('marker'));
+  assert.deepEqual([deleted.op, deleted.result!.slots], ['del', [0]]);
+  // A lookup of a key that is not there is an answer, not a refusal; a second del d[0] is refused, with Python's reason.
+  assert.deepEqual(dictNext(deleted, 'd[24]')!.result, lookup(deleteFirst('marker'), 24));
+  assert.equal(dictNext(deleted, 'del d[0]'), undefined);
+  assert.match(dictRefusal(deleted, 'del d[0]'), /^the search for 0 stops at never-used slot 7, so del d\[0\] raises KeyError/);
+  // The counterfactual loses 8: after emptying slot 0 its search stops there, so it can neither find nor delete it.
+  const cleared = dictNext(dictStart('incorrect-clear'), 'del d[0]')!;
+  assert.deepEqual(cleared.dict, deleteFirst('clear'));
+  assert.equal(dictNext(cleared, 'del d[8]'), undefined);
+  // Against a Map, for any sequence of events: CPython's marker dict answers every lookup as the Map does and refuses
+  // exactly the deletions the Map cannot make; every state keeps an unused slot, so every search can stop.
+  fc.assert(fc.property(fc.array(fc.constantFrom(...DICT_EVENTS), {maxLength: 12}), events => {
+    const reference = new Map<number, string>([[0, 'apple'], [8, 'pear'], [16, 'plum']]);
+    let state = dictStart('CPython marker');
+    for (const event of events) {
+      const key = Number(/\[(\d+)\]/.exec(event)![1]), next = dictNext(state, event);
+      if (event.startsWith('del ')) {
+        assert.equal(next === undefined, !reference.has(key), event);
+        reference.delete(key);
+      } else assert.equal(next!.result!.value, reference.get(key) ?? null, event);
+      state = next ?? state;
+      assert.ok(state.dict.indices.includes(EMPTY));
     }
   }), params());
 });

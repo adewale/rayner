@@ -150,7 +150,7 @@ That needs a way for a step to declare its machine to the player, the buttons wi
 keyboard, screen-reader and reduced-motion behaviour, and a transcript line listing the
 events. None of it changes the engine.
 
-## Eight machines
+## Nine machines
 
 | Explainer | State | Events | What is drawn from state | Explored |
 | --- | --- | --- | --- | --- |
@@ -162,6 +162,7 @@ events. None of it changes the engine.
 | `latest-search` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
 | `oauth-pkce` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |
 | `just-bash` | `ShellSession`: the shells the caller holds and what `cat` printed on each | The script's lines: the pipeline on the newest shell, `cat` on the newest or on s0, `ls` (refused, as `exec` refuses it); a second write is refused only to bound the script | s0 and s1, the write's arrow, each cat's output, the kept shell outlined | 6 states; s0 stays the empty shell through every transition |
+| `python-dict` | `DictState`: the eight-slot index and the entries, how a deletion leaves its slot (CPython's D, or the counterfactual that empties it), and the last event's search | `del d[0]`, `del d[8]`, `del d[16]` (refused when the key's search cannot find it, as Python raises KeyError), `d[0]`, `d[8]`, `d[16]`, `d[24]` (a missing key is an answer, not a refusal) | The slot row, the search's arrows, the entry table with keyed cells, the panel and the note | 45 states with the marker, 40 with emptying; the keyed morph writes D (or a dash) into the slot and dashes into the entry row in place |
 
 Making `ring-buffer` and `state-machine` machines meant drawing each main picture from state.
 Their resting pictures stayed the same, except where exploration found something the story

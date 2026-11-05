@@ -30,6 +30,13 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assertStepState(trace,'marker',{dict:m.correct,result:m.repaired});
     assertStepState(trace,'missing',{dict:m.correct,result:m.missing});
     assert.match(String(trace.steps.find(s=>s.step==='broken')!.meta.caption),/Suppose deletion/);
+    // broken, marker and missing are played by the dict machines: the events each step sent, through the model.
+    const replayed=(step:string)=>(trace.steps.find(s=>s.step===step)!.evidence??[]).filter(e=>e.kind==='event').map(e=>e.event);
+    assert.deepEqual(replayed('broken'),['del d[0]',`d[${key}]`]);
+    assert.deepEqual(replayed('marker'),['del d[0]',`d[${key}]`]);
+    assert.deepEqual(replayed('missing'),['d[24]']);
+    assertStepState(trace,'broken',{op:'lookup'});
+    assertStepState(trace,'missing',{op:'lookup',policy:'CPython marker'});
     // The arrows under the slot row: each step's route, read slot by slot. Absent 24 hops D, 8 and 16, stops at
     // never-used slot 7, and flies over never-used slots 2 to 5 without reading them.
     assertStepState(trace,'broken',{route:{hops:[{slot:0,reads:'never used',then:'stop'}],passedOver:[]}});

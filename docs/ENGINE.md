@@ -50,7 +50,7 @@ When a request is the second kind, the answer is usually to expose the data the 
 
 ## Primitives considered and not built
 
-A review on 2026-11-03 found that 34 of the 40 explainers cleared the stage and redrew each step, and that the duplication the collection carried was layout arithmetic, not identity. It added keyed components (`matchByKey`, [matching](MATCHING.md#keyed-components)) and a `table()` in the explainer library that places its measured columns. It turned these down:
+A review on 2026-11-03 found that 34 of the 40 explainers cleared the stage and redrew each step, and that the duplication the collection carried was layout arithmetic, not identity. It added keyed components (`matchByKey`, [matching](MATCHING.md#keyed-components)) and a `table()` in the drawing kit that places its measured columns and keys its header, rows and cells (`key:row:column`; a duplicated row key is refused), which python-dict's machines morph by. It turned these down:
 
 - **Keyed collections with separate slots.** Which entity an item is, which slot it occupies and where it is shown are model facts, and every scene's model already holds them (`ring-buffer` keys values `slot:${i}`). Once keyed components match, a collection is a key-naming convention, and moving entity identity into the drawing layer would take it away from the oracle-tested model.
 - **Persistent attachments.** In a redraw scene every label is recomputed anyway; in a morphing scene the `View` rebuild repositions arrows, and `Labeled` and the diagram `note()` cover static anchors. An attachment system needs a geometry plan, cycle rejection and a missing-target policy, which add up to a reactive constraint graph; "points are the truth" excludes one.

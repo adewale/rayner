@@ -1,6 +1,6 @@
 # Vocabulary: one name per idea
 
-**Status: in progress.** Steps 1 to 3 of the [order of work](#order-of-work) are done, and step 4 apart from the player: refused events, authored transitions with `choreograph`, transition checks, and ring-buffer and state-machine as machines. Done before them: `stage.steps` with its redraw check, and `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
+**Status: in progress.** Steps 1 to 3 of the [order of work](#order-of-work) are done, and step 4 apart from the player: refused events, authored transitions with `choreograph`, transition checks, and ring-buffer and state-machine as machines. Of step 5, keyed table cells are done, with python-dict as their first user. Done before them: `stage.steps` with its redraw check, and `Machine`, `match: 'key'`, invariants named as invariants, `draw` as the one name for state to picture, `stage.sketch`, and every `View` a view of state. This proposal renames and refactors Rayner's abstractions so that each idea has one name, each name means one thing, and the collection's own explainers go through the same checked path as the engine's examples. Most of it is renaming. The part that matters most is a refactor: making every explainer's picture a function of its state, so `rayner check` can prove it.
 
 ## Why
 
@@ -59,7 +59,7 @@ One row per idea. **Bold** marks a change.
 | Frames recorded | trace, `traceScene` | What each frame showed | |
 | Output record | receipt (`claude/video-pacing`) | What a render produced | |
 | Words for a picture | `describe` | The same word on the stage, on `Diagram`, in `describeExplainer` and `rayner describe` | |
-| Tables | `table(rows, columns, { key })` | The drawing kit's existing `table()`, which gains keyed cells (`table:row:col`) | A second table primitive |
+| Tables | **`table(headers, rows, s, { key })`**, rows `{ key, cells }` | The drawing kit's existing `table()`, now with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused. Done; python-dict is its first user | A second table primitive |
 | Graphs | `Diagram` | Captured from Mermaid; `walk`, `mark` and `morph` | A separate `Graph` type |
 
 After the change, "frame" still means two things: the 2D camera and an instant of a run. Manim has the same overlap (`camera.frame` and frame rate), and context separates them. The step-list meaning goes.
@@ -117,7 +117,7 @@ These are new rather than renames, and each has two adopters:
 
 | Addition | First adopter | Second adopter |
 | --- | --- | --- |
-| `table(..., { key })` | python-dict (insert and delete as a machine) | bloom-filter |
+| `table(..., { key })`, keyed cells (done) | python-dict (deletion and lookup as two machines; insertion is outside its script) | bloom-filter |
 | `seenFrom(model, viewpoint)` in `rayner/drawing` | great-circle ([script](../scenes/explainers/great-circle/script.md)) | henge's fixed-axis globes, whose resting pictures must stay identical |
 
 ### 5. Cuts
@@ -164,7 +164,7 @@ Each item is one commit with its own evidence, as the primitives in this PR were
 2. **`draw` and `sketch`**, and the cuts above. Evidence: identical frames for every explainer; monty-hall's picture moves to `view(scene, draw)` with identical frames.
 3. **`stage.steps`**, moving the 17 explainers one at a time. Evidence: identical frames per explainer. The redraw check is shown rejecting a deliberate defect: a `draw` that reads a counter incremented by each step.
 4. **Refused events, `transition` and edge checks**; ring-buffer and state-machine as machines, and the player's event buttons (#88). Evidence: identical resting pictures. The edge check is shown rejecting a transition that ends one slot away from `draw(after)`.
-5. **Additions**, each with its two adopters and a deliberate defect: a duplicated table key, and a viewpoint change that draws a back face in front.
+5. **Additions**, each with its two adopters and a deliberate defect: a duplicated table key, and a viewpoint change that draws a back face in front. Keyed tables are in: `table()` refuses a duplicated row key or header by name, and a keyed morph pairs a moved row with itself (both in `test/lesson-layout.test.ts`); python-dict plays its deletions and lookups as machines on them, with resting pictures identical to before. Bloom-filter, the second adopter, is still to move.
 
 ## Done when
 
