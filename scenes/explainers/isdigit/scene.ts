@@ -1,6 +1,7 @@
-import { Scene, Text, Rectangle, Line, FadeIn } from '../../../src/index.ts';
-import type { Mobject, Box } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { Scene, Text, Rectangle, Line, Group, FadeIn, view } from '../../../src/index.ts';
+import type { Mobject, Box, Vec, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
+import { staged } from '../lib/staged.ts';
 import {
   CHARS,
   LINEUP,
@@ -58,21 +59,34 @@ const rowLines = (c: Char) => {
 };
 
 /** The three nested sets, outermost first, as boxes on the stage. */
-const SETS: readonly { p: Predicate; box: Box; label: string }[] = [
-  { p: 'isnumeric', box: [-7.45, -4.15, 7.45, 2.95], label: `isnumeric(): ${grouped(COUNTS.isnumeric)}` },
-  { p: 'isdigit', box: [-7.05, -3.75, 2.75, 2.05], label: `isdigit(): ${grouped(COUNTS.isdigit)}` },
-  { p: 'isdecimal', box: [-6.65, -3.35, -0.75, 1.15], label: `isdecimal(): ${grouped(COUNTS.isdecimal)}` },
+const SETS: readonly { p: Predicate; box: Box }[] = [
+  { p: 'isnumeric', box: [-7.45, -4.15, 7.45, 2.95] },
+  { p: 'isdigit', box: [-7.05, -3.75, 2.75, 2.05] },
+  { p: 'isdecimal', box: [-6.65, -3.35, -0.75, 1.15] },
 ];
-/** Where each character sits: decimals two by two in the inner box, ² in the middle one, the rest outside it. */
-const SPOT: Record<CharId, [number, number]> = {
-  ascii: [-5.2, -0.45],
-  arabic: [-2.3, -0.45],
-  devanagari: [-5.2, -2.3],
-  fullwidth: [-2.3, -2.3],
-  super: [0.95, -1.4],
-  half: [5.1, 1.1],
-  roman: [5.1, -1.0],
-  han: [5.1, -3.0],
+/** A code panel in words, as the stage says one it placed: what it is, then its lines, a marked line with its word. */
+const codeWords = (block: CodeBlock) => {
+  const seen = block.describe();
+  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
+};
+
+/**
+ * The places for each numeric type's characters, in lineup order: decimals two by two in the inner box,
+ * the one digit in the middle one, the other numerics outside it.
+ */
+const SPOTS: Record<string, readonly Vec[]> = {
+  Decimal: [
+    [-5.2, -0.45],
+    [-2.3, -0.45],
+    [-5.2, -2.3],
+    [-2.3, -2.3],
+  ],
+  Digit: [[0.95, -1.4]],
+  Numeric: [
+    [5.1, 1.1],
+    [5.1, -1.0],
+    [5.1, -3.0],
+  ],
 };
 
 export default class IsDigitExplainer extends Scene {
@@ -149,63 +163,14 @@ export default class IsDigitExplainer extends Scene {
     const ink = s.palette.ink;
     const type = numericType(c),
       f = fields(c),
-      fl = flags(c),
       p = predicates(c),
       int = intOf(c),
       run = guarded(c, guard);
     const parsed = 'value' in int;
 
-    /** The nested sets with every character in place; `lit` draws one set heavier, `mark` colours this scenario's character. */
-    const sets = async (lit: Predicate | null, mark: string, as: string) => {
-      const mobs: Mobject[] = [];
-      for (const set of SETS) {
-        const [x0, y0, x1, y1] = set.box;
-        const on = set.p === lit;
-        mobs.push(
-          new Rectangle({
-            width: x1 - x0,
-            height: y1 - y0,
-            cornerRadius: 0.2,
-            fill: 'none',
-            stroke: ink,
-            strokeWidth: on ? 0.09 : 0.03,
-          }).moveTo([(x0 + x1) / 2, (y0 + y1) / 2]),
-          new Text(set.label, {
-            fontSize: SIZE,
-            font: 'mono',
-            color: ink,
-            weight: on ? 'bold' : 'normal',
-            anchor: 'start',
-          }).moveTo([x0 + 0.25, y1 - 0.4], [-1, 0]),
-        );
-      }
-      for (const k of LINEUP) {
-        const mine = k === id;
-        mobs.push(new Text(CHARS[k].char, { fontSize: 1.1, color: mine ? mark : ink }).moveTo(SPOT[k]));
-        if (mine)
-          mobs.push(
-            new Rectangle({
-              width: 1.6,
-              height: 1.5,
-              cornerRadius: 0.15,
-              fill: 'none',
-              stroke: mark,
-              strokeWidth: 0.06,
-            }).moveTo(SPOT[k]),
-          );
-      }
-      const inside = (t: string) =>
-        LINEUP.filter((k) => numericType(CHARS[k]) === t)
-          .map((k) => CHARS[k].char)
-          .join(' ');
-      await s.enter(...mobs, {
-        describe: `Three nested boxes. ${SETS[0]!.label} holds ${SETS[1]!.label}, which holds ${SETS[2]!.label}. Inside the innermost: ${inside('Decimal')}. In isdigit() but not isdecimal(): ${inside('Digit')}. Only in isnumeric(): ${inside('Numeric')}.${
-          lit ? ` The ${lit}() box, the check's, is drawn heavier.` : ''
-        } ${c.char} is circled, ${as}.`,
-      });
-    };
-
     // ------------------------------------------------------------------ the guard
+    // The code panel is a view of the step's state; its focus bar and the callout are the stage's
+    // (a draw cannot call them), placed from the same state.
     await this.step('guard', {
       title: `A guard: ${guard}() checks ${q(c)} before int()`,
       line: run.passes
@@ -218,32 +183,41 @@ export default class IsDigitExplainer extends Scene {
       }.`,
     });
     await s.clear();
+    // `char`: the character the guard checks.
+    this.state.char = c.char;
+    this.state.guard = { predicate: guard, passes: run.passes };
+    const checked = this.state.guard as { predicate: Predicate; passes: boolean };
     // Three lines are the whole picture: set large, with what the check returns beside them,
     // the panel and its callout centred together on the stage.
     const GUARD_SIZE = SIZE * 1.5,
       CALLOUT_GAP = 0.35,
-      returns = `returns ${TF(run.passes)}`;
-    const prog = await s.code([`s = "${c.char}"`, `if s.${guard}():`, '    n = int(s)'], {
-      at: [-7.55, -4.0, 7.55, TOP],
-      fontSize: GUARD_SIZE,
-      enter: false,
-    });
-    {
-      const [x0, , x1] = prog.panel.box()!,
-        across = x1 - x0 + CALLOUT_GAP + new Text(returns, { fontSize: GUARD_SIZE }).width();
-      prog.shift([-across / 2 - x0, 0]);
-    }
-    await this.play(new FadeIn(prog, { runTime: 0.4 }));
-    await prog.focus(run.passes ? [1, 2] : 1, { as: run.passes ? 'run' : 'the check that fails' });
+      returnsOf = (st: SceneState) => `returns ${TF((st.guard as { passes: boolean }).passes)}`,
+      returns = returnsOf(this.state);
+    const program = view(
+      this,
+      (st) => {
+        const block = new CodeBlock(this, s.palette, [`s = "${st.char}"`, `if s.${(st.guard as { predicate: string }).predicate}():`, '    n = int(s)'], {
+          at: [-7.55, -4.0, 7.55, TOP],
+          fontSize: GUARD_SIZE,
+        });
+        const [x0, , x1] = block.panel.box()!,
+          across = x1 - x0 + CALLOUT_GAP + new Text(returnsOf(st), { fontSize: GUARD_SIZE }).width();
+        return block.shift([-across / 2 - x0, 0]);
+      },
+      { place: false },
+    );
+    s.keep(program, { describe: () => codeWords(program.current) });
+    await this.play(new FadeIn(program, { runTime: 0.4 }));
+    const prog = program.current;
+    await prog.focus(checked.passes ? [1, 2] : 1, { as: checked.passes ? 'run' : 'the check that fails' });
     // What the check returns, said at the end of its line, just outside the panel.
     const check = prog.code.lines[1]!.box()!;
     await s.callout(check, returns, {
       side: 'right',
       gap: prog.panel.box()![2] - check[2] + CALLOUT_GAP,
-      color: run.passes ? s.good : s.bad,
+      color: checked.passes ? s.good : s.bad,
       size: GUARD_SIZE,
     });
-    this.state.guard = { predicate: guard, passes: run.passes };
 
     // ------------------------------------------------------------------ int()
     await this.step('int', {
@@ -256,6 +230,12 @@ export default class IsDigitExplainer extends Scene {
       }, so it becomes '${asciiFor(c)}' and int(${q(c)}) ${parsed ? `returns ${int.value}` : 'raises ValueError'}${run.passes ? '' : ', had the check let it through'}.${run.outcome === 'raised' ? ' Passing the check did not guarantee a successful parse.' : ''}`,
     });
     await s.clear();
+    this.state.int = int;
+    const answer = (st: SceneState) => {
+      const result = st.int as ReturnType<typeof intOf>;
+      return { parsed: 'value' in result, said: `int('${st.char}')  ${'value' in result ? `returns ${result.value}` : 'raises ValueError'}` };
+    };
+    // The source is the same in every scenario; the branch this character takes is its state's.
     const transform = await s.code(
       [
         '// unicodeobject.c:9538-9552, abridged',
@@ -268,64 +248,89 @@ export default class IsDigitExplainer extends Scene {
       ],
       { at: [-WIDE, -2.75, WIDE, TOP], fontSize: SIZE },
     );
-    await transform.focus(parsed ? 6 : 5, { as: 'the branch this character takes' });
-    await s.note(`int(${q(c)})  ${parsed ? `returns ${int.value}` : 'raises ValueError'}`, {
-      at: [0, -3.55],
-      size: SIZE,
-    });
-    this.state.int = int;
+    await transform.focus(answer(this.state).parsed ? 6 : 5, { as: 'the branch this character takes' });
+    // What int() does with it: a view of the state's answer, where the stage's note went.
+    const said = view(this, (st) => this.text(answer(st).said, { fontSize: SIZE, color: s.soft }).moveTo([0, -3.55]), { place: false });
+    await s.enter(said, { runTime: 0.3 });
 
     // ------------------------------------------------------------------ the lineup
-    await this.step('lineup', {
-      title: 'Eight numerals; int() accepts only the first four',
-      line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
-      // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-      caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this scenario’s character. If all eight have a numeric value, what does each check look up?`,
-    });
-    await s.clear();
     // One row in lineup order; a bracket spans the characters each call accepts, which the model
     // must give as a run from the left: the decimals, then the one digit, then the other numerics.
-    const slot = (i: number) => -6.3 + i * 1.8,
-      ROW = -0.8;
     const span = (ok: (k: CharId) => boolean) => {
       const n = LINEUP.filter(ok).length;
       if (!LINEUP.slice(0, n).every(ok)) throw new Error('The lineup must list accepted characters first');
       return n;
     };
-    /** A bracket over (up) or under (down) characters a to b, with its words at its left end. */
-    const bracket = (a: number, b: number, y: number, up: boolean, words: string, color: string, heavy = false) => {
-      const x0 = slot(a) - 0.78,
-        x1 = slot(b) + 0.78,
-        tick = up ? -0.15 : 0.15,
-        stroke = { stroke: color, strokeWidth: heavy ? 0.075 : 0.03 };
-      return [
-        new Line([x0, y], [x1, y], stroke),
-        new Line([x0, y], [x0, y + tick], stroke),
-        new Line([x1, y], [x1, y + tick], stroke),
-        new Text(words, { fontSize: SIZE, font: 'mono', color, weight: heavy ? 'bold' : 'normal' }).moveTo([x0 + 0.12, y + (up ? 0.37 : -0.37)], [-1, 0]),
-      ];
+    const lineup = {
+      // This scenario's character, circled, and its check, whose bracket is heavier.
+      char: c.char,
+      guard,
+      lineup: LINEUP.map((k) => ({ char: CHARS[k].char, type: numericType(CHARS[k]), int: intOf(CHARS[k]) })),
+      // How many of the lineup, from the left, each check returns True for.
+      accepted: Object.fromEntries(PREDICATES.map((k) => [k, span((x) => predicates(CHARS[x])[k])])) as Record<Predicate, number>,
     };
-    const marks: Mobject[] = [];
-    PREDICATES.forEach((p, level) => {
-      const n = span((k) => predicates(CHARS[k])[p]);
-      marks.push(...bracket(0, n - 1, 0.32 + level * 0.95, true, `${p}() → True`, p === guard ? s.emphasis : ink, p === guard));
-    });
-    const parses = span((k) => 'value' in intOf(CHARS[k]));
-    const returned = [...new Set(LINEUP.slice(0, parses).map((k) => (intOf(CHARS[k]) as { value: number }).value))];
-    marks.push(
-      ...bracket(0, parses - 1, -1.75, false, `int() → ${returned.join(' or ')}`, s.good),
-      ...bracket(parses, LINEUP.length - 1, -1.75, false, 'int() → ValueError', s.bad),
-    );
-    const glyphs = LINEUP.map((k, i) => new Text(CHARS[k].char, { fontSize: 1.15, color: ink }).moveTo([slot(i), ROW]));
-    const ring = new Rectangle({ width: 1.5, height: 1.5, cornerRadius: 0.15, stroke: s.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
-      slot(LINEUP.indexOf(id)),
-      ROW,
-    ]);
     const sup = CHARS.super.char;
-    await s.enter(...glyphs, ring, ...marks, new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.bad }).moveTo([0, -3.3]), {
-      describe: `Eight characters in a row: ${LINEUP.map((k) => CHARS[k].char).join(' ')}. Brackets above span what each check accepts: isdecimal() the first ${span((k) => predicates(CHARS[k]).isdecimal)}, isdigit() the first ${span((k) => predicates(CHARS[k]).isdigit)}, isnumeric() all ${span((k) => predicates(CHARS[k]).isnumeric)}; the ${guard}() bracket is heavier. Brackets below: int() returns ${returned.join(' or ')} for the first ${parses} and raises ValueError for the rest. ${c.char} is circled. Under them: ${sup} passes isdigit() and int('${sup}') raises ValueError.`,
-    });
-    this.state.lineup = LINEUP.map((k) => ({ char: CHARS[k].char, type: numericType(CHARS[k]), int: intOf(CHARS[k]) }));
+    // ------------------------------------------------------------------ the nested sets, and where the check leaves this character
+    // One step: the counts, the nesting, and the check's own box drawn heavy with this scenario's character marked.
+    const where =
+      type === 'Decimal' ? 'in the innermost box' : type === 'Digit' ? 'in the middle box but outside the innermost' : 'in the outer box only';
+    const outcome = {
+      char: c.char,
+      guard,
+      counts: COUNTS,
+      outcome: run.outcome,
+      // Where each of the lineup sits among the sets, by its numeric type.
+      lineup: lineup.lineup.map(({ char, type }) => ({ char, type })),
+    };
+    await s.steps([
+      staged({
+        id: 'lineup',
+        title: 'Eight numerals; int() accepts only the first four',
+        line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
+        // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
+        caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this scenario’s character. If all eight have a numeric value, what does each check look up?`,
+        state: lineup,
+        draw: (st, s) => {
+          const slot = (i: number) => -6.3 + i * 1.8,
+            ROW = -0.8;
+          /** A bracket over (up) or under (down) characters a to b, with its words at its left end. */
+          const bracket = (a: number, b: number, y: number, up: boolean, words: string, color: string, heavy = false) => {
+            const x0 = slot(a) - 0.78,
+              x1 = slot(b) + 0.78,
+              tick = up ? -0.15 : 0.15,
+              stroke = { stroke: color, strokeWidth: heavy ? 0.075 : 0.03 };
+            return [
+              new Line([x0, y], [x1, y], stroke),
+              new Line([x0, y], [x0, y + tick], stroke),
+              new Line([x1, y], [x1, y + tick], stroke),
+              new Text(words, { fontSize: SIZE, font: 'mono', color, weight: heavy ? 'bold' : 'normal' }).moveTo([x0 + 0.12, y + (up ? 0.37 : -0.37)], [-1, 0]),
+            ];
+          };
+          const marks: Mobject[] = [];
+          PREDICATES.forEach((k, level) => {
+            marks.push(...bracket(0, st.accepted[k] - 1, 0.32 + level * 0.95, true, `${k}() → True`, k === st.guard ? s.emphasis : ink, k === st.guard));
+          });
+          // The run from the left that int() parses, and the values it returns.
+          const parses = st.lineup.filter((x) => 'value' in x.int).length,
+            returned = [...new Set(st.lineup.slice(0, parses).map((x) => (x.int as { value: number }).value))];
+          marks.push(
+            ...bracket(0, parses - 1, -1.75, false, `int() → ${returned.join(' or ')}`, s.good),
+            ...bracket(parses, st.lineup.length - 1, -1.75, false, 'int() → ValueError', s.bad),
+          );
+          const glyphs = st.lineup.map((x, i) => new Text(x.char, { fontSize: 1.15, color: ink }).moveTo([slot(i), ROW]));
+          const ring = new Rectangle({ width: 1.5, height: 1.5, cornerRadius: 0.15, stroke: s.emphasis, strokeWidth: 0.05, fill: 'none' }).moveTo([
+            slot(st.lineup.findIndex((x) => x.char === st.char)),
+            ROW,
+          ]);
+          return new Group(
+            ...glyphs,
+            ring,
+            ...marks,
+            new Text(`${sup}: isdigit() → True, int('${sup}') → ValueError`, { fontSize: SIZE * 1.1, font: 'mono', color: s.bad }).moveTo([0, -3.3]),
+          );
+        },
+      }),
+    ]);
 
     // ------------------------------------------------------------------ its row in the database
     await this.step('ucd', {
@@ -354,7 +359,13 @@ export default class IsDigitExplainer extends Scene {
             }, so its numeric type in Unicode is ${type}${type === 'Digit' ? ', and isdigit() and int() disagree on it' : ''}.`,
     });
     await s.clear();
-    const row = await s.code(
+    this.state.fields = f;
+    this.state.numericType = type;
+    // The flags step is gone: what each check returns follows from the fields it reads, said in this step.
+    this.state.flags = flags(c);
+    this.state.predicates = p;
+    // `ucd`: the database lines the step quotes, the character's row split where its numeric fields are.
+    this.state.ucd =
       id === 'han'
         ? [
             `# UnicodeData.txt:${c.ucdLine}, 4E00 to 9FFF`,
@@ -362,64 +373,110 @@ export default class IsDigitExplainer extends Scene {
             `# Unihan_NumericValues.txt:${c.unihan!.line}`,
             `U+4E09  ${c.unihan!.tag}  ${c.unihan!.value}`,
           ]
-        : [`# UnicodeData.txt:${c.ucdLine}`, ...rowLines(c)],
-      { at: [-WIDE, -0.05, WIDE, TOP], fontSize: SIZE },
-    );
-    await row.focus(id === 'han' ? 3 : 2, { as: id === 'han' ? 'the numeric value' : 'the numeric fields' });
-    const blank = (v: string) => v || 'empty';
-    await s.card(
-      [
-        ['Field 6: int(), isdecimal()', blank(f.decimal)],
-        ['Field 7: isdigit()', blank(f.digit)],
-        [id === 'han' ? 'Field 8 (Unihan): isnumeric()' : 'Field 8: isnumeric()', blank(f.numeric)],
-      ],
-      { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', fontSize: SIZE, width: 10 },
-    );
-    this.state.fields = f;
-    this.state.numericType = type;
-    // The flags step is gone: what each check returns follows from the fields it reads, said in this step.
-    this.state.flags = fl;
-    this.state.predicates = p;
-
-    // ------------------------------------------------------------------ the nested sets, and where the check leaves this character
-    // One step: the counts, the nesting, and the check's own box drawn heavy with this scenario's character marked.
-    const where =
-      type === 'Decimal' ? 'in the innermost box' : type === 'Digit' ? 'in the middle box but outside the innermost' : 'in the outer box only';
-    await this.step('outcome', {
-      title:
-        run.outcome === 'parsed'
-          ? `${guard}() and int() agree on ${c.char}`
-          : run.outcome === 'raised'
-            ? `${guard}() let ${c.char} through to a ValueError`
-            : `${guard}() turned ${c.char} away, as int() would`,
-      line:
-        run.outcome === 'parsed'
-          ? `${c.char} is in the innermost box, so every check passes it.`
-          : run.outcome === 'raised'
-            ? `${c.char} is inside the ${guard}() box but outside the innermost.`
-            : `${c.char} is outside the ${guard}() box and has no decimal value.`,
-      caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
-        COUNTS.isnumeric,
-      )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest. The innermost box holds the only single characters int() accepts. ${c.char} is ${where}. ${
-        run.outcome === 'parsed'
-          ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() returns ${parsed ? int.value : ''}.`
-          : run.outcome === 'raised'
-            ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() raises ValueError: invalid literal for int() with base 10.`
-            : `The check fails on ${c.char}, so the code does not call int(); had it run, int() would have raised ValueError too.`
-      }`,
+        : [`# UnicodeData.txt:${c.ucdLine}`, ...rowLines(c)];
+    const quoted = view(this, (st) => new CodeBlock(this, s.palette, st.ucd as string[], { at: [-WIDE, -0.05, WIDE, TOP], fontSize: SIZE }), {
+      place: false,
     });
-    await s.clear();
-    await sets(
-      guard,
-      run.outcome === 'raised' ? s.bad : s.good,
-      run.outcome === 'raised'
-        ? 'marked as passing the check and failing int()'
-        : run.outcome === 'parsed'
-          ? 'marked as parsed'
-          : 'marked as turned away',
+    s.keep(quoted, { describe: () => codeWords(quoted.current) });
+    await this.play(new FadeIn(quoted, { runTime: 0.4 }));
+    const row = quoted.current;
+    await row.focus(id === 'han' ? 3 : 2, { as: id === 'han' ? 'the numeric value' : 'the numeric fields' });
+    // The three fields, a view of the state's: each check's field and what the row puts in it.
+    const blank = (v: string) => v || 'empty';
+    const fieldRows = (st: SceneState) => {
+      const got = st.fields as ReturnType<typeof fields>;
+      return [
+        ['Field 6: int(), isdecimal()', blank(got.decimal)],
+        ['Field 7: isdigit()', blank(got.digit)],
+        [id === 'han' ? 'Field 8 (Unihan): isnumeric()' : 'Field 8: isnumeric()', blank(got.numeric)],
+      ] as const;
+    };
+    const fieldCard = view(
+      this,
+      (st) => new Card(this, s.palette, fieldRows(st), { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', fontSize: SIZE, width: 10, direction: 'ltr' }),
+      { place: false },
     );
-    this.state.counts = COUNTS;
-    this.state.outcome = run.outcome;
+    await s.enter(fieldCard, {
+      runTime: 0.35,
+      shift: [0, -0.08],
+      describe: () => fieldRows(this.state).map(([label, value]) => `${label}: ${value}`).join('; '),
+    });
+
+    // ------------------------------------------------------------------ the nested sets
+    await s.steps([
+      staged({
+        id: 'outcome',
+        title:
+          run.outcome === 'parsed'
+            ? `${guard}() and int() agree on ${c.char}`
+            : run.outcome === 'raised'
+              ? `${guard}() let ${c.char} through to a ValueError`
+              : `${guard}() turned ${c.char} away, as int() would`,
+        line:
+          run.outcome === 'parsed'
+            ? `${c.char} is in the innermost box, so every check passes it.`
+            : run.outcome === 'raised'
+              ? `${c.char} is inside the ${guard}() box but outside the innermost.`
+              : `${c.char} is outside the ${guard}() box and has no decimal value.`,
+        caption: `A scan of every code point in CPython 3.15.1 (Unicode 17.0.0) finds ${grouped(COUNTS.isdecimal)} characters accepted by isdecimal(), ${grouped(COUNTS.isdigit)} by isdigit() and ${grouped(
+          COUNTS.isnumeric,
+        )} by isnumeric(). Every decimal also has a digit value, and every digit has a numeric value, so the sets nest. The innermost box holds the only single characters int() accepts. ${c.char} is ${where}. ${
+          run.outcome === 'parsed'
+            ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() returns ${parsed ? int.value : ''}.`
+            : run.outcome === 'raised'
+              ? `The ${guard}() box is drawn heavy: the check passes ${c.char}, and int() raises ValueError: invalid literal for int() with base 10.`
+              : `The check fails on ${c.char}, so the code does not call int(); had it run, int() would have raised ValueError too.`
+        }`,
+        state: outcome,
+        draw: (st, s) => {
+          // The nested sets with every character in place: the check's set drawn heavier, this
+          // scenario's character circled in the colour of what happened to it.
+          const mark = st.outcome === 'raised' ? s.bad : s.good;
+          const mobs: Mobject[] = [];
+          for (const set of SETS) {
+            const [x0, y0, x1, y1] = set.box;
+            const on = set.p === st.guard;
+            mobs.push(
+              new Rectangle({
+                width: x1 - x0,
+                height: y1 - y0,
+                cornerRadius: 0.2,
+                fill: 'none',
+                stroke: ink,
+                strokeWidth: on ? 0.09 : 0.03,
+              }).moveTo([(x0 + x1) / 2, (y0 + y1) / 2]),
+              new Text(`${set.p}(): ${grouped(st.counts[set.p])}`, {
+                fontSize: SIZE,
+                font: 'mono',
+                color: ink,
+                weight: on ? 'bold' : 'normal',
+                anchor: 'start',
+              }).moveTo([x0 + 0.25, y1 - 0.4], [-1, 0]),
+            );
+          }
+          // Each character's place: the decimals two by two in the innermost box, the digit in the
+          // middle one, the other numerics outside it, in lineup order within each.
+          const placed = { Decimal: 0, Digit: 0, Numeric: 0 } as Record<string, number>;
+          for (const { char, type } of st.lineup) {
+            const at = SPOTS[type]![placed[type]!++]!;
+            const mine = char === st.char;
+            mobs.push(new Text(char, { fontSize: 1.1, color: mine ? mark : ink }).moveTo(at));
+            if (mine)
+              mobs.push(
+                new Rectangle({
+                  width: 1.6,
+                  height: 1.5,
+                  cornerRadius: 0.15,
+                  fill: 'none',
+                  stroke: mark,
+                  strokeWidth: 0.06,
+                }).moveTo(at),
+              );
+          }
+          return new Group(...mobs);
+        },
+      }),
+    ]);
 
     // ------------------------------------------------------------------ the check that matches int()
     await this.step('match', {
@@ -429,17 +486,36 @@ export default class IsDigitExplainer extends Scene {
       caption: `These rows count characters a check accepts but int() rejects. For single characters, isdecimal() agrees with int(): both accept decimal digits. Whole strings also need syntax rules: int() accepts signs, surrounding spaces and underscores in valid positions. Calling int() and catching ValueError asks the parser itself whether the string is valid.`,
     });
     await s.clear();
-    const counts = await s.card(
-      PREDICATES.map((k) => [`${k}() but not int()`, grouped(accepts(k))] as const),
-      { at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11 },
+    this.state.accepts = Object.fromEntries(PREDICATES.map((k) => [k, accepts(k)]));
+    // The counts, a view of the state's, with this scenario's check marked.
+    const countRows = (st: SceneState) =>
+      PREDICATES.map((k) => [`${k}() but not int()`, grouped((st.accepts as Record<Predicate, number>)[k])] as const);
+    const MARKED = `${guard}() but not int()`;
+    const counts = view(
+      this,
+      (st) => {
+        const card = new Card(this, s.palette, countRows(st), { at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11, direction: 'ltr' });
+        card.bar.moveTo([card.panel.center()[0], card.values.get(MARKED)!.anchorPoint()[1]]).setOpacity(1);
+        card.bar.key = 'isdigit:counts:mark';
+        return card;
+      },
+      { place: false },
     );
-    await counts.mark(`${guard}() but not int()`, { as: 'this scenario’s check' });
+    // The bar is drawn with the card rather than by mark(), so the stage is told what it emphasises.
+    s.emphasise(() => [['isdigit:counts:mark', `row ${MARKED}`]]);
+    await s.enter(counts, {
+      runTime: 0.35,
+      shift: [0, -0.08],
+      describe: () =>
+        countRows(this.state)
+          .map(([label, value]) => `${label}: ${value}${label === MARKED ? ' (this scenario’s check)' : ''}`)
+          .join('; '),
+    });
     // The answer's code right under the counts, the pair centred down the stage.
     await s.code(['try: n = int(s)', 'except ValueError: n = None'], {
       at: [-7.55, BOTTOM, 7.55, counts.box()![1] - 0.5],
       align: 'top',
       fontSize: SIZE,
     });
-    this.state.accepts = Object.fromEntries(PREDICATES.map((k) => [k, accepts(k)]));
   }
 }
