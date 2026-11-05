@@ -1,6 +1,7 @@
 // The collection is written with the public API only: what a scene under scenes/ imports from the
 // library is one of the package's entry points (package.json "exports"), reached by a relative path
-// into the checkout. An outside author can then write anything the collection writes.
+// into the checkout. An outside author can then write anything the collection writes. rayner/testing
+// is the one entry point a scene may not import: it is for an author's tests and tools.
 //
 // One style, relative paths: in the checkout they resolve to the same source for tsc, for Node
 // running a test that imports a scene, and for the bundler. The package names ('rayner',
@@ -26,6 +27,8 @@ function entryPoints(): Map<string, string> {
   return out;
 }
 const ENTRY = entryPoints();
+/** Entry points that are not scene vocabulary: tooling for tests and tools, which no scene imports. */
+const NOT_FOR_SCENES = new Set(['explain/testing.ts']);
 
 /**
  * Files that are not scenes and import the player's own modules on purpose. Each says why.
@@ -41,6 +44,10 @@ function violations(file: string, source: string): string[] {
   const out: string[] = [];
   const { importedFiles } = ts.preProcessFile(source, true, true);
   for (const { fileName: spec } of importedFiles) {
+    if (spec === 'rayner/testing') {
+      out.push(`${file}: ${spec} (author tooling, for tests and tools: a scene is written with rayner, rayner/explain and rayner/drawing)`);
+      continue;
+    }
     if (spec === 'rayner' || spec.startsWith('rayner/')) {
       const path = [...ENTRY].find(([, name]) => name === spec)?.[0];
       out.push(`${file}: ${spec} (use the relative path${path ? ` to ${path}` : ''}, as the rest of the collection does)`);
@@ -49,6 +56,10 @@ function violations(file: string, source: string): string[] {
     if (!spec.startsWith('.')) continue; // node: built-ins and other packages
     const target = relative(ROOT, resolve(ROOT, dirname(file), spec));
     if (target.startsWith('scenes/')) continue; // the collection's own files
+    if (NOT_FOR_SCENES.has(target)) {
+      out.push(`${file}: ${spec} (${target} is ${ENTRY.get(target)}, author tooling for tests and tools, not scene vocabulary)`);
+      continue;
+    }
     if (ENTRY.has(target)) continue;
     if (EXEMPT[file]?.includes(target)) continue;
     out.push(`${file}: ${spec} (${target} is not a public entry point: ${[...ENTRY.keys()].join(', ')})`);
@@ -65,7 +76,10 @@ function sceneFiles(dir = join(ROOT, 'scenes')): string[] {
 test('the entry points are the documented package exports', () => {
   assert.deepEqual(
     [...ENTRY].sort(),
-    [['explain/drawing.ts', 'rayner/drawing'], ['explain/index.ts', 'rayner/explain'], ['src/index.ts', 'rayner'], ['src/lettering.ts', 'rayner/lettering']],
+    [
+      ['explain/drawing.ts', 'rayner/drawing'], ['explain/index.ts', 'rayner/explain'], ['explain/testing.ts', 'rayner/testing'],
+      ['src/index.ts', 'rayner'], ['src/lettering.ts', 'rayner/lettering'], ['src/output.ts', 'rayner/output'],
+    ],
   );
 });
 
@@ -85,9 +99,13 @@ test('the rule rejects an internal module, a package name and a dynamic import, 
     "const words = await import('../../../explain/words.ts');",
     "import { Scene } from 'rayner';",
     "import { HOME } from '../../../app/embed-share.ts';",
+    "import { traceScene } from '../../../explain/testing.ts';",
+    "import { describeExplainer } from 'rayner/testing';",
   ].join('\n');
   const found = violations(file, seeded);
-  assert.equal(found.length, 6, found.join('\n'));
+  assert.equal(found.length, 8, found.join('\n'));
+  assert.ok(found.some((v) => v.includes('(explain/testing.ts is rayner/testing, author tooling')), 'the testing entry point by path');
+  assert.ok(found.some((v) => v.includes(': rayner/testing (author tooling')), 'the testing entry point by name');
   for (const target of ['explain/look.ts', 'explain/panels.ts', 'src/color.ts', 'explain/words.ts', 'app/embed-share.ts'])
     assert.ok(found.some((v) => v.includes(`(${target} is not a public entry point`)), target);
   assert.ok(found.some((v) => v.includes(': rayner (use the relative path to src/index.ts')));
@@ -96,6 +114,7 @@ test('the rule rejects an internal module, a package name and a dynamic import, 
     "import { stage, Card } from '../../../explain/index.ts';",
     "import { table } from '../../../explain/drawing.ts';",
     "import type { LetteringRequest } from '../../../src/lettering.ts';",
+    "import { renderAt } from '../../../src/output.ts';",
     "import { model } from '../lib/model.ts';",
     "import { readFile } from 'node:fs/promises';",
   ].join('\n');

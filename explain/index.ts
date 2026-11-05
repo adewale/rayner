@@ -11,9 +11,7 @@ export type { Region, Emphasis } from './look.ts';
 export { palette } from './palettes.ts';
 export { mermaid } from './mermaid.ts';
 export type { FrontMatterValue, PieSlice, PieOptions } from './mermaid.ts';
-export { settingsOf, withSettings, resolveSettings, scenariosOf, scenarioName } from './settings.ts';
-export { describeExplainer } from './describe.ts';
-export type { ExplainerDescription, ScenarioDescription, StepDescription, DescribeOptions } from './describe.ts';
+export { settingsOf, resolveSettings } from './settings.ts';
 export type { Setting, Settings, ExplainerClass } from './settings.ts';
 export { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 export type {
@@ -26,18 +24,3 @@ export type {
   DiagramResolver,
   MutationOp,
 } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { ExplainerClass } from './settings.ts';
-import type { SceneClass } from '../src/index.ts';
-import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
-import { useDiagrams, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
-
-/** A subclass whose diagrams come from `source`: pinned snapshots, or a resolver that captures them. */
-export function bindSnapshots(Source: ExplainerClass, source: SnapshotStore | DiagramResolver): ExplainerClass {
-  const resolver = typeof source.diagram === 'function' ? (source as DiagramResolver) : snapshotResolver(source as SnapshotStore);
-  return class extends Source {
-    constructor(...args: ConstructorParameters<SceneClass>) {
-      super(...args);
-      useDiagrams(this, resolver);
-    }
-  };
-}

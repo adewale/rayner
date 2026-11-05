@@ -3,7 +3,8 @@
 // The browser-side capture is in explain-capture.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Group, loadFonts } from '../src/index.ts';
+import { Group } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { pathFromSvgD } from '../integrations/agentic-mermaid/build/read-svg.ts';

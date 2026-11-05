@@ -3,7 +3,8 @@
 // glyphs are shaped from the tab-expanded string and the shaper counts code points.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Code, Text, TransformDiff, TransformMatchingText, loadFonts } from '../src/index.ts';
+import { Code, Text, TransformDiff, TransformMatchingText } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RED = '#fc6255';

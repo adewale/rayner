@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, traceScene } from '../src/index.ts';
-import { resolveSettings, scenariosOf, settingsOf, withSettings, scenarioName } from '../explain/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { traceScene } from '../explain/testing.ts';
+import { resolveSettings, settingsOf } from '../explain/index.ts';
+import { scenariosOf, withSettings, scenarioName } from '../explain/testing.ts';
 import type { Setting } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
 

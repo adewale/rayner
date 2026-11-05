@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text } from '../src/index.ts';
+import { Scene, Text } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
 import { bindLettering } from '../src/lettering-outlines.ts';
 import type { LetteringProvider } from '../src/lettering-outlines.ts';
 // The compatibility adapter waits for plain runs already in progress when a

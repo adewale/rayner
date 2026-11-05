@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { Scene, Text, Group, Rectangle, Machine, refuse, view, NullSink, StringSink, loadFonts, traceScene } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Machine, refuse, view } from '../src/index.ts';
+import { NullSink, StringSink } from '../src/output.ts';
+import { loadFonts, traceScene } from '../explain/testing.ts';
 import type { Sink } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from '../app/embed-live.ts';

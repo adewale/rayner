@@ -1,4 +1,5 @@
-import { Scene, Rectangle, Dot, Circle, Line, Text, Group, VMobject, FadeIn, Transform, Animation, toSvgString, renderAt, StringSink, view } from '../../../src/index.ts';
+import { Scene, Rectangle, Dot, Circle, Line, Text, Group, VMobject, FadeIn, Transform, Animation, view } from '../../../src/index.ts';
+import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
 import { keyed } from '../lib/lesson-drawing.ts';

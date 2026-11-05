@@ -3,7 +3,9 @@
 Read this to draw, animate, inspect or extend a scene without the publishing
 workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
 [extension recipes](EXTENDING.md) give runnable examples. Every name below is a
-public export of `rayner` unless another entry point is shown.
+public export of `rayner` unless another entry point is shown: sinks, seeking and
+other ways to draw frames are `rayner/output`, and traces, frame checks and profiling
+are `rayner/testing`.
 
 ## The model
 
@@ -160,12 +162,12 @@ updaters, including an updater that merely reads the current value.
 when its play begins and morphs to it. That suits discrete updates; it does not
 evaluate a relationship between the two endpoints, which [`Follow`](CHOREOGRAPHY.md#follow) does.
 
-`renderAt(SceneClass, time, sink)` reruns the scene up to the first frame at or after
+`renderAt(SceneClass, time, sink)` (`rayner/output`) reruns the scene up to the first frame at or after
 the requested time (or the final frame if past the end), skipping the interpolations
 of plays without updaters. A seek is a replay with skipping, not an index into a
 precompiled timeline.
 
-A sink stops a seek with `StopScene`. Do not catch animation errors broadly in
+A sink stops a seek with `StopScene` (`rayner/output`). Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
 scene. Handle known model errors before animating. The engine limits the damage:
 a `StopScene` from a sink sets `scene.stopped`, and from then on `play()`, `wait()`,
@@ -183,9 +185,9 @@ fonts; [requested lettering](LETTERING.md) adds scripts and maths through snapsh
 [Testing Rayner](TESTING.md) says which check answers which question: domain truth,
 geometry and replay, motion continuity, readable served paint, or whether readers
 understand. A pass on one says nothing about the others. `MotionSink` and
-`analyzeMotion` inspect sampled motion; they judge neither the editing nor the maths.
+`analyzeMotion` (`rayner/testing`) inspect sampled motion; they judge neither the editing nor the maths.
 
-For profiling, `perf.enable()` starts counters and spans, `perf.report()` explains
+For profiling, `perf.enable()` (`perf` is in `rayner/testing`) starts counters and spans, `perf.report()` explains
 where measured work went, and `perf.chromeTrace()` returns trace-event JSON for a
 trace viewer. Disable it with `perf.disable()`. Compare identical scenes, timestamps,
 frame rates and output modes: a trace-only dry run is not a playback benchmark.

@@ -1,9 +1,10 @@
 import { StateScope, wait } from './embed-scope.ts';
-import { renderAt, SeekSink } from '../src/index.ts';
+import { renderAt, SeekSink } from '../src/output.ts';
 import { traceRun } from '../src/trace.ts';
-import type { Trace } from '../src/index.ts';
-import { StopScene } from '../src/index.ts';
-import { bindSnapshots, withSettings, resolveSettings } from '../explain/index.ts';
+import type { Trace } from '../src/testing.ts';
+import { StopScene } from '../src/output.ts';
+import { resolveSettings } from '../explain/index.ts';
+import { bindSnapshots, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { restingTime, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';

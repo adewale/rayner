@@ -2,7 +2,9 @@
 // declarations in dist/ (npm run check builds them first). 'rayner' resolves
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
-import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
+import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
+import { StringSink, renderAt, SnapshotSink } from 'rayner/output';
+import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, SetState, Line, Dot } from 'rayner';
 import type { GrowFromEdgeOpts } from 'rayner';
 
@@ -16,14 +18,18 @@ export function choreography(scene: Scene<{count: number}>) {
   return [grow, pulse, state];
 }
 import type { AnimOpts, TextOpts } from 'rayner';
-import {jsonObject} from 'rayner';
+import { jsonObject } from 'rayner/testing';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
 void serializedState;
 import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
-import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';
-import type { Hunk, TransformDiffOpts, Evidence, StepRecord, ColorSpan, CodeSpan, RenderOptions, Step } from 'rayner';
-import { Frame, StateReadout, View, view, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore } from 'rayner';
+import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
+import { renderElements } from 'rayner/output';
+import type { Hunk, TransformDiffOpts, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
+import type { RenderOptions } from 'rayner/output';
+import type { StepRecord } from 'rayner/testing';
+import { Frame, StateReadout, View, view, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore } from 'rayner';
+import { viewMismatch } from 'rayner/testing';
 import type { ViewSync } from 'rayner';
 import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
 import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';

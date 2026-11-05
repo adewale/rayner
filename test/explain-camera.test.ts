@@ -2,18 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   Scene,
-  NullSink,
   Rectangle,
   Text,
-  MotionSink,
   FadeIn,
-  analyzeMotion,
-  StringSink,
-  renderAt,
-  toSvgString,
-} from '../src/index.ts';
+  } from '../src/index.ts';
+import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject } from '../src/index.ts';
-import { stage, bindSnapshots } from '../explain/index.ts';
+import { stage } from '../explain/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
 import { diagramKey, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { cameraBox } from '../explain/diagrams.ts';

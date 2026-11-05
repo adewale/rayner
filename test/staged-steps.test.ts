@@ -4,7 +4,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, TraceSink } from '../src/index.ts';
+import { Scene, Group, Text } from '../src/index.ts';
+import { TraceSink } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
 import { stagedStepsOf } from '../explain/stage.ts';
 import type { StagedStep, Stage } from '../explain/index.ts';

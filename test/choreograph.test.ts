@@ -3,7 +3,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Circle, Square, Dot, Line, NullSink, Succession, Transform, choreograph, toSvgString } from '../src/index.ts';
+import { Scene, Group, Circle, Square, Dot, Line, Succession, Transform, choreograph } from '../src/index.ts';
+import { NullSink, toSvgString } from '../src/output.ts';
 import type { AnimationGroup } from '../src/index.ts';
 import type { Mobject, Animation } from '../src/index.ts';
 

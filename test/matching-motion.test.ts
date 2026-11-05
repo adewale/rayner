@@ -8,7 +8,9 @@
 // cases therefore pin authored glyph interpolation and exact endpoints directly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Code, VMobject, TransformMatchingText, StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, loadFonts } from '../src/index.ts';
+import { Scene, Text, Code, VMobject, TransformMatchingText } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
 

@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { SnapshotSink, StringSink, indexScene, stepTime, renderAt, traceScene, renderText, Scene, StopScene, Rectangle, FadeIn } from '../src/index.ts';
+import { Scene, Rectangle, FadeIn } from '../src/index.ts';
+import { SnapshotSink, StringSink, indexScene, stepTime, renderAt, renderText, StopScene } from '../src/output.ts';
+import { traceScene } from '../explain/testing.ts';
 import { Fixture } from './lib/scenes.ts';
 
 // The trace is what agents read and what fidelity tests compare: its records, timing and

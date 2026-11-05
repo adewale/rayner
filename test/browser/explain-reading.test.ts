@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Rectangle, VMobject, NullSink, Transform, TransformMatchingShapes, loadFonts, toSvgString } from '../../src/index.ts';
+import { Scene, Group, Text, Rectangle, VMobject, Transform, TransformMatchingShapes } from '../../src/index.ts';
+import { NullSink, toSvgString } from '../../src/output.ts';
+import { loadFonts } from '../../explain/testing.ts';
 import { stage } from '../../explain/index.ts';
 import { stepLayouts, closeUps, viewBox, stageScale } from '../../app/embed-closeup.ts';
 import type { Box } from '../../src/index.ts';

@@ -3,7 +3,9 @@
 // plays without a motion failure and seeks exactly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Rectangle, Group, VMobject, Text, MotionSink, analyzeMotion, StringSink, renderAt, toSvgString } from '../src/index.ts';
+import { Scene, Rectangle, Group, VMobject, Text } from '../src/index.ts';
+import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { oneStrokeEach } from '../explain/annotate.ts';

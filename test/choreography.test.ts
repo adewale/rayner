@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {
   Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, MoveAlongPath,
   GrowFromEdge, PulseAlongPath, SetState, AnimationGroup, LaggedStart, Succession,
-  SnapshotSink, StringSink, NullSink, TraceSink, renderAt, traceScene, StateReadout, view,
-  loadFonts, toSvgString, linear,
+  StateReadout, view,
+  linear,
 } from '../src/index.ts';
+import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString } from '../src/output.ts';
+import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
 // Manim's values, which the package no longer exports.

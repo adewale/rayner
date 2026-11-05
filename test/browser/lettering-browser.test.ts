@@ -12,7 +12,7 @@ import type { Browser } from 'playwright-core';
 import { launch } from '../../tools/lib/browser.ts';
 import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
-import { SnapshotSink, renderAt, renderElements } from '../../src/index.ts';
+import { SnapshotSink, renderAt, renderElements } from '../../src/output.ts';
 import { restingTime } from '../../explain/trace.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
 import { serve } from '../../tools/lib/explain-serve.ts';

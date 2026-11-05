@@ -1,4 +1,5 @@
-import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create, jsonObject } from '../src/index.ts';
+import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
+import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
 import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';

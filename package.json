@@ -46,6 +46,14 @@
     "./lettering": {
       "types": "./dist/src/lettering.d.ts",
       "default": "./dist/src/lettering.js"
+    },
+    "./output": {
+      "types": "./dist/src/output.d.ts",
+      "default": "./dist/src/output.js"
+    },
+    "./testing": {
+      "types": "./dist/explain/testing.d.ts",
+      "default": "./dist/explain/testing.js"
     }
   },
   "bin": {

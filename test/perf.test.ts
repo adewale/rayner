@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text, perf, toSvgString, renderElements } from '../src/index.ts';
-import type { ElementRecord } from '../src/index.ts';
+import { Scene, Text } from '../src/index.ts';
+import { NullSink, toSvgString, renderElements } from '../src/output.ts';
+import { perf } from '../explain/testing.ts';
+import type { ElementRecord } from '../src/output.ts';
 import { Fixture, explainers } from './lib/scenes.ts';
 
 // Caption holds are thousands of identical frames; the hold rule has its own test
@@ -110,7 +112,7 @@ test('DOM output merges same-styled glyph lines into one element, and splits dur
 });
 
 test('failed and stopped sinks close their trace span before the next caller', async (t) => {
-  const { StopScene } = await import('../src/index.ts');
+  const { StopScene } = await import('../src/output.ts');
   let clock = 100;
   t.mock.method(performance, 'now', () => clock);
   try {

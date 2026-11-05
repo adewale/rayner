@@ -6,9 +6,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
-  StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, perf, loadFonts,
-  view, viewMismatch, View,
+  view, View,
 } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch } from '../explain/testing.ts';
 import type { Mobject, Sink, SceneState, ViewSync } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { Vec } from '../src/index.ts';
@@ -294,7 +295,7 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
 
 test('rayner check names a view whose picture lags the state at the end of a step', async () => {
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
-  const { NullSink } = await import('../src/index.ts');
+  const { NullSink } = await import('../src/output.ts');
   const lagging = (sync: boolean) => class extends Scene<{ n: number }> {
     override state = { n: 1 };
     override async construct() {
@@ -317,7 +318,7 @@ test('rayner check names a view whose picture lags the state at the end of a ste
 
 test('rayner check names a view whose words match its state but whose marks do not', async () => {
   const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
-  const { NullSink, Group, Rectangle } = await import('../src/index.ts');
+  const { Group, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
   // A label and a bar under row `lit`: moving the bar by hand, outside the state, leaves the words alone.
   const marked = (byHand: boolean) => class extends Scene<{ lit: number }> {
     override state = { lit: 0 };

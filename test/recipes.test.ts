@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { StringSink, SnapshotSink, NullSink, renderAt, traceScene, TraceSink, Scene, Succession, linear } from 'rayner';
+import { Scene, Succession, linear } from 'rayner';
+import { StringSink, SnapshotSink, NullSink, renderAt } from 'rayner/output';
+import { traceScene, TraceSink } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';

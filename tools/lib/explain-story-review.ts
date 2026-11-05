@@ -4,8 +4,10 @@ import type { ReaderShell } from './explain-reader-shell.ts';
 // establishes which of their actual painted paths the reader can see.
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
-import { renderElements, VMobject } from '../../src/index.ts';
-import type { Scene, SceneClass, Mobject, ElementRecord } from '../../src/index.ts';
+import { VMobject } from '../../src/index.ts';
+import { renderElements } from '../../src/output.ts';
+import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
+import type { ElementRecord } from '../../src/output.ts';
 import { emphasisOf } from '../../explain/look.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { isHeading } from '../../explain/stage.ts';

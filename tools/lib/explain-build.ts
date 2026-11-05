@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
-import { SnapshotSink, renderAt } from '../../src/index.ts';
+import { SnapshotSink, renderAt } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
 import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';

@@ -25,8 +25,8 @@ import { find, closeness, distance, run, ITEMS } from '../scenes/explainers/lib/
 import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { View } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
-import { loadFonts } from '../src/index.ts';
+import { withSettings } from '../explain/testing.ts';
+import { loadFonts } from '../explain/testing.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
 
 test('SHA-256 and PKCE agree with independent crypto and the RFC 7636 vector', () => {
@@ -395,9 +395,9 @@ test('2password run strips the service token only when op holds one', () => {
 // Imports are aliased so that blocks like this one can sit side by side in this file.
 import { collectProject as collectViewProject } from '../tools/lib/explain-project.ts';
 import { assertViewFollowsState as viewFollowsState } from './lib/view-fidelity.ts';
-import { loadFonts as loadViewFonts } from '../src/index.ts';
+import { loadFonts as loadViewFonts } from '../explain/testing.ts';
 import type { Scene as ViewScene, View as StateView } from '../src/index.ts';
-import { withSettings as viewSettings } from '../explain/index.ts';
+import { withSettings as viewSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 test('state-machine: its Session card shows the traced state at every step, in every scenario', async () => {
   const project = await collectViewProject('scenes/explainers/state-machine', { write: false });

@@ -5,7 +5,8 @@ import { sky, declination, sunset, sunrise, crossings, henge, TILT, LATITUDE, ST
 import { fc, params } from './lib/pbt.ts';
 import { collectProject, defaultScenario } from '../tools/lib/explain-project.ts';
 import { check as checkHengeScene } from './lib/fidelity/henge.ts';
-import { Scene, Transform, loadFonts } from '../src/index.ts';
+import { Scene, Transform } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Mobject, VMobject, Sink, View } from '../src/index.ts';
 import { depthOrder, project } from '../explain/drawing.ts';
 import type { Seen } from '../explain/drawing.ts';

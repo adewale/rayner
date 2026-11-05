@@ -11,26 +11,20 @@ const EXPECTED = [
   'Arc', 'ArcBetweenPoints', 'Arrow', 'Circle', 'CurvedArrow', 'Dot', 'Labeled', 'Line', 'Polygon', 'Rectangle', 'Square',
   'Text', 'MathTex', 'ItalicText', 'DecimalNumber', 'Code', 'StateReadout',
   'NumberLine', 'Axes',
-  'View', 'view', 'viewMismatch',
+  'View', 'view',
   // motion
   'Animation', 'Transform', 'FadeIn', 'FadeOut', 'Create', 'Write', 'MoveAlongPath', 'AnimationGroup', 'LaggedStart',
   'Restore', 'TransformFromCopy', 'Succession',
-  'GrowFromEdge', 'PulseAlongPath', 'SetState', 'Follow', 'Machine', 'machinesOf', 'refuse', 'isRefusal',
+  'GrowFromEdge', 'PulseAlongPath', 'SetState', 'Follow', 'Machine', 'refuse', 'isRefusal',
   'TransformMatching', 'TransformMatchingShapes', 'TransformMatchingText', 'matchByKey',
   'TransformDiff', 'diffLines', 'parseUnifiedDiff',
   'linear', 'smooth', 'rushInto', 'rushFrom', 'thereAndBack',
-  'Scene', 'StopScene',
+  'Scene',
   'Frame',
   // vocabulary
   'choreograph',
   'lerpColor',
-  'loadFonts', 'shaperFor', 'takeMissingGlyphs', 'jsonObject',
-  // output
-  'toSvgString', 'renderElements', 'StringSink', 'SnapshotSink', 'DomSink', 'renderText',
-  // time
-  'NullSink', 'SeekSink', 'indexScene', 'stepTime', 'renderAt', 'TraceSink', 'traceScene',
-  // diagnostics
-  'perf', 'MotionSink', 'analyzeMotion', 'InvariantSink',
+  'shaperFor',
   // emphasis that stays
   'SurroundingRectangle', 'Underline', 'Cross', 'Brace', 'BraceLabel', 'Circumscribe',
 ].sort();

@@ -418,11 +418,11 @@ const which = settingsOf(this).request;
 
 Every scenario is built ahead of time; run `check` or `review` to validate every scenario before publishing. A scene may have at most 64. Ids are URL-safe (`[A-Za-z][A-Za-z0-9_-]*`) and distinct; `step`, `sent`, `theme` and `parentOrigin` are reserved. Option values are unique and include the default. A setting may change diagrams, captions, numbers and which steps exist; keep the palette fixed. By default a scenario switch stays on the same named step (or falls back to the first when the new scenario lacks it). For a recipe-first catalog, set `static meta = { ..., scenarioNavigation: 'first' }`: switching scenarios opens the first step and the transcript links to each scenario's first step. Direct `?step=` links, including later steps, still work.
 
-Other exports: `withSettings(Scene, values)` binds a scenario without mutating the class; `resolveSettings` validates; `scenariosOf(Scene)` lists every scenario; `scenarioName(Scene, values)` gives "Label: option · Label: option"; `bindSnapshots(Scene, store)` binds a snapshot store.
+`resolveSettings` validates a scenario's values. For tests and tools, `rayner/testing` has `withSettings(Scene, values)`, which binds a scenario without mutating the class; `scenariosOf(Scene)`, which lists every scenario; `scenarioName(Scene, values)`, which gives "Label: option · Label: option"; and `bindSnapshots(Scene, store)`, which binds a snapshot store.
 
 ## Describe
 
-`describeExplainer(Scene, { snapshots?, drawings? })`, from `rayner/explain`, returns the explainer as one JSON-safe object for agents and tools: `schema` (1), `id`, `title`, `lang`, `sources`, `settings`, `answer` and `checks` when the scene declares them, and `scenarios`. Each scenario has its setting `values`, its `name` ("Label: option"), its `duration`, its `paper` (the stage's paper colour when the scenario ends, absent for a scene without a stage), its `invariants` (the names of the invariants the scene registered with `addInvariant`, which `rayner check` checks on every frame; absent when none), its `machines` (each [machine](MACHINES.md)'s `events`, `start`, the number of `states` its events reach from `start`, `sampled` when that count reached the machine's limit, and `step`, the step it last played in, where a reader can drive it; absent when none) and its `steps`. Each step has its `step` name, `title`, `line`, `caption`, `start`, `end` and `hold` in seconds, the `state` the scene recorded (`scene.state` when the step ends), `shown` (what the scene showed apart from the model, without the picture's description, which is `picture`; absent when nothing was), `changed` (each value the step changed, as `{ before, after }`, with a side left out when the value was not set), `watched` when the scene declares [`meta.watch`](#scene) (the step's watched changes as the player shows them, `{ label, before?, after? }` formatted strings, at most four), the resting `picture` in words, its `events` when a machine replayed some in the step, and its `drawing` as text unless `drawings: false`. `drawings: 'name'` draws only the step of that name, which is how `rayner see` draws the one step it prints.
+`describeExplainer(Scene, { snapshots?, drawings? })`, from `rayner/testing`, returns the explainer as one JSON-safe object for agents and tools: `schema` (1), `id`, `title`, `lang`, `sources`, `settings`, `answer` and `checks` when the scene declares them, and `scenarios`. Each scenario has its setting `values`, its `name` ("Label: option"), its `duration`, its `paper` (the stage's paper colour when the scenario ends, absent for a scene without a stage), its `invariants` (the names of the invariants the scene registered with `addInvariant`, which `rayner check` checks on every frame; absent when none), its `machines` (each [machine](MACHINES.md)'s `events`, `start`, the number of `states` its events reach from `start`, `sampled` when that count reached the machine's limit, and `step`, the step it last played in, where a reader can drive it; absent when none) and its `steps`. Each step has its `step` name, `title`, `line`, `caption`, `start`, `end` and `hold` in seconds, the `state` the scene recorded (`scene.state` when the step ends), `shown` (what the scene showed apart from the model, without the picture's description, which is `picture`; absent when nothing was), `changed` (each value the step changed, as `{ before, after }`, with a side left out when the value was not set), `watched` when the scene declares [`meta.watch`](#scene) (the step's watched changes as the player shows them, `{ label, before?, after? }` formatted strings, at most four), the resting `picture` in words, its `events` when a machine replayed some in the step, and its `drawing` as text unless `drawings: false`. `drawings: 'name'` draws only the step of that name, which is how `rayner see` draws the one step it prints.
 
 It runs the scene once per scenario, in Node or a browser, with no Chromium. A scene with diagrams needs its pinned snapshots (`snapshots`, as `rayner` reads them from `scene.snapshots/`) or it throws. `rayner describe <scene>` prints the same object; `--out file.json` writes it. Diagram labels are outlines, so the text drawing shows them as strokes; their words are in `picture`.
 
@@ -430,7 +430,7 @@ In a script, load the snapshots from `scene.snapshots/` (`index.json` names each
 
 ```ts
 import { readFile } from 'node:fs/promises';
-import { describeExplainer } from 'rayner/explain';
+import { describeExplainer } from 'rayner/testing';
 import type { SnapshotStore } from 'rayner/explain';
 import Scene from './my-explainer/scene.ts';
 
@@ -450,23 +450,24 @@ for (const c of d.scenarios)
 
 ## Testing and tooling API
 
-No explainer imports these: they are for the author's tests, scripts and tools, and `rayner` itself is built on them. They are public, and kept stable like the drawing API.
+The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards and settings), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and `rayner` itself is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
 
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |
-| `traceScene`, `TraceSink` | `rayner` | Every step's timing, state before and after, `shown` and evidence, in one run | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence) |
-| `renderAt`, `indexScene`, `stepTime`, `SeekSink`, `NullSink` | `rayner` | The scene at one time or step, without drawing the frames before it | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
-| `SnapshotSink`, `StringSink`, `toSvgString`, `renderElements`, `renderText`, `DomSink` | `rayner` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
-| `InvariantSink`, `MotionSink`, `analyzeMotion` | `rayner` | Check every frame against the scene's invariants, and motion for pops, cuts and teleports, in a test | [Testing](TESTING.md), [invariants](EXTENDING.md#hold-an-invariant-on-every-frame) |
-| `viewMismatch`, `machinesOf` | `rayner` | Whether a view shows the state it claims; a scene's machines, to drive or explore from a test | [Views](VIEWS.md), [machines](MACHINES.md) |
-| `refuse`, `isRefusal` | `rayner` | A model's refusal of an event, with its reason in the reader's words, for `next` to return; whether a value is one | [Machines](MACHINES.md#refused-events-bounds-and-authored-transitions) |
-| `StopScene` | `rayner` | What a seek throws to stop a run; a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
-| `loadFonts`, `shaperFor`, `takeMissingGlyphs` | `rayner` | Load the embedded fonts before drawing text in Node; the characters drawn with no glyph | [Scene](#scene) |
-| `perf` | `rayner` | Counters, spans and a trace-event export for profiling | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance) |
-| `jsonObject` | `rayner` | Validate and clone state under the trace's JSON rules | [Scene](#scene) |
-| `describeExplainer` | `rayner/explain` | The explainer as one JSON object: scenarios, steps, state, pictures in words and as text | [Describe](#describe) |
-| `scenariosOf`, `withSettings`, `resolveSettings`, `scenarioName`, `settingsOf` | `rayner/explain` | Every scenario, a class bound to one, validation and its name | [Settings](#settings) |
-| `bindSnapshots` | `rayner/explain` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
+| `renderAt`, `indexScene`, `stepTime`, `SeekSink`, `NullSink` | `rayner/output` | The scene at one time or step, without drawing the frames before it | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
+| `SnapshotSink`, `StringSink`, `toSvgString`, `renderElements`, `renderText`, `DomSink` | `rayner/output` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
+| `StopScene` | `rayner/output` | What a sink throws to stop a run (a seek does); a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
+| `traceScene`, `TraceSink` | `rayner/testing` | Every step's timing, state before and after, `shown` and evidence, in one run | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence) |
+| `InvariantSink`, `MotionSink`, `analyzeMotion` | `rayner/testing` | Check every frame against the scene's invariants, and motion for pops, cuts and teleports, in a test | [Testing](TESTING.md), [invariants](EXTENDING.md#hold-an-invariant-on-every-frame) |
+| `viewMismatch`, `machinesOf` | `rayner/testing` | Whether a view shows the state it claims; a scene's machines, to drive or explore from a test | [Views](VIEWS.md), [machines](MACHINES.md) |
+| `loadFonts`, `takeMissingGlyphs` | `rayner/testing` | Load the embedded fonts before drawing text outside a scene's run; the characters drawn with no glyph | [Scene](#scene) |
+| `perf` | `rayner/testing` | Counters, spans and a trace-event export for profiling | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance) |
+| `jsonObject` | `rayner/testing` | Validate and clone state under the trace's JSON rules | [Scene](#scene) |
+| `describeExplainer` | `rayner/testing` | The explainer as one JSON object: scenarios, steps, state, pictures in words and as text | [Describe](#describe) |
+| `scenariosOf`, `withSettings`, `scenarioName` | `rayner/testing` | Every scenario, a class bound to one, and its name | [Settings](#settings) |
+| `bindSnapshots` | `rayner/testing` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
+
+`refuse` and `isRefusal` (a model's refusal of an event, [machines](MACHINES.md#refused-events-bounds-and-authored-transitions)) and `shaperFor` stay in `rayner`, since models and scenes call them; so do `settingsOf` and `resolveSettings` in `rayner/explain`.
 
 The collection's own tests show each in use: `test/lib/explainer-state.ts` compares a trace with a model, and `test/lib/view-fidelity.ts` compares a view with the traced state at every step.
 

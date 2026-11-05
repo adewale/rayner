@@ -20,7 +20,8 @@ import { raceLifetimes, racePage, raceReplay } from '../scenes/explainers/lib/la
 import type { RaceState } from '../scenes/explainers/lib/latest-search.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
 import { pkceFlow, lanes, readable } from '../scenes/explainers/lib/pkce.ts';
-import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/index.ts';
+import { Scene, Text, Code, parseUnifiedDiff, smooth } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
 import { resolveSettings } from '../explain/settings.ts';

@@ -9,10 +9,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Scene, StringSink, SnapshotSink, NullSink, Transform, Line, Arc, Text, VMobject,
-  renderAt, traceScene, indexScene, renderText, renderElements, toSvgString, loadFonts,
-} from '../src/index.ts';
-import type { Box, ElementRecord, Mobject } from '../src/index.ts';
+  Scene, Transform, Line, Arc, Text, VMobject,
+  } from '../src/index.ts';
+import { StringSink, SnapshotSink, NullSink, renderAt, indexScene, renderText, renderElements, toSvgString } from '../src/output.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import type { Box, Mobject } from '../src/index.ts';
+import type { ElementRecord } from '../src/output.ts';
 import { tapeRng, makeScene, place, randomShape, tape, drawsFrom } from './lib/random-scene.ts';
 import type { Draws } from './lib/random-scene.ts';
 import { fc, params } from './lib/pbt.ts';

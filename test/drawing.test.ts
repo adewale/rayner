@@ -23,7 +23,7 @@ test('the scene libraries re-export the published functions rather than copies',
 });
 
 test('keyed sets a key and returns the mobject; segment and dot take keys like the rest of the kit', async () => {
-  const { Scene, NullSink, Circle, loadFonts } = await import('../src/index.ts');
+  const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   await loadFonts();
   const { stage } = await import('../explain/index.ts');
   const s = stage(new Scene(new NullSink()));
@@ -46,11 +46,13 @@ test('keyedParts keys each part in order, groups them, and refuses a key used tw
 });
 
 test('callout, dimension and pin build the pictures s.callout, s.dimension and s.pin draw in, and dimension and pin describe themselves', async () => {
-  const { Scene, NullSink, Rectangle, loadFonts } = await import('../src/index.ts');
+  const { Scene, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts'); const { loadFonts } = await import('../explain/testing.ts');
   const { describesItself, seenSource } = await import('../explain/look.ts');
   await loadFonts();
   const s = stage(new Scene(new NullSink()));
-  const points = (m: import('../src/index.ts').Mobject) => JSON.stringify(m.family().map((x) => [x.constructor.name, x.box(), x.style]));
+  const { paintDefaults } = await import('../src/mobject.ts');
+  // As each part would be on the stage: a colour left out takes the stage's when the picture enters it.
+  const points = (m: import('../src/index.ts').Mobject) => (paintDefaults(m, s.scene.colors), JSON.stringify(m.family().map((x) => [x.constructor.name, x.box(), x.style])));
   const target = new Rectangle({ width: 1, height: 0.5 }).moveTo([1, 1]);
   const built = drawing.callout(s, target, 'here', { side: 'above', gap: 0.3, key: 'note' });
   assert.equal(built.key, 'note');

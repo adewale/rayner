@@ -4,8 +4,11 @@
 // descriptions of the shipped explainers are in explain-real.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Rectangle, Text, FadeIn, SnapshotSink, renderAt, toSvgString, traceScene, loadFonts } from '../src/index.ts';
-import { stage, bindSnapshots } from '../explain/index.ts';
+import { Scene, Rectangle, Text, FadeIn } from '../src/index.ts';
+import { NullSink, SnapshotSink, renderAt, toSvgString } from '../src/output.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import { stage } from '../explain/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';

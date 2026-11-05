@@ -2,7 +2,8 @@
 // with the embedded Inter and JetBrains Mono shapers rather than read from the scene.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFonts, shaperFor } from '../src/index.ts';
+import { shaperFor } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import GlyphExplainer from '../scenes/explainers/glyph/scene.ts';
 
 const SIZE = 0.9;

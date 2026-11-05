@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFonts, isRefusal } from '../src/index.ts';
+import { isRefusal } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { View } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';

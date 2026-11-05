@@ -5,7 +5,8 @@
 // played through `machine.send`, so a frame is still a function of time and a link with the log
 // reopens the same picture. See docs/MACHINES.md, "The player".
 
-import { machinesOf, NullSink, StopScene } from '../src/index.ts';
+import { NullSink, StopScene } from '../src/output.ts';
+import { machinesOf } from '../src/testing.ts';
 import type { Machine, Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 
 type AnyMachine = Machine<object, string>;

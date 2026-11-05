@@ -76,6 +76,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 - `easeInQuad`, `easeOutQuad`, `easeOutBack` and `wiggle` are gone; any `(t) => number` is a rate function.
 - `tokenize`, `diffTokens` and `hunkHeader` are internal; `diffLines` and `parseUnifiedDiff` still make hunks for `TransformDiff`.
 - `Indicate` and `Flash` are gone: a mark that is gone by the resting picture fails `rayner check`. Mark with `Circumscribe({ keep: true })` or the [emphasis shapes](docs/EMPHASIS.md). `MathTex`'s alias `Math` is gone too, since it hid JavaScript's `Math`; import `MathTex`.
+- `rayner` and `rayner/explain` are now the scene vocabulary only. Drawing a scene's frames outside the page moved to `rayner/output`: `toSvgString`, `renderElements`, `renderText`, `renderAt`, `indexScene`, `stepTime`, the sinks `StringSink`, `SnapshotSink`, `DomSink`, `SeekSink` and `NullSink`, and `StopScene`. Author tooling moved to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf` from `rayner`, and `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` from `rayner/explain`. A scene may not import `rayner/testing`.
 - `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `ViewSync` is exported as a type only: `view.sync()` makes one.
 
 ### Known limits

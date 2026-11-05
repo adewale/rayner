@@ -12,23 +12,13 @@ import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {
-  MotionSink,
-  InvariantSink,
-  machinesOf,
-  viewMismatch,
-  jsonObject,
-  analyzeMotion,
-  SnapshotSink,
-  renderAt,
-  toSvgString,
-  traceScene,
-  renderText,
   Text,
-  NullSink,
   View,
 } from '../../src/index.ts';
+import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
+import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
-import { scenarioName } from '../../explain/index.ts';
+import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
@@ -809,7 +799,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
           `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
         ]
       : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/index.ts'))};import{Scene,NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/index.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
+    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
     const b = await build({
       stdin: { contents, resolveDir: ROOT, loader: 'ts' },
       bundle: true,

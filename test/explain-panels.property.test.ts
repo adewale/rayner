@@ -3,7 +3,9 @@
 // finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text, loadFonts } from '../src/index.ts';
+import { Scene, Text } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box, Vec } from '../src/index.ts';
 import { Card, CodeBlock } from '../explain/panels.ts';
 import type { CardRow } from '../explain/panels.ts';

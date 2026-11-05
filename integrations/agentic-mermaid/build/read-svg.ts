@@ -3,7 +3,8 @@ import type {TextShaping} from '../../../src/text-context.ts';
 // svgpath normalizes curves. Runtime snapshots contain only Lantern cubic points.
 import svgpath from 'svgpath';
 import type { Page } from 'playwright-core';
-import { loadFonts, VMobject } from '../../../src/index.ts';
+import { VMobject } from '../../../src/index.ts';
+import { loadFonts } from '../../../src/testing.ts';
 import type { Style } from '../../../src/index.ts';
 import { SVG_PX_PER_UNIT } from '../snapshot.ts';
 import type { SnapshotShape, SnapshotTextRun } from '../snapshot.ts';

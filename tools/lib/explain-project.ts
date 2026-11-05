@@ -9,7 +9,9 @@ import { dirname, resolve, join, basename, relative, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { Scene, NullSink, machinesOf } from '../../src/index.ts';
+import { Scene } from '../../src/index.ts';
+import { NullSink } from '../../src/output.ts';
+import { machinesOf } from '../../explain/testing.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
@@ -17,9 +19,11 @@ import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
-import type { Machine, Trace } from '../../src/index.ts';
+import type { Machine } from '../../src/index.ts';
+import type { Trace } from '../../explain/testing.ts';
 
-import { scenariosOf, withSettings, bindSnapshots, scenarioName, resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/index.ts';
+import { scenariosOf, withSettings, bindSnapshots, scenarioName } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { diagramKey, RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
@@ -67,6 +71,8 @@ export function engineAlias(node = false, outlines = false): Plugin {
         else if (args.path === 'rayner/explain') file = join(ROOT, 'explain/index.ts');
         else if (args.path === 'rayner/drawing') file = join(ROOT, 'explain/drawing.ts');
         else if (args.path === 'rayner/lettering') file = join(ROOT, 'src/lettering.ts');
+        else if (args.path === 'rayner/output') file = join(ROOT, 'src/output.ts');
+        else if (args.path === 'rayner/testing') file = join(ROOT, 'explain/testing.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);

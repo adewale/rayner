@@ -16,9 +16,11 @@ import { checkProject } from '../tools/lib/explain-check.ts';
 import { SCRIPTS, letteringRequest, useProjectLettering } from '../tools/lib/explain-lettering.ts';
 import type { LetteringFace } from '../tools/lib/explain-lettering.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
-import { loadFonts, shaperFor, SnapshotSink, renderAt } from '../src/index.ts';
+import { shaperFor } from '../src/index.ts';
+import { SnapshotSink, renderAt } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { useLettering, takeMissingGlyphs } from '../src/lettering.ts';
-import { takeMissingGlyphs as takeEmbeddedMissing } from '../src/index.ts';
+import { takeMissingGlyphs as takeEmbeddedMissing } from '../explain/testing.ts';
 import { loadFont } from '../vendor/glyph.js';
 import { restingTime } from '../explain/trace.ts';
 

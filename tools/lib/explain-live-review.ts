@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import type { Page } from 'playwright-core';
-import { machinesOf } from '../../src/index.ts';
+import { machinesOf } from '../../explain/testing.ts';
 import type { Machine, Scene, Sink } from '../../src/index.ts';
 import { SENT, acceptedLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
 import type { LogStart } from '../../app/embed-live.ts';

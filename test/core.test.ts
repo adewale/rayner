@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
   Rectangle, Group, Square, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack,
-  Scene, NullSink, toSvgString, SurroundingRectangle, Cross,
-  loadFonts, renderElements,
-} from '../src/index.ts';
+  Scene, SurroundingRectangle, Cross,
+  } from '../src/index.ts';
+import { NullSink, toSvgString, renderElements } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { NEUTRAL_COLORS } from '../src/color.ts';
 import { rotate } from '../src/vec.ts';
 

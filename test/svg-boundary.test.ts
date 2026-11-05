@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Resvg } from '@resvg/resvg-js';
-import { Scene, NullSink, Rectangle, Text, SnapshotSink, StringSink, loadFonts, toSvgString } from '../src/index.ts';
+import { Scene, Rectangle, Text } from '../src/index.ts';
+import { NullSink, SnapshotSink, StringSink, toSvgString } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { fc, params } from './lib/pbt.ts';
 
 const scene = () => new Scene(new NullSink()).add(new Rectangle({ width: 1, height: 1 }));

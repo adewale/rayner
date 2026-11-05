@@ -122,7 +122,7 @@ first frame that breaks it. Sampled from its angle with `Follow`, the dot holds;
 between its two ends with `Transform`, it cuts through the centre, and the recipe's test
 finds those frames. `token-bucket` and `ring-buffer` declare invariants of this kind.
 
-`InvariantSink` runs them, and it is the pattern for a check of your own: a sink
+`InvariantSink` (`rayner/testing`) runs them, and it is the pattern for a check of your own: a sink
 receives every frame of a full run, reads the scene, and hands the frame on to an inner
 sink, so several checks share one run. `rayner check` composes it with its motion and
 legibility sampling this way. A seek skips frames, so run invariants over a full run.
@@ -135,7 +135,7 @@ with your application's response, cache or editor view. A sink can stream frames
 instead. Keep host-specific imports in that adapter rather than adding filesystem
 or DOM assumptions to your model.
 
-In a browser, `DomSink` draws into an SVG element; in a document generator,
+In a browser, `DomSink` (`rayner/output`) draws into an SVG element; in a document generator,
 `SnapshotSink` returns a frame. See the live-browser example in
 [Scene outputs](SCENE-OUTPUTS.md#live-browser-output-and-publication).
 
@@ -161,7 +161,7 @@ Each extension point has one rule for what happens when two of them act on the s
 
 ## Test an extension
 
-Test an extension with the same tools Rayner's own suite uses, without a browser. `traceScene` runs a scene and returns each step's state, evidence and timing. `SnapshotSink` and `renderAt` give the picture at a time. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner/output`, `SnapshotSink` and `renderAt` give the picture at a time. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
 
 ## Composition, compositionality and modularity
 

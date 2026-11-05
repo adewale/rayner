@@ -2,15 +2,15 @@
 // the state the scene recorded, what each step changed and its resting picture drawn as text.
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
-import { renderAt, renderText, machinesOf } from '../src/index.ts';
+import { renderAt, renderText } from '../src/output.ts';
+import { machinesOf } from '../src/testing.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Scene, SceneState, Sink } from '../src/index.ts';
-import { scenariosOf, withSettings, scenarioName } from './settings.ts';
+import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';
 import type { ExplainerClass, Setting, Settings } from './settings.ts';
 import { pictureSummary, restingTime, stepWords, watchedChanges } from './trace.ts';
 import type { WatchedChange } from './trace.ts';
 import { isHeading, paperOf } from './stage.ts';
-import { bindSnapshots } from './index.ts';
 import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
 
 /** One step of one scenario. Times are seconds on the scene's clock. */

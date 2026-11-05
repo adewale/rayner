@@ -4,9 +4,10 @@
 // pairs a label with the wrong field agrees with itself).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, TraceSink, loadFonts } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { TraceSink, loadFonts } from '../explain/testing.ts';
 import type { SceneClass, SceneState, Step, View } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
 

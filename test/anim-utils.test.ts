@@ -3,12 +3,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Scene, StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, indexScene, toSvgString,
-  Mobject, Group, Rectangle, Circle, Square, Polygon, Text, Code,
+  Scene, Mobject, Group, Rectangle, Circle, Square, Polygon, Text, Code,
   Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart,
   Restore, TransformFromCopy, Succession, TransformMatchingText,
-  loadFonts,
-} from '../src/index.ts';
+  } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import { Indicate, Flash } from './lib/transient.ts';
 import type { SceneOptions, Sink } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';

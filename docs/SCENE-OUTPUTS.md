@@ -63,11 +63,11 @@ not for the animation program itself.
 
 ## Public output APIs
 
+Drawing a scene's frames somewhere is `rayner/output`; a trace is author tooling, in `rayner/testing`.
+
 ```ts
-import {
-  SnapshotSink, renderAt, renderText, renderElements,
-  traceScene, indexScene, stepTime,
-} from 'rayner';
+import { SnapshotSink, renderAt, renderText, renderElements, indexScene, stepTime } from 'rayner/output';
+import { traceScene } from 'rayner/testing';
 import { requestScene } from './document.ts';
 
 const Request = requestScene({ cached: false });
@@ -120,7 +120,7 @@ intermediate value; call `scene.describe()` at chosen sample times for those.
 For all SVG frames:
 
 ```ts
-import { StringSink } from 'rayner';
+import { StringSink } from 'rayner/output';
 const all = new StringSink();
 await new Request(all, { fps: 30 }).run();
 // all.frames contains SVG strings in frame order; it retains the whole run.
@@ -135,7 +135,7 @@ frames rather than retaining a large sequence in memory. Forward `stepBegin` and
 In a browser module, pass a container element to `DomSink`, which appends its own SVG:
 
 ```ts
-import { DomSink } from 'rayner';
+import { DomSink } from 'rayner/output';
 const container = document.querySelector('#diagram');
 if (!container) throw new Error('Missing diagram container');
 await new Request(new DomSink(container)).run();

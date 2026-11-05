@@ -61,6 +61,11 @@ try {
   // The same names the checkout's kit exports (test/drawing.test.ts pins those), 3D included.
   const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
   assert.equal(kit.stdout.trim(), sourceKit);
+  // So do the output and testing entry points, with the checkout's names.
+  for (const [entry, source] of [['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+    const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
+    assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
+  }
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
@@ -221,9 +226,9 @@ try {
   // keep their relative paths, so missing author-owned dependencies still fail.
   const copyAuthorSource = async (source: string, target: string) => {
     const code = (await readFile(source, 'utf8')).replace(
-      /(['"])(?:\.\.\/)+(src\/index|explain\/index|explain\/drawing)\.ts\1/g,
+      /(['"])(?:\.\.\/)+(src\/index|src\/output|explain\/index|explain\/drawing)\.ts\1/g,
       (_match, quote: string, area: string) =>
-        `${quote}${area === 'src/index' ? 'rayner' : area === 'explain/index' ? 'rayner/explain' : 'rayner/drawing'}${quote}`,
+        `${quote}${area === 'src/index' ? 'rayner' : area === 'src/output' ? 'rayner/output' : area === 'explain/index' ? 'rayner/explain' : 'rayner/drawing'}${quote}`,
     );
     await writeFile(target, code);
   };
@@ -314,7 +319,7 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{Scene,NullSink}from'rayner';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
+      `import{Scene}from'rayner';import{NullSink}from'rayner/output';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
     ],
     { cwd: folder },
   );
@@ -326,7 +331,7 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
+      `import{describeExplainer}from'rayner/testing';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
     ],
     { cwd: folder },
   );

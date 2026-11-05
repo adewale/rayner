@@ -6,9 +6,10 @@ import {
   predicted, listed, counted, position, membersOf, gaps, periodLength, configText, shorthand, symbolOf,
 } from '../scenes/explainers/lib/periodic-groups.ts';
 import type { Subshell } from '../scenes/explainers/lib/periodic-groups.ts';
-import { loadFonts, Rectangle, Text } from '../src/index.ts';
+import { Rectangle, Text } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { View, Mobject } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
 import { pictureHtml, pictureSummary } from '../explain/trace.ts';
 import { lerpColor } from '../src/color.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';

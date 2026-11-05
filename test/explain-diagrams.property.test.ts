@@ -5,7 +5,9 @@
 // cost their begin/finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Dot, loadFonts } from '../src/index.ts';
+import { Scene, Dot } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { REGIONS, emphasis, dimOpacity } from '../explain/look.ts';

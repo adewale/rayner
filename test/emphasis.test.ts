@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import {
   Scene, Square, Rectangle, Text, Code, Create, FadeOut, Circumscribe,
   SurroundingRectangle, Underline, Cross, Brace, BraceLabel,
-  MotionSink, analyzeMotion, StringSink, SnapshotSink, renderAt, VMobject, loadFonts,
-} from '../src/index.ts';
+  VMobject, } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];
@@ -259,7 +260,7 @@ test('seeking into and past Circumscribe renders the frame a full run produces',
 
 test('emphasis can name a part by its key: the part on the stage now, and nothing when it is not there', async () => {
   const { emphasises, emphasisOf } = await import('../explain/look.ts');
-  const { Scene, NullSink, Circle } = await import('../src/index.ts');
+  const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
   const scene = new Scene(new NullSink());
   const ring = Object.assign(new Circle(), { key: 'ring:3' });
   scene.add(ring);

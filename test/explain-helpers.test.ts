@@ -4,8 +4,11 @@
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, traceScene, loadFonts } from '../src/index.ts';
-import { stage, bindSnapshots, regionBox, REGIONS } from '../explain/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import { stage, regionBox, REGIONS } from '../explain/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
 import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity } from '../explain/look.ts';
@@ -628,8 +631,12 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'diagramsOf',
-    'mermaid', 'palette', 'regionBox', 'resolveSettings', 'scenarioName', 'scenariosOf', 'settingsOf', 'stage', 'stagedStep', 'withSettings',
+    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'diagramsOf', 'mermaid', 'palette', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep',
+  ]);
+  // The tooling went to rayner/testing.
+  assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
+    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'jsonObject', 'loadFonts',
+    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withSettings',
   ]);
 });
 

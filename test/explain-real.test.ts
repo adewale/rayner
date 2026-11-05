@@ -6,7 +6,9 @@
 // and class: ids named by bare names, axes, grid lines and branches).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, loadFonts } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';

@@ -1,5 +1,6 @@
-// Public API. Everything a scene, a player or a tool needs, and nothing else:
-// internals (color parsing, animation plumbing, caches) stay module-private
+// The scene vocabulary: what a scene is written with, and nothing else. Drawing a scene's frames
+// somewhere is rayner/output (src/output.ts); testing and inspecting one is rayner/testing
+// (explain/testing.ts). Internals (colour parsing, animation plumbing, caches) stay module-private
 // so they can change without breaking scenes.
 
 // Model
@@ -15,7 +16,7 @@ export type { TextOpts, DecimalNumberOpts, CodeOpts } from './text.ts';
 export type { CodeSpan, ColorSpan } from './text.ts';
 export { StateReadout } from './panels.ts';
 // Views: a picture rebuilt from state, changed by matching transforms (docs/VIEWS.md)
-export { View, view, viewMismatch } from './view.ts';
+export { View, view } from './view.ts';
 export type { ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
 export { NumberLine, Axes } from './graphing.ts';
 export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts, GuideLineOpts } from './graphing.ts';
@@ -28,7 +29,7 @@ export type { CircumscribeOpts } from './animation.ts';
 export { Restore, TransformFromCopy, Succession } from './animation.ts';
 export { GrowFromEdge, PulseAlongPath, SetState, Follow } from './animation.ts';
 export type { GrowFromEdgeOpts, FollowSpec, FollowOpts, SetStateOpts } from './animation.ts';
-export { Machine, machinesOf, refuse, isRefusal } from './machine.ts';
+export { Machine, refuse, isRefusal } from './machine.ts';
 export type { MachineSpec, Transition, Outcome, Refusal } from './machine.ts';
 export { choreograph } from './choreograph.ts';
 export type { Choreography } from './choreograph.ts';
@@ -40,7 +41,7 @@ export { diffLines, parseUnifiedDiff } from './diff.ts';
 export type { DiffOp, Hunk } from './diff.ts';
 export { linear, smooth, rushInto, rushFrom, thereAndBack } from './rate.ts';
 export type { RateFunc } from './rate.ts';
-export { Scene, StopScene } from './scene.ts';
+export { Scene } from './scene.ts';
 export type { Sink, Step, StepMeta, StepKind, SceneOptions, SceneState, SceneClass } from './scene.ts';
 export type { Evidence, Invariant } from './scene.ts';
 // Camera: scene.frame, a box the sinks use as the viewBox
@@ -51,24 +52,8 @@ export type { FrameFitOpts } from './frame.ts';
 export type { Vec } from './vec.ts';
 export { lerpColor } from './color.ts';
 export type { SceneColors, ColorRole } from './color.ts';
-export { loadFonts, shaperFor, takeMissingGlyphs } from './fonts.ts';
+export { shaperFor } from './fonts.ts';
 export type { FontName } from './fonts.ts';
-
-// Output: SVG strings, the live DOM, text for agents
-export { toSvgString, renderElements, StringSink, SnapshotSink, DomSink } from './svg.ts';
-export type { ElementRecord, SvgOptions, RenderOptions } from './svg.ts';
-export { renderText } from './ascii.ts';
-
-// Time: seek, index, trace
-export { NullSink, SeekSink, indexScene, stepTime, renderAt } from './timeline.ts';
-export type { SceneIndex } from './timeline.ts';
-export { TraceSink, traceScene } from './trace.ts';
-export type { Trace, StepRecord } from './trace.ts';
-
-// Diagnostics
-export { perf } from './perf.ts';
-export { MotionSink, analyzeMotion, InvariantSink } from './verify.ts';
-export type { MotionEvent, MotionOptions, InvariantFailure } from './verify.ts';
 
 // Optional lettering: tree-shaken from scenes which do not request it.
 export { MathTex } from './math.ts';
@@ -76,6 +61,5 @@ export { ItalicText } from './italic.ts';
 export type { LetteringRequest, LetteringSnapshot, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringStyle } from './lettering-outlines.ts';
 // End optional lettering.
 
-export {jsonObject} from './json.ts';
 export type {JsonValue, JsonObject} from './json.ts';
 export type {TextShaping} from './text-context.ts';
