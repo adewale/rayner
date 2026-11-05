@@ -304,13 +304,10 @@ for (const entry of EXPLAINERS)
           break;
         }
         case '2password': {
-          const launched = run(
-            values.auth as 'desktop' | 'service',
-            { API_KEY: 'op://Personal/Cloud API/credential' },
-            ['app'],
-          );
+          const launched = run('desktop', { API_KEY: 'op://Personal/Cloud API/credential' }, ['app']);
           assertStepState(trace, 'match', { matches: { 'cloud api': ['Cloud API'], databse: [] } });
           assertStepState(trace, 'match', { found: find(['cloud api', 'databse']) });
+          assertStepState(trace, 'references', { leaked: 0 });
           assertStepState(trace, 'run', { argv: launched.argv, childEnv: launched.childEnv });
           break;
         }

@@ -7,10 +7,11 @@ import { staged } from '../staged.ts';
 /** The script's answer, stated by the second step. */
 export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';
 
-export function frames(auth: 'desktop' | 'service'): StagedStep[] {
+/** Desktop approvals authenticate op, as the scene's run step assumes. */
+export function frames(): StagedStep[] {
   const found = find(['cloud api']),
     ref = found.matches[0]!.ref,
-    launched = run(auth, { API_KEY: ref }, ['app']);
+    launched = run('desktop', { API_KEY: ref }, ['app']);
   return [
     staged({
       id: 'ask',
