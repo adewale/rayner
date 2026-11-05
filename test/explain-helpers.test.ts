@@ -628,7 +628,7 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'diagramsOf',
+    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'diagramsOf',
     'palette', 'regionBox', 'resolveSettings', 'scenarioName', 'scenariosOf', 'settingsOf', 'stage', 'withSettings',
   ]);
 });

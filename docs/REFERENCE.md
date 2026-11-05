@@ -183,7 +183,7 @@ s.emphasise(() => (this.state.full ? [[outline, 'outlined: the full slot']] : []
 
 `as` is the word the description gives the mark, such as `'rejected'`. Both are native `Group`s.
 
-`new Card(scene, s.palette, rows, options)` builds a card without entering it, for a [view](VIEWS.md) that rebuilds the card from state at every sync, as `state-machine` and `ring-buffer` do; `s.card` is the same card, placed on the stage and faded in.
+`new Card(scene, s.palette, rows, options)` builds a card without entering it, for a [view](VIEWS.md) that rebuilds the card from state at every sync, as `state-machine` and `ring-buffer` do; `s.card` is the same card, placed on the stage and faded in. `new CodeBlock(scene, s.palette, lines, options)` does the same for a code panel, for a view or a staged step's draw whose code (a report, a listing) comes from state; `s.code` is that panel, placed and faded in.
 
 `columns` lays values side by side under headings, so a phone close-up of one card shows a comparison whole:
 
