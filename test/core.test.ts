@@ -23,8 +23,10 @@ test('SVG output: a fixed 16 x 9 frame at 1000 units per scene unit, sized to th
 
 // The Manim names the engine keeps are kept because they mean what Manim means (docs/ENGINE.md,
 // "Public names"): its direction vectors (manimlib/constants.py, z dropped) and its colours, which
-// are Manim's own hex values (BLUE is BLUE_C, GREY is GREY_C, and so on).
-test("directions and colours are Manim's", async () => {
+// are 3Blue1Brown's ManimGL values (manimlib/default_config.yml; BLUE is blue_c, GREY is grey_c, and
+// so on), checked against that file. Manim Community Edition agrees on all but YELLOW, which it
+// changed to #F7D96F; Rayner keeps ManimGL's #FFFF00, the default stroke of SurroundingRectangle.
+test("directions and colours are ManimGL's", async () => {
   const api = await import('../src/index.ts');
   assert.deepEqual(
     { ORIGIN: api.ORIGIN, UP: api.UP, DOWN: api.DOWN, LEFT: api.LEFT, RIGHT: api.RIGHT, UL: api.UL, UR: api.UR, DL: api.DL, DR: api.DR },
