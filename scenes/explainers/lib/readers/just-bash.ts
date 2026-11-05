@@ -2,7 +2,7 @@ import { Group } from '../../../../src/index.ts';
 import { exec } from '../models.ts';
 import { flow, label, table } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The script's answer (meta.answer), stated by the second step. */
 export const ANSWER = 'exec returns a new shell holding the write and leaves the shell you passed in unchanged';
@@ -21,7 +21,7 @@ export function frames(): StagedStep[] {
     next = exec(run.shell, [['cat', 'shout.txt']]).stdout;
   const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
   return [
-    staged({
+    stagedStep({
       id: 'reader-pipeline',
       title: 'The command ran, yet cat finds nothing in shout.txt',
       line: 'Predict: where did HELLO go?',
@@ -36,7 +36,7 @@ export function frames(): StagedStep[] {
           label(prints(st.startingCat), 0, -2.05, s.bad, 0.7),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-values',
       title: 'Answer: the file is in the shell exec returned',
       line: 'Same command, two shell values: only the returned one holds shout.txt.',

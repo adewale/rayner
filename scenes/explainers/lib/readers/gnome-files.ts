@@ -3,7 +3,7 @@ import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING } from '../gnome-fil
 import type { Participant, Colour } from '../gnome-files.ts';
 import { flow, label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 // Locations and observations: the report's task findings, pages 11, 21–22, 25–26, 34 and 40.
 const locations: Record<number, string[]> = {
   1: ['View options', 'Icon size'],
@@ -60,7 +60,7 @@ export function frames(p: Participant): StagedStep[] {
     .filter(([, k]) => k > 0)
     .map(([c, k]) => `${counted[k]!.toLowerCase()} ${phrase[c]}`);
   return [
-    staged({
+    stagedStep({
       id: 'reader-task',
       title: `${p} gave up on ${named[n]}`,
       line: `The command was there: ${placed[n]}.`,
@@ -73,7 +73,7 @@ export function frames(p: Participant): StagedStep[] {
           label(`${st.participant} could not complete it`, 0, -3, s.bad, 0.7),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-sample',
       title: `${counted[stuck]} of the six gave up on ${named[n]}`,
       line: `The others: ${rest.join(', ')}.`,

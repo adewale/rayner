@@ -5,7 +5,7 @@ import { runSearch, raceLifetimes, racePage, raceReplay } from '../latest-search
 import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from '../latest-search.ts';
 import { label, tile } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** What the user typed for each search: A is the older keystroke, B the latest. */
 export const TYPED: Record<Query, string> = { A: 'ca', B: 'cat' };
@@ -152,7 +152,7 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
       without === withGuard
         ? `Both rules now show ${q(without)}.`
         : `Without the guard the page would now show ${q(without)}; with it, the page shows ${q(withGuard)}${withGuard ? '' : ' yet'}.`;
-    return staged({
+    return stagedStep({
       id: i === 0 ? 'reader-first' : 'reader-ticket',
       title: accepted
         ? `Answer: published. ${q(query)} lands with ticket ${ticket}, the latest`
@@ -183,7 +183,7 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
     throw new Error('the race machine and the promise run disagree');
   return {
     events,
-    race: staged({
+    race: stagedStep({
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
@@ -209,7 +209,7 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
           : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined in red; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
     },
-    middle: [staged({
+    middle: [stagedStep({
       id: 'tickets',
       title: 'Answer: number each search, and publish only the latest',
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,

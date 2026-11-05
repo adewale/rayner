@@ -1,6 +1,7 @@
 import { Scene, ItalicText, Group, Circle, Line, Rectangle, view } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
+import { dimension } from '../lib/lesson-drawing.ts';
 
 const SAMPLE = 'Ink on paper';
 /** The gap each marker asks for after the phrase, in stage units. */
@@ -104,7 +105,7 @@ export default class FontMetrics extends Scene {
     const START = -5.3,
       TOP = 1.4;
     await s.steps([
-      staged({
+      stagedStep({
         id: 'layout',
         title: `Measure the wrong face and the marker lands ${(wrong - actual).toFixed(2)} units too far`,
         line: `Same phrase, size and ${GAP}-unit gap; only the measurement changes.`,
@@ -128,12 +129,13 @@ export default class FontMetrics extends Scene {
           return comparison;
         },
       }),
-      staged({
+      stagedStep({
         id: 'advance',
         title: 'A phrase’s width is the sum of its glyphs’ advances',
         line: `Ticks: where each glyph hands the pen to the next. Dashed: the ${advance.pen.spaces.length} spaces.`,
         caption: `Each glyph moves the pen on by its advance, and the next glyph starts where the pen stopped. The dashed cells are spaces, which move the pen without drawing anything. The ruler adds up all ${advance.pen.starts.length} advances, which is how the lower row placed its marker. Measure the face you draw: each face and cut gives the same text its own advances.`,
         state: advance,
+        describe: (st) => `A tick under “${SAMPLE}” at each of its ${st.pen.starts.length - 1} pen positions, and dashed cells around its ${st.pen.spaces.length} spaces`,
         draw: (st) => {
           const ruled = phrase().moveTo([0, 1.0]);
           const [x0, y0, , y1] = ruled.box()!;
@@ -148,27 +150,21 @@ export default class FontMetrics extends Scene {
             cell.style.dashArray = '0.08 0.06';
             ticks.add(cell);
           }
-          return new Group(ruled, ticks);
+          // The ruler's total under the phrase, from the width the state records.
+          const total = dimension(s, [x0, y0 - 0.5], [x0 + st.advance, y0 - 0.5], `${st.advance.toFixed(2)} units`, { size: 0.7, offset: -0.4 });
+          return new Group(ruled, ticks, total);
         },
       }),
-    ]);
-    // The ruler's total under the phrase. The stage draws a dimension itself, so it joins the step's
-    // picture here, from the width the step's state records.
-    {
-      const [x0, y0] = phrase().moveTo([0, 1.0]).box()!;
-      const width = (this.state as typeof advance).advance;
-      await s.dimension([x0, y0 - 0.5], [x0 + width, y0 - 0.5], `${width.toFixed(2)} units`, {
-        size: 0.7,
-        offset: -0.4,
-      });
-    }
-    await s.steps([
-      staged({
+      stagedStep({
         id: 'rulers',
         title: 'The upper marker went 0.5 past a JetBrains Mono ruler',
         line: 'Upper ticks: Garamond’s advances, as drawn. Lower: JetBrains Mono’s, as measured.',
         caption: `This is the opening’s upper row, with both measurements laid under the words from the same start. Each slanted line joins a Garamond pen stop to the same stop in JetBrains Mono. Every Garamond glyph here advances less than Mono’s ${monoRun.glyphs[0]!.ax.toFixed(2)}, so the lines lean further apart at each glyph and the rulers end ${(measuredEnd - drawnEnd).toFixed(2)} units apart. The filled marker sits ${GAP} past the Mono ruler’s end, as the layout placed it. The ring sits ${GAP} past the Garamond ruler’s end, where the lower row put its marker.`,
         state: rulers,
+        describe: (st) => {
+          const { drawn, measured, markers } = st.rulers;
+          return `“${SAMPLE}” in Garamond, as in the opening’s upper row, with its filled marker ${markers.measured.toFixed(2)} units from the start. Under it, two rulers from the same start: Garamond’s ${drawn.length - 1} advances, ending at ${drawn.at(-1)!.toFixed(2)}, and JetBrains Mono’s, ending at ${measured.at(-1)!.toFixed(2)}; thin lines join matching pen stops and spread apart glyph by glyph. A filled marker ${(markers.measured - measured.at(-1)!).toFixed(1)} past the Mono ruler’s end, a ring ${(markers.drawn - drawn.at(-1)!).toFixed(1)} past Garamond’s`;
+        },
         draw: (st) => {
           const { drawn, measured, markers } = st.rulers;
           const upper = phrase().moveTo([START, TOP], [-1, 0]);

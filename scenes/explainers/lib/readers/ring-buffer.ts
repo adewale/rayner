@@ -1,7 +1,7 @@
 import { Group, Arrow } from '../../../../src/index.ts';
 import { label, tile } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /**
  * The queue a ring buffer replaces: values kept in array order, popped with
@@ -24,7 +24,7 @@ export function frames(): StagedStep[] {
     W = 2.0,
     H = 1.05;
   return [
-    staged({
+    stagedStep({
       id: 'shift',
       title: 'A queue in an array: each pop moves every value left',
       line: `Predict: how could pop take ${q.popped} without moving the other ${q.moved}?`,

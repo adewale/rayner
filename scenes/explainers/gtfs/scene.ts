@@ -2,7 +2,7 @@ import { Scene, Text, Group, Rectangle, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
   readFeed,
@@ -136,12 +136,6 @@ function verdict(s: ServiceDay, date: GtfsDate): string {
   if (s.exception === 1) return `${pattern}, but exception_type 1: runs`;
   return `${pattern}: ${s.runs ? 'runs' : 'no service'}`;
 }
-
-/** A card's rows in words, as the card describes itself: for a card drawn in a view, which the stage describes by its words. */
-const cardWords = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
-};
 
 export default class GtfsExplainer extends Scene {
   static meta = {
@@ -410,7 +404,7 @@ export default class GtfsExplainer extends Scene {
       },
       { place: false },
     );
-    await s.enter(verdicts, { runTime: 0.35, shift: [0, -0.08], describe: () => cardWords(verdicts.current) });
+    await s.enter(verdicts, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ week: the services' dates as a grid
     const grid = weekGrid(FEED, date);
@@ -497,7 +491,7 @@ export default class GtfsExplainer extends Scene {
     // A staged step: the stage is cleared and the grid drawn from `week` and `date`, the date it frames.
     // A phone opens on the date asked about, with its neighbours either side as room allows.
     await s.steps([
-      staged({
+      stagedStep({
         id: 'week',
       title:
         grid.trips[col] === 0 && empties.length === 1
@@ -618,7 +612,7 @@ export default class GtfsExplainer extends Scene {
     // A staged step: the stage is cleared and the card drawn from the stop's day, the calendar-only day when that
     // is empty, and the date the card is titled with.
     await s.steps([
-      staged({
+      stagedStep({
         id: 'departures',
       title: !leaving.length
         ? `Nothing leaves ${name} on ${shortDate(date)}`

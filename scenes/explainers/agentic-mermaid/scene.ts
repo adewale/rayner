@@ -1,9 +1,9 @@
-import { Scene, Group, Rectangle, view } from '../../../src/index.ts';
-import type { Box, Mobject, Vec, View } from '../../../src/index.ts';
+import { Scene, Group, view } from '../../../src/index.ts';
+import type { Box, Mobject, View } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS, regionBox, CodeBlock } from '../../../explain/index.ts';
 import type { Diagram, NoteSide } from '../../../explain/index.ts';
 import { keyed } from '../lib/lesson-drawing.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 const STYLE = 'blueprint';
 const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';
 const GOOD = 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]';
@@ -62,7 +62,6 @@ interface NoteState { part: string; text: string; side: NoteSide; size?: number 
 interface DiagramState { source: string; marks: { part: string; tone: Tone; as: string }[]; notes: NoteState[] }
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
-const OPPOSITE: Record<NoteSide, NoteSide> = { above: 'below', below: 'above', left: 'right', right: 'left' };
 
 export default class MermaidExplainer extends Scene {
   static meta = {
@@ -122,7 +121,9 @@ export default class MermaidExplainer extends Scene {
     const first = FIRST[edit],
       broken = BROKEN[edit];
     const colors: Record<Tone, string> = { emphasis: s.emphasis, bad: s.bad, good: s.good };
-    const block = (lines: readonly string[], fontSize = 0.3, at: Box = SIDE) => new CodeBlock(this, s.palette, lines, { at, fontSize });
+    /** A code panel; `focus` puts its bar on line i or lines [a, b]. */
+    const block = (lines: readonly string[], fontSize = 0.3, at: Box = SIDE, focus?: number | [number, number]) =>
+      new CodeBlock(this, s.palette, lines, { at, fontSize, ...(focus != null ? { focus } : {}) });
     /** Side panels share one left edge and one gap, stacked and centred beside the diagram. */
     const stack = (...panels: Mobject[]) => {
       const total = panels.reduce((h, p) => h + p.height(), 0) + GAP * (panels.length - 1);
@@ -132,25 +133,6 @@ export default class MermaidExplainer extends Scene {
         top -= p.height() + GAP;
       }
       return panels;
-    };
-    /** A code panel in words, as the stage describes one: each line by its number. */
-    const inWords = (code: CodeBlock) => {
-      const seen = code.describe();
-      return `${seen.what}: ${seen.parts.map((p) => `${p.name}${p.mark ? ` (${p.mark})` : ''}`).join('; ')}`;
-    };
-    /** The focus bar on lines a..b, where CodeBlock.focus leaves it. */
-    const focusBar = (code: CodeBlock, a: number, b: number, key: string) => {
-      const lines = code.code.lines,
-        pitch = Math.abs(lines[1]!.anchorPoint()[1] - lines[0]!.anchorPoint()[1]);
-      const y0 = lines[a]!.anchorPoint()[1] + pitch / 2,
-        y1 = lines[b]!.anchorPoint()[1] - pitch / 2;
-      const to = new Rectangle({ width: code.panel.width() - 0.14, height: Math.abs(y0 - y1), cornerRadius: 0.05 }).moveTo([code.panel.center()[0], (y0 + y1) / 2]);
-      code.bar.subpaths = to.subpaths.map((p) => p.slice());
-      code.bar.closed = [...to.closed];
-      code.bar.invalidateBox();
-      code.bar.setOpacity(1);
-      code.bar.key = key;
-      return code;
     };
 
     // The diagrams on show, by slot. Each is laid out from its pinned snapshot; once built, a view draws
@@ -162,55 +144,31 @@ export default class MermaidExplainer extends Scene {
       if (!d || d.spec.source !== st.source) throw new Error(`The ${slot} diagram on show is not the one the state records`);
       return d;
     };
-    /** A note beside a part, as Diagram.note draws and places one, from the state's words. */
-    const notePicture = (d: Diagram, note: NoteState, key: string) => {
-      const size = note.size ?? 0.22;
-      const label = this.text(note.text, { fontSize: size, color: s.emphasis });
-      const bg = new Rectangle({ width: label.width() + size * 1.4, height: size * 1.85, fill: s.raised, stroke: s.emphasis, strokeWidth: 0.014, cornerRadius: 0.08 });
-      label.moveTo(bg.center());
-      const g = new Group(bg, label);
-      const box = d.get(note.part).box()!,
-        frame = d.frameBox,
-        w = g.width(),
-        h = g.height();
-      const at = (side: NoteSide): Vec => {
-        let [x, y] = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
-        if (side === 'above') y = box[3] + 0.14 + h / 2;
-        else if (side === 'below') y = box[1] - 0.14 - h / 2;
-        else if (side === 'left') x = box[0] - 0.14 - w / 2;
-        else x = box[2] + 0.14 + w / 2;
-        return [Math.min(Math.max(x, frame[0] + w / 2 + 0.05), frame[2] - w / 2 - 0.05), Math.min(Math.max(y, frame[1] + h / 2 + 0.05), frame[3] - h / 2 - 0.05)];
-      };
-      const clear = ([x, y]: Vec) => x + w / 2 <= box[0] || x - w / 2 >= box[2] || y + h / 2 <= box[1] || y - h / 2 >= box[3];
-      const tries = [...new Set<NoteSide>([note.side, OPPOSITE[note.side], 'above', 'below'])].map(at);
-      return keyed(g.moveTo(tries.find(clear) ?? tries[0]!), key);
-    };
-    /** The diagram in `slot` as the state records it; `prefix` keeps two diagrams' part keys apart. */
+    /** The diagram in `slot` as the state records it, its notes beside it; `prefix` keeps two diagrams' part keys apart. */
     const diagramPicture = (slot: Slot, prefix: string) => (state: object) => {
       const st = (state as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
       const d = diagramOf(slot, st);
-      const art = d.picture(Object.fromEntries(st.marks.map((m) => [m.part, colors[m.tone]])));
-      if (prefix) for (const m of art.family()) if (m.key !== undefined) m.key = prefix + m.key;
-      return new Group(art, ...st.notes.map((n) => notePicture(d, n, `${prefix}note:${n.part}`)));
+      const art = d.picture(Object.fromEntries(st.marks.map((m) => [m.part, colors[m.tone]])), {
+        notes: st.notes.map((n) => ({ id: n.part, text: n.text, side: n.side, ...(n.size ? { size: n.size } : {}) })),
+        prefix,
+      });
+      return st.notes.length ? art : new Group(art);
     };
     const diagramState = (slot: Slot) => (this.state as unknown as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot];
-    /** What the marks and notes say, for the description: the diagram itself is described by its live copy. */
+    /** What the marks say, for the description: the diagram itself is described by its live copy, and each note by itself. */
     const marksInWords = (slot: Slot) => () => {
       const st = diagramState(slot);
       if (!st) return '';
       const name = (part: string) => part.replace(/^edge:/, '');
-      return [...st.marks.map((m) => `${name(m.part)}: ${m.as}`), ...st.notes.map((n) => `note beside ${name(n.part)}: ${n.text}`)].join('; ');
+      return st.marks.map((m) => `${name(m.part)}: ${m.as}`).join('; ');
     };
-    // What the views mark, read from state: each marked part and each note, by its key.
+    // What the views mark, read from state: each marked part by its key. Each note says what it emphasises itself.
     const PREFIX: Record<Slot, string> = { main: '', wrong: 'wrong:', right: 'right:', history: '' };
     s.emphasise(() => {
       const all = (this.state as { diagrams?: Partial<Record<Slot, DiagramState>> }).diagrams ?? {};
       return Object.entries(all).flatMap(([slot, st]) => {
         const prefix = PREFIX[slot as Slot];
-        return [
-          ...st!.marks.map((m): [string, string] => [prefix + m.part, `mark ${colors[m.tone]} ${m.as}`]),
-          ...st!.notes.map((n): [string, string] => [`${prefix}note:${n.part}`, `note ${n.text}`]),
-        ];
+        return st!.marks.map((m): [string, string] => [prefix + m.part, `mark ${colors[m.tone]} ${m.as}`]);
       });
     });
     /** Show a diagram in a slot, built in, then hand it to a view of the state. The view starts as the built picture. */
@@ -281,7 +239,7 @@ export default class MermaidExplainer extends Scene {
       return source.moveTo([SIDE[0], SIDE[3] - 0.5], [-1, 1]);
     };
     const sourcePanel = view(this, (st) => keyed(sourceAt(st), 'mermaid-source'), { place: false });
-    await s.enter(sourcePanel, { runTime: 0.35, describe: () => inWords(sourcePanel.current as CodeBlock) });
+    await s.enter(sourcePanel, { runTime: 0.35 });
 
     await this.step('verify', {
       title: missing ? 'verify(flow) returns ok: true, with two warnings' : 'verify(flow) returns ok: true, with no warnings',
@@ -323,11 +281,12 @@ export default class MermaidExplainer extends Scene {
       },
       { place: false },
     );
-    await s.enter(reportPanel, { runTime: 0.35, describe: () => inWords(reportPanel.current as CodeBlock) });
+    await s.enter(reportPanel, { runTime: 0.35 });
 
     // A source the renderer cannot draw: its text, the pinned verifier's report on it, the line that breaks it.
     const brokenPicture = (st: { broken: typeof BROKEN_REPORT & { source: string } }) => {
-      const source = focusBar(block(st.broken.source.split('\n'), 0.42, REGIONS.main), 2, 2, 'mermaid-broken-edge');
+      // The line that breaks it in focus.
+      const source = block(st.broken.source.split('\n'), 0.42, REGIONS.main, 2);
       const report = block([
         `verify(flow).ok: ${st.broken.ok}`,
         `warnings: ${st.broken.warnings.length}`,
@@ -338,9 +297,8 @@ export default class MermaidExplainer extends Scene {
       const note = this.text('The renderer cannot draw this source: no picture', { fontSize: 0.28, color: s.soft }).moveTo([-3.2, -2.6]);
       return new Group(source, ...stack(report), note);
     };
-    s.emphasise(() => [['mermaid-broken-edge', 'lines 2-2']]);
     await s.steps([
-      staged({
+      stagedStep({
         id: 'broken',
         title: 'Cut the end off an edge, and verify returns ok: false',
         line: 'With no node at the end of its last arrow, can this source be drawn at all?',
@@ -353,7 +311,6 @@ export default class MermaidExplainer extends Scene {
     /** The side column of a step: code panels from the state's lines, stacked. */
     const column = (key: string) =>
       view(this, (st) => keyed(new Group(...stack(...(st as unknown as { column: string[][] }).column.map((lines) => block(lines)))), key), { place: false });
-    const columnWords = (v: View) => () => v.current.children.map((c) => inWords(c as CodeBlock)).join('. ');
     if (swapped) {
       await this.step('flagged', {
         title: 'Delete both labels, and the verifier warns twice',
@@ -370,7 +327,7 @@ export default class MermaidExplainer extends Scene {
       await restyle(v, 'main', { marks: ['A', ...flagged.warnings.map((w) => w.part)].map((part) => ({ part, tone: 'emphasis', as: 'flagged' })) });
       this.state.column = [BAD.split('\n'), reportLines(flagged)];
       const side = column('mermaid-flagged-column');
-      await s.enter(side, { runTime: 0.35, describe: columnWords(side) });
+      await s.enter(side, { runTime: 0.35 });
     }
 
     if (missing) {
@@ -382,18 +339,13 @@ export default class MermaidExplainer extends Scene {
       await s.clear();
       const repaired = await show('main', BAD, 'main');
       this.state.ops = OPS;
-      /** The edits as code, in the side column. */
+      /** The edits as code, in the side column, all in focus. */
       const opsBlock = (st: object) => {
         const ops = (st as unknown as { ops: typeof OPS }).ops;
-        return stack(block(ops.flatMap((op) => [`{ kind: '${op.kind}',`, `  target: '${op.target}',`, `  label: '${op.label}' }`])))[0] as CodeBlock;
+        return stack(block(ops.flatMap((op) => [`{ kind: '${op.kind}',`, `  target: '${op.target}',`, `  label: '${op.label}' }`]), 0.3, SIDE, [0, ops.length * 3 - 1]))[0] as CodeBlock;
       };
-      const opsPanel = view(
-        this,
-        (st) => keyed(focusBar(opsBlock(st), 0, (st as unknown as { ops: typeof OPS }).ops.length * 3 - 1, 'mermaid-ops-focus'), 'mermaid-ops'),
-        { place: false },
-      );
-      s.emphasise(() => [['mermaid-ops-focus', `lines 0-${OPS.length * 3 - 1}`]]);
-      await s.enter(opsPanel, { runTime: 0.35, describe: () => inWords(opsPanel.current as CodeBlock) });
+      const opsPanel = view(this, (st) => keyed(opsBlock(st), 'mermaid-ops'), { place: false });
+      await s.enter(opsPanel, { runTime: 0.35 });
       // The edits are replayed through Agentic Mermaid at build time, and must give the labelled source.
       await repaired.morph({ source: GOOD }, { ops: OPS });
       const v = adopt('main');
@@ -409,7 +361,7 @@ export default class MermaidExplainer extends Scene {
         },
         { place: false },
       );
-      await s.enter(rerunPanel, { runTime: 0.35, describe: () => inWords(rerunPanel.current as CodeBlock) });
+      await s.enter(rerunPanel, { runTime: 0.35 });
     }
 
     await this.step('meaning', {
@@ -474,10 +426,7 @@ export default class MermaidExplainer extends Scene {
         { place: false },
       );
     const reports = { wrong: reportBeside('wrong'), right: reportBeside('right') };
-    await s.enter(reports.wrong, reports.right, {
-      runTime: 0.35,
-      describe: () => `${inWords(reports.wrong.current as CodeBlock)}. ${inWords(reports.right.current as CodeBlock)}`,
-    });
+    await s.enter(reports.wrong, reports.right, { runTime: 0.35 });
     // On a phone the step opens on the two reports, whose first lines name where each yes path ends;
     // the diagrams and their coloured paths follow in the close-up tour.
     s.opening(reports.wrong, reports.right);

@@ -2,7 +2,7 @@ import { Group } from '../../../../src/index.ts';
 import { find, run } from '../2password.ts';
 import { flow, label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The script's answer, stated by the second step. */
 export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';
@@ -13,7 +13,7 @@ export function frames(): StagedStep[] {
     ref = found.matches[0]!.ref,
     launched = run('desktop', { API_KEY: ref }, ['app']);
   return [
-    staged({
+    stagedStep({
       id: 'ask',
       title: 'An agent must start an app without reading its key',
       line: 'Predict: what could the agent pass along instead of the key?',
@@ -28,7 +28,7 @@ export function frames(): StagedStep[] {
           ...(st.agentHasValue ? [] : [label('must not read', -4.8, -0.3, s.bad, 0.62), label('the value', -4.8, -1.15, s.bad, 0.62)]),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-boundary',
       title: 'Answer: hand over a reference, and let op swap in the value',
       line: `The agent passes ${ref}; op gives its value to the app.`,

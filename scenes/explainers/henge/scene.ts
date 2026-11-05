@@ -5,7 +5,7 @@ import { label } from '../lib/lesson-drawing.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { depthOrder, seenPictures } from '../../../explain/drawing.ts';
 import type { Seen, SeenPicture } from '../../../explain/drawing.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 import { henge, declination, sunset } from '../lib/henge.ts';
 import type { Street } from '../lib/henge.ts';
 import { dome, year, look, globes, crossedBy, INK, SUN, SUMMER, MUTED, ROAD } from './sky.ts';
@@ -166,35 +166,35 @@ export default class Henge extends Scene {
     const day = ({ declination, hourAngle }: { declination: number; hourAngle: number }) => ({ declination, hourAngle });
     const percent = (d: Sunset) => `${Math.round((d.hourAngle / 180) * 100)}%`;
     const before: StagedStep[] = [
-      staged({ id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
+      stagedStep({ id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
         caption: manhattan
           ? 'Look west down 42nd Street. On a few evenings a year, in late May and mid-July, the low Sun fits between the buildings; the Hayden Planetarium calls it Manhattanhenge. The buildings point the same way all year, so what changes must be where the Sun sets.'
           : 'This scenario turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
         state: { bearing: m.bearing, street: m.street }, draw: (st, s) => tagged(new Group(streetView(false, s.palette.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street') }),
-      staged({ id: 'overhead',
+      stagedStep({ id: 'overhead',
         title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',
         line: 'North is up; the grid is schematic. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
         caption: manhattan
           ? `${ANSWER}. From above, Manhattan’s cross streets point ${(m.bearing - 270).toFixed(1)}° north of west, and the same angle south of east at the other end. On an alignment evening the setting Sun lies on that line and shines straight down 42nd Street. That morning it rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° from the street’s other end, which faces the sunrise only on winter mornings either side of the December solstice.`
           : `${ANSWER}. This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days.`,
         state: { alignment: m.alignment, backCrossings: m.backCrossings, bearing: m.bearing, street: m.street }, draw: overhead }),
-      staged<SkyState>({ id: 'sky', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
+      stagedStep<SkyState>({ id: 'sky', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
         line: manhattan ? `The red arc rises from the horizon where the street points, ${west(m.bearing)}.` : 'The red arc rises from the horizon where the street points, due west.',
         caption: `New York’s sky as a dome, seen from outside, west of it. Each day the Sun’s centre goes round a circle about the celestial pole; the bold arc is its day, ending at a flat horizon. In June more of the circle lies above the horizon and it ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. The circle shifts because Earth’s axis is tilted: the north leans toward the Sun in June, away in December.`,
         state: { bearing: m.bearing, days: m.seasons.map(({ declination, azimuth, hourAngle }) => ({ declination, hourAngle, azimuth })) }, draw: dome }),
     ];
     const crossings: StagedStep[] = [
-      staged({ id: 'crossings', title: manhattan ? 'Across the street in May, back across it in July' : 'A due-west street aligns near the equinoxes', line: 'Change the street setting: the sky stays the same.',
+      stagedStep({ id: 'crossings', title: manhattan ? 'Across the street in May, back across it in July' : 'A due-west street aligns near the equinoxes', line: 'Change the street setting: the sky stays the same.',
         caption: `The same year as a chart: across, March to the following March; up, how far north along the horizon the Sun sets. The red line stays at this street’s bearing. ${manhattan ? 'The sunset direction passes the street before June, turns a little farther north, then returns across it. This gives the May and July alignment seasons.' : 'The same curve crosses due west near March and September, instead of near May and July.'} Changing the street changes the direction we wait for, not Earth’s motion. The calendar spacing is an idealised circular orbit, not a viewing timetable.`,
         state: { bearing: m.bearing, crossings: m.half, street: m.street, annual: m.annual.map(({ longitude, azimuth }) => ({ longitude, azimuth })) }, draw: annual }),
     ];
     const details: StagedStep[] = [
-      staged<GlobeState>({ id: 'tilt', kind: 'detail', title: 'One axis direction, opposite sides of the Sun', line: 'Why the Sun’s daily circle shifts: Earth’s tilt, seen from beside its orbit.',
+      stagedStep<GlobeState>({ id: 'tilt', kind: 'detail', title: 'One axis direction, opposite sides of the Sun', line: 'Why the Sun’s daily circle shifts: Earth’s tilt, seen from beside its orbit.',
         caption: `Earth’s axis keeps nearly the same direction through the year. In June the north leans sunward; in December it leans away. The red dot is New York at noon, on the circle Earth’s daily turn carries it round: gold where that circle is in sunlight, dark where it is in night. In June ${percent(june)} of the circle is in sunlight, in December ${percent(december)}. Sizes and distances here are schematic.`,
         state: { latitude: m.latitude, tilt: m.tilt, june: day(june), december: day(december) }, draw: globes }),
     ];
     const after: StagedStep[] = [
-      staged({ id: 'disc', kind: 'detail', title: 'One bearing still leaves the Sun’s height to explain', line: `Half Sun and full Sun come ${gap} days apart in this model.`,
+      stagedStep({ id: 'disc', kind: 'detail', title: 'One bearing still leaves the Sun’s height to explain', line: `Half Sun and full Sun come ${gap} days apart in this model.`,
         caption: `Both views keep the Sun centred down the street. Half Sun puts its centre on the visible horizon; full Sun puts its bottom edge there. During the ${seasonNames[0]} sweep the aligned Sun rises from half to full: full Sun comes ${gap} days after half Sun, ${manhattan ? 'about one evening to the next' : 'within one evening, because near an equinox the Sun’s path shifts fastest from day to day'}. During the ${seasonNames[1]} return the order reverses. These are neighbouring dates, not stages of one evening’s descent.`,
         state: { half: m.half, full: m.full, radius: m.radius, gapDays: m.gapDays, street: m.street }, draw: disc }),
     ];

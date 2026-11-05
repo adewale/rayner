@@ -1,7 +1,7 @@
 import { Group } from '../../../../src/index.ts';
 import { flow, label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The scene's one-sentence answer, which the outcome step states in both scenarios. */
 export const ANSWER = 'A hit saves the database read; a miss still makes it, and adds a cache read and write';
@@ -9,7 +9,7 @@ export const ANSWER = 'A hit saves the database read; a miss still makes it, and
 export function frames(which: 'hit' | 'miss'): StagedStep[] {
   const reads = (n: number) => (n === 1 ? 'one database read' : `${n} database reads`);
   return [
-    staged({
+    stagedStep({
       id: 'reader-request',
       title: 'Does this request need the database?',
       line: `Predict: a saved copy sits in front of the database. What does a cache ${which} cost?`,
@@ -22,7 +22,7 @@ export function frames(which: 'hit' | 'miss'): StagedStep[] {
           label(`Before: ${reads(st.beforeReads)}`, 0, -1.4, s.palette.ink, 0.8),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-outcome',
       title: which === 'hit' ? 'Answer: the hit skips the database' : 'Answer: the miss still reads the database',
       line: which === 'hit' ? 'The key already has a stored value.' : 'The key has no stored value yet.',

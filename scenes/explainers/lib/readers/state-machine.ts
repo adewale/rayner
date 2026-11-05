@@ -2,7 +2,7 @@ import { Group } from '../../../../src/index.ts';
 import { reduceSession, sessionAttempt } from '../models.ts';
 import { flow, label, tile } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The scene's one-sentence answer, which the reject step states in both histories. */
 export const ANSWER =
@@ -15,7 +15,7 @@ export function frames(which: string): StagedStep[] {
   const rejected = sessionAttempt(closed, 'OPENED');
   const ended = which === 'success' ? 'CLOSE moves open to closed' : `ERROR already moved connecting to ${closed}`;
   return [
-    staged({
+    stagedStep({
       id: 'reader-path',
       title: 'Should a late OPENED reopen a closed session?',
       line: `Predict: the session ends in ${closed}, then an OPENED arrives. What happens?`,
@@ -29,7 +29,7 @@ export function frames(which: string): StagedStep[] {
           label('Current state + event → next state', 0, -1.8, s.palette.ink, 0.7),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-reject',
       title: 'Answer: no. Closed has no row for OPENED',
       line: 'The reducer looks up the current state and the event together.',

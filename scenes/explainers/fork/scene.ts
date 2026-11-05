@@ -1,5 +1,5 @@
 import { table, keyed } from '../lib/lesson-drawing.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 import { Scene, Rectangle, Text, Group, Circle, Cross, Line, Arrow, view } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
@@ -348,7 +348,7 @@ export default class ForkExplainer extends Scene {
       return new Group(heading, scenarios, tag, four, unknown, redirect, refusal);
     };
     await s.steps([
-      staged({
+      stagedStep({
         id: 'choice',
         title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
         line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
@@ -383,7 +383,7 @@ export default class ForkExplainer extends Scene {
 
     // 5. The price, the ending: every combination of settings is a scenario to build and check.
     await s.steps([
-      staged({
+      stagedStep({
         id: 'scenarios',
         title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${SCENARIOS} scenarios to build`,
         line: 'Every combination of options is a scenario the build makes and rayner check tests.',
@@ -425,39 +425,19 @@ export default class ForkExplainer extends Scene {
       { trail: true },
     );
     this.state.families = FAMILIES;
-    // The count of families, said below Capture in a diagram note's look: drawn from the state.
-    const NOTE = 0.22;
+    // The count of families, said in a note below Capture: drawn from the state. The note describes itself
+    // and says what it emphasises.
     const familiesNote = view(
       this,
-      (st) => {
-        const label = new Text(`${(st as { families: number }).families} diagram families, Chromium at build`, { fontSize: NOTE, color: s.emphasis });
-        const bg = new Rectangle({
-          width: label.width() + NOTE * 1.4,
-          height: NOTE * 1.85,
-          fill: s.raised,
-          stroke: s.emphasis,
-          strokeWidth: 0.014,
-          cornerRadius: 0.08,
-        });
-        label.moveTo(bg.center());
-        // Below its part, as Diagram.note places a note, kept inside the diagram's box.
-        const g = new Group(bg, label);
-        const part = flow.get('Capture').box()!,
-          frame = flow.frameBox,
-          w = g.width(),
-          h = g.height();
-        const x = Math.min(Math.max((part[0] + part[2]) / 2, frame[0] + w / 2 + 0.05), frame[2] - w / 2 - 0.05),
-          y = Math.min(Math.max(part[1] - 0.14 - h / 2, frame[1] + h / 2 + 0.05), frame[3] - h / 2 - 0.05);
-        return keyed(g.moveTo([x, y]), 'fork-families-note');
-      },
+      (st) =>
+        flow.notePicture('Capture', `${(st as { families: number }).families} diagram families, Chromium at build`, {
+          side: 'below',
+          color: s.emphasis,
+          key: 'fork-families-note',
+        }),
       { place: false },
     );
-    await s.enter(familiesNote, {
-      runTime: 0.35,
-      shift: [0, -0.06],
-      describe: () => `Below Capture: ${(this.state as { families: number }).families} diagram families, Chromium at build`,
-    });
-    s.emphasise(() => [['fork-families-note', `note: ${(this.state as { families?: number }).families} diagram families`]]);
+    await s.enter(familiesNote, { runTime: 0.35, shift: [0, -0.06] });
     await flow.note('Page', 'no diagram renderer', { side: 'above' });
 
     // A detail after the ending: the page holds each resting picture for its caption. It reads the

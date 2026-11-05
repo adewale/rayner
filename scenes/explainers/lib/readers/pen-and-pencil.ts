@@ -4,7 +4,7 @@ import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from '../p
 import type { Pt, Box } from '../pen-and-pencil.ts';
 import { label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The two drawings the plate compares: the first in grey, the second in ink. */
 export const SEEDS = { first: 1967, second: 7 } as const;
@@ -105,7 +105,7 @@ export function frames(seed: number): StagedStep[] {
   if (between > 0.06 - 0.0175) throw new Error(`The two drawings are ${between} apart, wider than the grey line shows`);
   const worst = Math.max(...apart);
   return [
-    staged({
+    stagedStep({
       id: 'reader-drift',
       title: 'If the hand places the boxes, a second drawing moves them',
       line: 'Grey: the first drawing. Dark: the second. Dashed: where the boxes belong.',
@@ -120,7 +120,7 @@ export function frames(seed: number): StagedStep[] {
           label(`Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.palette.ink, 0.56),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',

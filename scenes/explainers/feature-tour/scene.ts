@@ -429,10 +429,9 @@ export default class FeatureTour extends Scene {
       await s.card([['Default scenario', options.default]], { at: BEFORE, fontSize: 0.45 });
       await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, fontSize: 0.55 });
     } else if (feature === 'diagram') {
-      // One live diagram; the before panel is a picture of it, re-keyed so each key names one part.
+      // One live diagram; the before panel is a picture of it, its keys prefixed so each key names one part.
       const d = await s.show({ source: 'graph LR\nA[Start] --> B[Finish]' }, { box: AFTER });
-      const before = d.picture();
-      for (const m of before.family()) if (m.key && !m.key.startsWith('__')) m.key = `before:${m.key}`;
+      const before = d.picture({}, { prefix: 'before:' });
       const [x0, y0, x1, y1] = before.box()!;
       const k = Math.min((BEFORE[2] - BEFORE[0]) / (x1 - x0), (BEFORE[3] - BEFORE[1]) / (y1 - y0), 1);
       const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];

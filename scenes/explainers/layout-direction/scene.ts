@@ -1,6 +1,6 @@
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, CodeBlock } from '../../../explain/index.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 import type { LayoutDirection, Card } from '../../../explain/index.ts';
 
 const ROWS: [string, number][] = [['Field', 123]];
@@ -72,7 +72,7 @@ export default class LayoutDirectionExplainer extends Scene {
     // drawn from the layout the step's state records: the stage's direction and each card's options.
     const layout = { direction, start: { ...START }, end: { ...END } };
     await s.steps([
-      staged({
+      stagedStep({
         id: 'code',
         title: `One layout on a ${reading} stage: which side is Start?`,
         line: 'Each card names a logical place, start or end, not a side of the page.',

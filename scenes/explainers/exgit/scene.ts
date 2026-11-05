@@ -53,7 +53,6 @@ interface GitState {
   samePlace: { tree: number; commit: number };
   paired: { tree: number; commit: number };
 }
-const OPPOSITE: Record<NoteSide, NoteSide> = { above: 'below', below: 'above', left: 'right', right: 'left' };
 /** What the last `n` matching transforms of the scene recorded (Scene.record): their pairing, as evidence. */
 const lastMatches = (scene: Scene, n: number): Evidence[] => {
   const found = scene.evidence.filter((e) => e.kind === 'match').slice(-n);
@@ -126,43 +125,22 @@ export default class GitExplainer extends Scene {
       ink = s.palette.ink,
       accent = s.emphasis;
     const st = () => this.state as unknown as GitState;
-    /** A code panel, as s.code lays one out, for a view to draw from state; `focus` puts its bar on lines a..b. */
-    const block = (lines: readonly string[], at: Box, focus?: readonly [number, number] | null, key?: string) => {
-      const code = new CodeBlock(this, s.palette, lines, { at });
-      if (focus) {
-        const [a, b] = focus,
-          ls = code.code.lines,
-          pitch = Math.abs(ls[1]!.anchorPoint()[1] - ls[0]!.anchorPoint()[1]);
-        const y0 = ls[a]!.anchorPoint()[1] + pitch / 2,
-          y1 = ls[b]!.anchorPoint()[1] - pitch / 2;
-        const to = new Rectangle({ width: code.panel.width() - 0.14, height: Math.abs(y0 - y1), cornerRadius: 0.05 }).moveTo([code.panel.center()[0], (y0 + y1) / 2]);
-        code.bar.subpaths = to.subpaths.map((p) => p.slice());
-        code.bar.closed = [...to.closed];
-        code.bar.invalidateBox();
-        code.bar.setOpacity(1);
-      }
-      if (key) code.bar.key = key;
-      return code;
-    };
-    /** A code panel in words, as the stage describes one: each line by its number, the focused ones said so. */
-    const inWords = (code: CodeBlock, focus?: readonly [number, number] | null) => {
-      const seen = code.describe();
-      return `${seen.what}: ${seen.parts.map((p, i) => `${p.name}${focus && i >= focus[0] && i <= focus[1] ? ' (focused)' : ''}`).join('; ')}`;
-    };
-    /** A code view: the lines `lines(state)` gives, with the focus the state records for `name`. */
+    /**
+     * A code view: the lines `lines(state)` gives, laid out as s.code lays them out, with its bar on the
+     * focus the state records for `name`. The panel describes itself and says what it emphasises.
+     */
     const codeView = (name: string, at: Box, lines: (g: GitState) => string[]) => {
       const draw = (state: object) => {
-        const g = state as unknown as GitState;
-        return keyed(block(lines(g), at, g.focus?.[name] ?? null, `exgit-${name}-focus`), `exgit-${name}`);
+        const g = state as unknown as GitState,
+          focus = g.focus?.[name];
+        return keyed(new CodeBlock(this, s.palette, lines(g), { at, ...(focus ? { focus } : {}) }), `exgit-${name}`);
       };
-      const v = view(this, draw, { place: false });
-      return { v, describe: () => inWords(v.current as CodeBlock, st().focus?.[name] ?? null) };
+      return { v: view(this, draw, { place: false }) };
     };
     const focus = async (code: { v: View }, name: string, lines: readonly [number, number]) => {
       this.state.focus = { ...(st().focus ?? {}), [name]: lines };
       await this.play(code.v.sync({ match: 'index', runTime: 0.4 }));
     };
-    s.emphasise(() => Object.entries(st().focus ?? {}).map(([name, [a, b]]) => [`exgit-${name}-focus`, `lines ${a}-${b}`] as [string, string]));
 
     // ── blob: the bytes that are hashed ────────────────────────────────
     const hello = repo.blob('hello\n');
@@ -287,38 +265,19 @@ export default class GitExplainer extends Scene {
       this.state.diagram = { ...st().diagram, marks };
       await this.play(diagramView!.sync({ match: 'index', runTime }));
     };
-    // Notes beside the diagram's parts, each its own view of the state, as Diagram.note draws and places one.
+    // Notes beside the diagram's parts, each its own view of the state, as Diagram.note draws and places one;
+    // each describes itself and says what it emphasises.
     const notes = new Map<string, View>();
     const notePicture = (id: string) => (state: object) => {
       const n = (state as unknown as GitState).notes.find((x) => x.id === id)!;
-      const size = 0.22;
-      const label = this.text(n.text, { fontSize: size, color: accent });
-      const bg = new Rectangle({ width: label.width() + size * 1.4, height: size * 1.85, fill: s.raised, stroke: accent, strokeWidth: 0.014, cornerRadius: 0.08 });
-      label.moveTo(bg.center());
-      const g = new Group(bg, label);
-      const box = d.get(n.part).box()!,
-        frame = d.frameBox,
-        w = g.width(),
-        h = g.height();
-      const at = (side: NoteSide): Vec => {
-        let [x, y] = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
-        if (side === 'above') y = box[3] + 0.14 + h / 2;
-        else if (side === 'below') y = box[1] - 0.14 - h / 2;
-        else if (side === 'left') x = box[0] - 0.14 - w / 2;
-        else x = box[2] + 0.14 + w / 2;
-        return [Math.min(Math.max(x, frame[0] + w / 2 + 0.05), frame[2] - w / 2 - 0.05), Math.min(Math.max(y, frame[1] + h / 2 + 0.05), frame[3] - h / 2 - 0.05)];
-      };
-      const clear = ([x, y]: Vec) => x + w / 2 <= box[0] || x - w / 2 >= box[2] || y + h / 2 <= box[1] || y - h / 2 >= box[3];
-      const tries = [...new Set<NoteSide>([n.side, OPPOSITE[n.side], 'above', 'below'])].map(at);
-      return keyed(g.moveTo(tries.find(clear) ?? tries[0]!), `exgit-note:${id}`);
+      return d.notePicture(n.part, n.text, { side: n.side, color: accent, key: `exgit-note:${id}` });
     };
     const note = async (id: string, part: string, text: string, side: NoteSide) => {
       this.state.notes = [...(st().notes ?? []), { id, part, text, side }];
       const v = view(this, notePicture(id), { place: false });
       notes.set(id, v);
-      await s.enter(v, { runTime: 0.35, shift: [0, -0.06], describe: () => `Beside ${part.replace(/^edge:/, '')}: ${text}` });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.06] });
     };
-    s.emphasise(() => (st().notes ?? []).map((n) => [`exgit-note:${n.id}`, `note ${n.text}`] as [string, string]));
     /** The marks go and the notes fade, then the live diagram, back in the view's place, morphs to `next`. */
     const morph = async (next: string) => {
       const going = [...notes.values()];
@@ -352,7 +311,7 @@ export default class GitExplainer extends Scene {
     this.state.trees = { [t1]: treeOf(repo, t1) };
     const treeCode = codeView('tree', BOTTOM, (g) => treeLines(g.trees[g.t1]!, g.t1));
     await s.carry(idView, (treeCode.v.current as CodeBlock).code.token(1, hello).box()!);
-    s.keep(treeCode.v, { describe: treeCode.describe });
+    s.keep(treeCode.v);
     await this.play(new FadeIn(treeCode.v, { runTime: 0.4 }), new FadeOut(idView, { runTime: 0.4 }));
     const B1 = `Hello["blob<br/>${short(hello)}"]`;
     const T1 = `T1["tree ${short(t1)}<br/>hello.txt"]`;
@@ -373,7 +332,7 @@ export default class GitExplainer extends Scene {
     const COMMIT = `graph LR\nMain([main])\n${C1}\n${T1}\n${B1}\nMain --> C1\nC1 --> T1\nT1 --> Hello`;
     Object.assign(this.state, { c1, head: repo.resolve('refs/heads/main'), commits: { [c1]: objectLines(repo, c1) } });
     const commitCode = codeView('commit', BOTTOM, (g) => g.commits[g.c1]!);
-    s.keep(commitCode.v, { describe: commitCode.describe });
+    s.keep(commitCode.v);
     await this.play(new FadeOut(treeCode.v), new FadeIn(commitCode.v));
     await morph(COMMIT);
     const toBlob: [string, string][] = [
@@ -563,7 +522,7 @@ export default class GitExplainer extends Scene {
     await this.play(...leaving.map((m) => new FadeOut(m, { runTime: 0.3 })));
     this.state.commits = { ...st().commits, [c2]: objectLines(repo, c2) };
     const bodyCode = codeView('body', LEFT, (g) => g.commits[g.c2]!);
-    s.keep(bodyCode.v, { describe: bodyCode.describe });
+    s.keep(bodyCode.v);
     await this.play(new FadeIn(bodyCode.v, { runTime: 0.4 }));
     // The two ids above the change: each old id stays, and a copy of it morphs, glyph by glyph,
     // into the new id under it. The morph pairs equal digits wherever they sit, longest runs

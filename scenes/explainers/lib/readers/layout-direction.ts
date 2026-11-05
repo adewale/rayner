@@ -1,12 +1,12 @@
 import { Group, Arrow } from '../../../../src/index.ts';
 import { tile, label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 export function frames(): StagedStep[] {
   // Where a logical side sits on the stage.
   const x = (side: string) => (side === 'right' ? 3.8 : -3.8);
   return [
-    staged({
+    stagedStep({
       id: 'reader-place',
       title: 'Will Start stay on the left?',
       line: 'An author’s task: reuse a two-panel layout in RTL.',
@@ -22,7 +22,7 @@ export function frames(): StagedStep[] {
           label(`stage(scene, {direction: '${st.direction}'})`, 0, -2.2, s.palette.ink, 0.7),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-fields',
       title: 'Does RTL reverse the value 123?',
       line: 'Panel position and field order are separate settings.',

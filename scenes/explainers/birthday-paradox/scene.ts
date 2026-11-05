@@ -3,7 +3,7 @@ import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
 import { label, tile, stat } from '../lib/lesson-drawing.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 const pct = (p: number) => (100 * p).toFixed(1) + '%';
 const pct2 = (p: number) => (100 * p).toFixed(2) + '%';
@@ -129,7 +129,7 @@ export default class BirthdayParadox extends Scene {
     const five = m.growth.find((r) => r.people === 5)!,
       ten = m.growth.find((r) => r.people === 10)!;
     const frames: StagedStep[] = [
-      staged({
+      stagedStep({
         id: 'room',
         title: 'Do two of these people share a birthday?',
         line: 'Predict: what is the chance that a room this size holds a shared birthday?',
@@ -137,7 +137,7 @@ export default class BirthdayParadox extends Scene {
         state: { people: n, sample: m.sample.first, dates: m.dates },
         draw: (st, s) => room(s, st.sample, st.dates, [], `${st.people} people, ${st.people} random birthdays`),
       }),
-      staged({
+      stagedStep({
         id: 'chance',
         title: shared.length
           ? `This room of ${n} already has ${words[shared.length] ?? shared.length} shared birthdays`
@@ -165,7 +165,7 @@ export default class BirthdayParadox extends Scene {
         },
         opening: ['birthday-people', 'birthday-footer'],
       }),
-      staged({
+      stagedStep({
         id: 'you',
         title: `Your own birthday: only ${m.others} chances to match`,
         line: 'Predict: how many comparisons does the whole room make?',
@@ -175,7 +175,7 @@ export default class BirthdayParadox extends Scene {
           pairGrid(s, { you: true, people: st.people, count: st.others, chance: st.one, matched: [], footer: `Your ${st.others} comparisons, one square each` }),
         opening: ['birthday-you-lines', 'birthday-comparisons', 'birthday-chance'],
       }),
-      staged({
+      stagedStep({
         id: 'pairs',
         title: `Every pair drawn: ${n} people make ${m.pairs} pairs`,
         line:
@@ -218,7 +218,7 @@ export default class BirthdayParadox extends Scene {
           }),
         opening: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
       }),
-      staged({
+      stagedStep({
         id: 'exact',
         kind: 'detail',
         title: `Counting exactly: person ${n} must miss ${n - 1} dates already taken`,
@@ -243,7 +243,7 @@ export default class BirthdayParadox extends Scene {
           return grid;
         },
       }),
-      staged({
+      stagedStep({
         id: 'estimate',
         kind: 'detail',
         title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,

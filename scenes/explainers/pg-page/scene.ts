@@ -1,8 +1,8 @@
-import { Scene, Group, Rectangle, Text, Arrow, FadeOut, view } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Arrow, FadeOut, Create, view } from '../../../src/index.ts';
 import type { Box, Vec, View, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
+import { keyed, callout } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,
   COLUMNS,
@@ -109,11 +109,6 @@ interface PgState {
   why: { used: number; free: number; lower: number; upper: number; heapFree: number; needs: number; unrounded: number };
   compare: Record<Column, { perRow: number; rows: number; pages: number }>;
 }
-/** A card as a reader hears it: its title or count, then each row's label and value, and what is marked. */
-const said = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join(', ')}`;
-};
 
 const SIZE = 0.34;
 const SMALL = 0.28;
@@ -227,7 +222,7 @@ export default class PgPageExplainer extends Scene {
         { place: false },
       );
     /** Enter a card view as s.card enters a card, described as the card describes itself. */
-    const enterCard = (card: View<Card>) => s.enter(card, { runTime: 0.35, shift: [0, -0.08], describe: () => said(card.current) });
+    const enterCard = (card: View<Card>) => s.enter(card, { runTime: 0.35, shift: [0, -0.08] });
     this.state.column = column;
 
     // ------------------------------------------------------------------ the question, on an empty page
@@ -274,13 +269,20 @@ export default class PgPageExplainer extends Scene {
       { place: false },
     );
     await s.enter(outline, header, headerLabel, freeLabel, pageSize, { describe: pageWords });
+    /** A callout drawn from the state, drawn in as s.callout draws one. */
+    const calloutOf = async (draw: (st: PgState) => Group) => {
+      const v = view(this, (state) => draw(state as unknown as PgState), { place: false });
+      s.keep(v);
+      await this.play(new Create(v, { runTime: 0.6, lagRatio: 0.15 }));
+      return v;
+    };
     // pd_lower and pd_upper, said where they point: the free space's top and bottom edges.
-    const lowerAt = (x: number, y: number, value: number) =>
-      s.callout([x, y], `pd_lower ${value}`, { side: 'below', gap: 0.35, size: SMALL });
-    const upperAt = (x: number, y: number, value: number) =>
-      s.callout([x, y], `pd_upper ${value}`, { side: 'above', gap: 0.45, size: SMALL });
+    const lowerAt = (x: number, y: number, value: (st: PgState) => number) =>
+      calloutOf((st) => callout(s, [x, y], `pd_lower ${value(st)}`, { side: 'below', gap: 0.35, size: SMALL }));
+    const upperAt = (x: number, y: number, value: (st: PgState) => number) =>
+      calloutOf((st) => callout(s, [x, y], `pd_upper ${value(st)}`, { side: 'above', gap: 0.45, size: SMALL }));
     const mid = PAGE[0] + pw / 2;
-    const emptyMarks = [await lowerAt(mid, PAGE[3] - HEADER_H, st().empty.lower), await upperAt(mid, PAGE[1], st().empty.upper)];
+    const emptyMarks = [await lowerAt(mid, PAGE[3] - HEADER_H, (st) => st.empty.lower), await upperAt(mid, PAGE[1], (st) => st.empty.upper)];
     const question = cardOf(
       (state) => [...state.pair.map((x) => [`${x.label}, value bytes`, x.valueBytes] as [string, string]), ['Rows a page', '?']],
       { at: ROW_RIGHT, fontSize: SIZE, title: 'Two ways to store the same rows' },
@@ -415,19 +417,24 @@ export default class PgPageExplainer extends Scene {
     // each value said where it points: the new free-space edges, the pointer's target and the data's start.
     const byte = (v: View, x: TupleState, i: number) => v.current.family().find((m) => m.key === `pg-byte:${x.column}:${i}`)!;
     const rowMarks = [
-      await lowerAt(mid, PAGE[3] - HEADER_H - ROW_H, st().row.lower),
-      await upperAt(PAGE[2] - tupleWidth(st().row.stored) / 2, PAGE[1] + ROW_H, st().row.upper),
+      await lowerAt(mid, PAGE[3] - HEADER_H - ROW_H, (st) => st.row.lower),
+      await upperAt(PAGE[2] - tupleWidth(st().row.stored) / 2, PAGE[1] + ROW_H, (st) => st.row.upper),
     ];
-    const [l0, l1] = linkAt(st().row.stored),
-      along: Vec = [l0[0] + 0.3 * (l1[0] - l0[0]), l0[1] + 0.3 * (l1[1] - l0[1])];
     rowMarks.push(
-      await s.callout(along, `lp_off ${st().row.lpOff}, lp_len ${st().row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL }),
+      await calloutOf((st) => {
+        const [l0, l1] = linkAt(st.row.stored),
+          along: Vec = [l0[0] + 0.3 * (l1[0] - l0[0]), l0[1] + 0.3 * (l1[1] - l0[1])];
+        return callout(s, along, `lp_off ${st.row.lpOff}, lp_len ${st.row.lpLen}`, { side: 'right', gap: 0.3, size: SMALL });
+      }),
     );
-    const start = byte(mine, st().tuple, st().row.hoff);
-    const hoffMark = await s.callout(start, `t_hoff ${st().row.hoff}: data starts here`, {
-      side: 'below',
-      gap: start.box()![1] - (GY - (st().tuple.stored / 8) * CELL) + 0.35,
-      size: SMALL,
+    // Under the byte where the data starts, in the row's grid.
+    const hoffMark = await calloutOf((st) => {
+      const start = byte(mine, st.tuple, st.row.hoff);
+      return callout(s, start, `t_hoff ${st.row.hoff}: data starts here`, {
+        side: 'below',
+        gap: start.box()![1] - (GY - (st.tuple.stored / 8) * CELL) + 0.35,
+        size: SMALL,
+      });
     });
 
     // ------------------------------------------------------------------ the answer: the two tuples side by side

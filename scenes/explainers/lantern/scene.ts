@@ -2,7 +2,7 @@ import { Scene, Rectangle, Dot, Circle, Line, Text, Group, VMobject, FadeIn, Tra
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
 import { keyed } from '../lib/lesson-drawing.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 const STYLE = 'hand-drawn';
 
@@ -410,16 +410,18 @@ export default class LanternExplainer extends Scene {
     };
 
     await s.steps([
-      staged({
+      stagedStep({
         id: 'played',
         title: `Played, the dot is halfway at t = ${t} s`,
         line: `A still at t = ${SEEK_T} s skips computing frames 1–${run.seekAt - 1}. Where is its dot?`,
         caption: `A direct link opens a later picture without playing the earlier steps, so Rayner makes that picture as a still. Here a box fades in, then a dot moves along a track. ${how} Playback has the dot halfway at t = ${SEEK_T} s. To make the still, Rayner re-runs the scene and counts frames 1–${run.seekAt - 1} without computing them. Predict where the still’s dot will be before you go on.`,
         // The played frame, and where the still will be taken; what the still shows is not yet known.
         state: { at, played },
+        describe: (st) =>
+          `Left: the tiny scene ${playedLabel(st.at)}, the dot halfway along its track, fingerprint ${st.played.svg}. Right: an empty frame marked with a question mark, ${seekedLabel(st.at)}.`,
         draw: (st) => new Group(thumb(st.played, -THUMB_X, playedLabel(st.at)), thumb(null, THUMB_X, seekedLabel(st.at))),
       }),
-      staged({
+      stagedStep({
         id: 'seek',
         title: match
           ? `The still matches: the same SVG, fingerprint ${print}`
@@ -433,6 +435,10 @@ export default class LanternExplainer extends Scene {
           at,
           stills: { played, seeked },
         },
+        describe: (st) =>
+          st.seek.match
+            ? `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s, played and seeked, both with the dot halfway and the fingerprint ${st.seek.played}.`
+            : `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s: played, with the dot halfway (${st.seek.played}); seeked, with the dot near the start of its track and an outline where playback has it (${st.seek.seeked}).`,
         // The two frames, the still's with an outline where playback has the dot when they differ.
         draw: (st) =>
           new Group(
@@ -441,7 +447,7 @@ export default class LanternExplainer extends Scene {
             new Text(st.seek.match ? '=' : '≠', { fontSize: 0.7, color: accent, weight: 'bold' }).moveTo([0, THUMB_Y]),
           ),
       }),
-      staged({
+      stagedStep({
         id: 'timeline',
         title: 'Seeked frame by frame, the nudged dot never passes its first step',
         line: 'Line: where playback has the dot. Dots: a still taken at each frame.',
@@ -458,6 +464,8 @@ export default class LanternExplainer extends Scene {
           seek: at,
           nudges: { played: runs.nudge.playedMoves, seeked: runs.nudge.seekedMoves },
         } satisfies TimelineState,
+        describe: (st) =>
+          `Two plots of the dot’s place on its track, start to end, against frames 1 to ${st.timeline.frames}. Each has a line for playback and a dot for a still seeked to each frame. Blending fixed endpoints: every dot sits on the line. A nudge each frame: the dots follow the line through frame ${st.timeline.moveStarts}, then stay one nudge from the start while the line climbs to the end; at frame ${st.seek.frame} playback has made ${st.nudges.played} nudges and the still ${st.nudges.seeked}.`,
         draw: (st) => timelinePicture(st),
         opening: ['lantern-timeline-nudge-played', 'lantern-timeline-nudge-seeked'],
       }),
@@ -623,7 +631,7 @@ export default class LanternExplainer extends Scene {
       return new Group(strip(st.matches.blend, 0.5, 'Blending fixed endpoints'), strip(st.matches.nudge, -1.2, 'A nudge each frame'), axis, marker, markerLabel, key);
     };
     await s.steps([
-      staged({
+      stagedStep({
         id: 'check',
         title: `Seeked frame by frame: ${count('blend')} of ${total} match with blending, ${count('nudge')} with the nudge`,
         line: 'rayner check fails a page on the first seeked frame that differs from playback.',
@@ -634,6 +642,11 @@ export default class LanternExplainer extends Scene {
           matches: { blend: runs.blend.matches, nudge: runs.nudge.matches },
           seek: at,
         } satisfies CheckState,
+        describe: (st) => {
+          const { frames, matched } = st.check,
+            miss = st.matches.nudge.indexOf(false) + 1;
+          return `Two rows of ${frames} cells, one per frame of the tiny scene, each comparing the seeked frame with the played one. Blending: ${matched.blend === frames ? `all ${frames}` : `${matched.blend} of ${frames}`} match. A nudge each frame: frames 1 to ${miss - 1} match, frames ${miss} to ${frames} differ. A line marks frame ${st.seek.frame}, the still at t = ${st.seek.t.toFixed(2)} s.`;
+        },
         draw: (st) => checkPicture(st),
       }),
     ]);

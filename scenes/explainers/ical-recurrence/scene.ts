@@ -30,7 +30,7 @@ import {
   MASTER,
 } from '../lib/ical-recurrence.ts';
 import type { Change, Copy, VEvent, Week } from '../lib/ical-recurrence.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 // Sources: RFC 5545 and RFC 4791 (sections and lines are quoted in ../lib/ical-recurrence.ts), and
 // sabre/vobject 4.5.7 with sabre/dav 4.7.0, the library and server inside Baïkal.
@@ -97,11 +97,6 @@ function rows(components: readonly VEvent[]): [string, string][] {
 /** Bob's meeting list: his calendar knows nothing of weeks, only the meetings his copy holds, each [start, cancelled]. */
 const guestRows = (meetings: readonly (readonly [string, boolean])[]): [string, string][] =>
   meetings.map(([start, cancelled]) => ['Stand-up', [short(start), ...(cancelled ? ['cancelled'] : [])].join(', ')]);
-/** A card's rows in words, as the card describes itself: for a card drawn in a view, which the stage describes by its words. */
-const cardWords = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
-};
 /**
  * A card's parts paired by what they say and where, so a sync keeps an unchanged row still and crossfades a changed
  * value, as Card.set does; the panel and its bar pair by place.
@@ -210,7 +205,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         }),
       { place: false },
     );
-    await s.enter(list, { runTime: 0.35, shift: [0, -0.08], describe: () => cardWords(list.current) });
+    await s.enter(list, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ invite
     await this.step('invite', {
@@ -388,7 +383,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           change,
         },
       };
-      return staged({
+      return stagedStep({
         id: 'copies',
         title:
           change === 'skip'
@@ -478,7 +473,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           }),
         );
       // A staged step: the stage is cleared and Bob's copy drawn from its VEVENTs and meetings.
-      const copyStep = staged({
+      const copyStep = stagedStep({
         id: 'copy',
         title:
           change === 'skip'

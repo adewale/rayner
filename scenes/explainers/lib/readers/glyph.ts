@@ -2,7 +2,7 @@ import { Group, Text, Line, Rectangle, shaperFor } from '../../../../src/index.t
 import type { FontName } from '../../../../src/index.ts';
 import { label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 const word = 'Hello, outlines',
   size = 0.9;
 const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
@@ -16,7 +16,7 @@ export function frames(font: FontName): StagedStep[] {
   const w = Object.fromEntries([font, other].map((f, i) => [f, widths[i]!])) as Record<FontName, number>;
   const l = { sans: advanceOf('sans', 'l'), mono: advanceOf('mono', 'l') };
   return [
-    staged({
+    stagedStep({
       id: 'reader-width',
       title: `Same words, same size: ${w.sans.toFixed(2)} or ${w.mono.toFixed(2)} units wide`,
       line: `Which letters make up the ${Math.abs(w.mono - w.sans).toFixed(2)}-unit difference?`,
@@ -39,7 +39,7 @@ export function frames(font: FontName): StagedStep[] {
         return g;
       },
     }),
-    staged({
+    stagedStep({
       id: 'reader-shape',
       title: 'To fill its wider cell, JetBrains Mono draws a different l',
       line: 'Will shape matching pair any Inter glyph with a JetBrains Mono one?',

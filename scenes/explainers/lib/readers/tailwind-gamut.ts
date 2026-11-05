@@ -3,7 +3,7 @@ import { rows, summarize, cssMap, linearRgb, THEME_LINES } from '../tailwind-gam
 import type { Shade, Space } from '../tailwind-gamut.ts';
 import { label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The colour an sRGB screen paints for `written`, as #rrggbb, after CSS Color 4's gamut mapping. */
 function painted(L: number, C: number, h: number): string {
@@ -26,7 +26,7 @@ export function frames(shade: Shade, screen: Space): StagedStep[] {
   const written = /oklch\([^)]*\)/.exec(THEME_LINES[most.line]!)![0];
   const name = `${most.family}-${shade}`;
   return [
-    staged({
+    stagedStep({
       id: 'reader-display',
       title: `You wrote ${name}; an sRGB screen paints ${preview}`,
       line: 'Left: the colour as written, which sRGB cannot show. Right: what an sRGB screen paints instead.',

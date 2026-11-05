@@ -4,7 +4,7 @@ import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel
 import type { Criterion, Level, Version } from '../wcag-map.ts';
 import { tile, label, table } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
-import { staged } from '../staged.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /**
  * Every criterion some version asks for at `level`, one column each: grouped by level, and within a
@@ -93,7 +93,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
   const buttons = ['Cancel', 'Pay'],
     at = (button: string, row: readonly string[]) => -3.5 + 7 * row.indexOf(button);
   return [
-    staged({
+    stagedStep({
       id: 'reader-focus',
       title: 'The outline shows which button Tab reached',
       line: 'Success criterion 2.4.7 Focus Visible asks for the lower drawing; WCAG files it at level AA.',
@@ -115,7 +115,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
           ]),
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-levels',
       title: `Level ${level} asks for ${total.total} criteria in WCAG 2.2`,
       line: 'Each row includes the rows above it.',
@@ -136,7 +136,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
           { xs: [-5, -0.8, 5.4], y: 2.6, gap: 1.5 },
         ),
     }),
-    staged({
+    stagedStep({
       id: 'reader-versions',
       title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
       line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,

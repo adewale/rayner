@@ -1,7 +1,8 @@
 import { Scene, Text, Rectangle, Line, Group, FadeIn, view } from '../../../src/index.ts';
 import type { Mobject, Box, Vec, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
-import { staged } from '../lib/staged.ts';
+import { stagedStep } from '../../../explain/index.ts';
+import { callout } from '../lib/lesson-drawing.ts';
 import {
   CHARS,
   LINEUP,
@@ -64,11 +65,6 @@ const SETS: readonly { p: Predicate; box: Box }[] = [
   { p: 'isdigit', box: [-7.05, -3.75, 2.75, 2.05] },
   { p: 'isdecimal', box: [-6.65, -3.35, -0.75, 1.15] },
 ];
-/** A code panel in words, as the stage says one it placed: what it is, then its lines, a marked line with its word. */
-const codeWords = (block: CodeBlock) => {
-  const seen = block.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
-};
 
 /**
  * The places for each numeric type's characters, in lineup order: decimals two by two in the inner box,
@@ -169,8 +165,7 @@ export default class IsDigitExplainer extends Scene {
     const parsed = 'value' in int;
 
     // ------------------------------------------------------------------ the guard
-    // The code panel is a view of the step's state; its focus bar and the callout are the stage's
-    // (a draw cannot call them), placed from the same state.
+    // The code panel is a view of the step's state, with its focus bar and the callout of what the check returns.
     await this.step('guard', {
       title: `A guard: ${guard}() checks ${q(c)} before int()`,
       line: run.passes
@@ -186,38 +181,38 @@ export default class IsDigitExplainer extends Scene {
     // `char`: the character the guard checks.
     this.state.char = c.char;
     this.state.guard = { predicate: guard, passes: run.passes };
-    const checked = this.state.guard as { predicate: Predicate; passes: boolean };
     // Three lines are the whole picture: set large, with what the check returns beside them,
     // the panel and its callout centred together on the stage.
     const GUARD_SIZE = SIZE * 1.5,
       CALLOUT_GAP = 0.35,
-      returnsOf = (st: SceneState) => `returns ${TF((st.guard as { passes: boolean }).passes)}`,
-      returns = returnsOf(this.state);
+      returnsOf = (st: SceneState) => `returns ${TF((st.guard as { passes: boolean }).passes)}`;
     const program = view(
       this,
       (st) => {
-        const block = new CodeBlock(this, s.palette, [`s = "${st.char}"`, `if s.${(st.guard as { predicate: string }).predicate}():`, '    n = int(s)'], {
+        const { predicate, passes } = st.guard as { predicate: string; passes: boolean };
+        // The lines that run when the check passes, or the check alone when it fails.
+        const block = new CodeBlock(this, s.palette, [`s = "${st.char}"`, `if s.${predicate}():`, '    n = int(s)'], {
           at: [-7.55, -4.0, 7.55, TOP],
           fontSize: GUARD_SIZE,
+          focus: passes ? [1, 2] : 1,
+          focusAs: passes ? 'run' : 'the check that fails',
         });
         const [x0, , x1] = block.panel.box()!,
           across = x1 - x0 + CALLOUT_GAP + new Text(returnsOf(st), { fontSize: GUARD_SIZE }).width();
-        return block.shift([-across / 2 - x0, 0]);
+        block.shift([-across / 2 - x0, 0]);
+        // What the check returns, said at the end of its line, just outside the panel.
+        const check = block.code.lines[1]!.box()!;
+        const returns = callout(s, check, returnsOf(st), {
+          side: 'right',
+          gap: block.panel.box()![2] - check[2] + CALLOUT_GAP,
+          color: passes ? s.good : s.bad,
+          size: GUARD_SIZE,
+        });
+        return new Group(block, returns);
       },
       { place: false },
     );
-    s.keep(program, { describe: () => codeWords(program.current) });
-    await this.play(new FadeIn(program, { runTime: 0.4 }));
-    const prog = program.current;
-    await prog.focus(checked.passes ? [1, 2] : 1, { as: checked.passes ? 'run' : 'the check that fails' });
-    // What the check returns, said at the end of its line, just outside the panel.
-    const check = prog.code.lines[1]!.box()!;
-    await s.callout(check, returns, {
-      side: 'right',
-      gap: prog.panel.box()![2] - check[2] + CALLOUT_GAP,
-      color: checked.passes ? s.good : s.bad,
-      size: GUARD_SIZE,
-    });
+    await s.enter(program, { runTime: 0.4 });
 
     // ------------------------------------------------------------------ int()
     await this.step('int', {
@@ -283,13 +278,18 @@ export default class IsDigitExplainer extends Scene {
       lineup: lineup.lineup.map(({ char, type }) => ({ char, type })),
     };
     await s.steps([
-      staged({
+      stagedStep({
         id: 'lineup',
         title: 'Eight numerals; int() accepts only the first four',
         line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
         // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
         caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this scenario’s character. If all eight have a numeric value, what does each check look up?`,
         state: lineup,
+        describe: (st) => {
+          const parses = st.lineup.filter((x) => 'value' in x.int).length,
+            returned = [...new Set(st.lineup.slice(0, parses).map((x) => (x.int as { value: number }).value))];
+          return `Eight characters in a row: ${st.lineup.map((x) => x.char).join(' ')}. Brackets above span what each check accepts: isdecimal() the first ${st.accepted.isdecimal}, isdigit() the first ${st.accepted.isdigit}, isnumeric() all ${st.accepted.isnumeric}; the ${st.guard}() bracket is heavier. Brackets below: int() returns ${returned.join(' or ')} for the first ${parses} and raises ValueError for the rest. ${st.char} is circled. Under them: ${sup} passes isdigit() and int('${sup}') raises ValueError.`;
+        },
         draw: (st, s) => {
           const slot = (i: number) => -6.3 + i * 1.8,
             ROW = -0.8;
@@ -374,13 +374,20 @@ export default class IsDigitExplainer extends Scene {
             `U+4E09  ${c.unihan!.tag}  ${c.unihan!.value}`,
           ]
         : [`# UnicodeData.txt:${c.ucdLine}`, ...rowLines(c)];
-    const quoted = view(this, (st) => new CodeBlock(this, s.palette, st.ucd as string[], { at: [-WIDE, -0.05, WIDE, TOP], fontSize: SIZE }), {
-      place: false,
-    });
-    s.keep(quoted, { describe: () => codeWords(quoted.current) });
-    await this.play(new FadeIn(quoted, { runTime: 0.4 }));
+    // The quoted lines, the line with the numeric value or fields in focus.
+    const quoted = view(
+      this,
+      (st) =>
+        new CodeBlock(this, s.palette, st.ucd as string[], {
+          at: [-WIDE, -0.05, WIDE, TOP],
+          fontSize: SIZE,
+          focus: id === 'han' ? 3 : 2,
+          focusAs: id === 'han' ? 'the numeric value' : 'the numeric fields',
+        }),
+      { place: false },
+    );
+    await s.enter(quoted, { runTime: 0.4 });
     const row = quoted.current;
-    await row.focus(id === 'han' ? 3 : 2, { as: id === 'han' ? 'the numeric value' : 'the numeric fields' });
     // The three fields, a view of the state's: each check's field and what the row puts in it.
     const blank = (v: string) => v || 'empty';
     const fieldRows = (st: SceneState) => {
@@ -396,15 +403,11 @@ export default class IsDigitExplainer extends Scene {
       (st) => new Card(this, s.palette, fieldRows(st), { at: [-7.55, BOTTOM, 7.55, row.panel.box()![1] - 0.3], align: 'top', fontSize: SIZE, width: 10, direction: 'ltr' }),
       { place: false },
     );
-    await s.enter(fieldCard, {
-      runTime: 0.35,
-      shift: [0, -0.08],
-      describe: () => fieldRows(this.state).map(([label, value]) => `${label}: ${value}`).join('; '),
-    });
+    await s.enter(fieldCard, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ the nested sets
     await s.steps([
-      staged({
+      stagedStep({
         id: 'outcome',
         title:
           run.outcome === 'parsed'
@@ -428,6 +431,12 @@ export default class IsDigitExplainer extends Scene {
               : `The check fails on ${c.char}, so the code does not call int(); had it run, int() would have raised ValueError too.`
         }`,
         state: outcome,
+        describe: (st) => {
+          const inside = (t: string) => st.lineup.filter((x) => x.type === t).map((x) => x.char).join(' ');
+          const label = (p: Predicate) => `${p}(): ${grouped(st.counts[p])}`;
+          const as = st.outcome === 'raised' ? 'marked as passing the check and failing int()' : st.outcome === 'parsed' ? 'marked as parsed' : 'marked as turned away';
+          return `Three nested boxes. ${label('isnumeric')} holds ${label('isdigit')}, which holds ${label('isdecimal')}. Inside the innermost: ${inside('Decimal')}. In isdigit() but not isdecimal(): ${inside('Digit')}. Only in isnumeric(): ${inside('Numeric')}. The ${st.guard}() box, the check's, is drawn heavier. ${st.char} is circled, ${as}.`;
+        },
         draw: (st, s) => {
           // The nested sets with every character in place: the check's set drawn heavier, this
           // scenario's character circled in the colour of what happened to it.
@@ -493,24 +502,13 @@ export default class IsDigitExplainer extends Scene {
     const MARKED = `${guard}() but not int()`;
     const counts = view(
       this,
-      (st) => {
-        const card = new Card(this, s.palette, countRows(st), { at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11, direction: 'ltr' });
-        card.bar.moveTo([card.panel.center()[0], card.values.get(MARKED)!.anchorPoint()[1]]).setOpacity(1);
-        card.bar.key = 'isdigit:counts:mark';
-        return card;
-      },
+      (st) =>
+        new Card(this, s.palette, countRows(st), {
+          at: [-7.55, -0.75, 7.55, 2.4], align: 'top', fontSize: SIZE, width: 11, direction: 'ltr', lit: MARKED, litAs: 'this scenario’s check',
+        }),
       { place: false },
     );
-    // The bar is drawn with the card rather than by mark(), so the stage is told what it emphasises.
-    s.emphasise(() => [['isdigit:counts:mark', `row ${MARKED}`]]);
-    await s.enter(counts, {
-      runTime: 0.35,
-      shift: [0, -0.08],
-      describe: () =>
-        countRows(this.state)
-          .map(([label, value]) => `${label}: ${value}${label === MARKED ? ' (this scenario’s check)' : ''}`)
-          .join('; '),
-    });
+    await s.enter(counts, { runTime: 0.35, shift: [0, -0.08] });
     // The answer's code right under the counts, the pair centred down the stage.
     await s.code(['try: n = int(s)', 'except ValueError: n = None'], {
       at: [-7.55, BOTTOM, 7.55, counts.box()![1] - 0.5],

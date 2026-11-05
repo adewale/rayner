@@ -1,4 +1,5 @@
-import { Scene, Group, Rectangle, Text, view } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Create, view } from '../../../src/index.ts';
+import { callout } from '../../../explain/drawing.ts';
 import type { View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
@@ -63,11 +64,6 @@ interface QfState {
   parEnfants: number[];
   impot2025: number;
 }
-/** A card as a reader hears it: its title or count, then each row's label and value, and what is marked. */
-const said = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}${deux} ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join(', ')}`;
-};
 /** The income as the scene writes it: whole euros, or with cents when it has them. */
 const rniTexteDe = (rni: number) => (Number.isInteger(rni) ? euros(rni) : eur2(rni));
 
@@ -213,7 +209,7 @@ export default class QuotientFamilialExplainer extends Scene {
       );
     /** Enter a card view as s.card enters a card, then light its row `mark`, as card(...).then(c => c.mark(...)) did. */
     const enterCard = async (v: View<Card>, mark?: string, as?: string) => {
-      await s.enter(v, { runTime: 0.35, shift: [0, -0.08], describe: () => said(v.current) });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       if (mark) await v.current.mark(mark, as ? { as } : {});
     };
 
@@ -231,11 +227,18 @@ export default class QuotientFamilialExplainer extends Scene {
     });
     await s.clear();
     const flow = await s.show({ source: FLOW }, { box: TOP });
-    /** A step's arithmetic, said under the node of the pipeline that does it. */
-    const sous = (id: string, texte: string) => {
+    /** A callout drawn from the state, drawn in as s.callout draws one. */
+    const calloutOf = async (draw: (st: Record<string, unknown>) => Group) => {
+      const v = view(this, (st) => draw(st), { place: false });
+      s.keep(v);
+      await this.play(new Create(v, { runTime: 0.6, lagRatio: 0.15 }));
+      return v;
+    };
+    /** A step's arithmetic, from the state, said under the node of the pipeline that does it. */
+    const sous = (id: string, texte: (st: Record<string, number>) => string) => {
       const b = flow.get(id).box()!,
         bas = flow.get('REF').box()![1] - 0.4;
-      return s.callout(b, texte, { side: 'below', gap: b[1] - bas, size: 0.32, color: s.emphasis });
+      return calloutOf((st) => callout(s, b, texte(st as Record<string, number>), { side: 'below', gap: b[1] - bas, size: 0.32, color: s.emphasis }));
     };
     await flow.mark(['RNI'], { as: 'étape en cours' });
     this.state = { rni, enfants };
@@ -277,12 +280,13 @@ export default class QuotientFamilialExplainer extends Scene {
     await s.clearOverlays();
     await flow.unmark();
     await flow.mark(['QUOT'], { as: 'étape en cours' });
+    this.state.parts = r.parts;
     await sous(
       'QUOT',
-      [`2 pour le couple`, ...RANG.slice(0, enfants).map((_, i) => (i < 2 ? '0,5' : '1'))].join(' + ') +
-        ` = ${partsTexte(r.parts)} parts`,
+      (st) =>
+        [`2 pour le couple`, ...RANG.slice(0, st.enfants).map((_, i) => (i < 2 ? '0,5' : '1'))].join(' + ') +
+        ` = ${partsTexte(st.parts!)} parts`,
     );
-    this.state.parts = r.parts;
 
     // ----------------------------------------------------------- quotient
     await this.step('quotient', {
@@ -293,8 +297,8 @@ export default class QuotientFamilialExplainer extends Scene {
     await s.clearOverlays();
     await flow.unmark();
     await flow.walk([['RNI', 'QUOT']], { trail: true });
-    await sous('QUOT', `${rniTexte} ÷ ${partsTexte(r.parts)} = ${eur2(r.quotient)}`);
     this.state.quotient = r.quotient;
+    await sous('QUOT', (st) => `${rniTexte} ÷ ${partsTexte(st.parts!)} = ${eur2(st.quotient!)}`);
 
     // ------------------------------------------------------------ barème
     const b = bareme(r.quotient),
@@ -332,8 +336,9 @@ export default class QuotientFamilialExplainer extends Scene {
       { box: BELOW },
     );
     // Each tranche the quotient reaches says its tax over its own bar.
-    for (const x of reached)
-      await s.callout(bars.get(`bar:0:${pourcent(x.rate)}`), eur2(x.tax), { side: 'above', gap: 0.2, size: 0.26 });
+    for (const [i, x] of b.slices.entries())
+      if (x.base > 0)
+        await calloutOf((st) => callout(s, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(st.quotient as number).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
     // The quotient's top tranche, not the household's taux marginal: when the plafond binds, OpenFisca's
     // ir_taux_marginal is the two-part calculation's, which can be higher.
     await bars.mark([`bar:0:${pourcent(top.rate)}`], { as: 'dernière tranche du quotient' });
@@ -419,7 +424,8 @@ export default class QuotientFamilialExplainer extends Scene {
     await flow.unmark();
     await flow.dim(['RNI', 'QUOT', 'BAR', 'FOIS']);
     await flow.walk([['BAR', 'FOIS']], { trail: true });
-    await sous('FOIS', `${eur2(r.parPart)} × ${partsTexte(r.parts)} = ${eur2(r.brut)}`);
+    this.state.brut = r.brut;
+    await sous('FOIS', (st) => `${eur2(st.parPart!)} × ${partsTexte(st.parts!)} = ${eur2(st.brut!)}`);
     // Tranche by tranche: the parts' tax (bars) against the barème on the whole income (line).
     const entier = await s.show(
       {
@@ -436,7 +442,6 @@ export default class QuotientFamilialExplainer extends Scene {
     );
     // The y-axis title names the bars and the line, so the renderer's legend stays out.
     await entier.reveal(entier.order.filter((id) => id !== 'legend' && !entier.visible.has(id)));
-    this.state.brut = r.brut;
 
     // --------------------------------------------------------- reference
     await this.step('reference', {
