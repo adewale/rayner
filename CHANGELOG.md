@@ -15,6 +15,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Mermaid diagrams, in all 15 Agentic Mermaid families, are captured at build time and animated by part id: `reveal`, `walk`, `mark`, `dim`, `note`, `focus` and `morph`. A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values and refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
 - A card built with `lit` and a code panel built with `focus` (`focusAs`, `litAs` for the word) carry their bar from the start, so a view or staged step draws the mark from state, described and emphasised.
+- A colour left out is the scene's: `scene.colors` (paper, ink, soft, accent, bad), which a stage sets from its palette. Text, lines, arrows and axes drawn without a colour take the ink, guide lines the soft colour, `SurroundingRectangle`, `Circumscribe` and plotted data the accent, and `Cross` the colour for rejected, so they read on any paper; before, they took Manim's white, yellow and red, made for a black background. Without a stage a scene draws dark ink on white paper, and the SVG sinks' background is the scene's paper (it was `#1a1a1a`).
 - `callout`, `dimension` and `pin` in `rayner/drawing` build the annotations `s.callout`, `s.dimension` and `s.pin` draw in, for a draw to build from state. `pin` takes `side: 'left'` to put its label left of the head.
 - `legend(s, items)` in `rayner/drawing`, and `s.legend`, draw a key of swatches (fill, line, outline, dashed or not) with their meanings, keyed, in the stage's ink. A legend describes itself as its colour→meaning pairs, naming each colour.
 - `rayner check` fails a step whose caption or line names a colour or a pattern (dashed, dotted) that no word on the stage says, so a resting picture teaches with its caption hidden. A legend, a label or a line that keys the look (`Red: the route.`) answers it.
@@ -69,7 +70,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md#public-names) gives the rule.
 
-- The vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` are internal. Direction constants (`UP`, `RIGHT`, `UR`, ...) and the `Vec` type stay.
+- The vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` are internal. The `Vec` type stays.
+- The nine direction constants (`ORIGIN`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `UL`, `UR`, `DL`, `DR`) are gone: write the vector, `[0, -1]` for `DOWN`.
+- The fourteen Manim colours (`WHITE`, `BLACK`, `GREY`, `GREY_D`, `BLUE`, `BLUE_D`, `TEAL`, `GREEN`, `YELLOW`, `GOLD`, `RED`, `MAROON`, `PURPLE`, `ORANGE`) are gone: colour from the stage (`s.palette`, `s.emphasis`, `s.bad`), or write the hex value.
 - `easeInQuad`, `easeOutQuad`, `easeOutBack` and `wiggle` are gone; any `(t) => number` is a rate function.
 - `tokenize`, `diffTokens` and `hunkHeader` are internal; `diffLines` and `parseUnifiedDiff` still make hunks for `TransformDiff`.
 - `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `ViewSync` is exported as a type only: `view.sync()` makes one.

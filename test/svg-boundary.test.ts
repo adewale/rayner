@@ -22,7 +22,7 @@ test('SVG widths reject every runtime value except positive safe integers', () =
 
 test('SVG backgrounds admit only hex colours and serialize their canonical colour', () => {
   fc.assert(fc.property(fc.oneof(fc.anything(), fc.integer({ min: 0, max: 0xffffff }).map((n) => '#' + n.toString(16).padStart(6, '0'))), (background) => {
-    if (background === undefined) { assert.match(toSvgString(scene(), { background }), /fill="#1a1a1a"/); return; }
+    if (background === undefined) { assert.match(toSvgString(scene(), { background }), /fill="#ffffff"/, "the scene's paper"); return; }
     const legal = typeof background === 'string' && /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(background);
     if (!legal) assert.throws(() => toSvgString(scene(), { background: background as string }), /svg background/);
     else {

@@ -64,7 +64,7 @@ scene's `this.shown`.
   sync only swaps its child, so the View stays in the scene and in any Group
   that holds it. References to the *old picture* go stale; take `view.current` again.
 - **Composable.** `sync()` is an `Animation`, so
-  `this.play(readout.sync(), token.animate.shift(RIGHT))` works, and so does a
+  `this.play(readout.sync(), token.animate.shift([1, 0]))` works, and so does a
   `Succession`, `AnimationGroup` or `LaggedStart` that contains it.
 - **Built at its turn.** Because `draw` runs at `begin()`, a sync created
   before a state change still shows the state at play time, and a sync inside a

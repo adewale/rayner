@@ -8,7 +8,6 @@ import {
   FadeIn,
   FadeOut,
   BraceLabel,
-  DOWN,
   view,
 } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, CodeBlock } from '../../../explain/index.ts';
@@ -228,7 +227,7 @@ export default class GitExplainer extends Scene {
       (state) => {
         const { idHead } = idRowOf(state);
         const id = (state as unknown as GitState).blob.id;
-        return keyed(new BraceLabel(idHead, `${short(id)} names it from here on`, DOWN, { fontSize: 0.26, color: s.soft, buff: 0.06, labelBuff: 0.12 }), 'exgit-abbrev');
+        return keyed(new BraceLabel(idHead, `${short(id)} names it from here on`, [0, -1], { fontSize: 0.26, color: s.soft, buff: 0.06, labelBuff: 0.12 }), 'exgit-abbrev');
       },
       { place: false },
     );

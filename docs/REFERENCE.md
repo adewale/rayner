@@ -99,7 +99,7 @@ A new `Text` starts with its advance box centred on the origin, before `moveTo` 
 
 `Scene.add` and `bringToFront` keep a child inside an already visible parent rather than painting it twice. Adding a parent replaces its descendant roots; re-adding a root moves it to the front. `bringToBack` follows the same ownership rule and preserves argument order at the back. `replace` likewise keeps one painted occurrence per descendant and rejects inserting an ancestor into its own descendant.
 
-`toSvgString`, `StringSink` and `SnapshotSink` accept a positive safe-integer pixel `width` (default 1280). There is no 4096px limit on local SVG export. Their `background` accepts `#rgb` or `#rrggbb` and writes lowercase `#rrggbb`; named CSS colours and coercible objects are rejected. Arbitrary paint strings on shapes are escaped as XML data, with characters illegal in XML 1.0 removed. `DomSink` sets its background through the browser's CSS property rather than serializing it into markup.
+`toSvgString`, `StringSink` and `SnapshotSink` accept a positive safe-integer pixel `width` (default 1280). There is no 4096px limit on local SVG export. Their `background`, the scene's paper (`scene.colors.paper`) unless given, accepts `#rgb` or `#rrggbb` and writes lowercase `#rrggbb`; named CSS colours and coercible objects are rejected. Arbitrary paint strings on shapes are escaped as XML data, with characters illegal in XML 1.0 removed. `DomSink` sets its background, the scene's paper unless given, through the browser's CSS property rather than serializing it into markup.
 
 `shaperFor` accepts exactly the strings `sans` and `mono`. TypeScript's font type does not replace runtime validation for JavaScript callers.
 

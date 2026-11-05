@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
   Rectangle, Group, Square, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack,
-  Scene, NullSink, toSvgString, UP, DOWN, UR,
+  Scene, NullSink, toSvgString, SurroundingRectangle, Cross,
   loadFonts, renderElements,
 } from '../src/index.ts';
+import { NEUTRAL_COLORS } from '../src/color.ts';
 import { rotate } from '../src/vec.ts';
 
 // Text shapes on glyph outlines; scenes load fonts in run(), bare tests do it here
@@ -21,30 +22,64 @@ test('SVG output: a fixed 16 x 9 frame at 1000 units per scene unit, sized to th
   assert.equal((svg.match(/<path/g) || []).length, 2 + 'handler'.length);
 });
 
-// The Manim names the engine keeps are kept because they mean what Manim means (docs/ENGINE.md,
-// "Public names"): its direction vectors (manimlib/constants.py, z dropped) and its colours, which
-// are 3Blue1Brown's ManimGL values (manimlib/default_config.yml; BLUE is blue_c, GREY is grey_c, and
-// so on), checked against that file. Manim Community Edition agrees on all but YELLOW, which it
-// changed to #F7D96F; Rayner keeps ManimGL's #FFFF00, the default stroke of SurroundingRectangle.
-test("directions and colours are ManimGL's", async () => {
-  const api = await import('../src/index.ts');
-  assert.deepEqual(
-    { ORIGIN: api.ORIGIN, UP: api.UP, DOWN: api.DOWN, LEFT: api.LEFT, RIGHT: api.RIGHT, UL: api.UL, UR: api.UR, DL: api.DL, DR: api.DR },
-    { ORIGIN: [0, 0], UP: [0, 1], DOWN: [0, -1], LEFT: [-1, 0], RIGHT: [1, 0], UL: [-1, 1], UR: [1, 1], DL: [-1, -1], DR: [1, -1] },
-  );
-  const manim = {
-    WHITE: '#FFFFFF', BLACK: '#000000', GREY: '#888888', GREY_D: '#444444', BLUE: '#58C4DD', BLUE_D: '#29ABCA',
-    TEAL: '#5CD0B3', GREEN: '#83C167', YELLOW: '#FFFF00', GOLD: '#F0AC5F', RED: '#FC6255', MAROON: '#C55F73',
-    PURPLE: '#9A72AC', ORANGE: '#FF862F',
-  };
-  for (const [name, hex] of Object.entries(manim)) assert.equal((api as Record<string, unknown>)[name], hex.toLowerCase(), name);
+// Engine defaults are not Manim's black-background colours: a part built without a colour takes
+// the scene's colour for its role when it enters the scene (scene.colors, which a stage sets from
+// its palette), and a scene without a stage draws dark ink on white paper (docs/ENGINE-FUNDAMENTALS.md).
+test("a part built without a colour takes the scene's colour for its role when it enters; a colour given stays", () => {
+  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', accent: '#ffaa00', bad: '#ff3355' };
+  const scene = new Scene(new NullSink());
+  assert.deepEqual(scene.colors, NEUTRAL_COLORS, 'a scene without a stage has the neutral colours');
+  scene.colors = colors;
+  const plain = new Text('ink'), given = new Text('red', { color: '#ff0000' });
+  const box = new Rectangle(), outline = new SurroundingRectangle(box), cross = new Cross(box), dot = new Dot();
+  assert.equal(plain.children[0]!.style.fill, NEUTRAL_COLORS.ink, 'until it enters a scene, a default is the neutral one');
+  scene.add(plain, given, box, outline, cross, dot);
+  assert.ok(plain.children.every((g) => g.style.fill === colors.ink), 'text takes the ink');
+  assert.ok(given.children.every((g) => g.style.fill === '#ff0000'), 'a colour given stays');
+  assert.equal(box.style.stroke, colors.ink, "a shape's default stroke is the ink");
+  assert.equal(outline.style.stroke, colors.accent);
+  assert.equal(cross.style.stroke, colors.bad);
+  assert.equal(dot.style.fill, colors.ink);
+  // Set after construction, before it enters: what was set stays.
+  const late = new Text('late');
+  late.setFill('#00ff00');
+  scene.add(late);
+  assert.ok(late.children.every((g) => g.style.fill === '#00ff00'));
+  // A child added later, and a picture a part becomes, take the colours the part took.
+  const group = new Group();
+  scene.add(group);
+  group.add(new Text('child'));
+  assert.equal(group.children[0]!.children[0]!.style.fill, colors.ink);
+  const shown = new Text('was');
+  scene.add(shown);
+  shown.become(new Text('now'));
+  assert.ok(shown.children.every((g) => g.style.fill === colors.ink));
+  // Without a stage the SVG's background is the neutral paper; with colours, the scene's.
+  assert.match(toSvgString(new Scene(new NullSink()), { width: 16 }), /fill="#ffffff"/);
+  assert.match(toSvgString(scene, { width: 16 }), /fill="#202020"/);
+});
+
+test("a play fixes both ends in the scene's colours before it begins", async () => {
+  const colors = { paper: '#202020', ink: '#eeeeee', soft: '#999999', accent: '#ffaa00', bad: '#ff3355' };
+  class S extends Scene {
+    override async construct() {
+      this.colors = colors;
+      const a = new Text('a');
+      await this.play(new FadeIn(a), { runTime: 0.1 });
+      assert.ok(a.children.every((g) => g.style.fill === colors.ink), 'a part a play brings in');
+      const b = new Rectangle();
+      this.add(b);
+      await this.play(new Transform(b, new Rectangle({ width: 3 })), { runTime: 0.1 });
+      assert.equal(b.style.stroke, colors.ink, "a Transform lands on its target in the scene's colours");
+    }
+  }
+  await new S(new NullSink()).run();
 });
 
 test('y is up in the model and flipped once, in path data; angles turn counterclockwise', () => {
-  assert.deepEqual(UP, [0, 1]); assert.deepEqual(DOWN, [0, -1]); assert.deepEqual(UR, [1, 1]);
   const q = rotate([1, 0], Math.PI / 2);
   assert.ok(Math.abs(q[0]) < 1e-12 && Math.abs(q[1] - 1) < 1e-12, 'a quarter turn takes +x to +y');
-  const r = new Rectangle({ width: 2, height: 2 }).shift(UP);
+  const r = new Rectangle({ width: 2, height: 2 }).shift([0, 1]);
   assert.deepEqual(r.center(), [0, 1]);
   assert.ok(r.top()[1] > r.bottom()[1], 'top() is the larger y');
   const d = new Line([0, 0], [0, 1]).toPathD();

@@ -23,19 +23,19 @@ build a new one.
 
 | Shape | Says | Defaults |
 | --- | --- | --- |
-| `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | yellow stroke, no fill, `buff` 0.15 |
-| `new Underline(t, { buff })` | this word, this value | default stroke, `buff` 0.1 below the bottom edge |
-| `new Cross(t, { scale })` | not this, removed, rejected | red, stroke 0.06, both diagonals of the box |
-| `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | default stroke, `buff` 0.1, `depth` 0.2 |
+| `new SurroundingRectangle(t, { buff, cornerRadius })` | this one | the scene's accent stroke, no fill, `buff` 0.15 |
+| `new Underline(t, { buff })` | this word, this value | the scene's ink, `buff` 0.1 below the bottom edge |
+| `new Cross(t, { scale })` | not this, removed, rejected | the scene's `bad` colour, stroke 0.06, both diagonals of the box |
+| `new Brace(t, direction, { buff, depth, sharpness })` | this span, as a whole | the scene's ink, `buff` 0.1, `depth` 0.2 |
 | `new BraceLabel(t, text, direction, { fontSize, color, buff, labelBuff })` | this span is _n_ | a Brace and a Text beyond its tip |
 
-All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). Draw order
+All take the usual style fields (`stroke`, `strokeWidth`, `fill`, ...). A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): on a stage, its palette's. Draw order
 is chosen for `Create`. The rectangle starts at its top-left corner and goes
 clockwise. The underline runs left to right. The cross draws upper-left to
 lower-right first. A brace runs from one end, through the tip, to the other.
 
 **Braces.** `direction` is the side of the box the brace goes on, and the tip
-points that way: `DOWN` puts the brace under the target. All four directions are
+points that way: `[0, -1]` (the default) puts the brace under the target. All four directions are
 the same drawing. The brace is built pointing down, as wide as the box is across
 `direction`, then rotated into place, so a vertical brace is the horizontal one
 turned. It is a stroked path, not a filled one, so it has the same stroke weight
@@ -86,7 +86,7 @@ const [a, b] = [code.lines[2]!.box()!, code.lines[4]!.box()!], all = code.box()!
 const span: Box = [all[0], b[1], all[2], a[3]];        // lines 2..4, full block width
 this.add(code);
 await this.play(new Create(new SurroundingRectangle(span, { buff: 0.06, cornerRadius: 0.06 })));
-await this.play(new Create(new BraceLabel(span, 'the retry loop', RIGHT, { fontSize: 0.22 })));
+await this.play(new Create(new BraceLabel(span, 'the retry loop', [1, 0], { fontSize: 0.22 })));
 ```
 
 `Code.highlight(i)` is a filled bar behind one line, for the line about to run;

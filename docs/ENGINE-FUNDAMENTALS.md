@@ -44,6 +44,16 @@ SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpaci
 update it. `Create`/`Write` use the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
+A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
+`accent`, `bad`), and a part built without a colour is marked with the role it takes
+(`defaultColors`): text, lines, arrows and axes take `ink`, guide lines and a readout's keys
+`soft`, `SurroundingRectangle`, `Circumscribe` and plotted data `accent`, and `Cross` `bad`.
+When the part first enters the scene (`scene.add`, a play that draws it or morphs toward it, or
+a parent already on stage), each field still holding its default takes the scene's colour, and a
+field set since keeps what it was set to. A stage sets `scene.colors` from its palette, so an
+axis drawn without a `stroke` reads on any paper. A scene without a stage draws dark ink on white
+paper, and the SVG sinks draw `paper` behind the frame unless given a `background`.
+
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
 and `setHeight`. Bounds describe geometry only; clipping, paint order and stroke
 also decide what collides on screen, which is why `rayner check` measures painted

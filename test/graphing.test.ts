@@ -2,10 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   NumberLine, Axes, VMobject, Rectangle, Text, Scene, Create, Transform, FadeIn,
-  StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, loadFonts, GOLD, RED,
+  StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, loadFonts,
 } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
 import type { Vec } from '../src/index.ts';
+// Manim's values, which the package no longer exports.
+const GOLD = '#f0ac5f';
+const RED = '#fc6255';
 
 // Labels shape on glyph outlines; scenes load fonts in run(), bare tests do it here
 await loadFonts();

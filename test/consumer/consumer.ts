@@ -2,13 +2,13 @@
 // declarations in dist/ (npm run check builds them first). 'rayner' resolves
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
-import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, RIGHT, TEAL, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
+import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
 import { GrowFromEdge, PulseAlongPath, SetState, Line, Dot } from 'rayner';
 import type { GrowFromEdgeOpts } from 'rayner';
 
 export function choreography(scene: Scene<{count: number}>) {
   const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
-  const grow = new GrowFromEdge(new Rectangle(), RIGHT, opts);
+  const grow = new GrowFromEdge(new Rectangle(), [1, 0], opts);
   const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
   const state = new SetState(scene, { count: 3 });
   // @ts-expect-error A typed scene's count is a number.
@@ -23,7 +23,7 @@ import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
 import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';
 import type { Hunk, TransformDiffOpts, Evidence, StepRecord, ColorSpan, CodeSpan, RenderOptions, Step } from 'rayner';
-import { Frame, StateReadout, View, view, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
+import { Frame, StateReadout, View, view, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore } from 'rayner';
 import type { ViewSync } from 'rayner';
 import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
 import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';
@@ -44,11 +44,11 @@ export class Demo extends Scene {
     this.state = { ok: false };
     await this.step('one', { caption: 'hello' });
     const opts: TextOpts = { fontSize: 0.3, font: 'mono' };
-    const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: TEAL }), new Text('box', opts));
+    const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: '#5cd0b3' }), new Text('box', opts));
     const a = new Arrow([0, 0], [1, 0], { buff: 0.1 });
     const fade: AnimOpts = { runTime: 0.5 };
     await this.play(new FadeIn(box, { shift: [0, 1] }), new Create(a), fade);
-    await this.play(box.animate.shift(RIGHT));
+    await this.play(box.animate.shift([1, 0]));
     await this.play(new Transform(a, new Arrow([0, 0], [2, 0])));
     this.state = { ok: true };
   }
@@ -103,11 +103,11 @@ export class Tour extends Scene {
     await this.play(new Create(axes), new Create(axes.plot((x) => x / 2, plot)), new Create(new NumberLine(lineOpts)));
     const brace: BraceOpts = { buff: 0.1 };
     const ring: CircumscribeOpts = { shape: 'circle' };
-    await this.play(new Create(new Brace(code, DOWN, brace)), new Circumscribe(code, ring), new Create(new SurroundingRectangle(code)));
+    await this.play(new Create(new Brace(code, [0, -1], brace)), new Circumscribe(code, ring), new Create(new SurroundingRectangle(code)));
     const span: CodeSpan = code.token(0, 'n');
-    await this.play(span.animate.setFill(TEAL));
+    await this.play(span.animate.setFill('#5cd0b3'));
     code.saveState();
-    await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift(DOWN)), new Restore(code)]));
+    await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
     this.onStep((s: Step) => s.name);
     this.addDescriber(() => ({ frame: frame.width(), mismatch }));
   }

@@ -9,7 +9,7 @@ example collection.
 
 ```ts
 box.saveState();
-await this.play(box.animate.setFill(RED).scale(1.5));
+await this.play(box.animate.setFill(s.bad).scale(1.5));
 await this.play(new Restore(box));        // back to the saved look, animated
 ```
 
@@ -55,7 +55,7 @@ into a `Text` reports cut-outs of the target's glyphs at the handoff.
 ```ts
 await this.play(new Succession([
   new Indicate(box),
-  box.animate.shift(RIGHT),
+  box.animate.shift([1, 0]),
   new FadeOut(box),
 ]));
 ```

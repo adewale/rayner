@@ -7,10 +7,13 @@ import assert from 'node:assert/strict';
 import {
   Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
   StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, perf, loadFonts,
-  view, viewMismatch, View, RIGHT,
+  view, viewMismatch, View,
 } from '../src/index.ts';
 import type { Mobject, Sink, SceneState, ViewSync } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
+import type { Vec } from '../src/index.ts';
+// Manim's values, which the package no longer exports.
+const RIGHT: Vec = [1, 0];
 
 /** A scene holding `st` as its state, for views tested without running a scene. */
 const held = (st: object = {}) => ({ state: st }) as unknown as Scene;

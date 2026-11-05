@@ -9,7 +9,6 @@ import {
   Line,
   SurroundingRectangle,
   BraceLabel,
-  DOWN,
   shaperFor,
 } from '../../../src/index.ts';
 import type { Mobject, MatchSummary, FontName } from '../../../src/index.ts';
@@ -44,7 +43,7 @@ function ruler(text: Text, stops: readonly number[], label: string, color: strin
   for (const x of stops.slice(1))
     g.add(new Line([x0 + x, y], [x0 + x, y - 0.14], { stroke: color, strokeWidth: 0.014 }));
   // The brace spans the text's advance box: the width the shaper measured.
-  const brace = new BraceLabel(text, label, DOWN, { fontSize: size, color, buff: 0.3, labelBuff: 0.1 });
+  const brace = new BraceLabel(text, label, [0, -1], { fontSize: size, color, buff: 0.3, labelBuff: 0.1 });
   brace.brace.setStroke(color, 0.022);
   g.add(brace);
   return g;

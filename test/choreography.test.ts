@@ -4,10 +4,15 @@ import {
   Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, MoveAlongPath,
   GrowFromEdge, PulseAlongPath, SetState, AnimationGroup, LaggedStart, Succession,
   SnapshotSink, StringSink, NullSink, TraceSink, renderAt, traceScene, StateReadout, view,
-  loadFonts, toSvgString, linear, UP, DOWN, LEFT, RIGHT,
+  loadFonts, toSvgString, linear,
 } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
+// Manim's values, which the package no longer exports.
+const DOWN: Vec = [0, -1];
+const LEFT: Vec = [-1, 0];
+const RIGHT: Vec = [1, 0];
+const UP: Vec = [0, 1];
 
 await loadFonts();
 

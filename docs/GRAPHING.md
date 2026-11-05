@@ -14,7 +14,7 @@ The seasons explainer computes daylight with `sunlight(latitude, declination)` i
 `scenes/explainers/lib/models.ts`. Here the scene plots that same function:
 
 ```ts
-import { Scene, Axes, Create, Transform, FadeIn, GOLD, TEAL } from '../../../src/index.ts';
+import { Scene, Axes, Create, Transform, FadeIn } from '../../../src/index.ts';
 import { sunlight, daylightYear } from '../lib/models.ts';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -32,13 +32,13 @@ class Daylight extends Scene {
     await this.play(new Create(axes), { runTime: 2 });
 
     // Tromsø: the curve stays flat at 0 h and 24 h for weeks (see "Plot" below)
-    const tromso = axes.plot(daylightAt(69.65), { color: GOLD });
+    const tromso = axes.plot(daylightAt(69.65), { color: '#f0ac5f' });
     await this.play(new Create(tromso), { runTime: 1.5 });
 
     // The month-by-month table the program computes, as bars; then London's
-    const bars = axes.bar(daylightYear(69.65), { labels: MONTHS, colors: GOLD, fillOpacity: 0.3 });
+    const bars = axes.bar(daylightYear(69.65), { labels: MONTHS, colors: '#f0ac5f', fillOpacity: 0.3 });
     await this.play(new FadeIn(bars));
-    await this.play(new Transform(bars, axes.bar(daylightYear(51.5), { labels: MONTHS, colors: TEAL, fillOpacity: 0.3 })));
+    await this.play(new Transform(bars, axes.bar(daylightYear(51.5), { labels: MONTHS, colors: '#5cd0b3', fillOpacity: 0.3 })));
   }
 }
 ```
@@ -90,6 +90,8 @@ move the axes first, then build graphs and add them yourself.
 | `dot(x, y, dotOpts)` | `Dot` at `c2p(x, y)` |
 | `verticalLine(x, { from?, to? })` / `horizontalLine(y, { from?, to? })` | `Line` guide; defaults to the full range of the other axis |
 | `areaUnder(fn, [a, b], { samples, color, fillOpacity })` | closed `VMobject` between the curve and y = 0 |
+
+A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): lines, ticks and labels without a `stroke` take its ink, plotted data without a `color` its accent, and guide lines its soft colour. On a stage these are the palette's, so an axis drawn without a stroke reads on any paper.
 
 ### Plot
 

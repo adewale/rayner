@@ -1,5 +1,5 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create, jsonObject } from '../src/index.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind } from '../src/index.ts';
+import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
 import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
 import type { LegendItem } from './annotate.ts';
@@ -121,6 +121,8 @@ const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
+/** The colours engine defaults take on a stage with this palette: ink and the stage's soft, emphasis and rejected colours. */
+export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), accent: emphasis(p), bad: bad(p) });
 const HEADING_Y = 3.8;
 /** With a line under it, the heading moves up to make room. */
 const HEADING_Y_WITH_LINE = 3.98;
@@ -151,6 +153,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
+  // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
+  scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
   const paper = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
   paper.key = '__paper';
@@ -421,6 +425,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       const snapshot = await diagramsOf(scene).diagram(spec);
       if (adopt) {
         colors = snapshot.palette;
+        scene.colors = sceneColors(colors);
         paper.setFill(colors.paper);
         heading.setFill(colors.ink);
         band.setFill(colors.paper);

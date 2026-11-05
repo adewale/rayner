@@ -37,14 +37,14 @@ descriptions, a script and a reader review.
 ## GrowFromEdge
 
 ```ts
-import { GrowFromEdge, DOWN, LEFT } from 'rayner';
-await this.play(new GrowFromEdge(bar, DOWN));
-await this.play(new GrowFromEdge(task, LEFT, { runTime: 0.6 }));
+import { GrowFromEdge } from 'rayner';
+await this.play(new GrowFromEdge(bar, [0, -1]));                 // up from its bottom edge
+await this.play(new GrowFromEdge(task, [-1, 0], { runTime: 0.6 })); // right from its left edge
 ```
 
-Signature: `new GrowFromEdge(mobject, edge = DOWN, options?)`.
+Signature: `new GrowFromEdge(mobject, edge = [0, -1], options?)`.
 
-The edge must be `UP`, `DOWN`, `LEFT` or `RIGHT`. The corresponding edge of the
+The edge must be one unit step along an axis: `[0, 1]`, `[0, -1]`, `[-1, 0]` or `[1, 0]`. The corresponding edge of the
 current world-coordinate bounding box stays fixed and the perpendicular dimension
 keeps its size, so the growth is along one axis.
 Placement and authored paint/opacity are captured when the play begins. At its

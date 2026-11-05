@@ -4,10 +4,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
-  Code, Scene, NullSink, StringSink, SnapshotSink, VMobject, Write, Transform, FadeOut, renderAt, renderElements, loadFonts, RED, GOLD,
+  Code, Scene, NullSink, StringSink, SnapshotSink, VMobject, Write, Transform, FadeOut, renderAt, renderElements, loadFonts,
 } from '../src/index.ts';
 import type { ColorSpan, Box, Sink } from '../src/index.ts';
 import { tokenize, lex, shikiTokens, hasShiki, langOf, DARK } from '../tools/lib/tokenize.ts';
+// Manim's values, which the package no longer exports.
+const GOLD = '#f0ac5f';
+const RED = '#fc6255';
 
 await loadFonts();
 

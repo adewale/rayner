@@ -381,13 +381,13 @@ function serializeElement(el: ElementRecord): string {
 export interface SvgOptions {
   /** Positive safe-integer pixel width; height follows the 16:9 frame. */
   width?: number;
-  /** #rgb or #rrggbb, normalized to lowercase #rrggbb. */
+  /** #rgb or #rrggbb, normalized to lowercase #rrggbb. Default: the scene's paper (`scene.colors.paper`). */
   background?: string;
   /** Leave out what the camera cannot show; see RenderOptions. */
   cull?: boolean;
 }
 
-export function toSvgString(scene: Scene, { width = 1280, background = '#1a1a1a', cull = false }: SvgOptions = {}): string {
+export function toSvgString(scene: Scene, { width = 1280, background = scene.colors.paper, cull = false }: SvgOptions = {}): string {
   if (typeof width !== 'number' || !Number.isSafeInteger(width) || width < 1)
     throw new TypeError('svg width must be a positive safe integer');
   if (typeof background !== 'string' || !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(background))
@@ -459,13 +459,17 @@ export class DomSink implements Sink {
   /** Camera: the viewBox last written, so an unchanged camera costs no DOM write. */
   private viewBox = VIEWBOX;
 
-  constructor(container: Element, { background = '#1a1a1a', realtime = true }: { background?: string; realtime?: boolean } = {}) {
+  /** The background given at construction; without one the SVG takes the scene's paper at each frame. */
+  private background: string | undefined;
+
+  constructor(container: Element, { background, realtime = true }: { background?: string; realtime?: boolean } = {}) {
     const NS = 'http://www.w3.org/2000/svg';
     // A container in a live document always has one
     this.doc = container.ownerDocument!;
     this.svg = this.doc.createElementNS(NS, 'svg');
     this.svg.setAttribute('viewBox', VIEWBOX);
-    this.svg.style.background = background;
+    this.background = background;
+    if (background !== undefined) this.svg.style.background = background;
     this.svg.style.width = '100%';
     this.svg.style.display = 'block';
     container.appendChild(this.svg);
@@ -505,6 +509,7 @@ export class DomSink implements Sink {
   }
 
   patch(scene: Scene): void {
+    if (this.background === undefined && this.svg.style.background !== scene.colors.paper) this.svg.style.background = scene.colors.paper;
     // Absolute path data: measured faster for live DOM patching than translate + relative
     this.apply(renderElements(scene, { relative: false }), viewBoxOf(scene));
   }

@@ -11,7 +11,7 @@
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
 
-import { Mobject, Group } from './mobject.ts';
+import { Mobject, Group, paintDefaults } from './mobject.ts';
 import type { Box, HasText } from './mobject.ts';
 import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 import type { MatchKey, MatchSummary } from './animation.ts';
@@ -71,7 +71,8 @@ export class View<M extends Mobject = Mobject> extends Group {
   constructor(scene: Scene<any>, draw: (state: SceneState, shown: SceneState) => M, { place = 'center' }: ViewOpts = {}) {
     super();
     this.host = scene;
-    this.build = () => draw(scene.state, scene.shown); this.draw = draw; this.place = place; this.scaleK = 1;
+    // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
+    this.build = () => paintedFor(scene, draw(scene.state, scene.shown)); this.draw = draw; this.place = place; this.scaleK = 1;
     const first = fresh(this.build(), null);
     this.builtSize = layoutSize(first);
     this.add(first);
@@ -98,7 +99,7 @@ export class View<M extends Mobject = Mobject> extends Group {
    */
   placed(state: SceneState, shown: SceneState = this.host.shown): M {
     const keep = [this.builtSize, this.scaleK] as const;
-    const next = this.fit(fresh(this.draw(state, shown), this.current));
+    const next = this.fit(fresh(paintedFor(this.host, this.draw(state, shown)), this.current));
     [this.builtSize, this.scaleK] = keep;
     return next;
   }
@@ -212,6 +213,13 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     const e = this.inner?.evidence() ?? null;
     return e && this.view.key !== undefined ? { ...e, view: this.view.key } : e;
   }
+}
+
+/** `m`, its parts given `scene`'s colours where they still hold a default. */
+function paintedFor<M extends Mobject>(scene: Scene<any>, m: M): M {
+  // A stand-in for a scene (a test's `{ state, shown }`) has no colours: its parts take them when they enter one.
+  if (scene.colors && m instanceof Mobject) paintDefaults(m, scene.colors);
+  return m;
 }
 
 /**

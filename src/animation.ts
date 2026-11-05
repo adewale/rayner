@@ -5,14 +5,14 @@
 import { smooth, thereAndBack, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState, Mobject as MobjectClass } from './mobject.ts';
+import { Group, adoptState, followScene, Mobject as MobjectClass } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
 import { Circle, SurroundingRectangle, boxOf } from './shapes.ts';
-import { YELLOW } from './color.ts';
+import { NEUTRAL_COLORS } from './color.ts';
 import { jsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
 import type { SceneState } from './scene.ts';
@@ -103,6 +103,11 @@ export class Animation extends AnimationTiming {
   slots!: { index: Int32Array; count: number };
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
   override targets(): Mobject[] { return [this.mobject]; }
+  /**
+   * What takes the scene's colours before this begins (see Mobject.defaultColors): what it draws,
+   * and what it morphs toward, so both endpoints are fixed in the scene's colours.
+   */
+  paints(): Mobject[] { return this.targets(); }
   /** Called when play starts. Copies live here, never in the constructor. */
   override begin(): void {
     this.starting = this.createStartingMobject();
@@ -317,6 +322,8 @@ export class Transform extends Animation {
     this.sameStructure = false;
   }
 
+  override paints(): Mobject[] { return [this.mobject, this.target]; }
+
   override begin(): void {
     // An animation that built its own target (FadeIn, Indicate, .animate) hands it
     // over as is: nothing else holds it, so copying it again is pure cost. And a
@@ -460,10 +467,10 @@ export class GrowFromEdge extends FadeIn {
   readonly axis: 0 | 1;
   readonly initialScale: number;
 
-  constructor(mobject: Mobject, edge: Readonly<Vec> = V.DOWN, { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
+  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
     if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
       Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
-      throw new TypeError('GrowFromEdge edge must be UP, DOWN, LEFT or RIGHT');
+      throw new TypeError('GrowFromEdge edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
     if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
       throw new RangeError('GrowFromEdge initialScale must be finite and in [0, 1]');
     super(mobject, opts);
@@ -776,11 +783,14 @@ export class Circumscribe extends Animation {
   /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). */
   baseOpacity!: number;
 
-  constructor(target: Mobject | Box, { color = YELLOW, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+  constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+    const stroke = color ?? NEUTRAL_COLORS.accent;
     const fit = (): VMobject => shape === 'circle'
-      ? circleAround(target, buff, { stroke: color, strokeWidth })
-      : new SurroundingRectangle(target, { buff, cornerRadius, stroke: color, strokeWidth });
-    super(fit(), { rateFunc: linear, ...opts, remover: !keep });
+      ? circleAround(target, buff, { stroke, strokeWidth })
+      : new SurroundingRectangle(target, { buff, cornerRadius, stroke, strokeWidth });
+    const outline = fit();
+    if (color === undefined) followScene(outline, { stroke: 'accent' });
+    super(outline, { rateFunc: linear, ...opts, remover: !keep });
     this.target = target; this.shape = shape; this.buff = buff; this.cornerRadius = cornerRadius;
     this.keep = keep; this.fadeOut = fadeOut;
   }
@@ -1153,6 +1163,8 @@ export class TransformMatching extends Animation {
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
     this.pathFunc = pathFunc; this.replace = replace; this.staged = staged;
   }
+
+  override paints(): Mobject[] { return [this.mobject, this.target]; }
 
   /** How many parts were matched, morphed, faded out and faded in. */
   summary(): MatchSummary {

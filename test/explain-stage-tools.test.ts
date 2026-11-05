@@ -233,3 +233,30 @@ await this.step('two',{title:'Second',caption:'No line here.'});await s.enter(ne
   assert.ok(transcript.includes('<p><strong>A line &amp; a &lt;tag&gt;.</strong></p><p>The first caption.</p>'), transcript);
   assert.ok(transcript.includes('>Second</a><p>No line here.</p>'), 'a step without a line has no empty paragraph');
 });
+
+test("engine defaults take the stage's palette: an axis, outlines and text drawn without a colour read on its paper", async () => {
+  const { Axes, Circumscribe, SurroundingRectangle } = await import('../src/index.ts');
+  const { palette } = await import('../explain/index.ts');
+  const { sceneColors } = await import('../explain/stage.ts');
+  const p = palette('pen-and-ink'), accent = sceneColors(p).accent;
+  assert.notEqual(accent, p.ink, 'the roles differ on this palette, so the test can tell them apart');
+  let seen: Record<string, string | undefined> = {};
+  class S extends Scene {
+    override async construct() {
+      const s = stage(this, { palette: p });
+      assert.deepEqual(this.colors, sceneColors(p));
+      await this.step('one', { title: 'Defaults' });
+      const axes = new Axes({ xRange: [0, 4, 1], yRange: [0, 2, 1], width: 4, height: 2, xLabel: 't' });
+      const text = new Text('plain'), given = new Text('given', { color: '#123456' }).shift([3, 0]);
+      const outline = new SurroundingRectangle(given), ring = new Circumscribe(text, { keep: true });
+      await s.enter(axes, text, given, outline, { describe: 'an axis and two words' });
+      await this.play(ring);
+      seen = {
+        axis: axes.xAxis.line.style.stroke, label: axes.xLabel!.children[0]!.style.fill, outline: outline.style.stroke,
+        ring: ring.outline.style.stroke, text: text.children[0]!.style.fill, given: given.children[0]!.style.fill,
+      };
+    }
+  }
+  await new S(new NullSink()).run();
+  assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: accent, ring: accent, text: p.ink, given: '#123456' });
+});

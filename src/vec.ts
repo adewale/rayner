@@ -8,16 +8,6 @@ export type Vec = [x: number, y: number];
 /** Anything with an x at [0] and a y at [1]: a Vec, or a slice of a point buffer. */
 export type VecLike = Readonly<Vec> | ArrayLike<number>;
 
-export const ORIGIN: Vec = [0, 0];
-export const UP: Vec = [0, 1];
-export const DOWN: Vec = [0, -1];
-export const LEFT: Vec = [-1, 0];
-export const RIGHT: Vec = [1, 0];
-export const UL: Vec = [-1, 1];
-export const UR: Vec = [1, 1];
-export const DL: Vec = [-1, -1];
-export const DR: Vec = [1, -1];
-
 export const add = (a: Readonly<Vec>, b: Readonly<Vec>): Vec => [a[0] + b[0], a[1] + b[1]];
 export const sub = (a: Readonly<Vec>, b: Readonly<Vec>): Vec => [a[0] - b[0], a[1] - b[1]];
 export const mul = (a: Readonly<Vec>, k: number): Vec => [a[0] * k, a[1] * k];
