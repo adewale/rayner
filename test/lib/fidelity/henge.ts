@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { henge, sunset, declination, type Street } from '../../../scenes/explainers/lib/henge.ts';
 import { assertStepState } from '../explainer-state.ts';
+import { assertSteps } from '../steps.ts';
 
 /** The coordinate model has an independent ERFA oracle; this binds each published scenario to it. */
 export function check(values: Record<string, string>, trace: Trace): void {
   const model = henge(values.street as Street);
   const [december, , june] = model.seasons;
   const day = (d: { declination: number; hourAngle: number }) => ({ declination: d.declination, hourAngle: d.hourAngle });
-  assert.deepEqual(trace.steps.map(step => step.step), ['street', 'overhead', 'sky', 'sweep', 'crossings', 'tilt', 'look', 'disc']);
+  assertSteps(trace, ['street', 'overhead', 'sky', 'sweep', 'crossings', 'tilt', 'look', 'disc']);
   assertStepState(trace, 'street', { bearing: model.bearing });
   assertStepState(trace, 'overhead', { alignment: model.alignment, backCrossings: model.backCrossings });
   // The globes cut New York's daily circle at the model's own sunset hour angles for the solstices.

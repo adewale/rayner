@@ -47,6 +47,8 @@ Outside authors use `rayner review scene.ts --out public/example.html`, with an 
 
 Keep the current validation record in CI and the generated `out/` artifacts. Commit a representative screenshot or a durable source oracle when it helps a reviewer; dated run transcripts and repeated receipts belong in CI or Git history, and older audit records are not a release gate.
 
+A test reads an explainer's steps from the scene, not from a copy of its list: `test/lib/steps.ts` gives a trace's step ids (`idsOf`, on one path or the whole story), a scene's (`stepIdsOf`), and `assertSteps`, which fails unless the steps a test reads by name are there in order, whatever else the story gains or loses. Pin the whole list only when the list is the point, as `explain-onboarding.test.ts` does for the feature tour's recipe-and-result pairs.
+
 When consolidating tests, move every assertion to a named keeper and show that it rejects a deliberate defect. Keep independent values and endpoints, native paint, raster references, package checks and the full scenario inventory. [test/AGENTS.md](https://github.com/adewale/rayner/blob/main/test/AGENTS.md) records these rules. A test's name says what it asserts, and more runs do not make up for a missing input class or oracle.
 
 The compatibility matrix downloads the primary job's tested archive. Package smoke verifies its source commit and SHA-512 integrity before installation and checks integrity again afterwards. It does not repack on each platform.

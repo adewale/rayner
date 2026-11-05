@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
+import { assertSteps } from './lib/steps.ts';
 import {
   reduceSession,
   sessionAttempt,
@@ -474,7 +475,7 @@ for (const entry of EXPLAINERS)
           for (let i = 1; i < drift.length; i++) assert.ok(drift[i]! > drift[i - 1]!, `drift falls at glyph ${i}: ${drift}`);
           assert.equal(drift[12]!.toFixed(2), (layout.wrong - layout.actual).toFixed(2));
           assert.ok(Math.abs(rulers.markers.measured - (layout.wrong + 0.5)) < 1e-5 && Math.abs(rulers.markers.drawn - (layout.actual + 0.5)) < 1e-5);
-          assert.deepEqual(trace.steps.map(s => s.step), ['layout', 'advance', 'rulers', 'cuts', 'diagram']);
+          assertSteps(trace, ['rulers', 'cuts']);
           const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));

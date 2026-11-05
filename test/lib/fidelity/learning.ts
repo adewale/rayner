@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Trace} from '../../../src/trace.ts';
 import {assertStepState} from '../explainer-state.ts';
+import {assertSteps,idsOf} from '../steps.ts';
 import {dictStory} from '../../../scenes/explainers/lib/python-dict.ts';
 import {bloomStory,saturation} from '../../../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
@@ -14,8 +15,10 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':6,'melody-rhythm':4};
-  assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
+  // The steps each check below reads, predictions included, in story order; other steps may come and go.
+  const reads:Record<string,string[]>={'python-dict':['question','broken','marker','missing','hash','collision'],'bloom-filter':['question','insert','shared','absent','present','predict','false-positive','pipeline','full'],
+    'git-branches':values.history==='diverged'?['question','lost','merge','countercase']:['question','merge','countercase'],'monty-hall':['choice','predict','rounds','odds','worlds']};
+  if(reads[id]) assertSteps(trace,reads[id]);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model; monty-hall names it in shown.
     assert.equal((step.after as {phase?:unknown}).phase,undefined,`${id}/${step.step}: no phase in the model`);
@@ -69,7 +72,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     // the branch-basics steps start, branch, feature and switch were folded into its caption.
     for(const [i,name] of [[4,'question'],[5,'merge']] as const)
       assertStepState(trace,name,{advanced,frame:frames[i],files:currentFiles(frames[i]!)});
-    assert.deepEqual(trace.steps.map(s=>s.step),advanced?['question','lost','merge','countercase']:['question','merge','countercase']);
+    assert.equal(idsOf(trace).includes('lost'),advanced,'the label-only move is shown only in the diverged history');
     if(advanced) {
       const moved=moveMainToFeature(frames[4]!);
       assertStepState(trace,'lost',{advanced,frame:moved,files:currentFiles(moved),lost:['C']});

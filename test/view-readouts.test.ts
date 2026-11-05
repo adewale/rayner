@@ -61,9 +61,9 @@ const tenths = (x: number): string => (Number.isInteger(x) ? String(x) : x.toFix
 test('token-bucket: reader labels and comparison marks pair balances, refill times and outcomes with the full traced values', async () => {
   const expected429 = new Map([[1, [6, 7, 9]], [2, [6, 9]], [4, [6]]]);
   for (const rate of ['1', '2', '4']) {
-    const rows = (await readoutAtSteps(withSettings(TokenBucketExplainer, { rate }))).filter((r) => r.shown);
-    assert.equal(rows.length, 5, `rate ${rate}: the readout is on screen at all five steps`);
-    assert.deepEqual(rows.map(r => r.step), ['balance', 'burst', 'refill', 'later', 'trace']);
+    const all = await readoutAtSteps(withSettings(TokenBucketExplainer, { rate }));
+    const rows = all.filter((r) => r.shown), steps = all.map((r) => r.step);
+    assert.deepEqual(rows.map((r) => r.step), steps.slice(steps.indexOf('balance')), `rate ${rate}: the readout is on screen at every step from balance on`);
     for (const { step, state, shown, marks } of rows) {
       if (step === 'trace') {
         assert.deepEqual(shown, [...Array.from({length: 10}, (_, i) => String(i + 1)), '1 / s', '2 / s', '4 / s', 'Request', 'Circle: 200     Cross: 429']);

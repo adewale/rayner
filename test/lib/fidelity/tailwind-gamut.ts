@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
+import { assertSteps, idsOf } from '../steps.ts';
 import { SHADES, rows, summarize } from '../../../scenes/explainers/lib/tailwind-gamut.ts';
 import type { Shade } from '../../../scenes/explainers/lib/tailwind-gamut.ts';
 
@@ -24,8 +25,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const title = (step: string) => String(trace.steps.find((s) => s.step === step)!.meta.title);
   assert.ok(title('palette').startsWith(`${sum.outsideSrgb.length} of the ${all.length} ${shade} shades`), title('palette'));
   assert.ok(title('share').endsWith(`${sum.mostOfSrgb.value.toFixed(1)}%`), title('share'));
-  assert.deepEqual(
-    trace.steps.map((s) => s.step),
-    ['reader-display', 'srgb-edge', 'palette', 'share', 'p3-edge', screen === 'srgb' ? 'srgb-screen' : 'p3-screen'],
-  );
+  // The scenario's screen picks its last step.
+  assertSteps(trace, ['srgb-edge', 'palette', 'share', 'p3-edge', screen === 'srgb' ? 'srgb-screen' : 'p3-screen']);
+  assert.ok(!idsOf(trace).includes(screen === 'srgb' ? 'p3-screen' : 'srgb-screen'), 'only the chosen screen has a step');
 }

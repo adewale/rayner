@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
+import { assertSteps } from '../steps.ts';
 import { COLOURS, GROUPS, PARTICIPANTS, SCORE, gaveUp, giveUps, quitters, scoreOf } from '../../../scenes/explainers/lib/gnome-files.ts';
 import type { Participant } from '../../../scenes/explainers/lib/gnome-files.ts';
 
@@ -15,7 +16,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'journey', { journey: group.filter((n) => scoreOf(n, p) != null).map((n) => [n, scoreOf(n, p)]) });
   // The study and its colour key come first, before any result.
   assert.equal(trace.steps[0]!.step, 'test');
-  assert.deepEqual(trace.steps.map((s) => s.step), ['test', 'reader-task', 'reader-sample', 'give-ups', 'heat-map', 'journey']);
+  assertSteps(trace, ['test', 'give-ups', 'journey']);
   assertStepState(trace, 'give-ups', {
     giveUps: {
       mine,

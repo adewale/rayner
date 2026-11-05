@@ -9,6 +9,7 @@ import { MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/l
 import { collectProject } from '../tools/lib/explain-project.ts';
 import type { Picture } from '../explain/trace.ts';
 import { assertStepState } from './lib/explainer-state.ts';
+import { assertSteps } from './lib/steps.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
 // The tutorial's own model tests: Wikipedia's worked LRU and MRU examples.
 import '../scenes/tutorial/lru-mru/model.test.ts';
@@ -79,7 +80,7 @@ test('each scenario shows the counts, evictions and cache contents the model giv
   const project = await collectProject(DIR, { write: false });
   assert.deepEqual(project.scenarios.map((v) => v.values.next).sort(), ['loop', 'reuse']);
   for (const { values, trace } of project.scenarios) {
-    assert.deepEqual(trace.steps.map((s) => s.step), ['full', 'evict', 'rest', 'verdict']);
+    assertSteps(trace, ['full', 'evict', 'rest', 'verdict']);
     const requests = SEQ[values.next as keyof typeof SEQ];
     for (const [step, n] of [['full', 3], ['evict', 4], ['rest', 8], ['verdict', 8]] as const) {
       // One card, one column per policy: [LRU, MRU] in each row.

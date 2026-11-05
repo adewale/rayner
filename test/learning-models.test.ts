@@ -17,6 +17,7 @@ import BirthdayParadox,{ANSWER as birthdayAnswer} from '../scenes/explainers/bir
 import {phrase,musicStory,beatMs} from '../scenes/explainers/lib/melody-rhythm.ts';
 import MelodyRhythm from '../scenes/explainers/melody-rhythm/scene.ts';
 import {stepAudio} from '../explain/audio.ts';
+import { assertSteps } from './lib/steps.ts';
 const utf16=fc.array(fc.integer({min:0,max:65535}),{maxLength:100}).map(units=>String.fromCharCode(...units));
 const fixture=JSON.parse(readFileSync(new URL('./fixtures/learning-models.json',import.meta.url),'utf8'));
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<2e-14,`${a} != ${b}`);
@@ -53,8 +54,9 @@ test('a middle deletion needs the marker too, and absent lookups need unused spa
   const { collectProject } = await import('../tools/lib/explain-project.ts');
   const project = await collectProject('scenes/explainers/python-dict', { write: false });
   for (const scenario of project.scenarios) {
-    assert.equal(scenario.trace.steps.length, 6, 'hash and probe-path reference steps remain available');
-    assert.deepEqual(scenario.trace.steps.filter(step => step.meta.kind !== 'detail').map(step => step.step), ['question', 'broken', 'marker', 'missing']);
+    // The story asks, breaks, repairs and misses; the hash and probe-path reference steps stay under details.
+    assertSteps(scenario.trace, ['question', 'broken', 'marker', 'missing'], 'story');
+    assertSteps(scenario.trace, ['hash', 'collision'], 'detail');
   }
 });
 
