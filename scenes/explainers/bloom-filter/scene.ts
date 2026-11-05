@@ -96,23 +96,30 @@ export default class BloomFilter extends Scene {
     const zeros = (q: typeof absent) => q.locations.filter((j) => m.bits[j] === 0);
     const skipped = m.queries.filter((q) => !q.maybe).length,
       wasted = m.queries.filter((q) => q.maybe && !q.stored).length;
-    /** The taken names over the row, each in its colour with the bits it set: the key to the fills. `stored`: the names in the filter. */
+    /**
+     * The taken names over the row, each after a swatch of the fill it gives a bit and in its colour, with the bits
+     * it set: the key to the fills, on the stage. `stored`: the names in the filter.
+     */
     const takenLabel = (s: Stage, step: number, stored: readonly string[]) => {
-      const parts: Text[] =
+      const SIZE = 0.66;
+      const text = (words: string, color: string) => new Text(words, { fontSize: SIZE, color });
+      /** A name's swatch, the size and fill of a bit's share, with its name beside it. */
+      const keyed = (owner: string, words: string) => {
+        const swatch = new Rectangle({ width: 0.5, height: 0.5, fill: fillOf(owner), fillOpacity: 1, stroke: OWNER[owner]!, strokeWidth: 0.02 }),
+          name = text(words, OWNER[owner]!);
+        swatch.moveTo([0, 0]);
+        name.moveTo([0.25 + 0.14, 0], [-1, 0]);
+        const g = new Group(swatch, name);
+        g.key = `bloom-key-${owner}`;
+        return g;
+      };
+      const parts: (Text | Group)[] =
         !stored.length
-          ? [new Text('Taken: cat, dog. Not yet in the filter', { fontSize: 0.66, color: s.palette.ink })]
+          ? [text('Taken: cat, dog. Not yet in the filter', s.palette.ink)]
           : step === FULL
-            ? [
-                new Text('Taken:', { fontSize: 0.66, color: s.palette.ink }),
-                new Text('cat', { fontSize: 0.66, color: OWNER.cat! }),
-                new Text('dog', { fontSize: 0.66, color: OWNER.dog! }),
-                new Text(`and ${stored.length - 2} more`, { fontSize: 0.66, color: OWNER.more! }),
-              ]
-            : [
-                new Text('Taken:', { fontSize: 0.66, color: s.palette.ink }),
-                ...stored.map((name) => new Text(`${name} (${locations(name, size).join(', ')})`, { fontSize: 0.66, color: OWNER[name]! })),
-              ];
-      const gap = 0.3,
+            ? [text('Taken:', s.palette.ink), keyed('cat', 'cat'), keyed('dog', 'dog'), keyed('more', `${stored.length - 2} more`)]
+            : [text('Taken:', s.palette.ink), ...stored.map((name) => keyed(name, `${name} (${locations(name, size).join(', ')})`))];
+      const gap = 0.36,
         width = parts.reduce((w, t) => w + t.width(), gap * (parts.length - 1));
       let x = -width / 2;
       for (const t of parts) {
@@ -174,7 +181,7 @@ export default class BloomFilter extends Scene {
         id: 'insert',
         title: `Taking cat sets bits ${list(cat)}`,
         line: 'Three hash functions each turn the name into a position.',
-        caption: `The three hash functions turn cat into positions in this row, and those bits become 1. Purple lets us follow cat’s contribution, but the row itself stores only the 1s and keeps no trace of the name.`,
+        caption: `The three hash functions turn cat into positions in this row, and those bits become 1. The purple fill, keyed above the row, marks cat’s bits for us, but the row itself stores only the 1s and keeps no trace of the name.`,
       },
       {
         id: 'shared',
@@ -183,8 +190,8 @@ export default class BloomFilter extends Scene {
           : `dog sets ${list(dog)}, none of them cat’s`,
         line: 'A set bit says some name set it, not which.',
         caption: shared.length
-          ? `dog’s bits ${list(dog)} are filled brown. Bit ${list(shared)} was already 1 from cat, so it stays 1; its fill shows both names, but the row records only the 1. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`
-          : `dog’s bits ${list(dog)} are filled brown, and none of them was already set by cat. The fills tell the names apart for us; the row itself holds ${m.setBits} identical 1s, and nothing in it says which name set bit ${dog[0]} or bit ${cat[0]}. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
+          ? `dog’s bits ${list(dog)} take its brown fill. Bit ${list(shared)} was already 1 from cat, so it stays 1; its fill shows both names, but the row records only the 1. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`
+          : `dog’s bits ${list(dog)} take its brown fill, and none of them was already set by cat. The fills tell the names apart for us; the row itself holds ${m.setBits} identical 1s, and nothing in it says which name set bit ${dog[0]} or bit ${cat[0]}. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
       },
       {
         id: 'absent',
@@ -226,7 +233,7 @@ export default class BloomFilter extends Scene {
         id: 'full',
         title: `After ${full.words.length} names, all ${size} bits are 1: always maybe`,
         line: `Keep taking names and the row only fills: ${absent.word}, ruled out earlier, now gets maybe too.`,
-        caption: `Each inserted name can use up more of the remaining zeros, and the ${ordinal(full.words.length)} name sets the last one. From then on every name finds three 1s: the filter says maybe and sends the question to the database, saving no reads. In this sequence of names the ${size}-bit row fills after ${full.words.length} names and the ${other.size}-bit row after ${otherFull.words.length}. The zeros were the filter’s only evidence, so more memory helped here by leaving more of them, but how long it helps depends on where the names’ bits land.`,
+        caption: `Each name taken can fill more of the remaining zeros, and the ${ordinal(full.words.length)} name fills the last. From then on every name finds three 1s: the filter says maybe and sends every check to the database, saving no reads. The zeros were its only evidence. With these names the ${size}-bit row fills after ${full.words.length} and the ${other.size}-bit row after ${otherFull.words.length}; how long more memory helps depends on where the names’ bits land.`,
       },
     ];
 
