@@ -19,7 +19,7 @@ import { chromeFor } from '../../app/embed-strings.ts';
 
 const enabled = !!process.env.EXPLAIN_BROWSER;
 const options = { skip: enabled ? false : 'set EXPLAIN_BROWSER=1 for served live machine checks' };
-const EXPLAINERS = ['ring-buffer', 'state-machine', 'statecharts', 'token-bucket', 'monty-hall', 'latest-search', 'oauth-pkce', 'just-bash'];
+const EXPLAINERS = ['ring-buffer', 'state-machine', 'statecharts', 'token-bucket', 'monty-hall', 'latest-search', 'oauth-pkce', 'just-bash', 'python-dict'];
 /** How far the walk goes from each live step's start: events deep, and states in all. */
 const DEPTH = 2, STATES = 6;
 const t = chromeFor('en');

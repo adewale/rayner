@@ -192,12 +192,12 @@ export class Machine<S extends object, E extends string> {
   }
 
   /**
-   * Every state reachable from the start, breadth first, with the shortest events that reach
-   * it (so a state that fails a check is reported by its shortest way there), up to `limit`
-   * states. States are compared as JSON, as traces compare them.
+   * Every state reachable from `from` (default: the start), breadth first, with the shortest
+   * events that reach it (so a state that fails a check is reported by its shortest way there),
+   * up to `limit` states. States are compared as JSON, as traces compare them.
    */
-  reachable(): { state: S; path: E[] }[] {
-    const start = this.spec.start;
+  reachable(from: S = this.spec.start): { state: S; path: E[] }[] {
+    const start = from;
     const seen = new Map<string, { state: S; path: E[] }>([[JSON.stringify(start), { state: start, path: [] }]]);
     const queue = [...seen.values()];
     while (queue.length && seen.size < this.spec.limit) {

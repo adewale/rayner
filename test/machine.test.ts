@@ -328,3 +328,31 @@ test('a bound stops the story where the model would go on; check fails a bound t
   const lamp = await new free(new NullSink()).run();
   assert.deepEqual(lamp.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
 });
+
+test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {
+  // The machine starts bright, where UP is refused; the scene plays it from off, so the step rests at dim,
+  // a state the start never reaches. Dim's label is too small to read: only the walk from the step finds it.
+  class FromStep extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 1 ? 0.08 : 0.5 }), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine<Lamp, 'UP'>(this, {
+        start: { level: 2 }, events: ['UP'], views: [picture],
+        next: (st) => (st.level === 2 ? undefined : { level: st.level + 1 }),
+      });
+      await this.step('press', { caption: 'Press it.' });
+      await this.play(machine.replay(['UP'], { level: 0 }));
+    }
+  }
+  const ran = await new FromStep(new NullSink()).run();
+  const trace = await traceScene(FromStep);
+  const stageOf = async (step: string) => {
+    const s = trace.steps.find((x) => x.step === step)!;
+    return renderAt(FromStep, Math.max(s.t0, s.t1! - 0.5 / trace.fps), new NullSink());
+  };
+  const [explored] = await exploreMachines(ran, stageOf);
+  assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp dim” is .* px/.test(p)), JSON.stringify(explored!.problems));
+});

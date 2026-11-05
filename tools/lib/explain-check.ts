@@ -414,13 +414,21 @@ export async function exploreMachines(
     const problems: string[] = [];
     const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
     if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
-    const reached = machine.reachable();
+    // From the start, as exploration always has; and from the state the reader finds at the step
+    // where the machine is live, since the player lets the reader send events from there too.
+    const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
+    const seen = new Set(fromStart.map((r) => JSON.stringify(r.state)));
+    const stepState = jsonObject(host.state, 'machine state') as object;
+    const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
+    const fromStep = host === scene || seen.has(JSON.stringify(stepState)) || !answers ? []
+      : machine.reachable(stepState).filter((r) => !seen.has(JSON.stringify(r.state))).map((r) => ({ ...r, origin: `from the state at "${live.lastPlayedIn}", ` }));
+    const reached = [...fromStart, ...fromStep];
     const shownThen = host.shown;
     // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
     host.shown = machine.playedUnder ?? shownThen;
     const said = new Map<string, string>();
-    for (const { state, path } of reached) {
-      const at = path.length ? `after ${path.join(', ')}` : 'at the start';
+    for (const { state, path, origin } of reached) {
+      const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
       host.state = jsonObject(state, 'machine state');
       for (const view of machine.spec.views) {
         view.rebuild();
@@ -439,10 +447,10 @@ export async function exploreMachines(
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
       else said.set(words, at);
-      problems.push(...transitionProblems(host, machine, state, path));
+      problems.push(...transitionProblems(host, machine, state, path, origin));
     }
     host.shown = shownThen;
-    explored.push({ events: [...machine.spec.events], states: reached.length, sampled: reached.length >= machine.spec.limit, problems });
+    explored.push({ events: [...machine.spec.events], states: reached.length, sampled: fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit, problems });
   }
   return explored;
 }
@@ -477,18 +485,18 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
  */
 const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
 
-function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[]): string[] {
+function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin = ''): string[] {
   const problems: string[] = [];
   const { views, transition, events } = machine.spec;
   for (const event of events) {
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
     const bound = machine.spec.bound?.(state, event);
     if (bound !== undefined && machine.spec.next(state, event) === undefined)
-      problems.push(`${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
+      problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
     const authored = transition?.[event];
     const after = authored && machine.after(state, event);
     if (!authored || after === undefined) continue;
-    const at = `${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
+    const at = `${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
     // now (a rebuilt picture keeps its place), before the transition can move them.
     scene.state = jsonObject(after, 'machine state');
