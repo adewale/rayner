@@ -1,4 +1,4 @@
-import { Scene, Group, Rectangle, Text, Arrow, Line, Dot, AnimationGroup, Succession, Transform, MoveAlongPath, FadeIn, Machine, choreograph, view, linear } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, Arrow, Line, Dot, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Animation, Mobject, SceneState, Choreography, Transition, ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from '../lib/models.ts';
@@ -265,15 +265,11 @@ export default class OAuthExplainer extends Scene {
     await this.play(new FadeIn(sheet, { runTime: 0.4 }));
 
     const travel = (c: Choreography, id: MessageId, color: string): ScheduledAnimation[] => {
-      const path = (c.to(`sign-in:msg:${id}`) as Arrow).line, at = path.pointFromProportion(0);
-      const token = c.insert(`sign-in:token:${id}`, new Dot({ radius: 0.1, color }).moveTo(at));
+      const message = c.travel(`sign-in:token:${id}`, new Dot({ radius: 0.1, color }), (c.to(`sign-in:msg:${id}`) as Arrow).line, { appear: 0.15, move: 0.7, leave: 0.2 });
       return [
-        new Transform(token, new Dot({ radius: 0.1, color }).moveTo(at), { runTime: 0.15 }),
-        new AnimationGroup([
-          new MoveAlongPath(token, path, { runTime: 0.7, rateFunc: linear }),
-          c.enter(`sign-in:msg:${id}`, { create: true }, { runTime: 0.7 }),
-        ]),
-        new AnimationGroup([c.leave(`sign-in:token:${id}`, { runTime: 0.2 }), c.enter(`sign-in:label:${id}`, {}, { runTime: 0.3 })]),
+        message.appear,
+        new AnimationGroup([message.move, c.enter(`sign-in:msg:${id}`, { create: true }, { runTime: 0.7 })]),
+        new AnimationGroup([message.leave, c.enter(`sign-in:label:${id}`, {}, { runTime: 0.3 })]),
       ];
     };
     const machine = new Machine<SignIn, SignInEvent>(this, {
