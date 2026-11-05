@@ -279,16 +279,16 @@ export default class CacheMRExplainer extends Scene {
       kind: 'detail',
       title:
         which === 'hit'
-          ? 'A cache hit returns from KV with no D1 read'
-          : 'A cache miss reads D1 once, then caches the row',
+          ? 'In the merged code, a hit stops at line 3'
+          : 'In the merged code, a miss runs on to line 6',
       line:
         which === 'hit'
-          ? 'The hit row bypasses D1: 0 reads.'
-          : 'The miss row reads D1 once and caches the row for 300 s.',
+          ? 'Lines 2 and 3 run; the hit returns before line 4’s D1 query.'
+          : 'After the empty lookup, lines 4 to 6 read D1, write KV and return.',
       caption:
         which === 'hit'
-          ? 'The user is already in KV, so getUser runs lines 2 and 3 and returns without reading D1. The highlighted hit row goes straight from KV to Reply; the miss row shows the database read this request avoids, and the KV write it does not need.'
-          : 'KV has no entry, so the highlighted miss row goes through D1: one read, as before the change, then the row is written to KV for 300 seconds. A later lookup for the same user can follow the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
+          ? 'Walked through the edited diagram and code, the hit takes KV’s hit branch: line 2 reads KV and line 3 returns what it found, before line 4’s D1 query. The two rows put both paths side by side: the miss row carries the read this request avoids and the 300-second write it does not need.'
+          : 'Walked through the edited diagram and code, the miss finds nothing at line 3 and runs on: line 4 reads D1 as before the change, line 5 writes the row to KV for 300 seconds, and line 6 returns it. A later lookup for the same user can take the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
     });
     const path = PATH[which];
     await flow.clearNotes();
