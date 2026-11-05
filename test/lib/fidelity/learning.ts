@@ -120,7 +120,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assert.ok(caption('chance').includes(`the exact chance is ${shown.any}`));
     assert.ok(caption('you').includes(`shares your birthday is only ${shown.one}`));
   } else if(id==='melody-rhythm') {
-    const m=musicStory(values.timing as Timing,Number(values.tempo));
+    // One tempo, 96 BPM: the tempo setting changed no conclusion and is gone.
+    assert.equal(values.tempo,undefined);
+    const m=musicStory(values.timing as Timing,96);
     for(const step of trace.steps) {
       const clips=step.step==='rhythm'?m.flat:m.clips;
       assertStepState(trace,step.step,{clips,bpm:m.bpm,beatMs:m.beatMs,timing:m.timing,movedStarts:m.movedStarts,movedDurations:m.movedDurations,

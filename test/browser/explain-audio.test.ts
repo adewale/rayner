@@ -69,16 +69,17 @@ async function ready(page:Page,step='listen') {
   await page.waitForFunction(name=>document.querySelector('[aria-current=step]')?.getAttribute('data-step')===name&&!document.querySelector('#content.loading'),step);
 }
 
-test('audio is opt-in, offline, gesture-triggered and follows the score at both tempos',options,async()=>{
+test('audio is opt-in, offline, gesture-triggered and follows the score at its tempo',options,async()=>{
   const plain=await readFile(join(folder,'plain.html'),'utf8');
   assert.ok(!plain.includes('score-audio')&&!plain.includes('createOscillator'),'a plain page carries no optional sound UI or DSP');
-  for(const bpm of [96,120]) for(const timing of ['syncopated','straight']) {
+  const bpm=96;
+  for(const timing of ['syncopated','straight']) {
     const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
     const errors:string[]=[],external:string[]=[];
     page.on('pageerror',error=>errors.push(error.message));
     await page.route('**/*',route=>{if(new URL(route.request().url()).origin!==server.url){external.push(route.request().url());return route.abort();}return route.continue();});
     try {
-      await observed(page);const response=await page.goto(`${server.url}/melody-rhythm.html?tempo=${bpm}&timing=${timing}`);await ready(page);
+      await observed(page);const response=await page.goto(`${server.url}/melody-rhythm.html?timing=${timing}`);await ready(page);
       assert.match(response!.headers()['content-security-policy']!,/connect-src 'none'/);
       assert.equal(await page.evaluate(()=>(window as any).scoreProbe.contexts),0,'no context or autoplay before a gesture');
       assert.equal(await page.locator('.score-audio').isVisible(),true);

@@ -83,8 +83,11 @@ function scorePicture(s: Stage, clips: AudioClip[], look: Look = {}) {
   else figure.add(label('Bar 1: four beats', -2.7, y, s.soft, 0.7), label('Bar 2: four beats', 4.0, y, s.soft, 0.7));
   return figure;
 }
-/** Milliseconds as a reader would say them: 312.5, 625. */
-const ms = (n: number) => String(Math.round(n * 10) / 10);
+/**
+ * The one tempo. A second tempo used to be a setting, but it changed no conclusion: G starts halfway
+ * through beat 4 at any tempo, and only the milliseconds moved.
+ */
+const BPM = 96;
 
 export default class MelodyRhythm extends Scene {
   static meta = {
@@ -118,7 +121,7 @@ export default class MelodyRhythm extends Scene {
           'None. D and both Cs would each start half a beat late, halfway through beats 2, 3 and 4, and the last C would run half a beat past the end of bar 2. Cutting that E to half a beat is what lets B land back on the beat.',
       },
     ],
-    // Sentences about every note or every beat, held at both tempos and in both versions of B.
+    // Sentences about every note or every beat, held in both versions of B (and by the tests at two tempos).
     claims: [
       {
         says: 'a new note starts on every click',
@@ -156,19 +159,10 @@ export default class MelodyRhythm extends Scene {
         { value: 'straight', label: 'Keep the same timing as A' },
       ],
     },
-    {
-      id: 'tempo',
-      label: 'Tempo',
-      default: '96',
-      options: [
-        { value: '96', label: '96 BPM' },
-        { value: '120', label: '120 BPM' },
-      ],
-    },
   ];
   override async construct() {
     const v = settingsOf(this),
-      m = musicStory(v.timing as Timing, Number(v.tempo)),
+      m = musicStory(v.timing as Timing, BPM),
       different = m.movedStarts > 0;
     // B's notes that start on bar 2's 1, by index: none when G holds across the bar line.
     const onTheOne = (clip: AudioClip) => clip.notes.flatMap((n, i) => (n.at === 4 ? [`${clip.id}-${i}`] : []));
@@ -197,8 +191,8 @@ export default class MelodyRhythm extends Scene {
           ? 'The red outline is G, the note still sounding when bar 2 begins.'
           : 'The red outline: G ends exactly as bar 2 begins.',
         caption: different
-          ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation. At ${m.bpm} BPM a beat lasts ${ms(m.beatMs)} ms, so G starts ${ms(m.beatMs / 2)} ms before the bar line; the other tempo changes that gap but keeps G halfway through beat 4.`
-          : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. The other version of B differs at exactly this bar line. ${answer} Only that version starts G late enough to hold it across the bar line.`,
+          ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation.`
+          : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. ${answer} Only that version starts G late enough to hold it across the bar line.`,
         clips: m.clips,
         look: (st: Music): Look => ({
           accent: true,

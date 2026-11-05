@@ -5,7 +5,8 @@ import { Text, Rectangle } from '../src/index.ts';
 
 test('both piano rolls put every played pitch, onset and duration at its stated score coordinates', async () => {
   const p = await collectProject('scenes/explainers/melody-rhythm', { write: false });
-  assert.equal(p.scenarios.length, 4);
+  // Two versions of B; the tempo setting, which changed no picture's notes, is gone.
+  assert.equal(p.scenarios.length, 2);
   let pictures = 0,
     notes = 0;
   for (const scenario of p.scenarios)
@@ -39,9 +40,9 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
       },
       { skipUntil: Infinity },
     ).run();
-  // Four steps in each of four scenarios, sixteen notes a picture (timing merged into bar, phrase cut).
-  assert.equal(pictures, 16);
-  assert.equal(notes, 256);
+  // Four steps in each of two scenarios, sixteen notes a picture (timing merged into bar, phrase cut).
+  assert.equal(pictures, 8);
+  assert.equal(notes, 128);
 });
 
 test('Monty Hall paints every round at its chance and the host-conditioned percentages beside the correct strategies in every scenario', async () => {
