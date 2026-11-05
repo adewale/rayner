@@ -50,7 +50,7 @@ One row per idea. **Bold** marks a change.
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | **`stage.sketch(m)`** | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
-| 3D picture | **`seenFrom(model, viewpoint)`** (new, in `rayner/drawing`) | Draws a 3D model through a viewpoint, `{ yaw, pitch, kind }`, that is ordinary state turned by an ordinary `Follow`. Not an engine type. | |
+| 3D picture | **`seenFrom(model, viewpoint)`** (built, in `rayner/drawing`), `depthOrder(picture)` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, that is ordinary state turned by an ordinary `Follow`, as keyed 2D pieces in an explicit depth order (far, body, near). Mercator and gnomonic maps are viewpoint kinds of the same model. Not an engine type. | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | **`scene.review.json`'s `subjects`** | What a caption names, for the reader review to find on screen | that file's `claims` |
@@ -118,7 +118,7 @@ These are new rather than renames, and each has two adopters:
 | Addition | First adopter | Second adopter |
 | --- | --- | --- |
 | `table(..., { key })`, keyed cells (done) | python-dict (deletion and lookup as two machines; insertion is outside its script) | bloom-filter |
-| `seenFrom(model, viewpoint)` in `rayner/drawing` | great-circle ([script](../scenes/explainers/great-circle/script.md)) | henge's fixed-axis globes, whose resting pictures must stay identical |
+| `seenFrom(model, viewpoint)` in `rayner/drawing` | great-circle ([script](../scenes/explainers/great-circle/script.md)): built; its turn is a `Follow` over the viewpoint's pitch | henge's fixed-axis globes: not adopted, because their resting pictures cannot stay identical. Each is a cross-section in the orbital plane with Earth's axis drawn across the opaque disc; `seenFrom` hides the part of the axis inside the body, which is the depth rule it exists to keep |
 
 ### 5. Cuts
 
@@ -164,7 +164,7 @@ Each item is one commit with its own evidence, as the primitives in this PR were
 2. **`draw` and `sketch`**, and the cuts above. Evidence: identical frames for every explainer; monty-hall's picture moves to `view(scene, draw)` with identical frames.
 3. **`stage.steps`**, moving the 17 explainers one at a time. Evidence: identical frames per explainer. The redraw check is shown rejecting a deliberate defect: a `draw` that reads a counter incremented by each step.
 4. **Refused events, `transition` and edge checks**; ring-buffer and state-machine as machines, and the player's event buttons (#88). Evidence: identical resting pictures. The edge check is shown rejecting a transition that ends one slot away from `draw(after)`.
-5. **Additions**, each with its two adopters and a deliberate defect: a duplicated table key, and a viewpoint change that draws a back face in front. Keyed tables are in: `table()` refuses a duplicated row key or header by name, and a keyed morph pairs a moved row with itself (both in `test/lesson-layout.test.ts`); python-dict plays its deletions and lookups as machines on them, with resting pictures identical to before. Bloom-filter, the second adopter, is still to move.
+5. **Additions**, each with its two adopters and a deliberate defect: a duplicated table key, and a viewpoint change that draws a back face in front. Keyed tables are in: `table()` refuses a duplicated row key or header by name, and a keyed morph pairs a moved row with itself (both in `test/lesson-layout.test.ts`); python-dict plays its deletions and lookups as machines on them, with resting pictures identical to before. Bloom-filter, the second adopter, is still to move. `seenFrom` is built with great-circle; `test/seen-from.test.ts` shows `depthOrder` rejecting a picture whose viewpoint changed without a redraw, and a turn drawn by morphing between two endpoint pictures, while a `Follow` holds at every frame. Its second adopter is open: henge's globes would change picture (above).
 
 ## Done when
 

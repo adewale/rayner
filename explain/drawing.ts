@@ -242,3 +242,4 @@ export function bars(
   });
   return g;
 }
+export * from './seen-from.ts';

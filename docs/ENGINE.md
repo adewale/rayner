@@ -60,7 +60,7 @@ A review on 2026-11-03 found that 34 of the 40 explainers cleared the stage and 
 
 ## Out of scope
 
-- **3D in the engine.** The model is 2D point buffers drawn as SVG paths; depth sorting and a 3D camera would be a second engine. The planned `seenFrom(model, viewpoint)` in `rayner/drawing` will draw a 3D model as 2D paths from a viewpoint held in state ([vocabulary](VOCABULARY.md)).
+- **3D in the engine.** The model is 2D point buffers drawn as SVG paths; a z-buffer, lighting and a 3D camera would be a second engine. A 3D picture is a drawing instead: [`seenFrom(model, viewpoint)`](REFERENCE.md#3d-seenfrommodel-viewpoint) in the drawing kit turns a model and a viewpoint (plain state, turned by a `Follow`) into ordinary keyed 2D pieces in an explicit depth order, which `depthOrder` checks.
 - **Boolean path operations** (union, intersection, difference). Robust curve clipping is a geometry library in itself; an approximate one would break exact points, and a dependency would break zero runtime dependencies.
 - **Runtime LaTeX.** A TeX engine and its fonts are a large dependency, so neither a page nor a build runs one. Maths is typeset once, when its snapshot is captured, by `glyph`'s TeX subset on Latin Modern Math, and stored as outlines in `scene.lettering.json`. `MathTex` draws those outlines ([Maths](REFERENCE.md#maths)).
 - **`transform` matrices on the model.** Every move rewrites points, because points are what traces, the verifiers and matching transforms read. The SVG serializer already writes shape-relative path data plus a `translate`, so a pure move keeps its `d` without a matrix in the model.

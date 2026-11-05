@@ -212,6 +212,32 @@ table(['Entry', 'Key', 'Value'], rows, s, { key: 'dict-entries' }); // dict-entr
 
 The collection's scenes import the same functions through `scenes/explainers/lib/lesson-drawing.ts`.
 
+#### 3D: `seenFrom(model, viewpoint)`
+
+`seenFrom` draws a 3D model through a viewpoint as ordinary keyed 2D mobjects. There is no second renderer: the result is a Group of paths and dots like any other picture, and the same model and viewpoint always draw the same picture.
+
+```ts
+import { seenFrom, latLon, circleOn, depthOrder } from 'rayner/drawing';
+
+const model = {
+  body: { radius: 1, fill: '#eef5fb', stroke: '#59636e' },        // the sphere every part is seen against
+  parts: [
+    { kind: 'path', key: 'equator', lines: [circleOn([0, 0, 1], 90)], closed: true, color: '#59636e', hidden: 'dashed' },
+    { kind: 'point', key: 'city:LHR', at: latLon(51.47, -0.45), color: '#1f2328' },
+  ],
+};
+const globe = seenFrom(model, { kind: 'orthographic', yaw: -30, pitch: 40 }, { at: [0, 0], scale: 3 });
+```
+
+- **The model** is plain JSON: a `body` (the sphere, centred at the origin) and `parts`, each a `point`, a `path` (polylines drawn as one stroke) or a `face` (rings filled even-odd). Model x points to latitude 0, longitude 0, y to 90° E and z to the north pole. `latLon(lat, lon, r?)`, `greatArc(a, b, step?)` and `circleOn(pole, angle, r?)` (90° is a great circle) make points on the sphere.
+- **The viewpoint** is plain JSON state, `{ kind, yaw, pitch }`: the longitude and latitude that face the viewer, north up. `orthographic` looks from far away; `perspective` from `distance` radii (default 3); `gnomonic` from the sphere's centre onto the plane touching it at (pitch, yaw), out to `limit` degrees; `mercator` unrolls the sphere with `yaw` as the central meridian and clips to `window` (scene units) and `limit` degrees of latitude. The maps draw only parts that lie on the sphere, and no body, so a globe and its flat maps are drawn from one model.
+- **Depth is an explicit order**, not a sort: far pieces (what the body hides), then the body, then the near surface (faces, paths, points), then what stands off the sphere on the near side. On a convex body nothing on the near surface can hide anything else there, so the order never depends on the viewpoint. A part's far piece is culled (`hidden: 'cull'`, the default), dashed and dimmed (`'dashed'`, for a translucent body) or drawn in its own style before the body (`'behind'`, for a part that sticks out past the limb). A point is always a Dot, transparent where it is out of sight.
+- **Pieces are stable**: each part gives the same pieces at every viewpoint (its near piece keyed `key`, its far piece `key:hidden`), so a `Follow` can redraw the picture frame by frame with `become`. A camera move is a Follow over the viewpoint's values, drawing `seenFrom(model, viewpoint(t))`; `between(a, b, t)` interpolates two viewpoints of one kind, turning yaw the short way. Frames stay a pure function of time, so a seek lands on the frame a full play shows.
+- **`project(p, viewpoint, radius?, options?)`** returns where a point lands and whether it is seen, for a label beside a part.
+- **`depthOrder(picture)`** returns `true` when every seenFrom drawing in `picture` keeps the order (layers far, body, near; every far point hidden and every near point seen, from the viewpoint the drawing records; each piece drawn where that viewpoint puts it), a message naming the first part out of order, or `undefined` when there is no such drawing. Register it with `scene.addInvariant` and `rayner check` holds it on every frame. It rejects a picture whose viewpoint changed without a redraw, and a turn drawn by morphing between two endpoint pictures, which draws parts on their way behind the globe across its face (`test/seen-from.test.ts`). Turn the viewpoint with a Follow, and change kind (map to globe) by clearing and entering.
+
+The great-circle explainer draws Mercator's map, the globe and the gnomonic map from one model, and turns the globe with a Follow over its pitch until the route is seen edge-on.
+
 ### Spatial direction
 
 ```ts

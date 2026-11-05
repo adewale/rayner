@@ -8,7 +8,7 @@ import * as reader from '../scenes/explainers/lib/reader-drawing.ts';
 import { readFileSync } from 'node:fs';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
-  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'dot', 'flow', 'keyed', 'label', 'segment', 'stat', 'table', 'tile']);
+  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'circleOn', 'depthOrder', 'dot', 'flow', 'greatArc', 'keyed', 'label', 'latLon', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });
