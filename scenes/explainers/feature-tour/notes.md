@@ -5,3 +5,5 @@ The starting copies, camera ruler and Restore example’s dashed outline are exp
 The camera changes the whole view, which is why its result uses a ruler instead of parallel before-and-after panels. The glyph correspondence under the matching example comes from the actual matched pairs.
 
 The fifteen scenarios are short demonstrations rather than complete API coverage. The direction example uses Latin text in a right-to-left layout; it does not demonstrate shaping a right-to-left script. Changing the feature returns to its recipe, while a direct result permalink remains supported.
+
+Each result step's evidence is declared in `scene.review.json`: the words a caption points at (the moved letters, the camera's measurement, state.count = 1, the card that still reads Count, 3) and, by key with `paint: "stroke"`, the ink that carries the point where the scene draws it by hand (the square, the restored circle and its dashed outline, the box round 42, the chart's line, the drawn path). Automatic emphasis covers the helpers' own marks (a walked trail, a focused or added code line); these are the subjects it cannot infer.

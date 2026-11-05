@@ -429,9 +429,24 @@ export default class FeatureTour extends Scene {
       await s.card([['Default scenario', options.default]], { at: BEFORE, fontSize: 0.45 });
       await s.card([['This scenario', feature], ['Scenarios built', String(options.options.length)]], { at: AFTER, fontSize: 0.55 });
     } else if (feature === 'diagram') {
-      await panels([], 'the captured flowchart, no path marked');
-      await s.show({ source: 'graph LR\nA[Start] --> B[Finish]' }, { box: BEFORE });
+      // One live diagram; the before panel is a picture of it, re-keyed so each key names one part.
       const d = await s.show({ source: 'graph LR\nA[Start] --> B[Finish]' }, { box: AFTER });
+      const before = d.picture();
+      for (const m of before.family()) if (m.key && !m.key.startsWith('__')) m.key = `before:${m.key}`;
+      const [x0, y0, x1, y1] = before.box()!;
+      const k = Math.min((BEFORE[2] - BEFORE[0]) / (x1 - x0), (BEFORE[3] - BEFORE[1]) / (y1 - y0), 1);
+      const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+      before.scale(k).moveTo([bx, by]);
+      // The copy keeps the diagram's clip and line widths; carry both with it.
+      const to = (x: number, y: number) => [bx + (x - cx) * k, by + (y - cy) * k] as const;
+      for (const m of before.family()) {
+        if (typeof m.style.strokeWidth === 'number') m.style.strokeWidth *= k;
+        if (m.clipBox) {
+          const [l, b] = to(m.clipBox[0], m.clipBox[1]), [r, t] = to(m.clipBox[2], m.clipBox[3]);
+          m.clipBox = [l, b, r, t];
+        }
+      }
+      await panels([before], 'the captured flowchart, no path marked');
       await d.walk([['A', 'B']], { trail: true });
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
@@ -449,6 +464,7 @@ export default class FeatureTour extends Scene {
         'a circle',
       );
       const shape = new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([ax, ay]);
+      shape.key = 'animation:shape';
       await s.enter(shape, { describe: 'After: the circle has become a square' });
       await this.play(new Transform(shape, new Square({ side: 1.6, stroke: accent, strokeWidth: 0.06 }).moveTo([ax, ay])));
     } else if (feature === 'matching') {
@@ -483,6 +499,8 @@ export default class FeatureTour extends Scene {
       // Where the demonstration took it, left as a dashed outline.
       const away = new Circle({ radius: 0.8, stroke: soft, strokeWidth: 0.03 }).moveTo([ax + 1, ay]);
       away.style.dashArray = '0.1 0.08';
+      circle.key = 'restore:circle';
+      away.key = 'restore:away';
       await s.enter(circle, { describe: 'After: the circle is back at its saved place; a dashed outline marks where it moved to' });
       circle.saveState();
       await this.play(circle.animate.shift([2, 0]));
@@ -495,6 +513,7 @@ export default class FeatureTour extends Scene {
       const target = new Text('42', { fontSize: 1.2, color: ink }).moveTo([ax, ay]);
       await s.enter(target);
       const circle = new Circumscribe(target, { keep: true, color: accent });
+      circle.outline.key = 'emphasis:box';
       s.keep(circle.outline, { describe: 'After: the result 42 remains in a box' });
       await this.play(circle);
     } else if (feature === 'camera') {
@@ -506,6 +525,7 @@ export default class FeatureTour extends Scene {
         if (x % 2 === 0) ruler.add(new Text(String(x), { fontSize: 0.18, font: 'mono', color: soft }).moveTo([x, -1.32]));
       }
       const subject = new Circle({ radius: 0.6, stroke: accent, strokeWidth: 0.07 }).moveTo([0, 0]);
+      subject.key = 'camera:circle';
       await s.enter(ruler, subject, {
         describe: 'A circle at the centre of a ruler that spans the stage from −7 to 7, numbered on its even ticks',
       });
@@ -543,6 +563,7 @@ export default class FeatureTour extends Scene {
       });
       axes.moveTo([ax, ay]);
       const line = axes.lineGraph(data, { color: accent });
+      line.key = 'chart:line';
       await s.enter(axes, line, { describe: 'After: a line through values zero, two and one at x zero, one and two' });
     } else if (feature === 'state') {
       await panels(
@@ -587,6 +608,7 @@ export default class FeatureTour extends Scene {
         'the path’s two ends, nothing drawn',
       );
       const path = new Line([ax - 3.6, ay - 0.9], [ax + 3.6, ay + 0.9], { stroke: accent, strokeWidth: 0.08 });
+      path.key = 'drawing:path';
       await s.sketch(path, { tool: 'pen', describe: 'After: a rising line, drawn' });
     }
   }
