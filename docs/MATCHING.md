@@ -102,6 +102,13 @@ parts that stay through an event keep their identity.
   cross a line can still report a teleport in a few frames.
 - `fadeMismatches: false` morphs the unmatched parts into each other instead,
   by index, as manim's `transform_mismatches` does; only the surplus fades.
+- `staged: true` takes the unmatched parts in turn instead of together: the
+  source's shrink and fade over the first half, the target's grow and fade in
+  over the second, while matched parts morph throughout. A word and the word
+  that replaces it in the same place never overlap. A machine's views morph
+  this way when an event has no authored transition
+  ([machines](MACHINES.md#the-default-transition)); `view.sync({ staged: true })`
+  asks for it anywhere else.
 
 New parts live in the source while the animation plays: copies of them are
 added to the source's line their target line corresponds to, or to a bare copy

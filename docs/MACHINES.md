@@ -27,7 +27,8 @@ await this.play(machine.replay(['POWER_ON', 'START', 'FROTH']));
 Since a frame is a pure function of time ([invariant 1](ENGINE.md#correctness-by-construction)),
 a reader's events can be ordinary input to a schedule. Each event becomes a member of a
 `Succession`: a [`SetState`](CHOREOGRAPHY.md#setstate) whose next state `next` computes from the
-state when it plays, then a keyed sync of every view, or the event's authored transition. A
+state when it plays, then a staged keyed sync of every view ([the default
+transition](#the-default-transition)), or the event's authored transition. A
 replayed machine therefore seeks, traces and records like any other play.
 
 | Spec field | What it says |
@@ -39,7 +40,7 @@ replayed machine therefore seeks, traces and records like any other play.
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
-| `match` | How the views morph (default `'key'`) |
+| `match` | How the views morph without an authored transition (default `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed word that changes is replaced) |
 | `runTime` | Each event's morph or transition in seconds (default 0.6), or a function of `{ event, before, after }` |
 | `limit` | The most states exploration visits from one origin (default 256) |
 
@@ -137,6 +138,43 @@ brought in is in the picture from the start but unseen, and joins when its turn 
 `play()` never takes it for a new mobject. When the transition ends, each keyed part of each view
 takes its drawn counterpart's data in place, in the drawn stacking order: nothing moves, and
 every part keeps its identity for the next event.
+
+## The default transition
+
+An event with no authored transition morphs each view to the picture of the state it reaches, by
+key and staged: parts only the old picture has shrink and fade out over the first half, parts
+only the new picture has grow and fade in over the second, and parts both have morph throughout.
+A keyed Text whose words change counts as gone and come (`text: 'whole'`), so it is replaced,
+not morphed glyph by glyph. A new machine therefore reads at every frame without authored motion:
+a word never sits on top of the word replacing it. Parts without a key under no keyed part fade
+the same way. Landing is the sync's own, so it ends exactly on the state's picture.
+
+It replaced an unstaged keyed sync (`match: 'key'`), in which every part that went faded out
+while every part that came faded in, over the same time, and a keyed word that changed was morphed
+glyph by glyph by place. The choice was made by drawing the reader's presses frame by frame
+(`runLive` with an animating sink) for python-dict, which authors no transitions, and for
+ring-buffer with its transitions taken out, under three defaults:
+
+- **The unstaged keyed sync.** At mid-press python-dict's panel showed "KeyError" and "not
+  found", and "pear is still stored, in entry 1." and "Slot 0 has never been used…", on top of
+  each other, half faded, for about a third of the press; ring-buffer's operation card showed
+  "push 7" and "pop" overlapping, and its head, tail and length values sat on each other.
+- **`choreograph(view.current, target).rest()`, staged** (what goes fades out, what persists
+  morphs, what comes fades in). A keyed part that persists morphs whole, so a cell whose word
+  changed morphed "KeyError" into "not found" letter shape by letter shape, unreadable for most of
+  the press. Worse, `rest()` sees only keyed parts: python-dict's note and ring-buffer's readouts
+  and card values, which are unkeyed, did not move at all and jumped to the new words in the
+  landing frame.
+- **The keyed sync, staged.** No frame shows two words in one place: the old words are gone by
+  halfway and the new ones come after, while the slots, arrows and rings that both pictures have
+  move throughout. Every part, keyed or not, takes part. This is the default.
+
+Two explainers move differently, and no resting picture changed. python-dict authors no
+transition, so its presses and replays now replace a changed word instead of morphing it.
+monty-hall authors every event but `pick` and `stay`, whose line ("Pick a door" becoming "You
+picked A") was morphed glyph by glyph into a blot for a few frames and now fades out and the new
+line in. The other seven author every event's transition and are unchanged, frame for frame. A
+machine that wants other motion authors a `transition`.
 
 ## What check does with a machine
 
@@ -323,7 +361,7 @@ afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's o
 | `latest-search` | `overwrite`, `reader-guard` | `RaceState`: tickets, the event log, what the page shows and every write | `start A`, `start B`, `A lands`, `B lands` (B starts after A; a response lands once, after its search started) | The timeline: search bars, landings and the page's spans, a stale span outlined | 10 states per machine, unguarded and guarded: every interleaving; the guarded page never shows a stale result (an invariant), the unguarded one does after two orders |
 | `oauth-pkce` | `any-order` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |
 | `just-bash` | `lesson` | `ShellSession`: the shells the caller holds and what `cat` printed on each | The script's lines: the pipeline on the newest shell, `cat` on the newest or on s0, `ls` (refused, as `exec` refuses it); a second write is past the script's bound | s0 and s1, the write's arrow, each cat's output, the kept shell outlined | 6 states; s0 stays the empty shell through every transition |
-| `python-dict` | `broken`, `missing` | `DictState`: the eight-slot index and the entries, how a deletion leaves its slot (CPython's D, or the counterfactual that empties it), and the last event's search | `del d[0]`, `del d[8]`, `del d[16]` (refused when the key's search cannot find it, as Python raises KeyError), `d[0]`, `d[8]`, `d[16]`, `d[24]` (a missing key is an answer, not a refusal) | The slot row, the search's arrows, the entry table with [keyed cells](REFERENCE.md#drawing-kit), the panel and the note | 40 states with emptying (`broken`), 45 with CPython's marker (`missing`); the keyed morph writes D (or a dash) into the slot and dashes into the entry row in place |
+| `python-dict` | `broken`, `missing` | `DictState`: the eight-slot index and the entries, how a deletion leaves its slot (CPython's D, or the counterfactual that empties it), and the last event's search | `del d[0]`, `del d[8]`, `del d[16]` (refused when the key's search cannot find it, as Python raises KeyError), `d[0]`, `d[8]`, `d[16]`, `d[24]` (a missing key is an answer, not a refusal) | The slot row, the search's arrows, the entry table with [keyed cells](REFERENCE.md#drawing-kit), the panel and the note | 40 states with emptying (`broken`), 45 with CPython's marker (`missing`); the staged keyed morph writes D (or a dash) into the slot and dashes into the entry row in place |
 
 What each refuses, in its model's words (the tests pin each reason):
 

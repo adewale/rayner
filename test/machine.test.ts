@@ -2,8 +2,8 @@
 // every state the events reach.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, SetState, Machine, machinesOf, refuse, isRefusal, view, NullSink, StringSink, SnapshotSink, TraceSink, renderAt, traceScene, loadFonts, Transform } from '../src/index.ts';
-import type { Transition, View } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, SetState, Machine, machinesOf, refuse, isRefusal, view, NullSink, StringSink, SnapshotSink, TraceSink, renderAt, traceScene, loadFonts, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
+import type { Transition, View, ViewSync } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 
@@ -79,6 +79,40 @@ test('a machine replays events through the model as one schedule: state, evidenc
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: [], next, views: [] }), TypeError);
   // A picture that closes over variables outside the state cannot be redrawn for an explored state
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), TypeError);
+});
+
+test('without an authored transition, the views morph by key, staged: what goes is gone by halfway, and what comes starts there', async () => {
+  // The lamp's word is keyed: "lamp off" and "lamp dim" are different words, so the old fades out and the new fades in.
+  const scene = new Scene<Lamp>(new NullSink());
+  scene.state = { level: 0 };
+  const lamp = view(scene, (st: Lamp) => Object.assign(new Group(
+    Object.assign(new Rectangle({ width: 4, height: 1.2 }), { key: 'lamp:box' }),
+    Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' }),
+  ), { key: 'lamp' }));
+  scene.add(lamp);
+  const machine = new Machine<Lamp, 'UP' | 'OFF'>(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [lamp] });
+  const step = machine.send('UP');
+  const sync = (step.animations[1] as AnimationGroup).animations[0] as ViewSync;
+  assert.equal(sync.staged, true);
+  scene.state = { level: 1 };
+  sync.begin();
+  const inner = sync.inner as TransformMatching;
+  // A replaced word is not morphed glyph by glyph: its glyphs leave and the new word's come.
+  assert.ok(inner.fadesOut.length > 0 && inner.fadesIn.length > 0);
+  const seen = (rows: { sub: { style: { opacity: number } } }[]) => Math.max(...rows.map((r) => r.sub.style.opacity));
+  sync.interpolate(0.25);
+  assert.ok(seen(inner.fadesOut) > 0 && seen(inner.fadesIn) === 0, 'a quarter through: the old word fading, the new one not yet shown');
+  sync.interpolate(0.5);
+  assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) === 0, 'halfway: neither word, so they never overlap');
+  sync.interpolate(0.75);
+  assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) > 0, 'three quarters: the new word coming');
+  sync.finish();
+  assert.deepEqual(lamp.texts, ['lamp dim']);
+  // Unstaged (a view's own sync), both fade at once.
+  const plain = new TransformMatching(lamp.current, lamp.placed({ level: 2 }), { key: matchByKey({ text: 'whole' }), replace: false });
+  plain.begin();
+  plain.interpolate(0.25);
+  assert.ok(seen(plain.fadesOut) > 0 && seen(plain.fadesIn) > 0);
 });
 
 test('reachable states are found breadth first, each with its shortest events, up to the limit', async () => {

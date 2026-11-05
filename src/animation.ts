@@ -1078,6 +1078,12 @@ export interface MatchingOpts extends TransformOpts {
    * in a diagram have no order and pair by distance alone.
    */
   ordered?: boolean;
+  /**
+   * Unmatched parts in turn instead of together: the source's go over the first half, the
+   * target's come over the second, while matched parts morph throughout. A part that leaves and
+   * one that takes its place (a word replaced by another) never overlap. Default false.
+   */
+  staged?: boolean;
 }
 
 export interface TransformMatchingOpts extends MatchingOpts { key: MatchKey }
@@ -1124,6 +1130,7 @@ export class TransformMatching extends Animation {
   ordered: boolean;
   pathFunc: PathFunc | null;
   replace: boolean;
+  staged: boolean;
   // Set by begin(), in source order: [source part, target part]
   /** Parts paired by key. */
   pairs!: Array<[Mobject, Mobject]>;
@@ -1141,10 +1148,10 @@ export class TransformMatching extends Animation {
   /** The source family after begin() attached the copies: whose boxes go stale each frame. */
   touched!: Mobject[];
 
-  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, ...opts }: TransformMatchingOpts) {
+  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
     super(mobject, opts);
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
-    this.pathFunc = pathFunc; this.replace = replace;
+    this.pathFunc = pathFunc; this.replace = replace; this.staged = staged;
   }
 
   /** How many parts were matched, morphed, faded out and faded in. */
@@ -1260,8 +1267,11 @@ export class TransformMatching extends Animation {
     const n = this.moves.length + this.fadesOut.length + this.fadesIn.length;
     let i = 0;
     for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n), this.pathFunc);
-    for (const r of this.fadesOut) fade(r, 1 - this.subAlpha(alpha, i++, n), alpha, true);
-    for (const r of this.fadesIn) fade(r, this.subAlpha(alpha, i++, n), alpha, false);
+    // Staged: what leaves is gone by halfway, and what comes starts there.
+    const out = this.staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
+      into = this.staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
+    for (const r of this.fadesOut) fade(r, 1 - out(this.subAlpha(alpha, i++, n)), alpha, true);
+    for (const r of this.fadesIn) fade(r, into(this.subAlpha(alpha, i++, n)), alpha, false);
     for (const { node, from, to, start, end } of this.frames) {
       if (start && end) { node.interpolateData(start, end, alpha, this.pathFunc); continue; }
       const mine = node.pointArrays();

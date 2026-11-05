@@ -52,7 +52,7 @@ view(scene: Scene<S>, draw: (state: S, shown) => M, opts?): View<M>   // draw(sc
 
 view.current            // the picture on screen (the View's one child)
 view.texts              // the strings it shows, in family order
-view.sync({ runTime, rateFunc, lagRatio, match }?)   // an Animation: play it, compose it
+view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Animation: play it, compose it; staged: what goes leaves before what comes
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 ```
 

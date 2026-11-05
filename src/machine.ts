@@ -1,10 +1,10 @@
 // Machines: a model driven by events, as a schedule. Each event is a SetState to the state
-// the model computes, then a keyed sync of each view drawn from that state, or an authored
+// the model computes, then a staged keyed sync of each view drawn from that state, or an authored
 // transition that ends on those pictures. A machine is therefore an ordinary Succession: it seeks, traces
 // and records like any other play, and the same `next` and views a reader would drive
 // can be explored state by state by `rayner check`. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, SetState, Succession } from './animation.ts';
+import { Animation, AnimationGroup, SetState, Succession, matchByKey } from './animation.ts';
 import { Group } from './mobject.ts';
 import { linear } from './rate.ts';
 import type { Scene } from './scene.ts';
@@ -46,7 +46,13 @@ export interface MachineSpec<S extends object, E extends string> {
   transition?: Partial<Record<E, (t: Transition<S, E>) => Animation | AnimationGroup>>;
   /** Pictures of the scene's state, made with view(scene, draw), synced after each event. */
   views: readonly View[];
-  /** How the views morph (default 'key': keyed parts keep their identity). */
+  /**
+   * How the views morph when an event has no authored transition (default
+   * `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed Text whose words
+   * change is replaced, not morphed glyph by glyph). The morph is staged: parts that go fade out
+   * over the first half, parts that come fade in over the second, and parts both pictures have
+   * morph throughout, so a word and the word replacing it never overlap.
+   */
   match?: ViewMatch;
   /** Each event's morph or transition, in seconds (default 0.6), or a function of the event and the states either side. */
   runTime?: number | ((t: { event: E; before: S; after: S }) => number);
@@ -124,7 +130,7 @@ export class Machine<S extends object, E extends string> {
     // Exploration redraws any reachable state after the run, which needs each picture to be a function
     // of the scene's state alone. Every View is (view(scene, draw)), so there is nothing to refuse.
     this.scene = scene;
-    this.spec = { match: 'key', runTime: 0.6, limit: 256, ...spec };
+    this.spec = { match: matchByKey({ text: 'whole' }), runTime: 0.6, limit: 256, ...spec };
     machinesOf(scene).push(this as unknown as Machine<object, string>);
   }
 
@@ -213,7 +219,8 @@ export class Machine<S extends object, E extends string> {
           new WhenItsTurnComes(this.scene, () => authored(this.transitionFor(event, before, after)), views, runTime),
           new Landing(this.scene, views),
         ])
-        : new AnimationGroup(views.map((v) => v.sync({ match, runTime }))),
+        // No authored motion: each view's keyed morph, staged, so what goes is gone before what comes appears.
+        : new AnimationGroup(views.map((v) => v.sync({ match, runTime, staged: true }))),
     ]);
   }
 
