@@ -10,7 +10,6 @@ import {
   SCORE,
   SESSION,
   colourOf,
-  edits,
   gaveUp,
   giveUps,
   journey,
@@ -49,15 +48,9 @@ const WHY: Readonly<Record<number, string>> = {
   9: 'over half the sample took six to nine attempts to find Add To Bookmarks or give up',
 };
 const ANSWER = 'All six gave up at least once, each time on a menu command';
-const STEPS = ['tasks-1-4','tasks-5-8', 'tasks-9-11'] as const;
-// By session order: the report numbers tasks by topic, and the session ran 1–6, 11, 10, 7, 8, 9.
-const RANGE = ['the first four tasks', 'the next four tasks', 'the last three tasks'] as const;
 /** "A", "A and B", "A, B and C". */
 const and = (xs: readonly string[]) =>
   xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
-/** Items that may hold commas themselves: "A, as did P2; and B". */
-const series = (xs: readonly string[]) =>
-  xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join('; ')}; and ${xs.at(-1)}`;
 const name = (n: number) => task(n).name;
 /** A task as a sentence names it: "gave up on Undo". */
 const PROSE: Readonly<Record<number, string>> = {
@@ -88,10 +81,6 @@ export default class GnomeFilesExplainer extends Scene {
       },
       {
         says: 'every one of the six gave up at least once',
-        test: 'test/explain-gnome-files.test.ts: every participant gave up at least once',
-      },
-      {
-        says: 'No one gave up on any of them',
         test: 'test/explain-gnome-files.test.ts: every participant gave up at least once',
       },
     ],
@@ -130,6 +119,44 @@ export default class GnomeFilesExplainer extends Scene {
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
 
+    // ------------------------------------------------------------------ who was studied, and how it was scored
+    await this.step('test', {
+      kind: 'short',
+      title: 'Six first-time users, eleven tasks, one colour per attempt',
+      line: 'The report’s colours, and this page’s scores from green 5 to black 1.',
+      // Page 2: "the design team wanted to assess the effectiveness of these updates… we executed a user
+      // research project". Page 5: "six first-time GNOME users aged twenty-one to forty-seven". ARTICLE
+      // §2.3: "development versions of Files, specifically, versions 47.rc-7925df1ba and 47.rc-3faeec25e".
+      // Page 7: the key.
+      caption:
+        'Researchers for GNOME’s design team watched six first-time GNOME users, aged 21 to 47, try eleven tasks in test builds of Files 47. Their report colours each attempt from green, no difficulty, to black, could not complete; gray marks an approach the study excluded. This page also scores green 5 down to black 1 for its charts; that spacing is its choice, not a measured interval.',
+    });
+    await s.clear();
+    const top = 2.7,
+      pitch = 0.9;
+    const key = new Group(
+      ...COLOURS.flatMap((c, i) => {
+        const y = top - i * pitch;
+        return [
+          new Rectangle({ width: 0.7, height: 0.6, fill: RGB[c], stroke: ink, strokeWidth: 0.015 }).moveTo([-6.9, y]),
+          new Text(SCORE[c] == null ? '–' : String(SCORE[c]), { fontSize: SIZE, color: ink, weight: 'bold' }).moveTo([
+            -6.0,
+            y,
+          ]),
+          new Text(`${c}: ${MEANING[c]}`, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo([-5.5, y], [-1, 0]),
+        ];
+      }),
+    );
+    key.shift([-(key.box()![0] + key.box()![2]) / 2, 0]);
+    await s.enter(key, {
+      describe: `The report’s colour key with this page’s scores: ${COLOURS.map((c) => `${c}, ${SCORE[c] ?? 'no score'}, ${MEANING[c]}`).join('; ')}`,
+    });
+    await s.note('Colours and meanings: the report, page 7. Scores: this page’s, for its charts.', {
+      at: [0, top - 6 * pitch - 0.1],
+      size: 0.32,
+    });
+    this.state.key = Object.fromEntries(COLOURS.map((c) => [c, SCORE[c]]));
+
     // ------------------------------------------------------------------ one task, then all six people
     await s.steps(readerFrames(p), { kind: 'short' });
     // ------------------------------------------------------------------ every give-up, every person
@@ -145,7 +172,7 @@ export default class GnomeFilesExplainer extends Scene {
       title: ANSWER,
       line: `Black cells are give-ups: ${all.length}, in ${lost.length} tasks and ${people === 6 ? 'all six' : people} columns.`,
       // The reasons are the WHY findings above.
-      caption: `Each row is a task someone gave up on; colours are the report’s grades from the last step, and ${p}’s column is outlined. No small group of people accounts for the give-ups: every one of the six gave up at least once, ${and(once)} once each. All ${all.length} came on menu tasks, though nine of the eleven tasks used menus. The report’s reasons point at where the commands sat: those who quit Undo did not open the Main Menu, those who quit Select All reached for Ctrl+A or dragging, those who quit Open Item Location had not checked the file’s right-click menu, and the icon size buttons were “very hard to notice”.`,
+      caption: `No small group accounts for the give-ups: every one of the six gave up at least once, ${and(once)} once each. All ${all.length} came on menu tasks, though nine of the eleven tasks used menus. The report’s reasons point at where the commands sat: those who quit Undo never opened the Main Menu, those who quit Select All reached for Ctrl+A or dragging, and those who quit Open Item Location had not checked the file’s right-click menu.`,
     });
     await s.clear();
     {
@@ -209,42 +236,6 @@ export default class GnomeFilesExplainer extends Scene {
       });
     }
     this.state.giveUps = { mine, others: Object.fromEntries(mine.map((n) => [n, others(n)])), total: all.length };
-    await this.step('test', {
-      kind: 'detail',
-      title: 'Six first-time users, eleven tasks, one colour each',
-      line: 'The report’s colours become scores: green 5 down to black 1.',
-      // Page 2: "the design team wanted to assess the effectiveness of these updates… we executed a user
-      // research project". Page 5: "six first-time GNOME users aged twenty-one to forty-seven". ARTICLE
-      // §2.3: "development versions of Files, specifically, versions 47.rc-7925df1ba and 47.rc-3faeec25e".
-      // Page 7: the key.
-      caption:
-        'Researchers for GNOME’s design team watched six first-time GNOME users, aged 21 to 47, try eleven tasks in test builds of Files 47. Their report colours each attempt from green, no difficulty, to black, unable to complete. To plot attempts as journeys, this page scores green 5 down to black 1; the spacing between scores is this page’s choice, not a measured interval.',
-    });
-    await s.clear();
-    const top = 2.7,
-      pitch = 0.9;
-    const key = new Group(
-      ...COLOURS.flatMap((c, i) => {
-        const y = top - i * pitch;
-        return [
-          new Rectangle({ width: 0.7, height: 0.6, fill: RGB[c], stroke: ink, strokeWidth: 0.015 }).moveTo([-6.9, y]),
-          new Text(SCORE[c] == null ? '–' : String(SCORE[c]), { fontSize: SIZE, color: ink, weight: 'bold' }).moveTo([
-            -6.0,
-            y,
-          ]),
-          new Text(`${c}: ${MEANING[c]}`, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo([-5.5, y], [-1, 0]),
-        ];
-      }),
-    );
-    key.shift([-(key.box()![0] + key.box()![2]) / 2, 0]);
-    await s.enter(key, {
-      describe: `The report’s colour key with this page’s scores: ${COLOURS.map((c) => `${c}, ${SCORE[c] ?? 'no score'}, ${MEANING[c]}`).join('; ')}`,
-    });
-    await s.note('Colours and meanings: the report, page 7. Scores: this page’s, for the journey charts.', {
-      at: [0, top - 6 * pitch - 0.1],
-      size: 0.32,
-    });
-    this.state.key = Object.fromEntries(COLOURS.map((c) => [c, SCORE[c]]));
 
     // ------------------------------------------------------------------ the whole heat map
     await this.step('heat-map', {
@@ -253,9 +244,7 @@ export default class GnomeFilesExplainer extends Scene {
       line: 'Numbers are this page’s scores; the note on a row names who gave up.',
       // Ranking by black cells is this page's rule. ARTICLE §6.1 names icon size and Bookmarks the
       // worst tasks without saying how it ranks them.
-      caption: `Rows are tasks in session order and columns participants, ${p} outlined. ${p} gave up on ${series(
-        mine.map((n) => `${said(n)}${others(n).length ? `, as did ${and(others(n))}` : ''}`),
-      )}. Counting give-ups, ${and(worst.map(said))} did worst, ${most} each. The article instead names changing the icon size and Add To Bookmarks as the hardest tasks, without saying how it ranks them. Counting everyone graded moderate difficulty or worse puts those two first, with ${struggled(1).length} and ${struggled(9).length} people; the ranking depends on what is counted.`,
+      caption: `Rows are tasks in session order, columns participants, ${p} outlined; the note on a row names who gave up. Counting give-ups, ${and(worst.map(said))} did worst, ${most} each. The article names changing the icon size and Add To Bookmarks the hardest, without saying how it ranks. Counting everyone graded moderate difficulty or worse puts those two first, with ${struggled(1).length} and ${struggled(9).length} people: the ranking depends on what is counted.`,
     });
     await s.clear();
     {
@@ -319,49 +308,28 @@ export default class GnomeFilesExplainer extends Scene {
       }
     }
 
-    // ------------------------------------------------------------------ the session, as journeys
-    let d = null as Awaited<ReturnType<typeof s.show>> | null;
-    for (let g = 0; g < GROUPS.length; g++) {
-      const j = journey(p, g),
-        group = GROUPS[g]!,
-        shown = j.sections.flatMap((x) => x.tasks.map((t) => t.n)),
-        quit = group.filter((n) => colourOf(n, p) === 'black'),
-        anyone = group.filter((n) => quitters(n).length > 0);
-      const lowest = Math.min(...shown.map((n) => scoreOf(n, p)!)),
-        lowAt = shown.filter((n) => scoreOf(n, p) === lowest);
-      const intro = [
-        'One column per task, in session order; the higher the face, the easier it went.',
-        'The report numbers tasks by topic; by the article’s list of the order, the list-view task 11 and the search task 10 came seventh and eighth.',
-        'The last three tasks went back to the menus.',
-      ][g]!;
-      const gray =
-        shown.length < group.length ? ` ${p}’s Select All is gray, outside the study’s scope: no column.` : '';
-      const highest = Math.max(...shown.map((n) => scoreOf(n, p)!));
-      const saying = quit.length
-        ? ` Red marks a give-up: ${quit.map((n) => WHY[n]).join('; ')}.`
-        : anyone.length
-          ? ` ${p} finished all of them; others gave up on ${and(anyone.map(said))}.`
-          : ` No one gave up on any of them; ${
-              lowest === highest
-                ? `${p} scored ${lowest} on all ${shown.length}`
-                : `${p}’s lowest score was ${lowest}, on ${and(lowAt.map(said))}`
-            }.`;
-      await this.step(STEPS[g]!, {
-        kind: 'detail',
-        title: `${p}, ${RANGE[g]}: ${quit.length ? `gave up on ${and(quit.map(said))}` : 'no give-ups'}`,
-        line: quit.length
-          ? 'Each marked task is a give-up, scored 1, the lowest.'
-          : `${p} finished all ${shown.length}; the lowest score here is ${lowest}.`,
-        caption: intro + saying + gray,
-      });
-      if (!d) {
-        await s.clear();
-        d = await s.show({ source: source(j) }, { box: 'full' });
-      } else await d.morph({ source: source(j) }, { ops: edits(journey(p, g - 1), j) });
-      const ids = shown.flatMap((n, i) => (quit.includes(n) ? [`task:task-${i}`] : []));
-      if (ids.length) await d.mark(ids, { color: s.bad, as: 'gave up' });
-      this.state[`journey${g + 1}`] = shown.map((n) => [n, scoreOf(n, p)]);
-    }
-
+    // ------------------------------------------------------------------ the first four tasks, as a journey
+    // Every participant's first give-up is in the first group, so this one journey shows it among its neighbours;
+    // the heat map above holds the other seven tasks.
+    const first = GROUPS.findIndex((group) => group.includes(mine[0]!)),
+      j = journey(p, first),
+      group = GROUPS[first]!,
+      shown = j.sections.flatMap((x) => x.tasks.map((t) => t.n)),
+      quit = group.filter((n) => colourOf(n, p) === 'black'),
+      calm = shown.filter((n) => !quit.includes(n) && scoreOf(n, p)! >= 4);
+    const gray = shown.length < group.length ? ` ${p}’s Select All is gray, outside the study’s scope: no column.` : '';
+    await this.step('journey', {
+      kind: 'detail',
+      title: `${p}’s first ${['', 'one', 'two', 'three', 'four'][group.length] ?? group.length} tasks: gave up on ${and(quit.map(said))}`,
+      line: 'Each marked task is a give-up, scored 1, the lowest.',
+      caption: `One column per task, in session order; the higher the face, the easier it went. Red marks a give-up: ${quit.map((n) => WHY[n]).join('; ')}.${
+        calm.length ? ` The same person had no or very little difficulty with ${and(calm.map(said))}.` : ''
+      }${gray}`,
+    });
+    await s.clear();
+    const d = await s.show({ source: source(j) }, { box: 'full' });
+    const ids = shown.flatMap((n, i) => (quit.includes(n) ? [`task:task-${i}`] : []));
+    if (ids.length) await d.mark(ids, { color: s.bad, as: 'gave up' });
+    this.state.journey = shown.map((n) => [n, scoreOf(n, p)]);
   }
 }

@@ -9,13 +9,13 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const p = values.participant as Participant;
   assert.ok(PARTICIPANTS.includes(p), `unknown participant ${p}`);
   assertStepState(trace, 'test', { key: Object.fromEntries(COLOURS.map((c) => [c, SCORE[c]])) });
-  const steps = ['tasks-1-4', 'tasks-5-8', 'tasks-9-11'];
-  GROUPS.forEach((group, g) => {
-    // A gray cell has no score and no column.
-    const shown = group.filter((n) => scoreOf(n, p) != null);
-    assertStepState(trace, steps[g]!, { [`journey${g + 1}`]: shown.map((n) => [n, scoreOf(n, p)]) });
-  });
   const mine = gaveUp(p);
+  // One journey, of the group holding this participant's first give-up; a gray cell has no score and no column.
+  const group = GROUPS.find((g) => g.includes(mine[0]!))!;
+  assertStepState(trace, 'journey', { journey: group.filter((n) => scoreOf(n, p) != null).map((n) => [n, scoreOf(n, p)]) });
+  // The study and its colour key come first, before any result.
+  assert.equal(trace.steps[0]!.step, 'test');
+  assert.deepEqual(trace.steps.map((s) => s.step), ['test', 'reader-task', 'reader-sample', 'give-ups', 'heat-map', 'journey']);
   assertStepState(trace, 'give-ups', {
     giveUps: {
       mine,
@@ -23,10 +23,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
       total: giveUps().length,
     },
   });
-  // The headings name what the model says this participant gave up on, group by group.
-  const title = (step: string) => String(trace.steps.find((s) => s.step === step)!.meta.title);
-  GROUPS.forEach((group, g) => {
-    const quit = group.filter((n) => mine.includes(n));
-    assert.equal(title(steps[g]!).endsWith('no give-ups'), quit.length === 0, title(steps[g]!));
-  });
+  // The journey's heading says a give-up, which its group always holds.
+  assert.match(String(trace.steps.find((s) => s.step === 'journey')!.meta.title), /gave up on/);
+  assert.ok(group.some((n) => mine.includes(n)));
 }

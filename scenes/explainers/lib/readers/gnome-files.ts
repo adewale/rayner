@@ -77,7 +77,7 @@ export function frames(p: Participant): StagedStep[] {
       id: 'reader-sample',
       title: `${counted[stuck]} of the six gave up on ${named[n]}`,
       line: `The others: ${rest.join(', ')}.`,
-      caption: `The same task split the six people. The report grades each completed attempt by its difficulty, from none to severe, and records separately who could not complete the task. “Outside study scope” marks an approach the study excluded, so it counts as neither a success nor a give-up. If a few weaker users caused the trouble, the same names would keep failing. The next step tests that across all eleven tasks.`,
+      caption: `The same task split the six people, graded with the report’s colours; an approach outside the study’s scope counts as neither a success nor a give-up. If a few weaker users caused the trouble, the same names would keep failing. The next step tests that across all eleven tasks.`,
       state: {
         task: n,
         outcomes: PARTICIPANTS.map((q) => {
