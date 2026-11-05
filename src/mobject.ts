@@ -141,7 +141,6 @@ export class Mobject {
     this.children = [];
     this.parent = null;
     this.style = { ...DEFAULT_STYLE, ...style };
-    if (style.stroke === undefined) this.defaultColors = { stroke: 'ink' };
     this.updaters = [];
     this._bbox = null;
   }
