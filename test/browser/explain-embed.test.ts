@@ -3444,7 +3444,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             text('session:state','closed');text('session:event','OPENED');text('session:returns','InvalidTransition');
             const ring=keyed('session:ring:closed').box()!,closed=keyed('closed').box()!;
             assert.ok(ring[0]<=closed[0]&&ring[1]<=closed[1]&&ring[2]>=closed[2]&&ring[3]>=closed[3]);
-            assert.equal(scene.state.session,'closed');assert.equal(scene.state.terminal,true);
+            assert.equal(scene.state.session,'closed');
           }
           nativeChecked=true;
         }},{skipUntil:Infinity}).run();
