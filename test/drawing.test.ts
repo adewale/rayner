@@ -8,7 +8,7 @@ import * as reader from '../scenes/explainers/lib/reader-drawing.ts';
 import { readFileSync } from 'node:fs';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
-  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'circleOn', 'depthOrder', 'dot', 'flow', 'greatArc', 'keyed', 'label', 'latLon', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
+  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'circleOn', 'depthOrder', 'dot', 'flow', 'greatArc', 'keyed', 'keyedParts', 'label', 'latLon', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });
@@ -31,4 +31,14 @@ test('keyed sets a key and returns the mobject; segment and dot take keys like t
   assert.equal(drawing.segment([0, 0], [1, 0], s.soft, 0.04, 'axis').key, 'axis');
   assert.equal(drawing.dot('A', 0, 0, s, false, 'node:A').key, 'node:A');
   assert.equal(drawing.dot('A', 0, 0, s).key, undefined);
+});
+
+test('keyedParts keys each part in order, groups them, and refuses a key used twice', async () => {
+  const { keyedParts } = await import('../explain/drawing.ts');
+  const { Circle } = await import('../src/index.ts');
+  const p = keyedParts();
+  const a = p.add(new Circle(), 'slot:0'), b = p.add(new Circle(), 'slot:1');
+  assert.deepEqual(p.group().children.map((m) => m.key), ['slot:0', 'slot:1']);
+  assert.equal(a.key, 'slot:0'); assert.equal(b.key, 'slot:1');
+  assert.throws(() => p.add(new Circle(), 'slot:0'), /two parts are keyed slot:0/);
 });

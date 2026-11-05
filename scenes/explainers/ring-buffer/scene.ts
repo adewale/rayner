@@ -24,6 +24,7 @@ import {
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { keyedParts } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext, RingBuffer } from '../lib/models.ts';
 import type { RingState, RingEvent } from '../lib/models.ts';
 
@@ -216,8 +217,7 @@ export default class RingBufferExplainer extends Scene {
     // The ring, drawn from the machine's state: every piece keyed, so a transition can move each.
     const trayLabelAt = (text: string) => new Text(text, { fontSize: 0.24, color: soft, anchor: 'start' }).moveTo([-7.35, TRAY_Y], [-1, 0]);
     const ringPicture = (st: RingState) => {
-      const parts: Mobject[] = [];
-      const add = (m: Mobject, key: string) => { m.key = key; parts.push(m); };
+      const { add, group } = keyedParts();
       for (let i = 0; i < SLOTS; i++) {
         add(slotCircle(st.data[i] != null, st.reused[i]!).moveTo(polar(angle(i), R)), `ring:slot:${i}`);
         add(new Text(String(i), { fontSize: 0.2, font: 'mono', color: soft }).moveTo(polar(angle(i), R - 0.86)), `ring:index:${i}`);
@@ -253,7 +253,7 @@ export default class RingBufferExplainer extends Scene {
           if (st.tray!.refused) add(new Cross(bad, { stroke: s.bad, strokeWidth: 0.035, scale: 0.95 }), `ring:tray:${i}:cross`);
         });
       }
-      return new Group(...parts);
+      return group();
     };
     // What the ring shows, in words.
     const ringWords = () => {

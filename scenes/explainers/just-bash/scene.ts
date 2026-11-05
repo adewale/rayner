@@ -2,6 +2,7 @@ import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
 import { Scene, Text, Group, Rectangle, Transform, Arrow, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
+import { keyedParts } from '../../../explain/drawing.ts';
 import { exec } from '../lib/models.ts';
 import type { Shell } from '../lib/models.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from '../lib/just-bash.ts';
@@ -394,8 +395,7 @@ const SHELL_X = [-4.5, 3.1],
  * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
  */
 function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
-  const ink = s.palette.ink, newest = st.shells.length - 1, parts: Mobject[] = [];
-  const add = (m: Mobject, key: string) => { m.key = key; parts.push(m); };
+  const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
   st.shells.forEach((sh, i) => {
     const x = SHELL_X[i]!, kept = i === newest;
     add(new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]), `shell:${i}:box`);
@@ -416,7 +416,7 @@ function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
       new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.bad }).moveTo([x, OUT_Y]),
     ), `out:${i}`);
   });
-  return new Group(...parts);
+  return group();
 }
 
 /** The session's picture in words. */

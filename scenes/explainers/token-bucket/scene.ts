@@ -21,6 +21,7 @@ import {
 } from '../../../src/index.ts';
 import type { ScheduledAnimation as Animation, Mobject, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
+import { keyedParts } from '../../../explain/drawing.ts';
 import { TokenBucket, bucketStart, bucketRequest } from '../lib/models.ts';
 import type { BucketCall as Call, BucketState } from '../lib/models.ts';
 
@@ -344,8 +345,7 @@ export default class TokenBucketExplainer extends Scene {
     const gaugePicture = (st: BucketState) => new Group(fill(st.tokens));
     /** Each call's climb, its drop when it spent a token, its dot, and the tags on the calls the captions name. */
     const chartPicture = (st: BucketState) => {
-      const parts: Mobject[] = [];
-      const add = (m: Mobject | null, key: string) => { if (m) { m.key = key; parts.push(m); } };
+      const pic = keyedParts(), add = (m: Mobject | null, key: string) => { if (m) pic.add(m, key); };
       const notes: Mobject[] = [];
       st.calls.forEach((call, i) => {
         const prev = st.calls[i - 1] ?? START;
@@ -369,7 +369,7 @@ export default class TokenBucketExplainer extends Scene {
           notes.push(note);
         }
       });
-      return new Group(...parts, ...notes);
+      return new Group(...pic.group().children, ...notes);
     };
     const chipsPicture = (st: BucketState) => new Group(...TIMES.map((_, i) => chip(i, st.calls[i]?.ok ?? null)));
     const part = (v: View, key: string) => v.current.find(key)!;

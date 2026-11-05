@@ -13,6 +13,25 @@ export function keyed<T extends Mobject>(m: T, key: string): T {
   return m;
 }
 
+/**
+ * A picture built from keyed parts, as a view's draw builds one: `add(m, key)` keys `m`, keeps it in
+ * order and returns it; `group()` returns the parts as one Group. A key used twice is refused when it
+ * is added, because two parts with one key cannot keep their identity from picture to picture (a
+ * choreography or a keyed morph would refuse the picture later, far from the line that drew it).
+ */
+export function keyedParts(): { add<T extends Mobject>(m: T, key: string): T; group(): Group } {
+  const parts: Mobject[] = [], keys = new Set<string>();
+  return {
+    add(m, key) {
+      if (keys.has(key)) throw new Error(`keyedParts: two parts are keyed ${key}`);
+      keys.add(key);
+      parts.push(keyed(m, key));
+      return m;
+    },
+    group: () => new Group(...parts),
+  };
+}
+
 /** A centred line of text at (x, y). */
 export function label(text: string | number, x: number, y: number, color: string, size = 0.6, key?: string): Text {
   const t = new Text(String(text), { fontSize: size, color }).moveTo([x, y]);
