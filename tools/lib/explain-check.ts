@@ -262,6 +262,30 @@ export class FanSink implements Sink {
  * step ends in: a picture that follows the model at each resting step, not only where a machine
  * plays. A view whose picture lags its state (the state changed without a sync) is named here.
  */
+/**
+ * Identity is a key: `scene.find(key)` returns one mobject, and a transform, a choreography
+ * and the player's close-up treat a key as one part. Two mobjects on the stage with the same
+ * key at the end of a step make `find` answer with whichever comes first, silently. A part
+ * keyed twice is named here. Keys that start with `__` are roles the stage gives its own chrome
+ * (every step number is `__chrome`), not identities.
+ */
+export class KeySink implements Sink {
+  readonly problems: string[] = [];
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
+    // A mobject listed twice (on its own and inside a group) is still one part.
+    const seen = new Map<string, Mobject>();
+    const twice = new Set<string>();
+    for (const m of scene.familyMembers()) {
+      if (m.key === undefined || m.key.startsWith('__')) continue;
+      const other = seen.get(m.key);
+      if (other && other !== m) twice.add(m.key);
+      seen.set(m.key, m);
+    }
+    if (twice.size) this.problems.push(`step "${step.name}": ${[...twice].slice(0, 5).map((k) => `"${k}"`).join(', ')}`);
+  }
+}
+
 export class ViewSink implements Sink {
   readonly problems: string[] = [];
   checked = 0;
@@ -642,7 +666,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     );
     // One full run feeds every check, each a sink of its own, in this order.
     const views = new ViewSink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views])).run();
+    const keys = new KeySink();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys])).run();
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -668,6 +693,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       views.problems.slice(0, 5),
       [],
       `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state (the first five)`,
+    );
+    assert.deepEqual(
+      keys.problems.slice(0, 5),
+      [],
+      `Keys ${where}: at the end of a step, a key names one mobject on the stage, so find, transforms and the close-up mean one part (the first five)`,
     );
     const staged = redrawStagedSteps(ran, v.trace);
     assert.deepEqual(

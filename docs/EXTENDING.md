@@ -146,6 +146,23 @@ In a browser, `DomSink` draws into an SVG element; in a document generator,
 [Reusable choreography](CHOREOGRAPHY.md) documents their timing, ownership, opacity,
 snapshot and cleanup contracts.
 
+## When two extensions meet
+
+Each extension point has one rule for what happens when two of them act on the same scene. Where a rule is enforced, breaking it fails at once instead of changing the picture quietly.
+
+| Extension point | When two meet | Enforced by |
+| --- | --- | --- |
+| A function that returns mobjects | Each call returns new mobjects, so two calls share nothing. A key names one part on the stage. | `keyedParts()` refuses a repeated key; `rayner check` fails a key held by two mobjects at the end of a step. |
+| A mobject | A mobject has one parent: adding it to a second group moves it out of the first. A copy has a new id and no parent but keeps its key, so a copy left beside its original repeats the key. | `add()` moves the child; `rayner check` names the repeated key. |
+| An animation | One `play()` drives a mobject once: two animations on the same mobject, or on one inside the other, throw. A `Succession`'s members run in turn and may share mobjects. Separate plays run one after another. | `play()` throws, naming both animations and the mobject. |
+| An invariant | Every registered invariant runs on every frame, each on its own, and none may change the scene. Each must hold on at least one frame of a run. | `InvariantSink`; `rayner check` fails an invariant that never held. |
+| A sink | Sinks never meet inside the scene. A sink reads each frame and hands it to the sink it wraps, or a fan sends each frame to several sinks in order. | By construction: the scene calls one sink. |
+| A machine's transition | An event plays one transition, and the transition must end on what the views draw from the new state. Without one, the views morph to the new state by key. | `rayner check` explores every reachable event and compares where each lands with the views' draw. |
+
+## Test an extension
+
+Test an extension with the same tools Rayner's own suite uses, without a browser. `traceScene` runs a scene and returns each step's state, evidence and timing. `SnapshotSink` and `renderAt` give the picture at a time. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
+
 ## Composition, compositionality and modularity
 
 Composition is using a diamond, a label and an animation together; modularity is
