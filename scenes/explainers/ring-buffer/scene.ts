@@ -470,7 +470,7 @@ export default class RingBufferExplainer extends Scene {
     const replays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
     for (let g = 0; g < replays.length; g++) {
       const last = (this.state as unknown as RingState);
-      const ending = replays[g]!.reduce((st, e) => ringNext(st, e)!, last);
+      const ending = replays[g]!.reduce((st, e) => machine.after(st, e)!, last);
       await this.step(['fill', 'next', 'result'][g]!, {
         title:
           g === 0

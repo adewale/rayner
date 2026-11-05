@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { Scene, Text, Group, Rectangle, Machine, view, NullSink, StringSink, loadFonts, traceScene } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Machine, refuse, view, NullSink, StringSink, loadFonts, traceScene } from '../src/index.ts';
 import type { Sink } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from '../app/embed-live.ts';
@@ -31,8 +31,8 @@ function lampScene({ after = (_scene: Scene<Lamp>) => {} } = {}) {
         start: { level: 0 },
         events: ['UP', 'DOWN', 'OFF'],
         labels: { UP: 'Brighter' },
-        next: (st, e) => (e === 'UP' ? (st.level < 2 ? { level: st.level + 1 } : undefined) : e === 'DOWN' ? (st.level > 0 ? { level: st.level - 1 } : undefined) : { level: 0 }),
-        why: (st, e) => (e === 'UP' ? 'It is as bright as it goes' : ''),
+        // UP at its brightest says why; DOWN when off is refused with no reason.
+        next: (st, e) => (e === 'UP' ? (st.level < 2 ? { level: st.level + 1 } : refuse('It is as bright as it goes')) : e === 'DOWN' ? (st.level > 0 ? { level: st.level - 1 } : undefined) : { level: 0 }),
         bound: (st, e) => (e === 'OFF' && st.level === 0 ? 'The lamp is already off' : undefined),
         views: [picture],
         runTime: 0.3,
@@ -60,13 +60,15 @@ test('a machine is live at the step it last played in, and nowhere before it pla
 
 test('buttons say what outcome says: the label, and a refusal’s or the story’s reason', () => {
   const ran = new (lampScene())(new NullSink());
-  const machine = new Machine<Lamp, Press>(ran, { start: { level: 0 }, events: ['UP', 'DOWN', 'OFF'], labels: { UP: 'Brighter' }, next: (st, e) => (e === 'UP' && st.level < 2 ? { level: st.level + 1 } : e === 'DOWN' && st.level > 0 ? { level: st.level - 1 } : e === 'OFF' ? { level: 0 } : undefined), why: () => 'Too bright', bound: (st, e) => (e === 'OFF' && st.level === 0 ? 'Already off' : undefined), views: [] });
+  const machine = new Machine<Lamp, Press>(ran, { start: { level: 0 }, events: ['UP', 'DOWN', 'OFF'], labels: { UP: 'Brighter' }, next: (st, e) => (e === 'UP' && st.level < 2 ? { level: st.level + 1 } : e === 'DOWN' && st.level > 0 ? { level: st.level - 1 } : e === 'OFF' ? { level: 0 } : e === 'UP' ? refuse('Too bright') : undefined), bound: (st, e) => (e === 'OFF' && st.level === 0 ? 'Already off' : undefined), views: [] });
   assert.deepEqual(outcomes(machine as never, { level: 2 }), [
     { event: 'UP', label: 'Brighter', kind: 'refused', reason: 'Too bright' },
     { event: 'DOWN', label: 'DOWN', kind: 'next' },
     { event: 'OFF', label: 'OFF', kind: 'next' },
   ]);
   assert.deepEqual(outcomes(machine as never, { level: 0 }).map((o) => o.kind), ['next', 'refused', 'beyond']);
+  // A refusal with no reason (next returns undefined) has none: the player says its own words.
+  assert.deepEqual(outcomes(machine as never, { level: 0 })[1], { event: 'DOWN', label: 'DOWN', kind: 'refused', reason: null });
   // A label must name one of the machine's events, in words.
   assert.throws(() => new Machine(ran, { start: {}, events: ['A'], labels: { B: 'b' } as never, next: () => ({}), views: [] }), /labels name its events/);
   assert.throws(() => new Machine(ran, { start: {}, events: ['A'], labels: { A: ' ' }, next: () => ({}), views: [] }), /must be words/);
@@ -79,7 +81,7 @@ test('a link’s log keeps its longest prefix the machine takes, and says where 
   assert.deepEqual(acceptedLog(m, { level: 1 }, ['UP', 'UP', 'DOWN']).stopped, { event: 'UP', kind: 'refused', reason: 'It is as bright as it goes' });
   assert.deepEqual(acceptedLog(m, { level: 1 }, ['UP', 'UP']).kept, ['UP']);
   assert.deepEqual(acceptedLog(m, { level: 0 }, ['OFF']).stopped, { event: 'OFF', kind: 'beyond', reason: 'The lamp is already off' });
-  assert.deepEqual(acceptedLog(m, { level: 0 }, ['DOWN']).stopped, { event: 'DOWN', kind: 'refused', reason: '' });
+  assert.deepEqual(acceptedLog(m, { level: 0 }, ['DOWN']).stopped, { event: 'DOWN', kind: 'refused', reason: null });
   assert.deepEqual(acceptedLog(m, { level: 0 }, ['UP', 'JUMP', 'UP']), { kept: ['UP'], states: [{ level: 0 }, { level: 1 }], stopped: { event: 'JUMP', kind: 'unknown', reason: null } });
 });
 

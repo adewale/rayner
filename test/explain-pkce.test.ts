@@ -1,8 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { isRefusal } from '../src/index.ts';
 import { redeem, theftFlow, pkceFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS } from '../scenes/explainers/lib/pkce.ts';
 import type { SignIn, SignInEvent } from '../scenes/explainers/lib/pkce.ts';
+
+/** The sign-in after `e`, or undefined where the protocol refuses it. */
+const after = (state: SignIn, e: SignInEvent): SignIn | undefined => {
+  const next = signInNext(state, e);
+  return isRefusal(next) ? undefined : next;
+};
 
 // RFC 7636 appendix B: this verifier's S256 challenge.
 const CHALLENGE = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
@@ -80,7 +87,7 @@ test('the channel map: another app reads the challenge and the code, and no valu
 function everyOrder(): { events: SignInEvent[]; state: SignIn }[] {
   const out: { events: SignInEvent[]; state: SignIn }[] = [];
   const walk = (state: SignIn, events: SignInEvent[]) => {
-    const next = SIGN_IN_EVENTS.flatMap((e) => { const s = signInNext(state, e); return s ? [[e, s] as const] : []; });
+    const next = SIGN_IN_EVENTS.flatMap((e) => { const s = after(state, e); return s ? [[e, s] as const] : []; });
     if (!next.length) out.push({ events, state });
     for (const [e, s] of next) walk(s, [...events, e]);
   };
@@ -113,20 +120,29 @@ test('in every order of the sign-in’s messages, only a request without a chall
     const state = queue.shift()!;
     if (seen.has(JSON.stringify(state))) continue;
     seen.set(JSON.stringify(state), state);
-    for (const e of SIGN_IN_EVENTS) { const s = signInNext(state, e); if (s) queue.push(s); }
+    for (const e of SIGN_IN_EVENTS) { const s = after(state, e); if (s) queue.push(s); }
   }
   assert.equal(seen.size, 20);
   assert.ok([...seen.values()].every((s) => s.challenge === null || s.app.answer !== 'Access token'));
 });
 
 test('the sign-in refuses what the protocol refuses, and agrees with the flows the diagrams draw', () => {
-  const run = (events: SignInEvent[]) => events.reduce<SignIn | undefined>((s, e) => s && signInNext(s, e), signInStart());
+  const run = (events: SignInEvent[]) => events.reduce<SignIn | undefined>((s, e) => s && after(s, e), signInStart());
+  /** Why the last of `events` is refused, after the ones before it. */
+  const why = (events: SignInEvent[]) => {
+    const refused = signInNext(run(events.slice(0, -1))!, events.at(-1)!);
+    return isRefusal(refused) ? refused.reason : undefined;
+  };
   // Nothing is delivered or redeemed before the request; one request per sign-in; one delivery and one answer per app.
-  for (const e of ['REDIRECT', 'INTERCEPT', 'CLIENT_REDEEMS', 'APP_REDEEMS'] as const) assert.equal(signInNext(signInStart(), e), undefined, e);
-  assert.equal(run(['AUTHORIZE_S256', 'AUTHORIZE']), undefined);
-  assert.equal(run(['AUTHORIZE_S256', 'REDIRECT', 'REDIRECT']), undefined);
-  assert.equal(run(['AUTHORIZE_S256', 'INTERCEPT', 'CLIENT_REDEEMS']), undefined, 'the client cannot redeem a code it has not received');
-  assert.equal(run(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'APP_REDEEMS']), undefined);
+  // Each refusal says which rule, in the reader's words.
+  for (const e of ['REDIRECT', 'INTERCEPT'] as const) assert.equal(why([e]), 'there is no code to redirect yet: the client has not sent its authorization request', e);
+  assert.equal(why(['CLIENT_REDEEMS']), 'the client has no code to redeem: no redirect has brought it one');
+  assert.equal(why(['APP_REDEEMS']), 'the malicious app has no code to redeem: no redirect has brought it one');
+  assert.equal(why(['AUTHORIZE_S256', 'AUTHORIZE']), 'the client has sent its authorization request already, and a sign-in sends one');
+  assert.equal(why(['AUTHORIZE_S256', 'REDIRECT', 'REDIRECT']), 'the redirect has brought the code to the client already');
+  assert.equal(why(['AUTHORIZE_S256', 'INTERCEPT', 'INTERCEPT']), 'the malicious app has caught the redirect already');
+  assert.equal(why(['AUTHORIZE_S256', 'INTERCEPT', 'CLIENT_REDEEMS']), 'the client has no code to redeem: no redirect has brought it one', 'the client cannot redeem a code it has not received');
+  assert.equal(why(['AUTHORIZE_S256', 'INTERCEPT', 'APP_REDEEMS', 'APP_REDEEMS']), 'the malicious app has redeemed the code already, and the server answered invalid_grant');
   // pkceFlow's order and theftFlow's order give the answers those flows draw.
   const pkce = run(['AUTHORIZE_S256', 'REDIRECT', 'INTERCEPT', 'APP_REDEEMS', 'CLIENT_REDEEMS'])!;
   const answers = pkceFlow(true).filter((m) => m.from === 'S' && m.channel === 'tls').map((m) => m.text);

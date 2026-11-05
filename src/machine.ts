@@ -22,13 +22,13 @@ export interface MachineSpec<S extends object, E extends string> {
   /** How the player's button names an event, where the event's own name would not read well (default: the event). */
   labels?: Partial<Record<E, string>>;
   /**
-   * The model's step: pure, from the model module, and it returns a new state, or `undefined`
-   * when the state refuses the event (a reader's button for it is disabled, and exploration does
-   * not follow it). One function says both, so the buttons and the model cannot disagree.
+   * The model's step: pure, from the model module, and it returns a new state, or a refusal when
+   * the state refuses the event: `refuse(reason)`, the reason in the reader's words, or `undefined`
+   * for a refusal with no reason (a reader's button for it is disabled and says why, and
+   * exploration does not follow it). One function says what an event does and, where it is
+   * refused, why, so the buttons, their reasons and the model cannot disagree.
    */
-  next: (state: S, event: E) => S | undefined;
-  /** Why the model refuses `event` in `state`, in the reader's words: what the player says of a disabled button. */
-  why?: (state: S, event: E) => string;
+  next: (state: S, event: E) => S | Refusal | undefined;
   /**
    * Where the explainer's story stops though the model would go on: the reason, in the reader's
    * words, when `event` from `state` is beyond the story (the client sends ten requests), else
@@ -73,6 +73,36 @@ export interface Transition<S, E> {
 /** What one event does from a state: the next state, a refusal by the model (with its reason, if given), or the story's bound. */
 export type Outcome<S> = { next: S } | { refused: string | null } | { beyond: string };
 
+/** Marks a refusal however many copies of the library are loaded (a model module and a scene may reach different ones). */
+const REFUSAL = Symbol.for('rayner.refusal');
+
+/**
+ * What a model's `next` returns where the state refuses an event, with the reason in the reader's
+ * words: `refuse('the ring is empty, so there is nothing to pop')`. Made by `refuse`.
+ */
+export class Refusal {
+  /** Why the model refuses the event, in the reader's words: what the player says of its button. */
+  readonly reason: string;
+  constructor(reason: string) {
+    if (typeof reason !== 'string' || !reason.trim()) throw new TypeError('A refusal\'s reason must be words; return undefined from next for a refusal with no reason');
+    this.reason = reason;
+    Object.defineProperty(this, REFUSAL, { value: true });
+    Object.freeze(this);
+  }
+}
+
+/**
+ * A model's refusal of an event, with its reason in the reader's words: return it from `next`
+ * where the state refuses the event. The player says the reason on the event's disabled button,
+ * and `outcome` gives it as `{ refused: reason }`.
+ */
+export function refuse(reason: string): Refusal { return new Refusal(reason); }
+
+/** Whether a value `next` returned is a refusal: `refuse(reason)`, from this copy of the library or another. */
+export function isRefusal(value: unknown): value is Refusal {
+  return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[REFUSAL] === true;
+}
+
 /** A model driven by events on one scene. */
 export class Machine<S extends object, E extends string> {
   readonly scene: Scene<S>;
@@ -86,6 +116,7 @@ export class Machine<S extends object, E extends string> {
     if (!spec.events.length) throw new TypeError('A machine needs at least one event');
     if (new Set(spec.events).size !== spec.events.length) throw new TypeError('A machine\'s events must be distinct');
     if (typeof spec.next !== 'function') throw new TypeError('A machine needs next(state, event)');
+    if ('why' in spec) throw new TypeError('A machine has no why(state, event): return refuse(reason) from next where the model refuses an event');
     for (const [event, label] of Object.entries(spec.labels ?? {})) {
       if (!spec.events.includes(event as E)) throw new TypeError(`A machine's labels name its events; ${event} is not one`);
       if (typeof label !== 'string' || !label.trim()) throw new TypeError(`The label of ${event} must be words`);
@@ -112,16 +143,21 @@ export class Machine<S extends object, E extends string> {
   get lastPlayedIn(): string | null { return this.playedInStep; }
 
   /**
-   * What `event` does from `state`: the next state; or, refused by the model, its reason (`why`,
-   * or null); or beyond the story, the bound's reason. The bound is asked first, so `next` is never
-   * asked for a state the story does not reach.
+   * What `event` does from `state`: the next state; or, refused by the model, its reason (what
+   * `refuse` was given, or null for `undefined`); or beyond the story, the bound's reason. The bound
+   * is asked first, so `next` is never asked for a state the story does not reach.
    */
   outcome(state: S, event: E): Outcome<S> {
     if (!this.spec.events.includes(event)) throw new RangeError(`This machine accepts ${this.spec.events.join(', ')}, not ${String(event)}`);
     const beyond = this.spec.bound?.(state, event);
     if (beyond !== undefined) return { beyond };
+    return this.model(state, event);
+  }
+
+  /** What the model alone says of `event` from `state`, the story's bound aside: the next state, or a refusal and its reason. */
+  model(state: S, event: E): { next: S } | { refused: string | null } {
     const next = this.spec.next(state, event);
-    return next === undefined ? { refused: this.spec.why?.(state, event) ?? null } : { next };
+    return next === undefined ? { refused: null } : isRefusal(next) ? { refused: next.reason } : { next };
   }
 
   /** The state after `event` from `state`, or undefined when the model refuses it or it is beyond the story. */

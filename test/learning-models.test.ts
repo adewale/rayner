@@ -5,11 +5,13 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {fc,params} from './lib/pbt.ts';
-import {dictionary,deleteFirst,lookup,probeSlots,route,dictStory,dictStart,dictNext,dictRefusal,DICT_EVENTS,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
+import {isRefusal} from '../src/index.ts';
+import {dictionary,deleteFirst,lookup,probeSlots,route,dictStory,dictStart,dictNext,DICT_EVENTS,EMPTY,DELETED} from '../scenes/explainers/lib/python-dict.ts';
+import type {DictState,DictEvent} from '../scenes/explainers/lib/python-dict.ts';
 import {fnv1a,locations,makeFilter,membership,bloomStory,saturation} from '../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../scenes/explainers/lib/git-branches.ts';
 import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter,roundStart,roundNext,roundDoor,roundResult,ROUND_EVENTS} from '../scenes/explainers/lib/monty-hall.ts';
-import type {Round} from '../scenes/explainers/lib/monty-hall.ts';
+import type {Round,RoundEvent} from '../scenes/explainers/lib/monty-hall.ts';
 import {birthdayChance,birthdaySample,matches,birthdayStory,evenOdds,pairCount,pairShortcut,dateOf} from '../scenes/explainers/lib/birthday-paradox.ts';
 import BirthdayParadox,{ANSWER as birthdayAnswer} from '../scenes/explainers/birthday-paradox/scene.ts';
 import {phrase,musicStory,beatMs} from '../scenes/explainers/lib/melody-rhythm.ts';
@@ -86,24 +88,25 @@ test('a probe route reads each visited slot in turn: taken and D send it on, a n
 
 test('the dict machine deletes and looks up as a Python dict does: a missing key is a result, a deletion it cannot find is refused', () => {
   // del d[0] writes D where 0's search found it and empties its entry: the captured CPython storage.
-  const deleted = dictNext(dictStart('CPython marker'), 'del d[0]')!;
+  const step = (state: DictState, event: DictEvent) => { const next = dictNext(state, event); return isRefusal(next) ? undefined : next; };
+  const deleted = step(dictStart('CPython marker'), 'del d[0]')!;
   assert.deepEqual(deleted.dict, deleteFirst('marker'));
   assert.deepEqual([deleted.op, deleted.result!.slots], ['del', [0]]);
   // A lookup of a key that is not there is an answer, not a refusal; a second del d[0] is refused, with Python's reason.
-  assert.deepEqual(dictNext(deleted, 'd[24]')!.result, lookup(deleteFirst('marker'), 24));
-  assert.equal(dictNext(deleted, 'del d[0]'), undefined);
-  assert.match(dictRefusal(deleted, 'del d[0]'), /^the search for 0 stops at never-used slot 7, so del d\[0\] raises KeyError/);
+  assert.deepEqual(step(deleted, 'd[24]')!.result, lookup(deleteFirst('marker'), 24));
+  assert.equal(step(deleted, 'del d[0]'), undefined);
+  assert.deepEqual({...dictNext(deleted, 'del d[0]')}, {reason: 'the search for 0 stops at never-used slot 7, so del d[0] raises KeyError and changes nothing'});
   // The counterfactual loses 8: after emptying slot 0 its search stops there, so it can neither find nor delete it.
-  const cleared = dictNext(dictStart('incorrect-clear'), 'del d[0]')!;
+  const cleared = step(dictStart('incorrect-clear'), 'del d[0]')!;
   assert.deepEqual(cleared.dict, deleteFirst('clear'));
-  assert.equal(dictNext(cleared, 'del d[8]'), undefined);
+  assert.deepEqual({...dictNext(cleared, 'del d[8]')}, {reason: 'the search for 8 stops at never-used slot 0, so del d[8] raises KeyError and changes nothing'});
   // Against a Map, for any sequence of events: CPython's marker dict answers every lookup as the Map does and refuses
   // exactly the deletions the Map cannot make; every state keeps an unused slot, so every search can stop.
   fc.assert(fc.property(fc.array(fc.constantFrom(...DICT_EVENTS), {maxLength: 12}), events => {
     const reference = new Map<number, string>([[0, 'apple'], [8, 'pear'], [16, 'plum']]);
     let state = dictStart('CPython marker');
     for (const event of events) {
-      const key = Number(/\[(\d+)\]/.exec(event)![1]), next = dictNext(state, event);
+      const key = Number(/\[(\d+)\]/.exec(event)![1]), next = step(state, event);
       if (event.startsWith('del ')) {
         assert.equal(next === undefined, !reference.has(key), event);
         reference.delete(key);
@@ -435,14 +438,14 @@ test('every round the round machine can play is a cell of the strip, with the st
       if(r.car!==null) ended.push(r);
       for(const e of ROUND_EVENTS) {
         const next=roundNext(r,e);
-        if(!next) continue;
+        if(isRefusal(next)) continue;
         // The rules' refusals: he never opens your door, and the host who knows never opens the car.
         if(e.startsWith('open')) { assert.notEqual(next.opened,r.pick); if(host==='informed') assert.equal(next.shows,'goat'); }
         queue.push(next);
       }
     }
     assert.equal(states,host==='informed'?46:52);
-    assert.ok(ROUND_EVENTS.every(e=>roundNext(roundStart(host),e)===undefined||e.startsWith('pick')),'nothing but a pick starts a round');
+    assert.ok(ROUND_EVENTS.every(e=>isRefusal(roundNext(roundStart(host),e))||e.startsWith('pick')),'nothing but a pick starts a round');
     for(const choice of [0,1,2]) {
       const mine=ended.filter(r=>r.pick===choice);
       const cells=threeDoorCells(choice,host).map(c=>JSON.stringify([c.prize,c.opened,c.shows]));
@@ -455,6 +458,27 @@ test('every round the round machine can play is a cell of the strip, with the st
       }
     }
   }
+});
+
+// Each refusal names the rule that forbids the move, in the reader's words.
+test('the round machine says which rule refuses a move',()=>{
+  const why=(host:'informed'|'random',events:RoundEvent[],event:RoundEvent)=>{
+    const r=events.reduce<Round>((at,e)=>roundNext(at,e) as Round,roundStart(host)),refused=roundNext(r,event);
+    return isRefusal(refused)?refused.reason:undefined;
+  };
+  assert.equal(why('informed',[],'open B: goat'),'the host opens a door only after you pick one');
+  assert.equal(why('informed',[],'stay'),'you stay or switch once the host has opened a door');
+  assert.equal(why('informed',[],'car behind A'),'the car is shown once you have stayed or switched');
+  assert.equal(why('informed',['pick A'],'pick B'),'you picked door A already, and you pick once');
+  assert.equal(why('informed',['pick A'],'open A: goat'),'door A is yours, and the host never opens your door');
+  assert.equal(why('informed',['pick A'],'open B: car'),'the host knows where the car is, and never opens its door');
+  assert.equal(why('random',['pick A'],'open B: car'),undefined);
+  assert.equal(why('informed',['pick A','open B: goat'],'open C: goat'),'the host opened door B already, and he opens one door');
+  assert.equal(why('informed',['pick A','open B: goat','stay'],'switch'),'you chose to stay already');
+  assert.equal(why('informed',['pick A','open B: goat','stay'],'car behind B'),'door B is open and shows a goat');
+  assert.equal(why('informed',['pick A','open B: goat','stay','car behind C'],'car behind A'),'the car was shown behind door C already');
+  assert.equal(why('random',['pick A','open B: car'],'switch'),'the host showed the car behind door B, so the round is over');
+  assert.equal(why('random',['pick A','open B: car'],'car behind C'),'the car was shown behind door B already');
 });
 
 test('birthday formulas match exhaustive small calendars and independent exact Python fractions',()=>{

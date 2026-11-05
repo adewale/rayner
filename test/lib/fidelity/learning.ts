@@ -80,7 +80,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     const host=values.host as Host,choice=0,example=montyExample(choice,'switch');
     // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed:
     // the round machine's state after you pick A and the host opens B to a goat, replayed through the model.
-    const round=[`pick A`,`open ${'ABC'[example.opened]}: goat`].reduce<Round|undefined>((r,e)=>r&&roundNext(r,e as RoundEvent),roundStart(host))!;
+    const round=[`pick A`,`open ${'ABC'[example.opened]}: goat`].reduce<Round>((r,e)=>roundNext(r,e as RoundEvent) as Round,roundStart(host));
     assert.deepEqual(round,{host,pick:example.choice,opened:example.opened,shows:'goat',decision:null,car:null});
     for(const name of ['choice','predict']) assertStepState(trace,name,{...round});
     const cells={informed:threeDoorCells(choice,'informed'),random:threeDoorCells(choice,'random')};

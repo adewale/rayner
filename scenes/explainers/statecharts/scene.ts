@@ -3,8 +3,8 @@ import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from '../../..
 import { stage, regionBox } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, events as chartEvents } from '../lib/statecharts.ts';
-import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
+import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, drivenStart, drivenNext, events as chartEvents } from '../lib/statecharts.ts';
+import type { StateNode, FlatMachine, Driven } from '../lib/statecharts.ts';
 
 // Every box and arrow below is drawn from a model state or transition; only positions are chosen
 // here. Parts are keyed by where they sit in the grid of playback × volume, so a state keeps its
@@ -631,7 +631,6 @@ export default class Statecharts extends Scene {
     // The two charts a reader could drive, as Machines: each event is the model's send(), and
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
-    type Driven = { config: string[]; current: string[] };
     /** The boxes the picture draws green for a state: the parent step follows the configuration, the frother step every box it is in. */
     const followed = (st: Driven) => ((this.shown as Shown).phase === 'parent' ? st.config : st.current);
     /** The arrow an event takes: the transition written on the state that handled it (its own, or its parent's), keyed as coffeePicture keys it. */
@@ -641,17 +640,14 @@ export default class Statecharts extends Scene {
       return from === 'on' ? 'c:arrow:grinding:POWER_OFF:off' : to === 'on' ? 'c:arrow:off:POWER_ON:idle' : `c:arrow:${from}:${event}:${to}`;
     };
     // An event the configuration does not handle is discarded (SCXML), so its button would be
-    // disabled: the model refuses it. One that is handled travels: the boxes it leaves stop being
+    // disabled: the model refuses it, naming the boxes without its arrow. One that is handled travels: the boxes it leaves stop being
     // green, a token runs along the arrow of the state that took it (on's own POWER_OFF when the
     // current state has none), and the boxes it enters turn green.
     const driven = (chart: StateNode) =>
       new Machine<Driven, string>(this, {
-        start: { config: initial(chart), current: activeStates(chart, initial(chart)) },
+        start: drivenStart(chart),
         events: chartEvents(chart),
-        next: (state, event) => {
-          const step = send(chart, state.config, event);
-          return step.handled ? { config: step.config, current: activeStates(chart, step.config) } : undefined;
-        },
+        next: (state, event) => drivenNext(chart, state, event),
         views: [main],
         match: byKey,
         // 0.35 s to leave, 0.8 s along the arrow, 0.5 s to arrive.

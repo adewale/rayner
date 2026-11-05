@@ -2,7 +2,7 @@
 // every state the events reach.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, SetState, Machine, machinesOf, view, NullSink, StringSink, SnapshotSink, TraceSink, renderAt, traceScene, loadFonts, Transform } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, SetState, Machine, machinesOf, refuse, isRefusal, view, NullSink, StringSink, SnapshotSink, TraceSink, renderAt, traceScene, loadFonts, Transform } from '../src/index.ts';
 import type { Transition, View } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
@@ -145,8 +145,31 @@ const morphUp = (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => new Transform
 test('a refused event: next says undefined, exploration does not follow it, and sending it is refused before anything plays', async () => {
   const ran = await new (litLamp(morphUp))(new NullSink()).run();
   assert.equal(ran.machine.after({ level: 2 }, 'UP'), undefined);
+  assert.deepEqual(ran.machine.outcome({ level: 2 }, 'UP'), { refused: null });
   assert.deepEqual(ran.machine.reachable().map((r) => r.state.level), [0, 1, 2]);
-  assert.throws(() => ran.machine.send('UP', { level: 2 }), /UP is refused in \{"level":2\}/);
+  assert.throws(() => ran.machine.send('UP', { level: 2 }), /UP is refused in \{"level":2\}$/);
+});
+
+test('a model refuses with its reason: refuse(reason) where next refuses, and outcome, send and exploration treat it as a refusal', () => {
+  const scene = new Scene(new NullSink());
+  // The lamp's own rule, said where it is decided.
+  const lamp = new Machine<Lamp, 'UP' | 'OFF'>(scene, {
+    start: { level: 0 }, events: ['UP', 'OFF'], views: [],
+    next: (s, e) => (e === 'UP' && s.level === 2 ? refuse(`the lamp is ${LEVELS[s.level]} already, its brightest`) : next(s, e)),
+  });
+  assert.deepEqual(lamp.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is bright already, its brightest' });
+  assert.deepEqual(lamp.model({ level: 2 }, 'UP'), { refused: 'the lamp is bright already, its brightest' });
+  assert.deepEqual(lamp.outcome({ level: 1 }, 'UP'), { next: { level: 2 } });
+  assert.equal(lamp.after({ level: 2 }, 'UP'), undefined);
+  assert.deepEqual(lamp.reachable().map((r) => r.state.level), [0, 1, 2]);
+  assert.throws(() => lamp.send('UP', { level: 2 }), /UP is refused in \{"level":2\}: the lamp is bright already, its brightest/);
+  // A refusal is a value of its own, recognised across copies of the library; its reason must be words.
+  const r = refuse('no');
+  assert.ok(isRefusal(r) && !isRefusal({ reason: 'no' }) && !isRefusal(undefined) && !isRefusal({ level: 0 }));
+  assert.ok(Object.isFrozen(r));
+  assert.throws(() => refuse(' '), /reason must be words/);
+  // One way to say why: a separate why(state, event) is refused, and says what to write instead.
+  assert.throws(() => new Machine(scene, { start: {}, events: ['A'], next: () => undefined, views: [], why: () => 'no' } as never), /return refuse\(reason\) from next/);
 });
 
 test('a schedule built for one state refuses to play from another', async () => {
@@ -292,7 +315,8 @@ test('a transition finds each view by the view itself, and refuses a view the ma
 });
 
 test('a bound stops the story where the model would go on; check fails a bound the model refuses anyway', async () => {
-  const nextUp = (s: Lamp, e: 'UP' | 'OFF'): Lamp | undefined => (e === 'UP' && s.level === 2 ? undefined : next(s, e));
+  // UP is refused at bright: that is the lamp's rule, and the model says so.
+  const nextUp = (s: Lamp, e: 'UP' | 'OFF') => (e === 'UP' && s.level === 2 ? refuse(`the lamp is already ${LEVELS[s.level]}`) : next(s, e));
   const bounded = (bound: (s: Lamp, e: 'UP' | 'OFF') => string | undefined) => class extends Scene<Lamp> {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
     override state = { level: 0 };
@@ -301,11 +325,7 @@ test('a bound stops the story where the model would go on; check fails a bound t
       const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
-      // UP is refused at bright: that is the lamp's rule.
-      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, {
-        start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound,
-        why: (st) => `the lamp is already ${LEVELS[st.level]}`,
-      });
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound });
       await this.step('press');
       await this.play(this.machine.replay(['UP']));
     }

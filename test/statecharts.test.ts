@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { player, coffee, coffeeWithFrother, FROTHER, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
+import { isRefusal } from '../src/index.ts';
+import { player, coffee, coffeeWithFrother, FROTHER, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, drivenStart, drivenNext, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from '../tools/oracle/statecharts.ts';
 import type { Expected, Explored } from '../tools/oracle/statecharts.ts';
 import type { StateNode } from '../scenes/explainers/lib/statecharts.ts';
@@ -128,6 +129,25 @@ test('a child that handles an event itself preempts its parent, as in XState, an
   assert.deepEqual(send(PREEMPT, ['a2'], 'GO').sources, ['a']);
   assert.deepEqual(send(PREEMPT, ['b'], 'GO'), { event: 'GO', handled: false, sources: [], exited: [], entered: [], config: ['b'] });
   assert.deepEqual(named(xstate.preempt), flatten(PREEMPT).transitions.map((t) => `${t.from} ${t.event} ${t.to}`).sort());
+});
+
+test('a driven chart takes what send handles, and refuses an event no box it is in has an arrow for, naming them', () => {
+  /** The driven chart after `events`, then why `event` is refused there (undefined when it is taken). */
+  const why = (chart: StateNode, events: string[], event: string) => {
+    const at = events.reduce((st, e) => { const n = drivenNext(chart, st, e); assert.ok(!isRefusal(n), e); return n; }, drivenStart(chart));
+    const refused = drivenNext(chart, at, event);
+    return isRefusal(refused) ? refused.reason : undefined;
+  };
+  assert.deepEqual(drivenStart(coffee()), { config: ['off'], current: ['off'] });
+  assert.equal(why(coffee(), [], 'START'), 'no START arrow leaves off, so the machine ignores START');
+  assert.equal(why(coffee(), ['POWER_ON'], 'GROUND'), 'no GROUND arrow leaves idle or on, the box around it, so the machine ignores GROUND');
+  assert.equal(why(coffeeWithFrother(), ['POWER_ON'], 'STOP'), 'no STOP arrow leaves idle, still or on, the box around them, so the machine ignores STOP');
+  assert.equal(why(coffee(), ['POWER_ON'], 'POWER_OFF'), undefined);
+  // Every refusal is an event send does not handle, and every event send handles is taken.
+  for (const chart of [coffee(), coffeeWithFrother()])
+    for (const config of flatten(chart).states.map((name) => name.split('_')))
+      for (const e of events(chart))
+        assert.equal(isRefusal(drivenNext(chart, { config, current: activeStates(chart, config) }, e)), !send(chart, config, e).handled, `${config} ${e}`);
 });
 
 test('charts that break the model’s rules are refused', () => {

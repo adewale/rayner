@@ -577,7 +577,7 @@ function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>
   for (const event of events) {
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
     const bound = machine.spec.bound?.(state, event);
-    if (bound !== undefined && machine.spec.next(state, event) === undefined)
+    if (bound !== undefined && 'refused' in machine.model(state, event))
       problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
     const authored = transition?.[event];
     const after = authored && machine.after(state, event);

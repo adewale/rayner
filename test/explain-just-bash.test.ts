@@ -1,8 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { exec } from '../scenes/explainers/lib/models.ts';
+import { isRefusal } from '../src/index.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS, PIPELINE, FILE } from '../scenes/explainers/lib/just-bash.ts';
 import type { ShellSession, BashEvent } from '../scenes/explainers/lib/just-bash.ts';
+
+/** The session after `e`, or undefined where the model refuses it. */
+const after = (s: ShellSession, e: BashEvent): ShellSession | undefined => {
+  const next = sessionNextShell(s, e);
+  return isRefusal(next) ? undefined : next;
+};
 
 /** Every session the script's command lines reach from the empty shell, with the shortest events to each. */
 function reachable(): { state: ShellSession; path: BashEvent[] }[] {
@@ -15,7 +22,7 @@ function reachable(): { state: ShellSession; path: BashEvent[] }[] {
     for (const e of BASH_EVENTS) {
       // The machine's bound first: the script writes once, though exec would go on.
       if (scriptBound(at.state, e) !== undefined) continue;
-      const next = sessionNextShell(at.state, e);
+      const next = after(at.state, e);
       if (next) queue.push({ state: next, path: [...at.path, e] });
     }
   }
@@ -39,7 +46,7 @@ test('in every order of the script’s commands, s0 stays empty and only the kep
     if (state.cats[1] != null) assert.equal(state.cats[1], 'HELLO\n', where);
   }
   // Both orders of the write and a cat on the kept shell are reached, and they print different things.
-  const run = (events: BashEvent[]) => events.reduce<ShellSession | undefined>((s, e) => s && sessionNextShell(s, e), sessionOfShells());
+  const run = (events: BashEvent[]) => events.reduce<ShellSession | undefined>((s, e) => s && after(s, e), sessionOfShells());
   assert.deepEqual(run(['CAT_NEWEST', 'RUN_PIPELINE'])!.cats, ['', null]);
   assert.deepEqual(run(['RUN_PIPELINE', 'CAT_NEWEST'])!.cats, [null, 'HELLO\n']);
   // cat on s0 is the same before and after the write: the same state either way.
@@ -48,14 +55,16 @@ test('in every order of the script’s commands, s0 stays empty and only the kep
 
 test('the session refuses what exec refuses: ls in every state; and the script writes shout.txt once', () => {
   for (const { state, path } of reachable()) {
-    assert.equal(sessionNextShell(state, 'LS'), undefined, path.join(' '));
+    // The refusal says what exec says, in the reader's words.
+    assert.equal(after(state, 'LS'), undefined, path.join(' '));
+    assert.deepEqual({ ...sessionNextShell(state, 'LS') }, { reason: 'exec throws “Unknown model command: ls”, since the model runs only echo, tr and cat' }, path.join(' '));
     assert.throws(() => exec(state.shells.at(-1)!, [['ls']]), /Unknown model command/);
   }
-  const once = sessionNextShell(sessionOfShells(), 'RUN_PIPELINE')!;
+  const once = after(sessionOfShells(), 'RUN_PIPELINE')!;
   // A second write is beyond the script, not refused by exec: exec would return a third shell.
   assert.equal(scriptBound(once, 'RUN_PIPELINE'), 'The script writes shout.txt once');
-  assert.equal(sessionNextShell(once, 'RUN_PIPELINE')!.shells.length, 3);
+  assert.equal(after(once, 'RUN_PIPELINE')!.shells.length, 3);
   // A cat run again on the same shell prints the same and changes nothing.
-  const read = sessionNextShell(once, 'CAT_NEWEST')!;
-  assert.deepEqual(sessionNextShell(read, 'CAT_NEWEST'), read);
+  const read = after(once, 'CAT_NEWEST')!;
+  assert.deepEqual(after(read, 'CAT_NEWEST'), read);
 });

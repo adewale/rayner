@@ -3,6 +3,8 @@
  * answers (RFC 7636 §4.3–4.6, RFC 6749 §4.1). No drawing here; oauth-pkce draws its sequence diagrams from these
  * messages. Tested in test/explain-pkce.test.ts.
  */
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 import { pkceChallenge } from './models.ts';
 
 /** RFC 7636 appendix B's example verifier (32 random octets, base64url). */
@@ -134,26 +136,29 @@ function answerFor(state: SignIn, who: 'client' | 'app'): Answer {
 }
 
 /**
- * The sign-in's next state, or undefined for what the protocol refuses: a second authorization request, a redirect
- * before there is a code or delivered twice to the same app, and a token request from an app without the code or
- * from one that already has its answer.
+ * The sign-in's next state, or a refusal saying what the protocol does not allow: a second authorization request, a
+ * redirect before there is a code or delivered twice to the same app, and a token request from an app without the
+ * code or from one that already has its answer.
  */
-export function signInNext(state: SignIn, event: SignInEvent): SignIn | undefined {
+export function signInNext(state: SignIn, event: SignInEvent): SignIn | Refusal {
+  const named = { client: 'the client', app: 'the malicious app' } as const;
   switch (event) {
     case 'AUTHORIZE':
     case 'AUTHORIZE_S256':
-      if (state.requested) return undefined;
+      if (state.requested) return refuse('the client has sent its authorization request already, and a sign-in sends one');
       return { ...state, requested: true, challenge: event === 'AUTHORIZE_S256' ? pkceChallenge(VERIFIER) : null };
     case 'REDIRECT':
     case 'INTERCEPT': {
       const who = event === 'REDIRECT' ? 'client' : 'app';
-      if (!state.requested || state[who].code) return undefined;
+      if (!state.requested) return refuse('there is no code to redirect yet: the client has not sent its authorization request');
+      if (state[who].code) return refuse(who === 'client' ? 'the redirect has brought the code to the client already' : 'the malicious app has caught the redirect already');
       return { ...state, [who]: { ...state[who], code: true } };
     }
     case 'CLIENT_REDEEMS':
     case 'APP_REDEEMS': {
       const who = event === 'CLIENT_REDEEMS' ? 'client' : 'app';
-      if (!state[who].code || state[who].answer !== null) return undefined;
+      if (!state[who].code) return refuse(`${named[who]} has no code to redeem: no redirect has brought it one`);
+      if (state[who].answer !== null) return refuse(`${named[who]} has redeemed the code already, and the server answered ${state[who].answer}`);
       const answer = answerFor(state, who);
       return { ...state, [who]: { ...state[who], answer }, spent: state.spent || answer === 'Access token' };
     }

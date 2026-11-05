@@ -2,7 +2,7 @@ import { Scene, Group, Rectangle, CurvedArrow, FadeIn, Machine, Text, matchByKey
 import type { Mobject, SceneState } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
-import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext, dictRefusal } from '../lib/python-dict.ts';
+import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from '../lib/python-dict.ts';
 import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from '../lib/python-dict.ts';
 import { keyed, label, tile, table } from '../lib/lesson-drawing.ts';
 
@@ -268,7 +268,6 @@ export default class PythonDict extends Scene {
         start,
         events: DICT_EVENTS,
         next: dictNext,
-        why: dictRefusal,
         views: [pictures],
         // A slot's entry, a cell or a panel line whose words change is replaced in place, not morphed glyph by glyph.
         match: matchByKey({ text: 'whole' }),

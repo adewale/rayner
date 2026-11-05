@@ -18,7 +18,7 @@ import { LIVE_STATES } from '../../tools/lib/explain-review-plan.ts';
 import { reviewScene } from '../../tools/lib/explain-review-scene.ts';
 
 /** A lamp a reader switches at its step `press`; with `defect`, a setting draws its word tiny when bright. */
-const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle,Machine,view}from'rayner';import{stage,settingsOf}from'rayner/explain';
+const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle,Machine,refuse,view}from'rayner';import{stage,settingsOf}from'rayner/explain';
 const LEVELS=['off','dim','bright'];
 export default class Lamp extends Scene{
   static meta={id:'lamp',title:'A lamp a reader can switch'};
@@ -33,8 +33,8 @@ export default class Lamp extends Scene{
     s.keep(picture,{describe:()=>picture.texts.join(' ')});
     this.add(picture);
     const machine=new Machine(this,{start:{level:0},events:['UP','DOWN'],labels:{UP:'Brighter'},
-      next:(st,e)=>e==='UP'?(st.level<2?{level:st.level+1}:undefined):(st.level>0?{level:st.level-1}:undefined),
-      why:(st,e)=>e==='UP'?'It is as bright as it goes':'It is off',views:[picture],runTime:0.3});
+      next:(st,e)=>e==='UP'?(st.level<2?{level:st.level+1}:refuse('It is as bright as it goes')):(st.level>0?{level:st.level-1}:refuse('It is off')),
+      views:[picture],runTime:0.3});
     await this.step('intro',{caption:'A lamp, off.'});
     await this.wait(0.2);
     await this.step('press',{caption:'Press the switch: the lamp is dim.'});

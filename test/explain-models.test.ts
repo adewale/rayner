@@ -12,6 +12,8 @@ import {
   RingBuffer,
   Full,
   ringStory,
+  ringStart,
+  ringNext,
   exec,
   sunlight,
   daylightYear,
@@ -161,6 +163,11 @@ test('ring wraps into freed slots and Full changes no state', () => {
       assert.throws(() => ring.pop(), /^Error: Empty$/);
     },
   ), params(300));
+});
+test('the ring machine refuses a pop of an empty ring, saying so, and takes a push to a full ring as Full', () => {
+  assert.deepEqual({ ...ringNext(ringStart(4), 'pop') }, { reason: 'the ring is empty, so pop has no value to take' });
+  const full = [1, 2, 3, 4].reduce((st) => ringNext(st, 'push') as ReturnType<typeof ringStart>, ringStart(4));
+  assert.equal((ringNext(full, 'push') as ReturnType<typeof ringStart>).error, 'Full');
 });
 test('shell execution returns a new filesystem and never mutates its input', () => {
   const original = { fs: {}, steps: 0 };

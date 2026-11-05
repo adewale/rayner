@@ -10,6 +10,9 @@ where the machine last played the player gives the reader a button per event
 ```ts
 import { Machine } from 'rayner';
 
+// In the model module: a new state, or refuse(reason) where the state refuses the event.
+//   if (!handled) return refuse(`no ${event} arrow leaves ${config.join(' or ')}, so the machine ignores ${event}`);
+
 const machine = new Machine(this, {
   start: machineAt(initial(chart)),       // where exploring starts
   events: events(chart),                  // one button each in the player
@@ -32,8 +35,7 @@ replayed machine therefore seeks, traces and records like any other play.
 | `start` | Where exploration starts; the scene need not be in it yet |
 | `events` | Every event, in the order the player shows them; distinct and at least one |
 | `labels` | A button's name for an event whose own name would not read well (default: the event) |
-| `next(state, event)` | The model's step, from the model module: a new state, or `undefined` when the state refuses the event |
-| `why(state, event)` | Why the model refuses an event, in the reader's words |
+| `next(state, event)` | The model's step, from the model module: a new state, or `refuse(reason)` when the state refuses the event, the reason in the reader's words (`undefined` refuses with no reason) |
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
@@ -44,8 +46,9 @@ replayed machine therefore seeks, traces and records like any other play.
 `machine.send(event, from?)` builds one event's schedule for one state (the scene's state by
 default) and refuses to play from any other, so a replay cannot drift from the model.
 `replay(events, from?)` chains them. `outcome(state, event)` says what an event does: the next
-state, a refusal with `why`'s reason, or the story's bound. `after(state, event)` is the next
-state or `undefined`. `reachable(from?)` lists every state reachable from `from` (default
+state, a refusal with the reason `next` gave (`{ refused: reason }`, or `null` for none), or the
+story's bound. `model(state, event)` is what `next` alone says, the bound aside. `after(state,
+event)` is the next state or `undefined`. `reachable(from?)` lists every state reachable from `from` (default
 `start`), breadth first, each with the shortest events that reach it. `lastPlayedIn` is the step
 the machine last played in, and `playedUnder` what the scene showed (`scene.shown`) when it did.
 
@@ -64,10 +67,28 @@ every state under it.
 
 ## Refused events, bounds and authored transitions
 
-`next` returns `undefined` when a state refuses an event. Exploration does not follow it, the
-player dims the event's button and says why (`why`'s reason, else "Not possible here"), and
-`send` refuses it before anything plays. There is no separate list of allowed events: one
-function says both, so the buttons and the model cannot disagree.
+`next` returns `refuse(reason)` when a state refuses an event, with the reason in the reader's
+words: `refuse('the ring is empty, so pop has no value to take')`. `refuse` is a small value from
+`rayner`, and `isRefusal(value)` tells one apart from a state. Exploration does not follow it, the
+player dims the event's button and says the reason, and `send` refuses it before anything plays,
+naming the reason. `undefined` is still a refusal, with no reason: the player then says "Not
+possible here". There is no separate list of allowed events and no separate reason function: the
+branch of `next` that refuses says why, so the buttons, their reasons and the model cannot
+disagree.
+
+The reason is a clause, written to follow the event's name: the player says "pop: the ring is
+empty, so pop has no value to take" when the button is pressed, and puts it in brackets in a
+link's notice. Say which rule refuses, with the state's own values (which door, which box, which
+search), since the reader pressed it to find out. A reason is the model's; where the model would
+go on but the story stops, that is a [bound](#refused-events-bounds-and-authored-transitions), not
+a refusal.
+
+**Why one way.** A separate `why(state, event)` used to give the reason. It had to decide again
+which rule refused (python-dict's ran the key's search a second time), nothing checked that it
+agreed with `next`, and eight of the nine machines left it out, so their players said "Not
+possible here". A reason returned from the branch that refuses cannot name a rule other than the
+one that refused, and costs one line where the refusal is. `why` is gone; a spec that still has
+one is refused with what to write instead.
 
 A `bound` is different: the model would take the event, but the explainer's story ends before
 it (token-bucket's client sends ten requests). Exploration does not follow it either, and the
@@ -294,7 +315,7 @@ afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's o
 
 | Explainer | Live at | State | Events | What is drawn from state | Explored |
 | --- | --- | --- | --- | --- | --- |
-| `statecharts` | `parent`, `frother` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send`; an event the configuration does not handle is refused, as SCXML discards it | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
+| `statecharts` | `parent`, `frother` | A chart's configuration and the boxes it is in | The chart's events, through the model's `send` (`drivenNext`); an event the configuration does not handle is refused, as SCXML discards it, naming the boxes without its arrow | The chart, its active boxes and the arrows they light | 5 and 9 configurations; every event authored: a token runs along the arrow of the state that handled it |
 | `ring-buffer` | `result` | `RingState`: the buffer, the last operation and its result, outlines, the tray, the next value | `push`, `pop`; a pop of an empty ring is refused, a push to a full one returns Full, and a push after the value 9 is past the story's bound | Slots, values, pointers, outlines, push(v), the next value, the tray; the readout and card values | 256 states sampled per scenario, every transition played |
 | `state-machine` | `terminal` | `SessionState`: the session, the last event and what it returned, the row read, the links travelled | `CONNECT`, `OPENED`, `ERROR`, `CLOSE` (none refused: a throw is the lesson) | The diagram with its trail (`Diagram.picture`), the ring, the lit row or throw; the card | All 21 states per scenario, every transition played |
 | `token-bucket` | `later` | `BucketState`: tokens, last refill and every call so far (arrival, 200 or 429, balance found and left) | `request`: the next of the client's ten scheduled requests arrives; the bucket refills on arrival, so there is no tick, and an eleventh request is past the story's bound | The bucket's level, the balance chart, the request boxes and the readout | 11 states per rate; a request's refill climb is one `Follow`, then a token leaves for its box or a 429 ring appears |
@@ -303,6 +324,34 @@ afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's o
 | `oauth-pkce` | `any-order` | `SignIn`: the request and its challenge, who holds the code, each app's answer, whether the code is spent | `AUTHORIZE`, `AUTHORIZE_S256`, `REDIRECT`, `INTERCEPT`, `CLIENT_REDEEMS`, `APP_REDEEMS`; a code is used once (RFC 6749 §4.1.2) | Three lifelines across the browser and TLS lanes, each message in its slot with a refusal's reason | 20 states; with a challenge the malicious app gets no token in any order (an invariant, and a deliberate defect that sends the real verifier fails it) |
 | `just-bash` | `lesson` | `ShellSession`: the shells the caller holds and what `cat` printed on each | The script's lines: the pipeline on the newest shell, `cat` on the newest or on s0, `ls` (refused, as `exec` refuses it); a second write is past the script's bound | s0 and s1, the write's arrow, each cat's output, the kept shell outlined | 6 states; s0 stays the empty shell through every transition |
 | `python-dict` | `broken`, `missing` | `DictState`: the eight-slot index and the entries, how a deletion leaves its slot (CPython's D, or the counterfactual that empties it), and the last event's search | `del d[0]`, `del d[8]`, `del d[16]` (refused when the key's search cannot find it, as Python raises KeyError), `d[0]`, `d[8]`, `d[16]`, `d[24]` (a missing key is an answer, not a refusal) | The slot row, the search's arrows, the entry table with [keyed cells](REFERENCE.md#drawing-kit), the panel and the note | 40 states with emptying (`broken`), 45 with CPython's marker (`missing`); the keyed morph writes D (or a dash) into the slot and dashes into the entry row in place |
+
+What each refuses, in its model's words (the tests pin each reason):
+
+- `statecharts`: an event no state the chart is in handles: "no GROUND arrow leaves idle or on,
+  the box around it, so the machine ignores GROUND" (`drivenNext`).
+- `ring-buffer`: a pop of an empty ring: "the ring is empty, so pop has no value to take". A push
+  to a full ring is not refused: it returns Full, which the ring shows.
+- `state-machine` and `token-bucket` refuse nothing: a throw and a 429 are answers the picture
+  shows. token-bucket's eleventh request is past the story's bound.
+- `monty-hall`: which rule of the game forbids the move: "you picked door A already, and you pick
+  once", "the host opens a door only after you pick one", "door A is yours, and the host never
+  opens your door", "the host knows where the car is, and never opens its door", "the host opened
+  door B already, and he opens one door", "you stay or switch once the host has opened a door",
+  "the host showed the car behind door B, so the round is over", "you chose to stay already",
+  "the car is shown once you have stayed or switched", "door B is open and shows a goat", "the car
+  was shown behind door C already".
+- `latest-search`: "“ca” is typed before “cat”, so search A starts first", "search A has started
+  already, and each search starts once", "search B has not started, so it has no response to
+  land", "search A’s response has landed already, and a response lands once".
+- `oauth-pkce`: "the client has sent its authorization request already, and a sign-in sends one",
+  "there is no code to redirect yet: the client has not sent its authorization request", "the
+  redirect has brought the code to the client already", "the malicious app has caught the redirect
+  already", "the malicious app has no code to redeem: no redirect has brought it one", "the client
+  has redeemed the code already, and the server answered Access token".
+- `just-bash`: ls: "exec throws “Unknown model command: ls”, since the model runs only echo, tr and
+  cat". A second write is past the script's bound.
+- `python-dict`: a deletion whose search cannot find its key: "the search for 0 stops at
+  never-used slot 7, so del d[0] raises KeyError and changes nothing".
 
 Drawing each main picture from state can reach pictures the story never shows, and exploration
 checks those too. In ring-buffer it found two states that differed only in the next value to be

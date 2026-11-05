@@ -1,6 +1,8 @@
 // CPython v3.12.14, Objects/dictobject.c: do_lookup(), insertdict(), delitem_common().
 // This lesson fixes capacity at eight and uses three small integer keys. It
 // models the compact combined table; resizing and split instance dicts are out of scope.
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 export const EMPTY = -1, DELETED = -2;
 export interface DictEntry {key: number | null; value: string | null}
 export interface DictTable {indices: number[]; entries: DictEntry[]}
@@ -99,16 +101,13 @@ export function dictStart(policy: DictPolicy): DictState {
 const eventKey = (event: DictEvent) => Number(/\[(\d+)\]/.exec(event)![1]);
 /**
  * The model's step. A lookup always has a result, found or not: KeyError is an answer the lesson shows. A
- * deletion whose search cannot find its key is refused, as Python refuses it (KeyError, and nothing changes).
+ * deletion whose search cannot find its key is refused, as Python refuses it (KeyError, and nothing changes),
+ * saying where the search stopped.
  */
-export function dictNext(state: DictState, event: DictEvent): DictState | undefined {
+export function dictNext(state: DictState, event: DictEvent): DictState | Refusal {
   const key = eventKey(event), result = lookup(state.dict, key), seen = route(state.dict, result);
   if (!event.startsWith('del ')) return {dict: state.dict, policy: state.policy, op: 'lookup', result, route: seen};
   const dict = remove(state.dict, key, state.policy === 'CPython marker' ? 'marker' : 'clear');
-  return dict && {dict, policy: state.policy, op: 'del', result, route: seen};
-}
-/** Why a deletion is refused, in the reader's words. */
-export function dictRefusal(state: DictState, event: DictEvent): string {
-  const key = eventKey(event), stop = lookup(state.dict, key).slots.at(-1);
-  return `the search for ${key} stops at never-used slot ${stop}, so del d[${key}] raises KeyError and changes nothing`;
+  return dict ? {dict, policy: state.policy, op: 'del', result, route: seen}
+    : refuse(`the search for ${key} stops at never-used slot ${result.slots.at(-1)}, so del d[${key}] raises KeyError and changes nothing`);
 }
