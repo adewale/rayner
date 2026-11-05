@@ -77,12 +77,14 @@ function lists(st: Lists, s: Stage) {
       { label: 'Removed', fill: s.bad },
       { label: 'Gap', fill: 'none', stroke: s.bad, dashed: true },
     ],
-    { size: 0.6, direction: 'row', gap: 0.42, key: 'versions-legend' },
+    { size: 0.6, direction: 'row', gap: 0.18, key: 'versions-legend' },
   );
-  swatches.moveTo([lead.width() + 0.42, 0], [-1, 0]);
+  swatches.moveTo([lead.width() + 0.24, 0], [-1, 0]);
   const key = new Group(lead, swatches);
   key.key = 'versions-key';
-  g.add(key.moveTo([0, -3.75]));
+  // Under the table, starting where its rows start, so the key is never wider than the table: a
+  // phone's opening must show both whole.
+  g.add(key.moveTo([g.box()![0], -3.75], [-1, 0]));
   return g;
 }
 
