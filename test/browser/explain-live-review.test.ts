@@ -18,18 +18,24 @@ import { liveSubjects, liveVisits, reviewLiveStates } from '../../tools/lib/expl
 import { LIVE_STATES } from '../../tools/lib/explain-review-plan.ts';
 import { reviewScene } from '../../tools/lib/explain-review-scene.ts';
 
-/** A lamp a reader switches at its step `press`; with `defect`, a setting draws its word tiny when bright. */
+/**
+ * A lamp a reader switches at its step `press`; with `defect`, a setting draws its word tiny when
+ * bright, and another adds a note when bright, readable at a 1280 px stage but small and far from
+ * the lamp, so on a phone neither the whole picture nor the step's close-up reads it.
+ */
 const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle,Machine,refuse,view}from'rayner';import{stage,settingsOf}from'rayner/explain';
 const LEVELS=['off','dim','bright'];
 export default class Lamp extends Scene{
   static meta={id:'lamp',title:'A lamp a reader can switch'};
-  ${defect ? "static settings=[{id:'label',label:'Label',default:'kept',options:[{value:'kept',label:'Kept'},{value:'tiny',label:'Tiny when bright'}]}];" : ''}
+  ${defect ? "static settings=[{id:'label',label:'Label',default:'kept',options:[{value:'kept',label:'Kept'},{value:'tiny',label:'Tiny when bright'},{value:'far',label:'A far note when bright'}]}];" : ''}
   state={level:0};
   async construct(){
-    const s=stage(this),tiny=${defect ? "settingsOf(this).label==='tiny'" : 'false'};
+    const s=stage(this),tiny=${defect ? "settingsOf(this).label==='tiny'" : 'false'},far=${defect ? "settingsOf(this).label==='far'" : 'false'};
     const picture=view(this,(st)=>{
-      const word=new Text('lamp '+LEVELS[st.level],{fontSize:tiny&&st.level===2?0.1:0.5});word.key='lamp:word';
-      return Object.assign(new Group(new Rectangle({width:4,height:1.2}),word),{key:'lamp'});
+      const word=new Text('lamp '+LEVELS[st.level],{fontSize:tiny&&st.level===2?0.1:0.6});word.key='lamp:word';
+      const parts=[new Rectangle({width:4,height:1.2}),word];
+      if(far&&st.level===2)parts.push(Object.assign(new Text('bright, its brightest',{fontSize:0.18}).moveTo([-5.6,-3.6]),{key:'lamp:note'}));
+      return Object.assign(new Group(...parts),{key:'lamp'});
     });
     s.keep(picture,{describe:()=>picture.texts.join(' ')});
     this.add(picture);
@@ -81,7 +87,7 @@ test('a label tiny only in a state an event reaches fails the served review; the
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-    const [kept, tiny] = project.scenarios;
+    const [kept, tiny, far] = project.scenarios;
     // From dim, one press away are bright (Brighter) and off (DOWN): both are visited.
     const keptSubjects = await liveSubjects(kept!);
     assert.deepEqual(keptSubjects.map((s) => [s.step, s.sent]), [['press', ['UP']], ['press', ['DOWN']]]);
@@ -90,13 +96,21 @@ test('a label tiny only in a state an event reaches fails the served review; the
     assert.deepEqual(reviewed.map((r) => [r.width, r.sent.join(',')]), [[390, 'UP'], [390, 'DOWN'], [1180, 'UP'], [1180, 'DOWN']]);
     for (const r of reviewed) {
       assert.ok(r.targets.some((t) => /lamp/.test(t)), `${r.sent}: what changed is the lamp's word (${r.targets})`);
-      assert.ok(r.minimumLabelPx1280! >= 39 && r.minimumLabelPx1280! <= 41, `the word reads at 40 px at a 1280 px stage, not ${r.minimumLabelPx1280}`);
+      assert.ok(r.minimumLabelPx1280! >= 47 && r.minimumLabelPx1280! <= 49, `the word reads at 48 px at a 1280 px stage, not ${r.minimumLabelPx1280}`);
+      if (r.width === 390) assert.ok(r.changedLabelPx! >= 12, `on a phone the changed word reads at ${r.changedLabelPx} px`);
     }
     assert.deepEqual(errors, []);
     // The defect: bright draws the word at a fifth of its size. Only a press reaches bright.
     await assert.rejects(
       reviewLiveStates(page, `${server.url}/lamp.html`, tiny!, await liveSubjects(tiny!)),
       /press after \[UP\] at 390px: labels under 14 px[\s\S]*“lamp bright” is 8\.0 px at a 1280 px stage/,
+    );
+    assert.deepEqual(errors, []);
+    // The phone defect: the note bright adds reads at 14.4 px at a 1280 px stage, but a phone reader who
+    // presses Brighter cannot read it in the whole picture or the step's close-up.
+    await assert.rejects(
+      reviewLiveStates(page, `${server.url}/lamp.html`, far!, await liveSubjects(far!)),
+      /press after \[UP\] at 390px: what the events changed reads under 12 px on a phone[\s\S]*“bright, its brightest” is \d\.\d px at its best view/,
     );
     assert.deepEqual(errors, []);
   } finally {

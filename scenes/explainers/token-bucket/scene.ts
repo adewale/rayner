@@ -217,14 +217,16 @@ export default class TokenBucketExplainer extends Scene {
     };
     const gaugeSays = () => `The bucket, filled to ${fmt(bucketOf().tokens)} of ${CAPACITY} tokens`;
 
-    // ---- request chips: one per call, filled in as each answer comes back
+    // ---- request chips: one per call, filled in as each answer comes back. The answer is all a
+    // chip holds, large enough to read on a phone in the whole picture, since a reader's press can
+    // change any of the ten; each request's name and arrival time are written around its box.
     const PITCH = 1.46,
       CHIP_Y = 2.3;
     const chipX = (i: number) => (i - 4.5) * PITCH;
     const chip = (i: number, result: boolean | null) => {
       const color = result == null ? s.palette.muted : result ? s.good : s.bad;
       const box = new Rectangle({
-        width: 1.22,
+        width: 1.3,
         height: 0.95,
         cornerRadius: 0.1,
         fill: result == null ? s.palette.paper : color,
@@ -233,14 +235,13 @@ export default class TokenBucketExplainer extends Scene {
         strokeWidth: result == null ? 0.02 : 0.035,
         ...(result == null ? { dashArray: '0.08 0.06' } : {}),
       });
-      const label = new Text(name(i), { fontSize: 0.2, color: soft }).moveTo([0, 0.24]);
       const answer = new Text(result == null ? '…' : result ? '200' : '429', {
-        fontSize: 0.3,
+        fontSize: 0.58,
         font: 'mono',
         weight: 'bold',
         color: result == null ? soft : ink,
-      }).moveTo([0, -0.14]);
-      const request = new Group(box, label, answer).moveTo([chipX(i), CHIP_Y]);
+      }).moveTo([0, 0]);
+      const request = new Group(box, answer).moveTo([chipX(i), CHIP_Y]);
       request.key = `request:${name(i)}`;
       return request;
     };
@@ -248,6 +249,7 @@ export default class TokenBucketExplainer extends Scene {
       new Text('t = ' + t, { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y + 0.72]),
     );
     times.forEach((time, i) => { time.key = `arrival:${name(i)}`; });
+    const names = TIMES.map((_, i) => Object.assign(new Text(name(i), { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y - 0.66]), { key: `name:${name(i)}` }));
 
     // ---- the chart: tokens over time. Its y axis has the gauge's scale, so the
     // bucket's level always stands where the chart's line ends.
@@ -421,8 +423,8 @@ export default class TokenBucketExplainer extends Scene {
     // The chart's balance line, dots and tags, drawn from the calls (none yet).
     this.add(chart);
     s.keep(chart, { describe: chartSays });
-    s.keep(chips, ...times, { describe: chipsSay });
-    await this.play(new FadeIn(chips, { runTime: 0.4 }), ...times.map((t) => new FadeIn(t)));
+    s.keep(chips, ...times, ...names, { describe: chipsSay });
+    await this.play(new FadeIn(chips, { runTime: 0.4 }), ...[...times, ...names].map((t) => new FadeIn(t)));
     const code = await s.code(CODE, {
       at: [2.15, -2.25, 7.75, 1.55],
       title: `bucket.allow(now), rate = ${rate}`,
@@ -500,7 +502,7 @@ export default class TokenBucketExplainer extends Scene {
             answer.push(
               new Succession([
                 new Transform(token, coin([SHELL_X, top - 0.14]), { runTime: 0.18 }),
-                new Transform(token, coin([chipX(i), CHIP_Y - 0.62]), { runTime: 0.27 }),
+                new Transform(token, coin([chipX(i), CHIP_Y]), { runTime: 0.27 }),
                 g.leave('bucket:token', { runTime: 0.15 }),
               ]),
             );
@@ -586,12 +588,12 @@ export default class TokenBucketExplainer extends Scene {
       const last = bucketOf().calls.at(-1)!;
       await code.focus(last.ok ? SPEND : REFUSE, { as: last.ok ? 'spend' : 'refuse', runTime: 0.2 });
       // What a phone reader is shown first: R5's 200 beside R6's 429, then what R7 found.
-      if (index === 0) s.opening(part(chips, 'request:R5'), part(chips, 'request:R6'));
+      if (index === 0) s.opening(part(chips, 'request:R5'), part(chips, 'request:R6'), names[4]!, names[5]!);
       // R7 (its climb, dot, drop and tag) and R6's tag, where the climb to R7 starts, are read together.
       if (index === 1)
         s.opening(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
       if (index === 2)
-        s.opening(code.code.lines[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!,
+        s.opening(code.code.lines[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!, names[8]!, names[9]!,
           readout.current.children[0]!, readout.current.values['Tokens left']!,
           ...['balance:refill:R10', 'balance:found:R10', 'balance:spend:R10', 'balance:cap:note'].flatMap((k) => chart.current.find(k) ?? []));
     }

@@ -215,13 +215,19 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
   not that each is drawn rightly: a picture that never marks frothing still differs between
   grinding-and-still and grinding-and-frothing, and passes. Say what must be true with an
   [invariant](EXTENDING.md#hold-an-invariant-on-every-frame) or a fidelity test.
-- **Phone close-ups are not explored.** Each explored state's labels are measured at a
-  1280 px stage by the same legibility sink a run uses; the phone's close-ups are worked
-  out for the authored run only. On a phone the player shows the whole picture while the reader
-  explores, and Next view tours the step's own close-ups. The review records, at 390 px, the
-  smallest label of what the events changed at its best view (`changedLabelPx`) but does not
-  require 12 px there: at token-bucket's live step the request boxes a press changes read at
-  4.5 to 6.7 px in every view, since the step's close-ups were planned for its own picture.
+- **Phone close-ups are not explored in Node.** Each explored state's labels are measured at a
+  1280 px stage by the same legibility sink a run uses; the phone's close-ups are worked out
+  for the authored run only. On a phone the player shows the whole picture while the reader
+  explores, and Next view tours the step's own close-ups, planned for the step's own picture.
+  So the served review requires it instead, for the states it visits: at 390 px every label of
+  what the events changed must read at least 12 px in the whole picture or one of those
+  close-ups (`changedLabelPx`), else the review fails, naming each label. It used to record
+  this without requiring it, and token-bucket's live step was the case: the request boxes a
+  press changes read at 4.5 to 6.7 px in every view (the review now fails it: "later after
+  [request] at 390px: what the events changed reads under 12 px on a phone", five waiting "…"
+  at 6.7 px). Each box now holds only its answer, at 0.58 units, 13 px in the whole picture on a
+  phone, with the request's name under it and its arrival time over it; the token a 200 takes
+  goes into the box. Exploration still does not check states the review does not visit.
 - **A large machine is sampled.** Exploration stops at `limit` states per origin, so
   ring-buffer's 256 states are a sample, and a reader can press their way to a ring no check drew.
   `describeExplainer` counts states from `start` only.
@@ -301,9 +307,10 @@ likely to crowd. Exploration has already drawn every reachable state in Node; th
 page's evidence for a bounded sample. There the review checks what applies of a resting step (the
 caption, no overflow, no console errors, the stage painting exactly the records the state draws,
 and the reader's views showing what the events newly emphasised, else the artwork they changed,
-whole and unclipped), that the buttons are what `outcome` gives, and that every label the whole
+whole and unclipped), that the buttons are what `outcome` gives, that every label the whole
 picture paints reads at least 14 px as at a 1280 px stage, measured from the served page's own
-transform. For the nine machines that is 107 states over 21 live steps and every scenario, 214
+transform, and that at 390 px every label of what the events changed reads at least 12 px in the
+whole picture or one of the step's close-ups. For the nine machines that is 107 states over 21 live steps and every scenario, 214
 visits: the catalog review of those nine explainers took 7 min 13 s, 181 s of it the live states
 (about a minute for each of CI's three shards), and ring-buffer's `rayner review` went from 44 s
 to 75 s. The first state at each width opens as a fresh load of its link and the rest through the

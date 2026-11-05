@@ -11,12 +11,13 @@ import type { Machine, Scene, Sink } from '../../src/index.ts';
 import { SENT, acceptedLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
 import type { LogStart } from '../../app/embed-live.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
+import { READ_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
 import { MIN_PX } from './explain-check.ts';
 import { covered, inspectStoryFrame, storyFrame, storyMemory, verifyStoryTargets } from './explain-story-review.ts';
 import type { StoryFrame, StoryMemory, StoryView } from './explain-story-review.ts';
 import type { Project } from './explain-project.ts';
-import { LIVE_STATES } from './explain-review-plan.ts';
+import { LIVE_STATES, readableOpeningLabel } from './explain-review-plan.ts';
 import type { LiveStateReview } from './explain-review-plan.ts';
 
 type AnyMachine = Machine<object, string>;
@@ -128,11 +129,13 @@ function labelPixels(labels: StoryFrame['labels'], views: StoryView[]): { text: 
  * and check what a resting step is checked for, where it applies: the caption is the step's, no
  * notice, the URL keeps the events, the page does not overflow, the stage paints exactly the
  * records Node drew for the state, and the reader's views (the whole picture, then on a phone the
- * step's close-ups) show what the events changed whole and unclipped. Two checks are the live
- * state's own: the buttons are the ones `outcome` gives from the state, and every label the whole
+ * step's close-ups) show what the events changed whole and unclipped. Three checks are the live
+ * state's own: the buttons are the ones `outcome` gives from the state; every label the whole
  * picture paints reads at least MIN_PX as at a 1280 px stage, measured from the served page's own
- * transform (the rule `rayner check` applies to explored states in Node). Console errors and
- * outside connections are the caller's, as for resting steps.
+ * transform (the rule `rayner check` applies to explored states in Node); and at 390 px every label
+ * of what the events changed reads at least READ_PX, the phone's floor, in some reader view (the
+ * whole picture or one of the step's close-ups), since a reader who presses must be able to read
+ * what the press did. Console errors and outside connections are the caller's, as for resting steps.
  */
 export async function reviewLiveStates(
   page: Page,
@@ -206,6 +209,10 @@ export async function reviewLiveStates(
       assert.deepEqual(small.map((l) => `“${l.text}” is ${l.px.toFixed(1)} px at a 1280 px stage`), [], `${where}: labels under ${MIN_PX} px`);
       const changed = new Set(frame.targets.flatMap((t) => t.indices)),
         changedLabels = labelPixels(frame.labels.filter((l) => l.indices.some((i) => changed.has(i))), views);
+      // On a phone, what a press changed must read at the phone's floor in the whole picture or a close-up.
+      if (viewport.width === 390)
+        assert.deepEqual(changedLabels.filter((l) => !readableOpeningLabel(l.px)).map((l) => `“${l.text}” is ${l.px.toFixed(1)} px at its best view`), [],
+          `${where}: what the events changed reads under ${READ_PX} px on a phone`);
       results.push({
         step: subject.step, sent: subject.sent, width: viewport.width, views: views.length, targets: [...verified],
         labels: labels.length, minimumLabelPx1280: labels.length ? Math.min(...labels.map((l) => l.px)) : null,

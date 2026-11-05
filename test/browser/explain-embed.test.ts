@@ -3392,7 +3392,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
   const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
   const {storyFrames,reviewStoryScenario,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
-    'token-bucket': ['request:R9','arrival:R9','request:R10','arrival:R10','balance:refill:R10',
+    'token-bucket': ['request:R9','name:R9','arrival:R9','request:R10','name:R10','arrival:R10','balance:refill:R10',
       'balance:found:R10','balance:spend:R10','balance:cap','balance:label','balance:value'],
     'state-machine': ['reducer:idle:CONNECT','reducer:connecting:OPENED','reducer:connecting:ERROR',
       'reducer:open:CLOSE','reducer:throw','reducer:throw-box','closed','session:ring:closed',
@@ -3428,7 +3428,9 @@ test('source tours show the token-cap calculation and terminal rejection in ever
               after={1:3,2:4,4:4}[rate as '1'|'2'|'4']!;
             text('balance:cap','  tokens = min(5,');text('balance:label','Tokens left');
             text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 5');
-            assert.deepEqual(keyed('request:R10').family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),['R10','200']);
+            // R10's box holds its answer; its name is written under it.
+            assert.deepEqual(keyed('request:R10').family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),['200']);
+            text('name:R10','R10');
             const dot=keyed('balance:found:R10').center(),drop=keyed('balance:spend:R10').box()!;
             assert.ok(Math.abs(dot[0]-1.6)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);

@@ -33,7 +33,7 @@ export interface LiveStateReview {
   labels: number;
   /** The smallest of them as at a 1280 px stage (CSS pixels × 1280 / the stage's width): at least LIVE_MIN_PX. */
   minimumLabelPx1280: number | null;
-  /** At 390 px, the smallest label of what the events changed at its best view (whole picture or close-up), in CSS pixels; null when they have none. Recorded, not required. */
+  /** At 390 px, the smallest label of what the events changed at its best view (whole picture or close-up), in CSS pixels: at least READ_PX; null when they have none. */
   changedLabelPx?: number | null;
 }
 
@@ -278,7 +278,8 @@ export function validateReviewedScenarios(actual: ReviewedScenario[], expected: 
 /**
  * Every live step the built description names was visited, and nothing else: at least one state
  * each, every state at both widths, each with a subject shown in a reader view and labels at
- * least LIVE_MIN_PX as at a 1280 px stage.
+ * least LIVE_MIN_PX as at a 1280 px stage, and at 390 px what the events changed reading at least
+ * READ_PX at its best view.
  */
 function validateLiveStates(live: LiveStateReview[] | undefined, steps: readonly string[], scene: string) {
   if (!steps.length) {
@@ -296,6 +297,9 @@ function validateLiveStates(live: LiveStateReview[] | undefined, steps: readonly
     assert.ok(s.targets.length > 0 && s.views >= 1, `${scene}/${s.step} after [${s.sent}]: needs a verified subject and reader view`);
     assert.ok(s.minimumLabelPx1280 === null ? s.labels === 0 : s.labels > 0 && s.minimumLabelPx1280 >= LIVE_MIN_PX - 1e-3,
       `${scene}/${s.step} after [${s.sent}]: live-state labels must reach ${LIVE_MIN_PX}px at a 1280 px stage`);
+    if (s.width === 390)
+      assert.ok(s.changedLabelPx === null || readableOpeningLabel(s.changedLabelPx),
+        `${scene}/${s.step} after [${s.sent}]: what the events changed must read at ${READ_PX}px on a phone`);
   }
 }
 const scenarioKey = (c: { scene: string; settings: Record<string, string> }) =>

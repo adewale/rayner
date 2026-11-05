@@ -49,7 +49,7 @@ function receipts(expected: PlannedScenario[], total: number): ReviewReceipt[] {
       ),
       ...(c.live ? { live: [390, 1180].flatMap((width) => c.live!.flatMap((step) => [['push'], ['pop'], ['push', 'push']].map((sent) => ({
         step, sent, width, views: 1, targets: ['emphasis: slot'], labels: 3, minimumLabelPx1280: 16,
-        ...(width === 390 ? { changedLabelPx: 9 } : {}),
+        ...(width === 390 ? { changedLabelPx: 12 } : {}),
       })))) } : {}),
     });
   }
@@ -320,7 +320,7 @@ test('scene sharding preserves all scenarios once and keeps a scene on one owner
   assert.deepEqual(reviewScenarios(scenarios, {part: 2, total: 2}).map(c => c.scene), ['b', 'c']);
 });
 
-test('live states: the built description names the live steps; a receipt must visit each at both widths, with legible labels', async () => {
+test('live states: the built description names the live steps; a receipt must visit each at both widths, with legible labels, and what a press changed legible on a phone', async () => {
   assert.equal(LIVE_MIN_PX, MIN_PX, 'the live-state floor is the check\'s');
   const expected = Array.from({ length: 4 }, (_, i) => ({
     scene: `scene-${i}`, settings: {}, steps: ['first', 'final'], narrowOpenings: narrowObligations(['first', 'final']),
@@ -334,6 +334,7 @@ test('live states: the built description names the live steps; a receipt must vi
     'live states where none is live': (p) => { const c = p.flatMap((part) => part.results).find((r) => !r.live)!; c.live = [{ step: 'final', sent: ['push'], width: 390, views: 1, targets: ['x'], labels: 0, minimumLabelPx1280: null }]; },
     'another step': (p) => { const c = p.flatMap((part) => part.results).find((r) => r.live)!; for (const s of c.live!) s.step = 'first'; },
     'a tiny label': (p) => { p.flatMap((part) => part.results).find((r) => r.live)!.live![4]!.minimumLabelPx1280 = 13.5; },
+    'what a press changed unreadable on a phone': (p) => { p.flatMap((part) => part.results).find((r) => r.live)!.live![0]!.changedLabelPx = 6.7; },
     'no subject shown': (p) => { p.flatMap((part) => part.results).find((r) => r.live)!.live![0]!.targets = []; },
     'the resting picture as a live state': (p) => { for (const s of p.flatMap((part) => part.results).find((r) => r.live)!.live!) if (s.sent.length === 2) s.sent = []; },
     'a duplicate state': (p) => { for (const s of p.flatMap((part) => part.results).find((r) => r.live)!.live!) if (s.sent.length === 2) s.sent = ['push']; },

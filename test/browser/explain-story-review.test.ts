@@ -536,7 +536,9 @@ test('token-bucket refill does not turn untouched waiting R10 into a story oblig
         if (step.name !== 'refill') return;
         const labels = scene.familyMembers().filter(m => m instanceof Text && m.text === 'R10');
         assert.equal(labels.length, 1, 'the final waiting request has one label');
-        const chip = labels[0]!.parent!.children[0]!;
+        const requests = scene.familyMembers().filter(m => m.key === 'request:R10');
+        assert.equal(requests.length, 1, 'the final waiting request has one box');
+        const chip = requests[0]!.children[0]!;
         assert.ok(chip instanceof Rectangle);
         const records = renderElements(scene, { relative: false });
         const index = records.findIndex(r => r.id === chip.id);

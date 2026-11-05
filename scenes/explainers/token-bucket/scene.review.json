@@ -93,10 +93,16 @@
           "key": "request:R9"
         },
         {
+          "key": "name:R9"
+        },
+        {
           "key": "arrival:R9"
         },
         {
           "key": "request:R10"
+        },
+        {
+          "key": "name:R10"
         },
         {
           "key": "arrival:R10"
