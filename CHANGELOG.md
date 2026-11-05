@@ -55,6 +55,15 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
 
+### Removed from the public API
+
+These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md#public-names) gives the rule.
+
+- The vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` are internal. Direction constants (`UP`, `RIGHT`, `UR`, ...) and the `Vec` type stay.
+- `easeInQuad`, `easeOutQuad`, `easeOutBack` and `wiggle` are gone; any `(t) => number` is a rate function.
+- `tokenize`, `diffTokens` and `hunkHeader` are internal; `diffLines` and `parseUnifiedDiff` still make hunks for `TransformDiff`.
+- `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `ViewSync` is exported as a type only: `view.sync()` makes one.
+
 ### Known limits
 
 - Each event a reader sends runs the scene again to the live step before it moves, which takes tens to a few hundred milliseconds.

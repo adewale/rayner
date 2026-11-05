@@ -58,6 +58,16 @@ A review on 2026-11-03 found that 34 of the 40 explainers cleared the stage and 
 
 `stage.steps` keeps clear-and-redraw as its default transition: an author opts into entity continuity, with a view or a machine, when successive pictures show the same entities.
 
+## Public names
+
+A review on 2026-11-05 found that 90 of the 165 names the three entry points export as values had no explainer using them, and looked each one up in the library, the tools, the tests, the recipes and the docs. A name stays public for one of three reasons:
+
+- **Author tooling.** Sinks, traces, `renderAt`, `describeExplainer`, the settings functions, fonts and the diagnostics serve an author's tests and scripts rather than scenes; [the reference lists them](REFERENCE.md#testing-and-tooling-api).
+- **A Manim name that means what Manim means, with a test that says so.** `linear`, `smooth`, `rushInto`, `rushFrom` and `thereAndBack` are compared with Manim's own functions (`test/manim.test.ts`); the nine direction vectors and fourteen colours are Manim's values (`test/core.test.ts`); `Brace`, `NumberLine`, `DecimalNumber`, `Indicate`, `Flash` and `ArcBetweenPoints` have tests and guides.
+- **A Rayner name a guide or recipe teaches and a test covers**, such as `Labeled`, `bars`, `between`, `greatArc` and `MathTex`'s alias `Math`.
+
+A name only the library uses becomes internal, and a name nothing uses is cut. In 0.2.0 that made internal the vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` (one-line arithmetic, and `dot` collided with the drawing kit's `dot`); `tokenize`, `diffTokens` and `hunkHeader`, which `TransformDiff` uses inside (`diffLines` and `parseUnifiedDiff` stay, as sources of hunks); `findingsOf` and `edgePartOf`, whose public routes are `d.findings()` and `d.link()`; and `stagedStepsOf`, which `rayner check` reads. `ViewSync` is now a type only, since `view.sync()` makes one. `easeInQuad`, `easeOutQuad` and `easeOutBack` were cut, being neither Manim's names nor used, and so was `wiggle`, which swings twice as often as Manim's. `test/api.test.ts`, `test/drawing.test.ts` and `test/explain-helpers.test.ts` pin the result.
+
 ## Out of scope
 
 - **3D in the engine.** The model is 2D point buffers drawn as SVG paths; a z-buffer, lighting and a 3D camera would be a second engine. A 3D picture is a drawing instead: [`seenFrom(model, viewpoint)`](REFERENCE.md#3d-seenfrommodel-viewpoint) in the drawing kit turns a model and a viewpoint (plain state, turned by a `Follow`) into ordinary keyed 2D pieces in an explicit depth order, which `depthOrder` checks.

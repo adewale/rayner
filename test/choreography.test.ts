@@ -4,7 +4,7 @@ import {
   Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, MoveAlongPath,
   GrowFromEdge, PulseAlongPath, SetState, AnimationGroup, LaggedStart, Succession,
   SnapshotSink, StringSink, NullSink, TraceSink, renderAt, traceScene, StateReadout, view,
-  loadFonts, toSvgString, linear, easeInQuad, UP, DOWN, LEFT, RIGHT,
+  loadFonts, toSvgString, linear, UP, DOWN, LEFT, RIGHT,
 } from '../src/index.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -121,7 +121,7 @@ test('PulseAlongPath applies a supplied easing once and supports retaining the i
   class Demo extends Scene {
     dot = new Dot();
     override async construct() {
-      await this.play(new PulseAlongPath(this.dot, new Line([0, 0], [4, 0]), { rateFunc: easeInQuad, remover: false }));
+      await this.play(new PulseAlongPath(this.dot, new Line([0, 0], [4, 0]), { rateFunc: (t: number) => t * t, remover: false }));
     }
   }
   const scene = await renderAt(Demo, 0.5, sink) as Demo;

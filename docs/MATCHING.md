@@ -188,7 +188,7 @@ await this.play(new TransformDiff(before, after, { hunks: parseUnifiedDiff(patch
   most like it, in order (an LCS over the hunk's lines, scored by shared token
   characters; a pair needs half of both lines' non-space characters in
   shared tokens). Their shared tokens' glyphs pair character for character
-  (`diffTokens`, addressed through `code.span(line, from, to)`); the rest of
+  (an internal token diff, addressed through `code.span(line, from, to)`); the rest of
   the two lines fades out and grows in. `return db.get(id)` ->
   `const row = await db.get(id)` keeps its call and swaps the words around it.
 - **Removed and added lines** fade out in place and grow in place.

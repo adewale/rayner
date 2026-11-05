@@ -5,8 +5,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, NullSink, traceScene, loadFonts } from '../src/index.ts';
-import { stage, bindSnapshots, findingsOf, edgePartOf, regionBox, REGIONS } from '../explain/index.ts';
-import { diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { stage, bindSnapshots, regionBox, REGIONS } from '../explain/index.ts';
+import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity } from '../explain/look.ts';
 import { PALETTES, palette } from '../explain/palettes.ts';
@@ -628,8 +628,8 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Card', 'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'diagramsOf', 'edgePartOf', 'findingsOf',
-    'palette', 'regionBox', 'resolveSettings', 'scenarioName', 'scenariosOf', 'settingsOf', 'stage', 'stagedStepsOf', 'withSettings',
+    'Card', 'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'diagramsOf',
+    'palette', 'regionBox', 'resolveSettings', 'scenarioName', 'scenariosOf', 'settingsOf', 'stage', 'withSettings',
   ]);
 });
 

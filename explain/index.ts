@@ -1,6 +1,5 @@
 export { stage } from './stage.ts';
-export { stagedStepsOf } from './stage.ts';
-export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions, StagedRecord } from './stage.ts';
+export type { StageOptions, Stage, StageRegion, Describe, StagedStep, StagedStepsOptions } from './stage.ts';
 export type { LayoutDirection } from './layout-direction.ts';
 export type {AudioClip, ScoreNote, StepAudio} from './audio.ts';
 export { Diagram } from './diagrams.ts';
@@ -14,7 +13,7 @@ export { settingsOf, withSettings, resolveSettings, scenariosOf, scenarioName } 
 export { describeExplainer } from './describe.ts';
 export type { ExplainerDescription, ScenarioDescription, StepDescription, DescribeOptions } from './describe.ts';
 export type { Setting, Settings, ExplainerClass } from './settings.ts';
-export { findingsOf, edgePartOf, diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
+export { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 export type {
   DiagramSpec,
   DiagramSnapshot,

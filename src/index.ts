@@ -15,8 +15,8 @@ export type { TextOpts, DecimalNumberOpts, CodeOpts } from './text.ts';
 export type { CodeSpan, ColorSpan } from './text.ts';
 export { StateReadout } from './panels.ts';
 // Views: a picture rebuilt from state, changed by matching transforms (docs/VIEWS.md)
-export { View, ViewSync, view, viewMismatch } from './view.ts';
-export type { ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
+export { View, view, viewMismatch } from './view.ts';
+export type { ViewSync, ViewOpts, ViewPlace, ViewMatch, SyncOpts } from './view.ts';
 export { NumberLine, Axes } from './graphing.ts';
 export type { AxisRange, NumberLineOpts, AxisStyle, AxesOpts, PlotOpts, BarOpts, GuideLineOpts } from './graphing.ts';
 
@@ -36,9 +36,9 @@ export { TransformMatching, TransformMatchingShapes, TransformMatchingText, matc
 export type { MatchKey, MatchingOpts, TransformMatchingOpts, MatchSummary, MatchByKeyOpts } from './animation.ts';
 export { TransformDiff } from './animation.ts';
 export type { TransformDiffOpts, LinePlan } from './animation.ts';
-export { diffLines, diffTokens, parseUnifiedDiff, tokenize, hunkHeader } from './diff.ts';
-export type { DiffOp, Hunk, Token, TokenOp } from './diff.ts';
-export { linear, smooth, rushInto, rushFrom, thereAndBack, easeInQuad, easeOutQuad, easeOutBack, wiggle } from './rate.ts';
+export { diffLines, parseUnifiedDiff } from './diff.ts';
+export type { DiffOp, Hunk } from './diff.ts';
+export { linear, smooth, rushInto, rushFrom, thereAndBack } from './rate.ts';
 export type { RateFunc } from './rate.ts';
 export { Scene, StopScene } from './scene.ts';
 export type { Sink, Step, StepMeta, StepKind, SceneOptions, SceneState, SceneClass } from './scene.ts';
@@ -48,7 +48,7 @@ export { Frame } from './frame.ts';
 export type { FrameFitOpts } from './frame.ts';
 
 // Vocabulary
-export { ORIGIN, UP, DOWN, LEFT, RIGHT, UL, UR, DL, DR, add, sub, mul, dot, norm, normalize, lerp, rotate, angleOf } from './vec.ts';
+export { ORIGIN, UP, DOWN, LEFT, RIGHT, UL, UR, DL, DR } from './vec.ts';
 export type { Vec } from './vec.ts';
 export { lerpColor } from './color.ts';
 export { WHITE, BLACK, GREY, GREY_D, BLUE, BLUE_D, TEAL, GREEN, YELLOW, GOLD, RED, MAROON, PURPLE, ORANGE } from './color.ts';

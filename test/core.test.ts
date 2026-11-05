@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
   Rectangle, Group, Square, VMobject, Line, Arrow, Text, Dot, Transform, AnimationGroup, FadeIn, linear, thereAndBack,
-  Scene, NullSink, toSvgString, UP, DOWN, UR, rotate,
+  Scene, NullSink, toSvgString, UP, DOWN, UR,
   loadFonts, renderElements,
 } from '../src/index.ts';
+import { rotate } from '../src/vec.ts';
 
 // Text shapes on glyph outlines; scenes load fonts in run(), bare tests do it here
 await loadFonts();
@@ -18,6 +19,23 @@ test('SVG output: a fixed 16 x 9 frame at 1000 units per scene unit, sized to th
   assert.ok(!svg.includes('<text'), 'text is outlines, not <text>: a page needs no font');
   // the arrow's line and tip, and one outline per glyph
   assert.equal((svg.match(/<path/g) || []).length, 2 + 'handler'.length);
+});
+
+// The Manim names the engine keeps are kept because they mean what Manim means (docs/ENGINE.md,
+// "Public names"): its direction vectors (manimlib/constants.py, z dropped) and its colours, which
+// are Manim's own hex values (BLUE is BLUE_C, GREY is GREY_C, and so on).
+test("directions and colours are Manim's", async () => {
+  const api = await import('../src/index.ts');
+  assert.deepEqual(
+    { ORIGIN: api.ORIGIN, UP: api.UP, DOWN: api.DOWN, LEFT: api.LEFT, RIGHT: api.RIGHT, UL: api.UL, UR: api.UR, DL: api.DL, DR: api.DR },
+    { ORIGIN: [0, 0], UP: [0, 1], DOWN: [0, -1], LEFT: [-1, 0], RIGHT: [1, 0], UL: [-1, 1], UR: [1, 1], DL: [-1, -1], DR: [1, -1] },
+  );
+  const manim = {
+    WHITE: '#FFFFFF', BLACK: '#000000', GREY: '#888888', GREY_D: '#444444', BLUE: '#58C4DD', BLUE_D: '#29ABCA',
+    TEAL: '#5CD0B3', GREEN: '#83C167', YELLOW: '#FFFF00', GOLD: '#F0AC5F', RED: '#FC6255', MAROON: '#C55F73',
+    PURPLE: '#9A72AC', ORANGE: '#FF862F',
+  };
+  for (const [name, hex] of Object.entries(manim)) assert.equal((api as Record<string, unknown>)[name], hex.toLowerCase(), name);
 });
 
 test('y is up in the model and flipped once, in path data; angles turn counterclockwise', () => {

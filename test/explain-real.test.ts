@@ -10,7 +10,7 @@ import { Scene, NullSink, loadFonts } from '../src/index.ts';
 import type { Mobject } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { dimOpacity } from '../explain/look.ts';
-import { findingsOf } from '../explain/index.ts';
+import { findingsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { pictureSummary, pictureHtml } from '../explain/trace.ts';
 import { collectProject, readSnapshots } from '../tools/lib/explain-project.ts';
