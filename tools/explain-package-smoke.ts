@@ -9,6 +9,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { ROOT } from './lib/explain-project.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
@@ -57,7 +58,9 @@ try {
   assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
   // The drawing kit resolves from the installed archive as rayner/drawing.
   const kit = await run(process.execPath, ['--input-type=module', '-e', "const k = await import('rayner/drawing'); console.log(Object.keys(k).sort().join(','))"], { cwd: folder });
-  assert.equal(kit.stdout.trim(), 'bars,dot,flow,keyed,label,segment,stat,table,tile');
+  // The same names the checkout's kit exports (test/drawing.test.ts pins those), 3D included.
+  const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
+  assert.equal(kit.stdout.trim(), sourceKit);
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });

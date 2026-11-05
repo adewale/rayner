@@ -1,6 +1,6 @@
 {
   "name": "rayner",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/copy-vendor.ts && node tools/build-cli.ts",
@@ -29,7 +29,7 @@
     "fast-check": "4.10.2",
     "shiki": "4.5.0"
   },
-  "description": "Step-through technical explainers from one TypeScript scene. Portable HTML with no browser runtime dependencies.",
+  "description": "Technical explainers whose every picture is checked against a tested TypeScript model. Read step by step or explore in the player, from one portable HTML page.",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",

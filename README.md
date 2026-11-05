@@ -1,6 +1,24 @@
-# Rayner: interactive technical explanations from TypeScript
+# Rayner: technical explainers checked against a tested model
 
-Rayner turns a TypeScript model into a step-through explanation. Readers can change a setting and see how the result changes; authors publish the scenarios as a portable HTML page with a transcript. It is for engineers and technical educators explaining protocols, algorithms and code changes.
+Rayner is for explaining how a protocol, an algorithm or a data structure behaves, with every picture checked against a tested model. The author writes a TypeScript model of the subject and tests it against the real thing: CPython 3.12 for a dict's slots after a deletion, Git for a merge, XState for a statechart. Every number, path and outcome on screen is drawn from that model, and `rayner check` redraws each staged step and each machine state a reader can reach from the state it records, and fails a picture that differs. The result is one HTML page with no runtime dependencies, which opens from a file, a static host or an embed.
+
+## Read it, or explore it
+
+A reader reads an explainer as a sequence of steps. Each step is a resting picture with a title, a one-line point and a caption, and the transcript under the stage repeats every caption with a description of every picture, so the explanation survives without the animation. Each step has its own link.
+
+Where the author built the model as a [machine](docs/MACHINES.md), the reader can also explore it in the player: one button per event the model accepts, then Undo and Reset. An event the model refuses stays visible and says why, and the events sent so far sit in the URL, so a link reopens the same picture. Settings switch between scenarios, every one of them built and checked before the page was published.
+
+Rayner 0.2.0 has no video export: an explainer is read or explored on its page.
+
+## The authoring loop
+
+1. Script: `script.md` states the reader's question, the one-sentence answer the explanation must reach (`meta.answer`), and the questions a reader should be able to answer afterwards (`meta.checks`).
+2. Model: `model.ts` computes what the pictures will show, and `model.test.ts` compares it with the source, whether that is a published test vector, a reference implementation or the program itself.
+3. Scene: `scene.ts` names the steps and draws each one from the model's state.
+4. Check and review: `rayner check` runs every scenario and fails on the faults listed [below](#what-rayner-checks-for-you); `rayner review` builds the page, opens it in Chromium at phone and desktop widths and checks what is painted.
+5. Publish: `rayner review --out` saves the exact page it reviewed, with its receipt and a response-header recipe.
+
+`rayner init` writes the script, model, model test and scene of the tutorial's LRU/MRU explainer, so the loop starts from something that already passes.
 
 ## Start with a question
 
