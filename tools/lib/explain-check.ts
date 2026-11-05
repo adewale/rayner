@@ -23,6 +23,7 @@ import {
   renderText,
   Text,
   NullSink,
+  View,
 } from '../../src/index.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { scenarioName } from '../../explain/index.ts';
@@ -254,6 +255,25 @@ export class FanSink implements Sink {
   async frame(scene: Scene, dt: number): Promise<void> { for (const s of this.sinks) await s.frame(scene, dt); }
   async stepBegin(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepBegin?.(scene, step); }
   async stepEnd(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepEnd?.(scene, step); }
+}
+
+/**
+ * Every view on the stage, at the end of every step, shows what its draw makes of the state the
+ * step ends in: a picture that follows the model at each resting step, not only where a machine
+ * plays. A view whose picture lags its state (the state changed without a sync) is named here.
+ */
+export class ViewSink implements Sink {
+  readonly problems: string[] = [];
+  checked = 0;
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
+    for (const m of scene.familyMembers()) {
+      if (!(m instanceof View)) continue;
+      this.checked++;
+      const mismatch = viewMismatch(m, scene.state, { shown: scene.shown });
+      if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
+    }
+  }
 }
 
 /** The caption hold: a step whose picture changes after its hold begins is `moved`. */
@@ -621,7 +641,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ),
     );
     // One full run feeds every check, each a sink of its own, in this order.
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility])).run();
+    const views = new ViewSink();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views])).run();
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -643,6 +664,11 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       const s = v.trace.steps.find((x) => x.step === step)!;
       return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
     });
+    assert.deepEqual(
+      views.problems.slice(0, 5),
+      [],
+      `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state (the first five)`,
+    );
     const staged = redrawStagedSteps(ran, v.trace);
     assert.deepEqual(
       staged.problems.slice(0, 5),
@@ -732,6 +758,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       // How many stage.steps pictures were redrawn from their recorded state and matched.
       ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
+      // How many view pictures, step by step, were compared with what their draw makes of the step's state.
+      ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.

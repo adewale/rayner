@@ -288,3 +288,26 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     assert.equal(v.current.height(), 8, `${next} inherits the original scale`);
   }
 });
+
+test('rayner check names a view whose picture lags the state at the end of a step', async () => {
+  const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
+  const { NullSink } = await import('../src/index.ts');
+  const lagging = (sync: boolean) => class extends Scene<{ n: number }> {
+    override state = { n: 1 };
+    override async construct() {
+      const readout = view(this, (st) => new Text(`n ${st.n}`), { place: false });
+      this.add(readout);
+      await this.step('one');
+      this.state = { n: 2 };
+      if (sync) await this.play(readout.sync({ runTime: 0.2 }));
+      await this.step('two');
+    }
+  };
+  for (const sync of [false, true]) {
+    const views = new ViewSink();
+    await new (lagging(sync))(new FanSink([new NullSink(), views])).run();
+    if (sync) assert.deepEqual(views.problems, []);
+    else assert.match(views.problems[0]!, /^step "one": a view: the view shows \["n 1"\], the state \{"n":2\} draws \["n 2"\]/);
+    assert.ok(views.checked >= 2);
+  }
+});
