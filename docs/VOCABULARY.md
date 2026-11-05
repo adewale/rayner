@@ -45,7 +45,7 @@ One row per idea.
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | `stage.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
-| 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/drawing` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by an ordinary `Follow`; Mercator and gnomonic maps are viewpoint kinds of the same model. Not an engine type | |
+| 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/drawing` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by an ordinary `Follow`; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |
@@ -91,10 +91,12 @@ The renames came with refactors that make a name's promise checkable:
   motion plays and the views then land in place on `draw(after)`, and `rayner check` fails a
   transition that ends anywhere else.
 - Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `test/learning-pictures.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
-  great-circle. Henge's fixed-axis globes did not move to it, because their resting pictures
-  could not stay identical: each is a cross-section in the orbital plane with Earth's axis drawn
-  across the opaque disc, and `seenFrom` hides the part of the axis inside the body, which is the
-  depth rule it exists to keep.
+  great-circle; henge is the second adopter. Henge's flat cross-section globes could not move to
+  it unchanged, since they drew Earth's axis across an opaque disc and `seenFrom` hides what the
+  body hides. They were replaced instead: two tilted 3D Earths with a translucent body, the axis
+  dashed inside it (`hidden: 'dashed'`) and solid where it stands out of each pole (`'behind'`).
+  Henge also draws New York's sky as a sphere, from outside (the dome) and from its centre (the
+  street, gnomonic), and turns the year with a Follow over the orbital longitude.
 
 ## Names deliberately kept
 
