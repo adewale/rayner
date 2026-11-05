@@ -492,6 +492,7 @@ export default class PenAndPencil extends Scene {
     // 3. For the real timeline, the layout comes first.
 
     await this.step('layout', {
+      kind: 'detail',
       title: 'For the real timeline, Agentic Mermaid fixes every box first',
       line: 'Every box, marker and label has its place before any ink.',
       caption: 'Agentic Mermaid turns the timeline text into geometry: it places every period box, marker and event box, sizing the boxes using Inter’s letter widths. The hand receives those positions rather than deciding them while it draws. rough.js uses the same separation in its rectangle API: the caller supplies the corner and size, while roughness affects the strokes.',
@@ -508,7 +509,7 @@ export default class PenAndPencil extends Scene {
     await this.step('marks', {
       title: 'The hand is given the layout’s marks and nothing else',
       line: 'Blue pencil: the route the chart’s ink follows.',
-      caption: `The construction pencil traces the fixed outlines before the ink follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
+      caption: `Agentic Mermaid lays the real timeline out first, sizing each box from its words’ measured widths. The construction pencil traces those fixed outlines, and the ink then follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
     });
     await drop(width);
     await d.hide();
@@ -552,6 +553,7 @@ export default class PenAndPencil extends Scene {
     this.state.hand = { stray: Number(fmt(ringStray)) };
 
     await this.step('plate', {
+      kind: 'detail',
       title:
         which === 'first'
           ? 'The chart is drawn on its marks, and the words last'
@@ -607,7 +609,7 @@ export default class PenAndPencil extends Scene {
 
     await this.step('freehand', {
       title: `Traced on fixed marks, all ${wordCountFree} words stay in their boxes`,
-      line: 'Top: the opening’s drawing. Bottom: the finished plate.',
+      line: 'Top: the opening’s drawing. Bottom: the same chart traced on its marks.',
       caption: `Both drawings have imperfect strokes. In the upper one, every error rode along into the lines after it, displacing boxes from the words. Below, each stroke starts from its own fixed mark, so the ${wordCountFree} words fit their boxes. The difference comes from how this model constructs the route, not from making its pen perfectly steady.`,
     });
     await s.clear();
