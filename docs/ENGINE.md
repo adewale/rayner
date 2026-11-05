@@ -62,7 +62,7 @@ A review on 2026-11-03 found that 34 of the 40 explainers cleared the stage and 
 
 The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain`, `rayner/drawing` and the `LetteringRequest` type from `rayner/lettering`. `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
 
-Every value an entry point exports has one reason to be public, recorded in [`test/public-names.json`](../test/public-names.json):
+Every value an entry point exports has one reason to be public, recorded in [`test/public-names.json`](https://github.com/adewale/rayner/blob/main/test/public-names.json):
 
 - **used**: an explainer, a tutorial scene or a recipe imports it and uses it. Who uses it is computed from their imports, through the collection's own re-exports, and never written down.
 - **tooling**: it lives in `rayner/output`, `rayner/testing` or `rayner/lettering` (whose values the build and the page call). A name in one of those is tooling and a name elsewhere is not.

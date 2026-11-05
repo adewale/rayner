@@ -15,10 +15,12 @@ Scene.captionWpm = Infinity;
 // (FULL=1: every third), plus the first eleven frames of short scenes. One output mode per run: the path cache holds one mode, so
 // alternating modes would bypass it.
 const EVERY = process.env.FULL ? 3 : 15;
-// The camera comes along: an explainer that zooms (seasons) renders a viewBox of its own
+// The camera comes along: an explainer that zooms (seasons) renders a viewBox of its own; so do its
+// colours, whose paper is the SVG's background
 const fresh = (scene: Scene): Scene => {
   const s = new Scene(new NullSink());
   s.frame = scene.frame.copy();
+  s.colors = scene.colors;
   return s.add(...scene.mobjects.map((m) => m.copy()));
 };
 const absolute = (els: ElementRecord[]): string => els.map((e) => `${e.transform ?? ''}|${JSON.stringify(e.attrs)}|${e.text ?? ''}`).join('\n');
