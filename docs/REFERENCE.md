@@ -138,10 +138,12 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
 | `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)`, described by its words. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. |
 | `s.opening(...subjects)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)) |
+| `s.emphasise(now)` | Say what the scene's own marks emphasise: `now()` returns `[mobject, what it shows]` pairs read from state whenever asked ([below](#the-phones-opening-emphasis-and-review-subjects)) |
 | `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept |
 | `s.pin(at, { label, color, size })` | A pin stuck in at `at`, with an optional label |
 | `s.callout(target, text, { side, gap, color, size })` | Words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge |
 | `s.emphasis`, `s.soft`, `s.good`, `s.bad` | Colours that read on this paper: emphasis, secondary text, accepted, rejected |
+| `s.raised`, `s.rule` | A panel surface one shade off the paper, and a hairline that separates; the colours of the stage's own card and code panels |
 | `s.palette`, `s.paper`, `s.heading` | The current palette, paper rectangle and heading text |
 
 Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one.
@@ -158,7 +160,14 @@ On a stage under 600 px wide, each step opens on a close-up and offers the rest 
 
 `s.opening(...subjects)` picks the opening: the mobjects a caption compares, which the first close-up should hold together. Pass mobjects (`diagram.root` for a whole diagram), not a box or words. A step has one opening, so a second call in the same step replaces the first, and the stage forgets the subjects at every step boundary: an unchanged picture under a new caption needs a fresh call. The planner measures the subjects' painted bounds and label sizes and opens on them only when they fit at a readable scale; otherwise the step opens on what it changed, and labels too small for the opening keep their own close-ups. An absent or unpainted subject is an error. `s.steps` calls it for every step, with the parts its `opening` keys name or else the whole drawing.
 
-Emphasis is what the stage's helpers mark: a lit card row, a code focus bar or diff line, a marked, travelled or focused diagram part, a note. Each helper registers what it emphasises; a scene that draws its own marks registers them with `emphasises(scene, now)` from `explain/look.ts`, which is not a package export, as seven of the collection's scenes do. Emphasis counts per step: what a step newly emphasises, compared with the step before it, gives the tour its first stops after the opening, and becomes the review's primary subjects, which the tour must show whole. A step with neither new emphasis nor a declared subject is reviewed on the artwork it changed.
+Emphasis is what the stage's helpers mark: a lit card row, a code focus bar or diff line, a marked, travelled or focused diagram part, a note. Each helper registers what it emphasises; a scene that draws its own marks registers them once with `s.emphasise(now)`, where `now()` reads the scene's state and returns each mark with what it shows, as seven of the collection's scenes do:
+
+```ts
+const outline = s.keep(new SurroundingRectangle(slot)); // drawn by the scene, not a helper
+s.emphasise(() => (this.state.full ? [[outline, 'outlined: the full slot']] : []));
+```
+
+ Emphasis counts per step: what a step newly emphasises, compared with the step before it, gives the tour its first stops after the opening, and becomes the review's primary subjects, which the tour must show whole. A step with neither new emphasis nor a declared subject is reviewed on the artwork it changed.
 
 `scene.review.json` declares subjects from the caption's meaning, written without looking at the planner ([reader review](#reader-review)). The review fails when the served page does not show them in the tour, or in the opening when a subject says `opening: true`, so an `opening` call that names the wrong objects is caught by an expectation it did not produce.
 
@@ -173,6 +182,8 @@ Emphasis is what the stage's helpers mark: a lit card row, a code focus bar or d
 | `code.clearMarks()` | Fade out the added and removed bars |
 
 `as` is the word the description gives the mark, such as `'rejected'`. Both are native `Group`s.
+
+`new Card(scene, s.palette, rows, options)` builds a card without entering it, for a [view](VIEWS.md) that rebuilds the card from state at every sync, as `state-machine` and `ring-buffer` do; `s.card` is the same card, placed on the stage and faded in.
 
 `columns` lays values side by side under headings, so a phone close-up of one card shows a comparison whole:
 
@@ -280,6 +291,8 @@ const d = await s.show({ source: 'graph LR\nA --> B', style: 'nord' }, { box: 'm
 The diagram spec accepts `lettering: 'natural'` to measure the active requested faces before layout and preserve label proportions. Without it, labels fit the captured widths. Natural capture uses Agentic Mermaid's public host-measurement hook; the snapshot records the font and measurement identity. Refresh with `rayner snapshots scene.ts` after changing the face, requested cuts or measurement inputs. [Diagram measurements](LETTERING.md#diagram-measurements) covers setup and compatibility.
 
 `build: 'frame'` draws only the scaffolding (axes, lanes, lifelines) so the story can arrive with `reveal`.
+
+To measure a diagram before anything is drawn, lay it out without `s.show`: `new Diagram(scene, spec, await diagramsOf(scene).diagram(spec), { box })`, both from `rayner/explain`, is the diagram `s.show` would build, not yet on stage (`pen-and-pencil` reads its marks this way).
 
 | Method | What it does |
 | --- | --- |
@@ -415,6 +428,27 @@ for (const c of d.scenarios)
 ```
 
 `npm run pack:smoke` runs this block against the packed package. `rayner see <scene> [step]` prints one step of the same description for a person at a terminal. `npm run site:export` publishes the description beside each page as `<id>.json`, and lists every explainer in `llms.txt` at the site root.
+
+## Testing and tooling API
+
+No explainer imports these: they are for the author's tests, scripts and tools, and `rayner` itself is built on them. They are public, and kept stable like the drawing API.
+
+| Export | From | What it is for | Guide |
+| --- | --- | --- | --- |
+| `traceScene`, `TraceSink` | `rayner` | Every step's timing, state before and after, `shown` and evidence, in one run | [Scene outputs](SCENE-OUTPUTS.md), [fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence) |
+| `renderAt`, `indexScene`, `stepTime`, `SeekSink`, `NullSink` | `rayner` | The scene at one time or step, without drawing the frames before it | [Scene outputs](SCENE-OUTPUTS.md#time-and-step-semantics) |
+| `SnapshotSink`, `StringSink`, `toSvgString`, `renderElements`, `renderText`, `DomSink` | `rayner` | One SVG frame, every frame, element records, a text drawing, the live DOM | [Scene outputs](SCENE-OUTPUTS.md#public-output-apis) |
+| `InvariantSink`, `MotionSink`, `analyzeMotion` | `rayner` | Check every frame against the scene's invariants, and motion for pops, cuts and teleports, in a test | [Testing](TESTING.md), [invariants](EXTENDING.md#hold-an-invariant-on-every-frame) |
+| `viewMismatch`, `machinesOf` | `rayner` | Whether a view shows the state it claims; a scene's machines, to drive or explore from a test | [Views](VIEWS.md), [machines](MACHINES.md) |
+| `StopScene` | `rayner` | What a seek throws to stop a run; a `catch` must rethrow it | [Fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking) |
+| `loadFonts`, `shaperFor`, `takeMissingGlyphs` | `rayner` | Load the embedded fonts before drawing text in Node; the characters drawn with no glyph | [Scene](#scene) |
+| `perf` | `rayner` | Counters, spans and a trace-event export for profiling | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance) |
+| `jsonObject` | `rayner` | Validate and clone state under the trace's JSON rules | [Scene](#scene) |
+| `describeExplainer` | `rayner/explain` | The explainer as one JSON object: scenarios, steps, state, pictures in words and as text | [Describe](#describe) |
+| `scenariosOf`, `withSettings`, `resolveSettings`, `scenarioName`, `settingsOf` | `rayner/explain` | Every scenario, a class bound to one, validation and its name | [Settings](#settings) |
+| `bindSnapshots` | `rayner/explain` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
+
+The collection's own tests show each in use: `test/lib/explainer-state.ts` compares a trace with a model, and `test/lib/view-fidelity.ts` compares a view with the traced state at every step.
 
 ## Snapshots
 

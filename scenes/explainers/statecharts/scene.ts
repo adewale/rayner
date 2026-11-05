@@ -1,8 +1,8 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, Transform, MoveAlongPath, AnimationGroup, Succession, view, matchByKey, Machine, choreograph, linear } from 'rayner';
-import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from 'rayner';
-import { stage, regionBox } from 'rayner/explain';
-import { keyed } from 'rayner/drawing';
-import type { Stage } from 'rayner/explain';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, Transform, MoveAlongPath, AnimationGroup, Succession, view, matchByKey, Machine, choreograph, linear } from '../../../src/index.ts';
+import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from '../../../src/index.ts';
+import { stage, regionBox } from '../../../explain/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
+import type { Stage } from '../../../explain/index.ts';
 import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, events as chartEvents } from '../lib/statecharts.ts';
 import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
 

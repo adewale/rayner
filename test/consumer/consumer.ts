@@ -177,3 +177,21 @@ export function drawingKit(scene: Scene) {
   table(['Key'], [['a']], s, { xs: { right: 2 } });
   return parts;
 }
+
+// What the collection writes, an outside author can write: emphasis a scene draws itself, a card
+// rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
+import { Card, Diagram, diagramsOf } from 'rayner/explain';
+import type { Emphasis, DiagramResolver } from 'rayner/explain';
+import { lerpColor } from 'rayner';
+export async function publicCollection(scene: Scene): Promise<void> {
+  const s = stage(scene);
+  const outline = s.keep(new SurroundingRectangle(new Text('slot')));
+  const now = (): Emphasis => [[outline, 'outlined: the full slot']];
+  s.emphasise(now);
+  const panel = new Rectangle({ fill: s.raised, stroke: s.rule }).setFill(lerpColor(s.palette.paper, s.palette.accent, 0.36));
+  view(scene, () => new Card(scene, s.palette, [['State', 'idle']], { width: 4 }), { place: false });
+  const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
+  const resolver: DiagramResolver = diagramsOf(scene);
+  const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
+  void [panel, plan.get('A')];
+}

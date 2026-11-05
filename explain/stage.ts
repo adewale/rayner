@@ -10,8 +10,8 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, regionBox, opening } from './look.ts';
-import type { Region } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, emphasises } from './look.ts';
+import type { Region, Emphasis } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
@@ -389,6 +389,14 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     get bad() {
       return bad(colors);
     },
+    /** A panel surface one shade off the paper. */
+    get raised() {
+      return raised(colors);
+    },
+    /** A hairline colour that separates without shouting. */
+    get rule() {
+      return rule(colors);
+    },
     async show(spec: DiagramSpec, opts: Omit<ShowOptions, 'box'> & { box?: Box | StageRegion } = {}): Promise<Diagram> {
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
       const snapshot = await diagramsOf(scene).diagram(spec);
@@ -427,6 +435,15 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * Other artwork remains available in the close-up tour. Call after step(). */
     opening(...subjects: Mobject[]) {
       opening(scene, ...subjects);
+    },
+    /**
+     * Say what this scene's own marks emphasise, read from its state whenever asked: each
+     * object that shows emphasis, with what it shows there. The stage's helpers (cards, code,
+     * diagrams, notes) register theirs; a scene that draws its own marks registers them here.
+     * Call once; `now` is read at every step boundary and must draw nothing.
+     */
+    emphasise(now: () => Emphasis) {
+      emphasises(scene, now);
     },
     /** Code on a panel; `code.focus(line)` keeps a bar on it. */
     async code(

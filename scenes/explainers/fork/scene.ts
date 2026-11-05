@@ -3,7 +3,6 @@ import { Scene, Rectangle, Text, Group, Circle, Cross, FadeOut, Line, Arrow } fr
 import type { Mobject } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass } from '../../../explain/index.ts';
-import { VOCABULARY } from '../../../explain/words.ts';
 import { TokenBucket } from '../lib/models.ts';
 import { PLACEMENTS } from '../lib/traffic-policy.ts';
 const STYLE = 'github-light';
@@ -41,8 +40,8 @@ const UNBUILT = 0.1;
 const POLICIES = ['Local', 'Cluster'];
 const PODS = Object.keys(PLACEMENTS);
 const SCENARIOS = PODS.length * POLICIES.length;
-/** The diagram families the explainers name and describe (explain/words.ts). */
-const FAMILIES = Object.keys(VOCABULARY.en!.families!).length;
+/** The diagram families the explainers name and describe; test/explain-fidelity.test.ts holds it to explain/words.ts. */
+const FAMILIES = 15;
 const GONE = ['Doc', 'Parser', 'Player', 'Worker'];
 // The diagram takes the top three fifths; cards sit under it.
 const ABOVE = regionBox('top', { bottom: -1.1 }),

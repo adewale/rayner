@@ -16,7 +16,6 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
 
 const PLACES: Record<string, { name: string; lat: number }> = {
@@ -634,7 +633,7 @@ export default class SeasonsExplainer extends Scene {
     // The step compares June's daylight with December's, so a phone's tour visits June's line
     // too, though it did not change; the next step moves on to the other places.
     let comparingJune = true;
-    emphasises(this, () => (comparingJune ? [[J.dayLine, 'June daylight']] : []));
+    s.emphasise(() => (comparingJune ? [[J.dayLine, 'June daylight']] : []));
 
     // -------------------------------------------------------------- spread
     // The two noon beams from the globes, set down on one stretch of level ground under them, to scale:

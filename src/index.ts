@@ -50,6 +50,7 @@ export type { FrameFitOpts } from './frame.ts';
 // Vocabulary
 export { ORIGIN, UP, DOWN, LEFT, RIGHT, UL, UR, DL, DR, add, sub, mul, dot, norm, normalize, lerp, rotate, angleOf } from './vec.ts';
 export type { Vec } from './vec.ts';
+export { lerpColor } from './color.ts';
 export { WHITE, BLACK, GREY, GREY_D, BLUE, BLUE_D, TEAL, GREEN, YELLOW, GOLD, RED, MAROON, PURPLE, ORANGE } from './color.ts';
 export { loadFonts, shaperFor, takeMissingGlyphs } from './fonts.ts';
 export type { FontName } from './fonts.ts';

@@ -1,8 +1,7 @@
-import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, lerpColor } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bloomStory, locations, makeFilter, membership, saturation, TAKEN } from '../lib/bloom-filter.ts';
-import { lerpColor } from '../../../src/color.ts';
 import { label, table, stat } from '../lib/lesson-drawing.ts';
 
 /** Each taken name's colour: text on white at 4.5:1 or better, and a pale fill behind a bit it set. */

@@ -23,6 +23,7 @@ const EXPECTED = [
   'Frame',
   // vocabulary
   'ORIGIN', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'UL', 'UR', 'DL', 'DR', 'add', 'sub', 'mul', 'dot', 'norm', 'normalize', 'lerp', 'rotate', 'angleOf', 'choreograph',
+  'lerpColor',
   'WHITE', 'BLACK', 'GREY', 'GREY_D', 'BLUE', 'BLUE_D', 'TEAL', 'GREEN', 'YELLOW', 'GOLD', 'RED', 'MAROON', 'PURPLE', 'ORANGE',
   'loadFonts', 'shaperFor', 'takeMissingGlyphs', 'jsonObject',
   // output

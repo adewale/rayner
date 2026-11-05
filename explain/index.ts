@@ -5,15 +5,16 @@ export type { LayoutDirection } from './layout-direction.ts';
 export type {AudioClip, ScoreNote, StepAudio} from './audio.ts';
 export { Diagram } from './diagrams.ts';
 export type { ShowOptions, NoteSide } from './diagrams.ts';
-export type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
+export { Card } from './panels.ts';
+export type { CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 export { REGIONS, regionBox } from './look.ts';
-export type { Region } from './look.ts';
+export type { Region, Emphasis } from './look.ts';
 export { palette } from './palettes.ts';
 export { settingsOf, withSettings, resolveSettings, scenariosOf, scenarioName } from './settings.ts';
 export { describeExplainer } from './describe.ts';
 export type { ExplainerDescription, ScenarioDescription, StepDescription, DescribeOptions } from './describe.ts';
 export type { Setting, Settings, ExplainerClass } from './settings.ts';
-export { findingsOf, edgePartOf } from '../integrations/agentic-mermaid/snapshot.ts';
+export { findingsOf, edgePartOf, diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 export type {
   DiagramSpec,
   DiagramSnapshot,
@@ -21,6 +22,8 @@ export type {
   Palette,
   Finding,
   Findings,
+  DiagramResolver,
+  MutationOp,
 } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { ExplainerClass } from './settings.ts';
 import type { SceneClass } from '../src/index.ts';

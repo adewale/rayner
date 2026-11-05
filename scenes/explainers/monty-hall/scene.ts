@@ -1,7 +1,6 @@
 import { Scene, Group, Rectangle, Text, Line, FadeIn, Transform, AnimationGroup, Succession, Machine, choreograph, view, matchByKey } from '../../../src/index.ts';
 import type { ScheduledAnimation, Mobject, MatchKey, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from '../lib/monty-hall.ts';
 import type { Host, Opener, Round, RoundEvent } from '../lib/monty-hall.ts';
@@ -304,7 +303,7 @@ export default class MontyHall extends Scene {
     // What the round marks, as emphasis the phone's close-ups visit first and
     // review holds to the caption: your door, and the door the host opened, while the round plays (the
     // prediction asks about the same doors; its caption is the question, so it marks nothing new). Read from state.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const phase = (this.shown as { phase?: Phase }).phase;
       if (phase !== 'choice') return [];
       const r = roundOf(this.state), out: [Mobject, string][] = [];

@@ -1,7 +1,6 @@
 import { Scene, Group, Rectangle, Text, Arrow, Line, Dot, AnimationGroup, Succession, Transform, MoveAlongPath, FadeIn, Machine, choreograph, view, linear } from '../../../src/index.ts';
 import type { Animation, Mobject, SceneState, Choreography, Transition, ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
 import { pkceChallenge, sha256 } from '../lib/models.ts';
 import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type LaneMessage, type SignIn, type SignInEvent } from '../lib/pkce.ts';
 const STYLE = 'github-light';
@@ -246,7 +245,7 @@ export default class OAuthExplainer extends Scene {
     const sheet = view(this, (st) => signInPicture(st as unknown as SignIn, s), { place: false });
     s.keep(sheet, { describe: () => signInWords(this.state as unknown as SignIn) });
     // What the picture marks: each server answer, read from state.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const st = this.state as unknown as SignIn, out: [Mobject, string][] = [];
       for (const who of ['app', 'client'] as const) {
         const m = sheet.current.find(`sign-in:label:${who}-answer`);

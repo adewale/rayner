@@ -24,6 +24,7 @@ import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/i
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
 import { resolveSettings } from '../explain/settings.ts';
+import { VOCABULARY } from '../explain/words.ts';
 import type { VMobject, Sink } from '../src/index.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -634,6 +635,8 @@ for (const entry of EXPLAINERS)
             timing: { motion: +(fork.hold - fork.t0).toFixed(2), held: +(fork.t1 - fork.hold).toFixed(2), words },
           });
           assert.ok(Math.abs(fork.t1 - fork.t0 - (words / Scene.captionWpm) * 60) <= 1 / trace.fps + 1e-9);
+          // The count of diagram families it quotes is the describer's own (explain/words.ts).
+          assertStepState(trace, 'fork', { families: Object.keys(VOCABULARY.en!.families!).length });
           // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
           // token-bucket scenario whose trace answers R10 as the fork scene says, and its last step says
           // R10 is accepted at every rate.

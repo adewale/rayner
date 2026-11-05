@@ -12,10 +12,10 @@ import {
   view,
   linear,
   matchByKey,
+  lerpColor,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { lerpColor } from '../../../src/color.ts';
 import {
   POSITIONS,
   position,

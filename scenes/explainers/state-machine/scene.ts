@@ -18,9 +18,7 @@ import {
   linear,
 } from '../../../src/index.ts';
 import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import { Card } from '../../../explain/panels.ts';
-import { emphasises } from '../../../explain/look.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import { reduceSession, sessionAttempt, sessionStart, sessionNext, SESSION_EVENTS } from '../lib/models.ts';
 import type { SessionState, SessionEvent } from '../lib/models.ts';
 const SOURCE =
@@ -199,7 +197,7 @@ export default class StateMachineExplainer extends Scene {
     });
     // What the views mark, as emphasis the phone's close-ups visit first and review holds to the
     // caption: the ring, the row read or the throw hit, and each link travelled, read from state.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const st = session(), out: [Mobject, string][] = [];
       const at = (v: View, key: string, what: string) => { const m = v.current.find(key); if (m) out.push([m, what]); };
       at(ring, `session:ring:${st.session}`, `ring: ${st.session}`);

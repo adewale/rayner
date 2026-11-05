@@ -16,8 +16,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Palette } from '../../../explain/index.ts';
-import { soft, raised, rule } from '../../../explain/look.ts';
+import type { Stage } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // test/explain-fidelity.test.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
@@ -61,7 +60,7 @@ const ADDED = '#2ea043',
  * TransformDiff can morph it. Centred in `box`, never above its top; or with
  * `pin`, its top-left corner there.
  */
-function panel(colors: Palette, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
+function panel(s: Stage, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
   const pad = 0.3,
     width = code.width() + 2 * pad + 0.1,
     height = code.height() + 2 * pad + 0.42;
@@ -71,12 +70,12 @@ function panel(colors: Palette, code: Code, box: Box, title: string, pin?: reado
     width,
     height,
     cornerRadius: 0.1,
-    fill: raised(colors),
-    stroke: rule(colors),
+    fill: s.raised,
+    stroke: s.rule,
     strokeWidth: 0.016,
   }).moveTo([cx, cy]);
   code.moveTo([cx, cy - 0.21]);
-  const label = new Text(title, { fontSize: 0.2, color: soft(colors), anchor: 'start' }).moveTo(
+  const label = new Text(title, { fontSize: 0.2, color: s.soft, anchor: 'start' }).moveTo(
     [cx - width / 2 + pad, cy + height / 2 - 0.3],
     [-1, 0],
   );
@@ -172,9 +171,9 @@ export default class CacheMRExplainer extends Scene {
     // The merged file's panel decides where the code sits, and the old file
     // starts at its top-left corner: in the diff, the header line stays put and
     // the other lines move only down, to where the hunks put them.
-    const merged = panel(colors, after, CODE_BOX, 'users.ts');
+    const merged = panel(s, after, CODE_BOX, 'users.ts');
     const [left, , , top] = merged.rect.box()!;
-    const shown = panel(colors, before, CODE_BOX, 'users.ts', [left, top]);
+    const shown = panel(s, before, CODE_BOX, 'users.ts', [left, top]);
     // One description for the panel, whichever code it holds: its title stays through the diff.
     let held = before;
     const panelWords = () => inWords('users.ts', held);

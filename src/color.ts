@@ -23,6 +23,7 @@ export function toHex(rgb: Readonly<RGB>): string {
   return '#' + hex2(rgb[0]) + hex2(rgb[1]) + hex2(rgb[2]);
 }
 
+/** The colour `t` of the way from `a` to `b` in sRGB, as `#rrggbb` (Manim's `interpolate_color`); an unparseable end is taken whole. */
 export function lerpColor(a: string, b: string, t: number): string {
   if (a === b) return a;
   const ca = parseColor(a), cb = parseColor(b);

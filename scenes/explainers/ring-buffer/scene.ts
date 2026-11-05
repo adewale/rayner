@@ -23,9 +23,7 @@ import {
   linear,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import { Card } from '../../../explain/panels.ts';
-import { emphasises } from '../../../explain/look.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import { ringStory, ringStart, ringNext, RingBuffer } from '../lib/models.ts';
 import type { RingState, RingEvent } from '../lib/models.ts';
 
@@ -290,7 +288,7 @@ export default class RingBufferExplainer extends Scene {
     s.keep(ring, { describe: ringWords });
     // What the ring marks, as emphasis the phone's close-ups visit first and review holds to the
     // caption: each outlined slot, and the value the tray took last. Read from state.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const st = this.state as unknown as RingState, out: [Mobject, string][] = [];
       const at = (key: string, what: string) => { const m = ring.current.find(key); if (m) out.push([m, what]); };
       for (const m of st.marks) at(`ring:mark:${m.slot}`, `outlined: ${m.kind} at slot ${m.slot}`);

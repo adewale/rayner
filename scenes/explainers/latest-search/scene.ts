@@ -1,7 +1,6 @@
 import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
 import { story, ANSWER, raceTimeline, raceTracks, raceWords, tickX, trackY } from '../lib/readers/latest-search.ts';
 import type { RaceStep } from '../lib/readers/latest-search.ts';
 import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from '../lib/latest-search.ts';
@@ -123,7 +122,7 @@ export default class LatestSearchExplainer extends Scene {
     const off = raceMachine(false), on = raceMachine(true);
     // What a timeline marks, as emphasis the phone's close-ups visit first and review holds to the
     // caption: each page span outlined in red, a stale result on the page. Read from state.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const st = this.state as object;
       if (!isRace(st)) return [];
       const v = st.guarded ? on.timeline : off.timeline, out: [Mobject, string][] = [];

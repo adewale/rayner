@@ -2,7 +2,6 @@ import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
 import { Scene, Text, Group, Rectangle, Transform, Arrow, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
 import { exec } from '../lib/models.ts';
 import type { Shell } from '../lib/models.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from '../lib/just-bash.ts';
@@ -331,7 +330,7 @@ export default class BashExplainer extends Scene {
     const session = () => this.state as unknown as ShellSession;
     s.keep(chain, { describe: () => shellsWords(session()) });
     // What the picture marks: the shell the caller keeps, and what each cat printed.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const st = session(), out: [Mobject, string][] = [], newest = st.shells.length - 1;
       const box = chain.current.find(`shell:${newest}:box`);
       if (box) out.push([box, `kept: s${newest}`]);

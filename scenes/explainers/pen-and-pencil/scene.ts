@@ -1,8 +1,7 @@
 import { frames as readerFrames, SEEDS, GREY, px } from '../lib/readers/pen-and-pencil.ts';
 import { Scene, VMobject, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, Diagram } from '../../../explain/index.ts';
-import { diagramsOf } from '../../../integrations/agentic-mermaid/snapshot.ts';
+import { stage, settingsOf, Diagram, diagramsOf } from '../../../explain/index.ts';
 import {
   WORLD,
   TITLE,

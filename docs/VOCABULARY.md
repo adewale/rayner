@@ -30,6 +30,7 @@ One row per idea.
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. Every `View` is one: the constructor takes `(scene, draw)` | `View.render` (now `View.draw`), `view(build)`, `stateView` |
 | Staged steps | `stage.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
+| Emphasis a scene draws itself | `s.emphasise(now)` | What the scene's own marks emphasise, read from state at each step: each mark with what it shows; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |

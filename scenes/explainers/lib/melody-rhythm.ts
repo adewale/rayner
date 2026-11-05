@@ -1,4 +1,4 @@
-import type {AudioClip, ScoreNote} from 'rayner/explain';
+import type {AudioClip, ScoreNote} from '../../../explain/index.ts';
 export type Timing = 'syncopated' | 'straight';
 export const PITCHES = [60,62,64,67,64,62,60,60] as const;
 export const NOTE_NAMES: Record<number,string> = {60:'C',62:'D',64:'E',67:'G'};
