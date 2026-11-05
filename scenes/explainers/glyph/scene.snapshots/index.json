@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "2fbd1975fd2a3c6ede729e1f8c93df5f3b957b00e38eaace34fd99be5d9bdea9",
+  "sourceHash": "ba6fd940c8c2a4ea15ccdb9ec8e711c2efbc0d35a5aac60fb610fbff40d1c410",
   "diagrams": {
     "[\"graph TB\\nFont[Inter] --> Shape[Shape text]\\nShape --> Paths[Cubic paths]\\nPaths --> SVG[SVG player]\\nPaths --> PNG[PNG stills]\",\"pen-and-ink\"]": "9725559958b9a5bd.json"
   }

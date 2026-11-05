@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "82e109ba821c7b3c",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "1997431c83332ea1ce8fe35be9682c9ca9dc363c52b4cf9f393ed31690d62c6d",
+  "sourceHash": "13fc6742a5a1b1aefc3cb764af9d0d7c940e4dce890743988b3a172ba05f6941",
   "diagrams": {
     "[\"graph LR\\nAgent[Agent] --> Find[2password find]\\nFind --> Op[op CLI]\\nOp --> Vault[1Password vault]\",\"excalidraw\"]": "a6964a30d5aa9b54.json",
     "[\"sequenceDiagram\\n participant A as Agent\\n participant T as 2password\\n participant O as op CLI\\n A->>T: find with two queries\\n T->>O: item list\\n O-->>T: ids and titles\\n T->>O: item get for 2 items\\n O-->>T: item details\\n T-->>A: op:// references\",\"excalidraw\"]": "af2245ae762369e9.json"
