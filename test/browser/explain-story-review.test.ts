@@ -1151,7 +1151,7 @@ static settings=[{id:'channels',label:'Disabled paint',default:'opacity',options
 const transparent=settingsOf(this).channels==='color';
 const s=stage(this);await this.step('comparison',{caption:'The blue shape and the named value are visible.'});
 const shape=new Rectangle({width:1,height:1,fill:'blue',stroke:'none'}).moveTo([-3,0]);shape.key='blue-shape';shape.clipBox=[-3.6,-.6,-2.4,.6];
-const label=new Text('Named value',{fontSize:.8}).moveTo([2,0]);label.clipBox=[-1,-.6,5,.6];
+const label=new Text('Named value',{fontSize:.8,color:'white'}).moveTo([2,0]);label.clipBox=[-1,-.6,5,.6];
 const accent=new Rectangle({width:.5,height:.5,fill:'blue',stroke:'none'}).moveTo([2,-1.5]);
 const outlined=new Text('Outline',{fontSize:2}).setStyle({fill:transparent?'transparent':'white',fillOpacity:transparent?1:0,stroke:'white',strokeWidth:.03,strokeOpacity:1}).moveTo([-3,-2.5]);
 const filled=new Text('Fill',{fontSize:.8}).setStyle({fill:'white',fillOpacity:1,stroke:transparent?'rgba(255,255,255,0)':'white',strokeWidth:.2,strokeOpacity:transparent?1:0}).moveTo([3,-2.5]);
