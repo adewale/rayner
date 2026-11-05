@@ -133,25 +133,18 @@ export default class StateMachineExplainer extends Scene {
             ['Event', st.event ?? '–'],
             ['Returns', st.returns ?? (st.event ? '…' : '–')],
           ],
-          { at: CARD, fontSize: 0.28, width: 4.8 },
+          // The row the session last changed is lit, drawn with the card: described and emphasised with it.
+          { at: CARD, fontSize: 0.28, width: 4.8, lit: litRow(st) },
         );
         for (const field of ['State', 'Event', 'Returns'])
           card.values.get(field)!.key = `session:${field.toLowerCase()}`;
         card.bar.key = 'session:bar';
-        const lit = litRow(st);
-        if (lit) card.bar.moveTo([card.panel.center()[0], card.values.get(lit)!.anchorPoint()[1]]).setOpacity(1);
         return card;
       },
       { place: false },
     ));
-    s.keep(readout, {
-      describe: () => {
-        const lit = litRow(this.state);
-        return `The session card: ${[...readout.current.values]
-          .map(([label, v]) => `${label}: ${v.text}${label === lit ? ' (marked)' : ''}`)
-          .join(', ')}`;
-      },
-    });
+    // The card describes itself, its lit row included.
+    s.keep(readout);
 
     // What the machine marks on the diagram and the reducer, drawn from the session's state: the
     // ring on the state it is in, the links it travelled, and the row it read or the throw it hit.
