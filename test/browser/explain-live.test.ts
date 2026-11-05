@@ -1,4 +1,4 @@
-// The live machine in the served player (docs/MACHINES.md, "The player"): on each of the eight
+// The live machine in the served player (docs/MACHINES.md, "The player"): on each of the nine
 // explainers with a machine, the reader's buttons say what `outcome` says from every state the test
 // reaches by pressing them, the URL carries the events sent, and the picture the presses land on is
 // the picture a fresh load of that URL draws. A button that disagrees with `outcome` fails.

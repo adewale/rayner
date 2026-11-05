@@ -245,7 +245,7 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       "await s.sketch(path, {tool: 'pen',",
       "  describe: 'A rising line'});",
     ],
-    recipe: "s.draw reveals a path along its length with a tool riding its tip, and describe says what the finished stroke shows.",
+    recipe: "s.sketch reveals a path along its length with a tool riding its tip, and describe says what the finished stroke shows.",
     caption: "The pen disappears when drawing ends, and the rising line remains; its description carries the same fact to readers who do not see the motion. The two dots on the left are a separate drawing of the path’s ends.",
     point: 'Of the pen’s motion, only the finished line is left at rest.',
   },

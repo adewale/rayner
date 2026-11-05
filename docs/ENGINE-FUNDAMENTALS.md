@@ -157,7 +157,11 @@ precompiled timeline.
 
 A sink stops a seek with `StopScene`. Do not catch animation errors broadly in
 `construct()`: catching that signal can allow author code to mutate the stopped
-scene. Handle known model errors before animating.
+scene. Handle known model errors before animating. The engine limits the damage:
+a `StopScene` from a sink sets `scene.stopped`, and from then on `play()`, `wait()`,
+`step()` and every frame rethrow it before doing anything, so a swallowed stop emits
+no further frame. Plain code between the catch and the next scene call (a `shift()`,
+a write to `this.state`) still runs, which is why `rayner check` fails the pattern.
 
 ## Outputs, checks and performance
 
