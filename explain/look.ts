@@ -38,10 +38,11 @@ export function emphasis(p: Palette): string {
   return onPaper(p, '#ffb454', '#d9480f');
 }
 /**
- * What a helper emphasises now: each object that shows it, with what it shows there (a card
- * row, code lines, a mark's colour, a note's words), so moving a focus bar is new emphasis.
+ * What a helper emphasises now: each part that shows it, as the mobject or its key, with what it
+ * shows there (a card row, code lines, a mark's colour, a note's words), so moving a focus bar is
+ * new emphasis. A key names the part on the stage at that moment; a key not on the stage marks nothing.
  */
-export type Emphasis = readonly (readonly [Mobject, string])[];
+export type Emphasis = readonly (readonly [Mobject | string, string])[];
 /** Composites report their own current parts; copies inherit the method, not a closure over the original. */
 export const emphasisSource = Symbol('emphasisSource');
 interface EmphasisSource { [emphasisSource](): Emphasis }
@@ -62,7 +63,11 @@ export function emphasises(scene: Scene, now: () => Emphasis): void {
 export function emphasisOf(scene: Scene): Map<Mobject, string> {
   const out = new Map<Mobject, string>();
   const add = (items: Emphasis) => {
-    for (const [m, what] of items) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
+    for (const [part, what] of items) {
+      // A key names the part on the stage now (identity is a key); a key not on the stage marks nothing.
+      const m = typeof part === 'string' ? scene.find(part) : part;
+      if (m) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
+    }
   };
   for (const now of emphasisers.get(scene) ?? [])
     add(now());

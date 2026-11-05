@@ -306,11 +306,11 @@ export default class MontyHall extends Scene {
     s.emphasise(() => {
       const phase = (this.shown as { phase?: Phase }).phase;
       if (phase !== 'choice') return [];
-      const r = roundOf(this.state), out: [Mobject, string][] = [];
-      const at = (i: number | null, what: string) => { const m = i === null ? undefined : main.current.find(`door-${i}`); if (m) out.push([m, what]); };
-      at(roundDoor(r), `your door: ${door(roundDoor(r) ?? 0)}`);
-      at(r.opened, `opened: ${door(r.opened ?? 0)}, ${r.shows}`);
-      return out;
+      const r = roundOf(this.state), yours = roundDoor(r);
+      return [
+        ...(yours === null ? [] : [[`door-${yours}`, `your door: ${door(yours)}`] as const]),
+        ...(r.opened === null ? [] : [[`door-${r.opened}`, `opened: ${door(r.opened)}, ${r.shows}`] as const]),
+      ];
     });
     const fresh = async (next: Phase) => {
       await s.clear({ runTime: 0.3 });

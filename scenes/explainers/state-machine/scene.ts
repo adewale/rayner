@@ -196,13 +196,13 @@ export default class StateMachineExplainer extends Scene {
     // What the views mark, as emphasis the phone's close-ups visit first and review holds to the
     // caption: the ring, the row read or the throw hit, and each link travelled, read from state.
     s.emphasise(() => {
-      const st = session(), out: [Mobject, string][] = [];
-      const at = (v: View, key: string, what: string) => { const m = v.current.find(key); if (m) out.push([m, what]); };
-      at(ring, `session:ring:${st.session}`, `ring: ${st.session}`);
-      if (st.row) at(reducer, `reducer:box:${st.row}`, `row: ${st.row}`);
-      if (st.invalid) at(reducer, 'reducer:throw-box', `throw: ${st.session}:${st.event}`);
-      for (const l of st.travelled) { const [from, to] = l.split(':'); at(diagram, d.link(from!, to!).id, 'travelled'); }
-      return out;
+      const st = session();
+      return [
+        [`session:ring:${st.session}`, `ring: ${st.session}`],
+        ...(st.row ? [[`reducer:box:${st.row}`, `row: ${st.row}`] as const] : []),
+        ...(st.invalid ? [['reducer:throw-box', `throw: ${st.session}:${st.event}`] as const] : []),
+        ...st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, 'travelled'] as const; }),
+      ];
     });
     await this.play(new FadeIn(readout, { runTime: 0.35, shift: [0, -0.08] }));
     this.add(diagram, reducer, ring);

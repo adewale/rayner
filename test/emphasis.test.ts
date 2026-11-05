@@ -252,3 +252,14 @@ test('seeking into and past Circumscribe renders the frame a full run produces',
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
 });
+
+test('emphasis can name a part by its key: the part on the stage now, and nothing when it is not there', async () => {
+  const { emphasises, emphasisOf } = await import('../explain/look.ts');
+  const { Scene, NullSink, Circle } = await import('../src/index.ts');
+  const scene = new Scene(new NullSink());
+  const ring = Object.assign(new Circle(), { key: 'ring:3' });
+  scene.add(ring);
+  emphasises(scene, () => [['ring:3', 'outlined'], ['ring:9', 'not drawn'], [ring, 'also the mobject']]);
+  const marks = emphasisOf(scene);
+  assert.deepEqual([...marks.entries()].map(([m, what]) => [m.key, what]), [['ring:3', 'outlined; also the mobject']]);
+});

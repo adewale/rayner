@@ -438,7 +438,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /**
      * Say what this scene's own marks emphasise, read from its state whenever asked: each
-     * object that shows emphasis, with what it shows there. The stage's helpers (cards, code,
+     * part that shows emphasis, by key (`['ring:mark:3', 'outlined: push']`) or as the mobject,
+     * with what it shows there. The stage's helpers (cards, code,
      * diagrams, notes) register theirs; a scene that draws its own marks registers them here.
      * Call once; `now` is read at every step boundary and must draw nothing.
      */

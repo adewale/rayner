@@ -331,14 +331,11 @@ export default class BashExplainer extends Scene {
     s.keep(chain, { describe: () => shellsWords(session()) });
     // What the picture marks: the shell the caller keeps, and what each cat printed.
     s.emphasise(() => {
-      const st = session(), out: [Mobject, string][] = [], newest = st.shells.length - 1;
-      const box = chain.current.find(`shell:${newest}:box`);
-      if (box) out.push([box, `kept: s${newest}`]);
-      st.cats.forEach((c, i) => {
-        const m = chain.current.find(`out:${i}`);
-        if (m && c !== null) out.push([m, `cat on s${i}: ${prints(c)}`]);
-      });
-      return out;
+      const st = session(), newest = st.shells.length - 1;
+      return [
+        [`shell:${newest}:box`, `kept: s${newest}`],
+        ...st.cats.flatMap((c, i) => (c === null ? [] : [[`out:${i}`, `cat on s${i}: ${prints(c)}`] as const])),
+      ];
     });
     // Checked on every frame, and through every transition from every state rayner check reaches: whatever ran, s0
     // is the empty shell the caller started with, in the model and in the picture.

@@ -246,12 +246,9 @@ export default class OAuthExplainer extends Scene {
     s.keep(sheet, { describe: () => signInWords(this.state as unknown as SignIn) });
     // What the picture marks: each server answer, read from state.
     s.emphasise(() => {
-      const st = this.state as unknown as SignIn, out: [Mobject, string][] = [];
-      for (const who of ['app', 'client'] as const) {
-        const m = sheet.current.find(`sign-in:label:${who}-answer`);
-        if (m && st[who].answer) out.push([m, `${who === 'app' ? 'malicious app' : 'client'}: ${st[who].answer}`]);
-      }
-      return out;
+      const st = this.state as unknown as SignIn;
+      return (['app', 'client'] as const).filter((who) => st[who].answer)
+        .map((who) => [`sign-in:label:${who}-answer`, `${who === 'app' ? 'malicious app' : 'client'}: ${st[who].answer}`] as const);
     });
     // Checked on every frame, and through every transition from every state rayner check reaches: a code bound to a
     // challenge never gives the malicious app a token, in the model or in the picture.
