@@ -1,7 +1,8 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create, jsonObject } from '../src/index.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind } from '../src/index.ts';
 import type { StepAudio } from './audio.ts';
-import { dimension, pin, callout, tool, Draw, oneStrokeEach } from './annotate.ts';
+import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
+import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
 import type { ShowOptions } from './diagrams.ts';
@@ -572,6 +573,19 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
       keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
+      return g;
+    },
+    /**
+     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line); faded in and kept.
+     * The kit's `legend` builds the same picture for a draw. It describes itself as its swatch→meaning pairs.
+     */
+    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {}) {
+      const { key = 'legend', at = [0, 0], ...look } = opts;
+      const g = onScreen(legend(items, { ink: colors.ink, shaping: scene.textShaping, at: toScreen(at), ...look }));
+      g.children.forEach((entry, i) => (entry.key = `${key}:${items[i]!.label}`));
+      g.key = key;
+      keepAll([g], {});
+      await scene.play(new FadeIn(g, { runTime: 0.4 }));
       return g;
     },
     /** Words beside a target with a leader line to it; drawn in, and kept. */

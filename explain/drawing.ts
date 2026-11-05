@@ -6,8 +6,9 @@
 import { Group, Text, Rectangle, Circle, Line, Arrow } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
-import { callout as calloutLook, dimension as dimensionLook, pin as pinLook } from './annotate.ts';
-import type { Side } from './annotate.ts';
+import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
+import type { Side, LegendItem } from './annotate.ts';
+export type { LegendItem } from './annotate.ts';
 
 /** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
 export function keyed<T extends Mobject>(m: T, key: string): T {
@@ -308,5 +309,21 @@ export function pin(
 ): Group {
   const g = pinLook(at, { color, size, side, shaping: s.scene.textShaping, ...(label ? { label } : {}) });
   return key ? keyed(g, key) : g;
+}
+/**
+ * A key: swatches (a filled square, a short line, dashed or not) with the words for what each
+ * means, in order, the words in the stage's ink. Keyed `key`, each entry `key:<label>`. Describes
+ * itself as its swatch→meaning pairs, "Key: purple fill, cat’s bits; dashed blue line, the
+ * browser", naming each colour by its nearest plain name or the entry's `name`; so a caption's "the
+ * purple fill" or "dashed" is said on the stage too, and `rayner check` finds it there.
+ */
+export function legend(
+  s: Stage,
+  items: readonly LegendItem[],
+  { at = [0, 0] as Vec, size = 0.3, direction = 'column' as 'column' | 'row', gap, key = 'legend' }: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {},
+): Group {
+  const g = legendLook(items, { ink: s.palette.ink, shaping: s.scene.textShaping, size, at, direction, ...(gap === undefined ? {} : { gap }) });
+  g.children.forEach((entry, i) => keyed(entry, `${key}:${items[i]!.label}`));
+  return keyed(g, key);
 }
 export * from './seen-from.ts';

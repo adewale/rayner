@@ -725,7 +725,7 @@ export default class Statecharts extends Scene {
     await this.step('regions', {
       title: 'Split the box on into two small machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
-      caption: `Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
+      caption: `Draw a line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
     });
     await fresh('grid');
     await morph('regions');
@@ -754,7 +754,7 @@ export default class Statecharts extends Scene {
     await this.step('frother', {
       title: 'The frother is a second region, beside the brewing cycle',
       line: `A flat machine would need ${frotherFlat.states} states and ${frotherFlat.transitions} transitions; the statechart draws ${frotherChart.transitions} arrows.`,
-      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The green boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
+      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The highlighted boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
     });
     // The machine starts off; the transfer answer's events take it to grinding and frothing.
     await replay(frother, 'frother', RUNS.frother.slice(0, 3));

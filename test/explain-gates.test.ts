@@ -221,6 +221,12 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Duplicate step names/,
   },
   {
+    // The caption keys a colour the stage never names: hidden, the caption takes the key with it.
+    gate: 'a caption names a colour no word on the stage says',
+    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.bad}),{describe:'A dot'});`),
+    message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
+  },
+  {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
     message: /Each scenario needs non-empty named steps/,

@@ -197,9 +197,9 @@ export default class CacheMRExplainer extends Scene {
     await this.step('diff', {
       kind: 'detail',
       title: 'Four added lines and one rewritten',
-      line: 'The old return keeps its D1 call; green lines check KV first.',
+      line: 'The old return keeps its D1 call; the added lines check KV first.',
       caption:
-        'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the green lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
+        'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the added lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
     });
     await flow.clearNotes();
     await flow.unmark();

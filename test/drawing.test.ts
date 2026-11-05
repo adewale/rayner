@@ -10,13 +10,13 @@ import { stage } from '../explain/index.ts';
 import type { Box } from '../src/index.ts';
 
 test('rayner/drawing exports exactly the kit, and package.json publishes it', () => {
-  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'callout', 'circleOn', 'depthOrder', 'dimension', 'dot', 'flow', 'greatArc', 'keyed', 'keyedParts', 'label', 'latLon', 'pin', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
+  assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'callout', 'circleOn', 'depthOrder', 'dimension', 'dot', 'flow', 'greatArc', 'keyed', 'keyedParts', 'label', 'latLon', 'legend', 'pin', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
 });
 
 test('the scene libraries re-export the published functions rather than copies', () => {
-  for (const name of ['keyed', 'label', 'tile', 'segment', 'dot', 'table', 'stat', 'flow', 'bars', 'callout', 'dimension', 'pin'] as const)
+  for (const name of ['keyed', 'label', 'tile', 'segment', 'dot', 'table', 'stat', 'flow', 'bars', 'callout', 'dimension', 'pin', 'legend'] as const)
     assert.equal((lesson as Record<string, unknown>)[name], drawing[name], `lesson-drawing ${name}`);
   for (const name of ['label', 'tile', 'table', 'flow', 'bars'] as const)
     assert.equal((reader as Record<string, unknown>)[name], drawing[name], `reader-drawing ${name}`);
@@ -71,4 +71,39 @@ test('callout, dimension and pin build the pictures s.callout, s.dimension and s
   const [rightLabel, leftLabel] = [stuck, left].map((g) => g.children.at(-1)!.box()!) as [Box, Box];
   assert.ok(leftLabel[2] < 3 && rightLabel[0] > 3, 'the left label ends before the needle; the right one starts after it');
   assert.ok(Math.abs((3 - leftLabel[2]) - (rightLabel[0] - 3)) < 1e-6, 'both labels stand off the needle by the same gap');
+});
+
+test('legend draws swatches with words, keyed by label, describes itself as its swatch→meaning pairs, and matches s.legend', async () => {
+  const { Scene, NullSink, loadFonts } = await import('../src/index.ts');
+  const { describesItself, seenSource } = await import('../explain/look.ts');
+  await loadFonts();
+  const s = stage(new Scene(new NullSink()));
+  const items = [
+    { label: 'cat’s bits', fill: '#8250df' },
+    { label: 'the browser', stroke: '#0969da', dashed: true },
+    { label: 'removed', fill: 'none', stroke: '#cf222e', dashed: true },
+  ];
+  const key = drawing.legend(s, items, { at: [-6, 3], key: 'k' });
+  assert.equal(key.key, 'k');
+  assert.deepEqual(key.children.map((c) => c.key), ['k:cat’s bits', 'k:the browser', 'k:removed']);
+  assert.ok(describesItself(key));
+  assert.equal(
+    (key as unknown as Record<symbol, () => { what: string }>)[seenSource]!().what,
+    'Key: purple fill, cat’s bits; dashed blue line, the browser; dashed red outline, removed',
+  );
+  // A column steps down from its first entry, which starts at `at`, the swatch centred on that line; a row steps right.
+  const swatch = key.children[0]!.children[0]!.box()!;
+  assert.ok(Math.abs(swatch[0] + 6) < 1e-6 && Math.abs((swatch[1] + swatch[3]) / 2 - 3) < 1e-6);
+  const tops = key.children.map((c) => c.box()![3]);
+  assert.ok(tops[0]! > tops[1]! && tops[1]! > tops[2]!);
+  const row = drawing.legend(s, items, { direction: 'row' });
+  const lefts = row.children.map((c) => c.box()![0]);
+  assert.ok(lefts[0]! < lefts[1]! && lefts[1]! < lefts[2]!);
+  // The words are in the stage's ink, the dash on the swatch.
+  assert.ok(key.family().some((m) => m.style.dashArray));
+  const points = (m: import('../src/index.ts').Mobject) => JSON.stringify(m.family().map((x) => [x.constructor.name, x.box(), x.style, x.key]));
+  assert.equal(points(key), points(await s.legend(items, { at: [-6, 3], key: 'k' })));
+  assert.throws(() => drawing.legend(s, []), /at least one entry/);
+  assert.throws(() => drawing.legend(s, [items[0]!, items[0]!]), /two entries say "cat’s bits"/);
+  assert.throws(() => drawing.legend(s, [{ label: 'nothing' }]), /needs a fill or a stroke/);
 });

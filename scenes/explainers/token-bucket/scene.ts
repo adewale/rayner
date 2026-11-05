@@ -381,7 +381,7 @@ export default class TokenBucketExplainer extends Scene {
       title: 'Ten requests from one client, and a bucket of five tokens',
       line: 'Predict: R1–R6 arrive at the same instant. How many get 200?',
       caption:
-        'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst, such as the requests a page makes as it loads, should still get through. So the server keeps a balance for the client of at most five tokens: the bucket. Each accepted request spends one token, and a request that finds less than one, under the dashed line, gets 429. Ten requests will arrive at the times written above their boxes.',
+        'A server shares its work among many clients, so it limits each one: a request it serves gets 200, OK, and one it refuses gets 429, Too Many Requests, which tells the client to slow down. A short burst, such as the requests a page makes as it loads, should still get through. So the server keeps a balance for the client of at most five tokens: the bucket. Each accepted request spends one token, and a request that finds less than one, under the 1 token line, gets 429. Ten requests will arrive at the times written above their boxes.',
     });
     await s.clear();
     const start = bucketStart(rate, CAPACITY);
@@ -539,8 +539,8 @@ export default class TokenBucketExplainer extends Scene {
     const low = [6, 7, 8].filter((i) => !plan[i]!.ok),
       lowNames = low.map((i) => `${name(i)} (${f(i)})`).join(' and ');
     const verdict = !low.length
-      ? 'All three dots stay at or above the dashed line, so all three get 200.'
-      : `${lowNames} ${low.length > 1 ? 'are' : 'is'} under the dashed line, so ${low.length > 1 ? 'they get' : 'it gets'} 429.`;
+      ? 'All three dots stay at or above the 1 token line, so all three get 200.'
+      : `${lowNames} ${low.length > 1 ? 'are' : 'is'} under the 1 token line, so ${low.length > 1 ? 'they get' : 'it gets'} 429.`;
     // The long wait: what refill would add without the cap, and when the balance reaches five.
     const wait = r10.at - r9.at,
       uncapped = r9.after + wait * rate,
@@ -565,7 +565,7 @@ export default class TokenBucketExplainer extends Scene {
         : `The line climbs to ${fmt(uncapped)}, under the cap of five.`,
     ];
     const captions = [
-      `No time passed between R1 and R6, so the line drops one token per request and R6 finds ${f(5)}, under the dashed line: 429. A burst can spend only the tokens saved up, and only elapsed time adds more. On each arrival the server adds elapsed time multiplied by the refill rate, here ${perSecond(rate)}, before deciding whether to spend a token. The line between arrivals shows available credit; no background timer needs to update the balance.`,
+      `No time passed between R1 and R6, so the line drops one token per request and R6 finds ${f(5)}, under the 1 token line: 429. A burst can spend only the tokens saved up, and only elapsed time adds more. On each arrival the server adds elapsed time multiplied by the refill rate, here ${perSecond(rate)}, before deciding whether to spend a token. The line between arrivals shows available credit; no background timer needs to update the balance.`,
       `Between calls the line climbs ${perSecond(rate)}. Half a second after the burst, R7 finds ${tokens(r7.found)}, ${r7.ok ? 'enough for one request' : 'less than the one a request needs'}, so it gets ${code7}. The rate decides it: the same half second buys ${listed(halfSecond)}. R8 at 1 s finds ${f(7)}; R9 arrives at the same instant, so nothing is added and it finds what R8 left. Fractional tokens are saved, but a request must spend a whole one. ${verdict}`,
       uncapped > CAPACITY
         ? `R9 left ${formatState(r9.after)}. A wait of ${seconds(wait)} s at ${perSecond(rate)} would bring the balance to ${formatState(uncapped)}, but min(5, …) stops it at five, reached at ${seconds(fullAt)} s, and the line runs flat from there. However long a client waits, its next burst is at most five requests. R10 spends one and leaves ${formatState(r10.after)}.`

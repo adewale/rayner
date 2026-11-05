@@ -56,6 +56,7 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` for desktop and conservative phone estimates; `rayner review` for actual served geometry |
 | Works as served: every step from a fresh link, every scenario, phone and desktop | `rayner review` |
 | Says nothing a setting would make false, and claims no more than it tests | Reading every scenario against the model and its sources; `rayner check` lists each sentence with "every", "never" or "only" that no declared claim backs ([Claims, words and limits](#claims-words-and-limits)) |
+| Teaches with the caption hidden: a colour or dash the words name is named on the stage too | `rayner check` fails a caption or line that names a colour or a pattern no word on the stage says; a `legend` from `rayner/drawing`, a label, or a line that keys it (`Red: the route.`) answers it |
 | Uses the reader's words, introducing any code name where it first appears | `rayner check` lists each code name in the steps' words with the step that first uses it |
 | Teaches better than the alternative: a still, a code diff, or a page written without Rayner | Asking honestly; [the benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md) for changes to Rayner itself |
 

@@ -278,7 +278,7 @@ export default class GreatCircle extends Scene {
       { id: 'shorter', title: `Answer: the bent line, by ${tens(L.extraKm)} km`, line: 'Red: the plane’s route. Blue dashed: the ruler’s line.',
         caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${ANSWER}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
         state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, true) },
-      { id: 'stretch', title: 'Mercator’s map stretches the north sideways', line: 'Each black bar is 1,000 km of the same parallel.',
+      { id: 'stretch', title: 'Mercator’s map stretches the north sideways', line: 'Each bar is 1,000 km of the same parallel.',
         caption: `This kind of map, Mercator’s, stretches every place sideways so that compass directions stay true, and the farther from the equator, the more it stretches: about ${L.stretch.from.toFixed(1)} times at London’s latitude, about twice where the route crosses Greenland. The Earth is narrower up there, so a route that goes north takes a shortcut, and the map draws that narrow part widest, so the shortcut looks like a detour. The ruler’s line keeps one compass heading: easy to steer, longer to fly.`,
         state: { viewpoint: MERCATOR, route: L, km: 1000, stretch: L.stretch }, draw: stretched },
       { id: 'globe', title: 'On a globe, a tight string swings north', line: 'The pale sheet passes through both cities and the Earth’s centre.',
@@ -293,7 +293,7 @@ export default class GreatCircle extends Scene {
         ? { id: 'another', title: `Madrid to New York: due west is ${tens(westKm - M.km)} km longer`, line: 'Blue: Madrid’s line of latitude, a smaller circle. Red: the great circle.',
           caption: `Madrid and New York lie almost on the same line of latitude. Heading due west from Madrid covers ${tens(westKm)} kilometres; the great circle starts out west-north-west, reaches ${Math.round(M.top.lat)} degrees north and arrives after ${tens(M.km)}. The saving is smaller because the cities are closer together and farther from the pole. Only on the equator, or on a route running due north or south, do the ruler and the string agree: set the second route to the equator to see it.`,
           state: { viewpoint: ATLANTIC, route: M, westKm }, draw: westward }
-        : { id: 'another', title: 'On the equator, the ruler and the string agree', line: 'Red and blue dashed lie on the same line here.',
+        : { id: 'another', title: 'On the equator, the ruler and the string agree', line: 'Red and blue dashed: one line here, the string and the ruler’s.',
           caption: `What if both cities sat on the equator? The equator is a great circle, so the shortest route follows it and the ruler’s line is the string: ${tens(pairs[0]!.km)} km either way, no saving at all. A route due north, along a meridian, is the other such case. Only on the equator, or on a route running due north or south, do the two maps draw the same line.`,
           state: { viewpoint: TROPICS, pairs }, draw: onEquator },
       { id: 'gnomonic', title: 'A map seen from the Earth’s centre draws shortest routes straight', line: 'The gnomonic map: the eye at the centre, the paper touching the globe.',

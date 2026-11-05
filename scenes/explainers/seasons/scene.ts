@@ -492,7 +492,7 @@ export default class SeasonsExplainer extends Scene {
 
     await this.step('june', {
       title: `${place.name} in June: ${hours(june.daylight)} of daylight, noon Sun at ${degrees(june.altitude)}`,
-      line: `The yellow part of the line through the red dot is ${place.name}’s daylight.`,
+      line: `Red dot: ${place.name}; yellow: its daylight, along its line.`,
       caption:
         (place.lat < 0
           ? `In June the north end of the axis leans toward the Sun. Sydney is south of the equator, so its noon Sun is low and most of its latitude circle, the line through the dot, is on the night side: ${hours(june.daylight)} of daylight in its winter.`
@@ -534,7 +534,7 @@ export default class SeasonsExplainer extends Scene {
     const formula = formulaOf({ place: place.name, latitude: place.lat, june });
     await this.step('noon', {
       title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${pct(juneShare)} of overhead sunlight per m²`,
-      line: 'The yellow band shows how one beam spreads across the ground.',
+      line: 'Yellow: one beam, spread across the ground; white: the horizon.',
       caption: `The white line is ${place.name}’s horizon. A lower Sun spreads the same beam over more ground, sharing its light across a larger patch. A higher Sun concentrates that light. Here each square metre receives ${pct(juneShare)} of what it would under an overhead Sun, before the air takes its share. The noon Sun’s height is 90° minus the distance from ${place.name}’s latitude to the declination: ${formula}.`,
     });
     // June's share of overhead sunlight; the December step adds December's.
@@ -792,7 +792,7 @@ export default class SeasonsExplainer extends Scene {
       [quitoJune] = swing('quito');
     await this.step('latitude', {
       title: `Tromsø swings from ${hours(tromsoJune)} to ${hours(tromsoDec)}; Quito stays at ${hours(quitoJune)}`,
-      line: 'Latitude sets how much of each circle is lit.',
+      line: 'Yellow: the lit part of each circle, which latitude sets.',
       caption:
         'Each line follows one place as Earth turns; yellow marks the daylight part. Tromsø’s circle is all day in June and all night in December, while the equator’s is always cut in half. London and Sydney sit between those extremes. These ideal day lengths count the Sun’s centre above a flat horizon, leaving out atmospheric bending and local terrain.',
     });

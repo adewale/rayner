@@ -205,8 +205,8 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
         : `Predict: had ${q('B')} answered first, what would stop ${q('A')} replacing it?`,
       caption: `${ANSWER}. ${
         staleWins
-          ? `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}, outlined in red.`
-          : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined in red; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
+          ? `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}, outlined.`
+          : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
     },
     middle: [stagedStep({

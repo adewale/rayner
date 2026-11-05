@@ -188,8 +188,8 @@ export default class MelodyRhythm extends Scene {
         id: 'bar',
         title: different ? 'In B, no new note starts on the 1 of bar 2' : 'E starts on the 1 in both versions; nothing crosses the bar line',
         line: different
-          ? 'The red outline is G, the note still sounding when bar 2 begins.'
-          : 'The red outline: G ends exactly as bar 2 begins.',
+          ? 'Red outline: G, the note still sounding when bar 2 begins.'
+          : 'Red outline: G, which ends exactly as bar 2 begins.',
         caption: different
           ? `B lengthens the first E, delaying G; shortening the E after G puts D back on beat 2. ${answer} This shift from strong beats to weaker parts is syncopation.`
           : `Here B has A’s starts and lengths. G ends at the bar line and E starts on the 1, so this control has no shifted starts. ${answer} Only that version starts G late enough to hold it across the bar line.`,

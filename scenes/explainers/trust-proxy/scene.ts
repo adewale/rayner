@@ -596,6 +596,16 @@ export default class TrustProxyExplainer extends Scene {
         return `Two panels of the addresses Express reads, counted from Express, for the attacker through the CDN and skipping it. Left, trust proxy ${r.count}: ${tell(r.count, r.byCount)}. Right, the address list: ${tell('list', r.byList)}.`;
       },
     });
+    // The key to the boxes, which the caption reads: trusted, req.ip, not read, and the band a count trusts.
+    await s.legend(
+      [
+        { label: 'trusted', fill: s.good },
+        { label: 'req.ip: thick outline', fill: 'none', stroke: s.palette.ink },
+        { label: 'not read', fill: 'none', stroke: s.soft, dashed: true },
+        { label: 'trusted by position', fill: 'none', stroke: s.emphasis, dashed: true },
+      ],
+      { at: [-7.4, -3.72], size: 0.26, direction: 'row', gap: 0.5, key: 'routes-legend' },
+    );
     s.opening(this.find('routes-positions')!);
 
     // ------------------------------------------------------------------ code
@@ -842,7 +852,7 @@ export default class TrustProxyExplainer extends Scene {
     );
     await this.step('table', {
       title: 'Twelve answers from real Express 5.3.0',
-      line: `Green is the real sender; ${allRight.length ? `only ${allRight.join(' and ')} ${allRight.length === 1 ? 'gets' : 'get'} all three` : 'no setting gets all three'}.`,
+      line: `Green: the real sender; ${allRight.length ? `only ${allRight.join(' and ')} ${allRight.length === 1 ? 'gets' : 'get'} all three` : 'no setting gets all three'}.`,
       caption: `Each row is a setting and each column a request; green marks the real sender’s address. Out of three requests, true gets ${rights[0]} right, 1 gets ${rights[1]}, 2 gets ${rights[2]} and the address list gets ${rights[3]}. This scenario, ${TRUST_LABEL[trustKey]} with ${lowerFirst(REQUEST_LABEL[reqKey])}, is outlined.`,
     });
     await s.clearOverlays();

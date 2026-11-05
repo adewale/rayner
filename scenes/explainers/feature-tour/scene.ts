@@ -796,7 +796,7 @@ export default class FeatureTour extends Scene {
       await s.enter(circle, { describe: 'After: the circle is back at its saved place; a dashed outline marks where it moved to' });
       circle.saveState();
       await this.play(circle.animate.shift([2, 0]));
-      await s.enter(away, new Text('moved here, then restored', { fontSize: 0.3, color: soft }).moveTo([ax + 1, ay - 1.2]), {
+      await s.enter(away, new Text('dashed: moved here, then restored', { fontSize: 0.3, color: soft }).moveTo([ax + 1, ay - 1.2]), {
         describe: 'A dashed outline where the circle moved to before Restore',
       });
       await this.play(new Restore(circle));

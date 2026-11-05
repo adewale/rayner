@@ -179,13 +179,13 @@ export default class Henge extends Scene {
           : `${ANSWER}. This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days.`,
         state: { alignment: m.alignment, backCrossings: m.backCrossings, bearing: m.bearing, street: m.street }, draw: overhead }),
       stagedStep<SkyState>({ id: 'sky', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
-        line: manhattan ? `The red arc rises from the horizon where the street points, ${west(m.bearing)}.` : 'The red arc rises from the horizon where the street points, due west.',
+        line: manhattan ? `Red: the street’s arc, rising from the horizon where the street points, ${west(m.bearing)}.` : 'Red: the street’s arc, rising from the horizon where the street points, due west.',
         caption: `New York’s sky as a dome, seen from outside, west of it. Each day the Sun’s centre goes round a circle about the celestial pole; the bold arc is its day, ending at a flat horizon. In June more of the circle lies above the horizon and it ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. The circle shifts because Earth’s axis is tilted: the north leans toward the Sun in June, away in December.`,
         state: { bearing: m.bearing, days: m.seasons.map(({ declination, azimuth, hourAngle }) => ({ declination, hourAngle, azimuth })) }, draw: dome }),
     ];
     const crossings: StagedStep[] = [
       stagedStep({ id: 'crossings', title: manhattan ? 'Across the street in May, back across it in July' : 'A due-west street aligns near the equinoxes', line: 'Change the street setting: the sky stays the same.',
-        caption: `The same year as a chart: across, March to the following March; up, how far north along the horizon the Sun sets. The red line stays at this street’s bearing. ${manhattan ? 'The sunset direction passes the street before June, turns a little farther north, then returns across it. This gives the May and July alignment seasons.' : 'The same curve crosses due west near March and September, instead of near May and July.'} Changing the street changes the direction we wait for, not Earth’s motion. The calendar spacing is an idealised circular orbit, not a viewing timetable.`,
+        caption: `The same year as a chart: across, March to the following March; up, how far north along the horizon the Sun sets. The line labelled Street stays at this street’s bearing. ${manhattan ? 'The sunset direction passes the street before June, turns a little farther north, then returns across it. This gives the May and July alignment seasons.' : 'The same curve crosses due west near March and September, instead of near May and July.'} Changing the street changes the direction we wait for, not Earth’s motion. The calendar spacing is an idealised circular orbit, not a viewing timetable.`,
         state: { bearing: m.bearing, crossings: m.half, street: m.street, annual: m.annual.map(({ longitude, azimuth }) => ({ longitude, azimuth })) }, draw: annual }),
     ];
     const details: StagedStep[] = [
@@ -247,7 +247,7 @@ export default class Henge extends Scene {
     await this.step('look', {
       kind: 'detail',
       title: 'From the sky to the street: bearing and height in one view', line: 'Stand at the dome’s centre and lower your eyes along the street.',
-      caption: `The calendar names four evenings: half Sun and full Sun in each season. Stand in the middle of the street, at the dome’s centre, and lower your eyes along the street’s red circle to the horizon. From the centre, the street’s circle, the horizon and the buildings’ edges stay straight, as a camera sees them. Left and right say whether the Sun is centred between the buildings; up and down say how much of its disc is above the horizon.`,
+      caption: `The calendar names four evenings: half Sun and full Sun in each season. Stand in the middle of the street, at the dome’s centre, and lower your eyes along the street’s circle, labelled Street, to the horizon. From the centre, the street’s circle, the horizon and the buildings’ edges stay straight, as a camera sees them. Left and right say whether the Sun is centred between the buildings; up and down say how much of its disc is above the horizon.`,
     });
     await s.clear({ runTime: 0.18 });
     this.state = { ...eye(0) } as typeof this.state;

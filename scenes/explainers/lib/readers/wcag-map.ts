@@ -3,6 +3,7 @@ import type { Stage } from '../../../../explain/index.ts';
 import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from '../wcag-map.ts';
 import type { Criterion, Level, Version } from '../wcag-map.ts';
 import { tile, label, table } from '../reader-drawing.ts';
+import { legend } from '../lesson-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
 import { stagedStep } from '../../../../explain/index.ts';
 
@@ -65,15 +66,21 @@ function lists(st: Lists, s: Stage) {
     new Line([x(parsing), below - 0.05], [x(parsing), below - 0.55], { stroke: s.bad, strokeWidth: 0.03 }),
     label('4.1.1 Parsing', x(parsing), below - 0.95, s.bad, 0.6),
   );
-  // The key: each cell's colour names the version that added its criterion.
+  // The key: each cell's colour names the version that added its criterion, and the dashed outline the gap 2.2 left.
   const lead = label('Added in', 0, 0, s.palette.ink, 0.6).moveTo([0, 0], [-1, 0]);
-  const key = new Group(lead);
-  let cursor = lead.width() + 0.6;
-  for (const [text, fill] of [['2.0', colour['2.0']], ['2.1', colour['2.1']], ['2.2', colour['2.2']], ['Removed', s.bad]] as const) {
-    const words = label(text, 0, 0, s.palette.ink, 0.6).moveTo([cursor + 0.75, 0], [-1, 0]);
-    key.add(new Rectangle({ width: 0.5, height: 0.5, fill, stroke: 'none' }).moveTo([cursor + 0.25, 0]), words);
-    cursor += 0.75 + words.width() + 0.6;
-  }
+  const swatches = legend(
+    s,
+    [
+      { label: '2.0', fill: colour['2.0'] },
+      { label: '2.1', fill: colour['2.1'] },
+      { label: '2.2', fill: colour['2.2'] },
+      { label: 'Removed', fill: s.bad },
+      { label: 'Gap', fill: 'none', stroke: s.bad, dashed: true },
+    ],
+    { size: 0.6, direction: 'row', gap: 0.42, key: 'versions-legend' },
+  );
+  swatches.moveTo([lead.width() + 0.42, 0], [-1, 0]);
+  const key = new Group(lead, swatches);
   key.key = 'versions-key';
   g.add(key.moveTo([0, -3.75]));
   return g;

@@ -2,11 +2,13 @@ import { Scene, Group, Rectangle, Text, lerpColor } from '../../../src/index.ts'
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bloomStory, locations, makeFilter, membership, saturation, TAKEN } from '../lib/bloom-filter.ts';
-import { label, table, stat } from '../lib/lesson-drawing.ts';
+import { label, table, stat, legend } from '../lib/lesson-drawing.ts';
 import { listed, numberWord, percent } from '../lib/format.ts';
 
 /** Each taken name's colour: text on white at 4.5:1 or better, and a pale fill behind a bit it set. */
 const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#57606a' };
+/** Each owner's fill in words, as the captions and the legend say it. */
+const OWNER_NAME: Record<string, string> = { cat: 'purple', dog: 'brown', more: 'grey' };
 const PAPER = '#ffffff';
 const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
 const thousands = (n: number) => n.toLocaleString('en-US');
@@ -97,36 +99,26 @@ export default class BloomFilter extends Scene {
     const skipped = m.queries.filter((q) => !q.maybe).length,
       wasted = m.queries.filter((q) => q.maybe && !q.stored).length;
     /**
-     * The taken names over the row, each after a swatch of the fill it gives a bit and in its colour, with the bits
-     * it set: the key to the fills, on the stage. `stored`: the names in the filter.
+     * The taken names over the row, as a legend: each name after a swatch of the fill it gives a bit, with the bits
+     * it set. The legend says each fill's colour too ("purple fill, cat (1, 6, 15)"), the word the captions use.
+     * `stored`: the names in the filter.
      */
     const takenLabel = (s: Stage, step: number, stored: readonly string[]) => {
       const SIZE = 0.66;
-      const text = (words: string, color: string) => new Text(words, { fontSize: SIZE, color });
-      /** A name's swatch, the size and fill of a bit's share, with its name beside it. */
-      const keyed = (owner: string, words: string) => {
-        const swatch = new Rectangle({ width: 0.5, height: 0.5, fill: fillOf(owner), fillOpacity: 1, stroke: OWNER[owner]!, strokeWidth: 0.02 }),
-          name = text(words, OWNER[owner]!);
-        swatch.moveTo([0, 0]);
-        name.moveTo([0.25 + 0.14, 0], [-1, 0]);
-        const g = new Group(swatch, name);
-        g.key = `bloom-key-${owner}`;
-        return g;
-      };
-      const parts: (Text | Group)[] =
-        !stored.length
-          ? [text('Taken: cat, dog. Not yet in the filter', s.palette.ink)]
-          : step === FULL
-            ? [text('Taken:', s.palette.ink), keyed('cat', 'cat'), keyed('dog', 'dog'), keyed('more', `${stored.length - 2} more`)]
-            : [text('Taken:', s.palette.ink), ...stored.map((name) => keyed(name, `${name} (${locations(name, size).join(', ')})`))];
+      const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.palette.ink });
+      const entry = (owner: string, label: string) => ({ label, fill: fillOf(owner), stroke: OWNER[owner]!, name: OWNER_NAME[owner]! });
+      const items = !stored.length
+        ? []
+        : step === FULL
+          ? [entry('cat', 'cat'), entry('dog', 'dog'), entry('more', `${stored.length - 2} more`)]
+          : stored.map((name) => entry(name, `${name} (${locations(name, size).join(', ')})`));
+      const key = items.length ? legend(s, items, { size: SIZE, direction: 'row', gap: 0.36, key: 'bloom-key' }) : null;
+      // The lead and the legend in one centred row over the bits.
       const gap = 0.36,
-        width = parts.reduce((w, t) => w + t.width(), gap * (parts.length - 1));
-      let x = -width / 2;
-      for (const t of parts) {
-        t.moveTo([x, 2.7], [-1, 0]);
-        x += t.width() + gap;
-      }
-      const g = new Group(...parts);
+        width = lead.width() + (key ? gap + key.width() : 0);
+      lead.moveTo([-width / 2, 2.7], [-1, 0]);
+      key?.moveTo([-width / 2 + lead.width() + gap, 2.7], [-1, 0]);
+      const g = new Group(lead, ...(key ? [key] : []));
       g.key = 'bloom-taken';
       return g;
     };

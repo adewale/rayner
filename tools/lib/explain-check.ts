@@ -1,5 +1,7 @@
 import { scriptReport } from '../../explain/script.ts';
 import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
+import { captionLookProblems } from '../../explain/caption-looks.ts';
+import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
 import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stage.ts';
@@ -367,6 +369,35 @@ export class RestingSink implements Sink {
 }
 
 /**
+ * At each resting frame, the colours and line styles the step's caption and line name that no word
+ * on the stage names (explain/caption-looks.ts). The stage's words are its visible text, diagram
+ * labels and the words of every part that describes itself, a legend's swatches included; not a
+ * `describe`, which only a screen reader hears.
+ */
+export class LookWordsSink implements Sink {
+  readonly completed: ReadonlySet<number>;
+  readonly problems: string[] = [];
+  constructor(completed: ReadonlySet<number>) { this.completed = completed; }
+  async frame(scene: Scene): Promise<void> {
+    const step = scene.currentStep;
+    if (!this.completed.has(scene.frameCount) || !step) return;
+    const words: string[] = [];
+    const heading = new Set(scene.mobjects.filter(isHeading).flatMap((m) => m.family()));
+    for (const m of scene.familyMembers()) {
+      if (heading.has(m) || (m.style.opacity ?? 1) < 0.5) continue;
+      if (describesItself(m)) {
+        const seen = m[seenSource]();
+        words.push(seen.what, ...seen.parts.map((p) => p.name));
+      }
+      const label = labelOf(m);
+      if (label) words.push(label.text);
+    }
+    const meta = step.meta as { title?: string; line?: string; caption?: string };
+    this.problems.push(...captionLookProblems(meta, [meta.title ?? '', meta.line ?? ''], words).map((p) => `${step.name}: ${p}`));
+  }
+}
+
+/**
  * Every label's largest readable size: at 1280 px in any frame, and on the phone in each
  * resting frame's close-ups. Native labels are kept by object, so a small label is not
  * excused by a larger one with the same words; imported labels by their keyed owner.
@@ -674,6 +705,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       stageScale(PHONE_W, PHONE_H).s,
     );
     const restingSink = new RestingSink(completedFrames);
+    const looks = new LookWordsSink(completedFrames);
     // The caption hold: the player stops where it begins and the film holds the picture there, so
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
@@ -687,7 +719,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // One full run feeds every check, each a sink of its own, in this order.
     const views = new ViewSink();
     const keys = new KeySink();
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys])).run();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys, looks])).run();
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -751,6 +783,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `Each step must change the picture; these end exactly as the step before ${where}`,
     );
     assert.deepEqual([...new Set(collisions)], [], `Resting frames have colliding or cut-off text ${where}`);
+    // A colour or line style the words name must be named on the stage too, so the picture teaches with its caption hidden.
+    const unnamed = [...new Set(looks.problems)];
+    assert.deepEqual(
+      unnamed,
+      [],
+      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend, s.legend)`,
+    );
     const staticSmall = [...staticLabels.values()]
       .filter((label) => label.px < MIN_PX)
       .map(({ text, px }) => ({ text, px }));

@@ -346,7 +346,7 @@ export default class CertRenewalExplainer extends Scene {
         fixedHere.due < 0
           ? `So it is due from issue, and the first run, at hour ${renewsHere}, renews it.`
           : `The rule counts 30 days back from expiry: ${percent(fixedHere.share)} of a ${adjective} life.`,
-      caption: `Each bar is one certificate, from issue to expiry, drawn to one time scale and lined up at expiry. The highlighted line is the 30-day test: renew once expiry is less than 30 days away. The red tick marks where that test starts to pass: 30 days before the right-hand end of each bar. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
+      caption: `Each bar is one certificate, from issue to expiry, drawn to one time scale and lined up at expiry. The highlighted line is the 30-day test: renew once expiry is less than 30 days away. The tick at the start of each 30-day bracket marks where that test starts to pass: 30 days before the right-hand end of each bar. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
         key === '90d'
           ? 'A ninety-day lifetime is what the 30-day margin was written for.'
           : fixedHere.due < 0
@@ -562,11 +562,11 @@ export default class CertRenewalExplainer extends Scene {
       title: `${life.label} under ${RULES[rule].short}: ${count(rule)} renewals in ${span}`,
       line:
         limitedGaps && mine.firstRefused != null
-          ? `Every run renews until hour ${mine.firstRefused}; then most are refused (red).`
+          ? `Every run renews until hour ${mine.firstRefused}; then most are refused.`
           : `Each certificate is ${dueWords(rule)}.`,
-      caption: `Each blue tick is a renewal, over ${span} from a first certificate on 1 March 2028. Under ${RULES[rule].short} a certificate is ${dueWords(rule)}, ${
+      caption: `Each tick after the first is a renewal, counted at the right, over ${span} from a first certificate on 1 March 2028. Under ${RULES[rule].short} a certificate is ${dueWords(rule)}, ${
         limitedGaps && mine.firstRefused != null
-          ? `so even a fresh replacement is already due under the same rule. Every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (red). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
+          ? `so even a fresh replacement is already due under the same rule. Every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (the short marks under the strip, counted as refused). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
           : `and ${replacedBy(rule)} replaces it.`
       }`,
     });
@@ -594,7 +594,7 @@ export default class CertRenewalExplainer extends Scene {
       compare = ratio === 2 ? 'twice as often' : `${ratio.toFixed(1)} times as often`;
     const otherOutcome =
       theirs.firstRefused != null
-        ? `every run renews until, at hour ${theirs.firstRefused}, Let’s Encrypt starts refusing most runs (red)`
+        ? `every run renews until, at hour ${theirs.firstRefused}, Let’s Encrypt starts refusing most runs (the short marks under the strip, counted as refused)`
         : `${replacedBy(other)} replaces it`;
     await this.step('other-rule', {
       title: same

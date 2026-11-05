@@ -756,7 +756,7 @@ export default class PeriodicGroupsExplainer extends Scene {
             cl: 'Chlorine has 7 electrons after neon yet sits in group 17: 3d (n + l = 5) waits until after 4s, and shell 2 has no d at all, so rows 2 and 3 have no d run. Rows 1 and 2 hold 10 electrons, so from aluminium to argon the atomic number equals the group.',
             fe: 'Iron’s 4s² comes before its 3d⁶ because n + l is 4 for 4s and 5 for 3d.',
             cu: 'Copper is one of the 20 exceptions: the rule gives 4s² 3d⁹ and NIST lists 3d¹⁰ 4s¹. Both put 11 electrons after argon, so the group is 11 either way.',
-            he: 'Helium’s run puts it in column 2, the dashed cell, but the table moves it over neon: 1s² completes shell 1, which has no p subshell, as 2s² 2p⁶ completes neon’s shell 2.',
+            he: 'Helium’s run puts it in column 2, the cell marked He?, but the table moves it over neon: 1s² completes shell 1, which has no p subshell, as 2s² 2p⁶ completes neon’s shell 2.',
           } satisfies Record<Choice, string>
         )[choice]
       }`,

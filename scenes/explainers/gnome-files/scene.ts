@@ -317,12 +317,12 @@ export default class GnomeFilesExplainer extends Scene {
       shown = j.sections.flatMap((x) => x.tasks.map((t) => t.n)),
       quit = group.filter((n) => colourOf(n, p) === 'black'),
       calm = shown.filter((n) => !quit.includes(n) && scoreOf(n, p)! >= 4);
-    const gray = shown.length < group.length ? ` ${p}’s Select All is gray, outside the study’s scope: no column.` : '';
+    const gray = shown.length < group.length ? ` ${p}’s Select All is outside the study’s scope, the report’s gray: no column.` : '';
     await this.step('journey', {
       kind: 'detail',
       title: `${p}’s first ${['', 'one', 'two', 'three', 'four'][group.length] ?? group.length} tasks: gave up on ${and(quit.map(said))}`,
       line: 'Each marked task is a give-up, scored 1, the lowest.',
-      caption: `One column per task, in session order; the higher the face, the easier it went. Red marks a give-up: ${quit.map((n) => WHY[n]).join('; ')}.${
+      caption: `One column per task, in session order; the higher the face, the easier it went. Each marked task is a give-up: ${quit.map((n) => WHY[n]).join('; ')}.${
         calm.length ? ` The same person had no or very little difficulty with ${and(calm.map(said))}.` : ''
       }${gray}`,
     });
