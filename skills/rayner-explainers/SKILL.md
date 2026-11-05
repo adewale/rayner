@@ -45,9 +45,13 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | The explainer… | Checked by |
 | --- | --- |
 | Draws every value from a model, tested against the real source | A fidelity test per scenario and step ([Test the model](#test-the-model)) |
-| Shows pictures that follow the model's state | `rayner check` redraws every `s.steps` picture and every state a `Machine` reaches; `assertViewFollowsState` compares a `view` with the trace at every step |
+| Shows pictures that follow the model's state | `rayner check` compares every `view` with its draw of the state at the end of every step, redraws every `s.steps` picture from the state it recorded, and draws every state a `Machine` reaches. A Mermaid diagram is checked against its pinned snapshot instead, and a hand-placed callout only by your tests |
+| Names each part once: a key belongs to one mobject on the stage | `rayner check` fails a key two mobjects hold at the end of a step. Two copies of one diagram need their own keys |
 | Motivates the question early, starts from a concrete case, earns each name and builds to one aha | Reading it against [Script first](#script-first) and the [rubric](../../docs/EXPLAINER-RUBRIC.md) |
-| Names its answer within the first few steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
+| Names its answer within the first third of the steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
+| Spends every step on a new inference: no step that an earlier one already made, and no walkthrough that derives an answer an opening step already stated | Reading it against the rubric's economy criterion. When you add an opening that states the answer, delete or repurpose the later step that derives it |
+| Fits each step on a phone: the point in the caption's first sentence, about 80 words at most, and `meta.answer` about 20 | Reading it; `rayner describe` prints every caption to count |
+| Ends on the practical boundary or the strongest comparison | Reading it. A list of what the model leaves out, or a second topic, goes in `notes.md` or a detail step |
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` for desktop and conservative phone estimates; `rayner review` for actual served geometry |
 | Works as served: every step from a fresh link, every scenario, phone and desktop | `rayner review` |
@@ -62,7 +66,8 @@ Checks establish deterministic, readable pictures; they cannot establish that a 
 Readers learn from what they do more than from what they watch. In a blind comparison of three Rayner explainers with pages the same models wrote without Rayner, from one script, the reviewer preferred the plain page in all three pairs, twice over, mainly because those let the reader commit to predictions and drive a live machine ([the benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md)). A [`Machine`](https://github.com/adewale/rayner/blob/main/docs/MACHINES.md) replays events through the model, has every reachable state checked, and at the step where it last played gives the reader a button per event, so the reader drives the model themselves. Where the subject is not driven by events, use what else exists:
 
 - **Ask, then answer.** A step asks a check question and the next step answers it. The rail hides a step's title until the reader reaches it, so "Answer: …" is safe on the answering step; keep the answer out of the asking step itself.
-- **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion.
+- **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion. A setting whose other option only changes the numbers doubles the scenarios and teaches nothing: drop it.
+- **Questions the page can answer.** Where a check question is about events (merge again, delete then look up), a live machine lets the reader find the answer by pressing.
 - **The check questions at the end**, from `meta.checks`.
 
 ## Which way to step
@@ -120,6 +125,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | Records, schedules or shares | `gtfs` (ER, gantt), `pg-page` (pie), `cert-renewal` (timeline) | Diagram families beyond flowcharts |
 | A subject in another language | `quotient-familial` | `meta.lang: 'fr'`; descriptions in French |
 | A drawing made by hand, values said on it | `pen-and-pencil` | `s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards |
+| A claim about viewpoint or projection | `great-circle` | `seenFrom` and a turned model in the drawing kit: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays |
 | A requested face in text and diagrams | `font-metrics` | EB Garamond, real cuts and `lettering: 'natural'` diagram measurements |
 | Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, an unchanged-timing control; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
 | Explicit panel placement and field order | `layout-direction` | RTL `start`/`end` placement, a card's LTR override and updates that keep their columns |
@@ -130,7 +136,7 @@ A state machine, statechart or graph is usually best as a Mermaid `stateDiagram-
 
 The scene asks the model; it never states an answer it did not get from one. This is the check that matters most, and the one no other tool gives you. These steps apply when you write or change a model; a change to layout, captions or publishing needs none of them.
 
-1. Put the model in its own module, with no drawing in it. In this repository, a model of an outside tool or format gets `scenes/explainers/lib/<id>.ts`; the small models behind `ring-buffer`, `state-machine`, `token-bucket` and `seasons` share `scenes/explainers/lib/models.ts`.
+1. Put the model in its own module, with no drawing in it. In this repository, a model of an outside tool or format gets `scenes/explainers/lib/<id>.ts`; the small models behind `ring-buffer`, `state-machine`, `token-bucket` and `seasons` share `scenes/explainers/lib/models.ts`. An explainer that reuses another's model imports its inputs too, never a copy of them, so the two cannot drift; and its notes claim no reuse the code does not do.
 2. Check the model against its source: run the real program or library, or use its published test vectors, and pin the version you ran in the `meta.sources` links (`isdigit` links CPython at tag `v3.15.1`). If you cannot run the source, pin exactly what you relied on instead (the tagged source file, the RFC section or the published test vectors) and say in your report that you read it but did not run it. Never leave a placeholder where a pin belongs.
 3. At each step, record the model's values on `this.state` (`isdigit` sets `this.state.outcome = run.outcome` from the model's run; a step in `s.steps` records its `state`). What is shown that is not the model, such as which picture a phase shows, goes on `this.shown`.
 4. Add a test that runs every scenario and asserts each step's state equals the model. In this repository, a model of an outside tool gets `test/lib/fidelity/<id>.ts`, using `assertStepState(trace, step, { … })`, called from `test/explain-fidelity.test.ts`; a model in `lib/models.ts` is tested in `test/explain-models.test.ts`, and a picture built with `view` adds `assertViewFollowsState`. Make the test fail first: break the model and watch it go red.
