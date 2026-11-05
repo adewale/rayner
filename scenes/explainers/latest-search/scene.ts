@@ -1,4 +1,4 @@
-import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view } from '../../../src/index.ts';
+import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view, rushInto } from '../../../src/index.ts';
 import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { story, ANSWER, raceTimeline, raceTracks, raceWords, tickX, trackY } from '../lib/readers/latest-search.ts';
@@ -78,7 +78,8 @@ export default class LatestSearchExplainer extends Scene {
         const key = `response:${track.key}`;
         const response = c.insert(key, dot);
         const top = dot.copy().moveTo([x, trackY(i) + 0.45]);
-        arrive.push(new Succession([new Transform(response, dot.copy(), { runTime: 0.01 }), new Transform(response, top, { runTime: 0.5 })]));
+        // rushInto: the response gathers speed down the line and hits the page's edge at full speed, where it is published or dropped.
+        arrive.push(new Succession([new Transform(response, dot.copy(), { runTime: 0.01 }), new Transform(response, top, { runTime: 0.5, rateFunc: rushInto })]));
         const published = track.page.length > was[i]!.page.length;
         if (published) {
           // Published: the page's last span ends here, and the new span takes the response's place.

@@ -18,6 +18,8 @@ import {
   StateReadout,
   Circle,
   Cross,
+  rushFrom,
+  thereAndBack,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation as Animation, Mobject, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
@@ -500,7 +502,8 @@ export default class TokenBucketExplainer extends Scene {
             answer.push(
               new Succession([
                 new Transform(token, coin([SHELL_X, top - 0.14]), { runTime: 0.18 }),
-                new Transform(token, coin([chipX(i), CHIP_Y]), { runTime: 0.27 }),
+                // rushFrom: the token is sent off, leaving the bucket at full speed and easing into the request.
+                new Transform(token, coin([chipX(i), CHIP_Y]), { runTime: 0.27, rateFunc: rushFrom }),
                 g.leave('bucket:token', { runTime: 0.15 }),
               ]),
             );
@@ -508,7 +511,9 @@ export default class TokenBucketExplainer extends Scene {
             const ring = (opacity: number) =>
               new Circle({ radius: 0.13, fill: 'none', stroke: s.bad, strokeWidth: 0.035, dashArray: '0.06 0.05', opacity }).moveTo([SHELL_X, levelY(Math.max(call.found, 0)) + 0.18]);
             const missing = g.insert('bucket:missing', ring(0));
-            answer.push(new Succession([new Transform(missing, ring(1), { runTime: 0.3 }), g.leave('bucket:missing', { runTime: 0.3 })]));
+            // thereAndBack: the request looks for a token where one would be and comes back empty: the empty ring
+            // shows and goes in one there-and-back, and is gone by the end of the answer.
+            answer.push(new Succession([new Transform(missing, ring(1), { runTime: 0.58, rateFunc: thereAndBack }), g.leave('bucket:missing', { runTime: 0.02 })]));
           }
           return new Succession([
             refill,
