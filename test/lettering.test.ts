@@ -36,13 +36,14 @@ const embedded = { sans: shaperFor('sans'), mono: shaperFor('mono') };
 const built = (project: Project, name: string) => buildExplainer(project, join(folder, name + '.html'));
 
 // Catalog policy is metadata; actual page/receipt assertions run in demos:build.
-test('only the requested-face catalog example opts into lettering', async () => {
+test('only the requested-face catalog example and the feature tour’s maths opt into lettering', async () => {
   for (const { id } of EXPLAINERS) {
     const { Scene } = await loadScene(join(ROOT, 'scenes/explainers', id));
     if (id === 'font-metrics') {
       assert.equal(Scene.meta?.lettering?.faces?.sans, 'eb-garamond');
       assert.deepEqual(Scene.meta?.lettering?.styles, ['bold', 'italic']);
-    } else assert.equal(Scene.meta?.lettering, undefined, id);
+    } else if (id === 'feature-tour') assert.deepEqual(Scene.meta?.lettering, { math: true }, 'the tour’s maths scenario asks for maths and nothing else');
+    else assert.equal(Scene.meta?.lettering, undefined, id);
   }
 });
 
