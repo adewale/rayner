@@ -1,5 +1,6 @@
-import { table } from '../lib/reader-drawing.ts';
-import { Scene, Rectangle, Text, Group, Circle, Cross, FadeOut, Line, Arrow } from '../../../src/index.ts';
+import { table, keyed } from '../lib/lesson-drawing.ts';
+import { staged } from '../lib/staged.ts';
+import { Scene, Rectangle, Text, Group, Circle, Cross, Line, Arrow, view } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass } from '../../../explain/index.ts';
@@ -55,6 +56,18 @@ function runAt(rate: number) {
     return { ok, found: bucket.tokens + (ok ? 1 : 0) };
   });
 }
+/** One rate's ten requests as a step records them: each answer (200 or 429), and the tokens R10 finds. */
+interface RateRun { rate: number; offered: boolean; responses: number[]; found: number }
+/** The opening steps' state: the offered rates' answers, each rate's run, and the rate the page never built. */
+interface SentenceState { offered: { rate: number; r10: number }[]; runs: RateRun[]; pending: { rate: number } }
+/** The token bucket's rate setting, each scenario it makes with R10's answer there, and where two links land. */
+interface Choice {
+  setting: typeof RATE_SETTING;
+  scenarios: { rate: string; r10: number; default: boolean }[];
+  links: { asked: string; opens: string; refused?: string }[];
+}
+/** The 'fork' step on the page: seconds moving, seconds still, and the words its caption holds. */
+interface Timing { motion: number; held: number; words: number }
 const perSecond = (r: number) => `${r} token${r === 1 ? '' : 's'} a second`;
 
 /** The script's one-sentence answer (meta.answer), which the untested step states. */
@@ -134,6 +147,13 @@ export default class ForkExplainer extends Scene {
     // The second and third steps say R10 gets 200 at every offered rate and 429 at the unbuilt one.
     if (!RATES.every((r) => r10(r).ok) || r10(UNBUILT).ok)
       throw new Error('R10 must be accepted at every offered rate and refused at the unbuilt one');
+    /** One rate's ten requests as the state records them: each answer, and the balance R10 finds. */
+    const runOf = (rate: number, offered: boolean): RateRun => ({
+      rate,
+      offered,
+      responses: runs.get(rate)!.map((c) => (c.ok ? 200 : 429)),
+      found: Number(r10(rate).found.toFixed(2)),
+    });
 
     // 1. A sentence that is true of every scenario the page offers.
     const pitch = 0.82,
@@ -141,37 +161,34 @@ export default class ForkExplainer extends Scene {
       labelX = -7.4,
       findsX = x0 + pitch * (TIMES.length - 1) + 0.75;
     const rowY = (i: number) => 1.15 - i * 1.05;
-    const header = new Group();
-    TIMES.forEach((_, i) =>
-      header.add(new Text(`R${i + 1}`, { fontSize: 0.26, color: ink }).moveTo([x0 + i * pitch, 2.05])),
-    );
-    header.add(new Text('Request', { fontSize: 0.26, color: s.soft, anchor: 'start' }).moveTo([labelX, 2.05], [-1, 0]));
-    const row = (r: number, i: number, built: boolean) => {
+    /** One rate's row of answers, drawn from its run: a circle for 200, a cross for 429, and what R10 finds. */
+    const row = (run: RateRun, i: number) => {
       const g = new Group();
       const y = rowY(i);
       g.add(
-        new Text(built ? perSecond(r) : `${perSecond(r)}, not offered`, {
+        new Text(run.offered ? perSecond(run.rate) : `${perSecond(run.rate)}, not offered`, {
           fontSize: 0.26,
-          color: built ? ink : s.bad,
+          color: run.offered ? ink : s.bad,
           anchor: 'start',
         }).moveTo([labelX, y], [-1, 0]),
       );
-      runs.get(r)!.forEach((call, j) => {
-        const circle = new Circle({ radius: 0.2, stroke: call.ok ? s.good : s.bad, strokeWidth: 0.05 }).moveTo([x0 + j * pitch, y]);
-        const mark: Mobject = call.ok ? circle : new Cross(circle, { stroke: s.bad, strokeWidth: 0.05 });
-        mark.key = `call:${r}:R${j + 1}`;
+      run.responses.forEach((code, j) => {
+        const ok = code === 200;
+        const circle = new Circle({ radius: 0.2, stroke: ok ? s.good : s.bad, strokeWidth: 0.05 }).moveTo([x0 + j * pitch, y]);
+        const mark: Mobject = ok ? circle : new Cross(circle, { stroke: s.bad, strokeWidth: 0.05 });
+        mark.key = `call:${run.rate}:R${j + 1}`;
         g.add(mark);
       });
+      const accepted = run.responses.at(-1) === 200;
       g.add(
-        new Text(`R10 finds ${r10(r).found.toFixed(1)}`, { fontSize: 0.24, font: 'mono', color: r10(r).ok ? ink : s.bad, anchor: 'start' }).moveTo(
+        new Text(`R10 finds ${run.found.toFixed(1)}`, { fontSize: 0.24, font: 'mono', color: accepted ? ink : s.bad, anchor: 'start' }).moveTo(
           [findsX, y],
           [-1, 0],
         ),
       );
-      g.key = `rate:${r}`;
+      g.key = `rate:${run.rate}`;
       return g;
     };
-    const key = new Text('circle: 200, accepted · cross: 429, refused · a request needs 1 token', { fontSize: 0.22, color: s.soft }).moveTo([0, -3.2]);
     const column = (rows: number) => {
       const x = x0 + pitch * (TIMES.length - 1);
       return new Rectangle({ width: 0.62, height: rows * 1.05 + 0.5, stroke: s.emphasis, strokeWidth: 0.04, cornerRadius: 0.1 }).moveTo([
@@ -179,22 +196,63 @@ export default class ForkExplainer extends Scene {
         2.05 - (rows * 1.05 + 0.5) / 2 + 0.25,
       ]);
     };
+    const sentenceState = () => this.state as unknown as SentenceState;
     await this.step('sentence', {
       title: '“R10 is accepted at every rate”',
       line: `At ${perSecond(UNBUILT)}, a rate the page doesn’t offer, is it still true?`,
       caption: `The token-bucket page offers ${RATES.join(', ')} tokens a second, the only rates its reader can choose. R10 succeeds in all three, so its caption says “R10 is accepted at every rate”. Would that sentence survive a reader typing ${UNBUILT}?`,
     });
     await s.clear();
-    const rows = RATES.map((r, i) => row(r, i, true));
-    const pending = new Group(
-      new Text(`${perSecond(UNBUILT)}, not offered`, { fontSize: 0.26, color: s.soft, anchor: 'start' }).moveTo([labelX, rowY(3) - 0.25], [-1, 0]),
-      new Text('?', { fontSize: 0.5, color: s.soft, weight: 'bold' }).moveTo([x0 + pitch * (TIMES.length - 1), rowY(3) - 0.25]),
-    );
-    await s.enter(header, ...rows, column(3), key, {
-      describe: `The token bucket’s ten requests at ${RATES.map(perSecond).join(', ')}: ${RATES.map((r) => `${runs.get(r)!.filter((c) => !c.ok).length} refused`).join(', ')}; R10, outlined, is accepted at each, finding ${RATES.map((r) => r10(r).found.toFixed(1)).join(', ')} tokens.`,
-    });
-    await s.enter(pending, { describe: `Below, a row for ${perSecond(UNBUILT)} with a question mark where R10’s answer goes.` });
     this.state.offered = RATES.map((r) => ({ rate: r, r10: r10(r).ok ? 200 : 429 }));
+    this.state.runs = RATES.map((r) => runOf(r, true));
+    this.state.pending = { rate: UNBUILT };
+    // The offered rates' rows, R10's column outlined, with the header and the key: a picture of the runs the state records.
+    const answers = view(
+      this,
+      (st) => {
+        const offered = (st as unknown as SentenceState).runs.filter((r) => r.offered);
+        const header = new Group();
+        offered[0]!.responses.forEach((_, i) =>
+          header.add(new Text(`R${i + 1}`, { fontSize: 0.26, color: ink }).moveTo([x0 + i * pitch, 2.05])),
+        );
+        header.add(new Text('Request', { fontSize: 0.26, color: s.soft, anchor: 'start' }).moveTo([labelX, 2.05], [-1, 0]));
+        const key = new Text('circle: 200, accepted · cross: 429, refused · a request needs 1 token', { fontSize: 0.22, color: s.soft }).moveTo([0, -3.2]);
+        return new Group(keyed(header, 'fork-header'), ...offered.map((r, i) => row(r, i)), keyed(column(offered.length), 'fork-r10'), keyed(key, 'fork-key'));
+      },
+      { place: false },
+    );
+    // Under them, the rate the page never built: a question mark until its run is in the state, then its row.
+    const unbuiltRow = view(
+      this,
+      (st) => {
+        const { runs: all, pending } = st as unknown as SentenceState;
+        const slow = all.find((r) => !r.offered);
+        const offered = all.filter((r) => r.offered).length;
+        if (slow) return row(slow, offered).shift([0, -0.25]);
+        return keyed(
+          new Group(
+            new Text(`${perSecond(pending.rate)}, not offered`, { fontSize: 0.26, color: s.soft, anchor: 'start' }).moveTo([labelX, rowY(offered) - 0.25], [-1, 0]),
+            new Text('?', { fontSize: 0.5, color: s.soft, weight: 'bold' }).moveTo([x0 + pitch * (TIMES.length - 1), rowY(offered) - 0.25]),
+          ),
+          'fork-pending',
+        );
+      },
+      { place: false },
+    );
+    await s.enter(answers, {
+      describe: () => {
+        const offered = sentenceState().runs.filter((r) => r.offered);
+        return `The token bucket’s ten requests at ${offered.map((r) => perSecond(r.rate)).join(', ')}: ${offered.map((r) => `${r.responses.filter((c) => c !== 200).length} refused`).join(', ')}; R10, outlined, is accepted at each, finding ${offered.map((r) => r.found.toFixed(1)).join(', ')} tokens.`;
+      },
+    });
+    await s.enter(unbuiltRow, {
+      describe: () => {
+        const slow = sentenceState().runs.find((r) => !r.offered);
+        return slow
+          ? `Added below the three offered rates: the ten requests at ${perSecond(slow.rate)}, not offered, where only ${slow.responses.filter((c) => c === 200).length} are accepted and R10 finds ${slow.found.toFixed(1)} tokens and is refused.`
+          : `Below, a row for ${perSecond(sentenceState().pending.rate)} with a question mark where R10’s answer goes.`;
+      },
+    });
 
     // 2. The answer, from the same model at a rate the page never built.
     const slow = r10(UNBUILT);
@@ -203,14 +261,10 @@ export default class ForkExplainer extends Scene {
       line: 'The sentence holds at every rate the page built and fails at one it never built.',
       caption: `At ${perSecond(UNBUILT)}, R10 still needs a whole token. After five seconds only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The caption described the offered inputs, not arbitrary rates. ${ANSWER}.`,
     });
-    const slowRow = row(UNBUILT, 3, false);
-    slowRow.shift([0, -0.25]);
-    await this.play(new FadeOut(pending, { runTime: 0.3 }));
-    await s.enter(slowRow, {
-      shift: [0, -0.2],
-      describe: `Added below the three offered rates: the ten requests at ${perSecond(UNBUILT)}, not offered, where only ${runs.get(UNBUILT)!.filter((c) => c.ok).length} are accepted and R10 finds ${slow.found.toFixed(1)} tokens and is refused.`,
-    });
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
+    this.state.runs = [...sentenceState().runs, runOf(UNBUILT, false)];
+    // The question mark goes and the row of answers comes in under the offered rates.
+    await this.play(unbuiltRow.sync({ match: 'key', runTime: 0.6 }));
 
     // 3. Why no reader meets that row: a link picks one of the scenarios the build made, or gets the default.
     const resolver = { settings: [RATE_SETTING] } as unknown as ExplainerClass;
@@ -225,19 +279,21 @@ export default class ForkExplainer extends Scene {
     const fallback = links[1]!;
     const byDefault = perSecond(Number(RATE_SETTING.default));
     if (!fallback.refused || links[0]!.opens !== '4') throw new Error('A listed rate must open its scenario and 0.1 must be refused');
-    await this.step('choice', {
-      title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
-      line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
-      caption: `The rate setting lists ${RATES.length} options, so the build ran the scene once for each and rayner check tested each of the ${RATES.length} scenarios; R10 is accepted in all three. A link picks a scenario by naming its option: ?rate=4 opens the 4-token scenario. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default scenario, ${byDefault}. The ${UNBUILT} row from the last step exists in this explainer, not on the token-bucket page.`,
-    });
-    await s.clear();
-    {
+    const choice: Choice = {
+      setting: RATE_SETTING,
+      scenarios: RATE_SETTING.options.map((o) => ({ rate: o.value, r10: r10(Number(o.value)).ok ? 200 : 429, default: o.value === RATE_SETTING.default })),
+      links,
+    };
+    // The scenarios the setting makes, the slot a 0.1 scenario would fill, and where each link lands: all from the choice the state records.
+    const choicePicture = (st: { choice: Choice }) => {
+      const { setting, scenarios: built, links: asked } = st.choice;
+      const [listed, refusedLink] = asked as [Choice['links'][number], Choice['links'][number]];
       const W = 3.1,
         H = 0.68,
         pitch = 0.8,
         top = 1.3;
       const y = (i: number) => top - i * pitch;
-      const slotY = y(RATES.length);
+      const slotY = y(built.length);
       const left = -W / 2,
         right = W / 2;
       const two = (a: string, b: string, at: number, color: string, colorB = s.soft) =>
@@ -246,23 +302,21 @@ export default class ForkExplainer extends Scene {
           new Text(b, { fontSize: 0.25, color: colorB, anchor: 'start' }).moveTo([left + 0.18, at - 0.16], [-1, 0]),
         );
       const scenarios = new Group();
-      RATE_SETTING.options.forEach((o, i) => {
-        const r = Number(o.value),
-          isDefault = o.value === RATE_SETTING.default;
+      built.forEach((o, i) => {
         scenarios.add(
-          new Rectangle({ width: W, height: H, stroke: isDefault ? s.emphasis : ink, strokeWidth: isDefault ? 0.05 : 0.025, cornerRadius: 0.08 }).moveTo([0, y(i)]),
-          two(perSecond(r), `R10: ${r10(r).ok ? 200 : 429}, checked`, y(i), ink, r10(r).ok ? s.good : s.bad),
+          new Rectangle({ width: W, height: H, stroke: o.default ? s.emphasis : ink, strokeWidth: o.default ? 0.05 : 0.025, cornerRadius: 0.08 }).moveTo([0, y(i)]),
+          two(perSecond(Number(o.rate)), `R10: ${o.r10}, checked`, y(i), ink, o.r10 === 200 ? s.good : s.bad),
         );
       });
       // Where a 0.1 scenario would sit: the build made none.
       const slot = new Rectangle({ width: W, height: H, stroke: s.bad, strokeWidth: 0.03, cornerRadius: 0.08, fill: 'none' }).moveTo([0, slotY]);
       slot.style.dashArray = '0.14 0.1';
-      scenarios.add(slot, two(`${perSecond(UNBUILT)}`, 'no scenario: never built', slotY, s.bad, s.bad));
+      scenarios.add(slot, two(`${perSecond(Number(refusedLink.asked))}`, 'no scenario: never built', slotY, s.bad, s.bad));
       scenarios.key = 'fork-choice-scenarios';
       // The setting's name labels the column, beside its first scenario, clear of the fallback's path below.
       const heading = new Group(
-        new Text(RATE_SETTING.label, { fontSize: 0.3, color: ink, weight: 'bold', anchor: 'end' }).moveTo([left - 0.3, top + 0.16], [1, 0]),
-        new Text(`${RATES.length} scenarios`, { fontSize: 0.26, color: s.soft, anchor: 'end' }).moveTo([left - 0.3, top - 0.17], [1, 0]),
+        new Text(setting.label, { fontSize: 0.3, color: ink, weight: 'bold', anchor: 'end' }).moveTo([left - 0.3, top + 0.16], [1, 0]),
+        new Text(`${built.length} scenarios`, { fontSize: 0.26, color: s.soft, anchor: 'end' }).moveTo([left - 0.3, top - 0.17], [1, 0]),
       );
       // Links come in from the right.
       const arrow = (from: number, to: number, at: number, color: string) =>
@@ -270,16 +324,17 @@ export default class ForkExplainer extends Scene {
       const linkX = right + 1.5;
       const link = (text: string, at: number, color: string) =>
         new Group(
-          new Text(text, { fontSize: 0.3, font: 'mono', color, anchor: 'start' }).moveTo([linkX + 0.15, at], [-1, 0]),
+          new Text(text, { font: 'mono', fontSize: 0.3, color, anchor: 'start' }).moveTo([linkX + 0.15, at], [-1, 0]),
           arrow(linkX, right + 0.08, at, color),
         );
-      const four = link(`?rate=${links[0]!.asked}`, y(RATES.indexOf(Number(links[0]!.opens))), ink);
-      const slow = link(`?rate=${fallback.asked}`, slotY, s.bad);
-      const defaultY = y(RATE_SETTING.options.findIndex((o) => o.value === RATE_SETTING.default));
+      const index = (rate: string) => built.findIndex((o) => o.rate === rate);
+      const four = link(`?rate=${listed.asked}`, y(index(listed.opens)), ink);
+      const unknown = link(`?rate=${refusedLink.asked}`, slotY, s.bad);
+      const defaultY = y(built.findIndex((o) => o.default));
       const tag = new Text('the default scenario', { fontSize: 0.3, color: s.emphasis, anchor: 'start' }).moveTo([right + 0.3, defaultY], [-1, 0]);
       // Refused, the link falls back along the left side to the default scenario.
       const back = left - 0.5,
-        to = y(RATE_SETTING.options.findIndex((o) => o.value === fallback.opens));
+        to = y(index(refusedLink.opens));
       const redirect = new Group(
         new Line([left - 0.05, slotY], [back, slotY], { stroke: s.emphasis, strokeWidth: 0.04 }),
         new Line([back, slotY], [back, to], { stroke: s.emphasis, strokeWidth: 0.04 }),
@@ -287,20 +342,26 @@ export default class ForkExplainer extends Scene {
       );
       redirect.key = 'fork-choice-fallback';
       const refusal = new Group(
-        new Text(String(fallback.refused), { fontSize: 0.28, color: s.bad }).moveTo([0, slotY - H / 2 - 0.4]),
+        new Text(String(refusedLink.refused), { fontSize: 0.28, color: s.bad }).moveTo([0, slotY - H / 2 - 0.4]),
         new Text('so the page opens the default scenario', { fontSize: 0.28, color: s.emphasis }).moveTo([0, slotY - H / 2 - 0.8]),
       );
-      await s.enter(heading, scenarios, tag, four, slow, redirect, refusal, {
-        describe: `The ${RATES.length} scenarios the build made for the token bucket’s rate setting, ${RATE_SETTING.options.map((o) => perSecond(Number(o.value))).join(', ')}, each checked, with R10 accepted; the default is ${byDefault}. Below them a dashed, empty slot for ${perSecond(UNBUILT)}: no scenario. A link ?rate=4 points at the 4-token scenario; ?rate=${UNBUILT} points at the empty slot and is redirected, “${fallback.refused}”, to the default scenario.`,
-      });
-    }
-    this.state.choice = {
-      setting: RATE_SETTING,
-      scenarios: RATE_SETTING.options.map((o) => ({ rate: o.value, r10: r10(Number(o.value)).ok ? 200 : 429, default: o.value === RATE_SETTING.default })),
-      links,
+      return new Group(heading, scenarios, tag, four, unknown, redirect, refusal);
     };
+    await s.steps([
+      staged({
+        id: 'choice',
+        title: `The build made ${RATES.length} scenarios, and a link opens one of them`,
+        line: `A link naming ${UNBUILT} matches no scenario, so the page opens the default, ${byDefault}.`,
+        caption: `The rate setting lists ${RATES.length} options, so the build ran the scene once for each and rayner check tested each of the ${RATES.length} scenarios; R10 is accepted in all three. A link picks a scenario by naming its option: ?rate=4 opens the 4-token scenario. ?rate=${UNBUILT} matches no option, so Rayner refuses it with “${fallback.refused}” and opens the default scenario, ${byDefault}. The ${UNBUILT} row from the last step exists in this explainer, not on the token-bucket page.`,
+        state: { choice },
+        draw: (st) => choicePicture(st),
+        opening: ['fork-choice-scenarios', 'fork-choice-fallback'],
+      }),
+    ]);
 
     // 4. Where the live page went: Lantern rendered whatever was asked; Rayner offers what it built.
+    // The diagram, its mark and the settings listing are the same in every scenario: Lantern's
+    // architecture at the fork base and the token bucket's source, not values a model computes.
     await this.step('live', {
       title: 'Lantern, the engine Rayner was forked from, rendered frames on request',
       line: 'A reader can choose only a rate the scene lists, and each listed rate is a scenario the build runs.',
@@ -321,22 +382,24 @@ export default class ForkExplainer extends Scene {
     await s.code(SETTINGS, { at: BELOW, fontSize: 0.24 });
 
     // 5. The price, the ending: every combination of settings is a scenario to build and check.
-    await this.step('scenarios', {
-      title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${SCENARIOS} scenarios to build`,
-      line: 'Every combination of options is a scenario the build makes and rayner check tests.',
-      caption: `Prepared inputs have a cost: settings multiply. ${POLICIES.length} policies combined with ${PODS.length} pod placements produce ${SCENARIOS} scenarios, and another setting multiplies that collection again. Finite review becomes more work as the number of combinations grows.`,
-    });
-    await s.clear();
-    const grid = table(
-      ['Pods per node', ...POLICIES],
-      PODS.map((pods, r) => [pods.replaceAll('-', ', '), ...POLICIES.map((_, p) => `scenario ${r * POLICIES.length + p + 1}`)]),
-      s,
-      { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-scenarios' },
-    );
-    await s.enter(grid, {
-      describe: `A table of the traffic-policy explainer’s ${PODS.length} pod placements by its ${POLICIES.length} policies, ${POLICIES.join(' and ')}: ${SCENARIOS} scenarios, numbered 1 to ${SCENARIOS}`,
-    });
-    this.state.scenarios = { count: SCENARIOS, policies: POLICIES, pods: PODS };
+    await s.steps([
+      staged({
+        id: 'scenarios',
+        title: `${PODS.length} pod placements × ${POLICIES.length} traffic policies make ${SCENARIOS} scenarios to build`,
+        line: 'Every combination of options is a scenario the build makes and rayner check tests.',
+        caption: `Prepared inputs have a cost: settings multiply. ${POLICIES.length} policies combined with ${PODS.length} pod placements produce ${SCENARIOS} scenarios, and another setting multiplies that collection again. Finite review becomes more work as the number of combinations grows.`,
+        state: { scenarios: { count: SCENARIOS, policies: POLICIES, pods: PODS } },
+        // A row per pod placement and a column per policy, each cell the scenario that combination makes.
+        draw: ({ scenarios: { policies, pods } }, st) =>
+          table(
+            ['Pods per node', ...policies],
+            pods.map((placement, r) => [placement.replaceAll('-', ', '), ...policies.map((_, p) => `scenario ${r * policies.length + p + 1}`)]),
+            st,
+            { xs: [-5, 0, 5], y: 2.2, gap: 1.45, key: 'fork-scenarios' },
+          ),
+        opening: ['fork-scenarios'],
+      }),
+    ]);
 
     // Details after the ending: what the build does for each scenario, and what replaced Lantern's live parts.
     await this.step('fork', {
@@ -346,6 +409,8 @@ export default class ForkExplainer extends Scene {
       caption: 'The build captures Agentic Mermaid’s diagrams and saves their geometry. The finished page draws those snapshots without a diagram renderer. Chromium is needed for capture, while stored snapshots can be used to build a page without recapturing them.',
     });
     await s.clear();
+    // The two architectures, what the fork deleted and the path a page takes are fixed facts of the
+    // two code bases, the same in every scenario; the count of diagram families is the describer's own.
     const flow = await s.show({ source: LANTERN }, { box: ABOVE });
     await flow.mark(GONE, { color: s.bad, as: 'deleted' });
     await flow.morph({ source: FORK });
@@ -359,9 +424,41 @@ export default class ForkExplainer extends Scene {
       ],
       { trail: true },
     );
-    await flow.note('Capture', `${FAMILIES} diagram families, Chromium at build`, { side: 'below' });
-    await flow.note('Page', 'no diagram renderer', { side: 'above' });
     this.state.families = FAMILIES;
+    // The count of families, said below Capture in a diagram note's look: drawn from the state.
+    const NOTE = 0.22;
+    const familiesNote = view(
+      this,
+      (st) => {
+        const label = new Text(`${(st as { families: number }).families} diagram families, Chromium at build`, { fontSize: NOTE, color: s.emphasis });
+        const bg = new Rectangle({
+          width: label.width() + NOTE * 1.4,
+          height: NOTE * 1.85,
+          fill: s.raised,
+          stroke: s.emphasis,
+          strokeWidth: 0.014,
+          cornerRadius: 0.08,
+        });
+        label.moveTo(bg.center());
+        // Below its part, as Diagram.note places a note, kept inside the diagram's box.
+        const g = new Group(bg, label);
+        const part = flow.get('Capture').box()!,
+          frame = flow.frameBox,
+          w = g.width(),
+          h = g.height();
+        const x = Math.min(Math.max((part[0] + part[2]) / 2, frame[0] + w / 2 + 0.05), frame[2] - w / 2 - 0.05),
+          y = Math.min(Math.max(part[1] - 0.14 - h / 2, frame[1] + h / 2 + 0.05), frame[3] - h / 2 - 0.05);
+        return keyed(g.moveTo([x, y]), 'fork-families-note');
+      },
+      { place: false },
+    );
+    await s.enter(familiesNote, {
+      runTime: 0.35,
+      shift: [0, -0.06],
+      describe: () => `Below Capture: ${(this.state as { families: number }).families} diagram families, Chromium at build`,
+    });
+    s.emphasise(() => [['fork-families-note', `note: ${(this.state as { families?: number }).families} diagram families`]]);
+    await flow.note('Page', 'no diagram renderer', { side: 'above' });
 
     // A detail after the ending: the page holds each resting picture for its caption. It reads the
     // timing of the 'fork' step, so that step ends here, holding for its caption as any step does.
@@ -380,30 +477,43 @@ export default class ForkExplainer extends Scene {
     await flow.unmark();
     await flow.dim(['Clock', 'Frames', 'Image']);
     await flow.focus(['Clock', 'Page', 'Frames', 'Image', 'Check'], { zoom: 0.95 });
-    // One bar per phase of the 'fork' step, to scale.
-    const unit = 11 / (motion + held),
-      bx = -5.5,
-      y = -2.85;
-    const phase = (from: number, len: number, fill: string, label: string) => {
-      const bar = new Rectangle({ width: len * unit, height: 0.55, fill, fillOpacity: 0.85, stroke: 'none' }).moveTo([
-        bx + (from + len / 2) * unit,
-        y,
-      ]);
-      const text = new Text(label, { fontSize: 0.24, color: ink }).moveTo([bx + (from + len / 2) * unit, y - 0.6]);
-      return new Group(bar, text);
-    };
-    await s.enter(
-      new Text(`Step 'fork' on the page: ${(motion + held).toFixed(1)} s`, {
-        fontSize: 0.26,
-        color: ink,
-        weight: 'bold',
-      }).moveTo([0, -1.85]),
-      phase(0, motion, s.emphasis, `moving: ${motion.toFixed(1)} s`),
-      phase(motion, held, s.soft, `still, caption of ${words} words: ${held.toFixed(1)} s`),
-      {
-        describe: `A timeline of the fork step on the page: ${motion.toFixed(1)} seconds of motion, then ${held.toFixed(1)} seconds still under its ${words}-word caption`,
-      },
-    );
     this.state.timing = { motion: Number(motion.toFixed(2)), held: Number(held.toFixed(2)), words };
+    // One bar per phase of the 'fork' step, to scale: the timing the state records.
+    const timeline = view(
+      this,
+      (st) => {
+        const t = (st as unknown as { timing: Timing }).timing;
+        const unit = 11 / (t.motion + t.held),
+          bx = -5.5,
+          y = -2.85;
+        const phase = (from: number, len: number, fill: string, label: string, key: string) => {
+          const bar = new Rectangle({ width: len * unit, height: 0.55, fill, fillOpacity: 0.85, stroke: 'none' }).moveTo([
+            bx + (from + len / 2) * unit,
+            y,
+          ]);
+          const text = new Text(label, { fontSize: 0.24, color: ink }).moveTo([bx + (from + len / 2) * unit, y - 0.6]);
+          return keyed(new Group(bar, text), key);
+        };
+        return new Group(
+          keyed(
+            new Text(`Step 'fork' on the page: ${(t.motion + t.held).toFixed(1)} s`, {
+              fontSize: 0.26,
+              color: ink,
+              weight: 'bold',
+            }).moveTo([0, -1.85]),
+            'timing:title',
+          ),
+          phase(0, t.motion, s.emphasis, `moving: ${t.motion.toFixed(1)} s`, 'timing:moving'),
+          phase(t.motion, t.held, s.soft, `still, caption of ${t.words} words: ${t.held.toFixed(1)} s`, 'timing:still'),
+        );
+      },
+      { place: false },
+    );
+    await s.enter(timeline, {
+      describe: () => {
+        const t = (this.state as unknown as { timing: Timing }).timing;
+        return `A timeline of the fork step on the page: ${t.motion.toFixed(1)} seconds of motion, then ${t.held.toFixed(1)} seconds still under its ${t.words}-word caption`;
+      },
+    });
   }
 }
