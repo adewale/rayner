@@ -265,13 +265,15 @@ export default class BloomFilter extends Scene {
           draw: (st: typeof state, s: Stage) => {
             if (i === 7) {
               // Two blocks on one left edge: the three lookups with their read count beside them, then the sample.
+              // Each row is keyed by what it is about, a name or a row length: bloom-pipeline:wolf:Filter is
+              // wolf's answer, and bloom-sample:bits-16:Pass the 16-bit row's count, wherever the row sits.
               const lookups = {
                   headers: ['Name', 'Filter', 'Database'],
-                  rows: st.queries!.map((q) => [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped']),
+                  rows: st.queries!.map((q) => ({ key: q.word, cells: [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped'] })),
                 },
                 sample = {
                   headers: [`${thousands(st.sampleSize!)} untaken`, 'Bits set', 'Pass'],
-                  rows: st.sizes!.map((row) => [`${row.size} bits`, `${row.setBits} of ${row.size}`, thousands(row.sampleFalsePositives)]),
+                  rows: st.sizes!.map((row) => ({ key: `bits-${row.size}`, cells: [`${row.size} bits`, `${row.setBits} of ${row.size}`, thousands(row.sampleFalsePositives)] })),
                 };
               const TABLE = 0.7,
                 COLUMN_GAP = 1.1,

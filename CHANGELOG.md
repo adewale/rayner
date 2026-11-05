@@ -44,7 +44,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 ### Drawing kit and 3D
 
 - `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow` and `bars`.
-- `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule. A row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name.
+- `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule. A row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
 - `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint, as keyed 2D pieces in an explicit depth order. `depthOrder` is an invariant that checks that order on every frame, and a camera move is a `Follow` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
 - A stage can run right to left (`direction: 'rtl'`): cards and logical regions mirror, and text keeps its own reading direction.
 

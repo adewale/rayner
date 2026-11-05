@@ -51,7 +51,7 @@ One row per idea.
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |
 | Records | trace, evidence, receipt | What each step showed, what an animation decided, what a build produced ([defined in the engine map](ENGINE.md#correctness-by-construction)) | |
 | Words for a picture | `describe` | The same word on the stage, on `Diagram`, in `describeExplainer` and `rayner describe` | |
-| Tables | `table(headers, rows, s, { key })`, rows `{ key, cells }` | The drawing kit's `table()`, with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused | A second table primitive |
+| Tables | `table(headers, rows, s, { key })`, rows `{ key, cells }` | The drawing kit's `table()`, with keyed cells: `key:row:column`, each row `key:row`, the header row `key:head`. A row's own `key` (or its index) is its identity, so a moved row is the same part; a duplicated row key or header is refused. Adopted by python-dict (entries keyed `e0`, `e1`, ...) and bloom-filter (lookups keyed by name, sample rows by row length) | A second table primitive |
 | Graphs | `Diagram` | Captured from Mermaid; `walk`, `mark` and `morph` | A separate `Graph` type |
 
 "Frame" still means two things: the 2D camera and an instant of a run. Manim has the same
@@ -90,7 +90,7 @@ The renames came with refactors that make a name's promise checkable:
 - A transition lands on the model's picture. It is optional per event; with one, the authored
   motion plays and the views then land in place on `draw(after)`, and `rayner check` fails a
   transition that ends anywhere else.
-- Keyed tables went in with python-dict as their first adopter. `seenFrom` went in with
+- Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `test/learning-pictures.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
   great-circle. Henge's fixed-axis globes did not move to it, because their resting pictures
   could not stay identical: each is a cross-section in the orbital plane with Earth's axis drawn
   across the opaque disc, and `seenFrom` hides the part of the axis inside the body, which is the
