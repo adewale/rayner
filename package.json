@@ -29,7 +29,7 @@
     "fast-check": "4.10.2",
     "shiki": "4.5.0"
   },
-  "description": "Technical explainers whose every picture is checked against a tested TypeScript model. Read step by step or explore in the player, from one portable HTML page.",
+  "description": "Technical explainers drawn from a tested TypeScript model, each step's pictures checked against its state. Read step by step or explore in the player, from one portable HTML page.",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",

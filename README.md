@@ -1,6 +1,6 @@
 # Rayner: technical explainers checked against a tested model
 
-Rayner is for explaining how a protocol, an algorithm or a data structure behaves, with every picture checked against a tested model. The author writes a TypeScript model of the subject and tests it against the real thing: CPython 3.12 for a dict's slots after a deletion, Git for a merge, XState for a statechart. Every number, path and outcome on screen is drawn from that model, and `rayner check` redraws each staged step and each machine state a reader can reach from the state it records, and fails a picture that differs. The result is one HTML page with no runtime dependencies, which opens from a file, a static host or an embed.
+Rayner is for explaining how a protocol, an algorithm or a data structure behaves, drawn from a tested model. The author writes a TypeScript model of the subject and tests it against the real thing: CPython 3.12 for a dict's slots after a deletion, Git for a merge, XState for a statechart. Each step records the model's state, and `rayner check` fails a picture that differs from what that state draws: every view at the end of every step, every staged step, and every machine state a reader can reach. Two kinds of picture are checked another way: a Mermaid diagram against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. The result is one HTML page with no runtime dependencies, which opens from a file, a static host or an embed.
 
 ## Read it, or explore it
 
