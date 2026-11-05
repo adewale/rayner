@@ -236,7 +236,7 @@ Read it from the top:
 
 The first step opens on the moment the policies are about to diverge (principle 2): both caches hold the same items in the same order and D is about to miss. The second step is the whole difference between the policies, so it gets a step of its own (principle 4), and its mark on the Evicted row stays on screen while the reader reads why (principle 5). Its captions take the evicted items from the model. Because the two policies share one card, a reader sees both columns of every row at once, including on a phone, where the player zooms onto the card.
 
-The third step's captions are written by hand for each scenario; they are claims about the model too, so the repository's copy of this scene has [a test](../test/explain-tutorial.test.ts) that checks each one. The last step marks the Hits row, gives each scenario a title and caption written for its own outcome (principle 6), and ends on the plan's limit (principle 8). In the loop scenario that limit is Chou and DeWitt's condition: MRU suits a repeated scan only when the file is too large to fit.
+The third step's captions are written by hand for each scenario; they are claims about the model too, so the repository's copy of this scene has [a test](https://github.com/adewale/rayner/blob/main/test/explain-tutorial.test.ts) that checks each one. The last step marks the Hits row, gives each scenario a title and caption written for its own outcome (principle 6), and ends on the plan's limit (principle 8). In the loop scenario that limit is Chou and DeWitt's condition: MRU suits a repeated scan only when the file is too large to fit.
 
 ## 6. Preview it
 

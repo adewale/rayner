@@ -110,7 +110,7 @@ await s.show({
 
 Capture supplies the active sans and mono measurements through Agentic Mermaid's host-measurement hook before layout. The style chooses which font family a label uses; `meta.lettering` chooses the actual face, and naming a style alone never installs its suggested face. Bold and italic labels use their real cuts, so request the matching `styles` too.
 
-The labels keep their natural proportions, and Rayner may scale the whole diagram uniformly to fit its stage box. Capture checks the laid-out label widths against the active shaper and refuses a mismatch, including an unsupported measurement path, rather than stretching the text to hide it. The [font-metrics example](../scenes/explainers/font-metrics/scene.ts) draws the same requested EB Garamond in native text and a measured diagram.
+The labels keep their natural proportions, and Rayner may scale the whole diagram uniformly to fit its stage box. Capture checks the laid-out label widths against the active shaper and refuses a mismatch, including an unsupported measurement path, rather than stretching the text to hide it. The [font-metrics example](https://github.com/adewale/rayner/blob/main/scenes/explainers/font-metrics/scene.ts) draws the same requested EB Garamond in native text and a measured diagram.
 
 After opting in, run `rayner snapshots scene.ts` and commit both the diagram and lettering snapshots. Natural snapshots record the font-byte hashes and measurement identity, so changing a requested face, cut, request, shaper or renderer invalidates them. Diagrams without `lettering: 'natural'` keep fitting captured widths.
 

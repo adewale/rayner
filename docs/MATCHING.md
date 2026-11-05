@@ -243,11 +243,11 @@ the glyph and git explainers put on screen.
 
 ## In the explainers
 
-- [`scenes/explainers/mr-cache/scene.ts`](../scenes/explainers/mr-cache/scene.ts): `TransformDiff`
+- [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): `TransformDiff`
   on coloured `Code`, with tinted bars placed from `diff.plan`.
-- [`scenes/explainers/glyph/scene.ts`](../scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
+- [`scenes/explainers/glyph/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
   pairing glyphs by outline across sizes and fonts, and `TransformMatchingText`
   for a text diff, with lines drawn between `pairs` and counts from `summary()`.
-- [`scenes/explainers/exgit/scene.ts`](../scenes/explainers/exgit/scene.ts): `TransformMatchingShapes`
+- [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): `TransformMatchingShapes`
   keeping one row whole while another grows in, and `TransformMatchingText`
   morphing old git ids into new, with counts read from `scene.evidence`.

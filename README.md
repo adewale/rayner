@@ -22,7 +22,7 @@ Rayner 0.2.0 has no video export: an explainer is read or explored on its page.
 
 ## Start with a question
 
-[Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) See whose names set the bits, predict whether wolf gets through, then double the memory and compare the outcome. [Read the scene](scenes/explainers/bloom-filter/scene.ts) to see how the model supplies the picture and caption.
+[Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) See whose names set the bits, predict whether wolf gets through, then double the memory and compare the outcome. [Read the scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) to see how the model supplies the picture and caption.
 
 [Browse the subject lessons](https://oshineye.dev/projects/rayner/) · [Write your first scene](docs/TUTORIAL.md) · [API and CLI reference](docs/REFERENCE.md)
 

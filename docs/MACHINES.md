@@ -287,7 +287,7 @@ afresh (oauth-pkce's sign-in runs to its end first). Landing takes the event's o
 0.8 to 2.1 s, which is authored, not overhead.
 
 **Not done.**
-- The [benchmark](../bench/explainers/README.md) has not been re-run with the buttons.
+- The [benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md) has not been re-run with the buttons.
 - An event whose name has a comma cannot be written in a link.
 
 ## Nine machines

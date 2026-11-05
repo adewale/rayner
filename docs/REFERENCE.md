@@ -263,7 +263,7 @@ await s.card([['Count', 123]], { at: 'end', direction: 'ltr' });
 
 In an RTL stage, the first card goes on the right, with its label on the right and its value on the left. The second goes on the left, where its override puts the label on the left and the value on the right. Values such as `123` retain their digit order. Titles follow the label's edge; rows retain their authored top-to-bottom order. Updates and marks keep those positions.
 
-Stage direction controls spatial placement separately from paragraph shaping. A Hebrew or Arabic paragraph can read right to left in an LTR card. A code panel placed at `start` moves with the region, while its code keeps its source order. Set Mermaid graph flow in its source (`graph RL`, for example); stage direction never rewrites or mirrors a diagram. The [layout-direction example](../scenes/explainers/layout-direction/scene.ts) shows both card orders together.
+Stage direction controls spatial placement separately from paragraph shaping. A Hebrew or Arabic paragraph can read right to left in an LTR card. A code panel placed at `start` moves with the region, while its code keeps its source order. Set Mermaid graph flow in its source (`graph RL`, for example); stage direction never rewrites or mirrors a diagram. The [layout-direction example](https://github.com/adewale/rayner/blob/main/scenes/explainers/layout-direction/scene.ts) shows both card orders together.
 
 ### Regions
 
@@ -379,7 +379,7 @@ await this.step('listen', {
 });
 ```
 
-`plot` is optional: `[left, bottom, right, top]` in scene coordinates. When present, a playhead travels from left to right over the clip’s full beat count. Draw notes from the same score data: horizontal position follows onset and width follows duration. The [melody and rhythm scene](../scenes/explainers/melody-rhythm/scene.ts) does this for two piano rolls.
+`plot` is optional: `[left, bottom, right, top]` in scene coordinates. When present, a playhead travels from left to right over the clip’s full beat count. Draw notes from the same score data: horizontal position follows onset and width follows duration. The [melody and rhythm scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/melody-rhythm/scene.ts) does this for two piano rolls.
 
 The audio controls sit immediately below the picture, are in English and are marked `lang="en"`. Play brings the score and controls into view together when the screen can hold them. Each button’s accessible name includes its visible Play label and the clip’s description.
 

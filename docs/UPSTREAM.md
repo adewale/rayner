@@ -29,7 +29,7 @@ A file this fork deleted (the player, `src/doc.ts`, `src/mermaid.ts` and the res
 
 ## Engine changes
 
-Each engine change is general, not about explainers, and has a regression test. The [draft PR description](#offered-upstream-draft-pr-description) below lists them, 13 fixes and 11 features, each with its test and the fork branch that made it: `explainers-reader-pass` (the fork's PR #1, the product layer) or `claude/intelligent-mendel-8djvkt` (PR #2, the engine features, merged onto #1). Each PR #2 feature has a guide in [the engine map](ENGINE.md). None has been offered upstream; whether to offer them is an open decision in [the design record](../specs/rayner.md#decisions).
+Each engine change is general, not about explainers, and has a regression test. The [draft PR description](#offered-upstream-draft-pr-description) below lists them, 13 fixes and 11 features, each with its test and the fork branch that made it: `explainers-reader-pass` (the fork's PR #1, the product layer) or `claude/intelligent-mendel-8djvkt` (PR #2, the engine features, merged onto #1). Each PR #2 feature has a guide in [the engine map](ENGINE.md). None has been offered upstream; whether to offer them is an open decision in [the design record](https://github.com/adewale/rayner/blob/main/specs/rayner.md#decisions).
 
 Later engine additions are not in the draft: `GrowFromEdge`, `PulseAlongPath`, `SetState`, `Follow` and `Mobject.become`; `targets()` and `evidence()` on every animation; `matchByKey`; `Scene.addInvariant` and `InvariantSink`; `scene.shown`; `Machine` and `choreograph`. The [changelog](../CHANGELOG.md) records each.
 

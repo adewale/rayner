@@ -116,7 +116,7 @@ base colour by default, as GitHub's themes do (and see the cost below).
 ### Build time only
 
 Spans are computed once, by a tool, and checked in as a literal array
-(the KV-cache explainer, [`scenes/explainers/mr-cache/scene.ts`](../scenes/explainers/mr-cache/scene.ts),
+(the KV-cache explainer, [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts),
 is the example). Nothing in `src/` or the browser bundle imports shiki or the lexer:
 
 - **zero runtime dependencies**: the engine and anything a page loads stay
@@ -155,12 +155,12 @@ default) costs a fraction of one that colours it.
 
 ## In the explainers
 
-- [mr-cache](../scenes/explainers/mr-cache/scene.ts): both blocks of the merge
+- [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): both blocks of the merge
   request are `new Code(lines, { spans })`, with spans that
   `node tools/tokens.ts --theme light --engine shiki` generated and that are
   checked in beside the scene (`scenes/explainers/mr-cache/code.ts`);
   `TransformDiff` morphs one into the other.
-- [state-machine](../scenes/explainers/state-machine/scene.ts): finds the reducer
+- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): finds the reducer
   row it read with `code.token(line, text)`, takes `code.span` from the key to
   the value, and rings it with a `SurroundingRectangle` built from the span's
   `box()`.

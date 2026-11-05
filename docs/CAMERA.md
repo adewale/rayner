@@ -100,12 +100,12 @@ so a camera that glides past a small label does not make it read
 
 ## In the explainers
 
-- [seasons](../scenes/explainers/seasons/scene.ts), "noon": the stage's `s.focus(box, { exact: true })`
+- [seasons](https://github.com/adewale/rayner/blob/main/scenes/explainers/seasons/scene.ts), "noon": the stage's `s.focus(box, { exact: true })`
   onto a box the scene computes, a 2× zoom onto the noon angle with labels sized for the zoomed
   view, and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
   line on screen over a paper band while the camera is away, so the box keeps the band's strip
   free of content.
-- [lantern](../scenes/explainers/lantern/scene.ts), "begin": `s.focus(box, { exact: true })` onto
+- [lantern](https://github.com/adewale/rayner/blob/main/scenes/explainers/lantern/scene.ts), "begin": `s.focus(box, { exact: true })` onto
   the classes the step is about and the listing below them, with the heading kept on screen.
 
 The diagram helper `d.focus(ids, { camera: true })` moves the same camera; without `camera` a focus

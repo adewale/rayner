@@ -86,10 +86,10 @@ whose member brings an updater matches the full run").
 
 ## In the explainers
 
-- `saveState`/`Restore`: the [feature tour](../scenes/explainers/feature-tour/scene.ts)'s
+- `saveState`/`Restore`: the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
   `restore` scenario moves a circle and restores it.
-- `TransformFromCopy`: [exgit](../scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
-- `Succession`: [state-machine](../scenes/explainers/state-machine/scene.ts),
-  [token-bucket](../scenes/explainers/token-bucket/scene.ts) and
-  [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) build each event's authored
+- `TransformFromCopy`: [exgit](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
+- `Succession`: [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts),
+  [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts) and
+  [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) build each event's authored
   transition as a `Succession`, and a [machine](MACHINES.md) replays its events as one.

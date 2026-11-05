@@ -127,11 +127,11 @@ are any.
 
 ## In the explainers
 
-- [seasons](../scenes/explainers/seasons/scene.ts), "year" to "distance": `plot` of `sunlight()` over twelve
+- [seasons](https://github.com/adewale/rayner/blob/main/scenes/explainers/seasons/scene.ts), "year" to "distance": `plot` of `sunlight()` over twelve
   months (145 samples), `verticalLine`s and `dot`s at the solstices and equinoxes, a second
   plot at the mirrored latitude, then all four places on one axes. Ticks carry numbers, not
   text, so the scene places its own month names under the x axis.
-- [token-bucket](../scenes/explainers/token-bucket/scene.ts): `lineGraph` segments drawn call by call from the
+- [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts): `lineGraph` segments drawn call by call from the
   same `allow()` results as the gauge, a `horizontalLine` at one token, `dot`s for each request
   (red for 429), and the runs at all three rates overlaid in the last step.
 

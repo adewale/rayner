@@ -170,11 +170,11 @@ state is caught the same way: the redraw disagrees with what was shown.
 
 ## In the explainers
 
-- [state-machine](../scenes/explainers/state-machine/scene.ts) draws its whole session
+- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts) draws its whole session
   `Card` in a view, beside views of the diagram, the ring on the current state and the
-  reducer; [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) keeps a card's
+  reducer; [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) keeps a card's
   panel and labels and makes the ring, the head, tail and length readout, and the
-  card's values views; [token-bucket](../scenes/explainers/token-bucket/scene.ts)
+  card's values views; [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts)
   draws its gauge, chart, request chips and readout as views.
   `test/explain-models.test.ts` runs `assertViewFollowsState` on the state-machine
   card, the three ring-buffer views and the token-bucket readout at every step of

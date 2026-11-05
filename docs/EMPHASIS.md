@@ -96,16 +96,16 @@ the same idea for explainers.
 
 ## In the explainers
 
-- `SurroundingRectangle`: [glyph](../scenes/explainers/glyph/scene.ts) (advance cells),
-  [mr-cache](../scenes/explainers/mr-cache/scene.ts) (lines that run, from a `Box` of code lines),
-  [state-machine](../scenes/explainers/state-machine/scene.ts) (the reducer row, from a code span's box,
+- `SurroundingRectangle`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (advance cells),
+  [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (lines that run, from a `Box` of code lines),
+  [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts) (the reducer row, from a code span's box,
   and a ring on the current state, drawn in a view so it moves with the state),
-  [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
-- `Circumscribe({ keep: true })`: [mr-cache](../scenes/explainers/mr-cache/scene.ts) (the KV lookup)
+  [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) (the slot an operation touched).
+- `Circumscribe({ keep: true })`: [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts) (the KV lookup)
   and the feature tour's `emphasis` scenario.
-- `Underline`: [glyph](../scenes/explainers/glyph/scene.ts) (the letter it then draws large as outlines).
-- `Cross`: [ring-buffer](../scenes/explainers/ring-buffer/scene.ts), on a refused value, and
-  [latest-search](../scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
+- `Underline`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (the letter it then draws large as outlines).
+- `Cross`: [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts), on a refused value, and
+  [latest-search](https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/scene.ts), on a response the guard drops. On one flat
   line of code a `Cross` reads as a strikethrough rather than an X.
-- `BraceLabel`: [glyph](../scenes/explainers/glyph/scene.ts) (each font's measured width) and
-  [exgit](../scenes/explainers/exgit/scene.ts) (the seven digits that name a blob).
+- `BraceLabel`: [glyph](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts) (each font's measured width) and
+  [exgit](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts) (the seven digits that name a blob).

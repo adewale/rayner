@@ -62,6 +62,8 @@
     "integrations",
     "app/embed*",
     "app/loader.ts",
+    "docs/*.md",
+    "FAQ.md",
     "skills",
     "scenes/tutorial",
     "recipes",
