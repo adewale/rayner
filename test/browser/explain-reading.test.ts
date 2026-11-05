@@ -251,7 +251,7 @@ test('declared label scale survives unrelated changes at generated phone sizes',
           parts: [[-6, -1, -4, 0] as Box],
           lead: 0,
           labels: [{ box: [-6, -1, -4, 0] as Box, size: 1 }],
-          reading: { box: subject, labels: [{ box: subject, size }] },
+          opening: { box: subject, labels: [{ box: subject, size }] },
         };
         const opening = closeUps(layout, width, height)[0]!,
           visible = viewBox(opening, width, height);
@@ -446,7 +446,7 @@ test('reading intent cannot bless an absent or unpainted subject', async () => {
         s.opening(object);
       }
     }
-    await assert.rejects(stepLayouts(Missing), /reading\(\): bad names a subject with no painted ink/);
+    await assert.rejects(stepLayouts(Missing), /opening\(\): bad names a subject with no painted ink/);
   }
 });
 
@@ -471,7 +471,7 @@ test('a declared drawing group cannot satisfy an independent claim after one com
   class Hidden extends Both {
     static override hideAfter = true;
   }
-  // reading() still has visible before ink; the separately named After obligation must reject.
+  // opening() still has visible before ink; the separately named After obligation must reject.
   await assert.rejects(storyFrames(Hidden, claims), /After: 2.*(no painted paths|missing glyph ink)/);
 });
 
