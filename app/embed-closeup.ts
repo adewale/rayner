@@ -130,7 +130,7 @@ const painted = (m: Mobject) =>
   (m.style.stroke !== 'none' && (m.style.strokeOpacity ?? 1) > 0 && (m.style.strokeWidth ?? 0) > 0);
 
 /** The paper and the heading frame every step; the heading changes each step but says nothing about where to look. */
-const fixed = (m: Mobject) => m.key === '__paper' || isHeading(m);
+const fixed = (m: Mobject) => m.role === 'paper' || isHeading(m);
 
 /**
  * A world box in the units of the camera's view `view`: 16 wide, centred on the origin.

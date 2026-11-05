@@ -32,6 +32,7 @@ One row per idea.
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
 | Emphasis a scene draws itself | `s.emphasise(now)` | What the scene's own marks emphasise, read from state at each step: each mark with what it shows; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
+| What a part is for | `role` | A job many parts can share: the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
 | Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay`, `outcome`, `reachable` | `Session`, `sessionsOf`; describe's `sessions` field (now `machines`) |

@@ -48,7 +48,7 @@ function build(items: Placed[]): Mobject[] {
       : Object.assign(new Rectangle({ width: p.size * label.length, height: p.size, fill: '#ffffff' }).moveTo([p.x, p.y]), { text: label });
     if (p.hide === 'faded') m.setOpacity(0.3);
     if (p.hide === 'clear') m.setStyle({ fillOpacity: 0, stroke: 'none' });
-    if (p.hide === 'heading') m.key = '__heading';
+    if (p.hide === 'heading') m.role = 'heading';
     if (p.hide === 'parent') m = new Group(m).setOpacity(0.2);
     // Inside a blank text-bearing group: the inner text is part of it, and the group shows nothing.
     if (p.hide === 'nested') m = Object.assign(new Group(m), { text: ' ' });

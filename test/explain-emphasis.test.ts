@@ -63,7 +63,7 @@ test('the heading follows step titles; a fixed or absent heading is still possib
       seen.push(s.heading.text);
       await this.step('three');
       seen.push(s.heading.text);
-      assert.equal(this.mobjects.filter((m) => m.key === '__heading').length, 1);
+      assert.equal(this.mobjects.filter((m) => m.role === 'heading').length, 1);
     }
   }
   await new Steps(new NullSink()).run();
@@ -105,8 +105,8 @@ test('a note follows its part through focus; clear() leaves paper and heading, a
       await s.clear();
       // Paper, the heading's band (invisible at home) and the heading stay.
       assert.deepEqual(
-        this.mobjects.map((m) => m.key),
-        ['__paper', '__chrome', '__heading'],
+        this.mobjects.map((m) => m.role),
+        ['paper', 'chrome', 'heading'],
       );
       await d.reveal(['A']);
       assert.ok(this.familyMembers().includes(d.get('A')));
@@ -465,7 +465,7 @@ test('a diagram picture carries notes placed as note() places them, dimming as d
       const [art, note] = pictured.children as [Mobject, Mobject];
       assert.equal(note!.key, 'p:note:C');
       assert.deepEqual(note!.box(), live.box());
-      assert.ok(art!.family().filter((m) => m.key).every((m) => m.key!.startsWith('p:') || m.key!.startsWith('__')));
+      assert.ok(art!.family().filter((m) => m.key).every((m) => m.key!.startsWith('p:')), 'every key prefixed, the frame\'s too');
       assert.ok(art!.family().some((m) => m.key === 'p:A'));
       // Dimmed as dim() dims: everything but A and its scaffolding.
       await d.dim(['A']);

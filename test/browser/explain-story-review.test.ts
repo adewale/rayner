@@ -156,7 +156,7 @@ test('a caption explaining unchanged artwork must declare its subject', async ()
     override async construct() {
       await this.step('background');
       const frame = new Group(new Rectangle({ width: 16, height: 9, fill: '#ffffff' }));
-      frame.key = '__frame';
+      frame.role = 'frame';
       this.add(frame);
     }
   }
@@ -1267,7 +1267,7 @@ test('a thick highlighted outline remains reachable above the heading boundary t
     await writeFile(join(dir, 'scene.ts'), `import{Scene,Rectangle,Text}from'rayner';import{emphasises}from${JSON.stringify(join(ROOT, 'explain/look.ts'))};
 export default class StrokeTour extends Scene{static meta={id:'stroke-tour',title:'The entire outlined region'};async construct(){
 await this.step('outlined',{caption:'The red outline surrounds the region.'});
-const heading=new Rectangle({width:12,height:.6,fill:'gray',stroke:'none'}).moveTo([0,3.5]);heading.key='__heading';
+const heading=new Rectangle({width:12,height:.6,fill:'gray',stroke:'none'}).moveTo([0,3.5]);heading.role='heading';
 const outline=new Rectangle({width:7.6,height:7.6,fill:'none',stroke:'red',strokeWidth:.126}).moveTo([-3.95,-.6]);outline.key='outlined-region';
 const label=new Text('Region',{fontSize:.2}).moveTo([-4,0]);this.add(heading,outline,label);
 await this.step('refocus',{caption:'The outline stays while Region becomes Area.'});label.setText('Area');

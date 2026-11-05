@@ -462,6 +462,7 @@ export class Diagram {
     for (const info of partsOf(snapshot)) {
       const mob = new Group();
       mob.key = info.id;
+      if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
       for (const shape of info.shapes) {
         const paths = shape.textRun ? outlineText(shape.textRun, shape.style, scene.textShaping) : [new VMobject(shape.style)];
@@ -946,7 +947,7 @@ export class Diagram {
    * `notes` adds a note beside each named part, as `note` draws and places one (see notePicture):
    * the picture is then a Group of the diagram and its notes, which sit over it unclipped. `dim`
    * fades every part but these, as `dim` does. `prefix` goes in front of every key in the picture
-   * (a note's is `note:<id>`; keys starting `__` are roles and keep their names), so two pictures
+   * (a note's is `note:<id>`), so two pictures
    * of one diagram can be on stage together. Marks, notes and dimming name parts by their ids in
    * the diagram, unprefixed.
    *
@@ -978,7 +979,7 @@ export class Diagram {
       });
     }
     copy.setStyle({ opacity: 1 }, false);
-    if (prefix) for (const m of copy.family()) if (m.key !== undefined && !m.key.startsWith('__')) m.key = prefix + m.key;
+    if (prefix) for (const m of copy.family()) if (m.key !== undefined) m.key = prefix + m.key;
     const pictured = notes.length ? new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` }))) : copy;
     const said = new Map([...marked].flatMap(([id, m]) => (m.as ? [[id, { color: m.color, as: m.as }] as const] : [])));
     Object.assign(pictured, { [pictureShows]: { marks: said, kept } });

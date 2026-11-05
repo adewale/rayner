@@ -139,7 +139,7 @@ export function restingRouteProblems(scene: Scene): string[] {
   const unjoined = (p: Vec) => endpoints.filter((q) => Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1])) <= 4 * 2 ** -23 * Math.max(1, ...p.map(Math.abs), ...q.map(Math.abs))).length === 1;
   for (const m of routes) {
     let fixed = false;
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.key === '__paper' || isHeading(a)) fixed = true;
+    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'paper' || isHeading(a)) fixed = true;
     if (fixed) continue;
     const routeRank = order.get(m.id)!;
     const clip = clipped(m, view);

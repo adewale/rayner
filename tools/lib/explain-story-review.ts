@@ -420,7 +420,7 @@ export async function storyFrame(
     let fixed = false,
       subject = m;
     for (let a: Mobject | null = m; a; a = a.parent) {
-      if (a.key === '__paper' || a.key === '__frame' || isHeading(a)) fixed = true;
+      if (a.role === 'paper' || a.role === 'frame' || isHeading(a)) fixed = true;
       if (labelOf(a)) subject = a;
     }
     if (fixed || added.has(subject)) continue;

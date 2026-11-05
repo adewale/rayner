@@ -104,20 +104,22 @@ export function pictureFingerprint(m: Mobject): string {
 type StageApi = Stage;
 
 /**
- * Part of the stage's heading: its title (`__heading`), or its number, line or band
- * (`__chrome`), or inside one of them. Everything that leaves the heading out of a picture
+ * Part of the stage's heading: its title (role `'heading'`), or its number, line or band
+ * (`'chrome'`), or inside one of them. Everything that leaves the heading out of a picture
  * (the checks, the phone close-ups, the text drawing agents read) asks here, so a part
  * added to the heading is left out everywhere at once.
  */
 export function isHeading(m: Mobject): boolean {
-  for (let x: Mobject | null = m; x; x = x.parent) if (x.key === '__heading' || x.key === '__chrome') return true;
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'heading' || x.role === 'chrome') return true;
   return false;
 }
+/** The stage's paper (role `'paper'`), or undefined for a scene drawn without a stage. */
+export const paperPart = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'paper');
 /**
- * The colour of the stage's paper (`__paper`, its palette's `paper`) as `scene` has it, or undefined
+ * The colour of the stage's paper (its palette's `paper`) as `scene` has it, or undefined
  * for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => scene.find('__paper')?.style.fill;
+export const paperOf = (scene: Scene): string | undefined => paperPart(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
@@ -158,18 +160,18 @@ export function stage(scene: Scene, options: StageOptions = {}) {
   scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
   const paper = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
-  paper.key = '__paper';
+  paper.role = 'paper';
   scene.add(paper);
   const numbered = options.numbered ?? mode === 'step';
   const headingSize = options.headingSize ?? 0.36;
   /**
    * The heading, at home (camera at rest): the title, a circled step number before it when
-   * numbered, and the step's line under it. The number and line are keyed `__chrome`: like the
+   * numbered, and the step's line under it. The number and line have the role `'chrome'`: like the
    * heading they belong to the stage, not the picture a step leaves.
    */
   const makeChrome = (text: string, line: string, number: number | null, step: string) => {
     const t = scene.text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold' });
-    t.key = '__heading';
+    t.role = 'heading';
     const y = line ? HEADING_Y_WITH_LINE : HEADING_Y;
     const parts: Mobject[] = [];
     let badge: Group | null = null;
@@ -180,7 +182,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }),
         digit,
       );
-      badge.key = '__chrome';
+      badge.role = 'chrome';
     }
     const badgeW = badge ? headingSize * 1.24 + headingSize * 0.5 : 0;
     if (t.width() + badgeW > CHROME_WIDTH) t.setWidth(CHROME_WIDTH - badgeW);
@@ -197,7 +199,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           `Step "${step}": its line is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
         );
       l.moveTo([0, t.box()![1] - 0.08 - l.height() / 2]);
-      l.key = '__chrome';
+      l.role = 'chrome';
       parts.push(l);
     }
     return { heading: t, chrome: parts };
@@ -214,7 +216,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     (4.5 + CONTENT[3]) / 2,
   ]);
   band.style.opacity = 0;
-  band.key = '__chrome';
+  band.role = 'chrome';
   scene.add(band, heading);
   /** Each heading part's home placement; the camera maps it to the screen while it is away. */
   const home = new Map<Mobject, Mobject>([

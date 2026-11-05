@@ -98,6 +98,13 @@ export class Mobject {
    * choreography, `scene.find`, emphasis and review all follow it from picture to picture.
    */
   key: string | undefined;
+  /**
+   * What the part is for, to whatever drew it, apart from which part it is: the stage's paper
+   * (`'paper'`), its heading (`'heading'`) and the number, line and band around it (`'chrome'`), a
+   * diagram's frame (`'frame'`). Many parts may share a role, so it is never an identity: `find`
+   * and matching read `key`. Copies carry it, and `become` keeps the part's own.
+   */
+  role: string | undefined;
   children: Mobject[];
   parent: Mobject | null;
   style: StyleRecord;
@@ -130,6 +137,7 @@ export class Mobject {
   constructor(style: Style = {}) {
     this.id = nextId++;
     this.key = undefined;
+    this.role = undefined;
     this.children = [];
     this.parent = null;
     this.style = { ...DEFAULT_STYLE, ...style };
@@ -685,8 +693,8 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
 // Fields a mobject keeps through restore(): who it is and where it sits. Caches
 // (underscore fields) stay too; touchPoints() and new arrays invalidate them.
 const KEEP_ON_RESTORE = new Set(['id', 'parent', 'children', 'updaters', 'saved']);
-// become() also keeps each member's key: the address matching, find() and invariants use.
-const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key']);
+// become() also keeps each member's key, the address matching, find() and invariants use, and its role.
+const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key', 'role']);
 
 /** Rewrite `m`'s data from `state` in place (see restore()); `state` itself is never touched. */
 export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string> = KEEP_ON_RESTORE): void {

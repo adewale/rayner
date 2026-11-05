@@ -198,7 +198,7 @@ const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), pr
   diagram's look and not its words.
 - **Two pictures of one diagram.** Every part of a diagram picture is keyed by its id, so two
   on the stage at once would give one key to two parts. `prefix` puts a word before every key in
-  the picture (keys that start `__` are roles and keep theirs); marks, notes and dimming still
+  the picture, the frame's too; marks, notes and dimming still
   name parts by their ids in the diagram.
 - **Annotations without the camera.** `callout`, `dimension` and `pin` build at the draw's own
   coordinates and size. The stage's helpers build the same pictures in screen coordinates while

@@ -258,8 +258,8 @@ export class FanSink implements Sink {
  * Identity is a key: `scene.find(key)` returns one mobject, and a transform, a choreography
  * and the player's close-up treat a key as one part. Two mobjects on the stage with the same
  * key at the end of a step make `find` answer with whichever comes first, silently. A part
- * keyed twice is named here. Keys that start with `__` are roles the stage gives its own chrome
- * (every step number is `__chrome`), not identities.
+ * keyed twice is named here, every key alike: what the stage's chrome or a diagram's frame is for
+ * is its `role`, which many parts share, not a key.
  */
 export class KeySink implements Sink {
   readonly problems: string[] = [];
@@ -269,7 +269,7 @@ export class KeySink implements Sink {
     const seen = new Map<string, Mobject>();
     const twice = new Set<string>();
     for (const m of scene.familyMembers()) {
-      if (m.key === undefined || m.key.startsWith('__')) continue;
+      if (m.key === undefined) continue;
       const other = seen.get(m.key);
       if (other && other !== m) twice.add(m.key);
       seen.set(m.key, m);

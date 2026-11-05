@@ -40,7 +40,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       const s = stage(this);
       await this.step('one', { title: 'A title', line: 'A short line under it.' });
       await this.wait(0.2);
-      const keyed = this.mobjects.filter((m) => m.key === '__chrome');
+      const keyed = this.mobjects.filter((m) => m.role === 'chrome');
       const line = keyed.find((m) => m instanceof Text && m.text === 'A short line under it.')!;
       const badge = keyed.find((m) => m instanceof Group)!;
       assert.ok(line, 'the line is drawn');
@@ -78,7 +78,7 @@ test('focus zooms onto a target below the heading, which stays put on screen at 
     }
   }
   const { scene, events, seen } = await run(Focused, (sc) => {
-    const heading = sc.mobjects.find((m) => m.key === '__heading' && (m as Text).text === 'Close up');
+    const heading = sc.mobjects.find((m) => m.role === 'heading' && (m as Text).text === 'Close up');
     return heading ? { heading: onScreen(sc, heading.box()!), frame: sc.frame.box()!, fading: (heading.style.opacity ?? 1) < 1 } : null;
   });
   assert.deepEqual(events, []);
@@ -165,7 +165,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
   assert.deepEqual(events, [], JSON.stringify(events.slice(0, 3)));
   // The tool is gone when the play ends: nothing but the strokes, paper and heading parts remain.
   const stageFurniture = (m: Mobject) => {
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.key === '__paper' || a.key === '__heading' || a.key === '__chrome') return true;
+    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'paper' || a.role === 'heading' || a.role === 'chrome') return true;
     return false;
   };
   const filled = scene
