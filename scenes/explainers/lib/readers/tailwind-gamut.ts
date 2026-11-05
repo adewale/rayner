@@ -3,6 +3,7 @@ import { rows, summarize, cssMap, linearRgb, THEME_LINES } from '../tailwind-gam
 import type { Shade, Space } from '../tailwind-gamut.ts';
 import { label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
+import { staged } from '../staged.ts';
 
 /** The colour an sRGB screen paints for `written`, as #rrggbb, after CSS Color 4's gamut mapping. */
 function painted(L: number, C: number, h: number): string {
@@ -23,16 +24,17 @@ export function frames(shade: Shade, screen: Space): StagedStep[] {
     most = all.find((r) => r.family === sum.mostOfSrgb.family)!;
   const preview = painted(most.L, most.C, most.h);
   const written = /oklch\([^)]*\)/.exec(THEME_LINES[most.line]!)![0];
-  const split = written.indexOf(' ');
   const name = `${most.family}-${shade}`;
   return [
-    {
+    staged({
       id: 'reader-display',
       title: `You wrote ${name}; an sRGB screen paints ${preview}`,
       line: 'Left: the colour as written, which sRGB cannot show. Right: what an sRGB screen paints instead.',
       caption: `Tailwind CSS 4 writes ${name} as ${written}: lightness, chroma and hue, where chroma is how far the colour stands from grey. An sRGB screen cannot show chroma ${most.C.toFixed(3)} at that lightness and hue, so this page, drawn in sRGB, has no paint for the colour as written. CSS Color 4 says such a colour must be brought inside the screen’s range; its gamut mapping turns ${name} into ${preview}, chroma ${most.shown.toFixed(3)}, with lightness and hue nudged slightly: less vivid than written. Do the other ${shade} shades fit?`,
-      state: { shade, screen, colour: name, written: most.C, edge: most.srgb, shown: most.shown, preview },
-      draw: (_, s) => {
+      // `written` is the chroma as written; `writtenAs`, the theme's oklch() value the picture shows.
+      state: { shade, screen, colour: name, written: most.C, writtenAs: written, edge: most.srgb, shown: most.shown, preview },
+      draw: (st, s) => {
+        const split = st.writtenAs.indexOf(' ');
         const w = 5.2,
           h = 2.1,
           y = 0.75;
@@ -57,17 +59,17 @@ export function frames(shade: Shade, screen: Space): StagedStep[] {
           );
         }
         g.add(
-          new Rectangle({ width: w, height: h, fill: preview, stroke: s.soft, strokeWidth: 0.03 }).moveTo([right, y]),
+          new Rectangle({ width: w, height: h, fill: st.preview, stroke: s.soft, strokeWidth: 0.03 }).moveTo([right, y]),
           label('As written', left, y + h / 2 + 0.5, s.palette.ink, 0.66),
           label('On an sRGB screen', right, y + h / 2 + 0.5, s.palette.ink, 0.66),
-          label(written.slice(0, split), left, y - h / 2 - 0.5, s.palette.ink, 0.66),
-          label(written.slice(split + 1), left, y - h / 2 - 1.3, s.palette.ink, 0.66),
-          label(preview, right, y - h / 2 - 0.5, s.palette.ink, 0.66),
-          label(`Chroma ${most.C.toFixed(3)}`, left, y - h / 2 - 2.35, s.emphasis, 0.66),
-          label(`Chroma ${most.shown.toFixed(3)}`, right, y - h / 2 - 2.35, s.emphasis, 0.66),
+          label(st.writtenAs.slice(0, split), left, y - h / 2 - 0.5, s.palette.ink, 0.66),
+          label(st.writtenAs.slice(split + 1), left, y - h / 2 - 1.3, s.palette.ink, 0.66),
+          label(st.preview, right, y - h / 2 - 0.5, s.palette.ink, 0.66),
+          label(`Chroma ${st.written.toFixed(3)}`, left, y - h / 2 - 2.35, s.emphasis, 0.66),
+          label(`Chroma ${st.shown.toFixed(3)}`, right, y - h / 2 - 2.35, s.emphasis, 0.66),
         );
         return g;
       },
-    },
+    }),
   ];
 }

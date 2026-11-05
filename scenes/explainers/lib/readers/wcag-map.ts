@@ -4,6 +4,7 @@ import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel
 import type { Criterion, Level, Version } from '../wcag-map.ts';
 import { tile, label, table } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
+import { staged } from '../staged.ts';
 
 /**
  * Every criterion some version asks for at `level`, one column each: grouped by level, and within a
@@ -21,11 +22,13 @@ export function columns(level: Level): Criterion[] {
   });
 }
 
+/** The versions step's model: the level, each version's count, the columns, and each version's row of criterion numbers. */
+interface Lists { level: Level; totals: number[]; columns: string[]; rows: Record<string, string[]> }
 /** One row per version, one cell per column it asks for, coloured by the version that added it;
  *  level brackets above, each version's count at the right, and 4.1.1 Parsing's gap named below. */
-function lists(level: Level, s: Stage) {
-  const cols = columns(level);
-  const levels = LEVELS.slice(0, LEVELS.indexOf(level) + 1);
+function lists(st: Lists, s: Stage) {
+  const cols = st.columns.map((num) => CRITERIA.find((c) => c.num === num)!);
+  const levels = LEVELS.slice(0, LEVELS.indexOf(st.level) + 1);
   const GAP = 0.3,
     x0 = -5.0,
     x1 = 5.0;
@@ -43,9 +46,9 @@ function lists(level: Level, s: Stage) {
   g.add(label('Criteria', 6.45, 2.25, s.palette.ink, 0.6));
   VERSIONS.forEach((v, r) => {
     const y = rowY(r);
-    g.add(label(v, -5.85, y, s.palette.ink, 0.62), label(tally(v, level).total, 6.45, y, s.palette.ink, 0.62));
+    g.add(label(v, -5.85, y, s.palette.ink, 0.62), label(st.totals[r]!, 6.45, y, s.palette.ink, 0.62));
     cols.forEach((c, i) => {
-      if (inVersion(c, v))
+      if (st.rows[v]!.includes(c.num))
         g.add(
           new Rectangle({ width: pitch * 0.78, height: 0.8, fill: c.removed ? s.bad : colour[c.added], stroke: 'none' }).moveTo([x(i), y]),
         );
@@ -76,8 +79,10 @@ export function frames(level: Level, guideline: string): StagedStep[] {
     focus = criteria('2.2', level).some((c) => c.num === '2.4.7');
   const c21 = change('2.0', '2.1', level),
     c22 = change('2.1', '2.2', level);
+  const buttons = ['Cancel', 'Pay'],
+    at = (button: string, row: readonly string[]) => -3.5 + 7 * row.indexOf(button);
   return [
-    {
+    staged({
       id: 'reader-focus',
       title: 'The outline shows which button Tab reached',
       line: 'Success criterion 2.4.7 Focus Visible asks for the lower drawing; WCAG files it at level AA.',
@@ -86,39 +91,41 @@ export function frames(level: Level, guideline: string): StagedStep[] {
           ? `At level ${level}, the selected level, Focus Visible is on the list.`
           : `At level ${level}, the selected level, it is not on the list, because it is a level AA criterion.`
       }`,
-      state: { level, focusRequired: focus },
-      draw: (_, s) =>
+      // The form both drawings show, and the button Tab reached, which only the lower one outlines.
+      state: { level, focusRequired: focus, buttons, focused: 'Pay' },
+      draw: (st, s) =>
         new Group(
           label('No visible focus', 0, 2.5, s.soft, 0.7),
-          tile('Cancel', -3.5, 1.3, 5, 1, s),
-          tile('Pay', 3.5, 1.3, 5, 1, s),
-          label('Visible focus on Pay', 0, -0.2, s.palette.ink, 0.7),
-          tile('Cancel', -3.5, -1.5, 5, 1, s),
-          tile('Pay', 3.5, -1.5, 5, 1, s),
+          ...st.buttons.map((b) => tile(b, at(b, st.buttons), 1.3, 5, 1, s)),
+          label(`Visible focus on ${st.focused}`, 0, -0.2, s.palette.ink, 0.7),
+          ...st.buttons.map((b) => tile(b, at(b, st.buttons), -1.5, 5, 1, s)),
           new Rectangle({ width: 5.45, height: 1.45, fill: 'none', stroke: s.emphasis, strokeWidth: 0.09 }).moveTo([
-            3.5, -1.5,
+            at(st.focused, st.buttons), -1.5,
           ]),
         ),
-    },
-    {
+    }),
+    staged({
       id: 'reader-levels',
       title: `Level ${level} asks for ${total.total} criteria in WCAG 2.2`,
       line: 'Each row includes the rows above it.',
       caption: `Does aiming for AA mean checking the criteria labelled AA? WCAG’s conformance requirements say a level AA page satisfies all the level A and level AA criteria, or offers an alternate version that does, so level AA’s list in WCAG 2.2 is ${a} at level A plus ${tally('2.2', 'AA').total - a} at AA. At level ${level}, the selected level, the list holds ${total.total} criteria, ${selected.length} of them under guideline ${guideline}. A count names the set to evaluate; it is not a conformance result.`,
-      state: { level, total: total.total, guideline, count: selected.length },
-      draw: (_, s) =>
+      // `levels`: the table the picture shows, each level with the levels it includes and its WCAG 2.2 count.
+      state: {
+        level,
+        total: total.total,
+        guideline,
+        count: selected.length,
+        levels: LEVELS.map((l, i) => ({ level: l, includes: LEVELS.slice(0, i + 1).join(' + '), total: tally('2.2', l).total })),
+      },
+      draw: (st, s) =>
         table(
           ['Level', 'Includes', 'WCAG 2.2'],
-          [
-            ['A', 'A', tally('2.2', 'A').total],
-            ['AA', 'A + AA', tally('2.2', 'AA').total],
-            ['AAA', 'A + AA + AAA', tally('2.2', 'AAA').total],
-          ],
+          st.levels.map((r) => [r.level, r.includes, r.total]),
           s,
           { xs: [-5, -0.8, 5.4], y: 2.6, gap: 1.5 },
         ),
-    },
-    {
+    }),
+    staged({
       id: 'reader-versions',
       title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
       line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,
@@ -134,7 +141,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
           VERSIONS.map((v) => [v, columns(level).filter((c) => inVersion(c, v)).map((c) => c.num)]),
         ),
       },
-      draw: (_, s) => lists(level, s),
-    },
+      draw: (st, s) => lists(st, s),
+    }),
   ];
 }

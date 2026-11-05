@@ -224,7 +224,7 @@ try {
     await writeFile(target, code);
   };
   await mkdir(join(folder, 'lib/readers'), { recursive: true });
-  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'readers/layout-direction.ts'])
+  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'staged.ts', 'readers/layout-direction.ts'])
     await copyAuthorSource(join(ROOT, 'scenes/explainers/lib', file), join(folder, 'lib', file));
   for (const [name, source] of replayFixtures) {
     const target = join(folder, 'outline-' + name);

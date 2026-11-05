@@ -5,6 +5,7 @@ import { runSearch, raceLifetimes, racePage, raceReplay } from '../latest-search
 import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from '../latest-search.ts';
 import { label, tile } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
+import { staged } from '../staged.ts';
 
 /** What the user typed for each search: A is the older keystroke, B the latest. */
 export const TYPED: Record<Query, string> = { A: 'ca', B: 'cat' };
@@ -142,7 +143,7 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
   const staleWins = off.snapshots.at(-1)!.shown !== 'B';
   const latest = TICKET.B;
 
-  const decisions = done.map((query, i): StagedStep => {
+  const decisions = done.map((query, i) => {
     const ticket = TICKET[query],
       accepted = ticket === latest,
       without = off.snapshots[i + 1]!.shown,
@@ -151,7 +152,7 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
       without === withGuard
         ? `Both rules now show ${q(without)}.`
         : `Without the guard the page would now show ${q(without)}; with it, the page shows ${q(withGuard)}${withGuard ? '' : ' yet'}.`;
-    return {
+    return staged({
       id: i === 0 ? 'reader-first' : 'reader-ticket',
       title: accepted
         ? `Answer: published. ${q(query)} lands with ticket ${ticket}, the latest`
@@ -161,18 +162,18 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
           ? `Predict: ${q(done[1]!)} lands next with ticket ${TICKET[done[1]!]}. Published or dropped?`
           : `Latest is still ${latest}: finishing a search does not change it.`,
       caption: `${q(query)} carries ticket ${ticket} and latest is ${latest}, so the guard ${accepted ? 'publishes its results' : 'drops its results'}. ${page}`,
-      state: { query, ticket, latest, accepted, off: off.snapshots[i + 1], on: on.snapshots[i + 1] },
-      draw: (_, s) =>
+      state: { query, ticket, latest, accepted, off: off.snapshots[i + 1]!, on: on.snapshots[i + 1]! },
+      draw: (st, s) =>
         new Group(
-          tile(`${q(query)}: ticket ${ticket}`, -4, 2, 5.4, 1.2, s),
-          tile(`latest = ${latest}`, 4, 2, 5.4, 1.2, s),
-          label(accepted ? '=' : '≠', 0, 2, accepted ? s.good : s.bad, 1),
-          label(accepted ? `Publish ${q(query)}` : `Drop ${q(query)}`, 0, 0.5, accepted ? s.good : s.bad, 0.8),
+          tile(`${q(st.query)}: ticket ${st.ticket}`, -4, 2, 5.4, 1.2, s),
+          tile(`latest = ${st.latest}`, 4, 2, 5.4, 1.2, s),
+          label(st.accepted ? '=' : '≠', 0, 2, st.accepted ? s.good : s.bad, 1),
+          label(st.accepted ? `Publish ${q(st.query)}` : `Drop ${q(st.query)}`, 0, 0.5, st.accepted ? s.good : s.bad, 0.8),
           new Code([CHECK], { fontSize: CODE_SIZE, color: s.palette.ink }).moveTo([0, -1.35]),
           // What each rule leaves on the page after this result, from the model's two runs.
-          label(`Page now: ${q(withGuard)} with the guard, ${q(without)} without`, 0, -3.05, s.palette.ink, 0.62, 'page-now'),
+          label(`Page now: ${q(st.on.shown)} with the guard, ${q(st.off.shown)} without`, 0, -3.05, s.palette.ink, 0.62, 'page-now'),
         ),
-    };
+    });
   });
 
   const events: RaceEvent[] = ['start A', 'start B', `${first} lands`, `${last} lands`];
@@ -182,18 +183,18 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
     throw new Error('the race machine and the promise run disagree');
   return {
     events,
-    race: {
+    race: staged({
       id: 'race',
       title: `Type ${q('A')}, then ${q('B')}: two searches race`,
       line: `Predict: ${q(first)} answers first and ${q(last)} last. Which results does the page end on?`,
       caption: `Each bar is one search, from the keystroke that starts it to the moment its answer lands. ${q('A')} starts first and ${q('B')} second, and the user now wants ${q('B')}. Both are running at once, and they can finish in a different order from the one they started in; here ${q(first)} lands first. The bars show the order of events, not measured time. Both requests succeed in this example. The page starts empty and publishes results as they arrive.`,
       state: { order, completion: done, lifetimes: off.lifetimes },
-      draw: (_, s) =>
+      draw: (st, s) =>
         new Group(
-          ...timeline(s, off.lifetimes, [], 3).children,
+          ...timeline(s, st.lifetimes, [], 3).children,
           label(`The user wants ${q('B')}`, 0, -2.0, s.emphasis, 0.75, 'timeline-wants'),
         ),
-    },
+    }),
     overwrite: {
       id: 'overwrite',
       title: staleWins
@@ -208,23 +209,23 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
           : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined in red; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`
       }`,
     },
-    middle: [{
+    middle: [staged({
       id: 'tickets',
       title: 'Answer: number each search, and publish only the latest',
       line: `Predict: ${q(first)} lands first with ticket ${TICKET[first]}. Published or dropped?`,
       caption: `Give each search a ticket from a counter as it starts: ${q('A')} gets 1, ${q('B')} gets 2, and latest is now 2. Finishing changes neither. When a result lands, publish it only if its ticket is still the latest. Starting a newer request makes every older ticket stale; arrival order cannot make an old ticket current again.`,
       state: { tickets: { A: TICKET.A, B: TICKET.B }, latest },
-      draw: (_, s) =>
+      draw: (st, s) =>
         new Group(
-          tile(`${q('A')}: ticket ${TICKET.A}`, -4, 2, 5.4, 1.2, s),
-          tile(`${q('B')}: ticket ${TICKET.B}`, 4, 2, 5.4, 1.2, s, { active: true }),
-          label(`latest = ${latest}`, 0, 0.5, s.emphasis, 0.8),
+          tile(`${q('A')}: ticket ${st.tickets.A}`, -4, 2, 5.4, 1.2, s),
+          tile(`${q('B')}: ticket ${st.tickets.B}`, 4, 2, 5.4, 1.2, s, { active: true }),
+          label(`latest = ${st.latest}`, 0, 0.5, s.emphasis, 0.8),
           new Code(['// when a search starts', 'const ticket = ++latest', '// when its result lands', CHECK], {
             fontSize: CODE_SIZE,
             color: s.palette.ink,
           }).moveTo([0, -2.1]),
         ),
-    },
+    }),
     ...decisions],
     guard: {
       id: 'reader-guard',

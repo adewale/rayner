@@ -3,6 +3,7 @@ import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING } from '../gnome-fil
 import type { Participant, Colour } from '../gnome-files.ts';
 import { flow, label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
+import { staged } from '../staged.ts';
 // Locations and observations: the report's task findings, pages 11, 21–22, 25–26, 34 and 40.
 const locations: Record<number, string[]> = {
   1: ['View options', 'Icon size'],
@@ -51,8 +52,7 @@ const phrase: Record<Colour, string> = {
   gray: 'outside the study’s scope',
 };
 export function frames(p: Participant): StagedStep[] {
-  const n = gaveUp(p)[0]!,
-    name = task(n).name;
+  const n = gaveUp(p)[0]!;
   const row = PARTICIPANTS.map((q) => colourOf(n, q));
   const stuck = row.filter((c) => c === 'black').length;
   const rest = (['green', 'yellow', 'orange', 'red', 'gray'] as const)
@@ -60,20 +60,20 @@ export function frames(p: Participant): StagedStep[] {
     .filter(([, k]) => k > 0)
     .map(([c, k]) => `${counted[k]!.toLowerCase()} ${phrase[c]}`);
   return [
-    {
+    staged({
       id: 'reader-task',
       title: `${p} gave up on ${named[n]}`,
       line: `The command was there: ${placed[n]}.`,
       caption: `The task read: ${task(n).text}. This schematic shows where the command sat; it is not a screenshot of Files. ${observations[n]} The command existed, and ${p} still did not find it. Was ${p} unlucky, or did the same menu lose other people too?`,
-      state: { participant: p, task: n, location: locations[n] },
-      draw: (_, s) =>
+      state: { participant: p, task: n, location: locations[n]! },
+      draw: (st, s) =>
         new Group(
-          flow(s, locations[n]!),
-          label('Task: ' + (n === 1 ? 'Change icon size' : name), 0, -1.5, s.palette.ink, 0.75),
-          label(`${p} could not complete it`, 0, -3, s.bad, 0.7),
+          flow(s, st.location),
+          label('Task: ' + (st.task === 1 ? 'Change icon size' : task(st.task).name), 0, -1.5, s.palette.ink, 0.75),
+          label(`${st.participant} could not complete it`, 0, -3, s.bad, 0.7),
         ),
-    },
-    {
+    }),
+    staged({
       id: 'reader-sample',
       title: `${counted[stuck]} of the six gave up on ${named[n]}`,
       line: `The others: ${rest.join(', ')}.`,
@@ -85,11 +85,10 @@ export function frames(p: Participant): StagedStep[] {
           return { participant: q, colour, meaning: MEANING[colour] };
         }),
       },
-      draw: (_, s) =>
+      draw: (st, s) =>
         new Group(
-          ...PARTICIPANTS.map((q, i) => {
-            const color = colourOf(n, q),
-              x = ((i % 3) - 1) * 4.8,
+          ...st.outcomes.map(({ participant: q, colour: color }, i) => {
+            const x = ((i % 3) - 1) * 4.8,
               y = 1.4 - Math.floor(i / 3) * 2.7;
             const outcome = new Group(
               new Rectangle({
@@ -106,6 +105,6 @@ export function frames(p: Participant): StagedStep[] {
             return outcome;
           }),
         ),
-    },
+    }),
   ];
 }
