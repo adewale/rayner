@@ -506,6 +506,8 @@ These checks establish deterministic behaviour and readable pictures. They do no
 
 `rayner review scene.ts` runs `check`, builds a temporary page and visits every resting step of every scenario at 390 and 1180 px in Chromium. It checks actual painted subjects, caption text, complete close-up tours, page overflow, console errors and outside connections. It retains the reviewed `scene.html`, its receipt, header recipe and `loader.js` alongside screenshots and `review.json` under `out/review/<id>/`. `--out <directory>` changes that directory; `--out public/example.html` saves the exact reviewed page there while keeping review reports in the default directory. A failed run removes the success receipt and preserves the previously reviewed page.
 
+At each [live step](MACHINES.md#the-player) the review also opens the pictures a reader reaches by pressing its events, by their links (`?step=…&sent=…`), at 390 and 1180 px: every state one press from where the reader's events start (however many), then breadth first the states further on until six, the farthest state the machine reaches being the sixth, each by its shortest events. There it checks what applies of a resting step: the step's caption, no notice, the events kept in the URL, no page overflow, the stage painting exactly the records the state draws in Node, and the reader's views (the whole picture, then on a phone the step's close-ups) showing what the events newly emphasised, else the artwork they changed, whole and unclipped. It also checks that the buttons are what `outcome` gives from the state, and that every label the whole picture paints reads at least 14 px as at a 1280 px stage, measured from the served page's transform. The receipt lists each visited state under its scenario's `live`, with its events, the views and subjects it verified, its smallest label and, at 390 px, the smallest label of what changed at its best view (recorded, not required), and counts them as `liveStateWidths`. The catalog review takes each scenario's live steps from the built description and fails a receipt that skips one.
+
 Main steps with independently declared opening subjects additionally open fresh at 320×568. Those subjects must be complete in that first view, with labels at least 12 CSS pixels high. The receipt records those checks and names excluded steps; detailed source tours still use the full two-width review.
 
 Helpers supply subjects automatically. For a subject the caption names, or a step with unchanged artwork, declare it in `scene.review.json` beside `scene.ts`:
@@ -538,7 +540,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `preview <scene>` | Build and serve the page; use `shots` for a contact sheet |
 | `snapshots <scene>` | Capture and verify diagrams; replay morph edits |
 | `check <scene>` | The checks above |
-| `review <scene>` | The checks, then [served-reader review](#reader-review) of every scenario and step at both widths |
+| `review <scene>` | The checks, then [served-reader review](#reader-review) of every scenario and step at both widths, and of the live states a reader reaches by pressing events |
 | `build <scene>` | The page, its receipt, its header recipe and `loader.js` |
 | `shots <scene>` | A contact sheet of every step, as SVG and PNG |
 | `describe <scene>` | [`describeExplainer`](#describe) as JSON: every scenario and step, with words, state, what changed and the picture in words and as text |

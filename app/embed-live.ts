@@ -113,7 +113,8 @@ export interface LiveRun {
  * through `machine.send` (from the machine's start, its views redrawn there, when `from` is
  * 'start' and the log is not empty), every frame skipped; `sink` then draws the picture the log lands on.
  * With `animate`, the last event plays through that sink instead, frame by frame from the picture
- * before it (drawn at dt 0, after which `onStart` is called), and then lands.
+ * before it (drawn at dt 0, after which `onStart` is called), and then lands. `onRest` sees the
+ * scene at the step's resting picture, before any event (the review compares a state with it).
  *
  * The run stops in the live step as soon as its picture stops changing: at the end of the play or
  * wait that reaches the step's hold (or its end), or as the step ends. Code a scene runs between
@@ -126,7 +127,7 @@ export async function runLive(
   times: LiveStepTimes,
   index: number,
   log: readonly string[],
-  { sink, animate, onStart, from = 'rest' }: { sink?: Sink; animate?: Sink; onStart?: () => void; from?: LogStart } = {},
+  { sink, animate, onStart, onRest, from = 'rest' }: { sink?: Sink; animate?: Sink; onStart?: () => void; onRest?: (scene: Scene<any>) => void; from?: LogStart } = {},
 ): Promise<LiveRun> {
   const end = times.hold ?? times.t1 ?? Infinity;
   let result: LiveRun | undefined;
@@ -139,6 +140,7 @@ export async function runLive(
       if (!machine) throw new Error(`No machine ${index} was made by the step "${times.step}"; a scene must make the same machines each run`);
       if (machine.playedUnder && JSON.stringify(machine.playedUnder) !== JSON.stringify(this.shown)) this.shown = machine.playedUnder;
       const rest = JSON.parse(JSON.stringify(this.state)) as object;
+      onRest?.(this);
       // From the machine's start: its views redrawn there, in place, as exploration draws a state.
       if (from === 'start' && log.length) {
         this.state = JSON.parse(JSON.stringify(machine.spec.start)) as object;

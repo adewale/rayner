@@ -153,7 +153,11 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
   [invariant](EXTENDING.md#hold-an-invariant-on-every-frame) or a fidelity test.
 - **Phone close-ups are not explored.** Each explored state's labels are measured at a
   1280 px stage by the same legibility sink a run uses; the phone's close-ups are worked
-  out for the authored run only.
+  out for the authored run only. On a phone the player shows the whole picture while the reader
+  explores, and Next view tours the step's own close-ups. The review records, at 390 px, the
+  smallest label of what the events changed at its best view (`changedLabelPx`) but does not
+  require 12 px there: at token-bucket's live step the request boxes a press changes read at
+  4.5 to 6.7 px in every view, since the step's close-ups were planned for its own picture.
 - **A large machine is sampled.** Exploration stops at `limit` states per origin, so
   ring-buffer's 256 states are a sample, and a reader can press their way to a ring no check drew.
   `describeExplainer` counts states from `start` only.
@@ -220,12 +224,31 @@ Back, Reset, and leaving the step. `test/embed-live.test.ts` checks the logic in
 step, the kept prefix, the URL round trip, where the log starts, and that a log's picture is the
 same however it is reached, animated or not.
 
+`rayner review` and the catalog review (`npm run demos:review`, three shards in CI) also open the
+live states, by their links, at 390 and 1180 px ([reader review](REFERENCE.md#reader-review)).
+At each live step they visit every state one press from where the reader's events start, however
+many (two to five here); then, breadth first, the states further on until six; and the farthest
+state the machine reaches as the sixth, each by its shortest events. The pictures one press away
+are the ones every reader who touches a button sees; breadth first keeps each link the shortest
+that reaches its state, so a failure names the fewest events; and the farthest state is where a
+story's machine ends up (a full ring, the tenth request, both responses landed), the picture most
+likely to crowd. Exploration has already drawn every reachable state in Node; this is the served
+page's evidence for a bounded sample. There the review checks what applies of a resting step (the
+caption, no overflow, no console errors, the stage painting exactly the records the state draws,
+and the reader's views showing what the events newly emphasised, else the artwork they changed,
+whole and unclipped), that the buttons are what `outcome` gives, and that every label the whole
+picture paints reads at least 14 px as at a 1280 px stage, measured from the served page's own
+transform. For the nine machines that is 107 states over 21 live steps and every scenario, 214
+visits, adding about three minutes to the catalog review (about a minute a shard) and, for
+ring-buffer's two scenarios, about 25 seconds to `rayner review`. A label drawn tiny only in a
+state an event reaches fails it (`test/browser/explain-live-review.test.ts`, the deliberate
+defect); `rayner check` fails the same label first, in Node.
+
 **Not done.**
 - Each press runs the scene again to the step before the event starts to move: from about 10 to
   250 ms in Node for these nine. Keeping a run suspended at the step would avoid it, at the cost
   of a second way to reach a picture.
-- `rayner review` does not yet visit a live step and send events through the real page, and the
-  [benchmark](../bench/explainers/README.md) has not been re-run with the buttons.
+- The [benchmark](../bench/explainers/README.md) has not been re-run with the buttons.
 - An event whose name has a comma cannot be written in a link.
 
 ## Nine machines
