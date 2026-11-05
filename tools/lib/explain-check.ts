@@ -294,10 +294,30 @@ export class ViewSink implements Sink {
     for (const m of scene.familyMembers()) {
       if (!(m instanceof View)) continue;
       this.checked++;
-      const mismatch = viewMismatch(m, scene.state, { shown: scene.shown });
+      const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
       if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
     }
   }
+}
+
+/**
+ * Text alone misses a mark: a card's lit bar on the wrong row, or a bar left showing, reads the
+ * same words. Each part's kind, text, box and opacity, rounded, must match a fresh draw of the
+ * step's state.
+ */
+function viewGeometryMismatch(v: View, scene: Scene): string | null {
+  const round = (x: number) => Math.round(x * 100) / 100;
+  const family = (m: Mobject) => m.family();
+  const parts = (ms: Mobject[]) => ms.map((x) => JSON.stringify([
+    x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null, round(x.style.opacity ?? 1),
+  ]));
+  const shown = family(v.current), shows = parts(shown), draws = parts(family(v.draw(scene.state, scene.shown)));
+  if (shows.join() === draws.join()) return null;
+  // Name the first part that differs and has no parts of its own: the bar that moved, not its card.
+  const differs = shows.map((p, k) => p !== draws[k]);
+  const leaf = differs.findIndex((d, k) => d && !shown[k]!.children.length);
+  const i = leaf >= 0 ? leaf : differs.indexOf(true);
+  return `the view's part ${i} is ${shows[i] ?? 'missing'}, the state draws ${draws[i] ?? 'nothing there'} (${shows.length} parts shown, ${draws.length} drawn)`;
 }
 
 /** The caption hold: a step whose picture changes after its hold begins is `moved`. */

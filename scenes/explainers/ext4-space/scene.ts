@@ -480,7 +480,7 @@ export default class Ext4SpaceExplainer extends Scene {
     );
     // Each disk's blocks, the whole its shares are of.
     this.state.sizeBlocks = Object.fromEntries(all.map((a) => [a.k, a.x.layout.blocks]));
-    const sizeCard = await enterCard(
+    await enterCard(
       cardOf(
         (st) =>
           (Object.entries(st.sizes) as [Size, Ext4State['sizes'][Size]][]).map(([k, x]) => {
@@ -491,9 +491,10 @@ export default class Ext4SpaceExplainer extends Scene {
           at: regionBox('full', { top: 2.6, bottom: -3.6 }),
           fontSize: 0.42,
           title: `mkfs.ext4 -m ${st.disk.reserve}, shares of each disk`,
+          lit: st.disk.label,
+          litAs: 'this scenario',
         }),
       ),
     );
-    await sizeCard.mark(st().disk.label, { as: 'this scenario' });
   }
 }

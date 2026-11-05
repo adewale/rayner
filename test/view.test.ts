@@ -311,3 +311,25 @@ test('rayner check names a view whose picture lags the state at the end of a ste
     assert.ok(views.checked >= 2);
   }
 });
+
+test('rayner check names a view whose words match its state but whose marks do not', async () => {
+  const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
+  const { NullSink, Group, Rectangle } = await import('../src/index.ts');
+  // A label and a bar under row `lit`: moving the bar by hand, outside the state, leaves the words alone.
+  const marked = (byHand: boolean) => class extends Scene<{ lit: number }> {
+    override state = { lit: 0 };
+    override async construct() {
+      const card = view(this, (st) => new Group(new Text('rows'), new Rectangle({ width: 2, height: 0.4 }).shift([0, -0.5 * st.lit])), { place: false });
+      this.add(card);
+      await this.step('one');
+      if (byHand) card.current.children[1]!.shift([0, -0.5]);
+      else { this.state = { lit: 1 }; await this.play(card.sync({ runTime: 0.2 })); }
+    }
+  };
+  for (const byHand of [false, true]) {
+    const views = new ViewSink();
+    await new (marked(byHand))(new FanSink([new NullSink(), views])).run();
+    if (byHand) assert.match(views.problems[0]!, /^step "one": a view: the view's part \d+ is \["Rectangle"/);
+    else assert.deepEqual(views.problems, []);
+  }
+});
