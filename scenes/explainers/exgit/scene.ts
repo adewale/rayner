@@ -245,13 +245,11 @@ export default class GitExplainer extends Scene {
     const picture = (state: object) => {
       const g = (state as unknown as GitState).diagram;
       if (d.spec.source !== g.source) throw new Error('The diagram on show is not the one the state records');
-      return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, colorOf[m.tone]])));
+      return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])));
     };
     let diagramView: View | undefined;
-    const marksInWords = () =>
-      (st().diagram?.marks ?? []).length ? `Marked: ${st().diagram.marks.map((m) => `${m.part.replace(/^edge:/, '')} (${m.as})`).join(', ')}` : '';
     s.emphasise(() => (st().diagram?.marks ?? []).map((m) => [m.part, `mark ${colorOf[m.tone]} ${m.as}`] as [string, string]));
-    /** The view takes the live diagram's place: the same picture, now drawn from the state. */
+    /** The view takes the live diagram's place: the same picture, now drawn from the state, and described as the diagram with its marks and notes. */
     const adopt = () => {
       this.state.diagram = { source: d.spec.source!, marks: [] };
       if (diagramView) diagramView.rebuild();
@@ -259,7 +257,7 @@ export default class GitExplainer extends Scene {
       this.add(diagramView);
       this.remove(d.root);
       d.showBy(diagramView);
-      s.keep(diagramView, { describe: marksInWords });
+      s.keep(diagramView);
     };
     const mark = async (marks: GitState['diagram']['marks'], runTime = 0.45) => {
       this.state.diagram = { ...st().diagram, marks };

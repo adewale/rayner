@@ -443,16 +443,20 @@ test('a staged step says what its picture shows with describe, and its own card 
 
 test('a diagram picture carries notes placed as note() places them, dimming as dim() gives it, and prefixed keys', async () => {
   const { emphasisOf } = await import('../explain/look.ts');
+  // The fixture's parts with words, so the description can name them.
+  const named = { source: 'graph LR\nA --> B\nB --> C\n%% named', style: 'nord' };
+  const labelled = fixture().parts.map((p) => (p.from ? p : { ...p, shapes: [...p.shapes, { ...square(0, { fill: INK, stroke: 'none' }), text: `node ${p.id}`, fontSize: 0.2 }] }));
+  const store = { [diagramKey(named)]: fixedSnapshot(named, labelled, { width: 800, palette: { paper: PAPER, ink: INK, accent: ACCENT, muted: '#aaaaaa' } }) };
   class Pictured extends Scene {
     override async construct() {
       const s = stage(this);
       await this.step('one');
-      const d = await s.show(spec);
+      const d = await s.show(named);
       const live = await d.note('C', 'here', { side: 'above' });
       const notePicture = d.notePicture('C', 'here', { side: 'above' });
       assert.deepEqual(notePicture.box(), live.box());
       assert.equal(notePicture.key, 'note:C');
-      const pictured = d.picture({ B: ACCENT }, { notes: [{ id: 'C', text: 'here', side: 'above' }], dim: ['A'], prefix: 'p:' });
+      const pictured = d.picture({ B: { color: ACCENT, as: 'chosen' } }, { notes: [{ id: 'C', text: 'here', side: 'above' }], dim: ['A'], prefix: 'p:' });
       // The diagram, then its note over it, unclipped.
       assert.equal(pictured.children.length, 2);
       const [art, note] = pictured.children as [Mobject, Mobject];
@@ -473,6 +477,10 @@ test('a diagram picture carries notes placed as note() places them, dimming as d
       s.keep(pictured);
     }
   }
-  const [one] = (await traceScene(bound(Pictured))).steps.map((st) => st.shown);
-  assert.match(pictureSummary(one), /“here” beside/);
+  // Described as the live diagram is: the note and the worded mark among its parts, dimmed parts said so;
+  // the picture and its note add no entry of their own.
+  const [one] = (await traceScene(bindSnapshots(Pictured, store))).steps.map((st) => (st.shown!.picture as Picture).entries);
+  assert.equal(one!.length, 1);
+  assert.deepEqual(one![0]!.marked, { note: ['“here” beside node C'], chosen: ['node B'] });
+  assert.ok(one![0]!.items.some((i) => /dimmed/.test(i)));
 });

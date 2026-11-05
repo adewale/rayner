@@ -15,7 +15,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Mermaid diagrams, in all 15 Agentic Mermaid families, are captured at build time and animated by part id: `reveal`, `walk`, `mark`, `dim`, `note`, `focus` and `morph`. A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
 - A card built with `lit` and a code panel built with `focus` (`focusAs`, `litAs` for the word) carry their bar from the start, so a view or staged step draws the mark from state, described and emphasised.
 - `callout`, `dimension` and `pin` in `rayner/drawing` build the annotations `s.callout`, `s.dimension` and `s.pin` draw in, for a draw to build from state.
-- `d.picture(marks, { notes, dim, prefix })` draws a diagram's notes and dimming from state and prefixes its keys, so two pictures of one diagram can share the stage; `d.notePicture` builds one note as `d.note` places it.
+- `d.picture(marks, { notes, dim, prefix })` draws a diagram's notes and dimming from state and prefixes its keys, so two pictures of one diagram can share the stage; `d.notePicture` builds one note as `d.note` places it. A diagram shown by its picture is described as the picture shows it, marks named by `{ color, as }`, notes and dimming included.
 - A card, a code panel, a diagram note, a dimension line or a pin describes itself wherever it is drawn, a view's current picture or a staged step's included; a `describe` speaks for the rest.
 - A staged step's `describe(state)` says what its picture shows when its meaning is geometry rather than labels.
 - `stagedStep(step)` types one staged step's state for a list whose steps' states differ.

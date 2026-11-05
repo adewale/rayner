@@ -148,19 +148,11 @@ export default class MermaidExplainer extends Scene {
     const diagramPicture = (slot: Slot, prefix: string) => (state: object) => {
       const st = (state as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot]!;
       const d = diagramOf(slot, st);
-      const art = d.picture(Object.fromEntries(st.marks.map((m) => [m.part, colors[m.tone]])), {
+      const art = d.picture(Object.fromEntries(st.marks.map((m) => [m.part, { color: colors[m.tone], as: m.as }])), {
         notes: st.notes.map((n) => ({ id: n.part, text: n.text, side: n.side, ...(n.size ? { size: n.size } : {}) })),
         prefix,
       });
       return st.notes.length ? art : new Group(art);
-    };
-    const diagramState = (slot: Slot) => (this.state as unknown as { diagrams: Partial<Record<Slot, DiagramState>> }).diagrams[slot];
-    /** What the marks say, for the description: the diagram itself is described by its live copy, and each note by itself. */
-    const marksInWords = (slot: Slot) => () => {
-      const st = diagramState(slot);
-      if (!st) return '';
-      const name = (part: string) => part.replace(/^edge:/, '');
-      return st.marks.map((m) => `${name(m.part)}: ${m.as}`).join('; ');
     };
     // What the views mark, read from state: each marked part by its key. Each note says what it emphasises itself.
     const PREFIX: Record<Slot, string> = { main: '', wrong: 'wrong:', right: 'right:', history: '' };
@@ -184,7 +176,8 @@ export default class MermaidExplainer extends Scene {
       this.add(v);
       this.remove(d.root);
       d.showBy(v);
-      s.keep(v, { describe: marksInWords(slot) });
+      // Described as the diagram, with the marks and notes the state records.
+      s.keep(v);
       return v;
     };
     /** Change what a diagram's state records, and play its view's change. */

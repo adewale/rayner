@@ -45,6 +45,9 @@ interface Part {
   route?: VMobject;
 }
 export type NoteSide = 'above' | 'below' | 'left' | 'right';
+/** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
+interface PictureShows { marks: ReadonlyMap<string, { color: string; as: string }>; kept: ReadonlySet<string> | null }
+const pictureShows = Symbol('pictureShows');
 /** A note in a diagram's picture: beside part `id`, as `note(id, text, { side, color, size })` draws it. */
 export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
 interface Note {
@@ -438,6 +441,8 @@ export class Diagram {
   /** The last walk, by step name, for the description. */
   private walked: { step: string | undefined; hops: string[]; trail: boolean } | null = null;
   notes: Note[] = [];
+  /** Notes notePicture built, for the description while they are on stage. */
+  private drawnNotes = new Map<Mobject, { id: string; text: string }>();
 
   constructor(
     scene: Scene,
@@ -767,8 +772,10 @@ export class Diagram {
    * by its words in reading order (participants and lanes first), with its emphasis,
    * and the notes on it. Parts drawn with no words are reported as blank.
    */
-  describe(): Seen {
+  describe(as: PictureShows | null = this.shown()): Seen {
     const w = wordsOf(this.scene);
+    const marks = as ? as.marks : this.marks,
+      kept = as ? as.kept : this.kept;
     const [family, thing, link] = familyNames(w, this.snapshot.family);
     // Blank parts are reported to the author, in English.
     const [english] = familyNames(wordsFor('en'), this.snapshot.family);
@@ -783,7 +790,16 @@ export class Diagram {
     const walked = this.walked;
     const focused = this.inFocus();
     if (walked && walked.step === step && !walked.trail) parts.push({ name: walked.hops.join(', '), mark: w.path });
-    for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    // Live notes sit in the root: a picture that shows the diagram has its own, drawn from state.
+    if (!as) for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    // Notes drawn from state, in the order the stage draws them; ones no longer on stage are forgotten.
+    const present = this.scene.familyMembers();
+    const onStage = new Set(present);
+    for (const m of [...this.drawnNotes.keys()]) if (!onStage.has(m)) this.drawnNotes.delete(m);
+    for (const m of present) {
+      const n = this.drawnNotes.get(m);
+      if (n) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    }
     const order = [...this.order].sort((a, b) => +!isScaffold(this.parts.get(a)!.info) - +!isScaffold(this.parts.get(b)!.info));
     for (const id of order) {
       const info = this.parts.get(id)!.info;
@@ -810,8 +826,8 @@ export class Diagram {
       )
         things++;
       // A part in focus is said to be, unless a mark says more.
-      const mark = this.marks.get(id)?.as ?? (focused?.includes(id) ? w.focused : undefined);
-      const dimmed = !!this.kept && !this.kept.has(id) && !isScaffold(info);
+      const mark = marks.get(id)?.as ?? (focused?.includes(id) ? w.focused : undefined);
+      const dimmed = !!kept && !kept.has(id) && !isScaffold(info);
       parts.push({ name, ...(mark ? { mark } : {}), ...(dimmed ? { dimmed } : {}) });
     }
     const title = this.words('title');
@@ -925,15 +941,19 @@ export class Diagram {
    * (a note's is `note:<id>`; keys starting `__` are roles and keep their names), so two pictures
    * of one diagram can be on stage together. Marks, notes and dimming name parts by their ids in
    * the diagram, unprefixed.
+   *
+   * While a view shows the picture (see showBy), the stage describes the diagram as the picture
+   * shows it, as it describes the live diagram: its notes and its dimming, and each mark given as
+   * `{ color, as }` by its word (a mark given as a colour alone is drawn, not said).
    */
   picture(
-    marks: Readonly<Record<string, string>> = {},
+    marks: Readonly<Record<string, string | { color: string; as?: string }>> = {},
     { notes = [], dim, prefix = '' }: { notes?: readonly PictureNote[]; dim?: readonly string[] | null; prefix?: string } = {},
   ): Group {
     const copy = this.root.copy();
     const live = this.root.family(), drawn = copy.family();
     const at = new Map(live.map((m, i) => [m, i] as const));
-    const marked = new Map(Object.entries(marks).map(([id, color]) => [this.top(id), color] as const));
+    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id), typeof m === 'string' ? { color: m } : m] as const));
     const kept = dim ? this.keptOf(dim) : null;
     // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
     // drawn or marked, the rest unseen.
@@ -941,7 +961,7 @@ export class Diagram {
       // An owned part (a link's label) is styled with its owner's family.
       if (!this.base.has(id)) continue;
       const dimmed = !!kept && !kept.has(id) && !isScaffold(part.info);
-      const styles = this.styled(id, marked.get(id), dimmed), shown = this.visible.has(id);
+      const styles = this.styled(id, marked.get(id)?.color, dimmed), shown = this.visible.has(id);
       part.mob.family().forEach((m, k) => {
         const i = at.get(m);
         if (i === undefined) return;
@@ -951,8 +971,31 @@ export class Diagram {
     }
     copy.setStyle({ opacity: 1 }, false);
     if (prefix) for (const m of copy.family()) if (m.key !== undefined && !m.key.startsWith('__')) m.key = prefix + m.key;
-    if (!notes.length) return copy;
-    return new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` })));
+    const pictured = notes.length ? new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` }))) : copy;
+    const said = new Map([...marked].flatMap(([id, m]) => (m.as ? [[id, { color: m.color, as: m.as }] as const] : [])));
+    Object.assign(pictured, { [pictureShows]: { marks: said, kept } });
+    // Described with the diagram while it shows it; on its own, as the diagram it pictures.
+    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept })));
+  }
+  /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
+  private described(): boolean {
+    const present = new Set(this.scene.familyMembers());
+    return present.has(this.root) || (!!this.shownBy && present.has(this.shownBy));
+  }
+  /** Whether `m` is, or is inside, what shows this diagram, while that is on stage. */
+  private shows(m: Mobject): boolean {
+    if (!this.shownBy || !this.described()) return false;
+    for (let x: Mobject | null = m; x; x = x.parent) if (x === this.shownBy) return true;
+    return false;
+  }
+  /** The picture of this diagram that shows it now, when the live diagram is off the stage: what it marks and dims. */
+  private shown(): PictureShows | null {
+    if (!this.shownBy || this.scene.familyMembers().includes(this.root)) return null;
+    for (const m of this.shownBy.family()) {
+      const shows = (m as Mobject & { [pictureShows]?: PictureShows })[pictureShows];
+      if (shows) return shows;
+    }
+    return null;
   }
   /**
    * A note beside part `id` as `note` draws and places one, without drawing it in: for a view's
@@ -968,9 +1011,11 @@ export class Diagram {
     g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
     g.key = key;
     const w = wordsOf(this.scene);
+    this.drawnNotes.set(g, { id, text });
+    // While the diagram is described, the note is one of its parts, as a live note is; otherwise it says itself.
     return selfDescribed(
       g,
-      () => ({ what: w.note, parts: [{ name: w.beside(text, this.nameOf(id)) }] }),
+      () => (this.described() ? { what: '', parts: [] } : { what: w.note, parts: [{ name: w.beside(text, this.nameOf(id)) }] }),
       () => [[g, `note ${text}`]],
     );
   }

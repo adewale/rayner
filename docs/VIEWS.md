@@ -185,6 +185,11 @@ const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), pr
   what they are wherever they sit: kept, inside a view, inside a group, inside a staged step's
   picture. A `describe` on `s.keep`, `s.enter` or a staged step speaks for the rest of the
   picture, not for those parts, so it never repeats a card.
+- **A diagram picture is described as the diagram.** While a view shows a picture (after
+  `d.showBy(view)`), the stage describes the diagram as the picture shows it, in the live
+  diagram's words: each note drawn with `notePicture` or `notes`, each mark given as
+  `{ color, as }` by its word, and dimmed parts said so. `exgit` reads exactly as it did when it
+  marked and noted the live diagram.
 - **They say what they emphasise.** A lit row, a focused line and a note report themselves to
   the phone's close-ups as `mark` and `focus` do, so a scene that draws them needs no
   `s.emphasise`. Marks on a diagram picture still need one, since the picture copies the
