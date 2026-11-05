@@ -14,9 +14,30 @@ import {
   Restore,
   Circumscribe,
   view,
+  Brace,
+  Underline,
+  NumberLine,
+  DecimalNumber,
+  MathTex,
+  ArcBetweenPoints,
+  MoveAlongPath,
+  Write,
+  TransformFromCopy,
+  TransformMatching,
+  matchByKey,
+  Code,
+  TransformDiff,
+  diffLines,
+  parseUnifiedDiff,
+  Follow,
+  smooth,
+  rushInto,
+  rushFrom,
+  thereAndBack,
 } from '../../../src/index.ts';
-import type { SceneState, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import type { SceneState, Mobject, Vec } from '../../../src/index.ts';
+import { stage, settingsOf, palette } from '../../../explain/index.ts';
+import { bars, tile, keyed, seenFrom, between, latLon, circleOn, project } from '../../../explain/drawing.ts';
 
 type Feature =
   | 'steps'
@@ -33,7 +54,21 @@ type Feature =
   | 'state'
   | 'annotations'
   | 'direction'
-  | 'drawing';
+  | 'drawing'
+  | 'brace'
+  | 'underline'
+  | 'number-line'
+  | 'decimal'
+  | 'math'
+  | 'arc'
+  | 'write'
+  | 'copy'
+  | 'keys'
+  | 'diff'
+  | 'rates'
+  | 'bars'
+  | 'palette'
+  | 'globe';
 
 // These are author-side excerpts, not the implementation of the reader player.
 // The complete, runnable version of each example is this scene's construct() below.
@@ -249,6 +284,215 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     caption: "The pen disappears when drawing ends, and the rising line remains; its description carries the same fact to readers who do not see the motion. The two dots on the left are a separate drawing of the path’s ends.",
     point: 'Of the pen’s motion, only the finished line is left at rest.',
   },
+  brace: {
+    title: 'Mark a span that counts as one',
+    result: 'Four letters, then a brace that counts them',
+    code: [
+      "const row = new Text('a b c d');",
+      'await s.enter(row);',
+      'const brace = new Brace(row, [0, -1]);',
+      "const count = new Text('4 items');",
+      'brace.putAtTip(count);',
+      'await s.enter(brace, count);',
+    ],
+    recipe: 'Brace draws a curly bracket along one side of its target’s box: [0, -1] puts it underneath, its tip pointing down. putAtTip places anything just past the tip.',
+    caption: 'The brace is as wide as the row’s box, so it takes the four letters together, and putAtTip set 4 items just past its tip. A brace is built once from the box: if the row moves later, the brace stays where it was. The row on the left is a separate drawing, before the brace.',
+    point: 'The brace spans all four letters, and 4 items sits past its tip.',
+  },
+  underline: {
+    title: 'Underline one value in a row',
+    result: 'Three values, then the middle one underlined',
+    code: [
+      "const values = ['12', '42', '7'].map((v, i) =>",
+      '  new Text(v).moveTo([i * 1.5, 0]));',
+      'await s.enter(...values);',
+      'const mark = new Underline(values[1],',
+      '  {stroke: s.emphasis});',
+      "await s.enter(mark, {describe: '42 underlined'});",
+    ],
+    recipe: 'Underline draws a stroke just under its target’s box, left to right. The other values are not touched.',
+    caption: 'The underline is as wide as 42 and sits just under it, so it singles out one value without boxing it or moving its neighbours, and its description says which. The row on the left is a separate drawing, before the mark.',
+    point: '42 is underlined, and the row has not moved.',
+  },
+  'number-line': {
+    title: 'Place a value on a scale',
+    result: 'The value 7, then 7 placed on a scale from 0 to 10',
+    code: [
+      'const line = new NumberLine({range: [0, 10, 2],',
+      '  length: 8, includeNumbers: true,',
+      '  stroke: s.soft, labelColor: s.palette.ink});',
+      'const at = new Dot({color: s.emphasis})',
+      '  .moveTo(line.n2p(7));',
+      "await s.enter(line, at, {describe: '7 on 0 to 10'});",
+    ],
+    recipe: 'NumberLine draws a scale from its range, with a tick at each step; n2p turns a number into the point where it belongs on the line.',
+    caption: 'n2p measured 7 along the line, so the dot sits between the ticks for 6 and 8 with no position typed by hand, and it would stay right if the line moved or scaled. The number on the left is a separate drawing of the value.',
+    point: 'The dot sits between the ticks for 6 and 8, where n2p put 7.',
+  },
+  decimal: {
+    title: 'Count a number up to its new value',
+    result: '0.0 ms before, 12.5 ms after',
+    code: [
+      'const ms = new DecimalNumber(0, {decimals: 1,',
+      "  suffix: ' ms', fontSize: 1});",
+      'await s.enter(ms);',
+      'await this.play(new Transform(ms,',
+      '  new DecimalNumber(12.5, {decimals: 1,',
+      "    suffix: ' ms', fontSize: 1})));",
+    ],
+    recipe: 'DecimalNumber is a Text that keeps its value. A Transform to another DecimalNumber counts through the values in between, with the decimals and suffix it was given.',
+    caption: 'Transform interpolated the value, so a reader watching saw 0.0 ms climb through the values in between to 12.5 ms, and one opening the link sees 12.5 ms alone. The 0.0 ms on the left is a separate drawing of where the count started.',
+    point: 'From a link the number reads 12.5 ms; the count happened in between.',
+  },
+  math: {
+    title: 'Set a formula from TeX',
+    result: 'The TeX an author writes, then the formula it sets',
+    code: [
+      'static meta = { /* … */',
+      '  lettering: {math: true} };',
+      "const f = new MathTex('a^2+b^2=c^2',",
+      '  {display: true, fontSize: 0.8});',
+      'await s.enter(f, {describe:',
+      "  'a squared plus b squared equals c squared'});",
+    ],
+    recipe: 'lettering: {math: true} asks the build for maths, and MathTex draws TeX as outlines, typeset once when rayner snapshots runs. describe says the formula in words, because outlines have no text to read.',
+    caption: 'rayner snapshots typeset a^2+b^2=c^2 once and stored its outlines in scene.lettering.json, so the page draws them and runs no TeX. The description gives the formula in words for readers who cannot see it. The source on the left is a separate drawing, as the author types it.',
+    point: 'The page draws stored outlines; the browser typesets nothing.',
+  },
+  arc: {
+    title: 'Send a token along a curved route',
+    result: 'A token at the start, then at the end of its curved route',
+    code: [
+      'const route = new ArcBetweenPoints([-3, 0], [3, 0],',
+      '  {angle: Math.PI / 2, stroke: s.soft});',
+      'const token = new Dot({color: s.emphasis})',
+      '  .moveTo([-3, 0]);',
+      "await s.enter(route, token, {describe: 'A route'});",
+      'await this.play(new MoveAlongPath(token, route));',
+    ],
+    recipe: 'ArcBetweenPoints draws a circular arc from one point to another, bending through angle, here a quarter turn. MoveAlongPath carries the token along that path instead of in a straight line.',
+    caption: 'MoveAlongPath followed the arc, so the token travelled the curve rather than the straight line between its ends, and it rests at the far end of the route. The route is still drawn because the recipe entered it; the motion leaves no trail of its own. The left panel is a separate drawing of the token at the start.',
+    point: 'The token rests at the route’s far end, and the route stays drawn.',
+  },
+  write: {
+    title: 'Write a word letter by letter',
+    result: 'An empty panel, then the written word',
+    code: [
+      "const word = new Text('Rayner', {fontSize: 1.2});",
+      'await this.play(new Write(word));',
+      's.keep(word);',
+    ],
+    recipe: 'Write draws each letter’s outline and then fills it, each letter starting before the one before it finishes. s.keep puts the word in the stage’s description.',
+    caption: 'Write changes how the letters arrive, not where they end: at rest the word is the same Rayner a fade would leave, and a link to this step shows no sign of the writing. When the order of writing is the lesson, draw that order, as this tour draws its before panels.',
+    point: 'At rest, a written word looks like any other word.',
+  },
+  copy: {
+    title: 'Make a new shape from a copy, keeping the original',
+    result: 'One square, then the square and the circle made from its copy',
+    code: [
+      'const source = new Square({side: 1.4});',
+      'const result = new Circle({radius: 0.8})',
+      '  .moveTo([3, 0]);',
+      "await s.enter(source, {describe: 'A square'});",
+      'await this.play(new TransformFromCopy(source, result));',
+      "s.keep(result, {describe: 'A circle'});",
+    ],
+    recipe: 'TransformFromCopy morphs a copy of the source into the result, so the source stays where it is and the scene keeps the result.',
+    caption: 'Transform would have turned the square itself into the circle; TransformFromCopy morphed a copy, so the square stays and the circle sits beside it. The left panel is a separate drawing of the square alone.',
+    point: 'Both shapes remain: the square, and the circle its copy became.',
+  },
+  keys: {
+    title: 'Reorder items so each travels to its new place',
+    result: 'A B C, then C A B with each tile moved whole',
+    code: [
+      'const row = (ids: string[]) => new Group(...ids.map(',
+      '  (id, i) => tile(id, i * 1.6, 0, 1.2, 1.2, s,',
+      '    {key: `tile:${id}`})));',
+      "const before = row(['A', 'B', 'C']);",
+      'await s.enter(before);',
+      "const after = row(['C', 'A', 'B']);",
+      'await this.play(new TransformMatching(before,',
+      '  after, {key: matchByKey()}));',
+      's.keep(after);',
+    ],
+    recipe: 'Each tile carries a key. TransformMatching with matchByKey pairs tiles by key, not by position, so tile C travels from last to first.',
+    caption: 'Pairing by key moved C from the end to the front and A and B one place on. Transform pairs by position, and would have morphed the first tile’s A into C where it stood. The row on the left is a separate drawing of the order before the move.',
+    point: 'Each tile travelled to its new place; none changed its letter.',
+  },
+  diff: {
+    title: 'Animate a patch you already have',
+    result: 'n += 1, then n += 2 as the patch says',
+    code: [
+      "const before = new Code(['let n = 0;', 'n += 1;']);",
+      "const after = new Code(['let n = 0;', 'n += 2;']);",
+      'await s.enter(before);',
+      'const hunks = parseUnifiedDiff(',
+      "  '@@ -1,2 +1,2 @@\\n let n = 0;\\n-n += 1;\\n+n += 2;');",
+      'await this.play(new TransformDiff(before, after, {hunks}));',
+      's.keep(after);',
+    ],
+    recipe: 'parseUnifiedDiff reads a patch, as Git prints one, into hunks. TransformDiff takes its pairing from those hunks, so the motion can show only the change the patch contains.',
+    caption: 'The hunk keeps let n = 0 as context, so that line travelled whole, and pairs the removed n += 1 with the added n += 2, which kept n += and swapped the number. Under the result, diffLines, which diffs the two versions itself, finds the same removed and added line; the patch also carries let n = 0 as context. The code on the left is a separate drawing of the version before.',
+    point: 'let n = 0 kept its place, and the line the hunk changes was rewritten.',
+  },
+  rates: {
+    title: 'Choose how a move speeds up and slows down',
+    result: 'Four rate functions, each move marked at each tenth of its run',
+    code: [
+      'const rates = {smooth, rushInto,',
+      '  rushFrom, thereAndBack};',
+      'for (const [name, rateFunc] of Object.entries(rates))',
+      '  await this.play(dots[name].animate.shift([5, 0]),',
+      '    {rateFunc});',
+    ],
+    recipe: 'rateFunc maps the time a play has run to how far along its move is: smooth eases in and out, rushInto starts slow and arrives at full speed, rushFrom leaves at full speed and eases out, and thereAndBack goes out and comes back.',
+    caption: 'Each tick marks where a dot was after another tenth of its run, read from the same rate function, so wide gaps mean speed: rushInto’s ticks spread out as it arrives, rushFrom’s as it leaves, smooth’s in the middle, and thereAndBack’s dot is back where it started. The bare tracks on the left are a separate drawing, before any move.',
+    point: 'Wide gaps are fast: rushInto at its end, rushFrom at its start.',
+  },
+  bars: {
+    title: 'Compare two values on one scale',
+    result: 'Two counts, then the same counts as bars on one scale',
+    code: [
+      'const rows = [',
+      "  {label: 'LRU', value: 3, display: '3 hits'},",
+      "  {label: 'MRU', value: 1, display: '1 hit'}];",
+      "await s.enter(bars(s, rows, 4, {key: 'hits'}));",
+    ],
+    recipe: 'bars, from the drawing kit, draws each row on one scale with aligned starts, here a maximum of 4, so the lengths compare directly.',
+    caption: 'Both bars start at one edge and share the scale of 4, so 1 hit draws a third as long as 3 hits and the comparison needs no reading of numbers. Each label and value is keyed, so a later picture can morph the same rows. The card on the left is a separate drawing of the same counts.',
+    point: 'MRU’s bar is a third as long as LRU’s, both measured from one start.',
+  },
+  palette: {
+    title: 'Colour a stage that has no diagram',
+    result: 'This tour’s usual colours, then the same stage in nord',
+    code: [
+      'const s = stage(this,',
+      "  {palette: palette('nord')});",
+      "await s.card([['Paper', s.palette.paper],",
+      "  ['Ink', s.palette.ink],",
+      "  ['Emphasis', s.emphasis]]);",
+    ],
+    recipe: 'palette(\'nord\') gives the stage a named palette of paper, ink and accent. The stage’s helpers colour from it, and s.palette, s.emphasis and s.soft hand the same colours to what you draw.',
+    caption: 'One option recoloured the paper, the heading and the card, and the card lists the colours s.palette gave it, so a drawing coloured from s.palette follows a change of palette and keeps its contrast. The panel on the left is a separate drawing in github-dark, this tour’s usual palette.',
+    point: 'Paper, heading and card all took nord’s colours from one option.',
+  },
+  globe: {
+    title: 'Turn a globe to face another place',
+    result: 'The globe from the Atlantic, then turned to face London',
+    code: [
+      "const a = {kind: 'orthographic', yaw: -60, pitch: 0},",
+      '  b = {...a, yaw: 0, pitch: 45};',
+      'const draw = (t: number) =>',
+      '  seenFrom(model, between(a, b, t), {scale: 1.6});',
+      'const globe = draw(0);',
+      "await s.enter(globe, {describe: 'A globe'});",
+      'await this.play(new Follow({from: 0, to: 1,',
+      '  draw: (t) => [draw(t)]}, {targets: [globe]}));',
+    ],
+    recipe: 'seenFrom draws a 3D model through a viewpoint as flat, keyed pieces, and between interpolates two viewpoints. Follow redraws the globe from one number on each frame, so the turn passes through the viewpoints in between.',
+    caption: 'Follow drew the globe from between(a, b, t) on each frame, so parts turning away went behind the globe instead of sliding across its face, and from a link the reader sees the end of the turn: London near the middle. The globe on the left is a separate drawing from the first viewpoint.',
+    point: 'London now faces the reader, turned by one number from 0 to 1.',
+  },
 };
 
 /** What an author choosing Rayner wants to do, as the question each scenario answers. */
@@ -268,6 +512,20 @@ const QUESTIONS: Record<Feature, string> = {
   annotations: 'How do I name a point in the picture?',
   direction: 'How do I lay out panels for a right-to-left page?',
   drawing: 'How do I reveal a line as if drawn by hand?',
+  brace: 'How do I show that several things count as one span?',
+  underline: 'How do I single out one value in a row?',
+  'number-line': 'How do I place a value on a scale?',
+  decimal: 'How do I count a number up to a new value?',
+  math: 'How do I set a formula?',
+  arc: 'How do I send something along a curved route?',
+  write: 'How do I write a word in, letter by letter?',
+  copy: 'How do I make a new shape from one and keep the original?',
+  keys: 'How do I reorder items so each one travels to its new place?',
+  diff: 'How do I animate a patch I already have?',
+  rates: 'How do I choose how a move speeds up and slows down?',
+  bars: 'How do I compare values on one scale?',
+  palette: 'How do I colour a scene that has no diagram?',
+  globe: 'How do I turn a globe to face another place?',
 };
 /** What the reader predicts on each recipe, about what these lines leave; the result step answers it. */
 const PREDICT: Record<Feature, string> = {
@@ -286,6 +544,20 @@ const PREDICT: Record<Feature, string> = {
   annotations: 'Predict: what does the pin say, and where does it point?',
   direction: 'Predict: in a right-to-left stage, where does a card placed at start go?',
   drawing: 'Predict: opened from a link, what is left of the pen’s motion?',
+  brace: 'Predict: which way does the brace’s tip point, and what sits past it?',
+  underline: 'Predict: what does the underline span, and do the other values move?',
+  'number-line': 'Predict: 7 has no tick of its own, so where does the dot go?',
+  decimal: 'Predict: between 0 and 12.5, does the number fade across or count through the values in between?',
+  math: 'Predict: does the page typeset the formula when it loads, or carry it ready-made?',
+  arc: 'Predict: once the move ends, where is the token, and is the route still drawn?',
+  write: 'Predict: opened from a link, does a written word look any different from one that faded in?',
+  copy: 'Predict: once the copy has morphed, how many shapes are left?',
+  keys: 'Predict: when A B C becomes C A B, does each tile slide, or does each letter change in place?',
+  diff: 'Predict: which line does the patch let travel whole, and which does it rewrite?',
+  rates: 'Predict: which dot arrives at full speed, and which comes back to where it started?',
+  bars: 'Predict: how long is MRU’s bar beside LRU’s?',
+  palette: 'Predict: which colours change with the palette: the card, the heading, or both?',
+  globe: 'Predict: once the turn ends, where is London on the globe?',
 };
 
 /** The script's one-sentence answer, which opens every scenario's recipe caption. */
@@ -301,6 +573,8 @@ export default class FeatureTour extends Scene {
   static meta = {
     id: 'feature-tour',
     title: 'How do I write that in Rayner?',
+    // The maths scenario's formula, typeset once by rayner snapshots into scene.lettering.json.
+    lettering: { math: true },
     scenarioNavigation: 'first' as const,
     sources: [
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts',
@@ -320,6 +594,10 @@ export default class FeatureTour extends Scene {
       { says: 'Only count += 2 carries the added mark', shown: true as const },
       { says: 'Only the square comes from the recipe', shown: true as const },
       { says: 'now shows only its middle', shown: true as const },
+      {
+        says: 'so the motion can show only the change the patch contains',
+        test: 'test/diff.test.ts: TransformDiff: given hunks are the truth',
+      },
       {
         says: 'Of the pen’s motion, only the finished line is left at rest',
         test: 'test/explain-stage-tools.test.ts: draw: the tool rides the tip without jumps, leaves no trace',
@@ -357,16 +635,30 @@ export default class FeatureTour extends Scene {
         { value: 'diagram', label: 'Diagrams' },
         { value: 'code', label: 'Code panels' },
         { value: 'code-diff', label: 'Code edits' },
+        { value: 'diff', label: 'Patches' },
         { value: 'animation', label: 'Animations' },
         { value: 'matching', label: 'Matching text' },
+        { value: 'keys', label: 'Matching by key' },
+        { value: 'copy', label: 'Copies' },
         { value: 'restore', label: 'Restore' },
+        { value: 'write', label: 'Writing text' },
+        { value: 'arc', label: 'Curved paths' },
+        { value: 'rates', label: 'Rate functions' },
         { value: 'emphasis', label: 'Emphasis' },
+        { value: 'underline', label: 'Underlines' },
+        { value: 'brace', label: 'Braces' },
         { value: 'camera', label: 'Camera' },
         { value: 'chart', label: 'Charts' },
+        { value: 'number-line', label: 'Number lines' },
+        { value: 'bars', label: 'Bar charts' },
+        { value: 'decimal', label: 'Counting numbers' },
         { value: 'state', label: 'State and views' },
         { value: 'annotations', label: 'Annotations' },
         { value: 'direction', label: 'RTL layout' },
+        { value: 'palette', label: 'Palettes' },
+        { value: 'math', label: 'Maths' },
         { value: 'drawing', label: 'Drawing tools' },
+        { value: 'globe', label: 'Globes' },
       ],
     },
   ];
@@ -375,7 +667,8 @@ export default class FeatureTour extends Scene {
     const feature = settingsOf(this).feature as Feature;
     const example = RECIPES[feature];
     const s = stage(this, {
-      style: 'github-dark',
+      // The palette scenario's recipe gives the stage nord's colours; every other scenario is github-dark.
+      ...(feature === 'palette' ? { palette: palette('nord') } : { style: 'github-dark' }),
       headingSize: 0.6,
       numbered: false,
       ...(feature === 'direction' ? { direction: 'rtl' as const } : {}),
@@ -597,7 +890,7 @@ export default class FeatureTour extends Scene {
       );
       await s.card([['Count', 3]], { at: 'start', direction: 'ltr', width: 6.8, fontSize: 0.65 });
       await s.enter(new Text('After: start in this right-to-left stage', { fontSize: 0.34, color: soft }).moveTo([4, -2.8]));
-    } else {
+    } else if (feature === 'drawing') {
       await panels(
         [
           new Dot({ radius: 0.08, color: accent }).moveTo([bx - 1.8, by - 0.45]),
@@ -609,6 +902,200 @@ export default class FeatureTour extends Scene {
       const path = new Line([ax - 3.6, ay - 0.9], [ax + 3.6, ay + 0.9], { stroke: accent, strokeWidth: 0.08 });
       path.key = 'drawing:path';
       await s.sketch(path, { tool: 'pen', describe: 'After: a rising line, drawn' });
+    } else if (feature === 'brace') {
+      await panels([new Text('a b c d', { fontSize: 0.6, color: ink }).moveTo([bx, by])], 'the letters a b c d');
+      const row = new Text('a b c d', { fontSize: 0.9, color: ink }).moveTo([ax, ay + 0.6]);
+      await s.enter(row);
+      const brace = new Brace(row, [0, -1], { stroke: accent, strokeWidth: 0.04 });
+      brace.key = 'brace:brace';
+      const count = new Text('4 items', { fontSize: 0.5, color: ink });
+      brace.putAtTip(count);
+      await s.enter(brace, count, { describe: 'After: a brace under all four letters, its tip pointing at 4 items' });
+    } else if (feature === 'underline') {
+      const row = (x: number, size: number) => ['12', '42', '7'].map((v, i) => new Text(v, { fontSize: size, color: ink }).moveTo([x + (i - 1) * size * 2.2, by]));
+      await panels(row(bx, 0.55), 'the values 12, 42 and 7, none marked');
+      const values = row(ax, 0.9);
+      await s.enter(...values);
+      const mark = new Underline(values[1]!, { stroke: accent, strokeWidth: 0.06 });
+      mark.key = 'underline:mark';
+      await s.enter(mark, { describe: 'After: 42 is underlined; 12 and 7 are not' });
+    } else if (feature === 'number-line') {
+      await panels(
+        [new Text('7', { fontSize: 1, color: ink }).moveTo([bx, by]), new Text('a value', { fontSize: 0.3, color: soft }).moveTo([bx, by - 1.0])],
+        'the value 7, on no scale',
+      );
+      const line = new NumberLine({ range: [0, 10, 2], length: 7.4, includeNumbers: true, stroke: soft, labelColor: ink, labelFontSize: 0.4 }).moveTo([ax, ay - 0.4]);
+      const at = new Dot({ radius: 0.13, color: accent }).moveTo(line.n2p(7));
+      at.key = 'number-line:dot';
+      const said = new Text('7', { fontSize: 0.5, color: accent }).moveTo([line.n2p(7)[0], line.n2p(7)[1] + 0.55]);
+      await s.enter(line, at, said, { describe: 'After: a scale from 0 to 10, ticked every 2, with a dot at 7, between the ticks for 6 and 8' });
+      this.state.placed = { value: 7, x: Number(line.n2p(7)[0].toFixed(3)) };
+    } else if (feature === 'decimal') {
+      await panels([new Text('0.0 ms', { fontSize: 0.7, color: ink }).moveTo([bx, by])], 'the count at 0.0 ms');
+      const ms = new DecimalNumber(0, { decimals: 1, suffix: ' ms', fontSize: 1.2, color: ink }).moveTo([ax, ay]);
+      await s.enter(ms, { describe: () => `After: the count reads ${ms.text}` });
+      await this.play(new Transform(ms, new DecimalNumber(12.5, { decimals: 1, suffix: ' ms', fontSize: 1.2, color: ink }).moveTo([ax, ay])));
+      this.state.count = ms.value;
+    } else if (feature === 'math') {
+      await panels([new Text('a^2+b^2=c^2', { fontSize: 0.42, font: 'mono', color: ink }).moveTo([bx, by])], 'the TeX source a^2+b^2=c^2');
+      const f = new MathTex('a^2+b^2=c^2', { display: true, fontSize: 1.1, color: ink }).moveTo([ax, ay]);
+      f.key = 'math:formula';
+      await s.enter(f, { describe: 'After: the formula a squared plus b squared equals c squared, typeset' });
+    } else if (feature === 'arc') {
+      const start = (x: number, w: number) => [x - w, by] as Vec,
+        end = (x: number, w: number) => [x + w, by] as Vec;
+      await panels(
+        [
+          new ArcBetweenPoints(start(bx, 1.8), end(bx, 1.8), { angle: Math.PI / 2, stroke: soft, strokeWidth: 0.03 }),
+          new Dot({ radius: 0.1, color: accent }).moveTo(start(bx, 1.8)),
+        ],
+        'the token at the start of its route',
+      );
+      const route = new ArcBetweenPoints(start(ax, 3), end(ax, 3), { angle: Math.PI / 2, stroke: soft, strokeWidth: 0.04 });
+      const token = new Dot({ radius: 0.14, color: accent }).moveTo(start(ax, 3));
+      token.key = 'arc:token';
+      await s.enter(route, token, { describe: () => `After: a curved route dipping below the straight line between its ends, with the token at its ${token.center()[0] > ax ? 'far end' : 'start'}` });
+      await this.play(new MoveAlongPath(token, route));
+    } else if (feature === 'write') {
+      await panels(
+        [
+          new Rectangle({ width: 4.4, height: 2.5, stroke: soft, strokeWidth: 0.03, cornerRadius: 0.1 }).moveTo([bx, by]),
+          new Text('nothing written yet', { fontSize: 0.34, color: soft }).moveTo([bx, by]),
+        ],
+        'an empty panel, nothing written yet',
+      );
+      const word = new Text('Rayner', { fontSize: 1.6, color: ink }).moveTo([ax, ay]);
+      await this.play(new Write(word));
+      s.keep(word, { describe: 'After: the word Rayner, written' });
+    } else if (feature === 'copy') {
+      await panels([new Square({ side: 1.2, stroke: accent, strokeWidth: 0.06 }).moveTo([bx, by])], 'the square alone');
+      const source = new Square({ side: 1.4, stroke: accent, strokeWidth: 0.06 }).moveTo([ax - 1.7, ay]);
+      const result = new Circle({ radius: 0.8, stroke: accent, strokeWidth: 0.06 }).moveTo([ax + 1.7, ay]);
+      source.key = 'copy:source';
+      result.key = 'copy:result';
+      await s.enter(source, { describe: 'After: the square, unchanged' });
+      await this.play(new TransformFromCopy(source, result));
+      s.keep(result, { describe: 'After: a circle beside the square, morphed from its copy' });
+    } else if (feature === 'keys') {
+      const row = (ids: string[], x: number, size: number, prefix: string) =>
+        new Group(...ids.map((id, i) => tile(id, x + (i - 1) * size * 1.35, by, size, size, s, { key: `${prefix}tile:${id}`, size: size * 0.55 })));
+      await panels([row(['A', 'B', 'C'], bx, 1, 'before:')], 'the tiles in the order A, B, C');
+      const before = row(['A', 'B', 'C'], ax, 1.4, '');
+      await s.enter(before);
+      const after = row(['C', 'A', 'B'], ax, 1.4, '');
+      const match = new TransformMatching(before, after, { key: matchByKey() });
+      await this.play(match);
+      s.keep(after, { describe: 'After: the tiles in the order C, A, B, each moved whole' });
+      this.state.order = ['C', 'A', 'B'];
+    } else if (feature === 'diff') {
+      const old = ['let n = 0;', 'n += 1;'],
+        next = ['let n = 0;', 'n += 2;'];
+      const patch = '@@ -1,2 +1,2 @@\n let n = 0;\n-n += 1;\n+n += 2;';
+      await panels([new Code(old, { fontSize: 0.4, color: ink }).moveTo([bx, by])], 'the code with n += 1');
+      const before = new Code(old, { fontSize: 0.6, color: ink }).moveTo([ax, ay + 0.6]);
+      const after = new Code(next, { fontSize: 0.6, color: ink }).moveTo([ax, ay + 0.6]);
+      await s.enter(before);
+      const hunks = parseUnifiedDiff(patch);
+      await this.play(new TransformDiff(before, after, { hunks }));
+      s.keep(after, { describe: 'After: let n = 0; then n += 2;' });
+      const ops = (hs: { ops: string[] }[]) => hs.flatMap((h) => h.ops).join(' ');
+      const fromPatch = ops(hunks),
+        found = ops(diffLines(old, next));
+      await s.enter(
+        new Text(`the patch: ${fromPatch}`, { fontSize: 0.32, font: 'mono', color: soft }).moveTo([ax, ay - 1.0]),
+        new Text(`diffLines: ${found}`, { fontSize: 0.32, font: 'mono', color: soft }).moveTo([ax, ay - 1.55]),
+        { describe: `Under the code: the patch's operations, ${fromPatch}, and diffLines', ${found}` },
+      );
+      this.state.ops = { patch: fromPatch, diffLines: found };
+    } else if (feature === 'rates') {
+      const RATES = { smooth, rushInto, rushFrom, thereAndBack } as const;
+      const names = Object.keys(RATES) as (keyof typeof RATES)[];
+      const rowY = (i: number, top: number, gap: number) => top - i * gap;
+      const track = (x0: number, length: number, y: number, size: number) => new Line([x0, y], [x0 + length, y], { stroke: soft, strokeWidth: size });
+      await panels(
+        names.flatMap((name, i) => [
+          track(bx - 1.6, 3.2, rowY(i, by + 1.3, 1.05), 0.02),
+          new Text(name, { fontSize: 0.26, font: 'mono', color: soft }).moveTo([bx - 1.6, rowY(i, by + 1.3, 1.05) + 0.25], [-1, 0]),
+          new Dot({ radius: 0.07, color: accent }).moveTo([bx - 1.6, rowY(i, by + 1.3, 1.05)]),
+        ]),
+        'four bare tracks, each dot at its start',
+      );
+      const x0 = ax - 2.6,
+        length = 5,
+        top = ay + 1.95,
+        gap = 1.3;
+      const dots = names.map((name, i) => keyed(new Dot({ radius: 0.12, color: accent }).moveTo([x0, rowY(i, top, gap)]), `rates:${name}`));
+      const ticks = names.flatMap((name, i) =>
+        Array.from({ length: 11 }, (_, k) => {
+          const x = x0 + length * RATES[name](k / 10),
+            y = rowY(i, top, gap);
+          return new Line([x, y - 0.22], [x, y - 0.4], { stroke: soft, strokeWidth: 0.025 });
+        }),
+      );
+      await s.enter(
+        ...names.flatMap((name, i) => [
+          track(x0, length, rowY(i, top, gap), 0.025),
+          new Text(name, { fontSize: 0.32, font: 'mono', color: ink }).moveTo([x0, rowY(i, top, gap) + 0.3], [-1, 0]),
+        ]),
+        ...ticks,
+        ...dots,
+        {
+          describe: () =>
+            `After: four tracks, each with ticks where its dot was at every tenth of its run; ${names.map((name, i) => `${name}’s dot is at its ${dots[i]!.center()[0] > x0 + length / 2 ? 'end' : 'start'}`).join(', ')}`,
+        },
+      );
+      for (const [i, name] of names.entries()) await this.play(dots[i]!.animate.shift([length, 0]), { rateFunc: RATES[name], runTime: 0.8 });
+      this.state.rates = names;
+    } else if (feature === 'bars') {
+      const rows = [
+        { label: 'LRU', value: 3, display: '3 hits' },
+        { label: 'MRU', value: 1, display: '1 hit' },
+      ];
+      await panels([], 'the counts as numbers');
+      await s.card(rows.map((r) => [r.label, r.display]), { at: BEFORE, fontSize: 0.45 });
+      const chart = bars(s, rows, 4, { key: 'hits' });
+      chart.scale(0.62).moveTo([ax, ay]);
+      await s.enter(chart, { describe: 'After: two bars on one scale of 4, LRU at 3 hits and MRU at 1 hit, a third as long' });
+    } else if (feature === 'palette') {
+      const dark = palette('github-dark');
+      await panels(
+        [
+          new Rectangle({ width: 4.2, height: 2.6, fill: dark.paper, stroke: soft, strokeWidth: 0.02, cornerRadius: 0.1 }).moveTo([bx, by]),
+          new Text('github-dark', { fontSize: 0.36, color: dark.ink }).moveTo([bx, by + 0.4]),
+          new Text('paper, ink, accent', { fontSize: 0.3, color: dark.accent }).moveTo([bx, by - 0.4]),
+        ],
+        'a panel in github-dark, the tour’s usual paper and ink',
+      );
+      await s.card(
+        [
+          ['Paper', s.palette.paper],
+          ['Ink', s.palette.ink],
+          ['Emphasis', s.emphasis],
+        ],
+        { at: AFTER, fontSize: 0.55, title: "palette('nord')" },
+      );
+    } else {
+      // A globe: London and two great circles, seen from one viewpoint and turned to another by a Follow.
+      const model = {
+        body: { radius: 1, fill: s.palette.paper, stroke: soft, strokeWidth: 0.03 },
+        parts: [
+          { kind: 'path' as const, key: 'globe:equator', lines: [circleOn([0, 0, 1], 90)], closed: true, color: soft, width: 0.025 },
+          { kind: 'path' as const, key: 'globe:meridian', lines: [circleOn(latLon(0, 90), 90)], closed: true, color: soft, width: 0.025 },
+          { kind: 'point' as const, key: 'globe:london', at: latLon(51.5, -0.1), color: accent, radius: 0.09 },
+        ],
+      };
+      const a = { kind: 'orthographic' as const, yaw: -60, pitch: 0 },
+        b = { ...a, yaw: 0, pitch: 45 };
+      const draw = (t: number, at: Vec, scale: number, key?: string) => seenFrom(model, between(a, b, t), { at, scale, ...(key ? { key } : {}) });
+      const before = draw(0, [bx, by], 1.3, 'before:globe');
+      for (const m of before.family()) if (m.key) m.key = `before:${m.key}`;
+      await panels([before], 'the globe from the Atlantic, London near its right edge');
+      const globe = draw(0, [ax, ay], 2);
+      await s.enter(globe, { describe: 'After: the globe, turned to face London, which sits near its middle' });
+      await this.play(new Follow({ from: 0, to: 1, draw: (t) => [draw(t, [ax, ay], 2)] }, { targets: [globe] }));
+      const london = project(latLon(51.5, -0.1), b, 1, { at: [ax, ay], scale: 2 }).at;
+      await s.enter(new Text('London', { fontSize: 0.36, color: ink }).moveTo([london[0] + 0.25, london[1]], [-1, 0]));
+      this.state.london = london.map((v) => Number(v.toFixed(2)));
     }
   }
 }

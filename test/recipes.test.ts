@@ -25,6 +25,11 @@ test('document recipe accepts data, computes both routes, and exposes the model 
   }
 });
 
+test('document recipe validates its input with jsonObject and refuses data a trace could not hold', () => {
+  assert.throws(() => requestScene({ cached: true, extra: () => 1 } as unknown as { cached: boolean }), /input\.extra must contain finite, acyclic JSON data/);
+  assert.throws(() => requestScene({ cached: 'yes' } as unknown as { cached: boolean }), /cached must be a boolean/);
+});
+
 test('custom geometry owns its copy and a copied composite exposes its own children', () => {
   const diamond = new Diamond(), copy = diamond.copy();
   assert.deepEqual(diamond.box(), [-1, -1, 1, 1]);

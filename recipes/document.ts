@@ -1,6 +1,6 @@
 // The native-scene equivalent of Lantern's nodes/code/state/steps document.
 // Imports are public package imports, so this also runs from an installed archive.
-import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Indicate, Transform, StateReadout, view } from 'rayner';
+import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Indicate, Transform, StateReadout, view, jsonObject } from 'rayner';
 
 export interface RequestInput { cached: boolean }
 export function route(input: RequestInput): 'cache' | 'database' {
@@ -9,9 +9,11 @@ export function route(input: RequestInput): 'cache' | 'database' {
 
 /** Bind ordinary data to a SceneClass; renderAt/traceScene need no special format. */
 export function requestScene(input: RequestInput) {
-  // Copy the input so later mutation by the caller cannot change a replay.
-  const cached = input.cached;
-  if (typeof cached !== 'boolean') throw new TypeError('cached must be a boolean');
+  // Validate and copy the input under the trace's JSON rules, so later mutation by the caller cannot
+  // change a replay and a function or NaN is refused here, with its path, rather than in the trace.
+  const copy = jsonObject(input, 'input');
+  if (typeof copy.cached !== 'boolean') throw new TypeError('cached must be a boolean');
+  const cached = copy.cached;
   return class RequestScene extends Scene<{ cached: boolean; destination: string }> {
     override state = { cached, destination: 'pending' };
     override async construct() {

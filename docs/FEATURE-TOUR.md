@@ -1,6 +1,6 @@
 # Look up an authoring feature
 
-The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) asks the question an author brings to Rayner: how do I write that? It is one scene with 15 prebuilt scenarios, one per authoring feature, and each scenario opens with an author's question, such as "How do I show one shape turning into another?". The default scenario is `animation`, because there a direct link shows only the end of the motion. For the local tour, run `npm run demos:build && npm run demos:serve` and open [feature-tour.html](http://127.0.0.1:5175/explainers/feature-tour.html).
+The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) asks the question an author brings to Rayner: how do I write that? It is one scene with 29 prebuilt scenarios, one per authoring feature, and each scenario opens with an author's question, such as "How do I show one shape turning into another?". The default scenario is `animation`, because there a direct link shows only the end of the motion. For the local tour, run `npm run demos:build && npm run demos:serve` and open [feature-tour.html](http://127.0.0.1:5175/explainers/feature-tour.html).
 
 Every scenario has two steps. **Recipe** shows the lines an author writes for the feature and asks the reader to predict the next step's picture. **Result** runs those lines and splits the picture: on the left, what the reader saw before the feature ran; on the right, what it leaves at rest, which is what a reader who opens the step from a link sees. The camera scenario has no before panel, because a focused camera frames the whole picture; it draws a ruler across the stage instead, and after the zoom a label says how many of the stage's 16 units the view frames and that the circle has not moved.
 
@@ -15,24 +15,28 @@ A recipe is an excerpt. The tour's [runnable source](https://github.com/adewale/
 | `steps`, `settings` | `this.step`, `s.enter`, `static settings`, `settingsOf(this)` | [Scene](REFERENCE.md#scene), [settings](REFERENCE.md#settings) |
 | `diagram` | `s.show({source})`, `d.walk(..., {trail: true})` | [Diagram actions and the 15 families](REFERENCE.md#diagrams) |
 | `code`, `code-diff` | `s.code`, `block.focus`, `block.morph` | [Code spans](CODE.md), [native diff](MATCHING.md#diff-driven) |
-| `animation`, `matching`, `restore` | `Transform`, `TransformMatchingText`, `saveState` / `Restore` | [Matching](MATCHING.md), [sequencing and copies](ANIMATIONS.md) |
-| `emphasis`, `annotations`, `drawing` | `Circumscribe({keep:true})`, `s.pin`, `s.sketch` | [Emphasis shapes](EMPHASIS.md), [stage helpers](REFERENCE.md#stage) |
+| `diff` | `parseUnifiedDiff`, `TransformDiff({hunks})`, `diffLines` | [Diff-driven](MATCHING.md#diff-driven) |
+| `animation`, `matching`, `keys`, `restore`, `copy` | `Transform`, `TransformMatchingText`, `TransformMatching({key: matchByKey()})`, `saveState` / `Restore`, `TransformFromCopy` | [Matching](MATCHING.md), [sequencing and copies](ANIMATIONS.md) |
+| `write`, `arc`, `rates` | `Write`, `ArcBetweenPoints`, `MoveAlongPath`, `rateFunc: smooth`, `rushInto`, `rushFrom`, `thereAndBack` | [Animations](ANIMATIONS.md), [choreography](CHOREOGRAPHY.md) |
+| `emphasis`, `underline`, `brace`, `annotations`, `drawing` | `Circumscribe({keep:true})`, `Underline`, `Brace`, `s.pin`, `s.sketch` | [Emphasis shapes](EMPHASIS.md), [stage helpers](REFERENCE.md#stage) |
 | `camera` | `s.focus(subject)`, `s.focus('all')` | [Camera and framing](CAMERA.md) |
-| `chart` | `Axes`, `axes.lineGraph` | [Plots, bars and number lines](GRAPHING.md) |
+| `chart`, `number-line`, `bars`, `decimal` | `Axes`, `axes.lineGraph`, `NumberLine`, `line.n2p`, `bars`, `DecimalNumber` | [Plots, bars and number lines](GRAPHING.md), [the drawing kit](REFERENCE.md#drawing-kit) |
 | `state` | `this.state`, `view(this, ...)`, `label.sync()` | [State views and fidelity checks](VIEWS.md) |
-| `direction` | `stage(this, {direction:'rtl'})`, card at `start` | [Logical layout](REFERENCE.md#spatial-direction) |
+| `direction`, `palette` | `stage(this, {direction:'rtl'})`, card at `start`, `stage(this, {palette: palette('nord')})` | [Logical layout](REFERENCE.md#spatial-direction), [stage options](REFERENCE.md#stage) |
+| `math` | `lettering: {math: true}`, `MathTex` | [Maths](REFERENCE.md#maths) |
+| `globe` | `seenFrom`, `between`, `Follow` | [3D](REFERENCE.md#3d-seenfrommodel-viewpoint), [Follow](CHOREOGRAPHY.md#follow) |
 
 When you copy a recipe, copy the before panel's job too. A step whose motion is the point should leave something that shows where it started, the way each result here leaves the circle beside the square.
 
 ## What the tour leaves out
 
-The 15 scenarios cover the common authoring families. They do not list every exported class, option, animation or diagram family. The features below need build-time setup or more than two steps, so this page points to where each one is documented:
+The 29 scenarios cover the common authoring families, and every scene-facing name a guide teaches that no explainer otherwise uses. They do not list every exported class, option, animation or diagram family. The features below need build-time setup or more than two steps, so this page points to where each one is documented:
 
 - **Additional writing systems, faces, weight and italic:** add `static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } };` before drawing `new Text('Αλφάβητο')`, then capture and commit `scene.lettering.json` as described in [Lettering](REFERENCE.md#lettering-on-request). Arabic, Devanagari and Hebrew, replacement faces and real bold or italic use the [outline workflow](LETTERING.md#supported-requests).
 - **Played scores:** the [melody and rhythm scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/melody-rhythm/scene.ts) draws both piano rolls from the note data supplied to `step.audio`. Sound starts only after a reader gesture; see [score audio](REFERENCE.md#optional-score-audio) for clip limits and cancellation.
-- **Maths:** add `lettering: { math: true }` to `static meta`, then draw `new MathTex('x^2', {display: true})` with `s.enter(..., {describe: 'x squared'})`. Supply the pinned Latin Modern Math font and run `rayner snapshots` before checking. See the complete [MathTex scene and commands](REFERENCE.md#maths).
+- **Maths capture:** the `math` scenario draws a formula from committed outlines. Capturing new ones needs the pinned Latin Modern Math font and `rayner snapshots`, as [Maths](REFERENCE.md#maths) describes.
 - **Diagram families and geometry:** change `source` in `s.show({source: 'graph LR\nA --> B'})` to another supported family, and call `d.reveal`, `d.mark`, `d.dim`, `d.note`, `d.focus` or `d.morph` as the story needs. For natural font measurements, set `s.show({source, lettering: 'natural'})`; it needs a requested face and refreshed snapshots. See [diagrams](REFERENCE.md#diagrams) and [measurements](LETTERING.md#diagram-measurements).
-- **Native code diffs, matching keys, emphasis shapes, graph areas, copies and sequencing:** the [engine feature inventory](REFERENCE.md#engine-features) links the author-side constructor and an existing explainer for each. To test a picture driven by your model, use the [view fidelity check](VIEWS.md#the-fidelity-check-the-picture-side).
+- **Graph areas, sequencing and the rest of the emphasis shapes:** the [engine feature inventory](REFERENCE.md#engine-features) links the author-side constructor and an existing explainer for each. To test a picture driven by your model, use the [view fidelity check](VIEWS.md#the-fidelity-check-the-picture-side).
 - **Event-driven models:** a [`Machine`](MACHINES.md) replays events through your model, and `rayner check` draws every state they reach.
 
 The tour shows how the API behaves, and a passing `rayner check` shows that every scenario seeks correctly, stays legible and has words for every drawing. Neither shows that your explainer's claims are true, so test the domain model on its own before publishing.

@@ -309,7 +309,7 @@ test('Next is on screen at load', options, async () => {
 readerTest('feature-tour scenario navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
     assert.equal(new URL(page.url()).searchParams.get('step'), 'result', 'a direct result permalink remains valid');
     const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
-    assert.equal(links.length, 15, 'each authoring scenario offers one entry link');
+    assert.equal(links.length, 29, 'each authoring scenario offers one entry link');
     assert.deepEqual([...new Set(links)], ['recipe'], 'entry links start at the code, not the result');
     await page.locator('fieldset.scenario input[value="state"]').check();
     await page.waitForURL(/feature=state&step=recipe/);

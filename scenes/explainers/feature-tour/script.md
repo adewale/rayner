@@ -8,6 +8,6 @@ The same holds for text and code. A matching morph moves the letters two texts s
 
 A camera move changes something else. `s.focus(subject)` brings a small object closer by changing the view, not the object's coordinates. A before panel would sit inside the same closer view, so the page draws a ruler across the whole stage instead; after the focus it shows only its middle, while the circle is still at the origin.
 
-Each of the fifteen scenarios pairs a few lines an author writes with the picture those lines leave. Settings choose among prepared scenarios, a drawing tool leaves its finished stroke, and saveState gives Restore a position and style to return to. The mechanics differ, but one question judges every result: what evidence remains once the motion ends?
+Each of the twenty-nine scenarios pairs a few lines an author writes with the picture those lines leave. Settings choose among prepared scenarios, a drawing tool leaves its finished stroke, and saveState gives Restore a position and style to return to. The mechanics differ, but one question judges every result: what evidence remains once the motion ends?
 
 Code describes what happens over time; a step opened from a link has to explain the state it leaves behind. When the motion is the point, draw what the reader needs to see at rest, as the starting copies, the ruler and the dashed outline do here.
