@@ -222,7 +222,12 @@ export default class PythonDict extends Scene {
 
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
     const staged = (frames: readonly (Omit<StagedStep, 'draw'> & { view: View })[]) =>
-      s.steps(frames.map(({ view, ...frame }): StagedStep => ({ ...frame, draw: (_, st: Stage) => picture(st, view) })));
+      s.steps(frames.map(({ view, ...frame }): StagedStep => ({
+        ...frame,
+        // The table, and the route where the view draws one, come from the step's state; the view adds how to show them.
+        draw: (state, st: Stage) =>
+          picture(st, { ...view, dict: state.dict as DictTable, ...(view.path ? { path: state.result as DictLookup } : {}) }),
+      })));
     const lookupView = (dict: DictTable, q: DictLookup, rest: Omit<View, 'dict' | 'path' | 'ask' | 'middle'>): View =>
       ({ dict, path: q, ask: `d[${q.key}]`, middle: visit(q), ...rest });
 

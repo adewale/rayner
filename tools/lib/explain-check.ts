@@ -519,7 +519,7 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
  * theirs that ignores its state is reported, not failed. Delete an entry when its explainer's
  * draws read their state; an entry whose steps all read it already changes nothing.
  */
-const AWAITING_STATE_DRAWS: ReadonlySet<string> = new Set(['python-dict', 'henge']);
+const AWAITING_STATE_DRAWS: ReadonlySet<string> = new Set(['henge']);
 
 /**
  * Each authored transition from `state`, played through on the explored scene: every invariant
