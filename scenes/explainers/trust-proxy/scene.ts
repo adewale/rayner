@@ -172,11 +172,6 @@ const answerLabel = (rs: readonly Reading[]) => {
 };
 /** Addresses as a step's state records them, [address, verdict] nearest first, read back as the model's readings. */
 const readingsOf = (pairs: readonly (readonly [string, Verdict])[]): Reading[] => pairs.map(([addr, verdict], index) => ({ addr, verdict, index }));
-/** A card's rows in words, as the card describes itself: for a card drawn in a view, which the stage describes by its words. */
-const cardWords = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
-};
 /** Right or wrong, in words under a result: who req.ip belongs to. */
 const outcomeWords = (outcome: Outcome, sender: string) =>
   outcome === 'sender' ? `Right: the ${sender}’s own address.` : `Wrong: ${outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`;
@@ -263,12 +258,14 @@ export default class TrustProxyExplainer extends Scene {
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink;
     /** A card drawn from the step's state: a view, so check compares it with the state at the end of every step. */
-    const cardView = (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions) =>
-      view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
-    const cardOf = (v: View) => (v.current instanceof Card ? v.current : (v.current.children[0] as Card));
-    /** Keep each view with its own words and fade them in together, in one play, as s.enter would. */
-    const enterViews = async (views: readonly View[], fade: FadeOpts = {}, words: (v: View) => string = (v) => cardWords(cardOf(v))) => {
-      for (const v of views) s.keep(v, { describe: () => words(v) });
+    const cardView = (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions | ((st: Record<string, unknown>) => CardOptions)) =>
+      view(this, (st) => new Card(this, s.palette, rowsOf(st), typeof opts === 'function' ? opts(st) : opts), { place: false });
+    /**
+     * Keep each view and fade them in together, in one play, as s.enter would. A card describes itself;
+     * `words` says what else a view shows.
+     */
+    const enterViews = async (views: readonly View[], fade: FadeOpts = {}, words?: (v: View) => string) => {
+      for (const v of views) if (words) s.keep(v, { describe: () => words(v) }); else s.keep(v);
       await this.play(...views.map((v) => new FadeIn(v, fade)));
     };
 
@@ -426,12 +423,14 @@ export default class TrustProxyExplainer extends Scene {
     this.state.sender = { name: req.sender.name, addr: req.sender.addr };
     this.state.outcome = mine.outcome;
     const readOf = (st: Record<string, unknown>) => readingsOf(st.read as [string, Verdict][]);
-    const order = cardView((st) => readingRows(readOf(st)), {
+    // `marked`: once true, the address req.ip takes and the result's req.ip row are lit.
+    const order = cardView((st) => readingRows(readOf(st)), (st) => ({
       at: regionBox(FULL, { right: 1.2, top: 2.6 }),
       align: 'top',
       fontSize: BIG,
       title: 'Addresses in the order Express reads them',
-    });
+      ...(st.marked ? { lit: answerLabel(readOf(st)), litAs: 'req.ip' } : {}),
+    }));
     /** The result card, and under it whether req.ip is right. */
     const result = view(
       this,
@@ -445,18 +444,23 @@ export default class TrustProxyExplainer extends Scene {
             ['Sent by', `${sender.addr} (${sender.name})`],
             ['req.ip', String(st.ip)],
           ],
-          { at: regionBox(FULL, { left: 1.6, top: 2.6 }), align: 'top', fontSize: BIG, title: 'Result' },
+          {
+            at: regionBox(FULL, { left: 1.6, top: 2.6 }), align: 'top', fontSize: BIG, title: 'Result',
+            ...(st.marked === 'result' ? { lit: 'req.ip', litAs: outcome === 'sender' ? 'right' : 'wrong' } : {}),
+          },
         );
         const b = card.box()!;
         return new Group(card, ...wrap(outcomeWords(outcome, sender.name), [b[0] + 0.1, b[1] - 0.2], b[2] - b[0] - 0.2, BIG, outcome === 'sender' ? s.good : s.bad));
       },
       { place: false },
     );
-    await enterViews([order, result], {}, (v) =>
-      v === result ? `${cardWords(cardOf(v))}. ${outcomeWords(this.state.outcome as Outcome, (this.state.sender as { name: string }).name)}` : cardWords(cardOf(v)),
-    );
-    await cardOf(order).mark(answerLabel(readOf(this.state)), { as: 'req.ip' });
-    await cardOf(result).mark('req.ip', { as: this.state.outcome === 'sender' ? 'right' : 'wrong' });
+    s.keep(order);
+    s.keep(result, { describe: () => outcomeWords(this.state.outcome as Outcome, (this.state.sender as { name: string }).name) });
+    await this.play(new FadeIn(order), new FadeIn(result));
+    this.state.marked = 'order';
+    await this.play(order.sync({ runTime: 0.4 }));
+    this.state.marked = 'result';
+    await this.play(result.sync({ runTime: 0.4 }));
 
     // ------------------------------------------------------------------ routes
     // The same attacker on both routes, each address tied to its source by the route (positions() in the
@@ -703,6 +707,8 @@ export default class TrustProxyExplainer extends Scene {
               align: 'top',
               fontSize: BIG,
               title: REQUEST_LABEL[q],
+              // `columnsMarked`: how many columns, from the left, have their req.ip lit.
+              ...(k < Number(st.columnsMarked ?? 0) ? { lit: `${readings.find((x) => x.verdict === 'answer')!.index + 1}.`, litAs: 'req.ip' } : {}),
             }),
         );
         const verdicts = all.flatMap(({ q, outcome }, k) =>
@@ -712,12 +718,13 @@ export default class TrustProxyExplainer extends Scene {
       },
       { place: false },
     );
-    const columnCards = () => requestColumns.current.children.slice(0, REQUEST_KEYS.length) as Card[];
     await enterViews([requestColumns], {}, () =>
-      [...columnCards().map(cardWords), ...requestsOf(this.state).map(({ q, outcome }) => outcomeWords(outcome, REQUESTS[q].sender.name))].join('. '),
+      requestsOf(this.state).map(({ q, outcome }) => outcomeWords(outcome, REQUESTS[q].sender.name)).join('. '),
     );
-    for (const [k, { readings }] of requestsOf(this.state).entries())
-      await columnCards()[k]!.mark(`${readings.find((x) => x.verdict === 'answer')!.index + 1}.`, { as: 'req.ip' });
+    for (const k of REQUEST_KEYS.keys()) {
+      this.state.columnsMarked = k + 1;
+      await this.play(requestColumns.sync({ runTime: 0.4 }));
+    }
 
     // ------------------------------------------------------------------ why
     // behind-proxies.mdx:31 (true), :60-63 (a number), :53 (addresses).

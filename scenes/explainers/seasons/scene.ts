@@ -851,10 +851,7 @@ export default class SeasonsExplainer extends Scene {
         this,
         (st) => {
           const rows = Object.entries((st as unknown as SeasonState).daylightTable![month]);
-          const c = new Card(this, s.palette, rows, { at: box, title, fontSize: 0.27, align: 'top', direction: 'ltr' });
-          c.bar.moveTo([c.panel.center()[0], c.values.get(place.name)!.anchorPoint()[1]]).setOpacity(1);
-          c.bar.key = `${month}-daylight-mark`;
-          return c;
+          return new Card(this, s.palette, rows, { at: box, title, fontSize: 0.27, align: 'top', direction: 'ltr', lit: place.name });
         },
         { place: false },
       );
@@ -863,17 +860,9 @@ export default class SeasonsExplainer extends Scene {
     };
     const juneTable = table('june', 'June', [JUNE_C[0] - 2.8, -4.2, JUNE_C[0] + 2.8, CY - R - 0.2]);
     const decTable = table('december', 'December', [DEC_C[0] - 2.8, -4.2, DEC_C[0] + 2.8, CY - R - 0.2]);
-    const tableWords = (month: 'june' | 'december', title: string) => () =>
-      `“${title}”: ${Object.entries(now().daylightTable![month])
-        .map(([name, h]) => `${name}: ${h}${name === place.name ? ' (marked)' : ''}`)
-        .join(', ')}`;
-    await s.enter(juneTable, { runTime: 0.35, shift: [0, -0.08], describe: tableWords('june', 'June') });
-    await s.enter(decTable, { runTime: 0.35, shift: [0, -0.08], describe: tableWords('december', 'December') });
-    // The marks are drawn with the tables rather than by mark(), so the stage is told what they emphasise.
-    s.emphasise(() => [
-      ['june-daylight-mark', `row ${place.name}`],
-      ['december-daylight-mark', `row ${place.name}`],
-    ]);
+    // Each table describes itself, its marked row included, and says that it emphasises that row.
+    await s.enter(juneTable, { runTime: 0.35, shift: [0, -0.08] });
+    await s.enter(decTable, { runTime: 0.35, shift: [0, -0.08] });
 
     // ---------------------------------------------------------------- year
     // A native chart of the model itself: `plot` samples daylightAt for this
