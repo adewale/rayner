@@ -149,7 +149,7 @@ test('every live step: buttons agree with outcome, the URL holds the events, and
     await pressing.close();
     await fresh.close();
   }
-  assert.equal(subjects.length, 10, 'eight explainers, statecharts and latest-search with two live steps each');
+  assert.equal(subjects.length, 12, 'nine explainers; statecharts, latest-search and python-dict have two live steps each');
   assert.ok(states >= 40 && presses >= 30, `${states} states, ${presses} presses`);
 });
 
