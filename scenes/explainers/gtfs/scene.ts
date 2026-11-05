@@ -1,6 +1,6 @@
 import { Scene, Text, Group, Rectangle, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, mermaid } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
@@ -39,12 +39,7 @@ const FEED = readFeed(SAMPLE_FEED);
 // instead); frequencies.trip_id is required (663); trips.service_id references calendar.service_id or
 // calendar_dates.service_id (261), and calendar.txt has one row per service_id (333), calendar_dates.txt
 // one per service_id and date (352).
-const ER = `---
-config:
-  er:
-    rankSpacing: 40
-    nodeSpacing: 30
----
+const ER = `${mermaid.frontMatter({ er: { rankSpacing: 40, nodeSpacing: 30 } })}
 erDiagram
   ROUTE ||--o{ TRIP : "route_id"
   TRIP ||--|{ STOP_TIME : "trip_id"

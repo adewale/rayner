@@ -1,6 +1,6 @@
 import { Scene, Group, Rectangle, Text, Arrow, FadeOut, Create, view } from '../../../src/index.ts';
 import type { Box, Vec, View, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
 import { keyed, callout } from '../../../explain/drawing.ts';
 import {
@@ -45,26 +45,22 @@ const SLICES: { key: keyof Share; name: string }[] = [
   { key: 'free', name: 'Free space' },
   { key: 'reserved', name: 'Fillfactor reserve' },
 ];
-const HEAD = [
-  '---',
-  'config:',
-  '  pie:',
-  '    legendPosition: right',
-  '    textPosition: 0.72',
-  '  themeVariables:',
-  ...SLICES.map((s, i) => `    pie${i + 1}: '${COLORS[s.key]}'`),
-  '    pieLegendTextSize: 17px',
-  '    pieSectionTextSize: 15px',
-  '    pieTitleTextSize: 18px',
-  '---',
-].join('\n');
+const CONFIG = {
+  pie: { legendPosition: 'right', textPosition: 0.72 },
+  themeVariables: {
+    ...Object.fromEntries(SLICES.map((s, i) => [`pie${i + 1}`, COLORS[s.key]])),
+    pieLegendTextSize: '17px',
+    pieSectionTextSize: '15px',
+    pieTitleTextSize: '18px',
+  },
+};
 const pieTitle = (c: { label: string }) => `One page of ${c.label} rows`;
-/** The pie of a full page. A slice of 0 bytes is left out: Mermaid refuses a zero value. */
+/** The pie of a full page. A slice of 0 bytes is left out: Mermaid draws no zero slice, and mermaid.pie refuses one. */
 const pie = (c: { label: string; share: Share }) =>
-  `${HEAD}\npie showData\n  title ${pieTitle(c)}\n` +
-  SLICES.filter((s) => c.share[s.key] > 0)
-    .map((s) => `  "${s.name}" : ${c.share[s.key]}\n`)
-    .join('');
+  mermaid.pie(
+    SLICES.filter((s) => c.share[s.key] > 0).map((s) => ({ label: s.name, value: c.share[s.key] })),
+    { title: pieTitle(c), showData: true, config: CONFIG },
+  );
 /** The edit from one pie to another, as Agentic Mermaid's pie operations. */
 const pieOps = (from: Scenario, to: Scenario) => [
   { kind: 'set_title', title: pieTitle(to) },

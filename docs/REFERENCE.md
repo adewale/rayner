@@ -294,6 +294,18 @@ const d = await s.show({ source: 'graph LR\nA --> B', style: 'nord' }, { box: 'm
 
 The diagram spec accepts `lettering: 'natural'` to measure the active requested faces before layout and preserve label proportions. Without it, labels fit the captured widths. Natural capture uses Agentic Mermaid's public host-measurement hook; the snapshot records the font and measurement identity. Refresh with `rayner snapshots scene.ts` after changing the face, requested cuts or measurement inputs. [Diagram measurements](LETTERING.md#diagram-measurements) covers setup and compatibility.
 
+**Building a source.** `mermaid` from `rayner/explain` builds the parts of a source the collection kept writing by hand, and refuses at the line that builds it what capture would refuse later:
+
+```ts
+import { mermaid } from 'rayner/explain';
+const source = mermaid.pie(slices.filter((s) => s.value > 0), {
+  title: 'One page of int rows', showData: true,
+  config: { pie: { textPosition: 0.72 }, themeVariables: { pie1: '#d9480f' } },
+});
+```
+
+`mermaid.frontMatter(config)` writes the `---` block with its `config:` (strings YAML would misread, such as a colour's `#`, are single-quoted), for any family; `mermaid.pie(slices, { title, showData, config })` writes a pie. A slice that is zero, negative or not finite, a repeated or quoted label, an empty title and an empty config map are refused with the value named. Mermaid draws no zero slice, so a model that can produce one filters it out first, as `pg-page` does; `ext4-space`, `gtfs`, `quotient-familial`, `tailwind-gamut` and `traffic-policy` build their front matter this way.
+
 `build: 'frame'` draws only the scaffolding (axes, lanes, lifelines) so the story can arrive with `reveal`.
 
 To measure a diagram before anything is drawn, lay it out without `s.show`: `new Diagram(scene, spec, await diagramsOf(scene).diagram(spec), { box })`, both from `rayner/explain`, is the diagram `s.show` would build, not yet on stage (`pen-and-pencil` reads its marks this way).

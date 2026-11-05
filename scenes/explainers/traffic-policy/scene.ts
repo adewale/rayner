@@ -1,6 +1,6 @@
 import { Scene, Group, Rectangle, Text, VMobject, view } from '../../../src/index.ts';
 import type { Box, Mobject, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
@@ -46,12 +46,7 @@ const POLICY: Record<Policy, string> = { cluster: 'Cluster', local: 'Local' };
 function cluster(counts: readonly number[], policy: Policy): string {
   const pods = podsOf(counts);
   const lines = [
-    '---',
-    'config:',
-    '  architecture:',
-    '    fontSize: 24',
-    '    iconSize: 60',
-    '---',
+    mermaid.frontMatter({ architecture: { fontSize: 24, iconSize: 60 } }),
     'architecture-beta',
     '  service lb(internet)[Load balancer]',
   ];

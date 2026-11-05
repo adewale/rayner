@@ -1,7 +1,7 @@
 import { Scene, Group, Rectangle, Text, Create, view } from '../../../src/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import type { View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
 import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from '../lib/quotient-familial.ts';
 import type { Impot } from '../lib/quotient-familial.ts';
@@ -70,7 +70,7 @@ const rniTexteDe = (rni: number) => (Number.isInteger(rni) ? euros(rni) : eur2(r
 // The pipeline the steps walk along: ir_brut, ir_ss_qf, ir_plaf_qf, decote and ip_net in ir.py.
 // Tighter ranks than Mermaid's default and two-line labels keep its 13 px labels near 18 px on the stage.
 const FLOW = [
-  '---\nconfig:\n  flowchart:\n    rankSpacing: 24\n    nodeSpacing: 16\n---',
+  mermaid.frontMatter({ flowchart: { rankSpacing: 24, nodeSpacing: 16 } }),
   'graph LR',
   'RNI["Revenu net<br/>imposable"] --> QUOT["÷ parts"]',
   'QUOT --> BAR["Barème"]',
@@ -101,7 +101,7 @@ const arrondi = (v: number) => {
 };
 /** A bar chart source with a fixed canvas, so its labels keep their size on the stage, and a value axis from 0. */
 const chart = (opts: { width: number; height: number; x: string[]; y: string; bars: number[]; line?: number[] }) =>
-  `---\nconfig:\n  xyChart:\n    width: ${opts.width}\n    height: ${opts.height}\n---\n` +
+  `${mermaid.frontMatter({ xyChart: { width: opts.width, height: opts.height } })}\n` +
   `xychart-beta\n x-axis [${opts.x.map((x) => `"${x}"`).join(', ')}]\n y-axis "${opts.y}" 0 --> ${arrondi(Math.max(...opts.bars, ...(opts.line ?? [])))}\n` +
   ` bar [${opts.bars.map((v) => v.toFixed(2)).join(', ')}]` +
   (opts.line ? `\n line [${opts.line.map((v) => v.toFixed(2)).join(', ')}]` : '');

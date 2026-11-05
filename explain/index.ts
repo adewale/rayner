@@ -9,6 +9,8 @@ export type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 export { REGIONS, regionBox } from './look.ts';
 export type { Region, Emphasis } from './look.ts';
 export { palette } from './palettes.ts';
+export { mermaid } from './mermaid.ts';
+export type { FrontMatterValue, PieSlice, PieOptions } from './mermaid.ts';
 export { settingsOf, withSettings, resolveSettings, scenariosOf, scenarioName } from './settings.ts';
 export { describeExplainer } from './describe.ts';
 export type { ExplainerDescription, ScenarioDescription, StepDescription, DescribeOptions } from './describe.ts';

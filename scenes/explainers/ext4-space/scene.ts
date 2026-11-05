@@ -1,6 +1,6 @@
 import { Scene, view } from '../../../src/index.ts';
 import type { Box, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   BLOCK,
@@ -41,22 +41,19 @@ const COLORS: Record<string, string> = {
   'Kernel reserve': '#fb8f44',
   'Root reserve': '#cf222e',
 };
-const head = (names: readonly string[]) =>
-  [
-    '---',
-    'config:',
-    '  pie:',
-    '    legendPosition: right',
-    '    textPosition: 0.68',
-    '  themeVariables:',
-    ...names.map((n, i) => `    pie${i + 1}: '${COLORS[n]}'`),
-    '    pieLegendTextSize: 17px',
-    '    pieSectionTextSize: 15px',
-    '    pieTitleTextSize: 18px',
-    '---',
-  ].join('\n');
 const pie = (names: readonly string[], title: string, slices: readonly Slice[]) =>
-  `${head(names)}\npie\n  title ${title}\n` + slices.map((s) => `  "${s.label}" : ${s.value}\n`).join('');
+  mermaid.pie(slices, {
+    title,
+    config: {
+      pie: { legendPosition: 'right', textPosition: 0.68 },
+      themeVariables: {
+        ...Object.fromEntries(names.map((n, i) => [`pie${i + 1}`, COLORS[n]!])),
+        pieLegendTextSize: '17px',
+        pieSectionTextSize: '15px',
+        pieTitleTextSize: '18px',
+      },
+    },
+  });
 
 const SIZE = 0.34;
 /** Root reserve over metadata on each of the scene's disks, at the default 5%. */

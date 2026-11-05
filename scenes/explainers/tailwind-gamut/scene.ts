@@ -1,7 +1,7 @@
 import { frames as readerFrames } from '../lib/readers/tailwind-gamut.ts';
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
+import { stage, settingsOf, REGIONS, mermaid } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SHADES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
 import type { Row, Shade } from '../lib/tailwind-gamut.ts';
@@ -21,7 +21,7 @@ type Screen = 'srgb' | 'p3';
 // Radar-beta with a ring label on each ring. A 290 px canvas (radius 89 px rather than 120) keeps the
 // spoke and ring labels at least 14 px on a 1280 px stage when the chart fills the `main` region; the
 // legend is drawn natively in the side column, at the reader's size.
-const HEAD = ['---', 'config:', '  radar:', '    tickLabels: true', '    width: 290', '    height: 290', '---'];
+const HEAD = mermaid.frontMatter({ radar: { tickLabels: true, width: 290, height: 290 } });
 interface Curve {
   id: 'srgb' | 'tw' | 'p3';
   label: string;
@@ -38,7 +38,7 @@ const CHROMA: Scale = { min: 0, max: 0.35, ticks: 7 };
 const SHARE: Scale = { min: 50, max: 150, ticks: 4 };
 const radar = (all: readonly Row[], curves: readonly Curve[], scale: Scale) =>
   [
-    ...HEAD,
+    HEAD,
     'radar-beta',
     `  axis ${all.map((r) => `${r.family}["${r.family} ${Math.round(r.h)}°"]`).join(', ')}`,
     ...curves.map((c) => `  curve ${c.id}["${c.label}"]{${c.values.join(', ')}}`),
