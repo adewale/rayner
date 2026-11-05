@@ -48,6 +48,7 @@ import { check as penAndPencil } from './lib/fidelity/pen-and-pencil.ts';
 import { check as periodicGroups } from './lib/fidelity/periodic-groups.ts';
 import { check as statecharts } from './lib/fidelity/statecharts.ts';
 import { check as henge } from './lib/fidelity/henge.ts';
+import { check as greatCircle } from './lib/fidelity/great-circle.ts';
 
 for (const entry of EXPLAINERS)
   test(`${entry.id}: every authored scenario exposes the program's answers at step boundaries`, async () => {
@@ -66,6 +67,9 @@ for (const entry of EXPLAINERS)
           `Trace invents link ${walk.from}->${walk.to}`,
         );
       switch (entry.id) {
+        case 'great-circle':
+          greatCircle(values, trace);
+          break;
         case 'henge':
           henge(values, trace);
           break;
