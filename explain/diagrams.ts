@@ -920,6 +920,14 @@ export class Diagram {
     this.shownBy = picture;
     return this;
   }
+  /**
+   * While a view shows this diagram by its picture and the live diagram is off the stage, a change
+   * to the live diagram reaches nothing a reader sees; the picture is drawn from state instead.
+   */
+  private refuseWhileShownBy(call: string, args = ''): void {
+    if (this.shownBy && !this.scene.familyMembers().includes(this.root))
+      throw new Error(`d.${call}(${args}) changes the live diagram, but a view shows it by its picture (showBy) and the live diagram is off the stage. Put the change in the state and draw it with d.picture(marks, { notes, dim }) in the view's draw, then play view.sync().`);
+  }
   /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
   link(from: string, to: string): { id: string; mob: Group; route: VMobject } {
     const [a, b] = [this.end(from), this.end(to)];
@@ -1041,12 +1049,14 @@ export class Diagram {
     ids: readonly string[],
     { color = this.accent, as = wordsOf(this.scene).marked, runTime = 0.45 }: { color?: string; as?: string; runTime?: number } = {},
   ): Promise<void> {
+    this.refuseWhileShownBy('mark');
     const tops = ids.map((id) => this.top(id));
     for (const id of tops) this.marks.set(id, { color, as });
     const anims = this.looks(tops, runTime);
     if (anims.length) await this.scene.play(...anims);
   }
   async unmark(ids?: readonly string[], { runTime = 0.45 } = {}): Promise<void> {
+    this.refuseWhileShownBy('unmark');
     const tops = ids ? ids.map((id) => this.top(id)) : [...this.marks.keys()];
     for (const id of tops) this.marks.delete(id);
     const anims = this.looks(tops, runTime);
@@ -1059,6 +1069,7 @@ export class Diagram {
    * `null` restores.
    */
   async dim(keep: readonly string[] | null, { runTime = 0.5 } = {}): Promise<void> {
+    this.refuseWhileShownBy('dim');
     this.kept = keep == null ? null : this.keptOf(keep);
     const anims = this.looks(
       [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id),
@@ -1097,6 +1108,7 @@ export class Diagram {
     text: string,
     { side = 'above', color = this.accent, size = 0.22 }: { side?: NoteSide; color?: string; size?: number } = {},
   ): Promise<Group> {
+    this.refuseWhileShownBy('note');
     const anchor = this.get(id);
     const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, anchor.box()!, side, this.frameBox));
@@ -1125,6 +1137,8 @@ export class Diagram {
       trail = false,
     }: { runTime?: number; color?: string; parallel?: boolean; trail?: boolean | string } = {},
   ): Promise<void> {
+    // A token travels the live diagram's routes, where the picture draws them too; a trail marks the live diagram.
+    if (trail) this.refuseWhileShownBy('walk', '{ trail }');
     // Endpoints resolve as `get` resolves ids (so 'actor:A' and 'A' name the same participant).
     const path = hops.map(([from, to]) => {
       const [a, b] = [this.end(from), this.end(to)];

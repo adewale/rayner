@@ -151,7 +151,9 @@ state is caught the same way: the redraw disagrees with what was shown.
 
 The stage's helpers enter and animate: `card.mark`, `code.focus`, `s.callout` and `d.note`
 each play. A draw is synchronous and builds its picture whole, so each of them has a builder
-a draw can call, which puts the mark in the picture and lets the part describe itself:
+a draw can call, which puts the mark in the picture and lets the part describe itself. The
+imperative helpers refuse a picture a view draws (`card.mark` on a card in a view's picture,
+`d.mark` on a diagram a view shows by its picture), so a drawn picture is marked one way, from state:
 
 ```ts
 import { Card, CodeBlock } from 'rayner/explain';

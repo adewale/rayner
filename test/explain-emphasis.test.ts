@@ -478,6 +478,9 @@ test('a diagram picture carries notes placed as note() places them, dimming as d
       this.add(pictured);
       assert.equal(emphasisOf(this).get(note!), 'note here');
       s.keep(pictured);
+      // Shown by its picture, the live diagram is off the stage: marking it would reach nothing on screen.
+      for (const call of [() => d.mark(['A']), () => d.unmark(), () => d.dim(null), () => d.note('A', 'there'), () => d.walk([['A', 'B']], { trail: true })])
+        await assert.rejects(call(), /changes the live diagram, but a view shows it by its picture \(showBy\).*d\.picture\(marks/);
     }
   }
   // Described as the live diagram is: the note and the worded mark among its parts, dimmed parts said so;
