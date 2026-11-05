@@ -23,6 +23,7 @@ import {
   reqIp,
 } from '../lib/trust-proxy.ts';
 import type { Outcome, Position, Reading, RequestKey, TrustKey, Verdict } from '../lib/trust-proxy.ts';
+import { numberWord } from '../lib/format.ts';
 
 // Sources, each fetched at the pinned tag or commit; the lines each claim rests on are quoted in
 // lib/trust-proxy.ts and beside the steps below. test/explain-trust-proxy.test.ts holds real Express
@@ -85,9 +86,8 @@ const REQUEST_LABEL: Record<RequestKey, string> = {
 const setting = (t: TrustKey) => (t === 'list' ? 'an address list' : TRUST_LABEL[t]);
 const capital = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 const lowerFirst = (s: string) => s[0]!.toLowerCase() + s.slice(1);
-const NUMBER = ['none', 'one', 'two', 'three', 'four'] as const;
 /** "one address", "two addresses". */
-const count = (n: number, noun: string) => `${NUMBER[n] ?? n} ${n === 1 ? noun : `${noun}es`}`;
+const count = (n: number, noun: string) => `${numberWord(n, { zero: 'none' })} ${n === 1 ? noun : `${noun}es`}`;
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
 /** The script's one-sentence answer, stated in the read step of every scenario. */
 const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
@@ -336,7 +336,7 @@ export default class TrustProxyExplainer extends Scene {
     // ------------------------------------------------------------------ follow
     const hops = arrivals(req);
     const sent = req.sent ? `X-Forwarded-For: ${req.sent}` : 'no X-Forwarded-For';
-    const entries = ['no', 'one', 'two', 'three', 'four'][got.xff ? got.xff.split(',').length : 0];
+    const entries = numberWord(got.xff ? got.xff.split(',').length : 0);
     const settingName = trustKey === 'list' ? 'the address list' : `trust proxy ${trustKey}`;
     await this.step('follow', {
       title:
@@ -409,7 +409,7 @@ export default class TrustProxyExplainer extends Scene {
           ? `req.ip is ${mine.ip}, because true trusts every address before it`
           : trustKey === 'list'
             ? `req.ip is ${mine.ip}, the nearest address outside the trusted ranges`
-            : `req.ip is ${mine.ip}, because ${trustKey} trusts the first ${trustKey === '1' ? 'address' : `${NUMBER[Number(trustKey)]} addresses`} by position`,
+            : `req.ip is ${mine.ip}, because ${trustKey} trusts the first ${trustKey === '1' ? 'address' : `${numberWord(Number(trustKey), { zero: 'none' })} addresses`} by position`,
       line: last
         ? `Express trusts ${count(trusted.length, 'address')} and reaches the end of the list.`
         : `Express trusts ${count(trusted.length, 'address')}, then stops at the next.`,
@@ -475,7 +475,7 @@ export default class TrustProxyExplainer extends Scene {
     const countSays =
       counted === 'true'
         ? `trust proxy true trusts every position but the last, and Express takes the last without a test, so on both routes req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}.`
-        : `trust proxy ${counted} trusts the first ${counted === '1' ? 'position' : `${NUMBER[Number(counted)]} positions`}, inside the dashed band, whatever stands there. Through the CDN that is ${both(trustedOf(byCount.forged))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}; skipping the CDN it is ${both(trustedOf(byCount.direct))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.direct).who]}.`;
+        : `trust proxy ${counted} trusts the first ${counted === '1' ? 'position' : `${numberWord(Number(counted), { zero: 'none' })} positions`}, inside the dashed band, whatever stands there. Through the CDN that is ${both(trustedOf(byCount.forged))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.forged).who]}; skipping the CDN it is ${both(trustedOf(byCount.direct))}, so req.ip is ${WHO_ANSWER[answerOf(byCount.direct).who]}.`;
     if (answerOf(byList.forged).who !== 'attacker' || answerOf(byList.direct).who !== 'attacker')
       throw new Error('The address list must stop at the attacker on both routes');
     const listSays = `The address list trusts an address inside ${TRUSTED_RANGES.join(' or ')}: ${both(trustedOf(byList.forged))} through the CDN, ${both(trustedOf(byList.direct))} on the short route. The attacker’s address is in neither range, so on both routes req.ip is ${WHO_ANSWER.attacker}.`;
@@ -670,7 +670,7 @@ export default class TrustProxyExplainer extends Scene {
           ? 'All three requests get the real sender’s address.'
           : wrong.length === 3
             ? 'None of the three requests gets the real sender’s address.'
-            : `Only ${NUMBER[3 - wrong.length]} of three requests ${wrong.length === 2 ? 'gets' : 'get'} the real sender’s address.`,
+            : `Only ${numberWord(3 - wrong.length, { zero: 'none' })} of three requests ${wrong.length === 2 ? 'gets' : 'get'} the real sender’s address.`,
       caption:
         `Keep the trust setting fixed and change the route into the app. ${
           trustKey === 'list' ? 'A shorter route puts different machines at each position, and the list judges each by its address.' : 'A shorter route puts a different machine in the same trusted position.'
@@ -789,12 +789,12 @@ export default class TrustProxyExplainer extends Scene {
       line:
         trustKey === 'list'
           ? `With 2, skipping the CDN gives ${TABLE['2'].direct.ip}, which the attacker wrote.`
-          : `The list gets all three right; ${setting(trustKey)} gets ${NUMBER[wrong.length]} wrong.`,
+          : `The list gets all three right; ${setting(trustKey)} gets ${numberWord(wrong.length, { zero: 'none' })} wrong.`,
       caption:
         `app.set('trust proxy', ${TRUST_CODE.list}) trusts the load balancer’s network and the CDN edge’s range, and nothing else. ` +
         (trustKey === 'list'
           ? `With 2 instead, the request that skips the CDN gives ${TABLE['2'].direct.ip}, an address the attacker wrote. The list is safe as long as each trusted range holds your proxies and no other machine.`
-          : `It gives the real sender for all three requests, where ${setting(trustKey)} gets ${wrong.length === 1 ? 'one' : wrong.length === 2 ? 'two' : 'three'} wrong. The list is safe as long as each trusted range holds your proxies and no other machine.`),
+          : `It gives the real sender for all three requests, where ${setting(trustKey)} gets ${numberWord(wrong.length)} wrong. The list is safe as long as each trusted range holds your proxies and no other machine.`),
     });
     await s.clearOverlays();
     await d.unmark();

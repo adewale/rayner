@@ -31,6 +31,7 @@ import {
 } from '../lib/ical-recurrence.ts';
 import type { Change, Copy, VEvent, Week } from '../lib/ical-recurrence.ts';
 import { stagedStep } from '../../../explain/index.ts';
+import { numberWord } from '../lib/format.ts';
 
 // Sources: RFC 5545 and RFC 4791 (sections and lines are quoted in ../lib/ical-recurrence.ts), and
 // sabre/vobject 4.5.7 with sabre/dav 4.7.0, the library and server inside Baïkal.
@@ -55,8 +56,7 @@ const COPIES: Record<Copy, string> = { organiser: 'Alice’s, the organiser', gu
 
 const RULE_STARTS = occurrences(DTSTART, parseRule(MASTER.rrules[0]!));
 const week = (slot: string) => `Week ${RULE_STARTS.indexOf(slot) + 1}`;
-const number = (n: number) => ['no', 'one', 'two', 'three', 'four', 'five', 'six'][n] ?? String(n);
-const plural = (n: number, word: string) => `${number(n)} ${word}${n === 1 ? '' : 's'}`;
+const plural = (n: number, word: string) => `${numberWord(n)} ${word}${n === 1 ? '' : 's'}`;
 const upperFirst = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 /** The script's one-sentence answer (meta.answer), which the copy step states in every scenario. */
@@ -141,7 +141,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     checks: [
       {
         question: `Alice skips the fifth meeting, ${long(FIFTH)}, instead of Bob’s, by adding EXDATE:${FIFTH}. How many meetings does her calendar show, and when is the last? What does Bob’s calendar show?`,
-        answer: `Alice’s shows ${number(FIFTH_LEFT.length)}, the last still on ${long(FIFTH_LEFT.at(-1)!.start)}: COUNT=6 counts the excluded start, so the series does not run a week longer. Bob is still in the third meeting’s override, so any update the server sends him carries that override again, and his calendar keeps ${long(GUEST_MEETING)}, not cancelled.`,
+        answer: `Alice’s shows ${numberWord(FIFTH_LEFT.length)}, the last still on ${long(FIFTH_LEFT.at(-1)!.start)}: COUNT=6 counts the excluded start, so the series does not run a week longer. Bob is still in the third meeting’s override, so any update the server sends him carries that override again, and his calendar keeps ${long(GUEST_MEETING)}, not cancelled.`,
       },
       {
         question: 'Alice moves the second meeting, which Bob does not attend. Before trying that setting: does Bob’s copy change, and why?',
@@ -230,7 +230,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         change === 'move'
           ? 'Moving the second meeting stores a third VEVENT'
           : change === 'skip'
-            ? `Skipping Bob’s meeting adds an EXDATE; ${number(expand(after).length)} meetings remain`
+            ? `Skipping Bob’s meeting adds an EXDATE; ${numberWord(expand(after).length)} meetings remain`
             : 'Five meetings come from the rule, one from the override',
       line:
         copy === 'guest'
@@ -245,7 +245,7 @@ export default class IcalRecurrenceExplainer extends Scene {
           ? `Alice moves the second meeting to ${long(MOVED_TO)} at 14:00. The first VEVENT does not change, and its rule still gives ${long(MOVED_FROM)}. A third VEVENT, an override with RECURRENCE-ID ${MOVED_FROM}, that original start, carries the new DTSTART, and calendars show it in the Monday’s place.`
           : change === 'skip'
             ? // RFC 5545 §3.8.5.1, lines 6630–6634: the set is the rule's starts with the EXDATEs taken out.
-              `Alice cancels the third meeting. Her app adds EXDATE:${GUEST_MEETING} to the first VEVENT and deletes the override that invited Bob. COUNT=6 still counts the excluded start, because RFC 5545 generates the rule’s starts first and then removes EXDATEs, so ${number(expand(after).length)} meetings remain.`
+              `Alice cancels the third meeting. Her app adds EXDATE:${GUEST_MEETING} to the first VEVENT and deletes the override that invited Bob. COUNT=6 still counts the excluded start, because RFC 5545 generates the rule’s starts first and then removes EXDATEs, so ${numberWord(expand(after).length)} meetings remain.`
             : 'Alice changes nothing else, so the object keeps two VEVENTs. A calendar takes all six starts from the rule, then puts the override in place of the start that equals its RECURRENCE-ID. Five meetings come from the first VEVENT and one from the second.',
     });
     this.state.change = {
@@ -397,7 +397,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         line: 'Each row is one calendar, over the six weeks of Alice’s rule.',
         caption:
           change === 'skip'
-            ? `The same cancellation reaches two different objects. Alice’s holds the master, whose RRULE gives six weeks, so her app takes the third out with EXDATE:${GUEST_MEETING}, leaving ${number(meetingsA)} meetings. Bob’s holds the override for ${day(GUEST_MEETING)} and no master. His other five weeks are empty because nothing in his copy generates them, and the iTIP ${sent.at(-1)} marks the one VEVENT he has STATUS:CANCELLED.`
+            ? `The same cancellation reaches two different objects. Alice’s holds the master, whose RRULE gives six weeks, so her app takes the third out with EXDATE:${GUEST_MEETING}, leaving ${numberWord(meetingsA)} meetings. Bob’s holds the override for ${day(GUEST_MEETING)} and no master. His other five weeks are empty because nothing in his copy generates them, and the iTIP ${sent.at(-1)} marks the one VEVENT he has STATUS:CANCELLED.`
             : change === 'move'
               ? `Alice’s object now holds the master and ${plural(na.overrides, 'override')}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
               : `Alice’s object holds the master, whose RRULE gives all six weeks, and the override that puts Bob in the third. Bob’s holds that override and no master, so his calendar shows the third week and no other.`,
@@ -438,7 +438,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       er = await schemaStep();
       await this.step('copy', {
         title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
-        line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${number(expand(mine).length)} meetings.`,
+        line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
         caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${ANSWER}.`,
       });
       const present = [

@@ -23,6 +23,7 @@ import {
   weekGrid,
 } from '../lib/gtfs.ts';
 import type { Band, Cell, GtfsDate, Row, ServiceDay, StopDay, WeekGrid } from '../lib/gtfs.ts';
+import { listed } from '../lib/format.ts';
 
 // Sources, all at google/transit commit 3c9e7b9: the GTFS Schedule reference (lines quoted in
 // ../lib/gtfs.ts and below) and its sample feed, whose files are copied in ./sample-feed-1.
@@ -110,8 +111,6 @@ type StopKey = keyof typeof STOPS;
 const stopName = (id: string) => FEED.stops.find((s) => s.stop_id === id)!.stop_name!.replace(/ \(Demo\)$/, '');
 const route = (id: string) => FEED.routes.find((r) => r.route_id === id)!;
 const tripsOf = (serviceId: string) => FEED.trips.filter((t) => t.service_id === serviceId);
-const list = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 const number = (n: number) =>
   ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'][n] ?? String(n);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
@@ -157,7 +156,7 @@ export default class GtfsExplainer extends Scene {
       {
         question:
           'Route 50’s four trips run only at weekends. Which one row, in which file, would make them run on Monday 4 June 2007 as well?',
-        answer: `calendar_dates.txt: ${ADD_WE}. exception_type 1 adds service WE on that date, so ${list(ADDED)} run, ${ADDED.length} of the ${FEED.trips.length} trips; routes.txt, trips.txt and stop_times.txt stay as they are.`,
+        answer: `calendar_dates.txt: ${ADD_WE}. exception_type 1 adds service WE on that date, so ${listed(ADDED)} run, ${ADDED.length} of the ${FEED.trips.length} trips; routes.txt, trips.txt and stop_times.txt stay as they are.`,
       },
       {
         question:
@@ -277,11 +276,11 @@ export default class GtfsExplainer extends Scene {
         : `Predict: all ${FEED.routes.length} routes are still in routes.txt. Why does none run?`,
       caption: `The date is now ${shortDate(date)}. The route list has not changed, but the active trips have: ${
         started.length
-          ? `${number(started.length)} trips under ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
+          ? `${number(started.length)} trips under ${listed(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${listed(routesOf(started))}.`
           : ''
       }${
         stopped.length
-          ? `${started.length ? ' ' + upper(number(stopped.length)) : number(stopped.length)} trips under ${list(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
+          ? `${started.length ? ' ' + upper(number(stopped.length)) : number(stopped.length)} trips under ${listed(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
           : ''
       } To see why, follow one trip, AB1, from its route to its dates.`,
     });
@@ -316,7 +315,7 @@ export default class GtfsExplainer extends Scene {
         { head: 'Trips by route_id' },
         ...Object.entries(st.tripsByRoute as Record<string, string[]>).map(
           ([id, trips]) =>
-            `Route ${route(id).route_short_name}: ${trips.length > 3 ? `${trips[0]} to ${trips.at(-1)}` : list(trips)}`,
+            `Route ${route(id).route_short_name}: ${trips.length > 3 ? `${trips[0]} to ${trips.at(-1)}` : listed(trips)}`,
         ),
         { head: 'Line ends' },
         'Bar: one; circle: or none; crow’s foot: many',
@@ -358,10 +357,10 @@ export default class GtfsExplainer extends Scene {
     const removed = today.filter((x) => x.exception === 2);
     await this.step('evaluate', {
       title: running.length
-        ? `On ${longDate(date)}, ${list(running)} ${running.length > 1 ? 'run' : 'runs'}`
+        ? `On ${longDate(date)}, ${listed(running)} ${running.length > 1 ? 'run' : 'runs'}`
         : `On ${longDate(date)}, no service runs`,
       line: removed.length
-        ? `An exception_type 2 row removes ${list(removed.map((x) => x.serviceId))}, overriding the ${day} column.`
+        ? `An exception_type 2 row removes ${listed(removed.map((x) => x.serviceId))}, overriding the ${day} column.`
         : `The ${day} column decides; no exception row matches this date.`,
       // reference.md:338-346 (weekday columns, range with end_date included) and :361-363 (exceptions).
       caption: `${longDate(date)} lies between start_date and end_date for ${today.every((x) => x.inRange) ? (today.length === 2 ? 'both services' : 'every service') : 'some services'}. ${today
@@ -412,7 +411,7 @@ export default class GtfsExplainer extends Scene {
     const empties = grid.dates.filter((_, i) => grid.trips[i] === 0);
     const pattern = (cells: readonly Cell[]) => {
       const days = grid.dates.filter((_, i) => cells[i] !== 'off').map((d) => upper(weekday(d)));
-      return days.length === 7 ? 'every day' : days.length ? list(days) : 'no day';
+      return days.length === 7 ? 'every day' : days.length ? listed(days) : 'no day';
     };
     const removedCells = grid.services.flatMap((x) =>
       grid.dates.flatMap((d, i) => (x.cells[i] === 'removed' ? [{ serviceId: x.serviceId, date: d }] : [])),
@@ -496,13 +495,13 @@ export default class GtfsExplainer extends Scene {
       title:
         grid.trips[col] === 0 && empties.length === 1
           ? `${longDate(date)} is the week’s one empty column`
-          : `${upper(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : list(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
+          : `${upper(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : listed(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
       line: 'Filled: the service runs. Dashed: calendar_dates.txt removes it. Blank: not that weekday.',
       caption:
         `Each row is a service and each column a date, ${longDate(grid.dates[0]!)} to ${longDate(grid.dates[6]!)}; the number under a column counts the trips that run that day. ` +
-        `${list(grid.services.map((x) => `${x.serviceId}’s weekly pattern covers ${pattern(x.cells)}`))}. ` +
+        `${listed(grid.services.map((x) => `${x.serviceId}’s weekly pattern covers ${pattern(x.cells)}`))}. ` +
         (removedCells.length
-          ? `${upper(number(removedCells.length))} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${list(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${list(removedCells.map((r) => `${r.serviceId}’s ${upper(weekday(r.date))} cell`))}. `
+          ? `${upper(number(removedCells.length))} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${listed(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${listed(removedCells.map((r) => `${r.serviceId}’s ${upper(weekday(r.date))} cell`))}. `
           : '') +
         (empties.length === 1
           ? `With no other service on that weekday, ${shortDate(empties[0]!)}’s column is empty: 0 trips. `
@@ -559,7 +558,7 @@ export default class GtfsExplainer extends Scene {
     const routeOf = (tripId: string) =>
       route(FEED.trips.find((t) => t.trip_id === tripId)!.route_id!).route_short_name!;
     const ending = at.ending.length
-      ? ` ${list(at.ending)} end${at.ending.length > 1 ? '' : 's'} here and ${at.ending.length > 1 ? 'do' : 'does'} not count.`
+      ? ` ${listed(at.ending)} end${at.ending.length > 1 ? '' : 's'} here and ${at.ending.length > 1 ? 'do' : 'does'} not count.`
       : '';
     /** The routes whose trips stop at a stop, on any day. */
     const servedBy = (stop: string) =>
@@ -578,19 +577,19 @@ export default class GtfsExplainer extends Scene {
     const departuresPicture = (st: { departures: StopDay; usual: StopDay | null; date: GtfsDate }, s: Stage) => {
       const { departures: here, usual: byCalendar, date: on } = st;
       const going = here.departures.length + here.headways.length > 0,
-        listed = byCalendar ?? here,
+        shown = byCalendar ?? here,
         stop = stopName(here.stopId);
       const note = going ? (x: string) => x : (x: string) => `${x}, removed`;
       const rows: [string, string][] = [
-        ...listed.departures.map(
+        ...shown.departures.map(
           (d) => [`${clock(d.time)}  ${d.tripId}, route ${routeOf(d.tripId)}`, note(d.headsign)] as [string, string],
         ),
-        ...listed.headways.flatMap((h) =>
+        ...shown.headways.flatMap((h) =>
           h.bands.map(
             (b) => [`${h.tripId}  ${clock(b.start)} to ${clock(b.end)}`, note(headwayWords([b]))] as [string, string],
           ),
         ),
-        ...(here.ending.length ? [['Ends here', list(here.ending)] as [string, string]] : []),
+        ...(here.ending.length ? [['Ends here', listed(here.ending)] as [string, string]] : []),
       ];
       return new Card(
         this,
@@ -599,7 +598,7 @@ export default class GtfsExplainer extends Scene {
           ? rows
           : [
               [stop, 'no departures'],
-              ['Routes stopping here', `${list(servedBy(here.stopId))}, on other days`],
+              ['Routes stopping here', `${listed(servedBy(here.stopId))}, on other days`],
             ],
         {
           at: [-7.55, -4.0, 7.55, 3.0],
@@ -635,8 +634,8 @@ export default class GtfsExplainer extends Scene {
               : ''
           }`
         : at.headways.length
-          ? `A departure is a stop_times row at the stop that is not its trip’s last. ${list(at.headways.map((h) => h.tripId))} start here, on headways with exact_times empty: operators keep the gap, not a timetable. The reference does not say whether a vehicle leaves at end_time, so the card gives gaps.${ending}`
-          : `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} ${list(at.departures.map((d) => `${d.tripId} leaves at ${clock(d.time)}`))}.${ending}`,
+          ? `A departure is a stop_times row at the stop that is not its trip’s last. ${listed(at.headways.map((h) => h.tripId))} start here, on headways with exact_times empty: operators keep the gap, not a timetable. The reference does not say whether a vehicle leaves at end_time, so the card gives gaps.${ending}`
+          : `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} ${listed(at.departures.map((d) => `${d.tripId} leaves at ${clock(d.time)}`))}.${ending}`,
         state: { departures: at, usual: leaving.length ? null : usual, date },
         draw: departuresPicture,
       }),

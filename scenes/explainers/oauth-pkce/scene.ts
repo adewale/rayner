@@ -4,6 +4,7 @@ import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { pkceChallenge, sha256 } from '../lib/models.ts';
 import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type LaneMessage, type SignIn, type SignInEvent } from '../lib/pkce.ts';
+import { listed } from '../lib/format.ts';
 const STYLE = 'github-light';
 // One colour per value, so the reader can follow each across the flow (outcomes use the stage's good and bad).
 const CHALLENGE = '#0969da',
@@ -433,7 +434,6 @@ const NAME_COLOR: Record<string, string> = { code_challenge: CHALLENGE, code: CO
 /** What a lane's messages carry, in words, for the drawing's description. */
 const laneWords = (lane: LaneMessage[]) =>
   lane.map((m) => `${NAMES[m.from]} to ${NAMES[m.to]}, ${m.carries.length ? listed(m.carries) : m.text.toLowerCase()}`).join('; ');
-const listed = (names: string[]) => names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names.at(-1);
 /**
  * The client's messages from the model, as two lanes between the client and the auth server: the browser lane on top,
  * outlined dashed in the stage's bad colour, and the TLS lane under it in its good colour. Each message is an arrow,

@@ -4,11 +4,9 @@ import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from '../lib/birthday-paradox.ts';
 import { label, tile, stat } from '../lib/lesson-drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
+import { listed, numberWord, percent } from '../lib/format.ts';
 
-const pct = (p: number) => (100 * p).toFixed(1) + '%';
-const pct2 = (p: number) => (100 * p).toFixed(2) + '%';
-const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
-const words = ['no', 'one', 'two', 'three', 'four', 'five'];
+const pct2 = (p: number) => percent(p, { digits: 2 });
 /** The script's one-sentence answer; test/learning-models.test.ts holds its numbers to the model. */
 export const ANSWER =
   'A room of 23 people gives a better than even chance that two share a birthday, because 23 people make 253 pairs, each a chance to match';
@@ -120,7 +118,7 @@ export default class BirthdayParadox extends Scene {
         label('card 2', x0 - 0.15, at(1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(1, 0)[1]], [1, 0]),
         label(`card ${n}`, x0 - 0.15, at(n - 1, 0)[1], s.soft, 0.42).moveTo([x0 - 0.15, at(n - 1, 0)[1]], [1, 0]),
         you ? stat(s, 'Comparisons', count, -4.9, 0.2, 'birthday-comparisons') : stat(s, 'Pairs', count, -4.9, 0.2, 'birthday-pairs'),
-        stat(s, 'Chance', pct(chance), 4.9, 0.2, 'birthday-chance'),
+        stat(s, 'Chance', percent(chance), 4.9, 0.2, 'birthday-chance'),
         label(footer, 0, -3.75, s.palette.ink, 0.58, 'birthday-footer'),
       );
       return g;
@@ -140,16 +138,16 @@ export default class BirthdayParadox extends Scene {
       stagedStep({
         id: 'chance',
         title: shared.length
-          ? `This room of ${n} already has ${words[shared.length] ?? shared.length} shared birthdays`
+          ? `This room of ${n} already has ${numberWord(shared.length)} shared birthdays`
           : `No shared birthday in this room of ${n}`,
         line: `Is that luck, or usual for a room of ${n}?`,
         caption: `${
           shared.length
             ? m.shared.every((d) => d.people === m.shared[0]!.people)
-              ? `The outlined cards repeat ${list(shared)}, each on ${words[m.shared[0]!.people] ?? m.shared[0]!.people} cards. `
-              : `The outlined cards repeat dates: ${list(m.shared.map((d) => `${d.date} is on ${words[d.people] ?? d.people} cards`))}. `
+              ? `The outlined cards repeat ${listed(shared)}, each on ${numberWord(m.shared[0]!.people)} cards. `
+              : `The outlined cards repeat dates: ${listed(m.shared.map((d) => `${d.date} is on ${numberWord(d.people)} cards`))}. `
             : ''
-        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${pct(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
+        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${percent(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
         // `days` and `dates`: the room's cards, as the room step recorded them.
         state: {
           people: n,
@@ -161,7 +159,7 @@ export default class BirthdayParadox extends Scene {
         },
         draw: (st, s) => {
           const dates = st.shared.map((d) => d.date);
-          return room(s, st.days, st.dates, st.shared.map((d) => d.day), `${dates.length ? `Shared: ${list(dates)}` : 'No shared date'}. Chance: ${pct(st.chance)}`);
+          return room(s, st.days, st.dates, st.shared.map((d) => d.day), `${dates.length ? `Shared: ${listed(dates)}` : 'No shared date'}. Chance: ${percent(st.chance)}`);
         },
         opening: ['birthday-people', 'birthday-footer'],
       }),
@@ -169,7 +167,7 @@ export default class BirthdayParadox extends Scene {
         id: 'you',
         title: `Your own birthday: only ${m.others} chances to match`,
         line: 'Predict: how many comparisons does the whole room make?',
-        caption: `Mark the first card as you. Each square in the column compares your birthday with one other person’s. You have just one opportunity per person: the chance that someone here shares your birthday is only ${pct(m.one)}, and an even chance would take ${m.evenOthers} other people. But a match elsewhere in the room need not involve you.`,
+        caption: `Mark the first card as you. Each square in the column compares your birthday with one other person’s. You have just one opportunity per person: the chance that someone here shares your birthday is only ${percent(m.one)}, and an even chance would take ${m.evenOthers} other people. But a match elsewhere in the room need not involve you.`,
         state: { people: n, others: m.others, one: m.one, evenOthers: m.evenOthers },
         draw: (st, s) =>
           pairGrid(s, { you: true, people: st.people, count: st.others, chance: st.one, matched: [], footer: `Your ${st.others} comparisons, one square each` }),
@@ -184,7 +182,7 @@ export default class BirthdayParadox extends Scene {
             : `Your column of ${m.others} is one edge of a triangle of ${m.pairs}.`,
         caption: `Each newcomer can match everyone already there, so each card adds a row with one square for every card before it: ${m.pairs} pairs, against your column of ${m.others}. Pairs outgrow people: doubling a room from ${five.people} to ${ten.people} takes its pairs from ${five.pairs} to ${ten.pairs}. ${
           m.matchedPairs.length
-            ? `The red squares are this room’s matches, on ${list(shared)}.`
+            ? `The red squares are this room’s matches, on ${listed(shared)}.`
             : `No square here pairs two cards with the same date.`
         } ${
           n === m.even
@@ -213,7 +211,7 @@ export default class BirthdayParadox extends Scene {
             chance: st.chance,
             matched: st.matchedPairs,
             footer: st.matchedPairs.length
-              ? `One square per pair: ${st.pairs}. Red: ${list(st.sharedDates)}`
+              ? `One square per pair: ${st.pairs}. Red: ${listed(st.sharedDates)}`
               : `One square per pair: ${st.people} × ${st.people - 1} / 2 = ${st.pairs}`,
           }),
         opening: ['birthday-pair-lines', 'birthday-pairs', 'birthday-chance'],
@@ -246,9 +244,9 @@ export default class BirthdayParadox extends Scene {
       stagedStep({
         id: 'estimate',
         kind: 'detail',
-        title: `${m.pairs} pairs at 1 in 365 each: about ${pct(m.shortcut)}`,
+        title: `${m.pairs} pairs at 1 in 365 each: about ${percent(m.shortcut)}`,
         line: `Close to the exact ${pct2(m.chance)}; overlapping comparisons need care.`,
-        caption: `Treating the ${m.pairs} pairs as independent gives the nearby shortcut shown. It is the chance you would have of sharing your own birthday with one of ${m.pairs} other people. The room’s pairs are not jointly independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. The person-by-person calculation avoids that dependence. Comparisons with your one birthday do involve independent arrivals, so multiplying their miss chances gives the exact ${pct(m.one)} for a match with you.`,
+        caption: `Treating the ${m.pairs} pairs as independent gives the nearby shortcut shown. It is the chance you would have of sharing your own birthday with one of ${m.pairs} other people. The room’s pairs are not jointly independent: if Ann matches Ben and Ben matches Cal, Ann must match Cal. The person-by-person calculation avoids that dependence. Comparisons with your one birthday do involve independent arrivals, so multiplying their miss chances gives the exact ${percent(m.one)} for a match with you.`,
         state: { people: n, pairs: m.pairs, shortcut: m.shortcut, chance: m.chance, one: m.one },
         draw: (st, s) =>
           new Group(

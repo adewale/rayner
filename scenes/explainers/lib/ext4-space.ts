@@ -40,6 +40,8 @@
 // The model covers what the scene shows: a whole number of 128 MiB block groups from 512 MiB to 64 TiB,
 // with the default mke2fs.conf. test/explain-ext4-space.test.ts holds it to mkfs.ext4 1.47.3 runs.
 
+import { percent as formatPercent } from './format.ts';
+
 export const BLOCK = 4096;
 export const INODE_SIZE = 256;
 export const BLOCKS_PER_GROUP = BLOCK * 8;
@@ -282,11 +284,7 @@ export function wholePie(sp: Space, stage: WholeStage): Slice[] {
 /** 268435456 -> "268,435,456". */
 export const count = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 /** A share of a whole: one decimal from 1% up, two significant digits under it (0.40%, 0.014%). */
-export function percent(part: number, whole: number): string {
-  const p = (100 * part) / whole;
-  if (p === 0 || p >= 1) return `${p.toFixed(1)}%`;
-  return `${p.toPrecision(2)}%`;
-}
+export const percent = (part: number, whole: number): string => formatPercent(part, { of: whole, under1: { significant: 2 } });
 /** Blocks of 4 KiB in the largest whole binary unit: 262144 -> "1 GiB", 4096 -> "16 MiB". */
 export function bytesOf(blocks: number): string {
   const b = blocks * BLOCK;

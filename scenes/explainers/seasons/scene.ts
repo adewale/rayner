@@ -18,6 +18,7 @@ import {
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
+import { percent } from '../lib/format.ts';
 
 const PLACES: Record<string, { name: string; lat: number }> = {
   tromso: { name: 'Tromsø', lat: 69.65 },
@@ -40,7 +41,7 @@ const degrees = (d: number) => d.toFixed(1) + '°';
 /** A latitude as a reader names it: 51.5° N, 33.9° S. */
 const latitudeName = (lat: number) => `${Math.abs(lat).toFixed(1)}° ${lat < 0 ? 'S' : 'N'}`;
 /** A share of overhead sunlight as a whole percentage. */
-const percent = (x: number) => Math.round(x * 100) + '%';
+const pct = (x: number) => percent(x, { digits: 0, rounding: 'Math.round' });
 /** A latitude or angle to the hundredth it is given in, trailing zeros dropped: the noon formula's operands. */
 const exactly = (d: number) => +d.toFixed(2) + '°';
 /** Hours as the year's dimension prints them, rounded to a tenth. */
@@ -532,9 +533,9 @@ export default class SeasonsExplainer extends Scene {
     const formulaOf = (st: SeasonState) => `90° − |${exactly(st.latitude)} − ${exactly(TILT)}| = ${exactly(st.june.altitude)}`;
     const formula = formulaOf({ place: place.name, latitude: place.lat, june });
     await this.step('noon', {
-      title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${percent(juneShare)} of overhead sunlight per m²`,
+      title: `June noon: the Sun stands ${degrees(june.altitude)} up, giving ${pct(juneShare)} of overhead sunlight per m²`,
       line: 'The yellow band shows how one beam spreads across the ground.',
-      caption: `The white line is ${place.name}’s horizon. A lower Sun spreads the same beam over more ground, sharing its light across a larger patch. A higher Sun concentrates that light. Here each square metre receives ${percent(juneShare)} of what it would under an overhead Sun, before the air takes its share. The noon Sun’s height is 90° minus the distance from ${place.name}’s latitude to the declination: ${formula}.`,
+      caption: `The white line is ${place.name}’s horizon. A lower Sun spreads the same beam over more ground, sharing its light across a larger patch. A higher Sun concentrates that light. Here each square metre receives ${pct(juneShare)} of what it would under an overhead Sun, before the air takes its share. The noon Sun’s height is 90° minus the distance from ${place.name}’s latitude to the declination: ${formula}.`,
     });
     // June's share of overhead sunlight; the December step adds December's.
     this.state.noonShare = { june: juneShare };
@@ -647,10 +648,10 @@ export default class SeasonsExplainer extends Scene {
         (Math.abs(june.daylight - december.daylight) > 0.05
           ? `${place.name}’s daylight ${december.daylight > june.daylight ? 'rises' : 'falls'} to ${hours(december.daylight)}. ` +
             (december.altitude > 0
-              ? `Its noon Sun is ${december.altitude > june.altitude ? 'higher' : 'lower'}, ${degrees(december.altitude)} up, ${december.altitude > june.altitude ? 'concentrating' : 'spreading'} the beam over ${december.altitude > june.altitude ? 'less' : 'more'} ground: ${percent(decShare)} of overhead sunlight per m², against ${percent(juneShare)} in June. `
+              ? `Its noon Sun is ${december.altitude > june.altitude ? 'higher' : 'lower'}, ${degrees(december.altitude)} up, ${december.altitude > june.altitude ? 'concentrating' : 'spreading'} the beam over ${december.altitude > june.altitude ? 'less' : 'more'} ground: ${pct(decShare)} of overhead sunlight per m², against ${pct(juneShare)} in June. `
               : `Its noon Sun stays below the horizon, so it gets no direct sunlight. `) +
             `Both the longer days and the stronger sunlight fall in ${december.daylight > june.daylight ? 'December' : 'June'}, so ${place.name} receives the most sunlight around then.`
-          : `${place.name}’s noon Sun stands at the same ${degrees(december.altitude)}, now to the south, so its noon sunlight stays at ${percent(decShare)} of overhead; its daylight stays at ${hours(december.daylight)}.`),
+          : `${place.name}’s noon Sun stands at the same ${degrees(december.altitude)}, now to the south, so its noon sunlight stays at ${pct(decShare)} of overhead; its daylight stays at ${hours(december.daylight)}.`),
     });
     this.state.december = december;
     this.state.noonShare = { june: juneShare, december: decShare };
@@ -665,7 +666,7 @@ export default class SeasonsExplainer extends Scene {
       const r = now()[month]!;
       if (r.altitude <= 0) return;
       const under = callout.children.at(-1)!.center();
-      const said = label(`Noon: ${percent(now().noonShare![month]!)} of overhead sunlight per m²`, [under[0], under[1] - 0.44], {
+      const said = label(`Noon: ${pct(now().noonShare![month]!)} of overhead sunlight per m²`, [under[0], under[1] - 0.44], {
         size: 0.28,
         color: SUN,
       });
@@ -697,7 +698,7 @@ export default class SeasonsExplainer extends Scene {
         : { month: 'June', other: 'December', ratio: junePatch / decPatch, from: decShare, to: juneShare }
       : null;
     const beamSaid = (month: string, alt: number, patch: number, share: number) =>
-      `${month}’s Sun, ${degrees(alt)} up, lays its beam on ${metres(patch)} of ground, so each square metre gets 1 ÷ ${patch.toFixed(2)} = ${percent(share)} of what an overhead Sun gives`;
+      `${month}’s Sun, ${degrees(alt)} up, lays its beam on ${metres(patch)} of ground, so each square metre gets 1 ÷ ${patch.toFixed(2)} = ${pct(share)} of what an overhead Sun gives`;
     await this.step('spread', {
       title:
         decPatch === null
@@ -712,8 +713,8 @@ export default class SeasonsExplainer extends Scene {
         (decPatch === null
           ? `In December the noon Sun stays ${degrees(-december.altitude)} below the horizon, so no beam reaches the ground.`
           : longer
-            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. Counted at Earth’s average distance, as the percentages are, both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times as much ground as ${longer.other}’s, which is how ${percent(longer.from)} per m² falls to ${percent(longer.to)}.`
-            : `December’s Sun stands at the same ${degrees(december.altitude)}, so the beam lands on the same ${metres(decPatch)} and the share stays ${percent(decShare)}.`),
+            ? `${beamSaid('December', december.altitude, decPatch, decShare)}. Counted at Earth’s average distance, as the percentages are, both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times as much ground as ${longer.other}’s, which is how ${pct(longer.from)} per m² falls to ${pct(longer.to)}.`
+            : `December’s Sun stands at the same ${degrees(december.altitude)}, so the beam lands on the same ${metres(decPatch)} and the share stays ${pct(decShare)}.`),
     });
     comparingJune = false;
     this.state.patch = { june: junePatch, december: decPatch };
@@ -741,7 +742,7 @@ export default class SeasonsExplainer extends Scene {
       const beam = (month: string, column: number, s: 1 | -1, alt: number, patch: number | null, share: number) => {
         const g = new Group();
         g.key = `spread-${month.toLowerCase()}`;
-        const words = patch === null ? [month, 'Sun below the horizon'] : [`${month}, ${degrees(alt)}`, metres(patch), `${percent(share)} per m²`];
+        const words = patch === null ? [month, 'Sun below the horizon'] : [`${month}, ${degrees(alt)}`, metres(patch), `${pct(share)} per m²`];
         g.add(...words.map((t, i) => label(t, [column, y0 - 0.38 - i * 0.44], { size, color: i === 1 ? SUN : ink })));
         if (patch === null) return g;
         const a = alt * RAD,
@@ -778,8 +779,8 @@ export default class SeasonsExplainer extends Scene {
           { june: jp, december: dp } = st.patch!,
           shares = st.noonShare!;
         return (
-          `Level ground at ${st.place}, with both noon beams drawn to one scale, each 1 m across: June’s, at ${degrees(st.june.altitude)}, lands on ${metres(jp!)}, ${percent(shares.june)} per m²; ` +
-          (dp === null ? `December’s noon Sun is below the horizon, so no beam lands` : `December’s, at ${degrees(st.december!.altitude)}, lands on ${metres(dp)}, ${percent(shares.december!)} per m²`)
+          `Level ground at ${st.place}, with both noon beams drawn to one scale, each 1 m across: June’s, at ${degrees(st.june.altitude)}, lands on ${metres(jp!)}, ${pct(shares.june)} per m²; ` +
+          (dp === null ? `December’s noon Sun is below the horizon, so no beam lands` : `December’s, at ${degrees(st.december!.altitude)}, lands on ${metres(dp)}, ${pct(shares.december!)} per m²`)
         );
       },
     });
@@ -1037,8 +1038,8 @@ export default class SeasonsExplainer extends Scene {
           : `Earth is ${farther}% farther from the Sun in July; ${place.name} still gets ${hours(year[6]!)}.`,
       caption:
         place.lat !== 0
-          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${percent(shares[0]!)} and ${percent(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
-          : `Back to the opening question. ${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${percent(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
+          ? `Back to the opening question. ${distanceSaid} The tilt moves ${place.name}’s noon sunlight between ${pct(shares[0]!)} and ${pct(shares[1]!)} of overhead. On 15 January ${place.name} gets ${hours(year[0]!)} of daylight and ${latitudeName(-place.lat)}, the purple curve, gets ${hours(mirror[0]!)}; both are the same distance from the Sun that day, so the gap between them comes from the tilt.`
+          : `Back to the opening question. ${distanceSaid} Quito gets ${hours(year[0]!)} in January and in July, and its noon Sun stands at ${degrees(june.altitude)} at both solstices, ${pct(juneShare)} of overhead, so the tilt bar has no length here. On 15 January London gets ${hours(daylightYear(PLACES.london!.lat)[0]!)} and Sydney ${hours(daylightYear(PLACES.sydney!.lat)[0]!)}, at one distance from the Sun.`,
     });
     // `mirror`: the same model at the mirrored latitude, month by month.
     this.state.mirror = mirror;
@@ -1126,7 +1127,7 @@ export default class SeasonsExplainer extends Scene {
       bars.add(
         label('Sunlight per m², % of an overhead Sun', [left, top + 1.45], { size: 0.24, color: soft, edge: [-1, 0] }),
         row(
-          percent(low) === percent(high) ? `Tilt: ${st.place}’s noon, ${percent(high)} at both` : `Tilt: ${st.place}’s noon, ${percent(low)} to ${percent(high)}`,
+          pct(low) === pct(high) ? `Tilt: ${st.place}’s noon, ${pct(high)} at both` : `Tilt: ${st.place}’s noon, ${pct(low)} to ${pct(high)}`,
           low,
           high,
           lowMonth,
@@ -1134,7 +1135,7 @@ export default class SeasonsExplainer extends Scene {
           top,
           SUN,
         ),
-        row(`Distance: overhead Sun, ${percent(july)} to ${percent(january)}`, july, january, 'July', 'January', top - 1.5, CURVE),
+        row(`Distance: overhead Sun, ${pct(july)} to ${pct(january)}`, july, january, 'July', 'January', top - 1.5, CURVE),
         ticks,
       );
       return { bars, lowMonth, highMonth };
@@ -1146,7 +1147,7 @@ export default class SeasonsExplainer extends Scene {
           { lowMonth, highMonth } = barsOf(st),
           [low, high] = st.bars!.tilt,
           [july, january] = st.bars!.distance;
-        return `Two bars on one scale of sunlight per square metre, in percent of an overhead Sun: the tilt moves ${st.place}’s noon sunlight from ${percent(low)} in ${lowMonth} to ${percent(high)} in ${highMonth}; the distance moves an overhead Sun’s from ${percent(july)} in July to ${percent(january)} in January, ${stronger}% more`;
+        return `Two bars on one scale of sunlight per square metre, in percent of an overhead Sun: the tilt moves ${st.place}’s noon sunlight from ${pct(low)} in ${lowMonth} to ${pct(high)} in ${highMonth}; the distance moves an overhead Sun’s from ${pct(july)} in July to ${pct(january)} in January, ${stronger}% more`;
       },
     });
     // The January values, said beside their dots on tags that read over the curves. On the

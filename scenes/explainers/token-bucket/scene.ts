@@ -24,6 +24,7 @@ import { stage, settingsOf } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import { TokenBucket, bucketStart, bucketRequest } from '../lib/models.ts';
 import type { BucketCall as Call, BucketState } from '../lib/models.ts';
+import { listed } from '../lib/format.ts';
 
 // Six at once, three within the next second, then one after a four-second quiet spell:
 // long enough at 2 and 4 tokens a second for min(5, …) to throw refill away, not at 1.
@@ -88,9 +89,6 @@ const formatState = (v: unknown) =>
         ? String(v)
         : v.toFixed(1)
       : String(v);
-/** "R6", "R6 and R9", "R6, R7 and R9". */
-const list = (names: string[]) =>
-  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 
 // The check questions' runs, from the same model (test/explain-token-bucket.test.ts checks them).
 /** The schedule at 2 a second with a bucket of six tokens. */
@@ -142,7 +140,7 @@ export default class TokenBucketExplainer extends Scene {
       },
       {
         question: 'Suppose R10 arrived at 1.5 s instead of 5 s. At which of the three rates would it be refused?',
-        answer: `At ${list(MOVED.filter((m) => !m.ok).map((m) => perSecond(m.rate)))} only. ${MOVED.map((m, i) => `${i ? 'at' : 'At'} ${m.rate} a second R9 leaves ${formatState(m.left)} and R10 finds ${formatState(m.found)}`).join('; ')}. Half a second has to earn the token R9 did not leave.`,
+        answer: `At ${listed(MOVED.filter((m) => !m.ok).map((m) => perSecond(m.rate)))} only. ${MOVED.map((m, i) => `${i ? 'at' : 'At'} ${m.rate} a second R9 leaves ${formatState(m.left)} and R10 finds ${formatState(m.found)}`).join('; ')}. Half a second has to earn the token R9 did not leave.`,
       },
     ],
     claims: [
@@ -200,7 +198,7 @@ export default class TokenBucketExplainer extends Scene {
         : `A chart of the balance over time: it climbs at ${rate} a second between calls and drops one token for each 200. ` +
             `Dots mark what R1–${name(calls.length - 1)} found; ` +
             (refused.length
-              ? `${list(refused)} ${refused.length > 1 ? 'are' : 'is'} under the one-token line and got 429`
+              ? `${listed(refused)} ${refused.length > 1 ? 'are' : 'is'} under the one-token line and got 429`
               : 'none is under the one-token line') +
             capped.map((c) => `. ${c}`).join('');
     };
@@ -211,7 +209,7 @@ export default class TokenBucketExplainer extends Scene {
       return (
         'Requests R1 to R10 at their arrival times: ' +
         (calls.length
-          ? `${ok} answered 200${no.length ? `, ${list(no)} 429` : ''}${calls.length < TIMES.length ? `, ${TIMES.length - calls.length} waiting` : ''}`
+          ? `${ok} answered 200${no.length ? `, ${listed(no)} 429` : ''}${calls.length < TIMES.length ? `, ${TIMES.length - calls.length} waiting` : ''}`
           : 'none answered yet')
       );
     };
@@ -563,10 +561,10 @@ export default class TokenBucketExplainer extends Scene {
     ];
     const captions = [
       `No time passed between R1 and R6, so the line drops one token per request and R6 finds ${f(5)}, under the dashed line: 429. A burst can spend only the tokens saved up, and only elapsed time adds more. On each arrival the server adds elapsed time multiplied by the refill rate, here ${perSecond(rate)}, before deciding whether to spend a token. The line between arrivals shows available credit; no background timer needs to update the balance.`,
-      `Between calls the line climbs ${perSecond(rate)}. Half a second after the burst, R7 finds ${tokens(r7.found)}, ${r7.ok ? 'enough for one request' : 'less than the one a request needs'}, so it gets ${code7}. The rate decides it: the same half second buys ${list(halfSecond)}. R8 at 1 s finds ${f(7)}; R9 arrives at the same instant, so nothing is added and it finds what R8 left. Fractional tokens are saved, but a request must spend a whole one. ${verdict}`,
+      `Between calls the line climbs ${perSecond(rate)}. Half a second after the burst, R7 finds ${tokens(r7.found)}, ${r7.ok ? 'enough for one request' : 'less than the one a request needs'}, so it gets ${code7}. The rate decides it: the same half second buys ${listed(halfSecond)}. R8 at 1 s finds ${f(7)}; R9 arrives at the same instant, so nothing is added and it finds what R8 left. Fractional tokens are saved, but a request must spend a whole one. ${verdict}`,
       uncapped > CAPACITY
         ? `R9 left ${formatState(r9.after)}. A wait of ${seconds(wait)} s at ${perSecond(rate)} would bring the balance to ${formatState(uncapped)}, but min(5, …) stops it at five, reached at ${seconds(fullAt)} s, and the line runs flat from there. However long a client waits, its next burst is at most five requests. R10 spends one and leaves ${formatState(r10.after)}.`
-        : `R9 left ${formatState(r9.after)}, and a wait of ${seconds(wait)} s at ${perSecond(rate)} brings the balance to ${formatState(uncapped)}, under min(5, …)'s cap. R10 spends one and leaves ${formatState(r10.after)}.${capped.length ? ` At ${list(capped.map(perSecond))} the same wait would pass five, and min(5, …) would stop the balance there.` : ''}`,
+        : `R9 left ${formatState(r9.after)}, and a wait of ${seconds(wait)} s at ${perSecond(rate)} brings the balance to ${formatState(uncapped)}, under min(5, …)'s cap. R10 spends one and leaves ${formatState(r10.after)}.${capped.length ? ` At ${listed(capped.map(perSecond))} the same wait would pass five, and min(5, …) would stop the balance there.` : ''}`,
     ];
     for (const [index, [from, to]] of GROUPS.entries()) {
       await this.step(['burst', 'refill', 'later'][index]!, {
@@ -602,12 +600,12 @@ export default class TokenBucketExplainer extends Scene {
     // R7–R9, the requests whose answer the rate decides on this schedule.
     const between = (r: number) => refusedAt(r).filter((n) => ['R7', 'R8', 'R9'].includes(n));
     const betweenSay = (r: number) =>
-      between(r).length ? `${list(between(r))} ${between(r).length > 1 ? 'are' : 'is'} refused` : 'none of them is refused';
+      between(r).length ? `${listed(between(r))} ${between(r).length > 1 ? 'are' : 'is'} refused` : 'none of them is refused';
     // Below a fifth of a token a second, R6–R9 all fail, the bucket refills from empty at 0 s, and R10 at 5 s finds
     // under 5 × 0.2 = 1 token (test/explain-token-bucket.test.ts).
     await this.step('trace', {
       title: 'The same ten requests at 1, 2 and 4 tokens a second',
-      line: `429s at 4 / s: ${list(refusedAt(4))}; at 1 / s: ${list(refusedAt(1))}.`,
+      line: `429s at 4 / s: ${listed(refusedAt(4))}; at 1 / s: ${listed(refusedAt(1))}.`,
       caption: `Each row runs the same ten requests at its labelled refill rate; the outlined row is this scenario. Circles are 200s and crosses are 429s. R6 is refused at every rate, because no time passes inside the burst, and R10 is accepted at every rate, because after its ${seconds(wait)}-second wait it finds at least ${formatState(Math.min(...RATES.map((r) => runs.get(r)![9]!.found)))} tokens. Those are the three rates offered here; below a fifth of a token a second, R10 too would find less than one token. For R7 to R9 the rate decides: at ${perSecond(4)} ${betweenSay(4)}; at ${perSecond(1)} ${betweenSay(1)}. The bucket’s capacity sets the burst, and its rate sets how soon the client can send again.`,
     });
     // The curves explain refill in earlier steps. End on a large comparison of
@@ -652,7 +650,7 @@ export default class TokenBucketExplainer extends Scene {
     await s.enter(comparison, {
       describe: () =>
         'Requests R1 to R10, left to right. ' +
-        RATES.map((r) => `${r} / s: ${list(refusedAt(r))} ${refusedAt(r).length > 1 ? 'get' : 'gets'} 429; all other requests get 200`).join('. ') +
+        RATES.map((r) => `${r} / s: ${listed(refusedAt(r))} ${refusedAt(r).length > 1 ? 'get' : 'gets'} 429; all other requests get 200`).join('. ') +
         `. The ${rate} / s row is outlined.`,
     });
   }

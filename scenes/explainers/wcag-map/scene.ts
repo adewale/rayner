@@ -15,6 +15,7 @@ import {
   tally,
 } from '../lib/wcag-map.ts';
 import type { Criterion, Level, Version } from '../lib/wcag-map.ts';
+import { listed } from '../lib/format.ts';
 
 // Of the light styles, github-light draws the root's label plainly; hand-drawn, excalidraw and pen-and-ink
 // outline it in the paper colour on a dark circle, which smears it. A mark's colour stands for a version:
@@ -113,8 +114,6 @@ const ofThem = (n: number, all: number, level: Level) =>
   level === 'AAA'
     ? ''
     : `, ${n === all ? 'all' : n === 0 ? 'none' : n} of them at level ${level === 'A' ? 'A' : 'A or AA'}`;
-const listed = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
 export default class WcagMapExplainer extends Scene {
   static meta = {

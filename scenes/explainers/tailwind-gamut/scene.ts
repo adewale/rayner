@@ -5,6 +5,7 @@ import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SHADES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
 import type { Row, Shade } from '../lib/tailwind-gamut.ts';
+import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
 // Sources. Every number on screen comes from lib/tailwind-gamut.ts, which cites the lines it uses.
@@ -54,7 +55,7 @@ const SIZE = 0.24;
 /** Hand-drawn's first three series colours, as a reader would name them. */
 const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
 
-const pct = (v: number) => `${v.toFixed(1)}%`;
+const pct = (v: number) => percent(v, { of: 100 });
 
 // The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
 // at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
@@ -71,8 +72,6 @@ const ROOMY = OPEN.leastOfSrgb.family;
 const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
 if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
 const deg = (h: number) => `${h.toFixed(1)}°`;
-const list = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
@@ -303,13 +302,13 @@ export default class TailwindGamutExplainer extends Scene {
     await this.step('palette', {
       title: `${out} of the ${n} ${shade} shades lie outside sRGB`,
       line: 'Predict: measured against its own spoke’s edge, which colour is furthest out?',
-      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${list(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; ${sum.furthest.family}-${shade}, the furthest out in raw chroma, is ${sum.furthest.value.toFixed(3)} past its edge. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
+      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${listed(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; ${sum.furthest.family}-${shade}, the furthest out in raw chroma, is ${sum.furthest.value.toFixed(3)} past its edge. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
     });
     await s.clearOverlays();
     said.length = 0;
     await d.reveal(['curve:tw']);
     await onDot(d, sum.furthest.family, `+${sum.furthest.value.toFixed(3)}`);
-    await column(d, [], [`Inside sRGB: ${list(sum.insideSrgb)}.`], [srgbCurve, twCurve]);
+    await column(d, [], [`Inside sRGB: ${listed(sum.insideSrgb)}.`], [srgbCurve, twCurve]);
     this.state.outsideSrgb = sum.outsideSrgb;
     this.state.furthest = sum.furthest;
 
@@ -324,7 +323,7 @@ export default class TailwindGamutExplainer extends Scene {
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
       caption: `The same colours, each as a percentage of the sRGB edge on its own spoke: the edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${
         sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
-      }.${level.length ? ` ${list(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
+      }.${level.length ? ` ${listed(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
     });
     await s.clearOverlays();
     said.length = 0;
