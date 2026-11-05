@@ -21,7 +21,7 @@ export interface CatalogScene {
   /** Where the gallery lists it (scenes/explainers/catalog.ts): showcase cards, the gallery behind "More", or no card for coverage. */
   tier?: 'showcase' | 'gallery' | 'coverage';
 }
-export interface Catalog { version: 1; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
+export interface Catalog { version: 2; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
   id: string; scenarios: Record<string, string>[]; diagrams: number; styles: string[]; families: string[];
   title?: string; lang?: string; entry?: SceneEntry; sourceHash?: string; engineHash?: string; snapshotHashes?: string[];

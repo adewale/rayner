@@ -65,6 +65,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 - The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
 - `npm run site:export` publishes the built pages with their descriptions and `llms.txt`, a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers. Each build writes a receipt of its inputs and a header recipe whose CSP pins the page's inline script and style.
+- The exported `catalog.json` is version 2: its totals and each scene count `scenarios`, where version 1 counted `cases`. A host that renders the catalog reads the version and the new field.
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
 

@@ -153,7 +153,7 @@ const totals = {
 };
 const evidenceDocument: import('./lib/explain-artifacts.ts').CatalogEvidence = { version: 2, checked: !!check, totals, scenes: evidence };
 const catalog: import('./lib/explain-artifacts.ts').Catalog = {
-  version: 1,
+  version: 2,
   product: PRODUCT,
   totals,
   scenes: items.map((item) => {

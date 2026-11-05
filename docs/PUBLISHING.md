@@ -52,7 +52,7 @@ Export prepares files in the directory you supply. Uploading or deploying those 
 
 For a custom selection, pass explicit IDs to `--only`. Their `toolchain` groups remain in the exported catalog. The complete collection remains available in the repository.
 
-The exported `catalog.json` contains the product copy, authoring links, titles, groups and counts used by the generated gallery. A host with its own page design can render that data into its template. Regenerate that page as part of the host build, so a new explainer or a changed requirement cannot leave a second catalog behind.
+The exported `catalog.json` (version 2) contains the product copy, authoring links, titles, groups and counts used by the generated gallery; `totals.scenarios` and each scene's `scenarios` count the scenarios built (version 1 called them `cases`). A host with its own page design can render that data into its template. Regenerate that page as part of the host build, so a new explainer or a changed requirement cannot leave a second catalog behind.
 
 ## Embed a page
 
