@@ -12,7 +12,8 @@ that ended exactly like the step before, because highlights had pulsed away and
 tokens had walked off; `rayner check` now fails such a step. A mark that stays still
 says "this one" on the frame the reader sees. Use these shapes when the step is
 about the thing marked. There is no passing glance: `Indicate` and `Flash` were cut
-in 0.2.0, because a mark that is gone by the resting picture is what the check rejects.
+in 0.2.0, because such a mark has faded by the resting picture, and a step it was all
+that changed fails the check.
 
 ## The shapes
 

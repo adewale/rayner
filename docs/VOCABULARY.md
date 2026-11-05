@@ -115,7 +115,7 @@ The renames came with refactors that make a name's promise checkable:
   recipe, and adopter counts are the wrong test for a stock animation.
 
 `Indicate` and `Flash` were kept on the same grounds until 0.2.0, and cut then. Each is emphasis
-that is gone by the step's resting picture, which `rayner check` rejects. In a namespace that
+that has faded by the step's resting picture, so a step it was all that changed fails `rayner check`. In a namespace that
 agents mostly write, a name that invites what the checks reject is worse than no name: it costs
 a failed check and a rewrite every time it is used. `Circumscribe` stays, because it can `keep`.
 `MathTex`'s alias `Math` went too, since importing it hides JavaScript's `Math`.
