@@ -497,12 +497,28 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     tour: Zoom[] = [],
     scenarioTours = false,
     stop = 0;
+  // The close-up the player last framed, as the zoom held it then. A close-up depends on the stage's
+  // size in pixels (a smaller stage zooms closer, so labels stay legible), and the stage can settle
+  // after a step is framed (a resize, or the header and headings wrapping). While the zoom still
+  // shows that framing, scaled to the stage as StageZoom keeps it through a resize, the reader has
+  // not moved it, so a resize frames the stop again for the new size, as a fresh link would (#96).
+  let framed: { k: number; x: number; y: number; w: number; h: number } | null = null;
+  const frameTo = (z: Zoom, glide = false) => {
+    zoom.to(z, glide);
+    const [w, h] = stageSize(stage);
+    framed = { k: zoom.k, x: zoom.x, y: zoom.y, w, h };
+  };
   function refreshTour() {
     const [w, h] = stageSize(stage), key = `${w} ${h}`;
     if (!scenarioLayouts || w <= 0 || h <= 0 || key === tourSize) return;
+    const resized = tourSize !== '';
     tourSize = key;
     tour = closeUps(shownLayout, w, h, zoom.max);
     stop = Math.min(stop, tour.length - 1);
+    if (resized && framed && follow && narrow() && tour[stop] && (framed.w !== w || framed.h !== h)) {
+      const held = Math.abs(zoom.k - framed.k) < 1e-6 && Math.abs(zoom.x - (framed.x * w) / framed.w) < 0.5 && Math.abs(zoom.y - (framed.y * h) / framed.h) < 0.5;
+      if (held) frameTo(tour[stop]!);
+    }
     // Whether any step of this case tours: then a single-view step keeps the row's place.
     scenarioTours = [...scenarioLayouts.values()].some((layout) => layout === shownLayout ? tour.length > 1 : closeUps(layout, w, h, zoom.max).length > 1);
   }
@@ -558,7 +574,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     revealStage();
     if (showingWhole()) { closer.click(); return; }
     stop = (stop + 1) % tour.length;
-    zoom.to(tour[stop]!, true);
+    frameTo(tour[stop]!, true);
   };
   // The reader's zoom narrows the viewBox over the author's camera (app/embed-zoom.ts), so the
   // drawing stays crisp, the layout never moves, a camera move keeps playing under a zoom, and
@@ -602,7 +618,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     return scope.run(function* () {
       follow = true;
       const target = yield* wait(framing(currentStep(), scope, at));
-      if (target) zoom.to(target, true);
+      if (target) frameTo(target, true);
       else zoom.apply();
       // The button that was pressed hides; focus moves to the stage it changed.
       stage.focus();
@@ -715,7 +731,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     else if (bottom > railBody.scrollTop + railBody.clientHeight) railBody.scrollTop = bottom - railBody.clientHeight;
   }
   let shownScenario = '',
-    reservedFor = '';
+    reservedFor = '',
+    measuredScenario = '';
   /** The lede's words for step `i`: its number of the total, its title, then its line when it has one. */
   function fillLede(kicker: HTMLElement, strong: HTMLElement, span: HTMLElement, i: number, words: { title: string; line: string }) {
     const ordinal = mainIndices().indexOf(i);
@@ -737,6 +754,15 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   function reserveOnce(): boolean {
     player.classList.toggle('narrow', narrow());
     if (scenarioPhase.kind==='loading' || !caption.clientWidth) return false;
+    // A new scenario measures from the layout a fresh link starts with. The header's and the tallest
+    // heading's heights cap the stage (embed.css), the cap sets the card's width, and the width sets
+    // how they wrap, so measuring from the previous scenario's layout can settle on another size that
+    // also holds: switching from a scenario with longer headings kept its smaller stage (issue #96).
+    if (shownScenario !== measuredScenario) {
+      measuredScenario = shownScenario;
+      for (const property of ['--head-h', '--lede-h', '--lede-title-h', '--caption-h', '--stepper-h']) root.style.removeProperty(property);
+      measureHead();
+    }
     // Measured over both paths, so moving between the explanation and its details resizes nothing.
     const key = `${caption.clientWidth} ${lede.clientWidth} ${shownScenario}`;
     if (key === reservedFor) return false;
@@ -816,8 +842,12 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   }
   function* settle(step: Trace['steps'][number], target: Zoom | null, at: Entry, scope: StateScope) {
     sound?.set(step.meta.audio);
-    if (target) zoom.to(target);
-    else zoom.apply();
+    // The target is the step's first close-up, worked out when the step began; the stage can have
+    // settled to another size while the picture was drawn, so take that stop for the stage as it is.
+    if (target) {
+      refreshTour();
+      frameTo(tour[stop] ?? target);
+    } else zoom.apply();
     root.classList.remove('loading');
     yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values } }))));
     toHost({ step: step.step, index: selected, total: stepCount(), settings: { ...values } });
@@ -1135,7 +1165,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const attached = stage.contains(aim.sink.svg);
       if (resting || !attached) stage.replaceChildren(...aim.container.childNodes);
       zoom.apply();
-      if (!attached && go.target) go.scope.frame(() => zoom.to(go.target!, true));
+      if (!attached && go.target) go.scope.frame(() => frameTo(go.target!, true));
     };
     const runner = new at.Scene({
       async stepBegin() {

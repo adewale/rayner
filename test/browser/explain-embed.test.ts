@@ -3585,3 +3585,71 @@ test('both pen drawings retain every construction mark and its readable count th
   }finally{await page.close();}
   assert.equal(scenarios,2);assert.equal(stepWidths,32);assert.equal(readableCounts,2);
 });
+
+// ---------------------------------------------------------------------------
+// Issue #96, narrowed: a step's close-up is a function of the scenario, the step and the stage's
+// settled size, not of the path that reached it. Only the inputs the burst property's counterexample
+// implicated are generated (scenario switches, step picks and viewport resizes, with short gaps), so
+// shrinking lands on the shortest path whose resting framing differs from a fresh link's.
+type Resting = { size: [number, number]; view: string };
+/** The stage once its size and painted view hold for several frames in a row. */
+async function restingView(page: Page): Promise<Resting> {
+  let last = '', same = 0;
+  for (let i = 0; i < 200; i++) {
+    const now = await page.evaluate(() => new Promise<string>((r) => requestAnimationFrame(() => {
+      const stage = document.querySelector('.stage')!, box = stage.getBoundingClientRect();
+      r(JSON.stringify({ size: [Math.round(box.width), Math.round(box.height)], view: stage.querySelector('svg:not(.leaving)')?.getAttribute('viewBox') ?? '' }));
+    })));
+    same = now === last ? same + 1 : 0;
+    last = now;
+    if (same >= 8) return JSON.parse(now) as Resting;
+  }
+  throw new Error(`the stage never held still: ${last}`);
+}
+test('player: a step’s resting close-up is the one a fresh link to its scenario and step opens with, whatever path reached it', options, async () => {
+  const names = ['oauth-pkce', 'exgit', 'mr-cache', 'quotient-familial', 'token-bucket'];
+  const sizes = [{ width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 900, height: 700 }];
+  const starts = names.flatMap((name) => projects.get(name)!.scenarios.flatMap((v) => v.trace.steps.map((step) => ({ name, values: v.values, step: step.step }))));
+  const action = fc.oneof(
+    fc.record({ kind: fc.constant('scenario' as const), setting: fc.nat(1), option: fc.nat(3) }),
+    fc.record({ kind: fc.constant('step' as const), i: fc.nat(9) }),
+    fc.record({ kind: fc.constant('resize' as const), size: fc.constantFrom(...sizes) }),
+  );
+  await fc.assert(
+    fc.asyncProperty(fc.constantFrom(...starts), fc.constantFrom(...sizes), fc.array(fc.record({ action, gap: fc.constantFrom(0, 50, 300) }), { minLength: 1, maxLength: 5 }),
+      async (start, viewport, actions) => {
+        const p = projects.get(start.name)!, ids = settingsOfProject(p).map((s) => s.id);
+        await readerContext({ reducedMotion: 'reduce', viewport }, async (context) => {
+          const { page, errors } = await counted(context, `${embed}/${start.name}.html?${scenarioQuery(p, start.values, start.step)}`);
+          let size = viewport;
+          for (const { action: a, gap } of actions) {
+            if (a.kind === 'resize') { size = a.size; await page.setViewportSize(size); }
+            else await page.evaluate(({ a, settings }) => {
+              if (a.kind === 'scenario') {
+                const s = settings[a.setting % Math.max(1, settings.length)];
+                if (s) document.querySelector<HTMLInputElement>(`input[name="${s.id}"][value="${s.options[a.option % s.options.length]}"]`)?.click();
+              } else document.querySelectorAll<HTMLButtonElement>('.steps button')[a.i]?.click();
+            }, { a, settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })) });
+            if (gap) await page.waitForTimeout(gap);
+          }
+          await stepReady(page, ids);
+          await quiet(page);
+          const reached = await restingView(page);
+          const url = new URL(page.url()), values = Object.fromEntries(ids.map((id) => [id, url.searchParams.get(id)!])) as Settings;
+          const fresh = await counted(context, `${embed}/${start.name}.html?${scenarioQuery(p, values, url.searchParams.get('step')!)}`);
+          await fresh.page.setViewportSize(size);
+          await stepReady(fresh.page, ids);
+          await quiet(fresh.page);
+          assert.deepEqual(errors, []);
+          assert.deepEqual(fresh.errors, []);
+          assert.deepEqual(reached, await restingView(fresh.page), `${url.search} at ${size.width} × ${size.height}`);
+        });
+      }),
+    // Shrunk counterexamples it found (#96): from attacker=yes at “stolen”, switch to attacker=no
+    // (the stage kept the smaller size); and resize to a phone, then switch (the close-up kept the old size's).
+    params(12, { examples: [
+      [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[0]!, [{ action: { kind: 'scenario', setting: 0, option: 1 }, gap: 0 }]],
+      [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[0]!, [{ action: { kind: 'resize', size: sizes[1]! }, gap: 0 }, { action: { kind: 'scenario', setting: 0, option: 1 }, gap: 0 }]],
+    ] as [typeof starts[number], typeof sizes[number], { action: { kind: 'scenario'; setting: number; option: number } | { kind: 'step'; i: number } | { kind: 'resize'; size: typeof sizes[number] }; gap: 0 | 50 | 300 }[]][] }),
+  );
+});
