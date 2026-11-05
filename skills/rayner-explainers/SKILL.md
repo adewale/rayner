@@ -65,11 +65,32 @@ Readers learn from what they do more than from what they watch. In a blind compa
 - **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion.
 - **The check questions at the end**, from `meta.checks`.
 
+## Which way to step
+
+A step's picture can come from four places. Choose by what the reader needs, then let the checks hold you to it:
+
+| Way | Use it when | What `rayner check` proves |
+| --- | --- | --- |
+| Hand-written steps (`this.step`, then plays) | The motion between pictures is the point and no model generates it: code morphing along its diff, a walk over a diagram | Every frame seeks to what was played, nothing moves during the caption hold, and resting pictures are readable and uncrowded. That the values are true is your fidelity test's job, not check's |
+| `s.steps([...])` | Separate pictures, each wholly decided by its own state, with no motion between them that teaches | Each step redrawn from the state it recorded matches the picture drawn then, and a draw that ignores its state fails |
+| Views (`view(scene, draw)`, `sync()`) | One picture that follows the model across steps and morphs as it changes | Each view shows what its draw makes of the state at the end of every step |
+| A `Machine` | The subject is driven by events and the reader should drive it | Every state the events reach, from `start` and from the live step's state, is drawn and must be readable, uncrowded, described, unlike every other state's description, and show its state; every authored transition is played, holding the invariants and landing on the state's picture. `rayner review` opens the live states as served, and the buttons must be what `outcome` gives |
+
+The cost rises down the table, and so does what is checked: a machine checks states no step shows, which a hand-written step never does. `rayner init --machine` writes a machine explainer (a door that locks) that passes `rayner check` and `rayner review` as written.
+
+A good live step, the step where the machine last plays:
+
+- **Every refusal says why.** Return `refuse(reason)` from the branch of `next` that refuses, a clause that follows the event's name ("open: the door is locked, so unlock it first") and names the rule with the state's own values. A refusal with no reason (`undefined`) shows "Not possible here", which tells a reader who pressed to find out nothing. Pin each reason in the model's test; the browser test and the review hold every button's reason to `outcome`.
+- **The story's limits are bounds, not refusals.** Where the model would go on but the explainer stops (the client sends ten requests), return the reason from `bound`. `rayner check` fails a bound on an event the model refuses anyway.
+- **The step leaves events to press.** End it in a state where some event goes somewhere, and ideally one is refused with its reason, so the first press teaches. When no event goes anywhere from it, the player starts the reader from `start` instead; when none goes anywhere from either, there are no buttons and the review has nothing to visit, so check `describe`'s `machines` for the live `step`.
+- **What a press changes reads on a phone.** `rayner review` fails a live state whose changed labels read under 12 px at 390 px in the whole picture and every close-up of the step, and a label under 14 px at a 1280 px stage anywhere.
+- **Motion can wait.** Without a `transition`, each view morphs to the new state by key, staged so a word and its replacement never overlap. Author a `transition` with `choreograph` where the motion carries the explanation; check plays every one from every reachable state.
+
 ## Loop
 
 Commands are `rayner <command>`, or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the install lines for capture and PNG output.
 
-1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`. Rewrite the script first. Keep one default-exported `Scene` subclass with static `meta` (id, title, sources, answer, checks, and `lang` if not English) and, if a second scenario teaches something, static `settings`.
+1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first. Keep one default-exported `Scene` subclass with static `meta` (id, title, sources, answer, checks, and `lang` if not English) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.
 3. `rayner check scene.ts` until it passes.
 4. `rayner review scene.ts --out public/<id>.html` when the scene settles. It checks every scenario, reviews the served page at phone and desktop widths, and keeps that exact page with its receipt. Look at its screenshots.
@@ -89,7 +110,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | A sequence of separate pictures, one per step | `bloom-filter`, `git-branches` | `s.steps([...])`: each step carries its `state` and a `draw(state, s)` for its picture; `rayner check` redraws every step after the run and fails one that comes out different |
 | A data structure changing step by step | `ring-buffer` | No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with `choreograph`, `Follow` for the pointers |
 | A state machine | `state-machine` | A state diagram driven by the real reducer as a `Machine`, code spans boxed from the row it read |
-| A model the reader could drive with events | `statecharts` (the frother) | A `Machine` over the model's step; `rayner check` draws every reachable state |
+| A model the reader could drive with events | `scenes/tutorial/door` (what `rayner init --machine` writes), `statecharts` (the frother) | A `Machine` over the model's step, refusals with reasons, a live last step; `rayner check` draws every reachable state |
 | Nested or parallel states | A Mermaid `stateDiagram-v2` with composites and regions ([recipe](../../docs/REFERENCE.md#state-machines-and-graphs)); `statecharts` when position carries meaning | `statecharts`: native boxes and arrows drawn from a model's states and transitions; a keyed `view` whose parts keep their identity as a grid becomes regions; a flat and a structured drawing side by side |
 | A race or ordering bug | `latest-search` | A real controlled-promise run that opens on the unguarded race (the page ends on the older query) before naming the ticket that fixes it; guard and completion order change the displayed result |
 | A rate or a model's numbers over time | `token-bucket`, `seasons` | `token-bucket`: `Axes`, `lineGraph`, `Follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model |
