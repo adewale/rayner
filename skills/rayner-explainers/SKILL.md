@@ -100,7 +100,7 @@ Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/
 | A subject in another language | `quotient-familial` | `meta.lang: 'fr'`; descriptions in French |
 | A drawing made by hand, values said on it | `pen-and-pencil` | `s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards |
 | A requested face in text and diagrams | `font-metrics` | EB Garamond, real cuts and `lettering: 'natural'` diagram measurements |
-| Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, tempo and unchanged-timing controls; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
+| Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, an unchanged-timing control; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
 | Explicit panel placement and field order | `layout-direction` | RTL `start`/`end` placement, a card's LTR override and updates that keep their columns |
 
 A state machine, statechart or graph is usually best as a Mermaid `stateDiagram-v2` or flowchart with `s.show`: layout and connector routing come with it, and composite states, regions, marks, walks and keyed morphs work on its parts. Draw by hand when position itself carries meaning the layout cannot keep.
