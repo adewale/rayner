@@ -142,7 +142,8 @@ lists each machine's events and the number of states reached. `statecharts` reac
 ## The player
 
 At the step where a machine last played, the reader can drive it: one button per event under
-the resting picture, then **Undo** and **Reset**. Every one of the eight machines below is live
+the step's caption, then **Undo** and **Reset**. Under the caption, not straight under the
+picture, because the player keeps Next and the caption in place as the reader steps. Every one of the eight machines below is live
 at its step, in every scenario that plays it (oauth-pkce without the attacker plays none).
 
 **Which step is live: the step the machine last played in.** There is no declaration. A machine

@@ -92,10 +92,10 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .overview .part{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 .overview .view{box-shadow:inset 0 0 0 1.5px var(--fg);border-radius:1px;transition:left 220ms var(--ease-out),top 220ms var(--ease-out)}
 @keyframes leave{to{opacity:0}}
-/* A live step's events (docs/MACHINES.md, "The player"), under the stepper and view rows. A
+/* A live step's events (docs/MACHINES.md, "The player"), under the caption. A
    refused event stays focusable and dimmed, one past the story's end is dashed, and each says why
    on hover and on focus; the line under them says what the last event did. */
-.live{display:grid;gap:8px;padding:10px var(--inset) 0}
+.live{display:grid;gap:8px;padding:6px 0 4px}
 .live[hidden]{display:none}
 .live-lede,.live-said{margin:0;font-size:.875rem;color:var(--muted)}
 .live-lede{font-weight:500}

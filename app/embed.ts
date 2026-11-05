@@ -437,7 +437,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   stepper.after(views);
   // A live step's controls (docs/MACHINES.md, "The player"): one button per event of the machine
   // the step last played, then Undo and Reset, and a polite line that says what each event did.
-  // Under the stepper and view rows, so Next never moves; a step without a machine hides the row.
+  // Under the caption (and its changes), so neither Next nor the caption moves as the reader steps
+  // onto a live step; a step without a machine hides the row.
   const liveRow = el('div', undefined, 'live'),
     liveLede = el('p', undefined, 'live-lede'),
     liveEvents = el('div', undefined, 'live-events'),
@@ -457,7 +458,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   liveTools.append(undo, reset);
   liveRow.append(liveLede, liveEvents, liveTools, liveSaid);
   liveRow.hidden = true;
-  views.after(liveRow);
+  (changes ?? caption).after(liveRow);
   const narrow = () => stage.clientWidth > 0 && stage.clientWidth < NARROW_PX;
   // A narrow stage draws its pictures without the stage's heading (ReaderSink), so pictures
   // kept from the other width are stale when the stage crosses NARROW_PX (a phone turning):
@@ -817,7 +818,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     if (target) zoom.to(target);
     else zoom.apply();
     root.classList.remove('loading');
-    yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values, sent: [...sent] } }))));
+    yield* wait(Promise.resolve(document.dispatchEvent(new CustomEvent('rayner:step', { detail: { step: step.step, settings: values } }))));
     toHost({ step: step.step, index: selected, total: stepCount(), settings: { ...values } });
     primeNext(at);
   }
