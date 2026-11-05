@@ -143,11 +143,6 @@ const days = (hours: number) => +(hours / DAY).toFixed(1);
 const at = (hours: number, short: boolean) => (short ? `hour ${Math.round(hours)}` : `day ${days(hours)}`);
 const length = (hours: number, short: boolean) => (short ? `${Math.round(hours)} hours` : `${days(hours)} days`);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
-/** A card's rows in words, as the card describes itself: for a card drawn in a view, which the stage describes by its words. */
-const cardWords = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join('; ')}`;
-};
 
 /** The script's one-sentence answer (meta.answer), which the new-rule step states. */
 const ANSWER = 'renew at a share of the certificate’s life, not a fixed time before expiry';
@@ -258,7 +253,7 @@ export default class CertRenewalExplainer extends Scene {
     /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
     const cardOf = async (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions) => {
       const v = view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
-      await s.enter(v, { runTime: 0.35, shift: [0, -0.08], describe: () => cardWords(v.current) });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
       return v;
     };
     const mine = summarize(rule, key),

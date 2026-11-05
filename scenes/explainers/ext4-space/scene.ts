@@ -99,11 +99,6 @@ interface Ext4State {
   sizes: Record<Size, { metadata: number; root: number; users: number }>;
   sizeBlocks: Record<Size, number>;
 }
-/** A card as a reader hears it: its title or count, then each row's label and value, and what is marked. */
-const said = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => (p.mark ? `${p.name} (${p.mark})` : p.name)).join(', ')}`;
-};
 const CARD: Box = [1.35, -4.25, 7.55, 3.25];
 
 export default class Ext4SpaceExplainer extends Scene {
@@ -197,7 +192,7 @@ export default class Ext4SpaceExplainer extends Scene {
       );
     /** Enter a card view as s.card enters a card, described as the card describes itself. */
     const enterCard = async (card: View<Card>) => {
-      await s.enter(card, { runTime: 0.35, shift: [0, -0.08], describe: () => said(card.current) });
+      await s.enter(card, { runTime: 0.35, shift: [0, -0.08] });
       return card.current;
     };
     const st = () => this.state as unknown as Ext4State;

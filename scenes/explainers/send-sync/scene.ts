@@ -79,11 +79,6 @@ interface SendSyncState {
   wrap: { ctor: string; inside: Layer };
   threads: { name: string; spawnMove: boolean; scopeBorrow: boolean };
 }
-/** A card as a reader hears it: its title or count, then each row's label and value. */
-const said = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => p.name).join(', ')}`;
-};
 
 export default class SendSyncExplainer extends Scene {
   static meta = {
@@ -207,7 +202,7 @@ export default class SendSyncExplainer extends Scene {
         },
         { place: false },
       );
-      await s.enter(card, { describe: () => said(card.current) });
+      await s.enter(card);
       return card;
     };
 

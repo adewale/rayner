@@ -127,16 +127,6 @@ interface TrafficState {
   chain: (string | null)[];
   chainPods: string[];
 }
-/** A code panel as a reader hears it: what it is, then its lines. */
-const codeSaid = (code: CodeBlock) => {
-  const seen = code.describe();
-  return `${seen.what}: ${seen.parts.map((p) => p.name).join('; ')}`;
-};
-/** A card as a reader hears it: its title or count, then each row's label and value. */
-const said = (card: Card) => {
-  const seen = card.describe();
-  return `${seen.what}: ${seen.parts.map((p) => p.name).join(', ')}`;
-};
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
@@ -397,7 +387,7 @@ export default class TrafficPolicyExplainer extends Scene {
       ],
       { at: BELOW, fontSize: SIZE },
     );
-    await s.enter(setup, { runTime: 0.35, shift: [0, -0.08], describe: () => said(setup.current) });
+    await s.enter(setup, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ rules
     // The chain shown: every pod under Cluster (the same on every node); Node 1's own pods under Local.
@@ -451,7 +441,7 @@ export default class TrafficPolicyExplainer extends Scene {
       },
       { place: false },
     );
-    await s.enter(code, { describe: () => codeSaid(code.current) });
+    await s.enter(code);
     // Each pod in the chain says its share of the node's requests.
     for (const [i, id] of chainPods.entries()) await d.note(id, frac(each[i]!), { side: 'above', size: SIZE });
     this.state.chainShares = each.map(frac);
@@ -707,7 +697,7 @@ export default class TrafficPolicyExplainer extends Scene {
       );
     const left = half('cluster', regionBox(BELOW, { right: -0.15 })),
       right = half('local', regionBox(BELOW, { left: 0.15 }));
-    await s.enter(left, right, { describe: () => `${said(left.current)}. ${said(right.current)}` });
+    await s.enter(left, right);
 
     // ------------------------------------------------------------------ caveats
     await this.step('caveats', {
