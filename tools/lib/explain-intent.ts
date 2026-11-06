@@ -85,12 +85,18 @@ export async function readIntent(sceneFile: string): Promise<Intent | null> {
  * read a scene's own. Each part has one home: a scene that also declares one throws.
  */
 export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: Intent, where: string): ReturnType<typeof intentMeta> {
+  // A loaded scene module is shared within a process, so a second adoption starts from the
+  // scene's own metadata, as declared, not from the first adoption's result.
+  if (!declared.has(Scene)) declared.set(Scene, Scene.meta);
+  const own = declared.get(Scene);
   const meta = intentMeta(intent);
-  const twice = Object.keys(meta).filter((k) => Scene.meta?.[k] !== undefined);
+  const twice = Object.keys(meta).filter((k) => own?.[k] !== undefined);
   if (twice.length) throw new Error(`${where}: ${twice.join(', ')} declared in both script.md and the scene; the script's intent is their one home`);
-  Scene.meta = { ...Scene.meta, ...meta };
+  Scene.meta = { ...own, ...meta };
   return meta;
 }
+/** Each adopted scene's metadata as the scene itself declares it. */
+const declared = new WeakMap<object, Record<string, unknown> | undefined>();
 
 /**
  * An explainer's metadata as its page has it: the scene's own, with its script's intent where the

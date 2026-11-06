@@ -51,6 +51,9 @@ test('the scene takes the intent as its own metadata, and a part declared in bot
     checkedAgainst: 'the lamp\'s wiring diagram.',
   });
   assert.throws(() => adoptIntent({ meta: { answer: 'twice' } }, parseIntent(SCRIPT)!, 'lamp'), /answer declared in both script\.md and the scene/);
+  // A scene module loaded once is collected many times in one process: adopting again is not declaring twice.
+  adoptIntent(Scene, parseIntent(SCRIPT)!, 'lamp');
+  assert.equal(Scene.meta.answer, 'the second press only dims it');
 });
 
 test('Hanoi\'s scene declares no title, answer or checks, and its page shows the script\'s', async () => {
