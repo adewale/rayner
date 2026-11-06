@@ -1,12 +1,10 @@
 // Lettering on request (src/lettering.ts, tools/lib/explain-lettering.ts): an explainer pays only
-// for the lettering it asks for. One that asks for nothing carries no lettering code and keeps its
-// engine fingerprint; one that asks gets its letters, cut to what it draws; and a letter in a
+// for the lettering it asks for. One that asks for nothing carries no lettering code; one that asks
+// gets its letters, cut to what it draws; and a letter in a
 // script nobody asked for still fails the build.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readFile, cp, symlink, rm } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { collectProject, defaultScenario, ROOT, loadScene } from '../tools/lib/explain-project.ts';
@@ -47,30 +45,6 @@ test('only the requested-face catalog example and the feature tour’s maths opt
     } else if (id === 'feature-tour') assert.deepEqual(Scene.meta?.lettering, { math: true }, 'the tour’s maths scenario asks for maths and nothing else');
     else assert.equal(Scene.meta?.lettering, undefined, id);
   }
-});
-
-// Mutate real inputs in an isolated package, rather than repeating the producer's hash algorithm.
-test('optional lettering code changes its engine fingerprint without changing an opt-out fingerprint', async () => {
-  const copy = await mkdtemp(join(tmpdir(), 'rayner-hash-contract-'));
-  try {
-    for (const name of ['src', 'explain', 'integrations', 'tools', 'vendor'])
-      await cp(join(ROOT, name), join(copy, name), { recursive: true });
-    await cp(join(ROOT, 'package.json'), join(copy, 'package.json'));
-    await symlink(join(ROOT, 'node_modules'), join(copy, 'node_modules'), 'dir');
-    const plain = join(copy, 'plain.ts'), lettered = join(copy, 'lettered.ts');
-    await writeFile(plain, `import{Scene}from'rayner';export default class Plain extends Scene{}`);
-    await writeFile(lettered, `import{Scene}from'rayner';export default class Lettered extends Scene{static meta={lettering:{scripts:['Grek']}};}`);
-    const run = promisify(execFile);
-    const fingerprints = async () => JSON.parse((await run(process.execPath, ['--input-type=module', '-e',
-      `import{loadScene}from${JSON.stringify(join(copy, 'tools/lib/explain-project.ts'))};console.log(JSON.stringify(await Promise.all(${JSON.stringify([plain, lettered])}.map(async file=>(await loadScene(file)).engineHash))));`
-    ])).stdout) as [string, string];
-    const before = await fingerprints();
-    const optional = join(copy, 'src/lettering.ts');
-    await writeFile(optional, (await readFile(optional, 'utf8')) + '\n// independently changed optional implementation\n');
-    const after = await fingerprints();
-    assert.equal(after[0], before[0], 'opt-out compatibility fingerprint stays stable');
-    assert.notEqual(after[1], before[1], 'requested lettering counts its actual implementation');
-  } finally { await rm(copy, { recursive: true, force: true }); }
 });
 
 test('a page that asks for nothing carries no lettering code, and building a lettered one first leaks nothing into it', async () => {

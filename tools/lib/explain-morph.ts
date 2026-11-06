@@ -3,9 +3,6 @@ import type { AnyMutationOp } from 'agentic-mermaid/agent';
 import type { DiagramSpec } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { replayMorph } from '../../integrations/agentic-mermaid/build/index.ts';
 
-// Kept out of integrations/agentic-mermaid/build/ on purpose: every .ts file there is part of the diagram-snapshot
-// fingerprint (IMPORTER in tools/lib/explain-project.ts), so a change there invalidates every committed snapshot.
-
 /**
  * `replayMorph`, with its failure saying why the edits do not reproduce the next diagram, so
  * the author can fix the edits or the next diagram's source. Other failures pass through.

@@ -1,8 +1,6 @@
 {
   "version": 2,
-  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "e399ea8513ca490c7d30c17f6d1dacd3685dbbb85395ac0d8f0af30ad862798d",
   "diagrams": {
     "[\"timeline\\n  Dusk : Lamp lit\\n  Midnight : Wick trimmed\\n  Small hours : Fog bell rung\\n  Dawn : Lamp put out\",\"pen-and-ink\"]": "eff7e3cb17098b25.json"
   }

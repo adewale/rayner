@@ -43,10 +43,10 @@ test('concurrent captures publish complete embedded fonts without exposing parti
       }
       return files.length;
     };
-    first = prepareLettering(Styled, join(folder, 'first.ts'), 'cache-audit', true, false);
+    first = prepareLettering(Styled, join(folder, 'first.ts'), true, false);
     await Promise.race([partial, first.then(() => { throw new Error('the controlled partial write was not exercised'); })]);
     await published(); // A pending cache entry may be absent, but never partial.
-    assert.ok(await prepareLettering(Styled, join(folder, 'second.ts'), 'cache-audit', true, false));
+    assert.ok(await prepareLettering(Styled, join(folder, 'second.ts'), true, false));
     assert.equal(await published(), expected.length, 'the competing capture publishes every embedded font');
     release();
     assert.ok(await first);

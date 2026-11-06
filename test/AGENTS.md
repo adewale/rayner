@@ -6,6 +6,8 @@ Use `lib/pbt.ts` for seeded fast-check runs. Keep the input domain as wide as th
 
 When consolidating tests, name the keeper and move each assertion before removing its former owner. Prove repaired assertions reject a deliberate defect, restore production bytes, and record the result. Test names must describe the assertions actually made. Count expected outputs before using `every`, and distinguish a documented refusal from an unrelated exception.
 
+Do not key committed snapshots or fixtures to a hash of Rayner's own code: that fails on comments and refactors and says nothing about what changed. Pin external inputs (fonts, vendored code, renderer releases) and compare a fresh capture with the committed file, as `snapshot-capture.test.ts` does.
+
 Use controlled external clocks for timing bookkeeping. Browser latency and paint need real browser evidence. Do not add production exports or reset hooks just for tests.
 
 `lettering.test.ts` checks catalog lettering declarations without rebuilding pages. `tools/explain-demos.ts` owns actual lettering/receipt assertions during the canonical catalog build. `tools/lib/explain-reader-shell.ts` checks player chrome and exact teaching-step segments during each catalog story scenario; `browser/explain-embed.test.ts` retains English/French standalone, iframe and loader crop checks on shared-shell fixtures. Do not pin whole generated artifacts by hash: such a pin fails on every intended change, says nothing about what changed, and can only be refreshed. Prefer an assertion that names the property and fails for a reason. Capture actual outline fixtures with the real pipeline; do not repair their metadata by hand to hide stale inputs. Optional browser/font/video tests must report skips explicitly.

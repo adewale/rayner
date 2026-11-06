@@ -1,8 +1,6 @@
 {
   "version": 2,
-  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "0f021dcda3a7c43da8ad933fc09189a47ac913ca42764c42eaf890944b092393",
   "diagrams": {
     "[\"gantt\\n  dateFormat YYYY-MM-DD HH:mm\\n  axisFormat %d %b\\n  section One 160-hour certificate\\n    First :c1, 2028-03-01 00:00, 160h\\n    30-day rule, hour 12 :fixed30, 2028-03-01 12:00, 160h\\n    Default, hour 84 :fraction, 2028-03-04 12:00, 160h\",\"excalidraw\"]": "cf8c38b2f4c9b2ad.json",
     "[\"gantt\\n  dateFormat YYYY-MM-DD HH:mm\\n  axisFormat %d %b\\n  section One 160-hour certificate\\n    Valid :life, 2028-03-01 00:00, 160h\\n    Retry window, the default rule :fraction, 2028-03-04 08:00, 80h\\n    Retry window, the 30-day rule :fixed30, 2028-03-01 00:00, 160h\",\"excalidraw\"]": "32195d8a03890775.json",

@@ -1,8 +1,6 @@
 {
   "version": 2,
-  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "2ace481fcfb49749b6e6cc85693be93e663d394445cb3436dc5a058e78909965",
   "diagrams": {
     "[\"gitGraph TB:\\n commit id: \\\"source\\\"\\n commit id: \\\"typed edit\\\"\\n commit id: \\\"checked snapshot\\\"\",\"blueprint\"]": "c8a8099341498cc2.json",
     "[\"graph LR\\nA{Cached} --> B[Reply]\\nA --> C[Database]\",\"blueprint\"]": "55922a412697468b.json",
