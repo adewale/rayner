@@ -21,7 +21,19 @@ await this.step('stable-name', {
 this.state.reads = reads;   // program state, recorded at each step boundary
 ```
 
-- `script.md`, beside the scene, holds the explainer's intent. Its header is the `#` question, labelled lines (`- **Answer:** …`, `- **Checked against:** …` and any others the author wants) and a `## Check yourself` list of numbered questions, each with its answer on the indented lines under it. Rayner reads the question as `meta.title`, Answer as `meta.answer` (without a final full stop), the list as `meta.checks` and Checked against as `meta.checkedAgainst`, which the page shows under the sources. A header needs both Answer and Checked against; the rest of the script is the author's prose and is not read. A scene that declares any of these four as well is refused. A script with no Answer line has no header, and the scene declares its own title, answer and checks.
+- `script.md`, beside the scene, holds the explainer's intent. Its header is the `#` question, labelled lines (`- **Answer:** …`, `- **Checked against:** …` and any others the author wants) and a `## Check yourself` list of numbered questions, each with its answer on the indented lines under it. Rayner reads the question as `meta.title`, Answer as `meta.answer` (without a final full stop), the list as `meta.checks` and Checked against as `meta.checkedAgainst`, which the page shows under the sources. A header needs both Answer and Checked against; the rest of the script is the author's prose and is not read. A scene that declares any of these four as well is refused. A script with no Answer line has no header, and the scene declares its own title, answer and checks. Answers and check answers that come from the model can be computed beside the script in `answers.ts`, so `check` fails when the two drift apart ([Script answers](#checks)):
+
+  ```ts
+  // answers.ts, beside the script whose check 1 is "How few moves carry five disks?"
+  import { solve } from './model.ts';
+  export const checks = {
+    1: () => `${solve(5).length}: the four-disk tower moves twice, and disk 5 once.`,
+    // or keyed by the question: 'How few moves carry five disks?': () => …,
+    // or return { question, answer } to hold a question computed from the model too.
+  };
+  // export const answer = () => …, when the answer itself comes from the model.
+  ```
+
 - `meta.id` names the output files. It is the scene's folder name, or its file's name when the file is not `scene.ts`, unless the scene declares its own. `meta.title` is the page title, and `meta.sources` are listed under the transcript.
 - `meta.lang` (BCP 47, default `en`) is the language of the page and the transcripts. The main player's own words (`app/embed-strings.ts`) and the generated picture descriptions (`explain/words.ts`, whose `families` name each diagram family and its parts) exist in English and French. On a page in any other language both are English, and the descriptions are marked `lang="en"`; `Picture.lang` in the trace records a description's language when it is not English.
 - `StepMeta` types `title`, `line` and `caption` as strings and `kind` as `'short' | 'main' | 'detail'` (default `'main'`); these fields are also checked before a new step begins. Additional metadata fields remain available.
@@ -507,6 +519,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Bare runtime | The scene, bundled, gives different steps or state in a context with no DOM, Node, timers or console |
 | Glyphs | Any text the embedded fonts, and the lettering the explainer asked for, cannot draw (every command checks this) |
 | Answer | A declared [`meta.answer`](#scene) that no teaching step's title, line or caption states (see `script` below) |
+| Script answers | The script's answer or a check answer differs from what the folder's `answers.ts` computes from the model, compared as for Answer (ignoring case, quote style, spacing and final punctuation). `answers.ts` exports `answer`, a function returning the answer, and `checks`, an object whose keys are check questions' numbers from 1 or the questions themselves and whose values are functions returning the answer, or `{ question, answer }` to hold the question too. A number or question the script does not have fails. The report records `answers: { file, compared }`, where `compared` counts the parts compared (the answer counts as one) |
 
 The report goes to `out/checks/<id>/report.json`. For each scenario it holds the full step trace, each step's resting picture as a rough text drawing (`restingFrames`: boxes and lines, with diagram labels as bars), and label sizes (`legibility`):
 
