@@ -21,8 +21,8 @@ import {
   seconds,
   headwayWords,
   weekGrid,
-} from '../lib/gtfs.ts';
-import type { Band, Cell, GtfsDate, Row, ServiceDay, StopDay, WeekGrid } from '../lib/gtfs.ts';
+} from './model.ts';
+import type { Band, Cell, GtfsDate, Row, ServiceDay, StopDay, WeekGrid } from './model.ts';
 import { listed } from '../lib/format.ts';
 
 // Sources, all at google/transit commit 3c9e7b9: the GTFS Schedule reference (lines quoted in

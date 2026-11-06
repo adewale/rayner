@@ -18,8 +18,8 @@ import {
   percent,
   shortText,
   tuple,
-} from '../lib/pg-page.ts';
-import type { Attr, Scenario, Column, Share, Tuple } from '../lib/pg-page.ts';
+} from './model.ts';
+import type { Attr, Scenario, Column, Share, Tuple } from './model.ts';
 
 // Sources, all at postgres/postgres tag REL_18_6; lines are quoted in lib/pg-page.ts and
 // test/explain-pg-page.test.ts, which also freezes the measurements on Postgres 18.6.

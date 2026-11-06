@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
+import { Repo, AUTHOR } from '../scenes/explainers/exgit/model.ts';
 import { secondCommit, type Change } from '../scenes/explainers/exgit/objects.ts';
 
 /** A throwaway Git repository whose commits have exactly the model's author, committer and dates. */

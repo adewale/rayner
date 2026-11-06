@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { exec } from '../scenes/explainers/lib/models.ts';
+import { exec } from '../scenes/explainers/just-bash/model.ts';
 import { isRefusal } from '../src/index.ts';
-import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS, PIPELINE, FILE } from '../scenes/explainers/lib/just-bash.ts';
-import type { ShellSession, BashEvent } from '../scenes/explainers/lib/just-bash.ts';
+import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS, PIPELINE, FILE } from '../scenes/explainers/just-bash/model.ts';
+import type { ShellSession, BashEvent } from '../scenes/explainers/just-bash/model.ts';
 
 /** The session after `e`, or undefined where the model refuses it. */
 const after = (s: ShellSession, e: BashEvent): ShellSession | undefined => {

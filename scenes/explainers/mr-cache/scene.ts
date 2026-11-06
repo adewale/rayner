@@ -1,4 +1,4 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/mr-cache.ts';
+import { frames as readerFrames, ANSWER } from './picture.ts';
 import {
   Scene,
   Code,

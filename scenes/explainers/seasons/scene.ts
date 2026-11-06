@@ -17,7 +17,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, Card } from '../../../explain/index.ts';
-import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from '../lib/models.ts';
+import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn, MID_MONTH } from './model.ts';
 import { percent } from '../lib/format.ts';
 
 const PLACES: Record<string, { name: string; lat: number }> = {

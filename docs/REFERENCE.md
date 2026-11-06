@@ -232,7 +232,7 @@ const rows = dict.entries.map((e, i) => ({ key: `e${i}`, cells: [i, e.key ?? 'â€
 table(['Entry', 'Key', 'Value'], rows, s, { key: 'dict-entries' }); // dict-entries:e0:Key is entry 0's key, in every picture
 ```
 
-The collection's scenes import the same functions through `scenes/explainers/lib/lesson-drawing.ts`.
+The collection's scenes import the same functions through `explain/drawing.ts`.
 
 #### 3D: `seenFrom(model, viewpoint)`
 

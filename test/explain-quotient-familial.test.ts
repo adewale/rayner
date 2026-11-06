@@ -12,8 +12,8 @@ import {
   pourcent,
   BAREME,
   PARAMS,
-} from '../scenes/explainers/lib/quotient-familial.ts';
-import type { Year } from '../scenes/explainers/lib/quotient-familial.ts';
+} from '../scenes/explainers/quotient-familial/model.ts';
+import type { Year } from '../scenes/explainers/quotient-familial/model.ts';
 
 const cents = (x: number) => Math.round(x * 100) / 100;
 

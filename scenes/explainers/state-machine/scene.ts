@@ -1,4 +1,4 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/state-machine.ts';
+import { frames as readerFrames, ANSWER } from './picture.ts';
 import {
   Scene,
   Text,
@@ -17,11 +17,11 @@ import {
 } from '../../../src/index.ts';
 import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
-import { reduceSession, sessionAttempt, sessionStart, sessionNext, SESSION_EVENTS } from '../lib/models.ts';
-import type { SessionState, SessionEvent } from '../lib/models.ts';
+import { reduceSession, sessionAttempt, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
+import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =
   'stateDiagram-v2\n direction LR\n idle --> connecting: CONNECT\n connecting --> open: OPENED\n connecting --> closed: ERROR\n open --> closed: CLOSE';
-// The reducer in scenes/explainers/lib/models.ts, as the reader sees it.
+// The reducer in ./model.ts, as the reader sees it.
 const REDUCER = [
   'const next = {',
   "  'idle:CONNECT':      'connecting',",

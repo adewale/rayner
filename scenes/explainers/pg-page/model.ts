@@ -26,7 +26,7 @@
 //   src/backend/access/heap/hio.c:767, 859-860  otherwise add a page, which needs only room for len
 // MAXALIGN is 8 on a 64-bit build: pg_controldata on the measured server prints "Maximum data alignment: 8".
 
-import { percent as formatPercent } from './format.ts';
+import { percent as formatPercent } from '../lib/format.ts';
 
 export const BLCKSZ = 8192;
 export const MAXIMUM_ALIGNOF = 8;

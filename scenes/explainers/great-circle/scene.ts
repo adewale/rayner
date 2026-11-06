@@ -5,8 +5,8 @@ import type { StagedStep, Stage } from '../../../explain/index.ts';
 import { seenFrom, depthOrder, seenPictures, project, latLon, toLatLon, circleOn, label, keyed, pin } from '../../../explain/drawing.ts';
 import type { Model3D, Part, Viewpoint, Vec3, SeenOptions, SeenPicture, Seen } from '../../../explain/drawing.ts';
 import { LAND } from './land.ts';
-import { greatCircle, rhumbLine, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from '../lib/great-circle.ts';
-import type { Place, Route } from '../lib/great-circle.ts';
+import { greatCircle, rhumbLine, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from './model.ts';
+import type { Place, Route } from './model.ts';
 
 const INK = '#1f2328', SOFT = '#59636e', ROUTE = '#b42318', RULER = '#0757b8', LANDLINE = '#6b7d4a', GRID = '#d0d7de';
 const OCEAN = '#eef5fb', SHEET = '#b42318';

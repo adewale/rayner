@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import {
   SYMBOLS, POSITIONS, NIST_EXCEPTIONS, NIST_UP_TO, GROUP_NAMES,
   predicted, listed, counted, position, membersOf, gaps, periodLength, configText, shorthand, symbolOf,
-} from '../scenes/explainers/lib/periodic-groups.ts';
-import type { Subshell } from '../scenes/explainers/lib/periodic-groups.ts';
+} from '../scenes/explainers/periodic-groups/model.ts';
+import type { Subshell } from '../scenes/explainers/periodic-groups/model.ts';
 import { Rectangle, Text } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { View, Mobject } from '../src/index.ts';

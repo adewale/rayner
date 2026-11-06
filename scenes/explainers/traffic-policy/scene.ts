@@ -21,8 +21,8 @@ import {
   seenSource,
   shares,
   value,
-} from '../lib/traffic-policy.ts';
-import type { PlacementKey, Policy, Q } from '../lib/traffic-policy.ts';
+} from './model.ts';
+import type { PlacementKey, Policy, Q } from './model.ts';
 
 // Sources: kubernetes/kubernetes at tag v1.37.1 and kubernetes/website at commit 0c2509f; the lines each
 // claim rests on are quoted in lib/traffic-policy.ts and beside the steps below.

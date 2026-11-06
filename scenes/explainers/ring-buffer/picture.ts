@@ -1,7 +1,7 @@
-import { Group, Arrow } from '../../../../src/index.ts';
-import { label, tile } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Arrow } from '../../../src/index.ts';
+import { label, tile } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /**
  * The queue a ring buffer replaces: values kept in array order, popped with

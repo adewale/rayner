@@ -1,7 +1,7 @@
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { BLCKSZ, LINE_POINTER, PAGE_HEADER, SWAP, TEXT_CHARS, scenarioOf } from '../../../scenes/explainers/lib/pg-page.ts';
-import type { Column } from '../../../scenes/explainers/lib/pg-page.ts';
+import { BLCKSZ, LINE_POINTER, PAGE_HEADER, SWAP, TEXT_CHARS, scenarioOf } from '../../../scenes/explainers/pg-page/model.ts';
+import type { Column } from '../../../scenes/explainers/pg-page/model.ts';
 
 /** Every scenario's step state equals the model's page for its column, at the default fillfactor, 100. */
 export function check(trace: Trace, values: Record<string, string>): void {

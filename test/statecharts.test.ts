@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { isRefusal } from '../src/index.ts';
-import { player, coffee, coffeeWithFrother, FROTHER, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, drivenStart, drivenNext, CONTROLS, RUNS } from '../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, coffeeWithFrother, FROTHER, initial, send, run, events, flatten, flatName, activeStates, chartCounts, flatCounts, byHand, drivenStart, drivenNext, CONTROLS, RUNS } from '../scenes/explainers/statecharts/model.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from '../tools/oracle/statecharts.ts';
 import type { Expected, Explored } from '../tools/oracle/statecharts.ts';
-import type { StateNode } from '../scenes/explainers/lib/statecharts.ts';
+import type { StateNode } from '../scenes/explainers/statecharts/model.ts';
 
 // Captured by `node tools/oracle/statecharts.ts <dir>` with the pinned XState; see that file.
 const xstate = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Expected;

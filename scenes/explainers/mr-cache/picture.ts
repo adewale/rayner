@@ -1,7 +1,7 @@
-import { Group } from '../../../../src/index.ts';
-import { flow, label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group } from '../../../src/index.ts';
+import { flow, label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** The scene's one-sentence answer, which the outcome step states in both scenarios. */
 export const ANSWER = 'A hit saves the database read; a miss still makes it, and adds a cache read and write';

@@ -1,10 +1,10 @@
 import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view, rushInto } from '../../../src/index.ts';
 import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { story, ANSWER, raceTimeline, raceTracks, raceWords, tickX, trackY } from '../lib/readers/latest-search.ts';
-import type { RaceStep } from '../lib/readers/latest-search.ts';
-import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from '../lib/latest-search.ts';
-import type { CompletionOrder, RaceState, RaceEvent } from '../lib/latest-search.ts';
+import { story, ANSWER, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
+import type { RaceStep } from './picture.ts';
+import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from './model.ts';
+import type { CompletionOrder, RaceState, RaceEvent } from './model.ts';
 
 // The story (script.md): the race without a guard first, then the ticket as its fix. Search A is
 // the keystroke "ca", search B the latest keystroke "cat". The two timelines that show the page are

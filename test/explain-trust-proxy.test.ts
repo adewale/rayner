@@ -18,8 +18,8 @@ import {
   reqIp,
   reqIps,
   positions,
-} from '../scenes/explainers/lib/trust-proxy.ts';
-import type { Trust } from '../scenes/explainers/lib/trust-proxy.ts';
+} from '../scenes/explainers/trust-proxy/model.ts';
+import type { Trust } from '../scenes/explainers/trust-proxy/model.ts';
 
 // Real Express 5.3.0 (proxy-addr 2.0.8, forwarded 0.2.0), run on 2026-10-25 over a real HTTP connection
 // on loopback: `app.set('trust proxy', value)`, a handler answering { ip: req.ip, ips: req.ips }, and

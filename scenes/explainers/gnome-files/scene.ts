@@ -1,4 +1,4 @@
-import { frames as readerFrames } from '../lib/readers/gnome-files.ts';
+import { frames as readerFrames } from './picture.ts';
 import { Scene, Group, Line, Rectangle, Text } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import {
@@ -18,8 +18,8 @@ import {
   source,
   struggled,
   task,
-} from '../lib/gnome-files.ts';
-import type { Participant } from '../lib/gnome-files.ts';
+} from './model.ts';
+import type { Participant } from './model.ts';
 
 // Sources and the transcription are described in lib/gnome-files.ts.
 const REPORT = 'https://blogs.gnome.org/udoijiibike/files/2024/11/Detailed-Report-for-Files-Usability-Test-.pdf';

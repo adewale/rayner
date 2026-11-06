@@ -121,7 +121,7 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
 });
 
 test("the Bloom filter's tables key each row by its name or row length, and each keyed cell shows the model's answer", async () => {
-  const { bloomStory } = await import('../scenes/explainers/lib/bloom-filter.ts');
+  const { bloomStory } = await import('../scenes/explainers/bloom-filter/model.ts');
   const project = await collectProject('scenes/explainers/bloom-filter', { write: false });
   assert.equal(project.scenarios.length, 2);
   let cells = 0;

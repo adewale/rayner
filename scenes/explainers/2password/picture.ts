@@ -1,8 +1,8 @@
-import { Group } from '../../../../src/index.ts';
-import { find, run } from '../2password.ts';
-import { flow, label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group } from '../../../src/index.ts';
+import { find, run } from './model.ts';
+import { flow, label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** The script's answer, stated by the second step. */
 export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';

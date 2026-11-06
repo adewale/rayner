@@ -1,9 +1,9 @@
-import { Group, Line, Rectangle } from '../../../../src/index.ts';
-import { rows, summarize, cssMap, linearRgb, THEME_LINES } from '../tailwind-gamut.ts';
-import type { Shade, Space } from '../tailwind-gamut.ts';
-import { label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Line, Rectangle } from '../../../src/index.ts';
+import { rows, summarize, cssMap, linearRgb, THEME_LINES } from './model.ts';
+import type { Shade, Space } from './model.ts';
+import { label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** The colour an sRGB screen paints for `written`, as #rrggbb, after CSS Color 4's gamut mapping. */
 function painted(L: number, C: number, h: number): string {

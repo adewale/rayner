@@ -1,11 +1,11 @@
-import { table, keyed } from '../lib/lesson-drawing.ts';
+import { table, keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { Scene, Rectangle, Text, Group, Circle, Cross, Line, Arrow, view } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass } from '../../../explain/index.ts';
-import { TokenBucket } from '../lib/models.ts';
-import { PLACEMENTS } from '../lib/traffic-policy.ts';
+import { TokenBucket } from '../token-bucket/model.ts';
+import { PLACEMENTS } from '../traffic-policy/model.ts';
 const STYLE = 'github-light';
 // Upstream Lantern at the fork base, 2c7bad5: README "Outputs", app/worker.ts, src/mermaid.ts, src/doc.ts.
 const LANTERN =

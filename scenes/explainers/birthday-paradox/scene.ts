@@ -1,8 +1,8 @@
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
-import { birthdayStory } from '../lib/birthday-paradox.ts';
-import { label, tile, stat } from '../lib/lesson-drawing.ts';
+import { birthdayStory } from './model.ts';
+import { label, tile, stat } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { listed, numberWord, percent } from '../lib/format.ts';
 

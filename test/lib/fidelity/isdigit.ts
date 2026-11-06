@@ -13,8 +13,8 @@ import {
   intOf,
   guarded,
   accepts,
-} from '../../../scenes/explainers/lib/isdigit.ts';
-import type { CharId, Predicate } from '../../../scenes/explainers/lib/isdigit.ts';
+} from '../../../scenes/explainers/isdigit/model.ts';
+import type { CharId, Predicate } from '../../../scenes/explainers/isdigit/model.ts';
 
 /** Every scenario's step state equals the model's answers for its character and its check. */
 export function check(trace: Trace, values: Record<string, string>): void {

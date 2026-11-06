@@ -1,9 +1,9 @@
 import { Scene, Group, Rectangle, Circle } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { AudioClip, Stage } from '../../../explain/index.ts';
-import { musicStory, NOTE_NAMES } from '../lib/melody-rhythm.ts';
-import type { Timing } from '../lib/melody-rhythm.ts';
-import { label, segment } from '../lib/lesson-drawing.ts';
+import { musicStory, NOTE_NAMES } from './model.ts';
+import type { Timing } from './model.ts';
+import { label, segment } from '../../../explain/drawing.ts';
 
 interface Look {
   /** No beat lines, beat numbers or bar labels: the opening, before the pulse is counted. */

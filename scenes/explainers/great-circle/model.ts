@@ -1,7 +1,7 @@
 // The great-circle explainer's model: routes on a sphere of the Earth's mean radius, the rhumb line a
 // Mercator ruler draws, the Mercator stretch, and where a route crosses land. No drawing here; the
 // scene draws these numbers and points through seenFrom. Angles are degrees, distances kilometres.
-import { LAND, LANDMASS } from '../great-circle/land.ts';
+import { LAND, LANDMASS } from './land.ts';
 
 /** The Earth's mean radius (IUGG), the sphere every figure here is computed on. */
 export const RADIUS_KM = 6371;

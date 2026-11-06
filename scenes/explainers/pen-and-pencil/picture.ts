@@ -1,10 +1,10 @@
-import { Group, VMobject, Circle, Line } from '../../../../src/index.ts';
-import type { Vec } from '../../../../src/index.ts';
-import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from '../pen-and-pencil.ts';
-import type { Pt, Box } from '../pen-and-pencil.ts';
-import { label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, VMobject, Circle, Line } from '../../../src/index.ts';
+import type { Vec } from '../../../src/index.ts';
+import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from './model.ts';
+import type { Pt, Box } from './model.ts';
+import { label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** The two drawings the plate compares: the first in grey, the second in ink. */
 export const SEEDS = { first: 1967, second: 7 } as const;

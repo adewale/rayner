@@ -9,8 +9,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { player, coffee, coffeeWithFrother, boxed, RUNS } from '../../scenes/explainers/lib/statecharts.ts';
-import type { StateNode } from '../../scenes/explainers/lib/statecharts.ts';
+import { player, coffee, coffeeWithFrother, boxed, RUNS } from '../../scenes/explainers/statecharts/model.ts';
+import type { StateNode } from '../../scenes/explainers/statecharts/model.ts';
 
 export const XSTATE_VERSION = '5.33.3';
 export const FIXTURE = new URL('../../test/fixtures/statecharts-xstate.json', import.meta.url);

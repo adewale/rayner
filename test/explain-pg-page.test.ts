@@ -28,8 +28,8 @@ import {
   shortText,
   total,
   tuple,
-} from '../scenes/explainers/lib/pg-page.ts';
-import type { Attr, Column } from '../scenes/explainers/lib/pg-page.ts';
+} from '../scenes/explainers/pg-page/model.ts';
+import type { Attr, Column } from '../scenes/explainers/pg-page/model.ts';
 
 // ---------------------------------------------------------------- the source's own sizes
 test('the page header, line pointer and tuple header sizes are the sums of their C fields', () => {

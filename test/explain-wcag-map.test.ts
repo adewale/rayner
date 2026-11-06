@@ -18,8 +18,8 @@ import {
   opened,
   tally,
   totals,
-} from '../scenes/explainers/lib/wcag-map.ts';
-import type { Level, Version } from '../scenes/explainers/lib/wcag-map.ts';
+} from '../scenes/explainers/wcag-map/model.ts';
+import type { Level, Version } from '../scenes/explainers/wcag-map/model.ts';
 
 // w3c/wcag at tag WCAG22-20241212, commit 1dfe1647bdecf32fb4f76b9ce1cc33139505630c, read on 2026-10-25.
 // guidelines/index.html: the line of each principle's and guideline's <section>, then each criterion's

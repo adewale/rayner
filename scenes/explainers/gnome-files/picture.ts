@@ -1,9 +1,9 @@
-import { Group, Rectangle } from '../../../../src/index.ts';
-import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING } from '../gnome-files.ts';
-import type { Participant, Colour } from '../gnome-files.ts';
-import { flow, label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Rectangle } from '../../../src/index.ts';
+import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING } from './model.ts';
+import type { Participant, Colour } from './model.ts';
+import { flow, label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 // Locations and observations: the report's task findings, pages 11, 21–22, 25–26, 34 and 40.
 const locations: Record<number, string[]> = {
   1: ['View options', 'Icon size'],

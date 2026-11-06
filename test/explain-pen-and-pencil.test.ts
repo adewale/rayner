@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { SIMPLEX } from '../scenes/explainers/lib/hershey-simplex.ts';
+import { SIMPLEX } from '../scenes/explainers/pen-and-pencil/hershey-simplex.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import type { Scene, VMobject } from '../src/index.ts';
 import {
@@ -27,8 +27,8 @@ import {
   boundsOf,
   tag,
   scenery,
-} from '../scenes/explainers/lib/pen-and-pencil.ts';
-import type { Pt, Box } from '../scenes/explainers/lib/pen-and-pencil.ts';
+} from '../scenes/explainers/pen-and-pencil/model.ts';
+import type { Pt, Box } from '../scenes/explainers/pen-and-pencil/model.ts';
 
 const coord = fc.double({ min: -6, max: 6, noNaN: true });
 const point = fc.tuple(coord, coord) as fc.Arbitrary<Pt>;

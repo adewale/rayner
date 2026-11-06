@@ -2,7 +2,7 @@ import { Scene, Group, view } from '../../../src/index.ts';
 import type { Box, Mobject, View } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS, regionBox, CodeBlock } from '../../../explain/index.ts';
 import type { Diagram, NoteSide } from '../../../explain/index.ts';
-import { keyed } from '../lib/lesson-drawing.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 const STYLE = 'blueprint';
 const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';

@@ -24,8 +24,8 @@ import {
 import type { ScheduledAnimation as Animation, Mobject, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { TokenBucket, bucketStart, bucketRequest } from '../lib/models.ts';
-import type { BucketCall as Call, BucketState } from '../lib/models.ts';
+import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
+import type { BucketCall as Call, BucketState } from './model.ts';
 import { listed } from '../lib/format.ts';
 
 // Six at once, three within the next second, then one after a four-second quiet spell:

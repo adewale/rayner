@@ -36,8 +36,8 @@ import {
   toMs,
   validate,
   weeks,
-} from '../scenes/explainers/lib/ical-recurrence.ts';
-import type { Cardinality, Change, Copy, VEvent } from '../scenes/explainers/lib/ical-recurrence.ts';
+} from '../scenes/explainers/ical-recurrence/model.ts';
+import type { Cardinality, Change, Copy, VEvent } from '../scenes/explainers/ical-recurrence/model.ts';
 import { RFC_EXAMPLES, inputsDigest, runSabre } from './lib/ical-recurrence-sabre.ts';
 import type { Frozen, Stored } from './lib/ical-recurrence-sabre.ts';
 

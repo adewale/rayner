@@ -1,8 +1,8 @@
-import { Group, Text, Line, Rectangle, shaperFor } from '../../../../src/index.ts';
-import type { FontName } from '../../../../src/index.ts';
-import { label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Text, Line, Rectangle, shaperFor } from '../../../src/index.ts';
+import type { FontName } from '../../../src/index.ts';
+import { label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 const word = 'Hello, outlines',
   size = 0.9;
 const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');

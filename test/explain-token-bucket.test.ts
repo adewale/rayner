@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { TokenBucket } from '../scenes/explainers/lib/models.ts';
+import { TokenBucket } from '../scenes/explainers/token-bucket/model.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
+import { explainerMeta } from '../tools/lib/explain-intent.ts';
 
 // The page's schedule: six at once, three within the next second, then R10 after a four-second wait.
 const TIMES = [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5];
@@ -46,7 +47,7 @@ test('R10 is accepted at the three offered rates and refused below a fifth of a 
 });
 
 test('token-bucket: the check answers are the model’s', () => {
-  const [bigger, steady, moved] = TokenBucketExplainer.meta.checks.map((c) => c.answer);
+  const [bigger, steady, moved] = explainerMeta(TokenBucketExplainer, 'scenes/explainers/token-bucket').checks!.map((c) => c.answer);
   // A six-token bucket at 2 a second lets R6 through; no rate does with five (above).
   assert.equal(run(2, TIMES, 6)[5]!.ok, true);
   assert.match(bigger!, /answers R6 with 200\./);

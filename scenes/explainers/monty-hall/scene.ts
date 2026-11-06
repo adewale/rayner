@@ -2,9 +2,9 @@ import { Scene, Group, Rectangle, Text, Line, FadeIn, Transform, AnimationGroup,
 import type { ScheduledAnimation, Mobject, MatchKey, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from '../lib/monty-hall.ts';
-import type { Host, Opener, Round, RoundEvent } from '../lib/monty-hall.ts';
-import { label, tile, stat, keyed } from '../lib/lesson-drawing.ts';
+import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
+import type { Host, Opener, Round, RoundEvent } from './model.ts';
+import { label, tile, stat, keyed } from '../../../explain/drawing.ts';
 import { percent } from '../lib/format.ts';
 
 const door = (i: number) => 'ABC'[i]!;

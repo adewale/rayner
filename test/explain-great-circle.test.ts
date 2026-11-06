@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import {
   AIRPORTS, RADIUS_KM, haversine, initialBearing, pole, vertex, highest, greatCircle, rhumb, rhumbLine, northing, stretch,
   overflies, landAt, london, madrid, tens,
-} from '../scenes/explainers/lib/great-circle.ts';
-import type { Place } from '../scenes/explainers/lib/great-circle.ts';
+} from '../scenes/explainers/great-circle/model.ts';
+import type { Place } from '../scenes/explainers/great-circle/model.ts';
 import { seenFrom, depthOrder, latLon } from '../explain/drawing.ts';
 import type { VMobject } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';

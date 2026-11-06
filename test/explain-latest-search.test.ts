@@ -8,8 +8,8 @@ import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import LatestSearchExplainer from './fixtures/latest-search-view.ts';
-import { createSearch, runSearch, SEARCH_CODE, raceStart, raceNext, raceReplay, raceLifetimes, racePage, raceShowsStale, RACE_EVENTS } from '../scenes/explainers/lib/latest-search.ts';
-import type { Lifetime, Query, RaceEvent, RaceState } from '../scenes/explainers/lib/latest-search.ts';
+import { createSearch, runSearch, SEARCH_CODE, raceStart, raceNext, raceReplay, raceLifetimes, racePage, raceShowsStale, RACE_EVENTS } from '../scenes/explainers/latest-search/model.ts';
+import type { Lifetime, Query, RaceEvent, RaceState } from '../scenes/explainers/latest-search/model.ts';
 
 test('tickets distinguish repeated query text and do not invent an error fallback', async () => {
   const deferred = () => {

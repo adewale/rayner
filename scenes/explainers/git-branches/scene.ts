@@ -2,9 +2,9 @@ import { Scene, Group, Arrow, Text } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from '../lib/git-branches.ts';
-import type { GitFrame } from '../lib/git-branches.ts';
-import { label, tile, dot, table } from '../lib/lesson-drawing.ts';
+import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from './model.ts';
+import type { GitFrame } from './model.ts';
+import { label, tile, dot, table } from '../../../explain/drawing.ts';
 
 /** Commit positions: the two branches fork right from A, and M joins them, spread across the stage. */
 const AT: Record<string, Vec> = { A: [-6.1, 0.67], B: [-0.4, 1.47], C: [-0.4, -0.13], M: [5.3, 0.67] };

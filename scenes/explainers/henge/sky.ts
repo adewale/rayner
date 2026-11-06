@@ -6,7 +6,7 @@ import { Group, Rectangle, Polygon, Circle, VMobject, Arrow } from '../../../src
 import type { Vec, Text } from '../../../src/index.ts';
 import { seenFrom, project, circleOn, greatArc, label, keyed } from '../../../explain/drawing.ts';
 import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/drawing.ts';
-import { sky, LATITUDE } from '../lib/henge.ts';
+import { sky, LATITUDE } from './model.ts';
 
 export const INK = '#1e293b', SUN = '#c77900', SUMMER = '#a03b22', WINTER = '#235d9b', MUTED = '#64748b', ROAD = '#eef2f6';
 const SKY = '#dcebf7', GROUND = '#e4dccb', WALL = '#d8e0e8', NIGHT = '#33415c';

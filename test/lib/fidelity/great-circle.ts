@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { london, madrid, haversine, rhumb, tens } from '../../../scenes/explainers/lib/great-circle.ts';
+import { london, madrid, haversine, rhumb, tens } from '../../../scenes/explainers/great-circle/model.ts';
 import { assertStepState } from '../explainer-state.ts';
 import { assertSteps } from '../steps.ts';
 

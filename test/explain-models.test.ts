@@ -4,25 +4,14 @@ import { fc, params } from './lib/pbt.ts';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import {
-  sha256,
-  pkceChallenge,
-  reduceSession,
-  TokenBucket,
-  RingBuffer,
-  Full,
-  ringStory,
-  ringStart,
-  ringNext,
-  exec,
-  sunlight,
-  daylightYear,
-  noonShare,
-  noonPatch,
-  sunDistance,
-} from '../scenes/explainers/lib/models.ts';
-import { find, closeness, distance, run, ITEMS } from '../scenes/explainers/lib/2password.ts';
-import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
+import { sha256, pkceChallenge } from '../scenes/explainers/oauth-pkce/model.ts';
+import { reduceSession } from '../scenes/explainers/state-machine/model.ts';
+import { TokenBucket } from '../scenes/explainers/token-bucket/model.ts';
+import { RingBuffer, Full, ringStory, ringStart, ringNext } from '../scenes/explainers/ring-buffer/model.ts';
+import { exec } from '../scenes/explainers/just-bash/model.ts';
+import { sunlight, daylightYear, noonShare, noonPatch, sunDistance } from '../scenes/explainers/seasons/model.ts';
+import { find, closeness, distance, run, ITEMS } from '../scenes/explainers/2password/model.ts';
+import { Repo, AUTHOR } from '../scenes/explainers/exgit/model.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { View } from '../src/index.ts';
 import { withSettings } from '../explain/testing.ts';

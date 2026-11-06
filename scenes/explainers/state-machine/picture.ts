@@ -1,8 +1,8 @@
-import { Group } from '../../../../src/index.ts';
-import { reduceSession, sessionAttempt } from '../models.ts';
-import { flow, label, tile } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group } from '../../../src/index.ts';
+import { reduceSession, sessionAttempt } from './model.ts';
+import { flow, label, tile } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** The scene's one-sentence answer, which the reject step states in both histories. */
 export const ANSWER =

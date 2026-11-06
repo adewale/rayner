@@ -1,4 +1,4 @@
-import { frames as readerFrames } from '../lib/readers/glyph.ts';
+import { frames as readerFrames } from './picture.ts';
 import {
   Scene,
   Text,

@@ -1,4 +1,4 @@
-import { frames as readerFrames, arrayQueue } from '../lib/readers/ring-buffer.ts';
+import { frames as readerFrames, arrayQueue } from './picture.ts';
 import {
   Scene,
   SetState,
@@ -25,8 +25,8 @@ import {
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { ringStory, ringStart, ringNext, RingBuffer } from '../lib/models.ts';
-import type { RingState, RingEvent } from '../lib/models.ts';
+import { ringStory, ringStart, ringNext, RingBuffer } from './model.ts';
+import type { RingState, RingEvent } from './model.ts';
 
 /** The check questions' answers, from the same model: rings and queues no step draws. */
 const CHECK = (() => {
@@ -70,7 +70,7 @@ const TAIL = '#7fc8b8';
 /** The tray under the ring: its row, below the labels of the pointers at the bottom slots, and where it must end, left of the code. */
 const TRAY_Y = -4.1,
   TRAY_END = -0.6;
-// RingBuffer from scenes/explainers/lib/models.ts, without the `this.`s.
+// RingBuffer from ./model.ts, without the `this.`s.
 const CODE = [
   'push(v) {',
   '  if (length === capacity) throw new Full();',

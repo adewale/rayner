@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { isRefusal } from '../src/index.ts';
-import { redeem, theftFlow, pkceFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS } from '../scenes/explainers/lib/pkce.ts';
-import type { SignIn, SignInEvent } from '../scenes/explainers/lib/pkce.ts';
+import { redeem, theftFlow, pkceFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS } from '../scenes/explainers/oauth-pkce/model.ts';
+import type { SignIn, SignInEvent } from '../scenes/explainers/oauth-pkce/model.ts';
 
 /** The sign-in after `e`, or undefined where the protocol refuses it. */
 const after = (state: SignIn, e: SignInEvent): SignIn | undefined => {

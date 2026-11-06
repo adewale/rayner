@@ -2,9 +2,9 @@ import { Scene, Group, Rectangle, CurvedArrow, FadeIn, Machine, Text, matchByKey
 import type { Mobject, SceneState } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
-import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from '../lib/python-dict.ts';
-import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from '../lib/python-dict.ts';
-import { keyed, label, tile, table } from '../lib/lesson-drawing.ts';
+import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from './model.ts';
+import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from './model.ts';
+import { keyed, label, tile, table } from '../../../explain/drawing.ts';
 
 /** What one resting picture shows beside the index: the entries and the last operation, or the start-slot table. */
 interface View {

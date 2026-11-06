@@ -3,8 +3,8 @@
 // uses to deliver to a local attendee. Used by test/explain-ical-recurrence.test.ts.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { ics, SERIES, INVITED, organiserCopy, copyOf, ORGANISER, GUEST, MASTER, MOVE_OVERRIDE, SERVER_CASES } from '../../scenes/explainers/lib/ical-recurrence.ts';
-import type { Change, Copy, VEvent } from '../../scenes/explainers/lib/ical-recurrence.ts';
+import { ics, SERIES, INVITED, organiserCopy, copyOf, ORGANISER, GUEST, MASTER, MOVE_OVERRIDE, SERVER_CASES } from '../../scenes/explainers/ical-recurrence/model.ts';
+import type { Change, Copy, VEvent } from '../../scenes/explainers/ical-recurrence/model.ts';
 
 export const SABRE_VERSION = '4.5.7';
 export const IMAGE = 'composer:2.8';

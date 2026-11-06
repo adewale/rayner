@@ -28,8 +28,8 @@ import {
   validate,
   weeks,
   MASTER,
-} from '../lib/ical-recurrence.ts';
-import type { Change, Copy, VEvent, Week } from '../lib/ical-recurrence.ts';
+} from './model.ts';
+import type { Change, Copy, VEvent, Week } from './model.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { numberWord } from '../lib/format.ts';
 

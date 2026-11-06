@@ -1,7 +1,7 @@
-import { Group, Arrow } from '../../../../src/index.ts';
-import { tile, label } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Arrow } from '../../../src/index.ts';
+import { tile, label } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 export function frames(): StagedStep[] {
   // Where a logical side sits on the stage.
   const x = (side: string) => (side === 'right' ? 3.8 : -3.8);

@@ -28,8 +28,8 @@ import {
   scoreOf,
   source,
   struggled,
-} from '../scenes/explainers/lib/gnome-files.ts';
-import type { Colour, Journey, Participant } from '../scenes/explainers/lib/gnome-files.ts';
+} from '../scenes/explainers/gnome-files/model.ts';
+import type { Colour, Journey, Participant } from '../scenes/explainers/gnome-files/model.ts';
 
 const NB = '\u202f';
 const row = (n: number) => PARTICIPANTS.map((p) => colourOf(n, p));

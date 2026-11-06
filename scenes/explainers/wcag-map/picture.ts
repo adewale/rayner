@@ -1,11 +1,11 @@
-import { Group, Line, Rectangle } from '../../../../src/index.ts';
-import type { Stage } from '../../../../explain/index.ts';
-import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from '../wcag-map.ts';
-import type { Criterion, Level, Version } from '../wcag-map.ts';
-import { tile, label, table } from '../reader-drawing.ts';
-import { legend } from '../lesson-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Line, Rectangle } from '../../../src/index.ts';
+import type { Stage } from '../../../explain/index.ts';
+import { tally, criteria, change, CRITERIA, LEVELS, VERSIONS, inVersion, atLevel } from './model.ts';
+import type { Criterion, Level, Version } from './model.ts';
+import { tile, label, table } from '../../../explain/drawing.ts';
+import { legend } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /**
  * Every criterion some version asks for at `level`, one column each: grouped by level, and within a

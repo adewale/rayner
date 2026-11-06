@@ -25,8 +25,8 @@ import {
   seenSource,
   shares,
   value,
-} from '../scenes/explainers/lib/traffic-policy.ts';
-import type { PlacementKey, Policy } from '../scenes/explainers/lib/traffic-policy.ts';
+} from '../scenes/explainers/traffic-policy/model.ts';
+import type { PlacementKey, Policy } from '../scenes/explainers/traffic-policy/model.ts';
 
 // pkg/proxy/iptables/proxier_test.go:2836-2845, TestComputeProbability's expected strings.
 const UPSTREAM: Record<number, string> = {
