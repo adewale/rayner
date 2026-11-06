@@ -1,7 +1,7 @@
 {
   "version": 1,
   "sourceHash": "b2b58abea27a420734cc553ed29716b8e5f37170b8ad0f2be8a31d52af30c592",
-  "builderHash": "e4688c441895ea778fefbe83dba8dbef89fc60dacc1823123f1bf5599b4361f7",
+  "builderHash": "7a6fc6393b535c61a85741bea02dff1f828ad13dac3f828d2f9f14fdb7c3cfdf",
   "request": {
     "scripts": [
       "Hebr"
@@ -28,7 +28,7 @@
     "[\"sans\",\"1. ניקוד\",false]",
     "[\"sans\",\"2. כיוונים\",false]"
   ],
-  "payloadHash": "caae10241ffae0ebc5e31ec389c581985baf85470855b93095ad9f5f42680feb",
+  "payloadHash": "f1c9093bc7a03b1b7926a449cccf62225f95dce2a6acc2df44fac29fa13e5544",
   "outlines": [
     [{"tag":"MoveTo","x":38,"y":517},{"tag":"LineTo","x":38,"y":593},{"tag":"LineTo","x":511,"y":593},{"tag":"LineTo","x":501,"y":517},{"tag":"LineTo","x":38,"y":517},{"tag":"Close"},{"tag":"MoveTo","x":322,"y":0},{"tag":"LineTo","x":322,"y":444},{"tag":"QuadTo","x1":322,"y1":456,"x":325,"y":470.5},{"tag":"QuadTo","x1":328,"y1":485,"x":334.5,"y":498},{"tag":"QuadTo","x1":341,"y1":511,"x":353,"y":517},{"tag":"LineTo","x":425,"y":517},{"tag":"QuadTo","x1":418,"y1":510,"x":416,"y":495},{"tag":"QuadTo","x1":414,"y1":480,"x":414,"y":462},{"tag":"LineTo","x":414,"y":0},{"tag":"LineTo","x":322,"y":0},{"tag":"Close"}],
     [{"tag":"MoveTo","x":129,"y":0},{"tag":"LineTo","x":129,"y":593},{"tag":"LineTo","x":221,"y":593},{"tag":"LineTo","x":221,"y":0},{"tag":"LineTo","x":129,"y":0},{"tag":"Close"},{"tag":"MoveTo","x":38,"y":517},{"tag":"LineTo","x":49,"y":593},{"tag":"LineTo","x":189,"y":593},{"tag":"LineTo","x":189,"y":517},{"tag":"LineTo","x":38,"y":517},{"tag":"Close"}],

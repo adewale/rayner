@@ -160,7 +160,6 @@ test('steps tile the timeline: each ends where the next begins, and the last end
 
 // ---- onStep ----------------------------------------------------------------------
 
-type Op = { k: 'add'; fn: number } | { k: 'remove'; handle: number } | { k: 'step' };
 const ops = fc.array(
   fc.oneof(
     fc.record({ k: fc.constant('add' as const), fn: fc.nat({ max: 2 }) }),

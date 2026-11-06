@@ -22,7 +22,6 @@ import {
   scenarioOf,
   fill,
   heapFreeSpace,
-  maxalign,
   percent,
   reserveFor,
   shortText,

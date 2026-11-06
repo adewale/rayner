@@ -25,7 +25,6 @@ import { buildInputs } from './lib/build-inputs.ts';
 import { checkBuiltOutput } from './lib/explain-built-files.ts';
 import {readArtifact, catalog as parseCatalog, catalogEvidence} from './lib/explain-artifacts.ts';
 import { selectExport } from './lib/explain-export-selection.ts';
-import type { ExportCatalog, ExportEvidence } from './lib/explain-export-selection.ts';
 import { cardPng } from './lib/explain-shots.ts';
 import { useProjectLettering } from './lib/explain-lettering.ts';
 import { galleryPage } from './lib/explain-gallery.ts';

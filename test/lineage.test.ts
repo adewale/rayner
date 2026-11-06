@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
-  Scene, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Polygon, Text, Code, DecimalNumber,
+  Scene, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Text, Code, DecimalNumber,
   Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, AnimationGroup, LaggedStart,
   linear, smooth, rushInto, rushFrom, thereAndBack,
   shaperFor,
@@ -14,7 +14,7 @@ import {
 import { StringSink, NullSink, toSvgString, renderElements, renderAt, indexScene } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { Indicate } from './lib/transient.ts';
-import type { Mobject, Sink, Vec, RateFunc, Animation, Style } from '../src/index.ts';
+import type { Mobject, Sink, RateFunc, Style } from '../src/index.ts';
 
 await loadFonts();
 
