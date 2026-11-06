@@ -53,7 +53,7 @@ A test reads an explainer's steps from the scene, not from a copy of its list: `
 
 When consolidating tests, move every assertion to a named keeper and show that it rejects a deliberate defect. Keep independent values and endpoints, native paint, raster references, package checks and the full scenario inventory. [test/AGENTS.md](https://github.com/adewale/rayner/blob/main/test/AGENTS.md) records these rules. A test's name says what it asserts, and more runs do not make up for a missing input class or oracle.
 
-The compatibility matrix downloads the primary job's tested archive. Package smoke verifies its source commit and SHA-512 integrity before installation and checks integrity again afterwards. It does not repack on each platform.
+The compatibility matrix downloads the primary job's tested archives, `rayner` and `rayner-cli`. Package smoke verifies their source commit and SHA-512 integrity before installation and checks integrity again afterwards. It does not repack on each platform.
 
 `test/fixtures/latest-search-view.ts` retains the four guarded/unguarded chart scenarios for the state/view oracle. The public Latest Search lesson has two completion-order scenarios and compares both guards in each, including the ticket decision. `test/explain-latest-search.test.ts` owns both boundaries.
 
