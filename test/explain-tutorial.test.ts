@@ -12,12 +12,9 @@ import type { Picture } from '../explain/trace.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertSteps } from './lib/steps.ts';
 import { run } from '../scenes/tutorial/lru-mru/model.ts';
-// The tutorial's own model tests: Wikipedia's worked LRU and MRU examples.
-import '../scenes/tutorial/lru-mru/model.test.ts';
-// The machine starter's model tests: every event from every state, and every refusal's reason.
-import '../scenes/tutorial/door/model.test.ts';
-// The README's complete example: no route beats 7 or 15 moves, and solve() takes that many.
-import '../scenes/tutorial/hanoi/model.test.ts';
+// The tutorials' own model tests (Wikipedia's worked LRU and MRU examples, every door event from every
+// state, no Hanoi route shorter than 7 or 15 moves) run beside them: npm test runs scenes/*/*/*.test.ts,
+// and rayner check runs each folder's model.test.ts.
 
 const DIR = 'scenes/tutorial/lru-mru/';
 
@@ -50,6 +47,9 @@ test('`rayner init --machine` writes the machine starter, and `rayner check` pas
     // What it starts from: a model that refuses with reasons, a view of the state, and a live last step.
     assert.match(readFileSync(join(dir, 'model.ts'), 'utf8'), /refuse\('the door is locked, so unlock it first'\)/);
     const report = JSON.parse(execFileSync(process.execPath, ['tools/explain.ts', 'check', join(dir, 'scene.ts'), '--out', join(folder, 'checks')], { encoding: 'utf8' }));
+    // check runs the model test beside the scene, which imports rayner: from a folder that installs
+    // no Rayner, the Rayner running the check.
+    assert.deepEqual(report.model, { file: join(dir, 'model.test.ts'), tests: 2, passed: 2 });
     const scenario = report.scenarios[0];
     assert.deepEqual(scenario.machines, [{ events: ['open', 'close', 'lock', 'unlock'], states: 3 }]);
     assert.deepEqual(scenario.claims.scope, [], 'no sweeping sentence goes unbacked');

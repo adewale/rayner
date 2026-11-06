@@ -6,7 +6,7 @@ Comments in the player's tests cite the requirements of the designs it was built
 
 ```sh
 npm run check             # types and consumer API
-npm test                  # standard assertions and seeded properties
+npm test                  # standard assertions, seeded properties and each explainer folder's own tests
 npm run test:full         # larger generated runs
 npm run test:embeds       # Chromium reader, transport and interaction checks
 npm run demos:check       # build and validate the catalog once
