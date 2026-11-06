@@ -9,7 +9,7 @@ import { HOME } from '../../app/embed-share.ts';
 export const PRODUCT = {
   /** The project's home, where every page's footer mark links (app/embed-share.ts). */
   home: HOME,
-  summary: 'Interactive explanations of protocols, algorithms and code changes.',
+  summary: 'Interactive explanations of technical subjects, from Git merges to Earth’s seasons.',
   audience: 'For engineers and technical educators who write TypeScript.',
   description:
     'Step through a picture at your own pace, or change a setting to follow another scenario. The model computes the numbers, diagrams and captions. Publish a portable HTML page with a transcript and no runtime network requests.',

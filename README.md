@@ -1,8 +1,8 @@
 # Rayner
 
-Rayner makes step-through explainers of technical subjects, from Git merges to Earth’s seasons. Scenes are written in TypeScript with Manim's vocabulary of scenes, mobjects and transforms, but a reader steps through one HTML page with no runtime dependencies instead of watching a video.
+Rayner makes step-through explainers of technical subjects, from Git merges to Earth’s seasons. Scenes are written in TypeScript with Manim’s vocabulary of scenes, mobjects and transforms, but a reader steps through one HTML page with no runtime dependencies instead of watching a video. It is for engineers and technical educators who write TypeScript.
 
-A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12's own storage, each step is drawn from the model's state, and `rayner check` fails a picture that disagrees with that state. How closely a model matches its subject varies from explainer to explainer, and the table below says what each was checked against.
+A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, each step is drawn from the model’s state, and `rayner check` fails a picture that disagrees with that state. How closely a model matches its subject varies from explainer to explainer, and the table below says what each was checked against.
 
 [![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
 
