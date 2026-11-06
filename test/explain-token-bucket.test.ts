@@ -46,18 +46,26 @@ test('R10 is accepted at the three offered rates and refused below a fifth of a 
   for (const rate of [0.2, 0.21, 0.25, 0.5]) assert.equal(run(rate)[9]!.ok, true, `${rate} a second`);
 });
 
-test('token-bucket: the check answers are the model’s', () => {
+test('token-bucket: the script\'s check answers are the model\'s, word for word', () => {
   const [bigger, steady, moved] = explainerMeta(TokenBucketExplainer, 'scenes/explainers/token-bucket').checks!.map((c) => c.answer);
-  // A six-token bucket at 2 a second lets R6 through; no rate does with five (above).
-  assert.equal(run(2, TIMES, 6)[5]!.ok, true);
-  assert.match(bigger!, /answers R6 with 200\./);
-  // One request every 0.4 s at 2 a second: request 22 is the first refused, and 80 of requests 101–200 get through.
+  // As the scene wrote them before they moved to script.md, rebuilt from the model now.
+  const perSecond = (r: number) => `${r} token${r > 1 ? 's' : ''} a second`;
+  const say = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  // A six-token bucket at 2 a second answers R6; no rate does with five (above).
+  const six = run(2, TIMES, 6)[5]!.ok ? 200 : 429;
+  assert.equal(bigger, `A bigger bucket. R1 to R6 arrive at the same instant, so no time passes and refill adds nothing at any rate. A bucket of six tokens, still at 2 a second, answers R6 with ${six}.`);
+  // One request every 0.4 s at 2 a second: the first refused, and how many of requests 101–200 get through.
   const every = run(2, Array.from({ length: 200 }, (_, n) => n * 0.4));
-  assert.equal(every.findIndex((c) => !c.ok) + 1, 22);
-  assert.equal(every.slice(100).filter((c) => c.ok).length, 80);
-  assert.match(steady!, /request 22 is the first refused\. From then on 80 of every 100 get through/);
-  // R10 at 1.5 s: refused only at 1 a second.
-  const at15 = (rate: number) => run(rate, [...TIMES.slice(0, 9), 1.5])[9]!;
-  assert.deepEqual([1, 2, 4].map((r) => at15(r).ok), [false, true, true]);
-  assert.match(moved!, /^At 1 token a second only\. At 1 a second R9 leaves 0 and R10 finds 0\.5; at 2 a second R9 leaves 0 and R10 finds 1; at 4 a second R9 leaves 1 and R10 finds 3\./);
+  const first = every.findIndex((c) => !c.ok) + 1, share = every.slice(100).filter((c) => c.ok).length;
+  assert.equal(steady, `Yes. Each gap earns 0.8 tokens and each request spends one, so the saved five drain by 0.2 a request and request ${first} is the first refused. From then on ${share} of every 100 get through, 2 a second: the refill rate, however long the flood lasts.`);
+  // R10 moved to 1.5 s, at each rate: what R9 left, what R10 found, and its answer.
+  const shifted = [1, 2, 4].map((rate) => {
+    const bucket = new TokenBucket(rate, 5);
+    TIMES.slice(0, 9).forEach((at) => bucket.allow(at));
+    const left = bucket.tokens, ok = bucket.allow(1.5);
+    return { rate, left, found: bucket.tokens + (ok ? 1 : 0), ok };
+  });
+  const refused = shifted.filter((m) => !m.ok).map((m) => perSecond(m.rate));
+  assert.equal(refused.length, 1, 'the answer names one rate');
+  assert.equal(moved, `At ${refused[0]} only. ${shifted.map((m, i) => `${i ? 'at' : 'At'} ${m.rate} a second R9 leaves ${say(m.left)} and R10 finds ${say(m.found)}`).join('; ')}. Half a second has to earn the token R9 did not leave.`);
 });
