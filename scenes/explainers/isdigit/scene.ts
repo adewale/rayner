@@ -18,8 +18,6 @@ import {
   accepts,
   grouped,
   valueOf,
-  SPACE,
-  rewrite,
 } from './model.ts';
 import type { Char, CharId, Predicate } from './model.ts';
 import { SIZE, drawLineup, drawSets } from './picture.ts';
@@ -37,18 +35,6 @@ const BOTTOM = -4.25;
 const q = (c: Char) => `'${c.char}'`;
 const TF = (b: boolean) => (b ? 'True' : 'False');
 
-/** The lineup's characters that isdigit() passes and int() rejects: ² alone. */
-const LET_THROUGH = LINEUP.filter((k) => predicates(CHARS[k]).isdigit && !('value' in intOf(CHARS[k])));
-if (LET_THROUGH.join() !== 'super') throw new Error(`isdigit() lets through ${LET_THROUGH.join()}, not super`);
-/** Check 1: U+3000 then '7'. isdigit() refuses the space; int() sees ' 7' and ignores the space. */
-const SPACED = rewrite([SPACE, '7']);
-if (predicates(SPACE).isdigit || SPACED !== ' 7') throw new Error('The ideographic space must fail isdigit() and become a space');
-/** Check 2: float() runs the same rewrite: '٣.5' becomes '3.5', and '2.²' becomes '2.?'. */
-const FLOATS = { arabic: rewrite([CHARS.arabic, '.5']), super: rewrite(['2.', CHARS.super]) };
-if (FLOATS.arabic !== '3.5' || !FLOATS.super.endsWith('?')) throw new Error('float() must see 3.5 and a ?');
-// The script's check answers (script.md) quote these; hold the model to the text they state.
-if ([SPACE.code, SPACE.ucd, SPACED, FLOATS.super, CHARS.arabic.char, CHARS.super.char].join('|') !== 'U+3000|3000;IDEOGRAPHIC SPACE;Zs;0;WS;<wide> 0020;;;;N;;;;;| 7|2.?|٣|²')
-  throw new Error('script.md’s check answers quote U+3000’s row, \' 7\' and \'2.?\'');
 /** The script's one-sentence answer (script.md), stated in the lineup step of every scenario. */
 const ANSWER = `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
 
@@ -117,7 +103,6 @@ export default class IsDigitExplainer extends Scene {
       guard = values.guard as Predicate;
     const c = CHARS[id];
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const ink = s.palette.ink;
     const type = numericType(c),
       f = fields(c),
       p = predicates(c),

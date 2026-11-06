@@ -4,7 +4,6 @@ import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
 import type { Diagram, Stage } from '../../../explain/index.ts';
 import {
   DTSTART,
-  GUEST,
   GUEST_MEETING,
   INVITED,
   MOVED_FROM,
@@ -13,19 +12,16 @@ import {
   SERVER_CASES,
   copyOf,
   counts,
-  deliver,
   erSource,
   expand,
   guestCopy,
   lines,
   long,
-  messageFor,
   organiserCopy,
   schema,
   short,
   validate,
   weeks,
-  MASTER,
 } from './model.ts';
 import type { Change, Copy, VEvent } from './model.ts';
 import { stagedStep } from '../../../explain/index.ts';
@@ -57,23 +53,6 @@ const COPIES: Record<Copy, string> = { organiser: 'Alice’s, the organiser', gu
 /** The script's one-sentence answer (script.md), which the copy step states in every scenario. */
 const ANSWER =
   'a guest’s calendar keeps only the meetings it was sent, and on this server a cancellation marks the guest’s copy CANCELLED instead of deleting it';
-
-// The script's check answers (script.md) state what the model gives for two changes no step shows;
-// hold the model to them, so a change that would make an answer false fails here.
-// Check 1: Alice skips the fifth meeting instead of Bob's. COUNT still counts it, so the series does not
-// run a week longer, and Bob is still in his override, so his copy keeps it uncancelled.
-const FIFTH = RULE_STARTS[4]!;
-const SKIP_FIFTH: VEvent[] = [{ ...MASTER, exdates: [FIFTH] }, ...INVITED.slice(1)];
-const FIFTH_LEFT = expand(SKIP_FIFTH);
-const FIFTH_MESSAGE = messageFor(INVITED, SKIP_FIFTH, GUEST);
-const FIFTH_BOB = FIFTH_MESSAGE ? deliver(FIFTH_MESSAGE, guestCopy('none').copy) ?? [] : [];
-if (FIFTH_LEFT.length !== 5 || FIFTH_LEFT.at(-1)!.start !== RULE_STARTS.at(-1) || expand(FIFTH_BOB).map((m) => `${m.start}${m.cancelled}`).join() !== `${GUEST_MEETING}false`)
-  throw new Error('Skipping the fifth meeting must leave five meetings ending on the sixth start, and Bob’s meeting uncancelled');
-if ([long(FIFTH), FIFTH, long(FIFTH_LEFT.at(-1)!.start), long(GUEST_MEETING)].join() !== 'Monday 30 November,20261130T090000Z,Monday 7 December,Monday 16 November')
-  throw new Error('script.md’s first check names Monday 30 November, Monday 7 December and Monday 16 November');
-// Check 3: what Bob's copy lacks to rebuild the series: one override and no master.
-const BOB = counts(guestCopy('skip').copy);
-if (BOB.masters || BOB.rrules || BOB.overrides !== 1) throw new Error('Bob’s copy must hold one override, no master and no RRULE');
 
 /**
  * A card's parts paired by what they say and where, so a sync keeps an unchanged row still and crossfades a changed

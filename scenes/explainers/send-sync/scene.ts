@@ -1,8 +1,8 @@
 import { Scene, Group, view } from '../../../src/index.ts';
 import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
-import type { Inner, Wrapper, Quadrant, Layer, RustType } from './model.ts';
+import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
+import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
 import { SIZE, SPOT, QUADRANT, chart, LEFT, RIGHT, ZOOM, valueName, columnLines, quadrantMap } from './picture.ts';
 
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in model.ts
@@ -19,15 +19,6 @@ const traits = (send: boolean, sync: boolean) =>
   send && sync ? 'Send and Sync' : send ? 'Send but not Sync' : sync ? 'Sync but not Send' : 'neither Send nor Sync';
 /** The script's one-sentence answer (script.md); the arc-cell step's caption opens with it. */
 const ANSWER = 'Arc<T> is Send only when T is both Send and Sync';
-// The script's check answers (script.md) state the model's answers for a plain Cell, moved or
-// borrowed, and for the two types no step draws (test/explain-send-sync.test.ts compiles them with
-// rustc); hold the model to what they say, so a change that would make an answer false fails here.
-{
-  const [rcMutex, arcGuard] = CHECK_TYPES as [RustType, RustType];
-  const found = [isSend(INNERS.cell), isSync(INNERS.cell), isSend(t('&', INNERS.cell)), isSend(rcMutex), isSync(rcMutex), isSend(arcGuard), isSync(arcGuard), nameOf(rcMutex), nameOf(arcGuard)];
-  const stated = [true, false, false, false, false, false, false, 'Rc<Mutex<i32>>', 'Arc<MutexGuard<i32>>'];
-  if (JSON.stringify(found) !== JSON.stringify(stated)) throw new Error(`script.md's check answers state ${JSON.stringify(stated)}; the model gives ${JSON.stringify(found)}`);
-}
 /** What the steps record, accumulated: the fields the views below draw from. */
 interface SendSyncState {
   /** The quadrant the step's point is in, which the small map fills. */

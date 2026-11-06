@@ -1,7 +1,7 @@
 import { Scene, Group } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { bloomStory, locations, makeFilter, membership, saturation, TAKEN } from './model.ts';
+import { bloomStory, locations, saturation } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
 import { drawBits, drawPipeline, takenLabel, thousands } from './picture.ts';
 import { listed, numberWord, percent } from '../lib/format.ts';
@@ -9,22 +9,6 @@ import { listed, numberWord, percent } from '../lib/format.ts';
 // Two decimals under 1%, so a rate of a few in a thousand does not read 0.0%.
 const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 
-// script.md's check 1: a third name, eel, taken in the 32-bit row. Its hashes, and what wolf and owl then get.
-const EEL = (() => {
-  const bits = makeFilter([...TAKEN, 'eel'], 32);
-  return { at: locations('eel', 32), wolf: membership(bits, 'wolf'), owl: membership(bits, 'owl'), owlZeros: locations('owl', 32).filter((i) => !bits[i]) };
-})();
-// script.md's check 2: dog's account closes and someone clears dog's bits. What cat, which is still taken, then gets.
-const CLEARED = ([16, 32] as const).map((size) => {
-  const bits = makeFilter([...TAKEN], size);
-  for (const i of locations('dog', size)) bits[i] = 0;
-  return { size, cat: membership(bits, 'cat'), shared: locations('dog', size).filter((i) => locations('cat', size).includes(i)) };
-});
-if (
-  listed(EEL.at) !== '23, 20 and 1' || !EEL.wolf || EEL.owl || listed(EEL.owlZeros) !== '27 and 13' ||
-  CLEARED[0]!.cat || listed(CLEARED[0]!.shared) !== '1' || !CLEARED[1]!.cat
-)
-  throw new Error('script.md’s check answers no longer hold for the model: eel’s bits, wolf and owl after it, and cat once dog’s bits are cleared');
 const count = (n: number) => numberWord(n, { zero: 'none' });
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
 

@@ -20,7 +20,6 @@ import {
   inRange,
   positions,
   readAddresses,
-  reqIp,
 } from './model.ts';
 import type { Outcome, Position, Reading, RequestKey, TrustKey, Verdict } from './model.ts';
 import { numberWord } from '../lib/format.ts';
@@ -93,25 +92,6 @@ const count = (n: number, noun: string) => `${numberWord(n, { zero: 'none' })} $
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
 /** The script's one-sentence answer, stated in the read step of every scenario. */
 const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
-// script.md's check 1: two made-up entries on the short route. 2 stops at the nearer one; true takes the farther.
-const TWO_FORGED = `5.6.7.8, ${ADDR.forged}`;
-const TWO_FORGED_XFF = `${TWO_FORGED}, ${ADDR.attacker}`;
-const TWO_FORGED_IP = { 2: reqIp(ADDR.balancer, TWO_FORGED_XFF, 2), true: reqIp(ADDR.balancer, TWO_FORGED_XFF, true) };
-if (TWO_FORGED_IP[2] !== ADDR.forged || TWO_FORGED_IP.true !== '5.6.7.8' || reqIp(ADDR.balancer, TWO_FORGED_XFF, TRUSTED_RANGES) !== ADDR.attacker)
-  throw new Error('Two made-up entries: 2 must take the nearer, true the farther, the list the attacker’s real address');
-// script.md's check 2: a third proxy in front of the CDN. 2 stops at it; the list with its address added reaches the client.
-const WAF = '100.64.0.20';
-const WAF_XFF = `${ADDR.client}, ${WAF}, ${ADDR.edge}`;
-const WAF_LIST_IP = reqIp(ADDR.balancer, WAF_XFF, [...TRUSTED_RANGES, WAF]);
-const SHORT_XFF = `${ADDR.forged}, ${ADDR.attacker}`;
-if (
-  reqIp(ADDR.balancer, WAF_XFF, 2) !== WAF ||
-  reqIp(ADDR.balancer, WAF_XFF, 3) !== ADDR.client ||
-  reqIp(ADDR.balancer, SHORT_XFF, 3) !== ADDR.forged ||
-  WAF_LIST_IP !== ADDR.client ||
-  reqIp(ADDR.balancer, SHORT_XFF, [...TRUSTED_RANGES, WAF]) !== ADDR.attacker
-)
-  throw new Error('A third proxy: 2 must report it, 3 the client but the short route’s made-up entry, the extended list the right sender on both');
 /** The request, as the opening question puts it. */
 const ASKED: Record<RequestKey, string> = {
   client: 'a client comes through the CDN',

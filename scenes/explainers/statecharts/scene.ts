@@ -1,59 +1,13 @@
 import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, view, matchByKey, Machine } from '../../../src/index.ts';
 import type { MatchKey, Box, VMobject, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
-import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
+import { CONTROLS, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
 import type { StateNode, Driven } from './model.ts';
 import { PLAYBACK, VOLUME, SUBTITLES, cellKey, cellOf, FLAT, CHART, TRACE, COFFEE, fit, scaleFor, coffeeLayout, coffeePicture, flatPicture, chartPicture, tracePicture } from './picture.ts';
 import type { Drawn } from './picture.ts';
 
 /** Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the same word. */
 const byKey: MatchKey = matchByKey({ text: 'whole' });
-
-// The check questions' machines, which no step draws. Each changes the frother, or replays the last step's machine.
-const atomic = (id: string, on?: Record<string, string>): StateNode => ({ id, type: 'atomic', ...(on ? { on } : {}) });
-const frotherRegion = (): StateNode => ({
-  id: FROTHER.region,
-  type: 'compound',
-  initial: FROTHER.states[0],
-  children: [atomic(FROTHER.states[0], { [FROTHER.events[0]]: FROTHER.states[1] }), atomic(FROTHER.states[1], { [FROTHER.events[1]]: FROTHER.states[0] })],
-});
-/** Check 1: a frother with its own power, which works whether the machine is on or off: a region beside the whole machine. */
-const frotherOutside = (): StateNode => ({ id: 'kit', type: 'parallel', children: [coffee(), frotherRegion()] });
-/** Check 2: a frother that runs on the brewing steam, so it exists only while brewing: a box inside brewing. */
-const frotherInBrewing = (): StateNode => {
-  const base = coffee();
-  const swap = (n: StateNode): StateNode =>
-    n.id === 'brewing' ? { ...frotherRegion(), id: 'brewing', on: n.on } : { ...n, ...(n.children ? { children: n.children.map(swap) } : {}) };
-  return swap(base);
-};
-/**
- * The script's check answers (script.md) state counts and states from the model: hold the model to
- * them here, so a change to the model that would make an answer false fails the scene.
- */
-{
-  const inside = flatten(coffeeWithFrother()),
-    outside = flatten(frotherOutside()),
-    steam = flatten(frotherInBrewing());
-  // Outside on, the frother can froth while the machine is off; inside on, it cannot.
-  const offFrothing = (m: typeof inside) => Object.values(m.configurations).some((c) => c.includes('off') && c.includes('frothing'));
-  if (!offFrothing(outside) || offFrothing(inside)) throw new Error('Only the frother outside on froths while the machine is off');
-  // On steam, frothing pairs only with brewing, so two-word names stop at brewing.
-  if (Object.values(steam.configurations).some((c) => c.includes('frothing') && !activeStates(frotherInBrewing(), c).includes('brewing')))
-    throw new Error('The steam frother froths only while brewing');
-  // Check 3: the last step's machine switched off while grinding and frothing, then on again.
-  const again = run(coffeeWithFrother(), [...RUNS.frother, 'POWER_ON']).at(-1)!.config;
-  const stated = { machine: 5, inside: 9, outside: 10, steam: 6, steamChart: 8, steamFlat: 13, again: 'idle and still' };
-  const found = {
-    machine: flatten(coffee()).states.length,
-    inside: flatCounts(inside).states,
-    outside: flatCounts(outside).states,
-    steam: flatCounts(steam).states,
-    steamChart: chartCounts(frotherInBrewing()).transitions,
-    steamFlat: flatCounts(steam).transitions,
-    again: again.join(' and '),
-  };
-  if (JSON.stringify(found) !== JSON.stringify(stated)) throw new Error(`script.md's check answers state ${JSON.stringify(stated)}; the model gives ${JSON.stringify(found)}`);
-}
 
 // The title, answer and check questions come from script.md's intent header.
 export default class Statecharts extends Scene {

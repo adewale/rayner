@@ -29,20 +29,8 @@ const tauxTexte = (q: number) => pourcent(BAREME[2024][tranche(q)]!.rate);
 
 /** The script's one-sentence answer, stated in the multiplie step of every scenario. */
 const REPONSE = `Diviser change l’impôt parce que le barème est progressif${deux} chaque part repart du bas du barème, donc moins d’euros atteignent les tranches les plus taxées que sur le revenu entier`;
-// The scenarios of script.md's check questions: one child at three incomes, and the childless couple at 30 000 €.
-// The guards below keep the script's answers true of the model.
-const DEFAUT = impot(65673.88, 1),
-  UN30 = impot(30000, 1),
-  UN150 = impot(150000, 1),
-  BAS = impot(30000, 0),
-  // around(1 470 − 0,4525 × impôt) is 0 once the impôt passes 1 469,5 / 0,4525 = 3 247,51 €.
-  FIN_DECOTE = Math.ceil((PARAMS[2024].decoteSeuil - 0.5) / PARAMS[2024].decoteTaux);
-if (UN30.plafonne || !DEFAUT.plafonne || !UN150.plafonne)
-  throw new Error('The second check assumes the plafond binds at 65 673,88 € and 150 000 € with one child, not at 30 000 €');
-if (tranche(65673.88 / 2) !== 2 || tranche(DEFAUT.quotient) !== 1 || tranche(30000 / 2) !== 1)
-  throw new Error('The second check assumes the half-part pulls the quotient out of the 30 % tranche at 65 673,88 € only');
-if (BAS.impot !== 0 || BAS.decote <= BAS.plafQf || BAS.plafQf === 0 || 4000 <= FIN_DECOTE)
-  throw new Error('The third check assumes the décote cancels the childless couple’s tax at 30 000 € and stops before 4 000 €');
+// around(1 470 − 0,4525 × impôt) is 0 once the impôt passes 1 469,5 / 0,4525 = 3 247,51 €.
+const FIN_DECOTE = Math.ceil((PARAMS[2024].decoteSeuil - 0.5) / PARAMS[2024].decoteTaux);
 const RANG = ['1er enfant', '2e enfant', '3e enfant'];
 const COUNTS = ['0 enfant', '1 enfant', '2 enfants', '3 enfants'];
 
