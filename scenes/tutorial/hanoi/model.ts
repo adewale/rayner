@@ -1,3 +1,7 @@
+// The Tower of Hanoi's constraints: three pegs, one disk moved at a time from the top of a peg,
+// onto an empty peg or a larger disk. What it leaves out: more than three pegs; and the fewest-move
+// counts are proved by searching every arrangement of three, four and five disks (model.test.ts),
+// so larger towers rest on the pattern solve() follows, not on a search.
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';
 

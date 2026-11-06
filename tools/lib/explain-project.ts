@@ -1,3 +1,4 @@
+import { adoptIntent, readIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
 import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
 import { bindLettering, usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
@@ -180,6 +181,8 @@ export interface Project {
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
   outlineLettering?: LetteringSnapshot;
+  /** What the scene took from its script's intent header, which the page's bundle takes too. */
+  intent?: ReturnType<typeof adoptIntent>;
 }
 
 /**
@@ -274,6 +277,10 @@ export async function collectProject(
 ): Promise<Project> {
   const loaded = await loadScene(input);
   const { file } = loaded;
+  // A script with an intent header is the one home of the title, answer, checks and what the
+  // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own.
+  const scriptIntent = await readIntent(file);
+  const intent = scriptIntent ? adoptIntent(loaded.Scene as { meta?: Record<string, unknown> }, scriptIntent, file) : undefined;
   const outlineRequested = usesOutlineLettering(loaded.Scene);
   const outline = outlineRequested
     ? await prepareOutlineLettering(loaded.Scene, file, loaded.sourceHash, captureLettering, write) : undefined;
@@ -413,7 +420,7 @@ export async function collectProject(
     checkClaimsMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store, loaded.sourceHash);
-    return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };
+    return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}), ...(intent ? { intent } : {}) };
   } finally {
     await builder?.close();
     await naturalBuilder?.close();

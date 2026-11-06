@@ -72,6 +72,8 @@ export interface Chrome {
   setting: (label: string, option: string) => string;
   transcript: string;
   sources: string;
+  /** What the explainer's model is checked against, from its script, first under Sources. */
+  checkedAgainst: (what: string) => string;
   /** Shown when the player cannot start, above the transcript. */
   failed: string;
   /** The quiet label before a step's changes to the state its author watches (`meta.watch`). */
@@ -166,6 +168,7 @@ const EN: Chrome = {
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',
   sources: 'Sources',
+  checkedAgainst: (what) => `The model is checked against: ${what}`,
   failed: 'The interactive player could not start. The transcript is available below.',
   changed: 'What changed',
   yes: wordsFor('en').yes,
@@ -242,6 +245,7 @@ const FR: Chrome = {
   setting: (label, option) => `${label} : ${option}`,
   transcript: 'Transcription',
   sources: 'Sources',
+  checkedAgainst: (what) => `Le modèle est vérifié par\u202f: ${what}`,
   failed: 'Le lecteur interactif n’a pas pu démarrer. La transcription se trouve plus bas.',
   changed: 'Ce qui a changé',
   yes: wordsFor('fr').yes,

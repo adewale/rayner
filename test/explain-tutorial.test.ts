@@ -149,8 +149,8 @@ test('the hand-written captions say what the model does', async () => {
 
 test('the README shows the Hanoi explainer exactly as it is checked in, with package imports', () => {
   const readme = readFileSync('README.md', 'utf8');
-  for (const file of ['model.ts', 'scene.ts']) {
-    const shown = readme.match(new RegExp(`<!-- hanoi/${file.replace('.', '\\.')} -->\\n\`\`\`ts\\n([\\s\\S]*?)\`\`\``))?.[1];
+  for (const file of ['script.md', 'model.ts', 'scene.ts']) {
+    const shown = readme.match(new RegExp(`<!-- hanoi/${file.replace('.', '\\.')} -->\\n\`\`\`(?:ts|md)\\n([\\s\\S]*?)\`\`\``))?.[1];
     assert.ok(shown, `README.md shows hanoi/${file}`);
     assert.equal(shown, packageImports(readFileSync(`scenes/tutorial/hanoi/${file}`, 'utf8')), `README.md's hanoi/${file} is scenes/tutorial/hanoi/${file} with package imports`);
   }

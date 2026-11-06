@@ -13,7 +13,13 @@ This skill says what a finished explainer must achieve and how each part is chec
 
 ## Script first
 
-Write the script the explainer exists to show before you draw anything: the story a reader follows, in plain prose. Explainers grown from a model without one explain their own mechanics and never answer the reader's question. Explainers that open on a definition answer it in a way the reader cannot yet use.
+An explainer is three files, each with one job:
+
+- **`script.md`: the intent, for the author.** What the explainer must achieve: the reader's question, who the reader is, the answer, the condition whose change the reader should be able to predict, what the reader will do themselves, what the model is checked against and what it leaves out, and the questions a reader should be able to answer afterwards. Then the author's reasons in their own words. It is not the explanation; the scene is.
+- **`model.ts`: the system's constraints.** What the system allows, what each action does, and why it refuses one, with its tests against whatever the system can be checked against. Its limits are stated beside the constraints they qualify.
+- **`scene.ts`: how the system is explained.** The steps, their words, which states and events each step shows, the settings and the live step. How one state looks goes in a picture module (`picture.ts`), so the scene reads as the explanation.
+
+Write the script before you draw anything. Explainers grown from a model without one explain their own mechanics and never answer the reader's question. Explainers that open on a definition answer it in a way the reader cannot yet use.
 
 3Blue1Brown's Summer of Math Exposition judged thousands of entries on four criteria ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice to entrants adds the craft behind them ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). Write the script against them:
 
@@ -30,11 +36,27 @@ Write the script the explainer exists to show before you draw anything: the stor
 The answer still comes early, as the payoff of the first concrete problem, within the first few steps: the reader should know what the explainer is about before the details, and recognise the definition when it arrives rather than be handed it cold.
 
 - **Check questions.** Ask the reader to explain the mechanism or transfer it to an unseen condition. Avoid definitions alone and recall of seeded dates or labels. An expert may answer without the lesson; that does not invalidate the exercise. Evidence of learning needs newcomers, their prior knowledge, and their reasoning before and after reading.
-- **Test it alone.** Read the script back as a newcomer would: does each step make the next one feel inevitable, and could they answer the check questions?
+- **Test it alone.** Read the scene's steps back as a newcomer would: does each make the next feel inevitable, and could they answer the script's check questions?
 
-Keep the script beside the scene as `script.md` (`rayner init` starts one). It is the explanation addressed to the reader: read its paragraphs consecutively, without implementation notes, to judge whether the reasoning holds. Questions to the reader belong in that prose; directions such as "ask the reader" and "draw a chart" do not. There is no word quota or required outline.
+The script starts with an intent header, which Rayner reads: its `#` heading is the reader's question and the page's title, its labelled lines say the rest, and `## Check yourself` lists each question with its answer indented under it.
 
-Put the one-sentence answer in `meta.answer`, which `rayner check` requires some step to state, and the ending questions and their disclosed answers in `meta.checks`, not in the script. An optional `notes.md` holds non-obvious construction decisions, source interpretation and model limits for the next author; skip it when it would be empty, and never copy test assertions, a step inventory or revision history into it. The rubric's [working documents](../../docs/EXPLAINER-RUBRIC.md#working-documents) says where each fact lives.
+```md
+# How few moves can carry a tower to another peg?
+
+- **Reader:** knows the rules, has never asked why the answer is seven.
+- **Answer:** the smaller tower moves twice and the largest disk once.
+- **Changed condition:** four disks: 15 moves, and disk 1's first move flips from C to B.
+- **Reader's own work:** predict the count; at the end, try to beat seven.
+- **Checked against:** a search of every arrangement of three, four and five disks.
+- **Leaves out:** more than three pegs.
+
+## Check yourself
+
+1. How few moves carry five disks?
+   31: the four-disk tower moves twice, and disk 5 once.
+```
+
+The header is the one home of the title, the answer (which `rayner check` requires some step to state), the check questions (which the player asks after the last step) and what the model is checked against (which the page shows under Sources); a scene that declares one of them too is refused. **Answer** and **Checked against** are required. Below the header the script is the author's own prose: why this example, what the reader should take away, what was tried and dropped. There is no word quota, and it does not have to read as the page reads. `scenes/tutorial/hanoi` is written this way; the collection's other explainers still have scripts written as reader prose, with their answer and checks in `static meta`, and `notes.md` beside them, until they are migrated.
 
 Before drawing, check the causal links: what observation needs explaining, what rule makes the result follow, and what changed condition would alter it? Explain a prerequisite or name it as an input. A chart built from a rule does not derive that rule; a trusted calculation does not explain its mechanism. Use a second viewpoint when the current one cannot show the relationship the prose asks the reader to infer. The script decides what the explainer says; the model and its tests decide whether it is true.
 
@@ -51,7 +73,7 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | Names its answer within the first third of the steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
 | Spends every step on a new inference: no step that an earlier one already made, and no walkthrough that derives an answer an opening step already stated | Reading it against the rubric's economy criterion. When you add an opening that states the answer, delete or repurpose the later step that derives it |
 | Fits each step on a phone: the point in the caption's first sentence, about 80 words at most, and `meta.answer` about 20 | Reading it; `rayner describe` prints every caption to count |
-| Ends on the practical boundary or the strongest comparison | Reading it. A list of what the model leaves out, or a second topic, goes in `notes.md` or a detail step |
+| Ends on the practical boundary or the strongest comparison | Reading it. A list of what the model leaves out goes in the script's **Leaves out** line and the model; a second topic goes in a detail step |
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` for desktop and conservative phone estimates; `rayner review` for actual served geometry |
 | Works as served: every step from a fresh link, every scenario, phone and desktop | `rayner review` |
@@ -151,7 +173,7 @@ These follow the statechart skill that checks a TLA+ model and draws it for the 
 - **A sweeping sentence is a rule; check it or narrow it.** A sentence with "every", "never", "only", "always" or "whenever" claims more than the scenarios on screen. Back it with `meta.claims: [{ says, test }]`: `says` is a phrase of the sentence and `test` names the test that holds it, as `"test/<file>.test.ts: <part of its name>"`. Write the test if there is none, and make it fail first. When the sentence speaks only of what its own step draws ("every round in the strip"), mark it `{ says, shown: true }` instead. Otherwise narrow the sentence until it says only what the explainer shows. Never weaken a test to make a claim hold. `rayner check` lints declared phrases and evidence references, and lists unlinked scope sentences. Test paths are relative to the directory where you invoke the command; static `node:test` names are checked, but tests are not run and their assertions are not verified. Read the referenced test and run it yourself. The scan covers step prose, not stage labels or check answers.
 - **Speak the reader's words.** A title, line or caption names what the reader sees, not the code behind it. A code name (`int()`, `skipUntil`, `A->C#0`) belongs only where the reader needs it, introduced where it first appears. `rayner check` lists each one with the step that first uses it.
 - **Simplify without hiding an outcome.** When a picture or a story is too busy, coarsen labels first, then leave out steps, but keep every scenario a setting offers reachable, never merge two scenarios that end differently, and never show part of a comparison. Record a consequential omission in `notes.md`; state it in the script too when the reader needs it to interpret the result.
-- **Say what the model leaves out.** Keep material model assumptions and unshown scenarios in `notes.md`, and keep every caption inside those limits. End the reader's explanation with its practical boundary, rather than an inventory of implementation omissions: the token-bucket page's "accepted at every rate" held at the three rates it offered and failed at one it never built (`fork`).
+- **Say what the model leaves out.** State the model's assumptions beside the constraints they qualify, in `model.ts`, and the scope the explainer intends in the script's **Leaves out** line; keep every caption inside those limits. End the reader's explanation with its practical boundary, rather than an inventory of implementation omissions: the token-bucket page's "accepted at every rate" held at the three rates it offered and failed at one it never built (`fork`).
 - **Doubt the model before the source.** Replay a claim against the real thing where you can, one step at a time. When they disagree, the model is wrong until shown otherwise. A claim that rests on the explainer's own model and nothing outside it (a hand model, a perception claim) says so in its sentence.
 
 ## Engine constraints

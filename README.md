@@ -52,14 +52,47 @@ npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 
 ## A complete explainer
 
-This is the whole of [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](test/explain-tutorial.test.ts) fails if the code below differs from those files.
+An explainer is three files with one job each. The **script** states the intent, for the author. The **model** expresses the system's constraints. The **scene** expresses how the system is explained. This is [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](test/explain-tutorial.test.ts) fails if the files below differ from those in the repository.
 
 ![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](docs/images/hanoi-steps.png)
 
-The model is the rules and nothing else. A refused move carries the reason the reader will see:
+The script's header is what the explainer must achieve. Rayner reads it: the question is the page's title, some step must state the answer, the player asks the check questions, and the page says what the model is checked against. Below the header is the author's own reasoning:
+
+<!-- hanoi/script.md -->
+```md
+# How few moves can carry a tower to another peg?
+
+- **Reader:** knows the rules of the puzzle, or can read them in one sentence, and has never asked why the answer is seven.
+- **Answer:** the smaller tower moves twice and the largest disk once.
+- **Changed condition:** four disks. The count becomes 15, and disk 1's first move flips from C to B, which shows the plan nesting inside itself.
+- **Reader's own work:** predict the count first; at the end, carry the tower from the full stack on A and try to beat seven.
+- **Checked against:** a search of every arrangement of three, four and five disks, in the model's own tests; no outside system.
+- **Leaves out:** more than three pegs, and towers of more than five disks, which rest on the pattern.
+
+## Check yourself
+
+1. Suppose the tower must end on B instead. Where must disks 1 and 2 be when disk 3 moves?
+   On C: disk 3 needs B empty to land there, so the smaller tower waits on the other peg.
+2. How few moves carry five disks, and where does disk 1 go first?
+   31: the four-disk tower moves twice, 15 moves each time, and disk 5 once. Disk 1 goes first to C, as it does for three disks.
+
+## Why this explainer
+
+Most people meet the Tower of Hanoi as a puzzle about patience and learn the answer, seven, as a fact. The point of this explainer is that seven is not a fact to memorise: it falls out of one observation about the largest disk. It cannot move until everything above it is out of the way, and the only place to put "everything above it" is the spare peg. That is the same puzzle one size smaller, and once it is solved it has to be solved again to put the tower back. Three, one, three.
+
+The four-disk setting is there to stop the reader treating that as a trick for three disks. Fifteen is seven, one, seven; and the first move flipping to B is the plan visibly nesting, which a reader who has only memorised moves cannot explain.
+
+The live ending matters because a reader who believes seven is the minimum should be able to try to beat it and fail, with the rules refusing each illegal move and saying why.
+```
+
+The model is the rules: what a move does, and why the rules refuse one, in the words the reader will see. Its [test](scenes/tutorial/hanoi/model.test.ts) searches every arrangement, confirms that no route beats 7 moves for three disks, 15 for four or 31 for five, and checks that `solve()` takes that many:
 
 <!-- hanoi/model.ts -->
 ```ts
+// The Tower of Hanoi's constraints: three pegs, one disk moved at a time from the top of a peg,
+// onto an empty peg or a larger disk. What it leaves out: more than three pegs; and the fewest-move
+// counts are proved by searching every arrangement of three, four and five disks (model.test.ts),
+// so larger towers rest on the pattern solve() follows, not on a search.
 import { refuse } from 'rayner';
 import type { Refusal } from 'rayner';
 
@@ -90,70 +123,42 @@ export function solve(n: number, from = 'A', to = 'C', spare = 'B'): Move[] {
 export const finished = (t: Tower, n: number) => t.pegs[2]!.length === n;
 ```
 
-Its [test](scenes/tutorial/hanoi/model.test.ts) searches every arrangement, confirms that no route beats 7 moves for three disks, 15 for four or 31 for five, and checks that `solve()` takes that many.
-
-The scene draws each arrangement from the model's state, replays `solve()` across four steps, and leaves the last step live: once the tower is on C, the reader’s own moves start again from A:
+The scene is the explanation: each step's words, and which moves it plays. How one arrangement looks is in [`picture.ts`](scenes/tutorial/hanoi/picture.ts). The last step is live: once the tower is on C, the reader's own moves start again from A:
 
 <!-- hanoi/scene.ts -->
 ```ts
-import { Scene, Group, Rectangle, Text, Machine, view, lerpColor } from 'rayner';
+import { Scene, Machine, view } from 'rayner';
 import { stage, settingsOf } from 'rayner/explain';
-import { keyed } from 'rayner/drawing';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
+import { drawTower, sayTower } from './picture.ts';
 
-const say = (t: Tower) => t.pegs.map((p, i) => `${'ABC'[i]}: ${p.join(', ') || 'empty'}`).join('; ');
-
+// The title, answer and check questions come from script.md's intent header.
 export default class Hanoi extends Scene<Tower> {
-  static meta = {
-    id: 'hanoi',
-    title: 'How few moves can carry a tower to another peg?',
-    sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'],
-    answer: 'the smaller tower moves twice and the largest disk once',
-    checks: [
-      { question: 'Suppose the tower must end on B instead. Where must disks 1 and 2 be when disk 3 moves?', answer: 'On C: disk 3 needs B empty to land there, so the smaller tower waits on the other peg.' },
-      { question: 'How few moves carry five disks, and where does disk 1 go first?', answer: '31: the four-disk tower moves twice, 15 moves each time, and disk 5 once. Disk 1 goes first to C, as it does for three disks.' },
-    ],
-  };
+  static meta = { id: 'hanoi', sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] };
   static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
   override state = start(3);
 
   override async construct() {
     const n = Number(settingsOf(this).disks), moves = solve(n), few = (moves.length - 1) / 2;
-    const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`;
+    const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`, first = moves[0]!.at(-1);
     this.state = start(n);
     const s = stage(this, { headingSize: 0.54 });
-    const { ink, paper } = s.palette;
-    // A floor wider than any arrangement, so the frame holds still; then each peg, its letter, and its
-    // disks bottom first. A disk keeps its key, so a move slides it.
-    const floor = () => keyed(new Rectangle({ width: 10, height: 0.08, stroke: 'none', fill: ink }).moveTo([0, -1.6]), 'floor');
-    const draw = ({ pegs }: Tower) => new Group(floor(), ...pegs.flatMap((disks, p) => {
-      const x = (p - 1) * 3.3;
-      return [
-        keyed(new Rectangle({ width: 0.12, height: 0.55 * n + 0.7, stroke: 'none', fill: ink }).moveTo([x, -1.6 + (0.55 * n + 0.7) / 2]), `peg:${p}`),
-        keyed(new Text('ABC'[p]!, { fontSize: 0.5, color: ink }).moveTo([x, -2.2]), `letter:${p}`),
-        ...disks.flatMap((d, i) => [
-          keyed(new Rectangle({ width: 0.6 + 0.6 * d, height: 0.5, stroke: ink, strokeWidth: 0.04, fill: lerpColor(paper, s.emphasis, 0.25 + 0.15 * d) })
-            .moveTo([x, -1.3 + 0.55 * i]), `disk:${d}`),
-          keyed(new Text(String(d), { fontSize: 0.42, color: ink }).moveTo([x, -1.3 + 0.55 * i]), `number:${d}`),
-        ]),
-      ];
-    }));
-    const tower = view(this, draw);
+    const tower = view(this, (t: Tower) => drawTower(t, n, { ...s.palette, emphasis: s.emphasis }));
     // Once the tower is on C the story ends, so the reader's own moves start again from A.
     const machine = new Machine<Tower, Move>(this, { start: start(n), events: MOVES, next, views: [tower],
       end: (t) => (finished(t, n) ? 'the tower is on C' : undefined) });
 
     await this.step('start', { title: 'Carry the tower from A to C', line: 'Predict: how few moves can do it?',
       caption: `Move one disk at a time, from the top of a peg onto an empty peg or a larger disk. How few moves carry all ${n} disks from A to C? There is a way to know without trying them all.` });
-    await s.enter(tower, { describe: () => `Pegs, bottom disk first. ${say(this.state)}` });
+    await s.enter(tower, { describe: () => sayTower(this.state) });
     s.keepOpening(tower);
 
     await this.step('clear', { title: `Disk ${n} needs the others out of the way`, line: 'So the smaller tower moves twice and the largest disk once.',
       caption: `Disk ${n} cannot move while a disk sits on it, and it needs C empty to land there, because it is the largest disk. So ${smaller} first stack on B, the spare peg: the same puzzle one size smaller, solved in ${few} moves. They will have to come back on top afterwards.` });
     await this.play(machine.replay(moves.slice(0, few)));
 
-    await this.step('largest', { title: `Disk ${n} moves once`, line: `${few + 1} moves so far. Disk 1 went first to ${moves[0]!.at(-1)}.`,
-      caption: `Disk ${n} goes straight to the empty C, and will not need to move again. Look back at the first move: disk 1 went to ${moves[0]!.at(-1)}. Each smaller tower inside the plan heads for the other peg from the tower around it, so with three disks disk 1 starts toward C, and with four toward B.` });
+    await this.step('largest', { title: `Disk ${n} moves once`, line: `${few + 1} moves so far. Disk 1 went first to ${first}.`,
+      caption: `Disk ${n} goes straight to the empty C, and will not need to move again. Look back at the first move: disk 1 went to ${first}. Each smaller tower inside the plan heads for the other peg from the tower around it, so with three disks disk 1 starts toward C, and with four toward B.` });
     await this.play(machine.replay([moves[few]!]));
 
     await this.step('solved', { title: `Answer: ${moves.length} moves`, line: `${few} + 1 + ${few}: the smaller tower twice, the largest disk once.`,
@@ -163,7 +168,7 @@ export default class Hanoi extends Scene<Tower> {
 }
 ```
 
-The [script](scenes/tutorial/hanoi/script.md) came first, and the steps follow its paragraphs. From a clone of this repository, `npm run rayner -- preview scenes/tutorial/hanoi/scene.ts --watch` serves it.
+From a clone of this repository, `npm run rayner -- preview scenes/tutorial/hanoi/scene.ts --watch` serves it.
 
 ## What `rayner check` and `rayner review` catch
 
@@ -188,9 +193,9 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 
 ## The authoring loop
 
-1. **Script.** `script.md` states the reader’s question, the one-sentence answer the explanation must reach (`meta.answer`), and the questions a reader should be able to answer afterwards (`meta.checks`).
-2. **Model.** `model.ts` computes what the pictures will show, and `model.test.ts` compares it with the source: a published test vector, a reference implementation or the program itself.
-3. **Scene.** `scene.ts` names the steps and draws each one from the model’s state.
+1. **Script.** `script.md` states the intent: the reader’s question, the answer the explanation must reach, the condition whose change the reader should predict, what the model is checked against, and the questions a reader should be able to answer afterwards. Rayner reads its header and holds the scene to it.
+2. **Model.** `model.ts` expresses the system’s constraints, and `model.test.ts` compares it with whatever the system can be checked against: a published test vector, a reference implementation, the program itself, or an exhaustive search.
+3. **Scene.** `scene.ts` explains the system: its steps, their words, and which states and events each shows. A picture module draws one state.
 4. **Check and review.** `rayner check` and `rayner review`, [above](#what-rayner-check-and-rayner-review-catch).
 5. **Publish.** `rayner review --out` saves the exact page it reviewed.
 

@@ -84,6 +84,8 @@ export interface ExplainerDescription {
   answer?: string;
   /** The questions a reader should be able to answer afterwards, with answers (`meta.checks`). */
   checks?: { question: string; answer: string }[];
+  /** What the model is checked against, from the script's intent header. */
+  checkedAgainst?: string;
   scenarios: ScenarioDescription[];
 }
 export interface DescribeOptions {
@@ -112,6 +114,7 @@ export async function describeExplainer(Scene: ExplainerClass, options: Describe
     title: meta.title ?? meta.id ?? '',
     lang: meta.lang ?? 'en',
     sources: [...(meta.sources ?? [])],
+    ...((meta as { checkedAgainst?: string }).checkedAgainst ? { checkedAgainst: (meta as { checkedAgainst?: string }).checkedAgainst } : {}),
     settings: (Scene.settings ?? []).map((s) => ({ ...s, options: s.options.map((o) => ({ ...o })) })),
     ...(meta.answer ? { answer: meta.answer } : {}),
     ...(meta.checks?.length ? { checks: meta.checks.map((c) => ({ question: c.question, answer: c.answer })) } : {}),
