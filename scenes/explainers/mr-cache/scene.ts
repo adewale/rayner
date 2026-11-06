@@ -140,7 +140,7 @@ export default class CacheMRExplainer extends Scene {
     await this.play(diff, new Transform(shown.rect, merged.rect, { replace: true, runTime: 1.6 }));
     held = after;
     // What each line did, from the transform's own plan.
-    const { same, changed, removed, added } = diff.plan;
+    const { changed, removed, added } = diff.plan;
     const bars = new Group(
       ...changed.map(([, j]) => lineBar(after, merged.rect, j, CHANGED)),
       ...added.map((j) => lineBar(after, merged.rect, j, ADDED)),

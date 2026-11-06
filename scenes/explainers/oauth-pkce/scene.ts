@@ -1,4 +1,4 @@
-import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
+import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn, Machine, view } from '../../../src/index.ts';
 import type { Animation, SceneState, Choreography, Transition, ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from './model.ts';

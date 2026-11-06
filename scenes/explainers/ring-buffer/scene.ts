@@ -1,19 +1,14 @@
 import {
   Scene,
-  SetState,
   AnimationGroup,
   Succession,
   Text,
   Group,
   FadeIn,
-  FadeOut,
-  Create,
   Transform,
-  TransformFromCopy,
   Follow,
   StateReadout,
   Machine,
-  choreograph,
   view,
   linear,
 } from '../../../src/index.ts';
@@ -24,7 +19,6 @@ import type { RingState, RingEvent } from './model.ts';
 import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
 import type { Ink } from './picture.ts';
 
-type Snapshot = ReturnType<typeof ringStory>[number]['result'];
 // RingBuffer from ./model.ts, without the `this.`s.
 const CODE = [
   'push(v) {',
@@ -82,7 +76,6 @@ export default class RingBufferExplainer extends Scene {
 
   override async construct() {
     const which = settingsOf(this).operations!,
-      events = ringStory(which),
       s = stage(this, { headingSize: 0.6, style: 'dusk' }),
       ink = s.palette.ink,
       soft = s.soft,

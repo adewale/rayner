@@ -170,7 +170,9 @@
         "reason": "used"
       },
       "choreograph": {
-        "reason": "used",
+        "reason": "taught",
+        "guide": "docs/MACHINES.md#refused-events-bounds-and-authored-transitions",
+        "test": "test/choreograph.test.ts",
         "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
       },
       "diffLines": {
@@ -674,13 +676,12 @@
     {
       "explaining": "A data structure changing step by step",
       "start": "`ring-buffer`",
-      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with `choreograph`, `Follow` for the pointers",
+      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with the transition's `t.choreograph`, `Follow` for the pointers",
       "scenes": [
         "ring-buffer"
       ],
       "names": [
         "Machine",
-        "choreograph",
         "Follow"
       ]
     },

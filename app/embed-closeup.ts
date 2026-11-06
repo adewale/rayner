@@ -21,7 +21,6 @@
  * close-up's zoom then multiplies the camera's, and Whole picture is the author's frame.
  */
 import type { Box, Mobject, Scene, SceneClass, Sink } from '../src/index.ts';
-import { Text } from '../src/index.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
 import { emphasisOf, openingOf } from '../explain/look.ts';
 import { isHeading } from '../explain/stage.ts';

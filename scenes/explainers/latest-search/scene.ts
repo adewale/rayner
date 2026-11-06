@@ -1,4 +1,4 @@
-import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view, rushInto } from '../../../src/index.ts';
+import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, view, rushInto } from '../../../src/index.ts';
 import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
