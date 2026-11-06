@@ -115,9 +115,9 @@ export default class QuotientFamilialExplainer extends Scene {
     claims: [
       {
         says: 'moins d’euros atteignent les tranches les plus taxées que sur le revenu entier',
-        test: 'test/explain-quotient-familial.test.ts: fewer euros reach each tranche',
+        test: 'model.test.ts: fewer euros reach each tranche',
       },
-      { says: 'ne peuvent réduire l’impôt de plus de', test: 'test/explain-quotient-familial.test.ts: each year’s cap bounds' },
+      { says: 'ne peuvent réduire l’impôt de plus de', test: 'model.test.ts: each year’s cap bounds' },
     ],
   };
   static settings = [

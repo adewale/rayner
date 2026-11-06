@@ -59,11 +59,11 @@ export default class PeriodicGroupsExplainer extends Scene {
     ],
     // Sentences that speak for all 118 elements, not only the five scenarios, and the test that holds each.
     claims: [
-      { says: 'every full run is 2, 6, 10 or 14 long', test: 'test/explain-periodic-groups.test.ts: the filling rule fills runs of 2, 6, 10 and 14' },
-      { says: 'every jump down step 1’s column is one of those row lengths', test: 'test/explain-periodic-groups.test.ts: down a group, each jump in atomic number is one whole period' },
-      { says: 'Slide every run of 6 to the right edge and every run of 10 into the middle', test: 'test/explain-periodic-groups.test.ts: stack into the s, d, p and f columns, helium apart' },
-      { says: 'Every group 1 element ends in one s electron', test: 'test/explain-periodic-groups.test.ts: every group 1 element ends in one s electron' },
-      { says: 'Every halogen ends in two s and five p electrons', test: 'test/explain-periodic-groups.test.ts: every halogen in two s and five p electrons' },
+      { says: 'every full run is 2, 6, 10 or 14 long', test: 'model.test.ts: the filling rule fills runs of 2, 6, 10 and 14' },
+      { says: 'every jump down step 1’s column is one of those row lengths', test: 'model.test.ts: down a group, each jump in atomic number is one whole period' },
+      { says: 'Slide every run of 6 to the right edge and every run of 10 into the middle', test: 'model.test.ts: stack into the s, d, p and f columns, helium apart' },
+      { says: 'Every group 1 element ends in one s electron', test: 'model.test.ts: every group 1 element ends in one s electron' },
+      { says: 'Every halogen ends in two s and five p electrons', test: 'model.test.ts: every halogen in two s and five p electrons' },
       { says: 'Each badge counts the electrons after the noble gas that closes the row above', shown: true as const },
     ],
   };

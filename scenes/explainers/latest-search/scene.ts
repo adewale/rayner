@@ -18,9 +18,9 @@ export default class LatestSearchExplainer extends Scene {
     ],
     // Three requests, finishing newest first: only the newest ticket publishes, and the two older ones stay stale.
     claims: [
-      { says: 'publish only the latest', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
-      { says: 'publish it only if its ticket is still the latest', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
-      { says: 'makes every older ticket stale', test: 'test/explain-latest-search.test.ts: tickets distinguish repeated query text' },
+      { says: 'publish only the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
+      { says: 'publish it only if its ticket is still the latest', test: 'model.test.ts: tickets distinguish repeated query text' },
+      { says: 'makes every older ticket stale', test: 'model.test.ts: tickets distinguish repeated query text' },
     ],
   };
   static settings = [

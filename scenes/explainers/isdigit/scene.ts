@@ -65,11 +65,11 @@ export default class IsDigitExplainer extends Scene {
       { says: 'int() and isdecimal() accept only the first four', shown: true as const },
       { says: 'has a value only in field 8', shown: true as const },
       { says: 'fills only', shown: true as const },
-      { says: 'is in the innermost box, so every check passes it', test: 'test/explain-isdigit.test.ts: the model gives CPython 3.15.1' },
-      { says: 'A scan of every code point in CPython 3.15.1', test: 'test/explain-isdigit.test.ts: the model gives CPython 3.15.1' },
-      { says: 'Every decimal also has a digit value, and every digit has a numeric value', test: 'test/explain-isdigit.test.ts: the three predicates nest, whatever the row' },
-      { says: 'The innermost box holds the only single characters int() accepts', test: 'test/explain-isdigit.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
-      { says: 'For one character, only isdecimal() matches int()', test: 'test/explain-isdigit.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
+      { says: 'is in the innermost box, so every check passes it', test: 'model.test.ts: the model gives CPython 3.15.1' },
+      { says: 'A scan of every code point in CPython 3.15.1', test: 'model.test.ts: the model gives CPython 3.15.1' },
+      { says: 'Every decimal also has a digit value, and every digit has a numeric value', test: 'model.test.ts: the three predicates nest, whatever the row' },
+      { says: 'The innermost box holds the only single characters int() accepts', test: 'model.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
+      { says: 'For one character, only isdecimal() matches int()', test: 'model.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
     ],
   };
   static settings = [

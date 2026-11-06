@@ -44,9 +44,9 @@ export default class SendSyncExplainer extends Scene {
     // The sentences that reach beyond the scenario on screen, and what holds them. The rule table test reads the
     // impl lines; the evaluator test holds the model to rustc 1.99.1's answers.
     claims: [
-      { says: 'Arc<T> is Send only when T is both Send and Sync', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
-      { says: 'Mutex<T> needs only T: Send', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
-      { says: 'a move closure that owns x is Send only if', test: 'test/explain-send-sync.test.ts: the evaluator gives rustc’s answers' },
+      { says: 'Arc<T> is Send only when T is both Send and Sync', test: 'model.test.ts: the rule table is the standard library’s impl lines' },
+      { says: 'Mutex<T> needs only T: Send', test: 'model.test.ts: the rule table is the standard library’s impl lines' },
+      { says: 'a move closure that owns x is Send only if', test: 'model.test.ts: the evaluator gives rustc’s answers' },
       { says: 'every combination occurs', shown: true as const },
       // The quadrant's name, as the chart labels it.
       { says: '“Send only”', shown: true as const },

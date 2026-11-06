@@ -3,8 +3,8 @@ import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import assert from 'node:assert/strict';
 import { activeStates, RUNS } from './model.ts';
-import { CHARTS, FIXTURE } from '../../../tools/oracle/statecharts.ts';
-import type { Expected } from '../../../tools/oracle/statecharts.ts';
+import { CHARTS, FIXTURE } from './oracle/statecharts.ts';
+import type { Expected } from './oracle/statecharts.ts';
 
 /**
  * The states the scene reports come from its own model run; here they are checked against XState's run
