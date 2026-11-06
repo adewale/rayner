@@ -52,9 +52,9 @@ npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 
 ## A complete explainer
 
-This is the whole of [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](test/explain-tutorial.test.ts) fails if the code below differs from those files.
+This is the whole of [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](https://github.com/adewale/rayner/blob/main/test/explain-tutorial.test.ts) fails if the code below differs from those files.
 
-![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](docs/images/hanoi-steps.png)
+![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/hanoi-steps.png)
 
 The model is the rules and nothing else. A refused move carries the reason the reader will see:
 
