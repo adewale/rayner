@@ -4,7 +4,7 @@ import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SHADES, cssMap, inside, rows, summarize, swatch } from './model.ts';
+import { SHADES, rows, summarize } from './model.ts';
 import type { Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
@@ -20,29 +20,6 @@ const STYLE = 'hand-drawn';
 type Screen = 'srgb' | 'p3';
 
 const pct = (v: number) => percent(v, { of: 100 });
-
-const deg = (h: number) => `${h.toFixed(1)}°`;
-
-// The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
-// at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
-const OPEN = summarize('500');
-const OPENING = swatch(OPEN.mostOfSrgb.family, '500');
-const OPEN_MAPPED = cssMap(OPENING.L, OPENING.C, OPENING.h, 'srgb');
-const OPEN_ROW = rows('500').find((r) => r.family === OPENING.family)!;
-if (inside(OPENING.L, OPEN_ROW.shown, OPENING.h, 'srgb')) throw new Error('The mapped chroma must not fit at the written lightness and hue');
-// Check 2: the raw and relative leaders differ at shade 500.
-const RAW = rows('500').find((r) => r.family === OPEN.furthest.family)!;
-if (OPEN.furthest.family === OPEN.mostOfSrgb.family || RAW.srgb <= OPEN_ROW.srgb) throw new Error('The raw leader must sit on a higher edge than the relative one');
-// Check 3: a family that fits at 500 need not fit at 700.
-const ROOMY = OPEN.leastOfSrgb.family;
-const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
-if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
-// The script's check answers (script.md) quote these values; hold the model to the text they state.
-{
-  const stated = 'cyan|71.5|215.221|0.130|0.126|72.2|217.7°|lime|0.024|0.209|pink|90.4%|105.6%';
-  const found = [OPENING.family, (OPENING.L * 100).toFixed(1), OPENING.h, OPEN_ROW.shown.toFixed(3), OPEN_ROW.srgb.toFixed(3), (OPEN_MAPPED.L * 100).toFixed(1), deg(OPEN_MAPPED.h), RAW.family, OPEN.furthest.value.toFixed(3), RAW.srgb.toFixed(3), ROOMY, pct(OPEN.leastOfSrgb.value), pct(ROOMY_700.ofSrgb)].join('|');
-  if (found !== stated) throw new Error(`script.md's check answers state ${stated}; the model gives ${found}`);
-}
 
 // The title, answer and check questions come from script.md's intent header.
 export default class TailwindGamutExplainer extends Scene {

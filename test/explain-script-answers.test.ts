@@ -13,7 +13,7 @@ import { SAMPLE_FEED } from '../scenes/explainers/gtfs/feed.ts';
 import { readFeed, tripsOn } from '../scenes/explainers/gtfs/model.ts';
 import * as ical from '../scenes/explainers/ical-recurrence/model.ts';
 import type { VEvent } from '../scenes/explainers/ical-recurrence/model.ts';
-import { CHARS, SPACE, predicates, rewrite } from '../scenes/explainers/isdigit/model.ts';
+import { CHARS, LINEUP, SPACE, intOf, predicates, rewrite } from '../scenes/explainers/isdigit/model.ts';
 import { exec } from '../scenes/explainers/just-bash/model.ts';
 import type { Shell } from '../scenes/explainers/just-bash/model.ts';
 import { oddsAfter } from '../scenes/explainers/monty-hall/model.ts';
@@ -82,6 +82,8 @@ test('bloom-filter: the script’s check answers are the filter’s verdicts aft
     for (const i of locations('dog', size)) row[i] = 0;
     return { size, cat: membership(row, 'cat'), shared: locations('dog', size).filter((i) => locations('cat', size).includes(i)) };
   });
+  // The first answer's words name eel's bits: 23 now from eel, and eel set bit 20.
+  assert.equal(listed(EEL.at), '23, 20 and 1');
   const checks = checksOf('bloom-filter', 2);
   assert.equal(checks[0]!.question, `In the 32-bit filter, someone also takes eel, whose hashes are ${listed(EEL.at)}. What does the filter now say about wolf, and about owl?`);
   assert.equal(
@@ -172,6 +174,15 @@ test('ext4-space: the script’s answer and check answers are the layout model�
     BIG = space(4 * TiB, DEFAULT_RESERVE),
     T5 = space(TiB, DEFAULT_RESERVE),
     T0 = space(TiB, 0);
+  // The answers' words: 2 GiB doubles the journal and its reserve falls short; 4 TiB is the first big disk,
+  // with less metadata than the disk 128 MiB smaller; -m 0 frees exactly the root reserve.
+  assert.equal(TWO.layout.journal, 2 * ONE.layout.journal);
+  assert.ok(TWO.root < TWO.layout.metadata);
+  assert.equal(BELOW.layout.type, 'default');
+  assert.equal(BIG.layout.type, 'big');
+  assert.ok(BIG.layout.metadata < BELOW.layout.metadata);
+  assert.equal(T0.users - T5.users, T5.root);
+  assert.equal(T0.layout.metadata, T5.layout.metadata);
   const checks = checksOf('ext4-space', 3);
   assert.equal(
     checks[0]!.question,
@@ -216,13 +227,20 @@ test('gtfs: the script’s check answers are the trips the model runs on the sam
 });
 
 test('ical-recurrence: the script’s check answers are the series the model expands with the fifth meeting skipped, and Bob’s copy', () => {
-  const { DTSTART, GUEST_MEETING, INVITED, MASTER, counts, expand, guestCopy, long, occurrences, parseRule } = ical;
+  const { DTSTART, GUEST, GUEST_MEETING, INVITED, MASTER, counts, deliver, expand, guestCopy, long, messageFor, occurrences, parseRule } = ical;
   const plural = (n: number, word: string) => `${numberWord(n)} ${word}${n === 1 ? '' : 's'}`;
   const RULE_STARTS = occurrences(DTSTART, parseRule(MASTER.rrules[0]!));
   const FIFTH = RULE_STARTS[4]!;
   const SKIP_FIFTH: VEvent[] = [{ ...MASTER, exdates: [FIFTH] }, ...INVITED.slice(1)];
   const FIFTH_LEFT = expand(SKIP_FIFTH);
   const BOB = counts(guestCopy('skip').copy);
+  // The answers' words: the last meeting is still the rule's sixth start; the update Bob is sent keeps his
+  // meeting uncancelled; his copy has no RRULE.
+  assert.equal(FIFTH_LEFT.at(-1)!.start, RULE_STARTS.at(-1));
+  const message = messageFor(INVITED, SKIP_FIFTH, GUEST);
+  const bobAfter = message ? (deliver(message, guestCopy('none').copy) ?? []) : [];
+  assert.deepEqual(expand(bobAfter).map((m) => [m.start, m.cancelled]), [[GUEST_MEETING, false]]);
+  assert.equal(BOB.rrules, 0);
   const checks = checksOf('ical-recurrence', 3);
   assert.equal(
     checks[0]!.question,
@@ -242,6 +260,11 @@ test('isdigit: the script’s answer and check answers are the model’s predica
   const TF = (b: boolean) => (b ? 'True' : 'False');
   const SPACED = rewrite([SPACE, '7']),
     FLOATS = { arabic: rewrite([CHARS.arabic, '.5']), super: rewrite(['2.', CHARS.super]) };
+  // The answer's claim: of the lineup, isdigit() passes and int() rejects ² alone.
+  assert.deepEqual(
+    LINEUP.filter((k) => predicates(CHARS[k]).isdigit && !('value' in intOf(CHARS[k]))),
+    ['super'],
+  );
   assert.equal(script('isdigit').answer, `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`);
   const checks = checksOf('isdigit', 2);
   assert.equal(
@@ -352,6 +375,14 @@ test('quotient-familial: the script’s answer and check answers are the impôt 
     BAS = impot(30000, 0),
     PLAT = BAREME[2024][1]!.rate,
     FIN_DECOTE = Math.ceil((PARAMS[2024].decoteSeuil - 0.5) / PARAMS[2024].decoteTaux);
+  // The answers' words: the plafond binds at 65 673,88 € and 150 000 € with one child but not at 30 000 €;
+  // the half-part pulls the quotient out of the 30 % tranche at 65 673,88 € only; the décote cancels the
+  // childless couple's tax at 30 000 € and stops before 4 000 €.
+  assert.deepEqual([UN30.plafonne, DEFAUT.plafonne, UN150.plafonne], [false, true, true]);
+  assert.deepEqual([tranche(65673.88 / 2), tranche(DEFAUT.quotient), tranche(30000 / 2)], [2, 1, 1]);
+  assert.equal(BAS.impot, 0);
+  assert.ok(BAS.plafQf > 0 && BAS.decote > BAS.plafQf);
+  assert.ok(FIN_DECOTE < 4000);
   const meta = script('quotient-familial');
   assert.equal(
     meta.answer,
@@ -428,6 +459,8 @@ test('send-sync: the script’s check answers are the trait model’s verdicts o
     send && sync ? 'Send and Sync' : send ? 'Send but not Sync' : sync ? 'Sync but not Send' : 'neither Send nor Sync';
   const CELL = { send: isSend(INNERS.cell), sync: isSync(INNERS.cell), spawn: isSend(INNERS.cell), scope: isSend(t('&', INNERS.cell)) };
   const [RC_MUTEX, ARC_GUARD] = CHECK_TYPES as [RustType, RustType];
+  // The third answer's word "neither": Arc<MutexGuard<i32>> is not Sync either.
+  assert.equal(isSync(ARC_GUARD), false);
   const checks = checksOf('send-sync', 3);
   assert.equal(
     checks[0]!.answer,
@@ -453,7 +486,7 @@ test('state-machine: the script’s first check answer is what the reducer does 
 });
 
 test('statecharts: the script’s check answers are the flattened machines’ state and transition counts', () => {
-  const { FROTHER, RUNS, chartCounts, coffee, coffeeWithFrother, flatCounts, flatten, run } = charts;
+  const { FROTHER, RUNS, activeStates, chartCounts, coffee, coffeeWithFrother, flatCounts, flatten, run } = charts;
   // The check questions' machines, as the scene built them: no step draws them.
   const atomic = (id: string, on?: Record<string, string>): StateNode => ({ id, type: 'atomic', ...(on ? { on } : {}) });
   const frotherRegion = (): StateNode => ({
@@ -475,6 +508,14 @@ test('statecharts: the script’s check answers are the flattened machines’ st
     steam: { flat: flatCounts(flatten(frotherInBrewing())), chart: chartCounts(frotherInBrewing()) },
     again: run(coffeeWithFrother(), [...RUNS.frother, 'POWER_ON']).at(-1)!.config,
   };
+  // The answers' words: outside on, the frother can froth while the machine is off, and inside on it cannot;
+  // on steam, frothing pairs only with brewing, so only the brewing states have two words.
+  const offFrothing = (m: ReturnType<typeof flatten>) => Object.values(m.configurations).some((c) => c.includes('off') && c.includes('frothing'));
+  assert.ok(offFrothing(flatten(frotherOutside())));
+  assert.ok(!offFrothing(flatten(coffeeWithFrother())));
+  assert.ok(
+    Object.values(flatten(frotherInBrewing()).configurations).every((c) => !c.includes('frothing') || activeStates(frotherInBrewing(), c).includes('brewing')),
+  );
   const checks = checksOf('statecharts', 3);
   assert.equal(
     checks[0]!.answer,
@@ -491,7 +532,7 @@ test('statecharts: the script’s check answers are the flattened machines’ st
 });
 
 test('tailwind-gamut: the script’s check answers are the gamut model’s chromas, edges and shares', () => {
-  const { cssMap, rows, summarize, swatch } = gamut;
+  const { cssMap, inside, rows, summarize, swatch } = gamut;
   const pct = (v: number) => percent(v, { of: 100 });
   const deg = (h: number) => `${h.toFixed(1)}°`;
   const OPEN = summarize('500'),
@@ -501,6 +542,12 @@ test('tailwind-gamut: the script’s check answers are the gamut model’s chrom
     RAW = rows('500').find((r) => r.family === OPEN.furthest.family)!,
     ROOMY = OPEN.leastOfSrgb.family,
     ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
+  // The answers' words: the mapped chroma does not fit at the written lightness and hue; the raw leader is
+  // another family, on a higher edge; the roomiest 500 family's 700 shade lies outside sRGB.
+  assert.ok(!inside(OPENING.L, OPEN_ROW.shown, OPENING.h, 'srgb'));
+  assert.notEqual(OPEN.furthest.family, OPEN.mostOfSrgb.family);
+  assert.ok(RAW.srgb > OPEN_ROW.srgb);
+  assert.ok(ROOMY_700.outsideSrgb);
   const checks = checksOf('tailwind-gamut', 3);
   assert.equal(
     checks[0]!.question,
@@ -559,8 +606,19 @@ test('trust-proxy: the script’s check answers are the addresses reqIp gives fo
   const WAF = '100.64.0.20',
     WAF_XFF = `${ADDR.client}, ${WAF}, ${ADDR.edge}`,
     WAF_LIST_IP = reqIp(ADDR.balancer, WAF_XFF, [...TRUSTED_RANGES, WAF]);
-  // The second answer's words: 2 reports the firewall, and the extended list the client.
+  // The first answer's words: 2 takes the made-up entry nearer the attacker, true the farther one; the list
+  // still takes the attacker's real address.
+  assert.equal(TWO_FORGED_IP[2], ADDR.forged);
+  assert.equal(TWO_FORGED_IP.true, '5.6.7.8');
+  assert.equal(reqIp(ADDR.balancer, TWO_FORGED_XFF, TRUSTED_RANGES), ADDR.attacker);
+  // The second answer's words: 2 reports the firewall; 3 the client, but on the short route the made-up entry;
+  // the extended list the client, and on the short route the attacker's real address.
+  const SHORT_XFF = `${ADDR.forged}, ${ADDR.attacker}`;
   assert.equal(reqIp(ADDR.balancer, WAF_XFF, 2), WAF);
+  assert.equal(reqIp(ADDR.balancer, WAF_XFF, 3), ADDR.client);
+  assert.equal(reqIp(ADDR.balancer, SHORT_XFF, 3), ADDR.forged);
+  assert.equal(WAF_LIST_IP, ADDR.client);
+  assert.equal(reqIp(ADDR.balancer, SHORT_XFF, [...TRUSTED_RANGES, WAF]), ADDR.attacker);
   const checks = checksOf('trust-proxy', 3);
   assert.equal(
     checks[0]!.question,

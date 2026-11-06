@@ -4,14 +4,11 @@ import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/in
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   BLOCK,
-  BLOCKS_PER_GROUP,
   DEFAULT_RESERVE,
-  GiB,
   INODE_SIZE,
   JOURNAL_STEPS,
   RESERVES,
   SIZES,
-  TiB,
   bytesOf,
   count,
   journalBlocks,
@@ -69,19 +66,6 @@ const RATIOS = (Object.keys(SIZES) as Size[]).map((k) => {
  */
 const ANSWER = `Much of it is free space held back for root: the default 5% reserve is ${RATIOS.slice(0, -1).join(', ')} and ${RATIOS.at(-1)} times all the metadata on the ${(Object.keys(SIZES) as Size[]).map((k) => SIZES[k].label).join(', ').replace(/, ([^,]*)$/, ' and $1')} disks`;
 
-// The script's check answers rest on these; if one throws, the answer in script.md needs rewriting.
-// Check 1: doubling 1 GiB to 2 GiB also doubles the journal, and the 5% reserve falls just short.
-const TWO = space(2 * GiB, DEFAULT_RESERVE),
-  ONE = space(GiB, DEFAULT_RESERVE);
-if (TWO.root >= TWO.layout.metadata || TWO.layout.journal !== 2 * ONE.layout.journal) throw new Error('At 2 GiB the reserve must fall short of the metadata, with twice the journal');
-// Check 2: 4 TiB is the first size of the big type, with half the inodes per byte of a disk 128 MiB smaller.
-const BELOW = space(4 * TiB - BLOCKS_PER_GROUP * BLOCK, DEFAULT_RESERVE),
-  BIG = space(4 * TiB, DEFAULT_RESERVE);
-if (BELOW.layout.type !== 'default' || BIG.layout.type !== 'big' || BIG.layout.metadata >= BELOW.layout.metadata) throw new Error('4 TiB must be big, with less metadata than the disk below it');
-// Check 3: -m 0 on the 1 TiB disk frees the root reserve and nothing else.
-const T5 = space(TiB, DEFAULT_RESERVE),
-  T0 = space(TiB, 0);
-if (T0.users - T5.users !== T5.root || T0.layout.metadata !== T5.layout.metadata) throw new Error('-m 0 must free exactly the root reserve');
 // The pie on the left, a card on the right: wider than the 'side' region so that 13-digit counts
 // fit beside their labels at full size.
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
@@ -350,7 +334,6 @@ export default class Ext4SpaceExplainer extends Scene {
     await journalCard.mark(row[0], { as: st().disk.label });
 
     // ------------------------------------------------------------------ the rest
-    const perCopy = 1 + l.descBlocks + l.reservedGdt;
     await this.step('other', {
       title: `The other ${count(l.other)} blocks: copies, bitmaps and the first files`,
       line: `Superblock copies in ${l.superGroups} of ${count(l.groups)} groups; two bitmaps in every group.`,
