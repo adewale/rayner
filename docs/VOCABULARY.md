@@ -91,7 +91,7 @@ The renames came with refactors that make a name's promise checkable:
 - A transition lands on the model's picture. It is optional per event; with one, the authored
   motion plays and the views then land in place on `draw(after)`, and `rayner check` fails a
   transition that ends anywhere else.
-- Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `test/learning-pictures.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
+- Keyed tables went in with python-dict as their first adopter, and bloom-filter is the second: its lookup rows are keyed by the name looked up and its sample rows by row length, so `bloom-pipeline:wolf:Filter` is wolf's answer in either scenario, and `scenes/explainers/bloom-filter/scene.test.ts` reads each keyed cell against the model. Its resting and sampled frames hashed the same before and after. `seenFrom` went in with
   great-circle; henge is the second adopter. Henge's flat cross-section globes could not move to
   it unchanged, since they drew Earth's axis across an opaque disc and `seenFrom` hides what the
   body hides. They were replaced instead: two tilted 3D Earths with a translucent body, the axis

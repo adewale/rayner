@@ -15,19 +15,19 @@ export default class BirthdayParadox extends Scene {
     claims: [
       {
         says: 'every day of a 365-day year the same chance',
-        test: 'test/learning-models.test.ts: birthday formulas match exhaustive small calendars',
+        test: 'model.test.ts: birthday formulas match exhaustive small calendars',
       },
       {
         says: 'an even chance would take',
-        test: 'test/learning-models.test.ts: the birthday story: thresholds, pairs',
+        test: 'scene.test.ts: the birthday story: thresholds, pairs',
       },
       {
         says: 'what would it take for nobody to match',
-        test: 'test/learning-models.test.ts: birthday formulas match exhaustive small calendars',
+        test: 'model.test.ts: birthday formulas match exhaustive small calendars',
       },
       {
         says: 'ask each to miss every date taken so far',
-        test: 'test/learning-models.test.ts: birthday formulas match exhaustive small calendars',
+        test: 'model.test.ts: birthday formulas match exhaustive small calendars',
       },
       { says: 'Your own birthday: only', shown: true as const },
       { says: 'Every pair drawn', shown: true as const },

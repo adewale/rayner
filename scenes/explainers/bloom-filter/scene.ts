@@ -21,16 +21,16 @@ export default class BloomFilter extends Scene {
     ],
     // Sentences that reach past the three lookups on screen, and the test that holds each for any names and row length.
     claims: [
-      { says: 'the row itself stores only the 1s and keeps no trace of the name', test: 'test/learning-models.test.ts: insert-only filters never reject an inserted word' },
-      { says: 'its fill shows both names, but the row records only the 1', test: 'test/learning-models.test.ts: insert-only filters never reject an inserted word' },
-      { says: 'other names may have set every one of them, so the filter can only say maybe', test: 'test/learning-models.test.ts: concrete false positives still need storage' },
-      { says: 'A taken name always finds its bits set, so the filter never wrongly says “not taken”', test: 'test/learning-models.test.ts: insert-only filters never reject an inserted word' },
-      { says: 'could have been set by other names, so it can only say maybe', test: 'test/learning-models.test.ts: concrete false positives still need storage' },
+      { says: 'the row itself stores only the 1s and keeps no trace of the name', test: 'model.test.ts: insert-only filters never reject an inserted word' },
+      { says: 'its fill shows both names, but the row records only the 1', test: 'model.test.ts: insert-only filters never reject an inserted word' },
+      { says: 'other names may have set every one of them, so the filter can only say maybe', test: 'model.test.ts: concrete false positives still need storage' },
+      { says: 'A taken name always finds its bits set, so the filter never wrongly says “not taken”', test: 'model.test.ts: insert-only filters never reject an inserted word' },
+      { says: 'could have been set by other names, so it can only say maybe', test: 'model.test.ts: concrete false positives still need storage' },
       { says: 'Only cat and dog are taken', shown: true as const },
-      { says: 'An untaken name gets through only when all three of its bits are already set', test: 'test/learning-models.test.ts: a name gets through only when all three of its bits are set' },
-      { says: 'bits are 1: always maybe', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
-      { says: 'Keep taking names and the row only fills', test: 'test/learning-models.test.ts: the row only fills' },
-      { says: 'From then on every name finds three 1s', test: 'test/learning-models.test.ts: a full row says maybe to every name' },
+      { says: 'An untaken name gets through only when all three of its bits are already set', test: 'model.test.ts: a name gets through only when all three of its bits are set' },
+      { says: 'bits are 1: always maybe', test: 'model.test.ts: a full row says maybe to every name' },
+      { says: 'Keep taking names and the row only fills', test: 'model.test.ts: the row only fills' },
+      { says: 'From then on every name finds three 1s', test: 'model.test.ts: a full row says maybe to every name' },
     ],
   };
   static settings = [
