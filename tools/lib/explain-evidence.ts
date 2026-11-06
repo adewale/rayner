@@ -160,14 +160,15 @@ export async function compareAnswers(
   return { file: shown, compared, problems };
 }
 
-/** Text in backticks that reads as a file path: no spaces or code punctuation, and a slash or a file extension. */
-const PATHLIKE = /^(?![a-z]+:\/\/)[^\s()'"=,;<>`]+$/;
-const EXTENSION = /\.(?:ts|js|mjs|cjs|json|py|go|mod|sum|md|txt|csv|tsv|html|svg|c|h|rs|toml|ya?ml|xml|ics|sh|geojson|otf|ttf|woff2?)$/;
+/** Text in backticks that reads as a file path: no spaces, code punctuation or package @, and a slash or a file extension. */
+const PATHLIKE = /^(?![a-z]+:\/\/)[^\s()'"=,;<>`@]+$/;
+const EXTENSION = /\.(?:ts|js|mjs|cjs|json|py|go|mod|sum|md|txt|csv|tsv|html|svg|c|h|rs|toml|ya?ml|xml|ics|sh|geojson|otf|ttf|woff2?|css|php|java|rb)$/;
 /** The backticked file paths in a Checked against line, as written. */
 export function namedPaths(checkedAgainst: string): string[] {
-  return [...checkedAgainst.matchAll(/`([^`]+)`/g)]
+  const paths = [...checkedAgainst.matchAll(/`([^`]+)`/g)]
     .map((m) => m[1]!)
     .filter((text) => PATHLIKE.test(text) && (text.includes('/') || EXTENSION.test(text)));
+  return [...new Set(paths)];
 }
 export interface CheckedAgainstReport {
   /** Each backticked path the line names, all of them there. */

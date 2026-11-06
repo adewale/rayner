@@ -309,7 +309,7 @@ export default class QuotientFamilialExplainer extends Scene {
         await calloutOf((st) => callout(s, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(st.quotient as number).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
     // The quotient's top tranche, not the household's taux marginal: when the plafond binds, OpenFisca's
     // ir_taux_marginal is the two-part calculation's, which can be higher. The default couple's quotient is
-    // in the 11 % tranche while its taux marginal is 30 % (test/explain-quotient-familial.test.ts holds both).
+    // in the 11 % tranche while its taux marginal is 30 % (model.test.ts holds both).
     await bars.mark([`bar:0:${pourcent(top.rate)}`], { as: 'dernière tranche du quotient' });
     this.state.parPart = r.parPart;
     this.state.tranche = top.rate;

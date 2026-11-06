@@ -2,10 +2,13 @@
 // answers it computes from the model, and the files the script's Checked against line names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkedAgainstFiles, compareAnswers, namedPaths, runModelTest } from '../tools/lib/explain-evidence.ts';
+import { intentMeta, parseIntent } from '../tools/lib/explain-intent.ts';
+import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 
 async function folder(files: Record<string, string>): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'rayner-evidence-'));
@@ -110,4 +113,18 @@ test('a backticked path in Checked against must be in the explainer’s folder; 
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('every explainer’s Checked against line names its evidence by files in its own folder, each there', async () => {
+  const dirs = [...EXPLAINERS.map((e) => `scenes/explainers/${e.id}`), 'scenes/tutorial/door', 'scenes/tutorial/hanoi', 'scenes/tutorial/lru-mru'];
+  const named: string[] = [];
+  for (const dir of dirs) {
+    const file = join(dir, 'script.md');
+    const { checkedAgainst } = intentMeta(parseIntent(readFileSync(file, 'utf8'), file)!);
+    const report = await checkedAgainstFiles(join(dir, 'scene.ts'), checkedAgainst);
+    assert.deepEqual(report?.problems, [], dir);
+    assert.ok(report!.files.length > 0, `${dir}: Checked against names no file of the folder`);
+    named.push(...report!.files.map((f) => `${dir}/${f}`));
+  }
+  assert.ok(named.length >= dirs.length, `${named.length} files named`);
 });

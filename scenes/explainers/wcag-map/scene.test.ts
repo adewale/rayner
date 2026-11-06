@@ -6,7 +6,7 @@ import { PRINCIPLES, guidelinesIn } from './model.ts';
 test('every authored scenario is collected, and the mind map reads as its outline', async () => {
   const project = await collectProject('scenes/explainers/wcag-map', { write: false });
   assert.equal(project.scenarios.length, 12);
-  // Step-state fidelity for every scenario lives in explain-fidelity.test.ts.
+  // Step-state fidelity for every scenario lives in fidelity.ts.
   // The description lists a mind map's topics depth first, each principle followed by its own
   // guidelines, rather than alternating between the root's two sides (1.1, 2.1, 1.2, …).
   const v20 = project.scenarios[0]!.trace.steps.find((s) => s.step === 'v20')!;

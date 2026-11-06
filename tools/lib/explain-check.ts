@@ -18,7 +18,7 @@ import {
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
-import { compareAnswers, runModelTest } from './explain-evidence.ts';
+import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
@@ -665,6 +665,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
   const answers = await compareAnswers(project.file, project.Scene.meta, async (file) => (await importAuthored(file)).module);
   assert.deepEqual(answers?.problems ?? [], [], `script.md disagrees with answers.ts (${answers?.file}): ${answers?.problems.join('; ')}`);
+  const checkedAgainst = await checkedAgainstFiles(project.file, (project.Scene.meta as { checkedAgainst?: unknown } | undefined)?.checkedAgainst);
+  assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
   // The lettering the page carries, once for every scenario: the bare runtime below runs it
@@ -886,6 +888,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed } } : {}),
     // The script's answer and check answers that answers.ts computes from the model, each equal to script.md's.
     ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
+    // The files the script's Checked against line names in backticks, each one in the explainer's folder.
+    ...(checkedAgainst?.files.length ? { checkedAgainst: checkedAgainst.files } : {}),
     scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,

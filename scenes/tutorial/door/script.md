@@ -4,7 +4,7 @@
 - **Answer:** A locked door must unlock before it opens
 - **Changed condition:** none: one scenario. The comparison is between the events the door takes and the ones it refuses, which the reader tries at the live step.
 - **Reader's own work:** predict whether a locked door can open; at the last step, press the events and read each refusal's reason.
-- **Checked against:** nothing external: the model's own tests check what every event does from every state, every refusal's reason, and that every state is reachable from the open door.
+- **Checked against:** nothing external: the model's own tests, in `model.test.ts`, check what every event does from every state, every refusal's reason, and that every state is reachable from the open door.
 - **Leaves out:** keys, handles and anything else about real doors; three states and four events.
 
 ## Check yourself

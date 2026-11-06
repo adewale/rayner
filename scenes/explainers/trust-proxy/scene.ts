@@ -27,7 +27,7 @@ import { ROUTES, WHO_BOX, answerOf, drawAnswerTable, drawRoutesPanel, wrap } fro
 import type { Cell, Route } from './picture.ts';
 
 // Sources, each fetched at the pinned tag or commit; the lines each claim rests on are quoted in
-// model.ts and beside the steps below. test/explain-trust-proxy.test.ts holds real Express
+// model.ts and beside the steps below. model.test.ts holds real Express
 // 5.3.0's answers for every scenario.
 const EXPRESS = 'https://github.com/expressjs/express/blob/v5.3.0/lib/';
 const PROXY_ADDR = 'https://github.com/jshttp/proxy-addr/blob/v2.0.8/index.js';

@@ -6,7 +6,7 @@ import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
 import { SIZE, SPOT, QUADRANT, chart, LEFT, RIGHT, ZOOM, valueName, columnLines, quadrantMap } from './picture.ts';
 
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in model.ts
-// and test/explain-send-sync.test.ts.
+// and model.test.ts.
 const RUST = 'https://github.com/rust-lang/rust/blob/1.99.1/library/';
 const REFERENCE =
   'https://github.com/rust-lang/reference/blob/d9d9ed57a120e3c87033fd598f191bbb84aad097/src/types/closure.md';
@@ -146,7 +146,7 @@ export default class SendSyncExplainer extends Scene {
       title: 'rustc refuses to send this Arc to another thread',
       line: 'Predict: isn’t Arc the thread-safe pointer? Why is x refused?',
       // functions.rs:125-129: spawn needs F: Send + 'static. The error lines are rustc's, checked in
-      // test/explain-send-sync.test.ts.
+      // model.test.ts.
       caption: `x is an Arc, the pointer the standard library provides for sharing one value between threads; here it holds a Cell<i32>. thread::spawn runs a closure on a new thread, and move hands x to that closure. rustc refuses with error E0277, and the error names two traits: Sync, which Cell<i32> lacks, and Send, which ${arcCell.name} needed for the move.`,
     });
     const opener = await s.code(
