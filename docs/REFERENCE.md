@@ -487,6 +487,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 
 | Check | Rule |
 | --- | --- |
+| Model test | The `model.test.ts` beside the scene fails. `check` runs it first, with `node --test` in a child process (only that file: other tests in the folder, such as `scene.test.ts`, run the scene, which check runs anyway, and belong to the project's test suite), and names each failing test with the first lines of its error. A `rayner` import Node cannot resolve from the folder is the Rayner running the check. The report records it as `model: { file, tests, passed }`; a folder without a model test has no `model` |
 | Catch lint | A `try`/`catch` or `.catch()` around awaited code in `construct()` |
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |
@@ -567,7 +568,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `init <directory>` | Write the tutorial's explainer: `scene.ts` with one setting, its model `model.ts`, and `model.test.ts`, which tests the model against published examples. With `--machine`, write a [machine](MACHINES.md) explainer instead (a door that opens, closes, locks and unlocks): `model.ts`, whose `next` refuses events with `refuse(reason)`; `model.test.ts`, which pins every event from every state and every reason; `scene.ts`, a view of the state and a machine whose last step is live; and `scene.review.json`. It passes `check` and `review` as written |
 | `preview <scene>` | Build and serve the page; use `shots` for a contact sheet |
 | `snapshots <scene>` | Capture and verify diagrams; replay morph edits |
-| `check <scene>` | The checks above |
+| `check <scene>` | The checks above, starting with the folder's `model.test.ts` when there is one |
 | `review <scene>` | The checks, then [served-reader review](#reader-review) of every scenario and step at both widths, and of the live states a reader reaches by pressing events |
 | `build <scene>` | The page, its receipt, its header recipe and `loader.js` |
 | `shots <scene>` | A contact sheet of every step, as SVG and PNG |

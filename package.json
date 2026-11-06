@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/copy-vendor.ts && node tools/build-cli.ts",
-    "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
-    "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
+    "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
+    "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts",
     "fonts": "tools/fonts.sh",
     "fonts:lettering": "tools/lettering-fonts.sh",
     "fonts:lettering-outlines": "bash tools/lettering-outline-fonts.sh",

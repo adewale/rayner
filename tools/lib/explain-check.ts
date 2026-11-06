@@ -18,6 +18,7 @@ import {
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
+import { runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
@@ -659,6 +660,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
   assert.deepEqual(lint, [], lint.join('\n'));
   await mkdir(out, { recursive: true });
+  // The folder's own evidence first: a scene drawn from a model its test refuses shows nothing true.
+  const model = await runModelTest(project.file);
+  assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
   // The lettering the page carries, once for every scenario: the bare runtime below runs it
@@ -874,6 +878,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
+    // The model test beside the scene (model.test.ts), run with node:test: how many tests, how many passed.
+    ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed } } : {}),
     scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,

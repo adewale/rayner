@@ -139,6 +139,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - At each resting step the review checks the painted subjects, complete close-up tours, overflow, console errors and outside connections.
 - `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page the review checked.
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
+- `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`.
 
 ### Drawing kit and 3D
 
