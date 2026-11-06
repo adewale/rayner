@@ -7,8 +7,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
-import { ROOT, problems, readLedger, rendered, usage } from '../tools/lib/public-names.ts';
-import type { Ledger } from '../tools/lib/public-names.ts';
+import { ROOT, problems, readLedger, rendered, usage } from '../tools/repo/lib/public-names.ts';
+import type { Ledger } from '../tools/repo/lib/public-names.ts';
 
 const u = usage();
 const ledger = readLedger();
@@ -18,7 +18,7 @@ test('every public name of every entry point has a live reason to be public', as
   assert.deepEqual(await problems(ledger, ROOT, u), []);
 });
 
-test('the engine features and examples tables are rendered from the ledger: run node tools/public-names.ts --write', () => {
+test('the engine features and examples tables are rendered from the ledger: run node tools/repo/public-names.ts --write', () => {
   for (const [file, text] of rendered(ledger, ROOT, u))
     assert.equal(readFileSync(file, 'utf8'), text, `${relative(ROOT, file)} differs from what the ledger renders`);
 });

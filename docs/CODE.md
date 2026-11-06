@@ -87,11 +87,11 @@ to it (as explainers already do). Styling applied after construction (a
 ### The tool
 
 ```
-node tools/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]
+node tools/repo/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]
 ```
 
 prints the spans as a JSON array, one span per line, to paste into a scene. The language defaults to the file extension; stdin needs `--lang`.
-The engine used goes to stderr. From code, the module `tools/lib/tokenize.ts`
+The engine used goes to stderr. From code, the module `tools/repo/lib/tokenize.ts`
 exports `tokenize(source, lang, { engine, palette })`, which returns the same
 `ColorSpan[]` (the `rayner` CLI can call it at build time). The module's `lex()` and `shikiTokens()`
 return the classified tokens (`keyword`, `string`, `comment`, `number`,
@@ -121,7 +121,7 @@ is the example). Nothing in `src/` or the browser bundle imports shiki or the le
 
 - **zero runtime dependencies**: the engine and anything a page loads stay
   dependency-free; shiki is a devDependency of the checkout, used only by
-  `tools/tokens.ts`, which the package does not ship.
+  `tools/repo/tokens.ts`, which the package does not ship.
 - **deterministic output**: the same data renders the same frames everywhere,
   and seeks stay byte-identical. A highlighter running at view time could
   change colours with a grammar update; a checked-in array changes only when
@@ -157,7 +157,7 @@ default) costs a fraction of one that colours it.
 
 - [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): both blocks of the merge
   request are `new Code(lines, { spans })`, with spans that
-  `node tools/tokens.ts --theme light --engine shiki` generated and that are
+  `node tools/repo/tokens.ts --theme light --engine shiki` generated and that are
   checked in beside the scene (`scenes/explainers/mr-cache/code.ts`);
   `TransformDiff` morphs one into the other.
 - [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): finds the reducer

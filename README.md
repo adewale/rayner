@@ -32,13 +32,15 @@ Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Wind
 mkdir my-rayner && cd my-rayner
 npm init -y
 npm pkg set type=module
-npm install --save-dev rayner@0.2.0
+npm install --save-dev rayner@0.2.0 rayner-cli@0.2.0
 npx playwright-core install chromium
 npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
 If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
+
+Rayner is two packages at one version. `rayner` is what scenes import: the vocabulary, the drawing kit and the runtime, with no dependencies. `rayner-cli` is the `rayner` command, with the player it bundles into each page and the tools that capture diagram and lettering snapshots (esbuild, TypeScript, Agentic Mermaid, Playwright, svgpath and resvg); it requires `rayner` at exactly its own version.
 
 `init` writes the tutorial’s explainer of LRU and MRU cache replacement: the script (`script.md`), the model (`model.ts`), the model’s test (`model.test.ts`) and the scene (`scene.ts`). Open the URL `preview` prints (port 5174 by default) and switch between **A B C D again** and **C D C D**. Edit `my-explainer/scene.ts` and reload to see the rebuilt page.
 

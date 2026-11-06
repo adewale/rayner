@@ -10,7 +10,7 @@ test('artifact identity changes for reader, builder, dependency and notice edits
   const root = await mkdtemp(join(tmpdir(), 'rayner-inputs-'));
   const inputs = ['app/embed.css', 'app/embed.ts', 'tools/lib/explain-build.ts', 'src/fonts.ts', 'explain/stage.ts', 'integrations/capture.ts', 'vendor/licenses/font.txt', 'package.json', 'package-lock.json', 'LICENSE'];
   try {
-    for (const directory of ['src', 'explain', 'integrations', 'app', 'tools/lib', 'vendor/licenses', 'docs', 'out', 'scenes/explainers']) await mkdir(join(root, directory), { recursive: true });
+    for (const directory of ['src', 'explain', 'integrations', 'app', 'tools/lib', 'tools/repo', 'vendor/licenses', 'docs', 'out', 'scenes/explainers']) await mkdir(join(root, directory), { recursive: true });
     for (const name of inputs) await writeFile(join(root, name), 'original');
     const original = await buildInputs(root);
     await writeFile(join(root, 'docs/README.md'), 'documentation only');
@@ -28,7 +28,7 @@ test('artifact identity changes for reader, builder, dependency and notice edits
         assert.notEqual((await buildInputs(root)).hash, original.hash, `${name} must invalidate a built artifact`);
       } finally { await writeFile(join(root, name), 'original'); }
     }), params(40));
-    for (const name of ['tools/lib/explain-story-review.ts', 'tools/bench.ts', 'tools/prepare-release.ts']) {
+    for (const name of ['tools/lib/explain-story-review.ts', 'tools/repo/bench.ts', 'tools/repo/prepare-release.ts']) {
       await writeFile(join(root, name), 'review or maintenance only');
       assert.equal((await buildInputs(root)).hash, original.hash, name + ' must not rebuild pages');
     }

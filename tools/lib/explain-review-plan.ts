@@ -170,8 +170,8 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
 }
 export async function reviewCodeHash(root: string, buildHash?: string) {
   const files = [
-    'tools/explain-review.ts',
-    'tools/explain-review-merge.ts',
+    'tools/repo/explain-review.ts',
+    'tools/repo/explain-review-merge.ts',
     'tools/lib/explain-story-review.ts',
     'tools/lib/explain-raster.ts',
     'tools/lib/explain-review-scene.ts',

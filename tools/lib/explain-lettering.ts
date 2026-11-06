@@ -1,5 +1,5 @@
 // Lettering on request, at build time. An explainer that sets `static meta.lettering`
-// gets Inter and JetBrains Mono (vendor/lettering/, made by tools/lettering-fonts.sh)
+// gets Inter and JetBrains Mono (vendor/lettering/, made by tools/repo/lettering-fonts.sh)
 // cut to the letters it draws in the scripts it asked for, and only its page carries
 // them. The cut faces are pinned beside the scene in `<scene>.lettering.json`, so a
 // build needs fonttools only when the letters change. An explainer that asks for
@@ -18,7 +18,7 @@ import type { FontName } from '../../src/index.ts';
 const ROOT = new URL('../../', import.meta.url);
 const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 
-/** Code point ranges per script. Keep in step with tools/lettering-fonts.sh, which cuts the sources to them. */
+/** Code point ranges per script. Keep in step with tools/repo/lettering-fonts.sh, which cuts the sources to them. */
 export const SCRIPTS: Record<LetteringScript, readonly (readonly [number, number])[]> = {
   Latn: [
     [0x0100, 0x024f],
@@ -142,7 +142,7 @@ export async function prepareLettering(
   return { scripts: request.scripts, faces };
 }
 
-/** Cut `family`'s source face to `codePoints` with fonttools' subsetter, as tools/fonts.sh does. */
+/** Cut `family`'s source face to `codePoints` with fonttools' subsetter, as tools/repo/fonts.sh does. */
 async function cut(family: FontName, codePoints: number[]): Promise<string> {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-lettering-'));
   const out = join(folder, family + '.woff2');

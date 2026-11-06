@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {proseOnly, requiredJobs, completedCampaign, reusableProof} from '../tools/lib/ci-scope.ts';
+import {proseOnly, requiredJobs, completedCampaign, reusableProof} from '../tools/repo/lib/ci-scope.ts';
 test('only prose uses the small owner; every tracked executable input forces full validation', () => {
   assert.equal(proseOnly(['README.md', 'docs/TESTING.md', 'skills/rayner-explainers/SKILL.md']), true);
   assert.equal(proseOnly([]), false);

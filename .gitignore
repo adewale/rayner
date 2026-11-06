@@ -5,3 +5,8 @@ dist/
 
 # Python lettering capture caches
 __pycache__/
+
+# rayner-cli is built into cli/ (npm run build:cli); only its manifest and README are sources
+/cli/*
+!/cli/package.json
+!/cli/README.md

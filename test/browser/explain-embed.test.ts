@@ -1315,7 +1315,7 @@ test('the neutral tile stays independent of the scenario palette, including befo
 });
 // player-tile T6: the published height at 640 px is the height the loader gives the frame there.
 test('known heights: mr-cache measures three heights above the floor, and the loader at 640 px settles the frame at heights["640"] within 2 px', options, async () => {
-  const { measureEmbed, embedSizeProblems } = await import('../../tools/lib/explain-embed-size.ts');
+  const { measureEmbed, embedSizeProblems } = await import('../../tools/repo/lib/explain-embed-size.ts');
   const size = await measureEmbed(browser, embed, 'mr-cache.html');
   assert.deepEqual(embedSizeProblems(size), [], JSON.stringify(size));
   // Natural captions can make a phone page shorter; the settled heights and loader agreement are the contract.

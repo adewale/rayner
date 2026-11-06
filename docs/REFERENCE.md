@@ -370,7 +370,7 @@ Hand drawing is still justified when position itself carries meaning that a layo
 
 These are the engine's own features, imported from `rayner` and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
 
-<!-- generated from test/public-names.json by `node tools/public-names.ts --write`: engine features -->
+<!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: engine features -->
 | Feature | What a scene uses | Guide | Used by |
 | --- | --- | --- | --- |
 | Matching transforms | `TransformMatchingText`, `TransformMatchingShapes` (`shapeKey()`), `TransformMatching` with your own key or `matchByKey()` (keyed components); `summary()`, `pairs`, `removed`, `added` | [Matching](MATCHING.md) | `TransformMatchingText`: `feature-tour`; `TransformMatchingShapes`: `glyph`; `TransformMatching`: `feature-tour`; `matchByKey`: `feature-tour`, `monty-hall`, `periodic-groups`, `python-dict`, `statecharts`; `match: 'key'`: `agentic-mermaid`, `fork` |
@@ -379,7 +379,7 @@ These are the engine's own features, imported from `rayner` and used beside the 
 | Emphasis that stays | `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel`, `Circumscribe({ keep: true })` | [Emphasis](EMPHASIS.md) | `SurroundingRectangle`: `glyph`, `mr-cache`, `ring-buffer`, `state-machine`; `Underline`: `feature-tour`; `Cross`: `fork`, `latest-search`, `ring-buffer`, `token-bucket`; `Brace`: `feature-tour`; `BraceLabel`: `exgit`, `glyph`; `Circumscribe`: `feature-tour`, `mr-cache`; `putAtTip()`: `feature-tour`; no explainer yet: `tip()` |
 | Charts of the model's numbers | `NumberLine`, `Axes` with `plot`, `lineGraph`, `bar`, `dot`, guide lines, `areaUnder` | [Graphing](GRAPHING.md) | `NumberLine`: `feature-tour`; `Axes`: `feature-tour`, `seasons`, `token-bucket`; `plot`: `seasons`; `lineGraph`: `feature-tour`, `token-bucket`; no explainer yet: `bar`, `areaUnder` |
 | Pictures rebuilt from state | `view(scene, draw)`, `view.sync()`; `viewMismatch`, and `assertViewFollowsState` in `test/lib/view-fidelity.ts` | [Views](VIEWS.md) | `view`: `agentic-mermaid`, `cert-renewal`, `exgit`, `ext4-space`, `feature-tour`, `font-metrics`, `fork`, `great-circle`, `gtfs`, `henge`, `ical-recurrence`, `isdigit`, `just-bash`, `lantern`, `latest-search`, `monty-hall`, `oauth-pkce`, `periodic-groups`, `pg-page`, `python-dict`, `quotient-familial`, `ring-buffer`, `seasons`, `send-sync`, `state-machine`, `statecharts`, `token-bucket`, `traffic-policy`, `trust-proxy`, `tutorial/door`, `tutorial/hanoi`; `view.sync()`: `agentic-mermaid`, `exgit`, `feature-tour`, `fork`, `ical-recurrence`, `monty-hall`, `periodic-groups`, `ring-buffer`, `statecharts`, `token-bucket`, `trust-proxy` |
-| Parts of a line of code | `code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/tokens.ts` | [Code](CODE.md) | `code.span`: `state-machine`; `code.token`: `exgit`, `state-machine`; `spans`: `mr-cache`, `state-machine`; no explainer yet: `code.lineSpan` |
+| Parts of a line of code | `code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/repo/tokens.ts` | [Code](CODE.md) | `code.span`: `state-machine`; `code.token`: `exgit`, `state-machine`; `spans`: `mr-cache`, `state-machine`; no explainer yet: `code.lineSpan` |
 | Restore, copies, sequencing | `saveState()` and `Restore`, `TransformFromCopy`, `Succession` | [Animations](ANIMATIONS.md) | `saveState()`: `feature-tour`; `Restore`: `feature-tour`; `TransformFromCopy`: `feature-tour`; `Succession`: `great-circle`, `just-bash`, `latest-search`, `monty-hall`, `oauth-pkce`, `periodic-groups`, `ring-buffer`, `state-machine`, `statecharts`, `token-bucket`; no explainer yet: `restore()` |
 <!-- end of generated engine features -->
 
@@ -438,7 +438,8 @@ import type { SnapshotStore } from 'rayner/explain';
 import Scene from './my-explainer/scene.ts';
 
 const folder = new URL('./my-explainer/scene.snapshots/', import.meta.url);
-const index = JSON.parse(await readFile(new URL('index.json', folder), 'utf8'));
+// A scene that draws no diagrams keeps no scene.snapshots/.
+const index = JSON.parse(await readFile(new URL('index.json', folder), 'utf8').catch(() => '{"diagrams":{}}'));
 const snapshots: SnapshotStore = {};
 for (const [key, file] of Object.entries<string>(index.diagrams))
   snapshots[key] = JSON.parse(await readFile(new URL(file, folder), 'utf8'));
@@ -559,7 +560,7 @@ Removing a callout can reveal background ink and make it part of the automatic c
 
 The collection's reviewer (`npm run demos:review`) reads each scene's `scene.review.json` as `rayner review` does. Its parallel receipts include the `.review.json` files in their review fingerprint, so an older review cannot satisfy changed expectations. For a highlighted cell or boundary, name the outline's key with `paint: "stroke"`; checking its label does not prove that the outline exists.
 
-`rayner <command> <scene.ts | directory> [options]`. In a checkout, run `npm run rayner -- <command> ...`. `rayner --help` prints the commands and Chromium setup instructions.
+`rayner <command> <scene.ts | directory> [options]`. The command is the `rayner-cli` package, installed beside `rayner` at the same version (`npm install --save-dev rayner rayner-cli`); in a checkout, run `npm run rayner -- <command> ...`. `rayner --help` prints the commands and Chromium setup instructions.
 
 | Command | What it does |
 | --- | --- |
@@ -584,7 +585,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 
 `CHROMIUM_EXECUTABLE_PATH` selects a Chromium for capture; otherwise it is looked up in `PLAYWRIGHT_BROWSERS_PATH` and Playwright's cache. If an authoring package is missing, the command prints the line that installs it.
 
-`node tools/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]` prints syntax colours as `ColorSpan`s for `new Code(lines, { spans })`, to check in beside the scene. It runs from a checkout and is not part of the package; [the code guide](CODE.md#the-tool) describes its engines.
+`node tools/repo/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]` prints syntax colours as `ColorSpan`s for `new Code(lines, { spans })`, to check in beside the scene. It runs from a checkout and is not part of the package; [the code guide](CODE.md#the-tool) describes its engines.
 
 ## Page
 
@@ -683,6 +684,8 @@ Under the same rule as the resize message (framed, with a valid `parentOrigin`; 
 
 ## Repository scripts
 
+The scripts below, and the tools under `tools/repo/` they run, belong to this repository: neither `rayner` nor `rayner-cli` ships them, and `test/package-boundary.test.ts` checks both archives for them. `tools/` outside `tools/repo/` (and the oracles in `tools/oracle/`) is the `rayner` command.
+
 | Script | What it does |
 | --- | --- |
 | `npm run check` | TypeScript over every project, then a consumer compile against `dist/` |
@@ -693,11 +696,12 @@ Under the same rule as the resize message (framed, with a valid `parentOrigin`; 
 | `npm run demos:check` | `demos:build` plus `check` on every scenario |
 | `npm run demos:serve` | Serve `out/` on port 5175 with each page's headers and byte ranges; `-- --port n` |
 | `npm run demos:review` | Open every served scenario at 390 px and 1180 px in Chromium and check captions, artwork, errors, outside requests and headers, and the [live states](#reader-review) a reader reaches by pressing events; screenshots in `out/review/` |
-| `node tools/live-cost.ts` | What a press of a live machine's button costs, in Chromium on built pages and in Node; `--cpu 4` throttles, `--presses n`, `--explainers a,b` ([the player](MACHINES.md#the-player)) |
+| `node tools/repo/live-cost.ts` | What a press of a live machine's button costs, in Chromium on built pages and in Node; `--cpu 4` throttles, `--presses n`, `--explainers a,b` ([the player](MACHINES.md#the-player)) |
 | `npm run bench` | Manual interleaved BASE/HEAD browser measurements; skips identical built pages and reports insufficient samples as inconclusive |
 | `npm run site:export -- <site-root>` | Copy the built pages, posters and loader under `<site-root>/projects/rayner` (`--path` changes it), with every step's preview picture of the default scenario as `<id>/<step>.png` (the 960 × 540 still centred on a 1080 × 540 canvas of the stage's paper, since X shows these cards at 2:1; a palette PNG of at most 256 colours taken from the picture, each channel within a few levels of the render), and write their `_headers` block to `out/site-headers.txt`. `--origin https://example.org` also writes a share page per step, `<id>/<step>.html`, which sends a reader to the player at `<id>?step=<step>`, and adds the same link-preview tags to each explainer page, for its gallery tile's step: `description`, Open Graph (`og:type`, `og:title`, `og:description`, `og:url`, `og:image`, `og:image:width`, `og:image:height`, `og:image:alt`) and Twitter card (`twitter:card` = `summary_large_image`, `twitter:title`, cut at a word to the 70 characters X shows, `twitter:description`, `twitter:image`, `twitter:image:alt`), with absolute URLs, and `<meta name="rayner:share" content="<origin><path>/<id>/">`, which the player's Copy link reads; then it checks every page has each tag once and each picture exists at the declared size. Link previews come from the HTML a crawler fetches, and a static host sends the same HTML for every `?step=`, so a step needs its own URL to preview. Each explainer's `<id>.json` is copied from `demos:build`'s `describe.json`. The export fails before writing anything if a scene's code, its folder or the engine changed since `demos:build` ran |
-| `npm run pack:smoke` | Pack, install into a fresh project with diagram capture and with PNG output, build an outside scene; `EXPLAIN_BROWSER=1` adds installed diagram capture and starter authoring |
-| `npm run build:lib` | Compile `dist/` (runs on `npm pack`) |
+| `npm run pack:smoke` | Pack `rayner` and `rayner-cli`, install `rayner` alone (no dependencies) and then both into a fresh project with diagram capture and with PNG output, build an outside scene; `EXPLAIN_BROWSER=1` adds installed diagram capture and starter authoring |
+| `npm run build:lib` | Compile the library's `dist/` (runs on `npm pack`) |
+| `npm run build:cli` | Build `rayner-cli` into `cli/`: the command bundled into `cli/dist/tools/`, with the player and capture tools beside it (runs on `npm pack` in `cli/`) |
 | `npm run fonts` | Regenerate `src/font-data.ts` from Inter, JetBrains Mono and the Noto numeral subsets, reproducibly (needs `fonttools` and `brotli`) |
 | `npm run fonts:lettering` | Regenerate `vendor/lettering/`, the Latin Extended, Greek and Cyrillic of the same Inter and JetBrains Mono that [lettering on request](#lettering-on-request) cuts from; leaves `src/font-data.ts` alone (needs `fonttools` and `brotli`) |
 
