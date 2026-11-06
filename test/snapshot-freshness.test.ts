@@ -20,6 +20,7 @@ test('every committed snapshot index matches the source of the scene it was writ
     if ((JSON.parse(index) as { sourceHash?: string }).sourceHash !== sourceHash) stale.push(id);
     checked++;
   }
-  assert.ok(checked > 30, `checked ${checked} explainers`);
+  // Only scenes with diagrams keep an index (writeSnapshots).
+  assert.ok(checked > 15, `checked ${checked} explainers`);
   assert.deepEqual(stale, [], `stale snapshot indexes; run \`node tools/explain.ts snapshots scenes/explainers/<id>/scene.ts\` for each`);
 });

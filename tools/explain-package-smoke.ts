@@ -84,8 +84,8 @@ try {
   assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
   if (process.env.EXPLAIN_BROWSER) {
     await run(bin, ['snapshots', 'first', '--refresh'], { cwd: folder });
-    const cache = JSON.parse(await readFile(join(folder, 'first/scene.snapshots/index.json'), 'utf8'));
-    assert.equal(Object.keys(cache.diagrams).length, 0);
+    // The starter draws no diagrams, so it keeps no snapshots.
+    assert.equal(existsSync(join(folder, 'first/scene.snapshots')), false);
     await run(bin, ['check', 'first'], { cwd: folder });
     await run(bin, ['build', 'first', '--out', 'public/first.html'], { cwd: folder });
     // The documented starter must actually serve with the normal authoring dependencies.
