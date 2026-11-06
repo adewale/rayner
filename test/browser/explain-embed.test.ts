@@ -639,6 +639,8 @@ const endOf = (page: Page) =>
       disabled: next.disabled,
       // The Try button follows Next straight away, in the row and in the Tab order.
       tryScenario: tries.filter((b) => !b.hidden).map((b) => [b.textContent, b.previousElementSibling === next]),
+      // A hidden Try is not painted, so it takes no room and no Tab stop (a rule that sets its display must not override [hidden]).
+      hiddenPainted: tries.filter((b) => b.hidden && b.getClientRects().length > 0).length,
       step: new URL(location.href).searchParams.get('step'),
       request: new URL(location.href).searchParams.get('request'),
     };
@@ -651,7 +653,7 @@ readerTest('one-scenario and French endings retain their localized Start again a
     // French: Recommencer, and Essayer « 2 » for quotient-familial's first setting.
     await visitReader(page, `${embed}/quotient-familial.html?step=revenus-2025`);
     const fr = await endOf(page);
-    assert.deepEqual([fr.name, fr.text, fr.tryScenario], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]]]);
+    assert.deepEqual([fr.name, fr.text, fr.tryScenario, fr.hiddenPainted], ['Recommencer à l’étape 1', 'Recommencer', [['Essayer «\u202f2\u202f»', true]], 0]);
     });
 test('the last step while it plays: Next still reads Next and rests the step; the face changes only at rest', options, async () => {
   await readerPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'no-preference' }, undefined, async page => {
@@ -665,12 +667,12 @@ test('the last step while it plays: Next still reads Next and rests the step; th
     // Playing the last step: busy, and Next is still Next, enabled.
     await page.waitForFunction(() => document.querySelector('.stage')!.getAttribute('aria-busy') === 'true');
     const playing = await endOf(page);
-    assert.deepEqual([playing.name, playing.disabled, playing.tryScenario], ['Next step', false, []]);
+    assert.deepEqual([playing.name, playing.disabled, playing.tryScenario, playing.hiddenPainted], ['Next step', false, [], 0]);
     await page.getByRole('button', { name: 'Next step', exact: true }).click();
     await page.waitForFunction(() => (window as unknown as { __rests: string[] }).__rests.at(-1) === 'request');
     assert.equal(await page.locator('.stage').getAttribute('aria-busy'), null);
     const rested = await endOf(page);
-    assert.deepEqual([rested.name, rested.step, rested.tryScenario], ['Start again from step 1', 'request', [['Try ‘Cache miss’', true]]]);
+    assert.deepEqual([rested.name, rested.step, rested.tryScenario, rested.hiddenPainted], ['Start again from step 1', 'request', [['Try ‘Cache miss’', true]], 0]);
   });
 });
 // specs/player-redesign.md R3: the step bar. One segment per step, the current one filling as it plays.
