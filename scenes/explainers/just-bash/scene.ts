@@ -1,6 +1,6 @@
-import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords } from './picture.ts';
-import { Scene, Text, Group, Rectangle, Transform, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
-import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
+import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
+import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, Machine, view } from '../../../src/index.ts';
+import type { Animation, Box, Choreography, SceneState, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
@@ -61,26 +61,9 @@ export default class BashExplainer extends Scene {
       ['>', 'redirect'],
       [FILE, 'file'],
     ];
-    const tokens = parts.map(([t]) => new Text(t, { fontSize: 0.56, font: 'mono', color: ink }));
-    const line = new Group(...tokens).arrange([1, 0], 0.42).moveTo([0, 1.9]);
-    const roles = parts.map(([, role], i) => {
-      const tok = tokens[i]!,
-        [a, , b] = tok.box()!,
-        isOp = role === 'pipe' || role === 'redirect';
-      const bar = new Rectangle({
-        width: Math.max(0.3, b - a),
-        height: 0.035,
-        fill: isOp ? accent : ink,
-        stroke: 'none',
-      }).moveTo([(a + b) / 2, 1.4]);
-      const label = new Text(role, { fontSize: 0.24, color: isOp ? accent : s.soft }).moveTo([
-        (a + b) / 2,
-        1.05,
-      ]);
-      return new Group(bar, label);
-    });
+    const { line, roles } = commandLine(parts, ink, accent, s.soft);
     await s.enter(line, { runTime: 0.5 });
-    await s.enter(new Group(...roles), { runTime: 0.5 });
+    await s.enter(roles, { runTime: 0.5 });
     const api = await s.code(
       [
         `shell = { fs: ${JSON.stringify(old.fs)}, steps: ${old.steps} }`,
@@ -270,11 +253,7 @@ export default class BashExplainer extends Scene {
     const oldCard = await shellCard(old, oldResult, 'Original shell', regionBox('left', { top: 1.3 })),
       newCard = await shellCard(run.shell, newResult, 'Returned shell', regionBox('right', { top: 1.3 }));
     const [picked, unpicked] = [newCard, oldCard];
-    const faded = unpicked.copy();
-    faded.family().forEach((m, i) => {
-      if (unpicked.family()[i] !== unpicked.bar) m.style.opacity = 0.4;
-    });
-    await this.play(new Transform(unpicked, faded, { runTime: 0.4 }));
+    await this.play(new Transform(unpicked, faded(unpicked), { runTime: 0.4 }));
     await picked.mark('cat stdout');
     this.state.cat = result.stdout;
     // ── lesson: the shell as a chain of values ──────────────────────────

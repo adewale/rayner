@@ -1,22 +1,8 @@
-import { frames as readerFrames } from './picture.ts';
-import {
-  Scene,
-  Text,
-  Group,
-  Dot,
-  VMobject,
-  FadeIn,
-  Create,
-  Transform,
-  AnimationGroup,
-  Succession,
-  SurroundingRectangle,
-  Machine,
-  choreograph,
-  view,
-} from '../../../src/index.ts';
-import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
+import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession, Machine, view } from '../../../src/index.ts';
+import type { Animation, SceneState, View, Choreography, Transition } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import type { Card } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =
@@ -39,26 +25,6 @@ const THROW = 8;
 const DIAGRAM = regionBox('top', { bottom: 0.2 }),
   CODE = regionBox('full', { right: 2.05, top: -0.05 }),
   CARD = regionBox('full', { left: 2.35, top: -0.05 });
-// One colour says "the machine is here": the ring on the diagram and the row in the code.
-const NOW = '#f1fa8c',
-  REJECT = '#ff5555';
-const RING = { keep: true, color: NOW, buff: 0.07, cornerRadius: 0.08, strokeWidth: 0.03, runTime: 0.8 };
-/** Recolour a span's glyphs in the time given: a Transform of its line to a recoloured copy. */
-const recolor = (span: CodeSpan, color: string, runTime = 0.4): Transform => {
-  const target = span.owner.copy();
-  for (const g of span.children) target.children[span.owner.children.indexOf(g)]!.setFill(color);
-  return new Transform(span.owner, target, { runTime });
-};
-// Readout glyphs pair only with the same text in the same row, so a changed value
-// crossfades and everything else stays still; the panel and its bar pair by shape.
-/** The card row the bar lights: the error, the new state, or the event that just arrived. */
-const litRow = (st: SceneState) => (st.invalid ? 'Returns' : st.returns ? 'State' : st.event ? 'Event' : null);
-const sameRow: MatchKey = (p) => {
-  const t = p.parent;
-  if (t instanceof Text)
-    return `${Math.round(t.anchorPoint()[1] * 100)} ${t.text} ${(p as { cluster?: number }).cluster}`;
-  return p instanceof VMobject ? 'shape ' + p.shapeKey() : undefined;
-};
 // The title, answer and check questions come from script.md's intent header.
 export default class StateMachineExplainer extends Scene {
   static meta = {
@@ -105,60 +71,21 @@ export default class StateMachineExplainer extends Scene {
     const start = sessionStart();
     this.state = { ...start } as unknown as SceneState;
     // The card shows the state, not a copy of it: each sync rebuilds it from scene.state.
-    const readout = (this.readout = view(
-      this,
-      (st: SceneState) => {
-        const card = new Card(
-          this,
-          s.palette,
-          [
-            ['State', st.session],
-            ['Event', st.event ?? '–'],
-            ['Returns', st.returns ?? (st.event ? '…' : '–')],
-          ],
-          // The row the session last changed is lit, drawn with the card: described and emphasised with it.
-          { at: CARD, fontSize: 0.28, width: 4.8, lit: litRow(st) },
-        );
-        for (const field of ['State', 'Event', 'Returns'])
-          card.values.get(field)!.key = `session:${field.toLowerCase()}`;
-        card.bar.key = 'session:bar';
-        return card;
-      },
-      { place: false },
-    ));
+    const readout = (this.readout = view(this, (st: SceneState) => drawSessionCard(this, s.palette, st, CARD), { place: false }));
     // The card describes itself, its lit row included.
     s.keep(readout);
 
     // What the machine marks on the diagram and the reducer, drawn from the session's state: the
     // ring on the state it is in, the links it travelled, and the row it read or the throw it hit.
-    // A lit row is the row's glyphs again, in the ring's colour, over the code.
     const rowOf = (row: string) => REDUCER.findIndex((l) => l.includes(`'${row}'`));
-    const rowSpan = (row: string) => {
-      const line = rowOf(row), next = REDUCER[line]!.split("'")[3]!;
-      return code.code.span(line, code.code.token(line, `'${row}'`).from, code.code.token(line, `'${next}'`).to);
-    };
-    const thrown = () => code.code.span(THROW, code.code.token(THROW, 'if').from, REDUCER[THROW]!.length);
-    const lit = (span: CodeSpan, color: string) => new Group(...span.children.map((g) => g.copy().setFill(color)));
-    const boxOf = (span: CodeSpan, color: string) =>
-      new SurroundingRectangle(span.box()!, { buff: 0.035, cornerRadius: 0.04, stroke: color, strokeWidth: 0.02 });
-    // Three pictures of the session's state, each its own view so each change is its own region:
-    // the diagram with its travelled links in the trail's colour, the ring on the state the
-    // session is in, and the reducer row it read (or the throw it hit), lit and boxed.
-    const keyed = (m: Mobject, key: string) => Object.assign(m, { key });
-    const trails = (st: SessionState) => new Group(keyed(d.picture(Object.fromEntries(st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, d.accent]; }))), 'diagram'));
-    const ringOf = (st: SessionState) => new Group(keyed(new SurroundingRectangle(d.get(st.session), { buff: RING.buff, cornerRadius: RING.cornerRadius, stroke: NOW, strokeWidth: RING.strokeWidth }), `session:ring:${st.session}`));
-    const reading = (st: SessionState) => {
-      const parts: Mobject[] = [];
-      if (st.row) parts.push(keyed(lit(rowSpan(st.row), NOW), `reducer:lit:${st.row}`), keyed(boxOf(rowSpan(st.row), NOW), `reducer:box:${st.row}`));
-      if (st.invalid) parts.push(keyed(lit(thrown(), REJECT), 'reducer:throw-lit'), keyed(boxOf(thrown(), REJECT), 'reducer:throw-box'));
-      return new Group(...parts);
-    };
+    const spans = reducerSpans(code.code, REDUCER, THROW);
     const session = () => this.state as unknown as SessionState;
+    // Three pictures of the session's state, each its own view so each change is its own region.
     // The drawn diagram takes the live one's place: the live diagram leaves the stage, still the
     // source of geometry and of the diagram's description, and the reader sees the state's picture.
-    const diagram = view(this, (st) => trails(st as unknown as SessionState), { place: false });
-    const ring = view(this, (st) => ringOf(st as unknown as SessionState), { place: false });
-    const reducer = view(this, (st) => reading(st as unknown as SessionState), { place: false });
+    const diagram = view(this, (st) => drawTrails(d, st as unknown as SessionState), { place: false });
+    const ring = view(this, (st) => drawRing(d, st as unknown as SessionState), { place: false });
+    const reducer = view(this, (st) => drawReading(st as unknown as SessionState, spans), { place: false });
     s.keep(diagram, { describe: () => session().travelled.length ? `Travelled: ${session().travelled.map((l) => { const [from, to, event] = l.split(':'); return `${from} → ${to}: ${event}`; }).join('; ')}` : '' });
     s.keep(ring, { describe: () => `A ring around ${session().session}, the state the session is in` });
     s.keep(reducer, {
@@ -227,7 +154,7 @@ export default class StateMachineExplainer extends Scene {
             // ring goes where the reducer's answer says the session now is.
             const barAtEvent = k.to('session:bar').copy().moveTo([k.to('session:bar').center()[0], (k.to('session:event') as Text).anchorPoint()[1]]);
             const bar = k.own('session:bar'), link = d.link(before.session, after.session);
-            const walk = g.travel('walk:token', new Dot({ radius: 0.08, color: d.accent }), link.route, { appear: 0.18, move: 0.8, leave: 0.18 });
+            const walk = g.travel('walk:token', walkToken(d), link.route, { appear: 0.18, move: 0.8, leave: 0.18 });
             return new Succession([
               new AnimationGroup([...swap(k, 'event', 0.45), new Transform(bar, barAtEvent, { runTime: 0.45 }), ...putBack(c, before)]),
               c.enter(`reducer:lit:${after.row}`, {}, { runTime: 0.4 }),

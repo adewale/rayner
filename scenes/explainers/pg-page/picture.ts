@@ -1,6 +1,7 @@
-import { Group, Rectangle, Text } from '../../../src/index.ts';
+import { Group, Rectangle, Text, Arrow } from '../../../src/index.ts';
+import type { Box, Vec } from '../../../src/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
-import { TUPLE_HEADER } from './model.ts';
+import { BLCKSZ, LINE_POINTER, PAGE_HEADER, TUPLE_HEADER } from './model.ts';
 import type { Column, Scenario, Tuple } from './model.ts';
 
 // Slice colours, in slice order, so the byte grid and the pie use the same ones.
@@ -13,6 +14,8 @@ export const COLORS = {
   free: '#fffdf7',
   reserved: '#7fb08a',
 } as const;
+/** The size of the words: in the page and on the cards. */
+export const SIZE = 0.34;
 /** The size of the small words: labels in the page, the grid's offsets and its colour key. */
 export const SMALL = 0.28;
 /** One byte's square in a tuple's grid. */
@@ -93,4 +96,106 @@ export function drawKey(x: TupleState, kx: number, ky: number, { ink }: { ink: s
       small(words, ink).moveTo([kx + 0.3, y], [-1, 0]),
     );
   });
+}
+
+/** The stage's colours the page is drawn in. */
+export type Ink = { ink: string; soft: string; paper: string };
+const text = (words: string, ink: string, opts: { size?: number; color?: string; bold?: boolean } = {}) =>
+  new Text(words, { fontSize: opts.size ?? SIZE, color: opts.color ?? ink, weight: opts.bold ? 'bold' : 'normal' });
+
+// ---- the page, as bufpage.h:28-44 draws it: header, line pointers growing down, tuples growing up.
+const PAGE: Box = [-7.2, -4.0, -2.0, 3.0];
+const pw = PAGE[2] - PAGE[0],
+  ph = PAGE[3] - PAGE[1];
+const HEADER_H = 0.6,
+  ROW_H = 0.55;
+const box = (x0: number, y0: number, x1: number, y1: number, fill: string, stroke: string) =>
+  new Rectangle({ width: x1 - x0, height: y1 - y0, fill, stroke, strokeWidth: 0.02 }).moveTo([
+    (x0 + x1) / 2,
+    (y0 + y1) / 2,
+  ]);
+// The pointer sits under the header; the tuple fills the last bytes of the page.
+// Widths in the two strips share one scale, so the pointer is an eighth of an int4 tuple.
+const perByte = (pw - 0.2) / 48;
+const tupleWidth = (stored: number) => stored * perByte;
+const linkAt = (stored: number): [Vec, Vec] => [
+  [PAGE[0] + (LINE_POINTER * perByte) / 2, PAGE[3] - HEADER_H - ROW_H - 0.05],
+  [PAGE[2] - tupleWidth(stored) + 0.3, PAGE[1] + ROW_H + 0.05],
+];
+const mid = PAGE[0] + pw / 2;
+
+/** The page's outline, header and size, the same in every scenario. */
+export function drawPage({ ink, soft, paper }: Ink) {
+  const outline = box(PAGE[0], PAGE[1], PAGE[2], PAGE[3], COLORS.free, ink);
+  const header = box(PAGE[0], PAGE[3] - HEADER_H, PAGE[2], PAGE[3], COLORS.pageHeader, ink);
+  const headerLabel = text(`page header, ${PAGE_HEADER} bytes`, ink, { size: SMALL, color: paper }).moveTo([
+    PAGE[0] + pw / 2,
+    PAGE[3] - HEADER_H / 2,
+  ]);
+  const pageSize = text(`${BLCKSZ} bytes`, ink, { size: SMALL, color: soft }).moveTo([PAGE[0] + pw / 2, PAGE[1] - 0.22]);
+  return { outline, header, headerLabel, pageSize };
+}
+/** The free space an empty page records, said in it. */
+export const drawEmptyFree = (free: number, { ink, soft }: Ink) =>
+  text(`${free} bytes free`, ink, { color: soft }).moveTo([PAGE[0] + pw / 2, PAGE[1] + ph * 0.45]);
+
+/** Where the page's offsets point: the free space's top and bottom edges, empty and after one row, and along the link. */
+export const AT = {
+  emptyLower: [mid, PAGE[3] - HEADER_H] as Vec,
+  emptyUpper: [mid, PAGE[1]] as Vec,
+  rowLower: [mid, PAGE[3] - HEADER_H - ROW_H] as Vec,
+  rowUpper: (stored: number): Vec => [PAGE[2] - tupleWidth(stored) / 2, PAGE[1] + ROW_H],
+  /** A point 30% along the link from the pointer to its tuple. */
+  link: (stored: number): Vec => {
+    const [l0, l1] = linkAt(stored);
+    return [l0[0] + 0.3 * (l1[0] - l0[0]), l0[1] + 0.3 * (l1[1] - l0[1])];
+  },
+};
+
+/** The first row on the page: its pointer, its tuple, the link and what is left free. */
+export function drawFirstRow(row: { stored: number; lower: number; upper: number }, { ink, soft, paper }: Ink) {
+  const pointer = box(
+    PAGE[0],
+    PAGE[3] - HEADER_H - ROW_H,
+    PAGE[0] + LINE_POINTER * perByte,
+    PAGE[3] - HEADER_H,
+    COLORS.pointers,
+    ink,
+  );
+  const pointerLabel = text(`line pointer, ${LINE_POINTER} bytes`, ink, { size: SMALL }).moveTo(
+    [pointer.box()![2] + 0.15, PAGE[3] - HEADER_H - ROW_H / 2],
+    [-1, 0],
+  );
+  const tupleW = tupleWidth(row.stored);
+  const tupleBox = box(PAGE[2] - tupleW, PAGE[1], PAGE[2], PAGE[1] + ROW_H, COLORS.data, ink);
+  const tupleLabel = text(`tuple, ${row.stored} bytes`, ink, { size: SMALL, color: paper }).moveTo(tupleBox.center());
+  const [from, to] = linkAt(row.stored);
+  const link = new Arrow(from, to, { stroke: ink, strokeWidth: 0.025, tipLength: 0.18 });
+  const free = text(`${row.upper - row.lower} bytes free`, ink, { color: soft }).moveTo([
+    PAGE[0] + pw / 2 + 0.5,
+    PAGE[1] + ph * 0.42,
+  ]);
+  return new Group(pointer, pointerLabel, tupleBox, tupleLabel, link, free);
+}
+
+/** A tuple's grid, its cells then its offsets, as one picture. */
+export function drawTupleGrid(x: TupleState, gx: number, gy: number, colours: { ink: string; soft: string }) {
+  const g = drawGrid(x, gx, gy, colours);
+  return new Group(...g.cells, ...g.offsets);
+}
+/** A tuple's colour key as one picture. */
+export const drawKeyGroup = (x: TupleState, kx: number, ky: number, colours: { ink: string }) => new Group(...drawKey(x, kx, ky, colours));
+
+/**
+ * The answer step's pair: both tuples' titles over their grids at `lx` and `rx` (the left grid drawn elsewhere),
+ * the other type's grid on the right, and both keys on one line under the longer grid.
+ */
+export function drawPair([x, y]: readonly [TupleState, TupleState], lx: number, rx: number, top: number, colours: Ink) {
+  const { ink, soft } = colours;
+  const titleOf = (t: TupleState, gx: number) =>
+    text(`${t.label}: ${t.stored}-byte tuple`, ink, { bold: true }).moveTo([gx + 4 * CELL, top + 0.4]);
+  const below = (t: TupleState) => top - (t.stored / 8) * CELL - 1.25;
+  const keyY = Math.min(below(x), below(y));
+  const theirs = drawGrid(y, rx, top, { ink, soft });
+  return new Group(titleOf(x, lx), titleOf(y, rx), ...drawKey(x, lx + 0.15, keyY, { ink }), ...theirs.cells, ...theirs.offsets, ...drawKey(y, rx + 0.15, keyY, { ink }));
 }

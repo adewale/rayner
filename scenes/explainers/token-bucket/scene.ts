@@ -1,31 +1,13 @@
-import {
-  Scene,
-  Rectangle,
-  Text,
-  Group,
-  Dot,
-  Axes,
-  FadeIn,
-  FadeOut,
-  Create,
-  Follow,
-  Transform,
-  AnimationGroup,
-  Succession,
-  Machine,
-  choreograph,
-  view,
-  StateReadout,
-  Circle,
-  rushFrom,
-  thereAndBack,
-} from '../../../src/index.ts';
-import type { ScheduledAnimation as Animation, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
+import { Scene, FadeIn, Create, Follow, Transform, AnimationGroup, Succession, Machine, view, rushFrom, thereAndBack } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, SceneState, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { listed } from '../lib/format.ts';
-import { CHIP_Y, balanceLine, cappedAt as capAt, chipX, climb, distinct, drawArrivals, drawChart, drawComparison, drawRequest, fmt, name, startOf } from './picture.ts';
+import {
+  CHIP_Y, SHELL_X, barAt, cappedAt as capAt, chipX, climb, climbTo, coin, drawArrivals, drawAxes, drawBucketLabel, drawChart, drawChips, drawComparison,
+  drawGauge, drawLevel, drawReadout, drawReadoutTitle, drawShell, fmt, levelY, missingRing, name, startOf,
+} from './picture.ts';
 
 // Six at once, three within the next second, then one after a four-second quiet spell:
 // long enough at 2 and 4 tokens a second for min(5, …) to throw refill away, not at 1.
@@ -112,18 +94,11 @@ export default class TokenBucketExplainer extends Scene {
   override async construct() {
     const rate = Number(settingsOf(this).rate),
       s = stage(this, { headingSize: 0.6, style: 'github-dark' });
-    const ink = s.palette.ink,
-      soft = s.soft,
-      colours = { ink, soft, muted: s.palette.muted, paper: s.palette.paper, accent: s.palette.accent, good: s.good, bad: s.bad };
+    const colours = { ink: s.palette.ink, soft: s.soft, muted: s.palette.muted, paper: s.palette.paper, accent: s.palette.accent, good: s.good, bad: s.bad };
 
     // A dry run of the same model at every rate, so titles and captions can name its answers.
     const runs = new Map(RATES.map((r) => [r, runAt(r)] as const)),
       plan = runs.get(rate)!;
-    const codes = (a: number, b: number) =>
-      plan
-        .slice(a, b)
-        .map((r) => (r.ok ? 200 : 429))
-        .join(', ');
     const refusedAt = (r: number) => runs.get(r)!.flatMap((c, i) => (c.ok ? [] : [name(i)]));
     /** When a climb from `prev` to `call` reached the capacity, where min(capacity, …) took over; null when it stayed under. */
     const cappedAt = (prev: { at: number; after: number }, call: Call) => capAt(prev, call, rate, CAPACITY);
@@ -161,59 +136,11 @@ export default class TokenBucketExplainer extends Scene {
     const gaugeSays = () => `The bucket, filled to ${fmt(bucketOf().tokens)} of ${CAPACITY} tokens`;
 
     // ---- request chips: one per call, filled in as each answer comes back (picture.ts).
-    const chip = (i: number, result: boolean | null) => drawRequest(i, result, colours);
     const { times, names } = drawArrivals(TIMES, colours);
-
-    // ---- the chart: tokens over time. Its y axis has the gauge's scale, so the
-    // bucket's level always stands where the chart's line ends.
-    const Y0 = -3.87,
-      Y5 = 0.57;
-    const axes = new Axes({
-      xRange: [0, TIMES.at(-1)!, 1],
-      yRange: [0, CAPACITY, 1],
-      width: 7.2,
-      height: Y5 - Y0,
-      axisStyle: { stroke: s.palette.muted, labelColor: soft, labelFontSize: 0.2, includeNumbers: true },
-      xLabel: 's',
-      yLabel: 'tokens',
-      axisLabelFontSize: 0.2,
-    });
-    axes.shift([-5.6 - axes.c2p(0, 0)[0], Y0 - axes.c2p(0, 0)[1]]);
-    const need = axes.horizontalLine(1, {
-      stroke: soft,
-      strokeWidth: 0.02,
-      dashArray: '0.1 0.08',
-      to: TIMES.at(-1)! - 0.6,
-    });
-    const needLabel = new Text('1 token', { fontSize: 0.2, color: soft }).moveTo(
-      [axes.c2p(TIMES.at(-1)! - 0.55, 1)[0], axes.c2p(TIMES.at(-1)! - 0.55, 1)[1] + 0.17],
-      [-1, 0],
-    );
-    const line = (points: [number, number][], color: string, width = 0.045) => balanceLine(axes, points, color, width);
-
-    // ---- the gauge: a bucket whose level is the balance
-    const SHELL_X = -6.75,
-      SHELL_W = 1.1;
-    const shell = new Rectangle({
-      width: SHELL_W,
-      height: Y5 - Y0 + 0.16,
-      stroke: s.palette.muted,
-      strokeWidth: 0.03,
-      fill: s.palette.paper,
-    }).moveTo([SHELL_X, (Y0 + Y5) / 2]);
-    const fill = (n: number) => {
-      const level = new Rectangle({
-        width: SHELL_W - 0.16,
-        height: Math.max(0.001, ((Y5 - Y0) * n) / CAPACITY),
-        stroke: 'none',
-        fill: s.palette.accent,
-      }).moveTo([SHELL_X, Y0], [0, -1]);
-      level.key = 'bucket:level';
-      return level;
-    };
-    /** The height of `n` tokens in the bucket. */
-    const levelY = (n: number) => Y0 + ((Y5 - Y0) * n) / CAPACITY;
-    shell.key = 'bucket:shell';
+    // ---- the chart: tokens over time, on the gauge's scale; the gauge: a bucket whose level is the balance.
+    const { axes, need, needLabel } = drawAxes(TIMES.at(-1)!, CAPACITY, colours);
+    const shell = drawShell(colours);
+    const fill = (n: number) => drawLevel(n, CAPACITY, colours);
     // The claim the shared scale makes, checked on every frame by rayner check: wherever the balance
     // line has got to, refilling or spending, the bucket's level stands at the same height. The line's
     // tip is the drawn end furthest along in time; at equal times, the one drawn last.
@@ -232,32 +159,14 @@ export default class TokenBucketExplainer extends Scene {
       // An empty bucket keeps a sliver 0.001 tall, so it can still be seen.
       return Math.abs(top - tip[1]) <= 0.002 || `the bucket's top is at ${top.toFixed(3)}, the line ends at ${tip[1].toFixed(3)}`;
     });
-    /** A climb drawn up to time t: the share of the line's length at or before t, as Create reveals a stroke. */
-    const climbTo = (points: [number, number][], t: number) => {
-      const path = line(points, s.palette.accent)!;
-      const ps = distinct(points),
-        ws = ps.map(([x, y]) => axes.c2p(x, y));
-      let total = 0,
-        upTo = 0;
-      for (let i = 1; i < ps.length; i++) {
-        const len = Math.hypot(ws[i]![0] - ws[i - 1]![0], ws[i]![1] - ws[i - 1]![1]),
-          [t0, t1] = [ps[i - 1]![0], ps[i]![0]];
-        total += len;
-        upTo += t >= t1 ? len : t > t0 ? (len * (t - t0)) / (t1 - t0) : 0;
-      }
-      const share = total > 0 ? upTo / total : 1;
-      if (share < 1) path.style.drawFraction = share;
-      path.style.opacity = share > 0 ? 1 : 0;
-      return path;
-    };
-    const bucketLabel = new Text('bucket', { fontSize: 0.2, color: soft }).moveTo([SHELL_X, Y0 - 0.33]);
+    const bucketLabel = drawBucketLabel(colours);
 
     // ---- the pictures of the model's state: every part keyed, so a transition can move each
     /** The balance in the bucket. */
-    const gaugePicture = (st: BucketState) => new Group(fill(st.tokens));
+    const gaugePicture = (st: BucketState) => drawGauge(st, CAPACITY, colours);
     /** Each call's climb, its drop when it spent a token, its dot, and the tags on the calls the captions name. */
     const chartPicture = (st: BucketState) => drawChart(st, axes, { rate, capacity: CAPACITY, last: TIMES.length - 1 }, colours);
-    const chipsPicture = (st: BucketState) => new Group(...TIMES.map((_, i) => chip(i, st.calls[i]?.ok ?? null)));
+    const chipsPicture = (st: BucketState) => drawChips(st, TIMES.length, colours);
     const part = (v: View, key: string) => v.current.find(key)!;
 
     // ------------------------------------------------------------- balance
@@ -273,29 +182,9 @@ export default class TokenBucketExplainer extends Scene {
     const gauge = view(this, (st) => gaugePicture(st as unknown as BucketState), { place: false });
     const chart = view(this, (st) => chartPicture(st as unknown as BucketState), { place: false });
     const chips = view(this, (st) => chipsPicture(st as unknown as BucketState), { place: false });
-    const readout = view(
-      this,
-      (state) => {
-        const rows = new StateReadout(
-          [
-            ['Tokens left', formatState(state.tokens)],
-            ['Last refill (s)', formatState(state.lastRefill)],
-            ['Accepted', formatState(state.allowed)],
-            ['Rejected', formatState(state.rejected)],
-          ],
-          {
-            fontSize: 0.26,
-            gap: 0.42,
-            at: [4.9, -2.78],
-          },
-        );
-        rows.children[0]!.key = 'balance:label';
-        rows.values['Tokens left']!.key = 'balance:value';
-        return rows;
-      },
-    );
+    const readout = view(this, (state) => drawReadout(state, formatState));
     this.readout = readout;
-    const readoutTitle = new Text('Bucket balance', { fontSize: 0.2, color: soft }).moveTo([3.3, -2.4], [-1, 0]);
+    const readoutTitle = drawReadoutTitle(colours);
     s.keep(readout, readoutTitle, {
       describe: () =>
         `Bucket balance: ${formatState(this.state.tokens)} tokens left, last refill at ${formatState(this.state.lastRefill)} seconds, ${formatState(this.state.allowed)} accepted; rejected requests: ${formatState(this.state.rejected)}`,
@@ -319,20 +208,7 @@ export default class TokenBucketExplainer extends Scene {
     await code.focus(REFILL, { as: 'refill' });
 
     /** The focus bar's place on lines a..b, as CodeBlock.focus draws it, for use inside a Succession. */
-    const barAt = ([a, b]: readonly [number, number]) => {
-      const lines = code.code.lines,
-        pitch = Math.abs(lines[1]!.anchorPoint()[1] - lines[0]!.anchorPoint()[1]),
-        top = lines[a]!.anchorPoint()[1] + pitch / 2,
-        bottom = lines[b]!.anchorPoint()[1] - pitch / 2;
-      return new Rectangle({
-        width: code.panel.width() - 0.14,
-        height: top - bottom,
-        cornerRadius: 0.05,
-        stroke: 'none',
-      })
-        .setStyle({ ...code.bar.style })
-        .moveTo([code.panel.center()[0], (top + bottom) / 2]);
-    };
+    const bar = (lines: readonly [number, number]) => barAt(code, lines);
 
     // ---------------------------------------- the machine: one request at a time
     // Each request is one call of allow() on the model, at the time the schedule gives it. The
@@ -366,12 +242,12 @@ export default class TokenBucketExplainer extends Scene {
           const climbed = climb(prev, call, rate, CAPACITY);
           const balanceAt = (t: number) => (t >= call.at ? call.found : Math.min(CAPACITY, prev.after + (t - prev.at) * rate));
           const refill = new Follow(
-            { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(climbed, t)] : fill(balanceAt(t))) },
+            { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(axes, climbed, t, s.palette.accent)] : fill(balanceAt(t))) },
             { targets: [level, ...(rise ? [rise] : [])], runTime: REFILL_S },
           );
           // The answer. A 200 takes the top token out of the bucket to the request, as the level
           // and the line drop by one; a 429 finds no whole token there, and the request turns red.
-          const top = levelY(call.found);
+          const top = levelY(call.found, CAPACITY);
           const answer: Animation[] = [
             ...(call.ok ? [c.enter(`balance:spend:${n}`, { create: true }, { runTime: ANSWER_S })] : []),
             c.enter(`balance:found:${n}`, {}, { runTime: ANSWER_S }),
@@ -381,19 +257,17 @@ export default class TokenBucketExplainer extends Scene {
             readout.sync({ match: 'index', runTime: ANSWER_S }),
           ];
           if (call.ok) {
-            const coin = (at: Vec) => new Circle({ radius: 0.13, fill: s.palette.accent, fillOpacity: 1, stroke: 'none' }).moveTo(at);
-            const token = g.insert('bucket:token', coin([SHELL_X, top - 0.14]));
+            const token = g.insert('bucket:token', coin([SHELL_X, top - 0.14], colours));
             answer.push(
               new Succession([
-                new Transform(token, coin([SHELL_X, top - 0.14]), { runTime: 0.18 }),
+                new Transform(token, coin([SHELL_X, top - 0.14], colours), { runTime: 0.18 }),
                 // rushFrom: the token is sent off, leaving the bucket at full speed and easing into the request.
-                new Transform(token, coin([chipX(i), CHIP_Y]), { runTime: 0.27, rateFunc: rushFrom }),
+                new Transform(token, coin([chipX(i), CHIP_Y], colours), { runTime: 0.27, rateFunc: rushFrom }),
                 g.leave('bucket:token', { runTime: 0.15 }),
               ]),
             );
           } else {
-            const ring = (opacity: number) =>
-              new Circle({ radius: 0.13, fill: 'none', stroke: s.bad, strokeWidth: 0.035, dashArray: '0.06 0.05', opacity }).moveTo([SHELL_X, levelY(Math.max(call.found, 0)) + 0.18]);
+            const ring = (opacity: number) => missingRing(opacity, call.found, CAPACITY, colours);
             const missing = g.insert('bucket:missing', ring(0));
             // thereAndBack: the request looks for a token where one would be and comes back empty: the empty ring
             // shows and goes in one there-and-back, and is gone by the end of the answer.
@@ -468,7 +342,7 @@ export default class TokenBucketExplainer extends Scene {
         const ok = bucketRequest(bucketOf(), TIMES[i]!).calls[i]!.ok;
         await this.play(
           machine.send('request'),
-          new Succession([new Transform(code.bar, barAt(REFILL), { runTime: REFILL_S }), new Transform(code.bar, barAt(ok ? SPEND : REFUSE), { runTime: ANSWER_S })]),
+          new Succession([new Transform(code.bar, bar(REFILL), { runTime: REFILL_S }), new Transform(code.bar, bar(ok ? SPEND : REFUSE), { runTime: ANSWER_S })]),
         );
       }
       // The bar already stands where the last call left it; this names those lines for the description.

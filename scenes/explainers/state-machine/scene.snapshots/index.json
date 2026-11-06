@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "7de77667a09b9dbb553e75b7def7be79dbb2309f9b82191c1d7e8300c2b5ccbd",
+  "sourceHash": "5a606a2b449c4d2959952d3dbfce5bdd389e5a5946ca277a4f1d4f238da76af3",
   "diagrams": {
     "[\"stateDiagram-v2\\n direction LR\\n idle --> connecting: CONNECT\\n connecting --> open: OPENED\\n connecting --> closed: ERROR\\n open --> closed: CLOSE\",\"dracula\"]": "960a8dc2017bb001.json"
   }

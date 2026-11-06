@@ -1,19 +1,8 @@
-import { frames as readerFrames, ruler, pairLines } from './picture.ts';
-import {
-  Scene,
-  Text,
-  Create,
-  FadeIn,
-  TransformMatchingShapes,
-  Group,
-  SurroundingRectangle,
-  shaperFor,
-} from '../../../src/index.ts';
+import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, advanceCells, letterRow, letterTargets } from './picture.ts';
+import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from '../../../src/index.ts';
 import type { MatchSummary, FontName } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 
-const WORD = 'Hello, outlines';
-const SIZE = 0.9; // the size the fidelity test measures
 const SMALL = 0.6; // the smaller copy in the letterforms step
 const STYLE = 'pen-and-ink';
 const NAME: Record<FontName, string> = { sans: 'Inter', mono: 'JetBrains Mono' };
@@ -109,10 +98,7 @@ export default class GlyphExplainer extends Scene {
     });
     await s.clear();
     const wide = Math.max(mine.width, theirs.width);
-    const measured = new Text(WORD, { font, fontSize: SIZE, color: ink });
-    measured.setStroke(ink, 0.012);
-    measured.moveTo([-wide / 2, 2.4], [-1, 0]);
-    const compare = new Text(WORD, { font: other, fontSize: SIZE, color: soft }).moveTo([-wide / 2, 0.1], [-1, 0]);
+    const { measured, compare } = measuredRows(font, other, wide, ink, soft);
     const units = (f: FontName) => `${advance(f).toFixed(4)} units · ${NAME[f]}`;
     const mineRule = ruler(measured, mine.stops, units(font), hot);
     const theirRule = ruler(compare, theirs.stops, units(other), soft);
@@ -121,24 +107,13 @@ export default class GlyphExplainer extends Scene {
     await this.play(new Create(mineRule, { runTime: 0.9, lagRatio: 0 }));
     await this.play(new FadeIn(compare, { runTime: 0.5 }), new Create(theirRule, { runTime: 0.9, lagRatio: 0 }));
     // Inter's widest letter and all its narrowest ones, boxed by their advance cells in both rows.
-    const cells = new Group();
-    for (const [row, run, color] of [
-      [measured, mine, hot],
-      [compare, theirs, soft],
-    ] as const) {
-      const [x0, y0, , y1] = row.box()!;
-      for (const i of [wideAt, ...stems]) {
-        const x = x0 + run.stops[i]!;
-        cells.add(
-          new SurroundingRectangle([x, y0, x + run.advances[i]!, y1], {
-            buff: 0.02,
-            cornerRadius: 0.03,
-            stroke: color,
-            strokeWidth: 0.018,
-          }),
-        );
-      }
-    }
+    const cells = advanceCells(
+      [
+        [measured, mine, hot],
+        [compare, theirs, soft],
+      ],
+      [wideAt, ...stems],
+    );
     s.keep(cells, {
       describe: `Boxes around ${NAME.sans}’s widest letter, “${sans.chars[wideAt]}”, and its narrowest, ${stems.map((i) => `“${sans.chars[i]}”`).join(', ')}, in both rows`,
     });
@@ -175,11 +150,9 @@ export default class GlyphExplainer extends Scene {
       caption: `Rayner’s shape matcher, TransformMatchingShapes, compares outlines after removing position and size. The ${SMALL * 100}% copy keeps those paths, so all ${measured.children.length} of its glyphs pair with the originals; the space has no outline to pair. In this phrase the other font changes the paths: none pairs across the fonts. A character name identifies a letter, not a particular outline.`,
     });
     await s.clear();
-    const row = new Text(WORD, { font, fontSize: SIZE, color: ink }).moveTo([-wide / 2, 2.35], [-1, 0]);
+    const row = letterRow(font, wide, ink);
     await s.enter(row, { runTime: 0.5 });
-    const [mx0, , mx1] = row.box()!;
-    const smaller = new Text(WORD, { font, fontSize: SIZE * SMALL, color: ink }).moveTo([(mx0 + mx1) / 2, 0.55]);
-    const across = new Text(WORD, { font: other, fontSize: SIZE, color: hot }).moveTo([-wide / 2, -1.15], [-1, 0]);
+    const { smaller, across } = letterTargets(row, font, other, SMALL, wide, ink, hot);
     s.keep(smaller, across);
     // Each morph starts from a copy, so the original row stays to compare against.
     const first = row.copy(),

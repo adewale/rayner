@@ -1,20 +1,10 @@
-import type { Evidence, Box, Vec, View } from '../../../src/index.ts';
-import {
-  Scene,
-  Text,
-  Arrow,
-  Group,
-  FadeIn,
-  FadeOut,
-  BraceLabel,
-  view,
-} from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, CodeBlock } from '../../../explain/index.ts';
-import type { Diagram, NoteSide } from '../../../explain/index.ts';
+import type { Evidence, Box, View } from '../../../src/index.ts';
+import { Scene, FadeIn, FadeOut, view } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import type { CodeBlock, Diagram, NoteSide } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
-import { keyed } from '../../../explain/drawing.ts';
 import { objectLines, reachable } from './objects.ts';
-import { short, CELL_Y, ROW_Y, blobCells, idRow, commitRow, rowWords } from './picture.ts';
+import { short, blobCells, blobIdRow, rowWords, codePanel, hashArrow, abbrevBrace, commitRows, sharedBlob, idLabel, changedId, pairCounts } from './picture.ts';
 import type { RowState } from './picture.ts';
 
 const STYLE = 'catppuccin-mocha';
@@ -103,7 +93,7 @@ export default class GitExplainer extends Scene {
       const draw = (state: object) => {
         const g = state as unknown as GitState,
           focus = g.focus?.[name];
-        return keyed(new CodeBlock(this, s.palette, lines(g), { at, ...(focus ? { focus } : {}) }), `exgit-${name}`);
+        return codePanel(this, s.palette, name, lines(g), at, focus);
       };
       return { v: view(this, draw, { place: false }) };
     };
@@ -128,7 +118,6 @@ export default class GitExplainer extends Scene {
     this.state.hello = hello;
     // The bytes Git hashes: the header's and the content's, and the id they hash to.
     this.state.blob = { id: hello, bytes: all, header: header.length };
-    const cellY = CELL_Y;
     const body = view(this, (state) => blobCells((state as unknown as GitState).blob, 'content', colours), { place: false }),
       head = view(this, (state) => blobCells((state as unknown as GitState).blob, 'header', colours), { place: false });
     const blobOf = () => st().blob;
@@ -144,21 +133,12 @@ export default class GitExplainer extends Scene {
         return `The header bytes “${words}” and a zero byte, in front of the content`;
       },
     });
-    const arrow = new Arrow([0, cellY - 1.1], [0, cellY - 2.05], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2 });
-    const how = new Text('SHA-1', { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo([0.3, cellY - 1.57], [-1, 0]);
-    const idView = view(this, (state) => keyed(idRow((state as unknown as GitState).blob.id, colours).idRow, 'exgit-blob-id'), { place: false });
+    const { arrow, how } = hashArrow(s.soft);
+    const idView = view(this, (state) => blobIdRow((state as unknown as GitState).blob.id, colours), { place: false });
     await s.enter(arrow, how, { runTime: 0.4, describe: 'An arrow labelled SHA-1 from the bytes to their id' });
     await s.enter(idView, { runTime: 0.6, describe: () => `The blob id ${blobOf().id}, its first seven digits highlighted` });
     // The short name every later picture uses is this prefix of the real id.
-    const abbrev = view(
-      this,
-      (state) => {
-        const id = (state as unknown as GitState).blob.id;
-        const { idHead } = idRow(id, colours);
-        return keyed(new BraceLabel(idHead, `${short(id)} names it from here on`, [0, -1], { fontSize: 0.26, color: s.soft, buff: 0.06, labelBuff: 0.12 }), 'exgit-abbrev');
-      },
-      { place: false },
-    );
+    const abbrev = view(this, (state) => abbrevBrace((state as unknown as GitState).blob.id, colours), { place: false });
     await s.enter(abbrev, {
       runTime: 0.4,
       describe: () => `A brace under the first seven digits, ${short(blobOf().id)}: the name later pictures give the blob`,
@@ -320,14 +300,7 @@ export default class GitExplainer extends Scene {
     const shared = add ? 'hello.txt' : null;
     // The rows the state records: commit one's alone, then both, with the blob they share outlined in each.
     this.state.rows = { commits: [rowOf('commit one', c1)], shared: null };
-    const rows = view(
-      this,
-      (state) => {
-        const r = (state as unknown as GitState).rows;
-        return keyed(new Group(...r.commits.map((row, i) => commitRow(row, ROW_Y[i]!, { lit: r.shared, skip: i ? r.shared : null }, colours).row)), 'exgit-rows');
-      },
-      { place: false },
-    );
+    const rows = view(this, (state) => commitRows((state as unknown as GitState).rows, colours), { place: false });
     const rowsInWords = () => {
       const r = st().rows;
       return r.commits.length === 1
@@ -354,15 +327,7 @@ export default class GitExplainer extends Scene {
       // Tree two names the very object tree one names: the same box moves across, id and all.
       // Drawn first over commit one's box, then in tree two's row: a copy of the box, moved across.
       this.shown.copied = false;
-      same = view(
-        this,
-        (state, shown) => {
-          const r = (state as unknown as GitState).rows;
-          const row = shown.copied ? 1 : 0;
-          return keyed(commitRow(r.commits[row]!, ROW_Y[row]!, { lit: r.shared, skip: r.shared }, colours).blobs.get(r.shared!)!, 'exgit-shared-blob');
-        },
-        { place: false },
-      );
+      same = view(this, (state, shown) => sharedBlob((state as unknown as GitState).rows, shown.copied ? 1 : 0, colours), { place: false });
       s.keep(same, { describe: rowsInWords });
       this.add(same);
       this.shown.copied = true;
@@ -418,14 +383,7 @@ export default class GitExplainer extends Scene {
     // first, so a paired digit may fly in from another column; the coloured digits are the
     // ones equal place for place, which the morph does not single out.
     const idX = RIGHT[0] + 0.3,
-      label = (text: string, y: number) => new Text(text, { fontSize: 0.22, color: s.soft, anchor: 'start' }).moveTo([idX, y], [-1, 0]),
-      /** An id in mono, with the digits it shares, place for place, with `other` in the emphasis colour. */
-      hex = (id: string, other: string, y: number, color: string) => {
-        const t = new Text(id, { fontSize: 0.2, font: 'mono', color, anchor: 'start' }).moveTo([idX + 1.45, y], [-1, 0]);
-        if (t.children.length !== id.length) throw new Error('Expected one glyph per hex digit');
-        t.children.forEach((g, i) => id[i] === other[i] && g.setFill(accent));
-        return t;
-      };
+      label = (text: string, y: number) => idLabel(text, idX, y, s.soft);
     const idLabels = [label('Ids that changed, old above new', -1.35), label('tree one', -1.8), label('tree two', -2.1), label('commit one', -2.6), label('commit two', -2.9)];
     /** One id of the state, old or new, coloured where it agrees with the other place for place. */
     const idView2 = (kind: 'tree' | 'commit', age: 'old' | 'new') =>
@@ -434,10 +392,7 @@ export default class GitExplainer extends Scene {
         (state, shown) => {
           const g = state as unknown as GitState;
           const [old, now] = kind === 'tree' ? [g.t1, g.t2] : [g.c1, g.c2];
-          const y = { tree: { old: -1.8, new: -2.1 }, commit: { old: -2.6, new: -2.9 } }[kind][age];
-          // The new id is first a copy of the old one, in its place, until the morph has changed it.
-          if (age === 'new' && !shown.idsChanged) return keyed(hex(old, now, y + 0.3, s.soft), `exgit-id:${kind}:${age}`);
-          return keyed(age === 'old' ? hex(old, now, y, s.soft) : hex(now, old, y, ink), `exgit-id:${kind}:${age}`);
+          return changedId({ old, now }, kind, age, !!shown.idsChanged, idX, colours);
         },
         { place: false },
       );
@@ -460,10 +415,7 @@ export default class GitExplainer extends Scene {
       this,
       (state) => {
         const g = state as unknown as GitState;
-        return new Group(
-          label(`Paired with an equal digit anywhere: tree ${g.paired.tree}, commit ${g.paired.commit} of 40`, -3.4),
-          label(`Same digit in the same place, coloured: tree ${g.samePlace.tree}, commit ${g.samePlace.commit} of 40`, -3.8),
-        );
+        return pairCounts(g.paired, g.samePlace, idX, s.soft);
       },
       { place: false },
     );

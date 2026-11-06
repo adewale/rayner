@@ -1,4 +1,5 @@
 import { Arrow, Group, Rectangle, Text } from '../../../src/index.ts';
+import type { Mobject } from '../../../src/index.ts';
 import { exec } from './model.ts';
 import type { Shell, ShellSession } from './model.ts';
 import { flow, keyedParts, label, table } from '../../../explain/drawing.ts';
@@ -108,4 +109,39 @@ export function shellsWords(st: ShellSession): string {
     ...st.shells.slice(1).map((_, k) => `An arrow from s${k} to s${k + 1}: echo, tr, redirect`),
     ...st.cats.flatMap((c, i) => (c === null ? [] : [`cat ${FILE} on s${i} ${prints(c)}`])),
   ].join('. ') + '.';
+}
+
+/**
+ * The command line as tokens in a row, and under each token a bar and its role: operators (the pipe and the
+ * redirect) in the accent colour, everything else in ink with a soft label.
+ */
+export function commandLine(parts: readonly (readonly [string, string])[], ink: string, accent: string, soft: string): { line: Group; roles: Group } {
+  const tokens = parts.map(([t]) => new Text(t, { fontSize: 0.56, font: 'mono', color: ink }));
+  const line = new Group(...tokens).arrange([1, 0], 0.42).moveTo([0, 1.9]);
+  const roles = parts.map(([, role], i) => {
+    const tok = tokens[i]!,
+      [a, , b] = tok.box()!,
+      isOp = role === 'pipe' || role === 'redirect';
+    const bar = new Rectangle({
+      width: Math.max(0.3, b - a),
+      height: 0.035,
+      fill: isOp ? accent : ink,
+      stroke: 'none',
+    }).moveTo([(a + b) / 2, 1.4]);
+    const label = new Text(role, { fontSize: 0.24, color: isOp ? accent : soft }).moveTo([
+      (a + b) / 2,
+      1.05,
+    ]);
+    return new Group(bar, label);
+  });
+  return { line, roles: new Group(...roles) };
+}
+
+/** A copy of a card with everything but its bar faded to 40%: the shell not picked. */
+export function faded<T extends Mobject & { bar: Mobject }>(card: T): Mobject {
+  const copy = card.copy();
+  copy.family().forEach((m, i) => {
+    if (card.family()[i] !== card.bar) m.style.opacity = 0.4;
+  });
+  return copy;
 }

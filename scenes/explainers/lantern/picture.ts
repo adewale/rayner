@@ -1,5 +1,6 @@
 import { Rectangle, Dot, Circle, Line, Text, Group, VMobject } from '../../../src/index.ts';
-import type { Mobject, Vec } from '../../../src/index.ts';
+import type { Box, Mobject, Vec } from '../../../src/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
 
 // How the lantern explainer draws a state: the tiny scene redrawn from a recorded frame, two frames
 // side by side, the dot's place at every frame played and seeked, and a strip of cells per motion.
@@ -159,3 +160,56 @@ export function checkPicture(st: CheckState, c: Ink & Verdict) {
   const key = new Text('filled: seeked frame = played frame · hollow: different', { fontSize: 0.26, color: soft }).moveTo([0, -2.85]);
   return new Group(strip(st.matches.blend, 0.5, 'Blending fixed endpoints', c), strip(st.matches.nudge, -1.2, 'A nudge each frame', c), axis, marker, markerLabel, key);
 }
+
+/** What each thumbnail of the opening says under it: the played frame and its time, and the frames a still only counts. */
+export const playedLabel = (at: Seek) => `played: frame ${at.frame}, t = ${at.t.toFixed(2)} s`,
+  seekedLabel = (at: Seek) => `seeked: frames 1–${at.frame - 1} only counted`;
+/** The played frame beside an empty one, where the still will be. */
+export const playedPicture = (st: { at: Seek; played: Still }, c: Ink) =>
+  new Group(thumb(c, st.played, -THUMB_X, playedLabel(st.at)), thumb(c, null, THUMB_X, seekedLabel(st.at)));
+/** The played and seeked frames, with = or ≠ between them, and an outline where playback has the dot when they differ. */
+export const seekPicture = (st: { seek: { match: boolean }; at: Seek; stills: { played: Still; seeked: Still } }, c: Ink) =>
+  new Group(
+    thumb(c, st.stills.played, -THUMB_X, playedLabel(st.at)),
+    thumb(c, st.stills.seeked, THUMB_X, seekedLabel(st.at), st.seek.match ? undefined : st.stills.played.frame.dot),
+    new Text(st.seek.match ? '=' : '≠', { fontSize: 0.7, color: c.accent, weight: 'bold' }).moveTo([0, THUMB_Y]),
+  );
+
+/**
+ * The frame ruler under the pipeline, its axis `top` − 0.4: the scene time of each frame, and when the browser
+ * sink (one frame a pitch) and the trace sink (all at once) take it.
+ */
+export function rulerPicture(times: readonly number[], top: number, { ink, accent, soft }: Ink) {
+  const x0 = -2.85,
+    pitch = 1.25;
+  const axisY = top - 0.4,
+    timeY = axisY - 0.4,
+    browserY = timeY - 0.85,
+    traceY = browserY - 0.8;
+  const lane = (label: string, y: number) =>
+    new Text(label, { fontSize: 0.28, color: soft, anchor: 'start' }).moveTo([-7.3, y], [-1, 0]);
+  const g = new Group();
+  g.add(
+    lane('scene time (ms)', timeY),
+    lane('browser sink, wall clock', browserY),
+    lane('trace sink, wall clock', traceY),
+    new Line([x0 - 0.25, axisY], [x0 + pitch * (times.length - 1) + 0.25, axisY], { stroke: ink, strokeWidth: 0.025 }),
+  );
+  times.forEach((ms, n) => {
+    const x = x0 + n * pitch;
+    g.add(
+      new Line([x, axisY + 0.14], [x, axisY - 0.14], { stroke: ink, strokeWidth: 0.025 }),
+      new Text(ms.toFixed(0), { fontSize: 0.26, font: 'mono', color: ink }).moveTo([x, timeY]),
+      new Dot({ radius: 0.11, color: accent }).moveTo([x, browserY]),
+      new Dot({ radius: 0.11, color: accent }).moveTo([x0 + n * 0.28, traceY]),
+    );
+  });
+  return keyed(g, 'lantern-ruler');
+}
+
+/** What the sink does with a frame, beside its box: it reads; it never changes a mobject. */
+export const sinkNote = (sinkBox: Box, soft: string) =>
+  new Text('reads each frame; changes nothing', { fontSize: 0.28, color: soft, anchor: 'start' }).moveTo(
+    [sinkBox[2] + 0.35, (sinkBox[1] + sinkBox[3]) / 2],
+    [-1, 0],
+  );

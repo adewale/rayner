@@ -1,9 +1,11 @@
 // How the exgit explainer draws one state: the bytes Git hashes for a blob, the id they hash to, and each
 // commit's row of object boxes (the commit, its tree, each entry's blob) as the steps record them. The
-// object diagram is Mermaid, laid out by the scene's live diagram; the hash step's ids stay in the scene.
-import { Text, Rectangle, Group } from '../../../src/index.ts';
-import type { Mobject } from '../../../src/index.ts';
+// object diagram is Mermaid, laid out by the scene's live diagram.
+import { Text, Rectangle, Group, Arrow, BraceLabel } from '../../../src/index.ts';
+import type { Mobject, Scene, Box } from '../../../src/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
+import { CodeBlock } from '../../../explain/index.ts';
+import type { Palette } from '../../../explain/index.ts';
 
 /** The stage's colours these pictures use: text, secondary text and the emphasis colour. */
 export type Ink = { ink: string; soft: string; accent: string };
@@ -102,3 +104,60 @@ export function commitRow(row: RowState, y: number, { lit, skip }: { lit?: strin
 /** A commit's row in words, from the same record the boxes show. */
 export const rowWords = (row: RowState) =>
   `${row.label}: commit ${short(row.commit)} names tree ${short(row.tree)}, which lists ${row.entries.map((e) => `${e.file} as blob ${short(e.blob)}`).join(' and ')}`;
+
+/** A code panel keyed `exgit-<name>`, laid out as s.code lays one out, its bar on `focus` when given. */
+export const codePanel = (scene: Scene, palette: Palette, name: string, lines: string[], at: Box, focus?: [number, number]) =>
+  keyed(new CodeBlock(scene, palette, lines, { at, ...(focus ? { focus } : {}) }), `exgit-${name}`);
+
+/** The arrow from the blob's bytes down to their id, labelled SHA-1. */
+export function hashArrow(soft: string): { arrow: Arrow; how: Text } {
+  const arrow = new Arrow([0, CELL_Y - 1.1], [0, CELL_Y - 2.05], { stroke: soft, strokeWidth: 0.03, tipLength: 0.2 });
+  const how = new Text('SHA-1', { fontSize: 0.24, color: soft, anchor: 'start' }).moveTo([0.3, CELL_Y - 1.57], [-1, 0]);
+  return { arrow, how };
+}
+
+/** The blob's id row, keyed as the blob step shows it. */
+export const blobIdRow = (id: string, colours: Ink) => keyed(idRow(id, colours).idRow, 'exgit-blob-id');
+
+/** The brace under the id's first seven digits, the short name later pictures use. */
+export function abbrevBrace(id: string, colours: Ink): BraceLabel {
+  const { idHead } = idRow(id, colours);
+  return keyed(new BraceLabel(idHead, `${short(id)} names it from here on`, [0, -1], { fontSize: 0.26, color: colours.soft, buff: 0.06, labelBuff: 0.12 }), 'exgit-abbrev');
+}
+
+/** The commits' rows the state records, one under another; `shared` outlined, and left out of every row after the first. */
+export interface RowsState { commits: RowState[]; shared: string | null }
+export const commitRows = (r: RowsState, colours: Ink) =>
+  keyed(new Group(...r.commits.map((row, i) => commitRow(row, ROW_Y[i]!, { lit: r.shared, skip: i ? r.shared : null }, colours).row)), 'exgit-rows');
+/** The shared blob's box alone, in row `row`'s place: over commit one's box, or in tree two's row. */
+export const sharedBlob = (r: RowsState, row: number, colours: Ink) =>
+  keyed(commitRow(r.commits[row]!, ROW_Y[row]!, { lit: r.shared, skip: r.shared }, colours).blobs.get(r.shared!)!, 'exgit-shared-blob');
+
+/** Where each changed id sits in the hash step: old above new, tree above commit. */
+const ID_Y = { tree: { old: -1.8, new: -2.1 }, commit: { old: -2.6, new: -2.9 } };
+/** A line of secondary text in the hash step's column, starting at `x`. */
+export const idLabel = (text: string, x: number, y: number, soft: string) =>
+  new Text(text, { fontSize: 0.22, color: soft, anchor: 'start' }).moveTo([x, y], [-1, 0]);
+/** An id in mono, with the digits it shares, place for place, with `other` in the emphasis colour. */
+function hex(id: string, other: string, x: number, y: number, color: string, accent: string) {
+  const t = new Text(id, { fontSize: 0.2, font: 'mono', color, anchor: 'start' }).moveTo([x + 1.45, y], [-1, 0]);
+  if (t.children.length !== id.length) throw new Error('Expected one glyph per hex digit');
+  t.children.forEach((g, i) => id[i] === other[i] && g.setFill(accent));
+  return t;
+}
+/**
+ * One changed id, old or new, coloured where it agrees with the other place for place. Until `changed`, the new id
+ * is a copy of the old one in its place, so the morph can change it.
+ */
+export function changedId(ids: { old: string; now: string }, kind: 'tree' | 'commit', age: 'old' | 'new', changed: boolean, x: number, { ink, soft, accent }: Ink) {
+  const { old, now } = ids;
+  const y = ID_Y[kind][age];
+  if (age === 'new' && !changed) return keyed(hex(old, now, x, y + 0.3, soft, accent), `exgit-id:${kind}:${age}`);
+  return keyed(age === 'old' ? hex(old, now, x, y, soft, accent) : hex(now, old, x, y, ink, accent), `exgit-id:${kind}:${age}`);
+}
+/** What the two id morphs paired, beside the digits that are equal in place. */
+export const pairCounts = (paired: { tree: number; commit: number }, same: { tree: number; commit: number }, x: number, soft: string) =>
+  new Group(
+    idLabel(`Paired with an equal digit anywhere: tree ${paired.tree}, commit ${paired.commit} of 40`, x, -3.4, soft),
+    idLabel(`Same digit in the same place, coloured: tree ${same.tree}, commit ${same.commit} of 40`, x, -3.8, soft),
+  );

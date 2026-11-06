@@ -1,8 +1,10 @@
-import { Group } from '../../../src/index.ts';
+import { Group, Dot, SurroundingRectangle } from '../../../src/index.ts';
+import type { Mobject, Scene, SceneState, Code, CodeSpan } from '../../../src/index.ts';
 import { reduceSession, sessionAttempt } from './model.ts';
-import { flow, label, tile } from '../../../explain/drawing.ts';
-import type { StagedStep } from '../../../explain/index.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import type { SessionState } from './model.ts';
+import { flow, keyed, label, tile } from '../../../explain/drawing.ts';
+import type { StagedStep, Diagram, Palette, CardOptions } from '../../../explain/index.ts';
+import { stagedStep, Card } from '../../../explain/index.ts';
 
 /** The script's one-sentence answer (script.md's Answer line), which the reject step states in both histories. */
 export const ANSWER =
@@ -50,3 +52,61 @@ export function frames(which: string): StagedStep[] {
     }),
   ];
 }
+
+// One colour says "the machine is here": the ring on the diagram and the row in the code.
+export const NOW = '#f1fa8c',
+  REJECT = '#ff5555';
+export const RING = { keep: true, color: NOW, buff: 0.07, cornerRadius: 0.08, strokeWidth: 0.03, runTime: 0.8 };
+
+/** The card row the bar lights: the error, the new state, or the event that just arrived. */
+const litRow = (st: SceneState) => (st.invalid ? 'Returns' : st.returns ? 'State' : st.event ? 'Event' : null);
+
+/** The Session card for one state: state, event and return value, the row the session last changed lit. */
+export function drawSessionCard(scene: Scene, palette: Palette, st: SceneState, at: CardOptions['at']): Card {
+  const card = new Card(
+    scene,
+    palette,
+    [
+      ['State', st.session],
+      ['Event', st.event ?? '–'],
+      ['Returns', st.returns ?? (st.event ? '…' : '–')],
+    ],
+    // The row the session last changed is lit, drawn with the card: described and emphasised with it.
+    { at, fontSize: 0.28, width: 4.8, lit: litRow(st) },
+  );
+  for (const field of ['State', 'Event', 'Returns'])
+    card.values.get(field)!.key = `session:${field.toLowerCase()}`;
+  card.bar.key = 'session:bar';
+  return card;
+}
+
+/** Where a reducer row (from its key to its answer) and the throw sit in the drawn code. */
+export function reducerSpans(code: Code, lines: readonly string[], throwLine: number) {
+  const rowOf = (row: string) => lines.findIndex((l) => l.includes(`'${row}'`));
+  return {
+    row: (row: string) => {
+      const line = rowOf(row), next = lines[line]!.split("'")[3]!;
+      return code.span(line, code.token(line, `'${row}'`).from, code.token(line, `'${next}'`).to);
+    },
+    thrown: () => code.span(throwLine, code.token(throwLine, 'if').from, lines[throwLine]!.length),
+  };
+}
+
+// A lit row is the row's glyphs again, in the ring's colour, over the code.
+const lit = (span: CodeSpan, color: string) => new Group(...span.children.map((g) => g.copy().setFill(color)));
+const boxOf = (span: CodeSpan, color: string) =>
+  new SurroundingRectangle(span.box()!, { buff: 0.035, cornerRadius: 0.04, stroke: color, strokeWidth: 0.02 });
+
+/** The diagram with the links the session travelled in the trail's colour. */
+export const drawTrails = (d: Diagram, st: SessionState) => new Group(keyed(d.picture(Object.fromEntries(st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, d.accent]; }))), 'diagram'));
+/** The ring on the state the session is in. */
+export const drawRing = (d: Diagram, st: SessionState) => new Group(keyed(new SurroundingRectangle(d.get(st.session), { buff: RING.buff, cornerRadius: RING.cornerRadius, stroke: NOW, strokeWidth: RING.strokeWidth }), `session:ring:${st.session}`));
+/** The reducer row the session read, or the throw it hit, lit and boxed. */
+export const drawReading = (st: SessionState, spans: ReturnType<typeof reducerSpans>) => {
+  const parts: Mobject[] = [];
+  if (st.row) parts.push(keyed(lit(spans.row(st.row), NOW), `reducer:lit:${st.row}`), keyed(boxOf(spans.row(st.row), NOW), `reducer:box:${st.row}`));
+  if (st.invalid) parts.push(keyed(lit(spans.thrown(), REJECT), 'reducer:throw-lit'), keyed(boxOf(spans.thrown(), REJECT), 'reducer:throw-box'));
+  return new Group(...parts);
+};
+/** The token that walks a link. */
+export const walkToken = (d: Diagram) => new Dot({ radius: 0.08, color: d.accent });
