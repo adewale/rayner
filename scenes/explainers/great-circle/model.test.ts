@@ -1,9 +1,9 @@
 import { test } from 'node:test';
+import { seenFrom, depthOrder, latLon } from '../../../explain/geo.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { AIRPORTS, RADIUS_KM, haversine, initialBearing, pole, vertex, highest, greatCircle, rhumb, rhumbLine, northing, stretch, overflies, landAt, london, madrid, tens } from './model.ts';
 import type { Place } from './model.ts';
-import { seenFrom, depthOrder, latLon } from '../../../explain/drawing.ts';
 import type { VMobject } from '../../../src/index.ts';
 import { fc, params } from '../lib/pbt.ts';
 

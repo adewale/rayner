@@ -20,7 +20,7 @@ import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
-import type { Machine } from '../../src/index.ts';
+import type { Machine } from '../../explain/index.ts';
 import type { Trace } from '../../explain/testing.ts';
 
 import { resolveSettings } from '../../explain/index.ts';
@@ -73,6 +73,9 @@ export function engineAlias(node = false, outlines = false): Plugin {
         if (args.path === 'rayner') file = join(LIB_ROOT, 'src/index.ts');
         else if (args.path === 'rayner/explain') file = join(LIB_ROOT, 'explain/index.ts');
         else if (args.path === 'rayner/drawing') file = join(LIB_ROOT, 'explain/drawing.ts');
+        else if (args.path === 'rayner/geo') file = join(LIB_ROOT, 'explain/geo.ts');
+        else if (args.path === 'rayner/audio') file = join(LIB_ROOT, 'explain/score.ts');
+        else if (args.path === 'rayner/extras') file = join(LIB_ROOT, 'src/extras.ts');
         else if (args.path === 'rayner/lettering') file = join(LIB_ROOT, 'src/lettering.ts');
         else if (args.path === 'rayner/output') file = join(LIB_ROOT, 'src/output.ts');
         else if (args.path === 'rayner/testing') file = join(LIB_ROOT, 'explain/testing.ts');

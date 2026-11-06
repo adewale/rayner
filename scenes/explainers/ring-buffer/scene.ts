@@ -1,6 +1,7 @@
-import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, StateReadout, Machine, view, linear } from '../../../src/index.ts';
-import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, StateReadout, linear } from '../../../src/index.ts';
+import type { View, Choreography } from '../../../explain/index.ts';
+import type { ScheduledAnimation, Vec, Mobject, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, Machine, view } from '../../../explain/index.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
 import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';

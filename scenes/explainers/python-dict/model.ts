@@ -1,3 +1,5 @@
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 // CPython v3.12.14, Objects/dictobject.c: do_lookup(), insertdict(), delitem_common().
 // This lesson fixes capacity at eight and uses three small integer keys. It
 // models the compact combined table; resizing, insertion after deletion (reusing a deleted
@@ -5,8 +7,6 @@
 // and 16 hash to themselves and share their low three bits; that holds for these keys only
 // (hash(-1) is -2). The 'incorrect-clear' policy, which empties the slot, is a counterfactual,
 // not Python's deletion. The fixed-size lookup refuses a table with no unused slot to stop at.
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 export const EMPTY = -1, DELETED = -2;
 export interface DictEntry {key: number | null; value: string | null}
 export interface DictTable {indices: number[]; entries: DictEntry[]}

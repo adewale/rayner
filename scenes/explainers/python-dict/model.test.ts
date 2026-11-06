@@ -1,10 +1,10 @@
 import { test } from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fc, params } from '../lib/pbt.ts';
-import { isRefusal } from '../../../src/index.ts';
 import { dictionary, deleteFirst, lookup, probeSlots, route, dictStory, dictStart, dictNext, DICT_EVENTS, EMPTY, DELETED } from './model.ts';
 import type { DictState, DictEvent } from './model.ts';
 

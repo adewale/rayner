@@ -1,7 +1,7 @@
-import type { Evidence, Box, View } from '../../../src/index.ts';
-import { Scene, FadeIn, FadeOut, view } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, answerOf } from '../../../explain/index.ts';
-import type { CodeBlock, Diagram, NoteSide } from '../../../explain/index.ts';
+import type { Evidence, Box } from '../../../src/index.ts';
+import { Scene, FadeIn, FadeOut } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, answerOf, view } from '../../../explain/index.ts';
+import type { CodeBlock, Diagram, NoteSide, View } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
 import { objectLines, reachable } from './objects.ts';
 import { short, blobCells, blobIdRow, rowWords, codePanel, hashArrow, abbrevBrace, commitRows, sharedBlob, idLabel, changedId, pairCounts } from './picture.ts';

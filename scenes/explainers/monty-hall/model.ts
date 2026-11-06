@@ -1,3 +1,5 @@
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 // The Monty Hall explainer's model: the rounds a first pick can lead to, each with its chance, and one
 // round a reader can play. Its odds condition on the particular observation "this door opened to a goat",
 // not merely on some goat being shown, so the informed host's random tie-break between two goats is part
@@ -6,8 +8,6 @@
 // doors); more doors (monty), uneven priors and the leftmost and coin hosts are tested here but not drawn.
 // The playable round does not carry the odds: every round it reaches is a cell of threeDoorCells, whose
 // widths give them.
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 export type Host = 'informed' | 'random';
 // Fix the first choice at door 0. An informed host leaves the prize available;
 // a random host picks the other closed door without knowing the prize location.

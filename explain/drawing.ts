@@ -326,4 +326,3 @@ export function legend(
   g.children.forEach((entry, i) => keyed(entry, `${key}:${items[i]!.label}`));
   return keyed(g, key);
 }
-export * from './seen-from.ts';

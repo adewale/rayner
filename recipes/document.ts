@@ -1,6 +1,7 @@
 // The native-scene equivalent of Lantern's nodes/code/state/steps document.
 // Imports are public package imports, so this also runs from an installed archive.
-import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe, StateReadout, view } from 'rayner';
+import { Scene, Rectangle, Labeled, Text, Code, Arrow, FadeIn, Create, Transform, Circumscribe, StateReadout } from 'rayner';
+import { view } from 'rayner/explain';
 import { jsonObject } from 'rayner/testing';
 
 export interface RequestInput { cached: boolean }

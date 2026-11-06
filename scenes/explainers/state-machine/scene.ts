@@ -1,8 +1,8 @@
 import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
-import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession, Machine, view } from '../../../src/index.ts';
-import type { Animation, SceneState, View, Choreography, Transition } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, answerOf } from '../../../explain/index.ts';
-import type { Card } from '../../../explain/index.ts';
+import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } from '../../../src/index.ts';
+import type { Animation, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
+import type { Card, View, Choreography, Transition } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =

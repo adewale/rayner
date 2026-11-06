@@ -3,9 +3,11 @@
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
 import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
+import type { AudioClip, ScoreNote, StepAudio } from 'rayner/audio';
+import { TransformFromCopy, Restore } from 'rayner/extras';
 import { StringSink, renderAt, SnapshotSink } from 'rayner/output';
 import { traceScene } from 'rayner/testing';
-import { GrowFromEdge, PulseAlongPath, SetState, Line, Dot } from 'rayner';
+import { GrowFromEdge, PulseAlongPath, Line, Dot } from 'rayner';
 import type { GrowFromEdgeOpts } from 'rayner';
 
 export function choreography(scene: Scene<{count: number}>) {
@@ -28,11 +30,10 @@ import { renderElements } from 'rayner/output';
 import type { Hunk, TransformDiffOpts, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
 import type { RenderOptions } from 'rayner/output';
 import type { StepRecord } from 'rayner/testing';
-import { Frame, StateReadout, View, view, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore } from 'rayner';
+import { Frame, StateReadout, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession } from 'rayner';
 import { viewMismatch } from 'rayner/testing';
-import type { ViewSync } from 'rayner';
-import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
-import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';
+import type { FrameFitOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
+import type { ViewSync, SyncOpts } from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
 const scoreClip: AudioClip = {id: 'a', label: 'Middle C', bpm: 96, beats: 4, notes: [middleC]};
 const stepScore: StepAudio = {clips: [scoreClip]};
@@ -130,7 +131,7 @@ import type { LetteringRequest as OutlineRequest } from 'rayner';
 export const outlineRequest = { scripts: ['Arab'], math: true, faces: { sans: 'inter' } } satisfies OutlineRequest;
 export const formula = () => new MathTex('x^2');
 
-import {stage} from 'rayner/explain';
+import { stage, SetState, View, view } from 'rayner/explain';
 import type {LayoutDirection, StageRegion, DiagramSpec} from 'rayner/explain';
 export async function authorLayout(scene: Scene): Promise<void> {
   const direction: LayoutDirection = 'rtl', at: StageRegion = 'start';

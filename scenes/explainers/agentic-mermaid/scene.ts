@@ -1,7 +1,7 @@
-import { Scene, Group, view } from '../../../src/index.ts';
-import type { Box, Mobject, View } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf } from '../../../explain/index.ts';
-import type { Diagram, NoteSide } from '../../../explain/index.ts';
+import { Scene, Group } from '../../../src/index.ts';
+import type { Box, Mobject } from '../../../src/index.ts';
+import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, NoteSide, View } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 // This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node

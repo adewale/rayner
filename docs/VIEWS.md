@@ -4,7 +4,7 @@ A readout, a counter or a status line should show the program's state. A `View`
 draws that picture from the state, so the two cannot drift apart:
 
 ```ts
-import { Scene, Text, FadeIn, view } from 'rayner';
+import { Scene, Text, FadeIn } from 'rayner';
 
 class Ring extends Scene {
   override async construct() {
@@ -160,7 +160,7 @@ imperative helpers refuse a picture a view draws (`card.mark` on a card in a vie
 `d.mark` on a diagram a view shows by its picture), so a drawn picture is marked one way, from state:
 
 ```ts
-import { Card, CodeBlock } from 'rayner/explain';
+import { Card, CodeBlock, view } from 'rayner/explain';
 import { callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.

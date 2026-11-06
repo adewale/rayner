@@ -1,6 +1,7 @@
-import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, view, rushInto } from '../../../src/index.ts';
-import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import { Scene, Transform, AnimationGroup, Succession, Cross, rushInto } from '../../../src/index.ts';
+import type { Choreography, View, Transition } from '../../../explain/index.ts';
+import type { Mobject, ScheduledAnimation, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, answerOf, Machine, view } from '../../../explain/index.ts';
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
 import type { RaceStep } from './picture.ts';
 import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from './model.ts';

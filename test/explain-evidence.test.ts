@@ -24,7 +24,7 @@ test('the model test beside the scene runs in a child process: its count, and ea
     'model.test.ts': [
       "import { test, describe } from 'node:test';",
       "import assert from 'node:assert/strict';",
-      "import { isRefusal } from 'rayner';",
+      "import { isRefusal } from 'rayner/explain';",
       "test('holds', () => assert.equal(isRefusal({ refused: 'no' }), false));",
       "describe('a suite', () => { test('fails', () => assert.equal(1 + 1, 3)); test('also holds', () => {}); });",
       "test.skip('skipped', () => {});",

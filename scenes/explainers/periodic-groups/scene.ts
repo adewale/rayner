@@ -1,6 +1,7 @@
-import { Scene, SetState, AnimationGroup, Succession, FadeIn, view, linear } from '../../../src/index.ts';
-import type { ScheduledAnimation, SceneState, View } from '../../../src/index.ts';
-import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import { Scene, AnimationGroup, Succession, FadeIn, linear } from '../../../src/index.ts';
+import type { View } from '../../../explain/index.ts';
+import type { ScheduledAnimation, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, answerOf, SetState, view } from '../../../explain/index.ts';
 import {
   POSITIONS,
   CAPACITY,

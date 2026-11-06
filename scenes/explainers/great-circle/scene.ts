@@ -1,9 +1,9 @@
-import { Scene, VMobject, Succession, view } from '../../../src/index.ts';
+import { Scene, VMobject, Succession } from '../../../src/index.ts';
+import type { Viewpoint, SeenPicture, Seen } from '../../../explain/geo.ts';
+import { depthOrder, seenPictures, latLon, toLatLon } from '../../../explain/geo.ts';
 import type { Group, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import type { StagedStep } from '../../../explain/index.ts';
-import { depthOrder, seenPictures, latLon, toLatLon } from '../../../explain/drawing.ts';
-import type { Viewpoint, SeenPicture, Seen } from '../../../explain/drawing.ts';
 import { greatCircle, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from './model.ts';
 import { MERCATOR, TROPICS, mercator, stretched, globe, westward, gnomonic, onEquator, turnWords } from './picture.ts';
 import type { MapState, GlobeState, Pair } from './picture.ts';

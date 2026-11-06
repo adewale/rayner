@@ -1,8 +1,8 @@
 import { test } from 'node:test';
+import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import { collectProject, defaultScenario } from '../../../tools/lib/explain-project.ts';
-import type { View } from '../../../src/index.ts';
 
 test('the turned globe is a view of its step’s state: it ends edge-on, the route a straight line', async () => {
   const project = await collectProject('scenes/explainers/great-circle', { write: false });

@@ -1,3 +1,5 @@
+import { refuse, isRefusal } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 // A controlled JavaScript promise run, not a network benchmark. Search A is
 // started first; search B is the latest intent. We choose the completion order
 // by resolving their promises explicitly, without sleeps or invented latency.
@@ -7,8 +9,6 @@
 // "cat" starts). There is no debounce, abort, retry, loading state, error UI or
 // fallback: the ticket guard decides which response may publish, nothing more, and
 // the ticket belongs to a request, not its query text.
-import { refuse, isRefusal } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 export type Query = 'A' | 'B';
 export type CompletionOrder = 'new-first' | 'old-first';
 

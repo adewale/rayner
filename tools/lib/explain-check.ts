@@ -11,10 +11,8 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
-import {
-  Text,
-  View,
-} from '../../src/index.ts';
+import { Text } from '../../src/index.ts';
+import { View } from '../../explain/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';

@@ -1,7 +1,7 @@
-import { Scene, Rectangle, Dot, FadeIn, Transform, Animation, view } from '../../../src/index.ts';
+import { Scene, Rectangle, Dot, FadeIn, Transform, Animation } from '../../../src/index.ts';
 import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
-import { stage, regionBox, settingsOf, answerOf } from '../../../explain/index.ts';
+import { stage, regionBox, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';

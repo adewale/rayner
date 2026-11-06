@@ -1,6 +1,7 @@
-import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, Machine, view, rushFrom, thereAndBack } from '../../../src/index.ts';
-import type { ScheduledAnimation as Animation, SceneState, View, VMobject } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
+import type { View } from '../../../explain/index.ts';
+import type { ScheduledAnimation as Animation, SceneState, VMobject } from '../../../src/index.ts';
+import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { listed } from '../lib/format.ts';

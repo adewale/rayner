@@ -142,8 +142,8 @@ Pin what you checked against in the scene's `meta.sources` (principle 3). The sc
 
 <!-- lru-mru/scene.ts -->
 ```ts
-import { Scene, view } from 'rayner';
-import { stage, settingsOf, Card } from 'rayner/explain';
+import { Scene } from 'rayner';
+import { stage, settingsOf, Card, view } from 'rayner/explain';
 import { run, type Policy } from './model.ts';
 
 const SIZE = 3;

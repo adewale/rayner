@@ -1,6 +1,6 @@
-import { Scene, view } from '../../../src/index.ts';
+import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, Card, mermaid, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {

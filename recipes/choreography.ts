@@ -1,7 +1,5 @@
-import {
-  Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath, SetState,
-  Succession, StateReadout, view,
-} from 'rayner';
+import { Scene, Rectangle, Dot, Line, GrowFromEdge, PulseAlongPath, Succession, StateReadout } from 'rayner';
+import { SetState, view } from 'rayner/explain';
 
 export default class ChoreographyScene extends Scene<{count: number}> {
   override state = { count: 0 };

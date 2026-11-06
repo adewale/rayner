@@ -1,6 +1,6 @@
 import { table } from '../../../explain/drawing.ts';
-import { stagedStep, answerOf } from '../../../explain/index.ts';
-import { Scene, Text, view } from '../../../src/index.ts';
+import { stagedStep, answerOf, view } from '../../../explain/index.ts';
+import { Scene, Text } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';

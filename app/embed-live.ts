@@ -6,8 +6,9 @@
 // reopens the same picture. See docs/MACHINES.md, "The player".
 
 import { NullSink, StopScene } from '../src/output.ts';
-import { machinesOf } from '../src/testing.ts';
-import type { Machine, Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
+import { machinesOf } from '../explain/machine.ts';
+import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
+import type { Machine } from '../explain/machine.ts';
 
 type AnyMachine = Machine<object, string>;
 

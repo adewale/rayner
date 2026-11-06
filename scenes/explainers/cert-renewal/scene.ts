@@ -1,5 +1,5 @@
-import { Scene, Text, FadeOut, view } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, answerOf } from '../../../explain/index.ts';
+import { Scene, Text, FadeOut } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, answerOf, view } from '../../../explain/index.ts';
 import type { CardOptions, CardRow } from '../../../explain/index.ts';
 import {
   BACKDATE,

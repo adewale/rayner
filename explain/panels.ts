@@ -1,4 +1,5 @@
-import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform, View } from '../src/index.ts';
+import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform } from '../src/index.ts';
+import { View } from './view.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
 import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource, seenSource } from './look.ts';

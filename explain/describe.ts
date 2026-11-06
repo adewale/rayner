@@ -3,7 +3,7 @@
 // One definition behind `rayner describe` and anything an agent imports; it runs the scene in
 // Node or a browser, with no Chromium, given the diagrams' pinned snapshots.
 import { renderAt, renderText } from '../src/output.ts';
-import { machinesOf } from '../src/testing.ts';
+import { machinesOf } from './machine.ts';
 import { traceRun } from '../src/trace.ts';
 import type { Scene, SceneState, Sink } from '../src/index.ts';
 import { scenariosOf, withSettings, scenarioName, bindSnapshots } from './settings.ts';

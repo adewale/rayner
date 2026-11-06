@@ -15,6 +15,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - Each `s.steps` picture is a view of its step's state, so `rayner check` holds it to its draw as it holds every view; the separate staged-step check is gone.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
 - `new Card(..., { key })` keys a card's parts, so a card drawn in a view syncs by key as `set` and `mark` changed it. The tutorial's card is a view of its state.
+- Views, `Machine`, `SetState` and `choreograph` moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
+- Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).
 - `view.tween((t) => state)` moves the state through time and redraws the view at every frame; `c.follow(spec, { targets })` does the same for parts of an authored transition. `Follow` is no longer exported.
 - Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
 - Models and pictures moved out of `scenes/explainers/lib/`, which keeps only the shared `format.ts`. `notes.md` files are folded into the script, the model and the picture module.

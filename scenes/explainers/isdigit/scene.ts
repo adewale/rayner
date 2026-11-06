@@ -1,6 +1,6 @@
-import { Scene, Text, Group, view } from '../../../src/index.ts';
+import { Scene, Text, Group } from '../../../src/index.ts';
 import type { SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import {

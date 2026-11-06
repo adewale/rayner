@@ -1,8 +1,9 @@
 import { test } from 'node:test';
+import type { View as StateView } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { assertViewFollowsState as viewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import { loadFonts as loadViewFonts, withSettings as viewSettings } from '../../../explain/testing.ts';
-import type { Scene as ViewScene, View as StateView } from '../../../src/index.ts';
+import type { Scene as ViewScene } from '../../../src/index.ts';
 import RingBufferExplainer from './scene.ts';
 
 test('ring-buffer views show the traced state at every step, in both scenarios', async () => {

@@ -1,5 +1,5 @@
-import { Scene, Machine, view } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { Scene } from '../../../src/index.ts';
+import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
 import { drawTower, sayTower } from './picture.ts';
 

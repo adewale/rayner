@@ -1,7 +1,7 @@
-import { Scene, FadeOut, Create, view } from '../../../src/index.ts';
-import type { Box, Group, View, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, answerOf } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
+import { Scene, FadeOut, Create } from '../../../src/index.ts';
+import type { Box, Group, SceneState } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View } from '../../../explain/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,

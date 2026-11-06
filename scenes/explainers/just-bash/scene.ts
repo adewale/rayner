@@ -1,7 +1,8 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
-import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, Machine, view } from '../../../src/index.ts';
-import type { Animation, Box, Choreography, SceneState, Transition } from '../../../src/index.ts';
-import { stage, regionBox, answerOf } from '../../../explain/index.ts';
+import type { Choreography, Transition } from '../../../explain/index.ts';
+import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
+import type { Animation, Box, SceneState } from '../../../src/index.ts';
+import { stage, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';

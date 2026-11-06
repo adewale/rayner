@@ -1,5 +1,5 @@
-import { Scene, view } from '../../../src/index.ts';
-import { stage, settingsOf, Card } from '../../../explain/index.ts';
+import { Scene } from '../../../src/index.ts';
+import { stage, settingsOf, Card, view } from '../../../explain/index.ts';
 import { run, type Policy } from './model.ts';
 
 const SIZE = 3;

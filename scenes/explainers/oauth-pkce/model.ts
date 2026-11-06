@@ -1,3 +1,5 @@
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 /**
  * The PKCE exchange as data: which message carries which parameter over which channel, and what the token endpoint
  * answers (RFC 7636 §4.3–4.6, RFC 6749 §4.1). No drawing here; oauth-pkce draws its sequence diagrams from these
@@ -10,8 +12,6 @@
  * unused. VERIFIER is RFC 7636 appendix B's example; a real sign-in needs a fresh, unpredictable one. Nothing here
  * covers a compromised client that leaks its verifier, or the other checks OAuth makes.
  */
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 
 
 // SHA-256 (FIPS 180-4), used for the RFC 7636 example without host crypto globals.

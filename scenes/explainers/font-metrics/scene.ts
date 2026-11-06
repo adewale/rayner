@@ -1,5 +1,5 @@
-import { Scene, ItalicText, Group, view } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { Scene, ItalicText, Group } from '../../../src/index.ts';
+import { stage, settingsOf, view } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
 import type { Pen } from './picture.ts';

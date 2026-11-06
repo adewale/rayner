@@ -59,6 +59,7 @@ Plain Latin Extended (`Latn`), Greek (`Grek`) and Cyrillic (`Cyrl`) requests use
 
 ```ts
 import type { LetteringRequest } from 'rayner/lettering';
+import { seenFrom, latLon, circleOn, depthOrder } from 'rayner/geo';
 
 static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } satisfies LetteringRequest };
 ```
@@ -251,7 +252,6 @@ The collection's scenes import the same functions through `explain/drawing.ts`.
 `seenFrom` draws a 3D model through a viewpoint as ordinary keyed 2D mobjects. There is no second renderer: the result is a Group of paths and dots like any other picture, and the same model and viewpoint always draw the same picture.
 
 ```ts
-import { seenFrom, latLon, circleOn, depthOrder } from 'rayner/drawing';
 
 const model = {
   body: { radius: 1, fill: '#eef5fb', stroke: '#59636e' },        // the sphere every part is seen against
@@ -380,7 +380,7 @@ Hand drawing is still justified when position itself carries meaning that a layo
 
 ## Engine features
 
-These are the engine's own features, imported from `rayner` and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
+These are the engine's own features, imported from `rayner` (views, machines, `SetState` and `choreograph` from `rayner/explain`) and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
 
 <!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: engine features -->
 | Feature | What a scene uses | Guide | Used by |
@@ -399,7 +399,7 @@ Patterns these scenes write by hand, candidates for `explain/` once two explaine
 
 ### Optional score audio
 
-A step may supply `audio: {clips}`. Each clip has an `id`, an accessible `label`, `bpm`, `beats` and `notes`. A note has a MIDI `midi` number, an onset `at` and a `duration`, both in beats. Exported types are `ScoreNote`, `AudioClip` and `StepAudio` from `rayner/explain`.
+A step may supply `audio: {clips}`. Each clip has an `id`, an accessible `label`, `bpm`, `beats` and `notes`. A note has a MIDI `midi` number, an onset `at` and a `duration`, both in beats. Exported types are `ScoreNote`, `AudioClip` and `StepAudio` from `rayner/audio`.
 
 ```ts
 await this.step('listen', {
@@ -466,7 +466,7 @@ for (const c of d.scenarios)
 
 ## Testing and tooling API
 
-The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards and settings), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and `rayner` itself is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
+The package has an entry point per audience. A scene is written with `rayner` (the engine), `rayner/explain` (the stage, diagrams, cards, settings, and pictures of state: views, machines, `SetState` and `choreograph`), `rayner/drawing` (the kit) and, when it asks for lettering, `rayner/lettering`. Three entry points are opt in: `rayner/geo` (`seenFrom` and the globe), `rayner/audio` (the score types for a step's `audio`) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square` and `Underline`: Manim's conveniences, each a shorthand for something in `rayner`, kept for ported scenes and the feature tour). `rayner/output` draws a scene's frames outside the built page, for a host page or a tool. `rayner/testing` is for an author's tests, scripts and tools, and `rayner` itself is built on it; no scene may import it (`test/scene-imports.test.ts`). Both are public, and kept stable like the drawing API.
 
 | Export | From | What it is for | Guide |
 | --- | --- | --- | --- |

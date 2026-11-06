@@ -1,5 +1,5 @@
-import { Scene, Group, view } from '../../../src/index.ts';
-import { stage, settingsOf, Card, answerOf } from '../../../explain/index.ts';
+import { Scene, Group } from '../../../src/index.ts';
+import { stage, settingsOf, Card, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
