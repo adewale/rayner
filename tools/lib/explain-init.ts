@@ -15,4 +15,7 @@ export const MACHINE_STARTER_FILES = ['scene.ts', 'model.ts', 'model.test.ts', '
 
 /** A starter file as an author's project holds it: the repository's engine imports become the package's. */
 export const packageImports = (source: string) =>
-  source.replaceAll("from '../../../src/index.ts'", "from 'rayner'").replaceAll("from '../../../explain/index.ts'", "from 'rayner/explain'");
+  source
+    .replaceAll("from '../../../src/index.ts'", "from 'rayner'")
+    .replaceAll("from '../../../explain/index.ts'", "from 'rayner/explain'")
+    .replaceAll("from '../../../explain/drawing.ts'", "from 'rayner/drawing'");

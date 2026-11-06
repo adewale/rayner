@@ -139,8 +139,10 @@ const CONTENT: Box = [-7.55, -4.25, 7.55, 3.25];
 const HOME: Box = [-8, -4.5, 8, 4.5];
 
 export function stage(scene: Scene, options: StageOptions = {}) {
-  // Each caption owns its opening; a previous step's subjects must not leak.
-  scene.onStep(() => opening(scene));
+  // Each caption owns its opening; a previous step's subjects must not leak, unless keepOpening
+  // named them for every step that follows.
+  let kept: Mobject[] = [];
+  scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     (at === 'start'
@@ -461,6 +463,13 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step(). */
     opening(...subjects: Mobject[]) {
+      opening(scene, ...subjects);
+    },
+    /** Make these subjects the opening of this step and of every later one, until another
+     * keepOpening replaces them (none clears them). A step's own opening() still wins for that step.
+     * For a picture that stays on stage while the steps change it, such as a machine's view. */
+    keepOpening(...subjects: Mobject[]) {
+      kept = [...subjects];
       opening(scene, ...subjects);
     },
     /**
