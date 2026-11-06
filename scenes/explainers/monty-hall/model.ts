@@ -1,3 +1,11 @@
+// The Monty Hall explainer's model: the rounds a first pick can lead to, each with its chance, and one
+// round a reader can play. Its odds condition on the particular observation "this door opened to a goat",
+// not merely on some goat being shown, so the informed host's random tie-break between two goats is part
+// of the rule: change it (leftmost, coin) and the odds after seeing B change even though he still knows.
+// The page shows three doors, an equally likely car and a first pick of A (another pick only relabels the
+// doors); more doors (monty), uneven priors and the leftmost and coin hosts are tested here but not drawn.
+// The playable round does not carry the odds: every round it reaches is a cell of threeDoorCells, whose
+// widths give them.
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';
 export type Host = 'informed' | 'random';

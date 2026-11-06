@@ -1,8 +1,7 @@
-import { frames as readerFrames, ANSWER } from './picture.ts';
-import { Scene, Text, Group, Rectangle, Transform, Arrow, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
+import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords } from './picture.ts';
+import { Scene, Text, Group, Rectangle, Transform, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
@@ -12,11 +11,7 @@ const PIPELINE = [
   ['echo', 'hello'],
   ['tr', 'a-z', 'A-Z'],
 ] as const;
-const FILE = 'shout.txt';
 const q = (v: string) => JSON.stringify(v);
-const files = (sh: Shell) => Object.keys(sh.fs).join(', ') || 'none';
-/** What cat's stdout amounts to, in words. */
-const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
 /** Ask the model whether it can run a command name. Pure: no animation inside the catch. */
 function lookup(name: string): 'builtin' | 'unsupported' {
   try {
@@ -27,53 +22,21 @@ function lookup(name: string): 'builtin' | 'unsupported' {
     throw error;
   }
 }
-/** The check answers, from the model: two writes from the same starting shell, a pipeline with no redirect, and ls. */
-const CHECK = (() => {
-  const empty: Shell = { fs: {}, steps: 0 },
-    first = exec(empty, [['echo', 'hi']], 'a.txt').shell,
-    second = exec(empty, [['echo', 'bye']], 'b.txt').shell,
-    plain = exec(empty, PIPELINE);
-  let ls = '';
-  try {
-    exec(first, [['ls']]);
-  } catch (error) {
-    ls = error instanceof Error ? error.message : String(error);
-  }
-  if (!('a.txt' in first.fs) || 'a.txt' in second.fs) throw new Error('a.txt should be in the first result alone');
-  return { branch: { first: files(first), second: files(second) }, plain: { stdout: plain.stdout, files: files(plain.shell) }, ls };
-})();
 const TOP = regionBox('top', { bottom: -0.2 }),
   BOTTOM = regionBox('bottom', { top: -0.5 }),
   BOTTOM_LEFT = regionBox('left', { top: -0.5 }),
   BOTTOM_RIGHT = regionBox('right', { top: -0.5 });
+// The title, answer and check questions come from script.md's intent header.
 export default class BashExplainer extends Scene {
   static meta = {
     id: 'just-bash',
-    title: 'Why must you keep the returned shell?',
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/just-bash.ts',
     ],
-    // The script's answer; check holds reader-values to stating it.
-    answer: ANSWER,
     claims: [
       { says: 'leaves the shell you passed in unchanged', test: 'test/explain-models.test.ts: exec leaves any shell it is given unchanged' },
       { says: 'only the returned one holds shout.txt', shown: true as const },
-    ],
-    // Commands no step runs, each answered by the same exec.
-    checks: [
-      {
-        question: 'From the empty shell, a caller runs echo hi > a.txt and keeps the returned shell. Then it runs echo bye > b.txt on the empty shell again and keeps that result too. Which files does the second result hold, and where is a.txt?',
-        answer: `The second result holds ${CHECK.branch.second} and nothing else. a.txt is in the first result, because the second command started from the empty shell, which never received the first write.`,
-      },
-      {
-        question: 'Run echo hello | tr a-z A-Z with no redirect. What does exec print, and does the returned shell gain a file?',
-        answer: `It prints ${q(CHECK.plain.stdout)}, and the returned shell holds ${CHECK.plain.files === 'none' ? 'no files' : CHECK.plain.files}. Without a redirect the text stays on standard output, so there is no write for the returned shell to carry.`,
-      },
-      {
-        question: 'To check whether shout.txt exists, a caller runs ls on the returned shell. What happens, and what does that tell it about the file?',
-        answer: `exec throws “${CHECK.ls}”, because this model has branches only for echo, tr and cat. The error says nothing about shout.txt; cat on the returned shell would print its contents.`,
-      },
     ],
   };
   override async construct() {
@@ -378,55 +341,6 @@ export default class BashExplainer extends Scene {
     }
     await story.focus(1);
   }
-}
-
-// ---- the session's picture ------------------------------------------------------------------
-
-/** Where each shell's box sits: s0 on the left, the shell the write returned to its right. */
-const SHELL_X = [-4.5, 3.1],
-  SHELL_Y = 2.25,
-  OUT_Y = 0.2,
-  BOX_W = 3.6,
-  BOX_H = 1.1;
-
-/**
- * The caller's shells drawn from the session: a box for each shell (the newest, which the caller keeps, outlined in
- * the accent), an arrow from s0 to the shell the write returned, and under each shell cat has read, an arrow to what it
- * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
- */
-function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
-  const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
-  st.shells.forEach((sh, i) => {
-    const x = SHELL_X[i]!, kept = i === newest;
-    add(new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]), `shell:${i}:box`);
-    add(new Text(`s${i}: ${i === 0 ? 'original' : 'returned'} shell`, { fontSize: 0.3, color: ink, weight: 'bold' }).moveTo([x, SHELL_Y + 0.2]), `shell:${i}:name`);
-    add(new Text(`files: ${files(sh)}`, { fontSize: 0.28, font: 'mono', color: ink }).moveTo([x, SHELL_Y - 0.24]), `shell:${i}:files`);
-    if (i > 0) {
-      const arrow = new Arrow([SHELL_X[i - 1]! + BOX_W / 2 + 0.1, SHELL_Y], [x - BOX_W / 2 - 0.1, SHELL_Y], { stroke: s.emphasis, strokeWidth: 0.04, tipLength: 0.22, tipWidth: 0.18 });
-      add(new Group(arrow, new Text('echo, tr, redirect', { fontSize: 0.26, color: ink }).moveTo([(SHELL_X[i - 1]! + x) / 2, SHELL_Y + 0.32])), `run:${i}`);
-    }
-  });
-  st.cats.forEach((out, i) => {
-    if (out === null) return;
-    const x = SHELL_X[i]!, color = i === newest ? s.emphasis : s.soft;
-    const arrow = new Arrow([x, SHELL_Y - BOX_H / 2 - 0.08], [x, OUT_Y + 0.3 + 0.08], { stroke: color, strokeWidth: 0.035, tipLength: 0.2, tipWidth: 0.16 });
-    add(new Group(arrow, new Text(`cat ${FILE}`, { fontSize: 0.26, font: 'mono', color: ink, anchor: 'start' }).moveTo([x + 0.22, (SHELL_Y - BOX_H / 2 + OUT_Y + 0.3) / 2], [-1, 0])), `cat:${i}`);
-    add(new Group(
-      new Rectangle({ width: 3.0, height: 0.6, cornerRadius: 0.1, fill: s.palette.paper, stroke: color, strokeWidth: 0.03 }).moveTo([x, OUT_Y]),
-      new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.bad }).moveTo([x, OUT_Y]),
-    ), `out:${i}`);
-  });
-  return group();
-}
-
-/** The session's picture in words. */
-function shellsWords(st: ShellSession): string {
-  const newest = st.shells.length - 1;
-  return [
-    ...st.shells.map((sh, i) => `s${i}, the ${i === 0 ? 'original' : 'returned'} shell${i === newest ? ', which the caller keeps' : ''}, holds files: ${files(sh)}`),
-    ...st.shells.slice(1).map((_, k) => `An arrow from s${k} to s${k + 1}: echo, tr, redirect`),
-    ...st.cats.flatMap((c, i) => (c === null ? [] : [`cat ${FILE} on s${i} ${prints(c)}`])),
-  ].join('. ') + '.';
 }
 
 /**

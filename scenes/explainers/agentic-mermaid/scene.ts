@@ -4,6 +4,11 @@ import { stage, settingsOf, REGIONS, regionBox, CodeBlock } from '../../../expla
 import type { Diagram, NoteSide } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
+// This explainer has no model of its own: its reports are agentic-mermaid 0.5.1's, for small three-node
+// flowcharts, captured with each diagram's snapshot (the broken source's is written below). It does not
+// establish what Mermaid implementations in general accept, and it does not implement the cache-specific
+// check the ending describes. DECISION_BRANCH_UNLABELED applies to a decision with two or more exits, not to
+// every edge; edge names carry an occurrence count because parallel edges can share endpoints.
 const STYLE = 'blueprint';
 const BAD = 'graph LR\nA{Cached} --> B[Reply]\nA --> C[Database]';
 const GOOD = 'graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|no| C[Database]';
@@ -63,42 +68,15 @@ interface DiagramState { source: string; marks: { part: string; tone: Tone; as: 
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
 
+// The title, answer and check questions come from script.md's intent header; test/explain-real.test.ts runs
+// the pinned verifier on each check question's diagram.
 export default class MermaidExplainer extends Scene {
   static meta = {
     id: 'agentic-mermaid',
-    title: 'What does a Mermaid verifier check?',
     sources: [
       'https://github.com/adewale/agentic-mermaid',
       'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',
       'https://github.com/adewale/agentic-mermaid/blob/main/AGENT_NATIVE.md',
-    ],
-    // The script's answer and check questions (script.md); the verify step states the answer in every scenario.
-    // test/explain-real.test.ts runs the pinned verifier on each check's diagram.
-    answer: ANSWER,
-    checks: [
-      {
-        question:
-          'The agent writes the second edge as A -->|no| D, and D appears nowhere else in the source. What does verify(flow) report?',
-        answer:
-          'ok: true and no warnings. Mermaid creates D where it is first used, as a rectangle labelled D, so the diagram draws and both exits of the decision carry labels. That the agent meant Database is the kind of thing verify leaves unchecked.',
-      },
-      {
-        question:
-          'Starting from the right diagram, the agent adds a second, unlabelled edge from Cached to Database: A --> C. Which edge does the warning name?',
-        answer:
-          'A->C#1. It is the second edge from A to C, so its count is 1, while the labelled edge to Database keeps A->C#0. One DECISION_BRANCH_UNLABELED warning, and ok stays true.',
-      },
-      {
-        question: 'Draw Cached as a rectangle, A[Cached], and leave both edges unlabelled. Does the verifier warn?',
-        answer:
-          'No: ok: true with no warnings. DECISION_BRANCH_UNLABELED is about the exits of a decision diamond, and a rectangle is not a decision, so there is nothing for it to flag.',
-      },
-      {
-        question:
-          'The agent deletes the whole line for the edge to Database and leaves the edge to Reply unlabelled: A{Cached} --> B[Reply]. How many warnings?',
-        answer:
-          'None: ok: true with no warnings. The warning is for a decision with two or more exits, and Cached now has one, so its one unlabelled exit is not flagged.',
-      },
     ],
   };
   static settings = [
@@ -366,6 +344,8 @@ export default class MermaidExplainer extends Scene {
     for (const stale of ['diagrams', 'column', 'ops', 'rerun', 'report', 'flaggedWarnings']) delete this.state[stale];
     // The wrong diagram above and the right one below, each with its report beside it. The scenario's own edit makes
     // one from the other: the swapped scenario repairs the unlabelled diagram, the others swap the right one's labels.
+    // Where a cache hit goes is read from each drawn snapshot (the edge labelled yes, and the node at its end); the
+    // reports beside them are the pinned verifier's findings for the same sources.
     const rows = {
       wrong: regionBox('full', { right: REPORT_X - 0.4, bottom: -0.2 }),
       right: regionBox('full', { right: REPORT_X - 0.4, top: -0.8 }),

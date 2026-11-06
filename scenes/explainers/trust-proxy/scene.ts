@@ -1,4 +1,4 @@
-import { Scene, Text, Rectangle, Group, FadeIn, view } from '../../../src/index.ts';
+import { Scene, Text, Group, FadeIn, view } from '../../../src/index.ts';
 import type { Box, View, FadeOpts } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import type { CardOptions, CardRow } from '../../../explain/index.ts';
@@ -24,9 +24,11 @@ import {
 } from './model.ts';
 import type { Outcome, Position, Reading, RequestKey, TrustKey, Verdict } from './model.ts';
 import { numberWord } from '../lib/format.ts';
+import { ROUTES, WHO_BOX, answerOf, drawAnswerTable, drawRoutesPanel, wrap } from './picture.ts';
+import type { Cell, Route } from './picture.ts';
 
 // Sources, each fetched at the pinned tag or commit; the lines each claim rests on are quoted in
-// lib/trust-proxy.ts and beside the steps below. test/explain-trust-proxy.test.ts holds real Express
+// model.ts and beside the steps below. test/explain-trust-proxy.test.ts holds real Express
 // 5.3.0's answers for every scenario.
 const EXPRESS = 'https://github.com/expressjs/express/blob/v5.3.0/lib/';
 const PROXY_ADDR = 'https://github.com/jshttp/proxy-addr/blob/v2.0.8/index.js';
@@ -91,13 +93,13 @@ const count = (n: number, noun: string) => `${numberWord(n, { zero: 'none' })} $
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
 /** The script's one-sentence answer, stated in the read step of every scenario. */
 const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
-// Check 1: two made-up entries on the short route. 2 stops at the nearer one; true takes the farther.
+// script.md's check 1: two made-up entries on the short route. 2 stops at the nearer one; true takes the farther.
 const TWO_FORGED = `5.6.7.8, ${ADDR.forged}`;
 const TWO_FORGED_XFF = `${TWO_FORGED}, ${ADDR.attacker}`;
 const TWO_FORGED_IP = { 2: reqIp(ADDR.balancer, TWO_FORGED_XFF, 2), true: reqIp(ADDR.balancer, TWO_FORGED_XFF, true) };
 if (TWO_FORGED_IP[2] !== ADDR.forged || TWO_FORGED_IP.true !== '5.6.7.8' || reqIp(ADDR.balancer, TWO_FORGED_XFF, TRUSTED_RANGES) !== ADDR.attacker)
   throw new Error('Two made-up entries: 2 must take the nearer, true the farther, the list the attacker’s real address');
-// Check 2: a third proxy in front of the CDN. 2 stops at it; the list with its address added reaches the client.
+// script.md's check 2: a third proxy in front of the CDN. 2 stops at it; the list with its address added reaches the client.
 const WAF = '100.64.0.20';
 const WAF_XFF = `${ADDR.client}, ${WAF}, ${ADDR.edge}`;
 const WAF_LIST_IP = reqIp(ADDR.balancer, WAF_XFF, [...TRUSTED_RANGES, WAF]);
@@ -136,9 +138,6 @@ function owner(addr: string, index: number): string {
   const m = Object.values(MACHINES).find((h) => h.addr === addr);
   return m ? m.name : 'written by the attacker';
 }
-/** The routes view: the same attacker through the CDN and straight to the load balancer. */
-const ROUTES = ['forged', 'direct'] as const;
-type Route = (typeof ROUTES)[number];
 const WHO_NAME: Record<Position['who'], string> = {
   client: 'the client',
   attacker: 'the attacker',
@@ -153,15 +152,6 @@ const WHO_ANSWER: Record<Position['who'], string> = {
   attacker: 'the attacker’s real address',
   forged: `${ADDR.forged}, the entry the attacker made up`,
 };
-const WHO_BOX: Record<Position['who'], string> = {
-  client: 'Client',
-  attacker: 'Attacker',
-  edge: 'CDN edge',
-  balancer: 'Load balancer',
-  express: 'Express',
-  forged: `${ADDR.forged}, made up`,
-};
-const WHO_SHORT: Record<Position['who'], string> = { ...WHO_BOX, forged: 'made up', edge: 'CDN edge', balancer: 'load balancer' };
 const VERDICT_WORD = { trusted: 'trusted', answer: 'req.ip', unread: 'not read' } as const;
 /** The addresses as Express reads them: "1. socket, load balancer" → "10.0.0.5  trusted". */
 const readingRows = (rs: readonly Reading[]) =>
@@ -176,10 +166,10 @@ const readingsOf = (pairs: readonly (readonly [string, Verdict])[]): Reading[] =
 const outcomeWords = (outcome: Outcome, sender: string) =>
   outcome === 'sender' ? `Right: the ${sender}’s own address.` : `Wrong: ${outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`;
 
+// The title, answer and check questions come from script.md's intent header.
 export default class TrustProxyExplainer extends Scene {
   static meta = {
     id: 'trust-proxy',
-    title: 'Which address should Express call the client?',
     sources: [
       GUIDE + '#L26-L31',
       GUIDE + '#L53',
@@ -191,8 +181,6 @@ export default class TrustProxyExplainer extends Scene {
       PROXY_ADDR + '#L222-L235',
       FORWARDED + '#L24-L36',
     ],
-    // The script's answer and check questions (script.md); the read step states the answer in every scenario.
-    answer: ANSWER,
     // Sentences that reach past one step's picture, and the test that holds each.
     claims: [
       { says: 'every connection Express sees comes from the load balancer', test: 'test/explain-trust-proxy.test.ts: the proxies’ appends give the headers the Express run received' },
@@ -214,21 +202,6 @@ export default class TrustProxyExplainer extends Scene {
       { says: 'the real sender on every path', test: 'test/explain-trust-proxy.test.ts: the scene’s table is the twelve Express answers' },
       { says: 'assumes every path has the same length', test: 'test/explain-trust-proxy.test.ts: with 2, an attacker straight at the load balancer chooses req.ip' },
       { says: 'the short path has only one', shown: true as const },
-    ],
-    checks: [
-      {
-        question: `The attacker skips the CDN again, but writes two made-up entries: X-Forwarded-For: ${TWO_FORGED}. Which address becomes req.ip with trust proxy 2, and which with true?`,
-        answer: `With 2, ${TWO_FORGED_IP[2]}: Express trusts the load balancer and the attacker’s real address by position, then stops at the next entry, the made-up one nearest to it. With true, ${TWO_FORGED_IP.true}: every address is trusted, so Express reaches the far end of the list and takes it without a test. Either way the attacker chose req.ip.`,
-      },
-      {
-        question: `You put a firewall service at ${WAF} in front of the CDN, so a client’s request now passes three proxies. With trust proxy 2, whose address does req.ip report for a client? Which setting gives the client’s address and still stops the attacker who skips the CDN?`,
-        answer: `The firewall’s: the two trusted positions now hold the load balancer and the CDN edge, so the third proxy is the first address left. A count of 3 gives the client, but on the route that skips the CDN it trusts every address, and the attacker’s made-up entry becomes req.ip. The address list with ${WAF} added gives the client, ${WAF_LIST_IP}, and the attacker’s real address on the short route.`,
-      },
-      {
-        question: `What must hold for the address list ${TRUST_CODE.list} to keep req.ip right?`,
-        answer:
-          'Every trusted range must hold only your own proxies. The list trusts machines by address, not positions, so path length no longer matters, but an attacker inside a trusted range would be skipped like a proxy.',
-      },
     ],
   };
   static settings = [
@@ -267,28 +240,6 @@ export default class TrustProxyExplainer extends Scene {
     const enterViews = async (views: readonly View[], fade: FadeOpts = {}, words?: (v: View) => string) => {
       for (const v of views) if (words) s.keep(v, { describe: () => words(v) }); else s.keep(v);
       await this.play(...views.map((v) => new FadeIn(v, fade)));
-    };
-
-    /** Lines of text wrapped to a width, from a top-left corner down. */
-    const wrap = (text: string, [x, y]: [number, number], width: number, size: number, color = ink) => {
-      const out: Text[] = [];
-      let line = '';
-      const flush = () => {
-        out.push(
-          new Text(line, { fontSize: size, color, anchor: 'start' }).moveTo(
-            [x, y - size * 0.6 - out.length * size * 1.5],
-            [-1, 0],
-          ),
-        );
-        line = '';
-      };
-      for (const w of text.split(' ')) {
-        const next = line ? `${line} ${w}` : w;
-        if (line && new Text(next, { fontSize: size }).width() > width) flush();
-        line = line ? `${line} ${w}` : w;
-      }
-      flush();
-      return out;
     };
 
     // ------------------------------------------------------------------ paths
@@ -470,7 +421,6 @@ export default class TrustProxyExplainer extends Scene {
       Object.fromEntries(ROUTES.map((q) => [q, positions(REQUESTS[q], TRUSTS[t])])) as Record<Route, Position[]>;
     const byCount = routesOf(counted),
       byList = routesOf('list');
-    const answerOf = (ps: readonly Position[]) => ps.find((p) => p.verdict === 'answer')!;
     const trustedOf = (ps: readonly Position[]) => ps.filter((p) => p.verdict === 'trusted').map((p) => WHO_NAME[p.who]);
     const countSays =
       counted === 'true'
@@ -479,7 +429,6 @@ export default class TrustProxyExplainer extends Scene {
     if (answerOf(byList.forged).who !== 'attacker' || answerOf(byList.direct).who !== 'attacker')
       throw new Error('The address list must stop at the attacker on both routes');
     const listSays = `The address list trusts an address inside ${TRUSTED_RANGES.join(' or ')}: ${both(trustedOf(byList.forged))} through the CDN, ${both(trustedOf(byList.direct))} on the short route. The attacker’s address is in neither range, so on both routes req.ip is ${WHO_ANSWER.attacker}.`;
-    const sentByAttacker = (ps: readonly Position[]) => answerOf(ps).who === 'attacker';
     await this.step('routes', {
       title:
         trustKey === 'list'
@@ -493,81 +442,8 @@ export default class TrustProxyExplainer extends Scene {
       caption: `The same attacker sends X-Forwarded-For: ${ADDR.forged} twice, once through the CDN and once straight to the load balancer. Each column lists the addresses Express reads for one route, nearest first, and the numbers count positions from Express. A green box is trusted, a thick outline is req.ip, and a dashed box is not read. ${countSays} ${listSays}`,
     });
     await s.clearOverlays();
-    const pal = s.palette;
-    const ROW = 0.95,
-      BOX_H = 0.72,
-      LABEL = 0.34;
-    const label = (text: string, x: number, y: number, color = pal.ink, weight?: 'bold') =>
-      new Text(text, { fontSize: LABEL, color, ...(weight ? { weight } : {}) }).moveTo([x, y]);
-    const panel = (t: TrustKey, routes: Record<Route, Position[]>, x0: number, key: string) => {
-      const width = 7.4,
-        posW = 0.4,
-        gap = 0.15,
-        colW = (width - posW - gap) / 2;
-      const rowY = (i: number) => 1.35 - i * ROW; // 0 is Express, 1 the first address it reads
-      const colX = (k: number) => x0 + posW + k * (colW + gap) + colW / 2;
-      const parts: (Text | Rectangle)[] = [];
-      // The rows down to the deepest req.ip: the band, the trusted boxes and both answers, the picture's subject.
-      const core: (Text | Rectangle)[] = [];
-      const longest = Math.max(...ROUTES.map((q) => routes[q].length)),
-        deepest = Math.max(...ROUTES.map((q) => answerOf(routes[q]).index + 1));
-      parts.push(
-        label(
-          t === 'list'
-            ? 'Address list: the proxies’ ranges'
-            : t === 'true'
-              ? 'trust proxy true: every position'
-              : `trust proxy ${t}: ${t === '1' ? 'position 1' : `positions 1 to ${t}`}`,
-          x0 + width / 2,
-          2.7,
-          pal.ink,
-          'bold',
-        ),
-      );
-      for (let i = 1; i <= longest; i++) (i <= deepest ? core : parts).push(label(String(i), x0 + posW / 2, rowY(i), s.soft));
-      if (t === '1' || t === '2') {
-        const n = Number(t);
-        const band = new Rectangle({
-          width: width + 0.1,
-          height: n * ROW + 0.08,
-          stroke: s.emphasis,
-          strokeWidth: 0.04,
-          fill: 'none',
-          cornerRadius: 0.1,
-        }).moveTo([x0 + width / 2, (rowY(1) + rowY(n)) / 2]);
-        band.style.dashArray = '0.16 0.1';
-        core.push(band);
-      }
-      ROUTES.forEach((q, k) => {
-        const x = colX(k);
-        parts.push(label(q === 'forged' ? 'Via the CDN' : 'Skipping the CDN', x, 2.1, s.soft, 'bold'));
-        parts.push(
-          new Rectangle({ width: colW, height: BOX_H, stroke: pal.ink, strokeWidth: 0.03, fill: 'none', cornerRadius: 0.08 }).moveTo([x, rowY(0)]),
-          label('Express', x, rowY(0), pal.ink, 'bold'),
-        );
-        for (const p of routes[q]) {
-          const y = rowY(p.index + 1),
-            ok = p.who === 'attacker';
-          const box = new Rectangle({
-            width: colW - 0.2,
-            height: BOX_H,
-            stroke: p.verdict === 'answer' ? (ok ? s.good : s.bad) : p.verdict === 'trusted' ? s.good : s.soft,
-            strokeWidth: p.verdict === 'answer' ? 0.07 : 0.03,
-            fill: p.verdict === 'trusted' ? s.good : 'none',
-            fillOpacity: p.verdict === 'trusted' ? 0.16 : 1,
-            cornerRadius: 0.08,
-          }).moveTo([x, y]);
-          if (p.verdict === 'unread') box.style.dashArray = '0.12 0.08';
-          (p.index < deepest ? core : parts).push(box, label(WHO_BOX[p.who], x, y, p.verdict === 'unread' ? s.soft : pal.ink));
-        }
-        parts.push(
-          label(sentByAttacker(routes[q]) ? "Right: the attacker" : `Wrong: ${WHO_SHORT[answerOf(routes[q]).who]}`, x, rowY(longest) - 0.85, sentByAttacker(routes[q]) ? s.good : s.bad),
-        );
-      });
-      const subject = new Group(...core);
-      subject.key = key;
-      return { panel: new Group(...parts, subject), subject };
-    };
+    /** The colours the routes panels and the table are drawn in. */
+    const colours = { ink, soft: s.soft, good: s.good, bad: s.bad, emphasis: s.emphasis };
     this.state.routes = Object.fromEntries(
       [
         [counted, byCount],
@@ -583,8 +459,8 @@ export default class TrustProxyExplainer extends Scene {
       const count = Object.keys(all).find((t) => t !== 'list') as TrustKey;
       return { count, byCount: asPositions(count), byList: asPositions('list') };
     };
-    const positionsPanel = view(this, (st) => { const r = routesState(st); return panel(r.count, r.byCount, -7.55, 'routes-positions').panel; }, { place: false }),
-      addressesPanel = view(this, (st) => panel('list', routesState(st).byList, 0.15, 'routes-addresses').panel, { place: false });
+    const positionsPanel = view(this, (st) => { const r = routesState(st); return drawRoutesPanel(r.count, r.byCount, -7.55, 'routes-positions', colours).panel; }, { place: false }),
+      addressesPanel = view(this, (st) => drawRoutesPanel('list', routesState(st).byList, 0.15, 'routes-addresses', colours).panel, { place: false });
     const tell = (t: TrustKey, routes: Record<Route, Position[]>) =>
       ROUTES.map(
         (q) =>
@@ -781,7 +657,7 @@ export default class TrustProxyExplainer extends Scene {
       await d.dim(['attacker', 'balancer', 'express']);
       await d.mark(['edge:attacker->balancer#0'], { color: s.bad, as: 'one proxy fewer' });
     }
-    const quote = wrap(QUOTE[trustKey], [BELOW[0] + 0.3, BELOW[3] - 0.1], BELOW[2] - BELOW[0] - 0.6, 0.28);
+    const quote = wrap(QUOTE[trustKey], [BELOW[0] + 0.3, BELOW[3] - 0.1], BELOW[2] - BELOW[0] - 0.6, 0.28, ink);
     const cite = new Text(
       `Express guide, “Express behind proxies”, the ${trustKey === 'true' ? 'Boolean' : trustKey === 'list' ? 'IP addresses' : 'Number'} setting`,
       { fontSize: 0.2, color: s.soft, anchor: 'start' },
@@ -862,7 +738,6 @@ export default class TrustProxyExplainer extends Scene {
     this.state.tableAnswers = Object.fromEntries(
       TRUST_KEYS.map((t) => [t, REQUEST_KEYS.map((q) => ({ outcome: TABLE[t][q].outcome, whose: TABLE[t][q].whose }))]),
     );
-    type Cell = { ip: string; outcome: Outcome; whose: string };
     /** The twelve answers from the step's state, by setting then request, and the scenario the table outlines. */
     const tableOf = (st: Record<string, unknown>) => {
       const ips = st.table as Record<TrustKey, string[]>,
@@ -871,58 +746,11 @@ export default class TrustProxyExplainer extends Scene {
       const cell = (t: TrustKey, q: RequestKey): Cell => ({ ip: ips[t][REQUEST_KEYS.indexOf(q)]!, ...answers[t][REQUEST_KEYS.indexOf(q)]! });
       return { cell, setting };
     };
-    const x0 = -7.3,
-      col0 = 3.3,
-      colW = (14.6 - col0) / 3,
-      top = 2.7,
-      rowH = 1.15;
     const table = view(
       this,
       (st) => {
         const { cell: cellOf, setting } = tableOf(st);
-        const cells: (Text | Rectangle)[] = [];
-        const head = (text: string, x: number) =>
-          cells.push(
-            new Text(text, { fontSize: SIZE, color: s.soft, weight: 'bold', anchor: 'start' }).moveTo([x, top], [-1, 0]),
-          );
-        head('trust proxy', x0);
-        REQUEST_KEYS.forEach((q, j) => head(REQUEST_LABEL[q], x0 + col0 + j * colW));
-        TRUST_KEYS.forEach((t, i) => {
-          const y = top - (i + 1) * rowH;
-          cells.push(
-            new Text(TRUST_LABEL[t], { fontSize: BIG, color: ink, font: 'mono', anchor: 'start' }).moveTo([x0, y], [-1, 0]),
-          );
-          REQUEST_KEYS.forEach((q, j) => {
-            const cell = cellOf(t, q),
-              x = x0 + col0 + j * colW;
-            const color = cell.outcome === 'sender' ? s.good : s.bad;
-            cells.push(
-              new Text(cell.ip, { fontSize: BIG, color, font: 'mono', anchor: 'start' }).moveTo([x, y + 0.13], [-1, 0]),
-            );
-            cells.push(
-              new Text(
-                cell.outcome === 'sender' ? 'real sender' : cell.outcome === 'proxy' ? 'CDN edge' : 'attacker wrote it',
-                {
-                  fontSize: 0.22,
-                  color: s.soft,
-                  anchor: 'start',
-                },
-              ).moveTo([x, y - 0.3], [-1, 0]),
-            );
-            if (t === setting.trust && q === setting.request)
-              cells.push(
-                new Rectangle({
-                  width: colW - 0.2,
-                  height: rowH - 0.15,
-                  stroke: s.emphasis,
-                  strokeWidth: 0.03,
-                  fill: 'none',
-                  cornerRadius: 0.08,
-                }).moveTo([x - 0.15 + (colW - 0.2) / 2, y - 0.07]),
-              );
-          });
-        });
-        return new Group(...cells);
+        return drawAnswerTable(cellOf, setting, REQUEST_LABEL, { head: SIZE, body: BIG }, colours);
       },
       { place: false },
     );

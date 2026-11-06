@@ -2,6 +2,9 @@
 // SCXML 1.0 selection rules this subset needs (W3C Recommendation, 2015, Appendix D). No guards,
 // actions, history, final states or delays. tools/oracle/statecharts.ts runs the same charts
 // through XState and test/statecharts.test.ts compares the two.
+// The inner-state-first selection (`send`) follows XState and SCXML for this subset; Statemate's
+// priority rules differ, and the model does not follow them. The player's controls go up to five
+// (CONTROLS), so the count tests reach five features though the explainer draws at most two.
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';
 
@@ -347,7 +350,8 @@ export function flatten(chart: StateNode): FlatMachine {
 }
 
 /**
- * The flat machine as someone copying arrows by hand might write it, with one copy forgotten: every
+ * The flat machine as someone copying arrows by hand might write it, with one copy forgotten (a
+ * deliberately incomplete copy for the explainer, not the behaviour of a real appliance): every
  * reachable configuration becomes a plain state, and every flat transition is kept except `event`
  * leaving `from`.
  */

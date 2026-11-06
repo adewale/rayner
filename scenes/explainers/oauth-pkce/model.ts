@@ -2,6 +2,13 @@
  * The PKCE exchange as data: which message carries which parameter over which channel, and what the token endpoint
  * answers (RFC 7636 §4.3–4.6, RFC 6749 §4.1). No drawing here; oauth-pkce draws its sequence diagrams from these
  * messages. Tested in test/explain-pkce.test.ts.
+ *
+ * Its limits: RFC 7636's intercepted-authorization-code threat for a public native client using S256. The token
+ * endpoint models only the PKCE comparison (§4.6); the code, client ID and redirect URI are assumed valid, and
+ * ordinary token-request fields are left out. A bound code presented without any verifier is not modelled, because
+ * RFC 7636 makes the parameter required without naming the error. In this model a refused request leaves the code
+ * unused. VERIFIER is RFC 7636 appendix B's example; a real sign-in needs a fresh, unpredictable one. Nothing here
+ * covers a compromised client that leaks its verifier, or the other checks OAuth makes.
  */
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';

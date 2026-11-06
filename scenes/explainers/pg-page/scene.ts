@@ -2,7 +2,7 @@ import { Scene, Group, Rectangle, Text, Arrow, FadeOut, Create, view } from '../
 import type { Box, Vec, View, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
-import { keyed, callout } from '../../../explain/drawing.ts';
+import { callout } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,
   COLUMNS,
@@ -11,31 +11,18 @@ import {
   SWAP,
   TEXT_CHARS,
   TUPLE_HEADER,
-  INT4,
-  INT8,
   scenarioOf,
-  fill,
   percent,
-  shortText,
-  tuple,
 } from './model.ts';
-import type { Attr, Scenario, Column, Share, Tuple } from './model.ts';
+import type { Scenario, Column, Share } from './model.ts';
+import { CELL, COLORS, SMALL, drawGrid, drawKey, gridWords, tupleOf } from './picture.ts';
+import type { TupleState } from './picture.ts';
 
 // Sources, all at postgres/postgres tag REL_18_6; lines are quoted in lib/pg-page.ts and
 // test/explain-pg-page.test.ts, which also freezes the measurements on Postgres 18.6.
 const PG = 'https://github.com/postgres/postgres/blob/REL_18_6/src/';
 const STYLE = 'pen-and-ink';
 
-// Slice colours, in slice order, so the byte grid and the pie use the same ones.
-const COLORS = {
-  data: '#d9480f',
-  headers: '#9a9087',
-  padding: '#e8dcc4',
-  pointers: '#3b6ea5',
-  pageHeader: '#241f1a',
-  free: '#fffdf7',
-  reserved: '#7fb08a',
-} as const;
 const SLICES: { key: keyof Share; name: string }[] = [
   { key: 'data', name: 'Row data' },
   { key: 'headers', name: 'Tuple headers' },
@@ -74,25 +61,6 @@ const pieOps = (from: Scenario, to: Scenario) => [
   }),
 ];
 
-/** One tuple as the steps record it: its column, its bytes one by one, and the sizes its key states. */
-interface TupleState {
-  column: Column;
-  label: string;
-  bytes: Tuple['bytes'];
-  stored: number;
-  padding: number;
-  data: number;
-}
-const tupleOf = (x: Scenario): TupleState => ({
-  column: x.column,
-  label: x.label,
-  bytes: [...x.tuple.bytes],
-  stored: x.tuple.stored,
-  padding: x.tuple.padding,
-  data: x.tuple.data,
-});
-/** A column with a text after its integer. */
-const textual = (column: Column) => column !== 'int4' && column !== 'int8';
 /** What the steps record, accumulated: the fields the views below draw from. */
 interface PgState {
   column: Column;
@@ -107,35 +75,18 @@ interface PgState {
 }
 
 const SIZE = 0.34;
-const SMALL = 0.28;
 const PIE_BOX: Box = [-7.55, -4.25, 1.75, 3.25];
 const WIDE_PIE: Box = [-7.55, -4.25, 7.55, 3.0];
 const RIGHT: Box = [1.95, -4.1, 7.55, 3.1];
 // The first two steps draw the page on the left and the tuple on the right.
 const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
-/** The script's one-sentence answer (script.md); the swap step's caption opens with it. */
+/** The script's one-sentence answer (script.md's Answer line); the swap step's caption opens with it. */
 const ANSWER = 'On a 64-bit build, Postgres gives every tuple a multiple of 8 bytes';
 
-// The check questions' rows, laid out by the model's rules (not measured): two int4 columns, one int2
-// (smallint: 2 bytes, pg_type typalign 's'), and the integer followed by a 15-character text.
-const INT2: Attr = { name: 'int2', len: 2, align: 2 };
-const rowOf = (attrs: readonly Attr[]) => {
-  const t = tuple(attrs);
-  return { ...t, rows: fill(t.stored, 100).rows };
-};
-const ONE = rowOf([INT4]),
-  TWO = rowOf([INT4, INT4]),
-  SMALL_INT = rowOf([INT2]),
-  T15 = 15,
-  NARROW15 = rowOf([INT4, shortText(T15)]),
-  WIDE15 = rowOf([INT8, shortText(T15)]);
-if (TWO.perRow !== ONE.perRow || SMALL_INT.perRow !== ONE.perRow || NARROW15.perRow !== WIDE15.perRow)
-  throw new Error('The check answers assume each changed row costs what its comparison row costs');
-
+// The title, answer and check questions come from script.md's intent header.
 export default class PgPageExplainer extends Scene {
   static meta = {
     id: 'pg-page',
-    title: 'Why can int4 and int8 rows take the same space?',
     sources: [
       PG + 'include/storage/bufpage.h#L158-L218',
       PG + 'include/storage/itemid.h#L25-L30',
@@ -149,22 +100,6 @@ export default class PgPageExplainer extends Scene {
       PG + 'backend/access/heap/hio.c#L700-L710',
       'https://www.postgresql.org/docs/18/storage-page-layout.html',
       'https://www.postgresql.org/docs/18/pageinspect.html',
-    ],
-    // The script's answer and check questions (script.md); check holds a step (swap) to stating the answer.
-    answer: ANSWER,
-    checks: [
-      {
-        question: 'Would a row with two int4 columns take more page space than a row with one?',
-        answer: `No. The first int4 ends at byte ${ONE.lpLen}, and the second fills bytes ${ONE.lpLen} to ${TWO.lpLen - 1}, the padding one int4 leaves. Both tuples take ${ONE.stored} bytes, so both rows cost ${ONE.perRow} and a page holds ${TWO.rows} of either.`,
-      },
-      {
-        question: 'Would smallint (int2, 2 bytes) fit more rows on a page than int4?',
-        answer: `No. Its tuple is ${SMALL_INT.hoff} + 2 = ${SMALL_INT.lpLen} bytes, which the page rounds up to ${SMALL_INT.stored}, the same as int4’s ${ONE.lpLen}. Both rows cost ${ONE.perRow} bytes and a page holds ${SMALL_INT.rows}.`,
-      },
-      {
-        question: `With a ${T15}-character text after the integer instead of an ${TEXT_CHARS}-character one, does int4 still fit more rows than int8?`,
-        answer: `No. After an int4 the tuple is ${NARROW15.lpLen} bytes, rounded up to ${NARROW15.stored}; after an int8 it is ${WIDE15.lpLen}, already a multiple of 8. Both rows cost ${NARROW15.perRow} bytes, so the saving the ${TEXT_CHARS}-character text showed disappears.`,
-      },
     ],
     // The sentences that reach beyond the rows on screen, and the tests that hold them.
     claims: [
@@ -340,54 +275,9 @@ export default class PgPageExplainer extends Scene {
       ]);
       return new Group(pointer, pointerLabel, tupleBox, tupleLabel, link, free);
     };
-    // A tuple byte by byte, eight to a line: every line of the grid is one MAXALIGN unit.
-    const CELL = 0.52;
-    const grid = (x: TupleState, gx: number, gy: number) => {
-      const cells = x.bytes.map((kind, i) =>
-        keyed(
-          new Rectangle({
-            width: CELL,
-            height: CELL,
-            fill: kind === 'header' ? COLORS.headers : kind === 'padding' ? COLORS.padding : COLORS.data,
-            stroke: ink,
-            strokeWidth: 0.015,
-          }).moveTo([gx + (i % 8) * CELL + CELL / 2, gy - Math.floor(i / 8) * CELL - CELL / 2]),
-          `pg-byte:${x.column}:${i}`,
-        ),
-      );
-      const offsets = Array.from({ length: x.stored / 8 }, (_, r) =>
-        text(`${r * 8}`, { size: SMALL, color: s.soft }).moveTo([gx - 0.12, gy - r * CELL - CELL / 2], [1, 0]),
-      );
-      return { cells, offsets };
-    };
-    /** The grid in words: its lines' offsets, then its runs of header, padding and data bytes. */
-    const gridWords = (x: TupleState) => {
-      const runs: string[] = [];
-      let i = 0;
-      while (i < x.bytes.length) {
-        let j = i;
-        while (j < x.bytes.length && x.bytes[j] === x.bytes[i]) j++;
-        runs.push(`${j - i} ${x.bytes[i]} byte${j - i > 1 ? 's' : ''}`);
-        i = j;
-      }
-      const offsets = Array.from({ length: x.stored / 8 }, (_, r) => `${r * 8}`);
-      return `The ${x.label} row’s ${x.stored}-byte tuple in lines of 8 bytes, starting at offsets ${offsets.join(', ')}: ${runs.join(', ')}.`;
-    };
-    /** A colour key for one tuple's bytes, from (kx, ky) down. */
-    const keyFor = (x: TupleState, kx: number, ky: number) =>
-      (
-        [
-          [COLORS.headers, `header, ${TUPLE_HEADER} bytes`],
-          [COLORS.padding, `padding, ${x.padding} byte${x.padding === 1 ? '' : 's'}`],
-          [COLORS.data, `${textual(x.column) ? 'values' : 'value'}, ${x.data} bytes`],
-        ] as const
-      ).map(([color, words], row) => {
-        const y = ky - row * 0.62;
-        return new Group(
-          new Rectangle({ width: 0.3, height: 0.3, fill: color, stroke: ink, strokeWidth: 0.015 }).moveTo([kx, y]),
-          text(words, { size: SMALL }).moveTo([kx + 0.3, y], [-1, 0]),
-        );
-      });
+    // A tuple byte by byte, eight to a line, and its colour key (picture.ts).
+    const grid = (x: TupleState, gx: number, gy: number) => drawGrid(x, gx, gy, { ink, soft: s.soft });
+    const keyFor = (x: TupleState, kx: number, ky: number) => drawKey(x, kx, ky, { ink });
     const GX = ROW_RIGHT[0] + 0.75,
       GY = ROW_RIGHT[3] - 0.15;
     // The answer step moves this row's grid left, to make room for the other type's; where it sits is what is shown.

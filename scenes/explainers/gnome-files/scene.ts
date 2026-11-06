@@ -1,12 +1,11 @@
-import { frames as readerFrames } from './picture.ts';
-import { Scene, Group, Line, Rectangle, Text } from '../../../src/index.ts';
+import { frames as readerFrames, colourKey, giveUpTable, heatMap, KEY_TOP, KEY_PITCH } from './picture.ts';
+import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import {
   COLOURS,
   GROUPS,
   MEANING,
   PARTICIPANTS,
-  RGB,
   SCORE,
   SESSION,
   colourOf,
@@ -21,7 +20,7 @@ import {
 } from './model.ts';
 import type { Participant } from './model.ts';
 
-// Sources and the transcription are described in lib/gnome-files.ts.
+// Sources and the transcription are described in model.ts.
 const REPORT = 'https://blogs.gnome.org/udoijiibike/files/2024/11/Detailed-Report-for-Files-Usability-Test-.pdf';
 const ARTICLE = 'https://technicallywewrite.com/2025/01/06/gnomeusability';
 const STYLE = 'github-light';
@@ -47,6 +46,7 @@ const WHY: Readonly<Record<number, string>> = {
   7: 'Open Item Location is in the file’s right-click menu, a command those who quit did not know',
   9: 'over half the sample took six to nine attempts to find Add To Bookmarks or give up',
 };
+/** The answer in script.md's intent header, which the give-ups step's title states. */
 const ANSWER = 'All six gave up at least once, each time on a menu command';
 /** "A", "A and B", "A, B and C". */
 const and = (xs: readonly string[]) =>
@@ -68,12 +68,11 @@ const PROSE: Readonly<Record<number, string>> = {
 };
 const said = (n: number) => PROSE[n]!;
 
+// The title, answer and check questions come from script.md's intent header.
 export default class GnomeFilesExplainer extends Scene {
   static meta = {
     id: 'gnome-files',
-    title: 'Why couldn’t these users find the command?',
     sources: [REPORT, ARTICLE, 'https://technicallywewrite.com/images/2025/01/gnome3.png'],
-    answer: ANSWER,
     claims: [
       {
         says: 'All six gave up at least once, each time on a menu command',
@@ -82,26 +81,6 @@ export default class GnomeFilesExplainer extends Scene {
       {
         says: 'every one of the six gave up at least once',
         test: 'test/explain-gnome-files.test.ts: every participant gave up at least once',
-      },
-    ],
-    checks: [
-      {
-        question:
-          'A later build adds a visible Undo button beside the folder path, outside the Main Menu. Which observation in this study suggests that would help, and what could a six-person study of the old build not tell you?',
-        answer:
-          'The people who gave up on Undo did not open the Main Menu, so a button they can see removes the step they skipped. The study cannot say how many users would still miss it: six first-time users of one test build give no rate, and the new design needs its own test.',
-      },
-      {
-        question:
-          'P5 gave up on Select All but had no difficulty with Undo; P1 had no difficulty with Select All but gave up on Undo. What does that suggest about explaining the give-ups by who was skilled?',
-        answer:
-          'Skill alone would make the same people fail on both. Instead each person stalled on a different command, and all six stalled at least once, which points at where particular commands sat and at habits such as Ctrl+A, not at a few weak users.',
-      },
-      {
-        question:
-          'P6’s attempt at Select All is gray, outside the study’s scope. If it were counted as a give-up instead, how would the ranking of tasks by give-ups change, and why does the report keep gray separate?',
-        answer:
-          'Select All would have four give-ups and be worst on its own, ahead of Undo’s three. The report keeps gray separate because the study excluded that approach, so scoring it either way would rank tasks on something the study did not test.',
       },
     ],
   };
@@ -117,7 +96,8 @@ export default class GnomeFilesExplainer extends Scene {
   override async construct() {
     const p = settingsOf(this).participant as Participant;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
-    const ink = s.palette.ink;
+    const ink = s.palette.ink,
+      colours = { ink, soft: s.soft, bad: s.bad, emphasis: s.emphasis };
 
     // ------------------------------------------------------------------ who was studied, and how it was scored
     await this.step('test', {
@@ -132,27 +112,12 @@ export default class GnomeFilesExplainer extends Scene {
         'Researchers for GNOME’s design team watched six first-time GNOME users, aged 21 to 47, try eleven tasks in test builds of Files 47. Their report colours each attempt from green, no difficulty, to black, could not complete; gray marks an approach the study excluded. This page also scores green 5 down to black 1 for its charts; that spacing is its choice, not a measured interval.',
     });
     await s.clear();
-    const top = 2.7,
-      pitch = 0.9;
-    const key = new Group(
-      ...COLOURS.flatMap((c, i) => {
-        const y = top - i * pitch;
-        return [
-          new Rectangle({ width: 0.7, height: 0.6, fill: RGB[c], stroke: ink, strokeWidth: 0.015 }).moveTo([-6.9, y]),
-          new Text(SCORE[c] == null ? '–' : String(SCORE[c]), { fontSize: SIZE, color: ink, weight: 'bold' }).moveTo([
-            -6.0,
-            y,
-          ]),
-          new Text(`${c}: ${MEANING[c]}`, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo([-5.5, y], [-1, 0]),
-        ];
-      }),
-    );
-    key.shift([-(key.box()![0] + key.box()![2]) / 2, 0]);
+    const key = colourKey(ink, SIZE);
     await s.enter(key, {
       describe: `The report’s colour key with this page’s scores: ${COLOURS.map((c) => `${c}, ${SCORE[c] ?? 'no score'}, ${MEANING[c]}`).join('; ')}`,
     });
     await s.note('Colours and meanings: the report, page 7. Scores: this page’s, for its charts.', {
-      at: [0, top - 6 * pitch - 0.1],
+      at: [0, KEY_TOP - 6 * KEY_PITCH - 0.1],
       size: 0.32,
     });
     this.state.key = Object.fromEntries(COLOURS.map((c) => [c, SCORE[c]]));
@@ -176,58 +141,7 @@ export default class GnomeFilesExplainer extends Scene {
     });
     await s.clear();
     {
-      const F = 0.48,
-        CW = 0.8,
-        TW = 1.3,
-        RH = 0.74,
-        top = 2.9;
-      const heads = lost.map((n) => new Text(`${n} ${name(n)}`, { fontSize: F, color: ink, anchor: 'start' }));
-      const foot = new Text('Gave up', { fontSize: F, color: ink, weight: 'bold', anchor: 'start' });
-      const labelW = Math.max(foot.width(), ...heads.map((t) => t.width()));
-      const width = labelW + 0.3 + PARTICIPANTS.length * CW + TW;
-      const left = -width / 2;
-      const col = (i: number) => left + labelW + 0.3 + CW / 2 + i * CW;
-      const totalX = left + labelW + 0.3 + PARTICIPANTS.length * CW + TW / 2;
-      const rowY = (r: number) => top - (r + 1) * RH;
-      const sumY = rowY(lost.length) - 0.1;
-      const strong = (text: string, x: number, y: number, key: string, color = ink) => {
-        const t = new Text(text, { fontSize: F, color, weight: 'bold' }).moveTo([x, y]);
-        t.key = key;
-        return t;
-      };
-      const table = new Group(
-        ...PARTICIPANTS.map((q, i) =>
-          new Text(q, { fontSize: F, color: ink, weight: q === p ? 'bold' : 'normal' }).moveTo([col(i), top]),
-        ),
-        new Text('Total', { fontSize: F, color: ink }).moveTo([totalX, top]),
-        ...lost.flatMap((n, r) => [
-          heads[r]!.moveTo([left, rowY(r)], [-1, 0]),
-          ...PARTICIPANTS.map((q, i) =>
-            new Rectangle({ width: CW - 0.08, height: RH - 0.1, fill: RGB[colourOf(n, q)], stroke: 'none' }).moveTo([
-              col(i),
-              rowY(r),
-            ]),
-          ),
-          strong(String(quitters(n).length), totalX, rowY(r), `gave-up:task-${n}`, s.bad),
-        ]),
-        foot.moveTo([left, sumY], [-1, 0]),
-        ...PARTICIPANTS.map((q, i) => strong(String(gaveUp(q).length), col(i), sumY, `gave-up:${q}`, s.bad)),
-        strong(String(all.length), totalX, sumY, 'gave-up:total', s.bad),
-        new Line([left, sumY + RH / 2], [left + width, sumY + RH / 2], { stroke: s.soft, strokeWidth: 0.025 }),
-      );
-      const rest = new Text(`No one gave up on the other ${SESSION.length - lost.length} tasks`, {
-        fontSize: F,
-        color: ink,
-      }).moveTo([0, sumY - RH - 0.05]);
-      rest.key = 'gave-up:none';
-      const at = PARTICIPANTS.indexOf(p);
-      const outline = new Rectangle({
-        width: CW + 0.04,
-        height: top + 0.4 - (sumY - RH / 2),
-        fill: 'none',
-        stroke: s.emphasis,
-        strokeWidth: 0.06,
-      }).moveTo([col(at), (top + 0.4 + sumY - RH / 2) / 2]);
+      const { table, rest, outline } = giveUpTable(p, lost, all.length, colours);
       s.opening(table, rest);
       await s.enter(table, rest, outline, {
         describe: `Give-ups by task and participant, ${p} outlined: ${lost
@@ -248,43 +162,7 @@ export default class GnomeFilesExplainer extends Scene {
     });
     await s.clear();
     {
-      const LABEL = 0.3,
-        X0 = -7.4,
-        CX = -2.75,
-        CW = 0.68,
-        Y0 = 2.85,
-        RH = 0.585;
-      const col = (i: number) => CX + i * CW;
-      const rowY = (i: number) => Y0 - 0.55 - i * RH;
-      const grid = new Group(
-        ...PARTICIPANTS.map((q, i) =>
-          new Text(q, { fontSize: LABEL, color: ink, weight: q === p ? 'bold' : 'normal' }).moveTo([col(i), Y0]),
-        ),
-        ...SESSION.flatMap((n, r) => [
-          new Text(`${n} ${name(n)}`, { fontSize: LABEL, color: ink, anchor: 'start' }).moveTo([X0, rowY(r)], [-1, 0]),
-          ...PARTICIPANTS.flatMap((q, i) => {
-            const c = colourOf(n, q);
-            return [
-              new Rectangle({ width: CW - 0.06, height: RH - 0.07, fill: RGB[c], stroke: 'none' }).moveTo([
-                col(i),
-                rowY(r),
-              ]),
-              new Text(SCORE[c] == null ? '–' : String(SCORE[c]), {
-                fontSize: LABEL,
-                color: c === 'black' ? '#ffffff' : '#1f2328',
-              }).moveTo([col(i), rowY(r)]),
-            ];
-          }),
-        ]),
-      );
-      const at = PARTICIPANTS.indexOf(p);
-      const outline = new Rectangle({
-        width: CW + 0.04,
-        height: Y0 + 0.3 - (rowY(SESSION.length - 1) - RH / 2) + 0.04,
-        fill: 'none',
-        stroke: s.emphasis,
-        strokeWidth: 0.06,
-      }).moveTo([col(at), (Y0 + 0.3 + rowY(SESSION.length - 1) - RH / 2) / 2]);
+      const { grid, outline, rowBox } = heatMap(p, colours);
       await s.enter(grid, outline, {
         describe: `The whole heat map as scores, rows in session order, ${p} outlined: ${SESSION.map(
           (n) => `${n} ${name(n)}: ${PARTICIPANTS.map((q) => `${q} ${scoreOf(n, q) ?? 'gray'}`).join(', ')}`,
@@ -294,9 +172,8 @@ export default class GnomeFilesExplainer extends Scene {
       for (const [r, n] of SESSION.entries()) {
         const q = quitters(n);
         if (!q.length) continue;
-        const y = rowY(r);
         await s.callout(
-          [col(0) - CW / 2, y - RH / 2, col(PARTICIPANTS.length - 1) + CW / 2, y + RH / 2],
+          rowBox(r),
           `${and(q)} gave up`,
           {
             side: 'right',

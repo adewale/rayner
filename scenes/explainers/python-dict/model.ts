@@ -1,6 +1,10 @@
 // CPython v3.12.14, Objects/dictobject.c: do_lookup(), insertdict(), delitem_common().
 // This lesson fixes capacity at eight and uses three small integer keys. It
-// models the compact combined table; resizing and split instance dicts are out of scope.
+// models the compact combined table; resizing, insertion after deletion (reusing a deleted
+// slot), split instance dicts and custom hashing or equality are out of scope. The keys 0, 8
+// and 16 hash to themselves and share their low three bits; that holds for these keys only
+// (hash(-1) is -2). The 'incorrect-clear' policy, which empties the slot, is a counterfactual,
+// not Python's deletion. The fixed-size lookup refuses a table with no unused slot to stop at.
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';
 export const EMPTY = -1, DELETED = -2;

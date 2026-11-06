@@ -1,4 +1,4 @@
-import { frames as readerFrames, ANSWER } from './picture.ts';
+import { frames as readerFrames } from './picture.ts';
 import {
   Scene,
   Text,
@@ -17,7 +17,7 @@ import {
 } from '../../../src/index.ts';
 import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
-import { reduceSession, sessionAttempt, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
+import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =
   'stateDiagram-v2\n direction LR\n idle --> connecting: CONNECT\n connecting --> open: OPENED\n connecting --> closed: ERROR\n open --> closed: CLOSE';
@@ -36,8 +36,6 @@ const REDUCER = [
   '}',
 ];
 const THROW = 8;
-/** The first check question, asked of the reducer: CONNECT while open. */
-const SECOND_CONNECT = sessionAttempt('open', 'CONNECT');
 const DIAGRAM = regionBox('top', { bottom: 0.2 }),
   CODE = regionBox('full', { right: 2.05, top: -0.05 }),
   CARD = regionBox('full', { left: 2.35, top: -0.05 });
@@ -61,30 +59,15 @@ const sameRow: MatchKey = (p) => {
     return `${Math.round(t.anchorPoint()[1] * 100)} ${t.text} ${(p as { cluster?: number }).cluster}`;
   return p instanceof VMobject ? 'shape ' + p.shapeKey() : undefined;
 };
+// The title, answer and check questions come from script.md's intent header.
 export default class StateMachineExplainer extends Scene {
   static meta = {
     id: 'state-machine',
-    title: 'Which events can change this session?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/state-machine.ts'],
-    answer: ANSWER,
     claims: [
       {
         says: 'accepts an event only in a state that has a row for it',
         test: 'test/explain-models.test.ts: both session histories come from the reducer; closed rejects all modeled events',
-      },
-    ],
-    checks: [
-      {
-        question: 'In the success history, a second CONNECT arrives while the session is open. What does the reducer do?',
-        answer: `It ${SECOND_CONNECT.error ? `throws ${SECOND_CONNECT.error} and the session stays open` : `returns ${SECOND_CONNECT.state}`}, because the table has no open:CONNECT row. An event name the machine knows is still refused in a state with no row for it.`,
-      },
-      {
-        question: 'You add one row, connecting:CLOSE → closed, so a user can cancel while connecting. Can the late OPENED that follows the cancel reopen the session?',
-        answer: 'No. The cancel moves the session to closed, and closed still has no OPENED row, so the late OPENED still throws. The new row changes which events reach closed, not what closed accepts.',
-      },
-      {
-        question: 'A new state, reconnecting, gets a row reconnecting:OPENED → open. A late OPENED from the abandoned first attempt arrives while the session is reconnecting. What happens, and what does that say about the table?',
-        answer: 'The row exists, so the session moves to open on the old attempt’s reply. The table matches states and event names; it cannot tell which attempt an OPENED came from. Telling them apart needs something the event carries, such as an attempt number, which this reducer does not model.',
       },
     ],
   };

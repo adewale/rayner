@@ -17,6 +17,10 @@
 // Objects/longobject.c:3193 and Objects/unicodeobject.c:9536-9553: int() first rewrites each non-ASCII
 // character as ' ' if it is a space, as '0' + its field 6 value if it has one, and otherwise as '?',
 // which no base-10 parse accepts.
+// Its limits: one character at a time. Signs, underscores, surrounding whitespace, other bases and
+// the rest of int()'s string grammar are not modelled. Everything is pinned to CPython 3.15.1 and
+// Unicode 17.0.0 (COUNTS below comes from a scan of that version); CPython's generated tables
+// implement the three fields, and int() does not read UnicodeData.txt at run time.
 
 export type CharId = 'ascii' | 'arabic' | 'devanagari' | 'fullwidth' | 'super' | 'half' | 'roman' | 'han';
 export type Predicate = 'isdecimal' | 'isdigit' | 'isnumeric';
@@ -159,7 +163,7 @@ export function guarded(c: Char, guard: Predicate): { passes: boolean; outcome: 
 
 // Counted by CPython 3.15.1 (unicodedata.unidata_version 17.0.0) over every code point except the
 // surrogates, one character at a time, in the python:3.15-slim Docker image on 2026-10-25; the script
-// and its output are in test/explain-isdigit.test.ts.
+// and its output are in test/explain-isdigit.test.ts. Do not carry them into another Unicode version.
 export const COUNTS = { isdecimal: 770, isdigit: 898, isnumeric: 2023, int: 770 } as const;
 /** How many characters each predicate accepts that int() rejects, alone. */
 export const accepts = (p: Predicate): number => COUNTS[p] - COUNTS.int;

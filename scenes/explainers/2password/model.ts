@@ -1,5 +1,9 @@
 // Ported from kitlangton/2password at e011177 (src/discover.ts `find`, src/op.ts `exec`), with
 // the op CLI replaced by an in-memory vault. The sample items are the ones its own find tests use.
+// Its limits: no live vault and no real op; find's titles and suggestion scores are computed here. The
+// one-desktop-approval count (PROMPTS_PER_COMMAND) is the upstream README's, not an observed flow. find
+// keeps field values out of what it returns; that says nothing of the bytes the wrapper handles on the way,
+// nor of what the launched app does with its environment, and reference names still reveal vault and item names.
 export const SOURCE = 'https://github.com/kitlangton/2password/blob/e011177d3e35f97a580b8903df6fff7e02593d16';
 /** An item as `op item get` returns it, with one concealed field. */
 const item = (

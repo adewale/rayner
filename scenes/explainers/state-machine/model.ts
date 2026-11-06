@@ -1,4 +1,8 @@
 // The state-machine explainer's model: a WebSocket session as a reducer: its states, events, and the transition each event makes or the error it throws.
+// Its limits: four allowed pairs (idle:CONNECT, connecting:OPENED, connecting:ERROR, open:CLOSE); any other pair
+// throws InvalidTransition, which is this reducer's policy, not a requirement of state-machine libraries (another
+// could ignore or queue the event). It has no retry, reconnection, timeout, event queue, request identity or
+// asynchronous scheduling: the table knows states and event names only, and runs a supplied sequence of events.
 class InvalidTransition extends Error {
   constructor() {
     super('InvalidTransition');

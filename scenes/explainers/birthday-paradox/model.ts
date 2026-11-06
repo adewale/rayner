@@ -1,3 +1,7 @@
+// The birthday problem: the chance that some two of n people share a birthday, and that someone shares one
+// marked person's. What it leaves out: birthdays are independent and equally likely over 365 days, with no
+// 29 February, twins or seasonal birth patterns. The rooms the scene draws are one seeded sample each; a
+// particular room illustrates matches but does not establish their probability, which birthdayChance gives.
 export type BirthdayQuestion = 'any' | 'one';
 export function birthdayChance(people: number, question: BirthdayQuestion, days = 365): number {
   if (!Number.isInteger(people) || people < 1 || people > 1000 || !Number.isInteger(days) || days < 1 || days > 1000)

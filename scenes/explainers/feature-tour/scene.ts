@@ -560,7 +560,7 @@ const PREDICT: Record<Feature, string> = {
   globe: 'Predict: once the turn ends, where is London on the globe?',
 };
 
-/** The script's one-sentence answer, which opens every scenario's recipe caption. */
+/** The script's one-sentence answer (its intent header's Answer), which opens every scenario's recipe caption. */
 const ANSWER =
   'Each feature takes a few lines of the scene, and the picture they leave at rest is what a reader who opens the step from a link sees';
 
@@ -569,10 +569,10 @@ const BEFORE: [number, number, number, number] = [-7.4, -3.5, -2.5, 2.1],
   AFTER: [number, number, number, number] = [-1.3, -3.5, 7.4, 2.1];
 const centre = (b: readonly number[]): [number, number] => [(b[0]! + b[2]!) / 2, (b[1]! + b[3]!) / 2];
 
+// The title, answer and check questions come from script.md's intent header.
 export default class FeatureTour extends Scene {
   static meta = {
     id: 'feature-tour',
-    title: 'How do I write that in Rayner?',
     // The maths scenario's formula, typeset once by rayner snapshots into scene.lettering.json.
     lettering: { math: true },
     scenarioNavigation: 'first' as const,
@@ -583,8 +583,6 @@ export default class FeatureTour extends Scene {
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/mr-cache',
       'https://github.com/adewale/rayner/tree/main/scenes/explainers/layout-direction',
     ],
-    // The script's answer and check questions (script.md); every scenario's recipe step states the answer.
-    answer: ANSWER,
     // Scope sentences: the build rule and the drawing tool rule have tests; the result picture is the evidence for the rest.
     claims: [
       {
@@ -601,26 +599,6 @@ export default class FeatureTour extends Scene {
       {
         says: 'Of the pen’s motion, only the finished line is left at rest',
         test: 'test/explain-stage-tools.test.ts: draw: the tool rides the tip without jumps, leaves no trace',
-      },
-    ],
-    checks: [
-      {
-        question:
-          'Run the code-edits recipe twice in one step: count += 1 becomes count += 2, then count += 3, each morph with markAdded. What does a reader who opens that step from a link see, and is there any sign of count += 2?',
-        answer:
-          'Two lines, let count = 0 and count += 3, with count += 3 marked as added. The second morph fades count += 2 out along with its mark, so nothing in the resting picture shows that it existed; to keep it, draw the earlier panel beside the result, as the before panels on this page do.',
-      },
-      {
-        question:
-          'In the camera scenario, the author also enters a second circle at (5, 0) before calling s.focus(subject). Is it in the result picture, and where is it?',
-        answer:
-          'It is out of the picture. The closer view frames 6 of the stage’s 16 units around the first circle, roughly x = −3 to 3, so a circle at x = 5 falls outside it. It is still at (5, 0), because s.focus moves only the camera, and s.focus(‘all’) would bring it back into view.',
-      },
-      {
-        question:
-          'An author wants the chart scenario to plot numbers that each reader types into a box. Can a Rayner page do that, and what can the author offer instead?',
-        answer:
-          'No. A reader can only choose among the options a setting declares, and the build makes one scenario per option before anyone reads the page. The author can declare a setting whose options are a few prepared data sets, so each one is a scenario the build makes and the author can read.',
       },
     ],
   };
@@ -687,7 +665,10 @@ export default class FeatureTour extends Scene {
     this.state.feature = feature;
     this.shown.phase = 'recipe';
 
-    // 2. The result, at rest: before on the left, after on the right.
+    // 2. The result, at rest: before on the left, after on the right. The before panels, the camera
+    // ruler and Restore's dashed outline are this scene's own artwork, not what the recipe lines draw;
+    // keep them visibly separate so readers do not credit the before-and-after to the feature itself.
+    // The camera changes the whole view, so it gets a ruler rather than a before panel.
     const panels = async (before: Mobject[], describe: string) => {
       const [bx] = centre(BEFORE),
         [ax] = centre(AFTER);

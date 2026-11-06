@@ -38,7 +38,11 @@
 //   fs/ext4/super.c:6807-6829    ext4_statfs: f_bavail = free - (reserved + mount reserve)
 //
 // The model covers what the scene shows: a whole number of 128 MiB block groups from 512 MiB to 64 TiB,
-// with the default mke2fs.conf. test/explain-ext4-space.test.ts holds it to mkfs.ext4 1.47.3 runs.
+// with the default mke2fs.conf and 4 KiB blocks (sizes are binary units). test/explain-ext4-space.test.ts
+// holds it to mkfs.ext4 1.47.3 runs and a mounted kernel's statfs. It leaves out every other mkfs option,
+// quotas, snapshots and the space a working filesystem later uses; there is no fixed overhead percentage
+// for ext4 in general. The root reserve and the kernel's mount reserve are free blocks held back, kept
+// apart from each other and from the metadata, which is occupied.
 
 import { percent as formatPercent } from '../lib/format.ts';
 

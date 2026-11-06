@@ -5,6 +5,9 @@
 // SHA-1 is written out so a scene hashes the same way in Node and in the
 // browser; it is for object ids, not security. test/explain-models.test.ts
 // checks every id against `git hash-object`.
+//
+// What it leaves out: SHA-1 repositories only (no SHA-256), and the logical object
+// model only: no packfiles, delta compression or garbage collection, and no merges.
 const enc = new TextEncoder(),
   dec = new TextDecoder();
 

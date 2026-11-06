@@ -1,21 +1,16 @@
-import { frames as readerFrames, arrayQueue } from './picture.ts';
 import {
   Scene,
   SetState,
   AnimationGroup,
   Succession,
-  Circle,
   Text,
   Group,
-  Arrow,
   FadeIn,
   FadeOut,
   Create,
   Transform,
   TransformFromCopy,
   Follow,
-  SurroundingRectangle,
-  Cross,
   StateReadout,
   Machine,
   choreograph,
@@ -24,52 +19,12 @@ import {
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
-import { ringStory, ringStart, ringNext, RingBuffer } from './model.ts';
+import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
-
-/** The check questions' answers, from the same model: rings and queues no step draws. */
-const CHECK = (() => {
-  // Carry on from the wrap scenario's last step: three pops, then push 8.
-  const ring = new RingBuffer<number>(5);
-  for (let v = 1; v <= 5; v++) ring.push(v);
-  ring.pop();
-  ring.pop();
-  ring.push(6);
-  ring.push(7);
-  const out = [ring.pop(), ring.pop(), ring.pop()],
-    slot8 = ring.tail;
-  ring.push(8);
-  const left = Array.from({ length: ring.length }, (_, k) => ring.data[(ring.head + k) % ring.capacity]!);
-  const carry = { out, slot8, head: ring.head, left };
-  // Eight slots, eight pushes, eight pops.
-  const eight = new RingBuffer<number>(8);
-  for (let v = 1; v <= 8; v++) eight.push(v);
-  const full8 = eight.snapshot();
-  for (let v = 1; v <= 8; v++) eight.pop();
-  const empty8 = eight.snapshot();
-  // Draining a thousand values: the array copies every value behind each popped one; the ring copies none.
-  let queue = Array.from({ length: 1000 }, (_, i) => i + 1),
-    arrayMoves = 0;
-  while (queue.length) {
-    const step = arrayQueue(queue);
-    arrayMoves += step.moved;
-    queue = step.after;
-  }
-  return { carry, full8, empty8, arrayMoves };
-})();
+import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
+import type { Ink } from './picture.ts';
 
 type Snapshot = ReturnType<typeof ringStory>[number]['result'];
-const SLOTS = 5,
-  C: Vec = [-4.15, -0.45],
-  R = 2.05,
-  SLOT = 0.56,
-  /** Where push(v)'s argument waits before it is copied into the ring. */
-  IN: Vec = [-1.15, 2.45];
-const TAIL = '#7fc8b8';
-/** The tray under the ring: its row, below the labels of the pointers at the bottom slots, and where it must end, left of the code. */
-const TRAY_Y = -4.1,
-  TRAY_END = -0.6;
 // RingBuffer from ./model.ts, without the `this.`s.
 const CODE = [
   'push(v) {',
@@ -90,8 +45,6 @@ const CODE = [
 /** The values in queue order: from head, wrapping past the last slot. */
 const queueOrder = (r: { head: number; length: number; data: (number | null)[] }) =>
   Array.from({ length: r.length }, (_, k) => r.data[(r.head + k) % r.data.length]!);
-const angle = (i: number) => Math.PI / 2 - (i * 2 * Math.PI) / SLOTS;
-const polar = (a: number, r: number): Vec => [C[0] + Math.cos(a) * r, C[1] + Math.sin(a) * r];
 /** The turn from one slot to another, the short way round. */
 const turnBetween = (from: number, to: number) => {
   const d = angle(to) - angle(from);
@@ -99,34 +52,14 @@ const turnBetween = (from: number, to: number) => {
 };
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
-/** The value a push hands the buffer, read back from the operation the model ran ("push 6" -> 6). */
-const pushArg = (operation: unknown): number | null =>
-  typeof operation === 'string' && operation.startsWith('push ') ? Number(operation.slice(5)) : null;
 
+// The title, answer and check questions come from script.md's intent header.
 export default class RingBufferExplainer extends Scene {
   static meta = {
     id: 'ring-buffer',
-    title: 'How does a ring buffer reuse storage?',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
       'https://tc39.es/ecma262/2025/#sec-array.prototype.shift',
-    ],
-    // The script's answer and check questions (script.md); check holds the slots step to stating the answer.
-    answer: 'Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots',
-    checks: [
-      {
-        question:
-          'Carry on from the last step of “Push 5, pop 2, push 2”, where head and tail are both at slot 2. Pop three times, then push 8. Which values leave, which slot takes 8, and in what order do the rest come out?',
-        answer: `The pops return ${CHECK.carry.out.join(', ')}, and head wraps to slot ${CHECK.carry.head}. Tail is still at slot ${CHECK.carry.slot8}, so 8 goes there. Reading from head gives ${CHECK.carry.left.join(', ')}: the order comes from head, not from the slot numbers.`,
-      },
-      {
-        question: 'A ring of eight slots takes eight pushes and then eight pops. Where are head and tail, and how does the ring know it is empty?',
-        answer: `Both are at slot ${CHECK.empty8.head}, just where they were when it was full (head ${CHECK.full8.head}, tail ${CHECK.full8.tail}). Only length, ${CHECK.empty8.length} now against ${CHECK.full8.length} then, tells empty from full.`,
-      },
-      {
-        question: 'A queue of 1,000 values is drained by 1,000 pops. How many value copies does the array queue make in all, and how many does the ring make?',
-        answer: `The array makes ${CHECK.arrayMoves.toLocaleString('en')}: each pop copies every value still behind the front, 999, then 998, down to 0. The ring makes none, because a pop moves only head.`,
-      },
     ],
   };
   static settings = [
@@ -155,122 +88,10 @@ export default class RingBufferExplainer extends Scene {
       soft = s.soft,
       head = s.emphasis;
 
-    // Native pieces of the ring, rebuilt from a model snapshot.
-    const slotCircle = (filled: boolean, fresh = false) =>
-      new Circle({
-        radius: SLOT,
-        fill: filled ? ink : s.palette.paper,
-        fillOpacity: filled ? 0.13 : 1,
-        stroke: fresh ? TAIL : filled ? ink : soft,
-        strokeWidth: fresh ? 0.05 : filled ? 0.035 : 0.025,
-        ...(filled ? {} : { dashArray: '0.09 0.07' }),
-      });
-    // Copies fly between the incoming View (View > token > ring, digit), stored
-    // values and tray tokens. A Transform pairs families tree by tree, so all three
-    // share that tree: ring morphs into ring and digit into digit.
-    /** A stored value: its number, and an unseen slot-sized ring a token's ring can grow into or out of. */
-    const stored = (v: number, at: Vec) =>
-      new Group(
-        new Group(
-          new Circle({ radius: SLOT, fill: 'none', stroke: ink, strokeWidth: 0.03, opacity: 0 }).moveTo(at),
-          new Text(String(v), { fontSize: 0.44, color: ink }).moveTo(at),
-        ),
-      );
-    const token = (v: number, refused: boolean) => {
-      const color = refused ? s.bad : soft;
-      const ring = new Circle({
-        radius: 0.32,
-        fill: s.palette.paper,
-        stroke: color,
-        strokeWidth: 0.03,
-        ...(refused ? { dashArray: '0.08 0.06' } : {}),
-      });
-      return new Group(ring, new Text(String(v), { fontSize: 0.28, color: ink }).moveTo(ring.center()));
-    };
-    /** A pointer at any angle round the ring: its arrow toward the slot there, its word upright beside it. */
-    const pointerAt = (name: 'head' | 'tail', at: number) => {
-      const a = at + (name === 'head' ? 0.22 : -0.22),
-        color = name === 'head' ? head : TAIL;
-      const start = polar(a, R + 1.12),
-        slot = polar(at, R),
-        dir = [start[0] - slot[0], start[1] - slot[1]],
-        len = Math.hypot(dir[0]!, dir[1]!),
-        end: Vec = [slot[0] + (dir[0]! / len) * (SLOT + 0.07), slot[1] + (dir[1]! / len) * (SLOT + 0.07)];
-      const label = new Text(name, { fontSize: 0.24, font: 'mono', color, weight: 'bold' }).moveTo(
-        polar(a + (name === 'head' ? 0.06 : -0.06), R + 1.42),
-      );
-      return new Group(
-        new Arrow(start, end, { stroke: color, strokeWidth: 0.035, tipLength: 0.16, tipWidth: 0.14 }),
-        label,
-      );
-    };
-    const pointer = (name: 'head' | 'tail', i: number) => pointerAt(name, angle(i));
-    /** An outline that stays on the slot an operation touched until the next operation. */
-    const mark = (i: number, color: string) =>
-      new SurroundingRectangle(slotCircle(false).moveTo(polar(angle(i), R)), {
-        buff: 0.09,
-        cornerRadius: SLOT + 0.09,
-        stroke: color,
-        strokeWidth: 0.045,
-      });
-
-    // The ring, drawn from the machine's state: every piece keyed, so a transition can move each.
-    const trayLabelAt = (text: string) => new Text(text, { fontSize: 0.24, color: soft, anchor: 'start' }).moveTo([-7.35, TRAY_Y], [-1, 0]);
-    const ringPicture = (st: RingState) => {
-      const { add, group } = keyedParts();
-      for (let i = 0; i < SLOTS; i++) {
-        add(slotCircle(st.data[i] != null, st.reused[i]!).moveTo(polar(angle(i), R)), `ring:slot:${i}`);
-        add(new Text(String(i), { fontSize: 0.2, font: 'mono', color: soft }).moveTo(polar(angle(i), R - 0.86)), `ring:index:${i}`);
-      }
-      st.data.forEach((v, i) => { if (v != null) add(stored(v, polar(angle(i), R)), `ring:value:${i}`); });
-      add(pointer('head', st.head), 'ring:pointer:head');
-      add(pointer('tail', st.tail), 'ring:pointer:tail');
-      const colour = { push: TAIL, pop: head, refused: s.bad } as const;
-      for (const m of st.marks) add(mark(m.slot, colour[m.kind]), `ring:mark:${m.slot}`);
-      const v = pushArg(st.operation);
-      // No argument (a pop): an unseen ring holds the place.
-      add(v == null ? new Group(new Circle({ radius: 0.32, opacity: 0 }).moveTo(IN)) : new Group(token(v, false)).moveTo(IN), `ring:incoming:${v ?? 'none'}`);
-      if (st.operation != null) {
-        add(new Text('push(v)', { fontSize: 0.24, font: 'mono', color: soft, anchor: 'end' }).moveTo([IN[0] - 0.5, IN[1]], [1, 0]), 'ring:arg');
-        // The value the next push hands the buffer, so two states that differ only there look different.
-        add(new Text(`next ${st.next}`, { fontSize: 0.2, font: 'mono', color: soft, anchor: 'end' }).moveTo([IN[0] - 0.5, IN[1] - 0.36], [1, 0]), `ring:next:${st.next}`);
-      }
-      if (st.tray) {
-        // The most recent values that fit left of the code; the label counts the rest.
-        const all = st.tray.values;
-        let shown = all.length, label = trayLabelAt(st.tray.label);
-        for (; shown > 1; shown--) {
-          label = trayLabelAt(shown < all.length ? `${st.tray.label.slice(0, -1)} (+${all.length - shown}):` : st.tray.label);
-          if (label.box()![2] + 0.55 + (shown - 1) * 0.95 + 0.32 <= TRAY_END) break;
-        }
-        const x = label.box()![2] + 0.55;
-        add(label, `ring:tray:${st.tray.label}`);
-        all.forEach((value, i) => {
-          const k = i - (all.length - shown);
-          if (k < 0) return;
-          const bad = new Group(token(value, st.tray!.refused)).moveTo([x + k * 0.95, TRAY_Y]);
-          add(bad, `ring:tray:${i}`);
-          if (st.tray!.refused) add(new Cross(bad, { stroke: s.bad, strokeWidth: 0.035, scale: 0.95 }), `ring:tray:${i}:cross`);
-        });
-      }
-      return group();
-    };
+    const look: Ink = { ink, soft, paper: s.palette.paper, head, bad: s.bad };
+    const ringPicture = (st: RingState) => drawRing(st, look);
     // What the ring shows, in words.
-    const ringWords = () => {
-      const st = this.state as unknown as RingState;
-      const why = { push: (i: number) => `in the tail colour, where ${st.data[i]} was just written`, pop: () => 'in the head colour, popped and now empty', refused: () => `in red, where ${st.operation} would have gone` };
-      const said = [
-        `A ring of five slots: ${st.data.map((v, i) => `slot ${i} ${v == null ? 'empty' : `holds ${v}`}`).join(', ')}`,
-        `The head arrow points at slot ${st.head} and the tail arrow at slot ${st.tail}; the middle reads head ${st.head}, tail ${st.tail}, length ${st.length}`,
-        ...st.marks.map((m) => `Slot ${m.slot} is outlined ${why[m.kind](m.slot)}`),
-      ];
-      const v = pushArg(st.operation);
-      if (v != null) said.push(`push(v) holds ${v}`);
-      if (st.operation != null) said.push(`The next push hands it ${st.next}`);
-      if (st.tray?.values.length)
-        said.push(`Under the ring, after “${st.tray.label}”: ${st.tray.values.join(', ')}${st.tray.refused ? ', crossed out' : ''}`);
-      return said.join('. ') + '.';
-    };
+    const ringWords = () => sayRing(this.state as unknown as RingState);
 
     // The queue the ring replaces: an array whose pop moves every value left.
     await s.steps(readerFrames(), { kind: 'short' });
@@ -298,7 +119,7 @@ export default class RingBufferExplainer extends Scene {
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
     const arrowBase = (ptr: Mobject) => ptr.children[0]!.children[0]!.pointArrays()[0]!;
-    const pointerRadius = Math.hypot(arrowBase(pointer('head', 0))[0]! - C[0], arrowBase(pointer('head', 0))[1]! - C[1]);
+    const pointerRadius = Math.hypot(arrowBase(pointer(look, 'head', 0))[0]! - C[0], arrowBase(pointer(look, 'head', 0))[1]! - C[1]);
     this.addInvariant('pointers stay on their circle', (scene) => {
       let checked = false;
       for (const name of ['head', 'tail']) {
@@ -382,7 +203,7 @@ export default class RingBufferExplainer extends Scene {
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */
     const turn = (c: Choreography, name: 'head' | 'tail', from: number, to: number) => {
       const a0 = angle(from), a1 = a0 + turnBetween(from, to);
-      return new Follow({ from: a0, to: a1, draw: (a) => (a === a1 ? pointer(name, to) : pointerAt(name, a)) }, { targets: [c.own(`ring:pointer:${name}`)], runTime: 0.45 });
+      return new Follow({ from: a0, to: a1, draw: (a) => (a === a1 ? pointer(look, name, to) : pointerAt(look, name, a)) }, { targets: [c.own(`ring:pointer:${name}`)], runTime: 0.45 });
     };
     /** The last operation's outlines go, and push(v) shows this operation's argument. */
     const arrive = (c: Choreography, before: RingState, after: RingState, keepMarks: boolean) => {

@@ -1,5 +1,8 @@
 // Which WCAG 2.x success criteria a level of conformance asks for, in each version.
 // Pure TypeScript with no Node APIs: the scene runs it in the page.
+// Its limits: it lists which criteria a version and level ask for, from the final Recommendations;
+// it is not a conformance audit, says nothing of each criterion's own conditions and exceptions,
+// and holds no draft changes (drafts of 2.2 moved 2.4.7 Focus Visible to level A; the final text keeps it at AA).
 //
 // The table transcribes w3c/wcag at tag WCAG22-20241212 (commit 1dfe1647bdecf32fb4f76b9ce1cc33139505630c):
 // guidelines/index.html includes each criterion's file in document order (lines 135–392), and the
@@ -184,6 +187,7 @@ export interface Tally {
   /** By guideline number, for the guidelines the version has. */
   guidelines: Record<string, number>;
 }
+/** What a version and level ask for, cumulative by level, without criteria the version removed. */
 export function tally(v: Version, level: Level): Tally {
   return {
     version: v,
@@ -226,7 +230,7 @@ export function change(from: Version, to: Version, level: Level): Change {
 
 /**
  * One guideline opened: every criterion it has held at the level, in order, with the version
- * that added it and, for 4.1.1, the version that removed it.
+ * that added it and, for 4.1.1, the version that removed it: removed criteria stay here as history.
  */
 export function opened(guideline: string, level: Level): Criterion[] {
   return CRITERIA.filter((c) => guidelineOf(c) === guideline && atLevel(c, level));

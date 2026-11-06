@@ -1,5 +1,7 @@
 // Send and Sync for a handful of standard-library types, decided from a table of their impl lines.
 // Pure TypeScript with no Node APIs: the scene runs it in the page.
+// It is not a general trait solver: it knows only the constructors below, ignores lifetime bounds
+// and user unsafe implementations, and has no rule for an arbitrary generic type outside them.
 //
 // Each row transcribes the impls in rust-lang/rust at tag 1.99.1, with `?Sized` and the allocator
 // parameter left out (the allocator is the default, Global, which is Send and Sync):
@@ -113,6 +115,8 @@ export function build(wrapper: Wrapper, inner: Inner): Layer[] {
  * closure to be Send + 'static (std/src/thread/functions.rs:125-129); a `move` closure that owns x
  * is Send when x's type is. Scope::spawn needs a Send closure too (std/src/thread/scoped.rs:201-204);
  * one that holds &x is Send when &T is, that is when T is Sync. Every type here is 'static.
+ * Only Send and Sync are decided: a complete program must meet each API's other bounds too, and
+ * other thread APIs are not modelled.
  */
 export function threads(wrapper: Wrapper, inner: Inner) {
   let type: RustType = INNERS[inner];

@@ -1,7 +1,11 @@
 // Henge's 3D pictures: New York's sky as a sphere around the observer, seen from outside (the dome)
 // and from its centre (the street), and Earth seen from beside its orbit. Every direction on them
-// comes from the ERFA-checked model in ../lib/henge.ts: a day's path is the model's sky() swept
-// through the hour angle, ending at the model's own sunset hour angle.
+// comes from the ERFA-checked model in ./model.ts: a day's path is the model's sky() swept
+// through the hour angle, ending at the model's own sunset hour angle. The dome and the street are
+// separate steps rather than one camera move: a perspective eye must stay outside the sphere, and
+// `between` joins only viewpoints of one kind, so the move to the street is the gnomonic tilt from the
+// sky. The tilted Earths are seen from one viewpoint beside the orbit, so the axis keeps one direction
+// on screen; it is dashed inside the translucent body.
 import { Group, Rectangle, Polygon, Circle, VMobject, Arrow } from '../../../src/index.ts';
 import type { Vec, Text } from '../../../src/index.ts';
 import { seenFrom, project, circleOn, greatArc, label, keyed } from '../../../explain/drawing.ts';

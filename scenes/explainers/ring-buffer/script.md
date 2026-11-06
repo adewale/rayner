@@ -1,13 +1,25 @@
 # How does a ring buffer reuse storage?
 
-An array queue keeps its oldest value at the front. Pushing adds a value at the end; popping removes the first value and shifts the rest left. Removing 1 from the five values 1, 2, 3, 4, 5 leaves four values to move. Could a queue remove that first value without relocating the others?
+- **Reader:** a programmer who has used an array as a queue (push at the end, shift from the front) and has not asked what the shift costs or how a fixed buffer avoids it.
+- **Answer:** Values stay in their slots while head and tail move, and both wrap back to slot 0 to reuse freed slots
+- **Changed condition:** the operations. "Push 5, pop 2, push 2" shows the freed slots reused, with the queue read from head rather than left to right; "Push 7 into five slots" shows the policy at the limit: push 6 and push 7 are refused with Full and nothing changes.
+- **Reader's own work:** predict where head and tail are after five pushes, which values two pops take, and where the next pushes go; choose the operations; at the end, press push and pop on the live ring (the story pushes the values 1 to 9); the three check questions.
+- **Checked against:** a reference queue: `test/explain-models.test.ts` runs random push and pop sequences on rings of 1 to 24 slots and checks each pop, each refusal, and that the values read from head are the queue's; the array comparison follows ECMAScript's definition of `Array.prototype.shift`. Nothing external runs the ring itself.
+- **Leaves out:** other designs: this ring tracks length to tell full from empty and refuses a push when full, where others keep a spare slot or overwrite the oldest value. Concurrent producers and consumers and memory ordering. The array's move counts are the copies the language's definition describes, not timings; engines may store arrays differently.
 
-Keep five fixed slots and remember where the queue begins. Head identifies the slot the next pop reads. Tail identifies the slot the next push writes. A pop reads at head and advances head; a push writes at tail and advances tail. Advancing past slot 4 returns to slot 0. The row is now used as a ring: its physical end does not end the queue.
+## Check yourself
 
-Push 1 through 5. The slots fill, and tail wraps to slot 0, where head still waits. Head and tail now coincide just as they did when the ring was empty. The markers alone cannot distinguish those situations, so this buffer also stores length: zero means empty and five means full.
+1. Carry on from the last step of “Push 5, pop 2, push 2”, where head and tail are both at slot 2. Pop three times, then push 8. Which values leave, which slot takes 8, and in what order do the rest come out?
+   The pops return 3, 4, 5, and head wraps to slot 0. Tail is still at slot 2, so 8 goes there. Reading from head gives 6, 7, 8: the order comes from head, not from the slot numbers.
+2. A ring of eight slots takes eight pushes and then eight pops. Where are head and tail, and how does the ring know it is empty?
+   Both are at slot 0, just where they were when it was full (head 0, tail 0). Only length, 0 now against 8 then, tells empty from full.
+3. A queue of 1,000 values is drained by 1,000 pops. How many value copies does the array queue make in all, and how many does the ring make?
+   The array makes 499,500: each pop copies every value still behind the front, 999, then 998, down to 0. The ring makes none, because a pop moves only head.
 
-Pop twice. The returned values are 1 and 2, head advances to slot 2, and the remaining values stay where they were. The array queue would have shifted four values and then three. Here, advancing head changes which slot counts as the front instead of making the next value travel there.
+## Why this explainer
 
-Tail still points to slot 0. Push 6 and 7 into slots 0 and 1, reusing the space the pops freed. The slots now read 6, 7, 3, 4, 5 from left to right, but that is not the queue's order. Start at head, slot 2, and wrap after slot 4: the queue is 3, 4, 5, 6, 7. The markers define order; the layout of the slots does not.
+The motivation is a cost the reader already pays without seeing it: an array queue's pop moves every value behind the front. The ring removes that cost by moving two markers instead of the values, and the step that should stick is the wrapped one, where the slots read 6, 7, 3, 4, 5 left to right but the queue is 3, 4, 5, 6, 7 read from head. The markers define order; the layout of the slots does not. Never sort the displayed slots or let the picture invite reading them left to right.
 
-The other scenario tries to push into a ring that is already full. This buffer checks length before writing and refuses push 6 with Full. No slot or marker changes, and push 7 is refused too. A fixed capacity requires such a policy: another ring buffer might overwrite the oldest value, but this one preserves the queued values and makes the caller handle refusal.
+Five slots are enough to show both the wrap and the full/empty ambiguity without hiding values: after five pushes head and tail coincide just as they did when the ring was empty, which is why this buffer keeps length. The second scenario exists because a fixed capacity needs a policy; this one refuses and keeps the queued values, and the page says that other ring buffers overwrite instead.
+
+The check answers were computed from `RingBuffer` and `arrayQueue` (in `model.ts` and `picture.ts`) on rings and queues no step draws; recompute them if either changes. The scene also draws on the Lantern ring-buffer example, linked in `meta.sources`.

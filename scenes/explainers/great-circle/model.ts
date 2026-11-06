@@ -1,6 +1,11 @@
 // The great-circle explainer's model: routes on a sphere of the Earth's mean radius, the rhumb line a
 // Mercator ruler draws, the Mercator stretch, and where a route crosses land. No drawing here; the
 // scene draws these numbers and points through seenFrom. Angles are degrees, distances kilometres.
+//
+// Its limits: a sphere, not the WGS84 ellipsoid, which changes these routes' distances by about 0.25%
+// (GeographicLib's figures in test/fixtures/great-circle-geodesic.json bound it). Routes are great circles,
+// not flown tracks, which leave them for winds, ETOPS reach and closed airspace. Land is Natural Earth
+// 1:110m (land.ts): coarse enough that only which landmass a route crosses is held, not where the coast is.
 import { LAND, LANDMASS } from './land.ts';
 
 /** The Earth's mean radius (IUGG), the sphere every figure here is computed on. */
