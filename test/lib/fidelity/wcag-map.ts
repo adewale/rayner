@@ -48,6 +48,6 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'open', {
     opened: opened(open, level).map((c) => ({ num: c.num, level: c.level, added: c.added, ...(c.removed ? { removed: c.removed } : {}) })),
   });
-  // The opener states the totals; no detail step repeats them, and 2.4.7's draft history lives in notes.md.
+  // The opener states the totals; no detail step repeats them, and 2.4.7's draft history is in script.md.
   assert.deepEqual(trace.steps.map((s) => s.step), ['reader-focus', 'reader-levels', 'reader-versions', 'v20', 'v21', 'v22', 'parsing', 'open']);
 }
