@@ -80,7 +80,7 @@ jobs:
       # Product gates reuse this job and its Chromium installation; no scheduled lane.
       - run: |
           node tools/repo/ci-tests.ts "$(command -v npm)" run test:embeds
-      - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check  # retain the exact tested archive
+      - run: EXPLAIN_BROWSER=1 EXPLAIN_LETTERING=1 npm run release:check  # retain the exact tested archives, rayner and rayner-cli
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rayner-package-${{ github.sha }}
@@ -270,7 +270,7 @@ jobs:
           name: rayner-package-${{ github.sha }}
           path: out/release/
       - run: EXPLAIN_BROWSER=1 npm run pack:smoke -- --manifest out/release/manifest.json
-        # Install the exact primary candidate on Linux and both Mac architectures.
+        # Install the exact primary candidates (rayner, then both) on Linux and both Mac architectures.
       # Real browser diversity replaces four duplicate Chromium/property runs.
       - if: matrix.os == 'macos-26' && matrix.node == '24'
         run: npx playwright-core install webkit

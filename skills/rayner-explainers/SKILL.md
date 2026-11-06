@@ -116,7 +116,7 @@ A good live step, the step where the machine last plays:
 
 ## Loop
 
-Commands are `rayner <command>`, or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the install lines for capture and PNG output.
+Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner`: `npm install --save-dev rayner rayner-cli`; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the install lines for capture and PNG output.
 
 1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first: its `#` question, **Answer**, **Checked against** and `## Check yourself` become the page's title, answer, what the model is checked against, and check questions, and Rayner refuses a scene that declares them too. Keep one default-exported `Scene` subclass with static `meta` (sources, and `lang` if not English; the id is the folder's name) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.
