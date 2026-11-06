@@ -1,6 +1,6 @@
 import { Scene, FadeOut, Create, view } from '../../../src/index.ts';
 import type { Box, Group, View, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import {
@@ -67,10 +67,7 @@ const WIDE_PIE: Box = [-7.55, -4.25, 7.55, 3.0];
 const RIGHT: Box = [1.95, -4.1, 7.55, 3.1];
 // The first two steps draw the page on the left and the tuple on the right.
 const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
-/** The script's one-sentence answer (script.md's Answer line); the swap step's caption opens with it. */
-const ANSWER = 'On a 64-bit build, Postgres gives every tuple a multiple of 8 bytes';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class PgPageExplainer extends Scene {
   static meta = {
     id: 'pg-page',
@@ -114,6 +111,7 @@ export default class PgPageExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this);
     const column = values.column as Column;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
@@ -258,7 +256,7 @@ export default class PgPageExplainer extends Scene {
         ? `${c.label === 'int4' ? 'int8 fills the int4 tuple’s padding' : 'The bytes int4 saves become padding'}; a page holds ${c.page.rows} rows of either.`
         : `${narrow.label}: ${narrow.page.rows} rows a page; ${wide.label}: ${wide.page.rows}.`,
       // heaptuple.c:219-263 (data offsets by typalign); bufpage.c:310-316 MAXALIGNs the item; pg_controldata on 18.6: alignment 8.
-      caption: `${ANSWER}. ${swapWhy} ${
+      caption: `${answer}. ${swapWhy} ${
         same
           ? `So an ${c.label} row and an ${w.label} row both cost ${t.perRow} bytes, and a full page holds ${c.page.rows} of either: none more.`
           : `So a full page holds ${narrow.page.rows} ${narrow.label} rows and ${wide.page.rows} ${wide.label} rows: ${more} more.`

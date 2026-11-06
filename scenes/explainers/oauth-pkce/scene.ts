@@ -32,7 +32,6 @@ function messageIds(messages: Message[]): string[] {
     return `message:${pair}#${n}`;
   });
 }
-// The title, answer and check questions come from script.md's intent header.
 export default class OAuthExplainer extends Scene {
   static meta = {
     id: 'oauth-pkce',

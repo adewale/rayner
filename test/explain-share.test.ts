@@ -91,7 +91,7 @@ async function exported(edit: { page?: (html: string) => string; share?: (html: 
 test('an exported explainer page keeps its page and adds the cover step\'s preview tags, with its own URL and title', async () => {
   const html = publishedPage(page, manifest, origin, path);
   assert.equal(html.replace(/<meta (?:property|name)="[^"]+" content="[^"]*">\n?|<link rel="alternate" type="application\/json\+oembed" [^>]*>\n?/g, ''), page);
-  // oEmbed discovery (specs/player-tile.md T6), once, naming <id>.oembed.json beside the page.
+  // oEmbed discovery (player-tile T6), once, naming <id>.oembed.json beside the page.
   assert.deepEqual([...html.matchAll(/<link rel="alternate" type="application\/json\+oembed" href="([^"]*)" title="([^"]*)">/g)].map((m) => [m[1], m[2]]),
     [['https://example.org/projects/rayner/token-bucket.oembed.json', manifest.title]]);
   assert.equal(meta(html, 'og:url'), 'https://example.org/projects/rayner/token-bucket');
@@ -138,7 +138,7 @@ test('checkCards finds a missing tag on either page, a page with no share marker
   ]);
 });
 
-// specs/player-tile.md T6: beside each exported page its known heights, and with an origin its oEmbed response.
+// player-tile T6: beside each exported page its known heights, and with an origin its oEmbed response.
 test('site:export writes <id>.embed.json beside each page, and <id>.oembed.json only with an origin: a fixed 640 px rich response whose html is one iframe', async () => {
   const built = join(folder, 'built'), size = { schema: 1, aspect: '16/9', heights: { '390': 1100, '640': 1012, '900': 1180 } } as const;
   await mkdir(join(built, manifest.id), { recursive: true });

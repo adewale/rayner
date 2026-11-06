@@ -1,6 +1,6 @@
 import { Scene, Group, view } from '../../../src/index.ts';
 import type { Box, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
@@ -124,10 +124,7 @@ interface TrafficState {
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
-/** The answer in script.md's intent header, which the shares step's caption states. */
-const ANSWER = 'The load balancer weighs nodes, not pods';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class TrafficPolicyExplainer extends Scene {
   static meta = {
     id: 'traffic-policy',
@@ -180,6 +177,7 @@ export default class TrafficPolicyExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this),
       policy = values.policy as Policy,
       key = values.pods as PlacementKey,
@@ -366,8 +364,8 @@ export default class TrafficPolicyExplainer extends Scene {
           : `Split by node, not pod: each node with pods gets ${frac(node[0]!)}.`,
       caption:
         policy === 'cluster'
-          ? `${ANSWER}: it gives each node 1/3, and under Cluster each node’s rules give each of the ${n} pods 1/${n} of that. Summed over the three nodes, each pod gets 1/${n} of all requests, wherever it runs.`
-          : `${ANSWER}: ${nodeList(counts.flatMap((_, j) => (passes(counts, policy, j) ? [j] : [])))} each get ${frac(node[0]!)}. ` +
+          ? `${answer}: it gives each node 1/3, and under Cluster each node’s rules give each of the ${n} pods 1/${n} of that. Summed over the three nodes, each pod gets 1/${n} of all requests, wherever it runs.`
+          : `${answer}: ${nodeList(counts.flatMap((_, j) => (passes(counts, policy, j) ? [j] : [])))} each get ${frac(node[0]!)}. ` +
             (counts.every((c) => c <= 1)
               ? 'Each sends all of its share to its one pod'
               : counts

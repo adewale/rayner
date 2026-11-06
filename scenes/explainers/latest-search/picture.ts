@@ -16,8 +16,6 @@ const TICKET: Record<Query, number> = { A: 1, B: 2 };
  * same size, so it sits in the same place in every step that shows it. */
 const CHECK = 'if (ticket === latest) publish(result)';
 const CODE_SIZE = 0.58;
-/** script.md's answer, word for word, stated in the second step of both scenarios, which check holds to it. */
-export const ANSWER = 'An older search can finish last, and an unguarded handler publishes whatever finishes last';
 
 /**
  * The timeline's event clock: tick t sits at x(t); the last span runs on to the right edge. The run's four
@@ -139,7 +137,7 @@ export interface RaceStep { id: string; title: string; line: string; caption: st
  * decisions (staged), and the guarded race played by its machine. `events` is the order the chosen
  * case plays: A starts, B starts, then the two landings in the completion order.
  */
-export async function story(order: CompletionOrder): Promise<{ race: StagedStep; overwrite: RaceStep; middle: StagedStep[]; guard: RaceStep; events: RaceEvent[] }> {
+export async function story(order: CompletionOrder, answer: string): Promise<{ race: StagedStep; overwrite: RaceStep; middle: StagedStep[]; guard: RaceStep; events: RaceEvent[] }> {
   const [off, on] = await Promise.all([runSearch(false, order), runSearch(true, order)]);
   // The order the promises resolved in, read back from the model's run.
   const done = off.snapshots.slice(1).map((x) => x.completed.at(-1)!);
@@ -207,7 +205,7 @@ export async function story(order: CompletionOrder): Promise<{ race: StagedStep;
       line: staleWins
         ? `Predict: what could tell the handler that ${q('A')} is out of date?`
         : `Predict: had ${q('B')} answered first, what would stop ${q('A')} replacing it?`,
-      caption: `${ANSWER}. ${
+      caption: `${answer}. ${
         staleWins
           ? `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it; then ${q(last)} lands and replaces it. The user typed ${q('B')} and is left looking at results for ${q('A')}, outlined.`
           : `The track under the bars is the page. It changes at each landing: ${q(first)} lands first and the page shows it for a moment, outlined; then ${q(last)} replaces it, so the page ends right by luck. In the other order, ${q('A')} would land on top of ${q('B')}.`

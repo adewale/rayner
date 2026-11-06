@@ -132,7 +132,6 @@ import { stage, settingsOf } from 'rayner/explain';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
 import { drawTower, sayTower } from './picture.ts';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class Hanoi extends Scene<Tower> {
   static meta = { id: 'hanoi', sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] };
   static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];

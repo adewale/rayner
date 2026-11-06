@@ -4,11 +4,9 @@ import { flow, label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
-/** The script's answer (its intent header's Answer), stated by the second step. */
-export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';
 
 /** Desktop approvals authenticate op, as the scene's run step assumes. */
-export function frames(): StagedStep[] {
+export function frames(answer: string): StagedStep[] {
   const found = find(['cloud api']),
     ref = found.matches[0]!.ref,
     launched = run('desktop', { API_KEY: ref }, ['app']);
@@ -32,7 +30,7 @@ export function frames(): StagedStep[] {
       id: 'reader-boundary',
       title: 'Answer: hand over a reference, and let op swap in the value',
       line: `The agent passes ${ref}; op gives its value to the app.`,
-      caption: `${ANSWER}. The reference names a vault, item and field without containing the key. Authenticated op resolves that name when it starts the app. This keeps the value out of the launch request, but the app can still read or print its own environment.`,
+      caption: `${answer}. The reference names a vault, item and field without containing the key. Authenticated op resolves that name when it starts the app. This keeps the value out of the launch request, but the app can still read or print its own environment.`,
       state: { ref, agentHasValue: false, childHasValue: !!launched.childEnv.API_KEY },
       draw: (st, s) =>
         new Group(

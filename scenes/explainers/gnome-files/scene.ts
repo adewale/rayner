@@ -1,6 +1,6 @@
 import { frames as readerFrames, colourKey, giveUpTable, heatMap, KEY_TOP, KEY_PITCH } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import {
   COLOURS,
   GROUPS,
@@ -47,7 +47,6 @@ const WHY: Readonly<Record<number, string>> = {
   9: 'over half the sample took six to nine attempts to find Add To Bookmarks or give up',
 };
 /** The answer in script.md's intent header, which the give-ups step's title states. */
-const ANSWER = 'All six gave up at least once, each time on a menu command';
 /** "A", "A and B", "A, B and C". */
 const and = (xs: readonly string[]) =>
   xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
@@ -68,7 +67,6 @@ const PROSE: Readonly<Record<number, string>> = {
 };
 const said = (n: number) => PROSE[n]!;
 
-// The title, answer and check questions come from script.md's intent header.
 export default class GnomeFilesExplainer extends Scene {
   static meta = {
     id: 'gnome-files',
@@ -94,6 +92,7 @@ export default class GnomeFilesExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const p = settingsOf(this).participant as Participant;
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const ink = s.palette.ink,
@@ -134,7 +133,7 @@ export default class GnomeFilesExplainer extends Scene {
       people = PARTICIPANTS.filter((q) => gaveUp(q).length > 0).length,
       once = PARTICIPANTS.filter((q) => gaveUp(q).length === 1);
     await this.step('give-ups', {
-      title: ANSWER,
+      title: answer,
       line: `Black cells are give-ups: ${all.length}, in ${lost.length} tasks and ${people === 6 ? 'all six' : people} columns.`,
       // The reasons are the WHY findings above.
       caption: `No small group accounts for the give-ups: every one of the six gave up at least once, ${and(once)} once each. All ${all.length} came on menu tasks, though nine of the eleven tasks used menus. The report’s reasons point at where the commands sat: those who quit Undo never opened the Main Menu, those who quit Select All reached for Ctrl+A or dragging, and those who quit Open Item Location had not checked the file’s right-click menu.`,

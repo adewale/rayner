@@ -1,6 +1,6 @@
 import { Scene, Group, Text, view } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf } from '../../../explain/index.ts';
 import type { Diagram, Stage } from '../../../explain/index.ts';
 import {
   DTSTART,
@@ -50,9 +50,6 @@ const CHANGES: Record<Change, string> = {
 };
 const COPIES: Record<Copy, string> = { organiser: 'Alice’s, the organiser', guest: 'Bob’s, a guest at one meeting' };
 
-/** The script's one-sentence answer (script.md), which the copy step states in every scenario. */
-const ANSWER =
-  'a guest’s calendar keeps only the meetings it was sent, and on this server a cancellation marks the guest’s copy CANCELLED instead of deleting it';
 
 /**
  * A card's parts paired by what they say and where, so a sync keeps an unchanged row still and crossfades a changed
@@ -64,7 +61,6 @@ const sameWords: MatchKey = (part, root) => {
   return `${part.constructor.name}|${root.family().indexOf(part)}`;
 };
 
-// The title, answer and check questions come from script.md's intent header.
 export default class IcalRecurrenceExplainer extends Scene {
   static meta = {
     id: 'ical-recurrence',
@@ -110,6 +106,7 @@ export default class IcalRecurrenceExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this);
     const change = values.change as Change,
       copy = values.copy as Copy;
@@ -287,7 +284,7 @@ export default class IcalRecurrenceExplainer extends Scene {
       await this.step('copy', {
         title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
         line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
-        caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${ANSWER}.`,
+        caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${answer}.`,
       });
       const present = [
         'entity:CALENDAR_OBJECT',
@@ -341,10 +338,10 @@ export default class IcalRecurrenceExplainer extends Scene {
         // Broker.php:459–620 (what each attendee is sent), :269–317 (how it is stored).
         caption:
           change === 'skip'
-            ? `${upperFirst(ANSWER)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, the scheduling message that calls a meeting off. Delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting, because she excluded its start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
+            ? `${upperFirst(answer)}. Bob is now in no meeting, so the server, Baïkal running sabre/dav, sends him an iTIP CANCEL, the scheduling message that calls a meeting off. Delivering it sets STATUS:CANCELLED on the one VEVENT he holds. Alice’s calendar no longer has a third meeting, because she excluded its start from her rule; Bob had no rule to exclude it from, so his copy still contains ${long(GUEST_MEETING)}, marked cancelled.`
             : change === 'move'
-              ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
-              : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')} and no rule to generate the others.`,
+              ? `${upperFirst(answer)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
+              : `${upperFirst(answer)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')} and no rule to generate the others.`,
         state: { copy: copyState, messages: [first, second].filter(Boolean).map((m) => m!.method) },
         draw: bobsCopy,
       });

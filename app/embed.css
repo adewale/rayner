@@ -55,7 +55,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
    3.6rem at 1.125rem × 1.6), so a reader sees the picture and the start of what it means without scrolling. The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
-   against the viewports in specs/player-redesign.md R2. */
+   against the viewports in player-redesign R2. */
 .player{position:relative;min-width:0}
 .frame{position:relative;container-type:inline-size}
 /* A narrow stage (a phone) is taller than the picture's 16:9, up to 4:5 (NARROW_ASPECT in

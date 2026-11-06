@@ -2,6 +2,8 @@
 
 For a repair, run its owning test first, then the relevant integration checks once the change settles, and let CI cover the catalog and platform matrix. A small follow-up needs no second full local run unless it changes those broader contracts.
 
+Comments in the player's tests cite the requirements of the designs it was built from: player-guidance G1 to G7, player-redesign R1 to R10 and player-tile T1 to T9. The requirements and their rationale are at [player-guidance](https://github.com/adewale/rayner/blob/ce11e0ac611cc7b4babc24a573039ef96f179c3f/specs/player-guidance.md), [player-redesign](https://github.com/adewale/rayner/blob/ce11e0ac611cc7b4babc24a573039ef96f179c3f/specs/player-redesign.md) and [player-tile](https://github.com/adewale/rayner/blob/ce11e0ac611cc7b4babc24a573039ef96f179c3f/specs/player-tile.md); the current contract is [the reference's page section](REFERENCE.md#page).
+
 ```sh
 npm run check             # types and consumer API
 npm test                  # standard assertions and seeded properties

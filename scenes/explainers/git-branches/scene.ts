@@ -5,7 +5,6 @@ import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from 
 import type { GitFrame } from './model.ts';
 import { picture } from './picture.ts';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class GitBranches extends Scene {
   static meta = {
     id: 'git-branches',

@@ -1,5 +1,5 @@
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, CodeBlock } from '../../../explain/index.ts';
+import { stage, settingsOf, CodeBlock, answerOf } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { LayoutDirection, Card } from '../../../explain/index.ts';
 
@@ -9,8 +9,6 @@ const START = { at: 'start' } as const;
 const END = { at: 'end', direction: 'ltr' } as const;
 // The code panel leaves out the cards' width, font size and titles: they affect neither placement nor field order.
 const CARD = { width: 7.2, fontSize: 0.8, enter: false } as const;
-/** script.md's answer, word for word, stated where the cards first appear. */
-const ANSWER = 'Start and End follow the stage’s direction, and a card’s field columns follow the stage unless the card sets its own';
 
 // This explainer has no model of its own: every card is the engine's own s.card, placed by the stage, and
 // the state records where each one landed, measured from the card. Its limit: Latin labels and digits only.
@@ -27,7 +25,6 @@ function layoutOf(card: Card) {
   };
 }
 
-// The title, answer and check questions come from script.md's intent header.
 export default class LayoutDirectionExplainer extends Scene {
   static meta = {
     id: 'layout-direction',
@@ -48,6 +45,7 @@ export default class LayoutDirectionExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const direction = settingsOf(this).direction as LayoutDirection,
       rtl = direction === 'rtl';
     const s = stage(this, { style: 'nord', direction, headingSize: 0.6 });
@@ -85,8 +83,8 @@ export default class LayoutDirectionExplainer extends Scene {
         ? 'The End card’s own ltr puts its Field name on the left.'
         : 'The End card’s ltr matches the stage, so here it changes nothing.',
       caption: rtl
-        ? `The rtl stage maps start to the right half and end to the left. The Start card also takes rtl columns from the stage, so its Field name sits to the right of the value, while the End card’s ltr puts its name on the left. Both still read 123: the columns swap sides, the digits inside a field do not. ${ANSWER}.`
-        : `The ltr stage maps start to the left half and end to the right. The Start card takes ltr columns from the stage, so both cards put Field before 123, and the End card’s own ltr makes no visible difference. ${ANSWER}; on an rtl stage the Start card’s columns flip while the End card’s stay.`,
+        ? `The rtl stage maps start to the right half and end to the left. The Start card also takes rtl columns from the stage, so its Field name sits to the right of the value, while the End card’s ltr puts its name on the left. Both still read 123: the columns swap sides, the digits inside a field do not. ${answer}.`
+        : `The ltr stage maps start to the left half and end to the right. The Start card takes ltr columns from the stage, so both cards put Field before 123, and the End card’s own ltr makes no visible difference. ${answer}; on an rtl stage the Start card’s columns flip while the End card’s stay.`,
     });
     await s.clear();
     // The engine places the cards from the options the state records; the state then records where they landed.

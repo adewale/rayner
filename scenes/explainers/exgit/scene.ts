@@ -1,6 +1,6 @@
 import type { Evidence, Box, View } from '../../../src/index.ts';
 import { Scene, FadeIn, FadeOut, view } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf } from '../../../explain/index.ts';
 import type { CodeBlock, Diagram, NoteSide } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
 import { objectLines, reachable } from './objects.ts';
@@ -49,10 +49,7 @@ const lastMatches = (scene: Scene, n: number): Evidence[] => {
 /** In how many of the 40 positions two ids hold the same hex digit. */
 const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
 
-/** The answer in script.md's intent header, which the change step's caption states. */
-const ANSWER = 'Git writes only the objects whose bytes are new, and names unchanged content again by its id';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class GitExplainer extends Scene {
   static meta = {
     id: 'exgit',
@@ -77,6 +74,7 @@ export default class GitExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const which = settingsOf(this).change,
       add = which === 'add',
       repo = new Repo(),
@@ -269,7 +267,7 @@ export default class GitExplainer extends Scene {
       line: add
         ? `${written} new objects: world’s blob, tree two and commit two.`
         : 'Changed bytes change every id above them.',
-      caption: add ? `${ANSWER}. The new tree adds world.txt while naming hello’s original blob again. It needs a new tree, world’s blob and a new commit, but the two snapshots share hello’s unchanged content.` : `${ANSWER}. Editing hello changes its blob’s bytes and id. That id changes the tree’s bytes, and the changed tree id changes the commit. The old objects remain intact; the new commit’s parent reference leads back to the earlier history.`,
+      caption: add ? `${answer}. The new tree adds world.txt while naming hello’s original blob again. It needs a new tree, world’s blob and a new commit, but the two snapshots share hello’s unchanged content.` : `${answer}. Editing hello changes its blob’s bytes and id. That id changes the tree’s bytes, and the changed tree id changes the commit. The old objects remain intact; the new commit’s parent reference leads back to the earlier history.`,
     });
     const B2 = `New["blob<br/>${short(nextBlob)}"]`,
       T2 = `T2["tree ${short(t2)}<br/>${add ? 'hello.txt, world.txt' : 'hello.txt'}"]`,

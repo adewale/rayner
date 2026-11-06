@@ -11,7 +11,6 @@ import type { Pen } from './picture.ts';
 const DIAGRAM = 'graph LR\nA["Ink"] --> B["Paper"]';
 type Widths = 'natural' | 'recorded';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class FontMetrics extends Scene {
   static meta = {
     id: 'font-metrics',

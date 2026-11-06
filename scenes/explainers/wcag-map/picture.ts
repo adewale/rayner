@@ -90,8 +90,7 @@ function lists(st: Lists, s: Stage) {
 }
 
 /** The script's one-sentence answer (script.md), stated by the version step. */
-export const ANSWER = 'A level asks for its own criteria and those of the levels below it, in the WCAG version you name';
-export function frames(level: Level, guideline: string): StagedStep[] {
+export function frames(level: Level, guideline: string, answer: string): StagedStep[] {
   const t20 = tally('2.0', level),
     t21 = tally('2.1', level),
     total = tally('2.2', level),
@@ -151,7 +150,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
       id: 'reader-versions',
       title: `Level ${level} asks for ${t20.total}, ${t21.total} or ${total.total} criteria, by version`,
       line: `One column per criterion, one row per version: 2.2 adds ${c22.added.length} and leaves a gap at 4.1.1 Parsing.`,
-      caption: `Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, coloured by the version that added it; each row is one version’s list. WCAG 2.1 added ${c21.added.length}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${ANSWER}.`,
+      caption: `Each column is one criterion at ${level === 'A' ? 'level A' : `level ${level} or below`}, coloured by the version that added it; each row is one version’s list. WCAG 2.1 added ${c21.added.length}. WCAG 2.2 added ${c22.added.length} and removed 4.1.1 Parsing, the dashed gap in its row, which W3C judged obsolete. A newer version is not the older list plus extras, so “level ${level}” without a version names no list. ${answer}.`,
       state: {
         level,
         totals: [t20.total, t21.total, total.total],

@@ -1,14 +1,15 @@
 // The export rule as data (docs/ENGINE.md, "Public names"). Every public name of every entry point
-// has one reason to be public, recorded in test/public-names.json:
+// needs a reason to be public, and the reason is computed where it can be:
 //
-//   used      an explainer, a tutorial scene or a recipe imports it and uses it. Computed here from
-//             their imports, never written by hand: the ledger only says the reason.
+//   used      an explainer, a tutorial scene or a recipe imports it and uses it, found from their
+//             imports. Nothing is written down.
 //   tooling   it lives in rayner/output, rayner/testing or rayner/lettering, for an author's tests and
 //             tools, a host page, or the build and the page (a scene imports only lettering's types).
-//   taught    a guide section teaches it and a test runs it: the ledger names both, and both must
-//             exist and mention the name.
+//   taught    a guide section teaches it and a test runs it. test/public-names.json names both, and
+//             both must exist and mention the name: the one reason that has to be written down.
 //
-// A name may add `check`: what `rayner check` verifies about it, led by the check's name in the
+// So the ledger lists only names that say something no import can: a `guide` and `test`, or a `check`,
+// what `rayner check` verifies about the name, led by the check's name in the
 // reference's Checks table ("Views: ..."). The same file holds the rows of the reference's engine
 // features table and the skill's examples table, which are rendered from it, with their "used by"
 // computed from the same usage, so neither can go stale (test/public-names.test.ts).
@@ -20,10 +21,8 @@ import ts from 'typescript';
 export const ROOT = resolve(import.meta.dirname, '../..');
 export const LEDGER = 'test/public-names.json';
 
-export type Reason =
-  | { reason: 'used'; check?: string }
-  | { reason: 'tooling'; check?: string }
-  | { reason: 'taught'; guide: string; test: string; check?: string };
+/** What the ledger says about a name: where it is taught (a guide section and a test), and what check verifies it. */
+export interface NameEntry { guide?: string; test?: string; check?: string }
 
 /** One thing a feature row lists: an exported name, or a member or option found by a pattern in the scene's code. */
 export interface FeatureItem { name?: string; label?: string; pattern?: string }
@@ -40,7 +39,7 @@ export interface ExampleRow {
   patterns?: Record<string, string>;
 }
 export interface Ledger {
-  names: Record<string, Record<string, Reason>>;
+  names: Record<string, Record<string, NameEntry>>;
   features: FeatureRow[];
   examples: ExampleRow[];
 }
@@ -223,26 +222,31 @@ export function checkNames(root = ROOT): Set<string> {
 
 const word = (name: string) => new RegExp(`(?<![\\w$])${name.replace(/[$]/g, '\\$')}(?![\\w$])`);
 
+/** Why `name` in `entry` is public: tooling, used (by whom), taught, or nothing. */
+export function reasonOf(ledger: Ledger, u: Usage, entry: string, name: string): string {
+  if (TOOLING.has(entry)) return 'tooling';
+  if (usersOf(u, name, entry).length) return 'used';
+  return ledger.names[entry]?.[name]?.guide ? 'taught' : 'NONE';
+}
+
 /** Everything wrong with the ledger, as sentences: an empty list when every public name has a live reason. */
 export async function problems(ledger: Ledger, root = ROOT, u: Usage = usage(root)): Promise<string[]> {
   const out: string[] = [];
   const exported = await publicNames(root);
   const checks = checkNames(root);
   for (const [entry, names] of exported)
-    for (const name of names) if (!ledger.names[entry]?.[name]) out.push(`${name} (${entry}) has no reason to be public in ${LEDGER}`);
+    for (const name of names)
+      if (reasonOf(ledger, u, entry, name) === 'NONE')
+        out.push(`${name} (${entry}) has no reason to be public: no explainer, tutorial scene or recipe uses it, and ${LEDGER} names no guide and test that teach it`);
   for (const [entry, names] of Object.entries(ledger.names)) {
     if (!exported.has(entry)) { out.push(`${LEDGER} lists ${entry}, which is not an entry point`); continue; }
     for (const [name, r] of Object.entries(names)) {
       const at = `${name} (${entry})`;
       if (!exported.get(entry)!.includes(name)) { out.push(`${at} is in ${LEDGER} but ${entry} does not export it`); continue; }
-      // Who uses a name is computed, never written down: an entry holds its reason and nothing else.
-      const allowed = r.reason === 'taught' ? ['reason', 'guide', 'test', 'check'] : ['reason', 'check'];
-      if (!['used', 'tooling', 'taught'].includes(r.reason)) out.push(`${at}: its reason must be used, tooling or taught, not ${String(r.reason)}`);
-      for (const key of Object.keys(r)) if (!allowed.includes(key)) out.push(`${at}: ${key} is not part of a ${r.reason} reason`);
-      if (TOOLING.has(entry) !== (r.reason === 'tooling'))
-        out.push(TOOLING.has(entry) ? `${at} lives in a tooling entry point, so its reason is tooling` : `${at} is said to be tooling, but tooling lives in ${[...TOOLING].join(' and ')}`);
-      if (r.reason === 'used' && !usersOf(u, name, entry).length) out.push(`${at} is said to be used, but no explainer, tutorial scene or recipe uses it`);
-      if (r.reason === 'taught') {
+      // Who uses a name is computed, never written down: an entry says where it is taught and what checks it.
+      for (const key of Object.keys(r)) if (!['guide', 'test', 'check'].includes(key)) out.push(`${at}: ${key} is not part of a ledger entry (guide, test, check)`);
+      if ((r.guide === undefined) !== (r.test === undefined)) out.push(`${at}: a name is taught by a guide section and a test, both`);
+      if (r.guide !== undefined && r.test !== undefined) {
         const [doc, anchor] = r.guide.split('#') as [string, string | undefined];
         const path = join(root, doc);
         if (!anchor || !existsSync(path)) out.push(`${at}: its guide ${r.guide} does not exist`);

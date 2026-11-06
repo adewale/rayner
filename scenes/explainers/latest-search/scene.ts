@@ -1,6 +1,6 @@
 import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, view, rushInto } from '../../../src/index.ts';
 import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import { story, raceTimeline, raceTracks, raceWords, tickX, trackY } from './picture.ts';
 import type { RaceStep } from './picture.ts';
 import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from './model.ts';
@@ -10,7 +10,6 @@ import type { CompletionOrder, RaceState, RaceEvent } from './model.ts';
 // the keystroke "ca", search B the latest keystroke "cat". The two timelines that show the page are
 // machines: each event is a search starting or its response landing, through the same handler
 // createSearch runs, so `rayner check` explores every interleaving under each rule.
-// The title, answer and check questions come from script.md's intent header.
 export default class LatestSearchExplainer extends Scene {
   static meta = {
     id: 'latest-search',
@@ -39,7 +38,7 @@ export default class LatestSearchExplainer extends Scene {
   override async construct() {
     const order = settingsOf(this).order as CompletionOrder;
     const s = stage(this, { style: 'github-dark', headingSize: 0.6 });
-    const { race, overwrite, middle, guard, events } = await story(order);
+    const { race, overwrite, middle, guard, events } = await story(order, answerOf(this));
     const isRace = (st: object): st is RaceState => 'log' in st && 'guarded' in st;
 
     // Checked on every frame by rayner check, and on every explored state and transition: under the

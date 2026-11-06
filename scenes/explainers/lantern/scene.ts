@@ -1,7 +1,7 @@
 import { Scene, Rectangle, Dot, FadeIn, Transform, Animation, view } from '../../../src/index.ts';
 import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
-import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
+import { stage, regionBox, settingsOf, answerOf } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
@@ -184,11 +184,7 @@ function dotX(s: Scene): number {
   if (!dot) throw new Error(`No dot on frame ${s.frameCount}`);
   return +dot.center()[0].toFixed(3) + 0;
 }
-/** script.md's answer, word for word, stated in the seek step's caption, which check holds to it. */
-const ANSWER =
-  'A still re-runs the scene on the same fixed clock and, unless the scene has updaters or is playing a Succession, skips computing the frames before t, so it matches playback whenever each frame depends on the time alone, and can miss when a frame depends on how many frames ran before it';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class LanternExplainer extends Scene {
   static meta = {
     id: 'lantern',
@@ -246,6 +242,7 @@ export default class LanternExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const motion = settingsOf(this).motion as Motion;
     const s = stage(this, { headingSize: 0.6, style: STYLE });
     const ink = s.palette.ink,
@@ -306,7 +303,7 @@ export default class LanternExplainer extends Scene {
         line: match
           ? 'Blending works the dot out from the time alone.'
           : `Played, the dot made ${run.playedMoves} nudges by t = ${SEEK_T} s; seeked, it made ${run.seekedMoves}.`,
-        caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${ANSWER}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${ANSWER}.`,
+        caption: match ? `The pictures match because animate.moveTo calculates position from elapsed time and fixed endpoints. It does not need the earlier dot positions. ${answer}.` : `The still makes ${run.seekedMoves} nudge while playback has made ${run.playedMoves}. A nudge adds to the previous position, so skipping calculations loses the accumulated moves. The box still matches because its size is calculated from fixed endpoints. ${answer}.`,
         state: {
           seek: { motion, match, played: print, seeked: seekPrint, playedMoves: run.playedMoves, seekedMoves: run.seekedMoves },
           at,

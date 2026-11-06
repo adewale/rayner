@@ -99,7 +99,7 @@ export async function buildExplainer(
     )
   )
     throw new Error('Build-time diagram renderer leaked into browser artifact');
-  // Framed (specs/player-tile.md T4), the page draws only the tile. This runs before the body is
+  // Framed (player-tile T4), the page draws only the tile. This runs before the body is
   // laid out, so a frame never shows the padded page first; the CSP pins it by its own hash.
   const framedJs = "if(parent!==window)document.documentElement.dataset.framed=''";
   const js = scriptEscape(bundled.outputFiles[0]!.text),

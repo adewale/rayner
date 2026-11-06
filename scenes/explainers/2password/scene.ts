@@ -1,6 +1,6 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
-import { stage, regionBox } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf } from '../../../explain/index.ts';
 import {
   ITEMS,
   SOURCE,
@@ -19,7 +19,6 @@ const QUERIES = ['cloud api', 'databse'] as const;
 const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
-// The title, answer and check questions come from script.md's intent header.
 export default class PasswordExplainer extends Scene {
   static meta = {
     id: '2password',
@@ -46,7 +45,7 @@ export default class PasswordExplainer extends Scene {
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await s.steps(readerFrames(), { kind: 'short' });
+    await s.steps(readerFrames(answerOf(this)), { kind: 'short' });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,

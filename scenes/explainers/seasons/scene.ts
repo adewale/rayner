@@ -32,7 +32,6 @@ const EVENTS = [
   { day: 365 - 10, name: 'Dec solstice' },
 ] as const;
 
-// The title, answer and check questions come from script.md's intent header.
 export default class SeasonsExplainer extends Scene {
   static meta = {
     id: 'seasons',

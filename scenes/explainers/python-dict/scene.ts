@@ -9,7 +9,6 @@ import { picture, stateView, visit, type View } from './picture.ts';
 /** A picture's words, in drawing order: what the stage says it shows. */
 const words = (m: Mobject) => m.family().filter((t): t is Text => t instanceof Text).map((t) => t.text).filter(Boolean).join('. ');
 
-// The title, answer and check questions come from script.md's intent header.
 export default class PythonDict extends Scene {
   static meta = {
     id: 'python-dict',

@@ -9,6 +9,16 @@ export interface ScriptMeta {
   answer?: unknown;
   checks?: unknown;
 }
+/**
+ * The explainer's one-sentence answer, as its script's intent header states it (Rayner adopts it as
+ * `meta.answer`), so a caption that states the answer reads it instead of keeping a copy.
+ */
+export function answerOf(scene: object): string {
+  const answer = (scene.constructor as { meta?: ScriptMeta }).meta?.answer;
+  if (typeof answer !== 'string' || !answer.trim())
+    throw new Error(`${scene.constructor.name} has no answer: write it in script.md's intent header (- **Answer:** …), or in static meta.answer`);
+  return answer;
+}
 /** The most check questions a scene may ask: more is a test, not a check. */
 export const CHECKS_MAX = 6;
 

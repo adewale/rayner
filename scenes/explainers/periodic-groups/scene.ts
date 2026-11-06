@@ -1,6 +1,6 @@
 import { Scene, SetState, AnimationGroup, Succession, FadeIn, view, linear } from '../../../src/index.ts';
 import type { ScheduledAnimation, SceneState, View } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import {
   POSITIONS,
   CAPACITY,
@@ -36,9 +36,6 @@ type Choice = keyof typeof ELEMENTS;
 const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
 const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
-/** The answer in script.md's intent header, which the stack step's caption states. */
-const ANSWER =
-  'The table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below';
 
 /** Of the 108 elements in the NIST reference, how many it lists as the filling rule predicts. */
 const RULE_MATCHES = NIST_UP_TO - Object.keys(NIST_EXCEPTIONS).length;
@@ -51,7 +48,6 @@ function rowSum(jump: number): string {
   return `${jump} = ${row.map((b) => CAPACITY[b]).join(' + ')}`;
 }
 
-// The title, answer and check questions come from script.md's intent header.
 export default class PeriodicGroupsExplainer extends Scene {
   static meta = {
     id: 'periodic-groups',
@@ -90,6 +86,7 @@ export default class PeriodicGroupsExplainer extends Scene {
   notes: View | null = null;
 
   override async construct() {
+    const answer = answerOf(this);
     const choice = settingsOf(this).element as Choice;
     const symbol = ELEMENTS[choice],
       z = atomicNumber(symbol),
@@ -207,7 +204,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('stack', {
       title: 'Stack runs of one length in the same columns',
       line: 'Runs of 2 at the left, 10 in the middle, 6 at the right, 14 in two rows below.',
-      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. ${ANSWER}. ${
+      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. ${answer}. ${
         (
           {
             na: 'Sodium’s 11th electron starts a run of 2, so it lands in column 1.',

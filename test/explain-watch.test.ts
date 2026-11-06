@@ -1,5 +1,5 @@
 // meta.watch: the state an author names for readers, and what each step changed of it
-// (specs/player-guidance.md G1). One formatter serves the player, the transcript, describe
+// (player-guidance G1). One formatter serves the player, the transcript, describe
 // and check; these tests hold it to independently written expectations.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';

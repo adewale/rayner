@@ -14,7 +14,6 @@ interface Music { clips: AudioClip[]; movedStarts: number }
  */
 const BPM = 96;
 
-// The title, answer and check questions come from script.md's intent header.
 export default class MelodyRhythm extends Scene {
   static meta = {
     id: 'melody-rhythm',
