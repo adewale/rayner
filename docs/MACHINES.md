@@ -43,6 +43,7 @@ replayed machine therefore seeks, traces and records like any other play.
 | `labels` | A button's name for an event whose own name would not read well (default: the event) |
 | `next(state, event)` | The model's step, from the model module: a new state, or `refuse(reason)` when the state refuses the event, the reason in the reader's words (`undefined` refuses with no reason) |
 | `bound(state, event)` | Where the story stops though the model would go on: the reason, else `undefined` |
+| `end(state)` | Where the story ends: the reason when `state` is finished, else `undefined`. From a finished state every event the model would take is beyond the story with this reason, and its refusals stay refusals, so a live step that ends finished starts the reader from `start` |
 | `transition` | Authored motion per event ([below](#refused-events-bounds-and-authored-transitions)) |
 | `views` | The pictures synced after each event, each a [`view(scene, draw)`](VIEWS.md) |
 | `match` | How the views morph without an authored transition (default `matchByKey({ text: 'whole' })`: keyed parts keep their identity, and a keyed word that changes is replaced) |
@@ -257,8 +258,9 @@ last step clears them). When two machines last play in one step, the one made la
 Three explainers' live steps leave their machine finished: token-bucket's client has sent all ten
 requests, both of latest-search's responses have landed, and oauth-pkce's sign-in has run to its
 end. When no event goes anywhere from the step's state, the reader's events start from the
-machine's `start` instead, and the line over the buttons says "send the events again, in your own
-order". The first event redraws the views at the start, in place, as exploration draws a state,
+machine's `start` instead, and the line over the buttons says "Try it yourself, from the beginning".
+A story that ends in a finished state (a tower carried to its last peg) says so with `end(state)`:
+the model's moves from that state are then past the story, so the reader starts again from `start`. The first event redraws the views at the start, in place, as exploration draws a state,
 and plays from there. Which of the two applies is a function of the step, so the URL does not say
 it (`logStart` in `app/embed-live.ts`).
 
@@ -280,7 +282,7 @@ takes is replayed, and a notice names the first event it refused or that is past
 stops. Each press, Undo and Reset adds a history entry, as a step does, so Back takes an event
 back. Copy link keeps the events; a share page, which shows a step's own picture, is used only
 when none were sent. Without JavaScript, the transcript lists under a live step the events a
-reader can send there: "Try it: send push, pop.", or "Try it: from the start, send AUTHORIZE…"
+reader can send there: "Try it yourself: press push, pop.", or "Try it yourself: from the beginning, press AUTHORIZE…"
 where the step leaves its machine finished.
 
 **How it is checked.** `test/browser/explain-live.test.ts` builds the nine pages and, at each

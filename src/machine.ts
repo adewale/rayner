@@ -38,6 +38,14 @@ export interface MachineSpec<S extends object, E extends string> {
    */
   bound?: (state: S, event: E) => string | undefined;
   /**
+   * Where the story ends: the reason, in the reader's words, when `state` is a finished one (the
+   * tower is on C), else undefined. From a finished state every event the model would take is
+   * beyond the story, with this reason, and every event it refuses stays a refusal with its own;
+   * so a live step that ends finished starts the reader's events from `start`. It is `bound` for
+   * the common case, without restating the model's refusals.
+   */
+  end?: (state: S) => string | undefined;
+  /**
    * Authored motion for an event, built when its turn comes from the states before and after it
    * and the pictures it must end on, and played over the machine's `runTime`. When it ends, the
    * views take the pictures of `after`; `rayner check` plays every reachable transition and fails
@@ -123,6 +131,7 @@ export class Machine<S extends object, E extends string> {
     if (new Set(spec.events).size !== spec.events.length) throw new TypeError('A machine\'s events must be distinct');
     if (typeof spec.next !== 'function') throw new TypeError('A machine needs next(state, event)');
     if ('why' in spec) throw new TypeError('A machine has no why(state, event): return refuse(reason) from next where the model refuses an event');
+    if (spec.end !== undefined && typeof spec.end !== 'function') throw new TypeError('A machine\'s end is a function of the state: the reason the story ends there, or undefined');
     for (const [event, label] of Object.entries(spec.labels ?? {})) {
       if (!spec.events.includes(event as E)) throw new TypeError(`A machine's labels name its events; ${event} is not one`);
       if (typeof label !== 'string' || !label.trim()) throw new TypeError(`The label of ${event} must be words`);
@@ -150,14 +159,17 @@ export class Machine<S extends object, E extends string> {
 
   /**
    * What `event` does from `state`: the next state; or, refused by the model, its reason (what
-   * `refuse` was given, or null for `undefined`); or beyond the story, the bound's reason. The bound
-   * is asked first, so `next` is never asked for a state the story does not reach.
+   * `refuse` was given, or null for `undefined`); or beyond the story, the bound's reason, or `end`'s
+   * where the state is finished and the model would take the event. The bound is asked first, so
+   * `next` is never asked for a state the story does not reach.
    */
   outcome(state: S, event: E): Outcome<S> {
     if (!this.spec.events.includes(event)) throw new RangeError(`This machine accepts ${this.spec.events.join(', ')}, not ${String(event)}`);
     const beyond = this.spec.bound?.(state, event);
     if (beyond !== undefined) return { beyond };
-    return this.model(state, event);
+    const model = this.model(state, event);
+    const ended = 'next' in model ? this.spec.end?.(state) : undefined;
+    return ended === undefined ? model : { beyond: ended };
   }
 
   /** What the model alone says of `event` from `state`, the story's bound aside: the next state, or a refusal and its reason. */

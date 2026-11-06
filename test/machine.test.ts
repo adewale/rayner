@@ -8,6 +8,7 @@ import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing
 import type { Transition, View, ViewSync } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
+import { logStart } from '../app/embed-live.ts';
 
 await loadFonts();
 
@@ -383,6 +384,34 @@ test('a bound stops the story where the model would go on; check fails a bound t
   const free = bounded(() => undefined);
   const lamp = await new free(new NullSink()).run();
   assert.deepEqual(lamp.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
+});
+
+test('end finishes the story at a state: the model\'s moves from it are beyond the story, its refusals stay refusals', async () => {
+  // UP is refused at bright; this story ends once the lamp is bright.
+  const nextUp = (s: Lamp, e: 'UP' | 'OFF') => (e === 'UP' && s.level === 2 ? refuse(`the lamp is already ${LEVELS[s.level]}`) : next(s, e));
+  class Ends extends Scene<Lamp> {
+    machine!: Machine<Lamp, 'UP' | 'OFF'>;
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture],
+        end: (st) => (st.level === 2 ? 'the lamp is bright' : undefined) });
+      await this.step('press');
+      await this.play(this.machine.replay(['UP', 'UP']));
+    }
+  }
+  const ends = await new Ends(new NullSink()).run();
+  assert.deepEqual(ends.machine.outcome({ level: 2 }, 'OFF'), { beyond: 'the lamp is bright' });
+  assert.deepEqual(ends.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
+  assert.deepEqual(ends.machine.outcome({ level: 1 }, 'UP'), { next: { level: 2 } });
+  assert.deepEqual(ends.machine.reachable().map((r) => r.state.level), [0, 1, 2]);
+  assert.deepEqual((await exploreMachines(ends))[0]!.problems, []);
+  // A live step that ends finished starts the reader's events from the machine's start.
+  assert.deepEqual(logStart(ends.machine, { level: 2 }), { from: 'start', state: { level: 0 } });
+  assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /end is a function of the state/);
 });
 
 test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {
