@@ -1,15 +1,25 @@
 # Rayner
 
-Rayner makes step-through explainers of protocols, algorithms and data structures. Scenes are written in TypeScript with Manim's vocabulary of scenes, mobjects and transforms, but a reader steps through one HTML page with no runtime dependencies instead of watching a video.
+Rayner makes step-through explainers of technical subjects, from Git merges to Earth’s seasons. Scenes are written in TypeScript with Manim's vocabulary of scenes, mobjects and transforms, but a reader steps through one HTML page with no runtime dependencies instead of watching a video.
 
-A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12's own storage, each step is drawn from the model's state, and `rayner check` fails a picture that disagrees with that state. Other explainers in the gallery check their models against Git, XState and published test vectors.
+A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12's own storage, each step is drawn from the model's state, and `rayner check` fails a picture that disagrees with that state. How closely a model matches its subject varies from explainer to explainer, and the table below says what each was checked against.
 
 [![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
 
-- [Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) The explainer above.
-- [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) See whose names set the bits, predict whether wolf gets through, then double the memory and compare. [Read its scene](scenes/explainers/bloom-filter/scene.ts) to see the model supply the picture and caption.
-- [Why does sunset line up with Manhattan’s streets?](https://oshineye.dev/projects/rayner/henge) Watch the sunset move north along the horizon through the year, then switch the street from Manhattan’s grid to due west: the alignments move from May and July to near the equinoxes.
-- [All explainers](https://oshineye.dev/projects/rayner/)
+| Explainer | Its model is checked against |
+|---|---|
+| [Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) | CPython 3.12’s dict storage, read from memory |
+| [Why does a merge sometimes need a new commit?](https://oshineye.dev/projects/rayner/git-branches) | Git repositories the test builds and merges |
+| [What is a statechart, and why use one instead of a state machine?](https://oshineye.dev/projects/rayner/statecharts) | The states and transitions XState 5.33.3 reaches |
+| [Does isdigit guarantee int can parse it?](https://oshineye.dev/projects/rayner/isdigit) | CPython 3.15.1’s answers and Unicode 17.0.0’s data files |
+| [How does a token bucket let a burst through but refuse a flood?](https://oshineye.dev/projects/rayner/token-bucket) | Go’s `golang.org/x/time/rate` limiter |
+| [Why does sunset line up with Manhattan’s streets?](https://oshineye.dev/projects/rayner/henge) | ERFA’s horizon coordinates; the orbit is idealised, so it does not predict viewing dates |
+| [Why does the periodic table have this shape?](https://oshineye.dev/projects/rayner/periodic-groups) | NIST’s ground-state configurations, which agree for 88 of the 108 elements compared |
+| [Why does the host’s rule change the odds of switching?](https://oshineye.dev/projects/rayner/monty-hall) | Its own probability tests, with three, four and a hundred doors |
+| [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | Invariant tests of a teaching model with its own hashes, not a production filter |
+| [Why does the north have summer when Earth is farthest from the Sun?](https://oshineye.dev/projects/rayner/seasons) | Nothing external: a cited approximation of the Sun’s path, not validated against an almanac |
+
+Each explainer’s `notes.md` says what its model leaves out; the [Bloom filter’s scene](scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
 
 ## Quick start
 
@@ -84,7 +94,7 @@ export default class LruMru extends Scene {
 
 ## What `rayner check` and `rayner review` catch
 
-- **The model against its source.** The model’s test compares it with the program, library or published test vectors it describes, and a fidelity test asserts that every step of every scenario shows what the model computed.
+- **The model against its source.** The model’s test compares it with whatever the author could check it against, from the program itself to published examples ([the table above](#rayner) shows the range), and a fidelity test asserts that every step of every scenario shows what the model computed.
 - **Pictures against state.** `rayner check` runs every scenario, redraws each staged step’s picture from the state its step recorded, and draws every state an event-driven [machine](docs/MACHINES.md) can reach. Jumping straight to a step must draw what playing up to it draws.
 - **Layout.** It fails undersized desktop labels, text that collides, connectors that cross labels, and a picture that moves after its caption starts.
 - **Words.** It fails a drawing with no description in words, and an explanation that never states its declared answer (`meta.answer`), reporting the step where the answer first appears.
@@ -118,7 +128,7 @@ Where the author built the model as a [machine](docs/MACHINES.md), the reader ca
 | [Manim Community](https://github.com/ManimCommunity/manim) | Python | A rendered video | “Explanatory math videos” |
 | [Motion Canvas](https://github.com/motion-canvas/motion-canvas) | TypeScript, with generators | Vector animations, previewed in its editor | Animations “synchronize[d] with voice-overs” |
 | [Lantern](https://github.com/ivarvong/lantern) | TypeScript, a port of Manim’s core model | SVG in the browser, or SVG strings from Node or Cloudflare Workers, with every step addressable | “Explainers for code changes”; installed from Git, not npm |
-| Rayner | TypeScript, forked from Lantern | One HTML page of steps, settings and a transcript, with no runtime dependencies | Explanations whose pictures must agree with a model tested against the real system |
+| Rayner | TypeScript, forked from Lantern | One HTML page of steps, settings and a transcript, with no runtime dependencies | Explanations whose pictures must agree with a tested, cited model |
 
 Rayner keeps Lantern’s engine ([upstream](docs/UPSTREAM.md) lists the changes) and adds the parts that hold each picture to a model: the recorded state at every step, the model test, and the `check` and `review` gates. Choose Manim when the output should be a video, and Motion Canvas when animation must be timed to narration.
 
