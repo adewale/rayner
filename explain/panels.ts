@@ -47,6 +47,13 @@ export interface CardOptions {
   lit?: string | null;
   /** The word the description gives the lit row (default "marked", in the scene's language), as `mark`'s `as`. */
   litAs?: string;
+  /**
+   * Key the card and its parts under this name, for a card drawn in a view: `view.sync({ match:
+   * 'key', staged: true })` then changes it as `set` and `mark` did. Each value's key includes its
+   * text, so an unchanged value stays put, a changed one fades out as its replacement fades in,
+   * and the bar moves to the lit row.
+   */
+  key?: string;
 }
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
@@ -259,6 +266,18 @@ export class Card extends Group {
         h.moveTo([columnEdge[j]!, y], [edge, 0]);
         fitValue(h, this.columnRoom[j]!, edge);
         this.add(h);
+      });
+    }
+    if (options.key) {
+      const k = options.key;
+      this.key = k;
+      this.panel.key = `${k}:panel`;
+      this.bar.key = `${k}:bar`;
+      if (titleText) titleText.key = `${k}:title`;
+      headings.forEach((h, j) => (h.key = `${k}:column:${j}`));
+      this.rows.forEach((row, i) => {
+        this.labels.get(row.label)!.key = `${k}:row:${i}`;
+        row.cells.forEach((c, j) => (c.key = `${k}:row:${i}:${j}:${c.text}`));
       });
     }
     place(this, at, height, options.align);

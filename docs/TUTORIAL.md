@@ -142,8 +142,8 @@ Pin what you checked against in the scene's `meta.sources` (principle 3). The sc
 
 <!-- lru-mru/scene.ts -->
 ```ts
-import { Scene } from 'rayner';
-import { stage, settingsOf } from 'rayner/explain';
+import { Scene, view } from 'rayner';
+import { stage, settingsOf, Card } from 'rayner/explain';
 import { run, type Policy } from './model.ts';
 
 const SIZE = 3;
@@ -174,26 +174,30 @@ export default class LruMru extends Scene {
       const pair = (i: number): [string, string] => [lru[i]!, mru[i]!];
       return { Requests: requests.slice(0, n).join(' '), 'Newest first': pair(0), Evicted: pair(1), Hits: pair(2) };
     };
-    const show = async (n: number) => {
-      await card.set(shown(n));
-      Object.assign(this.state, shown(n));
+    type CardState = ReturnType<typeof shown> & { lit: string | null };
+    // The card is a view of the state: each step changes the state, and the card is redrawn from it.
+    const show = async (n: number, lit: string | null = null) => {
+      this.state = { ...shown(n), lit };
+      await this.play(card.sync({ match: 'key', staged: true }));
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
-    const first = shown(3);
-    const card = await s.card([
-      ['Requests', first.Requests],
-      ['Slots', SIZE],
-      ['Newest first', ...first['Newest first']],
-      ['Evicted', ...first.Evicted],
-      ['Hits', ...first.Hits],
-    ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3 });
-    Object.assign(this.state, first);
+    this.state = { ...shown(3), lit: null };
+    const card = view(this, (st) => {
+      const c = st as CardState;
+      return new Card(this, s.palette, [
+        ['Requests', c.Requests],
+        ['Slots', SIZE],
+        ['Newest first', ...c['Newest first']],
+        ['Evicted', ...c.Evicted],
+        ['Hits', ...c.Hits],
+      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: c.lit, key: 'cache' });
+    }, { place: false });
+    await s.enter(card, { runTime: 0.35 });
 
     const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];
     await this.step('evict', { title: 'D evicts opposite ends', line: `LRU drops ${lruOut}, the oldest; MRU drops ${mruOut}, the newest.`, caption: `LRU evicts the item used longest ago, ${lruOut}. MRU evicts the item used most recently, ${mruOut}. Each then records D as its newest item.` });
-    await show(4);
-    await card.mark('Evicted');
+    await show(4, 'Evicted');
 
     const lruHits = trace.lru.filter((r) => r.hit).length, mruHits = trace.mru.filter((r) => r.hit).length;
     await this.step('rest', {
@@ -202,7 +206,7 @@ export default class LruMru extends Scene {
         ? 'The loop asks for A, B, C and D again. LRU always evicts the item the loop needs next, so all eight requests miss. MRU evicted C to make room for D, so on the second pass A, B and D hit and only C misses.'
         : 'C and D now alternate. LRU still holds both after evicting A, so all four repeats hit. MRU evicts the item requested just before, which is always the next one requested, so all four repeats miss.',
     });
-    await show(8);
+    await show(8, 'Evicted');
 
     await this.step('verdict', {
       title: next === 'loop' ? 'A loop favours MRU' : 'Reuse favours LRU',
@@ -210,7 +214,7 @@ export default class LruMru extends Scene {
         ? `On this loop MRU hits ${mruHits} times and LRU ${lruHits}. Four items do not fit in three slots, which is when Chou and DeWitt recommend MRU for a repeated scan; a file that fits should stay in memory. The counts leave out what tracking recency costs.`
         : `On this pattern LRU hits ${lruHits} times and MRU ${mruHits}, because the items just used are the next ones requested. The counts cover eight requests through three slots and leave out what tracking recency costs.`,
     });
-    await card.mark('Hits');
+    await show(8, 'Hits');
   }
 }
 ```
@@ -219,9 +223,10 @@ Read it from the top:
 
 - `static meta` holds the sources the model was checked against. The id, which names the output files, is the folder's name, and the title, answer and check questions come from the script's header.
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
-- `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests, and `show(n)` updates the card and records the same values on `this.state`, where tests and `rayner describe` can read them.
+- `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests.
+- The card is a view of the state: `view(this, draw)` builds a `Card` from `this.state` whenever the state changes, and `show(n, lit)` puts the values after `n` requests (and the row to light) in the state and plays `card.sync(...)`. So the card cannot drift from the state that tests and `rayner describe` read, and `check` redraws it from that state at every step. The card's `key` lets the sync change only what changed: a new value fades in where the old one fades out, and the bar moves to the lit row.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.
-- `s.card` draws one card with an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
+- The card has an LRU column and an MRU column. A row with one value per column compares the policies; a row with a single value, such as Requests, spans both columns because both caches receive the same requests.
 - There are four steps. Each has a stable name used in links, a title and a caption, and the first two have a line under the title. The page prints the caption beside the picture.
 
 The first step opens on the moment the policies are about to diverge (principle 2): both caches hold the same items in the same order and D is about to miss. The second step is the whole difference between the policies, so it gets a step of its own (principle 4), and its mark on the Evicted row stays on screen while the reader reads why (principle 5). Its captions take the evicted items from the model. Because the two policies share one card, a reader sees both columns of every row at once, including on a phone, where the player zooms onto the card.
@@ -240,7 +245,7 @@ Choose C D C D above the stage. The URL names the scenario and step (`lru-mru.ht
 
 ## 7. Break a check
 
-Delete the last line of `construct()`, `await card.mark('Hits');`, and run the checks:
+Change the last line of `construct()`, `await show(8, 'Hits');`, to `await show(8, 'Evicted');`, and run the checks:
 
 ```sh
 npx rayner check lru-mru/scene.ts
@@ -256,7 +261,7 @@ rayner: Each step must change the picture; these end exactly as the step before 
 - []
 ```
 
-Without the mark, the last step plays nothing, so it rests on exactly the picture step 3 left. A reader pressing Next would get a new caption and nothing new on the stage to read it against. The check reports the first scenario where this happens. Put the line back and run `check` again: it passes. The report it saves to `out/checks/lru-mru/report.json` includes `legibility.labelsUnder12PxAt390`, the number of labels a phone reader sees smaller than 12 px. Keep it at 0 in every scenario.
+With the mark left where it was, the last step changes nothing, so it rests on exactly the picture step 3 left. A reader pressing Next would get a new caption and nothing new on the stage to read it against. The check reports the first scenario where this happens. Put the line back and run `check` again: it passes. The report it saves to `out/checks/lru-mru/report.json` includes `legibility.labelsUnder12PxAt390`, the number of labels a phone reader sees smaller than 12 px. Keep it at 0 in every scenario.
 
 ## 8. Break a caption
 
