@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { builtOutputHashes, checkBuiltOutput } from '../tools/lib/explain-built-files.ts';
+import { builtOutputHashes, checkBuiltOutput } from '../tools/repo/lib/explain-built-files.ts';
 
 test('site export rejects tampered built HTML, pictures and a missing output pin', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'rayner-built-output-'));
@@ -36,7 +36,7 @@ test('site export rejects tampered built HTML, pictures and a missing output pin
 
 // player-tile T6: demos:build refuses an embed.json without three heights above the floor.
 test('an embed.json needs schema 1, aspect 16/9 and an integer height above the stage plus the stepper row at each of 390, 640 and 900 px', async () => {
-  const { embedSizeProblems, embedFloor } = await import('../tools/lib/explain-embed-size.ts');
+  const { embedSizeProblems, embedFloor } = await import('../tools/repo/lib/explain-embed-size.ts');
   const good = { schema: 1, aspect: '16/9', heights: { '390': 900, '640': 1000, '900': 1200 } };
   assert.deepEqual(embedSizeProblems(good), []);
   assert.equal(embedFloor(640), 421);

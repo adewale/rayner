@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { galleryTile } from '../tools/lib/explain-gallery.ts';
+import { galleryTile } from '../tools/repo/lib/explain-gallery.ts';
 import { EXPLAINERS, PRODUCT } from '../scenes/explainers/catalog.ts';
 
 test('catalog tiles open the beginning of every lesson without changing curated posters', () => {
@@ -14,7 +14,7 @@ test('catalog tiles open the beginning of every lesson without changing curated 
 });
 
 test('gallery entries and subset cards come from the selected catalog', async () => {
-  const {galleryPage}=await import('../tools/lib/explain-gallery.ts');
+  const {galleryPage}=await import('../tools/repo/lib/explain-gallery.ts');
   const catalog={product:{entry:{id:'other',step:'question',settings:{case:'two'},label:'Start here'}},scenes:[
     {id:'featured',title:'Featured',lang:'en',group:'topic' as const,tier:'showcase' as const},
     {id:'other',title:'Other',lang:'en',group:'topic' as const,tier:'showcase' as const},

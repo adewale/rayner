@@ -129,7 +129,7 @@ The [engine map](https://github.com/adewale/rayner/blob/main/docs/ENGINE.md) lis
 
 Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/main/scenes/explainers) shows a technique. Copy the nearest one rather than starting blank; these are ways that worked, not rules:
 
-<!-- generated from test/public-names.json by `node tools/public-names.ts --write`: examples -->
+<!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: examples -->
 | You are explaining | Start from | It shows |
 | --- | --- | --- |
 | Two algorithms or policies on the same input | `scenes/tutorial/lru-mru` (what `rayner init` writes) | One card with a column per policy, read from the model's trace; one scenario that favours each policy; captions tested against the model |

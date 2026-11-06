@@ -7,7 +7,7 @@ import {createHash} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 const run = promisify(execFile);
-const script = new URL('../tools/publish-release.ts', import.meta.url).pathname;
+const script = new URL('../tools/repo/publish-release.ts', import.meta.url).pathname;
 
 async function attempt({env = {}, change = (m: Record<string, unknown>) => {}, corrupt = false, mode = '', undated = false, staleReport = false} = {}) {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-publish-guard-'));

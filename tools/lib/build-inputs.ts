@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 // Runtime assets are deliberately broad; Node tools follow the actual producer
 // imports. A reviewer, benchmark or release-script edit does not change a page.
-const producers = ['explain-build', 'explain-project', 'explain-shots', 'explain-gallery', 'explain-embed-size', 'explain-site-describe'];
+const producers = ['tools/lib/explain-build.ts', 'tools/lib/explain-project.ts', 'tools/lib/explain-shots.ts', 'tools/repo/lib/explain-gallery.ts', 'tools/repo/lib/explain-embed-size.ts', 'tools/repo/lib/explain-site-describe.ts'];
 export async function buildInputs(root: string) {
   root = resolve(root);
   const compiled = import.meta.url.endsWith('.js');
@@ -50,9 +50,9 @@ export async function buildInputs(root: string) {
     }
   };
   // Installed tools are bundled chunks, so their bundle bytes are the producer inputs.
-  if (!compiled) for (const name of producers) await visit(join(root, 'tools/lib', name + '.ts'));
+  if (!compiled) for (const name of producers) await visit(join(root, name));
   // Dynamic capture assets and catalog/export orchestration are not JS imports.
-  for (const name of ['tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/explain-demos.ts', 'tools/explain-site.ts', 'package-lock.json', 'scenes/explainers/catalog.ts']) {
+  for (const name of ['tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/repo/explain-demos.ts', 'tools/repo/explain-site.ts', 'package-lock.json', 'scenes/explainers/catalog.ts']) {
     try { await readFile(join(root, name)); files.add(name); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   }

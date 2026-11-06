@@ -7,7 +7,7 @@ import {createHash} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 const run = promisify(execFile);
-const script = new URL('../tools/archive-published-release.ts', import.meta.url).pathname;
+const script = new URL('../tools/repo/archive-published-release.ts', import.meta.url).pathname;
 type Release = {id: number; tag_name: string; draft: boolean; assets: unknown[]};
 const draft = (id = 5): Release => ({id, tag_name: 'v0.1.0', draft: true, assets: []});
 

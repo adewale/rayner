@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { replaceHeaderBlocks } from '../tools/lib/site-headers.ts';
+import { replaceHeaderBlocks } from '../tools/repo/lib/site-headers.ts';
 
 test('repeated exports replace owned CSP rules and preserve unrelated host rules', () => {
   const previous = '/*\n  X-Content-Type-Options: nosniff\n\n/projects/rayner/cache\n  Content-Security-Policy: old\n# Keep this host comment\n\n/another-project\n  Cache-Control: max-age=3600\n';
