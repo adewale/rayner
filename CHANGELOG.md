@@ -140,7 +140,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - At each resting step the review checks the painted subjects, complete close-up tours, overflow, console errors and outside connections.
 - `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page the review checked.
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
-- `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`.
+- `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`, and `skipped` when some were.
 - An explainer's `answers.ts` computes its script's answer and check answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
 - `rayner check` fails a path in backticks in the script's Checked against line that is not in the explainer's folder, and reports them as `checkedAgainst`.
 - A claim's test is looked for in the scene's folder first, so `meta.claims` can name `model.test.ts: …`.

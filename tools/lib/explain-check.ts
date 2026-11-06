@@ -884,8 +884,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
-    // The model test beside the scene (model.test.ts), run with node:test: how many tests, how many passed.
-    ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed } } : {}),
+    // The model test beside the scene (model.test.ts), run with node:test: how many tests ran and passed, and any skipped.
+    ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed, ...(model.skipped ? { skipped: model.skipped } : {}) } } : {}),
     // The script's answer and check answers that answers.ts computes from the model, each equal to script.md's.
     ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
     // The files the script's Checked against line names in backticks, each one in the explainer's folder.

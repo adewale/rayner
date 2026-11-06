@@ -499,7 +499,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 
 | Check | Rule |
 | --- | --- |
-| Model test | The `model.test.ts` beside the scene fails. `check` runs it first, with `node --test` in a child process (only that file: other tests in the folder, such as `scene.test.ts`, run the scene, which check runs anyway, and belong to the project's test suite), and names each failing test with the first lines of its error. A `rayner` import Node cannot resolve from the folder is the Rayner running the check. The report records it as `model: { file, tests, passed }`; a folder without a model test has no `model` |
+| Model test | The `model.test.ts` beside the scene fails. `check` runs it first, with `node --test` in a child process (only that file: other tests in the folder, such as `scene.test.ts`, run the scene, which check runs anyway, and belong to the project's test suite), and names each failing test with the first lines of its error. A `rayner` import Node cannot resolve from the folder is the Rayner running the check. The report records it as `model: { file, tests, passed }`, with `skipped` when some tests were skipped (they are not counted in `tests`); a folder without a model test has no `model` |
 | Catch lint | A `try`/`catch` or `.catch()` around awaited code in `construct()` |
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |

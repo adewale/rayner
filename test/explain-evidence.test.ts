@@ -35,6 +35,7 @@ test('the model test beside the scene runs in a child process: its count, and ea
     const report = await runModelTest(join(dir, 'scene.ts'));
     assert.equal(report?.tests, 3);
     assert.equal(report?.passed, 2);
+    assert.equal(report?.skipped, 1, 'the skipped test is counted apart');
     assert.equal(report?.failed.length, 1);
     assert.match(report!.failed[0]!, /^a suite > fails \(Expected values to be strictly equal: 2 !== 3\)$/);
     assert.equal(await runModelTest(join(tmpdir(), 'no-such-explainer', 'scene.ts')), undefined, 'no model test, no report');
