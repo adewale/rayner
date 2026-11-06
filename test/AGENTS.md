@@ -1,6 +1,6 @@
 # Test ownership
 
-Put Chromium reader and transport tests in `test/browser/`; `test:embeds` discovers that directory. The standard suite includes both root and browser tests so pure assertions in mixed files still run. Font-capture and native Safari/WebKit tests retain their explicit environment owners. Do not add another browser filename list.
+Put an explainer's own evidence in its folder, not here: its model test in `model.test.ts`, scene and picture assertions in `scene.test.ts`, its step-state check in `fidelity.ts`, oracles in `oracle/` and their output in `fixtures/` (`../docs/TESTING.md`, "An explainer's own evidence"); shared helpers stay in `lib/`. Put Chromium reader and transport tests in `test/browser/`; `test:embeds` discovers that directory. The standard suite includes both root and browser tests so pure assertions in mixed files still run. Font-capture and native Safari/WebKit tests retain their explicit environment owners. Do not add another browser filename list.
 
 Use `lib/pbt.ts` for seeded fast-check runs. Keep the input domain as wide as the documented contract; bound expensive materialization rather than silently dropping input classes. A cheaper oracle must still check values, exact endpoints and ordering. Keep independent source vectors, Manim fixtures, raster comparisons, real browser transport/layout checks and package smoke tests at their existing boundaries.
 
