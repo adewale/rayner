@@ -6,7 +6,7 @@ The criteria are 3Blue1Brown's Summer of Math Exposition's, with Grant Sanderson
 
 ## How to read
 
-Read `script.md` straight through first. Identify the observation being explained, the rule or mechanism that accounts for it, and a changed condition whose result the reader could now predict. Point to the sentences that connect those three. A numbered sequence and a correct answer are insufficient if the causal bridge is missing. Distinguish a rule being explained from an input the lesson assumes, and ask whether the reader has been told which is which.
+Read `script.md` first: it states the explainer's intent. Note the question, the reader, the answer, the changed condition, the reader's own work, what the model is checked against and what it leaves out. Then identify, in the scene, the observation being explained, the rule or mechanism that accounts for it, and the changed condition whose result the reader could now predict, and point to the steps that connect those three. A numbered sequence and a correct answer are insufficient if the causal bridge is missing. Distinguish a rule being explained from an input the lesson assumes, and ask whether the reader has been told which is which. Judge the scene against the intent: an explainer that teaches well but not what its script says it is for has a script to fix, or a scene. (Scripts not yet migrated to an intent header are reader prose: read them straight through as the explanation, as before.)
 
 Then read the explanation as a newcomer: the gallery title, every resting step and caption of the declared default scenario (from `settings[].default` in `describe.json`, not the first scenario listed), at least one other scenario where there is one, the ending, and the source and test trail. Use the page itself at 1280 × 800 and on a phone, from the first step and from fresh links to later steps. Check that the page supports the script's reasoning: each new inference has visible evidence, a useful comparison or an explicit premise. Keep the guiding question in mind: how valuable is this compared with the typical explanation of the same thing a reader could find?
 
@@ -16,14 +16,14 @@ Keep each fact where it can be maintained:
 
 | Where | What belongs there |
 | --- | --- |
-| `script.md` | The explanation addressed to the reader, including predictions and the scope needed to interpret the conclusion. No implementation directions, revision history, verification report or copied ending quiz. |
-| `scene.ts` metadata and steps | The published captions, scenarios, one-sentence answer, ending questions and disclosed answers. Read or describe the scene to inspect them; do not maintain a parallel step inventory in Markdown. |
-| Optional `notes.md` | Non-obvious visual decisions, source interpretation and model limits useful to the next author. Link to the owning source or test rather than copying its assertions. Omit this file when it adds nothing. |
-| Models, tests and review receipts | Computation and evidence for correctness, picture fidelity and served behavior. They do not establish reader comprehension. |
+| `script.md` | The intent, for the author: the intent header (question, reader, answer, changed condition, reader's own work, what the model is checked against, what it leaves out, check questions with their answers), then the author's own reasons. Rayner reads the header; it is the one home of the title, answer, check questions and what the model is checked against. Not the explanation, no implementation directions, revision history or verification report. |
+| `model.ts` | The system's constraints: what it allows, what each action does, why it refuses one, and the limits of the model beside the constraints they qualify. |
+| `scene.ts` steps, and `picture.ts` | How the system is explained: the published titles, lines and captions, scenarios, which states and events each step shows, and the live step; the picture module says how one state looks. Read or describe the scene to inspect them; do not keep a step inventory in Markdown. |
+| Tests and review receipts | Evidence for the model's correctness against what it is checked against, picture fidelity and served behaviour. They do not establish reader comprehension. |
 
-The script is an editorial draft of the explanation, not a generated transcript. If a rewrite changes the reasoning, update the corresponding scene prose and check its offered scenarios. Do not leave a stronger promise in the script than the page fulfills. Source links belong in `meta.sources`; notes can explain why a source or convention was chosen. Revision history belongs in Git.
+Each fact has one home, so nothing has to be kept in step by hand: the scene's words are the explanation, the script's header is the intent the scene is held to, and the model's limits sit beside its constraints. A migrated explainer has no `notes.md`; its contents belong in the script's reasons, the model or the picture module. Source links belong in `meta.sources`. Revision history belongs in Git.
 
-Use the ending questions in `meta.checks` to challenge the script: can its reasoning answer a changed condition, or does it only reveal the quiz answer? This can expose a weak explanation before reader testing, but only a newcomer study measures what readers understand.
+Use the script's check questions to challenge the scene: can its reasoning answer a changed condition, or does it only reveal the quiz answer? This can expose a weak explanation before reader testing, but only a newcomer study measures what readers understand.
 
 ## The criteria
 
