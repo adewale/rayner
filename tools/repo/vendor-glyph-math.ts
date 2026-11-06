@@ -16,7 +16,7 @@ const ccc = source.match(/var CCC_RANGES = Object.freeze\(\[[\s\S]*?\]\);/)?.[0]
 if (!ccc) throw new Error('Cannot find the existing glyph combining-class table');
 await build({
   absWorkingDir: repo,
-  stdin: { contents: `export { typeset } from '../math/src/typeset.js';`, resolveDir: repo },
+  stdin: { contents: `export { typeset } from './math/src/typeset.js';`, resolveDir: repo },
   bundle: true, format: 'esm', platform: 'neutral',
   outfile: new URL('../../vendor/glyph-math.js', import.meta.url).pathname,
   logLevel: 'warning',
