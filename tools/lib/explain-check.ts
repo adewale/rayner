@@ -17,8 +17,8 @@ import {
 } from '../../src/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
-import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
-import { runModelTest } from './explain-evidence.ts';
+import { ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
+import { compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
@@ -663,6 +663,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   // The folder's own evidence first: a scene drawn from a model its test refuses shows nothing true.
   const model = await runModelTest(project.file);
   assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
+  const answers = await compareAnswers(project.file, project.Scene.meta, async (file) => (await importAuthored(file)).module);
+  assert.deepEqual(answers?.problems ?? [], [], `script.md disagrees with answers.ts (${answers?.file}): ${answers?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
   // The lettering the page carries, once for every scenario: the bare runtime below runs it
@@ -880,6 +882,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     scene: sceneSlug(project),
     // The model test beside the scene (model.test.ts), run with node:test: how many tests, how many passed.
     ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed } } : {}),
+    // The script's answer and check answers that answers.ts computes from the model, each equal to script.md's.
+    ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
     scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,

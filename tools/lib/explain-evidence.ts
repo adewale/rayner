@@ -92,8 +92,8 @@ export async function runModelTest(sceneFile: string): Promise<ModelTestReport |
   return { file: shown.startsWith('..') ? file : shown, tests: results.length, passed: results.filter((r) => r.passed).length, failed };
 }
 
-/** A check answer as answers.ts computes it: the answer, or the question and its answer. */
-type Computed = string | { question: string; answer: string };
+/** A check as answers.ts computes it: its answer, or its question, its answer or both. */
+type Computed = string | { question?: string; answer?: string };
 /** What answers.ts exports: the script's answer, and check answers by 1-based number or by question. */
 export interface AnswersModule {
   answer?: () => string;
@@ -150,8 +150,12 @@ export async function compareAnswers(
     compared++;
     const computed = compute();
     const model = typeof computed === 'string' ? { answer: computed } : computed;
-    if ('question' in model && normalise(check.question) !== normalise(model.question)) differs(`Check ${at + 1}'s question`, check.question, model.question);
-    if (normalise(check.answer) !== normalise(model.answer)) differs(`Check ${at + 1} ("${check.question}")`, check.answer, model.answer);
+    if (typeof model.question !== 'string' && typeof model.answer !== 'string') {
+      problems.push(`answers.ts: check ${at + 1} gives neither a question nor an answer`);
+      continue;
+    }
+    if (typeof model.question === 'string' && normalise(check.question) !== normalise(model.question)) differs(`Check ${at + 1}'s question`, check.question, model.question);
+    if (typeof model.answer === 'string' && normalise(check.answer) !== normalise(model.answer)) differs(`Check ${at + 1} ("${check.question}")`, check.answer, model.answer);
   }
   return { file: shown, compared, problems };
 }
