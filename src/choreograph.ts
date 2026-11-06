@@ -6,8 +6,8 @@
 // take a gone one out. rest() lands every keyed part no call has handled, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform } from './animation.ts';
-import type { AnimOpts, TransformOpts } from './animation.ts';
+import { Animation, AnimationGroup, Create, FadeIn, FadeOut, Follow, MoveAlongPath, Transform } from './animation.ts';
+import type { AnimOpts, FollowSpec, TransformOpts } from './animation.ts';
 import type { Mobject } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import { linear } from './rate.ts';
@@ -61,8 +61,16 @@ export interface Choreography {
   leave(key: string, opts?: AnimOpts): Animation;
   /** Put an unseen copy of `like` into the current picture as the part `key`, for the author to animate into view; it must end as the target part, or, when the target has no such part, leave. */
   insert(key: string, like: Mobject): Mobject;
-  /** Mark a current part as the author's to animate (with Follow, say); it must end as the target part. */
+  /** Mark a current part as the author's to animate (with follow, say); it must end as the target part. */
   own(key: string): Mobject;
+  /**
+   * Parts following one number through the transition: each frame samples the value between
+   * `from` and `to` at the eased alpha, draws the pictures at that value and writes them into the
+   * targets, so they always agree and a seek renders what a full play renders. A target named by
+   * key is owned (as `own`); a mobject target is one the author already holds, such as an
+   * inserted part. `draw` returns a fresh mobject per target, in order (or the one, for one).
+   */
+  follow(spec: FollowSpec, opts: AnimOpts & { targets: readonly (string | Mobject)[] }): Animation;
   /**
    * A token passing along `path`, a part the target does not have (a message on its arrow, an
    * event walking a link): `appear` brings `token` into view at the path's start, `move` carries it
@@ -148,6 +156,9 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       const part = from(key);
       claim(key);
       return part;
+    },
+    follow(spec, { targets, ...opts }) {
+      return new Follow(spec, { ...opts, targets: targets.map((t) => (typeof t === 'string' ? self.own(t) : t)) });
     },
     travel(key, token, path, { appear = 0.15, move = 0.7, leave = 0.2 } = {}) {
       if (want.has(key)) throw new Error(`choreograph: ${key} is in the target picture; a travelling token passes through`);

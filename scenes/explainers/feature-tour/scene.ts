@@ -29,7 +29,6 @@ import {
   TransformDiff,
   diffLines,
   parseUnifiedDiff,
-  Follow,
   smooth,
   rushInto,
   rushFrom,
@@ -484,13 +483,12 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       '  b = {...a, yaw: 0, pitch: 45};',
       'const draw = (t: number) =>',
       '  seenFrom(model, between(a, b, t), {scale: 1.6});',
-      'const globe = draw(0);',
+      'const globe = view(this, (st) => draw(st.turn));',
       "await s.enter(globe, {describe: 'A globe'});",
-      'await this.play(new Follow({from: 0, to: 1,',
-      '  draw: (t) => [draw(t)]}, {targets: [globe]}));',
+      'await this.play(globe.tween((t) => ({turn: t})));',
     ],
-    recipe: 'seenFrom draws a 3D model through a viewpoint as flat, keyed pieces, and between interpolates two viewpoints. Follow redraws the globe from one number on each frame, so the turn passes through the viewpoints in between.',
-    caption: 'Follow drew the globe from between(a, b, t) on each frame, so parts turning away went behind the globe instead of sliding across its face, and from a link the reader sees the end of the turn: London near the middle. The globe on the left is a separate drawing from the first viewpoint.',
+    recipe: 'seenFrom draws a 3D model through a viewpoint as flat, keyed pieces, and between interpolates two viewpoints. A view\'s tween redraws the globe from one number on each frame, so the turn passes through the viewpoints in between.',
+    caption: 'The tween drew the globe from between(a, b, t) on each frame, so parts turning away went behind the globe instead of sliding across its face, and from a link the reader sees the end of the turn: London near the middle. The globe on the left is a separate drawing from the first viewpoint.',
     point: 'London now faces the reader, turned by one number from 0 to 1.',
   },
 };
@@ -1052,7 +1050,7 @@ export default class FeatureTour extends Scene {
         { at: AFTER, fontSize: 0.55, title: "palette('nord')" },
       );
     } else {
-      // A globe: London and two great circles, seen from one viewpoint and turned to another by a Follow.
+      // A globe: London and two great circles, seen from one viewpoint and turned to another by a view's tween.
       const model = {
         body: { radius: 1, fill: s.palette.paper, stroke: soft, strokeWidth: 0.03 },
         parts: [
@@ -1067,9 +1065,11 @@ export default class FeatureTour extends Scene {
       const before = draw(0, [bx, by], 1.3, 'before:globe');
       for (const m of before.family()) if (m.key) m.key = `before:${m.key}`;
       await panels([before], 'the globe from the Atlantic, London near its right edge');
-      const globe = draw(0, [ax, ay], 2);
+      this.state.turn = 0;
+      const base = { ...this.state };
+      const globe = view(this, (st) => draw(st.turn as number, [ax, ay], 2), { place: false });
       await s.enter(globe, { describe: 'After: the globe, turned to face London, which sits near its middle' });
-      await this.play(new Follow({ from: 0, to: 1, draw: (t) => [draw(t, [ax, ay], 2)] }, { targets: [globe] }));
+      await this.play(globe.tween((t) => ({ ...base, turn: t })));
       const london = project(latLon(51.5, -0.1), b, 1, { at: [ax, ay], scale: 2 }).at;
       await s.enter(new Text('London', { fontSize: 0.36, color: ink }).moveTo([london[0] + 0.25, london[1]], [-1, 0]));
       this.state.london = london.map((v) => Number(v.toFixed(2)));

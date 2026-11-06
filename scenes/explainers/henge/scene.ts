@@ -1,4 +1,4 @@
-import { Scene, VMobject, Follow, SetState, Succession, view, linear } from '../../../src/index.ts';
+import { Scene, VMobject, view, linear } from '../../../src/index.ts';
 import type { Group } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage, answerOf } from '../../../explain/index.ts';
@@ -94,7 +94,7 @@ export default class Henge extends Scene {
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
     await s.steps(before);
 
-    // The year as a turn of state: one Follow over the orbital longitude, from the December
+    // The year as a turn of state: the view tweened over the orbital longitude, from the December
     // solstice round to the next, redraws the day's circle from the model at every frame.
     const dayAt: DayAt = (longitude) => { const d = sunset(declination(longitude)); return { declination: d.declination, hourAngle: d.hourAngle, azimuth: d.azimuth }; };
     const start: YearState = { bearing: m.bearing, start: -90, longitude: -90, crossings: m.half };
@@ -107,17 +107,14 @@ export default class Henge extends Scene {
     const sweep = view(this, (st) => year(st as unknown as YearState, dayAt), { place: false });
     s.opening(sweep);
     await s.enter(sweep, { runTime: 0.24, describe: () => yearWords(this.state as unknown as YearState, dayAt) });
-    await this.play(new Succession([
-      new Follow({ from: start.longitude, to: 270, draw: (longitude) => year({ ...start, longitude }, dayAt) }, { targets: [sweep.current], runTime: 9, rateFunc: linear }),
-      new SetState(this, (st) => ({ ...st, longitude: 270 })),
-    ]));
+    await this.play(sweep.tween((t) => ({ ...start, longitude: start.longitude + (270 - start.longitude) * t }), { runTime: 9, rateFunc: linear }));
 
     await s.steps(crossings);
     await s.steps(details);
 
     // One camera move from sky to street: the eye at the sphere's centre, in the middle of the
     // street, looks up and lowers its gaze along the street's circle to the horizon, while the
-    // lens narrows. A Follow over the viewpoint's pitch; every frame is the picture of its value.
+    // lens narrows. The view tweened over the viewpoint's pitch; every frame is the picture of its value.
     const alignment = dayAt(m.half[0]!);
     const UP = { pitch: 78, scale: 2.4 }, DOWN = { pitch: 3, scale: 6.5 };
     const eye = (t: number): LookState => ({ bearing: m.bearing, pitch: UP.pitch + (DOWN.pitch - UP.pitch) * t, scale: UP.scale * (DOWN.scale / UP.scale) ** t, day: day(alignment) });
@@ -133,10 +130,7 @@ export default class Henge extends Scene {
     // The phone opens on the camera's window and its legend; the sky's lines run on past the window, under the paper.
     s.opening(...street.current.family().filter((part) => ['henge-look-window', 'henge-look-legend', 'henge-look-sides', 'henge-look-sun'].includes(part.key ?? '')));
     await s.enter(street, { runTime: 0.24, describe: () => lookWords(this.state as unknown as LookState, names) });
-    await this.play(new Succession([
-      new Follow({ from: 0, to: 1, draw: (t) => look(eye(t), s.palette.paper, names) }, { targets: [street.current], runTime: 5 }),
-      new SetState(this, (st) => ({ ...st, ...eye(1) })),
-    ]));
+    await this.play(street.tween((t) => ({ ...eye(t) }), { runTime: 5 }));
 
     await s.steps(after);
   }

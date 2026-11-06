@@ -1,4 +1,4 @@
-import { Scene, VMobject, Follow, SetState, Succession, view } from '../../../src/index.ts';
+import { Scene, VMobject, Succession, view } from '../../../src/index.ts';
 import type { Group, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import type { StagedStep } from '../../../explain/index.ts';
@@ -9,7 +9,7 @@ import { MERCATOR, TROPICS, mercator, stretched, globe, westward, gnomonic, onEq
 import type { MapState, GlobeState, Pair } from './picture.ts';
 
 
-// ---------------------------------------------------------------- viewpoints: state, turned by a Follow
+// ---------------------------------------------------------------- viewpoints: state, turned by a view's tween
 const L = london(), M = madrid();
 /** The route's midpoint: looking straight at it, the eye lies in the route's plane. */
 const middle = greatCircle(L.from, L.to, 2)[1]!;
@@ -130,8 +130,8 @@ export default class GreatCircle extends Scene {
 
     await s.steps(before);
 
-    // The aha: the same globe, turned. The viewpoint is state; one Follow over its pitch draws the
-    // globe afresh at every angle, so a seek lands on the frame a full play shows.
+    // The aha: the same globe, turned. The viewpoint is state; the view tweened over its pitch draws
+    // the globe afresh at every angle, so a seek lands on the frame a full play shows.
     await this.step('turn', {
       title: 'Turn the globe: seen edge-on, the route is a straight line',
       line: 'The route never changes; only where you look from does.',
@@ -143,13 +143,10 @@ export default class GreatCircle extends Scene {
     const picture = view(this, (st) => globe(st as unknown as GlobeState, s), { place: false });
     s.opening(picture);
     await s.enter(picture, { runTime: 0.24, describe: () => turnWords(this.state.viewpoint as Viewpoint, L) });
+    const base = { ...this.state };
     const pitchTo = (from: number, to: number, runTime: number) =>
-      new Follow({ from, to, draw: (pitch) => globe({ viewpoint: { ...EDGE_ON, pitch }, route: L }, s) }, { targets: [picture.current], runTime });
-    await this.play(new Succession([
-      pitchTo(HELD.pitch, PAST.pitch, 2.6),
-      pitchTo(PAST.pitch, EDGE_ON.pitch, 1.4),
-      new SetState(this, (st) => ({ ...st, viewpoint: EDGE_ON })),
-    ]));
+      picture.tween((t) => ({ ...base, viewpoint: { ...EDGE_ON, pitch: from + (to - from) * t } }), { runTime });
+    await this.play(new Succession([pitchTo(HELD.pitch, PAST.pitch, 2.6), pitchTo(PAST.pitch, EDGE_ON.pitch, 1.4)]));
 
     await s.steps(after);
   }

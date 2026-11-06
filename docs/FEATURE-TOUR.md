@@ -24,7 +24,7 @@ A recipe is an excerpt. The tour's [runnable source](https://github.com/adewale/
 | `state` | `this.state`, `view(this, ...)`, `label.sync()` | [State views and fidelity checks](VIEWS.md) |
 | `direction`, `palette` | `stage(this, {direction:'rtl'})`, card at `start`, `stage(this, {palette: palette('nord')})` | [Logical layout](REFERENCE.md#spatial-direction), [stage options](REFERENCE.md#stage) |
 | `math` | `lettering: {math: true}`, `MathTex` | [Maths](REFERENCE.md#maths) |
-| `globe` | `seenFrom`, `between`, `Follow` | [3D](REFERENCE.md#3d-seenfrommodel-viewpoint), [Follow](CHOREOGRAPHY.md#follow) |
+| `globe` | `seenFrom`, `between`, `view.tween` | [3D](REFERENCE.md#3d-seenfrommodel-viewpoint), [following one number](CHOREOGRAPHY.md#following-one-number) |
 
 When you copy a recipe, copy the before panel's job too. A step whose motion is the point should leave something that shows where it started, the way each result here leaves the circle beside the square.
 

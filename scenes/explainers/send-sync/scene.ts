@@ -124,13 +124,16 @@ export default class SendSyncExplainer extends Scene {
       send: boolean,
       sync: boolean,
       here: Quadrant,
-      words: (st: SendSyncState) => readonly string[],
+      // Words drawn from the state are a view of it; fixed words are just words.
+      words: readonly string[] | ((st: SendSyncState) => readonly string[]),
     ) => {
       await chartOf.note(`point:${point}:label`, `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, {
         side: 'below',
         size: SIZE,
       });
-      await s.enter(view(this, (state) => new Group(...lines(words(state as unknown as SendSyncState), RIGHT[3])), { place: false }));
+      await s.enter(typeof words === 'function'
+        ? view(this, (state) => new Group(...lines(words(state as unknown as SendSyncState), RIGHT[3])), { place: false })
+        : new Group(...lines(words, RIGHT[3])));
       await locator(here);
     };
 
@@ -247,7 +250,7 @@ export default class SendSyncExplainer extends Scene {
       const chartOf = d;
       await chartOf.reveal([`point:${p.name}`, `point:${p.name}:label`]);
       await chartOf.focus([`plate:${p.q}`], { zoom: ZOOM });
-      await tell(chartOf, p.name, p.send, p.sync, p.q, () => [
+      await tell(chartOf, p.name, p.send, p.sync, p.q, [
         meta.source,
         ...(p.name === 'i32' ? ['Only the quadrant counts: a point’s place inside it means nothing.'] : []),
       ]);
@@ -277,7 +280,7 @@ export default class SendSyncExplainer extends Scene {
     );
     await d.focus([`plate:${arcCell.quadrant}`], { zoom: ZOOM });
     // The opening's wrap is the same in every scenario.
-    await tell(d, shared, arcCell.send, arcCell.sync, arcCell.quadrant, () => [
+    await tell(d, shared, arcCell.send, arcCell.sync, arcCell.quadrant, [
       'Arc needs T: Send + Sync',
       `T here: ${cellLayer.name}`,
       'See sync.rs:284, 286.',

@@ -95,7 +95,7 @@ distribution and adding another dependent readout. Keep these constraints:
 
 The recipe fixes drawing coordinates at construction, so shifting, scaling or
 rotating the dependent group does not survive the next sample; a camera move is
-unaffected. The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow):
+unaffected. The exported form of this idea is a [view's tween](CHOREOGRAPHY.md#following-one-number):
 one sampled number, a `draw` that returns the picture at it, and the targets it
 writes, named for the one-writer check.
 
@@ -118,7 +118,7 @@ that frame. An invariant that never holds in a whole run tested nothing, so
 `rayner check` fails it, which keeps a misspelt key from passing. `rayner check` runs
 every registered invariant on every frame of every scenario, so an invariant about what
 happens between steps (a gauge meeting a line, a pointer on its circle) fails at the
-first frame that breaks it. Sampled from its angle with `Follow`, the dot holds; morphed
+first frame that breaks it. Sampled from its angle by a view's tween, the dot holds; morphed
 between its two ends with `Transform`, it cuts through the centre, and the recipe's test
 finds those frames. `token-bucket` and `ring-buffer` declare invariants of this kind.
 

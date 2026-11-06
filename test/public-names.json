@@ -1,9 +1,6 @@
 {
   "names": {
     "rayner": {
-      "Follow": {
-        "check": "Seek: a seeked frame that differs from the played one fails, so a Follow must draw from its sampled value alone"
-      },
       "Frame": {
         "guide": "docs/CAMERA.md#what-it-is",
         "test": "test/camera.test.ts"
@@ -64,7 +61,7 @@
         "check": "Words, Step change: a kept drawing with no text and no describe, or a step whose resting picture equals the previous step's, fails"
       },
       "stagedStep": {
-        "check": "Staged steps: a step redrawn from the state its trace recorded that differs, or whose draw ignores its state, fails"
+        "check": "Views: each step's picture is a view of its state, so a step whose picture differs from a fresh draw of its state, or whose draw ignores its state, fails"
       }
     },
     "rayner/drawing": {
@@ -324,14 +321,16 @@
     {
       "explaining": "A data structure changing step by step",
       "start": "`ring-buffer`",
-      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with the transition's `t.choreograph`, `Follow` for the pointers",
+      "shows": "No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with the transition's `t.choreograph`, `c.follow` for the pointers",
       "scenes": [
         "ring-buffer"
       ],
       "names": [
-        "Machine",
-        "Follow"
-      ]
+        "Machine"
+      ],
+      "patterns": {
+        "c.follow": "\\.follow\\("
+      }
     },
     {
       "explaining": "A state machine",
@@ -379,15 +378,17 @@
     {
       "explaining": "A rate or a model's numbers over time",
       "start": "`token-bucket`, `seasons`",
-      "shows": "`token-bucket`: `Axes`, `lineGraph`, `Follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model",
+      "shows": "`token-bucket`: `Axes`, `lineGraph`, `g.follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model",
       "scenes": [
         "token-bucket",
         "seasons"
       ],
       "names": [
-        "Axes",
-        "Follow"
-      ]
+        "Axes"
+      ],
+      "patterns": {
+        "g.follow": "\\.follow\\("
+      }
     },
     {
       "explaining": "Identity, hashing or text that changes",

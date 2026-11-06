@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Follow, Transform, VMobject, Dot } from '../src/index.ts';
+import { Scene, Transform, VMobject, Dot } from '../src/index.ts';
+import { Follow } from '../src/animation.ts';
 import type { Mobject, Sink } from '../src/index.ts';
 import { seenFrom, depthOrder, project, latLon, circleOn, greatArc, between } from '../explain/drawing.ts';
 import type { Model3D, Part, Viewpoint, Vec3, Seen } from '../explain/drawing.ts';

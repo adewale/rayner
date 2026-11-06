@@ -1,5 +1,5 @@
-// A supported recipe using the Animation extension point by hand. The exported
-// `Follow` does the same for any one number (docs/CHOREOGRAPHY.md); this shows what it wraps.
+// A supported recipe using the Animation extension point by hand. A view's `tween` does the same
+// through the scene's state, redrawing the view at every frame (docs/VIEWS.md); this shows what it wraps.
 import { Scene, Group, Circle, Dot, Line, DecimalNumber, Animation, linear } from 'rayner';
 import type { Vec, AnimOpts } from 'rayner';
 

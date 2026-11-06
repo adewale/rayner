@@ -1,4 +1,4 @@
-import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
+import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create, View } from '../src/index.ts';
 import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
 import type { StepAudio } from './audio.ts';
@@ -86,15 +86,6 @@ export interface StagedStep<S extends object = Record<string, unknown>> {
 export const stagedStep = <S extends object>(step: StagedStep<S>): StagedStep => step as unknown as StagedStep;
 /** Options for `stage.steps`: `kind` puts every step on that path (default 'main'). */
 export interface StagedStepsOptions { kind?: StepKind }
-/** One staged step as `rayner check` redraws it: from the recorded state, compared with what was drawn. */
-export interface StagedRecord { step: string; kind: StepKind; redraw: (recorded: SceneState) => Mobject; drawn: string }
-const staged = new WeakMap<object, StagedRecord[]>();
-/** The steps `stage.steps` presented on a scene, in order: what `rayner check` redraws after a run. */
-export function stagedStepsOf(scene: Scene): StagedRecord[] {
-  let list = staged.get(scene);
-  if (!list) staged.set(scene, (list = []));
-  return list;
-}
 /** A picture's text and each part's box, rounded: what a redraw must reproduce. */
 export function pictureFingerprint(m: Mobject): string {
   const round = (v: number) => Math.round(v * 1000) / 1000;
@@ -656,8 +647,9 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /**
      * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in
-     * its picture, drawn from that model alone. `kind: 'short'` marks the steps as the reader's
-     * short path before the main one; each step's own `kind` overrides the list's.
+     * its picture, a view of that state: `rayner check` holds it to its draw as it holds every view.
+     * `kind: 'short'` marks the steps as the reader's short path before the main one; each step's
+     * own `kind` overrides the list's.
      */
     async steps<S extends object>(list: readonly StagedStep<S>[], { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
       for (const step of list) {
@@ -669,21 +661,19 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         await this.clear({ runTime: 0.18 });
         const state = jsonObject(step.state as Record<string, unknown>, `step ${step.id} state`) as S;
         scene.state = { ...state } as SceneState;
-        const drawing = step.draw(state, this as StageApi);
-        if (kind === 'short') drawing.key = 'reader-picture';
-        stagedStepsOf(scene).push({
-          step: step.id,
-          kind,
-          redraw: (recorded) => step.draw(recorded as S, this as StageApi),
-          drawn: pictureFingerprint(drawing),
-        });
+        const picture = new View(scene, (st) => {
+          const drawn = step.draw(st as S, this as StageApi);
+          if (kind === 'short') drawn.key = 'reader-picture';
+          return drawn;
+        }, { place: false });
+        const drawing = picture.current;
         // What the step is about, when that is less than the whole drawing: a phone opens on it.
         const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];
         this.opening(...about);
         // Describe the drawn labels (or the step's own words for its picture), not the state object or the
         // authored caption; a part that describes itself is described by itself, so its text is not repeated.
         const words = partsSeen(drawing).words.filter(Boolean).join('. ');
-        await this.enter(drawing, { runTime: kind === 'short' ? 0.25 : 0.24, describe: step.describe ? step.describe(state) : words });
+        await this.enter(picture, { runTime: kind === 'short' ? 0.25 : 0.24, describe: step.describe ? step.describe(state) : words });
       }
     },
   };

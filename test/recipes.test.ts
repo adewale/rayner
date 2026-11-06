@@ -130,11 +130,11 @@ test('invariant recipe: the sampled orbit holds its claim on every frame, the mo
 });
 
 test('a claim that reads a misspelt key finds nothing on every frame: it is reported as vacuous, not as held', async () => {
-  const { Scene, Dot, Follow, linear } = await import('rayner');
+  const { Scene, Dot, linear, view } = await import('rayner');
   class Misspelt extends Scene {
     override async construct() {
-      const dot = new Dot().moveTo([2, 0]);
-      dot.key = 'orbit:dot';
+      this.state = { angle: 0 };
+      const dot = view(this, (st) => Object.assign(new Dot().moveTo([2 * Math.cos(st.angle as number), 2 * Math.sin(st.angle as number)]), { key: 'orbit:dot' }), { place: false });
       this.add(dot);
       this.addInvariant('the dot stays on its circle', (scene) => {
         const found = scene.find('orbit:dto');
@@ -142,7 +142,7 @@ test('a claim that reads a misspelt key finds nothing on every frame: it is repo
         return Math.abs(Math.hypot(...found.center()) - 2) <= 1e-3 || 'off its circle';
       });
       await this.step('turn');
-      await this.play(new Follow({ from: 0, to: 1, draw: (a) => new Dot().moveTo([2 * Math.cos(a), 2 * Math.sin(a)]) }, { targets: [dot] }), { runTime: 0.3, rateFunc: linear });
+      await this.play(dot.tween((t) => ({ angle: t })), { runTime: 0.3, rateFunc: linear });
     }
   }
   const result = await invariantFailures(Misspelt);

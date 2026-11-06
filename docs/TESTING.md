@@ -21,7 +21,7 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 | Domain values | Independent model tests, source vectors and real Git/CPython fixtures; `view-readouts.test.ts` pins reader values |
 | Engine geometry and animation | Seeded properties, Manim/raster references, native SVG and seek/cache tests |
 | Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
-| Staged steps | `rayner check` redraws every `stage.steps` picture from the state its trace recorded; `staged-steps.test.ts` shows a draw that reads a counter instead of its state failing, named by its step |
+| Staged steps | Each `stage.steps` picture is a view, so `rayner check` holds it to its draw at its step's end and draws it from other states; `staged-steps.test.ts` shows a draw that reads a counter, and one that draws a captured constant, failing, named by their steps |
 | Machines | `rayner check` explores every machine's reachable states and checks each picture, its labels at 1280 px included; `machine.test.ts` checks replay, seeking, shortest paths and a picture that cannot tell states apart |
 | Scene invariants | `rayner check` runs each `addInvariant` invariant on every frame of every scenario; `recipes.test.ts` proves an invariant fails on the counterexample, and each explainer's invariant was shown to fail on its old behaviour |
 | Extracted choreography | `choreography.test.ts` checks geometric anchors, route/opacity samples, legacy frame equivalence, JSON state boundaries, nested schedules and writer conflicts |

@@ -27,8 +27,8 @@ export type { AnimOpts, PlayOpts, Playable, ScheduledAnimation, TransformOpts, F
 export { Circumscribe } from './animation.ts';
 export type { CircumscribeOpts } from './animation.ts';
 export { Restore, TransformFromCopy, Succession } from './animation.ts';
-export { GrowFromEdge, PulseAlongPath, SetState, Follow } from './animation.ts';
-export type { GrowFromEdgeOpts, FollowSpec, FollowOpts, SetStateOpts } from './animation.ts';
+export { GrowFromEdge, PulseAlongPath, SetState } from './animation.ts';
+export type { GrowFromEdgeOpts, FollowSpec, SetStateOpts } from './animation.ts';
 export { Machine, refuse, isRefusal } from './machine.ts';
 export type { MachineSpec, Transition, Outcome, Refusal } from './machine.ts';
 export { choreograph } from './choreograph.ts';
