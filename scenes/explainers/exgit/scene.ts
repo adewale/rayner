@@ -57,8 +57,8 @@ export default class GitExplainer extends Scene {
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',
     ],
     claims: [
-      { says: 'Git writes only the objects whose bytes are new', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
-      { says: 'Changed bytes change every id above them', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
+      { says: 'Git writes only the objects whose bytes are new', test: 'model.test.ts: Git writes only the objects whose bytes are new' },
+      { says: 'Changed bytes change every id above them', test: 'model.test.ts: Git writes only the objects whose bytes are new' },
     ],
   };
   static settings = [

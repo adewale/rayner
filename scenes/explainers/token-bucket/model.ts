@@ -2,8 +2,8 @@
 // Its limits: one client's bucket, initially full; every request costs one token; times are supplied
 // and never run backwards; a request is accepted or refused at once, with no queue, no reservation of
 // future tokens and no server work. The balance is brought up to date lazily, when a request arrives.
-// Compared with golang.org/x/time/rate v0.15.0 on the explainer's schedule only (tools/oracle/token-bucket,
-// test/explain-models.test.ts), not with every feature of that package.
+// Compared with golang.org/x/time/rate v0.15.0 on the explainer's schedule only (oracle/,
+// model.test.ts), not with every feature of that package.
 export class TokenBucket {
   tokens: number;
   lastRefill = 0;

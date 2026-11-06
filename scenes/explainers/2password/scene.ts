@@ -30,8 +30,8 @@ export default class PasswordExplainer extends Scene {
     ],
     // Sentences that reach past the scenarios on screen, and what holds each.
     claims: [
-      { says: 'The agent handles only an op:// reference', test: 'test/explain-models.test.ts: 2password find returns references and no field value' },
-      { says: 'the agent searches titles, never values', test: 'test/explain-models.test.ts: compares queries with titles alone' },
+      { says: 'The agent handles only an op:// reference', test: 'model.test.ts: 2password find returns references and no field value' },
+      { says: 'the agent searches titles, never values', test: 'model.test.ts: compares queries with titles alone' },
       { says: 'contains every word of', shown: true as const },
       { says: 'every sample value is searched for in the output', shown: true as const },
     ],

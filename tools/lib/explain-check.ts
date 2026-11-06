@@ -8,7 +8,7 @@ import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stag
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {
@@ -876,6 +876,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const claimProblems = await declaredClaimProblems(
     checkClaimsMeta(project.Scene.meta),
     scenarios.flatMap((v) => v.claims.stated),
+    process.cwd(),
+    dirname(project.file),
   );
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
@@ -897,9 +899,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
 
 /**
  * What is wrong with a scene's declared claims: one no scenario states, or one whose test file is not
- * there or holds no test whose name contains the given part.
+ * there or holds no test whose name contains the given part. A test file is looked for in the scene's
+ * `folder` first (`model.test.ts: …`), then from `directory`, where the command was run.
  */
-export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd(), folder?: string): Promise<string[]> {
   const problems: string[] = [];
   const files = new Map<string, string[] | null>();
   for (const c of claims) {
@@ -909,7 +912,9 @@ export async function declaredClaimProblems(claims: readonly { says: string; tes
       file = c.test.slice(0, at),
       name = c.test.slice(at + 2);
     if (!files.has(file)) {
-      const source = await readFile(resolve(directory, file), 'utf8').catch(() => null);
+      const source =
+        (folder === undefined ? null : await readFile(resolve(folder, file), 'utf8').catch(() => null)) ??
+        (await readFile(resolve(directory, file), 'utf8').catch(() => null));
       files.set(file, source === null ? null : testNames(source));
     }
     const names = files.get(file);

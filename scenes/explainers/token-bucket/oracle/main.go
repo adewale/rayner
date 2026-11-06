@@ -1,8 +1,7 @@
-// The token-bucket explainer's ten requests, answered by golang.org/x/time/rate, for
-// test/explain-models.test.ts. Rayner's model is not run here; the test compares it with
-// this file.
+// The token-bucket explainer's ten requests, answered by golang.org/x/time/rate, for its
+// model.test.ts. Rayner's model is not run here; the test compares it with this file.
 //
-//	cd tools/oracle/token-bucket && go run . > ../../../test/fixtures/token-bucket-xtime.json
+//	cd scenes/explainers/token-bucket/oracle && go run . > ../fixtures/token-bucket-xtime.json
 //
 // rate.NewLimiter(r, 5) is a token bucket of size 5, initially full and refilled at r tokens
 // a second. AllowN takes the arrival time, so the schedule runs on a fixed clock.

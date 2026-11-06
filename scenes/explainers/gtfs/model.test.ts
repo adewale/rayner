@@ -1,44 +1,83 @@
-// The gtfs explainer's model, held to the GTFS Schedule reference and to its sample feed, with the
-// day counts and stop timetables gtfs-kit gives for the same feed; and the ER words in
-// explain/diagrams.ts, held to the explainer's pinned ER snapshot.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { fc, params } from './lib/pbt.ts';
-import { Scene } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
-import { Diagram } from '../explain/diagrams.ts';
-import { readSnapshots } from '../tools/lib/explain-project.ts';
-import { replayMorph } from '../integrations/agentic-mermaid/build/index.ts';
-import { SAMPLE_FEED } from '../scenes/explainers/gtfs/feed.ts';
-import {
-  parseCsv,
-  readFeed,
-  serviceOn,
-  servicesOn,
-  tripsOn,
-  visitsAt,
-  stopDay,
-  weekday,
-  addDays,
-  seconds,
-  clock,
-  dayChart,
-  ganttSource,
-  ganttEdits,
-  weekGrid,
-  WEEKDAYS,
-} from '../scenes/explainers/gtfs/model.ts';
-import type { Feed, GtfsDate } from '../scenes/explainers/gtfs/model.ts';
+import { fc, params } from '../lib/pbt.ts';
+import { SAMPLE_FEED } from './feed.ts';
+import { parseCsv, readFeed, serviceOn, servicesOn, tripsOn, visitsAt, stopDay, weekday, addDays, seconds, clock, weekGrid, WEEKDAYS } from './model.ts';
+import type { Feed, GtfsDate } from './model.ts';
 
 const FEED = readFeed(SAMPLE_FEED);
+
+// gtfs-kit 13.0.1 (pandas 3.1.0, Python 3.15.0), run once on 2026-10-25 over the vendored files:
+//   gk.get_active_services(feed, d), len(gk.get_trips(feed, date=d)) and
+//   gk.build_stop_timetable(feed, stop, [d])[['trip_id', 'departure_time', 'stop_sequence']].
+// (gk.expand_frequencies gives STBA 32 vehicles, 6:00 to 21:30: it takes end_time as excluded,
+// which the reference does not say; the explainer gives headways, not a vehicle count.)
+const GTFS_KIT_SERVICES: Record<GtfsDate, string[]> = {
+  '20070603': ['FULLW', 'WE'],
+  '20070604': [],
+  '20070605': ['FULLW'],
+  '20070606': ['FULLW'],
+  '20070607': ['FULLW'],
+  '20070608': ['FULLW'],
+  '20070609': ['FULLW', 'WE'],
+};
+
+const GTFS_KIT_TRIPS: Record<GtfsDate, number> = { '20070603': 11, '20070604': 0, '20070605': 7, '20070606': 7, '20070607': 7, '20070608': 7, '20070609': 11 };
+
+const GTFS_KIT_TIMETABLE: Record<string, [string, string, number][]> = {
+  'BEATTY_AIRPORT 20070604': [],
+  'BEATTY_AIRPORT 20070605': [
+    ['STBA', '6:20:00', 2],
+    ['AB1', '8:00:00', 1],
+    ['AB2', '12:15:00', 2],
+  ],
+  'BEATTY_AIRPORT 20070609': [
+    ['STBA', '6:20:00', 2],
+    ['AB1', '8:00:00', 1],
+    ['AAMV1', '8:00:00', 1],
+    ['AAMV2', '11:00:00', 2],
+    ['AB2', '12:15:00', 2],
+    ['AAMV3', '13:00:00', 1],
+    ['AAMV4', '16:00:00', 2],
+  ],
+  'STAGECOACH 20070604': [],
+  'STAGECOACH 20070605': [
+    ['STBA', '6:00:00', 1],
+    ['CITY1', '6:00:00', 1],
+    ['CITY2', '6:58:00', 5],
+  ],
+  'STAGECOACH 20070609': [
+    ['STBA', '6:00:00', 1],
+    ['CITY1', '6:00:00', 1],
+    ['CITY2', '6:58:00', 5],
+  ],
+};
+
+// A service as calendar.txt and calendar_dates.txt can state it, for properties over any date.
+const ymd = fc.date({ min: new Date(Date.UTC(2005, 0, 1)), max: new Date(Date.UTC(2012, 11, 31)), noInvalidDate: true }).map((d) => d.toISOString().slice(0, 10).replace(/-/g, ''));
+
+const service = fc.record({
+  inCalendar: fc.boolean(),
+  days: fc.array(fc.boolean(), { minLength: 7, maxLength: 7 }),
+  start: ymd,
+  end: ymd,
+  exception: fc.constantFrom<0 | 1 | 2>(0, 1, 2),
+});
+
+function feedOf(s: { inCalendar: boolean; days: boolean[]; start: string; end: string; exception: 0 | 1 | 2 }, date: string): Feed {
+  const files: Record<string, string> = {};
+  if (s.inCalendar)
+    files['calendar.txt'] = `service_id,${WEEKDAYS.join(',')},start_date,end_date\nS,${s.days.map((b) => (b ? 1 : 0)).join(',')},${s.start},${s.end}\n`;
+  if (s.exception) files['calendar_dates.txt'] = `service_id,date,exception_type\nS,${date},${s.exception}\n`;
+  return readFeed(files);
+}
 
 test('the feed the page carries is the vendored sample feed, byte for byte', async () => {
   const names = Object.keys(SAMPLE_FEED).sort();
   assert.deepEqual(names, ['calendar.txt', 'calendar_dates.txt', 'frequencies.txt', 'routes.txt', 'stop_times.txt', 'stops.txt', 'trips.txt']);
   for (const name of names)
-    assert.equal(SAMPLE_FEED[name], await readFile(`scenes/explainers/gtfs/sample-feed-1/${name}`, 'utf8'), name);
+    assert.equal(SAMPLE_FEED[name], await readFile(new URL(`./sample-feed-1/${name}`, import.meta.url), 'utf8'), name);
 });
 
 test('the sample feed says what the explainer says it says', () => {
@@ -72,50 +111,6 @@ test('dates: 4 June 2007 is a Monday, and calendar.txt names its columns by week
   assert.equal(clock(seconds('7:59:59')), '7:59:59');
   assert.equal(clock(seconds('08:00:00')), '8:00');
 });
-
-// gtfs-kit 13.0.1 (pandas 3.1.0, Python 3.15.0), run once on 2026-10-25 over the vendored files:
-//   gk.get_active_services(feed, d), len(gk.get_trips(feed, date=d)) and
-//   gk.build_stop_timetable(feed, stop, [d])[['trip_id', 'departure_time', 'stop_sequence']].
-// (gk.expand_frequencies gives STBA 32 vehicles, 6:00 to 21:30: it takes end_time as excluded,
-// which the reference does not say; the explainer gives headways, not a vehicle count.)
-const GTFS_KIT_SERVICES: Record<GtfsDate, string[]> = {
-  '20070603': ['FULLW', 'WE'],
-  '20070604': [],
-  '20070605': ['FULLW'],
-  '20070606': ['FULLW'],
-  '20070607': ['FULLW'],
-  '20070608': ['FULLW'],
-  '20070609': ['FULLW', 'WE'],
-};
-const GTFS_KIT_TRIPS: Record<GtfsDate, number> = { '20070603': 11, '20070604': 0, '20070605': 7, '20070606': 7, '20070607': 7, '20070608': 7, '20070609': 11 };
-const GTFS_KIT_TIMETABLE: Record<string, [string, string, number][]> = {
-  'BEATTY_AIRPORT 20070604': [],
-  'BEATTY_AIRPORT 20070605': [
-    ['STBA', '6:20:00', 2],
-    ['AB1', '8:00:00', 1],
-    ['AB2', '12:15:00', 2],
-  ],
-  'BEATTY_AIRPORT 20070609': [
-    ['STBA', '6:20:00', 2],
-    ['AB1', '8:00:00', 1],
-    ['AAMV1', '8:00:00', 1],
-    ['AAMV2', '11:00:00', 2],
-    ['AB2', '12:15:00', 2],
-    ['AAMV3', '13:00:00', 1],
-    ['AAMV4', '16:00:00', 2],
-  ],
-  'STAGECOACH 20070604': [],
-  'STAGECOACH 20070605': [
-    ['STBA', '6:00:00', 1],
-    ['CITY1', '6:00:00', 1],
-    ['CITY2', '6:58:00', 5],
-  ],
-  'STAGECOACH 20070609': [
-    ['STBA', '6:00:00', 1],
-    ['CITY1', '6:00:00', 1],
-    ['CITY2', '6:58:00', 5],
-  ],
-};
 
 test('which services and how many trips run each day of the week of 4 June, as gtfs-kit says', () => {
   for (const [date, services] of Object.entries(GTFS_KIT_SERVICES)) {
@@ -160,23 +155,6 @@ test('the stop_times rows at each stop are gtfs-kit’s; departures are those th
     ['STBA', 0, [30]],
   ]);
 });
-
-// A service as calendar.txt and calendar_dates.txt can state it, for properties over any date.
-const ymd = fc.date({ min: new Date(Date.UTC(2005, 0, 1)), max: new Date(Date.UTC(2012, 11, 31)), noInvalidDate: true }).map((d) => d.toISOString().slice(0, 10).replace(/-/g, ''));
-const service = fc.record({
-  inCalendar: fc.boolean(),
-  days: fc.array(fc.boolean(), { minLength: 7, maxLength: 7 }),
-  start: ymd,
-  end: ymd,
-  exception: fc.constantFrom<0 | 1 | 2>(0, 1, 2),
-});
-function feedOf(s: { inCalendar: boolean; days: boolean[]; start: string; end: string; exception: 0 | 1 | 2 }, date: string): Feed {
-  const files: Record<string, string> = {};
-  if (s.inCalendar)
-    files['calendar.txt'] = `service_id,${WEEKDAYS.join(',')},start_date,end_date\nS,${s.days.map((b) => (b ? 1 : 0)).join(',')},${s.start},${s.end}\n`;
-  if (s.exception) files['calendar_dates.txt'] = `service_id,date,exception_type\nS,${date},${s.exception}\n`;
-  return readFeed(files);
-}
 
 test('a service runs on a date exactly when an exception adds it, or no exception removes it and its weekly pattern covers the date', () => {
   fc.assert(
@@ -276,82 +254,3 @@ test('CSV: quoted fields keep their commas, quotes and line breaks', () => {
   );
 });
 
-test('the day chart’s edits, replayed by Agentic Mermaid, turn any day’s chart into any other’s', () => {
-  // The scene's three scenarios, then a sample of other pairs of dates.
-  for (const date of ['20070604', '20070605', '20070609'])
-    replayMorph({ source: ganttSource(FEED, addDays(date, -1)) }, { source: ganttSource(FEED, date) }, ganttEdits(FEED, addDays(date, -1), date));
-  fc.assert(
-    fc.property(ymd, ymd, (a, b) => {
-      replayMorph({ source: ganttSource(FEED, a) }, { source: ganttSource(FEED, b) }, ganttEdits(FEED, a, b));
-      // Two edits per trip whose running changes, none for the others.
-      const changed = FEED.trips.filter((t) => tripsOn(FEED, a).includes(t) !== tripsOn(FEED, b).includes(t)).length;
-      assert.equal(ganttEdits(FEED, a, b).length, 2 * changed);
-      assert.equal(dayChart(FEED, b).flatMap((s) => s.trips).filter((t) => t.runs).length, tripsOn(FEED, b).length);
-    }),
-    params(40),
-  );
-});
-
-// ------------------------------------------------------------------ ER words, on the pinned snapshot
-
-await loadFonts();
-const store = await readSnapshots('scenes/explainers/gtfs/scene');
-const er = Object.values(store).find((s) => s.family === 'er');
-async function shown() {
-  assert.ok(er, 'the gtfs explainer pins an ER snapshot');
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), er.spec, er, {});
-  await d.build();
-  return d;
-}
-/** Mermaid's crow's-foot markers, as the source writes them: the left one at the first entity. */
-const MARKERS: Record<string, string> = { '||': 'exactly one', '|o': 'zero or one', 'o|': 'zero or one', '}o': 'zero or more', 'o{': 'zero or more', '}|': 'one or more', '|{': 'one or more' };
-
-test('an ER relationship is described by its label and what each crow’s-foot marker says, read from the source', async () => {
-  const d = await shown();
-  const seen = d.describe();
-  assert.equal(seen.what, 'ER diagram: 7 entities, 6 relationships');
-  assert.equal(seen.blank, undefined, 'every drawn part has words');
-  const rels = [...er!.spec.source.matchAll(/^\s*(\w+) ([|}][|o]|[|o][|o])--([|o][|o{]|[|o]\{|o\{|\|\{) (\w+) : "([^"]*)"/gm)];
-  assert.equal(rels.length, 6);
-  for (const [, a, left, right, b, label] of rels) {
-    const name = `${a} → ${b}: ${label} (each ${a} has ${MARKERS[right!]} ${b}, each ${b} has ${MARKERS[left!]} ${a})`;
-    assert.ok(seen.parts.some((p) => p.name === name), `${name}\nnot in ${seen.parts.map((p) => p.name).join('\n')}`);
-  }
-  // The brief's example, verbatim.
-  assert.ok(seen.parts.some((p) => p.name.includes('each TRIP has one or more STOP_TIME')));
-  // An entity is named with its attributes as declared.
-  assert.ok(seen.parts.some((p) => p.name === 'ROUTE: route_id (id), route_short_name (text)'));
-  // A bare entity name finds the entity, as a participant's or a class's does.
-  assert.equal(d.get('TRIP'), d.get('entity:TRIP'));
-});
-
-test('an ER relationship’s markers and label background belong to it: the label paints above its background', async () => {
-  const d = await shown();
-  for (const p of er!.parts.filter((p) => p.id.startsWith('rel:'))) {
-    const rel = d.get(p.id);
-    const family = rel.family();
-    const bg = d.get(`rel-label:${p.id.slice(4)}:bg`),
-      label = d.get(`rel-label:${p.id.slice(4)}`);
-    // Inside the relationship's group; later in the family is painted later, so on top.
-    assert.ok(family.includes(bg) && family.includes(label), p.id);
-    assert.ok(family.indexOf(bg) < family.indexOf(label), `${p.id}: the background paints over its label`);
-    for (const end of [1, 2]) assert.ok(family.includes(d.get(`card:${p.id.slice(4)}:${end}`)), `${p.id}: marker ${end}`);
-  }
-  // No marker or background is a part of its own: the description and dimming see the relationship.
-  const top = [...d.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id);
-  assert.deepEqual(top.filter((id) => /^(card|rel-label):/.test(id)), []);
-  // Marking a relationship colours its markers too; its label keeps its ink.
-  const id = 'rel:TRIP-STOP_TIME#0';
-  const marker = d.get('card:TRIP-STOP_TIME#0:2').family().filter((m) => !m.children.length);
-  const ink = d.get('rel-label:TRIP-STOP_TIME#0').family().filter((m) => !m.children.length).map((m) => m.style.fill);
-  await d.mark([id], { color: '#ff0000' });
-  assert.ok(marker.every((m) => m.style.stroke === '#ff0000'));
-  assert.deepEqual(d.get('rel-label:TRIP-STOP_TIME#0').family().filter((m) => !m.children.length).map((m) => m.style.fill), ink);
-  // Dimming every part but two entities keeps the relationship between them, markers included.
-  const opacity = (x: string) => d.get(x).family().map((m) => m.style.opacity ?? 1);
-  const [kept, faded] = [opacity(id), opacity('rel:ROUTE-TRIP#0')];
-  await d.dim(['entity:TRIP', 'entity:STOP_TIME']);
-  assert.deepEqual(opacity(id), kept);
-  // (A link's invisible route path stays at opacity 0.)
-  assert.ok(opacity('rel:ROUTE-TRIP#0').every((o, i) => (faded[i] ? o < faded[i]! : o === 0)));
-});

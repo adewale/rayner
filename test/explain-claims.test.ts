@@ -101,4 +101,10 @@ test('check fails a declared claim no scenario states, or one whose test is not 
   assert.match((await declaredClaimProblems([{ ...real, test: 'test/none.test.ts: x' }], [real.says])).join(), /not there/);
   assert.match((await declaredClaimProblems([{ ...real, test: 'test/statecharts.test.ts: no such test' }], [real.says])).join(), /there is none/);
   assert.deepEqual(await declaredClaimProblems([{ says: 'every round', shown: true }], ['every round']), []);
+  // A test beside the scene is named from its folder; one from where check runs still resolves there.
+  const folder = 'scenes/explainers/state-machine';
+  const beside = { says: 'closed rejects', test: 'model.test.ts: both session histories come from the reducer' };
+  assert.deepEqual(await declaredClaimProblems([beside], [beside.says], process.cwd(), folder), []);
+  assert.match((await declaredClaimProblems([beside], [beside.says])).join(), /not there/, 'without the folder, model.test.ts is looked for where check runs');
+  assert.deepEqual(await declaredClaimProblems([{ ...beside, test: `${folder}/model.test.ts: both session histories` }], [beside.says], process.cwd(), folder), []);
 });

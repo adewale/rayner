@@ -101,9 +101,9 @@ export default class Ext4SpaceExplainer extends Scene {
     // Sentences that reach past what one step draws, and the test that holds each.
     claims: [
       { says: 'users can write only', shown: true as const },
-      { says: 'two bitmaps in every group', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
-      { says: 'Every group has two bitmaps', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
-      { says: 'only the kernel’s', test: 'test/explain-ext4-space.test.ts: the model gives the mounted kernel’s statfs' },
+      { says: 'two bitmaps in every group', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
+      { says: 'Every group has two bitmaps', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
+      { says: 'only the kernel’s', test: 'model.test.ts: the model gives the mounted kernel’s statfs' },
     ],
   };
   static settings = [
