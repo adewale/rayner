@@ -5,7 +5,7 @@ import { bindLettering, usesOutlineLettering, withSceneLettering } from '../../s
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
-import { readFile, writeFile, mkdir, stat, readdir, rm, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'node:fs/promises';
 import { dirname, resolve, join, basename, relative, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -249,8 +249,17 @@ export async function readSnapshots(base: string): Promise<SnapshotStore> {
 /** Write the store and delete files no diagram uses. */
 export async function writeSnapshots(base: string, store: SnapshotStore, sourceHash: string): Promise<void> {
   const folder = base + '.snapshots';
-  await mkdir(folder, { recursive: true });
   const keys = Object.keys(store).sort();
+  // A scene with no diagrams keeps no snapshots: nothing would be read from an index of none, and its
+  // source hash would go stale with every edit to the scene. Its files go, and the folder once empty.
+  if (!keys.length) {
+    const entries = await readdir(folder, { withFileTypes: true }).catch(() => null);
+    if (!entries) return;
+    for (const entry of entries) if (entry.isFile()) await rm(join(folder, entry.name));
+    if (!(await readdir(folder)).length) await rmdir(folder);
+    return;
+  }
+  await mkdir(folder, { recursive: true });
   const names = Object.fromEntries(keys.map((key) => [key, snapshotFileName(key)]));
   for (const key of keys) {
     const path = join(folder, names[key]!),

@@ -18,6 +18,7 @@ import { readSnapshots, writeSnapshots, snapshotFileName, scriptEscape, IMPORTER
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { SnapshotStore } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
+import { existsSync } from 'node:fs';
 
 await loadFonts();
 
@@ -226,10 +227,12 @@ test('the written folder is index.json plus one file per diagram, whatever was t
     fc.asyncProperty(store, store, fc.array(fc.stringMatching(/^[a-z0-9]{1,8}\.json$/), { maxLength: 3 }), async (first, s, stray) =>
       folder(async (base) => {
         await writeSnapshots(base, first, 'h');
+        await mkdir(base + '.snapshots', { recursive: true });
         for (const name of stray) await writeFile(join(base + '.snapshots', name), '{}');
         await mkdir(join(base + '.snapshots', 'kept-folder'), { recursive: true });
         await writeSnapshots(base, s, 'h');
-        assert.deepEqual((await readdir(base + '.snapshots')).sort(), ['index.json', 'kept-folder', ...Object.keys(s).map(snapshotFileName)].sort());
+        // No diagrams, no index: the folder keeps only what is not a stale snapshot.
+        assert.deepEqual((await readdir(base + '.snapshots')).sort(), [...(Object.keys(s).length ? ['index.json'] : []), 'kept-folder', ...Object.keys(s).map(snapshotFileName)].sort());
       }),
     ),
     params(FS),
@@ -240,7 +243,7 @@ test('the same store writes the same bytes, in whatever order its keys were adde
   const written = (st: SnapshotStore) =>
     folder(async (b) => {
       await writeSnapshots(b, st, 'h');
-      const names = (await readdir(b + '.snapshots')).sort();
+      const names = (await readdir(b + '.snapshots').catch(() => [] as string[])).sort();
       return Promise.all(names.map(async (n) => [n, await readFile(join(b + '.snapshots', n), 'utf8')]));
     });
   await fc.assert(
@@ -475,3 +478,15 @@ test('scriptEscape keeps what bundled code does', () => {
 test('scale probe: scriptEscape on 5.6 MB of </script and <!-- leaves neither', () => {
   assert.doesNotMatch(scriptEscape('</script><!-- '.repeat(400_000)), /<\/script|<!--/i);
 });
+
+test('a scene with no diagrams keeps no snapshot folder, and loses a stale one', async () => {
+  await folder(async (base) => {
+    await writeSnapshots(base, {}, 'h');
+    assert.equal(existsSync(base + '.snapshots'), false);
+    await mkdir(base + '.snapshots');
+    await writeFile(join(base + '.snapshots', 'index.json'), '{"version":2,"diagrams":{}}');
+    await writeSnapshots(base, {}, 'h');
+    assert.equal(existsSync(base + '.snapshots'), false);
+  });
+});
+
