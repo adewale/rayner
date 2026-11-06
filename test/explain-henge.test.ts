@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { sky, declination, sunset, sunrise, crossings, henge, TILT, LATITUDE, STREET, SUN_RADIUS } from '../scenes/explainers/henge/model.ts';
 import { fc, params } from './lib/pbt.ts';
 import { collectProject, defaultScenario } from '../tools/lib/explain-project.ts';
-import { check as checkHengeScene } from './lib/fidelity/henge.ts';
+import { check as checkHengeScene } from '../scenes/explainers/henge/fidelity.ts';
 import { Scene, Transform } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject, VMobject, Sink, View } from '../src/index.ts';
@@ -93,7 +93,7 @@ test('Henge both street scenarios expose their geometry at all eight resting ste
   assert.equal(project.scenarios.length,2);
   assert.deepEqual(project.scenarios.map(scenario => scenario.values.street).sort(), ['manhattan', 'west']);
   for (const scenario of project.scenarios) {
-    checkHengeScene(scenario.values, scenario.trace);
+    checkHengeScene(scenario.trace, scenario.values);
   }
 });
 

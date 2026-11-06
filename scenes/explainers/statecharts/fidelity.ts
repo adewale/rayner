@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import assert from 'node:assert/strict';
-import { activeStates, RUNS } from '../../../scenes/explainers/statecharts/model.ts';
+import { activeStates, RUNS } from './model.ts';
 import { CHARTS, FIXTURE } from '../../../tools/oracle/statecharts.ts';
 import type { Expected } from '../../../tools/oracle/statecharts.ts';
 
@@ -12,7 +12,7 @@ import type { Expected } from '../../../tools/oracle/statecharts.ts';
  * playing and muted (inside on) after POWER, PLAY, MUTE, and the coffee machine with a frother is grinding
  * and frothing after POWER_ON, START, FROTH.
  */
-export function check(_values: Record<string, string>, trace: Trace): void {
+export function check(trace: Trace): void {
   const x = (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Expected).charts;
   assertStepState(trace, 'parent', { current: activeStates(CHARTS.coffee!.chart, x.coffee!.follow[2]!.config) });
   // The parent step reaches brewing by replaying the brew's first three events through the model.

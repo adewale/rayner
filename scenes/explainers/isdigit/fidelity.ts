@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import {
   CHARS,
   LINEUP,
@@ -13,8 +13,8 @@ import {
   intOf,
   guarded,
   accepts,
-} from '../../../scenes/explainers/isdigit/model.ts';
-import type { CharId, Predicate } from '../../../scenes/explainers/isdigit/model.ts';
+} from './model.ts';
+import type { CharId, Predicate } from './model.ts';
 
 /** Every scenario's step state equals the model's answers for its character and its check. */
 export function check(trace: Trace, values: Record<string, string>): void {

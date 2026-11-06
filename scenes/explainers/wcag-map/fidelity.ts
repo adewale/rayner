@@ -1,8 +1,8 @@
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import assert from 'node:assert/strict';
-import { CRITERIA, LEVELS, VERSIONS, change, criteria, opened, tally } from '../../../scenes/explainers/wcag-map/model.ts';
-import type { Level, Version } from '../../../scenes/explainers/wcag-map/model.ts';
+import { CRITERIA, LEVELS, VERSIONS, change, criteria, opened, tally } from './model.ts';
+import type { Level, Version } from './model.ts';
 
 /** Every scenario's step state equals the model's counts for its level and the guideline it opens. */
 export function check(trace: Trace, values: Record<string, string>): void {

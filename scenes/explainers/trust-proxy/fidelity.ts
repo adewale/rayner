@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import {
   ADDR,
   REQUESTS,
@@ -13,8 +13,8 @@ import {
   atExpress,
   positions,
   readAddresses,
-} from '../../../scenes/explainers/trust-proxy/model.ts';
-import type { RequestKey, TrustKey } from '../../../scenes/explainers/trust-proxy/model.ts';
+} from './model.ts';
+import type { RequestKey, TrustKey } from './model.ts';
 
 /** The scene's option labels for the requests, as its captions spell them. */
 const REQUEST_LABEL_CHECK: Record<RequestKey, string> = {

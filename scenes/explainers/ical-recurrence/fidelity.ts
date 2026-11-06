@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
-import { INVITED, MOVED_FROM, SERIES, SERVER_CASES, copyOf, counts, expand, guestCopy, organiserCopy, schema, validate, weeks } from '../../../scenes/explainers/ical-recurrence/model.ts';
-import type { Change, Copy } from '../../../scenes/explainers/ical-recurrence/model.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { INVITED, MOVED_FROM, SERIES, SERVER_CASES, copyOf, counts, expand, guestCopy, organiserCopy, schema, validate, weeks } from './model.ts';
+import type { Change, Copy } from './model.ts';
 
 /** Every scenario's step state equals the model's stored copies, meetings and refusals for that change and copy. */
 export function check(trace: Trace, values: Record<string, string>): void {
