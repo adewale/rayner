@@ -11,15 +11,16 @@
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
 
-import { Mobject, Group, paintDefaults } from './mobject.ts';
-import type { Box, HasText } from './mobject.ts';
-import { Animation, Follow, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
-import type { AnimOpts, MatchKey, MatchSummary } from './animation.ts';
-import { jsonObject } from './json.ts';
-import type { RateFunc } from './rate.ts';
-import { Text } from './text.ts';
-import type { Scene, SceneState, Evidence } from './scene.ts';
-import type { Vec } from './vec.ts';
+import { Mobject, Group, paintDefaults } from '../src/mobject.ts';
+import type { Box, HasText } from '../src/mobject.ts';
+import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from '../src/animation.ts';
+import { Follow } from './state.ts';
+import type { AnimOpts, MatchKey, MatchSummary } from '../src/animation.ts';
+import { jsonObject } from '../src/json.ts';
+import type { RateFunc } from '../src/rate.ts';
+import { Text } from '../src/text.ts';
+import type { Scene, SceneState, Evidence } from '../src/scene.ts';
+import type { Vec } from '../src/vec.ts';
 
 /** Where a rebuilt picture goes: its layout box's left edge, center or right edge, at the vertical middle, on the old one's. */
 export type ViewPlace = 'left' | 'center' | 'right';

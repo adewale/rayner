@@ -130,7 +130,8 @@ test('invariant recipe: the sampled orbit holds its claim on every frame, the mo
 });
 
 test('a claim that reads a misspelt key finds nothing on every frame: it is reported as vacuous, not as held', async () => {
-  const { Scene, Dot, linear, view } = await import('rayner');
+  const { Scene, Dot, linear } = await import('rayner');
+  const { view } = await import('rayner/explain');
   class Misspelt extends Scene {
     override async construct() {
       this.state = { angle: 0 };

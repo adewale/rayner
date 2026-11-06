@@ -1,7 +1,7 @@
-import { Scene, Text, Group, FadeIn, view } from '../../../src/index.ts';
-import type { Box, View, FadeOpts } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, answerOf as scriptAnswerOf } from '../../../explain/index.ts';
-import type { CardOptions, CardRow } from '../../../explain/index.ts';
+import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
+import type { Box, FadeOpts } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, answerOf as scriptAnswerOf, view } from '../../../explain/index.ts';
+import type { CardOptions, CardRow, View } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import {
   ADDR,

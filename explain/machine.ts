@@ -4,15 +4,16 @@
 // and records like any other play, and the same `next` and views a reader would drive
 // can be explored state by state by `rayner check`. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, SetState, Succession, matchByKey } from './animation.ts';
-import { Group } from './mobject.ts';
-import { linear } from './rate.ts';
-import type { Scene } from './scene.ts';
+import { Animation, AnimationGroup, Succession, matchByKey } from '../src/animation.ts';
+import { SetState } from './state.ts';
+import { Group } from '../src/mobject.ts';
+import { linear } from '../src/rate.ts';
+import type { Scene } from '../src/scene.ts';
 import type { View, ViewMatch } from './view.ts';
-import type { Mobject } from './mobject.ts';
+import type { Mobject } from '../src/mobject.ts';
 import { choreograph } from './choreograph.ts';
 import type { Choreography } from './choreograph.ts';
-import type { Evidence, SceneState } from './scene.ts';
+import type { Evidence, SceneState } from '../src/scene.ts';
 
 export interface MachineSpec<S extends object, E extends string> {
   /** Where the machine starts: what `reachable()` explores from. The scene need not be in it yet. */

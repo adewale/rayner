@@ -1,6 +1,6 @@
-import { Scene, FadeIn, FadeOut, Create, view } from '../../../src/index.ts';
+import { Scene, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, view } from '../../../explain/index.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
 import {
   SUN, TILT, R, CY, JUNE_C, DEC_C,

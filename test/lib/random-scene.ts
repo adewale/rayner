@@ -5,11 +5,8 @@
 // counterexample shrinks to a smaller scene. Everything is deterministic in
 // its seed or tape.
 import { fc } from './pbt.ts';
-import {
-  Scene, Group, Rectangle, Circle, Square, Line, Polygon, Arc, Dot, Text, Labeled,
-  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, LaggedStart, AnimationGroup,
-  linear, smooth, rushInto, thereAndBack,
-} from '../../src/index.ts';
+import { Square, Write, MoveAlongPath } from '../../src/extras.ts';
+import { Scene, Group, Rectangle, Circle, Line, Polygon, Arc, Dot, Text, Labeled, Transform, FadeIn, FadeOut, Create, LaggedStart, AnimationGroup, linear, smooth, rushInto, thereAndBack } from '../../src/index.ts';
 import { Indicate, Flash } from './transient.ts';
 import type { AnimateBuilder, Mobject, Playable, SceneClass, Style, Vec } from '../../src/index.ts';
 // Manim's values, which the package no longer exports.

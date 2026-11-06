@@ -1,6 +1,6 @@
-import { Scene, Group, Text, view } from '../../../src/index.ts';
+import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock, answerOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram, Stage } from '../../../explain/index.ts';
 import {
   DTSTART,

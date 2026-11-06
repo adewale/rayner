@@ -50,6 +50,18 @@
       "types": "./dist/explain/drawing.d.ts",
       "default": "./dist/explain/drawing.js"
     },
+    "./geo": {
+      "types": "./dist/explain/geo.d.ts",
+      "default": "./dist/explain/geo.js"
+    },
+    "./audio": {
+      "types": "./dist/explain/score.d.ts",
+      "default": "./dist/explain/score.js"
+    },
+    "./extras": {
+      "types": "./dist/src/extras.d.ts",
+      "default": "./dist/src/extras.js"
+    },
     "./lettering": {
       "types": "./dist/src/lettering.d.ts",
       "default": "./dist/src/lettering.js"

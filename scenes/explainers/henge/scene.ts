@@ -1,10 +1,10 @@
-import { Scene, VMobject, view, linear } from '../../../src/index.ts';
+import { Scene, VMobject, linear } from '../../../src/index.ts';
+import type { Seen, SeenPicture } from '../../../explain/geo.ts';
+import { depthOrder, seenPictures } from '../../../explain/geo.ts';
 import type { Group } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import { settingsOf, stage, answerOf } from '../../../explain/index.ts';
+import { settingsOf, stage, answerOf, view } from '../../../explain/index.ts';
 import type { StagedStep } from '../../../explain/index.ts';
-import { depthOrder, seenPictures } from '../../../explain/drawing.ts';
-import type { Seen, SeenPicture } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { henge, declination, sunset } from './model.ts';
 import type { Street } from './model.ts';

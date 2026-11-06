@@ -1,8 +1,9 @@
 import { test } from 'node:test';
+import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Rectangle, Text } from '../../../src/index.ts';
 import { loadFonts, withSettings } from '../../../explain/testing.ts';
-import type { View, Mobject } from '../../../src/index.ts';
+import type { Mobject } from '../../../src/index.ts';
 import { pictureHtml, pictureSummary } from '../../../explain/trace.ts';
 import { lerpColor } from '../../../src/color.ts';
 import { collectProject } from '../../../tools/lib/explain-project.ts';

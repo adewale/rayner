@@ -1,6 +1,7 @@
-import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn, Machine, view } from '../../../src/index.ts';
-import type { Animation, SceneState, Choreography, Transition, ScheduledAnimation } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
+import type { Choreography, Transition } from '../../../explain/index.ts';
+import type { Animation, SceneState, ScheduledAnimation } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
 import { pkceChallenge, sha256 } from './model.ts';
 import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type SignIn, type SignInEvent } from './model.ts';
 import { listed } from '../lib/format.ts';

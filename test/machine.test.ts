@@ -1,12 +1,12 @@
 // Machines: a model driven by events as an ordinary schedule, and rayner check's exploration of
 // every state the events reach.
 import { test } from 'node:test';
+import type { Transition, View, ViewSync } from '../explain/index.ts';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, SetState, Machine, refuse, isRefusal, view, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
 import { NullSink, StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
-import type { Transition, View, ViewSync } from '../src/index.ts';
-import { stage } from '../explain/index.ts';
+import { stage, SetState, Machine, refuse, isRefusal, view } from '../explain/index.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { logStart } from '../app/embed-live.ts';
 

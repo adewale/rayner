@@ -1,3 +1,4 @@
+import { Machine } from 'rayner/explain';
 # Machines: a model driven by events
 
 A `Machine` is a scene's model driven by events. The scene replays events through it as one
@@ -14,7 +15,6 @@ picture module that draws the state, a scene whose last step is live, and the re
 `rayner review` as written.
 
 ```ts
-import { Machine } from 'rayner';
 
 // In the model module: a new state, or refuse(reason) where the state refuses the event.
 //   if (!handled) return refuse(`no ${event} arrow leaves ${config.join(' or ')}, so the machine ignores ${event}`);

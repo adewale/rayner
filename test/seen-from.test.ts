@@ -1,10 +1,10 @@
 import { test } from 'node:test';
+import type { Model3D, Part, Viewpoint, Vec3, Seen } from '../explain/geo.ts';
+import { seenFrom, depthOrder, project, latLon, circleOn, greatArc, between } from '../explain/geo.ts';
 import assert from 'node:assert/strict';
 import { Scene, Transform, VMobject, Dot } from '../src/index.ts';
-import { Follow } from '../src/animation.ts';
+import { Follow } from '../explain/state.ts';
 import type { Mobject, Sink } from '../src/index.ts';
-import { seenFrom, depthOrder, project, latLon, circleOn, greatArc, between } from '../explain/drawing.ts';
-import type { Model3D, Part, Viewpoint, Vec3, Seen } from '../explain/drawing.ts';
 import { fc, params } from './lib/pbt.ts';
 
 // A globe with something of every kind: a point and a path on the sphere, a great circle whose far

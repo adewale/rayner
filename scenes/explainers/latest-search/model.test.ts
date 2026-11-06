@@ -1,6 +1,6 @@
 import { test } from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { isRefusal } from '../../../src/index.ts';
 import { createSearch, runSearch, SEARCH_CODE, raceStart, raceNext, raceReplay, raceShowsStale, RACE_EVENTS } from './model.ts';
 import type { Lifetime, Query, RaceEvent, RaceState } from './model.ts';
 

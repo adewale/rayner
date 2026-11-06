@@ -5,9 +5,6 @@
         "guide": "docs/CAMERA.md#what-it-is",
         "test": "test/camera.test.ts"
       },
-      "Machine": {
-        "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
-      },
       "MathTex": {
         "check": "Glyphs: a formula the lettering snapshot does not hold fails every command"
       },
@@ -29,22 +26,8 @@
       "TransformMatchingText": {
         "check": "Motion: a part that pops, cuts in or out, or teleports fails"
       },
-      "View": {
-        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
-      },
-      "choreograph": {
-        "guide": "docs/MACHINES.md#refused-events-bounds-and-authored-transitions",
-        "test": "test/choreograph.test.ts",
-        "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
-      },
       "matchByKey": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
-      },
-      "refuse": {
-        "check": "Machines: a bound that stops an event the model refuses anyway fails"
-      },
-      "view": {
-        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       }
     },
     "rayner/explain": {
@@ -62,12 +45,26 @@
       },
       "stagedStep": {
         "check": "Views: each step's picture is a view of its state, so a step whose picture differs from a fresh draw of its state, or whose draw ignores its state, fails"
+      },
+      "Machine": {
+        "check": "Machines: every state its events reach is drawn and fails if it collides, has a label under 14 px, has no description, does not show its state or is described like another"
+      },
+      "View": {
+        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
+      },
+      "choreograph": {
+        "guide": "docs/MACHINES.md#refused-events-bounds-and-authored-transitions",
+        "test": "test/choreograph.test.ts",
+        "check": "Machines: an authored transition that breaks an invariant on the way, or does not end on the pictures of the state it reaches, fails"
+      },
+      "refuse": {
+        "check": "Machines: a bound that stops an event the model refuses anyway fails"
+      },
+      "view": {
+        "check": "Views: at the end of every step, a view whose words, parts, boxes or opacity differ from a fresh draw of the state, placed where a sync would put it, fails"
       }
     },
     "rayner/drawing": {
-      "depthOrder": {
-        "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
-      },
       "keyed": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
       },
@@ -79,6 +76,11 @@
       },
       "table": {
         "check": "Keys: two parts on the stage with one key at the end of a step fail"
+      }
+    },
+    "rayner/geo": {
+      "depthOrder": {
+        "check": "Invariants: registered with addInvariant, it fails on the first frame that draws a piece out of depth order"
       }
     }
   },

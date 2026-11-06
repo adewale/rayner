@@ -1,7 +1,7 @@
-import { Scene, Group, view } from '../../../src/index.ts';
-import type { Box, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf } from '../../../explain/index.ts';
-import type { CardRow, CardOptions } from '../../../explain/index.ts';
+import { Scene, Group } from '../../../src/index.ts';
+import type { Box } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid, answerOf, view } from '../../../explain/index.ts';
+import type { CardRow, CardOptions, View } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,

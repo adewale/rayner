@@ -7,7 +7,6 @@ import {
   Create,
   Transform,
   Dot,
-  MoveAlongPath,
   GrowFromEdge,
   PulseAlongPath,
   AnimationGroup,
@@ -15,6 +14,7 @@ import {
   Rectangle,
   Text,
 } from '../src/index.ts';
+import { MoveAlongPath } from '../src/animation.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';

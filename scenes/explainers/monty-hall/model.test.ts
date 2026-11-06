@@ -1,6 +1,6 @@
 import { test } from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
-import { isRefusal } from '../../../src/index.ts';
 import { monty, threeDoorWorlds, montyExample, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';
 import type { Round, RoundEvent } from './model.ts';
 

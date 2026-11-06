@@ -2,11 +2,9 @@
 // checked against the target's box; motion against the verifier; time against
 // a seek, which must reproduce a full run's frame byte for byte.
 import { test } from 'node:test';
+import { Square, Underline } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Square, Rectangle, Text, Code, Create, FadeOut, Circumscribe,
-  SurroundingRectangle, Underline, Cross, Brace, BraceLabel,
-  VMobject, } from '../src/index.ts';
+import { Scene, Rectangle, Text, Code, Create, FadeOut, Circumscribe, SurroundingRectangle, Cross, Brace, BraceLabel, VMobject } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';

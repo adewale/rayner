@@ -7,9 +7,10 @@
 // sky. The tilted Earths are seen from one viewpoint beside the orbit, so the axis keeps one direction
 // on screen; it is dashed inside the translucent body.
 import { Group, Rectangle, Polygon, Circle, VMobject, Arrow } from '../../../src/index.ts';
+import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/geo.ts';
+import { seenFrom, project, circleOn, greatArc } from '../../../explain/geo.ts';
 import type { Vec, Text } from '../../../src/index.ts';
-import { seenFrom, project, circleOn, greatArc, label, keyed } from '../../../explain/drawing.ts';
-import type { Part, Viewpoint, Vec3, SeenOptions } from '../../../explain/drawing.ts';
+import { label, keyed } from '../../../explain/drawing.ts';
 import { sky, LATITUDE } from './model.ts';
 
 export const INK = '#1e293b', SUN = '#c77900', SUMMER = '#a03b22', WINTER = '#235d9b', MUTED = '#64748b', ROAD = '#eef2f6';

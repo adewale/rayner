@@ -1,7 +1,7 @@
-import { Scene, view } from '../../../src/index.ts';
-import type { Box, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid, answerOf } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
+import { Scene } from '../../../src/index.ts';
+import type { Box } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View } from '../../../explain/index.ts';
 import {
   BLOCK,
   DEFAULT_RESERVE,

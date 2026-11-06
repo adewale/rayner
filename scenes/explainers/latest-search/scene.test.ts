@@ -1,7 +1,7 @@
 import { test } from 'node:test';
+import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { loadFonts, withSettings } from '../../../explain/testing.ts';
-import type { View } from '../../../src/index.ts';
 import { collectProject } from '../../../tools/lib/explain-project.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';

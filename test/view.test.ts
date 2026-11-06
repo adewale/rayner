@@ -3,14 +3,14 @@
 // anchor, registers no updater (so seeks skip its frames), and the picture at
 // every step is what the state renders (the fidelity helper).
 import { test } from 'node:test';
+import { Square } from '../src/extras.ts';
+import type { ViewSync } from '../explain/index.ts';
+import { view, View } from '../explain/index.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
-  view, View,
-} from '../src/index.ts';
+import { Scene, Group, Text, DecimalNumber, Rectangle, Circle, Animation, FadeIn, Succession, StateReadout } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch } from '../explain/testing.ts';
-import type { Mobject, Sink, SceneState, ViewSync } from '../src/index.ts';
+import type { Mobject, Sink, SceneState } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.

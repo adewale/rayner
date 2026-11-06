@@ -91,12 +91,12 @@ The model is the rules: what a move does, and why the rules refuse one, in the w
 
 <!-- hanoi/model.ts -->
 ```ts
+import { refuse } from 'rayner/explain';
+import type { Refusal } from 'rayner/explain';
 // The Tower of Hanoi's constraints: three pegs, one disk moved at a time from the top of a peg,
 // onto an empty peg or a larger disk. What it leaves out: more than three pegs; and the fewest-move
 // counts are proved by searching every arrangement of three, four and five disks (model.test.ts),
 // so larger towers rest on the pattern solve() follows, not on a search.
-import { refuse } from 'rayner';
-import type { Refusal } from 'rayner';
 
 export type Move = 'A→B' | 'A→C' | 'B→A' | 'B→C' | 'C→A' | 'C→B';
 export const MOVES: readonly Move[] = ['A→B', 'A→C', 'B→A', 'B→C', 'C→A', 'C→B'];
@@ -129,8 +129,8 @@ The scene is the explanation: each step's words, and which moves it plays. How o
 
 <!-- hanoi/scene.ts -->
 ```ts
-import { Scene, Machine, view } from 'rayner';
-import { stage, settingsOf } from 'rayner/explain';
+import { Scene } from 'rayner';
+import { stage, settingsOf, Machine, view } from 'rayner/explain';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
 import { drawTower, sayTower } from './picture.ts';
 

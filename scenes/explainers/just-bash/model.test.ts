@@ -1,8 +1,8 @@
 import { test } from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { fc, params } from '../lib/pbt.ts';
 import { exec, sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS, PIPELINE, FILE } from './model.ts';
-import { isRefusal } from '../../../src/index.ts';
 import type { ShellSession, BashEvent } from './model.ts';
 
 test('shell execution returns a new filesystem and never mutates its input', () => {

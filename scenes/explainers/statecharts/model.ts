@@ -1,3 +1,5 @@
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 // A small statechart model: compound and parallel states with event transitions, run with the
 // SCXML 1.0 selection rules this subset needs (W3C Recommendation, 2015, Appendix D). No guards,
 // actions, history, final states or delays. oracle/statecharts.ts runs the same charts
@@ -5,8 +7,6 @@
 // The inner-state-first selection (`send`) follows XState and SCXML for this subset; Statemate's
 // priority rules differ, and the model does not follow them. The player's controls go up to five
 // (CONTROLS), so the count tests reach five features though the explainer draws at most two.
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 
 /** A state. `compound` is in exactly one child at a time; `parallel` is in every child at once. */
 export interface StateNode {

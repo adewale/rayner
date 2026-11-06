@@ -1,11 +1,8 @@
 import { test } from 'node:test';
+import { MoveAlongPath } from '../src/extras.ts';
+import { SetState, view } from '../explain/index.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, MoveAlongPath,
-  GrowFromEdge, PulseAlongPath, SetState, AnimationGroup, LaggedStart, Succession,
-  StateReadout, view,
-  linear,
-} from '../src/index.ts';
+import { Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, GrowFromEdge, PulseAlongPath, AnimationGroup, LaggedStart, Succession, StateReadout, linear } from '../src/index.ts';
 import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString } from '../src/output.ts';
 import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
@@ -240,7 +237,7 @@ test('growth and pulse can resample arbitrary alpha order without accumulating g
 test('Follow samples one value for several drawings: exact ends, linear between, start read when the play begins', async () => {
   const { Transform } = await import('../src/index.ts');
   // The primitive under view.tween and a choreography's follow.
-  const { Follow } = await import('../src/animation.ts');
+  const { Follow } = await import('../explain/state.ts');
   const dot = new Dot({ radius: 0.1 }), bar = new Rectangle({ width: 1, height: 1 });
   dot.key = 'dot';
   const ids = [dot.id, bar.id];
@@ -290,7 +287,7 @@ test('Follow samples one value for several drawings: exact ends, linear between,
 });
 
 test('Follow admits its targets, removes them all as a remover, and seeks to the frame a full run renders', async () => {
-  const { Follow } = await import('../src/animation.ts');
+  const { Follow } = await import('../explain/state.ts');
   class Orbit extends Scene {
     override async construct(): Promise<void> {
       const dot = new Dot({ radius: 0.1 }).moveTo([2, 0]), radius = new Line([0, 0], [2, 0]), readout = new Text('0.00', { fontSize: 0.3 }).moveTo([0, -2.5]);

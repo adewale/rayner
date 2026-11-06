@@ -1,10 +1,10 @@
+import type { AudioClip, ScoreNote } from '../../../explain/score.ts';
 // Two versions of one eight-note tune, C D E G E D C C, in beats: A starts a note on every beat; the
 // syncopated B lengthens the first E to one and a half beats and shortens the E after G to half a beat,
 // so G starts halfway through beat 4 and holds across the bar line. What it leaves out: two bars of four
 // beats, four pitches and half-beat durations only, no rests, accents, swing or articulation, one
 // loudness, and 96 or 120 BPM. Playback is an unaccented Web Audio oscillator. The score is computed and
 // checked; no listening study establishes how strongly a listener hears the syncopation.
-import type {AudioClip, ScoreNote} from '../../../explain/index.ts';
 export type Timing = 'syncopated' | 'straight';
 export const PITCHES = [60,62,64,67,64,62,60,60] as const;
 export const NOTE_NAMES: Record<number,string> = {60:'C',62:'D',64:'E',67:'G'};

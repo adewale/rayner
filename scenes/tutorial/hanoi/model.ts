@@ -1,9 +1,9 @@
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 // The Tower of Hanoi's constraints: three pegs, one disk moved at a time from the top of a peg,
 // onto an empty peg or a larger disk. What it leaves out: more than three pegs; and the fewest-move
 // counts are proved by searching every arrangement of three, four and five disks (model.test.ts),
 // so larger towers rest on the pattern solve() follows, not on a search.
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 
 export type Move = 'A→B' | 'A→C' | 'B→A' | 'B→C' | 'C→A' | 'C→B';
 export const MOVES: readonly Move[] = ['A→B', 'A→C', 'B→A', 'B→C', 'C→A', 'C→B'];

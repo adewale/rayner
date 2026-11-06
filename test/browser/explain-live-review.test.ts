@@ -4,12 +4,13 @@
 // the same lamp drawn at its normal size passes. `rayner check` is not run here, so the failure is
 // the served review's own.
 import { test } from 'node:test';
+import { Machine } from '../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { Machine, Scene } from '../../src/index.ts';
+import { Scene } from '../../src/index.ts';
 import { NullSink } from '../../src/output.ts';
 import { collectProject } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
@@ -24,7 +25,7 @@ import { reviewScene } from '../../tools/lib/explain-review-scene.ts';
  * bright, and another adds a note when bright, readable at a 1280 px stage but small and far from
  * the lamp, so on a phone neither the whole picture nor the step's close-up reads it.
  */
-const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle,Machine,refuse,view}from'rayner';import{stage,settingsOf}from'rayner/explain';
+const lamp = (defect: boolean) => `import{Scene,Text,Group,Rectangle}from'rayner';import{Machine,refuse,view}from'rayner/explain';import{stage,settingsOf}from'rayner/explain';
 const LEVELS=['off','dim','bright'];
 export default class Lamp extends Scene{
   static meta={id:'lamp',title:'A lamp a reader can switch'};

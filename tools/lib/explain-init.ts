@@ -18,4 +18,7 @@ export const packageImports = (source: string) =>
   source
     .replaceAll("from '../../../src/index.ts'", "from 'rayner'")
     .replaceAll("from '../../../explain/index.ts'", "from 'rayner/explain'")
-    .replaceAll("from '../../../explain/drawing.ts'", "from 'rayner/drawing'");
+    .replaceAll("from '../../../explain/drawing.ts'", "from 'rayner/drawing'")
+    .replaceAll("from '../../../explain/geo.ts'", "from 'rayner/geo'")
+    .replaceAll("from '../../../explain/score.ts'", "from 'rayner/audio'")
+    .replaceAll("from '../../../src/extras.ts'", "from 'rayner/extras'");

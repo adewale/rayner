@@ -46,7 +46,7 @@ One row per idea.
 | Taking another's data in place | `become(other)` | Keeps identity and keys; refuses to drop a keyed child | |
 | Pen animation | `stage.sketch(m)` | Draw `m` stroke by stroke with a pen or pencil | `stage.draw(m)` |
 | 2D camera | `Frame`, `scene.frame` | The box of the scene that is on screen | |
-| 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/drawing` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by a view's tween; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
+| 3D picture | `seenFrom(model, viewpoint)`, `depthOrder(picture)` in `rayner/geo` | Draws a 3D model through a viewpoint, `{ kind, yaw, pitch }`, as keyed 2D pieces in an explicit depth order (far, body, near). The viewpoint is ordinary state turned by a view's tween; Mercator and gnomonic maps are viewpoint kinds of the same model. Used by great-circle and henge. Not an engine type | |
 | Frame-level check | `addInvariant`, `InvariantSink` | A predicate checked on every frame; returns `true` when it held | Calling invariants "claims" |
 | Prose check | `meta.claims` | A sentence backed by a named test | |
 | Review subjects | `scene.review.json`'s `subjects` | What a caption names, for the reader review to find on screen | that file's `claims` |

@@ -389,7 +389,8 @@ test('a card drawn lit and code drawn focused carry the bar mark() and focus() l
 
 test('a view of a card or code is described as that card or code, and a describe speaks for the rest', async () => {
   const { Card, CodeBlock } = await import('../explain/index.ts');
-  const { Group, view } = await import('../src/index.ts');
+  const { Group } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
   class Described extends Scene {
     override async construct() {
       const s = stage(this);

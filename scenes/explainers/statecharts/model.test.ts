@@ -1,9 +1,9 @@
 import { test } from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { activeStates, coffeeWithFrother, flatten, player, coffee, FROTHER, initial, send, run, events, flatName, chartCounts, flatCounts, byHand, drivenStart, drivenNext, CONTROLS, RUNS } from './model.ts';
 import { frotherInBrewing, frotherOutside } from './answers.ts';
 import { readFileSync } from 'node:fs';
-import { isRefusal } from '../../../src/index.ts';
 import { XSTATE_VERSION, FIXTURE, CHARTS, PREEMPT } from './oracle/statecharts.ts';
 import type { Expected, Explored } from './oracle/statecharts.ts';
 import type { StateNode } from './model.ts';

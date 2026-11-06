@@ -4,10 +4,11 @@
 // everywhere without Python. With MANIM_DIR=<checkout of 3b1b/manim> (and python3 +
 // numpy) the fixture is also checked against the live oracle; UPDATE_ORACLE=1 rewrites it.
 import { test } from 'node:test';
+import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { VMobject, Square, Rectangle, Circle, Polygon, linear, smooth, rushInto, rushFrom, thereAndBack } from '../src/index.ts';
+import { VMobject, Rectangle, Circle, Polygon, linear, smooth, rushInto, rushFrom, thereAndBack } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
 
 interface Answers { rates: Record<string, number[]>; distribute: number[][]; partial: Array<Array<[number, number]>>; same_shape: boolean[][] }

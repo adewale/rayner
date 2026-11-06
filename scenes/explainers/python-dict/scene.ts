@@ -1,6 +1,6 @@
-import { Scene, FadeIn, Machine, Text, matchByKey, view } from '../../../src/index.ts';
+import { Scene, FadeIn, Text, matchByKey } from '../../../src/index.ts';
 import type { Mobject, SceneState } from '../../../src/index.ts';
-import { settingsOf, stage } from '../../../explain/index.ts';
+import { settingsOf, stage, Machine, view } from '../../../explain/index.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from './model.ts';
 import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from './model.ts';

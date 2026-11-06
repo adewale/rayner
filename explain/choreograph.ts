@@ -6,11 +6,13 @@
 // take a gone one out. rest() lands every keyed part no call has handled, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, FadeIn, FadeOut, Follow, MoveAlongPath, Transform } from './animation.ts';
-import type { AnimOpts, FollowSpec, TransformOpts } from './animation.ts';
-import type { Mobject } from './mobject.ts';
-import type { VMobject } from './vmobject.ts';
-import { linear } from './rate.ts';
+import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform } from '../src/animation.ts';
+import type { AnimOpts, TransformOpts } from '../src/animation.ts';
+import { Follow } from './state.ts';
+import type { FollowSpec } from './state.ts';
+import type { Mobject } from '../src/mobject.ts';
+import type { VMobject } from '../src/vmobject.ts';
+import { linear } from '../src/rate.ts';
 
 /**
  * An animation for a part that is already in the picture but unseen: it shows the part as it was

@@ -1,3 +1,5 @@
+import { refuse } from '../../../explain/index.ts';
+import type { Refusal } from '../../../explain/index.ts';
 /**
  * The just-bash explainer's script as a machine: the caller runs its command lines through `exec` (below),
  * keeps the shell each write returns, and reads what cat prints on the newest shell or on the shell it started with.
@@ -9,8 +11,6 @@
  * It has no Bash quoting or expansion, process execution, permissions or persistence, and cat on a missing file
  * prints nothing rather than Bash's error message.
  */
-import { refuse } from '../../../src/index.ts';
-import type { Refusal } from '../../../src/index.ts';
 
 export interface Shell {
   fs: Record<string, string>;

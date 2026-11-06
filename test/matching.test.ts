@@ -1,10 +1,9 @@
 // Matching transforms: which part pairs with which, what the unmatched parts
 // do, and the invariants every animation keeps (seek-exact, no jumps).
 import { test } from 'node:test';
+import { Square } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import {
-  Scene, Group, Text, Code, Square, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart,
-  TransformMatching, TransformMatchingShapes, TransformMatchingText, } from '../src/index.ts';
+import { Scene, Group, Text, Code, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart, TransformMatching, TransformMatchingShapes, TransformMatchingText } from '../src/index.ts';
 import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
@@ -347,7 +346,7 @@ test('find and findAll address parts by key, depth first, on a mobject and acros
 });
 
 test('View.sync({ match: "keys" }) keeps a keyed cell across a rearrangement and seeks exactly', async () => {
-  const { view } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
   const scene = new Scene<{ order: number[] }>(new StringSink());
   scene.state = { order: [1, 2, 3] };
   const v = view(scene, (st) => new Group(...st.order.map((z, i) => {

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
+import { Square } from '../../../src/extras.ts';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Dot, Circle, Square, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
+import { Scene, Rectangle, Dot, Circle, Group, FadeIn, Transform, smooth } from '../../../src/index.ts';
 import { StringSink, SnapshotSink, NullSink, SeekSink, DomSink, StopScene, renderAt, toSvgString } from '../../../src/output.ts';
 import { TraceSink, MotionSink } from '../../../explain/testing.ts';
 import type { Mobject, Sink, Step, Vec } from '../../../src/index.ts';

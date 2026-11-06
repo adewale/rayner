@@ -1,7 +1,8 @@
 // Retained chart/state oracle; the public lesson uses one ticket-based story.
-import { Scene, Group, Text, Axes, FadeIn, view } from '../../../../src/index.ts';
-import type { SceneState, View } from '../../../../src/index.ts';
-import { stage, settingsOf } from '../../../../explain/index.ts';
+import { Scene, Group, Text, Axes, FadeIn } from '../../../../src/index.ts';
+import type { View } from '../../../../explain/index.ts';
+import type { SceneState } from '../../../../src/index.ts';
+import { stage, settingsOf, view } from '../../../../explain/index.ts';
 import { runSearch, SEARCH_CODE } from '../model.ts';
 import type { CompletionOrder, Query } from '../model.ts';
 

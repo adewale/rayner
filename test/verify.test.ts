@@ -1,8 +1,9 @@
 import { test } from 'node:test';
+import type { MoveAlongPathOpts } from '../src/extras.ts';
+import { MoveAlongPath } from '../src/extras.ts';
 import assert from 'node:assert/strict';
-import { Scene, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, MoveAlongPath, Line, linear, thereAndBack } from '../src/index.ts';
+import { Scene, Rectangle, Circle, FadeIn, FadeOut, Transform, Create, Line, linear, thereAndBack } from '../src/index.ts';
 import { MotionSink, analyzeMotion } from '../explain/testing.ts';
-import type { MoveAlongPathOpts } from '../src/index.ts';
 import type { Vec } from '../src/index.ts';
 // Manim's values, which the package no longer exports.
 const RIGHT: Vec = [1, 0];

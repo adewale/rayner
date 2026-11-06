@@ -1,9 +1,9 @@
 import { test } from 'node:test';
+import { isRefusal } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { fc, params } from '../lib/pbt.ts';
 import { createHash } from 'node:crypto';
 import { sha256, pkceChallenge, redeem, theftFlow, pkceFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS } from './model.ts';
-import { isRefusal } from '../../../src/index.ts';
 import type { SignIn, SignInEvent } from './model.ts';
 
 test('SHA-256 and PKCE agree with independent crypto and the RFC 7636 vector', () => {

@@ -1,42 +1,9 @@
-import {
-  Scene,
-  Text,
-  Circle,
-  Square,
-  Line,
-  Dot,
-  Rectangle,
-  Arrow,
-  Group,
-  Axes,
-  Transform,
-  TransformMatchingText,
-  Restore,
-  Circumscribe,
-  view,
-  Brace,
-  Underline,
-  NumberLine,
-  DecimalNumber,
-  MathTex,
-  ArcBetweenPoints,
-  MoveAlongPath,
-  Write,
-  TransformFromCopy,
-  TransformMatching,
-  matchByKey,
-  Code,
-  TransformDiff,
-  diffLines,
-  parseUnifiedDiff,
-  smooth,
-  rushInto,
-  rushFrom,
-  thereAndBack,
-} from '../../../src/index.ts';
+import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transform, TransformMatchingText, Circumscribe, Brace, NumberLine, DecimalNumber, MathTex, TransformMatching, matchByKey, Code, TransformDiff, diffLines, parseUnifiedDiff, smooth, rushInto, rushFrom, thereAndBack } from '../../../src/index.ts';
+import { seenFrom, between, latLon, circleOn, project } from '../../../explain/geo.ts';
+import { Square, Restore, Underline, ArcBetweenPoints, MoveAlongPath, Write, TransformFromCopy } from '../../../src/extras.ts';
 import type { SceneState, Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, palette, answerOf } from '../../../explain/index.ts';
-import { bars, tile, keyed, seenFrom, between, latLon, circleOn, project } from '../../../explain/drawing.ts';
+import { stage, settingsOf, palette, answerOf, view } from '../../../explain/index.ts';
+import { bars, tile, keyed } from '../../../explain/drawing.ts';
 
 type Feature =
   | 'steps'

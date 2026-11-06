@@ -38,6 +38,7 @@ descriptions, a script and a reader review.
 
 ```ts
 import { GrowFromEdge } from 'rayner';
+import { SetState, view } from 'rayner/explain';
 await this.play(new GrowFromEdge(bar, [0, -1]));                 // up from its bottom edge
 await this.play(new GrowFromEdge(task, [-1, 0], { runTime: 0.6 })); // right from its left edge
 ```
@@ -89,7 +90,7 @@ No adjacency assertion or walk record is implied by moving along an arbitrary pa
 ## SetState
 
 ```ts
-import { SetState, Succession, StateReadout, view } from 'rayner';
+import { Succession, StateReadout } from 'rayner';
 const readout = view(this, (s) => new StateReadout([['count', s.count]]), { place: 'left' });
 await this.play(new Succession([
   new SetState(this, { count: 3 }), readout.sync(),
@@ -136,7 +137,7 @@ A view tweens the state. `view.tween(stateAt, opts)` sets the scene's state to
 view's draw of that state into its picture:
 
 ```ts
-import { view, linear } from 'rayner';
+import { linear } from 'rayner';
 this.state = { angle: 0 };
 const orbit = view(this, (st) => drawOrbit(st.angle as number), { place: false });
 await this.play(orbit.tween((t) => ({ angle: Math.PI * t }), { runTime: 1, rateFunc: linear }));

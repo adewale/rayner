@@ -1,6 +1,7 @@
-import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, view, matchByKey, Machine } from '../../../src/index.ts';
-import type { MatchKey, Box, VMobject, Transition } from '../../../src/index.ts';
-import { stage, regionBox } from '../../../explain/index.ts';
+import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, matchByKey } from '../../../src/index.ts';
+import type { Transition } from '../../../explain/index.ts';
+import type { MatchKey, Box, VMobject } from '../../../src/index.ts';
+import { stage, regionBox, view, Machine } from '../../../explain/index.ts';
 import { CONTROLS, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
 import type { StateNode, Driven } from './model.ts';
 import { PLAYBACK, VOLUME, SUBTITLES, cellKey, cellOf, FLAT, CHART, TRACE, COFFEE, fit, scaleFor, coffeeLayout, coffeePicture, flatPicture, chartPicture, tracePicture } from './picture.ts';

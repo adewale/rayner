@@ -1,5 +1,5 @@
-import { Scene, Machine, view } from '../../../src/index.ts';
-import { stage } from '../../../explain/index.ts';
+import { Scene } from '../../../src/index.ts';
+import { stage, Machine, view } from '../../../explain/index.ts';
 import { DOOR_EVENTS, doorNext, doorStart, type DoorEvent, type DoorState } from './model.ts';
 import { drawDoor } from './picture.ts';
 

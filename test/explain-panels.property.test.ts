@@ -656,7 +656,8 @@ test('a row whose value count matches neither one nor the columns is refused', (
 });
 
 test('a card or code panel a view draws refuses to change in place, and says to draw it from state', async () => {
-  const { view, Group } = await import('../src/index.ts');
+  const { Group } = await import('../src/index.ts');
+  const { view } = await import('../explain/index.ts');
   const colors = { paper: '#ffffff', ink: '#111111', accent: '#0055cc', muted: '#666666' };
   const sc = scene();
   sc.state = { row: 'Hits' };

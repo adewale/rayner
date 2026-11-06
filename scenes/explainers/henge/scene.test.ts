@@ -1,13 +1,14 @@
 import { test } from 'node:test';
+import type { Seen } from '../../../explain/geo.ts';
+import { depthOrder, project } from '../../../explain/geo.ts';
+import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { declination, sunset, henge, TILT, LATITUDE } from './model.ts';
 import { collectProject, defaultScenario } from '../../../tools/lib/explain-project.ts';
 import { check as checkHengeScene } from './fidelity.ts';
 import { Scene, Transform } from '../../../src/index.ts';
 import { loadFonts } from '../../../explain/testing.ts';
-import type { Mobject, VMobject, Sink, View } from '../../../src/index.ts';
-import { depthOrder, project } from '../../../explain/drawing.ts';
-import type { Seen } from '../../../explain/drawing.ts';
+import type { Mobject, VMobject, Sink } from '../../../src/index.ts';
 import { azAlt, sunsetOf, dome, year, crossedBy, look, lookView, globes } from './sky.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 

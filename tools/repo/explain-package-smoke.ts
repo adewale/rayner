@@ -60,7 +60,7 @@ try {
   assert.equal(library.version, version);
   assert.equal(library.dependencies, undefined, 'rayner has no runtime dependencies');
   assert.equal(library.bin, undefined, 'the rayner command ships in rayner-cli');
-  for (const entry of ['rayner', 'rayner/explain', 'rayner/drawing', 'rayner/lettering', 'rayner/output', 'rayner/testing'])
+  for (const entry of ['rayner', 'rayner/explain', 'rayner/drawing', 'rayner/geo', 'rayner/audio', 'rayner/extras', 'rayner/lettering', 'rayner/output', 'rayner/testing'])
     await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: alone });
   // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
   for (const file of ['tools', 'app', 'dist/tools', 'integrations/agentic-mermaid/build', 'dist/integrations/agentic-mermaid/build', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
@@ -270,9 +270,9 @@ try {
   // their relative paths, so a dependency outside the explainer's folder still fails.
   const copyAuthorSource = async (source: string, target: string) => {
     const code = (await readFile(source, 'utf8')).replace(
-      /(['"])(?:\.\.\/)+(src\/index|src\/output|explain\/index|explain\/drawing)\.ts\1/g,
+      /(['"])(?:\.\.\/)+(src\/index|src\/output|src\/extras|explain\/index|explain\/drawing|explain\/geo|explain\/score)\.ts\1/g,
       (_match, quote: string, area: string) =>
-        `${quote}${area === 'src/index' ? 'rayner' : area === 'src/output' ? 'rayner/output' : area === 'explain/index' ? 'rayner/explain' : 'rayner/drawing'}${quote}`,
+        `${quote}${({ 'src/index': 'rayner', 'src/output': 'rayner/output', 'src/extras': 'rayner/extras', 'explain/index': 'rayner/explain', 'explain/drawing': 'rayner/drawing', 'explain/geo': 'rayner/geo', 'explain/score': 'rayner/audio' } as Record<string, string>)[area]}${quote}`,
     );
     await writeFile(target, code);
   };
