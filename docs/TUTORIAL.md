@@ -27,45 +27,44 @@ This explainer draws no diagrams, so `check`, `preview` and `build` work without
 
 ## 1. Plan on paper
 
-Write the plan before any code (principle 1):
-
-```text
-Reader:    a developer choosing a replacement policy who assumes recently used data is always worth keeping
-Question:  what is the difference between LRU and MRU, and when does it matter?
-Answer:    on a miss in a full cache, LRU evicts the item used longest ago and MRU evicts the item used most
-           recently; which one gets more hits depends on the order of requests
-Model:     run(policy, size, requests) returns each request's hit, eviction and cache contents
-Sources:   the worked examples in Wikipedia's "Cache replacement policies"; Chou and DeWitt, VLDB 1985
-Scenarios: baseline A B C D A B C D | changed: last four are C D C D | fixed: three slots, same first four
-           requests, both policies | predicted hits: LRU 0, MRU 3 → LRU 4, MRU 0
-Limit:     hit counts for eight requests through three slots; not the cost of tracking recency, and no claim
-           about random access
-```
-
-The scenarios line is written before any drawing, so the picture has to match a prediction (principle 6). The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that could prove it wrong. Chou and DeWitt wrote that a file being repeatedly scanned should be kept in memory if possible, and that if it is too large to fit, "an MRU replacement algorithm should be used to manage the buffer pool". The two scenarios share their first four requests, so the first eviction is identical in both and only what follows it differs.
-
-The limit line keeps the explainer inside what it tests. It counts hits, so it cannot say anything about latency or the bookkeeping LRU needs to track recency. It does not test random access either, where Chou and DeWitt report that "the choice of a replacement algorithm is immaterial". The limit becomes the last caption (principle 8).
-
-Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version isolates the one decision where the policies differ before it shows what that decision costs over the whole sequence, which a table cannot do.
-
-Then write the explanation you would give the reader, with the concrete problem before the names and each paragraph supplying the reason for the next. Read it straight through: does it explain the result, or merely announce what the drawing will show? `script.md` contains that reader-facing prose. It has no fixed word count. `rayner init` writes this example:
+Write the plan before any code (principle 1). The plan is the explainer's script, `script.md`: it states what the explainer must achieve, for you, its author, and Rayner reads its header. `rayner init` writes this example:
 
 <!-- lru-mru/script.md -->
 ```md
 # What is the difference between LRU and MRU?
 
-A cache has three slots. Requests for A, B and C have filled them, in that order. Now D arrives. It is missing, and there is no spare slot. Which item should make room: A, which has waited longest, or C, which was just used?
+- **Reader:** a developer choosing a replacement policy who assumes recently used data is always worth keeping.
+- **Answer:** LRU evicts the item used longest ago
+- **Changed condition:** the last four of eight requests through three slots. After A B C D, repeating A B C D gives LRU 0 hits and MRU 3; changing them to C D C D gives LRU 4 and MRU 0. The first four requests, and so the first eviction, are the same in both.
+- **Reader's own work:** predict which item each policy evicts when D arrives; switch the requests between A B C D again and C D C D; answer the check questions.
+- **Checked against:** the worked LRU and MRU examples in Wikipedia's "Cache replacement policies", in `model.test.ts`; Chou and DeWitt (VLDB 1985) for when MRU suits a file scanned over and over.
+- **Leaves out:** the cost of tracking recency, latency, and random access, where Chou and DeWitt report that the choice is immaterial; the hit counts are for eight requests through three slots.
 
-LRU evicts the item used longest ago: A. Its name means least recently used. MRU, most recently used, evicts C instead. Both put D in the freed slot. Keeping the recent item sounds sensible, but the next requests decide whether it helps.
+## Check yourself
 
-Suppose A, B, C and D repeat. LRU has just evicted A, the next item needed. Bringing A back evicts B, which comes next. The same mistake repeats: all eight requests miss. MRU kept A and B when it made room for D. On the second pass, A, B and D hit; C misses. Evicting the newest item preserved more of this loop.
+1. A full cache misses. Which item does each policy evict?
+   LRU evicts the item used longest ago; MRU evicts the item used most recently.
+2. Why does LRU miss every request when a loop is one item larger than the cache?
+   Each miss evicts the oldest item, which is exactly the item the loop asks for next.
+3. Which policy should manage a buffer for a file scanned over and over that does not fit in memory?
+   MRU: it keeps most of the loop in the cache, while LRU evicts each item just before it is needed again.
 
-Change only the last four requests: C, D, C, D. LRU kept both, so all four repeats hit. MRU dropped C for D. Bringing C back now drops D, then bringing D back drops C. All four repeats miss.
+## Why this explainer
 
-The eviction rule has stayed the same; the useful choice has reversed. Recency records the past. Whether it predicts the next request depends on the access pattern. These two examples count eight requests through three slots; they do not measure the cost of maintaining the cache.
+The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that proves it wrong, and Chou and DeWitt make the same point for a file scanned repeatedly that does not fit in memory. So the explainer isolates the one decision where the policies differ, which item D evicts, before it shows what that decision costs over the whole sequence, and then changes only the last four requests so the same rule wins the other way. A trace table of eight requests would answer the question for a reader who already reads trace tables; the steps exist to separate the decision from its cost.
+
+The ending is the limit: these are hit counts for one short sequence, not a claim about latency, bookkeeping or random access.
 ```
 
-The script holds only the explanation addressed to the reader, including any limit the reader needs to interpret its conclusion. The answer and the check questions live in the scene: `meta.answer`, which `rayner check` requires some step's title, line or caption to contain (it reports which step, so you can see whether the answer arrives before the details), and `meta.checks`, the questions the player asks after the last step, with each answer behind a disclosure. Use the questions to review the prose: could a reader reason through an unseen condition after reading it? [Working documents](EXPLAINER-RUBRIC.md#working-documents) says what belongs in the script, the scene and an optional `notes.md`.
+The `#` heading is the reader's question, and it becomes the page's title. **Answer** is the one sentence the explanation must reach: `rayner check` requires some step's title, line or caption to contain it, and reports which step, so you can see whether the answer arrives before the details. The questions under **Check yourself** are what the player asks after the last step, each answer behind a disclosure; use them to review the scene: could a reader reason through an unseen condition after it? **Checked against** appears on the page, first under Sources. **Answer** and **Checked against** are required. Everything below the header is yours, and Rayner does not read it.
+
+The **Changed condition** line is written before any drawing, so the picture has to match a prediction (principle 6). The tempting shortcut is that keeping recent items is always right. A loop over more items than the cache holds is the request pattern that could prove it wrong. Chou and DeWitt wrote that a file being repeatedly scanned should be kept in memory if possible, and that if it is too large to fit, "an MRU replacement algorithm should be used to manage the buffer pool". The two scenarios share their first four requests, so the first eviction is identical in both and only what follows it differs.
+
+The **Leaves out** line keeps the explainer inside what it tests. It counts hits, so it cannot say anything about latency or the bookkeeping LRU needs to track recency. It does not test random access either, where Chou and DeWitt report that "the choice of a replacement algorithm is immaterial". The limit becomes the last caption (principle 8).
+
+Then ask whether a still would do. A trace table of eight requests and two policies answers the question for a reader who already reads trace tables. The stepped version isolates the one decision where the policies differ before it shows what that decision costs over the whole sequence, which a table cannot do.
+
+The script is not what the reader reads. The explanation is the scene's steps and captions, which section 5 reads against this plan. [Working documents](EXPLAINER-RUBRIC.md#working-documents) says what belongs in the script, the model and the scene.
 
 ## 2. Generate the explainer
 
@@ -150,20 +149,13 @@ import { run, type Policy } from './model.ts';
 const SIZE = 3;
 const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
+// The title, answer and check questions come from script.md's intent header.
 export default class LruMru extends Scene {
   static meta = {
     id: 'lru-mru',
-    title: 'What is the difference between LRU and MRU?',
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
-    ],
-    // From script.md: check holds the first two steps to the answer; the player asks the questions at the end.
-    answer: 'LRU evicts the item used longest ago',
-    checks: [
-      { question: 'A full cache misses. Which item does each policy evict?', answer: 'LRU evicts the item used longest ago; MRU evicts the item used most recently.' },
-      { question: 'Why does LRU miss every request when a loop is one item larger than the cache?', answer: 'Each miss evicts the oldest item, which is exactly the item the loop asks for next.' },
-      { question: 'Which policy should manage a buffer for a file scanned over and over that does not fit in memory?', answer: 'MRU: it keeps most of the loop in the cache, while LRU evicts each item just before it is needed again.' },
     ],
   };
   static settings = [{ id: 'next', label: 'After A B C D, request', default: 'loop', options: [{ value: 'loop', label: 'A B C D again' }, { value: 'reuse', label: 'C D C D' }] }];
@@ -227,7 +219,7 @@ export default class LruMru extends Scene {
 
 Read it from the top:
 
-- `static meta` holds the id, which names the output files, the page title and the sources the model was checked against.
+- `static meta` holds the id, which names the output files, and the sources the model was checked against. The title, answer and check questions come from the script's header.
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests, and `show(n)` updates the card and records the same values on `this.state`, where tests and `rayner describe` can read them.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.

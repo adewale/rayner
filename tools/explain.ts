@@ -93,8 +93,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     for (const file of files)
       await writeFile(join(dir, file), packageImports(await readFile(join(from, file), 'utf8')));
     console.log(flags.machine
-      ? `Created ${join(dir, 'scene.ts')}, a machine explainer: its model in model.ts (next refuses with a reason), the model's test in model.test.ts, and the review's subjects in scene.review.json`
-      : `Created ${join(dir, 'script.md')}, the script to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
+      ? `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, a machine explainer: its picture in picture.ts, its model in model.ts (next refuses with a reason), the model's test in model.test.ts, and the review's subjects in scene.review.json`
+      : `Created ${join(dir, 'script.md')}, the intent to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
   if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))
