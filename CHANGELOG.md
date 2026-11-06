@@ -91,6 +91,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - The statecharts machine covers both charts and is checked against XState's explored graph. python-dict's deletions and lookups are two machines on keyed tables.
 - Invariants hold each machine's claims through every reachable state: the guarded search page never shows a stale result, and with PKCE the malicious app never gets a token.
 - Every refusal says which rule refuses, from the model: "the host knows where the car is, and never opens its door".
+- Each explainer folder holds its own evidence: `model.test.ts`, `scene.test.ts`, `fidelity.ts`, `oracle/` and `fixtures/`, named in its script's Checked against line; `npm test` runs `scenes/*/*/*.test.ts`. [An explainer's own evidence](docs/TESTING.md#an-explainers-own-evidence)
 
 ### The player and reader
 
@@ -141,6 +142,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
 - `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`.
 - An explainer's `answers.ts` computes its script's answer and check answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
+- `rayner check` fails a path in backticks in the script's Checked against line that is not in the explainer's folder, and reports them as `checkedAgainst`.
+- A claim's test is looked for in the scene's folder first, so `meta.claims` can name `model.test.ts: …`.
 
 ### Drawing kit and 3D
 

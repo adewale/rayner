@@ -31,7 +31,7 @@ export const BROKEN: Record<Edit, string> = Object.fromEntries(
 ) as Record<Edit, string>;
 /**
  * What the pinned verifier, agentic-mermaid 0.5.1, returns for every BROKEN source. A diagram that fails verify
- * cannot be captured, so this report is written here, and test/explain-real.test.ts runs verifyMermaid on each
+ * cannot be captured, so this report is written here, and scene.test.ts runs verifyMermaid on each
  * BROKEN source and requires exactly this.
  */
 export const BROKEN_REPORT = {
@@ -66,7 +66,7 @@ interface DiagramState { source: string; marks: { part: string; tone: Tone; as: 
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
 
-// test/explain-real.test.ts runs the pinned verifier on each check question's diagram.
+// scene.test.ts runs the pinned verifier on each check question's diagram.
 export default class MermaidExplainer extends Scene {
   static meta = {
     sources: [

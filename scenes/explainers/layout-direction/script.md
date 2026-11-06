@@ -4,7 +4,7 @@
 - **Answer:** Start and End follow the stage’s direction, and a card’s field columns follow the stage unless the card sets its own
 - **Changed condition:** the stage direction. On an rtl stage Start lands on the right half, its Field name sits right of 123, and the End card's own ltr puts its name on the left, so the override is visible. On an ltr stage Start lands on the left, both cards put Field first, and the override changes nothing; left and start name the same half.
 - **Reader's own work:** predict which half the Start card lands in and which side of 123 each card puts its Field name; switch the stage direction; then the three check questions (a third card at end, where a left-to-right flowchart belongs, and an End card set to rtl).
-- **Checked against:** Nothing external: every card is the engine's own `s.card` on a stage given the direction, and `test/explain-fidelity.test.ts` measures each card's half and the order of its label and value from the drawn cards (not their titles) at the columns, updates and physical steps, in both directions.
+- **Checked against:** Nothing external: every card is the engine's own `s.card` on a stage given the direction, and `fidelity.ts` measures each card's half and the order of its label and value from the drawn cards (not their titles) at the columns, updates and physical steps, in both directions.
 - **Leaves out:** Arabic, Hebrew and other non-Latin text, font and script support, and bidirectional text shaping inside a field; layouts of more than two cards.
 
 ## Check yourself

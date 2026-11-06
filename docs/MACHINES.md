@@ -233,7 +233,7 @@ which is the shrinking a generated-sequence check would otherwise need. `statech
 - **A large machine is sampled.** Exploration stops at `limit` states per origin, so
   ring-buffer's 256 states are a sample, and a reader can press their way to a ring no check drew.
   `describeExplainer` counts states from `start` only.
-- **The oracle is XState's explored graph.** `tools/oracle/statecharts.ts` records every
+- **The oracle is XState's explored graph.** `scenes/explainers/statecharts/oracle/statecharts.ts` records every
   configuration XState reaches and where every event leads, for every chart. The model is
   compared with that whole graph, and generated event sequences walk it too, so no XState
   install is needed in tests; regenerating the fixture needs the pinned release.

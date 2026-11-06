@@ -3,7 +3,7 @@
 // encodings are exgit's (Exgit.Object.{Blob,Tree,Commit}.encode/1) and the
 // ids are what compute_sha/2 gives: sha1("<type> <size>\0" + content).
 // SHA-1 is written out so a scene hashes the same way in Node and in the
-// browser; it is for object ids, not security. test/explain-models.test.ts
+// browser; it is for object ids, not security. model.test.ts
 // checks every id against `git hash-object`.
 //
 // What it leaves out: SHA-1 repositories only (no SHA-256), and the logical object

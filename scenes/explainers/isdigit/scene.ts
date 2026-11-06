@@ -23,7 +23,7 @@ import type { Char, CharId, Predicate } from './model.ts';
 import { SIZE, drawLineup, drawSets } from './picture.ts';
 
 // Sources: CPython at tag v3.15.1 and the Unicode Character Database 17.0.0. Lines are quoted beside
-// each claim here and in model.ts; CPython's own answers are frozen in test/explain-isdigit.test.ts.
+// each claim here and in model.ts; CPython's own answers are frozen in model.test.ts.
 const CPY = 'https://github.com/python/cpython/blob/v3.15.1/';
 const UCD = 'https://www.unicode.org/Public/17.0.0/ucd/';
 

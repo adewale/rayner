@@ -47,7 +47,7 @@ const UNBUILT = 0.1;
 const POLICIES = ['Local', 'Cluster'];
 const PODS = Object.keys(PLACEMENTS);
 const SCENARIOS = PODS.length * POLICIES.length;
-/** The diagram families the explainers name and describe; test/explain-fidelity.test.ts holds it to explain/words.ts. */
+/** The diagram families the explainers name and describe; fidelity.ts holds it to explain/words.ts. */
 const FAMILIES = 15;
 const GONE = ['Doc', 'Parser', 'Player', 'Worker'];
 // The diagram takes the top three fifths; cards sit under it.

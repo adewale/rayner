@@ -363,7 +363,7 @@ export default class TokenBucketExplainer extends Scene {
     const betweenSay = (r: number) =>
       between(r).length ? `${listed(between(r))} ${between(r).length > 1 ? 'are' : 'is'} refused` : 'none of them is refused';
     // Below a fifth of a token a second, R6–R9 all fail, the bucket refills from empty at 0 s, and R10 at 5 s finds
-    // under 5 × 0.2 = 1 token (test/explain-token-bucket.test.ts).
+    // under 5 × 0.2 = 1 token (model.test.ts).
     await this.step('trace', {
       title: 'The same ten requests at 1, 2 and 4 tokens a second',
       line: `429s at 4 / s: ${listed(refusedAt(4))}; at 1 / s: ${listed(refusedAt(1))}.`,
