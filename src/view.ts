@@ -13,8 +13,9 @@
 
 import { Mobject, Group, paintDefaults } from './mobject.ts';
 import type { Box, HasText } from './mobject.ts';
-import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
-import type { MatchKey, MatchSummary } from './animation.ts';
+import { Animation, Follow, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
+import type { AnimOpts, MatchKey, MatchSummary } from './animation.ts';
+import { jsonObject } from './json.ts';
 import type { RateFunc } from './rate.ts';
 import { Text } from './text.ts';
 import type { Scene, SceneState, Evidence } from './scene.ts';
@@ -91,6 +92,20 @@ export class View<M extends Mobject = Mobject> extends Group {
    * that comes out the same moves nothing and keeps the current child.
    */
   sync(opts: SyncOpts = {}): ViewSync<M> { return new ViewSync(this, opts); }
+
+  /**
+   * The state moving through time, and the picture with it: at each frame the scene's state is
+   * `stateAt(t)`, t running from 0 to 1 at the eased alpha, and the view draws it. So the picture is
+   * the view's draw of the state at every frame, a seek renders what a full play renders, and the
+   * play ends with the state at `stateAt(1)`. `stateAt` must be a function of t alone, return JSON,
+   * and keep the family shape the view's draw gives (as a Follow's draw does).
+   */
+  tween(stateAt: (t: number) => SceneState, opts: AnimOpts = {}): Animation {
+    return new Follow({ from: 0, to: 1, draw: (t) => {
+      this.host.state = jsonObject(stateAt(t), 'view.tween state') as SceneState;
+      return this.placed(this.host.state);
+    } }, { ...opts, targets: [this.current] });
+  }
 
   /**
    * The picture of `state` (with what the scene shows now), placed where a sync or rebuild would

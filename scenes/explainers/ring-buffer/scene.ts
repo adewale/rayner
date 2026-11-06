@@ -1,17 +1,4 @@
-import {
-  Scene,
-  AnimationGroup,
-  Succession,
-  Text,
-  Group,
-  FadeIn,
-  Transform,
-  Follow,
-  StateReadout,
-  Machine,
-  view,
-  linear,
-} from '../../../src/index.ts';
+import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, StateReadout, Machine, view, linear } from '../../../src/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
@@ -194,7 +181,7 @@ export default class RingBufferExplainer extends Scene {
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */
     const turn = (c: Choreography, name: 'head' | 'tail', from: number, to: number) => {
       const a0 = angle(from), a1 = a0 + turnBetween(from, to);
-      return new Follow({ from: a0, to: a1, draw: (a) => (a === a1 ? pointer(look, name, to) : pointerAt(look, name, a)) }, { targets: [c.own(`ring:pointer:${name}`)], runTime: 0.45 });
+      return c.follow({ from: a0, to: a1, draw: (a) => (a === a1 ? pointer(look, name, to) : pointerAt(look, name, a)) }, { targets: [`ring:pointer:${name}`], runTime: 0.45 });
     };
     /** The last operation's outlines go, and push(v) shows this operation's argument. */
     const arrive = (c: Choreography, before: RingState, after: RingState, keepMarks: boolean) => {

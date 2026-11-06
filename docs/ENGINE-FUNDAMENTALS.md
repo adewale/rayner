@@ -141,7 +141,7 @@ in, apart from the model. `this.record(kind, data)` adds a record, and every
 animation's `evidence()` is recorded as it begins: a matching transform records
 `{ kind: 'match', … }` and `TransformDiff` `{ kind: 'diff', … }`
 ([matching](MATCHING.md#evidence)), a view's sync its morph's counts with the view's
-key as `view`, `Follow` its interval and targets, and `SetState` with an `event`
+key as `view`, a follow or a view's tween its interval and targets, and `SetState` with an `event`
 `{ kind: 'event', event }`. `onStep` and `addDescriber` are the extension hooks,
 and each returns its own remover; do not replace the scene's methods to attach
 helpers.
@@ -160,7 +160,7 @@ updaters, including an updater that merely reads the current value.
 
 `view(scene, draw).sync()` registers no updater: it rebuilds a target from state
 when its play begins and morphs to it. That suits discrete updates; it does not
-evaluate a relationship between the two endpoints, which [`Follow`](CHOREOGRAPHY.md#follow) does.
+evaluate a relationship between the two endpoints, which a [view's tween](CHOREOGRAPHY.md#following-one-number) does.
 
 `renderAt(SceneClass, time, sink)` (`rayner/output`) reruns the scene up to the first frame at or after
 the requested time (or the final frame if past the end), skipping the interpolations

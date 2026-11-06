@@ -43,7 +43,11 @@ A play with a sync in it therefore skips like any other during a seek, and lands
 on the byte-identical frame a full run renders, mid-sync included
 (`test/view.test.ts`). A sync morphs between two endpoint pictures; it does not
 evaluate the model between them. For a value that should be sampled along the
-way, use [`Follow`](CHOREOGRAPHY.md#follow).
+way, tween the state: `view.tween((t) => stateAt(t), opts)` sets the scene's state
+to `stateAt(t)` at every frame, `t` from 0 to 1 at the eased alpha, and writes the
+view's draw of it into the picture, so the picture is that draw at every frame and
+the play ends with the state at `stateAt(1)` ([following one
+number](CHOREOGRAPHY.md#following-one-number)).
 
 ## API
 

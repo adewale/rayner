@@ -1,4 +1,4 @@
-import { Scene, FadeIn, Create, Follow, Transform, AnimationGroup, Succession, Machine, view, rushFrom, thereAndBack } from '../../../src/index.ts';
+import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, Machine, view, rushFrom, thereAndBack } from '../../../src/index.ts';
 import type { ScheduledAnimation as Animation, SceneState, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
@@ -239,7 +239,7 @@ export default class TokenBucketExplainer extends Scene {
           const rise = c.has(`balance:refill:${n}`, 'to') ? c.insert(`balance:refill:${n}`, c.to(`balance:refill:${n}`)) : null;
           const climbed = climb(prev, call, rate, CAPACITY);
           const balanceAt = (t: number) => (t >= call.at ? call.found : Math.min(CAPACITY, prev.after + (t - prev.at) * rate));
-          const refill = new Follow(
+          const refill = g.follow(
             { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(axes, climbed, t, s.palette.accent)] : fill(balanceAt(t))) },
             { targets: [level, ...(rise ? [rise] : [])], runTime: REFILL_S },
           );
