@@ -1,5 +1,6 @@
-import { Axes, Circle, Cross, Group, Rectangle, Text } from '../../../src/index.ts';
-import type { Mobject } from '../../../src/index.ts';
+import { Axes, Circle, Cross, Group, Rectangle, Text, StateReadout } from '../../../src/index.ts';
+import type { Mobject, SceneState, Vec } from '../../../src/index.ts';
+import type { CodeBlock } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 
@@ -144,3 +145,134 @@ export function drawComparison(rows: readonly (readonly [number, readonly number
   picture.add(new Text('Circle: 200     Cross: 429', { fontSize: 0.7, color: ink }).moveTo([0, -3.8]));
   return picture;
 }
+
+// ---- the chart and the gauge share one scale: the chart's y axis has the gauge's, so the
+// bucket's level always stands where the chart's line ends.
+const Y0 = -3.87,
+  Y5 = 0.57;
+/** The gauge's centre line and width. */
+export const SHELL_X = -6.75;
+const SHELL_W = 1.1;
+
+/** The chart's axes, tokens 0 to `capacity` against time 0 to `end`, and the dashed one-token line with its label. */
+export function drawAxes(end: number, capacity: number, { soft, muted }: Pick<Ink, 'soft' | 'muted'>) {
+  const axes = new Axes({
+    xRange: [0, end, 1],
+    yRange: [0, capacity, 1],
+    width: 7.2,
+    height: Y5 - Y0,
+    axisStyle: { stroke: muted, labelColor: soft, labelFontSize: 0.2, includeNumbers: true },
+    xLabel: 's',
+    yLabel: 'tokens',
+    axisLabelFontSize: 0.2,
+  });
+  axes.shift([-5.6 - axes.c2p(0, 0)[0], Y0 - axes.c2p(0, 0)[1]]);
+  const need = axes.horizontalLine(1, {
+    stroke: soft,
+    strokeWidth: 0.02,
+    dashArray: '0.1 0.08',
+    to: end - 0.6,
+  });
+  const needLabel = new Text('1 token', { fontSize: 0.2, color: soft }).moveTo(
+    [axes.c2p(end - 0.55, 1)[0], axes.c2p(end - 0.55, 1)[1] + 0.17],
+    [-1, 0],
+  );
+  return { axes, need, needLabel };
+}
+
+/** The bucket's outline. */
+export function drawShell({ muted, paper }: Pick<Ink, 'muted' | 'paper'>) {
+  const shell = new Rectangle({
+    width: SHELL_W,
+    height: Y5 - Y0 + 0.16,
+    stroke: muted,
+    strokeWidth: 0.03,
+    fill: paper,
+  }).moveTo([SHELL_X, (Y0 + Y5) / 2]);
+  shell.key = 'bucket:shell';
+  return shell;
+}
+/** The bucket's level at `n` of `capacity` tokens; an empty bucket keeps a sliver 0.001 tall, so it can still be seen. */
+export function drawLevel(n: number, capacity: number, { accent }: Pick<Ink, 'accent'>) {
+  const level = new Rectangle({
+    width: SHELL_W - 0.16,
+    height: Math.max(0.001, ((Y5 - Y0) * n) / capacity),
+    stroke: 'none',
+    fill: accent,
+  }).moveTo([SHELL_X, Y0], [0, -1]);
+  level.key = 'bucket:level';
+  return level;
+}
+/** The balance in the bucket. */
+export const drawGauge = (st: BucketState, capacity: number, colours: Pick<Ink, 'accent'>) => new Group(drawLevel(st.tokens, capacity, colours));
+/** The height of `n` tokens in the bucket. */
+export const levelY = (n: number, capacity: number) => Y0 + ((Y5 - Y0) * n) / capacity;
+/** The word under the bucket. */
+export const drawBucketLabel = ({ soft }: Pick<Ink, 'soft'>) => new Text('bucket', { fontSize: 0.2, color: soft }).moveTo([SHELL_X, Y0 - 0.33]);
+
+/** A climb drawn up to time t: the share of the line's length at or before t, as Create reveals a stroke. */
+export function climbTo(axes: Axes, points: [number, number][], t: number, color: string) {
+  const path = balanceLine(axes, points, color)!;
+  const ps = distinct(points),
+    ws = ps.map(([x, y]) => axes.c2p(x, y));
+  let total = 0,
+    upTo = 0;
+  for (let i = 1; i < ps.length; i++) {
+    const len = Math.hypot(ws[i]![0] - ws[i - 1]![0], ws[i]![1] - ws[i - 1]![1]),
+      [t0, t1] = [ps[i - 1]![0], ps[i]![0]];
+    total += len;
+    upTo += t >= t1 ? len : t > t0 ? (len * (t - t0)) / (t1 - t0) : 0;
+  }
+  const share = total > 0 ? upTo / total : 1;
+  if (share < 1) path.style.drawFraction = share;
+  path.style.opacity = share > 0 ? 1 : 0;
+  return path;
+}
+
+/** Every request's chip, answered or still waiting. */
+export const drawChips = (st: BucketState, count: number, colours: Ink) =>
+  new Group(...Array.from({ length: count }, (_, i) => drawRequest(i, st.calls[i]?.ok ?? null, colours)));
+
+/** The state readout, each value written by `format`; the balance row keyed so a phone can find it. */
+export function drawReadout(state: SceneState, format: (v: unknown) => string) {
+  const rows = new StateReadout(
+    [
+      ['Tokens left', format(state.tokens)],
+      ['Last refill (s)', format(state.lastRefill)],
+      ['Accepted', format(state.allowed)],
+      ['Rejected', format(state.rejected)],
+    ],
+    {
+      fontSize: 0.26,
+      gap: 0.42,
+      at: [4.9, -2.78],
+    },
+  );
+  rows.children[0]!.key = 'balance:label';
+  rows.values['Tokens left']!.key = 'balance:value';
+  return rows;
+}
+/** The readout's heading. */
+export const drawReadoutTitle = ({ soft }: Pick<Ink, 'soft'>) => new Text('Bucket balance', { fontSize: 0.2, color: soft }).moveTo([3.3, -2.4], [-1, 0]);
+
+/** The focus bar's place on lines a..b, as CodeBlock.focus draws it, for use inside a Succession. */
+export function barAt(code: CodeBlock, [a, b]: readonly [number, number]) {
+  const lines = code.code.lines,
+    pitch = Math.abs(lines[1]!.anchorPoint()[1] - lines[0]!.anchorPoint()[1]),
+    top = lines[a]!.anchorPoint()[1] + pitch / 2,
+    bottom = lines[b]!.anchorPoint()[1] - pitch / 2;
+  return new Rectangle({
+    width: code.panel.width() - 0.14,
+    height: top - bottom,
+    cornerRadius: 0.05,
+    stroke: 'none',
+  })
+    .setStyle({ ...code.bar.style })
+    .moveTo([code.panel.center()[0], (top + bottom) / 2]);
+}
+
+/** The token a 200 takes out of the bucket. */
+export const coin = (at: Vec, { accent }: Pick<Ink, 'accent'>) => new Circle({ radius: 0.13, fill: accent, fillOpacity: 1, stroke: 'none' }).moveTo(at);
+/** The empty, dashed ring where a 429 looks for a token, over a balance of `found`. */
+export const missingRing = (opacity: number, found: number, capacity: number, { bad }: Pick<Ink, 'bad'>) =>
+  new Circle({ radius: 0.13, fill: 'none', stroke: bad, strokeWidth: 0.035, dashArray: '0.06 0.05', opacity }).moveTo([SHELL_X, levelY(Math.max(found, 0), capacity) + 0.18]);

@@ -1,11 +1,10 @@
-import { Scene, Rectangle, Dot, Line, Text, Group, FadeIn, Transform, Animation, view } from '../../../src/index.ts';
+import { Scene, Rectangle, Dot, FadeIn, Transform, Animation, view } from '../../../src/index.ts';
 import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
-import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { START, END, tiny, thumb, THUMB_X, THUMB_Y, timelinePicture, checkPicture } from './picture.ts';
+import { START, END, tiny, timelinePicture, checkPicture, playedLabel, seekedLabel, playedPicture, seekPicture, rulerPicture, sinkNote } from './picture.ts';
 import type { Motion, TinyFrame, Still, Seek, TimelineState, CheckState } from './picture.ts';
 const STYLE = 'hand-drawn';
 
@@ -276,8 +275,6 @@ export default class LanternExplainer extends Scene {
     const played = still(run.playedFrame, run.played),
       seeked = still(run.seekedFrame, run.seeked);
     const t = SEEK_T.toFixed(2);
-    const playedLabel = (at: Seek) => `played: frame ${at.frame}, t = ${at.t.toFixed(2)} s`,
-      seekedLabel = (at: Seek) => `seeked: frames 1–${at.frame - 1} only counted`;
     const how =
       motion === 'blend'
         ? 'Rayner’s animate.moveTo moves the dot by blending its start and end.'
@@ -299,7 +296,7 @@ export default class LanternExplainer extends Scene {
         state: { at, played },
         describe: (st) =>
           `Left: the tiny scene ${playedLabel(st.at)}, the dot halfway along its track, fingerprint ${st.played.svg}. Right: an empty frame marked with a question mark, ${seekedLabel(st.at)}.`,
-        draw: (st) => new Group(thumb(c, st.played, -THUMB_X, playedLabel(st.at)), thumb(c, null, THUMB_X, seekedLabel(st.at))),
+        draw: (st) => playedPicture(st, c),
       }),
       stagedStep({
         id: 'seek',
@@ -320,12 +317,7 @@ export default class LanternExplainer extends Scene {
             ? `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s, played and seeked, both with the dot halfway and the fingerprint ${st.seek.played}.`
             : `Two frames of the tiny scene at t = ${st.at.t.toFixed(2)} s: played, with the dot halfway (${st.seek.played}); seeked, with the dot near the start of its track and an outline where playback has it (${st.seek.seeked}).`,
         // The two frames, the still's with an outline where playback has the dot when they differ.
-        draw: (st) =>
-          new Group(
-            thumb(c, st.stills.played, -THUMB_X, playedLabel(st.at)),
-            thumb(c, st.stills.seeked, THUMB_X, seekedLabel(st.at), st.seek.match ? undefined : st.stills.played.frame.dot),
-            new Text(st.seek.match ? '=' : '≠', { fontSize: 0.7, color: accent, weight: 'bold' }).moveTo([0, THUMB_Y]),
-          ),
+        draw: (st) => seekPicture(st, c),
       }),
       stagedStep({
         id: 'timeline',
@@ -373,39 +365,8 @@ export default class LanternExplainer extends Scene {
     // Frame times from the scene's own fps; two sinks pace the same frames differently.
     this.state.frameAtSeek = run.seekAt;
     this.state.ruler = { fps: this.fps, times: Array.from({ length: 9 }, (_, n) => (n * 1000) / this.fps) };
-    const x0 = -2.85,
-      pitch = 1.25;
-    const axisY = RULER_TOP - 0.4,
-      timeY = axisY - 0.4,
-      browserY = timeY - 0.85,
-      traceY = browserY - 0.8;
-    const lane = (label: string, y: number) =>
-      new Text(label, { fontSize: 0.28, color: s.soft, anchor: 'start' }).moveTo([-7.3, y], [-1, 0]);
     // The scene time of each frame the state records, and when each sink takes it.
-    const ruler = view(
-      this,
-      (st) => {
-        const { times } = (st as unknown as { ruler: { fps: number; times: number[] } }).ruler;
-        const g = new Group();
-        g.add(
-          lane('scene time (ms)', timeY),
-          lane('browser sink, wall clock', browserY),
-          lane('trace sink, wall clock', traceY),
-          new Line([x0 - 0.25, axisY], [x0 + pitch * (times.length - 1) + 0.25, axisY], { stroke: ink, strokeWidth: 0.025 }),
-        );
-        times.forEach((ms, n) => {
-          const x = x0 + n * pitch;
-          g.add(
-            new Line([x, axisY + 0.14], [x, axisY - 0.14], { stroke: ink, strokeWidth: 0.025 }),
-            new Text(ms.toFixed(0), { fontSize: 0.26, font: 'mono', color: ink }).moveTo([x, timeY]),
-            new Dot({ radius: 0.11, color: accent }).moveTo([x, browserY]),
-            new Dot({ radius: 0.11, color: accent }).moveTo([x0 + n * 0.28, traceY]),
-          );
-        });
-        return keyed(g, 'lantern-ruler');
-      },
-      { place: false },
-    );
+    const ruler = view(this, (st) => rulerPicture((st as unknown as { ruler: { fps: number; times: number[] } }).ruler.times, RULER_TOP, c), { place: false });
     await s.enter(ruler);
 
     await this.step('objects', {
@@ -423,10 +384,7 @@ export default class LanternExplainer extends Scene {
     await classes.walk([['Scene', 'Sink']], { trail: true });
     // What the sink does with a frame, beside it: it reads; it never changes a mobject.
     const sinkBox = classes.get('Sink').box()!;
-    const reads = new Text('reads each frame; changes nothing', { fontSize: 0.28, color: soft, anchor: 'start' }).moveTo(
-      [sinkBox[2] + 0.35, (sinkBox[1] + sinkBox[3]) / 2],
-      [-1, 0],
-    );
+    const reads = sinkNote(sinkBox, soft);
     await s.enter(reads, { describe: 'Beside Sink: it reads each frame and changes nothing.' });
     // src/animation.ts:1-3 and 79-83: begin() copies the starting mobject; every frame blends two fixed endpoints.
     await this.step('begin', {

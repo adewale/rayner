@@ -1,10 +1,11 @@
-import { Group, Text, Line, Rectangle, BraceLabel, shaperFor } from '../../../src/index.ts';
+import { Group, Text, Line, Rectangle, BraceLabel, SurroundingRectangle, shaperFor } from '../../../src/index.ts';
 import type { FontName, Mobject } from '../../../src/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 const word = 'Hello, outlines',
-  size = 0.9;
+  size = 0.9; // the size the fidelity test measures
+export { word as WORD, size as SIZE };
 const name = (f: FontName) => (f === 'sans' ? 'Inter' : 'JetBrains Mono');
 /** The glyph's advance in `f` at the size the rows use. */
 const advanceOf = (f: FontName, ch: string) => shaperFor(f)(ch, size).width;
@@ -99,4 +100,48 @@ export function pairLines(pairs: Array<[Mobject, Mobject]>, ghostOf: (m: Mobject
     );
   }
   return g;
+}
+
+/** The phrase in both fonts from one left edge: the measured row, stroked in ink, over the other font's row. */
+export function measuredRows(font: FontName, other: FontName, wide: number, ink: string, soft: string): { measured: Text; compare: Text } {
+  const measured = new Text(word, { font, fontSize: size, color: ink });
+  measured.setStroke(ink, 0.012);
+  measured.moveTo([-wide / 2, 2.4], [-1, 0]);
+  const compare = new Text(word, { font: other, fontSize: size, color: soft }).moveTo([-wide / 2, 0.1], [-1, 0]);
+  return { measured, compare };
+}
+
+/** The glyphs at `at` boxed by their advance cells, in each row's colour. */
+export function advanceCells(
+  rows: ReadonlyArray<readonly [Text, { readonly stops: readonly number[]; readonly advances: readonly number[] }, string]>,
+  at: readonly number[],
+): Group {
+  const cells = new Group();
+  for (const [row, run, color] of rows) {
+    const [x0, y0, , y1] = row.box()!;
+    for (const i of at) {
+      const x = x0 + run.stops[i]!;
+      cells.add(
+        new SurroundingRectangle([x, y0, x + run.advances[i]!, y1], {
+          buff: 0.02,
+          cornerRadius: 0.03,
+          stroke: color,
+          strokeWidth: 0.018,
+        }),
+      );
+    }
+  }
+  return cells;
+}
+
+/** The phrase in `font`, the row the letterforms step morphs copies of. */
+export const letterRow = (font: FontName, wide: number, ink: string) =>
+  new Text(word, { font, fontSize: size, color: ink }).moveTo([-wide / 2, 2.35], [-1, 0]);
+
+/** The row's two targets: a `small` copy centred under it, and the phrase in the other font below. */
+export function letterTargets(row: Text, font: FontName, other: FontName, small: number, wide: number, ink: string, hot: string) {
+  const [mx0, , mx1] = row.box()!;
+  const smaller = new Text(word, { font, fontSize: size * small, color: ink }).moveTo([(mx0 + mx1) / 2, 0.55]);
+  const across = new Text(word, { font: other, fontSize: size, color: hot }).moveTo([-wide / 2, -1.15], [-1, 0]);
+  return { smaller, across };
 }
