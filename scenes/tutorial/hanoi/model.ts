@@ -23,3 +23,6 @@ export function solve(n: number, from = 'A', to = 'C', spare = 'B'): Move[] {
   if (n === 0) return [];
   return [...solve(n - 1, from, spare, to), `${from}→${to}` as Move, ...solve(n - 1, spare, to, from)];
 }
+
+/** Whether all `n` disks are on C, where the story ends. */
+export const finished = (t: Tower, n: number) => t.pegs[2]!.length === n;
