@@ -1,5 +1,5 @@
 import { Scene, Group, view } from '../../../src/index.ts';
-import { stage, settingsOf, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, answerOf } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer } from './model.ts';
@@ -18,7 +18,6 @@ const yesNo = (b: boolean) => (b ? 'yes' : 'no');
 const traits = (send: boolean, sync: boolean) =>
   send && sync ? 'Send and Sync' : send ? 'Send but not Sync' : sync ? 'Sync but not Send' : 'neither Send nor Sync';
 /** The script's one-sentence answer (script.md); the arc-cell step's caption opens with it. */
-const ANSWER = 'Arc<T> is Send only when T is both Send and Sync';
 /** What the steps record, accumulated: the fields the views below draw from. */
 interface SendSyncState {
   /** The quadrant the step's point is in, which the small map fills. */
@@ -28,7 +27,6 @@ interface SendSyncState {
   threads: { name: string; spawnMove: boolean; scopeBorrow: boolean };
 }
 
-// The title, answer and check questions come from script.md's intent header.
 export default class SendSyncExplainer extends Scene {
   static meta = {
     id: 'send-sync',
@@ -80,6 +78,7 @@ export default class SendSyncExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this);
     const wrapper = values.wrapper as Wrapper,
       inner = values.inner as Inner;
@@ -263,7 +262,7 @@ export default class SendSyncExplainer extends Scene {
       line: 'Arc makes its count thread-safe, not the value inside.',
       // sync.rs:135-147: Arc gives shared ownership of the data but adds no thread safety to it.
       // sync.rs:284, 286: Send and Sync for Arc<T> both need T: Send + Sync.
-      caption: `${ANSWER}, and the same holds for Sync. Cloning an Arc gives another owner of the same T, so a clone moved to another thread shares T between threads, and Arc adds no locking around it. ${cellLayer.name} is ${traits(cellLayer.send, cellLayer.sync)}, so ${arcCell.name} is ${traits(arcCell.send, arcCell.sync)}: the point moves from “${QUADRANT[cellLayer.quadrant]}” to “${QUADRANT[arcCell.quadrant]}”, and thread::spawn refuses x.`,
+      caption: `${answer}, and the same holds for Sync. Cloning an Arc gives another owner of the same T, so a clone moved to another thread shares T between threads, and Arc adds no locking around it. ${cellLayer.name} is ${traits(cellLayer.send, cellLayer.sync)}, so ${arcCell.name} is ${traits(arcCell.send, arcCell.sync)}: the point moves from “${QUADRANT[cellLayer.quadrant]}” to “${QUADRANT[arcCell.quadrant]}”, and thread::spawn refuses x.`,
     });
     await s.clear();
     const shared = valueName(arcCell.name);

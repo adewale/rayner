@@ -1,6 +1,6 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import {
   GUIDELINES,
   LEVELS,
@@ -115,7 +115,6 @@ const ofThem = (n: number, all: number, level: Level) =>
     ? ''
     : `, ${n === all ? 'all' : n === 0 ? 'none' : n} of them at level ${level === 'A' ? 'A' : 'A or AA'}`;
 
-// The title, answer and check questions come from script.md's intent header.
 export default class WcagMapExplainer extends Scene {
   static meta = {
     id: 'wcag-map',
@@ -168,7 +167,7 @@ export default class WcagMapExplainer extends Scene {
       t22 = tally('2.2', level);
 
     // ------------------------------------------------------------------ 2.0
-    await s.steps(readerFrames(level, open), { kind: 'short' });
+    await s.steps(readerFrames(level, open, answerOf(this)), { kind: 'short' });
     await this.step('v20', {
       kind: 'detail',
       title: `The same list as a tree: ${PRINCIPLES.length} principles and ${guidelinesIn('2.0').length} guidelines in WCAG 2.0`,

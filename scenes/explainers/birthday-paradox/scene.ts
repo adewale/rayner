@@ -1,5 +1,5 @@
 import { Scene } from '../../../src/index.ts';
-import { settingsOf, stage } from '../../../explain/index.ts';
+import { settingsOf, stage, answerOf } from '../../../explain/index.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { birthdayStory } from './model.ts';
 import { drawDays, drawEstimate, pairGrid, room } from './picture.ts';
@@ -7,11 +7,7 @@ import { stagedStep } from '../../../explain/index.ts';
 import { listed, numberWord, percent } from '../lib/format.ts';
 
 const pct2 = (p: number) => percent(p, { digits: 2 });
-/** The script's one-sentence answer; test/learning-models.test.ts holds its numbers to the model. */
-export const ANSWER =
-  'A room of 23 people gives a better than even chance that two share a birthday, because 23 people make 253 pairs, each a chance to match';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class BirthdayParadox extends Scene {
   static meta = {
     id: 'birthday-paradox',
@@ -48,6 +44,7 @@ export default class BirthdayParadox extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const m = birthdayStory(Number(settingsOf(this).people)),
       n = m.people;
     const shared = m.shared.map((d) => d.date);
@@ -74,7 +71,7 @@ export default class BirthdayParadox extends Scene {
               ? `The outlined cards repeat ${listed(shared)}, each on ${numberWord(m.shared[0]!.people)} cards. `
               : `The outlined cards repeat dates: ${listed(m.shared.map((d) => `${d.date} is on ${numberWord(d.people)} cards`))}. `
             : ''
-        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${percent(m.chance)}. ${ANSWER}. The next steps count those pairs.`,
+        }${m.chance < 0.4 ? `Most rooms of ${n} have no match` : m.chance < 0.6 ? `About half of all rooms of ${n} have a match` : `Most rooms of ${n} have a match`}: of ${m.sample.trials.toLocaleString('en')} random rooms, ${m.sample.matched} had a shared birthday, and the exact chance is ${percent(m.chance)}. ${answer}. The next steps count those pairs.`,
         // `days` and `dates`: the room's cards, as the room step recorded them.
         state: {
           people: n,

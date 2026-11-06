@@ -5,10 +5,8 @@ import { flow, label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
-/** The script's one-sentence answer (its intent header's Answer), which the outcome step states in both scenarios. */
-export const ANSWER = 'A hit saves the database read; a miss still makes it, and adds a cache read and write';
 
-export function frames(which: 'hit' | 'miss'): StagedStep[] {
+export function frames(which: 'hit' | 'miss', answer: string): StagedStep[] {
   const reads = (n: number) => (n === 1 ? 'one database read' : `${n} database reads`);
   return [
     stagedStep({
@@ -30,8 +28,8 @@ export function frames(which: 'hit' | 'miss'): StagedStep[] {
       line: which === 'hit' ? 'The key already has a stored value.' : 'The key has no stored value yet.',
       caption:
         which === 'hit'
-          ? `${ANSWER}. KV, the cache, already holds this user, so the request returns the saved value with zero database reads. Switch to the miss to see what the saving costs when the value is not there.`
-          : `${ANSWER}. KV, the cache, has no entry for this user, so the request reads the database once, as before, stores the result in KV and returns it. A later request can use the saved value; this one did more work than it would have without the cache.`,
+          ? `${answer}. KV, the cache, already holds this user, so the request returns the saved value with zero database reads. Switch to the miss to see what the saving costs when the value is not there.`
+          : `${answer}. KV, the cache, has no entry for this user, so the request reads the database once, as before, stores the result in KV and returns it. A later request can use the saved value; this one did more work than it would have without the cache.`,
       state: { request: which, reads: which === 'hit' ? 0 : 1 },
       draw: (st, s) =>
         new Group(

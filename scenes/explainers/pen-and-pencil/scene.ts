@@ -29,7 +29,6 @@ const CHART_BOX: Box = [-7.55, -4.25, 7.55, 0.5];
 
 const fmt = (n: number, d = 3) => n.toFixed(d);
 
-// The title, answer and check questions come from script.md's intent header.
 export default class PenAndPencil extends Scene {
   static meta = {
     id: 'pen-and-pencil',

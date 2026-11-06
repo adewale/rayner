@@ -1,6 +1,6 @@
 import { Scene, VMobject, Follow, SetState, Succession, view } from '../../../src/index.ts';
 import type { Group, Vec } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { depthOrder, seenPictures, latLon, toLatLon } from '../../../explain/drawing.ts';
 import type { Viewpoint, SeenPicture, Seen } from '../../../explain/drawing.ts';
@@ -8,7 +8,6 @@ import { greatCircle, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } 
 import { MERCATOR, TROPICS, mercator, stretched, globe, westward, gnomonic, onEquator, turnWords } from './picture.ts';
 import type { MapState, GlobeState, Pair } from './picture.ts';
 
-const ANSWER = 'The flat map has bent the shortest route out of shape';
 
 // ---------------------------------------------------------------- viewpoints: state, turned by a Follow
 const L = london(), M = madrid();
@@ -47,7 +46,6 @@ function straight(scene: Scene): true | string | undefined {
   return checked;
 }
 
-// The title, answer and check questions come from script.md's intent header.
 export default class GreatCircle extends Scene {
   static meta = {
     id: 'great-circle',
@@ -77,6 +75,7 @@ export default class GreatCircle extends Scene {
   ] }];
 
   override async construct() {
+    const answer = answerOf(this);
     const s = stage(this, { style: 'github-light', headingSize: 0.6 });
     const second = settingsOf(this).second as 'madrid' | 'equator';
     const westKm = rhumb(M.from, M.to).km;
@@ -89,7 +88,7 @@ export default class GreatCircle extends Scene {
         caption: 'Open the seat-back map on a flight from London to Los Angeles. The line it draws leaves Heathrow heading north-west, climbs past the southern tip of Greenland, crosses Hudson Bay and only then turns south toward California. Los Angeles is far to the south of London, yet the plane goes north. Lay a ruler across the same map from Heathrow to LAX and you get a tidy line heading west-south-west across the Atlantic. Which route is shorter?',
         state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, false), opening: ['map'] },
       { id: 'shorter', title: `Answer: the bent line, by ${tens(L.extraKm)} km`, line: 'Red: the plane’s route. Blue dashed: the ruler’s line.',
-        caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${ANSWER}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
+        caption: `The bent one, by a long way: ${tens(L.km)} kilometres against ${tens(L.rhumbKm)}. The ruler’s line is about ${tens(L.extraKm)} kilometres longer. ${answer}. On the globe the shortest route lies along the circle that a flat plane cuts when it passes through both cities and the centre of the Earth. Look at that circle from inside its plane and it is a straight line.`,
         state: { viewpoint: MERCATOR, route: L }, draw: (st: MapState) => mercator(st, true) },
       { id: 'stretch', title: 'Mercator’s map stretches the north sideways', line: 'Each bar is 1,000 km of the same parallel.',
         caption: `This kind of map, Mercator’s, stretches every place sideways so that compass directions stay true, and the farther from the equator, the more it stretches: about ${L.stretch.from.toFixed(1)} times at London’s latitude, about twice where the route crosses Greenland. The Earth is narrower up there, so a route that goes north takes a shortcut, and the map draws that narrow part widest, so the shortcut looks like a detour. The ruler’s line keeps one compass heading: easy to steer, longer to fly.`,

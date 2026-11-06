@@ -1,6 +1,6 @@
 import { Scene, Group, view } from '../../../src/index.ts';
 import type { Box, Mobject, View } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, regionBox, CodeBlock } from '../../../explain/index.ts';
+import { stage, settingsOf, REGIONS, regionBox, CodeBlock, answerOf } from '../../../explain/index.ts';
 import type { Diagram, NoteSide } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
@@ -48,8 +48,6 @@ const SIDE = REGIONS.side,
 const REPORT_X = SIDE[0],
   REPORT_SIZE = 0.42;
 /** The script's one-sentence answer, stated in the verify step of every scenario. */
-const ANSWER =
-  'Verify fails a diagram that Agentic Mermaid’s renderer cannot draw, warns about structural gaps such as an unlabelled branch out of a decision, and leaves what the labels mean unchecked';
 /** How Agentic Mermaid names an edge, said in the first step whose findings or edits name one. */
 const NAMING =
   'Agentic Mermaid names an edge by its two ends and a count: A->C#0 is the first edge from A, Cached, to C, Database.';
@@ -68,8 +66,7 @@ interface DiagramState { source: string; marks: { part: string; tone: Tone; as: 
 /** The verifier's report on a diagram, from its pinned snapshot. */
 interface Report { ok: boolean; warnings: { code: string; edge: string; part: string }[]; taskCorrectness: string }
 
-// The title, answer and check questions come from script.md's intent header; test/explain-real.test.ts runs
-// the pinned verifier on each check question's diagram.
+// test/explain-real.test.ts runs the pinned verifier on each check question's diagram.
 export default class MermaidExplainer extends Scene {
   static meta = {
     id: 'agentic-mermaid',
@@ -92,6 +89,7 @@ export default class MermaidExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const edit = settingsOf(this).edit as Edit,
       missing = edit === 'missing',
       swapped = edit === 'swapped',
@@ -219,7 +217,7 @@ export default class MermaidExplainer extends Scene {
         : swapped
           ? 'The dot follows the yes edge as drawn: from Cached to Database.'
           : 'Would the report change if the labels were the wrong way round?',
-      caption: missing ? `${UNLABELED}. ${NAMING} Warnings identify missing structural information while ok stays true. ${ANSWER}.` : swapped ? `The source renders and both exits of the decision carry labels, so the report has no warnings, even though its yes path reaches Database. Its last line, taskCorrectness: not-checked, marks where the check stops. ${ANSWER}. The next two steps show the failure and the warning.` : `The source renders and both decision exits carry labels, so the report has no warnings. That does not prove that the labels express the right behavior. ${ANSWER}. Would reversed labels get a different report?`,
+      caption: missing ? `${UNLABELED}. ${NAMING} Warnings identify missing structural information while ok stays true. ${answer}.` : swapped ? `The source renders and both exits of the decision carry labels, so the report has no warnings, even though its yes path reaches Database. Its last line, taskCorrectness: not-checked, marks where the check stops. ${answer}. The next two steps show the failure and the warning.` : `The source renders and both decision exits carry labels, so the report has no warnings. That does not prove that the labels express the right behavior. ${answer}. Would reversed labels get a different report?`,
     });
     const d = live.get('main')!;
     const verified = reportOf(d);

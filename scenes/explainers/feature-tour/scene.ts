@@ -36,7 +36,7 @@ import {
   thereAndBack,
 } from '../../../src/index.ts';
 import type { SceneState, Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, palette } from '../../../explain/index.ts';
+import { stage, settingsOf, palette, answerOf } from '../../../explain/index.ts';
 import { bars, tile, keyed, seenFrom, between, latLon, circleOn, project } from '../../../explain/drawing.ts';
 
 type Feature =
@@ -560,16 +560,12 @@ const PREDICT: Record<Feature, string> = {
   globe: 'Predict: once the turn ends, where is London on the globe?',
 };
 
-/** The script's one-sentence answer (its intent header's Answer), which opens every scenario's recipe caption. */
-const ANSWER =
-  'Each feature takes a few lines of the scene, and the picture they leave at rest is what a reader who opens the step from a link sees';
 
 // The result step's two panels: what the reader would have seen before the feature ran, and after.
 const BEFORE: [number, number, number, number] = [-7.4, -3.5, -2.5, 2.1],
   AFTER: [number, number, number, number] = [-1.3, -3.5, 7.4, 2.1];
 const centre = (b: readonly number[]): [number, number] => [(b[0]! + b[2]!) / 2, (b[1]! + b[3]!) / 2];
 
-// The title, answer and check questions come from script.md's intent header.
 export default class FeatureTour extends Scene {
   static meta = {
     id: 'feature-tour',
@@ -642,6 +638,7 @@ export default class FeatureTour extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const feature = settingsOf(this).feature as Feature;
     const example = RECIPES[feature];
     const s = stage(this, {
@@ -659,7 +656,7 @@ export default class FeatureTour extends Scene {
     await this.step('recipe', {
       title: QUESTIONS[feature],
       line: PREDICT[feature],
-      caption: `${ANSWER}. ${example.recipe}`,
+      caption: `${answer}. ${example.recipe}`,
     });
     await s.code(example.code, { at: 'full', fontSize: 0.6 });
     this.state.feature = feature;

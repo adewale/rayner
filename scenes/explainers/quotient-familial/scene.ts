@@ -95,7 +95,6 @@ const chart = (opts: { width: number; height: number; x: string[]; y: string; ba
   ` bar [${opts.bars.map((v) => v.toFixed(2)).join(', ')}]` +
   (opts.line ? `\n line [${opts.line.map((v) => v.toFixed(2)).join(', ')}]` : '');
 
-// The title, answer and check questions come from script.md's intent header.
 export default class QuotientFamilialExplainer extends Scene {
   static meta = {
     id: 'quotient-familial',

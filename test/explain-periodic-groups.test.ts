@@ -15,7 +15,11 @@ import { lerpColor } from '../src/color.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import { check } from './lib/fidelity/periodic-groups.ts';
-import PeriodicGroupsExplainer from '../scenes/explainers/periodic-groups/scene.ts';
+import PeriodicGroupsScene from '../scenes/explainers/periodic-groups/scene.ts';
+import { withScriptIntent } from '../tools/lib/explain-intent.ts';
+
+const PeriodicGroupsExplainer = withScriptIntent(PeriodicGroupsScene, 'scenes/explainers/periodic-groups');
+type PeriodicGroupsExplainer = PeriodicGroupsScene;
 
 // The 18-column table with Sc, Y, Lu and Lr in group 3 (the arrangement Wikipedia's
 // Group article reports IUPAC endorsed in 1988 and 2021), typed row by row and

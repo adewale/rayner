@@ -13,7 +13,7 @@ import {gitStory,currentFiles,history,moveMainToFeature,unreachable} from '../sc
 import {monty,threeDoorWorlds,montyExample,threeDoorCells,oddsAfter,roundStart,roundNext,roundDoor,roundResult,ROUND_EVENTS} from '../scenes/explainers/monty-hall/model.ts';
 import type {Round,RoundEvent} from '../scenes/explainers/monty-hall/model.ts';
 import {birthdayChance,birthdaySample,matches,birthdayStory,evenOdds,pairCount,pairShortcut,dateOf} from '../scenes/explainers/birthday-paradox/model.ts';
-import BirthdayParadox,{ANSWER as birthdayAnswer} from '../scenes/explainers/birthday-paradox/scene.ts';
+import BirthdayParadox from '../scenes/explainers/birthday-paradox/scene.ts';
 import {phrase,musicStory,beatMs} from '../scenes/explainers/melody-rhythm/model.ts';
 import MelodyRhythm from '../scenes/explainers/melody-rhythm/scene.ts';
 import {stepAudio} from '../explain/audio.ts';
@@ -524,8 +524,7 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     // The shortcut is exact for comparisons against one fixed birthday.
     close(pairShortcut(n-1),birthdayChance(n,'one'));
   }
-  assert.equal(birthdayAnswer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs, each a chance to match`);
-  assert.equal(explainerMeta(BirthdayParadox, 'scenes/explainers/birthday-paradox').answer,birthdayAnswer);
+  assert.equal(explainerMeta(BirthdayParadox, 'scenes/explainers/birthday-paradox').answer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs, each a chance to match`);
   // Dates of a 365-day year, checked against the calendar of a non-leap year.
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   for(let day=1;day<=365;day++){

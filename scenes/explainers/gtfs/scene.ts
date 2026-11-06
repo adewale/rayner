@@ -1,6 +1,6 @@
 import { Scene, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, Card, mermaid } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, mermaid, answerOf } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
@@ -90,8 +90,6 @@ erDiagram
     enum exception_type
   }`;
 
-/** The script's one-sentence answer (script.md); the service step's caption states it. */
-const ANSWER = 'A route has departures only on dates its trips’ service runs';
 
 // The diagram takes the left of the stage, words the right; the day's chart takes the whole stage.
 const LEFT: Box = [-7.55, -4.25, 1.75, 2.95];
@@ -118,7 +116,6 @@ function verdict(s: ServiceDay, date: GtfsDate): string {
   return `${pattern}: ${s.runs ? 'runs' : 'no service'}`;
 }
 
-// The title, answer and check questions come from script.md's intent header.
 export default class GtfsExplainer extends Scene {
   static meta = {
     id: 'gtfs',
@@ -161,6 +158,7 @@ export default class GtfsExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this);
     const date: GtfsDate = values.date!.replace(/-/g, ''),
       before = addDays(date, -1),
@@ -272,7 +270,7 @@ export default class GtfsExplainer extends Scene {
       title: `AB1 runs only on the dates its service, ${ab1Row.service_id}, runs`,
       line: `Predict: which rows of the two tables decide ${longDate(date)}?`,
       // reference.md:261, :356-357, :361, :363.
-      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt supplies a weekday pattern within a date range; calendar_dates.txt adds or removes a particular date, overriding that pattern. The same service_id can be shared by several trips, so one exception can stop them together without deleting their route. ${ANSWER}: a route row promises nothing by itself. Here ${services
+      caption: `A trip’s service_id must match a row of calendar.txt, of calendar_dates.txt, or both. calendar.txt supplies a weekday pattern within a date range; calendar_dates.txt adds or removes a particular date, overriding that pattern. The same service_id can be shared by several trips, so one exception can stop them together without deleting their route. ${answer}: a route row promises nothing by itself. Here ${services
         .map((x) => `${x.id} (${x.trips} trips) is in ${where(x).replace(' only', ' alone')}`)
         .join(', and ')}.`,
     });

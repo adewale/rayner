@@ -12,7 +12,6 @@ const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 const count = (n: number) => numberWord(n, { zero: 'none' });
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
 
-// The title, answer and check questions come from script.md's intent header.
 export default class BloomFilter extends Scene {
   static meta = {
     id: 'bloom-filter',

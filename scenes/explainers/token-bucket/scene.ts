@@ -58,7 +58,6 @@ const formatState = (v: unknown) =>
         : v.toFixed(1)
       : String(v);
 
-// The title, answer and check questions come from script.md's intent header.
 export default class TokenBucketExplainer extends Scene {
   static meta = {
     id: 'token-bucket',

@@ -1,7 +1,7 @@
 import { Scene, VMobject, Follow, SetState, Succession, view, linear } from '../../../src/index.ts';
 import type { Group } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
-import { settingsOf, stage } from '../../../explain/index.ts';
+import { settingsOf, stage, answerOf } from '../../../explain/index.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { depthOrder, seenPictures } from '../../../explain/drawing.ts';
 import type { Seen, SeenPicture } from '../../../explain/drawing.ts';
@@ -13,9 +13,7 @@ import { seasonsOf, drawStreet, annual, overhead, disc } from './picture.ts';
 import type { SkyState, YearState, LookState, GlobeState, DayAt } from './sky.ts';
 type Sunset = ReturnType<typeof henge>['seasons'][number];
 
-const ANSWER = 'The street stays fixed while Earth’s tilt moves the sunset direction across it and back';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class Henge extends Scene {
   static meta = {
     id: 'henge',
@@ -38,6 +36,7 @@ export default class Henge extends Scene {
     { value: 'manhattan', label: 'Manhattan: 29° north of west' }, { value: 'west', label: 'Due west' },
   ] }];
   override async construct() {
+    const answer = answerOf(this);
     const m = henge(settingsOf(this).street as Street), manhattan = m.street === 'manhattan';
     const seasonNames = seasonsOf(m.street);
     const west = (bearing: number) => `${Math.abs(bearing - 270).toFixed(1)}° ${bearing > 270 ? 'north' : 'south'} of west`;
@@ -55,8 +54,8 @@ export default class Henge extends Scene {
         title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',
         line: 'North is up; the grid is schematic. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
         caption: manhattan
-          ? `${ANSWER}. From above, Manhattan’s cross streets point ${(m.bearing - 270).toFixed(1)}° north of west, and the same angle south of east at the other end. On an alignment evening the setting Sun lies on that line and shines straight down 42nd Street. That morning it rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° from the street’s other end, which faces the sunrise only on winter mornings either side of the December solstice.`
-          : `${ANSWER}. This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days.`,
+          ? `${answer}. From above, Manhattan’s cross streets point ${(m.bearing - 270).toFixed(1)}° north of west, and the same angle south of east at the other end. On an alignment evening the setting Sun lies on that line and shines straight down 42nd Street. That morning it rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° from the street’s other end, which faces the sunrise only on winter mornings either side of the December solstice.`
+          : `${answer}. This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days.`,
         state: { alignment: m.alignment, backCrossings: m.backCrossings, bearing: m.bearing, street: m.street }, draw: overhead }),
       stagedStep<SkyState>({ id: 'sky', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
         line: manhattan ? `Red: the street’s arc, rising from the horizon where the street points, ${west(m.bearing)}.` : 'Red: the street’s arc, rising from the horizon where the street points, due west.',

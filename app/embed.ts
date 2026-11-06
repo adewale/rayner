@@ -1468,7 +1468,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     for (const s of Source.settings ?? []) if (q.has(s.id)) request[s.id] = q.get(s.id)!;
     return { request, step: q.get('step') ?? undefined, sent: decodeLog(q.get(SENT)) };
   };
-  // A host page drives the player through the loader (specs/player-guidance.md G4): a step by name
+  // A host page drives the player through the loader (player-guidance G4): a step by name
   // and settings by id, validated as the URL's are (an undeclared id is ignored, as in a URL; an
   // unknown value falls back with the same notice). Given settings replace those of the scenario on
   // show; a request without a step keeps the step by name. It replaces the frame's history entry.

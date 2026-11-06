@@ -16,7 +16,6 @@ const HOST: Record<Host, string> = { informed: 'Host who knows', random: 'Random
  */
 const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
 
-// The title, answer and check questions come from script.md's intent header.
 export default class MontyHall extends Scene {
   static meta = {
     id: 'monty-hall',

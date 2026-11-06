@@ -1,7 +1,7 @@
 import { frames as readerFrames, FILE, files, prints, shellsPicture, shellsWords, commandLine, faded } from './picture.ts';
 import { Scene, Text, Transform, AnimationGroup, Succession, FadeIn, Machine, view } from '../../../src/index.ts';
 import type { Animation, Box, Choreography, SceneState, Transition } from '../../../src/index.ts';
-import { stage, regionBox } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf } from '../../../explain/index.ts';
 import { exec } from './model.ts';
 import type { Shell } from './model.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
@@ -26,7 +26,6 @@ const TOP = regionBox('top', { bottom: -0.2 }),
   BOTTOM = regionBox('bottom', { top: -0.5 }),
   BOTTOM_LEFT = regionBox('left', { top: -0.5 }),
   BOTTOM_RIGHT = regionBox('right', { top: -0.5 });
-// The title, answer and check questions come from script.md's intent header.
 export default class BashExplainer extends Scene {
   static meta = {
     id: 'just-bash',
@@ -45,7 +44,7 @@ export default class BashExplainer extends Scene {
       accent = s.emphasis;
     const old: Shell = { fs: {}, steps: 0 };
     // ── command: a line of text and a shell value ──────────────────────
-    await s.steps(readerFrames(), { kind: 'short' });
+    await s.steps(readerFrames(answerOf(this)), { kind: 'short' });
     await this.step('command', {
       kind: 'detail',
       title: 'A command line and the empty shell it runs on',

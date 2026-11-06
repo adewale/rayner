@@ -27,7 +27,6 @@ function shape(font: FontName, text: string) {
   };
 }
 
-// The title, answer and check questions come from script.md's intent header.
 export default class GlyphExplainer extends Scene {
   static meta = {
     id: 'glyph',

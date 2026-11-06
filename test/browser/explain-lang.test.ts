@@ -112,7 +112,7 @@ test('page words come from a table by primary language, English when there is no
   assert.equal(chromeFor('fr').stepOf(3, 4, 'Titre'), `Étape 3 sur 4${NB}: Titre`);
   assert.equal(chromeFor('en').allSteps(4), 'All 4 steps');
   assert.equal(chromeFor('fr').allSteps(4), 'Les 4 étapes');
-  // The footer's mark and way out of a frame (specs/player-tile.md T7); "Rayner" is a name, never translated.
+  // The footer's mark and way out of a frame (player-tile T7); "Rayner" is a name, never translated.
   assert.equal(chromeFor('en').madeWith, 'Made with Rayner');
   assert.equal(chromeFor('fr').madeWith, 'Réalisé avec Rayner');
   assert.equal(chromeFor('en').open, 'Open the explainer');
@@ -418,7 +418,7 @@ test(
           notice: document.querySelector('.notice')?.textContent,
         }));
       };
-      // Each language's scene has one step, so the reader opens at the end: Next is Start again (specs/player-guidance.md G2).
+      // Each language's scene has one step, so the reader opens at the end: Next is Start again (player-guidance G2).
       const fr = await read('fr');
       assert.deepEqual(
         { ...fr, picture: undefined },

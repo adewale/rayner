@@ -47,7 +47,6 @@ const turnBetween = (from: number, to: number) => {
 /** Animations side by side in group time that does not ease, so each member's own easing is not compounded. */
 const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { rateFunc: linear });
 
-// The title, answer and check questions come from script.md's intent header.
 export default class RingBufferExplainer extends Scene {
   static meta = {
     id: 'ring-buffer',

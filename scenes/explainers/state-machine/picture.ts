@@ -6,11 +6,8 @@ import { flow, keyed, label, tile } from '../../../explain/drawing.ts';
 import type { StagedStep, Diagram, Palette, CardOptions } from '../../../explain/index.ts';
 import { stagedStep, Card } from '../../../explain/index.ts';
 
-/** The script's one-sentence answer (script.md's Answer line), which the reject step states in both histories. */
-export const ANSWER =
-  'The reducer accepts an event only in a state that has a row for it, so a late OPENED cannot reopen a closed session';
 
-export function frames(which: string): StagedStep[] {
+export function frames(which: string, answer: string): StagedStep[] {
   const event = which === 'success' ? 'OPENED' : 'ERROR',
     next = reduceSession('connecting', event);
   const closed = which === 'success' ? reduceSession(next, 'CLOSE') : next;
@@ -35,7 +32,7 @@ export function frames(which: string): StagedStep[] {
       id: 'reader-reject',
       title: 'Answer: no. Closed has no row for OPENED',
       line: 'The reducer looks up the current state and the event together.',
-      caption: `${ANSWER}. ${ended}. The reducer then looks up the pair closed:OPENED, finds no row and throws InvalidTransition, an error, so the state stays closed.`,
+      caption: `${answer}. ${ended}. The reducer then looks up the pair closed:OPENED, finds no row and throws InvalidTransition, an error, so the state stays closed.`,
       // `via`: the event that closed the session before the late OPENED.
       state: { state: closed, event: 'OPENED', result: rejected, via: which === 'success' ? 'CLOSE' : event },
       draw: (st, s) =>

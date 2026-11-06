@@ -1,5 +1,5 @@
 import { Scene, Text, FadeOut, view } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, answerOf } from '../../../explain/index.ts';
 import type { CardOptions, CardRow } from '../../../explain/index.ts';
 import {
   BACKDATE,
@@ -135,10 +135,7 @@ const at = (hours: number, short: boolean) => (short ? `hour ${Math.round(hours)
 const length = (hours: number, short: boolean) => (short ? `${Math.round(hours)} hours` : `${days(hours)} days`);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
-/** The script's one-sentence answer (script.md's Answer line), which the new-rule step states. */
-const ANSWER = 'renew at a share of the certificate’s life, not a fixed time before expiry';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class CertRenewalExplainer extends Scene {
   static meta = {
     id: 'cert-renewal',
@@ -195,6 +192,7 @@ export default class CertRenewalExplainer extends Scene {
     },
   ];
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this),
       key = values.lifetime as LifetimeKey,
       rule = values.rule as Rule,
@@ -350,7 +348,7 @@ export default class CertRenewalExplainer extends Scene {
       line: both
         ? `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}, where the 30-day rule renews too.`
         : `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
-      caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
+      caption: `Certbot 4.1 changed the rule: ${answer}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
     });
     // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
     await this.play(new FadeOut(marginView, { runTime: 0.3 }));

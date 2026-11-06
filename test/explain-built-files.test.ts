@@ -34,7 +34,7 @@ test('site export rejects tampered built HTML, pictures and a missing output pin
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
-// specs/player-tile.md T6: demos:build refuses an embed.json without three heights above the floor.
+// player-tile T6: demos:build refuses an embed.json without three heights above the floor.
 test('an embed.json needs schema 1, aspect 16/9 and an integer height above the stage plus the stepper row at each of 390, 640 and 900 px', async () => {
   const { embedSizeProblems, embedFloor } = await import('../tools/lib/explain-embed-size.ts');
   const good = { schema: 1, aspect: '16/9', heights: { '390': 900, '640': 1000, '900': 1200 } };

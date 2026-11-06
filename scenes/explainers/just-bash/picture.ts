@@ -11,10 +11,8 @@ export const files = (sh: Shell) => Object.keys(sh.fs).join(', ') || 'none';
 /** What cat's stdout amounts to, in words. */
 export const prints = (out: string) => (out ? `prints ${out.trim()}` : 'prints nothing');
 
-/** The script's answer (script.md's Answer line), stated by the second step. */
-export const ANSWER = 'exec returns a new shell holding the write and leaves the shell you passed in unchanged';
 
-export function frames(): StagedStep[] {
+export function frames(answer: string): StagedStep[] {
   const original = { fs: {}, steps: 0 },
     run = exec(
       original,
@@ -46,7 +44,7 @@ export function frames(): StagedStep[] {
       id: 'reader-values',
       title: 'Answer: the file is in the shell exec returned',
       line: 'Same command, two shell values: only the returned one holds shout.txt.',
-      caption: `In this model, ${ANSWER}. cat ${prints(next)} with the returned shell and ${prints(old)} with the original, which still has no files. A caller that drops the return value has thrown away the shell that holds the write, although the command ran.`,
+      caption: `In this model, ${answer}. cat ${prints(next)} with the returned shell and ${prints(old)} with the original, which still has no files. A caller that drops the return value has thrown away the shell that holds the write, although the command ran.`,
       state: { old, next, file: run.shell.fs['shout.txt']! },
       draw: (st, s) =>
         table(

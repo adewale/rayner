@@ -5,7 +5,6 @@ import { run, type Policy } from './model.ts';
 const SIZE = 3;
 const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
-// The title, answer and check questions come from script.md's intent header.
 export default class LruMru extends Scene {
   static meta = {
     id: 'lru-mru',

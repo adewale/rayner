@@ -4,8 +4,7 @@ import { DOOR_EVENTS, doorNext, doorStart, type DoorEvent, type DoorState } from
 import { drawDoor } from './picture.ts';
 
 // A machine explainer: the model in model.ts drives the door, the picture is a view of the state,
-// and the step where the machine last plays is live, so the reader presses the events there. The
-// title, answer and check questions come from script.md's intent header.
+// and the step where the machine last plays is live, so the reader presses the events there.
 export default class DoorMachine extends Scene<DoorState> {
   static meta = { id: 'door' };
   override state = doorStart();

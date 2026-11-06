@@ -21,7 +21,6 @@ type Screen = 'srgb' | 'p3';
 
 const pct = (v: number) => percent(v, { of: 100 });
 
-// The title, answer and check questions come from script.md's intent header.
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
     id: 'tailwind-gamut',

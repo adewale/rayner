@@ -1,5 +1,5 @@
 import { table } from '../../../explain/drawing.ts';
-import { stagedStep } from '../../../explain/index.ts';
+import { stagedStep, answerOf } from '../../../explain/index.ts';
 import { Scene, Text, view } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
 import type { ExplainerClass } from '../../../explain/index.ts';
@@ -62,11 +62,7 @@ function runAt(rate: number) {
     return { ok, found: bucket.tokens + (ok ? 1 : 0) };
   });
 }
-/** The script's one-sentence answer (meta.answer), which the untested step states. */
-const ANSWER =
-  'Rayner builds every scenario before anyone reads it, so rayner check can test each one and the author can read it, and a reader can open only a scenario the build made';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class ForkExplainer extends Scene {
   static meta = {
     id: 'fork',
@@ -110,6 +106,7 @@ export default class ForkExplainer extends Scene {
     ],
   };
   override async construct() {
+    const answer = answerOf(this);
     const s = stage(this, { headingSize: 0.6, style: STYLE });
     const ink = s.palette.ink;
     /** The colours the pictures are drawn in. */
@@ -162,7 +159,7 @@ export default class ForkExplainer extends Scene {
     await this.step('untested', {
       title: `At ${perSecond(UNBUILT)}, R10 finds ${slow.found.toFixed(1)} tokens and is refused`,
       line: 'The sentence holds at every rate the page built and fails at one it never built.',
-      caption: `At ${perSecond(UNBUILT)}, R10 still needs a whole token. After five seconds only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The caption described the offered inputs, not arbitrary rates. ${ANSWER}.`,
+      caption: `At ${perSecond(UNBUILT)}, R10 still needs a whole token. After five seconds only ${slow.found.toFixed(1)} tokens have come back, so R10 gets 429. The caption described the offered inputs, not arbitrary rates. ${answer}.`,
     });
     this.state.unbuilt = { rate: UNBUILT, r10: slow.ok ? 200 : 429, found: Number(slow.found.toFixed(2)) };
     this.state.runs = [...sentenceState().runs, runOf(UNBUILT, false)];

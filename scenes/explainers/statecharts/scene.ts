@@ -9,7 +9,6 @@ import type { Drawn } from './picture.ts';
 /** Morphs pair parts by key: shapes by their place in the keyed part, a keyed word only with the same word. */
 const byKey: MatchKey = matchByKey({ text: 'whole' });
 
-// The title, answer and check questions come from script.md's intent header.
 export default class Statecharts extends Scene {
   static meta = {
     id: 'statecharts',

@@ -1,6 +1,6 @@
 import { Scene, view } from '../../../src/index.ts';
 import type { Box, View } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, mermaid, answerOf } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   BLOCK,
@@ -55,17 +55,6 @@ const pie = (names: readonly string[], title: string, slices: readonly Slice[]) 
   });
 
 const SIZE = 0.34;
-/** Root reserve over metadata on each of the scene's disks, at the default 5%. */
-const RATIOS = (Object.keys(SIZES) as Size[]).map((k) => {
-  const x = space(SIZES[k].bytes, DEFAULT_RESERVE);
-  return (x.root / x.layout.metadata).toFixed(1);
-});
-/**
- * The answer in script.md's intent header, computed here because the reserve step's caption states it.
- * It names its disks: at 2 GiB, a measured size, the reserve falls just short of the metadata (check 1).
- */
-const ANSWER = `Much of it is free space held back for root: the default 5% reserve is ${RATIOS.slice(0, -1).join(', ')} and ${RATIOS.at(-1)} times all the metadata on the ${(Object.keys(SIZES) as Size[]).map((k) => SIZES[k].label).join(', ').replace(/, ([^,]*)$/, ' and $1')} disks`;
-
 // The pie on the left, a card on the right: wider than the 'side' region so that 13-digit counts
 // fit beside their labels at full size.
 const PIE: Box = [-7.55, -4.25, 1.05, 3.25];
@@ -85,7 +74,6 @@ interface Ext4State {
 }
 const CARD: Box = [1.35, -4.25, 7.55, 3.25];
 
-// The title, answer and check questions come from script.md's intent header.
 export default class Ext4SpaceExplainer extends Scene {
   static meta = {
     id: 'ext4-space',
@@ -138,6 +126,7 @@ export default class Ext4SpaceExplainer extends Scene {
   ];
 
   override async construct() {
+    const answer = answerOf(this);
     const values = settingsOf(this);
     const size = values.size as Size,
       m = Number(values.reserve);
@@ -225,7 +214,7 @@ export default class Ext4SpaceExplainer extends Scene {
       title: `Answer: 5% is held back for root, ${ratio} all the metadata`,
       line: `Predict: what fills the ${count(l.metadata)} blocks of metadata?`,
       // mke2fs.c:2375-2378, 2832-2833; mke2fs.8.in:637-644; Linux super.c:4255-4283, balloc.c:620-665.
-      caption: `${ANSWER}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
+      caption: `${answer}. Without -m, mke2fs reserves 5% of the blocks for root, ${count(sp.root)} here, held back for privileged use. Those blocks can still be free: the reserve changes who may fill them, not whether metadata occupies them. The metadata, the filesystem’s own structures, is ${count(l.metadata)} blocks, ${of(l.metadata)}, and once mounted the kernel holds back ${count(sp.kernel)} more${
         kernelDrawn ? '' : `, ${of(sp.kernel)}, too thin to draw`
       }. Free blocks less both reserves is what ordinary users can write. Lowering the root reserve can change that availability without removing a single metadata block.`,
     });

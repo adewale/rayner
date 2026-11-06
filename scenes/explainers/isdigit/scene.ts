@@ -1,6 +1,6 @@
 import { Scene, Text, Group, view } from '../../../src/index.ts';
 import type { SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, CodeBlock, answerOf } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import {
@@ -35,8 +35,6 @@ const BOTTOM = -4.25;
 const q = (c: Char) => `'${c.char}'`;
 const TF = (b: boolean) => (b ? 'True' : 'False');
 
-/** The script's one-sentence answer (script.md), stated in the lineup step of every scenario. */
-const ANSWER = `No: isdigit() is True for ${CHARS.super.char}, and int('${CHARS.super.char}') raises ValueError`;
 
 /** The row as three lines: fields 0 to 4, fields 5 to 9 (the numeric ones in the middle), fields 10 to 14. */
 const rowLines = (c: Char) => {
@@ -44,7 +42,6 @@ const rowLines = (c: Char) => {
   return [f.slice(0, 5).join(';') + ';', f.slice(5, 10).join(';') + ';', f.slice(10).join(';')];
 };
 
-// The title, answer and check questions come from script.md's intent header.
 export default class IsDigitExplainer extends Scene {
   static meta = {
     id: 'isdigit',
@@ -98,6 +95,7 @@ export default class IsDigitExplainer extends Scene {
   ];
 
   override async construct() {
+    const scriptAnswer = answerOf(this);
     const values = settingsOf(this);
     const id = values.char as CharId,
       guard = values.guard as Predicate;
@@ -229,7 +227,7 @@ export default class IsDigitExplainer extends Scene {
         title: 'Eight numerals; int() accepts only the first four',
         line: `isdigit() is True for the first four and for ${CHARS.super.char} too.`,
         // UnicodeData.txt lines 52, 1598, 2337, 16765, 179, 190, 7719; Unihan_NumericValues.txt line 29.
-        caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${ANSWER[0]!.toLowerCase()}${ANSWER.slice(1)}. ${c.char}, circled, is this scenario’s character. If all eight have a numeric value, what does each check look up?`,
+        caption: `Unicode gives each of these a numeric value: four ways to write 3, then superscript two, one half, Roman twelve and the Chinese numeral three. The brackets above show which characters each string check returns True for; the brackets below show what int() does. int() and isdecimal() accept only the first four, isdigit() takes ${CHARS.super.char} as well, and isnumeric() takes all eight. So the answer is ${scriptAnswer[0]!.toLowerCase()}${scriptAnswer.slice(1)}. ${c.char}, circled, is this scenario’s character. If all eight have a numeric value, what does each check look up?`,
         state: lineup,
         describe: (st) => {
           const parses = st.lineup.filter((x) => 'value' in x.int).length,

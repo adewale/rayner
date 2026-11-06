@@ -1,6 +1,6 @@
 import { Scene, Text, Group, FadeIn, view } from '../../../src/index.ts';
 import type { Box, View, FadeOpts } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, answerOf as scriptAnswerOf } from '../../../explain/index.ts';
 import type { CardOptions, CardRow } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import {
@@ -90,8 +90,6 @@ const lowerFirst = (s: string) => s[0]!.toLowerCase() + s.slice(1);
 /** "one address", "two addresses". */
 const count = (n: number, noun: string) => `${numberWord(n, { zero: 'none' })} ${n === 1 ? noun : `${noun}es`}`;
 const OUTCOME = { sender: 'the real sender', proxy: 'the CDN edge', forged: 'written by the attacker' } as const;
-/** The script's one-sentence answer, stated in the read step of every scenario. */
-const ANSWER = 'req.ip is the nearest address Express does not trust, or the farthest one if it trusts all the others';
 /** The request, as the opening question puts it. */
 const ASKED: Record<RequestKey, string> = {
   client: 'a client comes through the CDN',
@@ -146,7 +144,6 @@ const readingsOf = (pairs: readonly (readonly [string, Verdict])[]): Reading[] =
 const outcomeWords = (outcome: Outcome, sender: string) =>
   outcome === 'sender' ? `Right: the ${sender}’s own address.` : `Wrong: ${outcome === 'proxy' ? 'the CDN edge’s address' : 'an address the attacker wrote'}.`;
 
-// The title, answer and check questions come from script.md's intent header.
 export default class TrustProxyExplainer extends Scene {
   static meta = {
     id: 'trust-proxy',
@@ -200,6 +197,7 @@ export default class TrustProxyExplainer extends Scene {
   ];
 
   override async construct() {
+    const scriptAnswer = scriptAnswerOf(this);
     const values = settingsOf(this),
       trustKey = values.trust as TrustKey,
       reqKey = values.request as RequestKey;
@@ -344,7 +342,7 @@ export default class TrustProxyExplainer extends Scene {
       line: last
         ? `Express trusts ${count(trusted.length, 'address')} and reaches the end of the list.`
         : `Express trusts ${count(trusted.length, 'address')}, then stops at the next.`,
-      caption: `Express reads the addresses from its own connection outward: the socket address, then X-Forwarded-For from right to left. It skips each address it trusts, and ${ANSWER}. ${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
+      caption: `Express reads the addresses from its own connection outward: the socket address, then X-Forwarded-For from right to left. It skips each address it trusts, and ${scriptAnswer}. ${why} ${stop} ${verdict}${forgedUnread ? ` Express never reads ${ADDR.forged}.` : ''}`,
     });
     await d.hide();
     await s.clearOverlays();

@@ -11,7 +11,7 @@ import {
   Circumscribe,
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // test/explain-fidelity.test.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
@@ -50,7 +50,6 @@ const CODE_BOX: Box = [-7.55, -4.25, 3.35, -0.65],
 const ADDED = '#2ea043',
   CHANGED = '#bf8700';
 
-// The title, answer and check questions come from script.md's intent header.
 export default class CacheMRExplainer extends Scene {
   static meta = {
     id: 'mr-cache',
@@ -81,7 +80,7 @@ export default class CacheMRExplainer extends Scene {
     const which = settingsOf(this).request as 'hit' | 'miss',
       s = stage(this, { headingSize: 0.6, style: STYLE });
 
-    await s.steps(readerFrames(which), { kind: 'short' });
+    await s.steps(readerFrames(which, answerOf(this)), { kind: 'short' });
     await this.step('before', {
       kind: 'detail',
       title: 'Before: every request reads D1',

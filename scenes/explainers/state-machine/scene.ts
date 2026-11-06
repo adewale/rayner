@@ -1,7 +1,7 @@
 import { frames as readerFrames, RING, drawSessionCard, reducerSpans, drawTrails, drawRing, drawReading, walkToken } from './picture.ts';
 import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession, Machine, view } from '../../../src/index.ts';
 import type { Animation, SceneState, View, Choreography, Transition } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, answerOf } from '../../../explain/index.ts';
 import type { Card } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
@@ -25,7 +25,6 @@ const THROW = 8;
 const DIAGRAM = regionBox('top', { bottom: 0.2 }),
   CODE = regionBox('full', { right: 2.05, top: -0.05 }),
   CARD = regionBox('full', { left: 2.35, top: -0.05 });
-// The title, answer and check questions come from script.md's intent header.
 export default class StateMachineExplainer extends Scene {
   static meta = {
     id: 'state-machine',
@@ -53,7 +52,7 @@ export default class StateMachineExplainer extends Scene {
   override async construct() {
     const which = settingsOf(this).events,
       s = stage(this, { headingSize: 0.6, style: 'dracula' });
-    await s.steps(readerFrames(which!), { kind: 'short' });
+    await s.steps(readerFrames(which!, answerOf(this)), { kind: 'short' });
     await this.step('machine', {
       kind: 'detail',
       title: 'Four reducer rows, one per arrow',
