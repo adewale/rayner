@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Retain the exact archive installed by the package gate; this command never publishes.
+// Retain the exact archives installed by the package gate; this command never publishes.
+// Rayner is two packages from this repository: rayner (the library) and rayner-cli (the command).
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -14,24 +15,34 @@ const dirtyBefore = !!(await run('git', ['status', '--porcelain'], { cwd: ROOT }
 const directory = join(ROOT, 'out/release');
 await rm(directory, { recursive: true, force: true });
 await mkdir(directory, { recursive: true });
-const { stdout } = await run('npm', ['pack', '--json', '--pack-destination', directory], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
-const [packed] = JSON.parse(stdout) as { name: string; version: string; filename: string; integrity: string; shasum: string; size: number; unpackedSize: number; files: { path: string }[] }[];
-assert.ok(packed);
-assert.equal(packed.name, 'rayner');
-assert.equal(basename(packed.filename), packed.filename);
-const archive = join(directory, packed.filename);
-const integrity = async () => 'sha512-' + createHash('sha512').update(await readFile(archive)).digest('base64');
-assert.equal(await integrity(), packed.integrity);
-const result = await run(process.execPath, [join(ROOT, 'tools/repo/explain-package-smoke.ts'), '--archive', archive], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
+type Packed = { name: string; version: string; filename: string; integrity: string; shasum: string; size: number; unpackedSize: number; files: { path: string }[] };
+const packages: Packed[] = [];
+// npm pack runs each package's prepack: build:lib for rayner, tools/repo/build-cli.ts for rayner-cli.
+for (const [name, folder] of [['rayner', '.'], ['rayner-cli', 'cli']] as const) {
+  const { stdout } = await run('npm', ['pack', '--json', '--pack-destination', directory], { cwd: join(ROOT, folder), maxBuffer: 4 * 1024 * 1024 });
+  const [packed] = JSON.parse(stdout) as Packed[];
+  assert.ok(packed);
+  assert.equal(packed.name, name);
+  assert.equal(basename(packed.filename), packed.filename);
+  packages.push(packed);
+}
+const [library, command] = packages as [Packed, Packed];
+assert.equal(command.version, library.version, 'rayner and rayner-cli share one version');
+const integrity = async (packed: Packed) => 'sha512-' + createHash('sha512').update(await readFile(join(directory, packed.filename))).digest('base64');
+for (const packed of packages) assert.equal(await integrity(packed), packed.integrity);
+const result = await run(process.execPath, [join(ROOT, 'tools/repo/explain-package-smoke.ts'), '--archive', join(directory, library.filename), '--cli-archive', join(directory, command.filename)], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
 process.stdout.write(result.stdout);
-assert.equal(await integrity(), packed.integrity, 'the tested archive was modified');
+for (const packed of packages) assert.equal(await integrity(packed), packed.integrity, `the tested ${packed.name} archive was modified`);
 assert.equal((await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim(), sourceCommit, 'source commit changed during validation');
 const dirty = dirtyBefore || !!(await run('git', ['status', '--porcelain'], { cwd: ROOT })).stdout.trim();
 await writeFile(join(directory, 'manifest.json'), JSON.stringify({
-  name: packed.name, version: packed.version, filename: packed.filename, sourceCommit, dirty,
-  integrity: packed.integrity, shasum: packed.shasum, size: packed.size, unpackedSize: packed.unpackedSize,
+  version: library.version, sourceCommit, dirty,
   node: process.version,
   gates: { package: true, browser: !!process.env.EXPLAIN_BROWSER, letteringCapture: process.env.EXPLAIN_LETTERING === '1' },
-  files: packed.files.map((file) => file.path),
+  packages: packages.map((packed) => ({
+    name: packed.name, filename: packed.filename,
+    integrity: packed.integrity, shasum: packed.shasum, size: packed.size, unpackedSize: packed.unpackedSize,
+    files: packed.files.map((file) => file.path),
+  })),
 }, null, 2) + '\n');
-console.log(`Tested archive retained at ${archive}; integrity ${packed.integrity}`);
+for (const packed of packages) console.log(`Tested ${packed.name} archive retained at ${join(directory, packed.filename)}; integrity ${packed.integrity}`);

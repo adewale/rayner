@@ -11,34 +11,40 @@ const script = new URL('../tools/repo/archive-published-release.ts', import.meta
 type Release = {id: number; tag_name: string; draft: boolean; assets: unknown[]};
 const draft = (id = 5): Release => ({id, tag_name: 'v0.1.0', draft: true, assets: []});
 
-async function attempt(releases: Release[], mode = '', env = {}) {
+async function attempt(releases: Release[], mode = '', env = {}, split = false) {
   const folder = await mkdtemp(join(tmpdir(), 'rayner-archive-guard-'));
   try {
     const bin = join(folder, 'bin'), calls = join(folder, 'calls.jsonl'), state = join(folder, 'releases.json');
     await mkdir(bin); await mkdir(join(folder, 'tools'));
     await writeFile(join(bin, 'package.json'), '{"type":"commonjs"}');
     await writeFile(join(folder, 'package.json'), JSON.stringify({name: 'rayner', version: '0.1.0', type: 'module'}));
-    await writeFile(join(folder, 'tools/explain-package-smoke.ts'), "console.log('Installed package gates passed.');\n");
+    // Before 0.2.0 a version is rayner alone, its gate in tools/; from 0.2.0, rayner and rayner-cli, the gate in tools/repo/.
+    const smoke = split ? 'tools/repo/explain-package-smoke.ts' : 'tools/explain-package-smoke.ts';
+    await mkdir(join(folder, 'tools/repo'), {recursive: true});
+    if (split) { await mkdir(join(folder, 'cli')); await writeFile(join(folder, 'cli/package.json'), JSON.stringify({name: 'rayner-cli', version: '0.1.0', type: 'module'})); }
+    await writeFile(join(folder, smoke), "import fs from 'node:fs';fs.writeFileSync(process.env.ARCHIVE_SMOKE_ARGS,JSON.stringify(process.argv.slice(2)));console.log('Installed package gates passed.');\n");
     await writeFile(state, JSON.stringify(releases));
-    const bytes = Buffer.from('original public npm archive');
-    const integrity = 'sha512-' + createHash('sha512').update(bytes).digest('base64');
+    const bytes = (name: string) => Buffer.from(`original public npm archive of ${name}`);
+    const integrity = Object.fromEntries(['rayner', 'rayner-cli'].map(name => [name, 'sha512-' + createHash('sha512').update(bytes(name)).digest('base64')]));
     // Only these executables can serve git/npm/gh requests. No actual credential,
     // npm publication, release mutation or remote connection is available here.
     const common = `const fs=require('node:fs'),path=require('node:path');const args=process.argv.slice(2),mode=process.env.ARCHIVE_MODE;fs.appendFileSync(process.env.ARCHIVE_CALLS,JSON.stringify({command:NAME,args})+'\\n');`;
     const scripts = {
       git: `if(args[0]==='rev-parse')console.log((mode==='wrong-tag'&&args[1]!=='HEAD'?'b':'a').repeat(40));else if(args[0]==='status')console.log(mode==='dirty'?' M source.ts':'');else process.exit(10);`,
-      npm: `if(args[0]==='view')console.log(JSON.stringify({integrity:${JSON.stringify(integrity)}}));else if(args[0]==='pack'){const dir=args[args.indexOf('--pack-destination')+1];fs.writeFileSync(path.join(dir,'rayner-0.1.0.tgz'),mode==='corrupt'?'wrong':${JSON.stringify(bytes.toString())});console.log(JSON.stringify([{filename:'rayner-0.1.0.tgz'}]));}else process.exit(11);`,
+      npm: `const integrity=${JSON.stringify(integrity)},name=String(args[1]).split('@')[0];if(args[0]==='view')console.log(JSON.stringify({integrity:integrity[name]}));else if(args[0]==='pack'){const dir=args[args.indexOf('--pack-destination')+1];fs.writeFileSync(path.join(dir,name+'-0.1.0.tgz'),mode==='corrupt-'+name?'wrong':'original public npm archive of '+name);console.log(JSON.stringify([{filename:name+'-0.1.0.tgz'}]));}else process.exit(11);`,
       gh: `let releases=JSON.parse(fs.readFileSync(process.env.ARCHIVE_STATE,'utf8'));if(args[0]==='api'&&args.includes('--paginate')&&args.includes('.[] | @json')){if(mode==='list-fails'){console.error('HTTP 503');process.exit(12);}for(const r of releases)console.log(JSON.stringify(r));}else if(args[0]==='release'&&args[1]==='create'){releases.push({id:20,tag_name:'v0.1.0',draft:true,assets:[]});if(mode==='creation-race')releases.push({id:21,tag_name:'v0.1.0',draft:true,assets:[]});fs.writeFileSync(process.env.ARCHIVE_STATE,JSON.stringify(releases));}else if(args[0]==='release'&&['upload','edit'].includes(args[1])){}else{console.error('Unexpected command; tag lookup deliberately cannot see drafts');process.exit(13);}`,
     };
     for (const [name, body] of Object.entries(scripts)) {
       const executable = join(bin, name);
       await writeFile(executable, `#!${process.execPath}\nconst NAME=${JSON.stringify(name)};${common}${body}\n`); await chmod(executable, 0o755);
     }
+    const smokeArgs = join(folder, 'smoke-args.json');
     let code = 0, stderr = '';
-    try { await run(process.execPath, [script], {cwd: folder, env: {...process.env, PATH: bin + ':' + process.env.PATH, ARCHIVE_CALLS: calls, ARCHIVE_STATE: state, ARCHIVE_MODE: mode, ARCHIVE_SOURCE: folder, ARCHIVE_VERSION: '0.1.0', GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'adewale/rayner', EXPLAIN_BROWSER: '1', EXPLAIN_LETTERING: '1', ...env}}); }
+    try { await run(process.execPath, [script], {cwd: folder, env: {...process.env, PATH: bin + ':' + process.env.PATH, ARCHIVE_CALLS: calls, ARCHIVE_STATE: state, ARCHIVE_MODE: mode, ARCHIVE_SMOKE_ARGS: smokeArgs, ARCHIVE_SOURCE: folder, ARCHIVE_VERSION: '0.1.0', GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'adewale/rayner', EXPLAIN_BROWSER: '1', EXPLAIN_LETTERING: '1', ...env}}); }
     catch (error) {code = Number((error as {code: number}).code); stderr = (error as {stderr: string}).stderr;}
     const recorded = (await readFile(calls, 'utf8').catch(() => '')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line) as {command: string; args: string[]});
-    return {code, stderr, recorded, releases: JSON.parse(await readFile(state, 'utf8')) as Release[]};
+    const smoked = JSON.parse(await readFile(smokeArgs, 'utf8').catch(() => 'null')) as string[] | null;
+    return {code, stderr, recorded, smoked, releases: JSON.parse(await readFile(state, 'utf8')) as Release[]};
   } finally {await rm(folder, {recursive: true, force: true});}
 }
 
@@ -81,10 +87,28 @@ test('retrospective archival refuses public, duplicate, nonempty and failed look
 });
 
 test('retrospective archival retains original source and archive guards without invoking npm publish or changing tags', async () => {
-  for (const mode of ['wrong-tag', 'dirty', 'corrupt']) {
+  for (const mode of ['wrong-tag', 'dirty', 'corrupt-rayner']) {
     const result = await attempt([], mode); assert.notEqual(result.code, 0, mode); assert.match(result.stderr, /AssertionError/, mode); assert.deepEqual(writes(result), []);
   }
   const result = await attempt([]);
   assert.equal(result.recorded.some(c => c.command === 'npm' && c.args[0] === 'publish'), false);
   assert.deepEqual(result.recorded.filter(c => c.command === 'git').map(c => c.args[0]), ['rev-parse', 'rev-parse', 'status', 'status']);
+});
+
+test('from 0.2.0 retrospective archival validates and preserves rayner and rayner-cli together', async () => {
+  const result = await attempt([], '', {}, true);
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(result.recorded.filter(c => c.command === 'npm').map(c => c.args.slice(0, 2)),
+    [['view', 'rayner@0.1.0'], ['pack', 'rayner@0.1.0'], ['view', 'rayner-cli@0.1.0'], ['pack', 'rayner-cli@0.1.0']]);
+  assert.equal(result.smoked?.[0], '--archive');
+  assert.ok(result.smoked?.[1]?.endsWith('rayner-0.1.0.tgz'));
+  assert.equal(result.smoked?.[2], '--cli-archive');
+  assert.ok(result.smoked?.[3]?.endsWith('rayner-cli-0.1.0.tgz'));
+  const upload = writes(result).find(c => c.args[1] === 'upload')!;
+  assert.ok(upload.args.some(p => p.endsWith('/rayner-0.1.0.tgz')) && upload.args.some(p => p.endsWith('/rayner-cli-0.1.0.tgz')), 'both archives are preserved');
+  const corrupt = await attempt([], 'corrupt-rayner-cli', {}, true);
+  assert.notEqual(corrupt.code, 0); assert.match(corrupt.stderr, /retain the original npm bytes of rayner-cli/); assert.deepEqual(writes(corrupt), []);
+  const legacy = await attempt([]);
+  assert.equal(legacy.code, 0, legacy.stderr);
+  assert.deepEqual(legacy.smoked?.length, 2, 'before 0.2.0 the gate installs rayner alone');
 });

@@ -1,0 +1,57 @@
+{
+  "name": "rayner-cli",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "The rayner command for Rayner explainers: init, preview, snapshots, check, review, build, shots, describe and see, with diagram and lettering capture.",
+  "bin": {
+    "rayner": "dist/tools/explain.js"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "app",
+    "integrations",
+    "tools",
+    "vendor",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepack": "node ../tools/repo/build-cli.ts"
+  },
+  "dependencies": {
+    "rayner": "0.2.0",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3",
+    "agentic-mermaid": "0.5.1",
+    "playwright-core": "1.64.1",
+    "svgpath": "2.6.0",
+    "@resvg/resvg-js": "2.6.2"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "author": "Ade Oshineye (https://github.com/adewale)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adewale/rayner.git",
+    "directory": "cli"
+  },
+  "keywords": [
+    "explainer",
+    "cli",
+    "svg",
+    "mermaid"
+  ],
+  "homepage": "https://oshineye.dev/projects/rayner",
+  "bugs": {
+    "url": "https://github.com/adewale/rayner/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

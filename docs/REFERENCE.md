@@ -438,7 +438,8 @@ import type { SnapshotStore } from 'rayner/explain';
 import Scene from './my-explainer/scene.ts';
 
 const folder = new URL('./my-explainer/scene.snapshots/', import.meta.url);
-const index = JSON.parse(await readFile(new URL('index.json', folder), 'utf8'));
+// A scene that draws no diagrams keeps no scene.snapshots/.
+const index = JSON.parse(await readFile(new URL('index.json', folder), 'utf8').catch(() => '{"diagrams":{}}'));
 const snapshots: SnapshotStore = {};
 for (const [key, file] of Object.entries<string>(index.diagrams))
   snapshots[key] = JSON.parse(await readFile(new URL(file, folder), 'utf8'));

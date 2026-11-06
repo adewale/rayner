@@ -56,7 +56,8 @@ export function entryPoints(root = ROOT): Map<string, string> {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { exports: Record<string, { types: string }> };
   const out = new Map<string, string>();
   for (const [subpath, target] of Object.entries(pkg.exports))
-    out.set(subpath === '.' ? 'rayner' : `rayner/${subpath.slice(2)}`, target.types.replace(/^\.\/dist\//, '').replace(/\.d\.ts$/, '.ts'));
+    // rayner-cli's door into the compiled modules, not an entry point (docs/ENGINE.md, "Public names").
+    if (subpath !== './internal/*') out.set(subpath === '.' ? 'rayner' : `rayner/${subpath.slice(2)}`, target.types.replace(/^\.\/dist\//, '').replace(/\.d\.ts$/, '.ts'));
   return out;
 }
 

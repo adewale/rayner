@@ -169,6 +169,9 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
 - Repository-only tooling (site export, gallery, catalog, release, bench, CI scope, vendoring) moved to `tools/repo/`; no package ships it.
+- Rayner is two packages: `rayner`, the vocabulary and runtime, with no dependencies, and `rayner-cli`, the `rayner` command, at the same version. Install both. [Quick start](README.md#quick-start)
+- `rayner-cli` holds the player, diagram capture and lettering capture (its Python, requirements, font script and maths typesetter); `rayner` keeps only what replays their snapshots.
+- A release publishes and retains both archives; `npm run pack:smoke` installs both, and `rayner` alone. [Releasing](docs/RELEASING.md)
 
 ### Removed from the public API
 
