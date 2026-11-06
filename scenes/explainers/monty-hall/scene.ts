@@ -1,4 +1,4 @@
-import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, Machine, choreograph, view, matchByKey } from '../../../src/index.ts';
+import { Scene, Group, Text, FadeIn, Transform, AnimationGroup, Succession, Machine, view, matchByKey } from '../../../src/index.ts';
 import type { ScheduledAnimation, Mobject, MatchKey, Choreography, Transition } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { monty, montyExample, threeDoorWorlds, threeDoorCells, oddsAfter, roundStart, roundNext, roundDoor, roundResult, ROUND_EVENTS } from './model.ts';

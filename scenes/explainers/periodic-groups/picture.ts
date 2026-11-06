@@ -34,8 +34,7 @@ const CONTEXT_LABEL_X = -6.6,
   CONTEXT_X = 3.6,
   CONTEXT_Y = -2.8;
 /** The empty rectangle above the d block, periods 1 to 3: where the words go. */
-const NOTE_X = colX(3) - CELL_W / 2,
-  NOTE_RIGHT = colX(12) + CELL_W / 2;
+const NOTE_X = colX(3) - CELL_W / 2;
 
 export const PAPER = '#f7f2e8',
   INK = '#0f0f0f',

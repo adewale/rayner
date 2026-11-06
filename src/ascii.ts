@@ -6,7 +6,7 @@ import { VMobject } from './vmobject.ts';
 import type { Mobject } from './mobject.ts';
 import { Arrow, CurvedArrow, Circle, Dot } from './shapes.ts';
 import { Text } from './text.ts';
-import type { Evidence, Scene, Sink, Step } from './scene.ts';
+import type { Evidence, Scene } from './scene.ts';
 import { hunkHeader } from './diff.ts';
 import type { Hunk } from './diff.ts';
 import type { VecLike } from './vec.ts';
