@@ -36,12 +36,12 @@ export default class OAuthExplainer extends Scene {
   static meta = {
     sources: ['https://www.rfc-editor.org/rfc/rfc7636', 'https://www.rfc-editor.org/rfc/rfc6749'],
     claims: [
-      { says: 'which never passes through the redirect', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },
-      { says: 'gets only the code', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },
-      { says: 'goes only in the client’s own TLS request', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },
+      { says: 'which never passes through the redirect', test: 'model.test.ts: the verifier travels only in the client’s token request' },
+      { says: 'gets only the code', test: 'model.test.ts: the verifier travels only in the client’s token request' },
+      { says: 'goes only in the client’s own TLS request', test: 'model.test.ts: the verifier travels only in the client’s token request' },
       {
         says: 'in every order of these messages the malicious app never gets a token',
-        test: 'test/explain-pkce.test.ts: in every order of the sign-in’s messages, only a request without a challenge lets the malicious app get a token',
+        test: 'model.test.ts: in every order of the sign-in’s messages, only a request without a challenge lets the malicious app get a token',
       },
     ],
   };

@@ -136,7 +136,7 @@ export default class WcagMapExplainer extends Scene {
     claims: [
       {
         says: 'means meeting every',
-        test: 'test/explain-wcag-map.test.ts: every version and level includes everything the level below it asks for',
+        test: 'model.test.ts: every version and level includes everything the level below it asks for',
       },
       { says: 'Every one dates from 2.0', shown: true as const },
     ],

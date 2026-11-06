@@ -1,9 +1,9 @@
 // Retained chart/state oracle; the public lesson uses one ticket-based story.
-import { Scene, Group, Text, Axes, FadeIn, view } from '../../src/index.ts';
-import type { SceneState, View } from '../../src/index.ts';
-import { stage, settingsOf } from '../../explain/index.ts';
-import { runSearch, SEARCH_CODE } from '../../scenes/explainers/latest-search/model.ts';
-import type { CompletionOrder, Query } from '../../scenes/explainers/latest-search/model.ts';
+import { Scene, Group, Text, Axes, FadeIn, view } from '../../../../src/index.ts';
+import type { SceneState, View } from '../../../../src/index.ts';
+import { stage, settingsOf } from '../../../../explain/index.ts';
+import { runSearch, SEARCH_CODE } from '../model.ts';
+import type { CompletionOrder, Query } from '../model.ts';
 
 const shown = (value: Query | null) => value ?? 'none';
 const point = (value: Query | null) => (value === 'A' ? 1 : value === 'B' ? 2 : 0);

@@ -1,37 +1,14 @@
-// The pen-and-pencil model: the hand, the pencil's clipping, region ownership and the Hershey letters,
-// held to properties and to Paul Bourke's transcription of the Simplex set.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fc, params } from './lib/pbt.ts';
-import { SIMPLEX } from '../scenes/explainers/pen-and-pencil/hershey-simplex.ts';
-import { collectProject } from '../tools/lib/explain-project.ts';
-import type { Scene, VMobject } from '../src/index.ts';
-import {
-  WORLD,
-  HAND,
-  FREEHAND,
-  freehand,
-  rng,
-  timelineFacts,
-  hand,
-  pressures,
-  pencilWidth,
-  deviation,
-  hatch,
-  boxPolygon,
-  insidePolygon,
-  unowned,
-  inside,
-  hershey,
-  fit,
-  boundsOf,
-  tag,
-  scenery,
-} from '../scenes/explainers/pen-and-pencil/model.ts';
-import type { Pt, Box } from '../scenes/explainers/pen-and-pencil/model.ts';
+import { fc, params } from '../lib/pbt.ts';
+import { SIMPLEX } from './hershey-simplex.ts';
+import { WORLD, HAND, FREEHAND, freehand, rng, timelineFacts, hand, pressures, pencilWidth, deviation, hatch, boxPolygon, insidePolygon, unowned, inside, hershey, fit, boundsOf, tag, scenery } from './model.ts';
+import type { Pt, Box } from './model.ts';
 
 const coord = fc.double({ min: -6, max: 6, noNaN: true });
+
 const point = fc.tuple(coord, coord) as fc.Arbitrary<Pt>;
+
 const box = fc
   .tuple(point, fc.double({ min: 0.2, max: 5, noNaN: true }), fc.double({ min: 0.2, max: 5, noNaN: true }))
   .map(([[x, y], w, h]) => [x, y, x + w, y + h] as Box);
@@ -188,29 +165,6 @@ test('a free hand without error reaches every corner it means to; with error, ea
     }),
     params(),
   );
-});
-
-// The marks step says the marks "are the same in both drawings", and the plate step that the second
-// drawing lands in the boxes the first used: the layout's marks owe nothing to the seed.
-test('both drawings trace the same marks: the construction strokes match path for path, so the boxes are shared', async () => {
-  const project = await collectProject('scenes/explainers/pen-and-pencil', { write: false });
-  assert.deepEqual(project.scenarios.map((v) => v.values), [{ hand: 'first' }, { hand: 'second' }]);
-  const marks: number[][][][] = [];
-  for (const scenario of project.scenarios) {
-    let paths: number[][][] | undefined;
-    await new scenario.Scene({
-      async frame() {},
-      async stepEnd(scene: Scene, step: { name: string }) {
-        if (step.name !== 'marks') return;
-        const traced = scene.familyMembers().filter((m) => m.key === 'construction:marks');
-        assert.equal(traced.length, 1);
-        paths = traced[0]!.children.map((m) => (m as VMobject).subpaths.map((a) => [...a]));
-      },
-    }).run();
-    assert.ok(paths && paths.length === 53, `${scenario.values.hand}: ${paths?.length} construction strokes`);
-    marks.push(paths);
-  }
-  assert.deepEqual(marks[1], marks[0]);
 });
 
 // The answer's claim, over seeds: a hand that traces laid-out marks leaves each box where the layout

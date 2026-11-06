@@ -44,26 +44,26 @@ export default class PenAndPencil extends Scene {
       { says: 'every line setting off from where the previous one stopped', shown: true as const },
       {
         says: 'so every error is carried into every later corner',
-        test: 'test/explain-pen-and-pencil.test.ts: with error, each corner carries the ones before',
+        test: 'model.test.ts: with error, each corner carries the ones before',
       },
       {
         says: 'leaves every box where the layout put it',
-        test: 'test/explain-pen-and-pencil.test.ts: traced on its laid-out marks, a drawing with any seed leaves every box where the layout put it',
+        test: 'model.test.ts: traced on its laid-out marks, a drawing with any seed leaves every box where the layout put it',
       },
       { says: 'Agentic Mermaid fixes every box first', shown: true as const },
       { says: 'Every box, marker and label has its place before any ink', shown: true as const },
       { says: 'it places every period box, marker and event box', shown: true as const },
       {
         says: 'they are the same in both drawings',
-        test: 'test/explain-pen-and-pencil.test.ts: both drawings trace the same marks',
+        test: 'scene.test.ts: both drawings trace the same marks',
       },
       {
         says: 'every plank, tag and word lands in the dashed boxes the first drawing used',
-        test: 'test/explain-pen-and-pencil.test.ts: both drawings trace the same marks',
+        test: 'scene.test.ts: both drawings trace the same marks',
       },
       {
         says: 'every error rode along into the lines after it',
-        test: 'test/explain-pen-and-pencil.test.ts: with error, each corner carries the ones before',
+        test: 'model.test.ts: with error, each corner carries the ones before',
       },
     ],
   };

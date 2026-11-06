@@ -88,11 +88,11 @@ export default class PgPageExplainer extends Scene {
     claims: [
       {
         says: 'every page starts with a 24-byte header',
-        test: 'test/explain-pg-page.test.ts: the page header, line pointer and tuple header sizes',
+        test: 'model.test.ts: the page header, line pointer and tuple header sizes',
       },
       {
         says: 'Postgres gives every tuple a multiple of 8 bytes',
-        test: 'test/explain-pg-page.test.ts: stored in a multiple of MAXALIGN',
+        test: 'model.test.ts: stored in a multiple of MAXALIGN',
       },
     ],
   };

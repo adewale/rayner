@@ -1,25 +1,9 @@
-// The wcag-map explainer's model, held to W3C's own documents: the w3c/wcag repository at the tag
-// of the December 2024 Recommendation, and the published 2.0, 2.1 and 2.2 Recommendations.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { collectProject } from '../tools/lib/explain-project.ts';
-import {
-  CRITERIA,
-  GUIDELINES,
-  LEVELS,
-  PRINCIPLES,
-  VERSIONS,
-  change,
-  criteria,
-  guidelinesIn,
-  inVersion,
-  opened,
-  tally,
-  totals,
-} from '../scenes/explainers/wcag-map/model.ts';
-import type { Level, Version } from '../scenes/explainers/wcag-map/model.ts';
+import { CRITERIA, GUIDELINES, LEVELS, VERSIONS, change, criteria, guidelinesIn, inVersion, opened, tally, totals } from './model.ts';
+import type { Level, Version } from './model.ts';
 
 // w3c/wcag at tag WCAG22-20241212, commit 1dfe1647bdecf32fb4f76b9ce1cc33139505630c, read on 2026-10-25.
 // guidelines/index.html: the line of each principle's and guideline's <section>, then each criterion's
@@ -44,6 +28,7 @@ const SECTIONS: readonly [line: number, kind: 'principle' | 'guideline', id: str
   [380, 'principle', 'robust'],
   [384, 'guideline', 'compatible'],
 ];
+
 // prettier-ignore
 const INCLUDES: readonly [line: number, file: string, level: string][] = [
   [135, 'sc/20/non-text-content.html', 'A'],
@@ -134,6 +119,7 @@ const INCLUDES: readonly [line: number, file: string, level: string][] = [
   [390, 'sc/20/name-role-value.html', 'A'],
   [392, 'sc/21/status-messages.html', 'AA'],
 ];
+
 const FOLDER: Record<string, Version> = { '20': '2.0', '21': '2.1', '22': '2.2' };
 
 /** Number each included criterion the way the published document does: by its place in its guideline. */
@@ -148,6 +134,41 @@ function numbered() {
     return { num: `${principle}.${guideline}.${n}`, file, level, folder: FOLDER[file.split('/')[1]!]! };
   });
 }
+
+// Each criterion and level as the published Recommendations print them, "(Level A)" and so on, read
+// on 2026-10-25 from https://www.w3.org/TR/2008/REC-WCAG20-20081211/,
+// https://www.w3.org/TR/2023/REC-WCAG21-20230921/ (the 2018 original, REC-WCAG21-20180605, agrees on
+// every one) and https://www.w3.org/TR/2024/REC-WCAG22-20241212/, where 4.1.1 has no level ("-").
+const PUBLISHED: Record<Version, string> = {
+  '2.0':
+    '1.1.1:A 1.2.1:A 1.2.2:A 1.2.3:A 1.2.4:AA 1.2.5:AA 1.2.6:AAA 1.2.7:AAA 1.2.8:AAA 1.2.9:AAA 1.3.1:A ' +
+    '1.3.2:A 1.3.3:A 1.4.1:A 1.4.2:A 1.4.3:AA 1.4.4:AA 1.4.5:AA 1.4.6:AAA 1.4.7:AAA 1.4.8:AAA 1.4.9:AAA ' +
+    '2.1.1:A 2.1.2:A 2.1.3:AAA 2.2.1:A 2.2.2:A 2.2.3:AAA 2.2.4:AAA 2.2.5:AAA 2.3.1:A 2.3.2:AAA 2.4.1:A ' +
+    '2.4.2:A 2.4.3:A 2.4.4:A 2.4.5:AA 2.4.6:AA 2.4.7:AA 2.4.8:AAA 2.4.9:AAA 2.4.10:AAA 3.1.1:A 3.1.2:AA ' +
+    '3.1.3:AAA 3.1.4:AAA 3.1.5:AAA 3.1.6:AAA 3.2.1:A 3.2.2:A 3.2.3:AA 3.2.4:AA 3.2.5:AAA 3.3.1:A 3.3.2:A ' +
+    '3.3.3:AA 3.3.4:AA 3.3.5:AAA 3.3.6:AAA 4.1.1:A 4.1.2:A',
+  '2.1':
+    '1.1.1:A 1.2.1:A 1.2.2:A 1.2.3:A 1.2.4:AA 1.2.5:AA 1.2.6:AAA 1.2.7:AAA 1.2.8:AAA 1.2.9:AAA 1.3.1:A ' +
+    '1.3.2:A 1.3.3:A 1.3.4:AA 1.3.5:AA 1.3.6:AAA 1.4.1:A 1.4.2:A 1.4.3:AA 1.4.4:AA 1.4.5:AA 1.4.6:AAA ' +
+    '1.4.7:AAA 1.4.8:AAA 1.4.9:AAA 1.4.10:AA 1.4.11:AA 1.4.12:AA 1.4.13:AA 2.1.1:A 2.1.2:A 2.1.3:AAA ' +
+    '2.1.4:A 2.2.1:A 2.2.2:A 2.2.3:AAA 2.2.4:AAA 2.2.5:AAA 2.2.6:AAA 2.3.1:A 2.3.2:AAA 2.3.3:AAA 2.4.1:A ' +
+    '2.4.2:A 2.4.3:A 2.4.4:A 2.4.5:AA 2.4.6:AA 2.4.7:AA 2.4.8:AAA 2.4.9:AAA 2.4.10:AAA 2.5.1:A 2.5.2:A ' +
+    '2.5.3:A 2.5.4:A 2.5.5:AAA 2.5.6:AAA 3.1.1:A 3.1.2:AA 3.1.3:AAA 3.1.4:AAA 3.1.5:AAA 3.1.6:AAA 3.2.1:A ' +
+    '3.2.2:A 3.2.3:AA 3.2.4:AA 3.2.5:AAA 3.3.1:A 3.3.2:A 3.3.3:AA 3.3.4:AA 3.3.5:AAA 3.3.6:AAA 4.1.1:A ' +
+    '4.1.2:A 4.1.3:AA',
+  '2.2':
+    '1.1.1:A 1.2.1:A 1.2.2:A 1.2.3:A 1.2.4:AA 1.2.5:AA 1.2.6:AAA 1.2.7:AAA 1.2.8:AAA 1.2.9:AAA 1.3.1:A ' +
+    '1.3.2:A 1.3.3:A 1.3.4:AA 1.3.5:AA 1.3.6:AAA 1.4.1:A 1.4.2:A 1.4.3:AA 1.4.4:AA 1.4.5:AA 1.4.6:AAA ' +
+    '1.4.7:AAA 1.4.8:AAA 1.4.9:AAA 1.4.10:AA 1.4.11:AA 1.4.12:AA 1.4.13:AA 2.1.1:A 2.1.2:A 2.1.3:AAA ' +
+    '2.1.4:A 2.2.1:A 2.2.2:A 2.2.3:AAA 2.2.4:AAA 2.2.5:AAA 2.2.6:AAA 2.3.1:A 2.3.2:AAA 2.3.3:AAA 2.4.1:A ' +
+    '2.4.2:A 2.4.3:A 2.4.4:A 2.4.5:AA 2.4.6:AA 2.4.7:AA 2.4.8:AAA 2.4.9:AAA 2.4.10:AAA 2.4.11:AA ' +
+    '2.4.12:AAA 2.4.13:AAA 2.5.1:A 2.5.2:A 2.5.3:A 2.5.4:A 2.5.5:AAA 2.5.6:AAA 2.5.7:AA 2.5.8:AA 3.1.1:A ' +
+    '3.1.2:AA 3.1.3:AAA 3.1.4:AAA 3.1.5:AAA 3.1.6:AAA 3.2.1:A 3.2.2:A 3.2.3:AA 3.2.4:AA 3.2.5:AAA 3.2.6:A ' +
+    '3.3.1:A 3.3.2:A 3.3.3:AA 3.3.4:AA 3.3.5:AAA 3.3.6:AAA 3.3.7:A 3.3.8:AA 3.3.9:AAA 4.1.1:- 4.1.2:A ' +
+    '4.1.3:AA',
+};
+
+const published = (v: Version) => PUBLISHED[v].split(' ').map((x) => x.split(':') as [string, string]);
 
 test('every criterion, its level and the version that added it are the pinned repository’s', () => {
   const repo = numbered();
@@ -184,40 +205,6 @@ test('re-reading the repository gives the same table, when WCAG_REPO points at a
   assert.deepEqual(sections, SECTIONS);
   assert.ok(existsSync(join(root, 'sc/20/parsing.html')));
 });
-
-// Each criterion and level as the published Recommendations print them, "(Level A)" and so on, read
-// on 2026-10-25 from https://www.w3.org/TR/2008/REC-WCAG20-20081211/,
-// https://www.w3.org/TR/2023/REC-WCAG21-20230921/ (the 2018 original, REC-WCAG21-20180605, agrees on
-// every one) and https://www.w3.org/TR/2024/REC-WCAG22-20241212/, where 4.1.1 has no level ("-").
-const PUBLISHED: Record<Version, string> = {
-  '2.0':
-    '1.1.1:A 1.2.1:A 1.2.2:A 1.2.3:A 1.2.4:AA 1.2.5:AA 1.2.6:AAA 1.2.7:AAA 1.2.8:AAA 1.2.9:AAA 1.3.1:A ' +
-    '1.3.2:A 1.3.3:A 1.4.1:A 1.4.2:A 1.4.3:AA 1.4.4:AA 1.4.5:AA 1.4.6:AAA 1.4.7:AAA 1.4.8:AAA 1.4.9:AAA ' +
-    '2.1.1:A 2.1.2:A 2.1.3:AAA 2.2.1:A 2.2.2:A 2.2.3:AAA 2.2.4:AAA 2.2.5:AAA 2.3.1:A 2.3.2:AAA 2.4.1:A ' +
-    '2.4.2:A 2.4.3:A 2.4.4:A 2.4.5:AA 2.4.6:AA 2.4.7:AA 2.4.8:AAA 2.4.9:AAA 2.4.10:AAA 3.1.1:A 3.1.2:AA ' +
-    '3.1.3:AAA 3.1.4:AAA 3.1.5:AAA 3.1.6:AAA 3.2.1:A 3.2.2:A 3.2.3:AA 3.2.4:AA 3.2.5:AAA 3.3.1:A 3.3.2:A ' +
-    '3.3.3:AA 3.3.4:AA 3.3.5:AAA 3.3.6:AAA 4.1.1:A 4.1.2:A',
-  '2.1':
-    '1.1.1:A 1.2.1:A 1.2.2:A 1.2.3:A 1.2.4:AA 1.2.5:AA 1.2.6:AAA 1.2.7:AAA 1.2.8:AAA 1.2.9:AAA 1.3.1:A ' +
-    '1.3.2:A 1.3.3:A 1.3.4:AA 1.3.5:AA 1.3.6:AAA 1.4.1:A 1.4.2:A 1.4.3:AA 1.4.4:AA 1.4.5:AA 1.4.6:AAA ' +
-    '1.4.7:AAA 1.4.8:AAA 1.4.9:AAA 1.4.10:AA 1.4.11:AA 1.4.12:AA 1.4.13:AA 2.1.1:A 2.1.2:A 2.1.3:AAA ' +
-    '2.1.4:A 2.2.1:A 2.2.2:A 2.2.3:AAA 2.2.4:AAA 2.2.5:AAA 2.2.6:AAA 2.3.1:A 2.3.2:AAA 2.3.3:AAA 2.4.1:A ' +
-    '2.4.2:A 2.4.3:A 2.4.4:A 2.4.5:AA 2.4.6:AA 2.4.7:AA 2.4.8:AAA 2.4.9:AAA 2.4.10:AAA 2.5.1:A 2.5.2:A ' +
-    '2.5.3:A 2.5.4:A 2.5.5:AAA 2.5.6:AAA 3.1.1:A 3.1.2:AA 3.1.3:AAA 3.1.4:AAA 3.1.5:AAA 3.1.6:AAA 3.2.1:A ' +
-    '3.2.2:A 3.2.3:AA 3.2.4:AA 3.2.5:AAA 3.3.1:A 3.3.2:A 3.3.3:AA 3.3.4:AA 3.3.5:AAA 3.3.6:AAA 4.1.1:A ' +
-    '4.1.2:A 4.1.3:AA',
-  '2.2':
-    '1.1.1:A 1.2.1:A 1.2.2:A 1.2.3:A 1.2.4:AA 1.2.5:AA 1.2.6:AAA 1.2.7:AAA 1.2.8:AAA 1.2.9:AAA 1.3.1:A ' +
-    '1.3.2:A 1.3.3:A 1.3.4:AA 1.3.5:AA 1.3.6:AAA 1.4.1:A 1.4.2:A 1.4.3:AA 1.4.4:AA 1.4.5:AA 1.4.6:AAA ' +
-    '1.4.7:AAA 1.4.8:AAA 1.4.9:AAA 1.4.10:AA 1.4.11:AA 1.4.12:AA 1.4.13:AA 2.1.1:A 2.1.2:A 2.1.3:AAA ' +
-    '2.1.4:A 2.2.1:A 2.2.2:A 2.2.3:AAA 2.2.4:AAA 2.2.5:AAA 2.2.6:AAA 2.3.1:A 2.3.2:AAA 2.3.3:AAA 2.4.1:A ' +
-    '2.4.2:A 2.4.3:A 2.4.4:A 2.4.5:AA 2.4.6:AA 2.4.7:AA 2.4.8:AAA 2.4.9:AAA 2.4.10:AAA 2.4.11:AA ' +
-    '2.4.12:AAA 2.4.13:AAA 2.5.1:A 2.5.2:A 2.5.3:A 2.5.4:A 2.5.5:AAA 2.5.6:AAA 2.5.7:AA 2.5.8:AA 3.1.1:A ' +
-    '3.1.2:AA 3.1.3:AAA 3.1.4:AAA 3.1.5:AAA 3.1.6:AAA 3.2.1:A 3.2.2:A 3.2.3:AA 3.2.4:AA 3.2.5:AAA 3.2.6:A ' +
-    '3.3.1:A 3.3.2:A 3.3.3:AA 3.3.4:AA 3.3.5:AAA 3.3.6:AAA 3.3.7:A 3.3.8:AA 3.3.9:AAA 4.1.1:- 4.1.2:A ' +
-    '4.1.3:AA',
-};
-const published = (v: Version) => PUBLISHED[v].split(' ').map((x) => x.split(':') as [string, string]);
 
 test('each version’s criteria and levels are its own Recommendation’s', () => {
   for (const v of VERSIONS) {
@@ -311,22 +298,4 @@ test('every opened guideline and level counts its current criteria and holds eve
     );
     for (const v of VERSIONS) for (const c of criteria(v, l, g)) assert.ok(shown.includes(c), `${c.num} in ${v}`);
   }
-});
-
-test('every authored scenario is collected, and the mind map reads as its outline', async () => {
-  const project = await collectProject('scenes/explainers/wcag-map', { write: false });
-  assert.equal(project.scenarios.length, 12);
-  // Step-state fidelity for every scenario lives in explain-fidelity.test.ts.
-  // The description lists a mind map's topics depth first, each principle followed by its own
-  // guidelines, rather than alternating between the root's two sides (1.1, 2.1, 1.2, …).
-  const v20 = project.scenarios[0]!.trace.steps.find((s) => s.step === 'v20')!;
-  const items = (v20.shown!.picture as { entries: { items: string[] }[] }).entries[0]!.items.filter((x) => !x.includes('→'));
-  const outline = [
-    `WCAG 2.0`,
-    ...PRINCIPLES.flatMap((p) => [`${p.num} ${p.name}`, ...guidelinesIn('2.0').filter((g) => g.num.startsWith(p.num + '.')).map((g) => `${g.num} ${g.name}`)]),
-  ];
-  assert.deepEqual(
-    items.map((x) => x.replace(/ · \d+$/, '')),
-    outline,
-  );
 });

@@ -1,32 +1,8 @@
-// The traffic-policy explainer's model, held to kube-proxy's own code and tests (kubernetes v1.37.1);
-// and the words an architecture diagram's groups, services, junctions and edges get in a description.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fc, params } from './lib/pbt.ts';
-import { Scene } from '../src/index.ts';
-import { NullSink } from '../src/output.ts';
-import { loadFonts } from '../explain/testing.ts';
-import { Diagram } from '../explain/diagrams.ts';
-import type { DiagramSnapshot } from '../explain/index.ts';
-import { readSnapshots } from '../tools/lib/explain-project.ts';
-import {
-  PLACEMENTS,
-  computeProbability,
-  endpointsOn,
-  flows,
-  frac,
-  nodeShares,
-  passes,
-  percent,
-  podsOf,
-  ruleShares,
-  rules,
-  secondHop,
-  seenSource,
-  shares,
-  value,
-} from '../scenes/explainers/traffic-policy/model.ts';
-import type { PlacementKey, Policy } from '../scenes/explainers/traffic-policy/model.ts';
+import { fc, params } from '../lib/pbt.ts';
+import { PLACEMENTS, computeProbability, endpointsOn, flows, frac, nodeShares, passes, percent, podsOf, ruleShares, rules, secondHop, seenSource, shares, value } from './model.ts';
+import type { PlacementKey, Policy } from './model.ts';
 
 // pkg/proxy/iptables/proxier_test.go:2836-2845, TestComputeProbability's expected strings.
 const UPSTREAM: Record<number, string> = {
@@ -39,6 +15,7 @@ const UPSTREAM: Record<number, string> = {
   100000: '0.0000100000',
   100001: '0.0000099999',
 };
+
 // proxier.go:390-392 copied into a Go program and run with go1.27.3 darwin/arm64 on 2026-10-25.
 // It and toFixed agree for every n from 1 to 2047; at 2048, 1/n is an exact tie at the tenth
 // decimal and Go rounds it to even ("0.0004882812") where toFixed rounds up. The scene uses n <= 4.
@@ -50,6 +27,21 @@ const GO_RUN: Record<number, string> = {
   12: '0.0833333333',
   2047: '0.0004885198',
 };
+
+// Recomputed by hand: under Local the load balancer gives each node with a pod an equal share, and the
+// node splits it evenly over its own pods; under Cluster every node splits its third over all pods.
+const EXPECTED: Record<`${Policy} ${PlacementKey}`, { shares: string[]; percent: string[]; hop: string; passes: boolean[] }> = {
+  'local 3-1-0': { shares: ['1/6', '1/6', '1/6', '1/2'], percent: ['16.7%', '16.7%', '16.7%', '50%'], hop: '0', passes: [true, true, false] },
+  'cluster 3-1-0': { shares: ['1/4', '1/4', '1/4', '1/4'], percent: ['25%', '25%', '25%', '25%'], hop: '2/3', passes: [true, true, true] },
+  'local 2-2-0': { shares: ['1/4', '1/4', '1/4', '1/4'], percent: ['25%', '25%', '25%', '25%'], hop: '0', passes: [true, true, false] },
+  'cluster 2-2-0': { shares: ['1/4', '1/4', '1/4', '1/4'], percent: ['25%', '25%', '25%', '25%'], hop: '2/3', passes: [true, true, true] },
+  'local 1-1-1': { shares: ['1/3', '1/3', '1/3'], percent: ['33.3%', '33.3%', '33.3%'], hop: '0', passes: [true, true, true] },
+  'cluster 1-1-1': { shares: ['1/3', '1/3', '1/3'], percent: ['33.3%', '33.3%', '33.3%'], hop: '2/3', passes: [true, true, true] },
+};
+
+const placements = fc
+  .array(fc.integer({ min: 0, max: 6 }), { minLength: 1, maxLength: 6 })
+  .filter((c) => c.some((n) => n > 0));
 
 test('computeProbability formats 1/n as kube-proxy does', () => {
   for (const [n, expected] of Object.entries({ ...UPSTREAM, ...GO_RUN })) assert.equal(computeProbability(Number(n)), expected, `n = ${n}`);
@@ -97,17 +89,6 @@ test('every rule in a chain of n wins 1/n of the time, read from the written pro
   );
 });
 
-// Recomputed by hand: under Local the load balancer gives each node with a pod an equal share, and the
-// node splits it evenly over its own pods; under Cluster every node splits its third over all pods.
-const EXPECTED: Record<`${Policy} ${PlacementKey}`, { shares: string[]; percent: string[]; hop: string; passes: boolean[] }> = {
-  'local 3-1-0': { shares: ['1/6', '1/6', '1/6', '1/2'], percent: ['16.7%', '16.7%', '16.7%', '50%'], hop: '0', passes: [true, true, false] },
-  'cluster 3-1-0': { shares: ['1/4', '1/4', '1/4', '1/4'], percent: ['25%', '25%', '25%', '25%'], hop: '2/3', passes: [true, true, true] },
-  'local 2-2-0': { shares: ['1/4', '1/4', '1/4', '1/4'], percent: ['25%', '25%', '25%', '25%'], hop: '0', passes: [true, true, false] },
-  'cluster 2-2-0': { shares: ['1/4', '1/4', '1/4', '1/4'], percent: ['25%', '25%', '25%', '25%'], hop: '2/3', passes: [true, true, true] },
-  'local 1-1-1': { shares: ['1/3', '1/3', '1/3'], percent: ['33.3%', '33.3%', '33.3%'], hop: '0', passes: [true, true, true] },
-  'cluster 1-1-1': { shares: ['1/3', '1/3', '1/3'], percent: ['33.3%', '33.3%', '33.3%'], hop: '2/3', passes: [true, true, true] },
-};
-
 test('each scenario’s pod shares, second hops and health checks', () => {
   for (const [name, want] of Object.entries(EXPECTED)) {
     const [policy, key] = name.split(' ') as [Policy, PlacementKey];
@@ -122,10 +103,6 @@ test('each scenario’s pod shares, second hops and health checks', () => {
   assert.equal(seenSource('cluster', 2), '10.240.0.3');
   assert.equal(seenSource('local', 0), '198.51.100.79');
 });
-
-const placements = fc
-  .array(fc.integer({ min: 0, max: 6 }), { minLength: 1, maxLength: 6 })
-  .filter((c) => c.some((n) => n > 0));
 
 // proxier.go:1104-1110 marks every packet of a Cluster external chain for masquerade, "in case we cross
 // nodes"; under Local no masquerade rule applies (1112-1146). So the pod sees the entry node's address under
@@ -202,70 +179,4 @@ test('traffic-policy flow view: each band is a node’s share times its rule’s
   const cl = flows([3, 1, 0], 'cluster');
   assert.equal(cl.length, 12);
   assert.ok(cl.every((b) => frac(b.share) === '1/12'));
-});
-
-// ---------------------------------------------------------------- architecture words (explain/diagrams.ts)
-await loadFonts();
-const store = await readSnapshots('scenes/explainers/traffic-policy/scene');
-const arch = (text: string): DiagramSnapshot => {
-  const s = Object.values(store).find((x) => x.family === 'architecture' && x.spec.source.includes(text));
-  assert.ok(s, `no pinned architecture diagram with ${text}`);
-  return s;
-};
-// Cluster, 3, 1, 0: the only one with pods a, b, c on Node 1 and a second hop to pod d.
-const CLUSTER_310 = 'align row a b c';
-const withHop = () => Object.values(store).find((x) => x.spec.source.includes(CLUSTER_310) && x.spec.source.includes('k3:L --> R:d'))!;
-async function shown(s: DiagramSnapshot) {
-  const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), s.spec, s, {});
-  await d.build();
-  return d;
-}
-
-test('an architecture diagram counts services and edges, names edges by their services, and leaves none blank', async () => {
-  arch(CLUSTER_310);
-  const seen = (await shown(withHop())).describe();
-  assert.equal(seen.what, 'Architecture diagram: 8 services, 8 edges');
-  assert.equal(seen.blank, undefined);
-  const names = seen.parts.map((p) => p.name);
-  for (const name of [
-    'Load balancer',
-    'Node 3 · 10.240.0.3',
-    'Pod d',
-    'Load balancer → Node 1 · 10.240.0.1',
-    'Node 1 · 10.240.0.1 → Pod a',
-    'Node 3 · 10.240.0.3 → Pod d',
-  ])
-    assert.ok(names.includes(name), `${name} in ${names.join(' | ')}`);
-  // Services are read before the edges that leave them.
-  assert.ok(names.indexOf('Load balancer') < names.indexOf('Load balancer → Node 1 · 10.240.0.1'));
-});
-
-test('architecture services answer to their bare ids in walk, dim and mark', async () => {
-  const d = await shown(withHop());
-  await d.walk([
-    ['lb', 'k3'],
-    ['k3', 'd'],
-  ]);
-  await d.dim(['lb', 'k3']);
-  // The edge between two kept services stays undimmed; one to a dimmed pod does not.
-  const parts = d.describe().parts;
-  assert.equal(parts.find((p) => p.name === 'Load balancer → Node 3 · 10.240.0.3')?.dimmed, undefined);
-  assert.equal(parts.find((p) => p.name === 'Node 3 · 10.240.0.3 → Pod d')?.dimmed, true);
-  await d.mark(['group:n3', 'k3'], { as: 'fails the health check' });
-  assert.equal(d.get('k3'), d.get('service:k3'));
-});
-
-test('an architecture junction is scaffolding, named by its id', async () => {
-  // The pinned diagram with Node 3's address redrawn as an unlabelled junction.
-  const s: DiagramSnapshot = structuredClone(withHop());
-  const k3 = s.parts.find((p) => p.id === 'service:k3')!;
-  k3.id = 'junction:k3';
-  k3.role = 'junction';
-  k3.shapes = k3.shapes.filter((shape) => !shape.text);
-  const seen = (await shown(s)).describe();
-  assert.equal(seen.what, 'Architecture diagram: 7 services, 8 edges');
-  assert.equal(seen.blank, undefined);
-  const names = seen.parts.map((p) => p.name);
-  assert.ok(names.includes('junction k3'));
-  assert.ok(names.includes('Load balancer → junction k3'));
 });

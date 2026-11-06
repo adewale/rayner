@@ -24,11 +24,11 @@ export default class Henge extends Scene {
       'https://science.nasa.gov/image-article/apod-2014-july-6-manhattanhenge-a-new-york-city-sunset/',
     ],
     claims: [
-      { says: 'faces the sunrise only on winter mornings', test: 'test/explain-henge.test.ts: Henge overhead view' },
-      { says: 'of the circle is in sunlight', test: 'test/explain-henge.test.ts: Henge globes' },
-      { says: 'goes round a circle about the celestial pole', test: 'test/explain-henge.test.ts: Henge dome: each day’s path' },
-      { says: 'crossed on the way out and on the way back', test: 'test/explain-henge.test.ts: Henge dome and year are drawn in depth order' },
-      { says: 'the street’s circle, the horizon', test: 'test/explain-henge.test.ts: Henge street view from the centre' },
+      { says: 'faces the sunrise only on winter mornings', test: 'model.test.ts: Henge overhead view' },
+      { says: 'of the circle is in sunlight', test: 'scene.test.ts: Henge globes' },
+      { says: 'goes round a circle about the celestial pole', test: 'model.test.ts: Henge dome: each day’s path' },
+      { says: 'crossed on the way out and on the way back', test: 'scene.test.ts: Henge dome and year are drawn in depth order' },
+      { says: 'the street’s circle, the horizon', test: 'scene.test.ts: Henge street view from the centre' },
     ],
   };
   static settings = [{ id: 'street', label: 'Street direction', default: 'manhattan', options: [

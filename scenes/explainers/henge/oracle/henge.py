@@ -1,4 +1,6 @@
-"""Independent horizon-coordinate vectors. pip install pyerfa==2.0.1.5, then run from repo root.
+"""Independent horizon-coordinate vectors. pip install pyerfa==2.0.1.5, then run
+  python3 scenes/explainers/henge/oracle/henge.py
+which writes the explainer's fixtures/henge-erfa.json.
 ERFA hd2ae is the SOFA-derived hour-angle/declination to azimuth/elevation conversion.
 This does not import or reproduce Rayner's coordinate implementation.
 """
@@ -16,5 +18,5 @@ for latitude in [-65, 0, 40.75, 65]:
             az, alt = erfa.hd2ae(*[math.radians(x) for x in [hour, declination, latitude]])
             rows.append(dict(latitude=latitude, declination=declination, hourAngle=hour,
                              azimuth=math.degrees(float(az)), altitude=math.degrees(float(alt))))
-Path('test/fixtures/henge-erfa.json').write_text(json.dumps(dict(
+(Path(__file__).resolve().parent.parent / 'fixtures/henge-erfa.json').write_text(json.dumps(dict(
     source='ERFA hd2ae via pyerfa', version=erfa.__version__, rows=rows), indent=2) + '\n')

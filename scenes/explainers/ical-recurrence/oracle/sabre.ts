@@ -1,10 +1,10 @@
 // Runs the ical-recurrence model's stored objects through sabre/vobject 4.5.7 in Docker
 // (composer:2.8 image): validate(PROFILE_CALDAV), expand(), and the iTIP Broker that sabre/dav
-// uses to deliver to a local attendee. Used by test/explain-ical-recurrence.test.ts.
+// uses to deliver to a local attendee. Used by the explainer's model.test.ts.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { ics, SERIES, INVITED, organiserCopy, copyOf, ORGANISER, GUEST, MASTER, MOVE_OVERRIDE, SERVER_CASES } from '../../scenes/explainers/ical-recurrence/model.ts';
-import type { Change, Copy } from '../../scenes/explainers/ical-recurrence/model.ts';
+import { ics, SERIES, INVITED, organiserCopy, copyOf, ORGANISER, GUEST, MASTER, MOVE_OVERRIDE, SERVER_CASES } from '../model.ts';
+import type { Change, Copy } from '../model.ts';
 
 export const SABRE_VERSION = '4.5.7';
 export const IMAGE = 'composer:2.8';
@@ -138,7 +138,7 @@ export function runSabre(): { answers: SabreAnswers } | { skip: string } {
   return { answers: JSON.parse(r.stdout) as SabreAnswers };
 }
 
-/** The answers frozen in ical-recurrence-sabre.json, with the image, version and inputs they answer. */
+/** The answers frozen in fixtures/sabre.json, with the image, version and inputs they answer. */
 export interface Frozen {
   image: string;
   sabre: string;
@@ -146,7 +146,8 @@ export interface Frozen {
   answers: SabreAnswers;
 }
 
-// `node test/lib/ical-recurrence-sabre.ts > test/lib/ical-recurrence-sabre.json` refreshes the frozen copy.
+// `node scenes/explainers/ical-recurrence/oracle/sabre.ts > scenes/explainers/ical-recurrence/fixtures/sabre.json`
+// refreshes the frozen copy.
 if (import.meta.main) {
   const r = runSabre();
   if ('skip' in r) {
