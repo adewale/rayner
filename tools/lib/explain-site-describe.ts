@@ -33,7 +33,7 @@ async function readBuilt(file: string): Promise<Buffer> {
   });
 }
 
-const CHANGED: Record<string, string> = { version: 'the build manifest format', sourceHash: "the scene's code", engineHash: 'the engine', importer: 'the snapshot importer', files: "the scene's folder", buildHash: 'the player, build tools or dependencies' };
+const CHANGED: Record<string, string> = { version: 'the build manifest format', sourceHash: "the scene's code", files: "the scene's folder", buildHash: 'the engine, player, build tools or dependencies' };
 
 /**
  * Throw unless demos:build built the explainer's folder in out/explainers (`folder`) from the scene in

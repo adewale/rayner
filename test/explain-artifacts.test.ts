@@ -26,10 +26,10 @@ test('catalog and evidence readers validate known fields before returning typed 
   ]) {const bad = structuredClone(e); defect(bad); assert.throws(() => catalogEvidence(bad), /Invalid/);}
 });
 test('scene input records require their declared format and actual digest strings', () => {
-  const value = {version: '2', sourceHash: 'a'.repeat(64), engineHash: 'b'.repeat(64), importer: 'c'.repeat(16), files: 'd'.repeat(64), buildHash: 'e'.repeat(64)};
+  const value = {version: '3', sourceHash: 'a'.repeat(64), files: 'd'.repeat(64), buildHash: 'e'.repeat(64)};
   assert.deepEqual(sceneInputs(value), value);
   for (const key of Object.keys(value)) {
-    const bad = {...value, [key]: key === 'version' ? '1' : 'not-a-digest'};
+    const bad = {...value, [key]: key === 'version' ? '2' : 'not-a-digest'};
     assert.throws(() => sceneInputs(bad), /Invalid scene inputs/);
   }
 });

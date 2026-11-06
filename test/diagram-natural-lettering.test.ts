@@ -202,7 +202,6 @@ test('requested natural faces and rich cuts use independent HarfBuzz advances th
     const file = join(directory, 'scene.lettering.json');
     const stored = unpackLettering(JSON.parse(await readFile(file, 'utf8')));
     stored.fontInputs!['eb-garamond'] = 'a'.repeat(64);
-    stored.payloadHash = createHash('sha256').update(JSON.stringify({ ...stored, payloadHash: undefined })).digest('hex');
     await writeFile(file, JSON.stringify(stored));
     await assert.rejects(collectProject(directory, { write: false }), /Stale natural diagram font metrics/);
     // Poison the actual persisted diagram too: refreshing the source-font

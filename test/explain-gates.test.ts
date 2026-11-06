@@ -30,7 +30,7 @@ async function write(source: string, snapshots?: Record<string, DiagramSnapshot>
   const dir = join(folder, String(n++));
   await mkdir(dir);
   await writeFile(join(dir, 'scene.ts'), source);
-  if (snapshots) await writeSnapshots(join(dir, 'scene'), snapshots, 'test');
+  if (snapshots) await writeSnapshots(join(dir, 'scene'), snapshots);
   return dir;
 }
 const checked = async (dir: string) => checkProject(await collectProject(dir, { write: false }), join(dir, 'checks'));

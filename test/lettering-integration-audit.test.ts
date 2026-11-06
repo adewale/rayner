@@ -21,31 +21,18 @@ const sourceAt = async (folder: string) => {
   return snapshot;
 };
 
-test('a fresh metadata fingerprint cannot hide damaged cached outline data', async () => {
+test('damaged cached outline data is refused', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-integrity-'));
   try {
     const snapshot = await sourceAt(folder);
     const run = Object.values(snapshot.runs).find((r: unknown) => (r as { glyphs: unknown[] }).glyphs.length) as { glyphs: { path: unknown[] }[] };
     run.glyphs[0]!.path = [{ tag: 'LineTo', x: 'broken', y: 0 }];
-    // Even someone updating the checksum cannot bypass structural checks.
-    snapshot.payloadHash = createHash('sha256').update(JSON.stringify({ ...snapshot, payloadHash: undefined })).digest('hex');
     await writeFile(join(folder, 'scene.lettering.json'), JSON.stringify(snapshot));
     await assert.rejects(collectProject(folder, { write: false }), /Invalid lettering snapshot outline/);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
-test('editing a contour without changing metadata is caught by the payload checksum', async () => {
-  const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-checksum-'));
-  try {
-    const snapshot = await sourceAt(folder);
-    const run = Object.values(snapshot.runs).find((r: unknown) => (r as { glyphs: unknown[] }).glyphs.length) as { glyphs: { dx: number }[] };
-    run.glyphs[0]!.dx += .1;
-    await writeFile(join(folder, 'scene.lettering.json'), JSON.stringify(snapshot));
-    await assert.rejects(collectProject(folder, { write: false }), /^Error: Invalid lettering snapshot payload checksum;/);
-  } finally { await rm(folder, { recursive: true, force: true }); }
-});
-
-test('a cached snapshot rejects a glyph cluster one past the source even with fresh fingerprints and checksum', async () => {
+test('a cached snapshot rejects a glyph cluster one past the source', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'lettering-audit-cluster-'));
   try {
     const snapshot = await sourceAt(folder);
@@ -57,7 +44,6 @@ test('a cached snapshot rejects a glyph cluster one past the source even with fr
       [...JSON.parse(key)[1]].length > 0 && (value as { glyphs: unknown[] }).glyphs.length > 0,
     )! as [string, { glyphs: { cluster: number }[] }];
     run.glyphs[0]!.cluster = [...JSON.parse(key)[1]].length;
-    snapshot.payloadHash = createHash('sha256').update(JSON.stringify({ ...snapshot, payloadHash: undefined })).digest('hex');
     await writeFile(file, JSON.stringify(snapshot));
     await assert.rejects(collectProject(folder, { write: false }), /^Error: Invalid lettering snapshot glyph;/);
   } finally { await rm(folder, { recursive: true, force: true }); }
@@ -85,10 +71,9 @@ const digest = (value: string) => createHash('sha256').update(value).digest('hex
 type SchemaFont = 'math' | `${'sans' | 'mono'}${'' | '/bold' | '/italic' | '/bold-italic'}`;
 function schemaSnapshot(text: string, font: SchemaFont, run: Run, display = false): LetteringSnapshot {
   const snapshot: LetteringSnapshot = {
-    version: 1, sourceHash: digest('schema source'), builderHash: digest('schema builder'),
+    version: 2, builderHash: digest('schema builder'),
     request: {}, runs: { [JSON.stringify([font, text, display])]: run }, faces: {}, shaper: 'schema contract',
   };
-  snapshot.payloadHash = digest(JSON.stringify(snapshot));
   return snapshot;
 }
 const finite = fc.double({ noNaN: true, noDefaultInfinity: true });

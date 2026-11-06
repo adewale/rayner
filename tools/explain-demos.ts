@@ -114,7 +114,6 @@ for (const item of items) {
       settings: scenario.values,
     },
     sourceHash: project.sourceHash,
-    engineHash: project.engineHash,
     snapshotHashes: baseReceipt(project).snapshotHashes,
   });
   console.log(
