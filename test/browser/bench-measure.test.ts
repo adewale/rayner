@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { launch } from '../../tools/lib/browser.ts';
-import { measure } from '../../tools/lib/bench-measure.ts';
+import { measure } from '../../tools/repo/lib/bench-measure.ts';
 
 for (const corrupt of [false, true])
   for (const disclosures of [0, 1, 2])

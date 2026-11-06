@@ -1,6 +1,6 @@
 The optional `glyph-math.js` typesetter is MIT-licensed glyph at
 6398654dfda7d5a91763e3ef07369b9a9d8e3b2b (Ivar Vong). Rebuild with
-`node tools/vendor-glyph-math.ts /path/to/glyph`. It reuses the combining-class
+`node tools/repo/vendor-glyph-math.ts /path/to/glyph`. It reuses the combining-class
 data already present in `glyph.js` and exports only `typeset`, not the renderer.
 It is imported only during requested maths snapshot capture, never by a page.
 

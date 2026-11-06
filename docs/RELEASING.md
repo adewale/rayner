@@ -71,7 +71,7 @@ A git tag, dated changelog or successful validation job records preparation. Con
 Keep the reviewed website export, including its `deployment.json` and private `_headers` file. After the website deployment completes, compare the public site with those local bytes:
 
 ```sh
-node tools/verify-live-site.ts ../website/site \
+node tools/repo/verify-live-site.ts ../website/site \
   --origin https://your.site --path /projects/rayner \
   --clean-urls --out out/live-site-verification.json
 ```

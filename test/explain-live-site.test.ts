@@ -9,7 +9,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 
 const run = promisify(execFile);
-const script = new URL('../tools/verify-live-site.ts', import.meta.url).pathname;
+const script = new URL('../tools/repo/verify-live-site.ts', import.meta.url).pathname;
 const prefix = '/projects/example';
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const csp = "default-src 'none'; script-src 'self'";

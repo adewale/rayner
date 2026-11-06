@@ -23,7 +23,7 @@ for (const [name, change, message] of [
         filename: 'candidate.tgz', sourceCommit: commit, integrity: 'sha512-unused',
       }, change)));
       await assert.rejects(
-        run(process.execPath, [join(ROOT, 'tools/explain-package-smoke.ts'), '--manifest', manifest], { cwd: ROOT }),
+        run(process.execPath, [join(ROOT, 'tools/repo/explain-package-smoke.ts'), '--manifest', manifest], { cwd: ROOT }),
         (error) => {
           assert.ok(error && typeof error === 'object' && 'stderr' in error);
           assert.match(String(error.stderr), message);

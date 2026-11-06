@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { selectExport } from '../tools/lib/explain-export-selection.ts';
+import { selectExport } from '../tools/repo/lib/explain-export-selection.ts';
 
 const catalog: import('../tools/lib/explain-artifacts.ts').Catalog = {
   version: 2,

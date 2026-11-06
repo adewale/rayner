@@ -70,7 +70,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           NPM_DIST_TAG: ${{ inputs.tag }}
-        run: node tools/publish-release.ts
+        run: node tools/repo/publish-release.ts
   archive:
     if: inputs.operation == 'archive'
     runs-on: ubuntu-24.04
@@ -110,4 +110,4 @@ jobs:
           ARCHIVE_SOURCE: ${{ github.workspace }}/release-source
           EXPLAIN_BROWSER: '1'
           EXPLAIN_LETTERING: '1'
-        run: node release-tools/tools/archive-published-release.ts
+        run: node release-tools/tools/repo/archive-published-release.ts
