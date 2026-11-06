@@ -1,18 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isRefusal } from '../../../src/index.ts';
-import { MOVES, next, start, type Tower } from './model.ts';
+import { MOVES, next, solve, start, type Tower } from './model.ts';
 
-test('the fewest moves that carry three disks from A to C is seven, 2³ − 1', () => {
-  const key = (t: Tower) => JSON.stringify(t.pegs);
-  const depth = new Map([[key(start()), 0]]);
-  for (const queue = [start()]; queue.length; ) {
+/** Every arrangement reachable from the start, and the fewest moves to the finished tower on C. */
+function search(n: number) {
+  const key = (t: Tower) => JSON.stringify(t.pegs), depth = new Map([[key(start(n)), 0]]);
+  for (const queue = [start(n)]; queue.length; ) {
     const t = queue.shift()!;
     for (const m of MOVES) {
-      const n = next(t, m);
-      if (!isRefusal(n) && !depth.has(key(n))) { depth.set(key(n), depth.get(key(t))! + 1); queue.push(n); }
+      const after = next(t, m);
+      if (!isRefusal(after) && !depth.has(key(after))) { depth.set(key(after), depth.get(key(t))! + 1); queue.push(after); }
     }
   }
-  assert.equal(depth.size, 27);
-  assert.equal(depth.get(key({ pegs: [[], [], [3, 2, 1]] })), 7);
+  return { arrangements: depth.size, fewest: depth.get(key({ pegs: [[], [], start(n).pegs[0]!] })) };
+}
+
+test('no route is shorter than 7 moves for three disks or 15 for four', () => {
+  assert.deepEqual(search(3), { arrangements: 27, fewest: 7 });
+  assert.deepEqual(search(4), { arrangements: 81, fewest: 15 });
+});
+
+test('solve() keeps the rules, finishes on C, and takes the fewest moves', () => {
+  for (const n of [3, 4]) {
+    let tower = start(n);
+    for (const m of solve(n)) {
+      const after = next(tower, m);
+      assert.ok(!isRefusal(after), `${n} disks: ${m} is refused`);
+      tower = after;
+    }
+    assert.deepEqual(tower.pegs, [[], [], start(n).pegs[0]]);
+    assert.equal(solve(n).length, search(n).fewest);
+  }
+});
+
+test('a disk on a smaller disk, or a move from an empty peg, is refused with the rule', () => {
+  const onSmaller = next({ pegs: [[2], [1], []] }, 'A→B'), fromEmpty = next({ pegs: [[], [1], []] }, 'A→C');
+  assert.ok(isRefusal(onSmaller) && onSmaller.reason === 'disk 2 cannot sit on the smaller disk 1');
+  assert.ok(isRefusal(fromEmpty) && fromEmpty.reason === 'peg A is empty');
 });
