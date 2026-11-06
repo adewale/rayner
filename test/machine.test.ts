@@ -410,7 +410,7 @@ test('end finishes the story at a state: the model\'s moves from it are beyond t
   assert.deepEqual(ends.machine.reachable().map((r) => r.state.level), [0, 1, 2]);
   assert.deepEqual((await exploreMachines(ends))[0]!.problems, []);
   // A live step that ends finished starts the reader's events from the machine's start.
-  assert.deepEqual(logStart(ends.machine, { level: 2 }), { from: 'start', state: { level: 0 } });
+  assert.deepEqual(logStart(ends.machine as never, { level: 2 }), { from: 'start', state: { level: 0 } });
   assert.throws(() => new Machine<Lamp, 'UP' | 'OFF'>(ends, { start: { level: 0 }, events: ['UP'], next, views: [], end: 'bright' as never }), /end is a function of the state/);
 });
 
