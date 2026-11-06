@@ -8,11 +8,13 @@ import { pathToFileURL } from 'node:url';
 import { normalise } from '../../explain/script.ts';
 import { ROOT } from './explain-project.ts';
 
-/** The model test beside the scene and what its run found: how many tests ran, and the names of those that failed. */
+/** The model test beside the scene and what its run found: how many tests ran and passed, how many were skipped, and the names of those that failed. */
 export interface ModelTestReport {
   file: string;
   tests: number;
   passed: number;
+  /** Tests skipped or marked todo: they ran nothing, so they are not counted in `tests`. */
+  skipped: number;
   failed: string[];
 }
 
@@ -44,16 +46,16 @@ function raynerResolution(): string {
 
 /**
  * A node:test reporter that writes each test that ended as a line of JSON: its name with its suites'
- * in front, whether it passed, and the first lines of its error. Suites and skipped tests are left out.
+ * in front, whether it passed or was skipped, and the first lines of its error. Suites are left out.
  */
 const REPORTER =
   'data:text/javascript,' +
   encodeURIComponent(
     `export default async function*(events){const path=[];for await(const {type,data:d} of events){` +
       `if(type==='test:start')path[d.nesting]=d.name;` +
-      `if((type==='test:pass'||type==='test:fail')&&d.details?.type!=='suite'&&!d.skip&&!d.todo){` +
+      `if((type==='test:pass'||type==='test:fail')&&d.details?.type!=='suite'){` +
       `const e=d.details?.error,c=e?.cause instanceof Error?e.cause.message:e?.cause?.message??e?.message;` +
-      `yield JSON.stringify({name:[...path.slice(0,d.nesting),d.name].join(' > '),passed:type==='test:pass',error:typeof c==='string'?c:undefined})+'\\n'}}}`,
+      `yield JSON.stringify({name:[...path.slice(0,d.nesting),d.name].join(' > '),passed:type==='test:pass',skipped:d.skip!==undefined||d.todo!==undefined,error:typeof c==='string'?c:undefined})+'\\n'}}}`,
   );
 
 /**
@@ -76,10 +78,11 @@ export async function runModelTest(sceneFile: string): Promise<ModelTestReport |
     child.on('error', fail);
     child.on('close', (code) => done({ stdout, stderr, code }));
   });
-  const results = stdout
+  const ended = stdout
     .split('\n')
     .filter((line) => line.startsWith('{'))
-    .map((line) => JSON.parse(line) as { name: string; passed: boolean; error?: string });
+    .map((line) => JSON.parse(line) as { name: string; passed: boolean; skipped: boolean; error?: string });
+  const results = ended.filter((r) => !r.skipped);
   const failed = results
     .filter((r) => !r.passed)
     .map((r) => {
@@ -89,7 +92,7 @@ export async function runModelTest(sceneFile: string): Promise<ModelTestReport |
   // A run that fails with no test failing (it could not start) says why on its stderr.
   if (code !== 0 && !failed.length) failed.push(`node --test exited with ${code}: ${stderr.trim().split('\n').slice(-3).join(' ')}`);
   const shown = relative(process.cwd(), file);
-  return { file: shown.startsWith('..') ? file : shown, tests: results.length, passed: results.filter((r) => r.passed).length, failed };
+  return { file: shown.startsWith('..') ? file : shown, tests: results.length, passed: results.filter((r) => r.passed).length, skipped: ended.length - results.length, failed };
 }
 
 /** A check as answers.ts computes it: its answer, or its question, its answer or both. */
