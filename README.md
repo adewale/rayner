@@ -68,7 +68,7 @@ The script's header is what the explainer must achieve. Rayner reads it: the que
 - **Answer:** the smaller tower moves twice and the largest disk once.
 - **Changed condition:** four disks. The count becomes 15, and disk 1's first move flips from C to B, which shows the plan nesting inside itself.
 - **Reader's own work:** predict the count first; at the end, carry the tower from the full stack on A and try to beat seven.
-- **Checked against:** a search of every arrangement of three, four and five disks, in the model's own tests; no outside system.
+- **Checked against:** a search of every arrangement of three, four and five disks, in the model's own tests (`model.test.ts`); no outside system.
 - **Leaves out:** more than three pegs, and towers of more than five disks, which rest on the pattern.
 
 ## Check yourself

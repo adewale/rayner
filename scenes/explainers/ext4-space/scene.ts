@@ -21,7 +21,7 @@ import {
 import type { Size, Slice, Space, WholeStage } from './model.ts';
 
 // Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in model.ts and
-// test/explain-ext4-space.test.ts, which also freezes mkfs.ext4 1.47.3 runs and a mounted kernel's statfs.
+// model.test.ts, which also freezes mkfs.ext4 1.47.3 runs and a mounted kernel's statfs.
 const E2FS = 'https://github.com/tytso/e2fsprogs/blob/v1.47.3/';
 const LINUX = 'https://github.com/torvalds/linux/blob/v6.8/fs/ext4/';
 const STYLE = 'github-light';
@@ -101,9 +101,9 @@ export default class Ext4SpaceExplainer extends Scene {
     // Sentences that reach past what one step draws, and the test that holds each.
     claims: [
       { says: 'users can write only', shown: true as const },
-      { says: 'two bitmaps in every group', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
-      { says: 'Every group has two bitmaps', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
-      { says: 'only the kernel’s', test: 'test/explain-ext4-space.test.ts: the model gives the mounted kernel’s statfs' },
+      { says: 'two bitmaps in every group', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
+      { says: 'Every group has two bitmaps', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
+      { says: 'only the kernel’s', test: 'model.test.ts: the model gives the mounted kernel’s statfs' },
     ],
   };
   static settings = [

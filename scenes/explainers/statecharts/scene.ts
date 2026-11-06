@@ -20,13 +20,13 @@ export default class Statecharts extends Scene {
     watch: { current: 'Current states' },
     // Sentences that reach past the charts on screen, and the test that holds each against the model and XState.
     claims: [
-      { says: 'is always in exactly one of four boxes', test: 'test/statecharts.test.ts: the coffee machine is always in exactly one state' },
+      { says: 'is always in exactly one of four boxes', test: 'model.test.ts: the coffee machine is always in exactly one state' },
       { says: 'A POWER_OFF copied onto every state, and one copy missed', shown: true as const },
-      { says: 'playback and volume never affect each other', test: 'test/statecharts.test.ts: every arrow between them changes one word and keeps the other' },
-      { says: 'Every name is two words, one per feature', test: 'test/statecharts.test.ts: every flat state while on names one state per region' },
-      { says: 'a further feature adds a region of two states where the flat machine doubles', test: 'test/statecharts.test.ts: each on/off feature adds a region of two states' },
-      { says: 'Only the drawing changes', test: 'test/statecharts.test.ts: flattening each drawn chart reaches the configurations and transitions XState reaches' },
-      { says: 'every state while on would pair one of the four brewing states with still or frothing', test: 'test/statecharts.test.ts: every pair is reachable' },
+      { says: 'playback and volume never affect each other', test: 'model.test.ts: every arrow between them changes one word and keeps the other' },
+      { says: 'Every name is two words, one per feature', test: 'model.test.ts: every flat state while on names one state per region' },
+      { says: 'a further feature adds a region of two states where the flat machine doubles', test: 'model.test.ts: each on/off feature adds a region of two states' },
+      { says: 'Only the drawing changes', test: 'model.test.ts: flattening each drawn chart reaches the configurations and transitions XState reaches' },
+      { says: 'every state while on would pair one of the four brewing states with still or frothing', test: 'model.test.ts: every pair is reachable' },
     ],
   };
 

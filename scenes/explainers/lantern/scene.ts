@@ -197,11 +197,11 @@ export default class LanternExplainer extends Scene {
     claims: [
       {
         says: 'unless the scene has updaters or is playing a Succession, skips computing the frames before t',
-        test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+        test: 'model.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
       },
       {
         says: 'counts frames 1–29 without computing them',
-        test: 'test/explain-lantern.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
+        test: 'model.test.ts: seek: unless the scene has updaters, a still computes no frame before t',
       },
       {
         says: 'the nudged dot never passes its first step',
@@ -209,15 +209,15 @@ export default class LanternExplainer extends Scene {
       },
       {
         says: 'Frame 30 is t = 1.00 s in every run',
-        test: 'test/explain-lantern.test.ts: clock: frame k is t = k / fps in every run, whatever the sink’s pace',
+        test: 'model.test.ts: clock: frame k is t = k / fps in every run, whatever the sink’s pace',
       },
       {
         says: 'Rayner’s sinks only read the frame',
-        test: 'test/explain-lantern.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
+        test: 'model.test.ts: sinks only read a frame: after each of Rayner’s sinks takes it',
       },
       {
         says: 'by an amount set only by how far through its run time the animation is',
-        test: 'test/explain-lantern.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
+        test: 'model.test.ts: an animation blends its start and end by its elapsed share of its run time alone',
       },
       {
         says: 'in every step of every scenario it seeks one frame midway and one just before the step ends',
@@ -225,7 +225,7 @@ export default class LanternExplainer extends Scene {
       },
       {
         says: 'in a scene with updaters, a still computes every frame before t',
-        test: 'test/explain-lantern.test.ts: seek: in a scene with updaters a still computes every frame before t',
+        test: 'model.test.ts: seek: in a scene with updaters a still computes every frame before t',
       },
     ],
   };

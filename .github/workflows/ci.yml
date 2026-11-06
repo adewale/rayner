@@ -38,7 +38,7 @@ jobs:
       - if: steps.scope.outputs.prose == 'true'
         run: |
           npm ci
-          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts
+          node --test test/explain-onboarding.test.ts test/explain-tutorial.test.ts scenes/tutorial/*/model.test.ts
 
   check:
     needs: scope
@@ -76,7 +76,7 @@ jobs:
       - name: Check lettering capture and playback
         run: EXPLAIN_LETTERING=1 EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test --test-reporter=spec test/diagram-natural-lettering.test.ts test/lettering-cache.test.ts test/lettering-outlines.test.ts test/lettering-styles.test.ts test/lettering-rtl.test.ts test/lettering-*-audit.test.ts test/snapshot-capture.test.ts
       - run: npm run check          # tsc -b over every project (emits dist/); compile a TS consumer against it
-      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts # full properties, independent oracles and raster boundaries
+      - run: FULL=1 node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts # full properties, independent oracles and raster boundaries
       # Product gates reuse this job and its Chromium installation; no scheduled lane.
       - run: |
           node tools/repo/ci-tests.ts "$(command -v npm)" run test:embeds
@@ -262,7 +262,7 @@ jobs:
       # Pure engine/property assertions have one full owner above. The minimum
       # Node lane retains standard tests and installed browser smoke for API/warning drift.
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
-        run: npm run check && node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts
+        run: npm run check && node tools/repo/ci-tests.ts --expose-gc --test test/*.test.ts test/browser/*.test.ts scenes/*/*/*.test.ts
       - if: matrix.os == 'ubuntu-24.04' && matrix.node == '24.0.0'
         run: EXPLAIN_BROWSER=1 node tools/repo/ci-tests.ts --test test/explain-cli.test.ts test/browser/explain-review-scene.test.ts
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

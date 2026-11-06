@@ -3,7 +3,7 @@
 //
 // What it leaves out: realtime delays and cancellations, transfers and journey planning. It is held to
 // Google's sample feed (calendars, trips, stop times and frequencies) and to gtfs-kit's counts for it
-// (test/explain-gtfs.test.ts). It reads only the seven tables readFeed names.
+// (model.test.ts). It reads only the seven tables readFeed names.
 //
 // Every rule is from the GTFS Schedule reference at google/transit commit 3c9e7b9
 // (gtfs/spec/en/reference.md, lines as numbered at that commit):

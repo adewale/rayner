@@ -1,7 +1,7 @@
 import type { ColorSpan } from '../../../src/index.ts';
 
 // The merge request's code, before and after: the two texts the diff step's
-// TransformDiff morphs, and that test/explain-fidelity.test.ts diffs with the
+// TransformDiff morphs, and that fidelity.ts diffs with the
 // real git CLI. (They began as the code in Lantern's engine example,
 // scenes/mr-cache.ts, at 2c7bad5.)
 export const BEFORE_CODE = [
@@ -24,7 +24,7 @@ export const AFTER_CODE = [
 //   node tools/tokens.ts block.js --theme light --engine shiki
 // (shiki 4.5.0, a devDependency of this checkout: npm install; light, for the
 // paper stage).
-// Regenerate if the code above changes; test/explain-fidelity.test.ts checks
+// Regenerate if the code above changes; fidelity.ts checks
 // that every span lies inside its line.
 export const BEFORE_SPANS: ColorSpan[] = [
   { line: 0, from: 0, to: 5, color: '#cf222e' },

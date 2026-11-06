@@ -13,7 +13,7 @@ import {
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
-// test/explain-fidelity.test.ts holds to the real git diff.
+// fidelity.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
 import { frames as readerFrames, panel, inWords, linesBox, lineBar, drawRequestPaths } from './picture.ts';
 
@@ -132,7 +132,7 @@ export default class CacheMRExplainer extends Scene {
     s.keep(merged.rect, after, { describe: panelWords });
     // The diff drives the morph: unchanged lines travel whole, the rewritten
     // return keeps its shared tokens, added lines grow in. The hunks are
-    // recorded in the trace, where test/explain-fidelity.test.ts holds them to
+    // recorded in the trace, where fidelity.ts holds them to
     // the real git CLI.
     const diff = new TransformDiff(before, after, { runTime: 1.6 });
     await this.play(diff, new Transform(shown.rect, merged.rect, { replace: true, runTime: 1.6 }));

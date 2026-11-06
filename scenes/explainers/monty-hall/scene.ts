@@ -22,10 +22,10 @@ export default class MontyHall extends Scene {
     // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
     claims: [
       { says: 'The strip lays out every round for a pick of', shown: true as const },
-      { says: 'is the only goat you didn’t pick', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
-      { says: 'the host who knows always opens', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
-      { says: 'in only one of them and opens the car in the other', test: 'test/learning-models.test.ts: the random host opens it in only half those rounds' },
-      { says: 'had known where the car was and always shown a goat', test: 'test/learning-models.test.ts: the host who knows always opens the only goat left' },
+      { says: 'is the only goat you didn’t pick', test: 'model.test.ts: the host who knows always opens the only goat left' },
+      { says: 'the host who knows always opens', test: 'model.test.ts: the host who knows always opens the only goat left' },
+      { says: 'in only one of them and opens the car in the other', test: 'model.test.ts: the random host opens it in only half those rounds' },
+      { says: 'had known where the car was and always shown a goat', test: 'model.test.ts: the host who knows always opens the only goat left' },
     ],
   };
   static settings = [

@@ -33,11 +33,11 @@ export default class GlyphExplainer extends Scene {
     claims: [
       {
         says: 'Inter gives each l and i only 0.218',
-        test: 'test/explain-glyph.test.ts: Inter gives l and i its narrowest advance',
+        test: 'model.test.ts: Inter gives l and i its narrowest advance',
       },
       {
         says: 'Only the H is wider in Inter',
-        test: 'test/explain-glyph.test.ts: only the H is wider than JetBrains Mono’s cell',
+        test: 'model.test.ts: only the H is wider than JetBrains Mono’s cell',
       },
       { says: 'Every glyph pairs with its 60% copy; with the other font, none do', shown: true as const },
     ],

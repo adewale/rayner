@@ -81,12 +81,12 @@ export default class IcalRecurrenceExplainer extends Scene {
     // Sentences that reach past the scenarios on screen, and the test that holds each.
     claims: [
       { says: 'invites Bob to the third meeting only', shown: true as const },
-      { says: 'keeps only the meetings it was sent', test: 'test/explain-ical-recurrence.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },
-      { says: 'only the VEVENTs', test: 'test/explain-ical-recurrence.test.ts: property: a guest gets exactly the overrides they attend' },
-      { says: 'only the override Bob attends', test: 'test/explain-ical-recurrence.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },
-      { says: 'never appears in it', test: 'test/explain-ical-recurrence.test.ts: each copy holds what Baïkal stored' },
-      { says: 'Bob has no rule, only that meeting', test: 'test/explain-ical-recurrence.test.ts: the copies view' },
-      { says: 'puts every VEVENT with one UID in one calendar object', test: 'test/explain-ical-recurrence.test.ts: every marker in the ER source says what the model allows' },
+      { says: 'keeps only the meetings it was sent', test: 'model.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },
+      { says: 'only the VEVENTs', test: 'model.test.ts: property: a guest gets exactly the overrides they attend' },
+      { says: 'only the override Bob attends', test: 'model.test.ts: the guest’s messages and copy are the ones sabre/vobject’s Broker produces' },
+      { says: 'never appears in it', test: 'model.test.ts: each copy holds what Baïkal stored' },
+      { says: 'Bob has no rule, only that meeting', test: 'model.test.ts: the copies view' },
+      { says: 'puts every VEVENT with one UID in one calendar object', test: 'model.test.ts: every marker in the ER source says what the model allows' },
     ],
   };
   static settings = [

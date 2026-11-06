@@ -31,7 +31,7 @@ export default class StateMachineExplainer extends Scene {
     claims: [
       {
         says: 'accepts an event only in a state that has a row for it',
-        test: 'test/explain-models.test.ts: both session histories come from the reducer; closed rejects all modeled events',
+        test: 'model.test.ts: both session histories come from the reducer; closed rejects all modeled events',
       },
     ],
   };

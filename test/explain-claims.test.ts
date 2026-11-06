@@ -57,7 +57,7 @@ test('a sentence with a scope word is reported, and backed only by a declared cl
     step('one', 'The machine stays in brewing. No reachable state is in two regions’ states at once, so playing and paused never hold together.'),
     step('two', 'Every new feature doubles the flat machine. Only the drawing changes. All four boxes are drawn.'),
   ];
-  const meta = { claims: [{ says: 'playing and paused never hold together', test: 'test/statecharts.test.ts: a region is in at most one state' }] };
+  const meta = { claims: [{ says: 'playing and paused never hold together', test: 'scenes/explainers/statecharts/model.test.ts: a region is in at most one state' }] };
   const r = claimsReport(meta, steps);
   assert.deepEqual(
     r.scope.map((s) => [s.step, !!s.backedBy]),
@@ -95,10 +95,16 @@ test('claims need a phrase and a test named as "file: part of its name"', () => 
 });
 
 test('check fails a declared claim no scenario states, or one whose test is not there', async () => {
-  const real = { says: 'never hold together', test: 'test/statecharts.test.ts: a region is in at most one state' };
+  const real = { says: 'never hold together', test: 'scenes/explainers/statecharts/model.test.ts: a region is in at most one state' };
   assert.deepEqual(await declaredClaimProblems([real], ['never hold together']), []);
   assert.match((await declaredClaimProblems([real], []))[0]!, /no step states/);
   assert.match((await declaredClaimProblems([{ ...real, test: 'test/none.test.ts: x' }], [real.says])).join(), /not there/);
-  assert.match((await declaredClaimProblems([{ ...real, test: 'test/statecharts.test.ts: no such test' }], [real.says])).join(), /there is none/);
+  assert.match((await declaredClaimProblems([{ ...real, test: 'scenes/explainers/statecharts/model.test.ts: no such test' }], [real.says])).join(), /there is none/);
   assert.deepEqual(await declaredClaimProblems([{ says: 'every round', shown: true }], ['every round']), []);
+  // A test beside the scene is named from its folder; one from where check runs still resolves there.
+  const folder = 'scenes/explainers/state-machine';
+  const beside = { says: 'closed rejects', test: 'model.test.ts: both session histories come from the reducer' };
+  assert.deepEqual(await declaredClaimProblems([beside], [beside.says], process.cwd(), folder), []);
+  assert.match((await declaredClaimProblems([beside], [beside.says])).join(), /not there/, 'without the folder, model.test.ts is looked for where check runs');
+  assert.deepEqual(await declaredClaimProblems([{ ...beside, test: `${folder}/model.test.ts: both session histories` }], [beside.says], process.cwd(), folder), []);
 });

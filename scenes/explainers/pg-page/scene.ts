@@ -19,7 +19,7 @@ import { AT, CELL, COLORS, SIZE, SMALL, drawEmptyFree, drawFirstRow, drawKeyGrou
 import type { TupleState } from './picture.ts';
 
 // Sources, all at postgres/postgres tag REL_18_6; lines are quoted in lib/pg-page.ts and
-// test/explain-pg-page.test.ts, which also freezes the measurements on Postgres 18.6.
+// model.test.ts, which also freezes the measurements on Postgres 18.6.
 const PG = 'https://github.com/postgres/postgres/blob/REL_18_6/src/';
 const STYLE = 'pen-and-ink';
 
@@ -88,11 +88,11 @@ export default class PgPageExplainer extends Scene {
     claims: [
       {
         says: 'every page starts with a 24-byte header',
-        test: 'test/explain-pg-page.test.ts: the page header, line pointer and tuple header sizes',
+        test: 'model.test.ts: the page header, line pointer and tuple header sizes',
       },
       {
         says: 'Postgres gives every tuple a multiple of 8 bytes',
-        test: 'test/explain-pg-page.test.ts: stored in a multiple of MAXALIGN',
+        test: 'model.test.ts: stored in a multiple of MAXALIGN',
       },
     ],
   };

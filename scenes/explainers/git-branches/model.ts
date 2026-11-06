@@ -1,6 +1,6 @@
 // The git-branches explainer's model: two branches from A, feature's B changing colour.txt, main's C (in the
 // diverged history) adding title.txt, and the merge: M with parents C and B, or main fast-forwarded to B.
-// Its ordinary merges match real Git with merge.ff=true (test/learning-models.test.ts). It does not model
+// Its ordinary merges match real Git with merge.ff=true (model.test.ts). It does not model
 // squash merges, rebases, conflicts or octopus merges; --ff-only (which would refuse the diverged merge) and
 // --no-ff (which can choose a commit where a fast-forward would do) are not states it draws. "No branch
 // reaches C" means these two labels: reflogs, tags, remote-tracking refs, recovery and garbage collection are

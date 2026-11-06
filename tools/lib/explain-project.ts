@@ -104,10 +104,11 @@ export function engineAlias(node = false, outlines = false): Plugin {
     },
   };
 }
-export async function loadScene(
-  file: string,
-): Promise<{ Scene: ExplainerClass; exportName: string; file: string; sourceHash: string }> {
-  file = await scenePath(file);
+/**
+ * Bundle an author's module as the tools run a scene, with the engine one shared copy, and import
+ * it: its module, and the bundled code's hash with the checkout's and the author's folders left out.
+ */
+export async function importAuthored(file: string): Promise<{ module: Record<string, unknown>; sourceHash: string }> {
   const result = await build({
     entryPoints: [file],
     absWorkingDir: dirname(file),
@@ -132,7 +133,13 @@ export async function loadScene(
   const temporary = `${output}.${process.pid}.${randomUUID()}`;
   await writeFile(temporary, code);
   await rename(temporary, output);
-  const module = await import(pathToFileURL(output).href);
+  return { module: await import(pathToFileURL(output).href), sourceHash };
+}
+export async function loadScene(
+  file: string,
+): Promise<{ Scene: ExplainerClass; exportName: string; file: string; sourceHash: string }> {
+  file = await scenePath(file);
+  const { module, sourceHash } = await importAuthored(file);
   const choices = Object.values(module).filter(
     (value): value is ExplainerClass => typeof value === 'function' && value.prototype instanceof Scene,
   );

@@ -18,12 +18,12 @@ export default class PythonDict extends Scene {
     ],
     // "Never used" names a slot's state; the tests hold what the sentences say about it.
     claims: [
-      { says: 'never been used', test: 'test/learning-models.test.ts: a probe route reads each visited slot in turn' },
-      { says: 'never-used slot', test: 'test/learning-models.test.ts: a probe route reads each visited slot in turn' },
-      { says: 'reads never used, and stops', test: 'test/learning-models.test.ts: a probe route reads each visited slot in turn' },
-      { says: 'key 24 was never stored', test: 'test/learning-models.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
-      { says: 'whose key never matches', test: 'test/learning-models.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
-      { says: 'keeps only', test: 'test/learning-models.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
+      { says: 'never been used', test: 'model.test.ts: a probe route reads each visited slot in turn' },
+      { says: 'never-used slot', test: 'model.test.ts: a probe route reads each visited slot in turn' },
+      { says: 'reads never used, and stops', test: 'model.test.ts: a probe route reads each visited slot in turn' },
+      { says: 'key 24 was never stored', test: 'model.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
+      { says: 'whose key never matches', test: 'model.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
+      { says: 'keeps only', test: 'model.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
     ],
   };
   static settings = [
