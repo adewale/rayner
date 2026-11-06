@@ -1,86 +1,8 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "reader-task",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        }
-      ]
-    },
-    {
-      "step": "reader-sample",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "P1"
-        },
-        {
-          "text": "P2"
-        },
-        {
-          "text": "P3"
-        },
-        {
-          "text": "P4"
-        },
-        {
-          "text": "P5"
-        },
-        {
-          "text": "P6"
-        }
-      ]
-    },
-    {
-      "step": "give-ups",
-      "opening": true,
-      "targets": [
-        {
-          "key": "gave-up:P1"
-        },
-        {
-          "key": "gave-up:P2"
-        },
-        {
-          "key": "gave-up:P3"
-        },
-        {
-          "key": "gave-up:P4"
-        },
-        {
-          "key": "gave-up:P5"
-        },
-        {
-          "key": "gave-up:P6"
-        },
-        {
-          "key": "gave-up:task-1"
-        },
-        {
-          "key": "gave-up:task-3"
-        },
-        {
-          "key": "gave-up:task-4"
-        },
-        {
-          "key": "gave-up:task-7"
-        },
-        {
-          "key": "gave-up:task-9"
-        },
-        {
-          "key": "gave-up:total"
-        },
-        {
-          "key": "gave-up:none"
-        }
-      ]
-    }
+    { "step": "reader-task", "opening": true, "targets": [{ "key": "reader-picture" }] },
+    { "step": "reader-sample", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "P1" }, { "text": "P2" }, { "text": "P3" }, { "text": "P4" }, { "text": "P5" }, { "text": "P6" }] },
+    { "step": "give-ups", "opening": true, "targets": [{ "key": "gave-up:P1" }, { "key": "gave-up:P2" }, { "key": "gave-up:P3" }, { "key": "gave-up:P4" }, { "key": "gave-up:P5" }, { "key": "gave-up:P6" }, { "key": "gave-up:task-1" }, { "key": "gave-up:task-3" }, { "key": "gave-up:task-4" }, { "key": "gave-up:task-7" }, { "key": "gave-up:task-9" }, { "key": "gave-up:total" }, { "key": "gave-up:none" }] }
   ]
 }

@@ -2,74 +2,170 @@
 
 ## 0.2.0 (unreleased)
 
-Rayner turns a tested TypeScript model into a step-through explanation a reader can drive, published as one portable HTML page. Before anything is published it runs every scenario, measures every picture as painted, redraws each picture from the state it claims to show, and reviews the served page at phone and desktop widths. This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It requires Node 24 or later. Authoring targets Ubuntu and macOS, and diagram capture needs Chromium. Start with [the tutorial](docs/TUTORIAL.md); [the reference](docs/REFERENCE.md) covers the API and the command line, and [upstream](docs/UPSTREAM.md) records what changed from Ivar Vong's Lantern, which Rayner forks.
+Rayner turns a tested TypeScript model into a step-through explanation a reader can drive, published as one portable HTML page. This is the first release meant for authors (0.1.0 and 0.1.1 were previews); it requires Node 24 or later, authoring targets Ubuntu and macOS, and diagram capture needs Chromium. Start with [the tutorial](docs/TUTORIAL.md); [the reference](docs/REFERENCE.md) covers the API and the command line, and [upstream](docs/UPSTREAM.md) records what changed from Ivar Vong's Lantern, which Rayner forks.
 
 ### Authoring explainers
 
-- An explainer is three files with one job each: `script.md` states the intent, for its author; `model.ts` expresses the system's constraints; `scene.ts` explains the system, with a picture module for how a state looks. A script's intent header (`# question`, labelled lines such as **Answer** and **Checked against**, and `## Check yourself`) is the one home of the title, answer, check questions and what the model is checked against: Rayner reads it as the scene's metadata, refuses a scene that declares them too, and shows what the model is checked against under Sources. Every explainer is migrated: each folder in `scenes/explainers/` holds its own `script.md`, `model.ts` (where it has a model), `picture.ts` (where its drawing is worth separating) and `scene.ts`; models and pictures moved out of `scenes/explainers/lib/`, which keeps only the shared `format.ts`, and `notes.md` files are folded into the script, the model and the picture module.
-- An explainer is a `Scene` subclass with named steps. Each step has a title, a short `line` drawn under it on the picture, and a caption under the stage, and holds until the caption could be read. `static settings` declares the reader's choices, and every scenario (one value for every setting) is built ahead of time. `kind: 'short' | 'main' | 'detail'` puts a step on the reader's short path, in the story, or under Details and sources.
-- `scene.state` holds the model as plain JSON, and `scene.shown` holds what is shown apart from it; the trace records both at every step. Functions, class instances, cycles and non-finite numbers are refused with a field path.
-- Write the script first. `meta.answer` is the explanation's one-sentence answer, which some step must state, and `meta.checks` are the questions the player asks after the last step. `meta.watch` names the state a reader should follow, and the player shows each step's changes to it ("Tokens left: 5 → 0"). `rayner init` writes the tutorial's LRU/MRU explainer with its script, model and model test; `rayner init --machine` writes a machine explainer (a door that locks) with a model that refuses with reasons, its test, a live step and review subjects, which passes `check` and `review` as written.
-- `stage(this)` adds the paper, a heading that follows each step, and helpers for diagrams, cards, code panels, notes, dimensions, pins, callouts and the camera. `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state; `s.sketch` draws a path stroke by stroke with a pen or pencil.
-- The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write. For a scene that draws its own marks, `s.emphasise(now)` says what they emphasise for the phone's close-ups. `s.raised` and `s.rule` are the panel colours. `new Card(scene, s.palette, rows)` builds a card inside a view without entering it. `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn. `lerpColor` mixes two colours.
-- A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. `SetState` adopts a model state at its place in a schedule, `Follow` redraws several drawings from one sampled number, and `become` takes another mobject's data in place, keeping its identity. `GrowFromEdge` and `PulseAlongPath` grow bars and send tokens along routes.
-- Mermaid diagrams, in all 15 Agentic Mermaid families, are captured at build time and animated by part id: `reveal`, `walk`, `mark`, `dim`, `note`, `focus` and `morph`. A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
-- `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values and refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
+- An explainer is three files: `script.md` states the intent for its author, `model.ts` expresses the system's constraints, and `scene.ts` explains the system, with a picture module for how a state looks.
+- A script's intent header (`# question`, labelled lines such as **Answer** and **Checked against**, and `## Check yourself`) is read as the scene's metadata. [Reference](docs/REFERENCE.md#scene)
+- The intent header is the one home of the title, answer, check questions and what the model is checked against. A scene that declares them too is refused.
+- The page shows what the model is checked against under Sources.
+- `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
+- `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
+- Every folder in `scenes/explainers/` now holds its own `script.md`, `scene.ts`, `model.ts` (where it has a model) and `picture.ts` (where its drawing is worth separating).
+- Models and pictures moved out of `scenes/explainers/lib/`, which keeps only the shared `format.ts`. `notes.md` files are folded into the script, the model and the picture module.
+- An explainer is a `Scene` subclass with named steps. Each step has a title, a short `line` drawn under it on the picture and a caption under the stage, and holds until the caption could be read.
+- `static settings` declares the reader's choices, and every scenario (one value for every setting) is built ahead of time. [Settings](docs/REFERENCE.md#settings)
+- A step's `kind: 'short' | 'main' | 'detail'` puts it on the reader's short path, in the story, or under Details and sources.
+- `scene.state` holds the model as plain JSON and `scene.shown` holds what is shown apart from it. The trace records both at every step.
+- Functions, class instances, cycles and non-finite numbers in `scene.state` or `scene.shown` are refused with a field path.
+- `meta.answer` is the explanation's one-sentence answer, which some step must state. `meta.checks` are the questions the player asks after the last step.
+- `meta.watch` names the state a reader should follow, and the player shows each step's changes to it ("Tokens left: 5 → 0").
+- `rayner init` writes the tutorial's LRU/MRU explainer with its script, model and model test. [Tutorial](docs/TUTORIAL.md#2-generate-the-explainer)
+- `rayner init --machine` writes a machine explainer (a door that locks): a model that refuses with reasons, its test, a live step and review subjects. It passes `check` and `review` as written.
+- `stage(this)` adds the paper, a heading that follows each step, and helpers for diagrams, cards, code panels, notes, dimensions, pins, callouts and the camera. [Stage](docs/REFERENCE.md#stage)
+- `s.steps([...])` presents a list of steps, each drawn by `draw(state, s)` from its own state.
+- `s.sketch` draws a path stroke by stroke with a pen or pencil.
+- The collection's explainers use only what the package exports, and a test fails any scene that imports anything else, so an outside author can write what they write.
+- `s.emphasise(now)` says what a scene's own marks emphasise, for the phone's close-ups. [Phone opening](docs/REFERENCE.md#the-phones-opening-emphasis-and-review-subjects)
+- `s.raised` and `s.rule` are the panel colours, and `lerpColor` mixes two colours.
+- `new Card(scene, s.palette, rows)` builds a card inside a view without entering it.
+- `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
+- A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
+- Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. [Matching](docs/MATCHING.md#which-key)
+- `SetState` adopts a model state at its place in a schedule, and `Follow` redraws several drawings from one sampled number. [Choreography](docs/CHOREOGRAPHY.md)
+- `become` takes another mobject's data in place, keeping its identity.
+- `GrowFromEdge` grows bars and `PulseAlongPath` sends tokens along routes.
+- Mermaid diagrams in all 15 Agentic Mermaid families are captured at build time and animated by part id: `reveal`, `walk`, `mark`, `dim`, `note`, `focus` and `morph`. [Diagrams](docs/REFERENCE.md#diagrams)
+- A morph can carry its edits (`ops`), which the build replays through Agentic Mermaid and checks against the target source.
+- `mermaid.pie(slices, options)` and `mermaid.frontMatter(config)` in `rayner/explain` build Mermaid source from typed values.
+- `mermaid.pie` and `mermaid.frontMatter` refuse a zero or negative slice, a repeated label, an empty title or an empty config at the call, naming the value.
 - A card built with `lit` and a code panel built with `focus` (`focusAs`, `litAs` for the word) carry their bar from the start, so a view or staged step draws the mark from state, described and emphasised.
-- A colour left out is the scene's: `scene.colors` (paper, ink, soft, accent, bad), which a stage sets from its palette. Text, lines, arrows and axes drawn without a colour take the ink, guide lines the soft colour, `SurroundingRectangle`, `Circumscribe` and plotted data the accent, and `Cross` the colour for rejected, so they read on any paper; before, they took Manim's white, yellow and red, made for a black background. Without a stage a scene draws dark ink on white paper, and the SVG sinks' background is the scene's paper (it was `#1a1a1a`).
-- `Mobject.role` says what a part is for, apart from its identity. The stage's paper, heading and chrome have roles (`'paper'`, `'heading'`, `'chrome'`) instead of the keys `__paper`, `__heading` and `__chrome`, and a diagram's frame has the role `'frame'` and a key of its own diagram's instead of `__frame`, so `rayner check` holds every key to one part with no exception, two diagrams on one stage have two frames, and a diagram picture's `prefix` covers every key.
-- A card or code panel a view draws refuses `set`, `mark`, `focus`, `morph` and `clearMarks`, and a diagram shown by its picture refuses `mark`, `unmark`, `dim`, `note` and a `walk` that leaves a trail; each error says to put the change in the state and draw it (`lit`, `focus`, `d.picture`). A change made in place was lost at the view's next sync.
-- `callout`, `dimension` and `pin` in `rayner/drawing` build the annotations `s.callout`, `s.dimension` and `s.pin` draw in, for a draw to build from state. `pin` takes `side: 'left'` to put its label left of the head.
-- `legend(s, items)` in `rayner/drawing`, and `s.legend`, draw a key of swatches (fill, line, outline, dashed or not) with their meanings, keyed, in the stage's ink. A legend describes itself as its colour→meaning pairs, naming each colour.
-- `rayner check` fails a step whose caption or line names a colour or a pattern (dashed, dotted) that no word on the stage says, so a resting picture teaches with its caption hidden. A legend, a label or a line that keys the look (`Red: the route.`) answers it.
-- `d.picture(marks, { notes, dim, prefix })` draws a diagram's notes and dimming from state and prefixes its keys, so two pictures of one diagram can share the stage; `d.notePicture` builds one note as `d.note` places it. A diagram shown by its picture is described as the picture shows it, marks named by `{ color, as }`, notes and dimming included.
-- A card, a code panel, a diagram note, a dimension line or a pin describes itself wherever it is drawn, a view's current picture or a staged step's included; a `describe` speaks for the rest.
+- A colour left out is the scene's: `scene.colors` (paper, ink, soft, accent, bad), which a stage sets from its palette. Without a stage a scene draws dark ink on white paper.
+- Text, lines, arrows and axes drawn without a colour take the ink, guide lines the soft colour, `SurroundingRectangle`, `Circumscribe` and plotted data the accent, and `Cross` the colour for rejected.
+- Those defaults were Manim's white, yellow and red, made for a black background; the scene's colours read on any paper.
+- The SVG sinks' background is the scene's paper. It was `#1a1a1a`.
+- `Mobject.role` says what a part is for, apart from its identity.
+- The stage's paper, heading and chrome have the roles `'paper'`, `'heading'` and `'chrome'` instead of the keys `__paper`, `__heading` and `__chrome`.
+- A diagram's frame has the role `'frame'` and a key of its own diagram's instead of `__frame`, so two diagrams on one stage have two frames and a diagram picture's `prefix` covers every key.
+- `rayner check` holds every key to one part, with no exception.
+- A card or code panel a view draws refuses `set`, `mark`, `focus`, `morph` and `clearMarks`. A change made in place was lost at the view's next sync.
+- A diagram shown by its picture refuses `mark`, `unmark`, `dim`, `note` and a `walk` that leaves a trail.
+- Each of these refusals says to put the change in the state and draw it (`lit`, `focus`, `d.picture`). [Views](docs/VIEWS.md#cards-code-annotations-and-notes-from-state)
+- `callout`, `dimension` and `pin` in `rayner/drawing` build the annotations that `s.callout`, `s.dimension` and `s.pin` draw in, for a draw to build from state.
+- `pin` takes `side: 'left'` to put its label left of the head.
+- `legend(s, items)` in `rayner/drawing`, and `s.legend`, draw a key of swatches (fill, line, outline, dashed or not) with their meanings, keyed, in the stage's ink.
+- A legend describes itself as its colour→meaning pairs, naming each colour.
+- `rayner check` fails a step whose caption or line names a colour or a pattern (dashed, dotted) that no word on the stage says, so a resting picture teaches with its caption hidden.
+- A legend, a label or a line that keys the look (`Red: the route.`) answers that check.
+- `d.picture(marks, { notes, dim, prefix })` draws a diagram's notes and dimming from state and prefixes its keys, so two pictures of one diagram can share the stage.
+- `d.notePicture` builds one note as `d.note` places it.
+- A diagram shown by its picture is described as the picture shows it, with marks named by `{ color, as }`, notes and dimming.
+- A card, a code panel, a diagram note, a dimension line or a pin describes itself wherever it is drawn, including a view's current picture and a staged step. A `describe` speaks for the rest.
 - A staged step's `describe(state)` says what its picture shows when its meaning is geometry rather than labels.
 - `stagedStep(step)` types one staged step's state for a list whose steps' states differ.
-- Text is drawn as outlines of the embedded Inter and JetBrains Mono. Through snapshots committed beside the scene, an explainer can ask for Greek, Cyrillic, Latin Extended, Arabic, Devanagari, Hebrew and Chinese, other OFL or Apache-2.0 faces, real bold and italic, and TeX maths with `MathTex`. The player's own words and the generated picture descriptions exist in English and French.
-- A step can carry a short score that the reader plays with Web Audio, with a playhead over the drawn notes. Pages without audio leave that code out.
+- Text is drawn as outlines of the embedded Inter and JetBrains Mono.
+- Through snapshots committed beside the scene, an explainer can ask for Greek, Cyrillic, Latin Extended, Arabic, Devanagari, Hebrew and Chinese. [Lettering](docs/LETTERING.md#supported-requests)
+- An explainer can also ask for other OFL or Apache-2.0 faces, real bold and italic, and TeX maths with `MathTex`. [Lettering](docs/REFERENCE.md#lettering-on-request)
+- The player's own words and the generated picture descriptions exist in English and French.
+- A step can carry a short score that the reader plays with Web Audio, with a playhead over the drawn notes. Pages without audio leave that code out. [Score audio](docs/REFERENCE.md#optional-score-audio)
 
 ### Models and machines
 
-- `end(state)` on a machine says where its story ends: from a finished state the model's moves are past the story and its refusals stay refusals, so a live step that ends finished starts the reader from `start`. `s.keepOpening(...subjects)` names a phone opening once for every later step. `rayner init` starters may import `rayner/drawing`.
-- Every value on screen comes from a model the scene imports, and the model's tests compare it with the real thing. The collection's models are compared with CPython, Git, rustc, Go's rate limiter, XState, ERFA, Python's `unicodedata` and others, against frozen answers, so the tests run without those tools installed.
-- A `Machine` drives a model with events. Its spec gives `start`, `events`, `next(state, event)` (which returns `refuse(reason)` for an event the state refuses, the reason in the reader's words, or `undefined` for a refusal with no reason), `bound` for where the story stops though the model would go on, button `labels`, and the views drawn from the state. `replay` plays events as one schedule, which seeks and traces like any other play and records each event. `outcome(state, event)` says what an event does, and `reachable(from)` lists every state reachable from a starting point, breadth first, with the shortest events that reach it.
-- An event without authored motion morphs each view to the new state by key, staged: what goes fades out over the first half, what comes fades in over the second, and what both pictures have moves throughout, so a word and the word replacing it never overlap. `view.sync({ staged: true })` and the matching transforms' `staged` option do the same anywhere.
-- An event can have authored motion. Its `transition` is built from the states either side when its turn comes, and `choreograph(current, target)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name. The views then land in place on the model's picture of the new state.
-- Nine of the collection's explainers are machines: statecharts (both charts, checked against XState's explored graph), ring-buffer, state-machine, token-bucket, monty-hall, latest-search, oauth-pkce, just-bash, and python-dict, whose deletions and lookups are two machines on keyed tables. Invariants hold their claims through every reachable state: the guarded search page never shows a stale result, and with PKCE the malicious app never gets a token. Every refusal says which rule refuses, from the model: "the host knows where the car is, and never opens its door".
+- `end(state)` on a machine says where its story ends. From a finished state the model's moves are past the story and its refusals stay refusals, so a live step that ends finished starts the reader from `start`.
+- `s.opening(...subjects, { keep: true })` names a phone opening once for every later step.
+- `rayner init` starters may import `rayner/drawing`.
+- Every value on screen comes from a model the scene imports, and the model's tests compare it with the real thing.
+- The collection's models are compared with CPython, Git, rustc, Go's rate limiter, XState, ERFA, Python's `unicodedata` and others, against frozen answers, so the tests run without those tools installed.
+- A `Machine` drives a model with events. Its spec gives `start`, `events`, `next(state, event)`, `bound`, button `labels` and the views drawn from the state. [Machines](docs/MACHINES.md#making-one)
+- `next` returns `refuse(reason)` for an event the state refuses, the reason in the reader's words, or `undefined` for a refusal with no reason.
+- `bound` says where the story stops though the model would go on.
+- `replay` plays events as one schedule, which seeks and traces like any other play and records each event.
+- `outcome(state, event)` says what an event does.
+- `reachable(from)` lists every state reachable from a starting point, breadth first, with the shortest events that reach it.
+- An event without authored motion morphs each view to the new state by key, staged, so a word and the word replacing it never overlap. [Default transition](docs/MACHINES.md#the-default-transition)
+- `view.sync({ staged: true })` and the matching transforms' `staged` option stage a morph the same way anywhere.
+- An event can have authored motion: its `transition` is built from the states either side when its turn comes. The views then land on the model's picture of the new state.
+- `choreograph(current, target)` morphs, brings in and takes out keyed parts in the author's order, landing whatever it does not name.
+- Nine of the collection's explainers are machines: statecharts, ring-buffer, state-machine, token-bucket, monty-hall, latest-search, oauth-pkce, just-bash and python-dict. [Nine machines](docs/MACHINES.md#nine-machines)
+- The statecharts machine covers both charts and is checked against XState's explored graph. python-dict's deletions and lookups are two machines on keyed tables.
+- Invariants hold each machine's claims through every reachable state: the guarded search page never shows a stale result, and with PKCE the malicious app never gets a token.
+- Every refusal says which rule refuses, from the model: "the host knows where the car is, and never opens its door".
 
 ### The player and reader
 
-- On a page at least 1100 px wide a live step's buttons sit at the top of the steps rail, beside the picture, so the reader presses an event and watches it without scrolling; narrower pages keep them under the caption. Their line reads "Try it yourself: carry on from this picture" or "Try it yourself, from the beginning" ("À vous de jouer…" in French), and the transcript says "press", not "send". On a phone, a view row kept in place for another step's tour shows its view count instead of an empty gap. A hidden Try button is no longer painted or focusable.
-- `build` writes one self-contained page per explainer: every scenario, a poster, a transcript, sources and licence notices. It makes no network requests, uses no storage, and must fit in 1.5 MiB of HTML and 450 KiB gzipped.
-- The explainer is one tile: the title and scenario picker over the stage, then the stepper row, the step's words and the transcript, with a steps rail beside it on pages at least 1100 px wide. The step bar counts teaching steps and names a step only once the reader has reached it, so a later "Answer: …" cannot give an earlier question away. Next stays in place however long the caption is. After the last step the player asks the check questions, each answer behind a disclosure.
-- At a live step, the step where a machine last played, the reader drives the machine: one button per event, then Undo and Reset. An event the model refuses, or one past where the story stops, stays focusable with `aria-disabled` and says why. The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back. A polite status line says what each event changed.
-- On a phone the stage is taller than 16:9, and each step opens on a close-up of what it changed, or of the subjects `s.opening(...)` names, zoomed so its labels read at 12 px. Next view tours the step's other close-ups, starting with what the step newly emphasised. Pinch and drag zoom up to 6× and keep the drawing sharp.
-- Arrow keys step from the moment the page loads. The stage has a one-sentence description, and "What the picture shows" opens the full one. Under reduced motion a step crossfades to its resting picture.
-- A loader embeds the page in an iframe that resizes to its content, and host and page exchange step and goto messages. An explainer can opt into checked palette colours, square corners and a minimum stage width.
+- On a page at least 1100 px wide a live step's buttons sit at the top of the steps rail, beside the picture, so the reader presses an event and watches it without scrolling.
+- On narrower pages a live step's buttons stay under the caption.
+- The buttons' line reads "Try it yourself: carry on from this picture" or "Try it yourself, from the beginning" ("À vous de jouer…" in French).
+- The transcript says "press" for an event, where it said "send".
+- On a phone, a view row kept in place for another step's tour shows its view count instead of an empty gap.
+- A hidden Try button is no longer painted or focusable.
+- `build` writes one self-contained page per explainer: every scenario, a poster, a transcript, sources and licence notices.
+- A built page makes no network requests, uses no storage, and must fit in 1.5 MiB of HTML and 450 KiB gzipped.
+- The explainer is one tile: the title and scenario picker over the stage, then the stepper row, the step's words and the transcript. [The tile](docs/REFERENCE.md#the-tile)
+- On pages at least 1100 px wide the tile has a steps rail beside it.
+- The step bar counts teaching steps and names a step only once the reader has reached it, so a later "Answer: …" cannot give an earlier question away.
+- Next stays in place however long the caption is.
+- After the last step the player asks the check questions, each answer behind a disclosure.
+- At a live step, the step where a machine last played, the reader drives the machine: one button per event, then Undo and Reset. [The player](docs/MACHINES.md#the-player)
+- An event the model refuses, or one past where the story stops, stays focusable with `aria-disabled` and says why.
+- The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back.
+- A polite status line says what each event changed.
+- On a phone the stage is taller than 16:9.
+- On a phone each step opens on a close-up of what it changed, or of the subjects `s.opening(...)` names, zoomed so its labels read at 12 px.
+- Next view tours the step's other close-ups, starting with what the step newly emphasised.
+- Pinch and drag zoom up to 6× and keep the drawing sharp.
+- Arrow keys step from the moment the page loads. [Controls](docs/REFERENCE.md#controls-and-accessibility)
+- The stage has a one-sentence description, and "What the picture shows" opens the full one.
+- Under reduced motion a step crossfades to its resting picture.
+- A loader embeds the page in an iframe that resizes to its content, and host and page exchange step and goto messages. [Embedding](docs/REFERENCE.md#embedding)
+- An explainer can opt into checked palette colours, square corners and a minimum stage width.
 
 ### Checks
 
-- `rayner check` runs every scenario and fails on motion that pops, cuts or teleports; a picture that changes after its caption's hold begins; a direct link that draws differently from playing to the step; colliding text and connectors over labels; labels under 14 px on a 1280 px stage; a kept drawing with no description; a character the fonts cannot draw; a declared answer no step states; and awaited animations inside `try`/`catch`.
-- It redraws every `s.steps` step from the state its trace recorded and fails a step whose picture differs, or whose `draw` ignores its state and draws the same picture from any state.
-- It explores every machine on the stage where the machine last played, from its start and from the state the reader finds there, and fails a reachable state that collides, shows a small label, has no description, does not show its state or is described like another. It plays every authored transition, checking the invariants on the way, and fails one that does not land on the model's picture. The review fails a live state whose changed labels read under 12 px on a phone in every view.
-- `scene.addInvariant(name, check)` states what must hold on every frame, mid-animation included. `rayner check` fails the first frame that breaks it, and fails an invariant that never held, since one that finds nothing to check has usually misspelt a key.
-- `rayner review` builds the page and visits every resting step of every scenario at 390 and 1180 px in Chromium, checking the painted subjects, complete close-up tours, overflow, console errors and outside connections. `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page it reviewed.
+- `rayner check` runs every scenario and fails on motion that pops, cuts or teleports. [Checks](docs/REFERENCE.md#checks)
+- `rayner check` fails a picture that changes after its caption's hold begins, and a direct link that draws differently from playing to the step.
+- `rayner check` fails colliding text, connectors over labels, labels under 14 px on a 1280 px stage, and a kept drawing with no description.
+- `rayner check` fails a character the fonts cannot draw, a declared answer no step states, and awaited animations inside `try`/`catch`.
+- `rayner check` redraws every `s.steps` step from the state its trace recorded and fails a step whose picture differs.
+- It also fails a step whose `draw` ignores its state and draws the same picture from any state.
+- `rayner check` explores every machine on the stage where the machine last played, from its start and from the state the reader finds there. [What check does](docs/MACHINES.md#what-check-does-with-a-machine)
+- Exploration fails a reachable state that collides, shows a small label, has no description, does not show its state or is described like another.
+- `rayner check` plays every authored transition, checking the invariants on the way, and fails one that does not land on the model's picture.
+- The review fails a live state whose changed labels read under 12 px on a phone in every view.
+- `scene.addInvariant(name, check)` states what must hold on every frame, mid-animation included. `rayner check` fails the first frame that breaks it.
+- `rayner check` fails an invariant that never held, since one that finds nothing to check has usually misspelt a key.
+- `rayner review` builds the page and visits every resting step of every scenario at 390 and 1180 px in Chromium. [Reader review](docs/REFERENCE.md#reader-review)
+- At each resting step the review checks the painted subjects, complete close-up tours, overflow, console errors and outside connections.
+- `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page the review checked.
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
 
 ### Drawing kit and 3D
 
-- `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow` and `bars`.
-- `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule. A row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
-- `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint, as keyed 2D pieces in an explicit depth order. `depthOrder` is an invariant that checks that order on every frame, and a camera move is a `Follow` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
-- A stage can run right to left (`direction: 'rtl'`): cards and logical regions mirror, and text keeps its own reading direction.
+- `rayner/drawing` draws the parts explanations keep needing as ordinary keyed mobjects: `keyed`, `label`, `tile`, `segment`, `dot`, `table`, `stat`, `flow` and `bars`. [Drawing kit](docs/REFERENCE.md#drawing-kit)
+- `table()` measures its columns and keys every part: the header row, each header, each row, each cell (`key:<row>:<header>`) and the rule.
+- A `table()` row given as `{ key, cells }` keeps its identity wherever it moves, and a duplicated row key or header is refused by name. python-dict and bloom-filter key their rows.
+- `seenFrom(model, viewpoint)` draws a 3D model on a sphere through an orthographic, perspective, gnomonic or Mercator viewpoint. [3D](docs/REFERENCE.md#3d-seenfrommodel-viewpoint)
+- `seenFrom` draws keyed 2D pieces in an explicit depth order, and `depthOrder` is an invariant that checks that order on every frame.
+- A camera move is a `Follow` over the viewpoint. The great-circle explainer draws its globe and both maps from one model.
+- A stage can run right to left (`direction: 'rtl'`): cards and logical regions mirror, and text keeps its own reading direction. [Spatial direction](docs/REFERENCE.md#spatial-direction)
 
 ### Tooling and publishing
 
-- The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
-- `npm run site:export` publishes the built pages with their descriptions and `llms.txt`, a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers. Each build writes a receipt of its inputs and a header recipe whose CSP pins the page's inline script and style.
+- The `rayner` command initialises, previews (with `--watch`), captures snapshots, checks, reviews, builds, draws contact sheets and describes a scene. [Command line](docs/REFERENCE.md#command-line)
+- `rayner describe` prints every scenario and step as JSON: the state, what changed, the invariants, the machines, and the picture in words and as text. [Describe](docs/REFERENCE.md#describe)
+- `rayner see` prints one step for a person at a terminal, and `describeExplainer` gives a script the same object.
+- `npm run site:export` publishes the built pages with their descriptions and `llms.txt`. [Publishing](docs/PUBLISHING.md#export-the-collection)
+- The export adds a share page and preview image per step, Open Graph and Twitter tags, oEmbed responses, known embed heights and response headers.
+- Each build writes a receipt of its inputs and a header recipe whose CSP pins the page's inline script and style.
 - The exported `catalog.json` is version 2: its totals and each scene count `scenarios`, where version 1 counted `cases`. A host that renders the catalog reads the version and the new field.
-- Snapshots are no longer keyed to hashes of Rayner's own code. A diagram snapshot is recaptured when its spec or the Agentic Mermaid release changes, and a lettering snapshot when it lacks a drawn run or the capture tool (shaper, requirements, vendored shapers, fallback fonts) or its format changes. Editing a scene or the engine no longer rewrites committed snapshots. Instead `test/snapshot-capture.test.ts` captures every committed snapshot afresh in CI and fails on any difference. `scene.snapshots/index.json` drops `sourceHash` and `importer`; `scene.lettering.json` is version 2, without `sourceHash` or `payloadHash`; `inputs.json` beside a built page is version 3, without `engineHash` or `importer`, which its `buildHash` already covers.
+- Snapshots are no longer keyed to hashes of Rayner's own code, so editing a scene or the engine no longer rewrites committed snapshots. [Snapshots](docs/REFERENCE.md#snapshots)
+- A diagram snapshot is recaptured when its spec or the Agentic Mermaid release changes.
+- A lettering snapshot is recaptured when it lacks a drawn run, or when its format or capture tool (shaper, requirements, vendored shapers, fallback fonts) changes.
+- `test/snapshot-capture.test.ts` captures every committed snapshot afresh in CI and fails on any difference.
+- `scene.snapshots/index.json` drops `sourceHash` and `importer`.
+- `scene.lettering.json` is version 2, without `sourceHash` or `payloadHash`.
+- `inputs.json` beside a built page is version 3, without `engineHash` or `importer`, which its `buildHash` already covers.
 - `npm run bench` compares reader timings between two revisions in Chromium and reports a small sample as inconclusive.
 - The engine works without the page: [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md), the runnable [extension recipes](docs/EXTENDING.md) and [scene outputs](docs/SCENE-OUTPUTS.md) cover frames, text and traces from native scenes.
 
@@ -79,19 +175,29 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 
 - The vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` are internal. The `Vec` type stays.
 - The nine direction constants (`ORIGIN`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `UL`, `UR`, `DL`, `DR`) are gone: write the vector, `[0, -1]` for `DOWN`.
-- The fourteen Manim colours (`WHITE`, `BLACK`, `GREY`, `GREY_D`, `BLUE`, `BLUE_D`, `TEAL`, `GREEN`, `YELLOW`, `GOLD`, `RED`, `MAROON`, `PURPLE`, `ORANGE`) are gone: colour from the stage (`s.palette`, `s.emphasis`, `s.bad`), or write the hex value.
+- The fourteen Manim colours (`WHITE`, `BLACK`, `GREY`, `GREY_D`, `BLUE`, `BLUE_D`, `TEAL`, `GREEN`, `YELLOW`, `GOLD`, `RED`, `MAROON`, `PURPLE`, `ORANGE`) are gone.
+- In place of a Manim colour, colour from the stage (`s.palette`, `s.emphasis`, `s.bad`) or write the hex value.
 - `easeInQuad`, `easeOutQuad`, `easeOutBack` and `wiggle` are gone; any `(t) => number` is a rate function.
 - `tokenize`, `diffTokens` and `hunkHeader` are internal; `diffLines` and `parseUnifiedDiff` still make hunks for `TransformDiff`.
-- `Indicate` and `Flash` are gone: each mark has faded by the step's resting picture, and `rayner check` fails a step whose resting picture is the step before's. Mark with `Circumscribe({ keep: true })` or the [emphasis shapes](docs/EMPHASIS.md). `MathTex`'s alias `Math` is gone too, since it hid JavaScript's `Math`; import `MathTex`.
-- `rayner` and `rayner/explain` are now the scene vocabulary only. Drawing a scene's frames outside the page moved to `rayner/output`: `toSvgString`, `renderElements`, `renderText`, `renderAt`, `indexScene`, `stepTime`, the sinks `StringSink`, `SnapshotSink`, `DomSink`, `SeekSink` and `NullSink`, and `StopScene`. Author tooling moved to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf` from `rayner`, and `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` from `rayner/explain`. A scene may not import `rayner/testing`.
-- `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`. `ViewSync` is exported as a type only: `view.sync()` makes one.
+- `Indicate` and `Flash` are gone: each mark had faded by the step's resting picture, and `rayner check` fails a step whose resting picture is the step before's.
+- In place of `Indicate` and `Flash`, mark with `Circumscribe({ keep: true })` or the [emphasis shapes](docs/EMPHASIS.md).
+- `MathTex`'s alias `Math` is gone, since it hid JavaScript's `Math`; import `MathTex`.
+- `rayner` and `rayner/explain` are now the scene vocabulary only. A scene may not import `rayner/testing`.
+- Drawing a scene's frames outside the page moved to `rayner/output`: `toSvgString`, `renderElements`, `renderText`, `renderAt`, `indexScene`, `stepTime` and `StopScene`.
+- The sinks `StringSink`, `SnapshotSink`, `DomSink`, `SeekSink` and `NullSink` moved to `rayner/output`.
+- Author tooling moved from `rayner` to `rayner/testing`: `traceScene`, `TraceSink`, `MotionSink`, `analyzeMotion`, `InvariantSink`, `viewMismatch`, `machinesOf`, `jsonObject`, `loadFonts`, `takeMissingGlyphs` and `perf`.
+- `describeExplainer`, `scenariosOf`, `scenarioName`, `withSettings` and `bindSnapshots` moved from `rayner/explain` to `rayner/testing`.
+- `findingsOf`, `edgePartOf` and `stagedStepsOf` are internal; use `d.findings()` and `d.link()`.
+- `ViewSync` is exported as a type only: `view.sync()` makes one.
 
 ### Known limits
 
 - Each event a reader sends runs the scene again to the live step before it moves, which takes tens to a few hundred milliseconds.
 - `rayner review` does not yet visit a live step or send events through the served page.
-- Exploration stops at a machine's limit, 256 states by default, so ring-buffer's states are a sample and a reader can reach rings no check drew. Phone close-ups are not worked out for explored states.
-- Some machines stop where their story does: ring-buffer pushes the values 1 to 9, token-bucket's client sends ten requests, and just-bash's script writes its file once. Past that point the player says the story stops, not that the model refuses.
+- Exploration stops at a machine's limit, 256 states by default, so ring-buffer's states are a sample and a reader can reach rings no check drew.
+- Phone close-ups are not worked out for explored states.
+- Some machines stop where their story does: ring-buffer pushes the values 1 to 9, token-bucket's client sends ten requests, and just-bash's script writes its file once.
+- Past a machine's stopping point the player says the story stops, not that the model refuses.
 - An event whose name contains a comma cannot be written in a link.
 - The checks establish deterministic, readable pictures. They cannot establish that a caption is true or that a reader learns from it, so test each model against its source.
 - Windows is not supported.

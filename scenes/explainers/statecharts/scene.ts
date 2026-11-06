@@ -11,7 +11,6 @@ const byKey: MatchKey = matchByKey({ text: 'whole' });
 
 export default class Statecharts extends Scene {
   static meta = {
-    id: 'statecharts',
     sources: [
       'https://x.com/DavidKPiano/status/2116523008323981315',
       'https://www.state-machine.com/doc/Harel87.pdf',

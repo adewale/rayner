@@ -69,7 +69,6 @@ const said = (n: number) => PROSE[n]!;
 
 export default class GnomeFilesExplainer extends Scene {
   static meta = {
-    id: 'gnome-files',
     sources: [REPORT, ARTICLE, 'https://technicallywewrite.com/images/2025/01/gnome3.png'],
     claims: [
       {

@@ -70,7 +70,6 @@ const ROW_RIGHT: Box = [-0.9, -4.1, 7.55, 3.1];
 
 export default class PgPageExplainer extends Scene {
   static meta = {
-    id: 'pg-page',
     sources: [
       PG + 'include/storage/bufpage.h#L158-L218',
       PG + 'include/storage/itemid.h#L25-L30',

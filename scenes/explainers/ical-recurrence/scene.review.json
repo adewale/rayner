@@ -1,54 +1,9 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "series",
-      "targets": [
-        {
-          "text": "Mon 2 Nov, 09:00"
-        },
-        {
-          "text": "Mon 9 Nov, 09:00"
-        },
-        {
-          "text": "Mon 7 Dec, 09:00"
-        }
-      ]
-    },
-    {
-      "step": "copies",
-      "opening": true,
-      "targets": [
-        {
-          "key": "copies-weeks"
-        }
-      ]
-    },
-    {
-      "step": "copies",
-      "targets": [
-        {
-          "key": "copies-alice"
-        },
-        {
-          "key": "copies-bob"
-        }
-      ]
-    },
-    {
-      "step": "copy",
-      "settings": {
-        "copy": "guest",
-        "change": "skip"
-      },
-      "targets": [
-        {
-          "text": "Mon 16 Nov, 09:00, cancelled"
-        },
-        {
-          "text": "STATUS:CANCELLED"
-        }
-      ]
-    }
+    { "step": "series", "targets": [{ "text": "Mon 2 Nov, 09:00" }, { "text": "Mon 9 Nov, 09:00" }, { "text": "Mon 7 Dec, 09:00" }] },
+    { "step": "copies", "opening": true, "targets": [{ "key": "copies-weeks" }] },
+    { "step": "copies", "targets": [{ "key": "copies-alice" }, { "key": "copies-bob" }] },
+    { "step": "copy", "settings": { "copy": "guest", "change": "skip" }, "targets": [{ "text": "Mon 16 Nov, 09:00, cancelled" }, { "text": "STATUS:CANCELLED" }] }
   ]
 }

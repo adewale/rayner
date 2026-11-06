@@ -50,7 +50,6 @@ function rowSum(jump: number): string {
 
 export default class PeriodicGroupsExplainer extends Scene {
   static meta = {
-    id: 'periodic-groups',
     player: { minStageWidth: 880 },
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Group_(periodic_table)&oldid=1381612279',

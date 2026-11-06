@@ -28,7 +28,6 @@ const TOP = regionBox('top', { bottom: -0.2 }),
   BOTTOM_RIGHT = regionBox('right', { top: -0.5 });
 export default class BashExplainer extends Scene {
   static meta = {
-    id: 'just-bash',
     sources: [
       'https://github.com/elixir-ai-tools/just_bash',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/just-bash.ts',

@@ -11,7 +11,6 @@ const words = (m: Mobject) => m.family().filter((t): t is Text => t instanceof T
 
 export default class PythonDict extends Scene {
   static meta = {
-    id: 'python-dict',
     sources: [
       'https://github.com/python/cpython/blob/v3.12.14/Objects/dictobject.c',
       'https://github.com/python/cpython/blob/v3.12.14/Include/internal/pycore_dict.h',

@@ -76,7 +76,6 @@ const CARD: Box = [1.35, -4.25, 7.55, 3.25];
 
 export default class Ext4SpaceExplainer extends Scene {
   static meta = {
-    id: 'ext4-space',
     sources: [
       E2FS + 'misc/mke2fs.conf.in#L1-L29',
       E2FS + 'misc/mke2fs.c#L1433-L1443',

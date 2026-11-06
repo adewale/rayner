@@ -97,7 +97,6 @@ const chart = (opts: { width: number; height: number; x: string[]; y: string; ba
 
 export default class QuotientFamilialExplainer extends Scene {
   static meta = {
-    id: 'quotient-familial',
     lang: 'fr',
     watch: { rni: 'Revenu net imposable', parts: 'Parts', quotient: 'Quotient', impot: 'Impôt' },
     sources: [

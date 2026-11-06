@@ -187,7 +187,6 @@ function dotX(s: Scene): number {
 
 export default class LanternExplainer extends Scene {
   static meta = {
-    id: 'lantern',
     sources: [
       'https://github.com/ivarvong/lantern',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/src/scene.ts',

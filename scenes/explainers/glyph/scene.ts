@@ -29,7 +29,6 @@ function shape(font: FontName, text: string) {
 
 export default class GlyphExplainer extends Scene {
   static meta = {
-    id: 'glyph',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
     claims: [
       {

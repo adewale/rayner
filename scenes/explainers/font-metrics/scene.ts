@@ -13,7 +13,6 @@ type Widths = 'natural' | 'recorded';
 
 export default class FontMetrics extends Scene {
   static meta = {
-    id: 'font-metrics',
     sources: ['https://github.com/googlefonts/ebgaramond'],
     textContext: 'explicit' as const,
     lettering: { faces: { sans: 'eb-garamond' }, styles: ['bold', 'italic'] as const },

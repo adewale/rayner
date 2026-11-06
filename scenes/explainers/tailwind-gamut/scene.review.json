@@ -1,20 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "reader-display",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "As written"
-        },
-        {
-          "text": "On an sRGB screen"
-        }
-      ]
-    }
+    { "step": "reader-display", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "As written" }, { "text": "On an sRGB screen" }] }
   ]
 }

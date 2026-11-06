@@ -49,7 +49,6 @@ const together = (anims: ScheduledAnimation[]) => new AnimationGroup(anims, { ra
 
 export default class RingBufferExplainer extends Scene {
   static meta = {
-    id: 'ring-buffer',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
       'https://tc39.es/ecma262/2025/#sec-array.prototype.shift',

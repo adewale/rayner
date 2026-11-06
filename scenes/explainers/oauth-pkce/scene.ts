@@ -34,7 +34,6 @@ function messageIds(messages: Message[]): string[] {
 }
 export default class OAuthExplainer extends Scene {
   static meta = {
-    id: 'oauth-pkce',
     sources: ['https://www.rfc-editor.org/rfc/rfc7636', 'https://www.rfc-editor.org/rfc/rfc6749'],
     claims: [
       { says: 'which never passes through the redirect', test: 'test/explain-pkce.test.ts: the verifier travels only in the client’s token request' },

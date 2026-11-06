@@ -117,7 +117,6 @@ const ofThem = (n: number, all: number, level: Level) =>
 
 export default class WcagMapExplainer extends Scene {
   static meta = {
-    id: 'wcag-map',
     sources: [
       'https://www.w3.org/WAI/WCAG22/wcag.json',
       REPO + 'index.html#L93',

@@ -118,7 +118,6 @@ function verdict(s: ServiceDay, date: GtfsDate): string {
 
 export default class GtfsExplainer extends Scene {
   static meta = {
-    id: 'gtfs',
     sources: [
       TRANSIT + 'reference.md#L120-L121',
       TRANSIT + 'reference.md#L252-L267',

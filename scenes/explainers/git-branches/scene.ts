@@ -7,7 +7,6 @@ import { picture } from './picture.ts';
 
 export default class GitBranches extends Scene {
   static meta = {
-    id: 'git-branches',
     sources: [
       'https://git-scm.com/docs/git-merge/2.52.0',
       'https://git-scm.com/docs/git-branch/2.52.0',

@@ -1,95 +1,10 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "code",
-      "opening": true,
-      "targets": [
-        {
-          "text": "stage(this, { direction: 'rtl' })"
-        },
-        {
-          "text": "s.card(rows, { at: 'start' })"
-        }
-      ],
-      "settings": {
-        "direction": "rtl"
-      }
-    },
-    {
-      "step": "columns",
-      "opening": true,
-      "targets": [
-        {
-          "text": "Start, rtl"
-        },
-        {
-          "text": "End, own ltr"
-        },
-        {
-          "text": "Field"
-        },
-        {
-          "text": "123"
-        }
-      ],
-      "settings": {
-        "direction": "rtl"
-      }
-    },
-    {
-      "step": "columns",
-      "opening": true,
-      "targets": [
-        {
-          "text": "Start, ltr"
-        },
-        {
-          "text": "End, own ltr"
-        },
-        {
-          "text": "Field"
-        },
-        {
-          "text": "123"
-        }
-      ],
-      "settings": {
-        "direction": "ltr"
-      }
-    },
-    {
-      "step": "updates",
-      "opening": true,
-      "targets": [
-        {
-          "text": "End, own ltr"
-        },
-        {
-          "text": "Field"
-        },
-        {
-          "text": "456"
-        }
-      ]
-    },
-    {
-      "step": "physical",
-      "opening": true,
-      "targets": [
-        {
-          "text": "Left, rtl"
-        },
-        {
-          "text": "Right, rtl"
-        },
-        {
-          "text": "Field"
-        }
-      ],
-      "settings": {
-        "direction": "rtl"
-      }
-    }
+    { "step": "code", "opening": true, "targets": [{ "text": "stage(this, { direction: 'rtl' })" }, { "text": "s.card(rows, { at: 'start' })" }], "settings": { "direction": "rtl" } },
+    { "step": "columns", "opening": true, "targets": [{ "text": "Start, rtl" }, { "text": "End, own ltr" }, { "text": "Field" }, { "text": "123" }], "settings": { "direction": "rtl" } },
+    { "step": "columns", "opening": true, "targets": [{ "text": "Start, ltr" }, { "text": "End, own ltr" }, { "text": "Field" }, { "text": "123" }], "settings": { "direction": "ltr" } },
+    { "step": "updates", "opening": true, "targets": [{ "text": "End, own ltr" }, { "text": "Field" }, { "text": "456" }] },
+    { "step": "physical", "opening": true, "targets": [{ "text": "Left, rtl" }, { "text": "Right, rtl" }, { "text": "Field" }], "settings": { "direction": "rtl" } }
   ]
 }

@@ -1,20 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "reserve",
-      "settings": {
-        "size": "1t",
-        "reserve": "5"
-      },
-      "targets": [
-        {
-          "text": "Root reserve (5.0%)"
-        },
-        {
-          "text": "Root / metadata"
-        }
-      ]
-    }
+    { "step": "reserve", "settings": { "size": "1t", "reserve": "5" }, "targets": [{ "text": "Root reserve (5.0%)" }, { "text": "Root / metadata" }] }
   ]
 }

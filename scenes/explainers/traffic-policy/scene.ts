@@ -127,7 +127,6 @@ const SIZE = 0.24;
 
 export default class TrafficPolicyExplainer extends Scene {
   static meta = {
-    id: 'traffic-policy',
     sources: [
       K8S + 'pkg/proxy/iptables/proxier.go#L390-L392',
       K8S + 'pkg/proxy/iptables/proxier.go#L1454-L1472',

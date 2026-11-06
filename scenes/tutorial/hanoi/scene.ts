@@ -4,7 +4,7 @@ import { MOVES, finished, next, solve, start, type Move, type Tower } from './mo
 import { drawTower, sayTower } from './picture.ts';
 
 export default class Hanoi extends Scene<Tower> {
-  static meta = { id: 'hanoi', sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] };
+  static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] };
   static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
   override state = start(3);
 
@@ -21,7 +21,7 @@ export default class Hanoi extends Scene<Tower> {
     await this.step('start', { title: 'Carry the tower from A to C', line: 'Predict: how few moves can do it?',
       caption: `Move one disk at a time, from the top of a peg onto an empty peg or a larger disk. How few moves carry all ${n} disks from A to C? There is a way to know without trying them all.` });
     await s.enter(tower, { describe: () => sayTower(this.state) });
-    s.keepOpening(tower);
+    s.opening(tower, { keep: true });
 
     await this.step('clear', { title: `Disk ${n} needs the others out of the way`, line: 'So the smaller tower moves twice and the largest disk once.',
       caption: `Disk ${n} cannot move while a disk sits on it, and it needs C empty to land there, because it is the largest disk. So ${smaller} first stack on B, the spare peg: the same puzzle one size smaller, solved in ${few} moves. They will have to come back on top afterwards.` });

@@ -12,7 +12,6 @@ import type { CompletionOrder, RaceState, RaceEvent } from './model.ts';
 // createSearch runs, so `rayner check` explores every interleaving under each rule.
 export default class LatestSearchExplainer extends Scene {
   static meta = {
-    id: 'latest-search',
     sources: [
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/model.ts',
       'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then',

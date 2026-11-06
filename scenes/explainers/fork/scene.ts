@@ -65,7 +65,6 @@ function runAt(rate: number) {
 
 export default class ForkExplainer extends Scene {
   static meta = {
-    id: 'fork',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/README.md',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/app/worker.ts',

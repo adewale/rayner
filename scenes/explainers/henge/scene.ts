@@ -16,7 +16,6 @@ type Sunset = ReturnType<typeof henge>['seasons'][number];
 
 export default class Henge extends Scene {
   static meta = {
-    id: 'henge',
     sources: [
       'https://www.amnh.org/research/hayden-planetarium/manhattanhenge',
       'https://aa.usno.navy.mil/faq/alt_az',

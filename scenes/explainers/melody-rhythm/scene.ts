@@ -16,7 +16,6 @@ const BPM = 96;
 
 export default class MelodyRhythm extends Scene {
   static meta = {
-    id: 'melody-rhythm',
     sources: [
       'https://learningmusic.ableton.com/make-beats/make-beats.html',
       'https://learningmusic.ableton.com/melodies/melodies.html',

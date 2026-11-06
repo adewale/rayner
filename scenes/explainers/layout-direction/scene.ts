@@ -27,7 +27,6 @@ function layoutOf(card: Card) {
 
 export default class LayoutDirectionExplainer extends Scene {
   static meta = {
-    id: 'layout-direction',
     sources: ['https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#stage'],
     // The code step's sentence speaks of the code panel it draws.
     claims: [{ says: 'This layout never says left or right', shown: true as const }],

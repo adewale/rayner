@@ -146,7 +146,6 @@ const outcomeWords = (outcome: Outcome, sender: string) =>
 
 export default class TrustProxyExplainer extends Scene {
   static meta = {
-    id: 'trust-proxy',
     sources: [
       GUIDE + '#L26-L31',
       GUIDE + '#L53',

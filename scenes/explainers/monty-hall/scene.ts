@@ -18,7 +18,6 @@ const byKey: MatchKey = matchByKey({ text: 'whole', unkeyed: 'by-place' });
 
 export default class MontyHall extends Scene {
   static meta = {
-    id: 'monty-hall',
     sources: ['https://mathigon.org/course/probability/monty-hall', 'https://doi.org/10.1080/00031305.1975.10479121'],
     // Sentences that reach past the strip on screen, and the test that holds each over every first pick.
     claims: [

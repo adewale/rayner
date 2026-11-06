@@ -52,7 +52,6 @@ const ADDED = '#2ea043',
 
 export default class CacheMRExplainer extends Scene {
   static meta = {
-    id: 'mr-cache',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/mr-cache.ts',
       'https://developers.cloudflare.com/kv/api/read-key-value-pairs/',

@@ -31,7 +31,6 @@ const fmt = (n: number, d = 3) => n.toFixed(d);
 
 export default class PenAndPencil extends Scene {
   static meta = {
-    id: 'pen-and-pencil',
     sources: [
       'https://pele-art-diagrams.vercel.app/',
       'https://github.com/rheos/secondunit-videos/blob/main/references/pele-diagrams/README.md',
