@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-11-06)
 
 Rayner turns a tested TypeScript model into a step-through explanation a reader can drive, published as one portable HTML page. Before anything is published it runs every scenario, measures every picture as painted, redraws each picture from the state it claims to show, and reviews the served page at phone and desktop widths. This is the first release meant for authors; 0.1.0 and 0.1.1 were previews. It requires Node 24 or later. Authoring targets Ubuntu and macOS, and diagram capture needs Chromium. Start with [the tutorial](docs/TUTORIAL.md); [the reference](docs/REFERENCE.md) covers the API and the command line, and [upstream](docs/UPSTREAM.md) records what changed from Ivar Vong's Lantern, which Rayner forks.
 
