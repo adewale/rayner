@@ -5,7 +5,8 @@ import { Text, Rectangle } from '../src/index.ts';
 
 test('both piano rolls put every played pitch, onset and duration at its stated score coordinates', async () => {
   const p = await collectProject('scenes/explainers/melody-rhythm', { write: false });
-  assert.equal(p.scenarios.length, 4);
+  // Two versions of B; the tempo setting, which changed no picture's notes, is gone.
+  assert.equal(p.scenarios.length, 2);
   let pictures = 0,
     notes = 0;
   for (const scenario of p.scenarios)
@@ -39,9 +40,9 @@ test('both piano rolls put every played pitch, onset and duration at its stated 
       },
       { skipUntil: Infinity },
     ).run();
-  // Four steps in each of four scenarios, sixteen notes a picture (timing merged into bar, phrase cut).
-  assert.equal(pictures, 16);
-  assert.equal(notes, 256);
+  // Four steps in each of two scenarios, sixteen notes a picture (timing merged into bar, phrase cut).
+  assert.equal(pictures, 8);
+  assert.equal(notes, 128);
 });
 
 test('Monty Hall paints every round at its chance and the host-conditioned percentages beside the correct strategies in every scenario', async () => {
@@ -117,4 +118,40 @@ test('Monty Hall paints every round at its chance and the host-conditioned perce
   assert.equal(comparisons, 2);
   // Per scenario: one strip in rounds and one in odds (4 or 6 cells each), two in worlds (10).
   assert.equal(cells, 2 * (4 + 6) + 2 * 10);
+});
+
+test("the Bloom filter's tables key each row by its name or row length, and each keyed cell shows the model's answer", async () => {
+  const { bloomStory } = await import('../scenes/explainers/lib/bloom-filter.ts');
+  const project = await collectProject('scenes/explainers/bloom-filter', { write: false });
+  assert.equal(project.scenarios.length, 2);
+  let cells = 0;
+  for (const scenario of project.scenarios) {
+    const m = bloomStory(Number(scenario.values.bits) as 16 | 32), other = bloomStory(m.size === 16 ? 32 : 16);
+    let seen = false;
+    await new scenario.Scene(
+      {
+        async frame() {},
+        async stepEnd(scene, step) {
+          if (step.name !== 'pipeline') return;
+          seen = true;
+          const text = (key: string) => {
+            const part = scene.familyMembers().find((p) => p.key === key);
+            assert.ok(part instanceof Text, `${scenario.values.bits}: no text keyed ${key}`);
+            cells++;
+            return part.text;
+          };
+          for (const q of m.queries) {
+            assert.equal(text(`bloom-pipeline:${q.word}:Name`), q.word);
+            assert.equal(text(`bloom-pipeline:${q.word}:Filter`), q.maybe ? 'maybe' : 'no');
+            assert.equal(text(`bloom-pipeline:${q.word}:Database`), q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped');
+          }
+          for (const row of [m, other]) assert.equal(text(`bloom-sample:bits-${row.size}:Pass`), row.sampleFalsePositives.toLocaleString('en-US'));
+        },
+      },
+      { skipUntil: Infinity },
+    ).run();
+    assert.ok(seen, 'the pipeline step ran');
+  }
+  // Three lookups of three cells and two sample counts, in each of two scenarios.
+  assert.equal(cells, 22);
 });

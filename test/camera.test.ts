@@ -5,10 +5,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Scene, Frame, Code, Rectangle, Circle, Dot, Group, FadeIn, MotionSink, NullSink, DomSink, analyzeMotion,
-  renderElements, renderAt, renderText, toSvgString, SnapshotSink, linear,
+  Scene, Frame, Code, Rectangle, Circle, Dot, Group, FadeIn, linear,
 } from '../src/index.ts';
-import type { Box, ElementRecord, Sink } from '../src/index.ts';
+import { NullSink, DomSink, renderElements, renderAt, renderText, toSvgString, SnapshotSink } from '../src/output.ts';
+import { MotionSink, analyzeMotion } from '../explain/testing.ts';
+import type { Box, Sink } from '../src/index.ts';
+import type { ElementRecord } from '../src/output.ts';
 
 Scene.captionWpm = Infinity;
 

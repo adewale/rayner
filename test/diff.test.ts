@@ -9,10 +9,12 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, StringSink, SnapshotSink, MotionSink,
-  analyzeMotion, renderAt, renderText, traceScene, indexScene, stepTime, loadFonts, VMobject,
-  diffLines, diffTokens, parseUnifiedDiff, tokenize, hunkHeader,
+  Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
+  diffLines, parseUnifiedDiff,
 } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt, renderText, indexScene, stepTime } from '../src/output.ts';
+import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
+import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
 import { drawsFrom } from './lib/random-scene.ts';
 

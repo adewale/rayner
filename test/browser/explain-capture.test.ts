@@ -6,7 +6,8 @@ import { snapshotBuilder } from '../../integrations/agentic-mermaid/build/index.
 import { Resvg } from '@resvg/resvg-js';
 import { outlineText } from '../../integrations/agentic-mermaid/text.ts';
 import { lostLabelWarnings } from '../../tools/lib/explain-warnings.ts';
-import { Scene, NullSink, VMobject, toSvgString } from '../../src/index.ts';
+import { Scene, VMobject } from '../../src/index.ts';
+import { NullSink, toSvgString } from '../../src/output.ts';
 import { PALETTES } from '../../explain/palettes.ts';
 import { findingsOf } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { Diagram } from '../../explain/diagrams.ts';

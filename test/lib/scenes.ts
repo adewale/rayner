@@ -5,14 +5,19 @@
 import { join } from 'node:path';
 import {
   Scene, Rectangle, Circle, Arrow, Line, Dot, Text, Code, DecimalNumber,
-  FadeIn, FadeOut, Write, Create, Transform, Indicate, MoveAlongPath, LaggedStart, TEAL, GOLD, GREY,
+  FadeIn, FadeOut, Write, Create, Transform, MoveAlongPath, LaggedStart,
 } from '../../src/index.ts';
+import { Indicate } from './transient.ts';
 import type { Box, Mobject, SceneClass } from '../../src/index.ts';
 import { labelOf } from '../../explain/diagrams.ts';
 import { Card } from '../../explain/panels.ts';
 import { toView } from '../../app/embed-closeup.ts';
 import { EXPLAINERS } from '../../scenes/explainers/catalog.ts';
 import { collectProject, defaultScenario, ROOT } from '../../tools/lib/explain-project.ts';
+// Manim's values, which the package no longer exports.
+const GOLD = '#f0ac5f';
+const GREY = '#888888';
+const TEAL = '#5cd0b3';
 
 export class Fixture extends Scene {
   override async construct() {

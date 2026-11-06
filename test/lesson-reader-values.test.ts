@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Rectangle, loadFonts, NullSink } from '../src/index.ts';
+import { Scene, Text, Rectangle } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
@@ -64,8 +66,12 @@ test('token introductions and the ring’s fill and result steps draw the indepe
                   .family()
                   .filter((m): m is Text => m instanceof Text)
                   .map((m) => m.text),
-                [`R${i + 1}`, i < 5 ? '200' : '429'],
+                [i < 5 ? '200' : '429'],
               );
+              // The box holds the answer alone; the request's name is written under it.
+              const name = scene.familyMembers().find((m) => m.key === `name:R${i + 1}`);
+              assert.ok(name instanceof Text && name.text === `R${i + 1}`, `request ${i + 1} is named`);
+              assert.ok(Math.abs(name.center()[0] - request.center()[0]) < 1e-6 && name.box()![3] < request.box()![1], `R${i + 1} is written under its box`);
             }
             const level = scene.familyMembers().find((m) => m.key === 'bucket:level');
             assert.ok(level instanceof Rectangle && level.height() < 0.01, 'the burst empties the bucket');

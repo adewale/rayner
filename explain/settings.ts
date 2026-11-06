@@ -1,5 +1,7 @@
 import type { LetteringRequest } from '../src/lettering-outlines.ts';
 import type { Scene, SceneClass } from '../src/index.ts';
+import { useDiagrams, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
 
 export interface Setting {
   id: string;
@@ -57,8 +59,8 @@ export type ExplainerClass = SceneClass & {
 };
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
-// Query parameters the embed reads itself.
-const reserved = new Set(['step', 'parentOrigin', 'theme']);
+// Query parameters the embed reads itself (`sent`: the events a reader sent at a live step, app/embed-live.ts).
+const reserved = new Set(['step', 'sent', 'parentOrigin', 'theme']);
 
 /** Validate declarations and selections once, at the author/URL boundary. */
 export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): Settings {
@@ -111,4 +113,15 @@ export function scenariosOf(Scene: ExplainerClass, limit = 64): Settings[] {
     scenarios = scenarios.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
   }
   return scenarios;
+}
+
+/** A subclass whose diagrams come from `source`: pinned snapshots, or a resolver that captures them. */
+export function bindSnapshots(Source: ExplainerClass, source: SnapshotStore | DiagramResolver): ExplainerClass {
+  const resolver = typeof source.diagram === 'function' ? (source as DiagramResolver) : snapshotResolver(source as SnapshotStore);
+  return class extends Source {
+    constructor(...args: ConstructorParameters<SceneClass>) {
+      super(...args);
+      useDiagrams(this, resolver);
+    }
+  };
 }

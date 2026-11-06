@@ -4,13 +4,35 @@
 // keyed Group or mobject, so matching (matchByKey), find(), invariants and reviews can address
 // its parts; nothing here animates, registers or reads scene state.
 import { Group, Text, Rectangle, Circle, Line, Arrow } from '../src/index.ts';
-import type { Mobject, Vec } from '../src/index.ts';
+import type { Mobject, Vec, Box } from '../src/index.ts';
 import type { Stage } from './stage.ts';
+import { callout as calloutLook, dimension as dimensionLook, pin as pinLook, legend as legendLook } from './annotate.ts';
+import type { Side, LegendItem } from './annotate.ts';
+export type { LegendItem } from './annotate.ts';
 
 /** `m` with `key` set: the address matching (matchByKey), find(), invariants and reviews read. */
 export function keyed<T extends Mobject>(m: T, key: string): T {
   m.key = key;
   return m;
+}
+
+/**
+ * A picture built from keyed parts, as a view's draw builds one: `add(m, key)` keys `m`, keeps it in
+ * order and returns it; `group()` returns the parts as one Group. A key used twice is refused when it
+ * is added, because two parts with one key cannot keep their identity from picture to picture (a
+ * choreography or a keyed morph would refuse the picture later, far from the line that drew it).
+ */
+export function keyedParts(): { add<T extends Mobject>(m: T, key: string): T; group(): Group } {
+  const parts: Mobject[] = [], keys = new Set<string>();
+  return {
+    add(m, key) {
+      if (keys.has(key)) throw new Error(`keyedParts: two parts are keyed ${key}`);
+      keys.add(key);
+      parts.push(keyed(m, key));
+      return m;
+    },
+    group: () => new Group(...parts),
+  };
 }
 
 /** A centred line of text at (x, y). */
@@ -68,44 +90,83 @@ export function dot(text: string, x: number, y: number, s: Stage, active = false
  */
 export type TableColumns = readonly number[] | { left: number; right: number } | { left: number; gap: number };
 
+/** What a table cell shows. */
+export type TableCell = string | number;
+/**
+ * A row that carries its own identity: `key` keeps it the same part wherever it moves, so a
+ * keyed morph pairs it with itself after a sort, or an insertion or deletion above it. A row
+ * given as a bare array of cells is keyed by its index.
+ */
+export interface TableRow { key: string; cells: readonly TableCell[] }
+
 /**
  * Headers in bold over rows of cells, text columns aligned at their starts and
  * numeric columns at their ends, with a rule under the headers that spans exactly
  * the columns: the group's box is the table's measured extent.
+ *
+ * Every part is keyed, so the same row in two pictures is the same part: the table is
+ * `key`, the header row `key:head` with each header `key:head:column`, each row
+ * `key:row` with each cell `key:row:column`, and the rule `key:rule`. A column is named
+ * by its header, a row by its own `key` (or its index, for a bare array of cells). Two
+ * columns with one header, or two rows with one key, are refused: a key is a part's
+ * identity, and two parts cannot share one.
  */
 export function table(
   headers: readonly string[],
-  rows: readonly (readonly (string | number)[])[],
+  rows: readonly (TableRow | readonly TableCell[])[],
   s: Stage,
   { xs: columns = [-5.5, -1.7, 2.2, 5.8] as TableColumns, y = 1.9, gap = 1.05, key = 'comparison', size = 0.6 } = {},
 ): Group {
+  const named = rows.map((row, r): TableRow => (isTableRow(row) ? row : { key: String(r), cells: row }));
+  const columnsSeen = new Set<string>();
+  for (const h of headers) {
+    if (columnsSeen.has(h)) throw new Error(`table ${key}: two columns are headed "${h}"; a header names its column's cells, so each column needs its own`);
+    columnsSeen.add(h);
+  }
+  const rowsSeen = new Set<string>();
+  for (const { key: k } of named) {
+    if (k === 'head' || k === 'rule') throw new Error(`table ${key}: a row cannot be keyed "${k}"; ${key}:${k} is the table's own part`);
+    if (rowsSeen.has(k)) throw new Error(`table ${key}: two rows are keyed "${k}"; a row's key is its identity, so each row needs its own`);
+    rowsSeen.add(k);
+  }
+  const values = named.map((row) => row.cells);
   const heads = headers.map((h) => new Text(h, { fontSize: size, color: s.palette.ink, weight: 'bold' }));
-  const cells = rows.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.palette.ink })));
+  const cells = values.map((row) => row.map((v) => new Text(String(v), { fontSize: size, color: s.palette.ink })));
   const widths = headers.map((_, c) => Math.max(heads[c]!.width(), ...cells.map((row) => row[c]!.width())));
   const xs = Array.isArray(columns) ? (columns as readonly number[]) : columnCentres(widths, columns as Exclude<TableColumns, readonly number[]>);
-  const isNumber = (v: string | number | undefined) =>
+  const isNumber = (v: TableCell | undefined) =>
     typeof v === 'number' || /^[+−-]?\d[\d.,\s/]*(?:%|€|h|days|pages|tokens|bytes|GiB|TiB)?$/u.test(String(v));
   // A dash stands for an empty cell; it keeps a column of numbers aligned as numbers.
-  const isBlank = (v: string | number | undefined) => typeof v === 'string' && /^[–—-]?$/u.test(v);
+  const isBlank = (v: TableCell | undefined) => typeof v === 'string' && /^[–—-]?$/u.test(v);
   const numeric = headers.map(
-    (_, c) => rows.some((row) => isNumber(row[c])) && rows.every((row) => isNumber(row[c]) || isBlank(row[c])),
+    (_, c) => values.some((row) => isNumber(row[c])) && values.every((row) => isNumber(row[c]) || isBlank(row[c])),
   );
   const place = (text: Text, c: number, at: number) =>
     text.moveTo([xs[c]! + ((numeric[c] ? 1 : -1) * widths[c]!) / 2, at], [numeric[c] ? 1 : -1, 0]);
-  const children: Mobject[] = heads.map((h, c) => place(h, c, y));
-  cells.forEach((row, r) => row.forEach((v, c) => children.push(place(v, c, y - (r + 1) * gap))));
+  // Drawn in the same order as ever (rule, headers, then rows top to bottom), so keys change no frame.
+  const children: Mobject[] = [
+    keyed(new Group(...heads.map((h, c) => keyed(place(h, c, y), `${key}:head:${headers[c]}`))), `${key}:head`),
+    ...cells.map((row, r) => {
+      const id = `${key}:${named[r]!.key}`;
+      return keyed(new Group(...row.map((v, c) => keyed(place(v, c, y - (r + 1) * gap), `${id}:${headers[c]}`))), id);
+    }),
+  ];
   if (headers.length)
     children.unshift(
-      new Line(
-        [Math.min(...xs.slice(0, headers.length).map((x, c) => x - widths[c]! / 2)), y - size * 0.7],
-        [Math.max(...xs.slice(0, headers.length).map((x, c) => x + widths[c]! / 2)), y - size * 0.7],
-        { stroke: s.soft, strokeWidth: 0.025 },
+      keyed(
+        new Line(
+          [Math.min(...xs.slice(0, headers.length).map((x, c) => x - widths[c]! / 2)), y - size * 0.7],
+          [Math.max(...xs.slice(0, headers.length).map((x, c) => x + widths[c]! / 2)), y - size * 0.7],
+          { stroke: s.soft, strokeWidth: 0.025 },
+        ),
+        `${key}:rule`,
       ),
     );
   const g = new Group(...children);
   g.key = key;
   return g;
 }
+const isTableRow = (row: TableRow | readonly TableCell[]): row is TableRow => !Array.isArray(row);
 /** Column centres for measured widths laid from `left`: spread to `right` with equal gaps, or `gap` apart. */
 function columnCentres(widths: readonly number[], at: { left: number; right: number } | { left: number; gap: number }): number[] {
   const total = widths.reduce((a, w) => a + w, 0);
@@ -203,3 +264,66 @@ export function bars(
   });
   return g;
 }
+
+// Annotations, as the stage's s.callout, s.dimension and s.pin draw them but without drawing them in:
+// a view's draw or a staged step's draw builds them from state, beside the parts they annotate.
+// The stage's helpers build these same pictures, mapped to the camera, and then draw them in.
+
+/**
+ * Words beside a target (a point, a box or a mobject) with a leader line from the words to the
+ * target's nearest edge, ending in a dot, on the stage's paper: `s.callout`'s picture. `gap` is how
+ * far the words stand off the target. Described by its words.
+ */
+export function callout(
+  s: Stage,
+  target: Vec | Box | Mobject,
+  text: string,
+  { side = 'right', gap = 0.55, color = s.palette.ink, size = 0.24, key }: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
+): Group {
+  const g = calloutLook(target, text, { color, size, side, gap, background: s.palette.paper, shaping: s.scene.textShaping });
+  return key ? keyed(g, key) : g;
+}
+/**
+ * A dimension line from `a` to `b`, set off by `offset` (positive: to the left of a→b), with ticks
+ * at both ends and `label` at its middle, in the stage's emphasis on its paper: `s.dimension`'s
+ * picture. Described as “A dimension line marked …”.
+ */
+export function dimension(
+  s: Stage,
+  a: Vec,
+  b: Vec,
+  label: string,
+  { offset = 0.3, color = s.emphasis, size = 0.24, key }: { offset?: number; color?: string; size?: number; key?: string } = {},
+): Group {
+  const g = dimensionLook(a, b, label, { color, size, offset, background: s.palette.paper, shaping: s.scene.textShaping });
+  return key ? keyed(g, key) : g;
+}
+/**
+ * A pin stuck in at `at`, with an optional label beside its head on its `side` (right by default), in the
+ * stage's emphasis: `s.pin`'s picture. Described as “A pin marked …”.
+ */
+export function pin(
+  s: Stage,
+  at: Vec,
+  { label, color = s.emphasis, size = 0.24, side = 'right', key }: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {},
+): Group {
+  const g = pinLook(at, { color, size, side, shaping: s.scene.textShaping, ...(label ? { label } : {}) });
+  return key ? keyed(g, key) : g;
+}
+/**
+ * A key: swatches (a filled square, a short line, dashed or not) with the words for what each
+ * means, in order, the words in the stage's ink. Keyed `key`, each entry `key:<label>`. Describes
+ * itself as its swatch→meaning pairs, "Key: purple fill, cat’s bits; dashed blue line, the
+ * browser", naming each colour by its nearest plain name or the entry's `name`; so a caption's "the
+ * purple fill" or "dashed" is said on the stage too, and `rayner check` finds it there.
+ */
+export function legend(
+  s: Stage,
+  items: readonly LegendItem[],
+  { at = [0, 0] as Vec, size = 0.3, direction = 'column' as 'column' | 'row', gap, key = 'legend' }: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {},
+): Group {
+  const g = legendLook(items, { ink: s.palette.ink, shaping: s.scene.textShaping, size, at, direction, ...(gap === undefined ? {} : { gap }) });
+  g.children.forEach((entry, i) => keyed(entry, `${key}:${items[i]!.label}`));
+  return keyed(g, key);
+}
+export * from './seen-from.ts';

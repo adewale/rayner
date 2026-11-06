@@ -4,6 +4,7 @@ import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from '../p
 import type { Pt, Box } from '../pen-and-pencil.ts';
 import { label } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /** The two drawings the plate compares: the first in grey, the second in ink. */
 export const SEEDS = { first: 1967, second: 7 } as const;
@@ -38,31 +39,18 @@ function freeBoxes(seed: number): Pt[][] {
   return NAMES.map((_, i) => corners.slice(i * 5, i * 5 + 5));
 }
 const offset = (a: readonly Pt[], b: readonly Pt[]) => Math.max(...a.map((p, i) => Math.hypot(p[0] - b[i]![0], p[1] - b[i]![1])));
-
-export function frames(seed: number): StagedStep[] {
-  // The failure: both drawings place their own boxes, and the boxes drift apart.
-  const free = { first: freeBoxes(SEEDS.first), second: freeBoxes(SEEDS.second) };
-  const apart = NAMES.map((_, i) => offset(free.first[i]!, free.second[i]!));
-  // The laid-out corners in the order the hand draws them: top left, top right, bottom right, bottom left, top left.
-  const closed = (b: Box): Pt[] => [[b[0], b[3]], [b[2], b[3]], [b[2], b[1]], [b[0], b[1]], [b[0], b[3]]];
-  const fromLayout = NAMES.map((_, i) => Math.max(offset(free.first[i]!, closed(laid[i]!)), offset(free.second[i]!, closed(laid[i]!))));
-  const freeInk = {
-    first: free.first.map((b) => hand(b, HAND, rng(SEEDS.first))),
-    second: free.second.map((b) => hand(b, HAND, rng(SEEDS.second))),
-  };
-  // The fix: one route, fixed first, traced by both drawings.
-  const target: Pt[] = [
-    [-6, 1],
-    [-2, 1],
-    [-2, -1.5],
-    [3, -1.5],
-    [3, 1],
-    [6, 1],
-  ];
-  const ink = { first: hand(target, HAND, rng(SEEDS.first)), second: hand(target, HAND, rng(SEEDS.second)) };
-  const stray = Math.max(deviation(ink.first, target), deviation(ink.second, target));
-  const between = Math.max(deviation(ink.first, ink.second), deviation(ink.second, ink.first));
-  // Where the two drawings are furthest apart: the second drawing's point furthest from the first.
+/** Each box as drawn by a hand that places its own strokes, from that drawing's seed. */
+const freeInk = (seed: number) => freeBoxes(seed).map((b) => hand(b, HAND, rng(seed)));
+/** The inset: a window LENS units either side of a point, magnified ZOOM times, drawn at INSET. */
+const LENS = 0.025,
+  ZOOM = 36,
+  INSET: Pt = [0.5, -0.2];
+/**
+ * A route traced by the two drawings, from their seeds, and where they are furthest apart: the
+ * second drawing's point furthest from the first, which the inset magnifies.
+ */
+function traced(target: readonly Pt[], seeds: { first: number; second: number }) {
+  const ink = { first: hand(target, HAND, rng(seeds.first)), second: hand(target, HAND, rng(seeds.second)) };
   const far = ink.second.reduce(
     (best, p) => {
       const d = deviation([p], ink.first);
@@ -70,10 +58,7 @@ export function frames(seed: number): StagedStep[] {
     },
     { p: ink.second[0]!, d: -1 },
   );
-  /** The inset: a window LENS units either side of that point, magnified ZOOM times, drawn at INSET. */
-  const LENS = 0.025,
-    ZOOM = 36,
-    INSET: Pt = [0.5, -0.2];
+  /** The runs of a stroke inside the inset's window, magnified into it. */
   const lensed = (points: readonly Pt[]): Pt[][] => {
     const runs: Pt[][] = [];
     let run: Pt[] = [];
@@ -86,47 +71,69 @@ export function frames(seed: number): StagedStep[] {
     if (run.length) runs.push(run);
     return runs.filter((r) => r.length > 1);
   };
-  const near = far.d;
+  return { ink, far, lensed };
+}
+// One path per polyline: a hand's stroke has hundreds of points.
+const path = (points: readonly Pt[], color: string, width: number, opacity = 1, dash?: string) => {
+  const vm = new VMobject({ stroke: color, strokeWidth: width, strokeOpacity: opacity, fill: 'none', lineCap: 'round', lineJoin: 'round' });
+  vm.startNewPath(points[0]! as Vec);
+  for (const q of points.slice(1)) vm.addLineTo(q as Vec);
+  if (dash) vm.style.dashArray = dash;
+  return vm;
+};
+
+export function frames(seed: number): StagedStep[] {
+  // The failure: both drawings place their own boxes, and the boxes drift apart.
+  const free = { first: freeBoxes(SEEDS.first), second: freeBoxes(SEEDS.second) };
+  const apart = NAMES.map((_, i) => offset(free.first[i]!, free.second[i]!));
+  // The laid-out corners in the order the hand draws them: top left, top right, bottom right, bottom left, top left.
+  const closed = (b: Box): Pt[] => [[b[0], b[3]], [b[2], b[3]], [b[2], b[1]], [b[0], b[1]], [b[0], b[3]]];
+  const fromLayout = NAMES.map((_, i) => Math.max(offset(free.first[i]!, closed(laid[i]!)), offset(free.second[i]!, closed(laid[i]!))));
+  // The fix: one route, fixed first, traced by both drawings.
+  const target: Pt[] = [
+    [-6, 1],
+    [-2, 1],
+    [-2, -1.5],
+    [3, -1.5],
+    [3, 1],
+    [6, 1],
+  ];
+  const { ink } = traced(target, SEEDS);
+  const stray = Math.max(deviation(ink.first, target), deviation(ink.second, target));
+  const between = Math.max(deviation(ink.first, ink.second), deviation(ink.second, ink.first));
   // The picture shows the dark line inside the wide grey one everywhere; refuse to draw it otherwise.
   if (between > 0.06 - 0.0175) throw new Error(`The two drawings are ${between} apart, wider than the grey line shows`);
-  // One path per polyline: a hand's stroke has hundreds of points.
-  const path = (points: readonly Pt[], color: string, width: number, opacity = 1, dash?: string) => {
-    const vm = new VMobject({ stroke: color, strokeWidth: width, strokeOpacity: opacity, fill: 'none', lineCap: 'round', lineJoin: 'round' });
-    vm.startNewPath(points[0]! as Vec);
-    for (const q of points.slice(1)) vm.addLineTo(q as Vec);
-    if (dash) vm.style.dashArray = dash;
-    return vm;
-  };
   const worst = Math.max(...apart);
   return [
-    {
+    stagedStep({
       id: 'reader-drift',
       title: 'If the hand places the boxes, a second drawing moves them',
       line: 'Grey: the first drawing. Dark: the second. Dashed: where the boxes belong.',
       caption: `Each imperfect move changes where the next one begins, so every error is carried into every later corner. Across four boxes the small deviations accumulate: two seeds place the same box as much as ${worst.toFixed(2)} units apart. Could the pen wobble without deciding the next box’s position?`,
-      state: { apart: apart.map((d) => Number(d.toFixed(3))), fromLayout: fromLayout.map((d) => Number(d.toFixed(3))) },
-      draw: (_, s) =>
+      state: { seeds: { first: SEEDS.first, second: SEEDS.second }, apart: apart.map((d) => Number(d.toFixed(3))), fromLayout: fromLayout.map((d) => Number(d.toFixed(3))) },
+      draw: (st, s) =>
         new Group(
           ...laid.map((b) => path([...boxPolygon(b), boxPolygon(b)[0]!], DASHED, 0.03, 0.8, '0.12 0.1')),
-          ...freeInk.first.map((l) => path(l, GREY, 0.045, 0.9)),
-          ...freeInk.second.map((l) => path(l, s.palette.ink, 0.045)),
+          ...freeInk(st.seeds.first).map((l) => path(l, GREY, 0.045, 0.9)),
+          ...freeInk(st.seeds.second).map((l) => path(l, s.palette.ink, 0.045)),
           ...NAMES.map((n, i) => label(n, (laid[i]![0] + laid[i]![2]) / 2, (laid[i]![1] + laid[i]![3]) / 2, s.palette.ink, 0.42)),
-          label(`Up to ${worst.toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.palette.ink, 0.56),
+          label(`Up to ${Math.max(...st.apart).toFixed(2)} units apart: the boxes moved`, 0, -2.3, s.palette.ink, 0.56),
         ),
-    },
-    {
+    }),
+    stagedStep({
       id: 'reader-separate',
       title: 'With the route fixed first, two drawings stay on it',
       line: 'Blue band: the route the layout fixed. Grey and dark: two drawings of it.',
       caption: `The route now fixes the corners before drawing. A simulated pen follows it like a mass pulled by a damped spring, and the next stroke starts from its own fixed mark. The magnifier shows different ink near the same route. The fix, in this hand model: lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it.`,
-      state: { seed, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
-      draw: (_, s) => {
+      state: { seed, seeds: { first: SEEDS.first, second: SEEDS.second }, stray, between, target, ink: seed === SEEDS.first ? ink.first : ink.second },
+      draw: (st, s) => {
+        const { ink, far, lensed } = traced(st.target, st.seeds);
         const lens = new Circle({ radius: LENS * ZOOM, stroke: s.soft, strokeWidth: 0.025, fill: s.palette.paper, fillOpacity: 1 }).moveTo(INSET as Vec);
         const spot = new Circle({ radius: 0.09, stroke: s.soft, strokeWidth: 0.025 }).moveTo(far.p as Vec);
         const lead = new Line(far.p as Vec, [INSET[0], INSET[1] - LENS * ZOOM] as Vec, { stroke: s.soft, strokeWidth: 0.02 });
         lead.style.dashArray = '0.06 0.05';
         return new Group(
-          path(target, BAND, 0.32, 0.45),
+          path(st.target, BAND, 0.32, 0.45),
           path(ink.first, GREY, 0.12, 0.55),
           path(ink.second, s.palette.ink, 0.035),
           spot,
@@ -136,10 +143,10 @@ export function frames(seed: number): StagedStep[] {
           ...lensed(ink.second).map((r) => path(r, s.palette.ink, 0.035)),
           label('Blue: the route the layout fixed', 0, 2.55, s.palette.ink, 0.62),
           // Above the gap between the route's two upper corners, clear of the band.
-          label(`×${ZOOM}: ${near.toFixed(3)} apart`, INSET[0], 1.72, s.palette.ink, 0.62),
-          label(`Two drawings, within ${stray.toFixed(3)} units of it`, 0, -2.9, s.palette.ink, 0.62),
+          label(`×${ZOOM}: ${far.d.toFixed(3)} apart`, INSET[0], 1.72, s.palette.ink, 0.62),
+          label(`Two drawings, within ${st.stray.toFixed(3)} units of it`, 0, -2.9, s.palette.ink, 0.62),
         );
       },
-    },
+    }),
   ];
 }

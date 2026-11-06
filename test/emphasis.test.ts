@@ -6,10 +6,15 @@ import assert from 'node:assert/strict';
 import {
   Scene, Square, Rectangle, Text, Code, Create, FadeOut, Circumscribe,
   SurroundingRectangle, Underline, Cross, Brace, BraceLabel,
-  MotionSink, analyzeMotion, StringSink, SnapshotSink, renderAt, VMobject, loadFonts,
-  DOWN, UP, LEFT, RIGHT,
-} from '../src/index.ts';
+  VMobject, } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
+// Manim's values, which the package no longer exports.
+const DOWN: Vec = [0, -1];
+const LEFT: Vec = [-1, 0];
+const RIGHT: Vec = [1, 0];
+const UP: Vec = [0, 1];
 
 await loadFonts();
 // Caption holds are thousands of identical frames; the hold rule has its own test
@@ -25,7 +30,7 @@ test('SurroundingRectangle is the target box grown by buff, for a mobject or a B
   const t = new Text('emphasis', { fontSize: 0.4 }).shift([1.3, -0.7]);
   const r = new SurroundingRectangle(t);
   nearBox(r.box()!, grow(t.box()!, 0.15), 'default buff');
-  assert.equal(r.style.stroke, '#ffff00'); assert.equal(r.style.fill, 'none');
+  assert.equal(r.style.stroke, '#0969da', 'the neutral accent'); assert.deepEqual(r.defaultColors, { stroke: 'accent' }, "which becomes the scene's accent"); assert.equal(r.style.fill, 'none');
   nearBox(new SurroundingRectangle(t, { buff: 0.4, cornerRadius: 0.1 }).box()!, grow(t.box()!, 0.4), 'rounded, buff 0.4');
   const box: Box = [-2, 1, 3, 1.5];
   nearBox(new SurroundingRectangle(box, { buff: 0 }).box()!, box, 'a Box target');
@@ -48,7 +53,7 @@ test('Underline runs along the bottom edge, buff below it, left to right', () =>
 test('Cross diagonals span the box corners; scale shrinks them about the center', () => {
   const sq = new Square({ side: 2 }).shift([1, 1]);   // box [0, 0, 2, 2]
   const x = new Cross(sq);
-  assert.equal(x.subpaths.length, 2); assert.equal(x.style.stroke, '#fc6255');
+  assert.equal(x.subpaths.length, 2); assert.deepEqual(x.defaultColors, { stroke: 'bad' }, "the scene's colour for rejected");
   const [a0, a1] = ends(x, 0), [b0, b1] = ends(x, 1);
   nearVec(a0, [0, 2], 'UL'); nearVec(a1, [2, 0], 'DR'); nearVec(b0, [2, 2], 'UR'); nearVec(b1, [0, 0], 'DL');
   nearBox(new Cross([0, 0, 2, 2], { scale: 0.5 }).box()!, [0.5, 0.5, 1.5, 1.5], 'scaled');
@@ -251,4 +256,15 @@ test('seeking into and past Circumscribe renders the frame a full run produces',
     await renderAt(EmphasisScene, k / 30, snap);
     assert.equal(snap.svg, full.frames[k], `frame ${k}`);
   }
+});
+
+test('emphasis can name a part by its key: the part on the stage now, and nothing when it is not there', async () => {
+  const { emphasises, emphasisOf } = await import('../explain/look.ts');
+  const { Scene, Circle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
+  const scene = new Scene(new NullSink());
+  const ring = Object.assign(new Circle(), { key: 'ring:3' });
+  scene.add(ring);
+  emphasises(scene, () => [['ring:3', 'outlined'], ['ring:9', 'not drawn'], [ring, 'also the mobject']]);
+  const marks = emphasisOf(scene);
+  assert.deepEqual([...marks.entries()].map(([m, what]) => [m.key, what]), [['ring:3', 'outlined; also the mobject']]);
 });

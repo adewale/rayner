@@ -4,9 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   Scene, Group, Text, Code, Square, Circle, Rectangle, Polygon, Line, Arc, Labeled, Arrow, VMobject, FadeIn, Transform, LaggedStart,
-  TransformMatching, TransformMatchingShapes, TransformMatchingText, StringSink, SnapshotSink, MotionSink,
-  analyzeMotion, renderAt, loadFonts,
-} from '../src/index.ts';
+  TransformMatching, TransformMatchingShapes, TransformMatchingText, } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { drawsFrom as rng } from './lib/random-scene.ts';
 import type { Rng } from './lib/random-scene.ts';

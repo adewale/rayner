@@ -21,7 +21,7 @@ export interface CatalogScene {
   /** Where the gallery lists it (scenes/explainers/catalog.ts): showcase cards, the gallery behind "More", or no card for coverage. */
   tier?: 'showcase' | 'gallery' | 'coverage';
 }
-export interface Catalog { version: 1; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
+export interface Catalog { version: 2; product: CatalogProduct; totals: CatalogTotals; scenes: CatalogScene[] }
 export interface EvidenceScene {
   id: string; scenarios: Record<string, string>[]; diagrams: number; styles: string[]; families: string[];
   title?: string; lang?: string; entry?: SceneEntry; sourceHash?: string; engineHash?: string; snapshotHashes?: string[];
@@ -39,7 +39,7 @@ const totals = (value: unknown) => object(value) && ['explainers','scenarios','d
 /** Validate serialized producer boundaries once; consumers use the same contracts. */
 export function catalog(value: unknown): Catalog {
   const fail = (): never => {throw new Error('Invalid catalog artifact');};
-  if (!object(value) || value.version !== 1 || !totals(value.totals) || !object(value.product) ||
+  if (!object(value) || value.version !== 2 || !totals(value.totals) || !object(value.product) ||
       !object(value.product.entry) || typeof value.product.entry.id !== 'string' || !Array.isArray(value.scenes)) return fail();
   for (const key of ['home','summary','audience','description','requirements','tutorial','reference','skill'])
     if (value.product[key] !== undefined && typeof value.product[key] !== 'string') return fail();

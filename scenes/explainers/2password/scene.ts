@@ -1,6 +1,6 @@
 import { frames as readerFrames, ANSWER } from '../lib/readers/2password.ts';
-import { Scene, Text, Arrow, Group, Line, FadeIn, FadeOut, Create } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
+import { stage, regionBox } from '../../../explain/index.ts';
 import {
   ITEMS,
   SOURCE,
@@ -16,7 +16,6 @@ import {
 
 const STYLE = 'excalidraw';
 const QUERIES = ['cloud api', 'databse'] as const;
-const TOKEN = 'OP_SERVICE_ACCOUNT_TOKEN';
 const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
@@ -57,7 +56,7 @@ export default class PasswordExplainer extends Scene {
     checks: [
       {
         question: `The agent searches for “${CHECK.blind.query}”, hoping to find the API key. What does find return, and why?`,
-        answer: `Nothing. No title contains “key”, so nothing matches, and the closest titles score ${CHECK.blind.best}, below the ${SUGGESTION_THRESHOLD} threshold, so nothing is suggested. find compares the query with titles only; it cannot know that ${match0.title} holds a key, and it makes ${CHECK.blind.calls} op call, the item list, without fetching any item.`,
+        answer: `Nothing. No title contains “key”, so nothing matches, and no title is spelled close enough to be suggested (the closest scores ${CHECK.blind.best} against a cut-off of ${SUGGESTION_THRESHOLD}). find compares the query with titles only; it cannot know that ${match0.title} holds a key, and it makes ${CHECK.blind.calls} op call, the item list, without fetching any item.`,
       },
       {
         question: 'The app prints API_KEY to stdout, and the agent reads stdout. Does passing a reference prevent that disclosure?',
@@ -69,32 +68,19 @@ export default class PasswordExplainer extends Scene {
       },
     ],
   };
-  static settings = [
-    {
-      id: 'auth',
-      label: 'Authenticate with',
-      default: 'desktop',
-      options: [
-        { value: 'desktop', label: 'Desktop approvals' },
-        { value: 'service', label: 'Service account' },
-      ],
-    },
-  ];
   override async construct() {
-    const auth = settingsOf(this).auth as 'desktop' | 'service',
-      service = auth === 'service',
-      s = stage(this, { headingSize: 0.6, style: STYLE }),
+    const s = stage(this, { headingSize: 0.6, style: STYLE }),
       hot = s.emphasis;
     const found = find(QUERIES),
       [hitQuery, missQuery] = QUERIES,
       match = found.matches[0]!,
       suggestion = found.suggestions![0]!;
 
-    await s.steps(readerFrames(auth), { kind: 'short' });
+    await s.steps(readerFrames(), { kind: 'short' });
     await this.step('boundary', {
       title: 'To pick a key, the agent searches titles, never values',
       line: `Predict: it asks for “${hitQuery}” and the typo “${missQuery}”. What comes back?`,
-      caption: `Title matching chooses the items without needing their field values. Here “${hitQuery}” and “${missQuery}” search ${ITEMS.length} sample titles. The later item-get reply can contain secret values; the wrapper discards them before returning references to the agent.`,
+      caption: `find chooses items by comparing the query with their titles, so it needs no field values to choose. Here “${hitQuery}” and “${missQuery}” search ${ITEMS.length} sample titles.`,
     });
     await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
@@ -118,12 +104,11 @@ export default class PasswordExplainer extends Scene {
     const near = ITEMS.find((i) => i.title === suggestion.title)!;
     const word = near.title.toLowerCase(),
       edits = distance(missQuery, word),
-      longer = Math.max(missQuery.length, word.length),
-      score = closeness(terms(missQuery), near.title);
+      editWords = `${edits} edit${edits === 1 ? '' : 's'}`;
     await this.step('match', {
       title: `Answer: a match for “${hitQuery}”, a suggestion for “${missQuery}”`,
-      line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${edits} edit${edits === 1 ? '' : 's'} from “${missQuery}”.`,
-      caption: `${match.title} contains every word of “${hitQuery}”, so it matches and find returns its reference. No title contains “${missQuery}”, so find falls back to spelling: “${missQuery}” is ${edits} edit${edits === 1 ? '' : 's'} from “${word}”, which scores 1 − ${edits}/${longer} = ${score}, above the ${SUGGESTION_THRESHOLD} threshold, and ${near.title} comes back as a suggestion. Both answers compare the query with titles; neither looks at a secret.`,
+      line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${editWords} from “${missQuery}”.`,
+      caption: `${match.title} contains every word of “${hitQuery}”, so it matches. No title contains “${missQuery}”, so find compares spellings instead: “${missQuery}” is ${editWords} from “${word}”, close enough that ${near.title} comes back as a suggestion. Both answers compare the query with titles; neither looks at a secret.`,
     });
     await boundary.dim(['Agent', 'Find']);
     const cell = (query: string, title: string) => {
@@ -131,13 +116,11 @@ export default class PasswordExplainer extends Scene {
       const missing = terms(query).filter((t) => !title.toLowerCase().includes(t));
       return `no ${missing.join(', ')}`;
     };
-    const scored = (title: string) => {
-      const c = closeness(terms(missQuery), title);
-      return `${c.toFixed(3)}${c >= SUGGESTION_THRESHOLD ? ' suggested' : ''}`;
-    };
+    const spelled = (title: string) =>
+      closeness(terms(missQuery), title) >= SUGGESTION_THRESHOLD ? 'close: suggested' : 'not close';
     await listing.morph([
-      pad('title', W) + pad(hitQuery, 16) + `${missQuery}: score ≥ ${SUGGESTION_THRESHOLD}`,
-      ...ITEMS.map((i) => pad(i.title, W) + pad(cell(hitQuery, i.title), 16) + scored(i.title)),
+      pad('title', W) + pad(hitQuery, 16) + missQuery,
+      ...ITEMS.map((i) => pad(i.title, W) + pad(cell(hitQuery, i.title), 16) + spelled(i.title)),
     ]);
     await listing.focus([1 + ITEMS.indexOf(ITEMS.find((i) => i.title === match.title)!), 1 + ITEMS.indexOf(near)]);
     this.state.matches = Object.fromEntries(
@@ -145,10 +128,15 @@ export default class PasswordExplainer extends Scene {
     );
     this.state.found = found;
 
-    await this.step('fetch', {
-      title: 'One op item get fetches the match and the suggestion',
-      line: `Item list, then one item get for ${found.fetched.join(' and ')}; ${service ? 'no approval' : 'one approval'}.`,
-      caption: service ? `find first lists titles, then fetches the selected items together. The service account authenticates op without a desktop approval. That changes how op reaches the vault; the agent still receives references, as it does with desktop approvals.` : `find first lists titles, then fetches the selected items together. Upstream documents one desktop approval for this command. The agent still receives references rather than the secret-bearing item reply.`,
+    // What reached the agent: every sample value, searched for in find's printed result.
+    const values = ITEMS.flatMap((i) => i.fields.map((f) => f.value));
+    const printed = JSON.stringify(found),
+      leaked = values.filter((v) => printed.includes(v)).length;
+    const approvals = PROMPTS_PER_COMMAND.desktop;
+    await this.step('references', {
+      title: 'The item details stop at the wrapper; the agent gets references',
+      line: `${found.opCalls.length} op calls; every sample value is searched for in the output.`,
+      caption: `find lists titles, then fetches ${found.fetched.join(' and ')} in one item get, whose reply holds the field values. The wrapper drops those values while decoding the reply and prints only op:// references. Upstream documents one desktop approval for the command.`,
     });
     await s.clear();
     const sequence = await s.show(
@@ -168,91 +156,34 @@ export default class PasswordExplainer extends Scene {
       },
       { box: 'full' },
     );
-    await sequence.mark(['message:T->O#1']);
-    // What the two calls cost, said on op itself.
-    const approvals = PROMPTS_PER_COMMAND[auth];
+    await sequence.mark(['message:T->A#0']);
+    // What the two calls cost, said on op itself, and what the agent's reply holds, said on the reply.
     await sequence.note(
       'O',
-      `${found.opCalls.length} calls, ${approvals ? `${approvals} approval${approvals === 1 ? '' : 's'}` : 'no approval'}`,
+      `${found.opCalls.length} calls, ${approvals} approval${approvals === 1 ? '' : 's'}`,
       { side: 'right' },
     );
-    this.state.auth = auth;
+    await sequence.note('message:T->A#0', `secret values: ${leaked || 'none'}`, { side: 'below' });
+    this.state.leaked = leaked;
 
-    await this.step('reference', {
-      title: 'find returns references and prints no secret value',
-      line: 'One reference per query; every sample value is searched for in the output.',
-      caption: 'The returned strings identify a vault, item and field. Field values are discarded while the wrapper decodes op’s response. Those names let the agent select and launch the app without putting the key into the conversation; they do not themselves grant access to the vault.',
+    const ref = match.ref;
+    const launched = run('desktop', { API_KEY: ref }, ['app']);
+    await this.step('run', {
+      title: 'op swaps the reference for the key as it starts the app',
+      line: 'op resolves the API_KEY reference; the app gets its value and PATH.',
+      caption: 'The agent passes the reference to run, and op resolves it as it starts the app: op’s environment holds the reference, the app’s holds the value. The agent’s request never contained the key, but the app can still print what it receives.',
     });
     await s.clear();
-    const ref = match.ref;
-    const refText = new Text(ref, { fontSize: 0.56, font: 'mono', color: s.palette.ink }).moveTo([0, 1.9]);
-    const parts = ['vault', 'item', 'field'],
-      segs = ref.slice(5).split('/'),
-      per = refText.advance() / ref.length,
-      x0 = refText.box()![0],
-      y = refText.box()![1] - 0.1;
-    const anatomy = new Group();
-    let at = 5;
-    segs.forEach((seg, i) => {
-      const a = x0 + at * per,
-        b = a + seg.length * per,
-        color = parts[i] === 'item' ? hot : s.soft;
-      anatomy.add(
-        new Line([a + 0.04, y], [b - 0.04, y], { stroke: color, strokeWidth: 0.03 }),
-        new Text(parts[i]!, { fontSize: 0.24, color }).moveTo([(a + b) / 2, y - 0.3]),
-      );
-      at += seg.length + 1;
-    });
-    // Each reference find printed, with the query it answers above it.
-    const answers = (text: string, under: Text) =>
-      new Text(text, { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo(
-        [under.box()![0], under.box()![3] + 0.3],
-        [-1, 0],
-      );
-    const matchFor = answers(`match for “${hitQuery}”`, refText);
-    await s.enter(refText, matchFor, {
-      runTime: 0.5,
-      describe: () => `The match for “${hitQuery}”: ${ref}, its three parts underlined as vault, item and field`,
-    });
-    await this.play(new Create(s.keep(anatomy, { describe: () => `Under ${ref}: vault ${segs[0]}, item ${segs[1]}, field ${segs[2]}` }), { lagRatio: 0 }));
-    const suggestionText = new Text(suggestion.ref, { fontSize: 0.44, font: 'mono', color: s.palette.ink }).moveTo([
-        0, -0.9,
-      ]),
-      suggestionFor = answers(`suggestion for “${missQuery}”`, suggestionText);
-    await s.enter(suggestionText, suggestionFor, { runTime: 0.5, describe: () => `The suggestion for “${missQuery}”: ${suggestion.ref}` });
-    const values = ITEMS.flatMap((i) => i.fields.map((f) => f.value));
-    const printed = JSON.stringify(found),
-      leaked = values.filter((v) => printed.includes(v)).length;
-    const none = await s.note(`Secret values in find’s output: ${leaked || 'none'}`, { at: [0, -2.6], size: 0.28 });
-
-    const launched = run(auth, { API_KEY: ref }, ['app']);
-    await this.step('run', {
-      title: service
-        ? 'op starts the app with the key; env -u keeps the service token back'
-        : 'op swaps the reference for the key as it starts the app',
-      line: service
-        ? 'The app gets PATH and the API_KEY value, not the service token.'
-        : 'op resolves the API_KEY reference; the app gets its value and PATH.',
-      caption: service ? 'op resolves the reference and starts the app with API_KEY’s value. The wrapper removes OP_SERVICE_ACCOUNT_TOKEN from the child environment: the app needs its key, not the account token used to obtain it. This is a launch boundary, not a sandbox; the app can still print its environment.' : 'op resolves the reference and starts the app with API_KEY’s value. With desktop authentication there is no service-account token to remove. The reference keeps the value out of the agent’s launch request, but the app can still print what it receives.',
-    });
-    // The match's reference is carried into the run command that hands it to op; the rest goes.
-    await this.play(
-      ...[anatomy, matchFor, suggestionText, suggestionFor, none].map((m) => new FadeOut(m, { runTime: 0.4 })),
-    );
     const command = await s.code([`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
       at: regionBox('top', { bottom: 1.2 }),
       fontSize: 0.3,
-      enter: false,
     });
-    await s.carry(refText, command.code.token(0, ref).box()!);
-    await this.play(new FadeIn(command, { runTime: 0.4 }), new FadeOut(refText, { runTime: 0.4 }));
     const before = await s.code(
-      Object.entries(launched.opEnv).map(([k, v]) => (k === TOKEN ? '- ' : '  ') + `${k}=${v}`),
+      Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`),
       {
         at: regionBox('full', { right: -0.75, top: 0.7 }),
         title: "op's environment",
         fontSize: 0.26,
-        diff: true,
         enter: false,
       },
     );

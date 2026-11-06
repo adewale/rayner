@@ -19,7 +19,7 @@ export function selectExport(
   entry?: string,
 ) {
   if (
-    catalog.version !== 1 ||
+    catalog.version !== 2 ||
     evidence.version !== 2 ||
     catalog.scenes.length !== evidence.scenes.length ||
     catalog.scenes.some(

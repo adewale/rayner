@@ -1,13 +1,23 @@
-import { Scene, Group, Text, Circle, Dot, Line, Polygon, Rectangle, Arrow, VMobject } from '../../../src/index.ts';
+import { Scene, Group, Circle, Dot, Line, Polygon, Rectangle, Arrow, VMobject, Follow, SetState, Succession, view, linear } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import { label } from '../lib/lesson-drawing.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
-import { henge, TILT, LATITUDE } from '../lib/henge.ts';
+import { depthOrder, seenPictures } from '../../../explain/drawing.ts';
+import type { Seen, SeenPicture } from '../../../explain/drawing.ts';
+import { stagedStep } from '../../../explain/index.ts';
+import { henge, declination, sunset } from '../lib/henge.ts';
 import type { Street } from '../lib/henge.ts';
+import { dome, year, look, globes, crossedBy, INK, SUN, SUMMER, MUTED, ROAD } from './sky.ts';
+import type { SkyState, YearState, LookState, GlobeState, DayAt } from './sky.ts';
 type Sunset = ReturnType<typeof henge>['seasons'][number];
+type Model = ReturnType<typeof henge>;
+/** The two alignment seasons each street gets: May and July for Manhattan's, the equinoxes for due west. */
+const SEASONS: Record<Street, readonly [string, string]> = { manhattan: ['May', 'July'], west: ['March', 'September'] };
+const seasonsOf = (street: Street) => SEASONS[street];
+/** Each street's name under its picture. */
+const STREET_NAME: Record<Street, string> = { manhattan: '42nd Street: about 29° north of west', west: 'A street pointing due west' };
 
-const INK = '#1e293b', SUN = '#c77900', SUMMER = '#a03b22', WINTER = '#235d9b', MUTED = '#64748b', ROAD = '#eef2f6';
 const ANSWER = 'The street stays fixed while Earth’s tilt moves the sunset direction across it and back';
 const rad = Math.PI / 180;
 const words = (text: string, x: number, y: number, color = INK, size = 0.58) => label(text, x, y, color, size);
@@ -52,10 +62,14 @@ export default class Henge extends Scene {
     answer: ANSWER,
     claims: [
       { says: 'faces the sunrise only on winter mornings', test: 'test/explain-henge.test.ts: Henge overhead view' },
+      { says: 'of the circle is in sunlight', test: 'test/explain-henge.test.ts: Henge globes' },
+      { says: 'goes round a circle about the celestial pole', test: 'test/explain-henge.test.ts: Henge dome: each day’s path' },
+      { says: 'crossed on the way out and on the way back', test: 'test/explain-henge.test.ts: Henge dome and year are drawn in depth order' },
+      { says: 'the street’s circle, the horizon', test: 'test/explain-henge.test.ts: Henge street view from the centre' },
     ],
     checks: [
-      { question: 'The Sun is centred down the street, but its centre is above the horizon. Is that enough to identify a half-Sun event?',
-        answer: 'No. The horizontal alignment fixes its bearing, not its height. Half Sun puts the centre on the visible horizon; full Sun puts the bottom edge there.' },
+      { question: 'Another city’s streets point 10° north of west, between Manhattan’s 29° and due west. Are its two alignment seasons nearer the June solstice than Manhattan’s, or farther from it?',
+        answer: 'Farther from it. The sunset direction sweeps north from December to June and back; it passes 10° north of west before it reaches 29° on the way north, and after it on the way back, so the two seasons sit nearer the equinoxes.' },
       { question: 'Suppose another street points farther north than the northernmost sunset in this model. How many low-Sun alignments does it get?',
         answer: 'None. The annual curve must cross the street’s direction. Moving the street beyond its northern turning point removes both crossings.' },
     ],
@@ -65,52 +79,15 @@ export default class Henge extends Scene {
   ] }];
   override async construct() {
     const m = henge(settingsOf(this).street as Street), manhattan = m.street === 'manhattan';
-    const seasonNames = manhattan ? ['May', 'July'] : ['March', 'September'];
-    const orbit = () => {
-      const g = new Group(new Circle({ radius: 0.6, fill: SUN, stroke: SUN }), words('Sun', 0, -1.2, SUN));
-      const axis: Vec = [Math.sin(TILT * rad), Math.cos(TILT * rad)];
-      [-4, 4].forEach((x, i) => {
-        const side = i === 0 ? 1 : -1;
-        const eq: Vec = [side * Math.cos(TILT * rad), -side * Math.sin(TILT * rad)];
-        const observer: Vec = [x + Math.cos(LATITUDE * rad) * eq[0] + Math.sin(LATITUDE * rad) * axis[0],
-          Math.cos(LATITUDE * rad) * eq[1] + Math.sin(LATITUDE * rad) * axis[1]];
-        const radius: Vec = [observer[0] - x, observer[1]];
-        g.add(new Circle({ radius: 1, fill: '#e0edf7', stroke: WINTER }).moveTo([x, 0]),
-          line([x - axis[0] * 1.5, -axis[1] * 1.5], [x + axis[0] * 1.5, axis[1] * 1.5], INK, 0.06),
-          words('N', x + axis[0] * 1.9, axis[1] * 1.9), words(i === 0 ? 'June' : 'December', x, 2.75),
-          new Dot({ radius: 0.1, color: SUMMER }).moveTo(observer),
-          line([observer[0] - radius[1] * 0.65, observer[1] + radius[0] * 0.65],
-            [observer[0] + radius[1] * 0.65, observer[1] - radius[0] * 0.65], SUMMER, 0.045),
-          new Arrow([side * 1.1, 0], [x - side * 1.5, 0], { stroke: SUN, strokeWidth: 0.045 }),
-          words(i === 0 ? 'North sunward' : 'North away', x, -2.3),
-        );
-      });
-      g.add(words('New York: red dot and horizon.', 0, -3.2, SUMMER));
-      return tagged(g, 'henge-orbit');
-    };
-    const arcs = () => {
-      const ground = -2.0;
-      const x = (az: number) => -6.4 + (az - 180) / 135 * 12.8;
-      const y = (alt: number) => ground + alt / 90 * 5;
-      const g = new Group(line([-6.6, ground], [6.6, ground], INK),
-        words('New York’s horizon', 0, ground - 1.45), words('south', -5.9, ground - 0.6), words('west', x(270), ground - 0.6), words('northward', 5.4, ground - 0.6));
-      // The street's bearing, in the street's red: the line the sunset has to cross.
-      g.add(tagged(new Group(line([x(m.bearing), ground], [x(m.bearing), 2.0], SUMMER, 0.05), words('Street', x(m.bearing), 2.45, SUMMER)), 'henge-paths-street'));
-      m.seasons.forEach((season, i) => {
-        const color = [WINTER, MUTED, SUN][i]!;
-        const noon = season.path[0]!;
-        g.add(path(season.path.map((p) => [x(p.azimuth), y(p.altitude)]), color),
-          new Dot({ radius: 0.1, color }).moveTo([x(season.azimuth), ground]),
-          label(['December', 'Equinox', 'June'][i]!, -6.4, y(noon.altitude) + 0.42, color, 0.58).moveTo([-6.4, y(noon.altitude) + 0.42], [-1, 0]));
-      });
-      return tagged(g, 'henge-arcs');
-    };
-    const annual = (reveal: boolean) => {
+    const seasonNames = seasonsOf(m.street);
+    /** The year's sunset directions against the street; with `crossings`, the days the curve crosses it. */
+    const annual = (st: { bearing: number; street: Street; annual: { longitude: number; azimuth: number }[]; crossings?: number[] }) => {
+      const manhattan = st.street === 'manhattan', seasonNames = seasonsOf(st.street);
       const x = (longitude: number) => -6 + longitude / 360 * 12;
       const y = (bearing: number) => (bearing - 270) / 35 * 2.35;
-      const streetY = y(m.bearing);
+      const streetY = y(st.bearing);
       const g = new Group(line([-6, 0], [6, 0], MUTED),
-        path(m.annual.map((p) => [x(p.longitude), y(p.azimuth)]), SUN),
+        path(st.annual.map((p) => [x(p.longitude), y(p.azimuth)]), SUN),
         line([-6, streetY], [6, streetY], SUMMER, 0.045),
         words(manhattan ? 'Street: 29° N of west' : 'Street: due west', 3.5, streetY + 0.6, SUMMER),
         words('Yellow: sunset direction', 0, -3.5, SUN));
@@ -119,7 +96,7 @@ export default class Henge extends Scene {
       // Each name sits on the side of its dot that the curve leaves empty: the first crossing rises
       // through the street, the second falls. Manhattan's names go above, due west's below.
       const above = manhattan;
-      if (reveal) m.half.forEach((longitude, i) => {
+      st.crossings?.forEach((longitude, i) => {
         const side = (i === 0) === above ? -1 : 1, at: Vec = [x(longitude) + side * 0.12, streetY + (above ? 0.6 : -0.55)];
         g.add(new Dot({ radius: 0.13, color: SUMMER }).moveTo([x(longitude), streetY]),
           words(seasonNames[i]!, 0, 0, SUMMER).moveTo(at, [-side, 0]));
@@ -128,11 +105,12 @@ export default class Henge extends Scene {
     };
     /** Overhead, north up: a schematic grid turned to the street's bearing, and the Sun's direction at sunset and sunrise
      *  on the first alignment day. East is +x, north is +y; an azimuth points along (sin az, cos az). */
-    const overhead = () => {
+    const overhead = ({ bearing, street: which, alignment }: { bearing: number; street: Street; alignment: Model['alignment'] }) => {
+      const manhattan = which === 'manhattan';
       const dir = (az: number): Vec => [Math.sin(az * rad), Math.cos(az * rad)];
       const o: Vec = [0, -0.5];
       const at = (p: Vec, along: Vec, t: number): Vec => [p[0] + along[0] * t, p[1] + along[1] * t];
-      const u = dir(m.bearing), v: Vec = [u[1], -u[0]];
+      const u = dir(bearing), v: Vec = [u[1], -u[0]];
       const streetsHalf = 2.6, avenuesHalf = 1.05;
       const grid = new Group();
       for (let k = -4; k <= 4; k++) {
@@ -151,7 +129,7 @@ export default class Henge extends Scene {
         if (dashed) a.style.dashArray = '0.22 0.14';
         return a;
       };
-      const { sunset, sunrise, back } = m.alignment;
+      const { sunset, sunrise, back } = alignment;
       const offWest = (az: number) => Math.abs(az - 270) < 0.05 ? 'due west' : `${Math.abs(az - 270).toFixed(1)}° ${az > 270 ? 'north' : 'south'} of west`;
       const offEast = (az: number) => Math.abs(az - 90) < 0.05 ? 'due east' : `${Math.abs(az - 90).toFixed(1)}° ${az < 90 ? 'north' : 'south'} of east`;
       // Each Sun's name and bearing sit above its disc, on the outer side, clear of the ray that reaches it from below.
@@ -172,46 +150,152 @@ export default class Henge extends Scene {
         : [words('Sunrise and sunset both run along the street', 0, -3.7)];
       return tagged(new Group(grid, sun, street, new Dot({ radius: 0.12, color: INK }).moveTo(o), north, ...notes), 'henge-map');
     };
-    const disc = (_: unknown, s: Stage) => tagged(new Group(
+    const disc = ({ street }: { street: Street }, s: Stage) => {
+      const seasonNames = seasonsOf(street);
+      return tagged(new Group(
       streetView(true, s.palette.paper, -3.5, 0.5, 0.5), streetView(false, s.palette.paper, 3.5, 0.5, 0.5),
       words('Half Sun', -3.5, 2.45), words('Full Sun', 3.5, 2.45),
       words('Centre on horizon', -3.5, -1.6), words('Bottom on horizon', 3.5, -1.6),
       words(`${seasonNames[0]}: half → full`, 0, -2.5, SUMMER),
       words(`${seasonNames[1]}: full → half`, 0, -3.2, SUMMER),
-    ), 'henge-disc');
+      ), 'henge-disc');
+    };
     const west = (bearing: number) => `${Math.abs(bearing - 270).toFixed(1)}° ${bearing > 270 ? 'north' : 'south'} of west`;
     const [december, , june] = m.seasons as [Sunset, Sunset, Sunset];
     const gap = m.gapDays.toFixed(1);
-    const frames: StagedStep[] = [
-      { id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
+    const day = ({ declination, hourAngle }: { declination: number; hourAngle: number }) => ({ declination, hourAngle });
+    const percent = (d: Sunset) => `${Math.round((d.hourAngle / 180) * 100)}%`;
+    const before: StagedStep[] = [
+      stagedStep({ id: 'street', title: 'Why does the Sun line up on so few evenings?', line: 'Predict: will the low Sun line up again tomorrow?',
         caption: manhattan
           ? 'Look west down 42nd Street. On a few evenings a year, in late May and mid-July, the low Sun fits between the buildings; the Hayden Planetarium calls it Manhattanhenge. The buildings point the same way all year, so what changes must be where the Sun sets.'
           : 'This scenario turns the street to point due west and leaves the Sun and sky as they are. Buildings frame a narrow direction, and on some evenings the low Sun fits inside it. The buildings point the same way all year, so what changes must be where the Sun sets.',
-        state: { bearing: m.bearing }, draw: (_, s) => tagged(new Group(streetView(false, s.palette.paper), words(manhattan ? '42nd Street: about 29° north of west' : 'A street pointing due west', 0, -3.7)), 'henge-street') },
-      { id: 'overhead',
+        state: { bearing: m.bearing, street: m.street }, draw: (st, s) => tagged(new Group(streetView(false, s.palette.paper), words(STREET_NAME[st.street], 0, -3.7)), 'henge-street') }),
+      stagedStep({ id: 'overhead',
         title: manhattan ? 'From above: sunset lines up with 42nd Street, sunrise does not' : 'From above: a due-west street lines up with sunrise and sunset',
-        line: 'North is up. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
+        line: 'North is up; the grid is schematic. Gold arrows: the Sun at sunset and sunrise on an alignment day.',
         caption: manhattan
-          ? `From above, Manhattan’s grid is turned: its cross streets point ${(m.bearing - 270).toFixed(1)}° north of west at one end and the same angle south of east at the other. On an alignment evening the setting Sun lies on that line, so it shines straight down 42nd Street. The same morning the Sun rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° away from the street’s other end. That end faces the sunrise only on winter mornings either side of the December solstice, when the Sun rises south of east. The grid is schematic: it shows the streets’ direction, not the real blocks.`
-          : 'This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days. The grid is schematic: it shows the streets’ direction, not real blocks.',
-        state: { alignment: m.alignment, backCrossings: m.backCrossings }, draw: overhead },
-      { id: 'tilt', title: 'One axis direction, opposite sides of the Sun', line: 'Predict: in June, does New York’s Sun set north or south of due west?',
-        caption: 'Earth’s axis keeps nearly the same direction through the year. In June the north leans sunward; in December it leans away. The red dot is New York and the short red line its horizon; both turn with Earth each day. Sizes and distances here are schematic.',
-        state: { latitude: m.latitude, tilt: m.tilt }, draw: orbit },
-      { id: 'paths', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
-        line: manhattan ? `The red line is the street, ${west(m.bearing)}.` : 'The red line is the street, at due west.',
-        caption: `Each curve is one afternoon’s path of the Sun’s centre seen from New York, ending where it meets a flat horizon. In June more of the path lies above the horizon and it ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. ${ANSWER}.`,
-        state: { sunsets: m.seasons.map(({ declination, azimuth, hourAngle }) => ({ declination, azimuth, hourAngle })) }, draw: arcs },
-      { id: 'sweep', title: 'Follow the sunset direction through a year', line: 'Predict: how often does the yellow curve cross the red street?',
-        caption: `The yellow curve marks sunset direction, from March through the following March. Higher means farther north along the horizon. The red line stays at this street’s bearing. ${manhattan ? 'It lies near the northern turning point in June.' : 'It lies at due west, between the northern and southern extremes.'} The calendar spacing is an idealised circular orbit, not a viewing timetable.`,
-        state: { bearing: m.bearing, annual: m.annual.map(({ longitude, azimuth }) => ({ longitude, azimuth })) }, draw: () => annual(false) },
-      { id: 'crossings', title: manhattan ? 'Across the street in May, back across it in July' : 'A due-west street aligns near the equinoxes', line: 'Change the street setting: the sky stays the same.',
-        caption: `${manhattan ? 'The sunset direction passes the street before June, turns a little farther north, then returns across it. This gives the May and July alignment seasons.' : 'The same curve crosses due west near March and September, instead of near May and July.'} Changing the street changes the direction we wait for, not Earth’s motion.`,
-        state: { bearing: m.bearing, crossings: m.half }, draw: () => annual(true) },
-      { id: 'disc', title: 'One bearing still leaves the Sun’s height to explain', line: `Half Sun and full Sun come ${gap} days apart in this model.`,
-        caption: `The two views keep the Sun centred down the same street. Half Sun puts its centre on the visible horizon; full Sun puts its bottom edge there. During the ${seasonNames[0]} northward sweep the aligned Sun rises from half to full: in this model full Sun comes ${gap} days after half Sun, ${manhattan ? 'about one evening to the next' : 'closer than one evening to the next, because near an equinox the Sun’s path shifts fastest from day to day'}. During the ${seasonNames[1]} return the order reverses. These are changes across dates, not stages of one evening’s descent. The disc is enlarged here.`,
-        state: { half: m.half, full: m.full, radius: m.radius, gapDays: m.gapDays }, draw: disc },
+          ? `${ANSWER}. From above, Manhattan’s cross streets point ${(m.bearing - 270).toFixed(1)}° north of west, and the same angle south of east at the other end. On an alignment evening the setting Sun lies on that line and shines straight down 42nd Street. That morning it rose ${(90 - m.alignment.sunrise).toFixed(1)}° north of east, ${(m.alignment.back - m.alignment.sunrise).toFixed(1)}° from the street’s other end, which faces the sunrise only on winter mornings either side of the December solstice.`
+          : `${ANSWER}. This street points due west, so its other end points due east. On an alignment evening, at an equinox in this model, the Sun sets due west down the street, and that morning it rose due east, up the street’s other end. Both ends line up on the same days.`,
+        state: { alignment: m.alignment, backCrossings: m.backCrossings, bearing: m.bearing, street: m.street }, draw: overhead }),
+      stagedStep<SkyState>({ id: 'sky', title: `June’s Sun sets ${west(june.azimuth)}, December’s ${west(december.azimuth).replace(' of west', '')}`,
+        line: manhattan ? `Red: the street’s arc, rising from the horizon where the street points, ${west(m.bearing)}.` : 'Red: the street’s arc, rising from the horizon where the street points, due west.',
+        caption: `New York’s sky as a dome, seen from outside, west of it. Each day the Sun’s centre goes round a circle about the celestial pole; the bold arc is its day, ending at a flat horizon. In June more of the circle lies above the horizon and it ends ${west(june.azimuth)}, ${manhattan ? `${(june.azimuth - m.bearing).toFixed(1)}° beyond the street` : 'north of the street'}. December’s shorter path ends ${west(december.azimuth)}${manhattan ? ', far short of it' : ', and the equinox path ends on the street'}. The circle shifts because Earth’s axis is tilted: the north leans toward the Sun in June, away in December.`,
+        state: { bearing: m.bearing, days: m.seasons.map(({ declination, azimuth, hourAngle }) => ({ declination, hourAngle, azimuth })) }, draw: dome }),
     ];
-    await stage(this, { style: 'github-light', headingSize: 0.6 }).steps(frames);
+    const crossings: StagedStep[] = [
+      stagedStep({ id: 'crossings', title: manhattan ? 'Across the street in May, back across it in July' : 'A due-west street aligns near the equinoxes', line: 'Change the street setting: the sky stays the same.',
+        caption: `The same year as a chart: across, March to the following March; up, how far north along the horizon the Sun sets. The line labelled Street stays at this street’s bearing. ${manhattan ? 'The sunset direction passes the street before June, turns a little farther north, then returns across it. This gives the May and July alignment seasons.' : 'The same curve crosses due west near March and September, instead of near May and July.'} Changing the street changes the direction we wait for, not Earth’s motion. The calendar spacing is an idealised circular orbit, not a viewing timetable.`,
+        state: { bearing: m.bearing, crossings: m.half, street: m.street, annual: m.annual.map(({ longitude, azimuth }) => ({ longitude, azimuth })) }, draw: annual }),
+    ];
+    const details: StagedStep[] = [
+      stagedStep<GlobeState>({ id: 'tilt', kind: 'detail', title: 'One axis direction, opposite sides of the Sun', line: 'Why the Sun’s daily circle shifts: Earth’s tilt, seen from beside its orbit.',
+        caption: `Earth’s axis keeps nearly the same direction through the year. In June the north leans sunward; in December it leans away. The red dot is New York at noon, on the circle Earth’s daily turn carries it round: gold where that circle is in sunlight, dark where it is in night. In June ${percent(june)} of the circle is in sunlight, in December ${percent(december)}. Sizes and distances here are schematic.`,
+        state: { latitude: m.latitude, tilt: m.tilt, june: day(june), december: day(december) }, draw: globes }),
+    ];
+    const after: StagedStep[] = [
+      stagedStep({ id: 'disc', kind: 'detail', title: 'One bearing still leaves the Sun’s height to explain', line: `Half Sun and full Sun come ${gap} days apart in this model.`,
+        caption: `Both views keep the Sun centred down the street. Half Sun puts its centre on the visible horizon; full Sun puts its bottom edge there. During the ${seasonNames[0]} sweep the aligned Sun rises from half to full: full Sun comes ${gap} days after half Sun, ${manhattan ? 'about one evening to the next' : 'within one evening, because near an equinox the Sun’s path shifts fastest from day to day'}. During the ${seasonNames[1]} return the order reverses. These are neighbouring dates, not stages of one evening’s descent.`,
+        state: { half: m.half, full: m.full, radius: m.radius, gapDays: m.gapDays, street: m.street }, draw: disc }),
+    ];
+
+    // Held on every frame by rayner check, the year's turn and the camera's descent included:
+    // nothing the dome hides is drawn in front of it, and from the sphere's centre the street's
+    // circle and the horizon are drawn straight.
+    this.addInvariant('nothing behind the dome is drawn in front', (scene) => {
+      let held: true | undefined;
+      for (const mob of scene.mobjects) {
+        const r = depthOrder(mob);
+        if (typeof r === 'string') return r;
+        if (r) held = true;
+      }
+      return held;
+    });
+    this.addInvariant('from the centre, the street and the horizon are straight', straight);
+
+    const s = stage(this, { style: 'github-light', headingSize: 0.6 });
+    await s.steps(before);
+
+    // The year as a turn of state: one Follow over the orbital longitude, from the December
+    // solstice round to the next, redraws the day's circle from the model at every frame.
+    const dayAt: DayAt = (longitude) => { const d = sunset(declination(longitude)); return { declination: d.declination, hourAngle: d.hourAngle, azimuth: d.azimuth }; };
+    const start: YearState = { bearing: m.bearing, start: -90, longitude: -90, crossings: m.half };
+    await this.step('sweep', {
+      title: 'Follow the sunset through a year', line: 'Predict: how many times will the sunset cross the street?',
+      caption: `Now let the year run, from the December solstice to the next. The Sun’s daily circle slides north, and its sunset, the gold band along the horizon, travels north with it. ${manhattan ? 'It passes the street, keeps going to its June turning point, then comes back south and passes the street again.' : 'It reaches the street at the March equinox, keeps going to its June turning point, then comes back south and reaches the street again at the September equinox.'} One fixed direction, crossed on the way out and on the way back. Each day’s circle comes from the Sun’s declination in an idealised circular orbit.`,
+    });
+    await s.clear({ runTime: 0.18 });
+    this.state = { ...start } as typeof this.state;
+    const sweep = view(this, (st) => year(st as unknown as YearState, dayAt), { place: false });
+    s.opening(sweep);
+    await s.enter(sweep, { runTime: 0.24, describe: () => yearWords(this.state as unknown as YearState, dayAt) });
+    await this.play(new Succession([
+      new Follow({ from: start.longitude, to: 270, draw: (longitude) => year({ ...start, longitude }, dayAt) }, { targets: [sweep.current], runTime: 9, rateFunc: linear }),
+      new SetState(this, (st) => ({ ...st, longitude: 270 })),
+    ]));
+
+    await s.steps(crossings);
+    await s.steps(details);
+
+    // One camera move from sky to street: the eye at the sphere's centre, in the middle of the
+    // street, looks up and lowers its gaze along the street's circle to the horizon, while the
+    // lens narrows. A Follow over the viewpoint's pitch; every frame is the picture of its value.
+    const alignment = dayAt(m.half[0]!);
+    const UP = { pitch: 78, scale: 2.4 }, DOWN = { pitch: 3, scale: 6.5 };
+    const eye = (t: number): LookState => ({ bearing: m.bearing, pitch: UP.pitch + (DOWN.pitch - UP.pitch) * t, scale: UP.scale * (DOWN.scale / UP.scale) ** t, day: day(alignment) });
+    const names = { day: seasonNames[0] };
+    await this.step('look', {
+      kind: 'detail',
+      title: 'From the sky to the street: bearing and height in one view', line: 'Stand at the dome’s centre and lower your eyes along the street.',
+      caption: `The calendar names four evenings: half Sun and full Sun in each season. Stand in the middle of the street, at the dome’s centre, and lower your eyes along the street’s circle, labelled Street, to the horizon. From the centre, the street’s circle, the horizon and the buildings’ edges stay straight, as a camera sees them. Left and right say whether the Sun is centred between the buildings; up and down say how much of its disc is above the horizon.`,
+    });
+    await s.clear({ runTime: 0.18 });
+    this.state = { ...eye(0) } as typeof this.state;
+    const street = view(this, (st) => look(st as unknown as LookState, s.palette.paper, names), { place: false });
+    // The phone opens on the camera's window and its legend; the sky's lines run on past the window, under the paper.
+    s.opening(...street.current.family().filter((part) => ['henge-look-window', 'henge-look-legend', 'henge-look-sides', 'henge-look-sun'].includes(part.key ?? '')));
+    await s.enter(street, { runTime: 0.24, describe: () => lookWords(this.state as unknown as LookState, names) });
+    await this.play(new Succession([
+      new Follow({ from: 0, to: 1, draw: (t) => look(eye(t), s.palette.paper, names) }, { targets: [street.current], runTime: 5 }),
+      new SetState(this, (st) => ({ ...st, ...eye(1) })),
+    ]));
+
+    await s.steps(after);
   }
 }
+
+/** The year's turn in words, from the state the step holds. */
+function yearWords(st: YearState, dayAt: DayAt): string {
+  const d = dayAt(st.longitude), off = d.azimuth - 270;
+  const crossed = crossedBy(st);
+  return `The dome with one day’s path. Its Sun sets ${Math.abs(off) < 0.05 ? 'due west' : `${Math.abs(off).toFixed(1)}° ${off > 0 ? 'north' : 'south'} of west`}. Since the December solstice the sunset has crossed the street ${crossed === 1 ? 'once' : crossed === 2 ? 'twice' : 'no times'}.`;
+}
+/** The camera's view in words. */
+function lookWords(st: LookState, names: { day: string }): string {
+  return `Looking along the street from its middle, ${st.pitch.toFixed(0)}° above the horizon: the street’s circle runs straight up the middle, and the Sun’s path on a ${names.day} evening comes down to the horizon where the street points, with the Sun’s centre on the horizon.`;
+}
+/**
+ * From the sphere's centre a great circle lies in a plane through the eye, so the street's
+ * vertical circle and the horizon must be drawn as straight lines, frame by frame.
+ */
+function straight(scene: Scene): true | string | undefined {
+  let checked: true | undefined;
+  for (const g of scene.mobjects.flatMap((mob) => seenPictures(mob))) {
+    const meta = (g as Group & { seenPicture: SeenPicture }).seenPicture;
+    if (meta.viewpoint.kind !== 'gnomonic') continue;
+    for (const piece of g.children) {
+      if (!['henge-look:street', 'henge-look:horizon'].includes(piece.key ?? '') || !(piece instanceof VMobject)) continue;
+      if ((piece as VMobject & { seen: Seen }).seen.lines.flat().length < 3) continue;
+      const drawn = piece.subpaths.flatMap((a) => Array.from({ length: (a.length - 2) / 6 + 1 }, (_, i) => [a[i * 6]!, a[i * 6 + 1]!] as Vec));
+      const a = drawn[0]!, b = drawn.at(-1)!, length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 1e-6) continue;
+      for (const q of drawn) {
+        const off = Math.abs((b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0])) / length;
+        if (off > 1e-3) return `${piece.key} is seen from the sphere's centre (pitch ${meta.viewpoint.pitch.toFixed(1)}°) but drawn ${off.toFixed(3)} off a straight line`;
+      }
+      checked = true;
+    }
+  }
+  return checked;
+}
+

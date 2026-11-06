@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFonts } from '../src/index.ts';
+import { isRefusal } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { View } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
@@ -177,7 +178,7 @@ test('the race machines reach every interleaving, each as real promises run it; 
       const st = queue.shift()!;
       for (const e of RACE_EVENTS) {
         const next = raceNext(st, e);
-        if (!next || seen.has(JSON.stringify(next))) continue;
+        if (isRefusal(next) || seen.has(JSON.stringify(next))) continue;
         seen.set(JSON.stringify(next), next);
         queue.push(next);
       }
@@ -199,4 +200,18 @@ test('the race machines reach every interleaving, each as real promises run it; 
     // Both rules end every race on the latest search when it lands last, and only the guard when it lands first.
     for (const st of states.filter((x) => x.log.length === 4)) assert.equal(st.page === 'B', guarded || st.log.at(-1) === 'B lands', st.log.join(', '));
   }
+});
+
+test('the race refuses what cannot happen yet, or again, and says why', () => {
+  const why = (log: RaceEvent[], event: RaceEvent) => {
+    const refused = raceNext(raceReplay(false, log), event);
+    return isRefusal(refused) ? refused.reason : undefined;
+  };
+  assert.equal(why([], 'start B'), '“ca” is typed before “cat”, so search A starts first');
+  assert.equal(why([], 'A lands'), 'search A has not started, so it has no response to land');
+  assert.equal(why(['start A'], 'start A'), 'search A has started already, and each search starts once');
+  assert.equal(why(['start A'], 'B lands'), 'search B has not started, so it has no response to land');
+  assert.equal(why(['start A', 'A lands'], 'A lands'), 'search A’s response has landed already, and a response lands once');
+  assert.equal(why(['start A'], 'start B'), undefined);
+  assert.throws(() => raceReplay(true, ['start B']), /start B cannot happen after nothing: “ca” is typed before “cat”/);
 });

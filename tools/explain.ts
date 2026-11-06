@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
 import { collectProject, defaultScenario, sceneSlug, ROOT } from './lib/explain-project.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
-import { STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
+import { MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
 
 // Authoring packages, grouped for installation error messages.
 const CAPTURE = ['agentic-mermaid', 'playwright-core', 'svgpath'],
@@ -20,7 +20,9 @@ const HELP = `Rayner ${pkg.version} (Node 24+)
 Usage: rayner <command> <scene.ts | directory> [options]
 
 Commands:
-  init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test
+  init <directory>    Write the tutorial's LRU/MRU explainer: script, scene, model, test;
+                      with --machine, a machine explainer: a model that refuses
+                      events with reasons, its test, a live step, review subjects
   preview <scene>     Build and serve on localhost
   snapshots <scene>   Run every scenario, capture/verify diagrams and replay morph edits
   check <scene>       Every scenario: seek, motion, skipped trace, bare runtime, step
@@ -47,6 +49,7 @@ Options:
   --port <integer>    Preview server port (default 5174)
   --watch             Preview: rebuild the page on save
   --subjects <path>   Review: use this JSON file instead of <scene>.review.json
+  --machine           Init: write the machine starter instead of the tutorial's
   --version           Print the version
 
 Diagram capture is included. Install Chromium once:
@@ -73,6 +76,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       refresh: { type: 'boolean' },
       watch: { type: 'boolean' },
       subjects: { type: 'string' },
+      machine: { type: 'boolean' },
     },
   });
   const [command, input, ...extra] = positionals;
@@ -80,13 +84,17 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   // `see` takes the step to show as a second argument.
   const step = command === 'see' ? extra.shift() : undefined;
   if (extra.length) throw new Error(`Unexpected argument: ${extra[0]}`);
+  if (flags.machine && command !== 'init') throw new Error('--machine is for init');
   if (command === 'init') {
     const dir = resolve(input);
     await mkdir(dirname(dir), { recursive: true });
     await mkdir(dir, { recursive: false });
-    for (const file of STARTER_FILES)
-      await writeFile(join(dir, file), packageImports(await readFile(join(STARTER, file), 'utf8')));
-    console.log(`Created ${join(dir, 'script.md')}, the script to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
+    const [from, files] = flags.machine ? [MACHINE_STARTER, MACHINE_STARTER_FILES] : [STARTER, STARTER_FILES];
+    for (const file of files)
+      await writeFile(join(dir, file), packageImports(await readFile(join(from, file), 'utf8')));
+    console.log(flags.machine
+      ? `Created ${join(dir, 'scene.ts')}, a machine explainer: its model in model.ts (next refuses with a reason), the model's test in model.test.ts, and the review's subjects in scene.review.json`
+      : `Created ${join(dir, 'script.md')}, the script to write first, and ${join(dir, 'scene.ts')}, with its model in model.ts and the model's test in model.test.ts`);
     return;
   }
   if (!['preview', 'snapshots', 'check', 'review', 'build', 'shots', 'describe', 'see'].includes(command!))

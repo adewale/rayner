@@ -5,13 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { build } from 'esbuild';
-import { traceScene } from '../src/index.ts';
+import { traceScene } from '../explain/testing.ts';
 import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { seeStep, seeText } from '../tools/lib/explain-see.ts';
-import { describeExplainer } from '../explain/index.ts';
+import { describeExplainer } from '../explain/testing.ts';
 import { describeScenario } from '../explain/describe.ts';
-import type { ScenarioDescription } from '../explain/index.ts';
+import type { ScenarioDescription } from '../explain/testing.ts';
 
 /** The error a child process failed with, or undefined when it succeeded. */
 const failure = (run: () => unknown) => {

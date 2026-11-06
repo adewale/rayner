@@ -1,16 +1,19 @@
-import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
+import { Scene, Group, Rectangle, Text, lerpColor } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
 import type { Stage } from '../../../explain/index.ts';
 import { bloomStory, locations, makeFilter, membership, saturation, TAKEN } from '../lib/bloom-filter.ts';
-import { lerpColor } from '../../../src/color.ts';
-import { label, table, stat } from '../lib/lesson-drawing.ts';
+import { label, table, stat, legend } from '../lib/lesson-drawing.ts';
+import { listed, numberWord, percent } from '../lib/format.ts';
 
 /** Each taken name's colour: text on white at 4.5:1 or better, and a pale fill behind a bit it set. */
 const OWNER: Record<string, string> = { cat: '#8250df', dog: '#9a6700', more: '#57606a' };
+/** Each owner's fill in words, as the captions and the legend say it. */
+const OWNER_NAME: Record<string, string> = { cat: 'purple', dog: 'brown', more: 'grey' };
 const PAPER = '#ffffff';
 const fillOf = (name: string) => lerpColor(PAPER, OWNER[name]!, 0.36);
 const thousands = (n: number) => n.toLocaleString('en-US');
-const percent = (x: number) => `${(100 * x).toFixed(x < 0.01 ? 2 : 1)}%`;
+// Two decimals under 1%, so a rate of a few in a thousand does not read 0.0%.
+const pct = (x: number) => percent(x, { under1: { digits: 2 } });
 
 // Check 1: a third name, eel, taken in the 32-bit row. Its hashes, and what wolf and owl then get.
 const EEL = (() => {
@@ -23,10 +26,8 @@ const CLEARED = ([16, 32] as const).map((size) => {
   for (const i of locations('dog', size)) bits[i] = 0;
   return { size, cat: membership(bits, 'cat'), shared: locations('dog', size).filter((i) => locations('cat', size).includes(i)) };
 });
-const count = (n: number) => ['none', 'one', 'two', 'three'][n] ?? String(n);
+const count = (n: number) => numberWord(n, { zero: 'none' });
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
-const list = (items: readonly (string | number)[]) =>
-  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
 export default class BloomFilter extends Scene {
   static meta = {
@@ -54,13 +55,13 @@ export default class BloomFilter extends Scene {
     ],
     checks: [
       {
-        question: `In the 32-bit filter, someone also takes eel, whose hashes are ${list(EEL.at)}. What does the filter now say about wolf, and about owl?`,
-        answer: `wolf gets ${EEL.wolf ? 'maybe' : 'definitely not'}, a false positive: bit 23 now comes from eel, 22 from cat and 1 from dog and eel. owl still gets ${EEL.owl ? 'maybe' : 'definitely not'}: eel set bit 20, but bits ${list(EEL.owlZeros)} are still 0.`,
+        question: `In the 32-bit filter, someone also takes eel, whose hashes are ${listed(EEL.at)}. What does the filter now say about wolf, and about owl?`,
+        answer: `wolf gets ${EEL.wolf ? 'maybe' : 'definitely not'}, a false positive: bit 23 now comes from eel, 22 from cat and 1 from dog and eel. owl still gets ${EEL.owl ? 'maybe' : 'definitely not'}: eel set bit 20, but bits ${listed(EEL.owlZeros)} are still 0.`,
       },
       {
         question:
           'dog closes its account, and to keep the filter tidy someone sets dog’s three bits back to 0. Then cat, still taken, tries to sign in. What does the filter say about cat at 16 bits, and at 32?',
-        answer: `At 16 bits, definitely not: bit ${list(CLEARED[0]!.shared)} was shared, so clearing dog’s bits cleared one of cat’s, and the filter turns away a taken name, which a Bloom filter must never do. At 32 bits it still says maybe, but only because dog’s bits there happen to miss cat’s. The row cannot tell which names set a bit, so clearing a departing name’s bits can erase evidence of another name.`,
+        answer: `At 16 bits, definitely not: bit ${listed(CLEARED[0]!.shared)} was shared, so clearing dog’s bits cleared one of cat’s, and the filter turns away a taken name, which a Bloom filter must never do. At 32 bits it still says maybe, but only because dog’s bits there happen to miss cat’s. The row cannot tell which names set a bit, so clearing a departing name’s bits can erase evidence of another name.`,
       },
     ],
   };
@@ -89,39 +90,35 @@ export default class BloomFilter extends Scene {
     const shared = dog.filter((i) => m.first[i] === 1);
     /** Who set a bit, in words: a bit records that some name set it, never which. */
     const whoSet = (owners: string[]) => (owners.length > 1 ? 'both' : owners[0] ?? 'no name');
-    const sources = (story: typeof m, locs: readonly number[]) =>
-      locs.map((j) => (story.owners[j]!.length ? `${j} from ${whoSet(story.owners[j]!)}` : `${j} still 0`));
+    const sources = (owners: readonly string[][], locs: readonly number[]) =>
+      locs.map((j) => (owners[j]!.length ? `${j} from ${whoSet(owners[j]!)}` : `${j} still 0`));
     /** The full step's index, and the set bits after the first, middle and last count of names taken. */
     const FULL = 8;
-    const milestones = [0, Math.round((full.trail.length - 1) / 2), full.trail.length - 1].map((k) => full.trail[k]!);
+    const milestones = (trail: typeof full.trail) => [0, Math.round((trail.length - 1) / 2), trail.length - 1].map((k) => trail[k]!);
     const zeros = (q: typeof absent) => q.locations.filter((j) => m.bits[j] === 0);
     const skipped = m.queries.filter((q) => !q.maybe).length,
       wasted = m.queries.filter((q) => q.maybe && !q.stored).length;
-    /** The taken names over the row, each in its colour with the bits it set: the key to the fills. */
-    const takenLabel = (s: Stage, step: number) => {
-      const parts: Text[] =
-        step === 0
-          ? [new Text('Taken: cat, dog. Not yet in the filter', { fontSize: 0.66, color: s.palette.ink })]
-          : step === FULL
-            ? [
-                new Text('Taken:', { fontSize: 0.66, color: s.palette.ink }),
-                new Text('cat', { fontSize: 0.66, color: OWNER.cat! }),
-                new Text('dog', { fontSize: 0.66, color: OWNER.dog! }),
-                new Text(`and ${full.words.length - 2} more`, { fontSize: 0.66, color: OWNER.more! }),
-              ]
-            : [
-              new Text('Taken:', { fontSize: 0.66, color: s.palette.ink }),
-              new Text(`cat (${cat.join(', ')})`, { fontSize: 0.66, color: OWNER.cat! }),
-              ...(step === 1 ? [] : [new Text(`dog (${dog.join(', ')})`, { fontSize: 0.66, color: OWNER.dog! })]),
-            ];
-      const gap = 0.3,
-        width = parts.reduce((w, t) => w + t.width(), gap * (parts.length - 1));
-      let x = -width / 2;
-      for (const t of parts) {
-        t.moveTo([x, 2.7], [-1, 0]);
-        x += t.width() + gap;
-      }
-      const g = new Group(...parts);
+    /**
+     * The taken names over the row, as a legend: each name after a swatch of the fill it gives a bit, with the bits
+     * it set. The legend says each fill's colour too ("purple fill, cat (1, 6, 15)"), the word the captions use.
+     * `stored`: the names in the filter.
+     */
+    const takenLabel = (s: Stage, step: number, stored: readonly string[]) => {
+      const SIZE = 0.66;
+      const lead = new Text(stored.length ? 'Taken:' : 'Taken: cat, dog. Not yet in the filter', { fontSize: SIZE, color: s.palette.ink });
+      const entry = (owner: string, label: string) => ({ label, fill: fillOf(owner), stroke: OWNER[owner]!, name: OWNER_NAME[owner]! });
+      const items = !stored.length
+        ? []
+        : step === FULL
+          ? [entry('cat', 'cat'), entry('dog', 'dog'), entry('more', `${stored.length - 2} more`)]
+          : stored.map((name) => entry(name, `${name} (${locations(name, size).join(', ')})`));
+      const key = items.length ? legend(s, items, { size: SIZE, direction: 'row', gap: 0.36, key: 'bloom-key' }) : null;
+      // The lead and the legend in one centred row over the bits.
+      const gap = 0.36,
+        width = lead.width() + (key ? gap + key.width() : 0);
+      lead.moveTo([-width / 2, 2.7], [-1, 0]);
+      key?.moveTo([-width / 2 + lead.width() + gap, 2.7], [-1, 0]);
+      const g = new Group(lead, ...(key ? [key] : []));
       g.key = 'bloom-taken';
       return g;
     };
@@ -174,19 +171,19 @@ export default class BloomFilter extends Scene {
       },
       {
         id: 'insert',
-        title: `Taking cat sets bits ${list(cat)}`,
+        title: `Taking cat sets bits ${listed(cat)}`,
         line: 'Three hash functions each turn the name into a position.',
-        caption: `The three hash functions turn cat into positions in this row, and those bits become 1. Purple lets us follow cat’s contribution, but the row itself stores only the 1s and keeps no trace of the name.`,
+        caption: `The three hash functions turn cat into positions in this row, and those bits become 1. The purple fill, keyed above the row, marks cat’s bits for us, but the row itself stores only the 1s and keeps no trace of the name.`,
       },
       {
         id: 'shared',
         title: shared.length
-          ? `dog sets ${list(dog)}. Bit ${list(shared)} was already set by cat`
-          : `dog sets ${list(dog)}, none of them cat’s`,
+          ? `dog sets ${listed(dog)}. Bit ${listed(shared)} was already set by cat`
+          : `dog sets ${listed(dog)}, none of them cat’s`,
         line: 'A set bit says some name set it, not which.',
         caption: shared.length
-          ? `dog’s bits ${list(dog)} are filled brown. Bit ${list(shared)} was already 1 from cat, so it stays 1; its fill shows both names, but the row records only the 1. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`
-          : `dog’s bits ${list(dog)} are filled brown, and none of them was already set by cat. The fills tell the names apart for us; the row itself holds ${m.setBits} identical 1s, and nothing in it says which name set bit ${dog[0]} or bit ${cat[0]}. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
+          ? `dog’s bits ${listed(dog)} take its brown fill. Bit ${listed(shared)} was already 1 from cat, so it stays 1; its fill shows both names, but the row records only the 1. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`
+          : `dog’s bits ${listed(dog)} take its brown fill, and none of them was already set by cat. The fills tell the names apart for us; the row itself holds ${m.setBits} identical 1s, and nothing in it says which name set bit ${dog[0]} or bit ${cat[0]}. When a name finds all its bits set, other names may have set every one of them, so the filter can only say maybe.`,
       },
       {
         id: 'absent',
@@ -198,37 +195,37 @@ export default class BloomFilter extends Scene {
         id: 'present',
         title: `${present.word} finds three 1s: maybe, so ask the database`,
         line: 'Maybe hands the question to the database.',
-        caption: `${present.word}’s bits ${list(present.locations)} are all set. A taken name always finds its bits set, so the filter never wrongly says “not taken”. But three 1s could have been set by other names, so it can only say maybe and passes the check on; the database confirms ${present.word} is taken.`,
+        caption: `${present.word}’s bits ${listed(present.locations)} are all set. A taken name always finds its bits set, so the filter never wrongly says “not taken”. But three 1s could have been set by other names, so it can only say maybe and passes the check on; the database confirms ${present.word} is taken.`,
       },
       {
         id: 'predict',
         title: `${probe.word} is not taken. What does the filter say?`,
-        line: `Predict: ${probe.word} hashes to ${list(probe.locations)}. Maybe, or definitely not?`,
-        caption: `Only cat and dog are taken. Find bits ${list(probe.locations)} in the row. Will the filter answer “definitely not”, or say maybe and ask the database?`,
+        line: `Predict: ${probe.word} hashes to ${listed(probe.locations)}. Maybe, or definitely not?`,
+        caption: `Only cat and dog are taken. Find bits ${listed(probe.locations)} in the row. Will the filter answer “definitely not”, or say maybe and ask the database?`,
       },
       {
         id: 'false-positive',
         title: probe.maybe
           ? `Maybe: cat and dog set all of ${probe.word}’s bits`
-          : `Definitely not: bit ${list(zeros(probe))} is still 0`,
+          : `Definitely not: bit ${listed(zeros(probe))} is still 0`,
         line: probe.maybe
           ? `Each of ${probe.word}’s three bits was set by another name.`
-          : `With ${other.size} bits, ${probe.word} finds ${list(otherProbe.locations)}, all set by cat and dog.`,
+          : `With ${other.size} bits, ${probe.word} finds ${listed(otherProbe.locations)}, all set by cat and dog.`,
         caption: probe.maybe
-          ? `Read the fills: bit ${list(sources(m, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: a maybe for a name that is not taken. With ${other.size} bits, ${probe.word} lands on ${list(otherProbe.locations)}, and bit ${list(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
-          : `With ${size} bits, ${probe.word} lands on ${list(probe.locations)}: bit ${list(sources(m, probe.locations))}. No name set bit ${list(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. ${m.setBits} of these ${size} bits are set, against ${other.setBits} of ${other.size} in the shorter row, so an untaken name is more likely to land on a 0 here.`,
+          ? `Read the fills: bit ${listed(sources(m.owners, probe.locations))}. The filter sees three 1s with no names attached, so it says maybe; the database is asked and answers not taken. That wasted read is a false positive: a maybe for a name that is not taken. With ${other.size} bits, ${probe.word} lands on ${listed(otherProbe.locations)}, and bit ${listed(otherProbe.locations.filter((j) => other.bits[j] === 0))} is still 0.`
+          : `With ${size} bits, ${probe.word} lands on ${listed(probe.locations)}: bit ${listed(sources(m.owners, probe.locations))}. No name set bit ${listed(zeros(probe))}, so ${probe.word} is definitely free and the database is not asked. ${m.setBits} of these ${size} bits are set, against ${other.setBits} of ${other.size} in the shorter row, so an untaken name is more likely to land on a 0 here.`,
       },
       {
         id: 'pipeline',
         title: `The filter skips ${count(skipped)} read${skipped === 1 ? '' : 's'} and wastes ${count(wasted)}`,
-        line: `Over ${thousands(m.sampleSize)} untaken names, ${percent(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${percent(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
+        line: `Over ${thousands(m.sampleSize)} untaken names, ${pct(s16.sampleFalsePositives / s16.sampleSize)} pass at 16 bits and ${pct(s32.sampleFalsePositives / s32.sampleSize)} at 32.`,
         caption: `The upper table follows each lookup: a 0 skips the database; maybe sends the question on. An untaken name gets through only when all three of its bits are already set. A longer row leaves more empty positions, making that harder. The lower table tries both rows on the same ${thousands(m.sampleSize)} untaken names: fewer pass the larger row, so fewer reads are wasted. These are measured results for this sample and these hashes.`,
       },
       {
         id: 'full',
         title: `After ${full.words.length} names, all ${size} bits are 1: always maybe`,
         line: `Keep taking names and the row only fills: ${absent.word}, ruled out earlier, now gets maybe too.`,
-        caption: `Each inserted name can use up more of the remaining zeros, and the ${ordinal(full.words.length)} name sets the last one. From then on every name finds three 1s: the filter says maybe and sends the question to the database, saving no reads. In this sequence of names the ${size}-bit row fills after ${full.words.length} names and the ${other.size}-bit row after ${otherFull.words.length}. The zeros were the filter’s only evidence, so more memory helped here by leaving more of them, but how long it helps depends on where the names’ bits land.`,
+        caption: `Each name taken can fill more of the remaining zeros, and the ${ordinal(full.words.length)} name fills the last. From then on every name finds three 1s: the filter says maybe and sends every check to the database, saving no reads. The zeros were its only evidence. With these names the ${size}-bit row fills after ${full.words.length} and the ${other.size}-bit row after ${otherFull.words.length}; how long more memory helps depends on where the names’ bits land.`,
       },
     ];
 
@@ -238,43 +235,49 @@ export default class BloomFilter extends Scene {
         const query = i >= 3 && i <= 6 ? m.queries[Math.min(i - 3, 2)]! : null;
         // The prediction shows where the probe lands, not yet whether a bit stops it.
         const asking = frame.id === 'predict';
+        const state = {
+          size,
+          bits,
+          stored: i === 0 ? [] : i === 1 ? ['cat'] : i === FULL ? full.words : m.words,
+          query,
+          // Which names set each bit: the colours, which the filter itself does not keep.
+          owners:
+            i === 0 ? Array.from({ length: size }, () => []) : i === 1 ? m.owners.map((o) => o.filter((w) => w === 'cat')) : i === FULL ? full.owners : m.owners,
+          exactLookups: i === 7 ? m.exactLookups : 0,
+          ...(i === 7
+            ? {
+                queries: m.queries,
+                setBits: m.setBits,
+                passChance: m.passChance,
+                sampleSize: m.sampleSize,
+                sampleFalsePositives: m.sampleFalsePositives,
+                // Both rows' results on the same sample, which the lower table compares.
+                sizes: [s16, s32].map((story) => ({ size: story.size, setBits: story.setBits, sampleFalsePositives: story.sampleFalsePositives })),
+              }
+            : {}),
+          // `ruledOut`: the untaken name a 0 bit stopped earlier, which the full row now lets through.
+          ...(i === FULL ? { trail: full.trail, lookups: full.lookups, sampleSize: full.sampleSize, samplePass: full.samplePass, ruledOut: absent.word } : {}),
+        };
         return {
           ...frame,
-          state: {
-            size,
-            bits,
-            stored: i === 0 ? [] : i === 1 ? ['cat'] : i === FULL ? full.words : m.words,
-            query,
-            // Which names set each bit: the colours, which the filter itself does not keep.
-            owners:
-              i === 0 ? Array.from({ length: size }, () => []) : i === 1 ? m.owners.map((o) => o.filter((w) => w === 'cat')) : i === FULL ? full.owners : m.owners,
-            exactLookups: i === 7 ? m.exactLookups : 0,
-            ...(i === 7
-              ? {
-                  queries: m.queries,
-                  setBits: m.setBits,
-                  passChance: m.passChance,
-                  sampleSize: m.sampleSize,
-                  sampleFalsePositives: m.sampleFalsePositives,
-                }
-              : {}),
-            ...(i === FULL ? { trail: full.trail, lookups: full.lookups, sampleSize: full.sampleSize, samplePass: full.samplePass } : {}),
-          },
-          draw: (_: unknown, s: Stage) => {
+          state,
+          draw: (st: typeof state, s: Stage) => {
             if (i === 7) {
               // Two blocks on one left edge: the three lookups with their read count beside them, then the sample.
+              // Each row is keyed by what it is about, a name or a row length: bloom-pipeline:wolf:Filter is
+              // wolf's answer, and bloom-sample:bits-16:Pass the 16-bit row's count, wherever the row sits.
               const lookups = {
                   headers: ['Name', 'Filter', 'Database'],
-                  rows: m.queries.map((q) => [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped']),
+                  rows: st.queries!.map((q) => ({ key: q.word, cells: [q.word, q.maybe ? 'maybe' : 'no', q.maybe ? (q.stored ? 'taken' : 'free') : 'skipped'] })),
                 },
                 sample = {
-                  headers: [`${thousands(m.sampleSize)} untaken`, 'Bits set', 'Pass'],
-                  rows: [s16, s32].map((story) => [`${story.size} bits`, `${story.setBits} of ${story.size}`, thousands(story.sampleFalsePositives)]),
+                  headers: [`${thousands(st.sampleSize!)} untaken`, 'Bits set', 'Pass'],
+                  rows: st.sizes!.map((row) => ({ key: `bits-${row.size}`, cells: [`${row.size} bits`, `${row.setBits} of ${row.size}`, thousands(row.sampleFalsePositives)] })),
                 };
               const TABLE = 0.7,
                 COLUMN_GAP = 1.1,
                 READS_GAP = 1.4;
-              const reads = stat(s, 'Reads', `${m.exactLookups} of ${m.queries.length}`, 0, 0, 'bloom-checks').scale(7 / 6);
+              const reads = stat(s, 'Reads', `${st.exactLookups} of ${st.queries!.length}`, 0, 0, 'bloom-checks').scale(7 / 6);
               // The lookups and the read count beside them, centred together; the sample shares their left edge.
               const top = table(lookups.headers, lookups.rows, s, { xs: { left: 0, gap: COLUMN_GAP }, y: 2.6, gap: 0.98, key: 'bloom-pipeline', size: TABLE });
               // The read count sits level with the lookups' rows, centred on them.
@@ -288,18 +291,16 @@ export default class BloomFilter extends Scene {
                 table(sample.headers, sample.rows, s, { xs: { left: LEFT, gap: COLUMN_GAP }, y: -1.75, gap: 0.98, key: 'bloom-sample', size: TABLE }),
               );
             }
-            const active = query?.locations ?? (i === 1 ? cat : i === 2 ? dog : []);
+            const query = st.query;
+            // A lookup's bits; while inserting, the bits of the name just inserted.
+            const active = query?.locations ?? (i === 1 || i === 2 ? locations(st.stored.at(-1)!, st.size) : []);
             // In the full row, bits set only by the later names are grey.
             const owners =
-              i === 0
-                ? []
-                : i === 1
-                  ? m.owners.map((o) => o.filter((w) => w === 'cat'))
-                  : i === FULL
-                    ? full.owners.map((o) => [...o.filter((w) => w === 'cat' || w === 'dog'), ...(o.some((w) => w !== 'cat' && w !== 'dog') ? ['more'] : [])])
-                    : m.owners;
+              i === FULL
+                ? st.owners.map((o) => [...o.filter((w) => w === 'cat' || w === 'dog'), ...(o.some((w) => w !== 'cat' && w !== 'dog') ? ['more'] : [])])
+                : st.owners;
             const grid = new Group(
-              ...bits.map((bit, j) => {
+              ...st.bits.map((bit, j) => {
                 const x = ((j % perRow) - (perRow - 1) / 2) * pitch,
                   y = rowY[Math.floor(j / perRow)]!;
                 return bitTile(s, j, bit, x, y, owners[j] ?? [], {
@@ -311,15 +312,15 @@ export default class BloomFilter extends Scene {
             grid.key = 'bloom-bits';
             const queryText =
               i === FULL
-                ? `Set bits: ${milestones.map((t, k) => `${t.setBits} after ${t.taken}${k ? '' : ' names'}`).join(', ')}`
+                ? `Set bits: ${milestones(st.trail!).map((t, k) => `${t.setBits} after ${t.taken}${k ? '' : ' names'}`).join(', ')}`
                 : !query
               ? 'Grey number above each box: its position'
               : frame.id === 'false-positive'
-                ? `${query.word}: ${sources(m, query.locations).join(', ')}`
+                ? `${query.word}: ${sources(st.owners, query.locations).join(', ')}`
                 : `Lookup ${query.word}: bits ${query.locations.join(', ')}`;
             const answerText =
               i === FULL
-                ? `Every lookup says maybe, ${absent.word} included`
+                ? `Every lookup says maybe, ${st.ruledOut} included`
                 : !query
               ? i === 0
                 ? 'Three hashes per name; no names kept'
@@ -331,7 +332,7 @@ export default class BloomFilter extends Scene {
                   : 'a 0 bit: definitely not taken, skip the database';
             return new Group(
               grid,
-              takenLabel(s, i),
+              takenLabel(s, i, st.stored),
               label(queryText, 0, -2.85, s.soft, 0.66, 'bloom-query'),
               label(answerText, 0, -3.7, s.palette.ink, 0.66, 'bloom-answer'),
             );

@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { fc, params } from './lib/pbt.ts';
 import { reviewScope, reviewScenarios, mergeStoryReviews, reviewCodeHash, readStoryPlan } from '../tools/lib/explain-review-plan.ts';
 import type { PlannedScenario, ReviewReceipt } from '../tools/lib/explain-review-plan.ts';
+import { LIVE_MIN_PX } from '../tools/lib/explain-review-plan.ts';
+import { MIN_PX } from '../tools/lib/explain-check.ts';
 
 test('story shard arguments accept complete integer scopes and reject malformed selections', () => {
   assert.deepEqual(reviewScope([]), { part: 1, total: 1 });
@@ -45,11 +47,16 @@ function receipts(expected: PlannedScenario[], total: number): ReviewReceipt[] {
             targets: ['visible subject'], labels: ['Subject label'], minimumLabelPx: 14}} : {}),
         })),
       ),
+      ...(c.live ? { live: [390, 1180].flatMap((width) => c.live!.flatMap((step) => [['push'], ['pop'], ['push', 'push']].map((sent) => ({
+        step, sent, width, views: 1, targets: ['emphasis: slot'], labels: 3, minimumLabelPx1280: 16,
+        ...(width === 390 ? { changedLabelPx: 12 } : {}),
+      })))) } : {}),
     });
   }
   for (const p of parts) {
     p.scenarios = p.results.length;
     p.stepWidths = p.results.reduce((n, c) => n + c.steps.length, 0);
+    p.liveStateWidths = p.results.reduce((n, c) => n + (c.live?.length ?? 0), 0);
   }
   return parts;
 }
@@ -190,6 +197,7 @@ test('story receipts expire when caption claims, served runtime or review depend
       'tools/explain-review.ts', 'tools/explain-review-merge.ts',
       'tools/lib/explain-story-review.ts', 'tools/lib/explain-raster.ts', 'tools/lib/explain-review-scene.ts',
       'tools/lib/explain-review-plan.ts', 'tools/lib/explain-serve.ts', 'tools/lib/explain-reader-shell.ts', 'tools/lib/explain-check.ts',
+      'tools/lib/explain-live-review.ts',
     ]) {
       await mkdir(dirname(join(root, file)), {recursive: true});
       await copyFile(new URL('../' + file, import.meta.url), join(root, file));
@@ -240,6 +248,10 @@ test('story receipts expire when caption claims, served runtime or review depend
     assert.equal((await buildInputs(root)).hash, renderingHash, 'reviewer changes reuse unchanged built pages');
     await assert.rejects(merge(), /stale review implementation/, 'reviewer changes still require new review');
     await writeFile(reviewer, reviewerBytes);
+    const liveReviewer = join(root, 'tools/lib/explain-live-review.ts'), liveBytes = await readFile(liveReviewer);
+    await writeFile(liveReviewer, Buffer.concat([liveBytes, Buffer.from('\n// changed live-state review\n')]));
+    await assert.rejects(merge(), /stale review implementation/, 'the live-state reviewer is part of the fingerprint');
+    await writeFile(liveReviewer, liveBytes);
     const loader = join(root, 'tools/lib/explain-review-scene.ts');
     const loaderBytes = await readFile(loader);
     await writeFile(loader, Buffer.concat([loaderBytes, Buffer.from('\n// changed claim loading\n')]));
@@ -306,4 +318,49 @@ test('scene sharding preserves all scenarios once and keeps a scene on one owner
   const scenarios = ['a', 'b', 'c', 'a'].map(scene => ({scene, settings: {}, steps: ['first'], narrowOpenings: narrowObligations(['first'])}));
   assert.deepEqual(reviewScenarios(scenarios, {part: 1, total: 2}).map(c => c.scene), ['a', 'a']);
   assert.deepEqual(reviewScenarios(scenarios, {part: 2, total: 2}).map(c => c.scene), ['b', 'c']);
+});
+
+test('live states: the built description names the live steps; a receipt must visit each at both widths, with legible labels, and what a press changed legible on a phone', async () => {
+  assert.equal(LIVE_MIN_PX, MIN_PX, 'the live-state floor is the check\'s');
+  const expected = Array.from({ length: 4 }, (_, i) => ({
+    scene: `scene-${i}`, settings: {}, steps: ['first', 'final'], narrowOpenings: narrowObligations(['first', 'final']),
+    ...(i % 2 ? { live: ['final'] } : {}),
+  }));
+  const good = receipts(expected, 2);
+  assert.equal(mergeStoryReviews(good, expected, 'catalog', 'code').liveStateWidths, 12);
+  const defects: Record<string, (p: ReviewReceipt[]) => void> = {
+    'no live review': (p) => { for (const part of p) for (const c of part.results) delete c.live; },
+    'a desktop state missing': (p) => { const c = p.flatMap((part) => part.results).find((r) => r.live)!; c.live = c.live!.filter((s) => !(s.width === 1180 && s.sent.length === 2)); },
+    'live states where none is live': (p) => { const c = p.flatMap((part) => part.results).find((r) => !r.live)!; c.live = [{ step: 'final', sent: ['push'], width: 390, views: 1, targets: ['x'], labels: 0, minimumLabelPx1280: null }]; },
+    'another step': (p) => { const c = p.flatMap((part) => part.results).find((r) => r.live)!; for (const s of c.live!) s.step = 'first'; },
+    'a tiny label': (p) => { p.flatMap((part) => part.results).find((r) => r.live)!.live![4]!.minimumLabelPx1280 = 13.5; },
+    'what a press changed unreadable on a phone': (p) => { p.flatMap((part) => part.results).find((r) => r.live)!.live![0]!.changedLabelPx = 6.7; },
+    'no subject shown': (p) => { p.flatMap((part) => part.results).find((r) => r.live)!.live![0]!.targets = []; },
+    'the resting picture as a live state': (p) => { for (const s of p.flatMap((part) => part.results).find((r) => r.live)!.live!) if (s.sent.length === 2) s.sent = []; },
+    'a duplicate state': (p) => { for (const s of p.flatMap((part) => part.results).find((r) => r.live)!.live!) if (s.sent.length === 2) s.sent = ['push']; },
+  };
+  for (const [name, defect] of Object.entries(defects)) {
+    const parts = structuredClone(good);
+    defect(parts);
+    for (const part of parts) part.liveStateWidths = part.results.reduce((n, c) => n + (c.live?.length ?? 0), 0);
+    assert.throws(() => mergeStoryReviews(parts, expected, 'catalog', 'code'), { code: 'ERR_ASSERTION' }, name);
+  }
+  const miscounted = structuredClone(good);
+  miscounted[0]!.liveStateWidths! += 1;
+  assert.throws(() => mergeStoryReviews(miscounted, expected, 'catalog', 'code'), /live-state count/);
+
+  // The plan reads each scenario's live steps from the built description's machines.
+  const root = await mkdtemp(join(tmpdir(), 'rayner-live-plan-'));
+  try {
+    await mkdir(join(root, 'example'));
+    const narrowOpenings = [{ step: 'picture', reviewed: false as const, reason: 'no-opening-subject' as const }, { step: 'press', reviewed: false as const, reason: 'no-opening-subject' as const }];
+    await writeFile(join(root, 'evidence.json'), JSON.stringify({ version: 2, checked: true, totals: { explainers: 1, scenarios: 2, diagrams: 0, styles: 0, families: 0 },
+      scenes: [{ id: 'example', diagrams: 0, styles: [], families: [], scenarios: [{ v: 'a' }, { v: 'b' }], narrowOpenings: [{ settings: { v: 'a' }, steps: narrowOpenings }, { settings: { v: 'b' }, steps: narrowOpenings }] }] }));
+    await writeFile(join(root, 'example/describe.json'), JSON.stringify({ scenarios: [
+      { values: { v: 'a' }, steps: [{ step: 'picture' }, { step: 'press' }], machines: [{ events: ['UP'], step: 'press' }, { events: ['DOWN'], step: 'press' }] },
+      { values: { v: 'b' }, steps: [{ step: 'picture' }, { step: 'press' }], machines: [{ events: ['UP'] }] },
+    ] }));
+    const plan = await readStoryPlan(root);
+    assert.deepEqual(plan.scenarios.map((c) => c.live), [['press'], undefined]);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

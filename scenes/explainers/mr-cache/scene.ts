@@ -16,8 +16,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Palette } from '../../../explain/index.ts';
-import { soft, raised, rule } from '../../../explain/look.ts';
+import type { Stage } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // test/explain-fidelity.test.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
@@ -61,7 +60,7 @@ const ADDED = '#2ea043',
  * TransformDiff can morph it. Centred in `box`, never above its top; or with
  * `pin`, its top-left corner there.
  */
-function panel(colors: Palette, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
+function panel(s: Stage, code: Code, box: Box, title: string, pin?: readonly [left: number, top: number]) {
   const pad = 0.3,
     width = code.width() + 2 * pad + 0.1,
     height = code.height() + 2 * pad + 0.42;
@@ -71,12 +70,12 @@ function panel(colors: Palette, code: Code, box: Box, title: string, pin?: reado
     width,
     height,
     cornerRadius: 0.1,
-    fill: raised(colors),
-    stroke: rule(colors),
+    fill: s.raised,
+    stroke: s.rule,
     strokeWidth: 0.016,
   }).moveTo([cx, cy]);
   code.moveTo([cx, cy - 0.21]);
-  const label = new Text(title, { fontSize: 0.2, color: soft(colors), anchor: 'start' }).moveTo(
+  const label = new Text(title, { fontSize: 0.2, color: s.soft, anchor: 'start' }).moveTo(
     [cx - width / 2 + pad, cy + height / 2 - 0.3],
     [-1, 0],
   );
@@ -172,9 +171,9 @@ export default class CacheMRExplainer extends Scene {
     // The merged file's panel decides where the code sits, and the old file
     // starts at its top-left corner: in the diff, the header line stays put and
     // the other lines move only down, to where the hunks put them.
-    const merged = panel(colors, after, CODE_BOX, 'users.ts');
+    const merged = panel(s, after, CODE_BOX, 'users.ts');
     const [left, , , top] = merged.rect.box()!;
-    const shown = panel(colors, before, CODE_BOX, 'users.ts', [left, top]);
+    const shown = panel(s, before, CODE_BOX, 'users.ts', [left, top]);
     // One description for the panel, whichever code it holds: its title stays through the diff.
     let held = before;
     const panelWords = () => inWords('users.ts', held);
@@ -198,9 +197,9 @@ export default class CacheMRExplainer extends Scene {
     await this.step('diff', {
       kind: 'detail',
       title: 'Four added lines and one rewritten',
-      line: 'The old return keeps its D1 call; green lines check KV first.',
+      line: 'The old return keeps its D1 call; the added lines check KV first.',
       caption:
-        'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the green lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
+        'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the added lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
     });
     await flow.clearNotes();
     await flow.unmark();
@@ -280,16 +279,16 @@ export default class CacheMRExplainer extends Scene {
       kind: 'detail',
       title:
         which === 'hit'
-          ? 'A cache hit returns from KV with no D1 read'
-          : 'A cache miss reads D1 once, then caches the row',
+          ? 'In the merged code, a hit stops at line 3'
+          : 'In the merged code, a miss runs on to line 6',
       line:
         which === 'hit'
-          ? 'The hit row bypasses D1: 0 reads.'
-          : 'The miss row reads D1 once and caches the row for 300 s.',
+          ? 'Lines 2 and 3 run; the hit returns before line 4’s D1 query.'
+          : 'After the empty lookup, lines 4 to 6 read D1, write KV and return.',
       caption:
         which === 'hit'
-          ? 'The user is already in KV, so getUser runs lines 2 and 3 and returns without reading D1. The highlighted hit row goes straight from KV to Reply; the miss row shows the database read this request avoids, and the KV write it does not need.'
-          : 'KV has no entry, so the highlighted miss row goes through D1: one read, as before the change, then the row is written to KV for 300 seconds. A later lookup for the same user can follow the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
+          ? 'Walked through the edited diagram and code, the hit takes KV’s hit branch: line 2 reads KV and line 3 returns what it found, before line 4’s D1 query. The two rows put both paths side by side: the miss row carries the read this request avoids and the 300-second write it does not need.'
+          : 'Walked through the edited diagram and code, the miss finds nothing at line 3 and runs on: line 4 reads D1 as before the change, line 5 writes the row to KV for 300 seconds, and line 6 returns it. A later lookup for the same user can take the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
     });
     const path = PATH[which];
     await flow.clearNotes();

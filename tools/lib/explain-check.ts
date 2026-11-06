@@ -1,5 +1,7 @@
 import { scriptReport } from '../../explain/script.ts';
 import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
+import { captionLookProblems } from '../../explain/caption-looks.ts';
+import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
 import { letteringWeight, pageSnapshot } from './lettering.ts';
 import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stage.ts';
@@ -10,22 +12,13 @@ import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {
-  MotionSink,
-  InvariantSink,
-  machinesOf,
-  viewMismatch,
-  jsonObject,
-  analyzeMotion,
-  SnapshotSink,
-  renderAt,
-  toSvgString,
-  traceScene,
-  renderText,
   Text,
-  NullSink,
+  View,
 } from '../../src/index.ts';
+import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
+import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
 import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
-import { scenarioName } from '../../explain/index.ts';
+import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
@@ -256,6 +249,69 @@ export class FanSink implements Sink {
   async stepEnd(scene: Scene, step: Step): Promise<void> { for (const s of this.sinks) await s.stepEnd?.(scene, step); }
 }
 
+/**
+ * Every view on the stage, at the end of every step, shows what its draw makes of the state the
+ * step ends in: a picture that follows the model at each resting step, not only where a machine
+ * plays. A view whose picture lags its state (the state changed without a sync) is named here.
+ */
+/**
+ * Identity is a key: `scene.find(key)` returns one mobject, and a transform, a choreography
+ * and the player's close-up treat a key as one part. Two mobjects on the stage with the same
+ * key at the end of a step make `find` answer with whichever comes first, silently. A part
+ * keyed twice is named here, every key alike: what the stage's chrome or a diagram's frame is for
+ * is its `role`, which many parts share, not a key.
+ */
+export class KeySink implements Sink {
+  readonly problems: string[] = [];
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
+    // A mobject listed twice (on its own and inside a group) is still one part.
+    const seen = new Map<string, Mobject>();
+    const twice = new Set<string>();
+    for (const m of scene.familyMembers()) {
+      if (m.key === undefined) continue;
+      const other = seen.get(m.key);
+      if (other && other !== m) twice.add(m.key);
+      seen.set(m.key, m);
+    }
+    if (twice.size) this.problems.push(`step "${step.name}": ${[...twice].slice(0, 5).map((k) => `"${k}"`).join(', ')}`);
+  }
+}
+
+export class ViewSink implements Sink {
+  readonly problems: string[] = [];
+  checked = 0;
+  async frame(): Promise<void> {}
+  async stepEnd(scene: Scene, step: Step): Promise<void> {
+    for (const m of scene.familyMembers()) {
+      if (!(m instanceof View)) continue;
+      this.checked++;
+      const mismatch = viewMismatch(m, scene.state, { shown: scene.shown }) ?? viewGeometryMismatch(m, scene);
+      if (mismatch) this.problems.push(`step "${step.name}": ${m.key ?? 'a view'}: ${mismatch}`);
+    }
+  }
+}
+
+/**
+ * Text alone misses a mark: a card's lit bar on the wrong row, or a bar left showing, reads the
+ * same words. Each part's kind, text, box and opacity, rounded, must match a fresh draw of the
+ * step's state, placed where a sync would put it (a placed view keeps its anchor as it changes).
+ */
+function viewGeometryMismatch(v: View, scene: Scene): string | null {
+  const round = (x: number) => Math.round(x * 100) / 100;
+  const family = (m: Mobject) => m.family();
+  const parts = (ms: Mobject[]) => ms.map((x) => JSON.stringify([
+    x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null, round(x.style.opacity ?? 1),
+  ]));
+  const shown = family(v.current), shows = parts(shown), draws = parts(family(v.placed(scene.state, scene.shown)));
+  if (shows.join() === draws.join()) return null;
+  // Name the first part that differs and has no parts of its own: the bar that moved, not its card.
+  const differs = shows.map((p, k) => p !== draws[k]);
+  const leaf = differs.findIndex((d, k) => d && !shown[k]!.children.length);
+  const i = leaf >= 0 ? leaf : differs.indexOf(true);
+  return `the view's part ${i} is ${shows[i] ?? 'missing'}, the state draws ${draws[i] ?? 'nothing there'} (${shows.length} parts shown, ${draws.length} drawn)`;
+}
+
 /** The caption hold: a step whose picture changes after its hold begins is `moved`. */
 export class HoldSink implements Sink {
   readonly holds: readonly { step: string; from: number; to: number }[];
@@ -299,6 +355,35 @@ export class RestingSink implements Sink {
     this.collisions.push(
       ...[...restingTextProblems(scene), ...restingRouteProblems(scene)].map((p) => `${scene.currentStep?.name}: ${p}`),
     );
+  }
+}
+
+/**
+ * At each resting frame, the colours and line styles the step's caption and line name that no word
+ * on the stage names (explain/caption-looks.ts). The stage's words are its visible text, diagram
+ * labels and the words of every part that describes itself, a legend's swatches included; not a
+ * `describe`, which only a screen reader hears.
+ */
+export class LookWordsSink implements Sink {
+  readonly completed: ReadonlySet<number>;
+  readonly problems: string[] = [];
+  constructor(completed: ReadonlySet<number>) { this.completed = completed; }
+  async frame(scene: Scene): Promise<void> {
+    const step = scene.currentStep;
+    if (!this.completed.has(scene.frameCount) || !step) return;
+    const words: string[] = [];
+    const heading = new Set(scene.mobjects.filter(isHeading).flatMap((m) => m.family()));
+    for (const m of scene.familyMembers()) {
+      if (heading.has(m) || (m.style.opacity ?? 1) < 0.5) continue;
+      if (describesItself(m)) {
+        const seen = m[seenSource]();
+        words.push(seen.what, ...seen.parts.map((p) => p.name));
+      }
+      const label = labelOf(m);
+      if (label) words.push(label.text);
+    }
+    const meta = step.meta as { title?: string; line?: string; caption?: string };
+    this.problems.push(...captionLookProblems(meta, [meta.title ?? '', meta.line ?? ''], words).map((p) => `${step.name}: ${p}`));
   }
 }
 
@@ -414,13 +499,21 @@ export async function exploreMachines(
     const problems: string[] = [];
     const missing = machine.spec.views.filter((v) => !host.familyMembers().includes(v));
     if (missing.length) problems.push(`its views ${missing.map((v) => v.key ?? v.constructor.name).join(', ')} are not on the stage where it last played, so its states cannot be checked there`);
-    const reached = machine.reachable();
+    // From the start, as exploration always has; and from the state the reader finds at the step
+    // where the machine is live, since the player lets the reader send events from there too.
+    const fromStart = machine.reachable().map((r) => ({ ...r, origin: '' }));
+    const seen = new Set(fromStart.map((r) => JSON.stringify(r.state)));
+    const stepState = jsonObject(host.state, 'machine state') as object;
+    const answers = (() => { try { return machine.spec.events.some((e) => machine.after(stepState, e) !== undefined); } catch { return false; } })();
+    const fromStep = host === scene || seen.has(JSON.stringify(stepState)) || !answers ? []
+      : machine.reachable(stepState).filter((r) => !seen.has(JSON.stringify(r.state))).map((r) => ({ ...r, origin: `from the state at "${live.lastPlayedIn}", ` }));
+    const reached = [...fromStart, ...fromStep];
     const shownThen = host.shown;
     // Every state is drawn as the reader would have seen it: under what the scene showed while the machine played.
     host.shown = machine.playedUnder ?? shownThen;
     const said = new Map<string, string>();
-    for (const { state, path } of reached) {
-      const at = path.length ? `after ${path.join(', ')}` : 'at the start';
+    for (const { state, path, origin } of reached) {
+      const at = origin + (path.length ? `after ${path.join(', ')}` : 'at the start');
       host.state = jsonObject(state, 'machine state');
       for (const view of machine.spec.views) {
         view.rebuild();
@@ -439,12 +532,27 @@ export async function exploreMachines(
       if (!picture?.entries?.some((e) => e.what?.trim())) problems.push(`${at}: the picture has no description`);
       else if (said.has(words)) problems.push(`${at}: the picture is described exactly as ${said.get(words)}, a different state`);
       else said.set(words, at);
-      problems.push(...transitionProblems(host, machine, state, path));
+      problems.push(...transitionProblems(host, machine, state, path, origin));
     }
     host.shown = shownThen;
-    explored.push({ events: [...machine.spec.events], states: reached.length, sampled: reached.length >= machine.spec.limit, problems });
+    explored.push({ events: [...machine.spec.events], states: reached.length, sampled: fromStart.length >= machine.spec.limit || fromStep.length >= machine.spec.limit, problems });
   }
   return explored;
+}
+
+/** A picture in full for telling two drawings apart: each part's kind, key, text, box and style. */
+const pictureDetail = (m: Mobject) =>
+  JSON.stringify(m.family().map((x) => [x.constructor.name, x.key ?? null, 'text' in x ? x.text : null, x.box(), x.style]));
+
+/** Every value of a JSON state changed: numbers moved, strings lengthened, booleans flipped, nulls made 0. */
+function perturbed(value: unknown): unknown {
+  if (typeof value === 'number') return Number.isInteger(value) ? value + 1 : value * 1.5 + 0.5;
+  if (typeof value === 'string') return `${value}x`;
+  if (typeof value === 'boolean') return !value;
+  if (value === null) return 0;
+  if (Array.isArray(value)) return value.map(perturbed);
+  if (typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, perturbed(v)]));
+  return value;
 }
 
 /**
@@ -452,18 +560,45 @@ export async function exploreMachines(
  * compared with the picture drawn then (text and every part's box). A step whose draw reads
  * anything but its own state, such as a variable a later step changed, draws something else now
  * and is named here.
+ *
+ * The redraw alone passes a draw that ignores its state and draws from constants it captured, so
+ * the picture could disagree with the state the step records. Each step is therefore also drawn
+ * from states that differ from its own: its state with every value changed, the empty state, and
+ * the other steps' recorded states. A draw whose picture is the same for all of them, and throws
+ * for none, does not read its state, and its step is named in `ignoring` and in `problems`. A
+ * draw that throws on a different state has read it, so a throw counts as depending on it.
+ *
+ * The rule: a step whose recorded state is empty is exempt (there is nothing to read, and nothing
+ * for the picture to disagree with); any other step's picture must depend on its state. A state
+ * that changes nothing in the picture is a value the reader is told about but never shown, so it
+ * either reaches the picture or leaves the state.
  */
-export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[] } {
+export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step: string; after?: Record<string, unknown> }[] }): { redrawn: number; problems: string[]; ignoring: string[] } {
   const problems: string[] = [];
+  const ignoring: string[] = [];
   const records = stagedStepsOf(scene);
-  for (const record of records) {
-    const traced = trace.steps.find((s) => s.step === record.step);
-    if (!traced?.after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); continue; }
-    if (pictureFingerprint(record.redraw(traced.after)) !== record.drawn)
+  const recorded = records.map((r) => trace.steps.find((s) => s.step === r.step)?.after);
+  records.forEach((record, i) => {
+    const after = recorded[i];
+    if (!after) { problems.push(`step "${record.step}": no recorded state to redraw it from`); return; }
+    if (pictureFingerprint(record.redraw(after)) !== record.drawn)
       problems.push(`step "${record.step}": its picture differs when drawn again from the state it recorded; its draw reads something other than its state`);
-  }
-  return { redrawn: records.length, problems };
+    if (!Object.keys(after).length) return;
+    const own = JSON.stringify(after);
+    const drawn = pictureDetail(record.redraw(after));
+    const others = [perturbed(after), {}, ...recorded.filter((s): s is Record<string, unknown> => !!s)]
+      .filter((s, j, all) => JSON.stringify(s) !== own && all.findIndex((t) => JSON.stringify(t) === JSON.stringify(s)) === j);
+    const depends = others.some((state) => {
+      try { return pictureDetail(record.redraw(state as Record<string, unknown>)) !== drawn; } catch { return true; }
+    });
+    if (!depends) {
+      ignoring.push(record.step);
+      problems.push(`step "${record.step}": its draw ignores its state; its picture is the same drawn from ${others.length} different states, so it can disagree with the state the step records`);
+    }
+  });
+  return { redrawn: records.length, problems, ignoring };
 }
+
 
 /**
  * Each authored transition from `state`, played through on the explored scene: every invariant
@@ -477,18 +612,18 @@ export function redrawStagedSteps(scene: Scene, trace: { steps: readonly { step:
  */
 const marksOf = (svg: string) => svg.split('/>').sort().join('/>');
 
-function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[]): string[] {
+function transitionProblems(scene: Scene, machine: ReturnType<typeof machinesOf>[number], state: object, path: readonly string[], origin = ''): string[] {
   const problems: string[] = [];
   const { views, transition, events } = machine.spec;
   for (const event of events) {
     // A bound only bounds: an event it stops that the model refuses anyway is a refusal.
     const bound = machine.spec.bound?.(state, event);
-    if (bound !== undefined && machine.spec.next(state, event) === undefined)
-      problems.push(`${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
+    if (bound !== undefined && 'refused' in machine.model(state, event))
+      problems.push(`${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}: the bound says "${bound}", but the model refuses it anyway; it is a refusal, not where the story stops`);
     const authored = transition?.[event];
     const after = authored && machine.after(state, event);
     if (!authored || after === undefined) continue;
-    const at = `${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
+    const at = `${origin}${path.length ? `after ${path.join(', ')}, ` : ''}${event}`;
     // What the reader should see when it ends: the views rebuilt for `after` where they stand
     // now (a rebuilt picture keeps its place), before the transition can move them.
     scene.state = jsonObject(after, 'machine state');
@@ -560,6 +695,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       stageScale(PHONE_W, PHONE_H).s,
     );
     const restingSink = new RestingSink(completedFrames);
+    const looks = new LookWordsSink(completedFrames);
     // The caption hold: the player stops where it begins and the film holds the picture there, so
     // nothing may change after it. A play lands after its last frame is drawn (a morph gets its
     // paths' own structure back), so the first held frame is the resting picture, as in render.
@@ -571,7 +707,9 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ),
     );
     // One full run feeds every check, each a sink of its own, in this order.
-    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility])).run();
+    const views = new ViewSink();
+    const keys = new KeySink();
+    const ran = await new v.Scene(new FanSink([invariants, motion, holdSink, capture, restingSink, legibility, views, keys, looks])).run();
     const { frames } = capture,
       { moved } = holdSink,
       { resting, restingText, collisions } = restingSink,
@@ -593,6 +731,16 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       const s = v.trace.steps.find((x) => x.step === step)!;
       return renderAt(v.Scene, restingTime(s, v.trace.fps), new NullSink());
     });
+    assert.deepEqual(
+      views.problems.slice(0, 5),
+      [],
+      `Views ${where}: at the end of a step, a view must show what its draw makes of the step's state (the first five)`,
+    );
+    assert.deepEqual(
+      keys.problems.slice(0, 5),
+      [],
+      `Keys ${where}: at the end of a step, a key names one mobject on the stage, so find, transforms and the close-up mean one part (the first five)`,
+    );
     const staged = redrawStagedSteps(ran, v.trace);
     assert.deepEqual(
       staged.problems.slice(0, 5),
@@ -625,6 +773,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       `Each step must change the picture; these end exactly as the step before ${where}`,
     );
     assert.deepEqual([...new Set(collisions)], [], `Resting frames have colliding or cut-off text ${where}`);
+    // A colour or line style the words name must be named on the stage too, so the picture teaches with its caption hidden.
+    const unnamed = [...new Set(looks.problems)];
+    assert.deepEqual(
+      unnamed,
+      [],
+      `Captions name a look the stage does not ${where}: ${unnamed.join('; ')}. Label it, or key it with a legend (rayner/drawing's legend, s.legend)`,
+    );
     const staticSmall = [...staticLabels.values()]
       .filter((label) => label.px < MIN_PX)
       .map(({ text, px }) => ({ text, px }));
@@ -644,7 +799,7 @@ export async function checkProject(project: Project, out: string): Promise<Recor
           `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
         ]
       : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/index.ts'))};import{Scene,NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/index.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
+    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
     const b = await build({
       stdin: { contents, resolveDir: ROOT, loader: 'ts' },
       bundle: true,
@@ -682,6 +837,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
       ...(machines.length ? { machines: machines.map(({ events, states, sampled }) => ({ events, states, ...(sampled ? { sampled } : {}) })) } : {}),
       // How many stage.steps pictures were redrawn from their recorded state and matched.
       ...(staged.redrawn ? { redrawn: staged.redrawn } : {}),
+      // How many view pictures, step by step, were compared with what their draw makes of the step's state.
+      ...(views.checked ? { viewsChecked: views.checked } : {}),
       labels: labels.size,
       completedStepLabels: staticLabels.size,
       // What a reader sees: the labels at 1280 px, and on a 390 px phone in each step's close-up.

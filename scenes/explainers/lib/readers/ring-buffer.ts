@@ -1,6 +1,7 @@
 import { Group, Arrow } from '../../../../src/index.ts';
 import { label, tile } from '../reader-drawing.ts';
 import type { StagedStep } from '../../../../explain/index.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 
 /**
  * The queue a ring buffer replaces: values kept in array order, popped with
@@ -23,26 +24,26 @@ export function frames(): StagedStep[] {
     W = 2.0,
     H = 1.05;
   return [
-    {
+    stagedStep({
       id: 'shift',
       title: 'A queue in an array: each pop moves every value left',
       line: `Predict: how could pop take ${q.popped} without moving the other ${q.moved}?`,
       caption: `The simplest queue keeps its values in order in an array. Push writes at the end; pop takes the front, then copies every other value one slot left, as the language’s definition of Array.prototype.shift does. Popping from five values moves ${q.moved}; from a thousand, ${big.moved}. Engines may store some arrays differently, but these are the copies the definition describes. The order stays right because every pop pays for every value left behind.`,
       state: { before: q.before, after: q.after, popped: q.popped, moved: q.moved },
-      draw: (_, s) => {
+      draw: (st, s) => {
         const g = new Group();
-        q.before.forEach((v, i) =>
+        st.before.forEach((v, i) =>
           g.add(
             tile(v, x(i), TOP, W, H, s, { size: 0.7, key: `array:${i}`, bad: i === 0 }),
             label(`slot ${i}`, x(i), TOP + 0.95, s.soft, 0.5),
           ),
         );
-        q.before.forEach((_, i) => {
-          const v = q.after[i];
+        st.before.forEach((_, i) => {
+          const v = st.after[i];
           g.add(tile(v ?? 'empty', x(i), BOTTOM, W, H, s, { size: v == null ? 0.5 : 0.7, key: `array-after:${i}` }));
         });
         // One arrow per value shift moves: slot i + 1 to slot i.
-        for (let i = 0; i < q.moved; i++)
+        for (let i = 0; i < st.moved; i++)
           g.add(
             new Arrow([x(i + 1) - 0.35, TOP - H / 2 - 0.08], [x(i) + 0.35, BOTTOM + H / 2 + 0.08], {
               stroke: s.emphasis,
@@ -52,10 +53,10 @@ export function frames(): StagedStep[] {
             }),
           );
         g.add(
-          label(`pop() returned ${q.popped} and moved ${q.moved} values`, 0, -2.75, s.bad, 0.58, 'shift-result'),
+          label(`pop() returned ${st.popped} and moved ${st.moved} values`, 0, -2.75, s.bad, 0.58, 'shift-result'),
         );
         return g;
       },
-    },
+    }),
   ];
 }

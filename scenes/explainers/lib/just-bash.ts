@@ -3,6 +3,8 @@
  * keeps the shell each write returns, and reads what cat prints on the newest shell or on the shell it started with.
  * No drawing here. Tested in test/explain-just-bash.test.ts.
  */
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 import { exec } from './models.ts';
 import type { Shell } from './models.ts';
 
@@ -39,13 +41,13 @@ export function sessionOfShells(): ShellSession {
 }
 
 /**
- * The session after one command line, or undefined when `exec` refuses it (ls: "Unknown model command"). The
+ * The session after one command line, or a refusal when `exec` refuses it (ls: "Unknown model command"). The
  * pipeline's returned shell is kept as the newest; cat's stdout is read and the shell it returns is dropped, as the
  * explainer's code does, so running cat again on the same shell prints the same thing and changes nothing. Cat on s0
  * shows what s0 holds, however many writes came after it: exec never changed it. The script writes shout.txt once,
  * so a second RUN_PIPELINE, which would return a third shell, is beyond the script: see `scriptBound`.
  */
-export function sessionNextShell(state: ShellSession, event: BashEvent): ShellSession | undefined {
+export function sessionNextShell(state: ShellSession, event: BashEvent): ShellSession | Refusal {
   const newest = state.shells.length - 1;
   switch (event) {
     case 'RUN_PIPELINE': {
@@ -62,7 +64,8 @@ export function sessionNextShell(state: ShellSession, event: BashEvent): ShellSe
       try {
         exec(state.shells[newest]!, [['ls']]);
       } catch (error) {
-        if (error instanceof Error && error.message.startsWith('Unknown model command')) return undefined;
+        if (error instanceof Error && error.message.startsWith('Unknown model command'))
+          return refuse(`exec throws “${error.message}”, since the model runs only echo, tr and cat`);
         throw error;
       }
       throw new Error('ls is expected to be refused by the model');

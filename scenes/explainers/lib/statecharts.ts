@@ -2,6 +2,8 @@
 // SCXML 1.0 selection rules this subset needs (W3C Recommendation, 2015, Appendix D). No guards,
 // actions, history, final states or delays. tools/oracle/statecharts.ts runs the same charts
 // through XState and test/statecharts.test.ts compares the two.
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 
 /** A state. `compound` is in exactly one child at a time; `parallel` is in every child at once. */
 export interface StateNode {
@@ -272,6 +274,30 @@ export function run(chart: StateNode, events: readonly string[]): Step[] {
     config = step.config;
     return step;
   });
+}
+
+/** A chart a reader drives: its configuration, and every box it is in (`activeStates`). */
+export type Driven = {
+  config: Configuration;
+  current: string[];
+};
+/** A driven chart before any event: its initial configuration. */
+export function drivenStart(chart: StateNode): Driven {
+  const config = initial(chart);
+  return { config, current: activeStates(chart, config) };
+}
+/** "a", "a or b", "a, b or c". */
+const either = (names: readonly string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`);
+/**
+ * A driven chart after `event`: `send`'s configuration, or, when no state it is in handles the
+ * event (SCXML discards it), a refusal naming the states and boxes that have no arrow for it.
+ */
+export function drivenNext(chart: StateNode, state: Driven, event: string): Driven | Refusal {
+  const step = send(chart, state.config, event);
+  if (step.handled) return { config: step.config, current: activeStates(chart, step.config) };
+  const boxes = activeStates(chart, state.config).filter((id) => !state.config.includes(id));
+  const around = boxes.length ? [`${boxes.join(' and ')}, the box${boxes.length > 1 ? 'es' : ''} around ${state.config.length > 1 ? 'them' : 'it'}`] : [];
+  return refuse(`no ${event} arrow leaves ${either([...state.config, ...around])}, so the machine ignores ${event}`);
 }
 
 /** Every event any state in the chart handles, in document order. */

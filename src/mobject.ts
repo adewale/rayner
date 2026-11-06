@@ -6,7 +6,8 @@
 
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
-import { lerpColor } from './color.ts';
+import { lerpColor, NEUTRAL_COLORS } from './color.ts';
+import type { ColorRole, SceneColors } from './color.ts';
 import { perf } from './perf.ts';
 import type { MergedCache } from './svg.ts';
 
@@ -43,7 +44,7 @@ export type StyleRecord = Required<Omit<Style, keyof SvgPaint | 'drawFraction'>>
 const DEFAULT_STYLE: StyleRecord = {
   fill: 'none',
   fillOpacity: 1,
-  stroke: '#ffffff',
+  stroke: NEUTRAL_COLORS.ink,
   strokeWidth: 0.04,
   strokeOpacity: 1,
   opacity: 1,
@@ -97,6 +98,13 @@ export class Mobject {
    * choreography, `scene.find`, emphasis and review all follow it from picture to picture.
    */
   key: string | undefined;
+  /**
+   * What the part is for, to whatever drew it, apart from which part it is: the stage's paper
+   * (`'paper'`), its heading (`'heading'`) and the number, line and band around it (`'chrome'`), a
+   * diagram's frame (`'frame'`). Many parts may share a role, so it is never an identity: `find`
+   * and matching read `key`. Copies carry it, and `become` keeps the part's own.
+   */
+  role: string | undefined;
   children: Mobject[];
   parent: Mobject | null;
   style: StyleRecord;
@@ -114,10 +122,22 @@ export class Mobject {
   declare clipBox?: Box;
   /** The state saveState() stored, for restore() and Restore. Copies do not carry it. */
   declare saved?: Mobject;
+  /**
+   * The style fields that still hold an engine default, and the scene colour each takes: a
+   * `Text` built without a `color` has `{ fill: 'ink' }`, a `SurroundingRectangle` without a
+   * `stroke` has `{ stroke: 'accent' }`. When the mobject first enters a scene (`scene.add`, a play
+   * that targets it, or a parent already in one), each field still holding the neutral value
+   * takes the scene's colour for its role (`scene.colors`), and the mark is dropped. Setting a
+   * field drops its mark at once.
+   */
+  declare defaultColors?: Partial<Record<'fill' | 'stroke', ColorRole>>;
+  /** The scene colours this mobject took when it entered a scene: what a child added later, or a picture it becomes, takes. */
+  declare _colors?: Readonly<SceneColors>;
 
   constructor(style: Style = {}) {
     this.id = nextId++;
     this.key = undefined;
+    this.role = undefined;
     this.children = [];
     this.parent = null;
     this.style = { ...DEFAULT_STYLE, ...style };
@@ -177,6 +197,7 @@ export class Mobject {
       if (m.parent) m.parent.remove(m);
       m.parent = this;
       this.children.push(m);
+      if (this._colors) paintDefaults(m, this._colors);
     }
     this.invalidateBox();
     return this;
@@ -196,6 +217,7 @@ export class Mobject {
     c.id = nextId++;
     c.parent = null;
     c.style = { ...this.style };
+    if (this.defaultColors) c.defaultColors = { ...this.defaultColors };
     if (this.clipBox) c.clipBox = [...this.clipBox];
     c.updaters = [];
     c._bbox = null;
@@ -247,7 +269,7 @@ export class Mobject {
   }
 
   /** Point on the box in `direction`: ORIGIN = center, UR = upper right. */
-  boxPoint(direction: Readonly<Vec> = V.ORIGIN): Vec {
+  boxPoint(direction: Readonly<Vec> = [0, 0]): Vec {
     const b = this.box();
     if (!b) return [0, 0];
     const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
@@ -255,18 +277,18 @@ export class Mobject {
     return [cx + direction[0] * hw, cy + direction[1] * hh];
   }
 
-  center(): Vec { return this.boxPoint(V.ORIGIN); }
+  center(): Vec { return this.boxPoint([0, 0]); }
   width(): number { const b = this.box(); return b ? b[2] - b[0] : 0; }
   height(): number { const b = this.box(); return b ? b[3] - b[1] : 0; }
-  top(): Vec { return this.boxPoint(V.UP); }
-  bottom(): Vec { return this.boxPoint(V.DOWN); }
-  left(): Vec { return this.boxPoint(V.LEFT); }
-  right(): Vec { return this.boxPoint(V.RIGHT); }
+  top(): Vec { return this.boxPoint([0, 1]); }
+  bottom(): Vec { return this.boxPoint([0, -1]); }
+  left(): Vec { return this.boxPoint([-1, 0]); }
+  right(): Vec { return this.boxPoint([1, 0]); }
 
   // ---- transforms --------------------------------------------------------
 
   /** Map `fn([x,y]) -> [x,y]` over every point, about `aboutPoint` (default: box center). */
-  applyPointsFunction(fn: PointsFunction, { aboutPoint = null, aboutEdge = V.ORIGIN }: AboutOpts = {}): this {
+  applyPointsFunction(fn: PointsFunction, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOpts = {}): this {
     perf.count('applyPointsFunction()');
     const about = aboutPoint ?? this.boxPoint(aboutEdge);
     for (const m of this.family()) {
@@ -301,10 +323,10 @@ export class Mobject {
    * In-place affine map p -> [a c; b d](p - about) + about + [e f], with no
    * allocation per point (applyPointsFunction allocates two arrays per point).
    */
-  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = V.ORIGIN }: AboutOpts = {}): this {
+  applyAffine(a: number, b: number, c: number, d: number, e: number, f: number, { aboutPoint = null, aboutEdge = [0, 0] }: AboutOpts = {}): this {
     perf.count('applyAffine()');
     const translation = a === 1 && b === 0 && c === 0 && d === 1;
-    const about = translation ? V.ORIGIN : (aboutPoint ?? this.boxPoint(aboutEdge));
+    const about: Readonly<Vec> = translation ? [0, 0] : (aboutPoint ?? this.boxPoint(aboutEdge));
     const ox = about[0], oy = about[1];
     const family = this.family();
     for (const m of family) {
@@ -343,13 +365,13 @@ export class Mobject {
     return this.applyAffine(c, s, -s, c, 0, 0, opts);
   }
 
-  moveTo(target: Readonly<Vec> | Mobject, alignedEdge: Readonly<Vec> = V.ORIGIN): this {
+  moveTo(target: Readonly<Vec> | Mobject, alignedEdge: Readonly<Vec> = [0, 0]): this {
     const dest = target instanceof Mobject ? target.boxPoint(alignedEdge) : target;
     return this.shift(V.sub(dest, this.boxPoint(alignedEdge)));
   }
 
   /** Place beside `target` in `direction` with a gap of `buff`. */
-  nextTo(target: Readonly<Vec> | Mobject, direction: Readonly<Vec> = V.RIGHT, buff = 0.25, alignedEdge: Readonly<Vec> = V.ORIGIN): this {
+  nextTo(target: Readonly<Vec> | Mobject, direction: Readonly<Vec> = [1, 0], buff = 0.25, alignedEdge: Readonly<Vec> = [0, 0]): this {
     const anchor = target instanceof Mobject ? target.boxPoint(direction) : target;
     const mine = this.boxPoint(V.mul(direction, -1));
     // Keep the perpendicular alignment from alignedEdge
@@ -382,7 +404,7 @@ export class Mobject {
    * aligned on `alignedEdge` across the row (e.g. UP for top-aligned), keeping
    * the group's center where it was.
    */
-  arrange(direction: Readonly<Vec> = V.RIGHT, buff = 0.25, alignedEdge: Readonly<Vec> = V.ORIGIN): this {
+  arrange(direction: Readonly<Vec> = [1, 0], buff = 0.25, alignedEdge: Readonly<Vec> = [0, 0]): this {
     const c = this.center(), kids = this.children;
     for (let i = 1; i < kids.length; i++) kids[i]!.nextTo(kids[i - 1]!, direction, buff, alignedEdge);
     return this.moveTo(c);
@@ -417,7 +439,10 @@ export class Mobject {
 
   setStyle(style: Style, recurse = true): this {
     const targets = recurse ? this.family() : [this];
-    for (const m of targets) Object.assign(m.style, style);
+    for (const m of targets) {
+      Object.assign(m.style, style);
+      if (m.defaultColors) for (const k of COLOR_KEYS) if (k in style) delete m.defaultColors[k as 'fill' | 'stroke'];
+    }
     return this;
   }
   setFill(fill: string, fillOpacity?: number): this {
@@ -589,6 +614,7 @@ export class Mobject {
     for (const c of this.children) c.parent = null;
     this.children = fresh.children;
     for (const c of this.children) c.parent = this;
+    if (this._colors) paintDefaults(this, this._colors);
     this.invalidateBox();
     return this;
   }
@@ -666,8 +692,8 @@ for (const name of ['box', 'center', 'width', 'height', 'left', 'right', 'top', 
 // Fields a mobject keeps through restore(): who it is and where it sits. Caches
 // (underscore fields) stay too; touchPoints() and new arrays invalidate them.
 const KEEP_ON_RESTORE = new Set(['id', 'parent', 'children', 'updaters', 'saved']);
-// become() also keeps each member's key: the address matching, find() and invariants use.
-const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key']);
+// become() also keeps each member's key, the address matching, find() and invariants use, and its role.
+const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key', 'role']);
 
 /** Rewrite `m`'s data from `state` in place (see restore()); `state` itself is never touched. */
 export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string> = KEEP_ON_RESTORE): void {
@@ -699,7 +725,36 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
     for (const c of m.children) c.parent = m;
   }
   for (const [to, from] of pairs) to.rebindReferences(from, own);
+  // What it took keeps the colours this mobject took from its scene.
+  if (m._colors) paintDefaults(m, m._colors);
   m.invalidateBox();
+}
+
+/**
+ * Mark every field in `m`'s family that holds the neutral default for its role, so it takes the
+ * scene's colour for that role when it enters a scene (see `Mobject.defaultColors`). A constructor
+ * calls this for the colours its caller left out.
+ */
+export function followScene(m: Mobject, roles: Partial<Record<'fill' | 'stroke', ColorRole>>): void {
+  for (const x of m.family())
+    for (const [field, role] of Object.entries(roles) as Array<['fill' | 'stroke', ColorRole]>)
+      if (x.style[field] === NEUTRAL_COLORS[role]) (x.defaultColors ??= {})[field] = role;
+}
+
+/**
+ * Give `m`'s family `colors`: each field that still holds its neutral default takes the colour for
+ * its role, and its mark is dropped; a field set since keeps what it was set to. Each member keeps
+ * `colors` for children added to it and pictures it becomes.
+ */
+export function paintDefaults(m: Mobject, colors: Readonly<SceneColors>): void {
+  for (const x of m.family()) {
+    x._colors = colors;
+    const marks = x.defaultColors;
+    if (!marks) continue;
+    for (const [field, role] of Object.entries(marks) as Array<['fill' | 'stroke', ColorRole]>)
+      if (x.style[field] === NEUTRAL_COLORS[role]) x.style[field] = colors[role];
+    delete x.defaultColors;
+  }
 }
 
 /** The prototype of `.animate` builders: anything but Object.prototype (see animateBuilderBase). */

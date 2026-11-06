@@ -12,18 +12,10 @@ import {
   Group,
   FadeIn,
   Transform,
-  StringSink,
-  SnapshotSink,
-  NullSink,
-  SeekSink,
-  TraceSink,
-  MotionSink,
-  DomSink,
-  StopScene,
-  renderAt,
-  toSvgString,
   smooth,
 } from '../src/index.ts';
+import { StringSink, SnapshotSink, NullSink, SeekSink, DomSink, StopScene, renderAt, toSvgString } from '../src/output.ts';
+import { TraceSink, MotionSink } from '../explain/testing.ts';
 import type { Mobject, Sink, Step, Vec } from '../src/index.ts';
 
 Scene.captionWpm = Infinity;

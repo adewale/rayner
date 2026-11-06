@@ -27,20 +27,20 @@ columns it takes, and a character outside the BMP is two
 A `CodeSpan` is a `Group` whose children are the line's live glyphs: not
 copies, and not re-parented (they stay children of the line). So:
 
-- `span.setFill(GOLD)` recolours the text on screen.
+- `span.setFill(s.emphasis)` recolours the text on screen.
 - `span.box()`, `center()`, `top()`... are where the text is now, after any
   shift or scale of the block. A `Rectangle` or brace built from `span.box()`
   lands on the real glyphs.
 - `span.shift(...)` moves the real glyphs and invalidates the line's and the
   block's boxes.
-- `span.animate.setFill(RED)` records the calls and plays them as a Transform
+- `span.animate.setFill(s.bad)` records the calls and plays them as a Transform
   of the span's *line* to a copy of the line with the same span changed. The
   span never joins the scene. Two spans of one line can't animate in the same
   `play()` (both would drive the line); recolour a `code.copy()` and Transform
   to it instead (`Code.copy()` gives the copy its own `lines`).
-- Don't build animations on the span itself (`new Indicate(span)`,
+- Don't build animations on the span itself (`new Create(span)`,
   `new Transform(span, ...)`): `play()` would add the span to the scene and its
-  glyphs would draw twice. Indicate a shape drawn from its box instead.
+  glyphs would draw twice. Mark a shape drawn from its box instead.
 
 A span is fixed when taken. After its line's text changes (`Text.setText`, or a
 Transform that lands another string on the line) it is `stale` and `box()`
@@ -90,13 +90,10 @@ to it (as explainers already do). Styling applied after construction (a
 node tools/tokens.ts <file | -> [--lang ts|js|python|bash|elixir] [--theme dark|light] [--engine auto|shiki|fallback]
 ```
 
-prints the spans as a JSON array, one span per line, ready to paste into a
-scene. The language defaults to the file extension; stdin needs `--lang`.
+prints the spans as a JSON array, one span per line, to paste into a scene. The language defaults to the file extension; stdin needs `--lang`.
 The engine used goes to stderr. From code, the module `tools/lib/tokenize.ts`
 exports `tokenize(source, lang, { engine, palette })`, which returns the same
-`ColorSpan[]` (the `rayner` CLI can call it at build time). It is not the
-`tokenize` that `rayner` exports: that one, from `src/diff.ts`, splits a line
-into the tokens `diffTokens` compares. The module's `lex()` and `shikiTokens()`
+`ColorSpan[]` (the `rayner` CLI can call it at build time). The module's `lex()` and `shikiTokens()`
 return the classified tokens (`keyword`, `string`, `comment`, `number`,
 `function`, `punctuation`) before colouring.
 
@@ -119,7 +116,7 @@ base colour by default, as GitHub's themes do (and see the cost below).
 ### Build time only
 
 Spans are computed once, by a tool, and checked in as a literal array
-(the KV-cache explainer, [`scenes/explainers/mr-cache/scene.ts`](../scenes/explainers/mr-cache/scene.ts),
+(the KV-cache explainer, [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts),
 is the example). Nothing in `src/` or the browser bundle imports shiki or the lexer:
 
 - **zero runtime dependencies**: the engine and anything a page loads stay
@@ -158,12 +155,12 @@ default) costs a fraction of one that colours it.
 
 ## In the explainers
 
-- [mr-cache](../scenes/explainers/mr-cache/scene.ts): both blocks of the merge
+- [mr-cache](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): both blocks of the merge
   request are `new Code(lines, { spans })`, with spans that
   `node tools/tokens.ts --theme light --engine shiki` generated and that are
   checked in beside the scene (`scenes/explainers/mr-cache/code.ts`);
   `TransformDiff` morphs one into the other.
-- [state-machine](../scenes/explainers/state-machine/scene.ts): finds the reducer
+- [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts): finds the reducer
   row it read with `code.token(line, text)`, takes `code.span` from the key to
   the value, and rings it with a `SurroundingRectangle` built from the span's
-  `box()`; `saveState`/`Restore` put the row back.
+  `box()`.

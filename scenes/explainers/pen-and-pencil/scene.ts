@@ -1,8 +1,7 @@
 import { frames as readerFrames, SEEDS, GREY, px } from '../lib/readers/pen-and-pencil.ts';
 import { Scene, VMobject, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, Diagram } from '../../../explain/index.ts';
-import { diagramsOf } from '../../../integrations/agentic-mermaid/snapshot.ts';
+import { stage, settingsOf, Diagram, diagramsOf } from '../../../explain/index.ts';
 import {
   WORLD,
   TITLE,
@@ -484,7 +483,7 @@ export default class PenAndPencil extends Scene {
     await s.enter(source, opening, tallyLine, {
       describe: `The timeline’s four lines of text, and below them the timeline drawn by a hand that sets off each line from where the last stopped: its boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes.`,
     });
-    s.reading(opening);
+    s.opening(opening);
     this.state.periods = facts.length;
 
     // 2. Why the boxes wander, and the fix in miniature: the route is fixed first, and the hand only follows it.
@@ -493,6 +492,7 @@ export default class PenAndPencil extends Scene {
     // 3. For the real timeline, the layout comes first.
 
     await this.step('layout', {
+      kind: 'detail',
       title: 'For the real timeline, Agentic Mermaid fixes every box first',
       line: 'Every box, marker and label has its place before any ink.',
       caption: 'Agentic Mermaid turns the timeline text into geometry: it places every period box, marker and event box, sizing the boxes using Inter’s letter widths. The hand receives those positions rather than deciding them while it draws. rough.js uses the same separation in its rectangle API: the caller supplies the corner and size, while roughness affects the strokes.',
@@ -509,7 +509,7 @@ export default class PenAndPencil extends Scene {
     await this.step('marks', {
       title: 'The hand is given the layout’s marks and nothing else',
       line: 'Blue pencil: the route the chart’s ink follows.',
-      caption: `The construction pencil traces the fixed outlines before the ink follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
+      caption: `Agentic Mermaid lays the real timeline out first, sizing each box from its words’ measured widths. The construction pencil traces those fixed outlines, and the ink then follows them. These marks separate where the chart belongs from how its strokes look; they are the same in both drawings. The ${wordCount} words have places to fit before either drawing begins.`,
     });
     await drop(width);
     await d.hide();
@@ -526,7 +526,7 @@ export default class PenAndPencil extends Scene {
       { side: 'above', gap: 0.45 },
     );
     tally.key = 'construction:tally';
-    s.reading(traced, tally);
+    s.opening(traced, tally);
     this.state.marks = { outlines: outlineCount, filled: filledCount, words: wordCount };
 
     const INK_WIDTH = 0.006;
@@ -553,6 +553,7 @@ export default class PenAndPencil extends Scene {
     this.state.hand = { stray: Number(fmt(ringStray)) };
 
     await this.step('plate', {
+      kind: 'detail',
       title:
         which === 'first'
           ? 'The chart is drawn on its marks, and the words last'
@@ -600,15 +601,15 @@ export default class PenAndPencil extends Scene {
         runTime: 0.8,
         describe: `Dashed red outlines on the ${facts.length * 2} laid-out period and event boxes, the same for both drawings; every plank and tag sits on them`,
       });
-      s.reading(firstScenery, sharedBoxes);
+      s.opening(firstScenery, sharedBoxes);
     }
-    s.reading(tints, inked, wordGroup, ...sceneGroups);
+    s.opening(tints, inked, wordGroup, ...sceneGroups);
     this.state.scene = { layers: layers.map((l) => l.name), trespass };
     this.state.plate = { objects, stray: Number(fmt(chartStray)), letters: letterCount, sharpenings };
 
     await this.step('freehand', {
       title: `Traced on fixed marks, all ${wordCountFree} words stay in their boxes`,
-      line: 'Top: the opening’s drawing. Bottom: the finished plate.',
+      line: 'Top: the opening’s drawing. Bottom: the same chart traced on its marks.',
       caption: `Both drawings have imperfect strokes. In the upper one, every error rode along into the lines after it, displacing boxes from the words. Below, each stroke starts from its own fixed mark, so the ${wordCountFree} words fit their boxes. The difference comes from how this model constructs the route, not from making its pen perfectly steady.`,
     });
     await s.clear();
@@ -624,7 +625,7 @@ export default class PenAndPencil extends Scene {
     await s.enter(heads, freePanel, tracedPanel, {
       describe: `Two drawings of the timeline. Above, drawn by a hand that sets off each line from where the last stopped: the boxes, rings and strings wander from left to right, and ${misses.length} of the ${wordCountFree} words, outlined in red, stick out of their boxes. Below, the same chart traced on the layout’s marks, every word inside its box.`,
     });
-    s.reading(freePanel, tracedPanel);
+    s.opening(freePanel, tracedPanel);
     this.state.freehand = { misses: misses.length, words: wordCountFree, maxOff: Number(fmt(maxOff)) };
   }
 }

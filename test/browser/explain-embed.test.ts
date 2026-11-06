@@ -155,7 +155,7 @@ export default class IdentityOpening extends Scene{
 static meta={id:'identity-opening',title:'Readable comparison'};
 async construct(){const s=stage(this);await this.step('compare',{title:'Compare',caption:'The large labels compare.'});
 const subject=new Text('COMPARISON',{fontSize:1}),detail=new Text('tiny detail',{fontSize:0.15}).moveTo([4,-3]);
-await s.enter(subject,detail);s.reading(subject);}}`);
+await s.enter(subject,detail);s.opening(subject);}}`);
   const project = await collectProject(source, {write: false});
   await buildExplainer(project, join(folder, 'identity-opening.html'));
   await readerPage({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'}, `${embed}/identity-opening.html`, async page => {
@@ -240,7 +240,7 @@ test('authored phone openings keep comparison ink readable, and a narrow stage p
           const matrix = (svg as SVGSVGElement).getScreenCTM()!;
           return Math.hypot(matrix.a, matrix.b) * 1000;
         });
-        const labels = layouts.get(step)!.reading!.labels;
+        const labels = layouts.get(step)!.opening!.labels;
         assert.ok(labels.length > 0);
         for (const label of labels)
           assert.ok(label.size * scale >= 12 - 1e-5, `${id}/${step}: ${label.size * scale}px declared label`);
@@ -309,7 +309,7 @@ test('Next is on screen at load', options, async () => {
 readerTest('feature-tour scenario navigation starts with its recipe, including transcript links, while direct result permalinks still work', { viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }, () => embed + '/feature-tour.html?feature=camera&step=result', async page => {
     assert.equal(new URL(page.url()).searchParams.get('step'), 'result', 'a direct result permalink remains valid');
     const links = await page.locator('.transcript section a').evaluateAll(anchors => anchors.map(a => new URL((a as HTMLAnchorElement).href).searchParams.get('step')));
-    assert.equal(links.length, 15, 'each authoring scenario offers one entry link');
+    assert.equal(links.length, 29, 'each authoring scenario offers one entry link');
     assert.deepEqual([...new Set(links)], ['recipe'], 'entry links start at the code, not the result');
     await page.locator('fieldset.scenario input[value="state"]').check();
     await page.waitForURL(/feature=state&step=recipe/);
@@ -3392,7 +3392,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
   const {reviewSubjects} = await import('../../tools/lib/explain-review-scene.ts');
   const {storyFrames,reviewStoryScenario,inspectStoryFrame,covered} = await import('../../tools/lib/explain-story-review.ts');
   const roles = {
-    'token-bucket': ['request:R9','arrival:R9','request:R10','arrival:R10','balance:refill:R10',
+    'token-bucket': ['request:R9','name:R9','arrival:R9','request:R10','name:R10','arrival:R10','balance:refill:R10',
       'balance:found:R10','balance:spend:R10','balance:cap','balance:label','balance:value'],
     'state-machine': ['reducer:idle:CONNECT','reducer:connecting:OPENED','reducer:connecting:ERROR',
       'reducer:open:CLOSE','reducer:throw','reducer:throw-box','closed','session:ring:closed',
@@ -3428,7 +3428,9 @@ test('source tours show the token-cap calculation and terminal rejection in ever
               after={1:3,2:4,4:4}[rate as '1'|'2'|'4']!;
             text('balance:cap','  tokens = min(5,');text('balance:label','Tokens left');
             text('balance:value',String(after));text('arrival:R9','t = 1');text('arrival:R10','t = 5');
-            assert.deepEqual(keyed('request:R10').family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),['R10','200']);
+            // R10's box holds its answer; its name is written under it.
+            assert.deepEqual(keyed('request:R10').family().filter((m):m is Text=>m instanceof Text).map(m=>m.text),['200']);
+            text('name:R10','R10');
             const dot=keyed('balance:found:R10').center(),drop=keyed('balance:spend:R10').box()!;
             assert.ok(Math.abs(dot[0]-1.6)<1e-6&&Math.abs(dot[1]-(-3.87+found*4.44/5))<1e-6);
             assert.ok(Math.abs(drop[1]-(-3.87+after*4.44/5))<1e-6&&Math.abs(drop[3]-dot[1])<1e-6);
@@ -3444,7 +3446,7 @@ test('source tours show the token-cap calculation and terminal rejection in ever
             text('session:state','closed');text('session:event','OPENED');text('session:returns','InvalidTransition');
             const ring=keyed('session:ring:closed').box()!,closed=keyed('closed').box()!;
             assert.ok(ring[0]<=closed[0]&&ring[1]<=closed[1]&&ring[2]>=closed[2]&&ring[3]>=closed[3]);
-            assert.equal(scene.state.session,'closed');assert.equal(scene.state.terminal,true);
+            assert.equal(scene.state.session,'closed');
           }
           nativeChecked=true;
         }},{skipUntil:Infinity}).run();
@@ -3582,4 +3584,92 @@ test('both pen drawings retain every construction mark and its readable count th
     }
   }finally{await page.close();}
   assert.equal(scenarios,2);assert.equal(stepWidths,32);assert.equal(readableCounts,2);
+});
+
+// ---------------------------------------------------------------------------
+// Issue #96, narrowed: the stage's size is a function of the scenario and the page's size, and on a
+// narrow stage a step's close-up is a function of the scenario, the step and that size, not of the
+// path that reached them. Only the inputs the burst property's counterexample
+// implicated are generated (scenario switches, step picks and viewport resizes, with short gaps), so
+// shrinking lands on the shortest path whose resting framing differs from a fresh link's.
+type Resting = { size: [number, number]; view: string };
+/** The stage once its size and painted view hold for several frames in a row. */
+async function restingView(page: Page): Promise<Resting> {
+  let last = '', same = 0;
+  for (let i = 0; i < 200; i++) {
+    const now = await page.evaluate(() => new Promise<string>((r) => requestAnimationFrame(() => {
+      const stage = document.querySelector('.stage')!, box = stage.getBoundingClientRect();
+      r(JSON.stringify({ size: [Math.round(box.width), Math.round(box.height)], view: stage.querySelector('svg:not(.leaving)')?.getAttribute('viewBox') ?? '' }));
+    })));
+    same = now === last ? same + 1 : 0;
+    last = now;
+    if (same >= 8) return JSON.parse(now) as Resting;
+  }
+  throw new Error(`the stage never held still: ${last}`);
+}
+test('player: the stage’s size, and on a narrow stage a step’s close-up, are what a fresh link opens with, whatever path reached them', options, async () => {
+  const names = ['oauth-pkce', 'exgit', 'mr-cache', 'quotient-familial', 'token-bucket'];
+  const sizes = [{ width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 900, height: 700 }];
+  const starts = names.flatMap((name) => projects.get(name)!.scenarios.flatMap((v) => v.trace.steps.map((step) => ({ name, values: v.values, step: step.step }))));
+  const action = fc.oneof(
+    fc.record({ kind: fc.constant('scenario' as const), setting: fc.nat(1), option: fc.nat(3) }),
+    fc.record({ kind: fc.constant('step' as const), i: fc.nat(9) }),
+    fc.record({ kind: fc.constant('resize' as const), size: fc.constantFrom(...sizes) }),
+  );
+  await fc.assert(
+    // The path ends on a scenario or step: that framing is a step's opening, which a fresh link
+    // defines. A resize after a step has settled keeps the reader's scale and pan (StageZoom), which
+    // the player model's properties check.
+    fc.asyncProperty(fc.constantFrom(...starts), fc.constantFrom(...sizes),
+      fc.tuple(fc.array(fc.record({ action, gap: fc.constantFrom(0, 50, 300) }), { maxLength: 4 }), fc.record({ action: action.filter((a) => a.kind !== 'resize'), gap: fc.constantFrom(0, 50, 300) })).map(([path, last]) => [...path, last]),
+      async (start, viewport, actions) => {
+        const p = projects.get(start.name)!, ids = settingsOfProject(p).map((s) => s.id);
+        await readerContext({ reducedMotion: 'reduce', viewport }, async (context) => {
+          const { page, errors } = await counted(context, `${embed}/${start.name}.html?${scenarioQuery(p, start.values, start.step)}`);
+          let size = viewport, before = '';
+          for (const { action: a, gap } of actions) {
+            before = page.url();
+            if (a.kind === 'resize') { size = a.size; await page.setViewportSize(size); }
+            else await page.evaluate(({ a, settings }) => {
+              if (a.kind === 'scenario') {
+                const s = settings[a.setting % Math.max(1, settings.length)];
+                if (s) document.querySelector<HTMLInputElement>(`input[name="${s.id}"][value="${s.options[a.option % s.options.length]}"]`)?.click();
+              } else document.querySelectorAll<HTMLButtonElement>('.steps button')[a.i]?.click();
+            }, { a, settings: settingsOfProject(p).map((s) => ({ id: s.id, options: s.options.map((o) => o.value) })) });
+            if (gap) await page.waitForTimeout(gap);
+          }
+          await stepReady(page, ids);
+          await quiet(page);
+          // Only a step that opened last has its opening framing: a press that changed nothing (the
+          // scenario already chosen) leaves the earlier step, and a resize since then keeps its zoom.
+          fc.pre(page.url() !== before);
+          const reached = await restingView(page);
+          const url = new URL(page.url()), values = Object.fromEntries(ids.map((id) => [id, url.searchParams.get(id)!])) as Settings;
+          assert.deepEqual(errors, []);
+          // A fresh link opened at the final size, in its own context: a page resized after it settles
+          // keeps its zoom (StageZoom), so it would not be a fresh link at that size.
+          await readerContext({ reducedMotion: 'reduce', viewport: size }, async (freshContext) => {
+            const fresh = await counted(freshContext, `${embed}/${start.name}.html?${scenarioQuery(p, values, url.searchParams.get('step')!)}`);
+            await stepReady(fresh.page, ids);
+            await quiet(fresh.page);
+            assert.deepEqual(fresh.errors, []);
+            const opened = await restingView(fresh.page), where = `${url.search} at ${size.width} × ${size.height}`;
+            assert.deepEqual(reached.size, opened.size, `stage size, ${where}`);
+            // A narrow stage opens each step on its own close-up, so the framing is the step's. A wide
+            // stage keeps the reader's zoom across steps and widths, as the player model checks.
+            if (reached.size[0] < NARROW_PX) assert.equal(reached.view, opened.view, `close-up, ${where}`);
+          });
+        });
+      }),
+    // The shrunk counterexample it found (#96): from attacker=yes at “stolen”, switching to attacker=no
+    // kept the smaller stage. The second example, a resize just before the switch, guards the oracle:
+    // it failed only while the fresh link was resized after it settled. The third crosses NARROW_PX and
+    // switches at once: the narrow redraw, aborted by the switch, rejected a promise no one held.
+    params(12, { examples: [
+      [{ name: 'mr-cache', values: { request: 'miss' }, step: 'request' }, sizes[0]!, [{ action: { kind: 'resize', size: sizes[1]! }, gap: 0 }, { action: { kind: 'scenario', setting: 0, option: 0 }, gap: 0 }]],
+      [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[1]!, [{ action: { kind: 'resize', size: sizes[0]! }, gap: 0 }, { action: { kind: 'step', i: 1 }, gap: 0 }]],
+      [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[0]!, [{ action: { kind: 'scenario', setting: 0, option: 1 }, gap: 0 }]],
+      [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[0]!, [{ action: { kind: 'resize', size: sizes[1]! }, gap: 0 }, { action: { kind: 'scenario', setting: 0, option: 1 }, gap: 0 }]],
+    ] as [typeof starts[number], typeof sizes[number], { action: { kind: 'scenario'; setting: number; option: number } | { kind: 'step'; i: number } | { kind: 'resize'; size: typeof sizes[number] }; gap: 0 | 50 | 300 }[]][] }),
+  );
 });

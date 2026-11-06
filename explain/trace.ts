@@ -1,4 +1,5 @@
-import type { Scene, SceneState, StepRecord } from '../src/index.ts';
+import type { Scene, SceneState } from '../src/index.ts';
+import type { StepRecord } from '../src/testing.ts';
 import { wordsFor, describedIn, markHeading } from './words.ts';
 import type { Words } from './words.ts';
 interface WalkRecord {

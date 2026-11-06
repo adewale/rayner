@@ -6,14 +6,9 @@ import {
   Group,
   Rectangle,
   Line,
-  NullSink,
-  StringSink,
-  SnapshotSink,
   Transform,
-  renderAt,
-  toSvgString,
-  renderElements,
-} from '../src/index.ts';
+  } from '../src/index.ts';
+import { NullSink, StringSink, SnapshotSink, renderAt, toSvgString, renderElements } from '../src/output.ts';
 import type { Box } from '../src/index.ts';
 
 function clipped(group: Group, clipBox: Box) {

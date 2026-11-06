@@ -4,7 +4,7 @@
 // describeExplainer's description of the scenario, so `see` and `describe` cannot disagree.
 import { isHeading } from '../../explain/stage.ts';
 import { writeFile } from 'node:fs/promises';
-import { renderAt, toSvgString } from '../../src/index.ts';
+import { renderAt, toSvgString } from '../../src/output.ts';
 import type { Scene, Sink } from '../../src/index.ts';
 import { describeScenario } from '../../explain/describe.ts';
 import type { ScenarioDescription } from '../../explain/describe.ts';

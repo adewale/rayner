@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { traceScene } from '../src/index.ts';
-import { describeExplainer, withSettings, scenariosOf, bindSnapshots } from '../explain/index.ts';
+import { traceScene } from '../explain/testing.ts';
+import { describeExplainer, withSettings, scenariosOf, bindSnapshots } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
 import { readSnapshots } from '../tools/lib/explain-project.ts';
 import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 import OauthPkce from '../scenes/explainers/oauth-pkce/scene.ts';
 import { PALETTES } from '../explain/palettes.ts';
+import { idsOf, stepIdsOf } from './lib/steps.ts';
 
 test('describeExplainer gives every scenario and step: the words, the state the trace recorded and what each step changed', async () => {
   const d = await describeExplainer(RingBuffer as ExplainerClass);
@@ -18,7 +19,9 @@ test('describeExplainer gives every scenario and step: the words, the state the 
     assert.equal(c.paper, PALETTES.dusk!.paper, `${JSON.stringify(c.values)}: paper`);
     const trace = await traceScene(withSettings(RingBuffer as ExplainerClass, c.values));
     assert.equal(c.duration, trace.duration);
-    assert.deepEqual(c.steps.map((s) => s.step), trace.steps.map((s) => s.step));
+    // The steps a description lists are the steps the scene runs, as a test reads them (test/lib/steps.ts).
+    assert.deepEqual(c.steps.map((s) => s.step), await stepIdsOf(withSettings(RingBuffer as ExplainerClass, c.values)));
+    assert.deepEqual(c.steps.map((s) => s.step), idsOf(trace));
     c.steps.forEach((s, i) => {
       const t = trace.steps[i]!;
       assert.equal(s.title, t.meta.title);

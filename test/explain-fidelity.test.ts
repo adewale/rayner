@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
+import { assertSteps } from './lib/steps.ts';
 import {
   reduceSession,
   sessionAttempt,
@@ -20,10 +21,12 @@ import { raceLifetimes, racePage, raceReplay } from '../scenes/explainers/lib/la
 import type { RaceState } from '../scenes/explainers/lib/latest-search.ts';
 import { find, run } from '../scenes/explainers/lib/2password.ts';
 import { pkceFlow, lanes, readable } from '../scenes/explainers/lib/pkce.ts';
-import { Scene, Text, Code, loadFonts, parseUnifiedDiff, smooth } from '../src/index.ts';
+import { Scene, Text, Code, parseUnifiedDiff, smooth } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { pictureHtml } from '../explain/trace.ts';
 import { Card } from '../explain/panels.ts';
 import { resolveSettings } from '../explain/settings.ts';
+import { VOCABULARY } from '../explain/words.ts';
 import type { VMobject, Sink } from '../src/index.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -48,6 +51,7 @@ import { check as penAndPencil } from './lib/fidelity/pen-and-pencil.ts';
 import { check as periodicGroups } from './lib/fidelity/periodic-groups.ts';
 import { check as statecharts } from './lib/fidelity/statecharts.ts';
 import { check as henge } from './lib/fidelity/henge.ts';
+import { check as greatCircle } from './lib/fidelity/great-circle.ts';
 
 for (const entry of EXPLAINERS)
   test(`${entry.id}: every authored scenario exposes the program's answers at step boundaries`, async () => {
@@ -66,6 +70,9 @@ for (const entry of EXPLAINERS)
           `Trace invents link ${walk.from}->${walk.to}`,
         );
       switch (entry.id) {
+        case 'great-circle':
+          greatCircle(values, trace);
+          break;
         case 'henge':
           henge(values, trace);
           break;
@@ -299,13 +306,10 @@ for (const entry of EXPLAINERS)
           break;
         }
         case '2password': {
-          const launched = run(
-            values.auth as 'desktop' | 'service',
-            { API_KEY: 'op://Personal/Cloud API/credential' },
-            ['app'],
-          );
+          const launched = run('desktop', { API_KEY: 'op://Personal/Cloud API/credential' }, ['app']);
           assertStepState(trace, 'match', { matches: { 'cloud api': ['Cloud API'], databse: [] } });
           assertStepState(trace, 'match', { found: find(['cloud api', 'databse']) });
+          assertStepState(trace, 'references', { leaked: 0 });
           assertStepState(trace, 'run', { argv: launched.argv, childEnv: launched.childEnv });
           break;
         }
@@ -471,7 +475,7 @@ for (const entry of EXPLAINERS)
           for (let i = 1; i < drift.length; i++) assert.ok(drift[i]! > drift[i - 1]!, `drift falls at glyph ${i}: ${drift}`);
           assert.equal(drift[12]!.toFixed(2), (layout.wrong - layout.actual).toFixed(2));
           assert.ok(Math.abs(rulers.markers.measured - (layout.wrong + 0.5)) < 1e-5 && Math.abs(rulers.markers.drawn - (layout.actual + 0.5)) < 1e-5);
-          assert.deepEqual(trace.steps.map(s => s.step), ['layout', 'advance', 'rulers', 'cuts', 'diagram']);
+          assertSteps(trace, ['rulers', 'cuts']);
           const expected = Object.fromEntries(Object.entries(em).map(([cut, width]) => [cut, width * 0.9]));
           const actual = trace.steps.find(s => s.step === 'cuts')!.after!.advances as Record<string, number>;
           assert.deepEqual(Object.keys(actual), Object.keys(expected));
@@ -630,6 +634,8 @@ for (const entry of EXPLAINERS)
             timing: { motion: +(fork.hold - fork.t0).toFixed(2), held: +(fork.t1 - fork.hold).toFixed(2), words },
           });
           assert.ok(Math.abs(fork.t1 - fork.t0 - (words / Scene.captionWpm) * 60) <= 1 / trace.fps + 1e-9);
+          // The count of diagram families it quotes is the describer's own (explain/words.ts).
+          assertStepState(trace, 'fork', { families: Object.keys(VOCABULARY.en!.families!).length });
           // The rows and the sentence it quotes are the token bucket's own: each offered rate is a
           // token-bucket scenario whose trace answers R10 as the fork scene says, and its last step says
           // R10 is accepted at every rate.

@@ -8,19 +8,15 @@ import {
   FadeIn,
   Create,
   Transform,
-  MoveAlongPath,
   AnimationGroup,
   Succession,
   SurroundingRectangle,
   Machine,
   choreograph,
   view,
-  linear,
 } from '../../../src/index.ts';
 import type { Animation, MatchKey, Mobject, SceneState, View, CodeSpan, Choreography, Transition } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import { Card } from '../../../explain/panels.ts';
-import { emphasises } from '../../../explain/look.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
 import { reduceSession, sessionAttempt, sessionStart, sessionNext, SESSION_EVENTS } from '../lib/models.ts';
 import type { SessionState, SessionEvent } from '../lib/models.ts';
 const SOURCE =
@@ -137,25 +133,18 @@ export default class StateMachineExplainer extends Scene {
             ['Event', st.event ?? '–'],
             ['Returns', st.returns ?? (st.event ? '…' : '–')],
           ],
-          { at: CARD, fontSize: 0.28, width: 4.8 },
+          // The row the session last changed is lit, drawn with the card: described and emphasised with it.
+          { at: CARD, fontSize: 0.28, width: 4.8, lit: litRow(st) },
         );
         for (const field of ['State', 'Event', 'Returns'])
           card.values.get(field)!.key = `session:${field.toLowerCase()}`;
         card.bar.key = 'session:bar';
-        const lit = litRow(st);
-        if (lit) card.bar.moveTo([card.panel.center()[0], card.values.get(lit)!.anchorPoint()[1]]).setOpacity(1);
         return card;
       },
       { place: false },
     ));
-    s.keep(readout, {
-      describe: () => {
-        const lit = litRow(this.state);
-        return `The session card: ${[...readout.current.values]
-          .map(([label, v]) => `${label}: ${v.text}${label === lit ? ' (marked)' : ''}`)
-          .join(', ')}`;
-      },
-    });
+    // The card describes itself, its lit row included.
+    s.keep(readout);
 
     // What the machine marks on the diagram and the reducer, drawn from the session's state: the
     // ring on the state it is in, the links it travelled, and the row it read or the throw it hit.
@@ -199,14 +188,14 @@ export default class StateMachineExplainer extends Scene {
     });
     // What the views mark, as emphasis the phone's close-ups visit first and review holds to the
     // caption: the ring, the row read or the throw hit, and each link travelled, read from state.
-    emphasises(this, () => {
-      const st = session(), out: [Mobject, string][] = [];
-      const at = (v: View, key: string, what: string) => { const m = v.current.find(key); if (m) out.push([m, what]); };
-      at(ring, `session:ring:${st.session}`, `ring: ${st.session}`);
-      if (st.row) at(reducer, `reducer:box:${st.row}`, `row: ${st.row}`);
-      if (st.invalid) at(reducer, 'reducer:throw-box', `throw: ${st.session}:${st.event}`);
-      for (const l of st.travelled) { const [from, to] = l.split(':'); at(diagram, d.link(from!, to!).id, 'travelled'); }
-      return out;
+    s.emphasise(() => {
+      const st = session();
+      return [
+        [`session:ring:${st.session}`, `ring: ${st.session}`],
+        ...(st.row ? [[`reducer:box:${st.row}`, `row: ${st.row}`] as const] : []),
+        ...(st.invalid ? [['reducer:throw-box', `throw: ${st.session}:${st.event}`] as const] : []),
+        ...st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, 'travelled'] as const; }),
+      ];
     });
     await this.play(new FadeIn(readout, { runTime: 0.35, shift: [0, -0.08] }));
     this.add(diagram, reducer, ring);
@@ -255,18 +244,15 @@ export default class StateMachineExplainer extends Scene {
             // ring goes where the reducer's answer says the session now is.
             const barAtEvent = k.to('session:bar').copy().moveTo([k.to('session:bar').center()[0], (k.to('session:event') as Text).anchorPoint()[1]]);
             const bar = k.own('session:bar'), link = d.link(before.session, after.session);
-            const token = g.insert('walk:token', new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)));
+            const walk = g.travel('walk:token', new Dot({ radius: 0.08, color: d.accent }), link.route, { appear: 0.18, move: 0.8, leave: 0.18 });
             return new Succession([
               new AnimationGroup([...swap(k, 'event', 0.45), new Transform(bar, barAtEvent, { runTime: 0.45 }), ...putBack(c, before)]),
               c.enter(`reducer:lit:${after.row}`, {}, { runTime: 0.4 }),
               c.enter(`reducer:box:${after.row}`, { create: true }, { runTime: 0.5 }),
               o.leave(`session:ring:${before.session}`, { runTime: 0.35 }),
-              new Transform(token, new Dot({ radius: 0.08, color: d.accent }).moveTo(link.route.pointFromProportion(0)), { runTime: 0.18 }),
-              new AnimationGroup([
-                new MoveAlongPath(token, link.route, { runTime: 0.8, rateFunc: linear }),
-                g.morph('diagram', { runTime: 0.8 }),
-              ]),
-              g.leave('walk:token', { runTime: 0.18 }),
+              walk.appear,
+              new AnimationGroup([walk.move, g.morph('diagram', { runTime: 0.8 })]),
+              walk.leave,
               new AnimationGroup([
                 o.enter(`session:ring:${after.session}`, { create: true }, { runTime: 0.8 }),
                 ...swap(k, 'state', 0.8),
@@ -306,7 +292,6 @@ export default class StateMachineExplainer extends Scene {
         'No row starts at closed. A late OPENED finds no closed:OPENED entry, so reduceSession throws InvalidTransition at the boxed line and the ring stays on closed.',
     });
     await this.play(machine.replay(['OPENED']));
-    this.state.terminal = true;
-    s.reading(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
+    s.opening(...code.code.lines.slice(1, 5), code.code.lines[THROW]!, diagram.current.find('diagram')!, ring.current.find(`session:ring:${state}`)!, readout.current);
   }
 }

@@ -1,6 +1,8 @@
 // A controlled JavaScript promise run, not a network benchmark. Search A is
 // started first; search B is the latest intent. We choose the completion order
 // by resolving their promises explicitly, without sleeps or invented latency.
+import { refuse, isRefusal } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 export type Query = 'A' | 'B';
 export type CompletionOrder = 'new-first' | 'old-first';
 
@@ -60,17 +62,19 @@ export interface RaceState {
 export function raceStart(guarded: boolean): RaceState {
   return { guarded, latest: 0, tickets: { A: null, B: null }, log: [], page: null, writes: [] };
 }
-/** The race after one event, or undefined when it cannot happen yet (or again). Pure. */
-export function raceNext(st: RaceState, event: RaceEvent): RaceState | undefined {
+/** The race after one event, or a refusal saying why it cannot happen yet (or again). Pure. */
+export function raceNext(st: RaceState, event: RaceEvent): RaceState | Refusal {
   const [first, verb] = event.split(' ') as [string, string];
   if (first === 'start') {
     const query = verb as Query;
-    if (st.tickets[query] !== null || (query === 'B' && st.tickets.A === null)) return undefined;
+    if (st.tickets[query] !== null) return refuse(`search ${query} has started already, and each search starts once`);
+    if (query === 'B' && st.tickets.A === null) return refuse('“ca” is typed before “cat”, so search A starts first');
     const ticket = st.latest + 1;
     return { ...st, latest: ticket, tickets: { ...st.tickets, [query]: ticket }, log: [...st.log, event] };
   }
   const query = first as Query, ticket = st.tickets[query];
-  if (ticket === null || st.log.includes(event)) return undefined;
+  if (ticket === null) return refuse(`search ${query} has not started, so it has no response to land`);
+  if (st.log.includes(event)) return refuse(`search ${query}’s response has landed already, and a response lands once`);
   // The handler createSearch runs when the job resolves.
   const publish = !st.guarded || ticket === st.latest;
   return { ...st, log: [...st.log, event], ...(publish ? { page: query, writes: [...st.writes, query] } : {}) };
@@ -79,7 +83,7 @@ export function raceNext(st: RaceState, event: RaceEvent): RaceState | undefined
 export function raceReplay(guarded: boolean, log: readonly RaceEvent[]): RaceState {
   return log.reduce<RaceState>((st, e) => {
     const next = raceNext(st, e);
-    if (!next) throw new RangeError(`${e} cannot happen after ${st.log.join(', ') || 'nothing'}`);
+    if (isRefusal(next)) throw new RangeError(`${e} cannot happen after ${st.log.join(', ') || 'nothing'}: ${next.reason}`);
     return next;
   }, raceStart(guarded));
 }
@@ -101,7 +105,7 @@ export function racePage(st: RaceState): (PageSpan & { stale: boolean })[] {
   let at = raceStart(st.guarded);
   st.log.forEach((event, tick) => {
     const before = at;
-    at = raceNext(at, event)!;
+    at = raceNext(at, event) as RaceState;
     if (at.writes.length === before.writes.length) return;
     const query = at.page!;
     spans.at(-1)!.to = tick;

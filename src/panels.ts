@@ -1,12 +1,12 @@
 import type {TextShaping} from './text-context.ts';
 // Panels: a key/value state readout, which a view of state draws: view(scene, (s) => new StateReadout(...)).
-import {Group} from './mobject.ts';
+import {Group, followScene} from './mobject.ts';
 import type {Mobject} from './mobject.ts';
 import { Text } from './text.ts';
 import type { Vec } from './vec.ts';
-import { GREY, WHITE } from './color.ts';
+import { NEUTRAL_COLORS } from './color.ts';
 
-/** `label: value` pairs stacked vertically; values are Text you can Transform. */
+/** `label: value` pairs stacked vertically, keys in the scene's soft colour and values in its ink; values are Text you can Transform. */
 export class StateReadout extends Group {
   /** The keys, in order: row i is children 2i (the label) and 2i + 1 (the value). */
   keys: string[];
@@ -15,8 +15,9 @@ export class StateReadout extends Group {
     super();
     this.keys = entries.map(([k]) => k);
     entries.forEach(([k, v], i) => {
-      const key = new Text(k, { fontSize, font: 'mono', color: GREY, anchor: 'end', shaping });
-      const val = new Text(String(v), { fontSize, font: 'mono', color: WHITE, anchor: 'start', shaping });
+      const key = new Text(k, { fontSize, font: 'mono', color: NEUTRAL_COLORS.soft, anchor: 'end', shaping });
+      followScene(key, { fill: 'soft' });
+      const val = new Text(String(v), { fontSize, font: 'mono', anchor: 'start', shaping });
       key.moveTo([at[0] - 0.15, at[1] - i * gap], [1, 0]);
       val.moveTo([at[0] + 0.15, at[1] - i * gap], [-1, 0]);
       this.add(key, val);

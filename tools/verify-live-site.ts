@@ -105,7 +105,7 @@ async function main() {
   }
   assert.ok(pins.has('/_headers') && pins.has(prefix + '/catalog.json') && pins.has(prefix + '/loader.js'), 'manifest must include headers, catalog and loader');
   const catalog = JSON.parse(await readFile(join(root, prefix, 'catalog.json'), 'utf8')) as {version: number; totals: {explainers: number; scenarios: number}; scenes: {id: string; scenarios: number}[]};
-  assert.ok(catalog.version === 1 && Array.isArray(catalog.scenes) && catalog.scenes.length, 'invalid catalog');
+  assert.ok(catalog.version === 2 && Array.isArray(catalog.scenes) && catalog.scenes.length, 'invalid catalog');
   const ids = new Set<string>();
   for (const scene of catalog.scenes) {
     assert.match(scene.id, /^[a-z0-9-]+$/, 'invalid catalog id');

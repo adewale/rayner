@@ -2,8 +2,11 @@
 // true while things move, and a sink that checks it. The same dot goes half way round a circle
 // twice: sampled from its angle it stays on the circle; morphed between its two ends it cuts
 // across, and the invariant names the frames where it does.
-import { Scene, Circle, Dot, Follow, Transform, InvariantSink, NullSink, linear } from 'rayner';
-import type { SceneClass, InvariantFailure, Sink } from 'rayner';
+import { Scene, Circle, Dot, Follow, Transform, linear } from 'rayner';
+import { NullSink } from 'rayner/output';
+import { InvariantSink } from 'rayner/testing';
+import type { SceneClass, Sink } from 'rayner';
+import type { InvariantFailure } from 'rayner/testing';
 
 const RADIUS = 2;
 

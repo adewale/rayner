@@ -42,6 +42,8 @@ export class VMobject extends Mobject {
 
   constructor(style: Style = {}) {
     super(style);
+    // A path drawn without a stroke takes the scene's ink. A container's own style is never drawn, so only paths are marked.
+    if (style.stroke === undefined) this.defaultColors = { stroke: 'ink' };
     this.subpaths = [];
     this.closed = [];
     this._rec = null;

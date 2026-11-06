@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { selectExport } from '../tools/lib/explain-export-selection.ts';
 
 const catalog: import('../tools/lib/explain-artifacts.ts').Catalog = {
-  version: 1,
+  version: 2,
   product: { entry: { id: 'cache' } },
   totals: { explainers: 3, scenarios: 7, diagrams: 5, styles: 2, families: 2 },
   scenes: [

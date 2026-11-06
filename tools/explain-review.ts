@@ -24,6 +24,7 @@ import {
 import { reviewStoryScenario} from './lib/explain-story-review.ts';
 import { checkBuilt } from './lib/explain-site-describe.ts';
 import { reviewSubjects } from './lib/explain-review-scene.ts';
+import { liveSubjects, reviewLiveStates } from './lib/explain-live-review.ts';
 
 let server: Awaited<ReturnType<typeof serve>> | undefined;
 let browser: Browser | undefined, page: Page | undefined;
@@ -70,6 +71,7 @@ try {
   assert.ok(planned.length, 'story shard selects no scenarios');
   const selectedScenes = new Set(planned.map(c => c.scene));
   const scenarios = [];
+  let liveSeconds = 0;
   for (const entry of EXPLAINERS.filter(entry => selectedScenes.has(entry.id))) {
     const project = await collectProject(join(ROOT, 'scenes/explainers', entry.id), { write: false });
     const subjects = await reviewSubjects(project);
@@ -96,9 +98,13 @@ try {
             kicker: t.stepOf(1, teaching.length), segments: teaching.length, scenarios: project.Scene.settings?.length ?? 0,
             madeWith: t.madeWith, home: PRODUCT.home, open: null } },
       );
-      scenarios.push({ scene: entry.id, settings: scenario.values, steps });
+      // The pictures a reader reaches by pressing a live step's events (docs/MACHINES.md, "The player").
+      const liveStarted = performance.now();
+      const live = await reviewLiveStates(page, `${base}/${entry.id}.html`, scenario, await liveSubjects(scenario, project.Scene.meta?.lang), directory);
+      liveSeconds += (performance.now() - liveStarted) / 1000;
+      scenarios.push({ scene: entry.id, settings: scenario.values, steps, ...(live.length ? { live } : {}) });
     }
-    if (selected) console.log(`${entry.id}: ${selected} selected scenarios, every resting step passed both widths`);
+    if (selected) console.log(`${entry.id}: ${selected} selected scenarios, every resting step and visited live state passed both widths`);
   }
 
   validateReviewedScenarios(scenarios, planned);
@@ -155,6 +161,7 @@ try {
         reviewCodeHash: codeHash,
         scenarios: scenarios.length,
         stepWidths: scenarios.reduce((n, c) => n + c.steps.length, 0),
+        liveStateWidths: scenarios.reduce((n, c) => n + (c.live?.length ?? 0), 0),
         results: scenarios,
         consoleErrors: errors,
         runtimeConnections: connections,
@@ -164,7 +171,7 @@ try {
     ) + '\n',
   );
   console.log(
-    `${scenarios.length} served scenarios, every resting step at both widths, passed caption, actual paint, story-target, no-error and no-external-connection checks. Shared collection checks run once in shard 1. Screenshots: ${review}`,
+    `${scenarios.length} served scenarios, every resting step and ${scenarios.reduce((n, c) => n + (c.live?.length ?? 0), 0) / 2} live states at both widths (live states ${Math.round(liveSeconds)} s), passed caption, actual paint, story-target, no-error and no-external-connection checks. Shared collection checks run once in shard 1. Screenshots: ${review}`,
   );
 } catch (error) {
   await mkdir(review, { recursive: true });

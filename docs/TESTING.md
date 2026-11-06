@@ -1,6 +1,6 @@
 # Testing Rayner
 
-For a repair, run its owning test first. Once the changes settle, run the relevant integration checks; let CI cover the catalog and platform matrix. A small follow-up does not need another full local suite unless it changes those broader contracts.
+For a repair, run its owning test first, then the relevant integration checks once the change settles, and let CI cover the catalog and platform matrix. A small follow-up needs no second full local run unless it changes those broader contracts.
 
 ```sh
 npm run check             # types and consumer API
@@ -21,7 +21,7 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 | Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
 | Staged steps | `rayner check` redraws every `stage.steps` picture from the state its trace recorded; `staged-steps.test.ts` shows a draw that reads a counter instead of its state failing, named by its step |
 | Machines | `rayner check` explores every machine's reachable states and checks each picture, its labels at 1280 px included; `machine.test.ts` checks replay, seeking, shortest paths and a picture that cannot tell states apart |
-| Scene invariants | `rayner check` runs each `addInvariant` invariant on every frame of every scenario; `recipes.test.ts` proves an invariant fails on the counterexample, and each explainer's claim was shown to fail on its old behaviour |
+| Scene invariants | `rayner check` runs each `addInvariant` invariant on every frame of every scenario; `recipes.test.ts` proves an invariant fails on the counterexample, and each explainer's invariant was shown to fail on its old behaviour |
 | Extracted choreography | `choreography.test.ts` checks geometric anchors, route/opacity samples, legacy frame equivalence, JSON state boundaries, nested schedules and writer conflicts |
 | Requested lettering | `lettering.test.ts` checks declarations, isolation and glyph contracts; the catalog builder checks actual receipt fields and page bytes |
 | Shared player shell | `explain-reader-shell.ts` runs during every catalog scenario at both reading widths; embed tests retain English/French standalone, raw iframe and loader crop checks |
@@ -43,11 +43,13 @@ Story checks bind caption subjects to actual SVG paths, computed paint, native b
 
 `npm run check:budgets` uses the built catalog hashes and three Chromium startup samples at 390 px with 4× CPU slowdown. It checks an 8-second median ceiling for representative pages; builds separately enforce 1.5 MiB raw and 450 KiB gzip limits. This is a localhost CPU surrogate, not a physical-phone or network result.
 
-Outside authors use `rayner review scene.ts --out public/example.html` and optional `scene.review.json` claims. Successful review retains the exact page and its headers, receipt and loader. Rendering fingerprints cover runtime assets and producer dependencies. Reviewer implementation edits require new review receipts but reuse unchanged source builds. Companion claims are scene-folder inputs, so changing them also requires a new build. Installed tools hash their bundled bytes. Collection operations snapshot shared producer inputs once and check them again before accepting output.
+Outside authors use `rayner review scene.ts --out public/example.html`, with an optional `scene.review.json` naming the subjects a caption points at. A successful review keeps the exact page and its headers, receipt and loader. Rendering fingerprints cover runtime assets and producer dependencies. A change to the reviewer needs new review receipts but reuses unchanged source builds; `scene.review.json` is a scene-folder input, so changing it needs a new build too. Installed tools hash their bundled bytes. Collection operations snapshot shared producer inputs once and check them again before accepting output.
 
-Keep one current validation record in CI and generated `out/` artifacts. Commit a representative screenshot or durable source oracle when it helps a reviewer; dated run transcripts and repeated receipts belong in CI or Git history. Older audit records remain historical context, not another release gate.
+Keep the current validation record in CI and the generated `out/` artifacts. Commit a representative screenshot or a durable source oracle when it helps a reviewer; dated run transcripts and repeated receipts belong in CI or Git history, and older audit records are not a release gate.
 
-When consolidating tests, move every assertion to a named keeper and prove it rejects a deliberate defect. Preserve independent values and endpoints, native paint, raster references, package checks and the full scenario inventory. [test/AGENTS.md](../test/AGENTS.md) records these rules. Test names describe what they actually assert; run counts cannot compensate for a missing input class or oracle.
+A test reads an explainer's steps from the scene, not from a copy of its list: `test/lib/steps.ts` gives a trace's step ids (`idsOf`, on one path or the whole story), a scene's (`stepIdsOf`), and `assertSteps`, which fails unless the steps a test reads by name are there in order, whatever else the story gains or loses. Pin the whole list only when the list is the point, as `explain-onboarding.test.ts` does for the feature tour's recipe-and-result pairs.
+
+When consolidating tests, move every assertion to a named keeper and show that it rejects a deliberate defect. Keep independent values and endpoints, native paint, raster references, package checks and the full scenario inventory. [test/AGENTS.md](https://github.com/adewale/rayner/blob/main/test/AGENTS.md) records these rules. A test's name says what it asserts, and more runs do not make up for a missing input class or oracle.
 
 The compatibility matrix downloads the primary job's tested archive. Package smoke verifies its source commit and SHA-512 integrity before installation and checks integrity again afterwards. It does not repack on each platform.
 

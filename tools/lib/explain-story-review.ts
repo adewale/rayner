@@ -4,8 +4,10 @@ import type { ReaderShell } from './explain-reader-shell.ts';
 // establishes which of their actual painted paths the reader can see.
 import assert from 'node:assert/strict';
 import type { Page } from 'playwright-core';
-import { renderElements, VMobject } from '../../src/index.ts';
-import type { SceneClass, Mobject, ElementRecord } from '../../src/index.ts';
+import { VMobject } from '../../src/index.ts';
+import { renderElements } from '../../src/output.ts';
+import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
+import type { ElementRecord } from '../../src/output.ts';
 import { emphasisOf } from '../../explain/look.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { isHeading } from '../../explain/stage.ts';
@@ -48,7 +50,7 @@ export function elementSlots(frame: Pick<StoryFrame, 'records' | 'chrome'>, widt
   return frame.records.map((_, i) => (skip.has(i) ? -1 : next++));
 }
 
-interface StoryPaint {
+export interface StoryPaint {
   id: number;
   signature: string;
   bounds: Rect | null;
@@ -242,186 +244,219 @@ async function changedPaint(previous: readonly StoryPaint[], current: readonly S
   return changed;
 }
 
+/** Whether a record paints anything a reader can see, for the scene's members by id. */
+function inkTest(byId: Map<number, Mobject>) {
+  return (r: ElementRecord) => {
+    if (!r.attrs.d || Number(r.attrs.opacity ?? 1) <= 0.01) return false;
+    if (
+      r.attrs.stroke !== 'none' &&
+      Number(r.attrs['stroke-width'] ?? 0) > 0 &&
+      Number(r.attrs['stroke-opacity'] ?? 1) > 0
+    )
+      return true;
+    if (r.attrs.fill === 'none' || Number(r.attrs['fill-opacity'] ?? 1) === 0) return false;
+    const m = byId.get(r.id),
+      b = m?.box();
+    if (!b || b[2] <= b[0] || b[3] <= b[1]) return false;
+    // SVG closes open paths for fill. A straight carrier with its stroke
+    // disabled has zero filled area; a curved open fill may still paint.
+    if (m instanceof VMobject && !m.closed.some(Boolean)) {
+      const points = m.subpaths.flatMap((p) =>
+        Array.from({ length: p.length / 2 }, (_, i) => [p[2 * i]!, p[2 * i + 1]!]),
+      );
+      const a = points[0],
+        z = points.find((p) => a && (p[0] !== a[0] || p[1] !== a[1]));
+      if (
+        !a ||
+        !z ||
+        points.every((p) => (p[0]! - a[0]!) * (z[1]! - a[1]!) - (p[1]! - a[1]!) * (z[0]! - a[0]!) === 0)
+      )
+        return false;
+    }
+    return true;
+  };
+}
+
+const paintOf = (records: ElementRecord[], realInk: (r: ElementRecord) => boolean): StoryPaint[] =>
+  records.map((r) => ({ id: r.id, signature: JSON.stringify([r.attrs, r.transform]), record: r, bounds: realInk(r) ? paintBounds(r) : null }));
+
+/** What `scene` shows now, as the memory `storyFrame` compares the next picture with. */
+export function storyMemory(scene: Scene<any>): StoryMemory {
+  const byId = new Map([...new Set(scene.familyMembers())].map((m) => [m.id, m]));
+  return { emphasis: emphasisOf(scene), paint: paintOf(renderElements(scene, { relative: false }), inkTest(byId)) };
+}
+
+/** What a picture showed, for telling what the next one changed: its emphasis, and its paint in order. */
+export interface StoryMemory {
+  emphasis: Map<Mobject, string>;
+  paint: StoryPaint[];
+}
+
 export async function storyFrames(
   Source: SceneClass,
   declared: readonly StorySubject[] = [],
 ): Promise<Map<string, StoryFrame>> {
   const frames = new Map<string, StoryFrame>();
-  let previous = new Map<Mobject, string>();
   // Keep ordered occurrences: redraws may change ids without changing the picture,
   // but a reordered layer or another copy can change what the reader sees.
-  let previousPaint: StoryPaint[] = [];
+  let memory: StoryMemory = { emphasis: new Map(), paint: [] };
   await new Source(
     {
       async frame() {},
       async stepEnd(scene, step) {
-        const records = renderElements(scene, { relative: false });
-        const members = [...new Set(scene.familyMembers())];
-        const byId = new Map(members.map((m) => [m.id, m]));
-        const realInk = (r: ElementRecord) => {
-          if (!r.attrs.d || Number(r.attrs.opacity ?? 1) <= 0.01) return false;
-          if (
-            r.attrs.stroke !== 'none' &&
-            Number(r.attrs['stroke-width'] ?? 0) > 0 &&
-            Number(r.attrs['stroke-opacity'] ?? 1) > 0
-          )
-            return true;
-          if (r.attrs.fill === 'none' || Number(r.attrs['fill-opacity'] ?? 1) === 0) return false;
-          const m = byId.get(r.id),
-            b = m?.box();
-          if (!b || b[2] <= b[0] || b[3] <= b[1]) return false;
-          // SVG closes open paths for fill. A straight carrier with its stroke
-          // disabled has zero filled area; a curved open fill may still paint.
-          if (m instanceof VMobject && !m.closed.some(Boolean)) {
-            const points = m.subpaths.flatMap((p) =>
-              Array.from({ length: p.length / 2 }, (_, i) => [p[2 * i]!, p[2 * i + 1]!]),
-            );
-            const a = points[0],
-              z = points.find((p) => a && (p[0] !== a[0] || p[1] !== a[1]));
-            if (
-              !a ||
-              !z ||
-              points.every((p) => (p[0]! - a[0]!) * (z[1]! - a[1]!) - (p[1]! - a[1]!) * (z[0]! - a[0]!) === 0)
-            )
-              return false;
-          }
-          return true;
-        };
-        const now = emphasisOf(scene),
-          targets: Target[] = [];
-        const add = (
-          name: string,
-          objects: Mobject[],
-          opening: boolean,
-          context = false,
-          stroke = false,
-          clipShapes = false,
-        ) => {
-          assert.ok(objects.length, `${step.name}: story target ${name} is missing`);
-          // A surviving half-word cannot stand in for the complete named label.
-          // renderElements legitimately drops invisible/clipped leaves, so inspect
-          // the logical glyphs before accepting only the surviving records.
-          for (const object of objects)
-            for (const label of object.family().filter((m) => labelOf(m)?.text.trim()))
-              for (const glyph of label.family().filter((m): m is VMobject => m instanceof VMobject && m.hasPoints())) {
-                assert.ok(
-                  glyph.style.opacity > 0.01 &&
-                    (glyph.style.drawFraction ?? 1) >= 0.95 &&
-                    ((glyph.style.fill !== 'none' && glyph.style.fillOpacity > 0) ||
-                      (glyph.style.stroke !== 'none' && glyph.style.strokeWidth > 0 && glyph.style.strokeOpacity > 0)),
-                  `${step.name}: ${name} has missing glyph ink`,
-                );
-                const b = glyph.box()!;
-                for (let a: Mobject | null = glyph; a; a = a.parent)
-                  if (a.clipBox && !context)
-                    assert.ok(
-                      b[0] >= a.clipBox[0] - 0.001 &&
-                        b[1] >= a.clipBox[1] - 0.001 &&
-                        b[2] <= a.clipBox[2] + 0.001 &&
-                        b[3] <= a.clipBox[3] + 0.001,
-                      `${step.name}: ${name} has clipped glyph ink`,
-                    );
-              }
-          const ids = new Set(objects.flatMap((m) => m.family().map((f) => f.id)));
-          const geometry = new Set(records.filter((r) => ids.has(r.id)).map((r) => r.attrs.d));
-          // Marks/trails can replace a carrier with a separately painted copy.
-          // Bind that actual ink too, rather than crediting the invisible carrier.
-          const indices = records.flatMap((r, i) =>
-            (ids.has(r.id) || geometry.has(r.attrs.d)) && realInk(r) ? [i] : [],
-          );
-          assert.ok(indices.length, `${step.name}: story target ${name} has no painted paths`);
-          if (stroke)
-            assert.ok(
-              indices.some((i) => {
-                const a = records[i]!.attrs;
-                return (
-                  a.stroke !== 'none' && Number(a['stroke-width'] ?? 0) > 0 && Number(a['stroke-opacity'] ?? 1) > 0
-                );
-              }),
-              `${step.name}: ${name} needs painted stroke ink, not only its label`,
-            );
-          const partial = clipShapes
-            ? indices.filter((i) => {
-                for (let a = byId.get(records[i]!.id); a; a = a.parent ?? undefined) if (labelOf(a)) return false;
-                return true;
-              })
-            : undefined;
-          targets.push({
-            name,
-            indices,
-            opening,
-            ...(context ? { camera: true } : {}),
-            ...(clipShapes ? { partial, required: true } : {}),
-          });
-        };
-        for (const [m, what] of now)
-          if (previous.get(m) !== what) {
-            assert.ok(members.includes(m), `${step.name}: newly emphasised ${m.key ?? what} is absent from the stage`);
-            add(`emphasis: ${m.key ?? what}`, [m], false, false, false, true);
-          }
-        previous = now;
-        const paint = records.map((r) => ({
-          id: r.id,
-          signature: JSON.stringify([r.attrs, r.transform]),
-          record: r,
-          bounds: realInk(r) ? paintBounds(r) : null,
-        }));
-        const added = new Set<Mobject>();
-        // Declared intent takes priority over unrelated context that a rebuild
-        // happens to replace or move. With no primary subject, inspect new art.
-        const hasPrimary = targets.length > 0 || declared.some((c) => c.step === step.name);
-        const [x0, y0, x1, y1] = scene.frame.box()!;
-        const changed = hasPrimary ? new Set<number>() : await changedPaint(previousPaint, paint,
-          [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
-        for (const [index, r] of (hasPrimary ? [] : records).entries()) {
-          if (!changed.has(index) || Number(r.attrs.opacity ?? 1) < 0.95) continue;
-          const m = byId.get(r.id);
-          if (!m) continue;
-          let fixed = false,
-            subject = m;
-          for (let a: Mobject | null = m; a; a = a.parent) {
-            if (a.key === '__paper' || a.key === '__frame' || isHeading(a)) fixed = true;
-            if (labelOf(a)) subject = a;
-          }
-          if (fixed || added.has(subject)) continue;
-          // Invisible route helpers are not narrative artwork.
-          if (!realInk(r)) continue;
-          add(`changed: ${labelOf(subject)?.text ?? subject.key ?? 'drawing'}`, [subject], false, true);
-          added.add(subject);
-        }
-        previousPaint = paint;
-        for (const entry of declared.filter((c) => c.step === step.name))
-          for (const target of entry.targets) {
-            const name = 'key' in target ? target.key : target.text;
-            add(
-              name,
-              members.filter((m) => ('key' in target ? m.key === target.key : labelOf(m)?.text === target.text)),
-              !!entry.opening,
-              false,
-              target.paint === 'stroke',
-            );
-          }
-        assert.ok(targets.length, `${step.name}: unchanged artwork needs a declared story subject`);
-        const labels = members.flatMap((m) => {
-          const label = labelOf(m);
-          if (!label?.text.trim() || isHeading(m)) return [];
-          const ids = new Set(m.family().map((child) => child.id));
-          const indices = records.flatMap((r, index) => (ids.has(r.id) && realInk(r) ? [index] : []));
-          return indices.length
-            ? [{ text: label.text, size: readingLabelSize(m)!, indices }]
-            : [];
-        });
-        const chrome = records.flatMap((r, index) => {
-          const m = byId.get(r.id);
-          return m && isHeading(m) ? [index] : [];
-        });
-        frames.set(step.name, { records, targets, camera: [...scene.frame.box()!], labels, chrome });
+        const next = await storyFrame(scene, step.name, memory, declared.filter((c) => c.step === step.name));
+        memory = next.memory;
+        frames.set(step.name, next.frame);
       },
     },
     { skipUntil: Infinity },
   ).run();
   for (const c of declared) assert.ok(frames.has(c.step), `story entry names missing step ${c.step}`);
   return frames;
+}
+
+/**
+ * One resting picture as the review reads it: its painted records, what a reader must be shown
+ * (what it newly emphasises compared with `previous`, else the artwork it changed, then the
+ * subjects `declared` for it), its labels and the records of the stage's heading. `unchanged`
+ * names subjects for a picture that neither emphasises nor changes anything (a live state whose
+ * event leaves the stage as it was); a resting step instead needs a declared subject.
+ */
+export async function storyFrame(
+  scene: Scene<any>,
+  name: string,
+  previous: StoryMemory,
+  declared: readonly StorySubject[],
+  unchanged?: { name: string; objects: Mobject[] }[],
+): Promise<{ frame: StoryFrame; memory: StoryMemory }> {
+  const records = renderElements(scene, { relative: false });
+  const members = [...new Set(scene.familyMembers())];
+  const byId = new Map(members.map((m) => [m.id, m]));
+  const realInk = inkTest(byId);
+  const now = emphasisOf(scene),
+    targets: Target[] = [];
+  const add = (
+    name: string,
+    objects: Mobject[],
+    opening: boolean,
+    context = false,
+    stroke = false,
+    clipShapes = false,
+  ) => {
+    assert.ok(objects.length, `${name}: story target ${name} is missing`);
+    // A surviving half-word cannot stand in for the complete named label.
+    // renderElements legitimately drops invisible/clipped leaves, so inspect
+    // the logical glyphs before accepting only the surviving records.
+    for (const object of objects)
+      for (const label of object.family().filter((m) => labelOf(m)?.text.trim()))
+        for (const glyph of label.family().filter((m): m is VMobject => m instanceof VMobject && m.hasPoints())) {
+          assert.ok(
+            glyph.style.opacity > 0.01 &&
+              (glyph.style.drawFraction ?? 1) >= 0.95 &&
+              ((glyph.style.fill !== 'none' && glyph.style.fillOpacity > 0) ||
+                (glyph.style.stroke !== 'none' && glyph.style.strokeWidth > 0 && glyph.style.strokeOpacity > 0)),
+            `${name}: ${name} has missing glyph ink`,
+          );
+          const b = glyph.box()!;
+          for (let a: Mobject | null = glyph; a; a = a.parent)
+            if (a.clipBox && !context)
+              assert.ok(
+                b[0] >= a.clipBox[0] - 0.001 &&
+                  b[1] >= a.clipBox[1] - 0.001 &&
+                  b[2] <= a.clipBox[2] + 0.001 &&
+                  b[3] <= a.clipBox[3] + 0.001,
+                `${name}: ${name} has clipped glyph ink`,
+              );
+        }
+    const ids = new Set(objects.flatMap((m) => m.family().map((f) => f.id)));
+    const geometry = new Set(records.filter((r) => ids.has(r.id)).map((r) => r.attrs.d));
+    // Marks/trails can replace a carrier with a separately painted copy.
+    // Bind that actual ink too, rather than crediting the invisible carrier.
+    const indices = records.flatMap((r, i) =>
+      (ids.has(r.id) || geometry.has(r.attrs.d)) && realInk(r) ? [i] : [],
+    );
+    assert.ok(indices.length, `${name}: story target ${name} has no painted paths`);
+    if (stroke)
+      assert.ok(
+        indices.some((i) => {
+          const a = records[i]!.attrs;
+          return (
+            a.stroke !== 'none' && Number(a['stroke-width'] ?? 0) > 0 && Number(a['stroke-opacity'] ?? 1) > 0
+          );
+        }),
+        `${name}: ${name} needs painted stroke ink, not only its label`,
+      );
+    const partial = clipShapes
+      ? indices.filter((i) => {
+          for (let a = byId.get(records[i]!.id); a; a = a.parent ?? undefined) if (labelOf(a)) return false;
+          return true;
+        })
+      : undefined;
+    targets.push({
+      name,
+      indices,
+      opening,
+      ...(context ? { camera: true } : {}),
+      ...(clipShapes ? { partial, required: true } : {}),
+    });
+  };
+  for (const [m, what] of now)
+    if (previous.emphasis.get(m) !== what) {
+      assert.ok(members.includes(m), `${name}: newly emphasised ${m.key ?? what} is absent from the stage`);
+      add(`emphasis: ${m.key ?? what}`, [m], false, false, false, true);
+    }
+  const paint = paintOf(records, realInk);
+  const added = new Set<Mobject>();
+  // Declared intent takes priority over unrelated context that a rebuild
+  // happens to replace or move. With no primary subject, inspect new art.
+  const hasPrimary = targets.length > 0 || declared.length > 0;
+  const [x0, y0, x1, y1] = scene.frame.box()!;
+  const changed = hasPrimary ? new Set<number>() : await changedPaint(previous.paint, paint,
+    [x0 * 1000, -y1 * 1000, x1 * 1000, -y0 * 1000]);
+  for (const [index, r] of (hasPrimary ? [] : records).entries()) {
+    if (!changed.has(index) || Number(r.attrs.opacity ?? 1) < 0.95) continue;
+    const m = byId.get(r.id);
+    if (!m) continue;
+    let fixed = false,
+      subject = m;
+    for (let a: Mobject | null = m; a; a = a.parent) {
+      if (a.role === 'paper' || a.role === 'frame' || isHeading(a)) fixed = true;
+      if (labelOf(a)) subject = a;
+    }
+    if (fixed || added.has(subject)) continue;
+    // Invisible route helpers are not narrative artwork.
+    if (!realInk(r)) continue;
+    add(`changed: ${labelOf(subject)?.text ?? subject.key ?? 'drawing'}`, [subject], false, true);
+    added.add(subject);
+  }
+  for (const entry of declared)
+    for (const target of entry.targets) {
+      const targetName = 'key' in target ? target.key : target.text;
+      add(
+        targetName,
+        members.filter((m) => ('key' in target ? m.key === target.key : labelOf(m)?.text === target.text)),
+        !!entry.opening,
+        false,
+        target.paint === 'stroke',
+      );
+    }
+  // A live state whose event changed nothing on the stage is reviewed on what its caller names.
+  if (!targets.length) for (const subject of unchanged ?? []) add(subject.name, subject.objects, false, true);
+  assert.ok(targets.length, `${name}: unchanged artwork needs a declared story subject`);
+  const labels = members.flatMap((m) => {
+    const label = labelOf(m);
+    if (!label?.text.trim() || isHeading(m)) return [];
+    const ids = new Set(m.family().map((child) => child.id));
+    const indices = records.flatMap((r, index) => (ids.has(r.id) && realInk(r) ? [index] : []));
+    return indices.length
+      ? [{ text: label.text, size: readingLabelSize(m)!, indices }]
+      : [];
+  });
+  const chrome = records.flatMap((r, index) => {
+    const m = byId.get(r.id);
+    return m && isHeading(m) ? [index] : [];
+  });
+  return { frame: { records, targets, camera: [...scene.frame.box()!], labels, chrome }, memory: { emphasis: now, paint } };
 }
 
 type Rect = [number, number, number, number];
@@ -658,8 +693,8 @@ export async function narrowOpeningPlan(
   });
 }
 
-type StoryView = Awaited<ReturnType<typeof inspectStoryFrame>>;
-function verifyStoryTargets(
+export type StoryView = Awaited<ReturnType<typeof inspectStoryFrame>>;
+export function verifyStoryTargets(
   frame: StoryFrame,
   views: StoryView[],
   step: string,

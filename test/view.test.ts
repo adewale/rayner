@@ -6,11 +6,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   Scene, Group, Text, DecimalNumber, Rectangle, Square, Circle, Animation, FadeIn, Succession, StateReadout,
-  StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, perf, loadFonts,
-  view, viewMismatch, View, ViewSync, RIGHT,
+  view, View,
 } from '../src/index.ts';
-import type { Mobject, Sink, SceneState } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { MotionSink, analyzeMotion, perf, loadFonts, viewMismatch } from '../explain/testing.ts';
+import type { Mobject, Sink, SceneState, ViewSync } from '../src/index.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
+import type { Vec } from '../src/index.ts';
+// Manim's values, which the package no longer exports.
+const RIGHT: Vec = [1, 0];
 
 /** A scene holding `st` as its state, for views tested without running a scene. */
 const held = (st: object = {}) => ({ state: st }) as unknown as Scene;
@@ -286,5 +290,50 @@ test('a returning sync preserves inherited scale for the next rebuild or sync', 
     }
     assert.equal(v.current.width(), 8, `${next} inherits the original scale`);
     assert.equal(v.current.height(), 8, `${next} inherits the original scale`);
+  }
+});
+
+test('rayner check names a view whose picture lags the state at the end of a step', async () => {
+  const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
+  const { NullSink } = await import('../src/output.ts');
+  const lagging = (sync: boolean) => class extends Scene<{ n: number }> {
+    override state = { n: 1 };
+    override async construct() {
+      const readout = view(this, (st) => new Text(`n ${st.n}`), { place: false });
+      this.add(readout);
+      await this.step('one');
+      this.state = { n: 2 };
+      if (sync) await this.play(readout.sync({ runTime: 0.2 }));
+      await this.step('two');
+    }
+  };
+  for (const sync of [false, true]) {
+    const views = new ViewSink();
+    await new (lagging(sync))(new FanSink([new NullSink(), views])).run();
+    if (sync) assert.deepEqual(views.problems, []);
+    else assert.match(views.problems[0]!, /^step "one": a view: the view shows \["n 1"\], the state \{"n":2\} draws \["n 2"\]/);
+    assert.ok(views.checked >= 2);
+  }
+});
+
+test('rayner check names a view whose words match its state but whose marks do not', async () => {
+  const { ViewSink, FanSink } = await import('../tools/lib/explain-check.ts');
+  const { Group, Rectangle } = await import('../src/index.ts'); const { NullSink } = await import('../src/output.ts');
+  // A label and a bar under row `lit`: moving the bar by hand, outside the state, leaves the words alone.
+  const marked = (byHand: boolean) => class extends Scene<{ lit: number }> {
+    override state = { lit: 0 };
+    override async construct() {
+      const card = view(this, (st) => new Group(new Text('rows'), new Rectangle({ width: 2, height: 0.4 }).shift([0, -0.5 * st.lit])), { place: false });
+      this.add(card);
+      await this.step('one');
+      if (byHand) card.current.children[1]!.shift([0, -0.5]);
+      else { this.state = { lit: 1 }; await this.play(card.sync({ runTime: 0.2 })); }
+    }
+  };
+  for (const byHand of [false, true]) {
+    const views = new ViewSink();
+    await new (marked(byHand))(new FanSink([new NullSink(), views])).run();
+    if (byHand) assert.match(views.problems[0]!, /^step "one": a view: the view's part \d+ is \["Rectangle"/);
+    else assert.deepEqual(views.problems, []);
   }
 });

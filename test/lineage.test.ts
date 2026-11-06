@@ -6,11 +6,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import {
-  Scene, StringSink, NullSink, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Polygon, Text, Code, DecimalNumber,
-  Transform, FadeIn, FadeOut, Create, Write, Indicate, MoveAlongPath, AnimationGroup, LaggedStart,
-  linear, smooth, rushInto, rushFrom, thereAndBack, easeInQuad, easeOutQuad, easeOutBack, wiggle,
-  toSvgString, renderElements, renderAt, indexScene, loadFonts, shaperFor,
+  Scene, Group, VMobject, Rectangle, Circle, Square, Line, Dot, Arc, Polygon, Text, Code, DecimalNumber,
+  Transform, FadeIn, FadeOut, Create, Write, MoveAlongPath, AnimationGroup, LaggedStart,
+  linear, smooth, rushInto, rushFrom, thereAndBack,
+  shaperFor,
 } from '../src/index.ts';
+import { StringSink, NullSink, toSvgString, renderElements, renderAt, indexScene } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
+import { Indicate } from './lib/transient.ts';
 import type { Mobject, Sink, Vec, RateFunc, Animation, Style } from '../src/index.ts';
 
 await loadFonts();
@@ -33,6 +36,13 @@ function drawn(...mobs: Mobject[]): string {
 }
 const near = (a: number, b: number, eps = 1e-4) => Math.abs(a - b) <= eps;
 const finiteFrame = (svg: string) => !/NaN|Infinity|undefined/.test(svg);
+// Rate functions an author writes, beside the exported ones: two easings, one that overshoots its end
+// and one that swings both ways. The engine must follow any rate function, not only its own.
+const easeInQuad: RateFunc = (t) => t * t;
+const easeOutQuad: RateFunc = (t) => 1 - (1 - t) * (1 - t);
+// Exact at the ends: the polynomial leaves 2.2e-16 at t = 0, so the first frame would not be the start
+const easeOutBack: RateFunc = (t) => { if (t <= 0) return 0; if (t >= 1) return 1; const c = 1.70158; const u = t - 1; return 1 + (c + 1) * u * u * u + c * u * u; };
+const wiggle: RateFunc = (t) => thereAndBack(t) * Math.sin(4 * Math.PI * t);
 const RATES: Array<[string, RateFunc]> = [
   ['linear', linear], ['smooth', smooth], ['rushInto', rushInto], ['rushFrom', rushFrom], ['thereAndBack', thereAndBack],
   ['easeInQuad', easeInQuad], ['easeOutQuad', easeOutQuad], ['easeOutBack', easeOutBack], ['wiggle', wiggle],
@@ -81,7 +91,7 @@ test('rate: style blended at any alpha, overshoot included, keeps opacities in [
   }), params(500));
 });
 
-test('rate: every exported rate function is exact at its ends and finite in between (manim-web #50, #58)', () => {
+test('rate: every exported rate function, and each written here, is exact at its ends and finite in between (manim-web #50, #58)', () => {
   // https://github.com/maloyan/manim-web/issues/50, https://github.com/maloyan/manim-web/pull/58 (wrong lingering/runningStart bases)
   for (const [name, f] of RATES) {
     assert.equal(f(0), 0, `${name}(0)`);
@@ -90,12 +100,6 @@ test('rate: every exported rate function is exact at its ends and finite in betw
   fc.assert(fc.property(rate, fc.double({ min: 0, max: 1, noNaN: true }), ([name, f], t) => {
     assert.ok(Number.isFinite(f(t)), `${name}(${t})`);
 
-  }), params(500));
-});
-
-test('rate: wiggle is odd about t = 0.5', () => {
-  fc.assert(fc.property(fc.double({ min: 0, max: 1, noNaN: true }), (t) => {
-    assert.ok(near(wiggle(1 - t), -wiggle(t), 1e-12));
   }), params(500));
 });
 

@@ -1,9 +1,11 @@
-import { Scene, Group, Rectangle, Text, VMobject } from '../../../src/index.ts';
-import type { Box, Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { Scene, Group, Rectangle, Text, VMobject, view } from '../../../src/index.ts';
+import type { Box, Mobject, View } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid } from '../../../explain/index.ts';
+import type { CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
+  add,
   endpointsOn,
   flows,
   frac,
@@ -44,12 +46,7 @@ const POLICY: Record<Policy, string> = { cluster: 'Cluster', local: 'Local' };
 function cluster(counts: readonly number[], policy: Policy): string {
   const pods = podsOf(counts);
   const lines = [
-    '---',
-    'config:',
-    '  architecture:',
-    '    fontSize: 24',
-    '    iconSize: 60',
-    '---',
+    mermaid.frontMatter({ architecture: { fontSize: 24, iconSize: 60 } }),
     'architecture-beta',
     '  service lb(internet)[Load balancer]',
   ];
@@ -114,6 +111,17 @@ const shareRows = (s: Record<string, Q>) =>
 // The widest Cluster topology needs the full stage width to keep every
 // imported service label above the completed-view readability floor.
 const DIAGRAM: Box = [-8, -1.25, 8, 3.2];
+/** What the steps record, accumulated: the fields the views below draw from. */
+interface TrafficState {
+  policy: Policy;
+  placement: number[];
+  client: string;
+  flow: Record<Policy, FlowState>;
+  compare: Record<Policy, Record<string, string>>;
+  hops: Record<Policy, string>;
+  chain: (string | null)[];
+  chainPods: string[];
+}
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
@@ -139,12 +147,27 @@ function band(a0: number, a1: number, ya: number, b0: number, b1: number, yb: nu
   v.closePath();
   return v;
 }
-/** One policy's flow, centred at x = cx. The keys name the panel, each band and each pod. */
-function flowPanel(counts: readonly number[], policy: Policy, cx: number, ink: string, paper: string, mine: boolean) {
+/** A fraction as the state records it ("1/6", "0"), read back as the model's exact fraction. */
+const parse = (f: string): Q => {
+  const [num, den = '1'] = f.split('/');
+  return q(Number(num), Number(den));
+};
+/** What the flow step records of one policy: each node's share, and every band as [node, pod, share]. */
+interface FlowState {
+  nodes: string[];
+  bands: [string, string, string][];
+}
+/**
+ * One policy's flow, centred at x = cx, drawn from what the step records: the node shares and the
+ * bands, each pod's share being the bands that reach it. The keys name the panel, each band and each pod.
+ */
+function flowPanel(counts: readonly number[], policy: Policy, flow: FlowState, cx: number, ink: string, paper: string, mine: boolean) {
   const pods = podsOf(counts),
-    node = nodeShares(counts, policy),
-    share = shares(counts, policy),
-    bands = flows(counts, policy);
+    node = flow.nodes.map(parse),
+    bands = flow.bands.map(([at, pod, f]) => ({ node: NODES.indexOf(at), pod, share: parse(f) }));
+  const share: Record<string, Q> = Object.fromEntries(
+    pods.map((p) => [p.id, bands.filter((b) => b.pod === p.id).reduce((sum, b) => add(sum, b.share), q(0))]),
+  );
   const w = (x: Q) => value(x) * FLOW_W;
   const text = (words: string, color = ink, size = FLOW_TEXT, bold = false) =>
     new Text(words, { fontSize: size, color, weight: bold ? 'bold' : 'normal' });
@@ -320,6 +343,24 @@ export default class TrafficPolicyExplainer extends Scene {
       ids = pods.map((p) => p.id);
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
     const groups = counts.map((_, j) => `group:n${j + 1}`);
+    const ink = s.palette.ink,
+      paper = s.palette.paper;
+    /** A card drawn from the state: a view that builds it from `rows(state)`, so check holds it to the state. */
+    const cardOf = (rows: (st: TrafficState) => readonly CardRow[], opts: CardOptions, keys?: (card: Card) => void): View<Card> =>
+      view(
+        this,
+        (state) => {
+          const card = new Card(this, s.palette, rows(state as unknown as TrafficState), opts);
+          keys?.(card);
+          return card;
+        },
+        { place: false },
+      );
+    /** Both policies' flows, from what the flow step records. */
+    const flowPictures = (st: TrafficState) => ({
+      cluster: flowPanel(st.placement, 'cluster', st.flow.cluster, -3.85, ink, paper, st.policy === 'cluster'),
+      local: flowPanel(st.placement, 'local', st.flow.local, 3.85, ink, paper, st.policy === 'local'),
+    });
 
     // ------------------------------------------------------------------ topology
     await this.step('topology', {
@@ -328,24 +369,26 @@ export default class TrafficPolicyExplainer extends Scene {
       caption: `A Service of type LoadBalancer: a cloud load balancer sends outside requests to the nodes, and rules that kube-proxy writes on each node hand every request to a pod. ${placementWords(counts)}. The Service’s externalTrafficPolicy sets which pods a node may pick: under Cluster, the default, any pod in the cluster; under Local, only the pods on that node. This one is set to ${POLICY[policy]}.`,
     });
     await s.clear();
+    this.state.placement = [...counts];
+    this.state.policy = policy;
+    this.state.client = CLIENT_IP;
     let d = await s.show({ source: cluster(counts, policy) }, { box: DIAGRAM });
-    await s.card(
-      [
-        ['externalTrafficPolicy', POLICY[policy]],
-        ['Pods on nodes 1, 2, 3', counts.join(', ')],
-        ['Client address', CLIENT_IP],
+    const setup = cardOf(
+      (st) => [
+        ['externalTrafficPolicy', POLICY[st.policy]],
+        ['Pods on nodes 1, 2, 3', st.placement.join(', ')],
+        ['Client address', st.client],
         ['kube-proxy mode', 'iptables, the Linux default'],
       ],
       { at: BELOW, fontSize: SIZE },
     );
-    this.state.placement = [...counts];
+    await s.enter(setup, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ rules
     // The chain shown: every pod under Cluster (the same on every node); Node 1's own pods under Local.
     const chainPods = endpointsOn(counts, policy, 0).map((p) => p.id);
     const chain = rules(chainPods),
       each = ruleShares(chainPods.length);
-    const chainName = policy === 'cluster' ? 'KUBE-SVC' : 'KUBE-SVL';
     const spelled = chain
       .map((r) => (r.probability ? `1/${Math.round(1 / Number(r.probability))}` : 'always'))
       .join(', ');
@@ -370,22 +413,32 @@ export default class TrafficPolicyExplainer extends Scene {
     await s.clearOverlays();
     // The whole cluster stays in view, so Node 2 and Node 3 are never cut off at the edge.
     await d.mark(policy === 'cluster' ? ['k1', 'k2', 'k3'] : ['k1'], { as: 'chain shown' });
-    // The real chain lists KUBE-SEP-<hash> targets; here each target is named by its pod.
-    const code = await s.code(
-      [
-        `# ${chainName} chain on ${policy === 'cluster' ? 'every node' : 'Node 1'}, one rule per pod`,
-        ...chain.map((r) =>
-          r.probability
-            ? `-m statistic --mode random --probability ${r.probability} -j pod ${r.pod}`
-            : `-j pod ${r.pod}`,
-        ),
-      ],
-      { at: BELOW, fontSize: 0.22, enter: false },
+    this.state.chain = chain.map((r) => r.probability);
+    // The pods the chain lists, in its order, which the code panel names.
+    this.state.chainPods = chainPods;
+    // The real chain lists KUBE-SEP-<hash> targets; here each target is named by its pod. The panel is
+    // a view of the chain the step records: each rule's probability and the pod it jumps to.
+    const code = view(
+      this,
+      (state) => {
+        const st = state as unknown as TrafficState;
+        return new CodeBlock(
+          this,
+          s.palette,
+          [
+            `# ${st.policy === 'cluster' ? 'KUBE-SVC' : 'KUBE-SVL'} chain on ${st.policy === 'cluster' ? 'every node' : 'Node 1'}, one rule per pod`,
+            ...st.chainPods.map((pod, i) =>
+              st.chain[i] ? `-m statistic --mode random --probability ${st.chain[i]} -j pod ${pod}` : `-j pod ${pod}`,
+            ),
+          ],
+          { at: BELOW, fontSize: 0.22 },
+        );
+      },
+      { place: false },
     );
     await s.enter(code);
     // Each pod in the chain says its share of the node's requests.
     for (const [i, id] of chainPods.entries()) await d.note(id, frac(each[i]!), { side: 'above', size: SIZE });
-    this.state.chain = chain.map((r) => r.probability);
     this.state.chainShares = each.map(frac);
 
     const node = nodeShares(counts, policy);
@@ -522,16 +575,28 @@ export default class TrafficPolicyExplainer extends Scene {
           : `, so every pod ends at ${frac(lHigh[0])}, as under Cluster, and no band crosses to another node.`),
     });
     await s.clear();
-    const flowLeft = flowPanel(counts, 'cluster', -3.85, s.palette.ink, s.palette.paper, policy === 'cluster'),
-      flowRight = flowPanel(counts, 'local', 3.85, s.palette.ink, s.palette.paper, policy === 'local');
-    await s.enter(flowLeft.group, flowRight.group, { describe: () => `${flowLeft.words()} ${flowRight.words()}` });
-    // A phone opens on this scenario's own policy; the other panel is the next stop of the tour.
-    s.reading(policy === 'cluster' ? flowLeft.group : flowRight.group);
-    const flowState = (p: Policy) => ({
+    const flowState = (p: Policy): FlowState => ({
       nodes: nodeShares(counts, p).map(frac),
-      bands: flows(counts, p).map((b) => [NODES[b.node], b.pod, frac(b.share)]),
+      bands: flows(counts, p).map((b) => [NODES[b.node]!, b.pod, frac(b.share)]),
     });
     this.state.flow = { cluster: flowState('cluster'), local: flowState('local') };
+    // Both panels are one view of the recorded flows.
+    const panels = view(
+      this,
+      (state) => {
+        const both = flowPictures(state as unknown as TrafficState);
+        return new Group(both.cluster.group, both.local.group);
+      },
+      { place: false },
+    );
+    await s.enter(panels, {
+      describe: () => {
+        const both = flowPictures(this.state as unknown as TrafficState);
+        return `${both.cluster.words()} ${both.local.words()}`;
+      },
+    });
+    // A phone opens on this scenario's own policy; the other panel is the next stop of the tour.
+    s.opening(panels.current.children[policy === 'cluster' ? 0 : 1]!);
 
     // ------------------------------------------------------------------ the client's address
     if (policy === 'cluster') {
@@ -600,32 +665,34 @@ export default class TrafficPolicyExplainer extends Scene {
     await s.clearOverlays();
     await d.clearNotes();
     await d.unmark();
-    const half = (p: Policy, box: Box) =>
-      s.card(
-        [
-          ...shareRows(p === 'local' ? local : cl),
-          ['Second hop', inN(secondHop(counts, p))],
-          ['Pod sees', p === 'local' ? 'client address' : 'node address'],
-        ],
-        { at: box, align: 'top', fontSize: SIZE, title: POLICY[p], enter: false },
-      );
-    const left = await half('cluster', regionBox(BELOW, { right: -0.15 })),
-      right = await half('local', regionBox(BELOW, { left: 0.15 }));
-    for (const [policy, card] of [['cluster', left], ['local', right]] as const) {
-      card.key = `traffic-compare:${policy}`;
-      card.values.get('Second hop')!.key = `${card.key}:hop`;
-      card.values.get('Pod sees')!.key = `${card.key}:source`;
-      for (const [label, value] of card.values)
-        if (label !== 'Second hop' && label !== 'Pod sees') {
-          card.labels.get(label)!.key = `${card.key}:pods:${label}`;
-          value.key = `${card.key}:share:${label}`;
-        }
-    }
-    await s.enter(left, right);
     this.state.compare = {
       cluster: Object.fromEntries(ids.map((id) => [id, frac(cl[id]!)])),
       local: Object.fromEntries(ids.map((id) => [id, frac(local[id]!)])),
     };
+    this.state.hops = { cluster: frac(secondHop(counts, 'cluster')), local: frac(secondHop(counts, 'local')) };
+    // Each policy's card is a view of its recorded shares and second hop.
+    const half = (p: Policy, box: Box) =>
+      cardOf(
+        (st) => [
+          ...shareRows(Object.fromEntries(Object.entries(st.compare[p]).map(([id, f]) => [id, parse(f)]))),
+          ['Second hop', inN(parse(st.hops[p]))],
+          ['Pod sees', p === 'local' ? 'client address' : 'node address'],
+        ],
+        { at: box, align: 'top', fontSize: SIZE, title: POLICY[p] },
+        (card) => {
+          card.key = `traffic-compare:${p}`;
+          card.values.get('Second hop')!.key = `${card.key}:hop`;
+          card.values.get('Pod sees')!.key = `${card.key}:source`;
+          for (const [label, value] of card.values)
+            if (label !== 'Second hop' && label !== 'Pod sees') {
+              card.labels.get(label)!.key = `${card.key}:pods:${label}`;
+              value.key = `${card.key}:share:${label}`;
+            }
+        },
+      );
+    const left = half('cluster', regionBox(BELOW, { right: -0.15 })),
+      right = half('local', regionBox(BELOW, { left: 0.15 }));
+    await s.enter(left, right);
 
     // ------------------------------------------------------------------ caveats
     await this.step('caveats', {

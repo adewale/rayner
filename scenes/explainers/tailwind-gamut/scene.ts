@@ -1,10 +1,11 @@
 import { frames as readerFrames } from '../lib/readers/tailwind-gamut.ts';
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS } from '../../../explain/index.ts';
+import { stage, settingsOf, REGIONS, mermaid } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SHADES, THEME_LINES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
+import { SHADES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
 import type { Row, Shade } from '../lib/tailwind-gamut.ts';
+import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
 // Sources. Every number on screen comes from lib/tailwind-gamut.ts, which cites the lines it uses.
@@ -20,7 +21,7 @@ type Screen = 'srgb' | 'p3';
 // Radar-beta with a ring label on each ring. A 290 px canvas (radius 89 px rather than 120) keeps the
 // spoke and ring labels at least 14 px on a 1280 px stage when the chart fills the `main` region; the
 // legend is drawn natively in the side column, at the reader's size.
-const HEAD = ['---', 'config:', '  radar:', '    tickLabels: true', '    width: 290', '    height: 290', '---'];
+const HEAD = mermaid.frontMatter({ radar: { tickLabels: true, width: 290, height: 290 } });
 interface Curve {
   id: 'srgb' | 'tw' | 'p3';
   label: string;
@@ -37,7 +38,7 @@ const CHROMA: Scale = { min: 0, max: 0.35, ticks: 7 };
 const SHARE: Scale = { min: 50, max: 150, ticks: 4 };
 const radar = (all: readonly Row[], curves: readonly Curve[], scale: Scale) =>
   [
-    ...HEAD,
+    HEAD,
     'radar-beta',
     `  axis ${all.map((r) => `${r.family}["${r.family} ${Math.round(r.h)}°"]`).join(', ')}`,
     ...curves.map((c) => `  curve ${c.id}["${c.label}"]{${c.values.join(', ')}}`),
@@ -54,7 +55,7 @@ const SIZE = 0.24;
 /** Hand-drawn's first three series colours, as a reader would name them. */
 const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
 
-const pct = (v: number) => `${v.toFixed(1)}%`;
+const pct = (v: number) => percent(v, { of: 100 });
 
 // The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
 // at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
@@ -71,8 +72,6 @@ const ROOMY = OPEN.leastOfSrgb.family;
 const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
 if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
 const deg = (h: number) => `${h.toFixed(1)}°`;
-const list = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
@@ -265,7 +264,7 @@ export default class TailwindGamutExplainer extends Scene {
       await d.note(`dot:tw:${i}`, text, { side: best, size });
     };
 
-    // ------------------------------------------------------------------ oklch
+    // ------------------------------------------------------------------ the opening
     // theme.css l.10–320: 26 families of 11 shades, 286 lines, each oklch(L% C h); only black and white
     // (l.322–323) are hex. The 17 coloured families come first (l.10–212), then nine greys. Blog l.358–360: "We've upgraded the entire default
     // color palette from rgb to oklch, taking advantage of the wider gamut to make the colors more vivid in
@@ -273,26 +272,6 @@ export default class TailwindGamutExplainer extends Scene {
     await s.steps(readerFrames(shade, screen), { kind: 'short' });
     // Colours that round to the leader's share: the radar draws them at the same radius.
     const level = all.filter((r) => r.family !== sum.mostOfSrgb.family && r.ofSrgb === sum.mostOfSrgb.value).map((r) => r.family);
-    await this.step('oklch', {
-      title: `${sum.mostOfSrgb.family}-${shade} is one of ${n} colours at shade ${shade}, all written in oklch`,
-      line: 'Each line reads oklch(L C h): lightness, chroma, hue angle.',
-      caption: `These are the ${shade} shades of Tailwind’s ${n} coloured families, written as lightness, chroma and hue. Chroma is distance from grey. The opening colour asks for more of it than sRGB can reproduce. To find whether the other families fit, compare each requested chroma with the limit at that colour’s own lightness and hue.`,
-    });
-    await s.clear();
-    const code = await s.code(
-      [`/* theme.css, v4.3.3: the ${shade} shades */`, ...all.map((r) => THEME_LINES[r.line]!.trim())],
-      { at: [REGIONS.main[0], REGIONS.main[1], REGIONS.main[2], 3.05], fontSize: 0.19 },
-    );
-    await column(
-      null,
-      [
-        ['L', 'lightness, 0% to 100%'],
-        ['C', 'chroma, 0 is grey'],
-        ['h', 'hue angle, degrees'],
-      ],
-      [`Lines ${all[0]!.line} to ${all.at(-1)!.line} of the file, every twelfth line.`],
-    );
-    this.state.palette = all.map((r) => [r.family, r.L, r.C, r.h]);
 
     // ------------------------------------------------------------------ srgb-edge
     const srgbCurve: Curve = { id: 'srgb', label: 'sRGB edge', values: all.map((r) => r.srgb) };
@@ -301,7 +280,7 @@ export default class TailwindGamutExplainer extends Scene {
     await this.step('srgb-edge', {
       title: 'An sRGB screen’s edge sits at a different chroma for each colour',
       line: 'The outline is the most chroma sRGB can show on each spoke.',
-      caption: `Each spoke is one family, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, its sRGB edge. A single chroma cutoff would not work: the limit depends on lightness and hue together. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
+      caption: `Each spoke is one of Tailwind’s ${n} coloured families at shade ${shade}, labelled with its hue. The outline marks the most chroma an sRGB screen can show at that colour’s own lightness and hue, its sRGB edge. A single chroma cutoff would not work: the limit depends on lightness and hue together. The spokes are evenly spaced; the hues are not: ${gap.lo.from} to ${gap.lo.to} is ${gap.lo.value}°, ${gap.hi.from} to ${gap.hi.to} ${gap.hi.value}°.`,
     });
     await s.clear();
     const d = await s.show({ source: radar(all, [srgbCurve, twCurve], CHROMA) }, { box: 'main', build: 'frame' });
@@ -316,19 +295,20 @@ export default class TailwindGamutExplainer extends Scene {
       ],
       [srgbCurve],
     );
+    this.state.palette = all.map((r) => [r.family, r.L, r.C, r.h]);
     this.state.srgbEdge = all.map((r) => r.srgb);
 
     // ------------------------------------------------------------------ palette
     await this.step('palette', {
       title: `${out} of the ${n} ${shade} shades lie outside sRGB`,
-      line: `Furthest past the edge: ${sum.furthest.family}-${shade}, by ${sum.furthest.value.toFixed(3)} chroma.`,
-      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${list(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; the furthest out in raw chroma, ${sum.furthest.family}-${shade}, is ${sum.furthest.value.toFixed(3)} past the edge. Yet the first step showed what a sliver does to ${sum.mostOfSrgb.family}-${shade}.`,
+      line: 'Predict: measured against its own spoke’s edge, which colour is furthest out?',
+      caption: `Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written. Tailwind’s own chroma for each colour is drawn over the edge: ${out} of ${n} lie outside, and only ${listed(sum.insideSrgb)} fit. At this scale the overshoot looks like a sliver; ${sum.furthest.family}-${shade}, the furthest out in raw chroma, is ${sum.furthest.value.toFixed(3)} past its edge. But each spoke’s edge sits at a different chroma. As a share of its own edge, which colour goes furthest?`,
     });
     await s.clearOverlays();
     said.length = 0;
     await d.reveal(['curve:tw']);
     await onDot(d, sum.furthest.family, `+${sum.furthest.value.toFixed(3)}`);
-    await column(d, [], [`Inside sRGB: ${list(sum.insideSrgb)}.`], [srgbCurve, twCurve]);
+    await column(d, [], [`Inside sRGB: ${listed(sum.insideSrgb)}.`], [srgbCurve, twCurve]);
     this.state.outsideSrgb = sum.outsideSrgb;
     this.state.furthest = sum.furthest;
 
@@ -339,11 +319,11 @@ export default class TailwindGamutExplainer extends Scene {
       { ...twCurve, values: all.map((r) => r.ofSrgb) },
     ];
     await this.step('share', {
-      title: `As a share of the edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
+      title: `Answer: as a share of its edge, ${sum.mostOfSrgb.family}-${shade} reaches ${pct(sum.mostOfSrgb.value)}`,
       line: `The edge is now the 100 ring; ${sum.leastOfSrgb.family} has most room, at ${pct(sum.leastOfSrgb.value)}.`,
-      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke. The edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${
+      caption: `The same colours, each as a percentage of the sRGB edge on its own spoke: the edge becomes the 100 ring, and every colour past it shows. ${sum.mostOfSrgb.family}, the colour from the first step, goes furthest, to ${pct(sum.mostOfSrgb.value)}${
         sum.mostOfSrgb.family === sum.furthest.family ? '' : `: its edge is lower than ${sum.furthest.family}’s, so a smaller overshoot is a larger share of it`
-      }.${level.length ? ` ${list(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. A value above 100% asks for more chroma than that spoke can hold. The centre is now 50%, and the rings are 25 points apart; this is relative capacity, not raw chroma.`,
+      }.${level.length ? ` ${listed(level)} ${level.length === 1 ? 'is' : 'are'} level with it to one decimal.` : ''} ${sum.leastOfSrgb.family} has the most room, at ${pct(sum.leastOfSrgb.value)}. The centre is now 50%, and the rings are 25 points apart.`,
     });
     await s.clearOverlays();
     said.length = 0;

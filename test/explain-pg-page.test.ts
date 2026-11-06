@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Scene, NullSink, loadFonts } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { readSnapshots } from '../tools/lib/explain-project.ts';

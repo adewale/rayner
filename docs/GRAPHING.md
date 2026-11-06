@@ -1,10 +1,8 @@
 # Graphing
 
-`NumberLine` and `Axes` map the program's numbers to points in the scene. A chart drawn with them
-comes straight from the scene's own model: a plot samples the scene's own function, and bars take
-the values the program computed. There is no build step, and nothing can drift out of sync with
-the code the explainer is about. This is the explainers' principle, that the animation shows what
-the program does, applied to charts.
+`NumberLine` and `Axes` map the program's numbers to points in the scene. A plot samples the
+scene's own function and bars take the values the program computed, so the chart is drawn from the
+model at run time, with no build step, and cannot disagree with it.
 
 Everything is an ordinary mobject. Axes are Lines, Polygons and Text in Groups. A plot is one
 VMobject made of cubic Béziers, and bars are Rectangles. So `Create` draws a chart in,
@@ -16,7 +14,7 @@ The seasons explainer computes daylight with `sunlight(latitude, declination)` i
 `scenes/explainers/lib/models.ts`. Here the scene plots that same function:
 
 ```ts
-import { Scene, Axes, Create, Transform, FadeIn, GOLD, TEAL } from '../../../src/index.ts';
+import { Scene, Axes, Create, Transform, FadeIn } from '../../../src/index.ts';
 import { sunlight, daylightYear } from '../lib/models.ts';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -34,13 +32,13 @@ class Daylight extends Scene {
     await this.play(new Create(axes), { runTime: 2 });
 
     // Tromsø: the curve stays flat at 0 h and 24 h for weeks (see "Plot" below)
-    const tromso = axes.plot(daylightAt(69.65), { color: GOLD });
+    const tromso = axes.plot(daylightAt(69.65), { color: '#f0ac5f' });
     await this.play(new Create(tromso), { runTime: 1.5 });
 
     // The month-by-month table the program computes, as bars; then London's
-    const bars = axes.bar(daylightYear(69.65), { labels: MONTHS, colors: GOLD, fillOpacity: 0.3 });
+    const bars = axes.bar(daylightYear(69.65), { labels: MONTHS, colors: '#f0ac5f', fillOpacity: 0.3 });
     await this.play(new FadeIn(bars));
-    await this.play(new Transform(bars, axes.bar(daylightYear(51.5), { labels: MONTHS, colors: TEAL, fillOpacity: 0.3 })));
+    await this.play(new Transform(bars, axes.bar(daylightYear(51.5), { labels: MONTHS, colors: '#5cd0b3', fillOpacity: 0.3 })));
   }
 }
 ```
@@ -93,6 +91,8 @@ move the axes first, then build graphs and add them yourself.
 | `verticalLine(x, { from?, to? })` / `horizontalLine(y, { from?, to? })` | `Line` guide; defaults to the full range of the other axis |
 | `areaUnder(fn, [a, b], { samples, color, fillOpacity })` | closed `VMobject` between the curve and y = 0 |
 
+A colour left out is the scene's for that role ([default colours](ENGINE-FUNDAMENTALS.md#geometry-and-paint)): lines, ticks and labels without a `stroke` take its ink, plotted data without a `color` its accent, and guide lines its soft colour. On a stage these are the palette's, so an axis drawn without a stroke reads on any paper.
+
 ### Plot
 
 Each pair of neighbouring samples is joined by one cubic, and every sample is an anchor, so the
@@ -129,11 +129,11 @@ are any.
 
 ## In the explainers
 
-- [seasons](../scenes/explainers/seasons/scene.ts), "year" to "distance": `plot` of `sunlight()` over twelve
+- [seasons](https://github.com/adewale/rayner/blob/main/scenes/explainers/seasons/scene.ts), "year" to "distance": `plot` of `sunlight()` over twelve
   months (145 samples), `verticalLine`s and `dot`s at the solstices and equinoxes, a second
   plot at the mirrored latitude, then all four places on one axes. Ticks carry numbers, not
   text, so the scene places its own month names under the x axis.
-- [token-bucket](../scenes/explainers/token-bucket/scene.ts): `lineGraph` segments drawn call by call from the
+- [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts): `lineGraph` segments drawn call by call from the
   same `allow()` results as the gauge, a `horizontalLine` at one token, `dot`s for each request
   (red for 429), and the runs at all three rates overlaid in the last step.
 

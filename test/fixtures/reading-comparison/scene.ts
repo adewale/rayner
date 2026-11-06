@@ -12,6 +12,6 @@ export default class Comparison extends Scene {
     const after = new Text('After: 2', { fontSize: 0.7 }).moveTo([2, -1]);
     const detail = new Text('Implementation details', { fontSize: 0.22 }).moveTo([4, -3]);
     await s.enter(before, after, detail);
-    s.reading(before, after);
+    s.opening(before, after);
   }
 }

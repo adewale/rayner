@@ -1,12 +1,23 @@
-import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform } from '../src/index.ts';
+import { Group, Rectangle, Text, Code, FadeIn, FadeOut, Transform, View } from '../src/index.ts';
 import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
-import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource } from './look.ts';
+import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, REGIONS, emphasisSource, seenSource } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
 import type { Seen } from './trace.ts';
 import { wordsOf } from './words.ts';
 import { layoutDirection } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
+
+/**
+ * Refuse to change in place a panel a view draws (its current picture, or inside it): the view
+ * redraws its picture from state, so a change made here is lost at its next sync, and the checks
+ * compare the picture with a fresh draw of the state. `instead` says how to draw it from state.
+ */
+function refuseIfViewDrawn(panel: Mobject, call: string, instead: string): void {
+  for (let x = panel.parent; x; x = x.parent)
+    if (x instanceof View)
+      throw new Error(`${call} changes a ${panel.constructor.name} that a view draws${x.key ? ` (${x.key})` : ''}, and the view redraws it from state at its next sync. ${instead}`);
+}
 
 /** A label and its value; with `columns`, one value per column or a single value that spans them. */
 export type CardRow = readonly [label: string, value: unknown, ...more: unknown[]];
@@ -29,6 +40,13 @@ export interface CardOptions {
   fontSize?: number;
   /** Field arrangement only: RTL puts labels on the right and values on the left. */
   direction?: LayoutDirection;
+  /**
+   * The row lit from the start, as `mark(label)` leaves it: a card drawn from state (in a view's
+   * draw or a staged step's) shows its mark as part of the picture, described and emphasised.
+   */
+  lit?: string | null;
+  /** The word the description gives the lit row (default "marked", in the scene's language), as `mark`'s `as`. */
+  litAs?: string;
 }
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
@@ -244,9 +262,15 @@ export class Card extends Group {
       });
     }
     place(this, at, height, options.align);
+    if (options.lit != null) {
+      // Where mark() leaves the bar: across the panel, on the row's last value.
+      this.bar.moveTo([this.panel.center()[0], this.row(options.lit).cells.at(-1)!.anchorPoint()[1]]).setOpacity(1);
+      this.lit = { label: options.lit, as: options.litAs ?? wordsOf(scene).marked };
+    }
   }
 
   [emphasisSource](): Emphasis { return this.lit ? [[this.bar, `row ${this.lit.label}`]] : []; }
+  [seenSource](): Seen { return this.describe(); }
 
   override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     const from = source as Card;
@@ -298,6 +322,7 @@ export class Card extends Group {
    * a value per column takes an array of them.
    */
   async set(changes: Readonly<Record<string, unknown>>, { runTime = 0.45 } = {}): Promise<void> {
+    refuseIfViewDrawn(this, 'card.set()', 'Put the values in the state, build the card from them in the view\'s draw, and play view.sync().');
     const anims = [];
     // Check every label and shape before drawing anything, so a bad call changes nothing.
     const wanted = Object.entries(changes).map(([label, value]) => {
@@ -361,6 +386,7 @@ export class Card extends Group {
    * resting frame. `as` is the word the description gives it (default "marked", in the scene's language).
    */
   async mark(label: string | null, { as = wordsOf(this.scene).marked, runTime = 0.4 } = {}): Promise<void> {
+    refuseIfViewDrawn(this, 'card.mark()', 'Light the row from state: put it in the state and build the card with { lit, litAs } in the view\'s draw, then play view.sync().');
     // The row's last value sits on the value edge, where the bar is measured from.
     const anchor = label == null ? null : this.row(label).cells.at(-1)!.anchorPoint();
     let target: Rectangle | null = null;
@@ -384,6 +410,13 @@ export interface CodeOptions {
   title?: string;
   /** Lines beginning `+ ` or `- ` get added/removed bars (the marker is kept). */
   diff?: boolean;
+  /**
+   * The focus bar from the start, on line i or lines [a, b] inclusive, as `focus(lines)` leaves it:
+   * a code panel drawn from state shows its focus as part of the picture, described and emphasised.
+   */
+  focus?: number | readonly [number, number] | null;
+  /** The word the description gives the focused lines (default "focused", in the scene's language), as `focus`'s `as`. */
+  focusAs?: string;
 }
 /** A bar behind an added or removed line. */
 interface LineMark {
@@ -457,6 +490,25 @@ export class CodeBlock extends Group {
     this.add(this.bar, this.code);
     if (head) this.add(head);
     place(this, at, height, options.align);
+    if (options.focus != null) {
+      const [a, b] = this.lines(options.focus);
+      const to = this.lineBar(a, b);
+      this.bar.subpaths = to.subpaths.map((p) => p.slice());
+      this.bar.closed = [...to.closed];
+      this.bar.invalidateBox();
+      this.bar.setOpacity(1);
+      this.focused = { lines: [a, b], as: options.focusAs ?? wordsOf(scene).focused };
+    }
+  }
+
+  [seenSource](): Seen { return this.describe(); }
+
+  /** Lines i, or [a, b] inclusive, checked against the code. */
+  private lines(lines: number | readonly [number, number]): [number, number] {
+    const [a, b] = typeof lines === 'number' ? [lines, lines] : lines;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b >= this.code.lines.length || a > b)
+      throw new Error(`No code lines ${a}..${b}`);
+    return [a, b];
   }
 
   [emphasisSource](): Emphasis {
@@ -530,13 +582,12 @@ export class CodeBlock extends Group {
     lines: number | readonly [number, number] | null,
     { as = wordsOf(this.scene).focused, runTime = 0.4 } = {},
   ): Promise<void> {
+    refuseIfViewDrawn(this, 'code.focus()', 'Put the focused lines in the state and build the panel with { focus, focusAs } in the view\'s draw, then play view.sync().');
     if (lines == null) {
       this.focused = null;
       return moveBar(this.scene, this.bar, null, runTime);
     }
-    const [a, b] = typeof lines === 'number' ? [lines, lines] : lines;
-    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b >= this.code.lines.length || a > b)
-      throw new Error(`No code lines ${a}..${b}`);
+    const [a, b] = this.lines(lines);
     this.focused = { lines: [a, b], as };
     await moveBar(this.scene, this.bar, this.lineBar(a, b), runTime);
   }
@@ -547,6 +598,7 @@ export class CodeBlock extends Group {
    * fade out, and added lines fade in, optionally with a bar that stays.
    */
   async morph(next: readonly string[], { runTime = 0.9, markAdded = false } = {}): Promise<void> {
+    refuseIfViewDrawn(this, 'code.morph()', 'Put the lines in the state, build the panel from them in the view\'s draw, and play view.sync().');
     if (!next.length) throw new Error('A code block needs at least one line');
     const old = this.code.lines;
     const target = new Code(next, {fontSize: this.fontSize, color: this.colors.ink, shaping: this.scene.textShaping});
@@ -648,6 +700,7 @@ export class CodeBlock extends Group {
 
   /** Fade out the added/removed bars. */
   async clearMarks({ runTime = 0.4 } = {}): Promise<void> {
+    refuseIfViewDrawn(this, 'code.clearMarks()', 'Draw the panel without the marks from state in the view\'s draw, and play view.sync().');
     const marks = this.marks;
     this.marks = [];
     if (marks.length) await this.scene.play(...marks.map((m) => new FadeOut(m.mob, { runTime })));

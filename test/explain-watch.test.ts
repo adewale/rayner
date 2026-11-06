@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
 import { checkWatch, watchedChanges, watchedValue } from '../explain/trace.ts';
 import { chromeFor, changeText } from '../app/embed-strings.ts';
-import { describeExplainer } from '../explain/index.ts';
+import { describeExplainer } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';

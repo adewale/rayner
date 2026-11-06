@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, traceScene } from '../src/index.ts';
-import { resolveSettings, scenariosOf, settingsOf, withSettings, scenarioName } from '../explain/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { traceScene } from '../explain/testing.ts';
+import { resolveSettings, settingsOf } from '../explain/index.ts';
+import { scenariosOf, withSettings, scenarioName } from '../explain/testing.ts';
 import type { Setting } from '../explain/index.ts';
 import { fc, params } from './lib/pbt.ts';
 
@@ -47,7 +50,7 @@ test('every scenario traced at once sees its own settings, an unbound scene its 
   assert.equal(scenarioName(Scene, {}), '');
 });
 // ---- properties ------------------------------------------------------------------
-const RESERVED = ['step', 'parentOrigin', 'theme'];
+const RESERVED = ['step', 'sent', 'parentOrigin', 'theme'];
 /** Ids from the documented pattern, including every inherited Object.prototype name that matches it. */
 const settingId = fc.oneof(
   fc.stringMatching(/^[a-zA-Z][a-zA-Z0-9_-]{0,8}$/),

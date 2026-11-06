@@ -12,10 +12,10 @@ import {
   view,
   linear,
   matchByKey,
+  lerpColor,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { lerpColor } from '../../../src/color.ts';
 import {
   POSITIONS,
   position,
@@ -38,6 +38,7 @@ import {
   beyondCore,
 } from '../lib/periodic-groups.ts';
 import type { Block, Symbol, Subshell } from '../lib/periodic-groups.ts';
+import { listed as list } from '../lib/format.ts';
 
 // The table: 18 numbered columns, 7 periods, the f block's two rows below.
 const PITCH_X = 0.82,
@@ -142,8 +143,6 @@ const ROW_END: number[] = [];
 
 const nameOf = (symbol: Symbol) => NAMES[symbol] ?? symbol;
 const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
-const list = (items: string[]) =>
-  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
 /**
@@ -651,7 +650,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('fill', {
       title: 'One electron per cell, in runs laid side by side',
       line: 'Predict: slide the runs so that runs of one length share columns. What shape do you get?',
-      caption: `Give each element a cell and add electrons one at a time, in order of atomic number. For these neutral atoms, the atomic number also counts electrons. A useful filling rule arranges them in runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last and start a new row at each run of 2. The rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
+      caption: `Give each element a cell and add its electrons one at a time; in a neutral atom the atomic number counts them. A filling rule arranges them in runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last, starting a new row at each run of 2: the rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
     });
     {
       const fillState = (lit: number, runs: number, done: boolean): SceneState => ({
@@ -705,7 +704,7 @@ export default class PeriodicGroupsExplainer extends Scene {
             he: 'Helium’s 2nd electron ends a run of 2 in column 2, over beryllium, yet helium is in group 18; step 4 says why.',
           } satisfies Record<Choice, string>
         )[choice]
-      }${choice === 'he' ? '' : ' One element is still out of place: helium, whose run of 2 leaves it over beryllium.'}`,
+      }`,
     });
     this.state = {
       ...base,
@@ -724,7 +723,7 @@ export default class PeriodicGroupsExplainer extends Scene {
     await this.step('names', {
       title: 'The runs have names; helium needs one move',
       line: 's holds 2, p holds 6, d holds 10 and f holds 14 electrons.',
-      caption: 'Each run is a subshell: s for 2, p for 6, d for 10 and f for 14. Those widths give the table its blocks and its gaps; the changing row lengths explain the jumps down the opening column. Widths alone leave helium over beryllium. The table groups helium with neon: helium’s two electrons complete its first shell, while neon has a complete outer shell of eight. That grouping is information we bring to the table, not something sliding cells proves. The order the runs fill in, and how the electrons end down this column, are under Details and sources.',
+      caption: `Each run is a subshell, named by its shell number and a letter for its length: s holds 2, p 6, d 10 and f 14. By the filling rule, ${name}’s runs read ${configText(filling)}. Those widths give the table its blocks and gaps. Widths alone leave helium over beryllium; the table puts it over neon because its 1s² completes shell 1, as 2s² 2p⁶ completes neon’s shell 2. That grouping is chemistry we bring; sliding cells does not prove it.`,
     });
     this.state = { ...base, note: 'names', blocks: true, lit: POSITIONS.length, strip: 'named', helium: 'over-ne', capacity: CAPACITY };
     await this.play(both(1.2));
@@ -748,16 +747,16 @@ export default class PeriodicGroupsExplainer extends Scene {
     )[choice];
     await this.step('blocks', {
       kind: 'detail',
-      title: `${Name}’s ${z} electrons, written as subshells`,
+      title: `Which run fills next: ${name}’s ${z} electrons in order`,
       line: `The solid cells are ${name}’s ${z} electrons, in the order they fill.`,
-      caption: `Chemists call each run a subshell, named by its shell n and a letter for its length (s 2, p 6, d 10, f 14): ${name}’s runs read ${configText(filling)}. A subshell holds at most that many electrons. Subshells fill lowest n + l first, with l from 0 for s to 3 for f, and lower n first on a tie: Madelung’s empirical rule, which NIST’s reference configurations follow for ${RULE_MATCHES} of the first ${NIST_UP_TO} elements. ${
+      caption: `Subshells fill lowest n + l first, where n is the shell and l runs from 0 for s to 3 for f, and lower n first on a tie: Madelung’s empirical rule, which NIST’s reference configurations follow for ${RULE_MATCHES} of the first ${NIST_UP_TO} elements. ${
         (
           {
-            na: 'Sodium’s 11 electrons are the solid cells. Helium sits over neon, since 1s² fills shell 1.',
-            cl: 'Chlorine has 7 electrons after neon yet sits in group 17, because rows 2 and 3 have no d run; aluminium counts 3 in group 13. Rows 1 and 2 hold 10 electrons, so from aluminium to argon the atomic number equals the group. Helium sits over neon, since 1s² fills shell 1.',
-            fe: 'Iron’s 4s² comes before its 3d⁶ because n + l is 4 for 4s and 5 for 3d. Helium sits over neon, since 1s² fills shell 1.',
-            cu: 'Copper is one of the 20 exceptions: the rule gives 4s² 3d⁹ and NIST lists 3d¹⁰ 4s¹. Both put 11 electrons after argon, so the group is 11 either way. Helium sits over neon, since 1s² fills shell 1.',
-            he: 'Helium’s run puts it in column 2, the dashed cell, but the table moves it over neon: 1s² completes shell 1, which has no p subshell, as 2s² 2p⁶ completes neon’s shell 2.',
+            na: 'Sodium’s 3s¹ follows 2p⁶ because n + l is 3 for both and 2p has the lower n.',
+            cl: 'Chlorine has 7 electrons after neon yet sits in group 17: 3d (n + l = 5) waits until after 4s, and shell 2 has no d at all, so rows 2 and 3 have no d run. Rows 1 and 2 hold 10 electrons, so from aluminium to argon the atomic number equals the group.',
+            fe: 'Iron’s 4s² comes before its 3d⁶ because n + l is 4 for 4s and 5 for 3d.',
+            cu: 'Copper is one of the 20 exceptions: the rule gives 4s² 3d⁹ and NIST lists 3d¹⁰ 4s¹. Both put 11 electrons after argon, so the group is 11 either way.',
+            he: 'Helium’s run puts it in column 2, the cell marked He?, but the table moves it over neon: 1s² completes shell 1, which has no p subshell, as 2s² 2p⁶ completes neon’s shell 2.',
           } satisfies Record<Choice, string>
         )[choice]
       }`,

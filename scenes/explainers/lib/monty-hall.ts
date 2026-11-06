@@ -1,3 +1,5 @@
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 export type Host = 'informed' | 'random';
 // Fix the first choice at door 0. An informed host leaves the prize available;
 // a random host picks the other closed door without knowing the prize location.
@@ -107,25 +109,35 @@ export function roundResult(r: Round): 'win' | 'lose' | 'over' | null {
   if (r.decision === null) return 'over';
   return roundDoor(r) === r.car ? 'win' : 'lose';
 }
-/** The round after one event, or undefined when the rules refuse it. Pure. */
-export function roundNext(r: Round, event: RoundEvent): Round | undefined {
+/** The round after one event, or the rules' refusal, saying which rule forbids it. Pure. */
+export function roundNext(r: Round, event: RoundEvent): Round | Refusal {
   const door = (letter: string) => LETTERS.indexOf(letter as Letter);
   let m: RegExpMatchArray | null;
-  if ((m = event.match(/^pick ([ABC])$/))) return r.pick === null ? { ...r, pick: door(m[1]!) } : undefined;
+  if ((m = event.match(/^pick ([ABC])$/)))
+    return r.pick === null ? { ...r, pick: door(m[1]!) } : refuse(`you picked door ${LETTERS[r.pick]} already, and you pick once`);
   if ((m = event.match(/^open ([ABC]): (goat|car)$/))) {
     const i = door(m[1]!), shows = m[2] as 'goat' | 'car';
     // He opens once, after your pick, never your door; the host who knows never opens the car.
-    if (r.pick === null || r.opened !== null || i === r.pick) return undefined;
-    if (shows === 'car' && r.host === 'informed') return undefined;
+    if (r.pick === null) return refuse('the host opens a door only after you pick one');
+    if (r.opened !== null) return refuse(`the host opened door ${LETTERS[r.opened]} already, and he opens one door`);
+    if (i === r.pick) return refuse(`door ${LETTERS[i]} is yours, and the host never opens your door`);
+    if (shows === 'car' && r.host === 'informed') return refuse('the host knows where the car is, and never opens its door');
     return { ...r, opened: i, shows, car: shows === 'car' ? i : null };
   }
-  if (event === 'stay' || event === 'switch')
+  if (event === 'stay' || event === 'switch') {
     // Only once he has shown a goat: the car behind his door ended the round.
-    return r.shows === 'goat' && r.decision === null ? { ...r, decision: event } : undefined;
+    if (r.shows === 'car') return refuse(`the host showed the car behind door ${LETTERS[r.opened!]}, so the round is over`);
+    if (r.shows === null) return refuse('you stay or switch once the host has opened a door');
+    if (r.decision !== null) return refuse(`you chose to ${r.decision} already`);
+    return { ...r, decision: event };
+  }
   if ((m = event.match(/^car behind ([ABC])$/))) {
     const i = door(m[1]!);
     // Shown after your choice, behind a door still closed: never behind the goat he opened.
-    return r.decision !== null && r.car === null && i !== r.opened ? { ...r, car: i } : undefined;
+    if (r.car !== null) return refuse(`the car was shown behind door ${LETTERS[r.car]} already`);
+    if (r.decision === null) return refuse('the car is shown once you have stayed or switched');
+    if (i === r.opened) return refuse(`door ${LETTERS[i]} is open and shows a goat`);
+    return { ...r, car: i };
   }
   throw new RangeError(`Unknown round event ${event}`);
 }

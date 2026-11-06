@@ -1,6 +1,6 @@
 # Publishing
 
-How to put a built page on a website. The contracts (URL parameters, the resize, step and goto messages and headers) are in [the reference](REFERENCE.md).
+How to put a built page on a website. The contracts it relies on (URL parameters, the resize, step and goto messages, and headers) are in [the reference](REFERENCE.md).
 
 ## Publish a page
 
@@ -52,64 +52,67 @@ Export prepares files in the directory you supply. Uploading or deploying those 
 
 For a custom selection, pass explicit IDs to `--only`. Their `toolchain` groups remain in the exported catalog. The complete collection remains available in the repository.
 
+The exported `catalog.json` (version 2) contains the product copy, authoring links, titles, groups and counts used by the generated gallery; `totals.scenarios` and each scene's `scenarios` count the scenarios built (version 1 called them `cases`). A host with its own page design can render that data into its template. Regenerate that page as part of the host build, so a new explainer or a changed requirement cannot leave a second catalog behind.
+
 ## Embed a page
 
-1. Embed it with a plain iframe:
+Embed it with a plain iframe:
 
-   ```html
-   <iframe src="/explainers/cache.html?step=request&request=miss&theme=light"
-           title="Why a cache changes the request path"
-           style="width:100%;height:640px;border:0;border-radius:12px;display:block"
-           allow="fullscreen"
-           loading="lazy"></iframe>
-   ```
+```html
+<iframe src="/explainers/cache.html?step=request&request=miss&theme=light"
+        title="Why a cache changes the request path"
+        style="width:100%;height:640px;border:0;border-radius:12px;display:block"
+        allow="fullscreen"
+        loading="lazy"></iframe>
+```
 
-   In a frame the page draws only the explainer's tile: no background or padding of its own, so your page's background shows around it, and the tile is the only edge. Write no card or border around it. Pass `theme=light` or `theme=dark` to match your page's colour scheme; without it the reader's device scheme is used, and a browser may then paint an opaque background behind the tile. The iframe keeps its height and scrolls when the content is taller; captions make the page taller on phones. The heights in `<id>.embed.json` (below) give the page's natural height at 390, 640 and 900 px. `allow="fullscreen"` lets the reader's Enlarge button work; without it the button is hidden. The tile's footer carries "Open the explainer", which opens the page at the reader's step and scenario in a new tab.
+In a frame the page draws only the explainer's tile: no background or padding of its own, so your page's background shows around it, and the tile is the only edge. Write no card or border around it. Pass `theme=light` or `theme=dark` to match your page's colour scheme; without it the reader's device scheme is used, and a browser may then paint an opaque background behind the tile. The iframe keeps its height and scrolls when the content is taller; captions make the page taller on phones. The heights in `<id>.embed.json` (below) give the page's natural height at 390, 640 and 900 px. `allow="fullscreen"` lets the reader's Enlarge button work; without it the button is hidden. The tile's footer carries "Open the explainer", which opens the page at the reader's step and scenario in a new tab.
 
-   Or let the loader size the iframe to its content:
+Or let the loader size the iframe to its content:
 
-   ```html
-   <div id="cache-explainer"></div>
-   <script src="/explainers/loader.js"
-           data-src="/explainers/cache.html?step=request&request=miss"
-           data-target="cache-explainer"
-           data-title="Why a cache changes the request path"></script>
-   ```
+```html
+<div id="cache-explainer"></div>
+<script src="/explainers/loader.js"
+        data-src="/explainers/cache.html?step=request&request=miss"
+        data-target="cache-explainer"
+        data-title="Why a cache changes the request path"></script>
+```
 
-   The loader starts the iframe at 640 px, then follows the page's height messages, accepting them only from that iframe's window and the page's origin, so several embeds on one page size independently. It adds the iframe and nothing else; the way out is the tile's own footer. With `data-theme` absent or `"auto"` it passes your page's computed colour scheme to the player, so the frame stays transparent; `data-theme="light"` or `"dark"` fixes the player's colours. `data-lang` sets the language of the frame's default title, otherwise your page's `lang`. An application can mount and remove embeds itself:
+The loader starts the iframe at 640 px, then follows the page's height messages, accepting them only from that iframe's window and the page's origin, so several embeds on one page size independently. It adds the iframe and nothing else; the way out is the tile's own footer. With `data-theme` absent or `"auto"` it passes your page's computed colour scheme to the player, so the frame stays transparent; `data-theme="light"` or `"dark"` fixes the player's colours. `data-lang` sets the language of the frame's default title, otherwise your page's `lang`. An application can mount and remove embeds itself:
 
-   ```js
-   const dispose = RaynerEmbed.mountExplainer(target, '/explainers/cache.html', { title: 'Cache', height: 640, theme: 'auto' });
-   dispose(); // removes the iframe and the message listener
-   ```
+```js
+const dispose = RaynerEmbed.mountExplainer(target, '/explainers/cache.html', { title: 'Cache', height: 640, theme: 'auto' });
+dispose(); // removes the iframe and the message listener
+```
 
-   The loader needs the page on HTTP(S): for a `file:` URL it throws and mounts nothing.
+The loader needs the page on HTTP(S): for a `file:` URL it throws and mounts nothing.
 
-   **Paste-to-embed.** `site:export --origin https://your.site` also writes `<id>.oembed.json` beside each page and a discovery link in its head, so a CMS that speaks oEmbed can turn a pasted page URL into the iframe. The response is fixed at 640 px wide with the page's height there; a static host cannot honour `maxwidth`, and the iframe shrinks with `max-width:100%`. Without `--origin` neither the file nor the link is written. `<id>.embed.json`, written with or without `--origin`, gives `{ "schema": 1, "aspect": "16/9", "heights": { "390": n, "640": n, "900": n } }`, the page's framed height at those widths, for a host that sizes its iframe before loading.
+**Paste-to-embed.** `site:export --origin https://your.site` also writes `<id>.oembed.json` beside each page and a discovery link in its head, so a CMS that speaks oEmbed can turn a pasted page URL into the iframe. The response is fixed at 640 px wide with the page's height there; a static host cannot honour `maxwidth`, and the iframe shrinks with `max-width:100%`. Without `--origin` neither the file nor the link is written. `<id>.embed.json`, written with or without `--origin`, gives `{ "schema": 1, "aspect": "16/9", "heights": { "390": n, "640": n, "900": n } }`, the page's framed height at those widths, for a host that sizes its iframe before loading.
 
-   **Drive an explainer from the host page.** The loader tells the host each step the reader settles on, and lets the host move the player: a scrolling essay can follow along, or a button elsewhere on the page can show a step or a scenario.
+**Drive an explainer from the host page.** The loader tells the host each step the reader settles on, and lets the host move the player: a scrolling essay can follow along, or a button elsewhere on the page can show a step or a scenario.
 
-   ```html
-   <div id="cache-explainer"></div>
-   <button id="show-miss">Show a cache miss</button>
-   <script src="/explainers/loader.js"></script>
-   <script>
-     const target = document.getElementById('cache-explainer');
-     const explainer = RaynerEmbed.mountExplainer(target, '/explainers/cache.html', { title: 'Cache' });
-     // Each settled step: { step, index, total, settings }. The event bubbles from the iframe.
-     target.addEventListener('rayner:step', (event) => console.log('rayner:step', event.detail));
-     document.getElementById('show-miss').onclick = () => explainer.goTo('request', { request: 'miss' });
-   </script>
-   ```
+```html
+<div id="cache-explainer"></div>
+<button id="show-miss">Show a cache miss</button>
+<script src="/explainers/loader.js"></script>
+<script>
+  const target = document.getElementById('cache-explainer');
+  const explainer = RaynerEmbed.mountExplainer(target, '/explainers/cache.html', { title: 'Cache' });
+  // Each settled step: { step, index, total, settings }. The event bubbles from the iframe.
+  target.addEventListener('rayner:step', (event) => console.log('rayner:step', event.detail));
+  document.getElementById('show-miss').onclick = () => explainer.goTo('request', { request: 'miss' });
+</script>
+```
 
-   `goTo` is validated inside the page as a URL is, replaces the frame's history entry, and does nothing after `explainer()` has disposed of the embed. `options.onStep` receives the same detail as the event. Messages go only between the host's origin and the artifact's, and only between that iframe and its parent, so two embeds on one page never hear or move each other. The message formats are in [the reference](REFERENCE.md#host-page-api-v1).
+`goTo` is validated inside the page as a URL is, replaces the frame's history entry, and does nothing after `explainer()` has disposed of the embed. `options.onStep` receives the same detail as the event. Messages go only between the host's origin and the artifact's, and only between that iframe and its parent, so two embeds on one page never hear or move each other. The message formats are in [the reference](REFERENCE.md#host-page-api-v1).
 
-5. Check what the host actually serves; the repository's tests run against local files.
-   - `curl -sI https://your.site/explainers/cache.html` shows the CSP and `Cache-Control` from the recipe.
-   - The page opens at the step and scenario in its URL, Next plays, and the transcript opens.
-   - With two embeds on one page, opening one transcript resizes only that iframe.
-   - Inside a frame, your page's background shows at the tile's corners, and the tile's footer has "Open the explainer".
-   - With `--origin`, `<id>.oembed.json` is served as JSON and the page's head links to it.
-   - Record the `artifactHash` from the receipt beside the URL you published. For the collection, compare the served bytes with `deployment.json`; valid CSP hashes alone do not prove that the latest reviewed page was deployed.
+## Check what the host serves
 
-The exported `catalog.json` contains the product copy, authoring links, titles, groups and counts used by the generated gallery. A host with its own page design can render that data into its template. Regenerate that page as part of the host build, so a new explainer or a changed requirement cannot leave a second catalog behind.
+The repository's tests run against local files, so check the deployed page too:
+
+- `curl -sI https://your.site/explainers/cache.html` shows the CSP and `Cache-Control` from the recipe.
+- The page opens at the step and scenario in its URL, Next plays, and the transcript opens.
+- With two embeds on one page, opening one transcript resizes only that iframe.
+- Inside a frame, your page's background shows at the tile's corners, and the tile's footer has "Open the explainer".
+- With `--origin`, `<id>.oembed.json` is served as JSON and the page's head links to it.
+- Record the `artifactHash` from the receipt beside the URL you published. For the collection, compare the served bytes with `deployment.json`; valid CSP hashes alone do not prove that the latest reviewed page was deployed.

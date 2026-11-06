@@ -2,8 +2,10 @@
 // every state the events reach.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Text, Group, Rectangle, SetState, Machine, machinesOf, view, NullSink, StringSink, SnapshotSink, TraceSink, renderAt, traceScene, loadFonts, Transform } from '../src/index.ts';
-import type { Transition, View } from '../src/index.ts';
+import { Scene, Text, Group, Rectangle, SetState, Machine, refuse, isRefusal, view, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
+import { NullSink, StringSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
+import type { Transition, View, ViewSync } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 
@@ -81,6 +83,40 @@ test('a machine replays events through the model as one schedule: state, evidenc
   assert.throws(() => new Machine(ran, { start: { level: 0 }, events: ['UP', 'UP'], next, views: [] }), TypeError);
 });
 
+test('without an authored transition, the views morph by key, staged: what goes is gone by halfway, and what comes starts there', async () => {
+  // The lamp's word is keyed: "lamp off" and "lamp dim" are different words, so the old fades out and the new fades in.
+  const scene = new Scene<Lamp>(new NullSink());
+  scene.state = { level: 0 };
+  const lamp = view(scene, (st: Lamp) => Object.assign(new Group(
+    Object.assign(new Rectangle({ width: 4, height: 1.2 }), { key: 'lamp:box' }),
+    Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp:word' }),
+  ), { key: 'lamp' }));
+  scene.add(lamp);
+  const machine = new Machine<Lamp, 'UP' | 'OFF'>(scene, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [lamp] });
+  const step = machine.send('UP');
+  const sync = (step.animations[1] as AnimationGroup).animations[0] as ViewSync;
+  assert.equal(sync.staged, true);
+  scene.state = { level: 1 };
+  sync.begin();
+  const inner = sync.inner as TransformMatching;
+  // A replaced word is not morphed glyph by glyph: its glyphs leave and the new word's come.
+  assert.ok(inner.fadesOut.length > 0 && inner.fadesIn.length > 0);
+  const seen = (rows: { sub: { style: { opacity: number } } }[]) => Math.max(...rows.map((r) => r.sub.style.opacity));
+  sync.interpolate(0.25);
+  assert.ok(seen(inner.fadesOut) > 0 && seen(inner.fadesIn) === 0, 'a quarter through: the old word fading, the new one not yet shown');
+  sync.interpolate(0.5);
+  assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) === 0, 'halfway: neither word, so they never overlap');
+  sync.interpolate(0.75);
+  assert.ok(seen(inner.fadesOut) === 0 && seen(inner.fadesIn) > 0, 'three quarters: the new word coming');
+  sync.finish();
+  assert.deepEqual(lamp.texts, ['lamp dim']);
+  // Unstaged (a view's own sync), both fade at once.
+  const plain = new TransformMatching(lamp.current, lamp.placed({ level: 2 }), { key: matchByKey({ text: 'whole' }), replace: false });
+  plain.begin();
+  plain.interpolate(0.25);
+  assert.ok(seen(plain.fadesOut) > 0 && seen(plain.fadesIn) > 0);
+});
+
 test('reachable states are found breadth first, each with its shortest events, up to the limit', async () => {
   const ran = await new (lampScene())(new NullSink()).run();
   assert.deepEqual(ran.machine.reachable(), [
@@ -145,8 +181,31 @@ const morphUp = (t: Transition<Lamp, 'UP' | 'OFF'>, lamp: View) => new Transform
 test('a refused event: next says undefined, exploration does not follow it, and sending it is refused before anything plays', async () => {
   const ran = await new (litLamp(morphUp))(new NullSink()).run();
   assert.equal(ran.machine.after({ level: 2 }, 'UP'), undefined);
+  assert.deepEqual(ran.machine.outcome({ level: 2 }, 'UP'), { refused: null });
   assert.deepEqual(ran.machine.reachable().map((r) => r.state.level), [0, 1, 2]);
-  assert.throws(() => ran.machine.send('UP', { level: 2 }), /UP is refused in \{"level":2\}/);
+  assert.throws(() => ran.machine.send('UP', { level: 2 }), /UP is refused in \{"level":2\}$/);
+});
+
+test('a model refuses with its reason: refuse(reason) where next refuses, and outcome, send and exploration treat it as a refusal', () => {
+  const scene = new Scene(new NullSink());
+  // The lamp's own rule, said where it is decided.
+  const lamp = new Machine<Lamp, 'UP' | 'OFF'>(scene, {
+    start: { level: 0 }, events: ['UP', 'OFF'], views: [],
+    next: (s, e) => (e === 'UP' && s.level === 2 ? refuse(`the lamp is ${LEVELS[s.level]} already, its brightest`) : next(s, e)),
+  });
+  assert.deepEqual(lamp.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is bright already, its brightest' });
+  assert.deepEqual(lamp.model({ level: 2 }, 'UP'), { refused: 'the lamp is bright already, its brightest' });
+  assert.deepEqual(lamp.outcome({ level: 1 }, 'UP'), { next: { level: 2 } });
+  assert.equal(lamp.after({ level: 2 }, 'UP'), undefined);
+  assert.deepEqual(lamp.reachable().map((r) => r.state.level), [0, 1, 2]);
+  assert.throws(() => lamp.send('UP', { level: 2 }), /UP is refused in \{"level":2\}: the lamp is bright already, its brightest/);
+  // A refusal is a value of its own, recognised across copies of the library; its reason must be words.
+  const r = refuse('no');
+  assert.ok(isRefusal(r) && !isRefusal({ reason: 'no' }) && !isRefusal(undefined) && !isRefusal({ level: 0 }));
+  assert.ok(Object.isFrozen(r));
+  assert.throws(() => refuse(' '), /reason must be words/);
+  // One way to say why: a separate why(state, event) is refused, and says what to write instead.
+  assert.throws(() => new Machine(scene, { start: {}, events: ['A'], next: () => undefined, views: [], why: () => 'no' } as never), /return refuse\(reason\) from next/);
 });
 
 test('a schedule built for one state refuses to play from another', async () => {
@@ -292,7 +351,8 @@ test('a transition finds each view by the view itself, and refuses a view the ma
 });
 
 test('a bound stops the story where the model would go on; check fails a bound the model refuses anyway', async () => {
-  const nextUp = (s: Lamp, e: 'UP' | 'OFF'): Lamp | undefined => (e === 'UP' && s.level === 2 ? undefined : next(s, e));
+  // UP is refused at bright: that is the lamp's rule, and the model says so.
+  const nextUp = (s: Lamp, e: 'UP' | 'OFF') => (e === 'UP' && s.level === 2 ? refuse(`the lamp is already ${LEVELS[s.level]}`) : next(s, e));
   const bounded = (bound: (s: Lamp, e: 'UP' | 'OFF') => string | undefined) => class extends Scene<Lamp> {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
     override state = { level: 0 };
@@ -301,11 +361,7 @@ test('a bound stops the story where the model would go on; check fails a bound t
       const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: 0.5 }), { key: 'lamp' }));
       s.keep(picture, { describe: () => picture.texts.join(' ') });
       this.add(picture);
-      // UP is refused at bright: that is the lamp's rule.
-      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, {
-        start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound,
-        why: (st) => `the lamp is already ${LEVELS[st.level]}`,
-      });
+      this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next: nextUp, views: [picture], bound });
       await this.step('press');
       await this.play(this.machine.replay(['UP']));
     }
@@ -327,4 +383,32 @@ test('a bound stops the story where the model would go on; check fails a bound t
   const free = bounded(() => undefined);
   const lamp = await new free(new NullSink()).run();
   assert.deepEqual(lamp.machine.outcome({ level: 2 }, 'UP'), { refused: 'the lamp is already bright' });
+});
+
+test('exploration also walks the states a reader reaches from the live step, not only from the start', async () => {
+  // The machine starts bright, where UP is refused; the scene plays it from off, so the step rests at dim,
+  // a state the start never reaches. Dim's label is too small to read: only the walk from the step finds it.
+  class FromStep extends Scene<Lamp> {
+    override state = { level: 0 };
+    override async construct() {
+      const s = stage(this);
+      const picture = view(this, (st: Lamp) => Object.assign(new Text(`lamp ${LEVELS[st.level]}`, { fontSize: st.level === 1 ? 0.08 : 0.5 }), { key: 'lamp' }));
+      s.keep(picture, { describe: () => picture.texts.join(' ') });
+      this.add(picture);
+      const machine = new Machine<Lamp, 'UP'>(this, {
+        start: { level: 2 }, events: ['UP'], views: [picture],
+        next: (st) => (st.level === 2 ? undefined : { level: st.level + 1 }),
+      });
+      await this.step('press', { caption: 'Press it.' });
+      await this.play(machine.replay(['UP'], { level: 0 }));
+    }
+  }
+  const ran = await new FromStep(new NullSink()).run();
+  const trace = await traceScene(FromStep);
+  const stageOf = async (step: string) => {
+    const s = trace.steps.find((x) => x.step === step)!;
+    return renderAt(FromStep, Math.max(s.t0, s.t1! - 0.5 / trace.fps), new NullSink());
+  };
+  const [explored] = await exploreMachines(ran, stageOf);
+  assert.ok(explored!.problems.some((p) => /^from the state at "press", at the start: “lamp dim” is .* px/.test(p)), JSON.stringify(explored!.problems));
 });

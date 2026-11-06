@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, Group, Text, Rectangle, VMobject, NullSink, Transform, TransformMatchingShapes, loadFonts, toSvgString } from '../../src/index.ts';
+import { Scene, Group, Text, Rectangle, VMobject, Transform, TransformMatchingShapes } from '../../src/index.ts';
+import { NullSink, toSvgString } from '../../src/output.ts';
+import { loadFonts } from '../../explain/testing.ts';
 import { stage } from '../../explain/index.ts';
 import { stepLayouts, closeUps, viewBox, stageScale } from '../../app/embed-closeup.ts';
 import type { Box } from '../../src/index.ts';
@@ -192,9 +194,9 @@ test('imported labels retain their compressed font dimension in reader layouts',
   assert.equal(p.scenarios.length, 2);
   for (const scenario of p.scenarios) {
     const layout = (await stepLayouts(scenario.Scene)).get('opening')!;
-    assert.equal(layout.reading!.labels.length, 1);
+    assert.equal(layout.opening!.labels.length, 1);
     const expected = scenario.values.width === 'thin' ? 0.008 : 0.8;
-    assert.ok(Math.abs(layout.reading!.labels[0]!.size - expected) < 1e-5,
+    assert.ok(Math.abs(layout.opening!.labels[0]!.size - expected) < 1e-5,
       `${scenario.values.width}: use the smallest transformed font dimension`);
   }
 });
@@ -251,7 +253,7 @@ test('declared label scale survives unrelated changes at generated phone sizes',
           parts: [[-6, -1, -4, 0] as Box],
           lead: 0,
           labels: [{ box: [-6, -1, -4, 0] as Box, size: 1 }],
-          reading: { box: subject, labels: [{ box: subject, size }] },
+          opening: { box: subject, labels: [{ box: subject, size }] },
         };
         const opening = closeUps(layout, width, height)[0]!,
           visible = viewBox(opening, width, height);
@@ -282,20 +284,20 @@ test('dimmed and rotated declared text retain their actual readable type size', 
         const beforeSubject = scenario === 'dimmed-group' ? new Group(before).setOpacity(0.49) : before;
         const after = new Text('After: 2', { fontSize: 0.8 }).moveTo([2, 0]);
         await s.enter(beforeSubject, after);
-        s.reading(beforeSubject, after);
+        s.opening(beforeSubject, after);
       }
     }
     const layout = (await stepLayouts(Subject)).get('compare')!;
-    assert.equal(layout.reading!.labels.length, 2, `${scenario}: visible declared text must participate in framing`);
+    assert.equal(layout.opening!.labels.length, 2, `${scenario}: visible declared text must participate in framing`);
     assert.ok(
-      Math.abs(layout.reading!.labels[0]!.size - actualSize) < 1e-7,
+      Math.abs(layout.opening!.labels[0]!.size - actualSize) < 1e-7,
       `${scenario}: the declared font size must not come from a rotated bounding box`,
     );
     for (const width of [288, 358]) {
       const height = (width * 9) / 16,
         opening = closeUps(layout, width, height)[0]!,
         visible = viewBox(opening, width, height),
-        want = layout.reading!.box;
+        want = layout.opening!.box;
       assert.ok(
         actualSize * stageScale(width, height).s * opening.k >= 12 - 1e-7,
         `${scenario}/${width}: declared text below 12px`,
@@ -319,13 +321,13 @@ test('stretched native labels cannot use geometric-mean size to pass the readabl
         const subject = new Text('1', { fontSize: 0.6 }).stretch(4, 0).stretch(0.25, 1).rotate(angle).moveTo([-2, 0]);
         assert.ok(Math.abs(subject.textSize() - 0.6) < 1e-6, 'the public geometric-mean size contract remains intact');
         await s.enter(subject, new Text('After', { fontSize: 0.8 }).moveTo([2, 0]));
-        s.reading(subject);
+        s.opening(subject);
       }
     }
     const layout = (await stepLayouts(Compressed)).get('compare')!;
-    assert.equal(layout.reading!.labels.length, 1);
+    assert.equal(layout.opening!.labels.length, 1);
     assert.ok(
-      Math.abs(layout.reading!.labels[0]!.size - 0.15) < 1e-6,
+      Math.abs(layout.opening!.labels[0]!.size - 0.15) < 1e-6,
       'a fourfold horizontal stretch must not hide a quarter-height font',
     );
     for (const width of [288, 358]) {
@@ -347,10 +349,10 @@ test('unchanged declared labels stay readable when only unrelated larger text ch
       const subject = new Text('Compare me', { fontSize: 0.3 }).moveTo([4, 0]);
       const unrelated = new Text('OLD', { fontSize: 1 }).moveTo([-5, -1]);
       await s.enter(subject, unrelated);
-      s.reading(subject);
+      s.opening(subject);
       await this.step('after');
       unrelated.setText('NEWER');
-      s.reading(subject);
+      s.opening(subject);
       await this.wait(0.1);
     }
   }
@@ -359,15 +361,15 @@ test('unchanged declared labels stay readable when only unrelated larger text ch
     for (const step of ['before', 'after']) {
       const height = (width * 9) / 16,
         layout = layouts.get(step)!;
-      assert.equal(layout.reading!.labels.length, 1);
+      assert.equal(layout.opening!.labels.length, 1);
       const opening = closeUps(layout, width, height)[0]!,
         visible = viewBox(opening, width, height),
-        subject = layout.reading!.box;
+        subject = layout.opening!.box;
       assert.ok(
         visible[0] <= subject[0] && visible[1] <= subject[1] && visible[2] >= subject[2] && visible[3] >= subject[3],
       );
       assert.ok(
-        layout.reading!.labels[0]!.size * stageScale(width, height).s * opening.k >= 12 - 1e-7,
+        layout.opening!.labels[0]!.size * stageScale(width, height).s * opening.k >= 12 - 1e-7,
         `${step}/${width}: declared labels must remain readable after an unrelated edit`,
       );
     }
@@ -386,7 +388,7 @@ test('an authored opening uses the space of the hidden stage heading to keep its
         new Text('The selected result', { fontSize: 0.7 }).moveTo([0, -1.4]),
       );
       await s.enter(subject);
-      s.reading(subject);
+      s.opening(subject);
     }
   }
   const layout = (await stepLayouts(WithHeading)).get('comparison')!;
@@ -396,8 +398,8 @@ test('an authored opening uses the space of the hidden stage heading to keep its
       visible = viewBox(opening, width, height);
     const contains = (b: Box) =>
       visible[0] <= b[0] + 1e-6 && visible[1] <= b[1] + 1e-6 && visible[2] >= b[2] - 1e-6 && visible[3] >= b[3] - 1e-6;
-    assert.ok(contains(layout.reading!.box), 'the comparison must still be complete');
-    assert.ok(layout.reading!.labels.every((l) => l.size * stageScale(width, height).s * opening.k >= 12 - 1e-7));
+    assert.ok(contains(layout.opening!.box), 'the comparison must still be complete');
+    assert.ok(layout.opening!.labels.every((l) => l.size * stageScale(width, height).s * opening.k >= 12 - 1e-7));
     assert.ok(!('heading' in layout) && !('top' in layout), 'undrawn chrome has no framing obligation');
   }
 });
@@ -410,30 +412,30 @@ class Comparison extends Scene {
     const right = new Text('After: 2', { fontSize: 0.7 }).moveTo([2, -1]);
     const detail = new Text('Implementation details', { fontSize: 0.22 }).moveTo([4, -3]);
     await s.enter(left, right, detail);
-    s.reading(left, right);
+    s.opening(left, right);
     await this.step('next', { caption: 'A new step has its own subjects.' });
   }
 }
 test('an authored comparison opens together at readable size, retaining separate detail views', async () => {
   const layouts = await stepLayouts(Comparison),
     layout = layouts.get('compare')!;
-  assert.ok(layout.reading);
-  assert.equal(layout.reading.labels.length, 2, 'the nearby implementation label cannot set comparison scale');
+  assert.ok(layout.opening);
+  assert.equal(layout.opening.labels.length, 2, 'the nearby implementation label cannot set comparison scale');
   for (const width of [288, 358]) {
     const height = (width * 9) / 16,
       views = closeUps(layout, width, height),
       box = viewBox(views[0]!, width, height),
-      want = layout.reading.box;
+      want = layout.opening.box;
     assert.ok(
       box[0] <= want[0] && box[1] <= want[1] && box[2] >= want[2] && box[3] >= want[3],
       'both complete subjects are in the opening',
     );
     assert.ok(
-      Math.min(...layout.reading.labels.map((l) => l.size)) * stageScale(width, height).s * views[0]!.k >= 12 - 1e-7,
+      Math.min(...layout.opening.labels.map((l) => l.size)) * stageScale(width, height).s * views[0]!.k >= 12 - 1e-7,
     );
     assert.ok(views.length > 1, 'the small implementation detail remains reachable');
   }
-  assert.equal(layouts.get('next')!.reading, undefined, 'previous subjects do not leak into the next caption');
+  assert.equal(layouts.get('next')!.opening, undefined, 'previous subjects do not leak into the next caption');
 });
 test('reading intent cannot bless an absent or unpainted subject', async () => {
   for (const fill of ['none', '#ffffff']) {
@@ -443,10 +445,10 @@ test('reading intent cannot bless an absent or unpainted subject', async () => {
         await this.step('bad');
         const object = new Group(new Rectangle({ width: 2, height: 1, fill, stroke: 'none' }));
         if (fill === 'none') this.add(object);
-        s.reading(object);
+        s.opening(object);
       }
     }
-    await assert.rejects(stepLayouts(Missing), /reading\(\): bad names a subject with no painted ink/);
+    await assert.rejects(stepLayouts(Missing), /opening\(\): bad names a subject with no painted ink/);
   }
 });
 
@@ -462,7 +464,7 @@ test('a declared drawing group cannot satisfy an independent claim after one com
       const after = new Text('After: 2', { fontSize: 0.7 }).moveTo([2, -1]);
       if ((this.constructor as typeof Both).hideAfter) after.setOpacity(0);
       const group = new Group(before, after);
-      s.reading(group);
+      s.opening(group);
       await s.enter(group);
     }
   }
@@ -471,7 +473,7 @@ test('a declared drawing group cannot satisfy an independent claim after one com
   class Hidden extends Both {
     static override hideAfter = true;
   }
-  // reading() still has visible before ink; the separately named After obligation must reject.
+  // opening() still has visible before ink; the separately named After obligation must reject.
   await assert.rejects(storyFrames(Hidden, claims), /After: 2.*(no painted paths|missing glyph ink)/);
 });
 
@@ -482,15 +484,15 @@ test('a wordless subject opens whole while small implementation labels retain th
       await this.step('shape', { caption: 'The rectangle is the subject.' });
       const rect = new Rectangle({ width: 12, height: 4, fill: '#d45d00', stroke: 'none' });
       await s.enter(rect, new Text('Details', { fontSize: 0.22 }).moveTo([4, -3]));
-      s.reading(rect);
+      s.opening(rect);
     }
   }
   const layout = (await stepLayouts(Shape)).get('shape')!;
-  assert.equal(layout.reading!.labels.length, 0);
+  assert.equal(layout.opening!.labels.length, 0);
   for (const width of [288, 358]) {
     const views = closeUps(layout, width, (width * 9) / 16),
       box = viewBox(views[0]!, width, (width * 9) / 16),
-      subject = layout.reading!.box;
+      subject = layout.opening!.box;
     assert.ok(box[0] <= subject[0] && box[1] <= subject[1] && box[2] >= subject[2] && box[3] >= subject[3]);
     assert.ok(views.length > 1, 'the detail label still has readable close-ups');
   }

@@ -1,20 +1,19 @@
 # Reusable animations from the example collection
 
-These built-ins extract choreography already used by the collection. They work
-with native mobjects as ordinary animations: pass them to `play`, `AnimationGroup`,
-`LaggedStart` or `Succession`. They require no stage or diagram controller.
+These built-ins were extracted from techniques the example collection repeated.
+They are ordinary animations on native mobjects: pass them to `play`,
+`AnimationGroup`, `LaggedStart` or `Succession`, with no stage or diagram controller.
 
 | Repetition | Public animation | Collection use |
 | --- | --- | --- |
 | Stretch from a baseline while fading in | `GrowFromEdge` | Captured chart bars grow from the bottom; Gantt tasks from the left |
 | Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins |
-| Adopt the next model state at a particular point inside a schedule | `SetState` | Ring-buffer operations and periodic-table configuration steps |
-| Drive several drawings from one sampled number | `Follow` | Token bucket: the gauge and the chart's climb from the same elapsed time |
+| Adopt the next model state at a particular point inside a schedule | `SetState` | Every [machine](MACHINES.md) event; periodic-groups' configuration steps |
+| Drive several drawings from one sampled number | `Follow` | Token bucket: the gauge and the chart's climb from the same elapsed time; ring-buffer pointers turning round the ring |
 
-The first two replace private classes in `explain/diagrams.ts`. `SetState` replaces
-the duplicated `Apply` class in the ring-buffer and periodic-groups examples. The
-diagram controller retains graph adjacency/reveal checks, recording and descriptions.
-The animations themselves know geometry and time, not graph semantics.
+The first two replaced private classes in `explain/diagrams.ts`, whose diagram
+controller keeps the graph adjacency and reveal checks, recording and descriptions:
+the animations know geometry and time, not graphs.
 
 ## Run the recipe
 
@@ -30,24 +29,24 @@ node node_modules/rayner/dist/recipes/render.js --scene choreography --out out/c
 ```
 
 [The full recipe](../recipes/choreography.ts) shows parallel growth and route travel,
-then two state/view updates in a succession. The output runner also writes its
-text frame, element records, step index and trace. Use `--step result` for the final
-readout. These are raw engine examples; a published lesson also needs its own
-model, descriptions, script and reader review.
+then two state and view updates in a succession. The runner also writes its text
+frame, element records, step index and trace; `--step result` gives the final
+readout. These are raw engine examples: a published explainer also needs a model,
+descriptions, a script and a reader review.
 
 ## GrowFromEdge
 
 ```ts
-import { GrowFromEdge, DOWN, LEFT } from 'rayner';
-await this.play(new GrowFromEdge(bar, DOWN));
-await this.play(new GrowFromEdge(task, LEFT, { runTime: 0.6 }));
+import { GrowFromEdge } from 'rayner';
+await this.play(new GrowFromEdge(bar, [0, -1]));                 // up from its bottom edge
+await this.play(new GrowFromEdge(task, [-1, 0], { runTime: 0.6 })); // right from its left edge
 ```
 
-Signature: `new GrowFromEdge(mobject, edge = DOWN, options?)`.
+Signature: `new GrowFromEdge(mobject, edge = [0, -1], options?)`.
 
-The edge must be `UP`, `DOWN`, `LEFT` or `RIGHT`. The corresponding edge of the
-current world-coordinate bounding box stays fixed; the perpendicular dimension
-does not shrink. This is one-axis growth, not uniform scaling about a point.
+The edge must be one unit step along an axis: `[0, 1]`, `[0, -1]`, `[-1, 0]` or `[1, 0]`. The corresponding edge of the
+current world-coordinate bounding box stays fixed and the perpendicular dimension
+keeps its size, so the growth is along one axis.
 Placement and authored paint/opacity are captured when the play begins. At its
 normal endpoint, the object has exactly its authored geometry and styles.
 
@@ -104,11 +103,10 @@ Given a function, it computes the next state from a copy of the state when it be
 so a member of a replay starts where the one before left it; with `event`, it records
 `{ kind: 'event', event }` as it begins. [Machines](MACHINES.md) build on this form.
 
-It draws nothing and defaults to zero duration. When its turn begins, it replaces
-the whole scene state. This puts model updates inside an existing schedule, so a
-following View sync sees that operation's state instead of the final state of the
-whole sequence. Assigning `scene.state` outside the schedule remains appropriate
-for a simple immediate change before one `play()`.
+It draws nothing and defaults to zero duration. When its turn begins it replaces
+the whole scene state, so a View sync after it in the same schedule draws that
+operation's state rather than the last state of the sequence. For one change before
+one `play()`, assigning `scene.state` directly is enough.
 
 The constructor validates and copies the snapshot with Rayner's plain-JSON rules;
 later changes to the input cannot change it. Each begin assigns a fresh copy, so
@@ -150,34 +148,28 @@ the play begins, so a member of a `Succession` starts where the one before left 
 value. The value is exact at alpha 0 and 1; an easing that overshoots samples past
 the ends, as a `Transform` would.
 
-It is correct by construction. `draw` returns the picture at the value, one fresh
-mobject per target, and Follow itself writes each into its target with `become`.
-So Follow writes nothing but its declared targets, which `play()`'s one-writer check
-covers, and writes them only from the value, so nothing can carry over from the
-previous frame and a seek renders the frame a full run renders. No updater is
-registered, so seeking still skips. What could only be a documented contract, and
-was one in an earlier `apply` form, is now what the API can express.
+`draw` returns the picture at the value, one fresh mobject per target, and Follow
+writes each into its target with `become`. Follow therefore writes nothing but its
+declared targets, which `play()`'s one-writer check covers, and writes them only from
+the value, so nothing carries over from the previous frame and a seek renders the
+frame a full run renders. It registers no updater, so seeking still skips.
 
 `play()` admits the targets and refuses a second writer of any of them in the same
-play, including another `Follow` (`targets()` is what every animation now reports).
+play, including another `Follow` (every animation reports its `targets()`).
 With `remover: true` all of them leave the scene after the play. Refused before
 anything is drawn: non-finite values, an empty or repeated target list, a `from()`
 that returns `NaN` at begin, a `draw` that returns the wrong number of pictures or a
 target itself, and a picture whose different shape would drop a keyed part.
 
-The token bucket's refill member uses it: elapsed time between two requests draws
-the gauge at `min(5, previous + elapsed × rate)` and the climbing line revealed up to
-that time, so the gauge no longer waits at the old balance while the line climbs,
-and the corner where the cap takes over appears in both at once. The accept or
-refuse that follows stays a discrete `Transform` in the next member.
+The token bucket's refill draws the gauge at `min(5, previous + elapsed × rate)` and
+the climbing line up to the same elapsed time, so the corner where the cap takes over
+appears in both at once; the accept or refuse that follows is a discrete `Transform`.
+The ring buffer turns each pointer through one angle, from the slot it leaves to the
+slot it reaches, so its invariant that the pointers stay on their circle holds on
+every frame. [Sampled parameters](PARAMETERS.md) records why each changed.
 
-The ring buffer's pointers use it too: one angle, from the slot a pointer leaves to
-the slot it reaches the short way round, draws its arrow and its word. That replaced
-two hand-written path functions, and the ring buffer's invariant that its pointers stay
-on their circle holds exactly on every frame.
-
-`mobject.become(other)` (manim's name) is the write Follow makes: take `other`'s
-points, style and fields in place, keeping this mobject's identity, key and parent.
+`mobject.become(other)` (manim's name) is the write Follow makes: it takes `other`'s
+points, style and fields in place, keeping this mobject's key and parent.
 With the same family shape each member takes its counterpart's data, so children
 keep their identities too. A different shape replaces the children, as a readout
 whose number gains a digit needs; that is refused when any child carries a key, so a
@@ -193,10 +185,9 @@ order without integrating previous frames.
 `SetState` is a discrete scheduled action; it is not a continuous binding or a
 reversible state transition.
 
-`test/choreography.test.ts` checks independent geometric/opacity expectations,
-the old growth/message-token frame sequences, malformed inputs, state isolation,
-conflicting writers, nested schedules and SVG/trace seek equality, and for `Follow`
+`test/choreography.test.ts` checks independent geometry and opacity expectations,
+the old growth and message-token frame sequences, malformed inputs, state isolation,
+conflicting writers, nested schedules and SVG and trace seek equality; for `Follow`,
 begin-time starts in a `Succession`, refused writers, admission and removal of every
-target, and a mid-sweep dot that sits on its circle. The installed
-package smoke runs the compiled recipe and checks its final model state. Other
-simple uses of FadeIn/FadeOut, Create and Transform remain ordinary compositions.
+target, and a mid-sweep dot that sits on its circle. The installed-package smoke test
+runs the compiled recipe and checks its final model state.

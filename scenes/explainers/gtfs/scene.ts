@@ -1,6 +1,8 @@
-import { Scene, Text, Group, Rectangle } from '../../../src/index.ts';
+import { Scene, Text, Group, Rectangle, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card, mermaid } from '../../../explain/index.ts';
+import type { Stage } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
   readFeed,
@@ -20,7 +22,8 @@ import {
   headwayWords,
   weekGrid,
 } from '../lib/gtfs.ts';
-import type { Cell, GtfsDate, Row, ServiceDay } from '../lib/gtfs.ts';
+import type { Band, Cell, GtfsDate, Row, ServiceDay, StopDay, WeekGrid } from '../lib/gtfs.ts';
+import { listed } from '../lib/format.ts';
 
 // Sources, all at google/transit commit 3c9e7b9: the GTFS Schedule reference (lines quoted in
 // ../lib/gtfs.ts and below) and its sample feed, whose files are copied in ./sample-feed-1.
@@ -36,12 +39,7 @@ const FEED = readFeed(SAMPLE_FEED);
 // instead); frequencies.trip_id is required (663); trips.service_id references calendar.service_id or
 // calendar_dates.service_id (261), and calendar.txt has one row per service_id (333), calendar_dates.txt
 // one per service_id and date (352).
-const ER = `---
-config:
-  er:
-    rankSpacing: 40
-    nodeSpacing: 30
----
+const ER = `${mermaid.frontMatter({ er: { rankSpacing: 40, nodeSpacing: 30 } })}
 erDiagram
   ROUTE ||--o{ TRIP : "route_id"
   TRIP ||--|{ STOP_TIME : "trip_id"
@@ -108,8 +106,6 @@ type StopKey = keyof typeof STOPS;
 const stopName = (id: string) => FEED.stops.find((s) => s.stop_id === id)!.stop_name!.replace(/ \(Demo\)$/, '');
 const route = (id: string) => FEED.routes.find((r) => r.route_id === id)!;
 const tripsOf = (serviceId: string) => FEED.trips.filter((t) => t.service_id === serviceId);
-const list = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 const number = (n: number) =>
   ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'][n] ?? String(n);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
@@ -155,7 +151,7 @@ export default class GtfsExplainer extends Scene {
       {
         question:
           'Route 50’s four trips run only at weekends. Which one row, in which file, would make them run on Monday 4 June 2007 as well?',
-        answer: `calendar_dates.txt: ${ADD_WE}. exception_type 1 adds service WE on that date, so ${list(ADDED)} run, ${ADDED.length} of the ${FEED.trips.length} trips; routes.txt, trips.txt and stop_times.txt stay as they are.`,
+        answer: `calendar_dates.txt: ${ADD_WE}. exception_type 1 adds service WE on that date, so ${listed(ADDED)} run, ${ADDED.length} of the ${FEED.trips.length} trips; routes.txt, trips.txt and stop_times.txt stay as they are.`,
       },
       {
         question:
@@ -205,7 +201,7 @@ export default class GtfsExplainer extends Scene {
     const s = stage(this, { style: STYLE, headingSize: 0.6 });
 
     /** Lines of text in the right column, wrapped to its width, from its top down; heads in bold. */
-    const column = async (rows: readonly (string | { head: string })[]) => {
+    const columnText = (rows: readonly (string | { head: string })[]) => {
       const out: Text[] = [];
       let y = RIGHT[3] - SIZE * 0.6;
       for (const row of rows) {
@@ -232,7 +228,11 @@ export default class GtfsExplainer extends Scene {
         if (head) y -= SIZE * 0.1;
         else y -= SIZE * 0.25;
       }
-      await s.enter(...out);
+      return new Group(...out);
+    };
+    /** The right column as a view of the step's state: check compares its words with the state at each step's end. */
+    const column = async (rows: (st: Record<string, unknown>) => readonly (string | { head: string })[]) => {
+      await s.enter(view(this, (st) => columnText(rows(st)), { place: false }));
     };
 
     // ------------------------------------------------------------------ day-before
@@ -250,7 +250,7 @@ export default class GtfsExplainer extends Scene {
     await this.step('day-before', {
       title: `On ${longDate(before)}, the sample feed runs ${of(was.length)}`,
       line: `Predict: which of these bars still run the next day, ${longDate(date)}?`,
-      caption: `Google publishes a sample GTFS feed, the CSV files a transit agency gives trip planners, for an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the feed’s name for the timetable a trip follows: FULLW or WE. A trip that runs once spans its first departure to its last arrival; a trip that repeats on a fixed gap spans the hours its vehicles leave the first stop. Grey bars, marked “no service”, do not run that day. On ${shortDate(before)} ${
+      caption: `Google publishes a sample GTFS feed, the CSV files a transit agency gives trip planners, for an invented Demo Transit Authority with ${FEED.routes.length} bus routes. Here is its day: one bar per trip, labelled with its route and grouped under its service_id, the feed’s name for the timetable a trip follows: FULLW or WE. A trip that runs once spans its first departure to its last arrival; a trip that repeats on a fixed gap spans the hours its vehicles leave the first stop. Bars marked “no service” do not run that day. On ${shortDate(before)} ${
         wasServices.length === 2 ? 'both timetables run' : wasServices.length ? `only ${wasServices[0]} runs` : 'neither runs'
       }.`,
     });
@@ -271,11 +271,11 @@ export default class GtfsExplainer extends Scene {
         : `Predict: all ${FEED.routes.length} routes are still in routes.txt. Why does none run?`,
       caption: `The date is now ${shortDate(date)}. The route list has not changed, but the active trips have: ${
         started.length
-          ? `${number(started.length)} trips under ${list(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${list(routesOf(started))}.`
+          ? `${number(started.length)} trips under ${listed(services2(started))} start, on route${routesOf(started).length > 1 ? 's' : ''} ${listed(routesOf(started))}.`
           : ''
       }${
         stopped.length
-          ? `${started.length ? ' ' + upper(number(stopped.length)) : number(stopped.length)} trips under ${list(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
+          ? `${started.length ? ' ' + upper(number(stopped.length)) : number(stopped.length)} trips under ${listed(services2(stopped))} stop.${tripsToday.length ? '' : ` All ${FEED.routes.length} routes are still in routes.txt, and none has a trip running: a rider asking for today’s departures gets nothing.`}`
           : ''
       } To see why, follow one trip, AB1, from its route to its dates.`,
     });
@@ -299,18 +299,23 @@ export default class GtfsExplainer extends Scene {
     // The calendar the trip's service_id points to is in view too, whole, for the next step.
     await er.focus(['entity:ROUTE', 'entity:TRIP', 'entity:CALENDAR'], { zoom: ZOOM });
     await er.mark(['rel:ROUTE-TRIP#0']);
-    await column([
-      { head: 'AB1 in trips.txt' },
-      `route_id ${ab1Row.route_id}, service_id ${ab1Row.service_id}`,
-      { head: 'Trips by route_id' },
-      ...tripsByRoute.map(
-        ([id, trips]) =>
-          `Route ${route(id).route_short_name}: ${trips.length > 3 ? `${trips[0]} to ${trips.at(-1)}` : list(trips)}`,
-      ),
-      { head: 'Line ends' },
-      'Bar: one; circle: or none; crow’s foot: many',
-    ]);
+    // `ab1`: the trip the column follows, as trips.txt has it.
     this.state.tripsByRoute = Object.fromEntries(tripsByRoute);
+    this.state.ab1 = { route_id: ab1Row.route_id, service_id: ab1Row.service_id };
+    await column((st) => {
+      const ab1 = st.ab1 as { route_id: string; service_id: string };
+      return [
+        { head: 'AB1 in trips.txt' },
+        `route_id ${ab1.route_id}, service_id ${ab1.service_id}`,
+        { head: 'Trips by route_id' },
+        ...Object.entries(st.tripsByRoute as Record<string, string[]>).map(
+          ([id, trips]) =>
+            `Route ${route(id).route_short_name}: ${trips.length > 3 ? `${trips[0]} to ${trips.at(-1)}` : listed(trips)}`,
+        ),
+        { head: 'Line ends' },
+        'Bar: one; circle: or none; crow’s foot: many',
+      ];
+    });
 
     // ------------------------------------------------------------------ service
     const services = [...new Set(FEED.trips.map((t) => t.service_id!))].map((id) => ({
@@ -337,8 +342,8 @@ export default class GtfsExplainer extends Scene {
     await er.unmark();
     await er.focus(['entity:CALENDAR', 'entity:CALENDAR_DATE', 'entity:TRIP'], { zoom: ZOOM });
     await er.mark(['rel:CALENDAR-TRIP#0', 'rel:CALENDAR_DATE-TRIP#0'], { as: 'either table' });
-    await column(services.flatMap((x) => [{ head: `${x.id}, ${x.trips} trips` }, `In ${where(x)}`]));
     this.state.services = services;
+    await column((st) => (st.services as typeof services).flatMap((x) => [{ head: `${x.id}, ${x.trips} trips` }, `In ${where(x)}`]));
 
     // ------------------------------------------------------------------ evaluate
     const today = servicesOn(FEED, date);
@@ -347,10 +352,10 @@ export default class GtfsExplainer extends Scene {
     const removed = today.filter((x) => x.exception === 2);
     await this.step('evaluate', {
       title: running.length
-        ? `On ${longDate(date)}, ${list(running)} ${running.length > 1 ? 'run' : 'runs'}`
+        ? `On ${longDate(date)}, ${listed(running)} ${running.length > 1 ? 'run' : 'runs'}`
         : `On ${longDate(date)}, no service runs`,
       line: removed.length
-        ? `An exception_type 2 row removes ${list(removed.map((x) => x.serviceId))}, overriding the ${day} column.`
+        ? `An exception_type 2 row removes ${listed(removed.map((x) => x.serviceId))}, overriding the ${day} column.`
         : `The ${day} column decides; no exception row matches this date.`,
       // reference.md:338-346 (weekday columns, range with end_date included) and :361-363 (exceptions).
       caption: `${longDate(date)} lies between start_date and end_date for ${today.every((x) => x.inRange) ? (today.length === 2 ? 'both services' : 'every service') : 'some services'}. ${today
@@ -375,119 +380,133 @@ export default class GtfsExplainer extends Scene {
     await code.focus(removed.length ? exceptionLine : [2, calendar.length], {
       as: removed.length ? 'applies on this date' : 'decides this date',
     });
-    await s.card(
-      [
-        ...today.map((x) => [x.serviceId, verdict(x, date)] as [string, string]),
-        ['Trips that run', `${tripsToday.length} of ${FEED.trips.length}`],
-      ],
-      { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, fontSize: 0.28 },
-    );
     this.state.today = today;
+    // Each service's verdict for the date, and the trips that run: the date and trips are the day step's, still in the state.
+    const verdicts = view(
+      this,
+      (st) => {
+        const { date: on, running: trips } = st.day as { date: GtfsDate; running: string[] };
+        return new Card(
+          this,
+          s.palette,
+          [
+            ...(st.today as ServiceDay[]).map((x) => [x.serviceId, verdict(x, on)] as [string, string]),
+            ['Trips that run', `${trips.length} of ${FEED.trips.length}`],
+          ],
+          { at: [-7.55, -4.25, 7.55, -0.85], width: 10.5, fontSize: 0.28 },
+        );
+      },
+      { place: false },
+    );
+    await s.enter(verdicts, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ week: the services' dates as a grid
     const grid = weekGrid(FEED, date);
     const col = grid.dates.indexOf(date);
-    const short3 = (d: GtfsDate) => upper(weekday(d)).slice(0, 3);
     const empties = grid.dates.filter((_, i) => grid.trips[i] === 0);
     const pattern = (cells: readonly Cell[]) => {
       const days = grid.dates.filter((_, i) => cells[i] !== 'off').map((d) => upper(weekday(d)));
-      return days.length === 7 ? 'every day' : days.length ? list(days) : 'no day';
+      return days.length === 7 ? 'every day' : days.length ? listed(days) : 'no day';
     };
     const removedCells = grid.services.flatMap((x) =>
       grid.dates.flatMap((d, i) => (x.cells[i] === 'removed' ? [{ serviceId: x.serviceId, date: d }] : [])),
     );
     const runningHere = grid.services.filter((x) => x.cells[col] === 'runs').map((x) => x.serviceId);
     const emptyWords = empties.length === 1 ? `${longDate(empties[0]!)} is the week’s one empty column` : empties.length ? `the week has ${number(empties.length)} empty columns` : 'no column of the week is empty';
-    await this.step('week', {
+    /** The week grid, drawn from the step's state alone: each service's cell per date, each date's trips, and the date asked about framed. */
+    const weekPicture = (st: { week: WeekGrid; date: GtfsDate }, s: Stage) => {
+      const { week: g, date: asked } = st;
+      const at = g.dates.indexOf(asked);
+      const GX0 = -5.6,
+        CW = 13 / 7,
+        CH = 0.75,
+        TOP = 0.95;
+      const SERVICE_COLORS = ['#0969da', '#8250df', '#1a7f37'];
+      const rowY = (r: number) => TOP - r * (CH + 0.12) - CH / 2;
+      const colX = (i: number) => GX0 + i * CW + CW / 2;
+      const words = (t: string, opts: { color?: string; size?: number; bold?: boolean } = {}) =>
+        new Text(t, { fontSize: opts.size ?? 0.28, color: opts.color ?? s.palette.ink, weight: opts.bold ? 'bold' : 'normal' });
+      const cellOf = (r: number, i: number) => {
+        const x = g.services[r]!,
+          kind = x.cells[i]!,
+          color = SERVICE_COLORS[r]!,
+          where: [number, number] = [colX(i), rowY(r)];
+        const frame = new Rectangle({
+          width: CW - 0.14,
+          height: CH,
+          fill: kind === 'runs' ? color : 'none',
+          stroke: kind === 'off' ? '#d0d7de' : color,
+          strokeWidth: kind === 'removed' ? 0.04 : 0.02,
+        }).moveTo(where);
+        if (kind === 'removed') frame.style.dashArray = '0.12 0.08';
+        const cell = new Group(frame);
+        if (kind === 'runs') cell.add(words(x.serviceId, { color: s.palette.paper, bold: true }).moveTo(where));
+        if (kind === 'removed')
+          cell.add(words(x.serviceId, { color }).moveTo([where[0], where[1] + 0.16]), words('removed', { color }).moveTo([where[0], where[1] - 0.18]));
+        cell.key = `gtfs-week:${x.serviceId}:${g.dates[i]}`;
+        return cell;
+      };
+      const totalY = rowY(g.services.length) + 0.2;
+      const dayColumn = (i: number) => {
+        const d = g.dates[i]!;
+        const column = new Group(
+          words(upper(weekday(d)).slice(0, 3), { bold: i === at }).moveTo([colX(i), TOP + 0.72]),
+          words(shortDate(d)).moveTo([colX(i), TOP + 0.3]),
+          ...g.services.map((_, r) => cellOf(r, i)),
+          words(String(g.trips[i]), { size: 0.34, bold: true }).moveTo([colX(i), totalY]),
+        );
+        column.key = i === at ? 'gtfs-week:day' : `gtfs-week:column:${d}`;
+        return column;
+      };
+      const columns = g.dates.map((_, i) => dayColumn(i));
+      // The date asked about, framed from its weekday down to its count.
+      const frameTop = TOP + 0.92,
+        frameBottom = totalY - 0.25;
+      if (at >= 0)
+        columns[at]!.add(
+          new Rectangle({ width: CW, height: frameTop - frameBottom, fill: 'none', stroke: s.emphasis, strokeWidth: 0.05 }).moveTo([
+            colX(at),
+            (frameTop + frameBottom) / 2,
+          ]),
+        );
+      const labelX = GX0 - 0.15;
+      const rowLabels = new Group(
+        ...g.services.map((x, r) =>
+          new Group(
+            words(x.serviceId, { bold: true, color: SERVICE_COLORS[r] }).moveTo([labelX, rowY(r) + 0.17], [1, 0]),
+            words(`${x.trips} trips`).moveTo([labelX, rowY(r) - 0.19], [1, 0]),
+          ),
+        ),
+        words('Trips', { bold: true }).moveTo([labelX, totalY], [1, 0]),
+      );
+      rowLabels.key = 'gtfs-week:rows';
+      return new Group(rowLabels, ...columns);
+    };
+    // A staged step: the stage is cleared and the grid drawn from `week` and `date`, the date it frames.
+    // A phone opens on the date asked about, with its neighbours either side as room allows.
+    await s.steps([
+      stagedStep({
+        id: 'week',
       title:
         grid.trips[col] === 0 && empties.length === 1
           ? `${longDate(date)} is the week’s one empty column`
-          : `${upper(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : list(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
+          : `${upper(weekday(date))} ${shortDate(date)} has ${runningHere.length === grid.services.length ? 'every service' : listed(runningHere)}; ${emptyWords.replace(/ is the week’s one empty column$/, ' is the empty one')}`,
       line: 'Filled: the service runs. Dashed: calendar_dates.txt removes it. Blank: not that weekday.',
       caption:
         `Each row is a service and each column a date, ${longDate(grid.dates[0]!)} to ${longDate(grid.dates[6]!)}; the number under a column counts the trips that run that day. ` +
-        `${list(grid.services.map((x) => `${x.serviceId}’s weekly pattern covers ${pattern(x.cells)}`))}. ` +
+        `${listed(grid.services.map((x) => `${x.serviceId}’s weekly pattern covers ${pattern(x.cells)}`))}. ` +
         (removedCells.length
-          ? `${upper(number(removedCells.length))} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${list(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${list(removedCells.map((r) => `${r.serviceId}’s ${upper(weekday(r.date))} cell`))}. `
+          ? `${upper(number(removedCells.length))} calendar_dates.txt row${removedCells.length > 1 ? 's' : ''}, ${listed(removedCells.map((r) => `${r.serviceId},${r.date},2`))}, ${removedCells.length > 1 ? 'empty' : 'empties'} ${listed(removedCells.map((r) => `${r.serviceId}’s ${upper(weekday(r.date))} cell`))}. `
           : '') +
         (empties.length === 1
           ? `With no other service on that weekday, ${shortDate(empties[0]!)}’s column is empty: 0 trips. `
           : '') +
         'routes.txt and trips.txt are the same in each column; the service cells are what change.',
-    });
-    await s.clear();
-    const GX0 = -5.6,
-      CW = 13 / 7,
-      CH = 0.75,
-      TOP = 0.95;
-    const SERVICE_COLORS = ['#0969da', '#8250df', '#1a7f37'];
-    const rowY = (r: number) => TOP - r * (CH + 0.12) - CH / 2;
-    const colX = (i: number) => GX0 + i * CW + CW / 2;
-    const words = (t: string, opts: { color?: string; size?: number; bold?: boolean } = {}) =>
-      new Text(t, { fontSize: opts.size ?? 0.28, color: opts.color ?? s.palette.ink, weight: opts.bold ? 'bold' : 'normal' });
-    const cellOf = (r: number, i: number) => {
-      const x = grid.services[r]!,
-        kind = x.cells[i]!,
-        color = SERVICE_COLORS[r]!,
-        at: [number, number] = [colX(i), rowY(r)];
-      const frame = new Rectangle({
-        width: CW - 0.14,
-        height: CH,
-        fill: kind === 'runs' ? color : 'none',
-        stroke: kind === 'off' ? '#d0d7de' : color,
-        strokeWidth: kind === 'removed' ? 0.04 : 0.02,
-      }).moveTo(at);
-      if (kind === 'removed') frame.style.dashArray = '0.12 0.08';
-      const g = new Group(frame);
-      if (kind === 'runs') g.add(words(x.serviceId, { color: s.palette.paper, bold: true }).moveTo(at));
-      if (kind === 'removed')
-        g.add(words(x.serviceId, { color }).moveTo([at[0], at[1] + 0.16]), words('removed', { color }).moveTo([at[0], at[1] - 0.18]));
-      g.key = `gtfs-week:${x.serviceId}:${grid.dates[i]}`;
-      return g;
-    };
-    const totalY = rowY(grid.services.length) + 0.2;
-    const dayColumn = (i: number) => {
-      const d = grid.dates[i]!;
-      const g = new Group(
-        words(short3(d), { bold: i === col }).moveTo([colX(i), TOP + 0.72]),
-        words(shortDate(d)).moveTo([colX(i), TOP + 0.3]),
-        ...grid.services.map((_, r) => cellOf(r, i)),
-        words(String(grid.trips[i]), { size: 0.34, bold: true }).moveTo([colX(i), totalY]),
-      );
-      g.key = i === col ? 'gtfs-week:day' : `gtfs-week:column:${d}`;
-      return g;
-    };
-    const columns = grid.dates.map((_, i) => dayColumn(i));
-    // The date asked about, framed from its weekday down to its count.
-    const frameTop = TOP + 0.92,
-      frameBottom = totalY - 0.25;
-    const mark = new Rectangle({ width: CW, height: frameTop - frameBottom, fill: 'none', stroke: s.emphasis, strokeWidth: 0.05 }).moveTo([
-      colX(col),
-      (frameTop + frameBottom) / 2,
+        state: { week: grid, date },
+        draw: weekPicture,
+        opening: ['gtfs-week:day'],
+      }),
     ]);
-    columns[col]!.add(mark);
-    const labelX = GX0 - 0.15;
-    const rowLabels = new Group(
-      ...grid.services.map((x, r) =>
-        new Group(
-          words(x.serviceId, { bold: true, color: SERVICE_COLORS[r] }).moveTo([labelX, rowY(r) + 0.17], [1, 0]),
-          words(`${x.trips} trips`).moveTo([labelX, rowY(r) - 0.19], [1, 0]),
-        ),
-      ),
-      words('Trips', { bold: true }).moveTo([labelX, totalY], [1, 0]),
-    );
-    rowLabels.key = 'gtfs-week:rows';
-    await s.enter(rowLabels, ...columns, {
-      describe: () =>
-        `A week grid, ${longDate(grid.dates[0]!)} to ${longDate(grid.dates[6]!)}, one row per service and one column per date. ` +
-        grid.services
-          .map((x) => `${x.serviceId}: ${grid.dates.map((d, i) => `${short3(d)} ${x.cells[i] === 'off' ? 'blank' : x.cells[i]}`).join(', ')}`)
-          .join('. ') +
-        `. Trips that run: ${grid.trips.join(', ')}. ${longDate(date)} is framed.`,
-    });
-    // A phone opens on the date asked about, with its neighbours either side as room allows.
-    s.reading(columns[col]!);
-    this.state.week = grid;
 
     // ------------------------------------------------------------------ trip-stops
     const ab1 = stopTimesOf(FEED, 'AB1'),
@@ -506,19 +525,26 @@ export default class GtfsExplainer extends Scene {
     const er2 = await s.show({ source: ER }, { box: LEFT });
     await er2.focus(['entity:TRIP', 'entity:STOP_TIME', 'entity:STOP', 'entity:FREQUENCY'], { zoom: ZOOM });
     await er2.mark(['rel:TRIP-STOP_TIME#0', 'rel:STOP-STOP_TIME#0']);
-    await column([
-      { head: 'AB1 in stop_times.txt' },
-      `1: ${stopName(ab1First.stop_id!)}, leaves ${clock(seconds(ab1First.departure_time!))}`,
-      `2: ${stopName(ab1Last.stop_id!)}, arrives ${clock(seconds(ab1Last.arrival_time!))}`,
-      { head: 'In frequencies.txt' },
-      `STBA: ${headwayWords(stbaBands)}, ${clock(stbaBands[0]!.start)} to ${clock(stbaBands.at(-1)!.end)}`,
-      `CITY1: ${headwayWords(city1Bands)}, in ${city1Bands.length} periods`,
-    ]);
+    // `bands`: the frequencies.txt rows of the two repeating trips, which the column gives as headways.
     this.state.stopTimes = {
       AB1: ab1.map((r) => [r.stop_id, r.arrival_time, r.departure_time]),
       CITY1: city1.length,
       frequencyRows: { STBA: stbaBands.length, CITY1: city1Bands.length },
+      bands: { STBA: stbaBands, CITY1: city1Bands },
     };
+    await column((st) => {
+      const times = st.stopTimes as { AB1: [string, string, string][]; bands: Record<'STBA' | 'CITY1', Band[]> },
+        [first, last] = [times.AB1[0]!, times.AB1.at(-1)!],
+        { STBA: stba, CITY1: city } = times.bands;
+      return [
+        { head: 'AB1 in stop_times.txt' },
+        `1: ${stopName(first[0])}, leaves ${clock(seconds(first[2]))}`,
+        `2: ${stopName(last[0])}, arrives ${clock(seconds(last[1]))}`,
+        { head: 'In frequencies.txt' },
+        `STBA: ${headwayWords(stba)}, ${clock(stba[0]!.start)} to ${clock(stba.at(-1)!.end)}`,
+        `CITY1: ${headwayWords(city)}, in ${city.length} periods`,
+      ];
+    });
 
     // ------------------------------------------------------------------ departures
     const at = stopDay(FEED, stopId, date);
@@ -527,20 +553,61 @@ export default class GtfsExplainer extends Scene {
     const routeOf = (tripId: string) =>
       route(FEED.trips.find((t) => t.trip_id === tripId)!.route_id!).route_short_name!;
     const ending = at.ending.length
-      ? ` ${list(at.ending)} end${at.ending.length > 1 ? '' : 's'} here and ${at.ending.length > 1 ? 'do' : 'does'} not count.`
+      ? ` ${listed(at.ending)} end${at.ending.length > 1 ? '' : 's'} here and ${at.ending.length > 1 ? 'do' : 'does'} not count.`
       : '';
-    const servedBy = FEED.routes
-      .filter((r) =>
-        FEED.trips.some(
-          (t) => t.route_id === r.route_id && stopTimesOf(FEED, t.trip_id!).some((x) => x.stop_id === stopId),
-        ),
-      )
-      .map((r) => r.route_short_name!);
+    /** The routes whose trips stop at a stop, on any day. */
+    const servedBy = (stop: string) =>
+      FEED.routes
+        .filter((r) =>
+          FEED.trips.some((t) => t.route_id === r.route_id && stopTimesOf(FEED, t.trip_id!).some((x) => x.stop_id === stop)),
+        )
+        .map((r) => r.route_short_name!);
     // On a date an exception empties, show what calendar.txt alone would have sent from the stop.
     const usual = stopDay(FEED, stopId, date, { byCalendar: true });
-    const shown = leaving.length ? at : usual;
     const removedBy = today.filter((x) => x.exception === 2).map((x) => x.serviceId);
-    await this.step('departures', {
+    /**
+     * The departures card, drawn from the step's state alone: what leaves the stop on the date, or on a date with
+     * nothing, what calendar.txt alone would have sent from it, each marked removed.
+     */
+    const departuresPicture = (st: { departures: StopDay; usual: StopDay | null; date: GtfsDate }, s: Stage) => {
+      const { departures: here, usual: byCalendar, date: on } = st;
+      const going = here.departures.length + here.headways.length > 0,
+        shown = byCalendar ?? here,
+        stop = stopName(here.stopId);
+      const note = going ? (x: string) => x : (x: string) => `${x}, removed`;
+      const rows: [string, string][] = [
+        ...shown.departures.map(
+          (d) => [`${clock(d.time)}  ${d.tripId}, route ${routeOf(d.tripId)}`, note(d.headsign)] as [string, string],
+        ),
+        ...shown.headways.flatMap((h) =>
+          h.bands.map(
+            (b) => [`${h.tripId}  ${clock(b.start)} to ${clock(b.end)}`, note(headwayWords([b]))] as [string, string],
+          ),
+        ),
+        ...(here.ending.length ? [['Ends here', listed(here.ending)] as [string, string]] : []),
+      ];
+      return new Card(
+        this,
+        s.palette,
+        rows.length
+          ? rows
+          : [
+              [stop, 'no departures'],
+              ['Routes stopping here', `${listed(servedBy(here.stopId))}, on other days`],
+            ],
+        {
+          at: [-7.55, -4.0, 7.55, 3.0],
+          width: 11,
+          fontSize: 0.3,
+          title: going ? `Leaving ${stop}, ${shortDate(on)}` : `What calendar.txt alone would send, ${shortDate(on)}`,
+        },
+      );
+    };
+    // A staged step: the stage is cleared and the card drawn from the stop's day, the calendar-only day when that
+    // is empty, and the date the card is titled with.
+    await s.steps([
+      stagedStep({
+        id: 'departures',
       title: !leaving.length
         ? `Nothing leaves ${name} on ${shortDate(date)}`
         : at.headways.length && !at.departures.length
@@ -562,39 +629,11 @@ export default class GtfsExplainer extends Scene {
               : ''
           }`
         : at.headways.length
-          ? `A departure is a stop_times row at the stop that is not its trip’s last. ${list(at.headways.map((h) => h.tripId))} start here, on headways with exact_times empty: operators keep the gap, not a timetable. The reference does not say whether a vehicle leaves at end_time, so the card gives gaps.${ending}`
-          : `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} ${list(at.departures.map((d) => `${d.tripId} leaves at ${clock(d.time)}`))}.${ending}`,
-    });
-    await s.clear();
-    const note = leaving.length ? (x: string) => x : (x: string) => `${x}, removed`;
-    const rows: [string, string][] = [
-      ...shown.departures.map(
-        (d) => [`${clock(d.time)}  ${d.tripId}, route ${routeOf(d.tripId)}`, note(d.headsign)] as [string, string],
-      ),
-      ...shown.headways.flatMap((h) =>
-        h.bands.map(
-          (b) => [`${h.tripId}  ${clock(b.start)} to ${clock(b.end)}`, note(headwayWords([b]))] as [string, string],
-        ),
-      ),
-      ...(at.ending.length ? [['Ends here', list(at.ending)] as [string, string]] : []),
-    ];
-    await s.card(
-      rows.length
-        ? rows
-        : [
-            [name, 'no departures'],
-            ['Routes stopping here', `${list(servedBy)}, on other days`],
-          ],
-      {
-        at: [-7.55, -4.0, 7.55, 3.0],
-        width: 11,
-        fontSize: 0.3,
-        title: leaving.length
-          ? `Leaving ${name}, ${shortDate(date)}`
-          : `What calendar.txt alone would send, ${shortDate(date)}`,
-      },
-    );
-    this.state.departures = at;
-    this.state.usual = leaving.length ? null : usual;
+          ? `A departure is a stop_times row at the stop that is not its trip’s last. ${listed(at.headways.map((h) => h.tripId))} start here, on headways with exact_times empty: operators keep the gap, not a timetable. The reference does not say whether a vehicle leaves at end_time, so the card gives gaps.${ending}`
+          : `A departure is a stop_times row at the stop that is not its trip’s last. On ${shortDate(date)} ${listed(at.departures.map((d) => `${d.tripId} leaves at ${clock(d.time)}`))}.${ending}`,
+        state: { departures: at, usual: leaving.length ? null : usual, date },
+        draw: departuresPicture,
+      }),
+    ]);
   }
 }

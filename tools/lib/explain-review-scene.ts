@@ -12,6 +12,7 @@ import { serve } from './explain-serve.ts';
 import { launch } from './browser.ts';
 import { reviewStoryScenario } from './explain-story-review.ts';
 import type { StorySubject } from './explain-story-review.ts';
+import { liveSubjects, reviewLiveStates } from './explain-live-review.ts';
 
 /** Independent caption expectations belong beside the author's scene, outside its runtime. */
 export async function reviewSubjects(project: Project, file?: string): Promise<StorySubject[]> {
@@ -74,7 +75,10 @@ export async function reviewScene(project: Project, directory: string, subjectsF
       for (const [index, scenario] of project.scenarios.entries()) {
         const output = join(directory, String(index));
         await mkdir(output, { recursive: true });
-        results.push({ settings: scenario.values, steps: await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, output) });
+        const steps = await reviewStoryScenario(page, server.url + '/scene.html', scenario, subjects, output);
+        // The pictures a reader reaches by pressing a live step's events (docs/MACHINES.md, "The player").
+        const live = await reviewLiveStates(page, server.url + '/scene.html', scenario, await liveSubjects(scenario, project.Scene.meta?.lang), output);
+        results.push({ settings: scenario.values, steps, ...(live.length ? { live } : {}) });
       }
       assert.deepEqual(errors, [], 'reader console errors');
       assert.deepEqual(connections, [], 'reader external connections');
@@ -97,7 +101,8 @@ export async function reviewScene(project: Project, directory: string, subjectsF
     const report = {
       version: 1, scene: project.Scene.meta?.id ?? 'scene', sourceHash: project.sourceHash,
       buildHash: inputs.hash, reviewCodeHash: reviewer, artifact: retained, artifactHash: receipt.artifactHash, subjectsHash: hash(JSON.stringify(subjects)),
-      scenarios: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0), results,
+      scenarios: results.length, stepWidths: results.reduce((n, c) => n + c.steps.length, 0),
+      liveStateWidths: results.reduce((n, c) => n + (c.live?.length ?? 0), 0), results,
       consoleErrors: errors, runtimeConnections: connections,
     };
     await rm(join(directory, 'failure.json'), { force: true });

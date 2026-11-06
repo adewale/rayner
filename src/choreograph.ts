@@ -6,9 +6,11 @@
 // take a gone one out. rest() lands every keyed part no call has handled, so a transition that
 // forgets a part still ends on the target picture. See docs/MACHINES.md.
 
-import { Animation, AnimationGroup, Create, FadeIn, FadeOut, Transform } from './animation.ts';
+import { Animation, AnimationGroup, Create, FadeIn, FadeOut, MoveAlongPath, Transform } from './animation.ts';
 import type { AnimOpts, TransformOpts } from './animation.ts';
 import type { Mobject } from './mobject.ts';
+import type { VMobject } from './vmobject.ts';
+import { linear } from './rate.ts';
 
 /**
  * An animation for a part that is already in the picture but unseen: it shows the part as it was
@@ -61,6 +63,13 @@ export interface Choreography {
   insert(key: string, like: Mobject): Mobject;
   /** Mark a current part as the author's to animate (with Follow, say); it must end as the target part. */
   own(key: string): Mobject;
+  /**
+   * A token passing along `path`, a part the target does not have (a message on its arrow, an
+   * event walking a link): `appear` brings `token` into view at the path's start, `move` carries it
+   * along the path at an even speed, and `leave` takes it out of the picture. Each phase is an
+   * animation for the author to place, so other motion can run beside it; all three must play.
+   */
+  travel(key: string, token: Mobject, path: VMobject, times?: { appear?: number; move?: number; leave?: number }): { appear: Animation; move: Animation; leave: Animation };
   /** Every keyed part not yet handled: morphed when both pictures have it, faded in or out when one does. */
   rest(opts?: AnimOpts): AnimationGroup;
 }
@@ -139,6 +148,16 @@ export function choreograph(current: Mobject, target: Mobject): Choreography {
       const part = from(key);
       claim(key);
       return part;
+    },
+    travel(key, token, path, { appear = 0.15, move = 0.7, leave = 0.2 } = {}) {
+      if (want.has(key)) throw new Error(`choreograph: ${key} is in the target picture; a travelling token passes through`);
+      const start = path.pointFromProportion(0);
+      const part = insert(key, token.copy().moveTo(start));
+      return {
+        appear: new Transform(part, token.copy().moveTo(start), { runTime: appear }),
+        move: new MoveAlongPath(part, path, { runTime: move, rateFunc: linear }),
+        leave: self.leave(key, { runTime: leave }),
+      };
     },
     rest(opts = {}) {
       const anims: Animation[] = [];

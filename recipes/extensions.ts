@@ -1,4 +1,4 @@
-import { VMobject, Group, Text, Scene, FadeIn, Transform, TEAL } from 'rayner';
+import { VMobject, Group, Text, Scene, FadeIn, Transform } from 'rayner';
 import type { Style } from 'rayner';
 
 /** Use VMobject's public path builder; copies own their point buffers. */
@@ -12,7 +12,7 @@ export class Diamond extends VMobject {
 /** Prefer children/getters to duplicated references to mutable child objects. */
 export class StatusBadge extends Group {
   constructor(label: string) {
-    const shape = new Diamond({ stroke: TEAL, fill: TEAL, fillOpacity: 0.12 });
+    const shape = new Diamond({ stroke: '#5cd0b3', fill: '#5cd0b3', fillOpacity: 0.12 });
     const text = new Text(label, { fontSize: 0.25 }).moveTo([0, -1.4]);
     super(shape, text);
   }

@@ -1,10 +1,10 @@
-import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, Transform, MoveAlongPath, AnimationGroup, Succession, view, matchByKey, Machine, choreograph, linear } from 'rayner';
-import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from 'rayner';
-import { stage, regionBox } from 'rayner/explain';
-import { keyed } from 'rayner/drawing';
-import type { Stage } from 'rayner/explain';
-import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, events as chartEvents } from '../lib/statecharts.ts';
-import type { StateNode, FlatMachine } from '../lib/statecharts.ts';
+import { Scene, Group, Text, Rectangle, Arrow, CurvedArrow, Line, Circle, Dot, FadeIn, AnimationGroup, Succession, view, matchByKey, Machine, choreograph } from '../../../src/index.ts';
+import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from '../../../src/index.ts';
+import { stage, regionBox } from '../../../explain/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
+import type { Stage } from '../../../explain/index.ts';
+import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, drivenStart, drivenNext, events as chartEvents } from '../lib/statecharts.ts';
+import type { StateNode, FlatMachine, Driven } from '../lib/statecharts.ts';
 
 // Every box and arrow below is drawn from a model state or transition; only positions are chosen
 // here. Parts are keyed by where they sit in the grid of playback × volume, so a state keeps its
@@ -631,7 +631,6 @@ export default class Statecharts extends Scene {
     // The two charts a reader could drive, as Machines: each event is the model's send(), and
     // rayner check draws every configuration the events reach. The parent step replays a brew
     // that starts; the frother step the transfer answer's events.
-    type Driven = { config: string[]; current: string[] };
     /** The boxes the picture draws green for a state: the parent step follows the configuration, the frother step every box it is in. */
     const followed = (st: Driven) => ((this.shown as Shown).phase === 'parent' ? st.config : st.current);
     /** The arrow an event takes: the transition written on the state that handled it (its own, or its parent's), keyed as coffeePicture keys it. */
@@ -641,17 +640,14 @@ export default class Statecharts extends Scene {
       return from === 'on' ? 'c:arrow:grinding:POWER_OFF:off' : to === 'on' ? 'c:arrow:off:POWER_ON:idle' : `c:arrow:${from}:${event}:${to}`;
     };
     // An event the configuration does not handle is discarded (SCXML), so its button would be
-    // disabled: the model refuses it. One that is handled travels: the boxes it leaves stop being
+    // disabled: the model refuses it, naming the boxes without its arrow. One that is handled travels: the boxes it leaves stop being
     // green, a token runs along the arrow of the state that took it (on's own POWER_OFF when the
     // current state has none), and the boxes it enters turn green.
     const driven = (chart: StateNode) =>
       new Machine<Driven, string>(this, {
-        start: { config: initial(chart), current: activeStates(chart, initial(chart)) },
+        start: drivenStart(chart),
         events: chartEvents(chart),
-        next: (state, event) => {
-          const step = send(chart, state.config, event);
-          return step.handled ? { config: step.config, current: activeStates(chart, step.config) } : undefined;
-        },
+        next: (state, event) => drivenNext(chart, state, event),
         views: [main],
         match: byKey,
         // 0.35 s to leave, 0.8 s along the arrow, 0.5 s to arrive.
@@ -663,19 +659,14 @@ export default class Statecharts extends Scene {
               const { before, after } = t, c = t.choreograph(main);
               const was = followed(before), now = followed(after);
               const leaving = was.filter((id) => !now.includes(id)), entering = now.filter((id) => !was.includes(id));
-              const routes = send(chart, before.config, event).sources.map((from, i) => {
-                const shaft = c.from(arrowFor(chart, from, event)).children[0] as VMobject,
-                  token = () => new Dot({ radius: 0.11, color: s.emphasis }).moveTo(shaft.pointFromProportion(0));
-                return { shaft, key: `walk:token:${i}`, part: c.insert(`walk:token:${i}`, token()), token };
-              });
+              // One token per state that handled the event, travelling its arrow.
+              const walks = send(chart, before.config, event).sources.map((from, i) =>
+                c.travel(`walk:token:${i}`, new Dot({ radius: 0.11, color: s.emphasis }), c.from(arrowFor(chart, from, event)).children[0] as VMobject, { appear: 0.35, move: 0.8, leave: 0.25 }));
               return new Succession([
+                new AnimationGroup([...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })), ...walks.map((w) => w.appear)]),
+                new AnimationGroup(walks.map((w) => w.move)),
                 new AnimationGroup([
-                  ...leaving.map((id) => c.morph(`c:${id}`, { runTime: 0.35 })),
-                  ...routes.map((r) => new Transform(r.part, r.token(), { runTime: 0.35 })),
-                ]),
-                new AnimationGroup(routes.map((r) => new MoveAlongPath(r.part, r.shaft, { runTime: 0.8, rateFunc: linear }))),
-                new AnimationGroup([
-                  ...routes.map((r) => c.leave(r.key, { runTime: 0.25 })),
+                  ...walks.map((w) => w.leave),
                   ...entering.map((id) => c.morph(`c:${id}`, { runTime: 0.5 })),
                   c.rest({ runTime: 0.5 }),
                 ]),
@@ -734,7 +725,7 @@ export default class Statecharts extends Scene {
     await this.step('regions', {
       title: 'Split the box on into two small machines, called regions',
       line: 'Predict: can a statechart do anything a state machine can’t?',
-      caption: `Draw a dashed line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
+      caption: `Draw a line through on and give each side one feature: the grid’s words slide apart, and playing · muted becomes playing on one side and muted on the other. Each side is a region, a small machine in one state at a time, and both run at once. A flat state had to name both features at once; a state in a region names only its own, so a further feature adds a region of two states where the flat machine doubles: ${SUBTITLES.region} would make ${threeFlat} combinations, against ${threeChart} states in three regions.`,
     });
     await fresh('grid');
     await morph('regions');
@@ -763,7 +754,7 @@ export default class Statecharts extends Scene {
     await this.step('frother', {
       title: 'The frother is a second region, beside the brewing cycle',
       line: `A flat machine would need ${frotherFlat.states} states and ${frotherFlat.transitions} transitions; the statechart draws ${frotherChart.transitions} arrows.`,
-      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The green boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
+      caption: `In a flat machine every state while on would pair one of the four brewing states with still or frothing, like grinding · frothing, all ${frotherFlat.states - 1} pairs reachable, and every arrow between them would change one word and keep the other: the second sign. So the frother goes in a second region inside on, and on’s one POWER_OFF covers both regions. The highlighted boxes are where the machine is after POWER_ON, START and FROTH: grinding in one region and frothing in the other, both at once.`,
     });
     // The machine starts off; the transfer answer's events take it to grinding and frothing.
     await replay(frother, 'frother', RUNS.frother.slice(0, 3));

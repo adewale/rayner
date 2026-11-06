@@ -2,7 +2,7 @@ import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
 import { Scene, Text, Group, Rectangle, Transform, Arrow, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
+import { keyedParts } from '../../../explain/drawing.ts';
 import { exec } from '../lib/models.ts';
 import type { Shell } from '../lib/models.ts';
 import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from '../lib/just-bash.ts';
@@ -331,15 +331,12 @@ export default class BashExplainer extends Scene {
     const session = () => this.state as unknown as ShellSession;
     s.keep(chain, { describe: () => shellsWords(session()) });
     // What the picture marks: the shell the caller keeps, and what each cat printed.
-    emphasises(this, () => {
-      const st = session(), out: [Mobject, string][] = [], newest = st.shells.length - 1;
-      const box = chain.current.find(`shell:${newest}:box`);
-      if (box) out.push([box, `kept: s${newest}`]);
-      st.cats.forEach((c, i) => {
-        const m = chain.current.find(`out:${i}`);
-        if (m && c !== null) out.push([m, `cat on s${i}: ${prints(c)}`]);
-      });
-      return out;
+    s.emphasise(() => {
+      const st = session(), newest = st.shells.length - 1;
+      return [
+        [`shell:${newest}:box`, `kept: s${newest}`],
+        ...st.cats.flatMap((c, i) => (c === null ? [] : [[`out:${i}`, `cat on s${i}: ${prints(c)}`] as const])),
+      ];
     });
     // Checked on every frame, and through every transition from every state rayner check reaches: whatever ran, s0
     // is the empty shell the caller started with, in the model and in the picture.
@@ -355,6 +352,8 @@ export default class BashExplainer extends Scene {
     const machine = new Machine<ShellSession, BashEvent>(this, {
       start,
       events: BASH_EVENTS,
+      // What the player's buttons say: the script's lines as the reader would run them.
+      labels: { RUN_PIPELINE: 'Run the pipeline', CAT_NEWEST: 'cat on the newest shell', CAT_S0: 'cat on s0', LS: 'ls' },
       next: sessionNextShell,
       bound: scriptBound,
       views: [chain],
@@ -396,8 +395,7 @@ const SHELL_X = [-4.5, 3.1],
  * printed. Every part is keyed, so a command's transition can bring in exactly what it adds.
  */
 function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
-  const ink = s.palette.ink, newest = st.shells.length - 1, parts: Mobject[] = [];
-  const add = (m: Mobject, key: string) => { m.key = key; parts.push(m); };
+  const ink = s.palette.ink, newest = st.shells.length - 1, { add, group } = keyedParts();
   st.shells.forEach((sh, i) => {
     const x = SHELL_X[i]!, kept = i === newest;
     add(new Rectangle({ width: BOX_W, height: BOX_H, cornerRadius: 0.12, fill: kept ? s.emphasis : ink, fillOpacity: kept ? 0.1 : 0.04, stroke: kept ? s.emphasis : s.soft, strokeWidth: kept ? 0.05 : 0.03 }).moveTo([x, SHELL_Y]), `shell:${i}:box`);
@@ -418,7 +416,7 @@ function shellsPicture(st: ShellSession, s: ReturnType<typeof stage>): Group {
       new Text(prints(out), { fontSize: 0.3, color: out ? ink : s.bad }).moveTo([x, OUT_Y]),
     ), `out:${i}`);
   });
-  return new Group(...parts);
+  return group();
 }
 
 /** The session's picture in words. */

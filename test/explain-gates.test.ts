@@ -129,6 +129,12 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Resting frames have colliding or cut-off text/,
   },
   {
+    // Every key is an identity, whatever it looks like: what the stage's chrome is for is its role.
+    gate: 'keys: two parts on the stage with one key',
+    source: scene(`await this.step('one');const a=new Text('a',{fontSize:.4});a.key='__shared';const b=new Text('b',{fontSize:.4}).shift([0,-1.5]);b.key='__shared';await s.enter(a,b,{describe:'two letters'});`),
+    message: /Keys in the scene: at the end of a step, a key names one mobject/,
+  },
+  {
     gate: 'a connector through a resting label',
     source: scene(`await this.step('one');const wire=new Line([-2,0],[2,0]);await s.enter(wire,{describe:'wire'});${label('target')}`),
     message: /A connector crosses "target"/,
@@ -221,6 +227,12 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Duplicate step names/,
   },
   {
+    // The caption keys a colour the stage never names: hidden, the caption takes the key with it.
+    gate: 'a caption names a colour no word on the stage says',
+    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.bad}),{describe:'A dot'});`),
+    message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
+  },
+  {
     gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
     message: /Each scenario needs non-empty named steps/,
@@ -235,6 +247,25 @@ for (const { gate, source, message, snapshots } of gates)
   test(`gate fails with its own message: ${gate}`, async () => {
     await assert.rejects(checked(await write(source, snapshots?.())), message);
   });
+
+test('the key check names every key held twice, with no exception for the stage, whose chrome has a role instead', async () => {
+  const { KeySink } = await import('../tools/lib/explain-check.ts');
+  const { Scene, Text } = await import('../src/index.ts');
+  const { stage } = await import('../explain/index.ts');
+  const keys = new KeySink();
+  class Twice extends Scene {
+    override async construct() {
+      const s = stage(this);
+      // Numbered headings with lines crossfade at every step: their parts are 'chrome', never keyed.
+      for (const step of ['one', 'two', 'three']) await this.step(step, { title: step, line: `the ${step} step` });
+      const a = new Text('a'), b = new Text('b').shift([0, -1.5]);
+      a.key = b.key = '__shared';
+      await s.enter(a, b, { describe: 'two letters' });
+    }
+  }
+  await new Twice(keys).run();
+  assert.deepEqual(keys.problems, ['step "three": "__shared"']);
+});
 
 test('native legibility on screen: an 8 px label with the camera zoomed in 2x passes', async () => {
   await checked(await write(scene(`this.frame.scale(0.5);await this.step('one',{caption:'Close.'});${label('close up', '[0,0]', 0.1)}`)));

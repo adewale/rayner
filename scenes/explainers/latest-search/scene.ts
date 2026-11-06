@@ -1,7 +1,6 @@
-import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view } from '../../../src/index.ts';
+import { Scene, Transform, AnimationGroup, Succession, Cross, Machine, choreograph, view, rushInto } from '../../../src/index.ts';
 import type { Mobject, ScheduledAnimation, Choreography, View, Transition, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { emphasises } from '../../../explain/look.ts';
 import { story, ANSWER, raceTimeline, raceTracks, raceWords, tickX, trackY } from '../lib/readers/latest-search.ts';
 import type { RaceStep } from '../lib/readers/latest-search.ts';
 import { raceStart, raceNext, raceShowsStale, RACE_EVENTS } from '../lib/latest-search.ts';
@@ -79,7 +78,8 @@ export default class LatestSearchExplainer extends Scene {
         const key = `response:${track.key}`;
         const response = c.insert(key, dot);
         const top = dot.copy().moveTo([x, trackY(i) + 0.45]);
-        arrive.push(new Succession([new Transform(response, dot.copy(), { runTime: 0.01 }), new Transform(response, top, { runTime: 0.5 })]));
+        // rushInto: the response gathers speed down the line and hits the page's edge at full speed, where it is published or dropped.
+        arrive.push(new Succession([new Transform(response, dot.copy(), { runTime: 0.01 }), new Transform(response, top, { runTime: 0.5, rateFunc: rushInto })]));
         const published = track.page.length > was[i]!.page.length;
         if (published) {
           // Published: the page's last span ends here, and the new span takes the response's place.
@@ -123,7 +123,7 @@ export default class LatestSearchExplainer extends Scene {
     const off = raceMachine(false), on = raceMachine(true);
     // What a timeline marks, as emphasis the phone's close-ups visit first and review holds to the
     // caption: each page span outlined in red, a stale result on the page. Read from state.
-    emphasises(this, () => {
+    s.emphasise(() => {
       const st = this.state as object;
       if (!isRace(st)) return [];
       const v = st.guarded ? on.timeline : off.timeline, out: [Mobject, string][] = [];
@@ -140,7 +140,7 @@ export default class LatestSearchExplainer extends Scene {
       await s.clear({ runTime: 0.18 });
       this.state = { ...raceStart(guarded) } as unknown as SceneState;
       timeline.rebuild();
-      s.reading(timeline);
+      s.opening(timeline);
       await s.enter(timeline, { runTime: 0.24, describe: () => raceWords(this.state as unknown as RaceState) });
       await this.play(machine.replay(events));
     };

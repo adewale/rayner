@@ -1,11 +1,11 @@
 # Runnable extension recipes
 
-These are maintained examples of public extension points, not additional scene
-languages. Copy a function, add a mobject, write an animation or change a sink;
-each still works with ordinary Rayner operations. The goal is to make an unexpected
-combination possible without a new branch inside the engine.
+Each recipe is a maintained example of one public extension point: a function, a
+mobject, an animation, an invariant or a sink. What you build this way still works
+with every ordinary Rayner operation, so a new combination needs no new branch in
+the engine.
 
-Run all four in a checkout (Node 24+, no browser):
+Run all five in a checkout (Node 24+, no browser):
 
 ```sh
 npm ci
@@ -20,24 +20,23 @@ After installation in an author project:
 node node_modules/rayner/dist/recipes/render.js --out out/recipes
 ```
 
-The recipes are included in packages built from this source; older releases may
-not include them. The installed runner is compiled JavaScript: Node does not strip
-TypeScript inside `node_modules`. Copy the accompanying `recipes/*.ts` sources to
-your own project if you want to edit them. Public imports are `rayner`, never private engine paths.
-They are type-checked by `npm run check`, exercised by the standard tests and run
-from the fresh archive by `npm run pack:smoke`. Their output is raw engine content,
-not a substitute for checking a complete published lesson.
+Packages built from this source include the recipes; older releases may not. The
+installed runner is compiled JavaScript, because Node does not strip TypeScript inside
+`node_modules`; copy the `recipes/*.ts` sources into your project to edit them. They
+import only from `rayner`. `npm run check` type-checks them, the standard tests run
+them, and `npm run pack:smoke` runs them from a fresh install. Their output is raw
+engine content, not a checked explainer.
 
 ## Bind data to a scene and inspect it
 
 [document.ts](../recipes/document.ts) takes an ordinary request input, computes a
 route, and exposes it as a drawing, text and trace. [Scene outputs](SCENE-OUTPUTS.md)
-explains the Lantern document use case and every output API.
+covers every output API.
 
-Try replacing `route` with your own deterministic model. Keep the model independent
-of rendering, record its inputs and compare outputs to a reference outside the
-drawing. This lets a test-vector generator, documentation build or agent supply
-cases without learning a JSON animation language.
+Try replacing `route` with your own deterministic model. Keep the model apart from
+rendering, record its inputs and compare its outputs with a reference outside the
+drawing; a test-vector generator, documentation build or agent can then supply
+inputs without learning a JSON animation language.
 
 ## Make a reusable shape and composite
 
@@ -48,13 +47,13 @@ cases without learning a JSON animation language.
   the badge's own children, including after `copy()`.
 - `statusRow(labels)` is an ordinary function arranging several badges.
 
-All can participate in `FadeIn`, `Transform`, `Group`, copying, layout and the SVG
-renderer. No renderer registration is required: they use existing path primitives.
-The copy test moves the cloned path and changes the cloned label, then verifies
-the originals and parent references remain correct.
+All of them work with `FadeIn`, `Transform`, `Group`, copying, layout and the SVG
+renderer without registering anything, because they are built from existing path
+primitives. The copy test moves the cloned path and changes the cloned label, then
+checks that the originals and parent references are unchanged.
 
-Try a diamond containing another component, or use the same badge in a chart and
-a protocol diagram. Reuse the component through its mobject interface; avoid
+Try a diamond containing another component, or the same badge in a chart and a
+protocol diagram. Reuse a component through its mobject interface rather than
 adding a badge-specific operation to the scene or renderer.
 
 For a custom class with mutable fields outside its children, read
@@ -71,9 +70,9 @@ endpoint and a decimal readout. Sample the middle of the motion:
 npm run recipes -- --scene continuous --time 0.5 --out out/orbit
 ```
 
-The dot is at the top of the circle and the number reads 1.57. Interpolating two
-opposite endpoint pictures would put the dot through the centre instead. This
-recipe evaluates the relationship throughout the motion.
+The dot is at the top of the circle and the number reads 1.57, because the recipe
+evaluates the orbit throughout the motion; interpolating the two opposite endpoint
+pictures would put the dot through the centre.
 
 `FollowAngle` captures the initial value in `begin()`, makes an immutable sample
 from alpha, applies absolute updates and publishes that sample as scene state.
@@ -94,12 +93,11 @@ distribution and adding another dependent readout. Keep these constraints:
    rate function must stay in `[0, 1]`; overshooting easings are refused by the
    model's domain check.
 
-The recipe fixes drawing coordinates at construction. Do not shift/scale/rotate
-the dependent group and expect later sampling to retain that placement: absolute
-updates use its original coordinate system. Camera animation is independent.
-The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow): one sampled
-number, a `draw` that returns the picture at it, and the targets Follow writes it
-into, named for the one-writer check. [Sampled parameters](PARAMETERS.md) records the survey behind it.
+The recipe fixes drawing coordinates at construction, so shifting, scaling or
+rotating the dependent group does not survive the next sample; a camera move is
+unaffected. The exported form of this idea is [`Follow`](CHOREOGRAPHY.md#follow):
+one sampled number, a `draw` that returns the picture at it, and the targets it
+writes, named for the one-writer check.
 
 ## Hold an invariant on every frame
 
@@ -114,21 +112,20 @@ this.addInvariant('the dot stays on its circle', (scene) => {
 });
 ```
 
-A check reads the scene by key and changes nothing; it returns a message when the
-invariant fails, `true` when it held, and nothing when there was nothing to check on that
-frame. An invariant that never holds in a whole run tested nothing, so `rayner check` fails
-it: a misspelt key finds nothing and cannot pass for an invariant that held. `rayner check` runs every registered invariant on every frame of every scenario,
-so an invariant about what happens between steps (a gauge meeting a line, a pointer on its
-circle) fails at the first frame that breaks it. Sampled from its angle with `Follow`,
-the dot holds; morphed between its two ends with `Transform`, it cuts through the
-centre and the recipe's test finds the frames. `token-bucket` and `ring-buffer`
-declare invariants of this kind.
+A check reads the scene by key and changes nothing. It returns a message when the
+invariant fails, `true` when it held, and nothing when there was nothing to check on
+that frame. An invariant that never holds in a whole run tested nothing, so
+`rayner check` fails it, which keeps a misspelt key from passing. `rayner check` runs
+every registered invariant on every frame of every scenario, so an invariant about what
+happens between steps (a gauge meeting a line, a pointer on its circle) fails at the
+first frame that breaks it. Sampled from its angle with `Follow`, the dot holds; morphed
+between its two ends with `Transform`, it cuts through the centre, and the recipe's test
+finds those frames. `token-bucket` and `ring-buffer` declare invariants of this kind.
 
-`InvariantSink` is the sink that runs them, and it shows how to write a check of your
-own: a sink receives every frame of a full run, reads the scene, and hands the frame on
-to an inner sink, so several checks ride on one run. `rayner check` composes it with
-its motion and legibility sampling the same way. A seek skips frames, so it checks
-nothing between them; run invariants in full.
+`InvariantSink` (`rayner/testing`) runs them, and it is the pattern for a check of your own: a sink
+receives every frame of a full run, reads the scene, and hands the frame on to an inner
+sink, so several checks share one run. `rayner check` composes it with its motion and
+legibility sampling this way. A seek skips frames, so run invariants over a full run.
 
 ## Consume a scene in another application
 
@@ -138,27 +135,43 @@ with your application's response, cache or editor view. A sink can stream frames
 instead. Keep host-specific imports in that adapter rather than adding filesystem
 or DOM assumptions to your model.
 
-In a browser, `DomSink` draws into an SVG element; in a document generator,
+In a browser, `DomSink` (`rayner/output`) draws into an SVG element; in a document generator,
 `SnapshotSink` returns a frame. See the live-browser example in
 [Scene outputs](SCENE-OUTPUTS.md#live-browser-output-and-publication).
 
 ## Compose built-in animation techniques
 
-[choreography.ts](../recipes/choreography.ts) uses `GrowFromEdge`, `PulseAlongPath`
-and `SetState` with native shapes and a state-derived readout. These are exported
-engine animations extracted from repeated techniques in the collection, unlike
-the sampled-parameter recipe. [Reusable choreography](CHOREOGRAPHY.md) documents
-their timing, ownership, opacity, snapshot and cleanup contracts.
+[choreography.ts](../recipes/choreography.ts) uses the exported `GrowFromEdge`,
+`PulseAlongPath` and `SetState` with native shapes and a readout drawn from state.
+[Reusable choreography](CHOREOGRAPHY.md) documents their timing, ownership, opacity,
+snapshot and cleanup contracts.
+
+## When two extensions meet
+
+Each extension point has one rule for what happens when two of them act on the same scene. Where a rule is enforced, breaking it fails at once instead of changing the picture quietly.
+
+| Extension point | When two meet | Enforced by |
+| --- | --- | --- |
+| A function that returns mobjects | Each call returns new mobjects, so two calls share nothing. A key names one part on the stage. | `keyedParts()` refuses a repeated key; `rayner check` fails a key held by two mobjects at the end of a step. |
+| A mobject | A mobject has one parent: adding it to a second group moves it out of the first. A copy has a new id and no parent but keeps its key, so a copy left beside its original repeats the key. | `add()` moves the child; `rayner check` names the repeated key. |
+| An animation | One `play()` drives a mobject once: two animations on the same mobject, or on one inside the other, throw. A `Succession`'s members run in turn and may share mobjects. Separate plays run one after another. | `play()` throws, naming both animations and the mobject. |
+| An invariant | Every registered invariant runs on every frame, each on its own, and none may change the scene. Each must hold on at least one frame of a run. | `InvariantSink`; `rayner check` fails an invariant that never held. |
+| A sink | Sinks never meet inside the scene. A sink reads each frame and hands it to the sink it wraps, or a fan sends each frame to several sinks in order. | By construction: the scene calls one sink. |
+| A machine's transition | An event plays one transition, and the transition must end on what the views draw from the new state. Without one, the views morph to the new state by key. | `rayner check` explores every reachable event and compares where each lands with the views' draw. |
+
+## Test an extension
+
+Test an extension with the same tools Rayner's own suite uses, without a browser. From `rayner/testing`, `traceScene` runs a scene and returns each step's state, evidence and timing. From `rayner/output`, `SnapshotSink` and `renderAt` give the picture at a time. `InvariantSink` runs invariants over a full run. [test/recipes.test.ts](https://github.com/adewale/rayner/blob/main/test/recipes.test.ts) tests the five recipes this way: the copied composite owns its own children, the sampled orbit stays on its circle, and the morphed one leaves it. Give each extension one test of normal use and one that shows its limit failing.
 
 ## Composition, compositionality and modularity
 
-Composition is using a diamond, label and animation together. Modularity is keeping
-their implementations behind separate interfaces. Compositionality is the stronger
-promise that their behaviour remains understandable when combined: a copied badge
-names its own children, a nested animation captures its start at the right time,
-and a second writer is rejected instead of silently changing the result.
+Composition is using a diamond, a label and an animation together; modularity is
+keeping their implementations behind separate interfaces. Compositionality is the
+stronger promise that their behaviour stays predictable when combined: a copied badge
+names its own children, a nested animation captures its start when its turn comes, and
+a second writer is rejected rather than silently changing the result.
 
-The recipes test those promises, not just whether one screenshot looks plausible.
-They do not require every combination to work: ownership, domains and copy rules
-make the supported combinations explicit. Publish an extension's assumptions and
-a runnable counterexample for its limits, alongside its happy-path example.
+The recipes test those promises rather than one plausible screenshot. Not every
+combination works: ownership, domains and copy rules say which do. Publish an
+extension's assumptions, and a runnable counterexample for its limits, beside its
+example of normal use.

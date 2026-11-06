@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Scene, NullSink} from '../src/index.ts';
+import {Scene} from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
 import {jsonObject} from '../src/json.ts';
 import {fc, params} from './lib/pbt.ts';
 

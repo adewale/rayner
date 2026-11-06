@@ -16,11 +16,14 @@ export function check(trace: Trace, values: Record<string, string>): void {
   assertStepState(trace, 'tranches', { tranches: repartition(rni, enfants) });
   assertStepState(trace, 'multiplie', { brut: r.brut });
   assertStepState(trace, 'reference', { sansEnfants: r.sansEnfants, avantage: r.avantage });
-  assertStepState(trace, 'plafond', { plafond: r.plafond, plafonne: r.plafonne, plafQf: r.plafQf });
+  // The plafond card multiplies the half-parts the step records.
+  assertStepState(trace, 'plafond', { plafond: r.plafond, plafonne: r.plafonne, plafQf: r.plafQf, demiParts: r.demiParts });
   assertStepState(trace, 'decote', {
     decote: r.decoteGain,
     impot: r.impot,
     parEnfants: [0, 1, 2, 3].map((n) => impot(rni, n).impot),
+    // The household card's last row: the share of the income the tax takes.
+    tauxMoyen: r.tauxMoyen,
   });
   assertStepState(trace, 'revenus-2025', { impot2025: impot(rni, enfants, 2025).impot });
 }

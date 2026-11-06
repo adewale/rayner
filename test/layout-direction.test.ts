@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text, Rectangle, loadFonts } from '../src/index.ts';
+import { Scene, Text, Rectangle } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { stage, palette } from '../explain/index.ts';
 import type { LayoutDirection, StageOptions, CardOptions } from '../explain/index.ts';

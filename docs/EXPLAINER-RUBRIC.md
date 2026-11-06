@@ -1,8 +1,8 @@
 # Judging an explainer
 
-Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence, not a score. Earlier editions scored six, then seven, dimensions from 0 to 4; those totals measured adherence to a list, and explainers that scored well could still fail to say what they taught. Totals from those editions, such as the /24 scores in the dated assessments preserved in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), are on a retired scale and are not comparable with anything here.
+Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence rather than a score. Scores from earlier editions, such as the /24 totals in the assessments kept in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), measured adherence to a list and are not comparable with anything here.
 
-The criteria come from the communities that make the best explainers. 3Blue1Brown's Summer of Math Exposition judged thousands of entries on motivation, clarity, novelty and memorability ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice adds the craft behind them: concrete before abstract, names the reader has seen the need for, a story of a problem being solved, and the feeling of having invented the idea ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). The skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first) says how to write for them.
+The criteria are 3Blue1Brown's Summer of Math Exposition's, with Grant Sanderson's advice on the craft behind them; the skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first) cites them and says how to write for them.
 
 ## How to read
 
@@ -23,7 +23,7 @@ Keep each fact where it can be maintained:
 
 The script is an editorial draft of the explanation, not a generated transcript. If a rewrite changes the reasoning, update the corresponding scene prose and check its offered scenarios. Do not leave a stronger promise in the script than the page fulfills. Source links belong in `meta.sources`; notes can explain why a source or convention was chosen. Revision history belongs in Git.
 
-Use the ending questions from `meta.checks` to challenge the script. Can its reasoning answer a changed case, or does it merely reveal the quiz answer? This editorial judgment can expose a weak explanation before reader testing. A newcomer study is still needed to measure what readers actually understand.
+Use the ending questions in `meta.checks` to challenge the script: can its reasoning answer a changed condition, or does it only reveal the quiz answer? This can expose a weak explanation before reader testing, but only a newcomer study measures what readers understand.
 
 ## The criteria
 
@@ -32,18 +32,19 @@ For each, say how well it is met (strong, adequate or weak) and cite the steps t
 - **Motivation.** Is it clear early why the topic matters and why someone should want the answer? A problem the reader feels, or a surprising result, before the machinery.
 - **Concrete before abstract.** Does it start from a specific case and let the general idea emerge, or open on a definition, a taxonomy or an inventory of parts and fill it in later?
 - **Earned names and discovery.** Does each term arrive after the reader has seen why it is needed? Could the reader nearly see each next idea before it is shown, or are ideas handed down?
-- **Story.** Do the steps solve a problem, each following from the last, or list facts in a sensible order?
-- **Clarity.** Is jargon explained when it arrives, is the goal easy to follow, and does each resting picture teach on its own (opened from a direct link with the caption hidden, it still says what it shows and which values matter)? Does each step fit one screen, with its point in the caption's first lines, on a phone too?
+- **Story.** Do the steps solve a problem, each following from the last, or list facts in a sensible order? Does it end on the practical boundary or the strongest comparison, rather than on a list of what the model leaves out or a second topic? Those belong in notes or a detail step.
+- **Economy.** Could any step be removed without losing an inference? The common cases are an opening that states the answer followed by a walkthrough that derives it again, and two steps that make the same point with different numbers.
+- **Clarity.** Is jargon explained when it arrives, is the goal easy to follow, and does each resting picture teach on its own (opened from a direct link with the caption hidden, it still says what it shows and which values matter)? Does each step fit one screen, with its point in the caption's first sentence, on a phone too? A caption over about 80 words rarely does; move history and side facts to notes or a detail step.
 - **Novelty.** Does the presentation feel fresh: a better example, an angle the usual explanations miss, an obscure idea brought into the light? Or is it the standard treatment, redrawn?
 - **Memorability.** Is there a moment that would stick months later, an aha or shift in perspective, and does the explainer build up to it? Does motion earn its place there?
-- **The reader's own work.** Does the reader commit to a prediction, choose a scenario that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Ask for reasoning or transfer, not recall of arbitrary details. An expert answering without the lesson does not invalidate a question; evaluate what newcomers learn.
+- **The reader's own work.** Does the reader commit to a prediction, choose a scenario that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Does every setting change the conclusion? A setting whose other option only changes the numbers doubles the scenarios and teaches nothing. Where a check question is about events (press this, then that), can the reader answer it on the page with a live machine? Ask for reasoning or transfer, not recall of arbitrary details. An expert answering without the lesson does not invalidate a question; evaluate what newcomers learn.
 - **Grounding.** Does every claimed value, path or comparison trace to a model tested against the real thing, with a scenario that could prove a tempting generalisation wrong? Is every sentence that reaches beyond the scenarios shown ("every", "never", "only") backed by a test or narrowed, does the script say what the model leaves out, and does a claim resting only on the explainer's own model say so? `rayner check` lists the sweeping sentences nothing backs and the code names reaching the reader's words.
 
 ## Fix first
 
 These are failures, not shortcomings to weigh:
 
-- **No answer.** The explainer never makes clear what it is answering, or names the answer only after the details: the reader should know what the explainer is about within the first few steps. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears.
+- **No answer.** The explainer never makes clear what it is answering, or names the answer only after the details: the reader should know what the explainer is about within the first third of the steps. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears.
 - **Untrue.** A known false claim, a picture that misleads, a sentence that a setting makes false, or a claim beyond what the model and its sources support.
 - **Broken.** A failing build or check, a step or scenario that restores wrongly from a fresh link, or a continuation a keyboard or screen-reader user cannot reach.
 
@@ -58,10 +59,12 @@ End with one of these, and the one change that would help most:
 - **Keep for coverage.** As a lesson it is weak or redundant, but it is the only scene exercising an engine feature, diagram family, language or check, so it stays in the collection as a test, out of the gallery.
 - **Delete.** Weak as a lesson, and anything it covers is covered elsewhere.
 
+For an explainer about Rayner itself (its checks, its player, its lettering), the reader is someone writing explainers: judge motivation and novelty for that reader, or keep it for coverage.
+
 When several explainers must be ordered, compare them in pairs, blind where possible, rather than adding up judgements.
 
 ## Choosing a hero
 
-A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), the Rayner leverage (what the coordinated model, code and picture reveal that a still or diff would not, with an independent check behind it), and the consequential other scenario (one changed condition that changes the outcome, with both results inspectable). These are editorial reasons to select a lesson. The benchmark records comparative reviewer preferences for the pages it tested; it does not measure reader demand or newcomer learning.
+A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), what Rayner adds (what the coordinated model, code and picture show that a still or diff would not, with an independent check behind it), and the other scenario that matters (one changed condition that changes the outcome, with both results inspectable). These are editorial reasons to select a lesson. The benchmark records reviewers' preferences between the pages it tested; it does not measure reader demand or newcomer learning.
 
 The showcase tier selects subject examples to study, not a measured learning outcome. Prefer a small set of complementary mechanisms and consequential alternative scenarios over broad engine coverage. Keep authoring recipes in their own collection; a toolchain lesson joins the showcase only when it stands on its own as a lesson, as lantern's still-versus-playback comparison does. The catalog is the source of truth for the current selection. A lesson’s benchmark status must remain explicit; selection alone does not demonstrate that it beats another tool.

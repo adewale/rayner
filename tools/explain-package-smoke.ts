@@ -9,6 +9,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { ROOT } from './lib/explain-project.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
@@ -57,7 +58,14 @@ try {
   assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
   // The drawing kit resolves from the installed archive as rayner/drawing.
   const kit = await run(process.execPath, ['--input-type=module', '-e', "const k = await import('rayner/drawing'); console.log(Object.keys(k).sort().join(','))"], { cwd: folder });
-  assert.equal(kit.stdout.trim(), 'bars,dot,flow,keyed,label,segment,stat,table,tile');
+  // The same names the checkout's kit exports (test/drawing.test.ts pins those), 3D included.
+  const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
+  assert.equal(kit.stdout.trim(), sourceKit);
+  // So do the output and testing entry points, with the checkout's names.
+  for (const [entry, source] of [['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+    const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
+    assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
+  }
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
@@ -218,8 +226,9 @@ try {
   // keep their relative paths, so missing author-owned dependencies still fail.
   const copyAuthorSource = async (source: string, target: string) => {
     const code = (await readFile(source, 'utf8')).replace(
-      /(['"])(?:\.\.\/)+(src|explain)\/index\.ts\1/g,
-      (_match, quote: string, area: string) => `${quote}${area === 'src' ? 'rayner' : 'rayner/explain'}${quote}`,
+      /(['"])(?:\.\.\/)+(src\/index|src\/output|explain\/index|explain\/drawing)\.ts\1/g,
+      (_match, quote: string, area: string) =>
+        `${quote}${area === 'src/index' ? 'rayner' : area === 'src/output' ? 'rayner/output' : area === 'explain/index' ? 'rayner/explain' : 'rayner/drawing'}${quote}`,
     );
     await writeFile(target, code);
   };
@@ -253,7 +262,7 @@ try {
   if (process.env.EXPLAIN_LETTERING === '1') {
     const target = join(folder, 'captured-lettering');
     await mkdir(target);
-    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,Math as Formula}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new Formula('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
+    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,MathTex}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new MathTex('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
     await run(bin, ['snapshots', target, '--refresh'], {
       cwd: folder,
       env: { ...process.env, RAYNER_LETTERING_FONTS: process.env.RAYNER_LETTERING_FONTS ?? join(ROOT, 'out/lettering-fonts') },
@@ -310,7 +319,7 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{Scene,NullSink}from'rayner';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
+      `import{Scene}from'rayner';import{NullSink}from'rayner/output';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
     ],
     { cwd: folder },
   );
@@ -322,7 +331,7 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
+      `import{describeExplainer}from'rayner/testing';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
     ],
     { cwd: folder },
   );

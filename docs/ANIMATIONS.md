@@ -1,17 +1,15 @@
 # Restore, copies and sequencing
 
-[Reusable choreography](CHOREOGRAPHY.md) covers `GrowFromEdge`, `PulseAlongPath`
-and `SetState`, extracted from the example collection, with a complete runnable recipe.
-
-Three animations from manim's set, with Lantern's guarantees: every frame is a pure
-function of alpha over endpoints fixed when the animation begins, and a seek renders
-the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
+Three animations from manim's set. Each fixes its endpoints when it begins, so a
+seek renders the byte-identical frame a full run produces (`test/anim-utils.test.ts`).
+[Reusable choreography](CHOREOGRAPHY.md) covers the animations extracted from the
+example collection.
 
 ## Restore: come back exactly
 
 ```ts
 box.saveState();
-await this.play(box.animate.setFill(RED).scale(1.5));
+await this.play(box.animate.setFill(s.bad).scale(1.5));
 await this.play(new Restore(box));        // back to the saved look, animated
 ```
 
@@ -33,15 +31,15 @@ carry it: a copy is a new mobject with no history.
 ## TransformFromCopy: derive one thing from another
 
 ```ts
-await this.play(new TransformFromCopy(formula, result), new Indicate(formula));
+await this.play(new TransformFromCopy(formula, result), formula.animate.setFill(s.soft));
 ```
 
 A copy of `formula` morphs into `result`. `formula` stays where it is, unchanged, and
 the scene holds `result` at the end. The copy is taken before any animation in the play
 begins, so it is `formula` as the play found it whatever the argument order, and it is a
 different mobject from the source, so the source can be animated in the same play. With
-the source already on screen, `TransformFromCopy(a, b)` listed before or after
-`Indicate(a)` renders the same frames byte for byte; with a source new to the scene
+the source already on screen, `TransformFromCopy(a, b)` listed before or after an
+animation of `a` renders the same frames byte for byte; with a source new to the scene
 (`play(new Create(a), new TransformFromCopy(a, b))`) both orders draw the same paths, in
 the order of the arguments (`test/anim-utils.test.ts`, "TransformFromCopy copies its source
 before anything in its play begins, in either argument order").
@@ -56,8 +54,8 @@ into a `Text` reports cut-outs of the target's glyphs at the handoff.
 
 ```ts
 await this.play(new Succession([
-  new Indicate(box),
-  box.animate.shift(RIGHT),
+  new Create(box),
+  box.animate.shift([1, 0]),
   new FadeOut(box),
 ]));
 ```
@@ -88,10 +86,10 @@ whose member brings an updater matches the full run").
 
 ## In the explainers
 
-- `saveState`/`Restore`: [state-machine](../scenes/explainers/state-machine/scene.ts) saves every reducer
-  line, recolours the row that fired, and restores it when the next event arrives.
-- `TransformFromCopy`: [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) copies values into and out
-  of slots; [exgit](../scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
-- `Succession`: [state-machine](../scenes/explainers/state-machine/scene.ts),
-  [token-bucket](../scenes/explainers/token-bucket/scene.ts) and
-  [ring-buffer](../scenes/explainers/ring-buffer/scene.ts) each play a step's events as one `Succession`.
+- `saveState`/`Restore`: the [feature tour](https://github.com/adewale/rayner/blob/main/scenes/explainers/feature-tour/scene.ts)'s
+  `restore` scenario moves a circle and restores it.
+- `TransformFromCopy`: [exgit](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts) sends the shared blob to tree two.
+- `Succession`: [state-machine](https://github.com/adewale/rayner/blob/main/scenes/explainers/state-machine/scene.ts),
+  [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts) and
+  [ring-buffer](https://github.com/adewale/rayner/blob/main/scenes/explainers/ring-buffer/scene.ts) build each event's authored
+  transition as a `Succession`, and a [machine](MACHINES.md) replays its events as one.

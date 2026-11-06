@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text, Line, Rectangle, Group, loadFonts } from '../src/index.ts';
+import { Scene, Text, Line, Rectangle, Group } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { restingRouteProblems } from '../tools/lib/explain-layout.ts';
 import { fc, params } from './lib/pbt.ts';
 await loadFonts();

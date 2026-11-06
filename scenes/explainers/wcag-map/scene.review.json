@@ -2,32 +2,6 @@
   "version": 2,
   "subjects": [
     {
-      "step": "focus-visible",
-      "settings": {
-        "level": "AA",
-        "guideline": "2.4"
-      },
-      "opening": true,
-      "targets": [
-        {
-          "key": "c2_4_7"
-        }
-      ]
-    },
-    {
-      "step": "focus-visible",
-      "settings": {
-        "level": "AAA",
-        "guideline": "2.4"
-      },
-      "opening": true,
-      "targets": [
-        {
-          "key": "c2_4_7"
-        }
-      ]
-    },
-    {
       "step": "reader-focus",
       "opening": true,
       "targets": [
@@ -96,6 +70,9 @@
         },
         {
           "text": "Criteria"
+        },
+        {
+          "key": "versions-key"
         }
       ]
     }

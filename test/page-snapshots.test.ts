@@ -7,8 +7,8 @@ import {gzipSync} from 'node:zlib';
 import type {SnapshotStore} from '../integrations/agentic-mermaid/snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
 import {collectProject} from '../tools/lib/explain-project.ts';
-import {bindSnapshots} from '../explain/index.ts';
-import {toSvgString} from '../src/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
+import { toSvgString } from '../src/output.ts';
 import type {SceneClass} from '../src/index.ts';
 
 import { fixture } from './lib/page-snapshot-fixture.ts';

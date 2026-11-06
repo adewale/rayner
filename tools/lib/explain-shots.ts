@@ -1,7 +1,8 @@
 import {textContextOf} from '../../src/text-context.ts';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-import { Scene, Text, NullSink, SnapshotSink, renderAt } from '../../src/index.ts';
+import { Scene, Text } from '../../src/index.ts';
+import { NullSink, SnapshotSink, renderAt } from '../../src/output.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
 import { restingTime, stepWords } from '../../explain/trace.ts';
@@ -26,7 +27,7 @@ class CardSink extends SnapshotSink {
   paper: string | undefined;
   override async frame(scene: Scene): Promise<void> {
     await super.frame(scene);
-    this.paper = scene.mobjects.find((m) => m.key === '__paper')?.style.fill;
+    this.paper = scene.mobjects.find((m) => m.role === 'paper')?.style.fill;
   }
 }
 

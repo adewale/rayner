@@ -2,13 +2,15 @@
 // declarations in dist/ (npm run check builds them first). 'rayner' resolves
 // through package.json "exports", as it would from node_modules. If this stops
 // compiling, the public types broke.
-import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform, RIGHT, TEAL, StringSink, traceScene, renderAt, SnapshotSink } from 'rayner';
+import { Scene, Rectangle, Text, Labeled, Arrow, FadeIn, Create, Transform } from 'rayner';
+import { StringSink, renderAt, SnapshotSink } from 'rayner/output';
+import { traceScene } from 'rayner/testing';
 import { GrowFromEdge, PulseAlongPath, SetState, Line, Dot } from 'rayner';
 import type { GrowFromEdgeOpts } from 'rayner';
 
 export function choreography(scene: Scene<{count: number}>) {
   const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
-  const grow = new GrowFromEdge(new Rectangle(), RIGHT, opts);
+  const grow = new GrowFromEdge(new Rectangle(), [1, 0], opts);
   const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
   const state = new SetState(scene, { count: 3 });
   // @ts-expect-error A typed scene's count is a number.
@@ -16,14 +18,19 @@ export function choreography(scene: Scene<{count: number}>) {
   return [grow, pulse, state];
 }
 import type { AnimOpts, TextOpts } from 'rayner';
-import {jsonObject} from 'rayner';
+import { jsonObject } from 'rayner/testing';
 const serializedState: import('rayner').JsonObject = jsonObject({count: 1});
 void serializedState;
 import { TransformMatching, TransformMatchingText } from 'rayner';
 import type { MatchingOpts, MatchSummary } from 'rayner';
-import { Code, TransformDiff, diffLines, parseUnifiedDiff, renderElements } from 'rayner';
-import type { Hunk, TransformDiffOpts, Evidence, StepRecord, ColorSpan, CodeSpan, RenderOptions, Step } from 'rayner';
-import { Frame, StateReadout, View, ViewSync, view, viewMismatch, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore, DOWN } from 'rayner';
+import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
+import { renderElements } from 'rayner/output';
+import type { Hunk, TransformDiffOpts, Evidence, ColorSpan, CodeSpan, Step } from 'rayner';
+import type { RenderOptions } from 'rayner/output';
+import type { StepRecord } from 'rayner/testing';
+import { Frame, StateReadout, View, view, Axes, NumberLine, Brace, Circumscribe, SurroundingRectangle, AnimationGroup, Succession, TransformFromCopy, Restore } from 'rayner';
+import { viewMismatch } from 'rayner/testing';
+import type { ViewSync } from 'rayner';
 import type { FrameFitOpts, SyncOpts, AxesOpts, NumberLineOpts, PlotOpts, BraceOpts, CircumscribeOpts } from 'rayner';
 import type {AudioClip, ScoreNote, StepAudio} from 'rayner/explain';
 const middleC: ScoreNote = {midi: 60, at: 0, duration: 1};
@@ -43,11 +50,11 @@ export class Demo extends Scene {
     this.state = { ok: false };
     await this.step('one', { caption: 'hello' });
     const opts: TextOpts = { fontSize: 0.3, font: 'mono' };
-    const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: TEAL }), new Text('box', opts));
+    const box = new Labeled(new Rectangle({ width: 2, height: 1, stroke: '#5cd0b3' }), new Text('box', opts));
     const a = new Arrow([0, 0], [1, 0], { buff: 0.1 });
     const fade: AnimOpts = { runTime: 0.5 };
     await this.play(new FadeIn(box, { shift: [0, 1] }), new Create(a), fade);
-    await this.play(box.animate.shift(RIGHT));
+    await this.play(box.animate.shift([1, 0]));
     await this.play(new Transform(a, new Arrow([0, 0], [2, 0])));
     this.state = { ok: true };
   }
@@ -92,7 +99,8 @@ export class Tour extends Scene {
     const readout: View<StateReadout> = view(this, (s) => new StateReadout([['n', s.n]]), { place: 'left' });
     const sync: SyncOpts = { match: 'text', runTime: 0.5 };
     this.state = { n: 2 };
-    await this.play(new ViewSync(readout, sync));
+    const syncing: ViewSync<StateReadout> = readout.sync(sync);
+    await this.play(syncing);
     const mismatch: string | null = viewMismatch(readout, this.state);
     const axesOpts: AxesOpts = { xRange: [0, 4, 1], yRange: [0, 2, 1] };
     const axes = new Axes(axesOpts);
@@ -101,11 +109,11 @@ export class Tour extends Scene {
     await this.play(new Create(axes), new Create(axes.plot((x) => x / 2, plot)), new Create(new NumberLine(lineOpts)));
     const brace: BraceOpts = { buff: 0.1 };
     const ring: CircumscribeOpts = { shape: 'circle' };
-    await this.play(new Create(new Brace(code, DOWN, brace)), new Circumscribe(code, ring), new Create(new SurroundingRectangle(code)));
+    await this.play(new Create(new Brace(code, [0, -1], brace)), new Circumscribe(code, ring), new Create(new SurroundingRectangle(code)));
     const span: CodeSpan = code.token(0, 'n');
-    await this.play(span.animate.setFill(TEAL));
+    await this.play(span.animate.setFill('#5cd0b3'));
     code.saveState();
-    await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift(DOWN)), new Restore(code)]));
+    await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
     this.onStep((s: Step) => s.name);
     this.addDescriber(() => ({ frame: frame.width(), mismatch }));
   }
@@ -117,10 +125,10 @@ export function cameraRecords(scene: Scene): number {
 }
 
 // The optional outline request and maths mobject are public exports too.
-import { Math as Formula } from 'rayner';
+import { MathTex } from 'rayner';
 import type { LetteringRequest as OutlineRequest } from 'rayner';
 export const outlineRequest = { scripts: ['Arab'], math: true, faces: { sans: 'inter' } } satisfies OutlineRequest;
-export const formula = () => new Formula('x^2');
+export const formula = () => new MathTex('x^2');
 
 import {stage} from 'rayner/explain';
 import type {LayoutDirection, StageRegion, DiagramSpec} from 'rayner/explain';
@@ -176,4 +184,22 @@ export function drawingKit(scene: Scene) {
   // @ts-expect-error a table's columns are centres or an edge with a right edge or a gap
   table(['Key'], [['a']], s, { xs: { right: 2 } });
   return parts;
+}
+
+// What the collection writes, an outside author can write: emphasis a scene draws itself, a card
+// rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
+import { Card, Diagram, diagramsOf } from 'rayner/explain';
+import type { Emphasis, DiagramResolver } from 'rayner/explain';
+import { lerpColor } from 'rayner';
+export async function publicCollection(scene: Scene): Promise<void> {
+  const s = stage(scene);
+  const outline = s.keep(new SurroundingRectangle(new Text('slot')));
+  const now = (): Emphasis => [[outline, 'outlined: the full slot']];
+  s.emphasise(now);
+  const panel = new Rectangle({ fill: s.raised, stroke: s.rule }).setFill(lerpColor(s.palette.paper, s.palette.accent, 0.36));
+  view(scene, () => new Card(scene, s.palette, [['State', 'idle']], { width: 4 }), { place: false });
+  const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
+  const resolver: DiagramResolver = diagramsOf(scene);
+  const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
+  void [panel, plan.get('A')];
 }

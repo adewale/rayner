@@ -9,7 +9,9 @@ import { dirname, resolve, join, basename, relative, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { Scene, NullSink } from '../../src/index.ts';
+import { Scene } from '../../src/index.ts';
+import { NullSink } from '../../src/output.ts';
+import { machinesOf } from '../../explain/testing.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
@@ -17,9 +19,11 @@ import { checkWatch } from '../../explain/trace.ts';
 import { checkScriptMeta } from '../../explain/script.ts';
 import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
-import type { Trace } from '../../src/index.ts';
+import type { Machine } from '../../src/index.ts';
+import type { Trace } from '../../explain/testing.ts';
 
-import { scenariosOf, withSettings, bindSnapshots, scenarioName, resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/index.ts';
+import { scenariosOf, withSettings, bindSnapshots, scenarioName } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { diagramKey, RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
@@ -67,6 +71,8 @@ export function engineAlias(node = false, outlines = false): Plugin {
         else if (args.path === 'rayner/explain') file = join(ROOT, 'explain/index.ts');
         else if (args.path === 'rayner/drawing') file = join(ROOT, 'explain/drawing.ts');
         else if (args.path === 'rayner/lettering') file = join(ROOT, 'src/lettering.ts');
+        else if (args.path === 'rayner/output') file = join(ROOT, 'src/output.ts');
+        else if (args.path === 'rayner/testing') file = join(ROOT, 'explain/testing.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);
@@ -169,7 +175,7 @@ export interface Project {
   engineHash: string;
   store: SnapshotStore;
   /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
-  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette }[];
+  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, { index: number; machine: Machine<object, string> }> }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -392,7 +398,11 @@ export async function collectProject(
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
-      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });
+      // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
+      // Each machine at the step it last played in (as liveSteps in app/embed-live.ts finds them; a later machine wins a step).
+      const live = new Map<string, { index: number; machine: Machine<object, string> }>();
+      for (const [index, machine] of machinesOf(ran).entries()) if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, machine });
+      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);

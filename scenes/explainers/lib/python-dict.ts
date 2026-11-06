@@ -1,6 +1,8 @@
 // CPython v3.12.14, Objects/dictobject.c: do_lookup(), insertdict(), delitem_common().
 // This lesson fixes capacity at eight and uses three small integer keys. It
 // models the compact combined table; resizing and split instance dicts are out of scope.
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 export const EMPTY = -1, DELETED = -2;
 export interface DictEntry {key: number | null; value: string | null}
 export interface DictTable {indices: number[]; entries: DictEntry[]}
@@ -50,11 +52,22 @@ export function dictionary(): DictTable {
   }
   return table;
 }
+/**
+ * `del d[key]` as delitem_common does it: find the key's slot by the same search a lookup makes, then write the
+ * deleted marker there (or, in the counterfactual, empty it) and empty its entry. Undefined when the search does
+ * not find the key: Python raises KeyError and the dict is unchanged.
+ */
+export function remove(table: DictTable, key: number, policy: 'marker' | 'clear'): DictTable | undefined {
+  const found = lookup(table, key);
+  if (!found.found) return undefined;
+  const slot = found.slots.at(-1)!, entry = table.indices[slot]!;
+  const next: DictTable = {indices: [...table.indices], entries: table.entries.map(e => ({...e}))};
+  next.indices[slot] = policy === 'marker' ? DELETED : EMPTY;
+  next.entries[entry] = {key: null, value: null};
+  return next;
+}
 export function deleteFirst(policy: 'marker' | 'clear'): DictTable {
-  const table = dictionary();
-  table.indices[0] = policy === 'marker' ? DELETED : EMPTY;
-  table.entries[0] = {key: null, value: null};
-  return table;
+  return remove(dictionary(), 0, policy)!;
 }
 export function dictStory(key: number) {
   const original = dictionary(), wrong = deleteFirst('clear'), correct = deleteFirst('marker');
@@ -63,4 +76,38 @@ export function dictStory(key: number) {
     before: lookup(original, key), broken: lookup(wrong, key), repaired: lookup(correct, key), missing: lookup(correct, 24),
     starts: [0, 8, 16].map(key => ({key, hash: key, slot: key & 7})),
   };
+}
+
+// ---- the dict as a machine: deletions and lookups, one event at a time ----
+/** How a deletion leaves its slot: CPython's deleted marker, or the counterfactual that empties it. */
+export type DictPolicy = 'CPython marker' | 'incorrect-clear';
+/** What a reader can do to the lesson's dict: delete one of its keys, or look one up (24 was never stored). */
+export const DICT_EVENTS = ['del d[0]', 'del d[8]', 'del d[16]', 'd[0]', 'd[8]', 'd[16]', 'd[24]'] as const;
+export type DictEvent = typeof DICT_EVENTS[number];
+/**
+ * The dict after some events, and the last event's search: a lookup's result, or the search `del` made to find
+ * the slot it then wrote (`op: 'del'`). `route` is that search read slot by slot, on the table it searched.
+ */
+export interface DictState {
+  dict: DictTable;
+  policy: DictPolicy;
+  op: 'lookup' | 'del' | null;
+  result: DictLookup | null;
+  route: {hops: RouteHop[]; passedOver: number[]} | null;
+}
+export function dictStart(policy: DictPolicy): DictState {
+  return {dict: dictionary(), policy, op: null, result: null, route: null};
+}
+const eventKey = (event: DictEvent) => Number(/\[(\d+)\]/.exec(event)![1]);
+/**
+ * The model's step. A lookup always has a result, found or not: KeyError is an answer the lesson shows. A
+ * deletion whose search cannot find its key is refused, as Python refuses it (KeyError, and nothing changes),
+ * saying where the search stopped.
+ */
+export function dictNext(state: DictState, event: DictEvent): DictState | Refusal {
+  const key = eventKey(event), result = lookup(state.dict, key), seen = route(state.dict, result);
+  if (!event.startsWith('del ')) return {dict: state.dict, policy: state.policy, op: 'lookup', result, route: seen};
+  const dict = remove(state.dict, key, state.policy === 'CPython marker' ? 'marker' : 'clear');
+  return dict ? {dict, policy: state.policy, op: 'del', result, route: seen}
+    : refuse(`the search for ${key} stops at never-used slot ${result.slots.at(-1)}, so del d[${key}] raises KeyError and changes nothing`);
 }

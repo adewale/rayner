@@ -23,9 +23,8 @@ import {
   linear,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState, View, Choreography } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
-import { Card } from '../../../explain/panels.ts';
-import { emphasises } from '../../../explain/look.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import { keyedParts } from '../../../explain/drawing.ts';
 import { ringStory, ringStart, ringNext, RingBuffer } from '../lib/models.ts';
 import type { RingState, RingEvent } from '../lib/models.ts';
 
@@ -218,8 +217,7 @@ export default class RingBufferExplainer extends Scene {
     // The ring, drawn from the machine's state: every piece keyed, so a transition can move each.
     const trayLabelAt = (text: string) => new Text(text, { fontSize: 0.24, color: soft, anchor: 'start' }).moveTo([-7.35, TRAY_Y], [-1, 0]);
     const ringPicture = (st: RingState) => {
-      const parts: Mobject[] = [];
-      const add = (m: Mobject, key: string) => { m.key = key; parts.push(m); };
+      const { add, group } = keyedParts();
       for (let i = 0; i < SLOTS; i++) {
         add(slotCircle(st.data[i] != null, st.reused[i]!).moveTo(polar(angle(i), R)), `ring:slot:${i}`);
         add(new Text(String(i), { fontSize: 0.2, font: 'mono', color: soft }).moveTo(polar(angle(i), R - 0.86)), `ring:index:${i}`);
@@ -255,7 +253,7 @@ export default class RingBufferExplainer extends Scene {
           if (st.tray!.refused) add(new Cross(bad, { stroke: s.bad, strokeWidth: 0.035, scale: 0.95 }), `ring:tray:${i}:cross`);
         });
       }
-      return new Group(...parts);
+      return group();
     };
     // What the ring shows, in words.
     const ringWords = () => {
@@ -290,13 +288,12 @@ export default class RingBufferExplainer extends Scene {
     s.keep(ring, { describe: ringWords });
     // What the ring marks, as emphasis the phone's close-ups visit first and review holds to the
     // caption: each outlined slot, and the value the tray took last. Read from state.
-    emphasises(this, () => {
-      const st = this.state as unknown as RingState, out: [Mobject, string][] = [];
-      const at = (key: string, what: string) => { const m = ring.current.find(key); if (m) out.push([m, what]); };
-      for (const m of st.marks) at(`ring:mark:${m.slot}`, `outlined: ${m.kind} at slot ${m.slot}`);
-      const last = (st.tray?.values.length ?? 0) - 1;
-      if (last >= 0) at(`ring:tray:${last}`, `${st.tray!.label} ${st.tray!.values[last]}`);
-      return out;
+    s.emphasise(() => {
+      const st = this.state as unknown as RingState, last = (st.tray?.values.length ?? 0) - 1;
+      return [
+        ...st.marks.map((m) => [`ring:mark:${m.slot}`, `outlined: ${m.kind} at slot ${m.slot}`] as const),
+        ...(last >= 0 ? [[`ring:tray:${last}`, `${st.tray!.label} ${st.tray!.values[last]}`] as const] : []),
+      ];
     });
     // Checked on every frame by rayner check: a pointer moving between slots goes round the ring,
     // never across it, so its arrow always starts on the pointers' circle.
@@ -473,7 +470,7 @@ export default class RingBufferExplainer extends Scene {
     const replays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
     for (let g = 0; g < replays.length; g++) {
       const last = (this.state as unknown as RingState);
-      const ending = replays[g]!.reduce((st, e) => ringNext(st, e)!, last);
+      const ending = replays[g]!.reduce((st, e) => machine.after(st, e)!, last);
       await this.step(['fill', 'next', 'result'][g]!, {
         title:
           g === 0

@@ -5,7 +5,9 @@
 // cost their begin/finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Dot, loadFonts } from '../src/index.ts';
+import { Scene, Dot } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import { REGIONS, emphasis, dimOpacity } from '../explain/look.ts';
@@ -658,7 +660,8 @@ test('visible parts are drawn in snapshot order, each with its owned labels', as
       for (const n of counts) {
         await d.reveal(n);
         for (const id of d.visible) for (const p of d.parts.values()) if (p.info.owner === id) assert.ok(d.visible.has(p.info.id));
-        const drawn = d.root.children.map((m) => m.key);
+        // By part id: a part's key is its id, but the frame's, which is keyed by its diagram.
+        const drawn = d.root.children.map((m) => [...d.parts].find(([, p]) => p.mob === m)?.[0]);
         const index = (id: string) => s.parts.findIndex((p) => p.id === id);
         assert.deepEqual(drawn, tops(d).filter((id) => d.visible.has(id)).sort((a, b) => index(a) - index(b)));
       }

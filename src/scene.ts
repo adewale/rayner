@@ -8,7 +8,10 @@
 import { prepareAnimation, AnimationGroup } from './animation.ts';
 import { Succession, bindSuccessions, takeCopies, recordEvidence } from './animation.ts';
 import type { ScheduledAnimation as Animation, Playable, PlayOpts } from './animation.ts';
+import { paintDefaults } from './mobject.ts';
 import type { Mobject } from './mobject.ts';
+import { NEUTRAL_COLORS } from './color.ts';
+import type { SceneColors } from './color.ts';
 import { perf } from './perf.ts';
 import {Text} from './text.ts';
 import type {TextOpts} from './text.ts';
@@ -171,6 +174,12 @@ export class Scene<S extends object = SceneState> {
   private describers: Array<{ describer: () => SceneState; into: DescribeInto }>;
   /** Named invariants of the picture, checked on every frame of a full run by an InvariantSink (see addInvariant). */
   readonly invariants: Map<string, Invariant>;
+  /**
+   * The colours engine defaults take here (see SceneColors): a part built without a colour takes
+   * its role's colour from these when it first enters the scene, and an SVG sink draws `paper`
+   * behind the frame. A stage sets them from its palette; without one they are NEUTRAL_COLORS.
+   */
+  colors: Readonly<SceneColors>;
 
   /**
    * skipUntil: frames that end before this time are not rendered or
@@ -198,6 +207,7 @@ export class Scene<S extends object = SceneState> {
     this.stepListeners = [];
     this.describers = [];
     this.invariants = new Map();
+    this.colors = NEUTRAL_COLORS;
   }
 
   /** Rethrow a stop a sink already raised: nothing reaches the sink after it. */
@@ -390,6 +400,7 @@ export class Scene<S extends object = SceneState> {
   findAll(match: string | ((key: string) => boolean)): Mobject[] { return this.mobjects.flatMap((m) => m.findAll(match)); }
 
   add(...mobs: Mobject[]): this {
+    for (const m of mobs) paintDefaults(m, this.colors);
     // Re-adding a root moves it last; a child of a visible parent is a no-op.
     this.mobjects = admitRoots(this.mobjects, mobs);
     return this;
@@ -411,6 +422,7 @@ export class Scene<S extends object = SceneState> {
 
   replace(old: Mobject, ...replacements: Mobject[]): this {
     if (replacements.length === 1 && replacements[0] === old) return this;
+    for (const m of replacements) paintDefaults(m, this.colors);
     replacements = admitRoots([], replacements);
     const parent = this.mobjects.includes(old) ? null : this.familyMembers().find((m) => m.children.includes(old)) ?? null;
     if (parent && replacements.some((m) => m.family().includes(parent)))
@@ -443,6 +455,7 @@ export class Scene<S extends object = SceneState> {
 
   bringToFront(...mobs: Mobject[]): this { return this.add(...mobs); }
   bringToBack(...mobs: Mobject[]): this {
+    for (const m of mobs) paintDefaults(m, this.colors);
     this.mobjects = admitRoots(this.mobjects, mobs, true);
     return this;
   }
@@ -519,6 +532,14 @@ export class Scene<S extends object = SceneState> {
     bindSuccessions(anims, this); // a Succession begins its members here, one by one, as their turns come; groups record their members' evidence
     takeCopies(anims); // every TransformFromCopy copies its source before anything in the play begins
     const present = new Set(this.familyMembers());
+    // Whatever a play draws or morphs toward takes the scene's colours before it begins, so its
+    // endpoints are fixed in them (a Succession's members take them as they begin, here).
+    const paint = (a: Animation): void => {
+      if (a instanceof Succession) return;
+      if (a instanceof AnimationGroup) a.animations.forEach(paint);
+      else for (const m of a.paints()) paintDefaults(m, this.colors);
+    };
+    for (const a of anims) paint(a);
     for (const a of anims) {
       a.begin();
       recordEvidence(a, this); // what it decided as it began (matching pairs, diff hunks, a sampled interval)
@@ -526,7 +547,7 @@ export class Scene<S extends object = SceneState> {
       for (const m of mobs) {
         // Camera: animated like any mobject, but never added to the drawn list
         if (!m || m === this.frame || present.has(m)) continue;
-        // A new wrapper around things already on screen (Indicate(new Group(a, b))) must not
+        // A new wrapper around things already on screen (a Transform of new Group(a, b)) must not
         // draw them a second time on top: add it only if some drawable member is new.
         const drawn = m.family().filter((f) => f.boundingPointArrays().some((a) => a.length > 0));
         if (drawn.length && drawn.every((f) => present.has(f))) continue;

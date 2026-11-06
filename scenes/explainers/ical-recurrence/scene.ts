@@ -1,7 +1,7 @@
-import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
-import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Card, CodeBlock, Diagram } from '../../../explain/index.ts';
+import { Scene, Group, Rectangle, Text, view } from '../../../src/index.ts';
+import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
+import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
+import type { Diagram, Stage } from '../../../explain/index.ts';
 import {
   DTSTART,
   GUEST,
@@ -30,6 +30,8 @@ import {
   MASTER,
 } from '../lib/ical-recurrence.ts';
 import type { Change, Copy, VEvent, Week } from '../lib/ical-recurrence.ts';
+import { stagedStep } from '../../../explain/index.ts';
+import { numberWord } from '../lib/format.ts';
 
 // Sources: RFC 5545 and RFC 4791 (sections and lines are quoted in ../lib/ical-recurrence.ts), and
 // sabre/vobject 4.5.7 with sabre/dav 4.7.0, the library and server inside Baïkal.
@@ -54,8 +56,7 @@ const COPIES: Record<Copy, string> = { organiser: 'Alice’s, the organiser', gu
 
 const RULE_STARTS = occurrences(DTSTART, parseRule(MASTER.rrules[0]!));
 const week = (slot: string) => `Week ${RULE_STARTS.indexOf(slot) + 1}`;
-const number = (n: number) => ['no', 'one', 'two', 'three', 'four', 'five', 'six'][n] ?? String(n);
-const plural = (n: number, word: string) => `${number(n)} ${word}${n === 1 ? '' : 's'}`;
+const plural = (n: number, word: string) => `${numberWord(n)} ${word}${n === 1 ? '' : 's'}`;
 const upperFirst = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 /** The script's one-sentence answer (meta.answer), which the copy step states in every scenario. */
@@ -93,9 +94,18 @@ function rows(components: readonly VEvent[]): [string, string][] {
     return [week(slot), [short(m.start), ...notes].join(', ')];
   });
 }
-/** Bob's meeting list: his calendar knows nothing of weeks, only the meetings his copy holds. */
-const guestRows = (components: readonly VEvent[]): [string, string][] =>
-  expand(components).map((m) => ['Stand-up', [short(m.start), ...(m.cancelled ? ['cancelled'] : [])].join(', ')]);
+/** Bob's meeting list: his calendar knows nothing of weeks, only the meetings his copy holds, each [start, cancelled]. */
+const guestRows = (meetings: readonly (readonly [string, boolean])[]): [string, string][] =>
+  meetings.map(([start, cancelled]) => ['Stand-up', [short(start), ...(cancelled ? ['cancelled'] : [])].join(', ')]);
+/**
+ * A card's parts paired by what they say and where, so a sync keeps an unchanged row still and crossfades a changed
+ * value, as Card.set does; the panel and its bar pair by place.
+ */
+const sameWords: MatchKey = (part, root) => {
+  for (let m: Mobject | null = part; m && m !== root; m = m.parent)
+    if (m instanceof Text) return `${m.text}|${m.anchorPoint().map((v) => v.toFixed(3)).join(',')}|${m.children.indexOf(part)}`;
+  return `${part.constructor.name}|${root.family().indexOf(part)}`;
+};
 
 export default class IcalRecurrenceExplainer extends Scene {
   static meta = {
@@ -131,7 +141,7 @@ export default class IcalRecurrenceExplainer extends Scene {
     checks: [
       {
         question: `Alice skips the fifth meeting, ${long(FIFTH)}, instead of Bob’s, by adding EXDATE:${FIFTH}. How many meetings does her calendar show, and when is the last? What does Bob’s calendar show?`,
-        answer: `Alice’s shows ${number(FIFTH_LEFT.length)}, the last still on ${long(FIFTH_LEFT.at(-1)!.start)}: COUNT=6 counts the excluded start, so the series does not run a week longer. Bob is still in the third meeting’s override, so any update the server sends him carries that override again, and his calendar keeps ${long(GUEST_MEETING)}, not cancelled.`,
+        answer: `Alice’s shows ${numberWord(FIFTH_LEFT.length)}, the last still on ${long(FIFTH_LEFT.at(-1)!.start)}: COUNT=6 counts the excluded start, so the series does not run a week longer. Bob is still in the third meeting’s override, so any update the server sends him carries that override again, and his calendar keeps ${long(GUEST_MEETING)}, not cancelled.`,
       },
       {
         question: 'Alice moves the second meeting, which Bob does not attend. Before trying that setting: does Bob’s copy change, and why?',
@@ -179,14 +189,27 @@ export default class IcalRecurrenceExplainer extends Scene {
       fontSize: CODE_SIZE,
       title: 'Alice’s stored object, some lines left out',
     });
-    const list: Card = await s.card(rows(SERIES), {
-      at: LIST,
-      align: 'top',
-      width: LIST_WIDTH,
-      fontSize: LIST_SIZE,
-      title: 'Meetings Alice’s calendar shows',
-    });
-    this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start) };
+    // `components`: the VEVENTs Alice's object holds after each step, which her meeting list is computed from.
+    this.state.series = { vevents: SERIES.length, meetings: expand(SERIES).map((m) => m.start), components: SERIES };
+    /** The object as it stands: the change's, else the invitation's, else the series'. */
+    const stored = (st: Record<string, unknown>) => ((st.change ?? st.invite ?? st.series) as { components: VEvent[] }).components;
+    // `shown.listMark`: the meeting the list lights and what the description calls it, or none.
+    const list = view(
+      this,
+      (st, shown) => {
+        const mark = shown.listMark as { row: string; as: string } | null | undefined;
+        return new Card(this, s.palette, rows(stored(st)), {
+          at: LIST,
+          align: 'top',
+          width: LIST_WIDTH,
+          fontSize: LIST_SIZE,
+          title: 'Meetings Alice’s calendar shows',
+          ...(mark ? { lit: mark.row, litAs: mark.as } : {}),
+        });
+      },
+      { place: false },
+    );
+    await s.enter(list, { runTime: 0.35, shift: [0, -0.08] });
 
     // ------------------------------------------------------------------ invite
     await this.step('invite', {
@@ -196,9 +219,9 @@ export default class IcalRecurrenceExplainer extends Scene {
       caption: `Alice invites Bob to the third meeting only. The app keeps the first VEVENT as it was and adds a second with the same UID, an override. Its RECURRENCE-ID, ${GUEST_MEETING}, is the start the rule gave that meeting, kept even if the meeting moves. Bob is sent this override and nothing else. His copy has one occurrence, not the master rule that generates Alice’s whole series.`,
     });
     await code.morph(lines(INVITED), { markAdded: true });
-    await list.set(Object.fromEntries(rows(INVITED)));
-    await list.mark(week(GUEST_MEETING), { as: 'the override' });
-    this.state.invite = { stored: counts(INVITED), meetings: expand(INVITED).map((m) => m.start) };
+    this.state.invite = { stored: counts(INVITED), meetings: expand(INVITED).map((m) => m.start), components: INVITED };
+    this.shown.listMark = { row: week(GUEST_MEETING), as: 'the override' };
+    await this.play(list.sync({ runTime: 0.45, match: sameWords }));
 
     // ------------------------------------------------------------------ change
     const moved = expand(after).find((m) => m.slot === MOVED_FROM)!;
@@ -207,7 +230,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         change === 'move'
           ? 'Moving the second meeting stores a third VEVENT'
           : change === 'skip'
-            ? `Skipping Bob’s meeting adds an EXDATE; ${number(expand(after).length)} meetings remain`
+            ? `Skipping Bob’s meeting adds an EXDATE; ${numberWord(expand(after).length)} meetings remain`
             : 'Five meetings come from the rule, one from the override',
       line:
         copy === 'guest'
@@ -222,58 +245,40 @@ export default class IcalRecurrenceExplainer extends Scene {
           ? `Alice moves the second meeting to ${long(MOVED_TO)} at 14:00. The first VEVENT does not change, and its rule still gives ${long(MOVED_FROM)}. A third VEVENT, an override with RECURRENCE-ID ${MOVED_FROM}, that original start, carries the new DTSTART, and calendars show it in the Monday’s place.`
           : change === 'skip'
             ? // RFC 5545 §3.8.5.1, lines 6630–6634: the set is the rule's starts with the EXDATEs taken out.
-              `Alice cancels the third meeting. Her app adds EXDATE:${GUEST_MEETING} to the first VEVENT and deletes the override that invited Bob. COUNT=6 still counts the excluded start, because RFC 5545 generates the rule’s starts first and then removes EXDATEs, so ${number(expand(after).length)} meetings remain.`
+              `Alice cancels the third meeting. Her app adds EXDATE:${GUEST_MEETING} to the first VEVENT and deletes the override that invited Bob. COUNT=6 still counts the excluded start, because RFC 5545 generates the rule’s starts first and then removes EXDATEs, so ${numberWord(expand(after).length)} meetings remain.`
             : 'Alice changes nothing else, so the object keeps two VEVENTs. A calendar takes all six starts from the rule, then puts the override in place of the start that equals its RECURRENCE-ID. Five meetings come from the first VEVENT and one from the second.',
     });
-    if (change === 'none') {
-      await code.clearMarks();
-      await code.focus([0, 4], { as: 'the master' });
-      await list.mark(null);
-    } else {
-      await code.morph(lines(after), { markAdded: true });
-      await list.set(Object.fromEntries(rows(after)));
-      await list.mark(week(change === 'move' ? MOVED_FROM : GUEST_MEETING), {
-        as: change === 'move' ? 'moved' : 'skipped',
-      });
-    }
     this.state.change = {
       change,
       stored: counts(after),
       meetings: expand(after).map((m) => m.start),
       ...(change === 'move' ? { moved: { from: moved.slot, to: moved.start } } : {}),
+      components: after,
     };
+    if (change === 'none') {
+      await code.clearMarks();
+      await code.focus([0, 4], { as: 'the master' });
+      this.shown.listMark = null;
+      await this.play(list.sync({ runTime: 0.3, match: sameWords }));
+    } else {
+      await code.morph(lines(after), { markAdded: true });
+      this.shown.listMark = { row: week(change === 'move' ? MOVED_FROM : GUEST_MEETING), as: change === 'move' ? 'moved' : 'skipped' };
+      await this.play(list.sync({ runTime: 0.45, match: sameWords }));
+    }
 
     // ------------------------------------------------------------------ copies
     // Alice's and Bob's stored objects side by side, each over the six weeks of Alice's rule (weeks() in
     // the model): Alice's master generates them and excludes one; Bob's copy has nothing to generate them.
-    const copiesStep = async () => {
-      const bob = guestCopy(change),
-        alice = after;
-      const na = counts(alice),
-        nb = counts(bob.copy);
-      const wa = weeks(alice),
-        wb = weeks(bob.copy);
-      const sent = bob.messages.map((m) => m.method);
-      if (nb.masters || nb.rrules || na.masters !== 1 || na.rrules !== 1)
-        throw new Error('Alice’s copy must hold one master with its RRULE, Bob’s none');
-      const day = (t: string) => short(t).split(', ')[0]!.split(' ').slice(1).join(' ');
-      const meetingsA = wa.filter((w) => w.week !== 'excluded' && w.week !== 'absent').length;
-      await this.step('copies', {
-        title:
-          change === 'skip'
-            ? 'Alice’s rule loses a week to EXDATE; Bob has no rule, only that meeting'
-            : change === 'move'
-              ? 'Alice’s object gains an override for the move; Bob’s keeps its one meeting'
-              : 'Alice’s object holds the rule; Bob’s holds one meeting and no rule',
-        line: 'Each row is one calendar, over the six weeks of Alice’s rule.',
-        caption:
-          change === 'skip'
-            ? `The same cancellation reaches two different objects. Alice’s holds the master, whose RRULE gives six weeks, so her app takes the third out with EXDATE:${GUEST_MEETING}, leaving ${number(meetingsA)} meetings. Bob’s holds the override for ${day(GUEST_MEETING)} and no master. His other five weeks are empty because nothing in his copy generates them, and the iTIP ${sent.at(-1)} marks the one VEVENT he has STATUS:CANCELLED.`
-            : change === 'move'
-              ? `Alice’s object now holds the master and ${plural(na.overrides, 'override')}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
-              : `Alice’s object holds the master, whose RRULE gives all six weeks, and the override that puts Bob in the third. Bob’s holds that override and no master, so his calendar shows the third week and no other.`,
-      });
-      await s.clear();
+    /** One stored copy as the copies step records it: what it counts, its weeks of Alice's rule, and its VEVENTs. */
+    interface CopyState { stored: ReturnType<typeof counts>; weeks: Week[]; components: VEvent[] }
+    interface CopiesState { change: Change; alice: CopyState; bob: CopyState & { sent: string[] } }
+    const day = (t: string) => short(t).split(', ')[0]!.split(' ').slice(1).join(' ');
+    /**
+     * Alice's and Bob's stored objects and their weeks, drawn from the step's state alone: each column lists a copy's
+     * VEVENTs, and each strip its weeks of Alice's rule (weeks() in the model), dated from the copy's own meetings.
+     */
+    const copiesPicture = (st: { copies: CopiesState }, s: Stage) => {
+      const { change: edit, alice, bob } = st.copies;
       const pal = s.palette,
         TOP = 0.3,
         WEEK = 0.33;
@@ -286,28 +291,18 @@ export default class IcalRecurrenceExplainer extends Scene {
         if (dashed) r.style.dashArray = '0.12 0.08';
         return r;
       };
-      /** One VEVENT as a row: what kind it is, and the lines that matter here. */
-      const detail = (c: VEvent, mine: boolean) => {
-        if (c.recurrenceId === null) return `RRULE ${c.rrules.map((r) => r.replace('FREQ=WEEKLY;', '')).join(', ')}${c.exdates.length ? `, EXDATE ${c.exdates.map(day).join(', ')}` : ''}`;
-        const notes = [
-          c.dtstart !== c.recurrenceId && `now ${day(c.dtstart)}`,
-          mine && c.attendees.includes(GUEST) && 'with Bob',
-          c.status === 'CANCELLED' && 'CANCELLED',
-        ].filter(Boolean);
-        return [`RECURRENCE-ID ${day(c.recurrenceId)}`, ...notes].join(', ');
-      };
       const column = (who: 'alice' | 'bob', x0: number) => {
-        const cs = who === 'alice' ? alice : bob.copy;
+        const cs = who === 'alice' ? alice.components : bob.components;
         const parts: (Text | Rectangle)[] = [
           text(who === 'alice' ? 'Alice’s stored object' : 'Bob’s stored object', TOP, pal.ink, [x0, 2.85], 'start', 'bold'),
           text(
             who === 'alice'
-              ? change === 'skip'
+              ? edit === 'skip'
                 ? 'Her app adds EXDATE to the master'
-                : change === 'move'
+                : edit === 'move'
                   ? `Her app adds an override for ${day(MOVED_FROM)}`
                   : 'As saved after inviting Bob'
-              : `iTIP sent to him: ${sent.join(', then ')}`,
+              : `iTIP sent to him: ${bob.sent.join(', then ')}`,
             0.3,
             s.soft,
             [x0, 2.3],
@@ -335,36 +330,83 @@ export default class IcalRecurrenceExplainer extends Scene {
         excluded: { stroke: s.soft, width: 0.03, dashed: true, label: true, word: 'EXDATE', ink: s.soft },
         absent: { stroke: s.soft, width: 0.03, dashed: true, label: false, ink: s.soft },
       };
-      const strip = (ws: typeof wa, cs: readonly VEvent[], name: string, top: number) => {
-        const shown = expand(cs);
-        const n = ws.filter((w) => w.week !== 'excluded' && w.week !== 'absent').length;
+      const strip = (c: CopyState, name: string, top: number) => {
+        const shown = expand(c.components);
+        const n = c.weeks.filter((w) => w !== 'excluded' && w !== 'absent').length;
         const parts: (Text | Rectangle)[] = [text(`${name}: ${plural(n, 'meeting')}`, WEEK, pal.ink, [-3.6, top], 'start', 'bold')];
         const cell = 1.14,
           gap = 0.06;
-        ws.forEach((w, i) => {
-          const x = -3.6 + cell / 2 + i * (cell + gap),
+        c.weeks.forEach((w, i) => {
+          const slot = RULE_STARTS[i]!,
+            x = -3.6 + cell / 2 + i * (cell + gap),
             y = top - 0.75,
-            st = STYLE[w.week];
-          parts.push(box(cell, 0.92, st.stroke, st.width, st.dashed).moveTo([x, y]));
-          const [date, month] = day(shown.find((m) => m.slot === w.slot)?.start ?? w.slot).split(' ');
-          if (st.label) parts.push(text(date!, WEEK, st.ink, [x, y + 0.19]), text(month!, WEEK, st.ink, [x, y - 0.19]));
-          if (st.word) parts.push(text(st.word, WEEK, st.ink, [x, y - 0.72]));
+            look = STYLE[w];
+          parts.push(box(cell, 0.92, look.stroke, look.width, look.dashed).moveTo([x, y]));
+          const [date, month] = day(shown.find((m) => m.slot === slot)?.start ?? slot).split(' ');
+          if (look.label) parts.push(text(date!, WEEK, look.ink, [x, y + 0.19]), text(month!, WEEK, look.ink, [x, y - 0.19]));
+          if (look.word) parts.push(text(look.word, WEEK, look.ink, [x, y - 0.72]));
         });
         return parts;
       };
-      const weeksBlock = new Group(...strip(wa, alice, 'Alice’s calendar', -0.55), ...strip(wb, bob.copy, 'Bob’s calendar', -2.5));
+      const weeksBlock = new Group(...strip(alice, 'Alice’s calendar', -0.55), ...strip(bob, 'Bob’s calendar', -2.5));
       weeksBlock.key = 'copies-weeks';
-      const say = (ws: typeof wa) => ws.map((w) => `${day(w.slot)} ${w.week}`).join(', ');
-      await s.enter(column('alice', -7.55), column('bob', 0.35), weeksBlock, {
-        describe: `Alice’s stored object: ${alice.map((c) => detail(c, true)).join('; ')}. Bob’s stored object: no master, ${bob.copy.map((c) => detail(c, false)).join('; ')}. The six weeks of Alice’s rule, Alice’s calendar: ${say(wa)}. Bob’s calendar: ${say(wb)}.`,
-      });
-      s.reading(weeksBlock);
-      this.state.copies = {
-        alice: { stored: na, weeks: wa.map((w) => w.week) },
-        bob: { stored: nb, weeks: wb.map((w) => w.week), sent },
-      };
+      return new Group(column('alice', -7.55), column('bob', 0.35), weeksBlock);
     };
-    if (copy === 'organiser') await copiesStep();
+    /** One VEVENT as a row: what kind it is, and the lines that matter here. */
+    const detail = (c: VEvent, mine: boolean) => {
+      if (c.recurrenceId === null) return `RRULE ${c.rrules.map((r) => r.replace('FREQ=WEEKLY;', '')).join(', ')}${c.exdates.length ? `, EXDATE ${c.exdates.map(day).join(', ')}` : ''}`;
+      const notes = [
+        c.dtstart !== c.recurrenceId && `now ${day(c.dtstart)}`,
+        mine && c.attendees.includes(GUEST) && 'with Bob',
+        c.status === 'CANCELLED' && 'CANCELLED',
+      ].filter(Boolean);
+      return [`RECURRENCE-ID ${day(c.recurrenceId)}`, ...notes].join(', ');
+    };
+    // Alice's and Bob's stored objects side by side, each over the six weeks of Alice's rule: Alice's master
+    // generates them and excludes one; Bob's copy has nothing to generate them. A staged step: the stage is
+    // cleared and the picture drawn from the step's state.
+    const copiesStep = () => {
+      const bob = guestCopy(change),
+        alice = after;
+      const na = counts(alice),
+        nb = counts(bob.copy);
+      const wa = weeks(alice),
+        wb = weeks(bob.copy);
+      const sent = bob.messages.map((m) => m.method);
+      if (nb.masters || nb.rrules || na.masters !== 1 || na.rrules !== 1)
+        throw new Error('Alice’s copy must hold one master with its RRULE, Bob’s none');
+      if (wa.some((w, i) => w.slot !== RULE_STARTS[i]) || wb.some((w, i) => w.slot !== RULE_STARTS[i]))
+        throw new Error('Each copy’s weeks must be the six weeks of Alice’s rule, in order');
+      const meetingsA = wa.filter((w) => w.week !== 'excluded' && w.week !== 'absent').length;
+      // `change` and `components`: the edit the subtitle names and the VEVENTs each column lists and each strip dates.
+      const state: { copies: CopiesState } = {
+        copies: {
+          alice: { stored: na, weeks: wa.map((w) => w.week), components: alice },
+          bob: { stored: nb, weeks: wb.map((w) => w.week), sent, components: bob.copy },
+          change,
+        },
+      };
+      return stagedStep({
+        id: 'copies',
+        title:
+          change === 'skip'
+            ? 'Alice’s rule loses a week to EXDATE; Bob has no rule, only that meeting'
+            : change === 'move'
+              ? 'Alice’s object gains an override for the move; Bob’s keeps its one meeting'
+              : 'Alice’s object holds the rule; Bob’s holds one meeting and no rule',
+        line: 'Each row is one calendar, over the six weeks of Alice’s rule.',
+        caption:
+          change === 'skip'
+            ? `The same cancellation reaches two different objects. Alice’s holds the master, whose RRULE gives six weeks, so her app takes the third out with EXDATE:${GUEST_MEETING}, leaving ${numberWord(meetingsA)} meetings. Bob’s holds the override for ${day(GUEST_MEETING)} and no master. His other five weeks are empty because nothing in his copy generates them, and the iTIP ${sent.at(-1)} marks the one VEVENT he has STATUS:CANCELLED.`
+            : change === 'move'
+              ? `Alice’s object now holds the master and ${plural(na.overrides, 'override')}: the one that invited Bob, and a new one that moves the second meeting to ${short(MOVED_TO)}. Bob’s holds the one override he attends and no master. The iTIP ${sent.at(-1)} the server sends him carries that override again, so his calendar shows the third week and nothing of the move.`
+              : `Alice’s object holds the master, whose RRULE gives all six weeks, and the override that puts Bob in the third. Bob’s holds that override and no master, so his calendar shows the third week and no other.`,
+        state,
+        draw: copiesPicture,
+        opening: ['copies-weeks'],
+      });
+    };
+    if (copy === 'organiser') await s.steps([copiesStep()]);
 
     // ------------------------------------------------------------------ schema
     // A detail step: before Alice's copy, which counts its parts on the schema, or after Bob's.
@@ -389,12 +431,14 @@ export default class IcalRecurrenceExplainer extends Scene {
       n = counts(mine),
       bob = guestCopy(change);
     const parts = `${n.masters ? `one master with ${plural(n.rrules, 'RRULE')} and ${plural(n.exdates, 'EXDATE')}` : 'no master'}, and ${plural(n.overrides, 'override')}`;
+    // `components`: the VEVENTs the copy holds, which Bob's stored object lists.
+    const copyState = { copy, stored: counts(mine), meetings: expand(mine).map((m) => [m.start, m.cancelled] as const), components: mine };
     let er: Diagram | undefined;
     if (copy === 'organiser') {
       er = await schemaStep();
       await this.step('copy', {
         title: `Alice’s copy: ${plural(n.vevents, 'VEVENT')}, one UID`,
-        line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${number(expand(mine).length)} meetings.`,
+        line: `${n.masters ? 'One master' : 'No master'} and ${plural(n.overrides, 'override')}; her calendar shows ${numberWord(expand(mine).length)} meetings.`,
         caption: `The server stores Alice’s object as her app saved it: ${parts}, ${n.vevents > 1 ? 'all ' : ''}with UID standup. The notes on the schema count each part, and parts her copy lacks are dimmed. Bob’s copy is different: ${ANSWER}.`,
       });
       const present = [
@@ -404,6 +448,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         ...(n.rrules ? ['entity:RRULE'] : []),
         ...(n.exdates ? ['entity:EXDATE'] : []),
       ];
+      this.state.copy = copyState;
       await er.dim(present);
       const count = (k: number, word: string) =>
         k ? plural(k, word).replace(/^one /, '1 ').replace(/^two /, '2 ') : `no ${word}`;
@@ -413,7 +458,26 @@ export default class IcalRecurrenceExplainer extends Scene {
       await er.note('entity:EXDATE', count(n.exdates, 'EXDATE'), { side: 'above' });
     } else {
       const [first, second] = bob.messages;
-      await this.step('copy', {
+      /** Bob's stored object and the meetings his calendar shows, drawn from the step's state alone. */
+      const bobsCopy = (st: { copy: typeof copyState }, s: Stage) =>
+        new Group(
+          new CodeBlock(this, s.palette, lines(st.copy.components), {
+            at: CODE,
+            align: 'top',
+            fontSize: CODE_SIZE,
+            title: 'Bob’s stored object, some lines left out',
+          }),
+          new Card(this, s.palette, guestRows(st.copy.meetings), {
+            at: LIST,
+            align: 'top',
+            width: LIST_WIDTH,
+            fontSize: LIST_SIZE,
+            title: 'Meetings Bob’s calendar shows',
+          }),
+        );
+      // A staged step: the stage is cleared and Bob's copy drawn from its VEVENTs and meetings.
+      const copyStep = stagedStep({
+        id: 'copy',
         title:
           change === 'skip'
             ? 'Answer: Bob’s copy keeps the meeting, marked cancelled'
@@ -433,26 +497,13 @@ export default class IcalRecurrenceExplainer extends Scene {
             : change === 'move'
               ? `${upperFirst(ANSWER)}. Saving the move sends Bob an iTIP REQUEST, a scheduling message carrying a meeting’s details, but the server, Baïkal running sabre/dav, puts in it only the VEVENTs Bob attends: the third meeting’s override again. His copy still holds that one VEVENT, and the moved Tuesday meeting never appears in it.`
               : `${upperFirst(ANSWER)}. The invitation reached Bob as an iTIP REQUEST, a scheduling message carrying a meeting’s details, holding only the VEVENTs he attends. The server stored it as it came: the third meeting’s override, with RECURRENCE-ID and no master, which RFC 4791 allows. His stored copy contains ${plural(expand(mine).length, 'meeting')} and no rule to generate the others.`,
+        state: { copy: copyState, messages: [first, second].filter(Boolean).map((m) => m!.method) },
+        draw: bobsCopy,
       });
-      await s.clear();
-      await s.code(lines(mine), {
-        at: CODE,
-        align: 'top',
-        fontSize: CODE_SIZE,
-        title: 'Bob’s stored object, some lines left out',
-      });
-      await s.card(guestRows(mine), {
-        at: LIST,
-        align: 'top',
-        width: LIST_WIDTH,
-        fontSize: LIST_SIZE,
-        title: 'Meetings Bob’s calendar shows',
-      });
-      this.state.messages = [first, second].filter(Boolean).map((m) => m!.method);
+      await s.steps([copyStep]);
     }
-    this.state.copy = { copy, stored: counts(mine), meetings: expand(mine).map((m) => [m.start, m.cancelled]) };
     // Bob's copy comes first, then the two copies side by side, then the schema as a detail; Alice's copy was drawn on it.
-    if (copy === 'guest') await copiesStep();
+    if (copy === 'guest') await s.steps([copiesStep()]);
     er ??= await schemaStep();
 
     // ------------------------------------------------------------------ server

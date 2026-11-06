@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { StringSink, SnapshotSink, NullSink, renderAt, traceScene, TraceSink, Scene, Succession, linear } from 'rayner';
+import { Scene, Succession, linear } from 'rayner';
+import { StringSink, SnapshotSink, NullSink, renderAt } from 'rayner/output';
+import { traceScene, TraceSink } from 'rayner/testing';
 import { requestScene, route } from '../recipes/document.ts';
 import { Diamond, StatusBadge } from '../recipes/extensions.ts';
 import ContinuousScene, { orbit, makeOrbit, FollowAngle } from '../recipes/continuous.ts';
@@ -23,6 +25,11 @@ test('document recipe accepts data, computes both routes, and exposes the model 
     assert.deepEqual(evidence.filter((e) => e.kind === 'route'), [{ kind: 'route', cached, destination: expected }]);
     assert.ok(evidence.some((e) => e.kind === 'match'));
   }
+});
+
+test('document recipe validates its input with jsonObject and refuses data a trace could not hold', () => {
+  assert.throws(() => requestScene({ cached: true, extra: () => 1 } as unknown as { cached: boolean }), /input\.extra must contain finite, acyclic JSON data/);
+  assert.throws(() => requestScene({ cached: 'yes' } as unknown as { cached: boolean }), /cached must be a boolean/);
 });
 
 test('custom geometry owns its copy and a copied composite exposes its own children', () => {

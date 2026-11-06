@@ -20,7 +20,7 @@ export default class ImportedReading extends Scene {
     if (settingsOf(this).width === 'thin') label.stretch(0.01, 0);
     label.moveTo([0, 0]);
     label.key = 'paper';
-    s.reading(label);
+    s.opening(label);
     this.add(label);
   }
 }

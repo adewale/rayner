@@ -42,16 +42,19 @@
           "text": "December"
         },
         {
-          "text": "New York: red dot and horizon."
+          "text": "Red dot: New York at noon, on its daily circle"
+        },
+        {
+          "text": "Gold: the circle in daylight; dark: in night"
         }
       ]
     },
     {
-      "step": "paths",
+      "step": "sky",
       "opening": true,
       "targets": [
         {
-          "key": "henge-arcs"
+          "key": "henge-dome"
         },
         {
           "text": "December"
@@ -63,10 +66,10 @@
           "text": "June"
         },
         {
-          "text": "New York’s horizon"
+          "key": "henge-dome-horizon"
         },
         {
-          "key": "henge-paths-street"
+          "key": "henge-dome-street"
         }
       ]
     },
@@ -75,10 +78,16 @@
       "opening": true,
       "targets": [
         {
-          "key": "henge-annual"
+          "key": "henge-year"
         },
         {
-          "text": "Yellow: sunset direction"
+          "key": "henge-year-street"
+        },
+        {
+          "text": "Gold band:"
+        },
+        {
+          "text": "Street crossings: 2"
         }
       ]
     },
@@ -115,6 +124,24 @@
         },
         {
           "text": "September"
+        }
+      ]
+    },
+    {
+      "step": "look",
+      "opening": true,
+      "targets": [
+        {
+          "key": "henge-look-window"
+        },
+        {
+          "key": "henge-look-sun"
+        },
+        {
+          "key": "henge-look-legend"
+        },
+        {
+          "key": "henge-look-sides"
         }
       ]
     },

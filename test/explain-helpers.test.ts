@@ -4,9 +4,12 @@
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, traceScene, loadFonts } from '../src/index.ts';
-import { stage, bindSnapshots, findingsOf, edgePartOf, regionBox, REGIONS } from '../explain/index.ts';
-import { diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import { stage, regionBox, REGIONS } from '../explain/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
+import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity } from '../explain/look.ts';
 import { PALETTES, palette } from '../explain/palettes.ts';
@@ -263,6 +266,18 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
     }),
     params<[Mutation]>(300, { examples: ['valueOf', 'constructor', '__proto__', 'toString', 'hasOwnProperty'].map((family): [Mutation] => [[fixture(), ['family'], family]]) }),
   );
+});
+
+test('two diagrams on one stage have two frames, each a part of its own with the role frame', async () => {
+  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const other = fixedSnapshot({ ...spec, source: spec.source + '\n%% another' }, fixture().parts, { palette: fixture().palette });
+  const [a, b] = [new Diagram(scene, spec, fixture(), { box: 'left' }), new Diagram(scene, other.spec, other, { box: 'right' })];
+  await a.build();
+  await b.build();
+  const frames = scene.familyMembers().filter((m) => m.role === 'frame');
+  assert.equal(frames.length, 2);
+  assert.notEqual(frames[0]!.key, frames[1]!.key, 'one key per part, the frames too');
+  assert.equal(a.get('__frame'), frames[0], 'the frame is still found by its id in the snapshot');
 });
 
 test('a hidden diagram leaves the stage, so nothing describes it, and reveal brings it back', async () => {
@@ -628,8 +643,12 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Diagram', 'REGIONS', 'bindSnapshots', 'describeExplainer', 'edgePartOf', 'findingsOf',
-    'palette', 'regionBox', 'resolveSettings', 'scenarioName', 'scenariosOf', 'settingsOf', 'stage', 'stagedStepsOf', 'withSettings',
+    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'diagramsOf', 'mermaid', 'palette', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep',
+  ]);
+  // The tooling went to rayner/testing.
+  assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
+    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'jsonObject', 'loadFonts',
+    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withSettings',
   ]);
 });
 

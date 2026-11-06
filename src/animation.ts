@@ -2,17 +2,17 @@
 // begin() settles the endpoints (and aligns their structure); every frame
 // is then `mobject = blend(start, end, rateFunc(t / runTime))`.
 
-import { smooth, thereAndBack, linear, clip } from './rate.ts';
+import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState, Mobject as MobjectClass } from './mobject.ts';
+import { Group, adoptState, followScene, Mobject as MobjectClass } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
 import { Circle, SurroundingRectangle, boxOf } from './shapes.ts';
-import { YELLOW } from './color.ts';
+import { NEUTRAL_COLORS } from './color.ts';
 import { jsonObject } from './json.ts';
 import type { JsonObject } from './json.ts';
 import type { SceneState } from './scene.ts';
@@ -103,6 +103,11 @@ export class Animation extends AnimationTiming {
   slots!: { index: Int32Array; count: number };
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
   override targets(): Mobject[] { return [this.mobject]; }
+  /**
+   * What takes the scene's colours before this begins (see Mobject.defaultColors): what it draws,
+   * and what it morphs toward, so both endpoints are fixed in the scene's colours.
+   */
+  paints(): Mobject[] { return this.targets(); }
   /** Called when play starts. Copies live here, never in the constructor. */
   override begin(): void {
     this.starting = this.createStartingMobject();
@@ -317,8 +322,10 @@ export class Transform extends Animation {
     this.sameStructure = false;
   }
 
+  override paints(): Mobject[] { return [this.mobject, this.target]; }
+
   override begin(): void {
-    // An animation that built its own target (FadeIn, Indicate, .animate) hands it
+    // An animation that built its own target (FadeIn, .animate) hands it
     // over as is: nothing else holds it, so copying it again is pure cost. And a
     // target that is a copy of the mobject needs no alignment: same structure.
     this.targetCopy = this.ownsTarget ? this.target : this.target.copy();
@@ -460,10 +467,10 @@ export class GrowFromEdge extends FadeIn {
   readonly axis: 0 | 1;
   readonly initialScale: number;
 
-  constructor(mobject: Mobject, edge: Readonly<Vec> = V.DOWN, { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
+  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
     if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
       Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
-      throw new TypeError('GrowFromEdge edge must be UP, DOWN, LEFT or RIGHT');
+      throw new TypeError('GrowFromEdge edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
     if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
       throw new RangeError('GrowFromEdge initialScale must be finite and in [0, 1]');
     super(mobject, opts);
@@ -541,28 +548,6 @@ export class Create extends Animation {
 /** Write text: Create for paths, letter-by-letter fade for Text. */
 export class Write extends Create {
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { lagRatio: 0.3, ...opts }); }
-}
-
-export interface IndicateOpts extends TransformOpts { scaleFactor?: number; color?: string }
-
-/** Scale up and recolor, there and back. */
-export class Indicate extends Transform {
-  scaleFactor: number;
-  color: string;
-
-  constructor(mobject: Mobject, { scaleFactor = 1.2, color = '#ffff00', ...opts }: IndicateOpts = {}) {
-    super(mobject, mobject, { rateFunc: thereAndBack, ...opts });
-    this.scaleFactor = scaleFactor; this.color = color;
-  }
-  override begin(): void {
-    const t = this.mobject.copy().scale(this.scaleFactor);
-    for (const m of t.family()) {
-      if (m.style.stroke !== 'none') m.style.stroke = this.color;
-      if (m.style.fill !== 'none') m.style.fill = this.color;
-    }
-    this.target = t; this.ownsTarget = true; this.sameStructure = true;
-    super.begin();
-  }
 }
 
 /** Run several animations together; lagRatio staggers their start times. */
@@ -723,14 +708,6 @@ export class PulseAlongPath extends MoveAlongPath {
   }
 }
 
-/** Fade in, hold, fade out around a mobject: a one-shot "look here". */
-export class Flash extends Animation {
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { rateFunc: linear, ...opts }); }
-  override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
-    sub.style.opacity = start.style.opacity * Math.sin(Math.PI * alpha);
-  }
-}
-
 // ---- emphasis ----
 
 export interface CircumscribeOpts extends AnimOpts {
@@ -776,11 +753,14 @@ export class Circumscribe extends Animation {
   /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). */
   baseOpacity!: number;
 
-  constructor(target: Mobject | Box, { color = YELLOW, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+  constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+    const stroke = color ?? NEUTRAL_COLORS.accent;
     const fit = (): VMobject => shape === 'circle'
-      ? circleAround(target, buff, { stroke: color, strokeWidth })
-      : new SurroundingRectangle(target, { buff, cornerRadius, stroke: color, strokeWidth });
-    super(fit(), { rateFunc: linear, ...opts, remover: !keep });
+      ? circleAround(target, buff, { stroke, strokeWidth })
+      : new SurroundingRectangle(target, { buff, cornerRadius, stroke, strokeWidth });
+    const outline = fit();
+    if (color === undefined) followScene(outline, { stroke: 'accent' });
+    super(outline, { rateFunc: linear, ...opts, remover: !keep });
     this.target = target; this.shape = shape; this.buff = buff; this.cornerRadius = cornerRadius;
     this.keep = keep; this.fadeOut = fadeOut;
   }
@@ -872,7 +852,7 @@ export class Restore extends Transform {
  * animation in the play begins (see takeCopies), so it is `source` as the
  * play found it whatever the argument order; until then `mobject` is an empty
  * placeholder, so the copy, a different mobject from `source`, conflicts with
- * nothing: `play(new TransformFromCopy(a, b), new Indicate(a))` and
+ * nothing: `play(new TransformFromCopy(a, b), a.animate.scale(1.2))` and
  * `play(new Create(a), new TransformFromCopy(a, b))` are fine.
  */
 export class TransformFromCopy extends Transform {
@@ -921,7 +901,7 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * Run animations one after another: each begins when the previous ends, as
  * consecutive play() calls would, so members may drive the same mobject:
  *
- *   await this.play(new Succession([new Indicate(box), box.animate.shift(RIGHT), new FadeOut(box)]));
+ *   await this.play(new Succession([new Create(box), box.animate.shift([1, 0]), new FadeOut(box)]));
  *
  * Each member begins at its turn (its endpoints are fixed from the state the
  * previous one left) and is finished and cleaned up at its end, through the
@@ -1078,6 +1058,12 @@ export interface MatchingOpts extends TransformOpts {
    * in a diagram have no order and pair by distance alone.
    */
   ordered?: boolean;
+  /**
+   * Unmatched parts in turn instead of together: the source's go over the first half, the
+   * target's come over the second, while matched parts morph throughout. A part that leaves and
+   * one that takes its place (a word replaced by another) never overlap. Default false.
+   */
+  staged?: boolean;
 }
 
 export interface TransformMatchingOpts extends MatchingOpts { key: MatchKey }
@@ -1124,6 +1110,7 @@ export class TransformMatching extends Animation {
   ordered: boolean;
   pathFunc: PathFunc | null;
   replace: boolean;
+  staged: boolean;
   // Set by begin(), in source order: [source part, target part]
   /** Parts paired by key. */
   pairs!: Array<[Mobject, Mobject]>;
@@ -1141,11 +1128,13 @@ export class TransformMatching extends Animation {
   /** The source family after begin() attached the copies: whose boxes go stale each frame. */
   touched!: Mobject[];
 
-  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, ...opts }: TransformMatchingOpts) {
+  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
     super(mobject, opts);
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
-    this.pathFunc = pathFunc; this.replace = replace;
+    this.pathFunc = pathFunc; this.replace = replace; this.staged = staged;
   }
+
+  override paints(): Mobject[] { return [this.mobject, this.target]; }
 
   /** How many parts were matched, morphed, faded out and faded in. */
   summary(): MatchSummary {
@@ -1260,8 +1249,11 @@ export class TransformMatching extends Animation {
     const n = this.moves.length + this.fadesOut.length + this.fadesIn.length;
     let i = 0;
     for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n), this.pathFunc);
-    for (const r of this.fadesOut) fade(r, 1 - this.subAlpha(alpha, i++, n), alpha, true);
-    for (const r of this.fadesIn) fade(r, this.subAlpha(alpha, i++, n), alpha, false);
+    // Staged: what leaves is gone by halfway, and what comes starts there.
+    const out = this.staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
+      into = this.staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
+    for (const r of this.fadesOut) fade(r, 1 - out(this.subAlpha(alpha, i++, n)), alpha, true);
+    for (const r of this.fadesIn) fade(r, into(this.subAlpha(alpha, i++, n)), alpha, false);
     for (const { node, from, to, start, end } of this.frames) {
       if (start && end) { node.interpolateData(start, end, alpha, this.pathFunc); continue; }
       const mine = node.pointArrays();

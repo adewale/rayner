@@ -1,4 +1,6 @@
 // Small, explicitly scoped executable models. Scenes consume their results, not hand-entered answers.
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 class InvalidTransition extends Error {
   constructor() {
     super('InvalidTransition');
@@ -172,11 +174,12 @@ export function ringStart(capacity: number): RingState {
   const empty = () => Array<boolean>(capacity).fill(false);
   return { head: 0, tail: 0, length: 0, data: Array(capacity).fill(null), used: empty(), reused: empty(), next: 1, operation: null, error: null, returned: null, marks: [], tray: null };
 }
-export function ringNext(st: RingState, event: RingEvent): RingState | undefined {
+/** The ring after one event, or the model's refusal: a pop of an empty ring has nothing to take. */
+export function ringNext(st: RingState, event: RingEvent): RingState | Refusal {
   const ring = new RingBuffer<number>(st.data.length);
   Object.assign(ring, { head: st.head, tail: st.tail, length: st.length, data: [...st.data] });
   if (event === 'pop') {
-    if (!st.length) return undefined;
+    if (!st.length) return refuse('the ring is empty, so pop has no value to take');
     const slot = ring.head, value = ring.pop();
     const run = st.operation === 'pop';
     return {

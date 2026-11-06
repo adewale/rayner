@@ -34,6 +34,9 @@ export function check(trace: Trace, values: Record<string, string>): void {
   said(`wrap-${WRAPS[wrapper].at(-1)!.toLowerCase()}`, layers.at(-1)!.send, layers.at(-1)!.sync);
   assertStepState(trace, 'rules', { layers });
   // One step per wrapper, inside out, each ending on the type built so far.
-  WRAPS[wrapper].forEach((ctor, i) => assertStepState(trace, `wrap-${ctor.toLowerCase()}`, { built: layers[i + 1] }));
-  assertStepState(trace, 'threads', { threads: threads(wrapper, inner) });
+  // Each wrapper step's column states the wrapper and the type it wraps; the small map fills the built type's quadrant.
+  WRAPS[wrapper].forEach((ctor, i) =>
+    assertStepState(trace, `wrap-${ctor.toLowerCase()}`, { built: layers[i + 1], wrap: { ctor, inside: layers[i] }, here: layers[i + 1]!.quadrant }),
+  );
+  assertStepState(trace, 'threads', { threads: threads(wrapper, inner), here: layers.at(-1)!.quadrant });
 }

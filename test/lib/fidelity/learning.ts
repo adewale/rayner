@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type {Trace} from '../../../src/trace.ts';
 import {assertStepState} from '../explainer-state.ts';
+import {assertSteps,idsOf} from '../steps.ts';
 import {dictStory} from '../../../scenes/explainers/lib/python-dict.ts';
 import {bloomStory,saturation} from '../../../scenes/explainers/lib/bloom-filter.ts';
 import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
@@ -14,8 +15,10 @@ import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
  * proves each authored setting puts those answers in its completed steps. */
 export function check(id:string,values:Record<string,string>,trace:Trace) {
   // git-branches shows the label-only move (lost) only in the diverged history; in the linear one that move is the fast-forward.
-  const expected:Record<string,number>={'python-dict':6,'bloom-filter':9,'git-branches':values.history==='diverged'?4:3,'monty-hall':5,'birthday-paradox':7,'melody-rhythm':4};
-  assert.equal(trace.steps.length,expected[id],`${id}: count the full lesson, including predictions`);
+  // The steps each check below reads, predictions included, in story order; other steps may come and go.
+  const reads:Record<string,string[]>={'python-dict':['question','broken','marker','missing','hash','collision'],'bloom-filter':['question','insert','shared','absent','present','predict','false-positive','pipeline','full'],
+    'git-branches':values.history==='diverged'?['question','lost','merge','countercase']:['question','merge','countercase'],'monty-hall':['choice','predict','rounds','odds','worlds']};
+  if(reads[id]) assertSteps(trace,reads[id]);
   for(const step of trace.steps) {
     // Which picture is showing is not part of the model; monty-hall names it in shown.
     assert.equal((step.after as {phase?:unknown}).phase,undefined,`${id}/${step.step}: no phase in the model`);
@@ -30,6 +33,13 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assertStepState(trace,'marker',{dict:m.correct,result:m.repaired});
     assertStepState(trace,'missing',{dict:m.correct,result:m.missing});
     assert.match(String(trace.steps.find(s=>s.step==='broken')!.meta.caption),/Suppose deletion/);
+    // broken, marker and missing are played by the dict machines: the events each step sent, through the model.
+    const replayed=(step:string)=>(trace.steps.find(s=>s.step===step)!.evidence??[]).filter(e=>e.kind==='event').map(e=>e.event);
+    assert.deepEqual(replayed('broken'),['del d[0]',`d[${key}]`]);
+    assert.deepEqual(replayed('marker'),['del d[0]',`d[${key}]`]);
+    assert.deepEqual(replayed('missing'),['d[24]']);
+    assertStepState(trace,'broken',{op:'lookup'});
+    assertStepState(trace,'missing',{op:'lookup',policy:'CPython marker'});
     // The arrows under the slot row: each step's route, read slot by slot. Absent 24 hops D, 8 and 16, stops at
     // never-used slot 7, and flies over never-used slots 2 to 5 without reading them.
     assertStepState(trace,'broken',{route:{hops:[{slot:0,reads:'never used',then:'stop'}],passedOver:[]}});
@@ -62,7 +72,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     // the branch-basics steps start, branch, feature and switch were folded into its caption.
     for(const [i,name] of [[4,'question'],[5,'merge']] as const)
       assertStepState(trace,name,{advanced,frame:frames[i],files:currentFiles(frames[i]!)});
-    assert.deepEqual(trace.steps.map(s=>s.step),advanced?['question','lost','merge','countercase']:['question','merge','countercase']);
+    assert.equal(idsOf(trace).includes('lost'),advanced,'the label-only move is shown only in the diverged history');
     if(advanced) {
       const moved=moveMainToFeature(frames[4]!);
       assertStepState(trace,'lost',{advanced,frame:moved,files:currentFiles(moved),lost:['C']});
@@ -73,7 +83,7 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     const host=values.host as Host,choice=0,example=montyExample(choice,'switch');
     // The round (the old choice and host steps, merged) and the prediction show the same doors, car unrevealed:
     // the round machine's state after you pick A and the host opens B to a goat, replayed through the model.
-    const round=[`pick A`,`open ${'ABC'[example.opened]}: goat`].reduce<Round|undefined>((r,e)=>r&&roundNext(r,e as RoundEvent),roundStart(host))!;
+    const round=[`pick A`,`open ${'ABC'[example.opened]}: goat`].reduce<Round>((r,e)=>roundNext(r,e as RoundEvent) as Round,roundStart(host));
     assert.deepEqual(round,{host,pick:example.choice,opened:example.opened,shows:'goat',decision:null,car:null});
     for(const name of ['choice','predict']) assertStepState(trace,name,{...round});
     const cells={informed:threeDoorCells(choice,'informed'),random:threeDoorCells(choice,'random')};
@@ -102,9 +112,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     // The red lines in the web are the room's own matches, the same people the chance step outlines.
     assertStepState(trace,'pairs',{matchedPairs:m.matchedPairs});
     assert.ok(trace.steps.findIndex(s=>s.step==='exact')<trace.steps.findIndex(s=>s.step==='estimate'),'the exact count comes before the shortcut that is measured against it');
-    // Two, three and five people make one, three and ten pairs.
-    assert.deepEqual((trace.steps.find(s=>s.step==='growth')!.after!.growth as {pairs:number}[]).slice(0,3).map(r=>r.pairs),[1,3,10]);
-    assertStepState(trace,'growth',{growth:[2,3,5,10,23,40].map(n=>({people:n,pairs:pairCount(n),chance:birthdayChance(n,'any')}))});
+    // The doubling the pairs caption quotes: five people make ten pairs, ten make 45. The growth step it replaced is gone.
+    assertStepState(trace,'pairs',{doubling:[5,10].map(n=>({people:n,pairs:pairCount(n),chance:birthdayChance(n,'any')}))});
+    assert.ok(!trace.steps.some(s=>s.step==='growth'));
     assertStepState(trace,'estimate',{pairs:m.pairs,shortcut:1-(364/365)**m.pairs,chance:m.chance});
     assertStepState(trace,'exact',{factors:m.factors,noMatch:m.noMatch,chance:m.chance,occupied:m.people-1});
     // The figures readers quote: 50.7% for any pair among 23, 5.9% for matching one marked person among 23, 11.7% among 10.
@@ -113,7 +123,9 @@ export function check(id:string,values:Record<string,string>,trace:Trace) {
     assert.ok(caption('chance').includes(`the exact chance is ${shown.any}`));
     assert.ok(caption('you').includes(`shares your birthday is only ${shown.one}`));
   } else if(id==='melody-rhythm') {
-    const m=musicStory(values.timing as Timing,Number(values.tempo));
+    // One tempo, 96 BPM: the tempo setting changed no conclusion and is gone.
+    assert.equal(values.tempo,undefined);
+    const m=musicStory(values.timing as Timing,96);
     for(const step of trace.steps) {
       const clips=step.step==='rhythm'?m.flat:m.clips;
       assertStepState(trace,step.step,{clips,bpm:m.bpm,beatMs:m.beatMs,timing:m.timing,movedStarts:m.movedStarts,movedDurations:m.movedDurations,

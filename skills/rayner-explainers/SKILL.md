@@ -15,7 +15,7 @@ This skill says what a finished explainer must achieve and how each part is chec
 
 Write the script the explainer exists to show before you draw anything: the story a reader follows, in plain prose. Explainers grown from a model without one explain their own mechanics and never answer the reader's question. Explainers that open on a definition answer it in a way the reader cannot yet use.
 
-The communities that make the best explainers have converged on what makes one work. 3Blue1Brown's Summer of Math Exposition judged thousands of entries on four criteria ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice to entrants adds the craft behind them ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). Write the script against them:
+3Blue1Brown's Summer of Math Exposition judged thousands of entries on four criteria ([rules](https://some.3b1b.co/rules)), and Grant Sanderson's advice to entrants adds the craft behind them ([announcement](https://rosetta.to/u/3blue1brown/make-math-videos-summer-of-math-exposition-announcement), [SoME4 prizes](https://3blue1brown.substack.com/p/some4-prizes)). Write the script against them:
 
 - **Motivation.** Early on, the reader should see why the topic matters and want to know the answer: a problem they feel, a result that surprises them, a cost they would pay without it.
 - **Concrete before abstract.** Start from a specific case and let the general idea emerge from it. Do not open on the definition and then fill it in with examples; that builds "from the top floor down".
@@ -34,7 +34,7 @@ The answer still comes early, as the payoff of the first concrete problem, withi
 
 Keep the script beside the scene as `script.md` (`rayner init` starts one). It is the explanation addressed to the reader: read its paragraphs consecutively, without implementation notes, to judge whether the reasoning holds. Questions to the reader belong in that prose; directions such as "ask the reader" and "draw a chart" do not. There is no word quota or required outline.
 
-Put the one-sentence answer in `meta.answer`, which `rayner check` requires some step to state, and the ending questions and their disclosed answers in `meta.checks`. Keep that question set in the scene rather than copying it into the script. An optional `notes.md` holds non-obvious construction decisions, source interpretation and model limits a future author needs. Do not create empty notes or copy test assertions, a step inventory or revision history into them. The scene supplies the steps, tests supply verification and Git supplies history. Keep any limitation necessary to interpret the conclusion in the reader-facing prose too. See the rubric's [working documents](../../docs/EXPLAINER-RUBRIC.md#working-documents).
+Put the one-sentence answer in `meta.answer`, which `rayner check` requires some step to state, and the ending questions and their disclosed answers in `meta.checks`, not in the script. An optional `notes.md` holds non-obvious construction decisions, source interpretation and model limits for the next author; skip it when it would be empty, and never copy test assertions, a step inventory or revision history into it. The rubric's [working documents](../../docs/EXPLAINER-RUBRIC.md#working-documents) says where each fact lives.
 
 Before drawing, check the causal links: what observation needs explaining, what rule makes the result follow, and what changed condition would alter it? Explain a prerequisite or name it as an input. A chart built from a rule does not derive that rule; a trusted calculation does not explain its mechanism. Use a second viewpoint when the current one cannot show the relationship the prose asks the reader to infer. The script decides what the explainer says; the model and its tests decide whether it is true.
 
@@ -45,30 +45,58 @@ Each of these is a result, with the way it is checked. Use any technique that ge
 | The explainer… | Checked by |
 | --- | --- |
 | Draws every value from a model, tested against the real source | A fidelity test per scenario and step ([Test the model](#test-the-model)) |
+| Shows pictures that follow the model's state | `rayner check` compares every `view` with its draw of the state at the end of every step, redraws every `s.steps` picture from the state it recorded, and draws every state a `Machine` reaches. A Mermaid diagram is checked against its pinned snapshot instead, and a hand-placed callout only by your tests |
+| Names each part once: a key belongs to one mobject on the stage | `rayner check` fails a key two mobjects hold at the end of a step. Two copies of one diagram need their own keys |
 | Motivates the question early, starts from a concrete case, earns each name and builds to one aha | Reading it against [Script first](#script-first) and the [rubric](../../docs/EXPLAINER-RUBRIC.md) |
-| Names its answer within the first few steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
+| Names its answer within the first third of the steps, as the payoff of a concrete problem | `rayner check` fails if no step states `meta.answer` and reports where it first appears; reading it decides whether it is early and earned |
+| Spends every step on a new inference: no step that an earlier one already made, and no walkthrough that derives an answer an opening step already stated | Reading it against the rubric's economy criterion. When you add an opening that states the answer, delete or repurpose the later step that derives it |
+| Fits each step on a phone: the point in the caption's first sentence, about 80 words at most, and `meta.answer` about 20 | Reading it; `rayner describe` prints every caption to count |
+| Ends on the practical boundary or the strongest comparison | Reading it. A list of what the model leaves out, or a second topic, goes in `notes.md` or a detail step |
 | Gives the reader something to do that the explanation then answers | Reading it as a reader; [Make the reader act](#make-the-reader-act) |
 | Has pictures readable at 1280 px and on a phone, with nothing colliding, and a description in words for each | `rayner check` for desktop and conservative phone estimates; `rayner review` for actual served geometry |
 | Works as served: every step from a fresh link, every scenario, phone and desktop | `rayner review` |
 | Says nothing a setting would make false, and claims no more than it tests | Reading every scenario against the model and its sources; `rayner check` lists each sentence with "every", "never" or "only" that no declared claim backs ([Claims, words and limits](#claims-words-and-limits)) |
+| Teaches with the caption hidden: a colour or dash the words name is named on the stage too | `rayner check` fails a caption or line that names a colour or a pattern no word on the stage says; a `legend` from `rayner/drawing`, a label, or a line that keys it (`Red: the route.`) answers it |
 | Uses the reader's words, introducing any code name where it first appears | `rayner check` lists each code name in the steps' words with the step that first uses it |
-| Teaches better than the alternative: a still, a code diff, or a page written without Rayner | Asking honestly; [the benchmark](../../bench/explainers/README.md) for changes to Rayner itself |
+| Teaches better than the alternative: a still, a code diff, or a page written without Rayner | Asking honestly; [the benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md) for changes to Rayner itself |
 
-Checks establish deterministic, readable pictures; they cannot establish that a caption is true or that a reader learns. Do not weaken a check, bless a corrupt snapshot or skip a case to get a pass; a checker defect needs a valid example it wrongly rejects and an invalid one it must still reject.
+Checks establish deterministic, readable pictures; they cannot establish that a caption is true or that a reader learns. Do not weaken a check, bless a corrupt snapshot or skip a scenario to get a pass; a checker defect needs a valid example it wrongly rejects and an invalid one it must still reject.
 
 ## Make the reader act
 
-Readers learn from what they do, not from what they watch. In a blind comparison of three Rayner explainers with pages the same models wrote without Rayner, from one script, the reviewer preferred the plain page in all three pairs, twice over, mainly because those let the reader commit to predictions and drive a live machine ([the benchmark](../../bench/explainers/README.md)). Rayner cannot yet take the reader's input inside a step ([the live machine](https://github.com/adewale/rayner/issues/88) is proposed). Until it can, use what exists:
+Readers learn from what they do more than from what they watch. In a blind comparison of three Rayner explainers with pages the same models wrote without Rayner, from one script, the reviewer preferred the plain page in all three pairs, twice over, mainly because those let the reader commit to predictions and drive a live machine ([the benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md)). A [`Machine`](https://github.com/adewale/rayner/blob/main/docs/MACHINES.md) replays events through the model, has every reachable state checked, and at the step where it last played gives the reader a button per event, so the reader drives the model themselves. Where the subject is not driven by events, use what else exists:
 
 - **Ask, then answer.** A step asks a check question and the next step answers it. The rail hides a step's title until the reader reaches it, so "Answer: …" is safe on the answering step; keep the answer out of the asking step itself.
-- **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion.
+- **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion. A setting whose other option only changes the numbers doubles the scenarios and teaches nothing: drop it.
+- **Questions the page can answer.** Where a check question is about events (merge again, delete then look up), a live machine lets the reader find the answer by pressing.
 - **The check questions at the end**, from `meta.checks`.
+
+## Which way to step
+
+A step's picture can come from four places. Choose by what the reader needs, then let the checks hold you to it:
+
+| Way | Use it when | What `rayner check` proves |
+| --- | --- | --- |
+| Hand-written steps (`this.step`, then plays) | The motion between pictures is the point and no model generates it: code morphing along its diff, a walk over a diagram | Every frame seeks to what was played, nothing moves during the caption hold, and resting pictures are readable and uncrowded. That the values are true is your fidelity test's job, not check's |
+| `s.steps([...])` | Separate pictures, each wholly decided by its own state, with no motion between them that teaches | Each step redrawn from the state it recorded matches the picture drawn then, and a draw that ignores its state fails |
+| Views (`view(scene, draw)`, `sync()`) | One picture that follows the model across steps and morphs as it changes | Each view shows what its draw makes of the state at the end of every step |
+| A `Machine` | The subject is driven by events and the reader should drive it | Every state the events reach, from `start` and from the live step's state, is drawn and must be readable, uncrowded, described, unlike every other state's description, and show its state; every authored transition is played, holding the invariants and landing on the state's picture. `rayner review` opens the live states as served, and the buttons must be what `outcome` gives |
+
+The cost rises down the table, and so does what is checked: a machine checks states no step shows, which a hand-written step never does. `rayner init --machine` writes a machine explainer (a door that locks) that passes `rayner check` and `rayner review` as written.
+
+A good live step, the step where the machine last plays:
+
+- **Every refusal says why.** Return `refuse(reason)` from the branch of `next` that refuses, a clause that follows the event's name ("open: the door is locked, so unlock it first") and names the rule with the state's own values. A refusal with no reason (`undefined`) shows "Not possible here", which tells a reader who pressed to find out nothing. Pin each reason in the model's test; the browser test and the review hold every button's reason to `outcome`.
+- **The story's limits are bounds, not refusals.** Where the model would go on but the explainer stops (the client sends ten requests), return the reason from `bound`. `rayner check` fails a bound on an event the model refuses anyway.
+- **The step leaves events to press.** End it in a state where some event goes somewhere, and ideally one is refused with its reason, so the first press teaches. When no event goes anywhere from it, the player starts the reader from `start` instead; when none goes anywhere from either, there are no buttons and the review has nothing to visit, so check `describe`'s `machines` for the live `step`.
+- **What a press changes reads on a phone.** `rayner review` fails a live state whose changed labels read under 12 px at 390 px in the whole picture and every close-up of the step, and a label under 14 px at a 1280 px stage anywhere.
+- **Motion can wait.** Without a `transition`, each view morphs to the new state by key, staged so a word and its replacement never overlap. Author a `transition` with `choreograph` where the motion carries the explanation; check plays every one from every reachable state.
 
 ## Loop
 
 Commands are `rayner <command>`, or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the install lines for capture and PNG output.
 
-1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`. Rewrite the script first. Keep one default-exported `Scene` subclass with static `meta` (id, title, sources, answer, checks, and `lang` if not English) and, if a second scenario teaches something, static `settings`.
+1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first. Keep one default-exported `Scene` subclass with static `meta` (id, title, sources, answer, checks, and `lang` if not English) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.
 3. `rayner check scene.ts` until it passes.
 4. `rayner review scene.ts --out public/<id>.html` when the scene settles. It checks every scenario, reviews the served page at phone and desktop widths, and keeps that exact page with its receipt. Look at its screenshots.
@@ -79,27 +107,31 @@ The [engine map](https://github.com/adewale/rayner/blob/main/docs/ENGINE.md) lis
 
 Each explainer in [`scenes/explainers/`](https://github.com/adewale/rayner/blob/main/scenes/explainers) shows a technique. Copy the nearest one rather than starting blank; these are ways that worked, not rules:
 
+<!-- generated from test/public-names.json by `node tools/public-names.ts --write`: examples -->
 | You are explaining | Start from | It shows |
 | --- | --- | --- |
 | Two algorithms or policies on the same input | `scenes/tutorial/lru-mru` (what `rayner init` writes) | One card with a column per policy, read from the model's trace; one scenario that favours each policy; captions tested against the model |
 | A code change and what it does to a system | `mr-cache` | `TransformDiff` on the code, the same edit replayed on the diagram with `ops`, a setting for hit or miss |
 | Authoring feature reference | `feature-tour` | Choose a feature scenario: the recipe step shows the author-written API, the result step runs it. See [scope and specialized APIs](../../docs/FEATURE-TOUR.md) |
 | A protocol or request flow | `oauth-pkce` | A sequence diagram revealed message by message (`build: 'frame'`, `reveal`); a setting that adds the attacker's step |
-| A data structure changing step by step | `ring-buffer` | No diagram: native shapes, `Succession`, a `view` of `scene.state` |
-| A state machine | `state-machine` | A state diagram driven by the real reducer, code spans, `Restore` |
-| A model the reader could drive with events | `statecharts` (the frother) | A `Machine` over the model's step; `rayner check` draws every reachable state |
+| A sequence of separate pictures, one per step | `bloom-filter`, `git-branches` | `s.steps([...])`: each step carries its `state` and a `draw(state, s)` for its picture; `rayner check` redraws every step after the run and fails one that comes out different |
+| A data structure changing step by step | `ring-buffer` | No diagram: native shapes drawn as views of `scene.state`, a `Machine` of push and pop, each event's motion authored with `choreograph`, `Follow` for the pointers |
+| A state machine | `state-machine` | A state diagram driven by the real reducer as a `Machine`, code spans boxed from the row it read |
+| A model the reader could drive with events | `scenes/tutorial/door` (what `rayner init --machine` writes), `statecharts` (the frother) | A `Machine` over the model's step, refusals with reasons, a live last step; `rayner check` draws every reachable state |
 | Nested or parallel states | A Mermaid `stateDiagram-v2` with composites and regions ([recipe](../../docs/REFERENCE.md#state-machines-and-graphs)); `statecharts` when position carries meaning | `statecharts`: native boxes and arrows drawn from a model's states and transitions; a keyed `view` whose parts keep their identity as a grid becomes regions; a flat and a structured drawing side by side |
 | A race or ordering bug | `latest-search` | A real controlled-promise run that opens on the unguarded race (the page ends on the older query) before naming the ticket that fixes it; guard and completion order change the displayed result |
 | A rate or a model's numbers over time | `token-bucket`, `seasons` | `token-bucket`: `Axes`, `lineGraph`, `Follow` for the gauge and the line from one elapsed time; `seasons`: `Axes.plot`; a setting that reruns the model |
-| Identity, hashing or text that changes | `exgit` | `TransformMatchingText`, `TransformMatchingShapes`, `TransformFromCopy` |
+| Identity, hashing or text that changes | `exgit`, `glyph` | `exgit`: Git's objects drawn as `view`s of the repository's state and synced as each command runs, a `BraceLabel` on the abbreviated id; `glyph`: `TransformMatchingShapes` pairs letters by their outlines |
 | Keyed cells or nodes rearranged between pictures of the same state | `periodic-groups` | `view(...).sync({ match: 'key' })`; `matchByKey({ fallback })` for unkeyed parts that should stay put, `{ text: 'whole' }` when a relabelled part is a new thing (`statecharts`); `find(key)` to address a part |
 | A real tool's behaviour, checked against it | `isdigit`, `gtfs`, `traffic-policy` | A model checked against the tool's own output, with a fidelity test |
 | Records, schedules or shares | `gtfs` (ER, gantt), `pg-page` (pie), `cert-renewal` (timeline) | Diagram families beyond flowcharts |
 | A subject in another language | `quotient-familial` | `meta.lang: 'fr'`; descriptions in French |
-| A drawing made by hand, values said on it | `pen-and-pencil` | `s.draw` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards |
+| A drawing made by hand, values said on it | `pen-and-pencil` | `s.sketch` with a pen and pencil, `s.focus` on the camera, `s.carry`, `s.dimension` and `s.callout` instead of cards |
+| A claim about viewpoint or projection | `great-circle` | `seenFrom` and a turned model in the drawing kit: 3D earns its place when the claim is about how a thing looks from somewhere (a straight line on a globe is curved on the map). Otherwise a 2D section in the right plane reads better, as `seasons` draws the Sun's rays |
 | A requested face in text and diagrams | `font-metrics` | EB Garamond, real cuts and `lettering: 'natural'` diagram measurements |
-| Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, tempo and unchanged-timing controls; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
+| Sound compared with a visible score | `melody-rhythm` | Optional `step.audio`, two piano rolls from the played notes, an unchanged-timing control; see [score audio](../../docs/REFERENCE.md#optional-score-audio) |
 | Explicit panel placement and field order | `layout-direction` | RTL `start`/`end` placement, a card's LTR override and updates that keep their columns |
+<!-- end of generated examples -->
 
 A state machine, statechart or graph is usually best as a Mermaid `stateDiagram-v2` or flowchart with `s.show`: layout and connector routing come with it, and composite states, regions, marks, walks and keyed morphs work on its parts. Draw by hand when position itself carries meaning the layout cannot keep.
 
@@ -107,9 +139,9 @@ A state machine, statechart or graph is usually best as a Mermaid `stateDiagram-
 
 The scene asks the model; it never states an answer it did not get from one. This is the check that matters most, and the one no other tool gives you. These steps apply when you write or change a model; a change to layout, captions or publishing needs none of them.
 
-1. Put the model in its own module, with no drawing in it. In this repository, a model of an outside tool or format gets `scenes/explainers/lib/<id>.ts`; the small models behind `ring-buffer`, `state-machine`, `token-bucket` and `seasons` share `scenes/explainers/lib/models.ts`.
+1. Put the model in its own module, with no drawing in it. In this repository, a model of an outside tool or format gets `scenes/explainers/lib/<id>.ts`; the small models behind `ring-buffer`, `state-machine`, `token-bucket` and `seasons` share `scenes/explainers/lib/models.ts`. An explainer that reuses another's model imports its inputs too, never a copy of them, so the two cannot drift; and its notes claim no reuse the code does not do.
 2. Check the model against its source: run the real program or library, or use its published test vectors, and pin the version you ran in the `meta.sources` links (`isdigit` links CPython at tag `v3.15.1`). If you cannot run the source, pin exactly what you relied on instead (the tagged source file, the RFC section or the published test vectors) and say in your report that you read it but did not run it. Never leave a placeholder where a pin belongs.
-3. At each step, record what the picture shows on `this.state` (`isdigit` sets `this.state.outcome = run.outcome` from the model's run).
+3. At each step, record the model's values on `this.state` (`isdigit` sets `this.state.outcome = run.outcome` from the model's run; a step in `s.steps` records its `state`). What is shown that is not the model, such as which picture a phase shows, goes on `this.shown`.
 4. Add a test that runs every scenario and asserts each step's state equals the model. In this repository, a model of an outside tool gets `test/lib/fidelity/<id>.ts`, using `assertStepState(trace, step, { … })`, called from `test/explain-fidelity.test.ts`; a model in `lib/models.ts` is tested in `test/explain-models.test.ts`, and a picture built with `view` adds `assertViewFollowsState`. Make the test fail first: break the model and watch it go red.
 
 ## Claims, words and limits
@@ -126,7 +158,7 @@ These follow the statechart skill that checks a TLA+ model and draws it for the 
 
 These are how the engine works, not advice; breaking one breaks the build or the page.
 
-- One scene, one clock: never call `Scene.play()` concurrently. Use `{ parallel: true }` or one `play`.
+- One scene, one clock: never call `Scene.play()` concurrently. Put simultaneous animations in one `play(a, b)`.
 - No awaited animation inside `try`/`catch` or `.catch()` in `construct()`; handle model errors in plain code first.
 - Finish every change before a step's last `play()` ends: the picture must not move during the caption hold.
 - Walks use real links; a missing link is a bug in the diagram or the model, never a reason to draw a shortcut.
@@ -146,4 +178,4 @@ Report the commands you ran, the artifact paths and what the checks found. Do no
 
 The engine is a fork of Lantern by Ivar Vong (MIT). Keep the MIT and font notices, and do not imply endorsement by Lantern or Agentic Mermaid.
 
-The reviewed page is ready to upload with its header recipe and optional loader; another build is unnecessary. Where helper intent does not name a caption's subject, add `scene.review.json`; see [reader review](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#reader-review). For judging a finished explainer, or choosing a gallery hero, use the [rubric](../../docs/EXPLAINER-RUBRIC.md).
+The reviewed page is ready to upload with its header recipe and optional loader; another build is unnecessary. Where the stage helpers do not tell the reader review what a caption's subject is, name it in `scene.review.json`'s `subjects`; see [reader review](https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#reader-review). For judging a finished explainer, or choosing a gallery hero, use the [rubric](../../docs/EXPLAINER-RUBRIC.md).

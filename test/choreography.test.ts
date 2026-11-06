@@ -3,11 +3,18 @@ import assert from 'node:assert/strict';
 import {
   Scene, Group, Rectangle, Circle, Dot, Line, Text, FadeIn, MoveAlongPath,
   GrowFromEdge, PulseAlongPath, SetState, AnimationGroup, LaggedStart, Succession,
-  SnapshotSink, StringSink, NullSink, TraceSink, renderAt, traceScene, StateReadout, view,
-  loadFonts, toSvgString, linear, easeInQuad, UP, DOWN, LEFT, RIGHT,
+  StateReadout, view,
+  linear,
 } from '../src/index.ts';
+import { SnapshotSink, StringSink, NullSink, renderAt, toSvgString } from '../src/output.ts';
+import { TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
 import type { Mobject, Vec } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
+// Manim's values, which the package no longer exports.
+const DOWN: Vec = [0, -1];
+const LEFT: Vec = [-1, 0];
+const RIGHT: Vec = [1, 0];
+const UP: Vec = [0, 1];
 
 await loadFonts();
 
@@ -121,7 +128,7 @@ test('PulseAlongPath applies a supplied easing once and supports retaining the i
   class Demo extends Scene {
     dot = new Dot();
     override async construct() {
-      await this.play(new PulseAlongPath(this.dot, new Line([0, 0], [4, 0]), { rateFunc: easeInQuad, remover: false }));
+      await this.play(new PulseAlongPath(this.dot, new Line([0, 0], [4, 0]), { rateFunc: (t: number) => t * t, remover: false }));
     }
   }
   const scene = await renderAt(Demo, 0.5, sink) as Demo;

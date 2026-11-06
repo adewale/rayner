@@ -50,7 +50,7 @@ test('WebKit checks served paint for every scenario of the cache, rate, PKCE, re
         scenarios++;
       }
     }
-    assert.equal(scenarios, 18, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 2 face (natural and recorded widths), 4 music, 5 periodic-table');
+    assert.equal(scenarios, 16, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 2 face (natural and recorded widths), 2 music, 5 periodic-table');
     await page.setViewportSize({width: 390, height: 667});
     await page.goto(server!.url + '/melody-rhythm.html');
     await page.waitForSelector('[data-ready=true]');
@@ -144,7 +144,7 @@ test('native macOS Safari runs the introduction, scenario changes, requested let
     await driver.wait('return window.__readyStep==="diff"');
     await driver.open('/mr-cache.html?request=hit&step=request');
     await driver.click('input[name=request][value=miss]');
-    await driver.wait('return window.__readyStep==="request" && document.querySelector(".caption").textContent.startsWith("KV has no entry")');
+    await driver.wait('return window.__readyStep==="request" && document.querySelector(".caption").textContent.startsWith("Walked through the edited diagram and code, the miss")');
     assert.equal(await driver.execute('return document.documentElement.scrollWidth>innerWidth'), false);
     await driver.open('/font-metrics.html?step=cuts');
     assert.equal(await driver.execute('return document.querySelectorAll(".stage path").length>=9'), true);
@@ -155,7 +155,7 @@ test('native macOS Safari runs the introduction, scenario changes, requested let
     const periodic = await driver.execute<string>('return document.querySelector(".described").textContent');
     assert.match(periodic, /2 \+ 10 \+ 5 = 17/);
     assert.match(periodic, /Its 7 after neon alone would say 7: 10 short/);
-    assert.match(await driver.execute<string>('return document.querySelector(".caption").textContent'), /aluminium counts 3 in group 13/);
+    assert.match(await driver.execute<string>('return document.querySelector(".caption").textContent'), /Chlorine has 7 electrons after neon yet sits in group 17/);
     await driver.open('/melody-rhythm.html');
     assert.equal(await driver.execute('return document.querySelectorAll(".score-playhead").length'), 0);
     await driver.click('.score-audio button[aria-label="Play A: even beats"]');

@@ -1,9 +1,7 @@
 {
   "version": 2,
-  "importer": "82e109ba821c7b3c",
+  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "2fbd1975fd2a3c6ede729e1f8c93df5f3b957b00e38eaace34fd99be5d9bdea9",
-  "diagrams": {
-    "[\"graph TB\\nFont[Inter] --> Shape[Shape text]\\nShape --> Paths[Cubic paths]\\nPaths --> SVG[SVG player]\\nPaths --> PNG[PNG stills]\",\"pen-and-ink\"]": "9725559958b9a5bd.json"
-  }
+  "sourceHash": "35eef4f17b853599d0b685a35aa2d4fa6da1b1c7a94618ea031d6e41ed8ab379",
+  "diagrams": {}
 }

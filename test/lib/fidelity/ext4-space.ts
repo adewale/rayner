@@ -13,6 +13,8 @@ export function check(trace: Trace, values: Record<string, string>): void {
     l = sp.layout;
   // The opening: what statfs says users can write, and the rest; the opening pie is those two numbers.
   assertStepState(trace, 'df', {
+    // The cards say which disk and reserve they are about.
+    disk: { size, label: SIZES[size].label, reserve: m },
     df: {
       blocks: l.blocks,
       users: sp.users,
@@ -43,6 +45,8 @@ export function check(trace: Trace, values: Record<string, string>): void {
       files: l.filesTotal,
       other: l.other,
     },
+    // The other-metadata card adds each copy's descriptor blocks.
+    descBlocks: l.descBlocks,
   });
   // The chosen reserve has its own step only when it is not the default.
   const hasChosen = trace.steps.some((s) => s.step === 'chosen');
@@ -50,6 +54,8 @@ export function check(trace: Trace, values: Record<string, string>): void {
   if (hasChosen)
     assertStepState(trace, 'chosen', {
       chosen: { percent: m, root: chosen.root, users: chosen.users, gained: chosen.users - sp.users, pie: wholePie(chosen, 'users') },
+      // The chosen reserve's card states the kernel's reserve beside the root's.
+      chosenKernel: chosen.kernel,
     });
   assertStepState(trace, 'sizes', {
     sizes: Object.fromEntries(
@@ -58,5 +64,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
         return [k, { metadata: x.layout.metadata, root: x.root, users: x.users }];
       }),
     ),
+    // The sizes card states each share of its own disk's blocks.
+    sizeBlocks: Object.fromEntries((Object.keys(SIZES) as Size[]).map((k) => [k, space(SIZES[k].bytes, m).layout.blocks])),
   });
 }

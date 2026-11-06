@@ -11,7 +11,7 @@
 // No updater is ever registered, so a play with a sync in it is still a pure
 // function of alpha and seeking can skip its frames. See docs/VIEWS.md.
 
-import { Mobject, Group } from './mobject.ts';
+import { Mobject, Group, paintDefaults } from './mobject.ts';
 import type { Box, HasText } from './mobject.ts';
 import { Animation, Transform, TransformMatching, TransformMatchingShapes, TransformMatchingText, matchByKey } from './animation.ts';
 import type { MatchKey, MatchSummary } from './animation.ts';
@@ -42,6 +42,8 @@ export interface SyncOpts {
   lagRatio?: number;
   /** Default: 'text' when either picture contains a Text, else 'index'. */
   match?: ViewMatch;
+  /** Parts that go fade out over the first half and parts that come fade in over the second, so the two never overlap (not for 'index'). Default false. */
+  staged?: boolean;
 }
 
 /**
@@ -69,7 +71,8 @@ export class View<M extends Mobject = Mobject> extends Group {
   constructor(scene: Scene<any>, draw: (state: SceneState, shown: SceneState) => M, { place = 'center' }: ViewOpts = {}) {
     super();
     this.host = scene;
-    this.build = () => draw(scene.state, scene.shown); this.draw = draw; this.place = place; this.scaleK = 1;
+    // Every picture a view draws takes its scene's colours (see Mobject.defaultColors).
+    this.build = () => paintedFor(scene, draw(scene.state, scene.shown)); this.draw = draw; this.place = place; this.scaleK = 1;
     const first = fresh(this.build(), null);
     this.builtSize = layoutSize(first);
     this.add(first);
@@ -96,7 +99,7 @@ export class View<M extends Mobject = Mobject> extends Group {
    */
   placed(state: SceneState, shown: SceneState = this.host.shown): M {
     const keep = [this.builtSize, this.scaleK] as const;
-    const next = this.fit(fresh(this.draw(state, shown), this.current));
+    const next = this.fit(fresh(paintedFor(this.host, this.draw(state, shown)), this.current));
     [this.builtSize, this.scaleK] = keep;
     return next;
   }
@@ -152,6 +155,7 @@ export class View<M extends Mobject = Mobject> extends Group {
 export class ViewSync<M extends Mobject = Mobject> extends Animation {
   view: View<M>;
   match: ViewMatch | undefined;
+  staged: boolean;
   /** Set by begin(): the morph from the current picture to the built one, or null when nothing changed. */
   inner!: Animation | null;
   /** Set by begin(): the built, placed picture, swapped in at finish(). */
@@ -159,9 +163,9 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
   private previousSize!: [number, number];
   private previousScale!: number;
 
-  constructor(v: View<M>, { match, ...opts }: SyncOpts = {}) {
+  constructor(v: View<M>, { match, staged = false, ...opts }: SyncOpts = {}) {
     super(v, opts);
-    this.view = v; this.match = match;
+    this.view = v; this.match = match; this.staged = staged;
   }
 
   override begin(): void {
@@ -172,10 +176,11 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     if (samePicture(old, next)) { this.inner = null; this.next = null; return; }
     const match = this.match ?? (hasText(old) || hasText(next) ? 'text' : 'index');
     // replace: false everywhere: the View, not the scene, takes the new picture (see finish)
-    const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false })
-      : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false })
+    const staged = this.staged;
+    const inner: Animation = match === 'text' ? new TransformMatchingText(old, next, { replace: false, staged })
+      : match === 'shapes' ? new TransformMatchingShapes(old, next, { replace: false, staged })
       : match === 'index' ? new Transform(old, next)
-      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false });
+      : new TransformMatching(old, next, { key: match === 'key' ? matchByKey() : match, replace: false, staged });
     if (inner instanceof Transform) inner.sameStructure = old.sameShapeAs(next, true);
     inner.lagRatio = this.lagRatio;
     inner.begin();
@@ -208,6 +213,13 @@ export class ViewSync<M extends Mobject = Mobject> extends Animation {
     const e = this.inner?.evidence() ?? null;
     return e && this.view.key !== undefined ? { ...e, view: this.view.key } : e;
   }
+}
+
+/** `m`, its parts given `scene`'s colours where they still hold a default. */
+function paintedFor<M extends Mobject>(scene: Scene<any>, m: M): M {
+  // A stand-in for a scene (a test's `{ state, shown }`) has no colours: its parts take them when they enter one.
+  if (scene.colors && m instanceof Mobject) paintDefaults(m, scene.colors);
+  return m;
 }
 
 /**

@@ -26,6 +26,8 @@
 //   src/backend/access/heap/hio.c:767, 859-860  otherwise add a page, which needs only room for len
 // MAXALIGN is 8 on a 64-bit build: pg_controldata on the measured server prints "Maximum data alignment: 8".
 
+import { percent as formatPercent } from './format.ts';
+
 export const BLCKSZ = 8192;
 export const MAXIMUM_ALIGNOF = 8;
 export const PAGE_HEADER = 24;
@@ -194,5 +196,4 @@ export function scenarioOf(column: Column, fillfactor: number): Scenario {
 }
 
 /** "11.0%": a share of the page to one decimal, as the pie's legend rounds it (a drawn slice shows at least 0.1%). */
-export const percent = (bytes: number) =>
-  bytes > 0 ? `${Math.max(0.1, Math.round((bytes / BLCKSZ) * 1000) / 10).toFixed(1)}%` : '0.0%';
+export const percent = (bytes: number) => formatPercent(bytes, { of: BLCKSZ, least: 0.1, rounding: 'Math.round' });

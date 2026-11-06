@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "importer": "82e109ba821c7b3c",
+  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "25a86b3473454e3035c68b38043e363e13e19348a7e434ebdf2cbcfde909fac6",
+  "sourceHash": "e7571270467b145f6a6606b0257fb0b590fd7a00af321f8f44e86e057cee41d3",
   "diagrams": {
     "[\"graph LR\\nDoc[JSON doc]\\nParser[Flowchart parser]\\nScene[Scene class]\\nClock[Fixed dt clock]\\nPlayer[Dev player]\\nWorker[Worker]\\nFrames[SVG frames]\\nDoc --> Scene\\nParser --> Scene\\nScene --> Clock\\nClock --> Player\\nClock --> Worker\\nClock --> Frames\",\"github-light\"]": "608006a71def6f23.json",
     "[\"graph LR\\nSettings[Settings]\\nCapture[Agentic Mermaid]\\nSnaps[Snapshots]\\nScene[Scene class]\\nClock[Fixed dt clock]\\nPage[Embed page]\\nFrames[SVG frames]\\nImage[PNG stills]\\nCheck[rayner check]\\nSettings --> Scene\\nCapture --> Snaps\\nSnaps --> Scene\\nScene --> Clock\\nClock --> Page\\nClock --> Frames\\nFrames --> Image\\nClock --> Check\",\"github-light\"]": "100417c02e9126d7.json"
