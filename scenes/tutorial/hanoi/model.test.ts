@@ -16,13 +16,18 @@ function search(n: number) {
   return { arrangements: depth.size, fewest: depth.get(key({ pegs: [[], [], start(n).pegs[0]!] })) };
 }
 
-test('no route is shorter than 7 moves for three disks or 15 for four', () => {
+test('no route is shorter than 7 moves for three disks, 15 for four or 31 for five', () => {
   assert.deepEqual(search(3), { arrangements: 27, fewest: 7 });
   assert.deepEqual(search(4), { arrangements: 81, fewest: 15 });
+  assert.deepEqual(search(5), { arrangements: 243, fewest: 31 });
+});
+
+test('disk 1 moves first to C when the number of disks is odd, and to B when it is even', () => {
+  assert.deepEqual([3, 4, 5].map((n) => solve(n)[0]), ['A→C', 'A→B', 'A→C']);
 });
 
 test('solve() keeps the rules, finishes on C, and takes the fewest moves', () => {
-  for (const n of [3, 4]) {
+  for (const n of [3, 4, 5]) {
     let tower = start(n);
     for (const m of solve(n)) {
       const after = next(tower, m);
