@@ -1,0 +1,63 @@
+{
+  "python": "3.12.14",
+  "dict": {
+    "original": {
+      "indices": [
+        0,
+        1,
+        -1,
+        -1,
+        -1,
+        -1,
+        2,
+        -1
+      ],
+      "entries": [
+        {
+          "key": 0,
+          "value": "apple"
+        },
+        {
+          "key": 8,
+          "value": "pear"
+        },
+        {
+          "key": 16,
+          "value": "plum"
+        }
+      ]
+    },
+    "deleted": {
+      "indices": [
+        -2,
+        1,
+        -1,
+        -1,
+        -1,
+        -1,
+        2,
+        -1
+      ],
+      "entries": [
+        {
+          "key": null,
+          "value": null
+        },
+        {
+          "key": 8,
+          "value": "pear"
+        },
+        {
+          "key": 16,
+          "value": "plum"
+        }
+      ]
+    },
+    "lookups": {
+      "0": null,
+      "8": "pear",
+      "16": "plum",
+      "24": null
+    }
+  }
+}
