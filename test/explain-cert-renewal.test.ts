@@ -27,8 +27,8 @@ import {
   shouldRenew,
   simulate,
   summarize,
-} from '../scenes/explainers/lib/cert-renewal.ts';
-import type { LifetimeKey, Rule } from '../scenes/explainers/lib/cert-renewal.ts';
+} from '../scenes/explainers/cert-renewal/model.ts';
+import type { LifetimeKey, Rule } from '../scenes/explainers/cert-renewal/model.ts';
 
 const hours = (ms: number) => ms / 3600e3;
 

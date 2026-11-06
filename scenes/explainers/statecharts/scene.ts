@@ -3,8 +3,8 @@ import type { Mobject, MatchKey, Vec, Box, VMobject, Transition } from '../../..
 import { stage, regionBox } from '../../../explain/index.ts';
 import { keyed } from '../../../explain/drawing.ts';
 import type { Stage } from '../../../explain/index.ts';
-import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, drivenStart, drivenNext, events as chartEvents } from '../lib/statecharts.ts';
-import type { StateNode, FlatMachine, Driven } from '../lib/statecharts.ts';
+import { CONTROLS, FROTHER, RUNS, player, coffee, coffeeWithFrother, boxed, byHand, flatten, flatName, run, activeStates, chartCounts, flatCounts, initial, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
+import type { StateNode, FlatMachine, Driven } from './model.ts';
 
 // Every box and arrow below is drawn from a model state or transition; only positions are chosen
 // here. Parts are keyed by where they sit in the grid of playback × volume, so a state keeps its

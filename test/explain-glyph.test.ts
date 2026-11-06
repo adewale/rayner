@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { shaperFor } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import GlyphExplainer from '../scenes/explainers/glyph/scene.ts';
+import { explainerMeta } from '../tools/lib/explain-intent.ts';
 
 const SIZE = 0.9;
 const advances = (font: 'sans' | 'mono', text: string) => shaperFor(font)(text, SIZE).glyphs.map((g) => ({ ch: text[g.cluster]!, ax: g.ax }));
@@ -37,7 +38,7 @@ test('glyph: Inter gives l and i its narrowest advance, and only the H is wider 
 
 test('glyph: the check answers’ widths are the shapers’ own', async () => {
   await loadFonts();
-  const answers = GlyphExplainer.meta.checks.map((c) => c.answer).join(' ');
+  const answers = explainerMeta(GlyphExplainer, 'scenes/explainers/glyph').checks!.map((c) => c.answer).join(' ');
   // “illicit” and “mammoth”: seven cells each in JetBrains Mono; thin stems against wide m’s in Inter.
   for (const word of ['illicit', 'mammoth']) assert.equal(width('mono', word).toFixed(2), '3.78');
   assert.equal(width('sans', 'illicit').toFixed(2), '1.90');

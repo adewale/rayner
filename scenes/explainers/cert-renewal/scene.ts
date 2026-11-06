@@ -21,8 +21,8 @@ import {
   simulate,
   summarize,
   windowFor,
-} from '../lib/cert-renewal.ts';
-import type { LifetimeKey, Rule } from '../lib/cert-renewal.ts';
+} from './model.ts';
+import type { LifetimeKey, Rule } from './model.ts';
 
 const STYLE = 'excalidraw';
 const RULES: Record<Rule, { name: string; short: string }> = {

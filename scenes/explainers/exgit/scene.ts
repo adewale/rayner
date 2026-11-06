@@ -12,8 +12,8 @@ import {
 } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, CodeBlock } from '../../../explain/index.ts';
 import type { Diagram, NoteSide } from '../../../explain/index.ts';
-import { Repo, AUTHOR, parseTree } from '../lib/git.ts';
-import { keyed } from '../lib/lesson-drawing.ts';
+import { Repo, AUTHOR, parseTree } from './model.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import { objectLines, reachable, secondCommit } from './objects.ts';
 
 const STYLE = 'catppuccin-mocha';

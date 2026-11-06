@@ -4,8 +4,8 @@ import { assertStepState } from '../explainer-state.ts';
 import { assertSteps } from '../steps.ts';
 import {
   NIST_UP_TO, POSITIONS, atomicNumber, periodLength, configText, coreOf, counted, gaps, listed, membersOf, position, predicted, shorthand, symbolOf,
-} from '../../../scenes/explainers/lib/periodic-groups.ts';
-import type { Symbol } from '../../../scenes/explainers/lib/periodic-groups.ts';
+} from '../../../scenes/explainers/periodic-groups/model.ts';
+import type { Symbol } from '../../../scenes/explainers/periodic-groups/model.ts';
 
 const CHOSEN: Record<string, Symbol> = { na: 'Na', cl: 'Cl', fe: 'Fe', cu: 'Cu', he: 'He' };
 

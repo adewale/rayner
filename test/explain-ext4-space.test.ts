@@ -33,8 +33,8 @@ import {
   space,
   superGroups,
   wholePie,
-} from '../scenes/explainers/lib/ext4-space.ts';
-import type { Size } from '../scenes/explainers/lib/ext4-space.ts';
+} from '../scenes/explainers/ext4-space/model.ts';
+import type { Size } from '../scenes/explainers/ext4-space/model.ts';
 
 const MiB = 2 ** 20;
 

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {pictureHtml} from '../../../explain/trace.ts';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { SINGLES, WRAPS, build, nameOf, isSend, isSync, threads } from '../../../scenes/explainers/lib/send-sync.ts';
-import type { Inner, Wrapper } from '../../../scenes/explainers/lib/send-sync.ts';
+import { SINGLES, WRAPS, build, nameOf, isSend, isSync, threads } from '../../../scenes/explainers/send-sync/model.ts';
+import type { Inner, Wrapper } from '../../../scenes/explainers/send-sync/model.ts';
 
 /** Every scenario's step state equals the evaluator's answers for its wrapper and inner type. */
 export function check(trace: Trace, values: Record<string, string>): void {

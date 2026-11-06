@@ -1,12 +1,12 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/just-bash.ts';
+import { frames as readerFrames, ANSWER } from './picture.ts';
 import { Scene, Text, Group, Rectangle, Transform, Arrow, AnimationGroup, Succession, FadeIn, Machine, choreograph, view } from '../../../src/index.ts';
 import type { Animation, Box, Choreography, Mobject, SceneState, Transition } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { exec } from '../lib/models.ts';
-import type { Shell } from '../lib/models.ts';
-import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from '../lib/just-bash.ts';
-import type { ShellSession, BashEvent } from '../lib/just-bash.ts';
+import { exec } from './model.ts';
+import type { Shell } from './model.ts';
+import { sessionOfShells, sessionNextShell, scriptBound, BASH_EVENTS } from './model.ts';
+import type { ShellSession, BashEvent } from './model.ts';
 const STYLE = 'chalkboard';
 const PIPELINE = [
   ['echo', 'hello'],

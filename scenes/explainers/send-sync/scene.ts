@@ -2,8 +2,8 @@ import { Scene, Text, Rectangle, Group, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from '../lib/send-sync.ts';
-import type { Inner, Wrapper, Quadrant, Layer, RustType } from '../lib/send-sync.ts';
+import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
+import type { Inner, Wrapper, Quadrant, Layer, RustType } from './model.ts';
 
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in lib/send-sync.ts
 // and test/explain-send-sync.test.ts.

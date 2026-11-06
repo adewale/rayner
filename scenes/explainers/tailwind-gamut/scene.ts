@@ -1,10 +1,10 @@
-import { frames as readerFrames } from '../lib/readers/tailwind-gamut.ts';
+import { frames as readerFrames } from './picture.ts';
 import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, REGIONS, mermaid } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SHADES, cssMap, inside, rows, summarize, swatch } from '../lib/tailwind-gamut.ts';
-import type { Row, Shade } from '../lib/tailwind-gamut.ts';
+import { SHADES, cssMap, inside, rows, summarize, swatch } from './model.ts';
+import type { Row, Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 

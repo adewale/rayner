@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import { SAMPLE_FEED } from '../../../scenes/explainers/gtfs/feed.ts';
-import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf, weekGrid } from '../../../scenes/explainers/lib/gtfs.ts';
+import { readFeed, servicesOn, tripsOn, stopDay, ganttEdits, addDays, stopTimesOf, bandsOf, weekGrid } from '../../../scenes/explainers/gtfs/model.ts';
 
 const STOPS: Record<string, string> = { airport: 'BEATTY_AIRPORT', stagecoach: 'STAGECOACH' };
 

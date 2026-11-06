@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Explicit distribution gate: pack, install in a fresh author project, run the installed CLI.
-import { mkdtemp, mkdir, writeFile, readFile, copyFile, cp, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, copyFile, cp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -221,9 +221,9 @@ try {
     ['font-metrics', join(ROOT, 'scenes/explainers/font-metrics')],
     ['layout-direction', join(ROOT, 'scenes/explainers/layout-direction')],
   ];
-  // Copy the real authoring examples and their shared drawing modules into the
-  // outside project. Engine imports use the installed package; lesson imports
-  // keep their relative paths, so missing author-owned dependencies still fail.
+  // Copy the real authoring examples into the outside project, each folder whole (its scene,
+  // model and picture modules). Engine imports use the installed package; other imports keep
+  // their relative paths, so a dependency outside the explainer's folder still fails.
   const copyAuthorSource = async (source: string, target: string) => {
     const code = (await readFile(source, 'utf8')).replace(
       /(['"])(?:\.\.\/)+(src\/index|src\/output|explain\/index|explain\/drawing)\.ts\1/g,
@@ -232,13 +232,11 @@ try {
     );
     await writeFile(target, code);
   };
-  await mkdir(join(folder, 'lib/readers'), { recursive: true });
-  for (const file of ['reader-drawing.ts', 'lesson-drawing.ts', 'readers/layout-direction.ts'])
-    await copyAuthorSource(join(ROOT, 'scenes/explainers/lib', file), join(folder, 'lib', file));
   for (const [name, source] of replayFixtures) {
     const target = join(folder, 'outline-' + name);
     await mkdir(target);
-    await copyAuthorSource(join(source, 'scene.ts'), join(target, 'scene.ts'));
+    for (const file of (await readdir(source)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts')))
+      await copyAuthorSource(join(source, file), join(target, file));
     // A claim names the test that backs it. An outside project keeps its tests beside its scenes,
     // so carry each named test file over; check still fails if the named test is not in it.
     for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {

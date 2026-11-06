@@ -13,8 +13,8 @@ import {
   atExpress,
   positions,
   readAddresses,
-} from '../../../scenes/explainers/lib/trust-proxy.ts';
-import type { RequestKey, TrustKey } from '../../../scenes/explainers/lib/trust-proxy.ts';
+} from '../../../scenes/explainers/trust-proxy/model.ts';
+import type { RequestKey, TrustKey } from '../../../scenes/explainers/trust-proxy/model.ts';
 
 /** The scene's option labels for the requests, as its captions spell them. */
 const REQUEST_LABEL_CHECK: Record<RequestKey, string> = {

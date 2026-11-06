@@ -3,8 +3,8 @@ import { callout } from '../../../explain/drawing.ts';
 import type { View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
-import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from '../lib/quotient-familial.ts';
-import type { Impot } from '../lib/quotient-familial.ts';
+import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from './model.ts';
+import type { Impot } from './model.ts';
 
 // Every rule is read from openfisca-france at tag 176.1.3 (commit 5cc6563); the model in
 // ../lib/quotient-familial.ts quotes file and line for each one.

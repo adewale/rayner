@@ -23,8 +23,8 @@ import {
   rows,
   summarize,
   swatch,
-} from '../scenes/explainers/lib/tailwind-gamut.ts';
-import type { Family, Shade } from '../scenes/explainers/lib/tailwind-gamut.ts';
+} from '../scenes/explainers/tailwind-gamut/model.ts';
+import type { Family, Shade } from '../scenes/explainers/tailwind-gamut/model.ts';
 
 // ---------------------------------------------------------------- the palette as vendored
 test('the vendored lines are the 300, 500 and 700 shades of the 17 coloured families, at their theme.css lines', () => {

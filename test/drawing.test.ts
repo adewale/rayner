@@ -1,10 +1,7 @@
-// The drawing kit published as rayner/drawing: its exact names, and the collection's scene
-// libraries handing out the very same functions.
+// The drawing kit published as rayner/drawing: its exact names, which the collection's scenes import directly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as drawing from '../explain/drawing.ts';
-import * as lesson from '../scenes/explainers/lib/lesson-drawing.ts';
-import * as reader from '../scenes/explainers/lib/reader-drawing.ts';
 import { readFileSync } from 'node:fs';
 import { stage } from '../explain/index.ts';
 import type { Box } from '../src/index.ts';
@@ -13,13 +10,6 @@ test('rayner/drawing exports exactly the kit, and package.json publishes it', ()
   assert.deepEqual(Object.keys(drawing).sort(), ['bars', 'between', 'callout', 'circleOn', 'depthOrder', 'dimension', 'dot', 'flow', 'greatArc', 'keyed', 'keyedParts', 'label', 'latLon', 'legend', 'pin', 'project', 'seenFrom', 'seenPictures', 'segment', 'stat', 'table', 'tile', 'toLatLon']);
   const exports = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).exports;
   assert.deepEqual(exports['./drawing'], { types: './dist/explain/drawing.d.ts', default: './dist/explain/drawing.js' });
-});
-
-test('the scene libraries re-export the published functions rather than copies', () => {
-  for (const name of ['keyed', 'label', 'tile', 'segment', 'dot', 'table', 'stat', 'flow', 'bars', 'callout', 'dimension', 'pin', 'legend'] as const)
-    assert.equal((lesson as Record<string, unknown>)[name], drawing[name], `lesson-drawing ${name}`);
-  for (const name of ['label', 'tile', 'table', 'flow', 'bars'] as const)
-    assert.equal((reader as Record<string, unknown>)[name], drawing[name], `reader-drawing ${name}`);
 });
 
 test('keyed sets a key and returns the mobject; segment and dot take keys like the rest of the kit', async () => {

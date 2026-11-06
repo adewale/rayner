@@ -1,11 +1,11 @@
-import { Group, Code, Rectangle, Line, Circle, Arrow } from '../../../../src/index.ts';
-import type { Mobject } from '../../../../src/index.ts';
-import type { Stage } from '../../../../explain/index.ts';
-import { runSearch, raceLifetimes, racePage, raceReplay } from '../latest-search.ts';
-import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from '../latest-search.ts';
-import { label, tile } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group, Code, Rectangle, Line, Circle, Arrow } from '../../../src/index.ts';
+import type { Mobject } from '../../../src/index.ts';
+import type { Stage } from '../../../explain/index.ts';
+import { runSearch, raceLifetimes, racePage, raceReplay } from './model.ts';
+import type { CompletionOrder, Query, PageSpan, RaceState, RaceEvent } from './model.ts';
+import { label, tile } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** What the user typed for each search: A is the older keystroke, B the latest. */
 export const TYPED: Record<Query, string> = { A: 'ca', B: 'cat' };

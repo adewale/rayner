@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { BR_PHASES, EMISSION, FIXED_INTERVAL, LE_DATES, LIFETIMES, LIMIT, ariSummary, dueOffset, simulate, summarize, windowFor } from '../../../scenes/explainers/lib/cert-renewal.ts';
-import type { LifetimeKey, Rule } from '../../../scenes/explainers/lib/cert-renewal.ts';
+import { BR_PHASES, EMISSION, FIXED_INTERVAL, LE_DATES, LIFETIMES, LIMIT, ariSummary, dueOffset, simulate, summarize, windowFor } from '../../../scenes/explainers/cert-renewal/model.ts';
+import type { LifetimeKey, Rule } from '../../../scenes/explainers/cert-renewal/model.ts';
 
 /** Every scenario's step state equals the renewal model's answers for that lifetime and rule. */
 export function check(trace: Trace, values: Record<string, string>): void {

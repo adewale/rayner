@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import assert from 'node:assert/strict';
-import { activeStates, RUNS } from '../../../scenes/explainers/lib/statecharts.ts';
+import { activeStates, RUNS } from '../../../scenes/explainers/statecharts/model.ts';
 import { CHARTS, FIXTURE } from '../../../tools/oracle/statecharts.ts';
 import type { Expected } from '../../../tools/oracle/statecharts.ts';
 

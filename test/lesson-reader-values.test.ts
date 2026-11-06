@@ -6,7 +6,7 @@ import { loadFonts } from '../explain/testing.ts';
 import { stage } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { fc, params } from './lib/pbt.ts';
-import { bars } from '../scenes/explainers/lib/reader-drawing.ts';
+import { bars } from '../explain/drawing.ts';
 await loadFonts();
 
 test('comparison bars preserve a common scale, exact ends and an empty zero', () => {
@@ -212,7 +212,7 @@ test('the complete annual daylight picture labels its fixed zero, twelve and twe
 });
 
 test('the ext4 reserve comparison actually changes reserve and preserves the metadata allocation', async () => {
-  const { space, SIZES } = await import('../scenes/explainers/lib/ext4-space.ts');
+  const { space, SIZES } = await import('../scenes/explainers/ext4-space/model.ts');
   const p = await collectProject('scenes/explainers/ext4-space', { write: false });
   // The 1 TiB disk formatted with -m 1, against the default -m 5 the story walks first.
   const v = p.scenarios.find((x) => x.values.size === '1t' && x.values.reserve === '1');
@@ -301,7 +301,7 @@ test('traffic comparisons draw each source pod share without attributing the ing
 });
 
 test('GNOME sample labels explain every participant outcome and retain the report categories in every scenario', async () => {
-  const { frames } = await import('../scenes/explainers/lib/readers/gnome-files.ts');
+  const { frames } = await import('../scenes/explainers/gnome-files/picture.ts');
   // Report page 7, in participant order P1..P6; the selected participant's first
   // abandoned task is fixed by the session ordering, not the report's chapter order.
   const tasks = { P1: 4, P2: 1, P3: 3, P4: 3, P5: 3, P6: 1 } as const;

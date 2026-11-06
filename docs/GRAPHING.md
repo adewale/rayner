@@ -11,11 +11,11 @@ VMobject made of cubic Béziers, and bars are Rectangles. So `Create` draws a ch
 ## Example: daylight hours from the seasons model
 
 The seasons explainer computes daylight with `sunlight(latitude, declination)` in
-`scenes/explainers/lib/models.ts`. Here the scene plots that same function:
+`scenes/explainers/seasons/model.ts`. Here the scene plots that same function:
 
 ```ts
 import { Scene, Axes, Create, Transform, FadeIn } from '../../../src/index.ts';
-import { sunlight, daylightYear } from '../lib/models.ts';
+import { sunlight, daylightYear } from './model.ts';
 
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 // Declination: month m (0 = January) to degrees

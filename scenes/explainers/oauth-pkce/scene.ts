@@ -2,8 +2,8 @@ import { Scene, Group, Rectangle, Text, Arrow, Line, Dot, AnimationGroup, Succes
 import type { Animation, Mobject, SceneState, Choreography, Transition, ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { pkceChallenge, sha256 } from '../lib/models.ts';
-import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type LaneMessage, type SignIn, type SignInEvent } from '../lib/pkce.ts';
+import { pkceChallenge, sha256 } from './model.ts';
+import { pkceFlow, theftFlow, lanes, readable, signInStart, signInNext, SIGN_IN_EVENTS, VERIFIER, GUESS, type Message, type LaneMessage, type SignIn, type SignInEvent } from './model.ts';
 import { listed } from '../lib/format.ts';
 const STYLE = 'github-light';
 // One colour per value, so the reader can follow each across the flow (outcomes use the stage's good and bad).

@@ -36,8 +36,8 @@ import {
   subshellText,
   shorthand,
   beyondCore,
-} from '../lib/periodic-groups.ts';
-import type { Block, Symbol, Subshell } from '../lib/periodic-groups.ts';
+} from './model.ts';
+import type { Block, Symbol, Subshell } from './model.ts';
 import { listed as list } from '../lib/format.ts';
 
 // The table: 18 numbered columns, 7 periods, the f block's two rows below.

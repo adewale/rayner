@@ -29,8 +29,8 @@ import {
   ganttEdits,
   weekGrid,
   WEEKDAYS,
-} from '../scenes/explainers/lib/gtfs.ts';
-import type { Feed, GtfsDate } from '../scenes/explainers/lib/gtfs.ts';
+} from '../scenes/explainers/gtfs/model.ts';
+import type { Feed, GtfsDate } from '../scenes/explainers/gtfs/model.ts';
 
 const FEED = readFeed(SAMPLE_FEED);
 

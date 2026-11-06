@@ -40,7 +40,7 @@
 // The model covers what the scene shows: a whole number of 128 MiB block groups from 512 MiB to 64 TiB,
 // with the default mke2fs.conf. test/explain-ext4-space.test.ts holds it to mkfs.ext4 1.47.3 runs.
 
-import { percent as formatPercent } from './format.ts';
+import { percent as formatPercent } from '../lib/format.ts';
 
 export const BLOCK = 4096;
 export const INODE_SIZE = 256;

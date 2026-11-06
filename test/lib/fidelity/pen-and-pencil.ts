@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { WORLD, TITLE, HAND, timelineFacts, hershey } from '../../../scenes/explainers/lib/pen-and-pencil.ts';
+import { WORLD, TITLE, HAND, timelineFacts, hershey } from '../../../scenes/explainers/pen-and-pencil/model.ts';
 
 /** Counts come from the world's text, letters from Hershey Simplex; no scenery on owned paper; ink stays near its marks. */
 export function check(trace: Trace): void {

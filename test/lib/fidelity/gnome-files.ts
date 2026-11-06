@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
 import { assertSteps } from '../steps.ts';
-import { COLOURS, GROUPS, PARTICIPANTS, SCORE, gaveUp, giveUps, quitters, scoreOf } from '../../../scenes/explainers/lib/gnome-files.ts';
-import type { Participant } from '../../../scenes/explainers/lib/gnome-files.ts';
+import { COLOURS, GROUPS, PARTICIPANTS, SCORE, gaveUp, giveUps, quitters, scoreOf } from '../../../scenes/explainers/gnome-files/model.ts';
+import type { Participant } from '../../../scenes/explainers/gnome-files/model.ts';
 
 /** Every scenario's step state equals the heat map's answers for that participant. */
 export function check(trace: Trace, values: Record<string, string>): void {

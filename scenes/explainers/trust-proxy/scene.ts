@@ -21,8 +21,8 @@ import {
   positions,
   readAddresses,
   reqIp,
-} from '../lib/trust-proxy.ts';
-import type { Outcome, Position, Reading, RequestKey, TrustKey, Verdict } from '../lib/trust-proxy.ts';
+} from './model.ts';
+import type { Outcome, Position, Reading, RequestKey, TrustKey, Verdict } from './model.ts';
 import { numberWord } from '../lib/format.ts';
 
 // Sources, each fetched at the pinned tag or commit; the lines each claim rests on are quoted in

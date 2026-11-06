@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { sky, declination, sunset, sunrise, crossings, henge, TILT, LATITUDE, STREET, SUN_RADIUS } from '../scenes/explainers/lib/henge.ts';
+import { sky, declination, sunset, sunrise, crossings, henge, TILT, LATITUDE, STREET, SUN_RADIUS } from '../scenes/explainers/henge/model.ts';
 import { fc, params } from './lib/pbt.ts';
 import { collectProject, defaultScenario } from '../tools/lib/explain-project.ts';
 import { check as checkHengeScene } from './lib/fidelity/henge.ts';

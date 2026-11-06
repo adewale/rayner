@@ -1,8 +1,8 @@
-import { Group } from '../../../../src/index.ts';
-import { exec } from '../models.ts';
-import { flow, label, table } from '../reader-drawing.ts';
-import type { StagedStep } from '../../../../explain/index.ts';
-import { stagedStep } from '../../../../explain/index.ts';
+import { Group } from '../../../src/index.ts';
+import { exec } from './model.ts';
+import { flow, label, table } from '../../../explain/drawing.ts';
+import type { StagedStep } from '../../../explain/index.ts';
+import { stagedStep } from '../../../explain/index.ts';
 
 /** The script's answer (meta.answer), stated by the second step. */
 export const ANSWER = 'exec returns a new shell holding the write and leaves the shell you passed in unchanged';

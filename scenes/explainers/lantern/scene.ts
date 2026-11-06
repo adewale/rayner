@@ -2,7 +2,7 @@ import { Scene, Rectangle, Dot, Circle, Line, Text, Group, VMobject, FadeIn, Tra
 import { toSvgString, renderAt, StringSink } from '../../../src/output.ts';
 import type { Box, Mobject, Vec } from '../../../src/index.ts';
 import { stage, regionBox, settingsOf } from '../../../explain/index.ts';
-import { keyed } from '../lib/lesson-drawing.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 const STYLE = 'hand-drawn';

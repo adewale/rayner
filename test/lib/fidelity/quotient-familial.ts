@@ -1,6 +1,6 @@
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { impot, bareme, tranche, repartition, BAREME } from '../../../scenes/explainers/lib/quotient-familial.ts';
+import { impot, bareme, tranche, repartition, BAREME } from '../../../scenes/explainers/quotient-familial/model.ts';
 
 /** Every scenario's step state equals the model's answers for its number of children and income. */
 export function check(trace: Trace, values: Record<string, string>): void {

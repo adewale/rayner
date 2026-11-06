@@ -2,7 +2,7 @@ import { Scene, Text, Rectangle, Line, Group, FadeIn, view } from '../../../src/
 import type { Mobject, Box, Vec, SceneState } from '../../../src/index.ts';
 import { stage, settingsOf, Card, CodeBlock } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import { callout } from '../lib/lesson-drawing.ts';
+import { callout } from '../../../explain/drawing.ts';
 import {
   CHARS,
   LINEUP,
@@ -20,8 +20,8 @@ import {
   valueOf,
   SPACE,
   rewrite,
-} from '../lib/isdigit.ts';
-import type { Char, CharId, Predicate } from '../lib/isdigit.ts';
+} from './model.ts';
+import type { Char, CharId, Predicate } from './model.ts';
 
 // Sources: CPython at tag v3.15.1 and the Unicode Character Database 17.0.0. Lines are quoted beside
 // each claim here and in lib/isdigit.ts; CPython's own answers are frozen in test/explain-isdigit.test.ts.

@@ -1,13 +1,13 @@
 import { Scene, Group, Circle, Dot, Line, Polygon, Rectangle, Arrow, VMobject, Follow, SetState, Succession, view, linear } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import { label } from '../lib/lesson-drawing.ts';
+import { label } from '../../../explain/drawing.ts';
 import type { Stage, StagedStep } from '../../../explain/index.ts';
 import { depthOrder, seenPictures } from '../../../explain/drawing.ts';
 import type { Seen, SeenPicture } from '../../../explain/drawing.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import { henge, declination, sunset } from '../lib/henge.ts';
-import type { Street } from '../lib/henge.ts';
+import { henge, declination, sunset } from './model.ts';
+import type { Street } from './model.ts';
 import { dome, year, look, globes, crossedBy, INK, SUN, SUMMER, MUTED, ROAD } from './sky.ts';
 import type { SkyState, YearState, LookState, GlobeState, DayAt } from './sky.ts';
 type Sunset = ReturnType<typeof henge>['seasons'][number];

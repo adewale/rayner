@@ -14,8 +14,8 @@ import {
   secondHop,
   seenSource,
   shares,
-} from '../../../scenes/explainers/lib/traffic-policy.ts';
-import type { PlacementKey, Policy } from '../../../scenes/explainers/lib/traffic-policy.ts';
+} from '../../../scenes/explainers/traffic-policy/model.ts';
+import type { PlacementKey, Policy } from '../../../scenes/explainers/traffic-policy/model.ts';
 
 /** Every scenario's step state equals the model's answers for its policy and placement. */
 export function check(trace: Trace, values: Record<string, string>): void {

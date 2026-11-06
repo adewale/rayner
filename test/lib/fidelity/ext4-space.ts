@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
-import { DEFAULT_RESERVE, SIZES, metadataPie, space, wholePie } from '../../../scenes/explainers/lib/ext4-space.ts';
-import type { Size } from '../../../scenes/explainers/lib/ext4-space.ts';
+import { DEFAULT_RESERVE, SIZES, metadataPie, space, wholePie } from '../../../scenes/explainers/ext4-space/model.ts';
+import type { Size } from '../../../scenes/explainers/ext4-space/model.ts';
 
 /** Every scenario's step state equals the model's layout for its size and reserve. */
 export function check(trace: Trace, values: Record<string, string>): void {

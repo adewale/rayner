@@ -5,22 +5,15 @@ import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertSteps } from './lib/steps.ts';
-import {
-  reduceSession,
-  sessionAttempt,
-  TokenBucket,
-  ringStory,
-  exec,
-  sunlight,
-  noonShare,
-  noonPatch,
-  sunDistance,
-  daylightYear,
-} from '../scenes/explainers/lib/models.ts';
-import { raceLifetimes, racePage, raceReplay } from '../scenes/explainers/lib/latest-search.ts';
-import type { RaceState } from '../scenes/explainers/lib/latest-search.ts';
-import { find, run } from '../scenes/explainers/lib/2password.ts';
-import { pkceFlow, lanes, readable } from '../scenes/explainers/lib/pkce.ts';
+import { reduceSession, sessionAttempt } from '../scenes/explainers/state-machine/model.ts';
+import { TokenBucket } from '../scenes/explainers/token-bucket/model.ts';
+import { ringStory } from '../scenes/explainers/ring-buffer/model.ts';
+import { exec } from '../scenes/explainers/just-bash/model.ts';
+import { sunlight, noonShare, noonPatch, sunDistance, daylightYear } from '../scenes/explainers/seasons/model.ts';
+import { raceLifetimes, racePage, raceReplay } from '../scenes/explainers/latest-search/model.ts';
+import type { RaceState } from '../scenes/explainers/latest-search/model.ts';
+import { find, run } from '../scenes/explainers/2password/model.ts';
+import { pkceFlow, lanes, readable } from '../scenes/explainers/oauth-pkce/model.ts';
 import { Scene, Text, Code, parseUnifiedDiff, smooth } from '../src/index.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { pictureHtml } from '../explain/trace.ts';
@@ -33,7 +26,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as mrCache from '../scenes/explainers/mr-cache/code.ts';
-import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
+import { Repo, AUTHOR } from '../scenes/explainers/exgit/model.ts';
 import { check as certRenewal } from './lib/fidelity/cert-renewal.ts';
 import { check as quotientFamilial } from './lib/fidelity/quotient-familial.ts';
 import { check as sendSync } from './lib/fidelity/send-sync.ts';
@@ -114,7 +107,7 @@ for (const entry of EXPLAINERS)
           assertStepState(trace, 'year', { daylight: daylightYear(lat) });
           // The chart samples the model through the year, and its counts of polar days run it on every day, with
           // daylightYear's own declination, δ = −23.44° × cos(360° × (day + 10) / 365), which the scene restates
-          // (lib/models.ts does not export it): on each month's 15th it gives daylightYear's value.
+          // (seasons/model.ts does not export it): on each month's 15th it gives daylightYear's value.
           const declination = (day: number) => -23.44 * Math.cos((2 * Math.PI * (day + 10)) / 365);
           const fifteenths = [14, 45, 73, 104, 134, 165, 195, 226, 257, 287, 318, 348];
           assert.deepEqual(

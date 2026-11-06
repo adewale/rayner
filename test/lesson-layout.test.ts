@@ -5,8 +5,8 @@ import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import type { Mobject } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
-import { table } from '../scenes/explainers/lib/lesson-drawing.ts';
-import { bars, flow } from '../scenes/explainers/lib/reader-drawing.ts';
+import { table } from '../explain/drawing.ts';
+import { bars, flow } from '../explain/drawing.ts';
 import { fc, params } from './lib/pbt.ts';
 
 await loadFonts();

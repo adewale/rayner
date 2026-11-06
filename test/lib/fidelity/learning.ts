@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import type {Trace} from '../../../src/trace.ts';
 import {assertStepState} from '../explainer-state.ts';
 import {assertSteps,idsOf} from '../steps.ts';
-import {dictStory} from '../../../scenes/explainers/lib/python-dict.ts';
-import {bloomStory,saturation} from '../../../scenes/explainers/lib/bloom-filter.ts';
-import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/lib/git-branches.ts';
-import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter,roundStart,roundNext} from '../../../scenes/explainers/lib/monty-hall.ts';
-import type {Host,Round,RoundEvent} from '../../../scenes/explainers/lib/monty-hall.ts';
-import {birthdayStory,birthdayChance,pairCount} from '../../../scenes/explainers/lib/birthday-paradox.ts';
-import {musicStory} from '../../../scenes/explainers/lib/melody-rhythm.ts';
-import type {Timing} from '../../../scenes/explainers/lib/melody-rhythm.ts';
+import {dictStory} from '../../../scenes/explainers/python-dict/model.ts';
+import {bloomStory,saturation} from '../../../scenes/explainers/bloom-filter/model.ts';
+import {gitStory,currentFiles,moveMainToFeature} from '../../../scenes/explainers/git-branches/model.ts';
+import {monty,montyExample,threeDoorWorlds,threeDoorCells,oddsAfter,roundStart,roundNext} from '../../../scenes/explainers/monty-hall/model.ts';
+import type {Host,Round,RoundEvent} from '../../../scenes/explainers/monty-hall/model.ts';
+import {birthdayStory,birthdayChance,pairCount} from '../../../scenes/explainers/birthday-paradox/model.ts';
+import {musicStory} from '../../../scenes/explainers/melody-rhythm/model.ts';
+import type {Timing} from '../../../scenes/explainers/melody-rhythm/model.ts';
 
 /** Models have native/exhaustive oracles in learning-models.test.ts. This boundary
  * proves each authored setting puts those answers in its completed steps. */

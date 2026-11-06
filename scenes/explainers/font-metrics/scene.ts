@@ -1,7 +1,7 @@
 import { Scene, ItalicText, Group, Circle, Line, Rectangle, view } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
-import { dimension } from '../lib/lesson-drawing.ts';
+import { dimension } from '../../../explain/drawing.ts';
 
 const SAMPLE = 'Ink on paper';
 /** The gap each marker asks for after the phrase, in stage units. */

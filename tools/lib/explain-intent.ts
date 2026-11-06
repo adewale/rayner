@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /**
@@ -90,3 +91,17 @@ export function adoptIntent(Scene: { meta?: Record<string, unknown> }, intent: I
   Scene.meta = { ...Scene.meta, ...meta };
   return meta;
 }
+
+/**
+ * An explainer's metadata as its page has it: the scene's own, with its script's intent where the
+ * script beside it has an intent header. For tests and tools that hold the scene class without
+ * collecting the project (collectProject merges the same).
+ */
+export function explainerMeta<M extends object>(Scene: { meta?: M }, sceneDir: string): M & Partial<ReturnType<typeof intentMeta>> {
+  const file = join(sceneDir, 'script.md');
+  let text: string | null = null;
+  try { text = readFileSync(file, 'utf8'); } catch { /* no script */ }
+  const intent = text === null ? null : parseIntent(text, file);
+  return { ...(Scene.meta ?? ({} as M)), ...(intent ? intentMeta(intent) : {}) };
+}
+

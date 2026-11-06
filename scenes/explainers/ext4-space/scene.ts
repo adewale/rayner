@@ -20,8 +20,8 @@ import {
   space,
   times,
   wholePie,
-} from '../lib/ext4-space.ts';
-import type { Size, Slice, Space, WholeStage } from '../lib/ext4-space.ts';
+} from './model.ts';
+import type { Size, Slice, Space, WholeStage } from './model.ts';
 
 // Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in lib/ext4-space.ts and
 // test/explain-ext4-space.test.ts, which also freezes mkfs.ext4 1.47.3 runs and a mounted kernel's statfs.

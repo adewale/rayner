@@ -1,4 +1,4 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/wcag-map.ts';
+import { frames as readerFrames, ANSWER } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 import {
@@ -13,8 +13,8 @@ import {
   opened,
   principleOf,
   tally,
-} from '../lib/wcag-map.ts';
-import type { Criterion, Level, Version } from '../lib/wcag-map.ts';
+} from './model.ts';
+import type { Criterion, Level, Version } from './model.ts';
 import { listed } from '../lib/format.ts';
 
 // Of the light styles, github-light draws the root's label plainly; hand-drawn, excalidraw and pen-and-ink

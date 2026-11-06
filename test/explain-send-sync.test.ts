@@ -6,8 +6,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
-import { RULES, INNERS, WRAPS, SINGLES, CHECK_TYPES, OPENING, OPENING_TYPE, OPENING_ERROR, t, isSend, isSync, nameOf, build, threads, quadrantOf } from '../scenes/explainers/lib/send-sync.ts';
-import type { Ctor, Inner, Needs, RustType, Wrapper } from '../scenes/explainers/lib/send-sync.ts';
+import { RULES, INNERS, WRAPS, SINGLES, CHECK_TYPES, OPENING, OPENING_TYPE, OPENING_ERROR, t, isSend, isSync, nameOf, build, threads, quadrantOf } from '../scenes/explainers/send-sync/model.ts';
+import type { Ctor, Inner, Needs, RustType, Wrapper } from '../scenes/explainers/send-sync/model.ts';
 
 // Copied verbatim from rust-lang/rust at tag 1.99.1 (commit 213cfbe66a6da4e4b41bde365643286371af6e5a),
 // https://github.com/rust-lang/rust/tree/1.99.1/library, with file and line.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { henge, sunset, declination, type Street } from '../../../scenes/explainers/lib/henge.ts';
+import { henge, sunset, declination, type Street } from '../../../scenes/explainers/henge/model.ts';
 import { assertStepState } from '../explainer-state.ts';
 import { assertSteps } from '../steps.ts';
 

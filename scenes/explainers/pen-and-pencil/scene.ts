@@ -1,4 +1,4 @@
-import { frames as readerFrames, SEEDS, GREY, px } from '../lib/readers/pen-and-pencil.ts';
+import { frames as readerFrames, SEEDS, GREY, px } from './picture.ts';
 import { Scene, VMobject, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, Diagram, diagramsOf } from '../../../explain/index.ts';
@@ -23,8 +23,8 @@ import {
   boundsOf,
   tag,
   scenery,
-} from '../lib/pen-and-pencil.ts';
-import type { Pt, Box, Layer } from '../lib/pen-and-pencil.ts';
+} from './model.ts';
+import type { Pt, Box, Layer } from './model.ts';
 
 const STYLE = 'pen-and-ink';
 /** The page's warm-black pen, from the study. */

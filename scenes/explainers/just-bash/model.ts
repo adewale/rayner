@@ -1,12 +1,38 @@
 /**
- * The just-bash explainer's script as a machine: the caller runs its command lines through `exec` (lib/models.ts),
+ * The just-bash explainer's script as a machine: the caller runs its command lines through `exec` (below),
  * keeps the shell each write returns, and reads what cat prints on the newest shell or on the shell it started with.
  * No drawing here. Tested in test/explain-just-bash.test.ts.
  */
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';
-import { exec } from './models.ts';
-import type { Shell } from './models.ts';
+
+export interface Shell {
+  fs: Record<string, string>;
+  steps: number;
+}
+export function exec(
+  shell: Shell,
+  stages: readonly (readonly string[])[],
+  redirect?: string,
+): { shell: Shell; stdout: string } {
+  let stdout = '',
+    steps = shell.steps;
+  for (const [name, ...args] of stages) {
+    steps++;
+    if (name === 'echo') stdout = args.join(' ') + '\n';
+    else if (name === 'tr') stdout = stdout.toUpperCase();
+    else if (name === 'cat') stdout = shell.fs[args[0]!] ?? '';
+    else throw new Error(`Unknown model command: ${name}`);
+  }
+  const fs = { ...shell.fs };
+  if (redirect) {
+    fs[redirect] = stdout;
+    stdout = '';
+  }
+  return { shell: { fs, steps }, stdout };
+}
+
+
 
 export const PIPELINE = [
   ['echo', 'hello'],

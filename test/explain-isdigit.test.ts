@@ -22,8 +22,8 @@ import {
   UNSHOWN_DECIMAL,
   SPACE,
   rewrite,
-} from '../scenes/explainers/lib/isdigit.ts';
-import type { Char, CharId } from '../scenes/explainers/lib/isdigit.ts';
+} from '../scenes/explainers/isdigit/model.ts';
+import type { Char, CharId } from '../scenes/explainers/isdigit/model.ts';
 
 // Copied verbatim from https://www.unicode.org/Public/17.0.0/ucd/UnicodeData.txt, with line numbers,
 // fetched 2026-10-25. 三 (U+4E09) has no line of its own: it falls in the range whose first line is 12349

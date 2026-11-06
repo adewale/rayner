@@ -1,4 +1,4 @@
-import { frames as readerFrames, ANSWER } from '../lib/readers/2password.ts';
+import { frames as readerFrames, ANSWER } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 import {
@@ -12,7 +12,7 @@ import {
   distance,
   matches,
   terms,
-} from '../lib/2password.ts';
+} from './model.ts';
 
 const STYLE = 'excalidraw';
 const QUERIES = ['cloud api', 'databse'] as const;
