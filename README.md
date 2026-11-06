@@ -4,7 +4,7 @@ Rayner makes step-through explainers of technical subjects, from Git merges to E
 
 A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 empty and a later lookup for key 8 stops there and misses it; CPython instead leaves a deleted marker that sends the search on. In Rayner the dict is a TypeScript model checked against CPython 3.12’s own storage, each step is drawn from the model’s state, and `rayner check` fails a picture that disagrees with that state. How closely a model matches its subject varies from explainer to explainer, and the table below says what each was checked against.
 
-[![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
+[![Step 3 of the Python dict explainer: slot 0 holds D, the deleted marker, so the lookup for key 8 moves on to slot 1 and finds pear. A setting switches the lookup to key 16, and the step list and caption sit beside and below the picture.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/python-dict-marker.png)](https://oshineye.dev/projects/rayner/python-dict)
 
 | Explainer | Its model is checked against |
 |---|---|
@@ -19,7 +19,7 @@ A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 e
 | [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | Invariant tests of a teaching model with its own hashes, not a production filter |
 | [Why does the north have summer when Earth is farthest from the Sun?](https://oshineye.dev/projects/rayner/seasons) | Nothing external: a cited approximation of the Sun’s path, not validated against an almanac |
 
-Each explainer’s `notes.md` says what its model leaves out; the [Bloom filter’s scene](scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
+Each explainer’s `notes.md` says what its model leaves out; the [Bloom filter’s scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
 
 ## Quick start
 
@@ -52,9 +52,9 @@ npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 
 ## A complete explainer
 
-An explainer is three files with one job each. The **script** states the intent, for the author. The **model** expresses the system's constraints. The **scene** expresses how the system is explained. This is [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](test/explain-tutorial.test.ts) fails if the files below differ from those in the repository.
+An explainer is three files with one job each. The **script** states the intent, for the author. The **model** expresses the system's constraints. The **scene** expresses how the system is explained. This is [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](https://github.com/adewale/rayner/blob/main/test/explain-tutorial.test.ts) fails if the files below differ from those in the repository.
 
-![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](docs/images/hanoi-steps.png)
+![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/hanoi-steps.png)
 
 The script's header is what the explainer must achieve. Rayner reads it: the question is the page's title, some step must state the answer, the player asks the check questions, and the page says what the model is checked against. Below the header is the author's own reasoning:
 
