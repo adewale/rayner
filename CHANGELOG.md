@@ -96,7 +96,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
 
 ## 0.1.1 (2026-10-29)
 
-A preview release, superseded by 0.2.0.
+A preview release, superseded by 0.2.0. It was tagged in git and never published to npm.
 
 - Put step captions next to their pictures. Hide Next view and its instructions when a step has only one view.
 - Refresh phone tour controls after a viewport resize while preserving the reader’s current zoom and step.
