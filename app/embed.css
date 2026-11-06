@@ -109,6 +109,7 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .live .event:focus-visible .reason:not(:empty){display:block}
 @media(hover:hover){.live .event:hover .reason:not(:empty){display:block}}
 .live-said:empty{display:none}
+.rail-body>.live{padding:8px 10px 12px;margin-block-end:8px;border-block-end:1px solid var(--line)}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
 .caption,.caption-ruler{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
