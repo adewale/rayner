@@ -3587,8 +3587,9 @@ test('both pen drawings retain every construction mark and its readable count th
 });
 
 // ---------------------------------------------------------------------------
-// Issue #96, narrowed: a step's close-up is a function of the scenario, the step and the stage's
-// settled size, not of the path that reached it. Only the inputs the burst property's counterexample
+// Issue #96, narrowed: the stage's size is a function of the scenario and the page's size, and on a
+// narrow stage a step's close-up is a function of the scenario, the step and that size, not of the
+// path that reached them. Only the inputs the burst property's counterexample
 // implicated are generated (scenario switches, step picks and viewport resizes, with short gaps), so
 // shrinking lands on the shortest path whose resting framing differs from a fresh link's.
 type Resting = { size: [number, number]; view: string };
@@ -3606,7 +3607,7 @@ async function restingView(page: Page): Promise<Resting> {
   }
   throw new Error(`the stage never held still: ${last}`);
 }
-test('player: a step’s resting close-up is the one a fresh link to its scenario and step opens with, whatever path reached it', options, async () => {
+test('player: the stage’s size, and on a narrow stage a step’s close-up, are what a fresh link opens with, whatever path reached them', options, async () => {
   const names = ['oauth-pkce', 'exgit', 'mr-cache', 'quotient-familial', 'token-bucket'];
   const sizes = [{ width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 900, height: 700 }];
   const starts = names.flatMap((name) => projects.get(name)!.scenarios.flatMap((v) => v.trace.steps.map((step) => ({ name, values: v.values, step: step.step }))));
@@ -3616,13 +3617,18 @@ test('player: a step’s resting close-up is the one a fresh link to its scenari
     fc.record({ kind: fc.constant('resize' as const), size: fc.constantFrom(...sizes) }),
   );
   await fc.assert(
-    fc.asyncProperty(fc.constantFrom(...starts), fc.constantFrom(...sizes), fc.array(fc.record({ action, gap: fc.constantFrom(0, 50, 300) }), { minLength: 1, maxLength: 5 }),
+    // The path ends on a scenario or step: that framing is a step's opening, which a fresh link
+    // defines. A resize after a step has settled keeps the reader's scale and pan (StageZoom), which
+    // the player model's properties check.
+    fc.asyncProperty(fc.constantFrom(...starts), fc.constantFrom(...sizes),
+      fc.tuple(fc.array(fc.record({ action, gap: fc.constantFrom(0, 50, 300) }), { maxLength: 4 }), fc.record({ action: action.filter((a) => a.kind !== 'resize'), gap: fc.constantFrom(0, 50, 300) })).map(([path, last]) => [...path, last]),
       async (start, viewport, actions) => {
         const p = projects.get(start.name)!, ids = settingsOfProject(p).map((s) => s.id);
         await readerContext({ reducedMotion: 'reduce', viewport }, async (context) => {
           const { page, errors } = await counted(context, `${embed}/${start.name}.html?${scenarioQuery(p, start.values, start.step)}`);
-          let size = viewport;
+          let size = viewport, before = '';
           for (const { action: a, gap } of actions) {
+            before = page.url();
             if (a.kind === 'resize') { size = a.size; await page.setViewportSize(size); }
             else await page.evaluate(({ a, settings }) => {
               if (a.kind === 'scenario') {
@@ -3634,20 +3640,34 @@ test('player: a step’s resting close-up is the one a fresh link to its scenari
           }
           await stepReady(page, ids);
           await quiet(page);
+          // Only a step that opened last has its opening framing: a press that changed nothing (the
+          // scenario already chosen) leaves the earlier step, and a resize since then keeps its zoom.
+          fc.pre(page.url() !== before);
           const reached = await restingView(page);
           const url = new URL(page.url()), values = Object.fromEntries(ids.map((id) => [id, url.searchParams.get(id)!])) as Settings;
-          const fresh = await counted(context, `${embed}/${start.name}.html?${scenarioQuery(p, values, url.searchParams.get('step')!)}`);
-          await fresh.page.setViewportSize(size);
-          await stepReady(fresh.page, ids);
-          await quiet(fresh.page);
           assert.deepEqual(errors, []);
-          assert.deepEqual(fresh.errors, []);
-          assert.deepEqual(reached, await restingView(fresh.page), `${url.search} at ${size.width} × ${size.height}`);
+          // A fresh link opened at the final size, in its own context: a page resized after it settles
+          // keeps its zoom (StageZoom), so it would not be a fresh link at that size.
+          await readerContext({ reducedMotion: 'reduce', viewport: size }, async (freshContext) => {
+            const fresh = await counted(freshContext, `${embed}/${start.name}.html?${scenarioQuery(p, values, url.searchParams.get('step')!)}`);
+            await stepReady(fresh.page, ids);
+            await quiet(fresh.page);
+            assert.deepEqual(fresh.errors, []);
+            const opened = await restingView(fresh.page), where = `${url.search} at ${size.width} × ${size.height}`;
+            assert.deepEqual(reached.size, opened.size, `stage size, ${where}`);
+            // A narrow stage opens each step on its own close-up, so the framing is the step's. A wide
+            // stage keeps the reader's zoom across steps and widths, as the player model checks.
+            if (reached.size[0] < NARROW_PX) assert.equal(reached.view, opened.view, `close-up, ${where}`);
+          });
         });
       }),
-    // Shrunk counterexamples it found (#96): from attacker=yes at “stolen”, switch to attacker=no
-    // (the stage kept the smaller size); and resize to a phone, then switch (the close-up kept the old size's).
+    // The shrunk counterexample it found (#96): from attacker=yes at “stolen”, switching to attacker=no
+    // kept the smaller stage. The second example, a resize just before the switch, guards the oracle:
+    // it failed only while the fresh link was resized after it settled. The third crosses NARROW_PX and
+    // switches at once: the narrow redraw, aborted by the switch, rejected a promise no one held.
     params(12, { examples: [
+      [{ name: 'mr-cache', values: { request: 'miss' }, step: 'request' }, sizes[0]!, [{ action: { kind: 'resize', size: sizes[1]! }, gap: 0 }, { action: { kind: 'scenario', setting: 0, option: 0 }, gap: 0 }]],
+      [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[1]!, [{ action: { kind: 'resize', size: sizes[0]! }, gap: 0 }, { action: { kind: 'step', i: 1 }, gap: 0 }]],
       [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[0]!, [{ action: { kind: 'scenario', setting: 0, option: 1 }, gap: 0 }]],
       [{ name: 'oauth-pkce', values: { attacker: 'yes' }, step: 'stolen' }, sizes[0]!, [{ action: { kind: 'resize', size: sizes[1]! }, gap: 0 }, { action: { kind: 'scenario', setting: 0, option: 1 }, gap: 0 }]],
     ] as [typeof starts[number], typeof sizes[number], { action: { kind: 'scenario'; setting: number; option: number } | { kind: 'step'; i: number } | { kind: 'resize'; size: typeof sizes[number] }; gap: 0 | 50 | 300 }[]][] }),
