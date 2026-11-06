@@ -1,7 +1,7 @@
 import { adoptIntent, readIntent } from './explain-intent.ts';
 import {textContextOf} from '../../src/text-context.ts';
 import { offPage, prepareLettering as prepareOutlineLettering } from './lettering.ts';
-import { bindLettering, usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
+import { usesOutlineLettering, withSceneLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../../src/lettering-outlines.ts';
 import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
@@ -366,7 +366,7 @@ export async function collectProject(
         async () => {
           const counted = edits;
           for (const values of scenariosOf(Source)) {
-            const scene = await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
+            await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
               skipUntil: Infinity,
             }).run();
           }

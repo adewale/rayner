@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Scene, Text, Group, Code, StateReadout} from '../src/index.ts';
+import {Scene, Group, Code, StateReadout} from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import {Card, CodeBlock} from '../explain/panels.ts';

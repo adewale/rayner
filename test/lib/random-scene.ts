@@ -11,12 +11,10 @@ import {
   linear, smooth, rushInto, thereAndBack,
 } from '../../src/index.ts';
 import { Indicate, Flash } from './transient.ts';
-import type { Animation, AnimateBuilder, Mobject, Playable, SceneClass, Style, Vec } from '../../src/index.ts';
+import type { AnimateBuilder, Mobject, Playable, SceneClass, Style, Vec } from '../../src/index.ts';
 // Manim's values, which the package no longer exports.
 const DOWN: Vec = [0, -1];
-const LEFT: Vec = [-1, 0];
 const RIGHT: Vec = [1, 0];
-const UP: Vec = [0, 1];
 
 /** A seeded uniform draw in [lo, hi), with integer, pick and coin-flip helpers. */
 export interface Rng {

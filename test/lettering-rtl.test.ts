@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { Scene, Text, MathTex, TransformMatchingText } from '../src/index.ts';
+import { Scene, Text, TransformMatchingText } from '../src/index.ts';
 import { NullSink } from '../src/output.ts';
 import { loadFonts } from '../explain/testing.ts';
 import { bindLettering, runKey, unpackLettering, rightToLeft } from '../src/lettering-outlines.ts';

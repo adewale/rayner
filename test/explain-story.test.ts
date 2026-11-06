@@ -31,7 +31,7 @@ test('route and chart annotations leave the expected paper visible behind their 
           // its ink is now visible. This checks rendered pixels, not plate metadata.
           const boxes = labels.map((m) => toView(m.box()!, scene.frame.box()!));
           const opaque = labels.map((m) => m.family().every((f) => f.style.opacity >= 0.95));
-          for (const [i, full] of opaque.entries()) if (!full)
+          for (const [, full] of opaque.entries()) if (!full)
             assert.ok(id === 'mr-cache' && stepName === 'request', 'only the deliberately dimmed cache diagram uses the light-context bound');
           const children = labels.map((m) => m.children);
           labels.forEach((m) => { m.children = []; });

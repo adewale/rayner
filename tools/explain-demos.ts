@@ -20,7 +20,6 @@ import { serve } from './lib/explain-serve.ts';
 import { launch } from './lib/browser.ts';
 import { reviewSubjects } from './lib/explain-review-scene.ts';
 import { narrowOpeningPlan } from './lib/explain-story-review.ts';
-import type { NarrowOpeningObligation } from './lib/explain-review-plan.ts';
 import { buildInputs } from './lib/build-inputs.ts';
 import { selectedIds, selectExport } from './lib/explain-export-selection.ts';
 

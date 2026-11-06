@@ -8,7 +8,7 @@ import { isHeading, stagedStepsOf, pictureFingerprint } from '../../explain/stag
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {

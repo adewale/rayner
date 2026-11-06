@@ -1,14 +1,14 @@
 // Optional outline snapshots. This module has no installation side effects: a
 // page without lettering never imports a provider or carries a lettering store.
 import type { SceneClass } from './scene.ts';
-import { loadFonts, shapeChain, embeddedShaperFor } from './fonts.ts';
+import { shapeChain, embeddedShaperFor } from './fonts.ts';
 import type { FontName, Shaper } from './fonts.ts';
 import { loadFont } from '../vendor/glyph.js';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from './font-data.ts';
 import { Text, CodeSpan } from './text.ts';
-import type { Style, Box } from './mobject.ts';
-import {bindTextContext, textContextOf, withTextContext} from './text-context.ts';
+import type { Box } from './mobject.ts';
+import {bindTextContext, withTextContext} from './text-context.ts';
 import type {TextShaping} from './text-context.ts';
 
 /** Real cuts an explainer can ask for, instead of the stroked faux bold and no italic. */

@@ -41,7 +41,7 @@ try {
   });
   const cli = join(folder, 'node_modules/rayner/dist/tools/explain.js');
   const bin = join(folder, 'node_modules/.bin/rayner');
-  const { version, dependencies: peers } = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+  const { version } = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
   assert.ok((await run(bin, ['--help'], { cwd: folder })).stdout.startsWith(`Rayner ${version} (Node 24+)`));
   assert.equal((await run(bin, ['--version'], { cwd: folder })).stdout.trim(), version);
   const installed = join(folder, 'node_modules/rayner');
