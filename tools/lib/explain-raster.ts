@@ -1,10 +1,10 @@
-import { createRequire } from 'node:module';
 import { toSvgString } from '../../src/output.ts';
 import type { Scene } from '../../src/index.ts';
 import { FRAME } from '../../src/svg.ts';
+import { cliManifest } from './roots.ts';
 
 /** Package ranges, so a missing package's error gives the install line the help gives. */
-const PACKAGES: Record<string, string> = createRequire(import.meta.url)('../../package.json').dependencies;
+const PACKAGES = cliManifest.dependencies;
 let resvg: typeof import('@resvg/resvg-js') | undefined;
 /** Rasterise an SVG with the embedded fonts only. resvg loads on first use: only PNG output needs it. */
 export async function rasterize(svg: string) {

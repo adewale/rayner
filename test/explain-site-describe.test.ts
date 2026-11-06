@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describeExplainer } from '../explain/testing.ts';
 import type { ExplainerDescription } from '../explain/testing.ts';
-import { writeDescriptions, summaryOf, describeProject, checkBuilt } from '../tools/lib/explain-site-describe.ts';
+import { writeDescriptions, summaryOf, describeProject, checkBuilt } from '../tools/repo/lib/explain-site-describe.ts';
 import { collectProject, loadScene, sceneInputs, ROOT } from '../tools/lib/explain-project.ts';
 
 test('site:export copies each explainer\'s describe.json from demos:build as <id>.json beside its page, and writes llms.txt at the site root', async () => {
@@ -113,7 +113,7 @@ test("site:export refuses an explainer's built files when demos:build has not ru
 });
 
 test('llms.txt leaves out coverage-tier explainers', async () => {
-  const { llmsTxt } = await import('../tools/lib/explain-site-describe.ts');
+  const { llmsTxt } = await import('../tools/repo/lib/explain-site-describe.ts');
   const d = (title: string) => ({ title, settings: [], scenarios: [{ values: {}, steps: [{ caption: `${title} opens here.` }] }] }) as unknown as Parameters<typeof llmsTxt>[0][number]['d'];
   const llms = llmsTxt(
     [

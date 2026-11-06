@@ -9,7 +9,7 @@ import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
 import { SnapshotSink, renderAt } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { ROOT, LIB_ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences, pageSnapshot } from './lettering.ts';
@@ -59,10 +59,10 @@ export async function buildExplainer(
   const soundImport=withAudio ? `import{mountAudio}from ${JSON.stringify(join(ROOT,'app/embed-audio.ts'))};` : '';
   const mount = `mountEmbed(root,Source,${payload}${withAudio?',mountAudio':''})`,
     lettered = project.lettering
-      ? `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`
+      ? `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`
       : '';
   const author = project.outlineLettering
-    ? `import Original from 'virtual:author';import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};const Source=bindLettering(Original,${JSON.stringify(await pageSnapshot(project.outlineLettering))});`
+    ? `import Original from 'virtual:author';import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};const Source=bindLettering(Original,${JSON.stringify(await pageSnapshot(project.outlineLettering))});`
     : `import Source from 'virtual:author';`;
   // The script's intent reaches the bundled scene as it reached the one the build ran.
   const adopted = project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : '';
@@ -88,7 +88,7 @@ export async function buildExplainer(
           }));
         },
       },
-      ...(!project.lettering && !project.outlineLettering ? [browserFonts(ROOT)] : []),
+      ...(!project.lettering && !project.outlineLettering ? [browserFonts(LIB_ROOT)] : []),
       engineAlias(false, !!project.outlineLettering),
     ],
     logLevel: 'silent',
@@ -191,6 +191,8 @@ export async function buildLoader(out: string): Promise<void> {
     target: 'es2022',
     write: false,
     minify: true,
+    // The loader ships with the command and reaches the library's words by relative paths.
+    plugins: [engineAlias()],
   });
   await mkdir(dirname(resolve(out)), { recursive: true });
   await writeFile(out, result.outputFiles[0]!.text);

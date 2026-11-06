@@ -223,7 +223,7 @@
     },
     {
       "feature": "Parts of a line of code",
-      "uses": "`code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/tokens.ts`",
+      "uses": "`code.span`, `code.token`, `code.lineSpan`; `new Code(lines, { spans })` with spans from `tools/repo/tokens.ts`",
       "guide": "[Code](CODE.md)",
       "items": [
         {

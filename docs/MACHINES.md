@@ -332,7 +332,7 @@ dropped, since its scene may have stopped part-way. `test/embed-live.test.ts` ch
 run's every frame is the fresh run's, and `test/browser/explain-live.test.ts` that pictures
 reached by pressing, now through held runs, are the ones a fresh load of the link draws.
 
-`node tools/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
+`node tools/repo/live-cost.ts [--cpu 4]` measures it on the built pages: for each live step of the
 default scenario it presses six events in Chromium at 1280 × 900 (after one unmeasured press),
 each press extending the log, with Reset where no event goes on, and times each from the click to
 the first new picture on the stage (the animation starting), to the landing, and to the landing

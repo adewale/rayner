@@ -47,14 +47,14 @@ npm run rayner -- build path/to/scene.ts --out out/example.html
 
 On macOS, install Python with `brew install python@3.12`, create the environment with `python3.12 -m venv`, and also set `PYFTSUBSET` to the environment's `bin/pyftsubset`. An existing TeX installation finds Latin Modern Math with `kpsewhich latinmodern-math.otf`; its SHA-256 must match the original release.
 
-In an author project with the package installed, keep the environment and fonts in your own `out/` directory:
+In an author project, capture comes with `rayner-cli` (the library, `rayner`, only replays snapshots). Keep the environment and fonts in your own `out/` directory:
 
 ```sh
 python3 -m venv out/lettering-venv
-out/lettering-venv/bin/pip install -r node_modules/rayner/tools/lettering-requirements.txt
+out/lettering-venv/bin/pip install -r node_modules/rayner-cli/tools/lettering-requirements.txt
 export RAYNER_LETTERING_PYTHON="$PWD/out/lettering-venv/bin/python"
 export RAYNER_LETTERING_FONTS="$PWD/out/lettering-fonts"
-bash node_modules/rayner/tools/lettering-outline-fonts.sh
+bash node_modules/rayner-cli/tools/lettering-outline-fonts.sh
 npx rayner snapshots path/to/scene.ts
 npx rayner check path/to/scene.ts
 ```

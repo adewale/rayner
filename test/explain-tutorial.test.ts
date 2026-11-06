@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { MACHINE_STARTER_FILES, STARTER_FILES, packageImports } from '../tools/lib/explain-init.ts';
 import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
-import { DOCS, docBlocks } from '../tools/lib/docs-code.ts';
+import { DOCS, docBlocks } from '../tools/repo/lib/docs-code.ts';
 import type { Picture } from '../explain/trace.ts';
 import { assertStepState } from './lib/explainer-state.ts';
 import { assertSteps } from './lib/steps.ts';
@@ -146,5 +146,5 @@ test('the README and the tutorial print each tutorial file exactly as it is chec
   // What each guide must print: the tutorial's whole explainer, and the README's Hanoi.
   for (const file of STARTER_FILES) assert.ok(printed.some((b) => b.doc === 'docs/TUTORIAL.md' && b.file === `lru-mru/${file}`), `docs/TUTORIAL.md prints lru-mru/${file}`);
   for (const file of ['script.md', 'model.ts', 'scene.ts']) assert.ok(printed.some((b) => b.doc === 'README.md' && b.file === `hanoi/${file}`), `README.md prints hanoi/${file}`);
-  for (const b of printed) assert.equal(b.shown, b.source, `${b.doc} prints ${b.file} as checked in; run node tools/docs-code.ts --write`);
+  for (const b of printed) assert.equal(b.shown, b.source, `${b.doc} prints ${b.file} as checked in; run node tools/repo/docs-code.ts --write`);
 });

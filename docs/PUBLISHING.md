@@ -12,7 +12,7 @@ How to put a built page on a website. The contracts it relies on (URL parameters
 
    Review runs the checks and served-reader audit, then saves the reviewed HTML, receipt, header recipe and `loader.js`. Test the model and inspect the screenshots under `out/review/<id>/` too. A failed review removes the success receipt and leaves the previous published page alone.
 
-   In a checkout, use `npm run rayner -- review ...`. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
+   The `rayner` command comes from `rayner-cli`, installed beside `rayner`; in a checkout, use `npm run rayner -- review ...`. A host serving the page needs neither package. The HTML contains every scenario, poster, transcript, sources and licence notices. It makes no network requests at runtime. Use `build` for an unreviewed draft.
 
 2. Upload `cache.html` to any static host, with `loader.js` if you will use the loader.
 

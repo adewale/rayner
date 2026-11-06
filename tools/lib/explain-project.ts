@@ -7,7 +7,7 @@ import { build } from 'esbuild';
 import type { Plugin } from 'esbuild';
 import { readFile, writeFile, mkdir, stat, readdir, rm, rename, rmdir } from 'node:fs/promises';
 import { dirname, resolve, join, basename, relative, sep } from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { Scene } from '../../src/index.ts';
@@ -32,8 +32,9 @@ import { lostLabelWarnings } from './explain-warnings.ts';
 import { letteringRequest, prepareLettering, useProjectLettering } from './explain-lettering.ts';
 import type { Lettering } from './explain-lettering.ts';
 import { buildInputs } from './build-inputs.ts';
+import { COMPILED, LIB_ROOT, ROOT } from './roots.ts';
 
-export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+export { LIB_ROOT, ROOT };
 export const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 /**
  * Make bundled JavaScript safe inside an inline <script>. The HTML parser only
@@ -69,28 +70,32 @@ export function engineAlias(node = false, outlines = false): Plugin {
       }));
       b.onResolve({ filter: /.*/ }, (args) => {
         let file: string | undefined;
-        if (args.path === 'rayner') file = join(ROOT, 'src/index.ts');
-        else if (args.path === 'rayner/explain') file = join(ROOT, 'explain/index.ts');
-        else if (args.path === 'rayner/drawing') file = join(ROOT, 'explain/drawing.ts');
-        else if (args.path === 'rayner/lettering') file = join(ROOT, 'src/lettering.ts');
-        else if (args.path === 'rayner/output') file = join(ROOT, 'src/output.ts');
-        else if (args.path === 'rayner/testing') file = join(ROOT, 'explain/testing.ts');
+        if (args.path === 'rayner') file = join(LIB_ROOT, 'src/index.ts');
+        else if (args.path === 'rayner/explain') file = join(LIB_ROOT, 'explain/index.ts');
+        else if (args.path === 'rayner/drawing') file = join(LIB_ROOT, 'explain/drawing.ts');
+        else if (args.path === 'rayner/lettering') file = join(LIB_ROOT, 'src/lettering.ts');
+        else if (args.path === 'rayner/output') file = join(LIB_ROOT, 'src/output.ts');
+        else if (args.path === 'rayner/testing') file = join(LIB_ROOT, 'explain/testing.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);
-          if (compiled) file = join(ROOT, compiled[1]!, compiled[2]! + '.ts');
-          else if (
-            absolute.startsWith(join(ROOT, 'src') + '/') ||
-            absolute.startsWith(join(ROOT, 'explain') + '/') ||
-            absolute === join(ROOT, 'integrations/agentic-mermaid/snapshot.ts')
-          )
-            file = absolute;
+          if (compiled) file = join(LIB_ROOT, compiled[1]!, compiled[2]! + '.ts');
+          else
+            // The player (app/) ships with the command and reaches the engine by relative paths,
+            // so its imports land beside it; the engine itself is the library's.
+            for (const base of new Set([LIB_ROOT, ROOT])) {
+              const local = relative(base, absolute).split(sep).join('/');
+              if (local.startsWith('src/') || local.startsWith('explain/') || local === 'integrations/agentic-mermaid/snapshot.ts') {
+                file = join(LIB_ROOT, local);
+                break;
+              }
+            }
         }
         if (file) {
           if (!node) return { path: file };
           // The checkout runs source; the installed JavaScript CLI shares the compiled runtime.
-          const canonical = import.meta.url.endsWith('.js')
-            ? join(ROOT, 'dist', relative(ROOT, file).replace(/\.ts$/, '.js'))
+          const canonical = COMPILED
+            ? join(LIB_ROOT, 'dist', relative(LIB_ROOT, file).replace(/\.ts$/, '.js'))
             : file;
           return { path: pathToFileURL(canonical).href, external: true };
         }
@@ -117,7 +122,7 @@ export async function loadScene(
   // The scene's code, whatever folders the checkout and the scene are in: engine imports are
   // external, so their file URLs are the only paths in it.
   const code = result.outputFiles[0]!.text,
-    sourceHash = hash(code.replaceAll(pathToFileURL(ROOT).href, '<rayner>/').replaceAll(dirname(file), '<author>'));
+    sourceHash = hash(code.replaceAll(pathToFileURL(LIB_ROOT).href, '<rayner>/').replaceAll(dirname(file), '<author>'));
   const folder = join(tmpdir(), 'rayner-explain');
   await mkdir(folder, { recursive: true });
   const output = join(folder, hash(code) + '.mjs');
