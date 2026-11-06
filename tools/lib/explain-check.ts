@@ -17,7 +17,7 @@ import {
 } from '../../src/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
-import { ROOT, engineAlias, sceneSlug } from './explain-project.ts';
+import { LIB_ROOT, engineAlias, sceneSlug } from './explain-project.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
@@ -795,13 +795,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     // A lettered explainer's bare runtime puts its faces in place first, as its page does.
     const lettered = project.lettering
       ? [
-          `import{useLettering}from ${JSON.stringify(join(ROOT, 'src/lettering.ts'))};`,
+          `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`,
           `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
         ]
       : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];${project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : ''}export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
+    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(LIB_ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(LIB_ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];${project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : ''}export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
     const b = await build({
-      stdin: { contents, resolveDir: ROOT, loader: 'ts' },
+      stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
       bundle: true,
       format: 'iife',
       globalName: 'bare',

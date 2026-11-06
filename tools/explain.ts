@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { realpathSync, existsSync, readFileSync } from 'node:fs';
+import { realpathSync, existsSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { serve } from './lib/explain-serve.ts';
-import { collectProject, defaultScenario, sceneSlug, ROOT } from './lib/explain-project.ts';
+import { collectProject, defaultScenario, sceneSlug } from './lib/explain-project.ts';
+import { cliManifest } from './lib/roots.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
 import { MACHINE_STARTER, MACHINE_STARTER_FILES, STARTER, STARTER_FILES, packageImports } from './lib/explain-init.ts';
 
 // Authoring packages, grouped for installation error messages.
 const CAPTURE = ['agentic-mermaid', 'playwright-core', 'svgpath'],
   RASTER = ['@resvg/resvg-js'];
-const pkg: { version: string; dependencies: Record<string, string> } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+const pkg = cliManifest;
 const peers = pkg.dependencies;
 const install = (names: string[]) => 'npm i ' + names.map((n) => `${n}@${peers[n]}`).join(' ');
 const HELP = `Rayner ${pkg.version} (Node 24+)

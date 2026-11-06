@@ -3,7 +3,8 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/repo/copy-vendor.ts && node tools/repo/build-cli.ts",
+    "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/repo/copy-vendor.ts",
+    "build:cli": "node tools/repo/build-cli.ts",
     "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
     "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
     "fonts": "tools/repo/fonts.sh",
@@ -25,9 +26,15 @@
     "recipes": "node recipes/render.ts"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "@types/node": "24.19.2",
+    "agentic-mermaid": "0.5.1",
+    "esbuild": "0.25.12",
     "fast-check": "4.10.2",
-    "shiki": "4.5.0"
+    "playwright-core": "1.64.1",
+    "shiki": "4.5.0",
+    "svgpath": "2.6.0",
+    "typescript": "5.9.3"
   },
   "description": "Technical explainers drawn from a tested TypeScript model, each step's pictures checked against its state. Read step by step or explore in the player, from one portable HTML page.",
   "exports": {
@@ -54,39 +61,31 @@
     "./testing": {
       "types": "./dist/explain/testing.d.ts",
       "default": "./dist/explain/testing.js"
-    }
-  },
-  "bin": {
-    "rayner": "dist/tools/explain.js"
+    },
+    "./internal/*": "./dist/*"
   },
   "author": "Ade Oshineye (https://github.com/adewale)",
   "license": "MIT",
   "sideEffects": false,
   "types": "./dist/src/index.d.ts",
   "files": [
-    "dist",
+    "dist/src",
+    "dist/explain",
+    "dist/integrations",
+    "dist/vendor",
+    "dist/recipes",
     "src",
     "explain",
-    "integrations",
-    "app/embed*",
-    "app/loader.ts",
+    "integrations/agentic-mermaid/*.ts",
     "docs/*.md",
     "FAQ.md",
     "skills",
     "scenes/tutorial",
     "recipes",
-    "tools/lettering.py",
-    "tools/lib/lettering.ts",
-    "tools/lib/lettering-validation.ts",
-    "vendor/glyph-math.js",
-    "vendor/glyph-math.d.ts",
-    "tools/lettering-outline-fonts.sh",
-    "tools/lettering-requirements.txt",
     "vendor/glyph.js",
+    "vendor/glyph.d.ts",
     "vendor/glyph.pin.json",
     "vendor/font-data-sfnt.json",
-    "vendor/glyph.d.ts",
-    "vendor/lettering",
     "vendor/licenses",
     "LICENSE",
     "CHANGELOG.md"
@@ -107,14 +106,6 @@
     "embed",
     "mermaid"
   ],
-  "dependencies": {
-    "esbuild": "0.25.12",
-    "typescript": "5.9.3",
-    "agentic-mermaid": "0.5.1",
-    "playwright-core": "1.64.1",
-    "svgpath": "2.6.0",
-    "@resvg/resvg-js": "2.6.2"
-  },
   "homepage": "https://oshineye.dev/projects/rayner",
   "bugs": {
     "url": "https://github.com/adewale/rayner/issues"

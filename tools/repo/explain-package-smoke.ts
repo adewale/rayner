@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Explicit distribution gate: pack, install in a fresh author project, run the installed CLI.
+// Explicit distribution gate: pack rayner and rayner-cli, install both in a fresh author project,
+// run the installed command there. The library is also installed alone, to show it needs nothing.
 import { mkdtemp, mkdir, writeFile, readFile, copyFile, cp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname, basename } from 'node:path';
@@ -13,41 +14,81 @@ import { pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/explain-project.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
+/** The two packages, in install order: the library, then the command that depends on it. */
+const PACKAGES = [{ name: 'rayner', directory: '.' }, { name: 'rayner-cli', directory: 'cli' }] as const;
 try {
-  const { values } = parseArgs({ options: { archive: { type: 'string' }, manifest: { type: 'string' } } });
-  if (values.archive && values.manifest) throw new Error('Choose --archive or --manifest');
-  let candidate: { filename: string; integrity: string; sourceCommit: string } | undefined;
+  const { values } = parseArgs({ options: { archive: { type: 'string' }, 'cli-archive': { type: 'string' }, manifest: { type: 'string' } } });
+  if ((values.archive || values['cli-archive']) && values.manifest) throw new Error('Choose --archive and --cli-archive, or --manifest');
+  if (!values.archive !== !values['cli-archive']) throw new Error('Give both --archive (rayner) and --cli-archive (rayner-cli)');
+  type Packed = { name: string; filename: string; integrity: string };
+  let candidate: { sourceCommit: string; packages: Packed[] } | undefined;
   if (values.manifest) {
     candidate = JSON.parse(await readFile(resolve(values.manifest), 'utf8'));
-    assert.ok(candidate && typeof candidate.filename === 'string' && basename(candidate.filename) === candidate.filename && candidate.filename.endsWith('.tgz'), 'invalid candidate filename');
+    assert.ok(candidate && Array.isArray(candidate.packages), 'invalid candidate manifest');
+    assert.deepEqual(candidate.packages.map((p) => p.name), PACKAGES.map((p) => p.name), 'the candidate holds rayner and rayner-cli');
+    for (const p of candidate.packages)
+      assert.ok(typeof p.filename === 'string' && basename(p.filename) === p.filename && p.filename.endsWith('.tgz'), 'invalid candidate filename');
     const commit = (await run('git', ['rev-parse', 'HEAD'], { cwd: ROOT })).stdout.trim();
     assert.equal(candidate.sourceCommit, commit, 'candidate comes from another source commit');
   }
-  const selectedArchive = candidate ? join(dirname(resolve(values.manifest!)), candidate.filename) : values.archive;
-  const packed = selectedArchive ? undefined : await run('npm', ['pack', '--json', '--pack-destination', folder], {
-    cwd: ROOT,
-    maxBuffer: 4 * 1024 * 1024,
-  });
-  const archive = selectedArchive ? resolve(selectedArchive) : join(folder, JSON.parse(packed!.stdout)[0].filename);
-  const archiveIntegrity = async () => 'sha512-' + createHash('sha512').update(await readFile(archive)).digest('base64');
-  if (candidate) assert.equal(await archiveIntegrity(), candidate.integrity, 'candidate archive integrity mismatch');
+  const archives: string[] = [];
+  for (const [i, p] of PACKAGES.entries()) {
+    const selected = candidate ? join(dirname(resolve(values.manifest!)), candidate.packages[i]!.filename) : i === 0 ? values.archive : values['cli-archive'];
+    if (selected) archives.push(resolve(selected));
+    else {
+      // npm pack runs each package's prepack: build:lib for rayner, tools/repo/build-cli.ts for rayner-cli.
+      const packed = await run('npm', ['pack', '--json', '--pack-destination', folder], { cwd: join(ROOT, p.directory), maxBuffer: 4 * 1024 * 1024 });
+      archives.push(join(folder, JSON.parse(packed.stdout)[0].filename));
+    }
+  }
+  const [archive, cliArchive] = archives as [string, string];
+  const integrity = async (file: string) => 'sha512-' + createHash('sha512').update(await readFile(file)).digest('base64');
+  const checkCandidate = async (when: string) => {
+    if (candidate) for (const [i, file] of archives.entries()) assert.equal(await integrity(file), candidate.packages[i]!.integrity, `candidate archive integrity mismatch${when}`);
+  };
+  await checkCandidate('');
+  const { version } = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+
+  // The library alone: no dependencies, so its install is the package and nothing else, and every
+  // entry point loads from it.
+  const alone = join(folder, 'library-alone');
+  await mkdir(alone);
+  await writeFile(join(alone, 'package.json'), JSON.stringify({ name: 'library-alone', private: true, type: 'module' }));
+  await run('npm', ['install', '--no-audit', '--no-fund', archive], { cwd: alone, maxBuffer: 4 * 1024 * 1024 });
+  assert.deepEqual((await readdir(join(alone, 'node_modules'))).filter((name) => !name.startsWith('.')), ['rayner'], 'rayner installs no dependencies');
+  const library = JSON.parse(await readFile(join(alone, 'node_modules/rayner/package.json'), 'utf8'));
+  assert.equal(library.version, version);
+  assert.equal(library.dependencies, undefined, 'rayner has no runtime dependencies');
+  assert.equal(library.bin, undefined, 'the rayner command ships in rayner-cli');
+  for (const entry of ['rayner', 'rayner/explain', 'rayner/drawing', 'rayner/lettering', 'rayner/output', 'rayner/testing'])
+    await run(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(entry)})`], { cwd: alone });
+  // Capture and the command stay out of the library: no tools, player, Python, capture code or typesetter.
+  for (const file of ['tools', 'app', 'dist/tools', 'integrations/agentic-mermaid/build', 'dist/integrations/agentic-mermaid/build', 'vendor/glyph-math.js', 'dist/vendor/glyph-math.js', 'vendor/lettering'])
+    assert.ok(!existsSync(join(alone, 'node_modules/rayner', file)), `rayner ships ${file}`);
+  for (const file of ['explain/audio.ts', 'src/lettering-outlines.ts', 'integrations/agentic-mermaid/snapshot.ts', 'explain/diagrams.ts', 'vendor/glyph.js', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
+    assert.ok(existsSync(join(alone, 'node_modules/rayner', file)), `rayner is missing ${file}`);
+
   await writeFile(
     join(folder, 'package.json'),
     JSON.stringify({ name: 'outside-author', private: true, type: 'module' }),
   );
-  await run('npm', ['install', '--no-audit', '--no-fund', archive], {
+  // Both archives at once: rayner-cli's exact rayner dependency is satisfied by the rayner archive.
+  await run('npm', ['install', '--no-audit', '--no-fund', archive, cliArchive], {
     cwd: folder,
     maxBuffer: 4 * 1024 * 1024,
   });
-  const cli = join(folder, 'node_modules/rayner/dist/tools/explain.js');
+  const cli = join(folder, 'node_modules/rayner-cli/dist/tools/explain.js');
   const bin = join(folder, 'node_modules/.bin/rayner');
-  const { version } = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
   assert.ok((await run(bin, ['--help'], { cwd: folder })).stdout.startsWith(`Rayner ${version} (Node 24+)`));
   assert.equal((await run(bin, ['--version'], { cwd: folder })).stdout.trim(), version);
-  const installed = join(folder, 'node_modules/rayner');
+  const installed = join(folder, 'node_modules/rayner'), command = join(folder, 'node_modules/rayner-cli');
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, version);
-  for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'explain/audio.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'tools/lib/lettering.ts', 'vendor/glyph-math.js', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
-    assert.ok(existsSync(join(installed, file)), `archive is missing ${file}`);
+  const commandManifest = JSON.parse(await readFile(join(command, 'package.json'), 'utf8'));
+  assert.equal(commandManifest.version, version);
+  assert.equal(commandManifest.dependencies.rayner, version, 'rayner-cli requires rayner at exactly its own version');
+  assert.ok(!existsSync(join(command, 'node_modules/rayner')), 'one rayner: the command uses the author\'s');
+  for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'integrations/agentic-mermaid/build/index.ts', 'vendor/glyph-math.js', 'vendor/lettering/inter.woff2', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
+    assert.ok(existsSync(join(command, file)), `rayner-cli is missing ${file}`);
   // Public-API extension recipes must work from the installed archive too.
   await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
   const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
@@ -117,7 +158,8 @@ try {
       await page.getByRole('button', { name: 'Next step', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('[aria-current=step]')?.getAttribute('data-step') === 'evict');
       assert.match(await page.locator('.caption').innerText(), /LRU evicts the item used longest ago, A/);
-      await page.goto(url + '/lru-mru.html?next=reuse&step=rest');
+      // meta.id defaults to the starter's folder name, so the page is first.html.
+      await page.goto(url + '/first.html?next=reuse&step=rest');
       await page.waitForSelector('[data-ready=true]');
       assert.match(await page.locator('.caption').innerText(), /all four repeats miss/);
       const source = join(folder, 'first/scene.ts');
@@ -145,6 +187,8 @@ try {
   }
   // Use native objects only, so this distribution smoke needs no browser.
   const native = `import{Scene,Text,FadeIn}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class Outside extends Scene{static meta={id:'outside',title:'An outside author'};static settings=[{id:'case',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this);await this.step('one',{title:'First step',caption:'A native scene outside the checkout.'});await this.play(new FadeIn(new Text(settingsOf(this).case,{color:s.palette.ink})));}}`;
+  // This author keeps the title in the scene, so the starter's script.md (its other home) goes.
+  await rm(join(folder, 'first/script.md'));
   await writeFile(join(folder, 'first/scene.ts'), native);
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // `see` reads a step from the terminal with no browser installed.
@@ -237,6 +281,8 @@ try {
     await mkdir(target);
     for (const file of (await readdir(source)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts')))
       await copyAuthorSource(join(source, file), join(target, file));
+    // The script holds the explainer's intent (its answer among it), which check reads beside the scene.
+    if (existsSync(join(source, 'script.md'))) await copyFile(join(source, 'script.md'), join(target, 'script.md'));
     // A claim names the test that backs it. An outside project keeps its tests beside its scenes,
     // so carry each named test file over; check still fails if the named test is not in it.
     for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {
@@ -329,12 +375,12 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{describeExplainer}from'rayner/testing';import S from'../first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
+      `import{describeExplainer}from'rayner/testing';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
     ],
     { cwd: folder },
   );
   assert.equal(described.stdout.trim(), 'a:one b:one');
-  // The example in REFERENCE "Describe", verbatim, on the `rayner init` starter and its empty snapshot index.
+  // The example in REFERENCE "Describe", verbatim, on the `rayner init` starter, which draws no diagrams and so keeps no snapshot index.
   const describeSection = (await readFile(join(ROOT, 'docs/REFERENCE.md'), 'utf8')).split(/^## /m).find((s) => s.startsWith('Describe\n')),
     example = /^```ts\n([\s\S]*?)^```/m.exec(describeSection ?? '')?.[1];
   assert.ok(example, 'docs/REFERENCE.md "Describe" has a ts example');
@@ -345,12 +391,12 @@ try {
   assert.match(walked, /^After A B C D, request: C D C D · rest: .+\n  changed: .*\bHits\b/m);
 
   console.log(
-    'Package gate passed: tested archive install with diagram and PNG authoring, installed TypeScript consumer, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
+    'Package gate passed: rayner alone with no dependencies; both tested archives installed with diagram and PNG authoring, installed TypeScript consumer, executable JS bin, external native author, settings, checks, see, build, optional score audio, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine' +
       (process.env.EXPLAIN_LETTERING === '1' ? ', installed Arabic and maths capture' : '') +
       (process.env.EXPLAIN_BROWSER ? ', installed diagram capture' : '') +
       '.',
   );
-  if (candidate) assert.equal(await archiveIntegrity(), candidate.integrity, 'candidate changed during package checks');
+  await checkCandidate(' after the package checks');
 } finally {
   await rm(folder, { recursive: true, force: true });
 }

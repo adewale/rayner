@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
@@ -14,8 +13,10 @@ import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, Le
 import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
+import { LIB_ROOT, ROOT } from './roots.ts';
 
-const root = fileURLToPath(new URL('../../', import.meta.url));
+// The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
+const root = ROOT;
 const hash = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
 const json = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
 /**
@@ -112,7 +113,7 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
   // captured by any other tool is stale. Changes to Rayner's own code are checked by behaviour, not
   // here: a different string asks for a run the snapshot lacks, and CI's capture tests compare
   // fresh runs with stored ones.
-  const builderHash = hash((await Promise.all(['tools/lettering.py', 'tools/lettering-requirements.txt', 'vendor/glyph.js', 'vendor/glyph-math.js', 'src/font-data.ts'].map((name) => readFile(join(root, name), 'utf8')))).join('\n'));
+  const builderHash = hash((await Promise.all(([[root, 'tools/lettering.py'], [root, 'tools/lettering-requirements.txt'], [LIB_ROOT, 'vendor/glyph.js'], [root, 'vendor/glyph-math.js'], [LIB_ROOT, 'src/font-data.ts']] as const).map(([base, name]) => readFile(join(base, name), 'utf8')))).join('\n'));
   const path = file.replace(/\.[^.]+$/, '') + '.lettering.json';
   if (!capture) {
     const raw: unknown = await readFile(path, 'utf8').then(JSON.parse).catch((e: NodeJS.ErrnoException) => {

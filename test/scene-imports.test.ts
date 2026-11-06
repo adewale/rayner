@@ -16,11 +16,14 @@ import ts from 'typescript';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
+const INTERNAL = './internal/*';
 /** The entry points, from package.json "exports": each subpath's types file, as the source it is built from. */
 function entryPoints(): Map<string, string> {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { exports: Record<string, { types: string }> };
   const out = new Map<string, string>();
   for (const [subpath, target] of Object.entries(pkg.exports)) {
+    // rayner-cli's door into the compiled modules, not an entry point (docs/ENGINE.md, "Public names").
+    if (subpath === INTERNAL) continue;
     const source = target.types.replace(/^\.\/dist\//, '').replace(/\.d\.ts$/, '.ts');
     out.set(source, subpath === '.' ? 'rayner' : `rayner/${subpath.slice(2)}`);
   }
