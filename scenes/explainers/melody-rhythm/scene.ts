@@ -26,27 +26,27 @@ export default class MelodyRhythm extends Scene {
     claims: [
       {
         says: 'a new note starts on every click',
-        test: 'test/learning-models.test.ts: A starts a note on every beat',
+        test: 'model.test.ts: A starts a note on every beat',
       },
       {
         says: 'B still skips the 1',
-        test: 'test/learning-models.test.ts: the shifted B starts none on the 1 of bar 2',
+        test: 'model.test.ts: the shifted B starts none on the 1 of bar 2',
       },
       {
         says: 'keeps its own starts and lengths',
-        test: 'test/learning-models.test.ts: the music comparison preserves pitches and total beats',
+        test: 'scene.test.ts: the music comparison preserves pitches and total beats',
       },
       {
         says: 'A and B play one rhythm',
-        test: 'test/learning-models.test.ts: the control B starts every note on a beat',
+        test: 'model.test.ts: the control B starts every note on a beat',
       },
       {
         says: 'every start on a beat',
-        test: 'test/learning-models.test.ts: the control B starts every note on a beat',
+        test: 'model.test.ts: the control B starts every note on a beat',
       },
       {
         says: 'Only that version starts G late enough',
-        test: 'test/learning-models.test.ts: the shifted B starts none on the 1 of bar 2',
+        test: 'model.test.ts: the shifted B starts none on the 1 of bar 2',
       },
     ],
   };

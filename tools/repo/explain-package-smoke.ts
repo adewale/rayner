@@ -283,11 +283,18 @@ try {
       await copyAuthorSource(join(source, file), join(target, file));
     // The script holds the explainer's intent (its answer among it), which check reads beside the scene.
     if (existsSync(join(source, 'script.md'))) await copyFile(join(source, 'script.md'), join(target, 'script.md'));
-    // A claim names the test that backs it. An outside project keeps its tests beside its scenes,
-    // so carry each named test file over; check still fails if the named test is not in it.
+    // A claim names the test that backs it, found in the scene's folder first. An outside project
+    // keeps its tests beside its scenes, so carry each named test file over (with its fixtures);
+    // check still fails if the named test is not in it.
     for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {
-      await mkdir(dirname(join(folder, file!)), { recursive: true });
-      await copyFile(join(ROOT, file!), join(folder, file!));
+      if (existsSync(join(source, file!))) {
+        await mkdir(dirname(join(target, file!)), { recursive: true });
+        await copyAuthorSource(join(source, file!), join(target, file!));
+        if (existsSync(join(source, 'fixtures')) && !existsSync(join(target, 'fixtures'))) await cp(join(source, 'fixtures'), join(target, 'fixtures'), { recursive: true });
+      } else {
+        await mkdir(dirname(join(folder, file!)), { recursive: true });
+        await copyFile(join(ROOT, file!), join(folder, file!));
+      }
     }
     if (name !== 'layout-direction') await copyFile(join(source, 'scene.lettering.json'), join(target, 'scene.lettering.json'));
     if (name === 'style' || name === 'font-metrics') {

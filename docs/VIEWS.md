@@ -237,7 +237,7 @@ const wrong = view(this, (st) => d.picture(marksOf(st), { notes: notesOf(st), pr
   panel and labels and makes the ring, the head, tail and length readout, and the
   card's values views; [token-bucket](https://github.com/adewale/rayner/blob/main/scenes/explainers/token-bucket/scene.ts)
   draws its gauge, chart, request chips and readout as views.
-  `test/explain-models.test.ts` runs `assertViewFollowsState` on the state-machine
+  Each explainer's `scene.test.ts` runs `assertViewFollowsState` on the state-machine
   card, the three ring-buffer views and the token-bucket readout at every step of
   every scenario.
 - A state that changes several times inside one play needs each change at its turn,

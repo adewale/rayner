@@ -19,7 +19,7 @@
 // The model covers IPv4 addresses and IPv4 ranges only; proxy-addr also handles IPv6 and IPv4-mapped
 // addresses, which no scenario here uses. Every proxy here appends the address it saw (arrivals() below);
 // a proxy that replaces or strips X-Forwarded-For, or a network rule that keeps the internet away from the
-// load balancer, changes which attacks reach the app, and neither is modelled. test/explain-trust-proxy.test.ts holds the twelve answers of real
+// load balancer, changes which attacks reach the app, and neither is modelled. model.test.ts holds the twelve answers of real
 // Express 5.3.0 and checks the model against them.
 
 /** Documentation addresses (RFC 5737), except the load balancer's private one (RFC 1918). */

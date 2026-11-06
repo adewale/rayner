@@ -2,7 +2,7 @@
 // It is one design among several: it tracks length to tell full from empty (both have head === tail), and a
 // push into a full ring throws Full and changes nothing, where other ring buffers overwrite the oldest value.
 // Single-threaded: no concurrent producers or consumers, no memory ordering. Checked against a reference
-// queue in test/explain-models.test.ts.
+// queue in model.test.ts.
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';
 export class Full extends Error {}

@@ -33,7 +33,7 @@ export default class BashExplainer extends Scene {
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/just-bash.ts',
     ],
     claims: [
-      { says: 'leaves the shell you passed in unchanged', test: 'test/explain-models.test.ts: exec leaves any shell it is given unchanged' },
+      { says: 'leaves the shell you passed in unchanged', test: 'model.test.ts: exec leaves any shell it is given unchanged' },
       { says: 'only the returned one holds shout.txt', shown: true as const },
     ],
   };

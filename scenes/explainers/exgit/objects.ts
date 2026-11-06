@@ -1,5 +1,5 @@
 // The two commits exgit draws, built with the object model in model.ts, and what the second one writes.
-// test/explain-exgit.test.ts replays each change with the Git CLI and compares the objects it writes.
+// model.test.ts replays each change with the Git CLI and compares the objects it writes.
 import { Repo, AUTHOR, parseTree } from './model.ts';
 
 /** add and edit are the scene's scenarios; rename and copy are its check questions. */

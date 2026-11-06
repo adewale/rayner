@@ -163,7 +163,7 @@ export function guarded(c: Char, guard: Predicate): { passes: boolean; outcome: 
 
 // Counted by CPython 3.15.1 (unicodedata.unidata_version 17.0.0) over every code point except the
 // surrogates, one character at a time, in the python:3.15-slim Docker image on 2026-10-25; the script
-// and its output are in test/explain-isdigit.test.ts. Do not carry them into another Unicode version.
+// and its output are in model.test.ts. Do not carry them into another Unicode version.
 export const COUNTS = { isdecimal: 770, isdigit: 898, isnumeric: 2023, int: 770 } as const;
 /** How many characters each predicate accepts that int() rejects, alone. */
 export const accepts = (p: Predicate): number => COUNTS[p] - COUNTS.int;

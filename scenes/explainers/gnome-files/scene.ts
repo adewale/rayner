@@ -73,11 +73,11 @@ export default class GnomeFilesExplainer extends Scene {
     claims: [
       {
         says: 'All six gave up at least once, each time on a menu command',
-        test: 'test/explain-gnome-files.test.ts: every participant gave up at least once',
+        test: 'model.test.ts: every participant gave up at least once',
       },
       {
         says: 'every one of the six gave up at least once',
-        test: 'test/explain-gnome-files.test.ts: every participant gave up at least once',
+        test: 'model.test.ts: every participant gave up at least once',
       },
     ],
   };

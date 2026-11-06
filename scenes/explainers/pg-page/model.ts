@@ -31,7 +31,7 @@
 // one-byte length header (shortText refuses one that needs four), and longer or compressed values
 // are not modelled; columns in the order given; fillfactor only as the reserve hio.c leaves.
 // Table sizes are heap pages, not total storage with indexes or other relation files. The page
-// counts are checked against a measured Postgres 18.6 server in test/explain-pg-page.test.ts.
+// counts are checked against a measured Postgres 18.6 server in model.test.ts.
 
 import { percent as formatPercent } from '../lib/format.ts';
 

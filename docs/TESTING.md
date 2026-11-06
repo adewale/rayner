@@ -6,7 +6,7 @@ Comments in the player's tests cite the requirements of the designs it was built
 
 ```sh
 npm run check             # types and consumer API
-npm test                  # standard assertions and seeded properties
+npm test                  # standard assertions, seeded properties and each explainer folder's own tests
 npm run test:full         # larger generated runs
 npm run test:embeds       # Chromium reader, transport and interaction checks
 npm run demos:check       # build and validate the catalog once
@@ -18,7 +18,7 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 
 | Contract | Owner |
 | --- | --- |
-| Domain values | Independent model tests, source vectors and real Git/CPython fixtures; `view-readouts.test.ts` pins reader values |
+| Domain values | Each explainer folder's own evidence (below); `view-readouts.test.ts` pins reader values |
 | Engine geometry and animation | Seeded properties, Manim/raster references, native SVG and seek/cache tests |
 | Public extension recipes | `recipes.test.ts` checks model/picture/trace agreement, copy ownership, intermediate geometry, seeking and schedule conflicts; package smoke runs the shipped recipes from a fresh install |
 | Staged steps | Each `stage.steps` picture is a view, so `rayner check` holds it to its draw at its step's end and draws it from other states; `staged-steps.test.ts` shows a draw that reads a counter, and one that draws a captured constant, failing, named by their steps |
@@ -32,6 +32,21 @@ Use Node 24 or later. Set `CHROMIUM_EXECUTABLE_PATH` for a system browser. Optio
 | Interaction | Dedicated Chromium owners cover keyboard, touch, history, resize, motion, audio, CSP and cross-origin messages |
 | Packaging and platforms | Fresh installed-package checks on Linux and Intel/ARM Mac, on minimum and current Node 24 |
 | Browser diversity | ARM Mac/current Node runs WebKit story review and the real Safari reader through `safaridriver` |
+
+## An explainer's own evidence
+
+Each explainer folder (`scenes/explainers/<id>/`, `scenes/tutorial/<id>/`) holds the evidence for what it says, and its script's **Checked against** line names those files, which `rayner check` requires to be there:
+
+| File | Owns | Run by |
+| --- | --- | --- |
+| `model.test.ts` | The model against its source: vectors, real-program answers, exhaustive searches and properties. It imports only the folder's files, `scenes/explainers/lib/` (including `pbt.ts`, the seeded fast-check settings) and the public entry points, `rayner/testing` among them | `rayner check`, first; `npm test` |
+| `answers.ts` | The script's answer and check answers, computed from the model; the facts their words take as given are in `model.test.ts` | `rayner check`; `test/explain-script-answers.test.ts` for the whole collection |
+| `scene.test.ts` | Assertions on the scene and its pictures: views against state, captured diagrams, the story's steps. It may use `test/lib/` and the tools | `npm test` |
+| `fidelity.ts` | Every authored scenario's step state against the program the explainer explains, as `check(trace, values, run)` | `test/explain-fidelity.test.ts`, which collects each explainer once |
+| `oracle/` | The independent program that produced a fixture, run by hand; each writes beside itself | by hand, or its `--check` |
+| `fixtures/` | What an oracle or a measurement recorded | the folder's tests |
+
+Shared helpers stay in `test/lib/`. Engine tests that use an explainer as an example (the CLI, describe, watch, the reader values) and the Chromium reader tests in `test/browser/` stay where they are. `npm test` runs `scenes/*/*/*.test.ts` with the rest.
 
 The primary Linux/current-Node lane owns the complete browser suite. Minimum Node retains the standard suite, CLI and author-review browser checks, plus installed-package capture and preview. It does not repeat every reader interaction. Set `EXPLAIN_WEBKIT=1` or `EXPLAIN_SAFARI=1` for those browser checks. WebKit emulation does not establish physical iPhone touch, rotation, zoom or VoiceOver behavior.
 
@@ -55,10 +70,10 @@ When consolidating tests, move every assertion to a named keeper and show that i
 
 The compatibility matrix downloads the primary job's tested archives, `rayner` and `rayner-cli`. Package smoke verifies their source commit and SHA-512 integrity before installation and checks integrity again afterwards. It does not repack on each platform.
 
-`test/fixtures/latest-search-view.ts` retains the four guarded/unguarded chart scenarios for the state/view oracle. The public Latest Search lesson has two completion-order scenarios and compares both guards in each, including the ticket decision. `test/explain-latest-search.test.ts` owns both boundaries.
+`scenes/explainers/latest-search/fixtures/latest-search-view.ts` retains the four guarded/unguarded chart scenarios for the state/view oracle. The public Latest Search lesson has two completion-order scenarios and compares both guards in each, including the ticket decision. That folder's `scene.test.ts` owns both boundaries.
 
 Browser tests live in `test/browser/`; `test:embeds` discovers every test there. `test/browser/explain-site.test.ts` builds two lessons in an isolated directory, exports them without a full catalog, checks the chosen entry and subset counts, and proves a damaged selected page leaves the last export intact. Pure snapshot-codec properties remain in `test/page-snapshots.test.ts`; the browser directory owns native gzip expansion.
 
 CI runs the full campaign for code, fixtures, workflow changes, executable documentation, unknown paths and explicit dispatches. Prose-only changes on PRs and main run the onboarding and tutorial assertions plus whitespace checks. The required `story` job rejects a failed scope decision. A main push may reuse a successful same-repository PR campaign from the last 24 hours only when all nine protected owners ran successfully, the archive records the same Node version and clean checkout, and the tested synthetic merge has exactly the same Git tree as main. Missing or expired proof runs full CI. Release dispatches always run fresh validation and produce their own artifacts.
 
-`test/statecharts.test.ts` compares the statecharts model with XState; `tools/oracle/statecharts.ts` says how to regenerate its fixture.
+`scenes/explainers/statecharts/model.test.ts` compares the statecharts model with XState; `oracle/statecharts.ts` beside it says how to regenerate its fixture.

@@ -8,7 +8,7 @@ import { isHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import ts from 'typescript';
 import {
@@ -17,7 +17,8 @@ import {
 } from '../../src/index.ts';
 import { SnapshotSink, renderAt, toSvgString, renderText, NullSink } from '../../src/output.ts';
 import { MotionSink, InvariantSink, machinesOf, viewMismatch, jsonObject, analyzeMotion, traceScene } from '../../explain/testing.ts';
-import { LIB_ROOT, engineAlias, sceneSlug } from './explain-project.ts';
+import { LIB_ROOT, engineAlias, importAuthored, sceneSlug } from './explain-project.ts';
+import { checkedAgainstFiles, compareAnswers, runModelTest } from './explain-evidence.ts';
 import { scenarioName } from '../../explain/testing.ts';
 import { restingFrame, restingTime, undescribed, watchedChanges } from '../../explain/trace.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
@@ -667,6 +668,13 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const lint = lintConstruct(await readFile(project.file, 'utf8'));
   assert.deepEqual(lint, [], lint.join('\n'));
   await mkdir(out, { recursive: true });
+  // The folder's own evidence first: a scene drawn from a model its test refuses shows nothing true.
+  const model = await runModelTest(project.file);
+  assert.ok(!model?.failed.length, `The model test fails (${model?.file}): ${model?.failed.join('; ')}`);
+  const answers = await compareAnswers(project.file, project.Scene.meta, async (file) => (await importAuthored(file)).module);
+  assert.deepEqual(answers?.problems ?? [], [], `script.md disagrees with answers.ts (${answers?.file}): ${answers?.problems.join('; ')}`);
+  const checkedAgainst = await checkedAgainstFiles(project.file, (project.Scene.meta as { checkedAgainst?: unknown } | undefined)?.checkedAgainst);
+  assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
   // The lettering the page carries, once for every scenario: the bare runtime below runs it
@@ -870,10 +878,18 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   const claimProblems = await declaredClaimProblems(
     checkClaimsMeta(project.Scene.meta),
     scenarios.flatMap((v) => v.claims.stated),
+    process.cwd(),
+    dirname(project.file),
   );
   assert.deepEqual(claimProblems, [], `Claims: ${claimProblems.join('; ')}`);
   const report = {
     scene: sceneSlug(project),
+    // The model test beside the scene (model.test.ts), run with node:test: how many tests ran and passed, and any skipped.
+    ...(model ? { model: { file: model.file, tests: model.tests, passed: model.passed, ...(model.skipped ? { skipped: model.skipped } : {}) } } : {}),
+    // The script's answer and check answers that answers.ts computes from the model, each equal to script.md's.
+    ...(answers ? { answers: { file: answers.file, compared: answers.compared } } : {}),
+    // The files the script's Checked against line names in backticks, each one in the explainer's folder.
+    ...(checkedAgainst?.files.length ? { checkedAgainst: checkedAgainst.files } : {}),
     scenarios,
     diagrams: Object.keys(project.store).length,
     replayedEdits: project.edits,
@@ -887,9 +903,10 @@ export async function checkProject(project: Project, out: string): Promise<Recor
 
 /**
  * What is wrong with a scene's declared claims: one no scenario states, or one whose test file is not
- * there or holds no test whose name contains the given part.
+ * there or holds no test whose name contains the given part. A test file is looked for in the scene's
+ * `folder` first (`model.test.ts: …`), then from `directory`, where the command was run.
  */
-export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd()): Promise<string[]> {
+export async function declaredClaimProblems(claims: readonly { says: string; test?: string; shown?: true }[], stated: readonly string[], directory = process.cwd(), folder?: string): Promise<string[]> {
   const problems: string[] = [];
   const files = new Map<string, string[] | null>();
   for (const c of claims) {
@@ -899,7 +916,9 @@ export async function declaredClaimProblems(claims: readonly { says: string; tes
       file = c.test.slice(0, at),
       name = c.test.slice(at + 2);
     if (!files.has(file)) {
-      const source = await readFile(resolve(directory, file), 'utf8').catch(() => null);
+      const source =
+        (folder === undefined ? null : await readFile(resolve(folder, file), 'utf8').catch(() => null)) ??
+        (await readFile(resolve(directory, file), 'utf8').catch(() => null));
       files.set(file, source === null ? null : testNames(source));
     }
     const names = files.get(file);

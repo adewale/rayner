@@ -129,8 +129,8 @@ export default class GtfsExplainer extends Scene {
     ],
     // The sentences that reach beyond the scenario on screen, and the tests that hold them.
     claims: [
-      { says: 'A route has departures only on dates its trips’ service runs', test: 'test/explain-gtfs.test.ts: a route has departures only on dates' },
-      { says: 'AB1 runs only on the dates its service', test: 'test/explain-gtfs.test.ts: a route has departures only on dates' },
+      { says: 'A route has departures only on dates its trips’ service runs', test: 'model.test.ts: a route has departures only on dates' },
+      { says: 'AB1 runs only on the dates its service', test: 'model.test.ts: a route has departures only on dates' },
       { says: 'only FULLW runs', shown: true as const },
     ],
   };

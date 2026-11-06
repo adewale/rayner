@@ -167,13 +167,13 @@ export default class CertRenewalExplainer extends Scene {
     ],
     // Sentences that reach past the strips on screen, and the test that holds each against the model.
     claims: [
-      { says: 'every run renews until', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
-      { says: 'renewing at every run', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
-      { says: 'renews at every run until', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
-      { says: 'every run tries to renew', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
-      { says: 'allows 5 certificates for the same names in 7 days', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
-      { says: '5 per 7 days', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
-      { says: 'check only for an order that names the certificate it replaces', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+      { says: 'every run renews until', test: 'model.test.ts: the 160-hour, 30-day case' },
+      { says: 'renewing at every run', test: 'model.test.ts: the 160-hour, 30-day case' },
+      { says: 'renews at every run until', test: 'model.test.ts: the 160-hour, 30-day case' },
+      { says: 'every run tries to renew', test: 'model.test.ts: the 160-hour, 30-day case' },
+      { says: 'allows 5 certificates for the same names in 7 days', test: 'model.test.ts: the exact-set limit' },
+      { says: '5 per 7 days', test: 'model.test.ts: the exact-set limit' },
+      { says: 'check only for an order that names the certificate it replaces', test: 'model.test.ts: the exact-set limit' },
     ],
   };
   static settings = [
