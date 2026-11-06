@@ -720,7 +720,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     else if (bottom > railBody.scrollTop + railBody.clientHeight) railBody.scrollTop = bottom - railBody.clientHeight;
   }
   let shownScenario = '',
-    reservedFor = '';
+    reservedFor = '',
+    measuredFor = '';
   /** The lede's words for step `i`: its number of the total, its title, then its line when it has one. */
   function fillLede(kicker: HTMLElement, strong: HTMLElement, span: HTMLElement, i: number, words: { title: string; line: string }) {
     const ordinal = mainIndices().indexOf(i);
@@ -732,6 +733,19 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   // The tallest heading sets the stage cap and the heading's reserved height; the tallest caption the caption's.
   // Recheck when the cap changes the card width, which can wrap the heading again.
   function reserve() {
+    // A re-measure starts from the layout a fresh link starts with, then settles from there as a fresh
+    // link does. The header's and the tallest heading's heights cap the stage (embed.css), the cap sets
+    // the card's width, and the width sets how they wrap, so settling from the layout before (another
+    // scenario's, or another width's) can reach a different size that also holds (issue #96). From
+    // the same start, the size is a function of the scenario and the page's size alone.
+    // Only a new scenario or page size starts again; the passes that settle a layout (here, and when
+    // the card's resize brings reserve back) continue from where the last one left it.
+    const cause = `${innerWidth} ${innerHeight} ${shownScenario}`;
+    if (scenarioPhase.kind !== 'loading' && caption.clientWidth && cause !== measuredFor) {
+      measuredFor = cause;
+      for (const property of ['--head-h', '--lede-h', '--lede-title-h', '--caption-h', '--stepper-h']) root.style.removeProperty(property);
+      measureHead();
+    }
     for (let pass = 0; pass < 3; pass++) {
       if (!reserveOnce()) return;
       const width = lede.clientWidth;
@@ -743,15 +757,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     player.classList.toggle('narrow', narrow());
     if (scenarioPhase.kind==='loading' || !caption.clientWidth) return false;
     // Measured over both paths, so moving between the explanation and its details resizes nothing.
-    const key = `${caption.clientWidth} ${lede.clientWidth} ${shownScenario}`;
+    const key = reserveKey();
     if (key === reservedFor) return false;
-    // Every measurement starts from the layout a fresh link starts with. The header's and the tallest
-    // heading's heights cap the stage (embed.css), the cap sets the card's width, and the width sets how
-    // they wrap, so measuring from the layout before (another scenario's, or another width's) can settle
-    // on a different size that also holds (issue #96). From the same start, the size is a function of
-    // the scenario and the page's width alone.
-    for (const property of ['--head-h', '--lede-h', '--lede-title-h', '--caption-h', '--stepper-h']) root.style.removeProperty(property);
-    measureHead();
+    reservedFor = key;
     ledeRuler.style.width = `${lede.clientWidth}px`;
     const kicker = el('span', undefined, 'kicker'),
       strong = el('strong'),
@@ -777,10 +785,10 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     root.style.setProperty('--lede-h', `${tallest}px`);
     root.style.setProperty('--lede-title-h', `${tallestTitle}px`);
     reserveStepper(trace.steps);
-    // The widths this layout produced, so the next pass, finding them unchanged, measures nothing.
-    reservedFor = `${caption.clientWidth} ${lede.clientWidth} ${shownScenario}`;
     return true;
   }
+  /** What the reserved heights were measured for: the caption's and heading's widths, and the scenario. */
+  const reserveKey = () => `${caption.clientWidth} ${lede.clientWidth} ${shownScenario}`;
   /** The stepper row at its widest: Start again, Try beside it when it is in the row, and Back when
    *  the scenario has details. When the tools do not fit beside that, they take their own line on every
    *  step; the row keeps that scenario's height, so no step wraps it differently or moves what follows. */
