@@ -78,7 +78,7 @@ jobs:
           name: rayner-package-${{ github.sha }}
           path: out/release/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
           overwrite: true  # a re-run of a failed job uploads again under the same name
 
   catalog:
@@ -112,7 +112,7 @@ jobs:
           name: rayner-page-budgets-${{ github.sha }}
           path: out/validation/page-budgets.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
 
   story-part:
     needs: [scope, catalog]
@@ -254,4 +254,4 @@ jobs:
             out/validation/native-safari.json
             out/validation/webkit.json
           if-no-files-found: warn
-          retention-days: 90
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 90 }}
