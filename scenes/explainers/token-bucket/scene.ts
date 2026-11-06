@@ -62,16 +62,16 @@ export default class TokenBucketExplainer extends Scene {
   static meta = {
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts',
-      // The oracle: tools/oracle/token-bucket runs this schedule through rate.Limiter.
+      // The oracle: oracle/ runs this schedule through rate.Limiter.
       'https://pkg.go.dev/golang.org/x/time@v0.15.0/rate',
       'https://www.rfc-editor.org/rfc/rfc6585#section-4',
     ],
     // The readout's own words, which the captions use too.
     watch: { tokens: 'Tokens left', allowed: 'Accepted', rejected: 'Rejected' },
     claims: [
-      { says: 'A burst can spend only the tokens saved up, and only elapsed time adds more', test: 'test/explain-token-bucket.test.ts: a burst can spend only the tokens saved up' },
-      { says: 'R6 is refused at every rate', test: 'test/explain-token-bucket.test.ts: R6 is refused at every refill rate' },
-      { says: 'R10 is accepted at every rate', test: 'test/explain-token-bucket.test.ts: R10 is accepted at the three offered rates and refused below a fifth of a token a second' },
+      { says: 'A burst can spend only the tokens saved up, and only elapsed time adds more', test: 'model.test.ts: a burst can spend only the tokens saved up' },
+      { says: 'R6 is refused at every rate', test: 'model.test.ts: R6 is refused at every refill rate' },
+      { says: 'R10 is accepted at every rate', test: 'model.test.ts: R10 is accepted at the three offered rates and refused below a fifth of a token a second' },
     ],
   };
   static settings = [

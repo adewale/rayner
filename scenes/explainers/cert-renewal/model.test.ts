@@ -1,36 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fc, params } from './lib/pbt.ts';
-import {
-  BACKDATE,
-  BR_PHASES,
-  DAY,
-  EMISSION,
-  FIXED_INTERVAL,
-  LE_DATES,
-  LIFETIMES,
-  LIMIT,
-  RUN_EVERY,
-  YEAR,
-  ariRuns,
-  ariSummary,
-  ariTime,
-  ariWindow,
-  defaultRenewalOffset,
-  maybeSpend,
-  orderAllowed,
-  spendAtIssue,
-  dueByDefault,
-  dueByInterval,
-  dueOffset,
-  issue,
-  shouldRenew,
-  simulate,
-  summarize,
-} from '../scenes/explainers/cert-renewal/model.ts';
-import type { LifetimeKey, Rule } from '../scenes/explainers/cert-renewal/model.ts';
+import { fc, params } from '../lib/pbt.ts';
+import { BACKDATE, BR_PHASES, DAY, EMISSION, FIXED_INTERVAL, LE_DATES, LIFETIMES, LIMIT, RUN_EVERY, YEAR, ariRuns, ariSummary, ariTime, ariWindow, defaultRenewalOffset, maybeSpend, orderAllowed, spendAtIssue, dueByDefault, dueByInterval, dueOffset, issue, shouldRenew, simulate, summarize } from './model.ts';
+import type { LifetimeKey, Rule } from './model.ts';
 
 const hours = (ms: number) => ms / 3600e3;
+
+const lifetime = fc.integer({ min: 1, max: 400 * 24 });
 
 test('the default renewal time matches certbot’s own test vectors', () => {
   // certbot v5.8.0 renewal_test.py:272–280: certificates issued 2025-03-12 00:00 for 8 and 18 days.
@@ -261,7 +237,6 @@ test('the Baseline Requirements and Let’s Encrypt tables as published', () => 
   }
 });
 
-const lifetime = fc.integer({ min: 1, max: 400 * 24 });
 test('property: renewal comes before expiry, with a third (or half) of the lifetime left', () => {
   fc.assert(
     fc.property(lifetime, (L) => {

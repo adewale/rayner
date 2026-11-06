@@ -1,11 +1,49 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { Repo, AUTHOR } from './model.ts';
 import { mkdtempSync, writeFileSync, rmSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Repo, AUTHOR } from '../scenes/explainers/exgit/model.ts';
-import { secondCommit, type Change } from '../scenes/explainers/exgit/objects.ts';
+import { secondCommit, type Change } from './objects.ts';
+
+test('blob ids are SHA-1 of the typed bytes, across the hash\'s padding boundaries and in UTF-8', () => {
+  // With the 8-byte header "blob NN\0", 47, 48 and 56 bytes of content make 55, 56 and 64-byte
+  // messages, SHA-1's one- and two-block padding edges.
+  for (const content of ['', 'a', 'é', 'x'.repeat(47), 'x'.repeat(48), 'x'.repeat(56), 'x'.repeat(120), 'naïve 中文\n'.repeat(9)]) {
+    const bytes = Buffer.from(content, 'utf8');
+    const expected = createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${bytes.length}\0`), bytes])).digest('hex');
+    assert.equal(new Repo().blob(content), expected, JSON.stringify(content));
+  }
+});
+
+test('both git scenarios hash the exact typed bytes used by the Git CLI', () => {
+  for (const change of ['add', 'edit']) {
+    const repo = new Repo(),
+      hello = repo.blob('hello\n'),
+      t1 = repo.tree([['100644', 'hello.txt', hello]]),
+      c1 = repo.commit({ tree: t1, author: AUTHOR, message: 'first\n' }),
+      next = repo.blob(change === 'add' ? 'world\n' : 'hello again\n'),
+      t2 = repo.tree(
+        change === 'add'
+          ? [
+              ['100644', 'hello.txt', hello],
+              ['100644', 'world.txt', next],
+            ]
+          : [['100644', 'hello.txt', next]],
+      );
+    repo.commit({ tree: t2, parents: [c1], author: AUTHOR, message: 'second\n' });
+    for (const [id, obj] of Object.entries(repo.objects))
+      assert.equal(
+        execFileSync('git', ['hash-object', '-t', obj.type, '--stdin'], {
+          input: obj.bytes,
+          encoding: 'utf8',
+        }).trim(),
+        id,
+      );
+  }
+});
 
 /** A throwaway Git repository whose commits have exactly the model's author, committer and dates. */
 function cli() {

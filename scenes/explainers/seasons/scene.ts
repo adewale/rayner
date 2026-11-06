@@ -43,15 +43,15 @@ export default class SeasonsExplainer extends Scene {
     claims: [
       {
         says: 'Tromsø never enters the night half',
-        test: 'test/explain-models.test.ts: sunlight follows the sunrise equation',
+        test: 'model.test.ts: sunlight follows the sunrise equation',
       },
       {
         says: 'the equator’s is always cut in half',
-        test: 'test/explain-models.test.ts: on the equator the day–night line cuts the circle in half',
+        test: 'model.test.ts: on the equator the day–night line cuts the circle in half',
       },
       {
         says: 'the day–night line always cuts the circle in half',
-        test: 'test/explain-models.test.ts: on the equator the day–night line cuts the circle in half',
+        test: 'model.test.ts: on the equator the day–night line cuts the circle in half',
       },
     ],
   };

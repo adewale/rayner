@@ -1,20 +1,23 @@
-"""Independent data for the great-circle explainer. pip install geographiclib==2.0, then run from the repo root:
+"""Independent data for the great-circle explainer. pip install geographiclib==2.0, then run:
 
   curl -sSo /tmp/ne_110m_land.geojson \
     https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson
-  python3 tools/oracle/great-circle.py /tmp/ne_110m_land.geojson
+  python3 scenes/explainers/great-circle/oracle/great-circle.py /tmp/ne_110m_land.geojson
 
-It writes two files and imports nothing from Rayner:
-- test/fixtures/great-circle-geodesic.json: GeographicLib's geodesic solver (Karney 2013) on the WGS84
+It writes two files in the explainer's folder and imports nothing from Rayner:
+- fixtures/great-circle-geodesic.json: GeographicLib's geodesic solver (Karney 2013) on the WGS84
   ellipsoid and on a sphere of radius 6371 km, for both routes: distance, initial azimuth, and the
   highest latitude reached, found by sampling the solved geodesic.
-- scenes/explainers/great-circle/land.ts: Natural Earth 1:110m land polygons (public domain), outer
+- land.ts: Natural Earth 1:110m land polygons (public domain), outer
   rings as [lon, lat] rounded to 0.01 degrees, a few named by a city they contain.
 """
 import hashlib
 import json
 import sys
 from pathlib import Path
+
+# The explainer's folder, whatever directory this runs from.
+HERE = Path(__file__).resolve().parent.parent
 
 import geographiclib
 from geographiclib.geodesic import Geodesic
@@ -39,7 +42,7 @@ def solve(geod, a, b):
 
 sphere = Geodesic(RADIUS_KM * 1000, 0)
 rows = [dict(route=f'{a}-{b}', wgs84=solve(Geodesic.WGS84, a, b), sphere=solve(sphere, a, b)) for a, b in ROUTES]
-Path('test/fixtures/great-circle-geodesic.json').write_text(json.dumps(dict(
+(HERE / 'fixtures/great-circle-geodesic.json').write_text(json.dumps(dict(
     source='GeographicLib geodesic solver (Karney 2013)', version=geographiclib.__version__,
     radiusKm=RADIUS_KM, airports=AIRPORTS, rows=rows), indent=2) + '\n')
 
@@ -77,9 +80,9 @@ for name, (lon, lat) in PLACES.items():
         raise SystemExit(f'{name}: {len(hits)} polygons')
     names[name] = hits[0]
 body = ',\n'.join('  ' + json.dumps(ring, separators=(',', ':')) for ring in rings)
-Path('scenes/explainers/great-circle/land.ts').write_text(
+(HERE / 'land.ts').write_text(
     '// Natural Earth 1:110m land (v5.1.2, public domain): each polygon\'s outer ring as [longitude, latitude]\n'
-    '// in degrees, rounded to 0.01. Written by tools/oracle/great-circle.py from\n'
+    '// in degrees, rounded to 0.01. Written by oracle/great-circle.py from\n'
     '// https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson\n'
     f'// (sha256 {SOURCE_SHA256}); do not edit by hand.\n\n'
     'export const LAND: readonly (readonly (readonly [number, number])[])[] = [\n' + body + ',\n];\n\n'

@@ -1,7 +1,6 @@
-// The font-metrics explainer's rulers step: the sentence its caption states about the two faces' advances.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectProject } from '../tools/lib/explain-project.ts';
+import { collectProject } from '../../../tools/lib/explain-project.ts';
 
 test('font metrics: every Garamond glyph in the phrase advances less than a JetBrains Mono cell', async () => {
   const project = await collectProject('scenes/explainers/font-metrics', { write: false });

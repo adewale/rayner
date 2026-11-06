@@ -1,23 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import {
-  AIRPORTS, RADIUS_KM, haversine, initialBearing, pole, vertex, highest, greatCircle, rhumb, rhumbLine, northing, stretch,
-  overflies, landAt, london, madrid, tens,
-} from '../scenes/explainers/great-circle/model.ts';
-import type { Place } from '../scenes/explainers/great-circle/model.ts';
-import { seenFrom, depthOrder, latLon } from '../explain/drawing.ts';
-import type { VMobject } from '../src/index.ts';
-import { fc, params } from './lib/pbt.ts';
-import { assertViewFollowsState } from './lib/view-fidelity.ts';
-import { collectProject, defaultScenario } from '../tools/lib/explain-project.ts';
-import type { View } from '../src/index.ts';
+import { AIRPORTS, RADIUS_KM, haversine, initialBearing, pole, vertex, highest, greatCircle, rhumb, rhumbLine, northing, stretch, overflies, landAt, london, madrid, tens } from './model.ts';
+import type { Place } from './model.ts';
+import { seenFrom, depthOrder, latLon } from '../../../explain/drawing.ts';
+import type { VMobject } from '../../../src/index.ts';
+import { fc, params } from '../lib/pbt.ts';
 
 const D = Math.PI / 180;
+
 const close = (a: number, b: number, tolerance: number, what = '') => assert.ok(Math.abs(a - b) <= tolerance, `${what} ${a} versus ${b}`);
+
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/great-circle-geodesic.json', import.meta.url), 'utf8'));
+
 /** The spherical law of cosines: a second formula for the same distance, independent of the haversine. */
 const cosines = (a: Place, b: Place) => RADIUS_KM * Math.acos(Math.sin(a.lat * D) * Math.sin(b.lat * D) + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.cos((b.lon - a.lon) * D));
+
 const places = fc.record({ lat: fc.double({ min: -85, max: 85, noNaN: true }), lon: fc.double({ min: -180, max: 180, noNaN: true }) });
 
 test('the model uses the airports and the 6,371 km sphere the fixture was solved on', () => {
@@ -175,15 +173,4 @@ test('the ruler line is the shortest only along the equator or a meridian', () =
     const direct = haversine({ lat: lat1, lon: 0 }, { lat: lat2, lon: dLon });
     assert.ok(rhumb({ lat: lat1, lon: 0 }, { lat: lat2, lon: dLon }).km > direct * (1 + 1e-11));
   }), params(500));
-});
-
-test('the turned globe is a view of its step’s state: it ends edge-on, the route a straight line', async () => {
-  const project = await collectProject('scenes/explainers/great-circle', { write: false });
-  const { Scene } = defaultScenario(project);
-  let globe: View | undefined;
-  const checked = await assertViewFollowsState(Scene, (scene) => {
-    globe ??= scene.mobjects.find((m) => m.key === undefined && (m as View).draw && (m as View).current?.key === 'globe') as View | undefined;
-    return globe && scene.mobjects.includes(globe) ? globe : null;
-  });
-  assert.equal(checked, 1, 'the turn step');
 });
