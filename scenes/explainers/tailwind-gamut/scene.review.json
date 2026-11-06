@@ -1,18 +1,6 @@
 {
-  "version": 1,
-  "claims": [
-    {
-      "step": "reader-edge",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "100% = sRGB edge"
-        }
-      ]
-    },
+  "version": 2,
+  "subjects": [
     {
       "step": "reader-display",
       "opening": true,
@@ -21,10 +9,10 @@
           "key": "reader-picture"
         },
         {
-          "text": "Written chroma"
+          "text": "As written"
         },
         {
-          "text": "Mapped sRGB preview"
+          "text": "On an sRGB screen"
         }
       ]
     }

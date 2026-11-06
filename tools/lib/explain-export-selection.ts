@@ -19,14 +19,14 @@ export function selectExport(
   entry?: string,
 ) {
   if (
-    catalog.version !== 1 ||
+    catalog.version !== 2 ||
     evidence.version !== 2 ||
     catalog.scenes.length !== evidence.scenes.length ||
     catalog.scenes.some(
-      (scene, i) => scene.id !== evidence.scenes[i]?.id || scene.cases !== evidence.scenes[i]?.cases.length,
+      (scene, i) => scene.id !== evidence.scenes[i]?.id || scene.scenarios !== evidence.scenes[i]?.scenarios.length,
     ) ||
     catalog.totals.explainers !== catalog.scenes.length ||
-    catalog.totals.cases !== catalog.scenes.reduce((n, scene) => n + scene.cases, 0) ||
+    catalog.totals.scenarios !== catalog.scenes.reduce((n, scene) => n + scene.scenarios, 0) ||
     JSON.stringify(catalog.totals) !== JSON.stringify(evidence.totals)
   )
     throw new Error('Catalog and checked evidence mismatch');
@@ -38,7 +38,7 @@ export function selectExport(
   const selectedEvidence = evidence.scenes.filter((s) => seen.has(s.id));
   const totals = {
     explainers: scenes.length,
-    cases: scenes.reduce((n, s) => n + s.cases, 0),
+    scenarios: scenes.reduce((n, s) => n + s.scenarios, 0),
     diagrams: selectedEvidence.reduce((n, s) => n + s.diagrams, 0),
     styles: new Set(selectedEvidence.flatMap((s) => s.styles)).size,
     families: new Set(selectedEvidence.flatMap((s) => s.families)).size,

@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text, perf, toSvgString, renderElements } from '../src/index.ts';
-import type { ElementRecord } from '../src/index.ts';
+import { Scene, Text } from '../src/index.ts';
+import { NullSink, toSvgString, renderElements } from '../src/output.ts';
+import { perf } from '../explain/testing.ts';
+import type { ElementRecord } from '../src/output.ts';
 import { Fixture, explainers } from './lib/scenes.ts';
 
 // Caption holds are thousands of identical frames; the hold rule has its own test
@@ -13,10 +15,12 @@ Scene.captionWpm = Infinity;
 // (FULL=1: every third), plus the first eleven frames of short scenes. One output mode per run: the path cache holds one mode, so
 // alternating modes would bypass it.
 const EVERY = process.env.FULL ? 3 : 15;
-// The camera comes along: an explainer that zooms (seasons) renders a viewBox of its own
+// The camera comes along: an explainer that zooms (seasons) renders a viewBox of its own; so do its
+// colours, whose paper is the SVG's background
 const fresh = (scene: Scene): Scene => {
   const s = new Scene(new NullSink());
   s.frame = scene.frame.copy();
+  s.colors = scene.colors;
   return s.add(...scene.mobjects.map((m) => m.copy()));
 };
 const absolute = (els: ElementRecord[]): string => els.map((e) => `${e.transform ?? ''}|${JSON.stringify(e.attrs)}|${e.text ?? ''}`).join('\n');
@@ -110,7 +114,7 @@ test('DOM output merges same-styled glyph lines into one element, and splits dur
 });
 
 test('failed and stopped sinks close their trace span before the next caller', async (t) => {
-  const { StopScene } = await import('../src/index.ts');
+  const { StopScene } = await import('../src/output.ts');
   let clock = 100;
   t.mock.method(performance, 'now', () => clock);
   try {

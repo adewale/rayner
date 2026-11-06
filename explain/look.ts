@@ -1,6 +1,8 @@
 import { lerpColor, parseColor } from '../src/color.ts';
+import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { Seen } from './trace.ts';
 
 /**
  * Secondary text that still reads on the paper: ink pulled up to a third of the way
@@ -38,13 +40,42 @@ export function emphasis(p: Palette): string {
   return onPaper(p, '#ffb454', '#d9480f');
 }
 /**
- * What a helper emphasises now: each object that shows it, with what it shows there (a card
- * row, code lines, a mark's colour, a note's words), so moving a focus bar is new emphasis.
+ * What a helper emphasises now: each part that shows it, as the mobject or its key, with what it
+ * shows there (a card row, code lines, a mark's colour, a note's words), so moving a focus bar is
+ * new emphasis. A key names the part on the stage at that moment; a key not on the stage marks nothing.
  */
-export type Emphasis = readonly (readonly [Mobject, string])[];
+export type Emphasis = readonly (readonly [Mobject | string, string])[];
 /** Composites report their own current parts; copies inherit the method, not a closure over the original. */
 export const emphasisSource = Symbol('emphasisSource');
 interface EmphasisSource { [emphasisSource](): Emphasis }
+/**
+ * A picture that says what it is: a card, a code panel, a diagram note, a dimension line. The
+ * stage describes such a part by its own words wherever it is drawn (kept, inside a view, inside a
+ * staged step's picture), so a picture built from state is described as it is built.
+ */
+export const seenSource = Symbol('seenSource');
+export interface SeenSource { [seenSource](): Seen }
+/** Whether `m` describes itself. */
+export const describesItself = (m: Mobject): m is Mobject & SeenSource => typeof (m as Partial<SeenSource>)[seenSource] === 'function';
+/** Give `m` its own description (and, when `emphasis` is given, its own emphasis); returns `m`. */
+export function selfDescribed<T extends Mobject>(m: T, seen: () => Seen, emphasis?: () => Emphasis): T {
+  Object.assign(m, { [seenSource]: seen, ...(emphasis ? { [emphasisSource]: emphasis } : {}) });
+  return m;
+}
+/**
+ * What `m` shows in words: each part that describes itself, as it describes itself, and the text
+ * of every other `Text`, in family order. A self-describing part's own text is not repeated.
+ */
+export function partsSeen(m: Mobject, text: (t: Text) => boolean = () => true): { seen: Seen[]; words: string[] } {
+  const seen: Seen[] = [], words: string[] = [];
+  const walk = (x: Mobject): void => {
+    if (describesItself(x)) { seen.push(x[seenSource]()); return; }
+    if (x instanceof Text) { if (text(x)) words.push(x.text); return; }
+    for (const c of x.children) walk(c);
+  };
+  walk(m);
+  return { seen, words };
+}
 const emphasisers = new WeakMap<Scene, Set<() => Emphasis>>();
 /**
  * Register what a helper emphasises, read from its own state whenever asked: a lit card row's
@@ -62,7 +93,11 @@ export function emphasises(scene: Scene, now: () => Emphasis): void {
 export function emphasisOf(scene: Scene): Map<Mobject, string> {
   const out = new Map<Mobject, string>();
   const add = (items: Emphasis) => {
-    for (const [m, what] of items) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
+    for (const [part, what] of items) {
+      // A key names the part on the stage now (identity is a key); a key not on the stage marks nothing.
+      const m = typeof part === 'string' ? scene.find(part) : part;
+      if (m) out.set(m, out.has(m) ? `${out.get(m)}; ${what}` : what);
+    }
   };
   for (const now of emphasisers.get(scene) ?? [])
     add(now());
@@ -76,14 +111,14 @@ export function emphasisOf(scene: Scene): Map<Mobject, string> {
   return out;
 }
 
-const readingSubjects = new WeakMap<Scene, readonly Mobject[]>();
+const openingSubjects = new WeakMap<Scene, readonly Mobject[]>();
 /** The objects a reader must compare together before exploring the details.
  * This selects an opening; it neither removes artwork nor changes its scale. */
-export function reading(scene: Scene, ...subjects: Mobject[]): void {
-  readingSubjects.set(scene, [...subjects]);
+export function opening(scene: Scene, ...subjects: Mobject[]): void {
+  openingSubjects.set(scene, [...subjects]);
 }
-export function readingOf(scene: Scene): readonly Mobject[] {
-  return readingSubjects.get(scene) ?? [];
+export function openingOf(scene: Scene): readonly Mobject[] {
+  return openingSubjects.get(scene) ?? [];
 }
 /** Success and failure colours that read on the paper, for outcomes such as accepted and rejected. */
 export const good = (p: Palette) => onPaper(p, '#3fb950', '#1a7f37');

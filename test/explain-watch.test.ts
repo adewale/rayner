@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fc, params } from './lib/pbt.ts';
 import { checkWatch, watchedChanges, watchedValue } from '../explain/trace.ts';
 import { chromeFor, changeText } from '../app/embed-strings.ts';
-import { describeExplainer } from '../explain/index.ts';
+import { describeExplainer } from '../explain/testing.ts';
 import type { ExplainerClass } from '../explain/index.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
@@ -132,7 +132,7 @@ test('checkWatch refuses a watch that cannot work and names the problem', () => 
   checkWatch(eight, [{ before: {}, after: eight }]);
 });
 
-// A two-case scene whose state differs by case: `only` exists only in the "b" case.
+// A two-scenario scene whose state differs by scenario: `only` exists only in the "b" scenario.
 const scene = (watch: string) =>
   `import{Scene,Text}from'rayner';import{stage,settingsOf}from'rayner/explain';export default class W extends Scene{static meta={id:'watch',title:'Watch',watch:${watch}};static settings=[{id:'c',label:'Case',default:'a',options:[{value:'a',label:'A'},{value:'b',label:'B'}]}];async construct(){const s=stage(this);await this.step('one',{title:'One',caption:'One.'});await s.enter(new Text('one'));this.state.count=1;this.state.box={x:1};await this.step('two',{title:'Two',caption:'Two.'});await s.enter(new Text('two').moveTo([0,-1]));this.state.count=2;this.state.box={x:2};if(settingsOf(this).c==='b')this.state.only=true;}}`;
 async function collect(name: string, watch: string) {
@@ -141,8 +141,8 @@ async function collect(name: string, watch: string) {
   return collectProject(file, { write: false });
 }
 
-test('collection refuses an unknown watched key, naming it, and accepts a key present in only one case', async () => {
-  await assert.rejects(collect('unknown', `{count:'Count',missing:'Missing'}`), /meta\.watch names "missing", which is never in the scene's state at any step of any case/);
+test('collection refuses an unknown watched key, naming it, and accepts a key present in only one scenario', async () => {
+  await assert.rejects(collect('unknown', `{count:'Count',missing:'Missing'}`), /meta\.watch names "missing", which is never in the scene's state at any step of any scenario/);
   await assert.rejects(collect('blank', `{count:' '}`), /meta\.watch gives "count" an empty label/);
   const p = await collect('ok', `{count:'Count',only:'Only'}`);
   assert.deepEqual(p.Scene.meta?.watch, { count: 'Count', only: 'Only' });
@@ -152,15 +152,15 @@ test('the transcript says what each step changed after its caption, and check re
   const p = await collect('report', `{count:'Count',box:'Box',only:'Only'}`);
   const { html } = await buildExplainer(p, join(folder, 'report.html'));
   assert.ok(html.includes('<p>One.</p><p>What changed: Count: 1</p>'), 'step one');
-  assert.ok(html.includes('<p>Two.</p><p>What changed: Count: 1 → 2</p>'), 'step two, case a');
-  assert.ok(html.includes('<p>Two.</p><p>What changed: Count: 1 → 2; Only: yes</p>'), 'step two, case b');
-  const report = (await checkProject(p, join(folder, 'report-check'))) as { variants: { settings: Record<string, string>; watch: unknown }[] };
-  const b = report.variants.find((v) => v.settings.c === 'b')!;
+  assert.ok(html.includes('<p>Two.</p><p>What changed: Count: 1 → 2</p>'), 'step two, scenario a');
+  assert.ok(html.includes('<p>Two.</p><p>What changed: Count: 1 → 2; Only: yes</p>'), 'step two, scenario b');
+  const report = (await checkProject(p, join(folder, 'report-check'))) as { scenarios: { settings: Record<string, string>; watch: unknown }[] };
+  const b = report.scenarios.find((v) => v.settings.c === 'b')!;
   assert.deepEqual(b.watch, [
     { step: 'one', changes: [{ label: 'Count', after: '1' }], unformatted: ['box'] },
     { step: 'two', changes: [{ label: 'Count', before: '1', after: '2' }, { label: 'Only', after: 'yes' }], unformatted: ['box'] },
   ]);
-  assert.deepEqual(JSON.parse(await readFile(join(folder, 'report-check', 'report.json'), 'utf8')).variants[1].watch, b.watch);
+  assert.deepEqual(JSON.parse(await readFile(join(folder, 'report-check', 'report.json'), 'utf8')).scenarios[1].watch, b.watch);
 });
 
 test('a scene without watch has no "What changed" in its transcript and no watch in its check report', async () => {
@@ -170,16 +170,16 @@ test('a scene without watch has no "What changed" in its transcript and no watch
   const { html } = await buildExplainer(p, join(folder, 'none.html'));
   // The bundle carries the words; the transcript has no such line.
   assert.ok(!html.includes('<p>What changed'));
-  const report = (await checkProject(p, join(folder, 'none-check'))) as { variants: Record<string, unknown>[] };
-  assert.ok(report.variants.every((v) => !('watch' in v)));
+  const report = (await checkProject(p, join(folder, 'none-check'))) as { scenarios: Record<string, unknown>[] };
+  assert.ok(report.scenarios.every((v) => !('watch' in v)));
   const d = await describeExplainer(p.Scene, { drawings: false });
-  assert.ok(d.cases.every((c) => c.steps.every((s) => !('watched' in s))));
+  assert.ok(d.scenarios.every((c) => c.steps.every((s) => !('watched' in s))));
 });
 
 test('token-bucket\'s burst step: Tokens left 5 → 0, Accepted 0 → 5 and Rejected R6, in describe and the transcript', async () => {
   const d = await describeExplainer(TokenBucket as ExplainerClass, { drawings: false });
   assert.equal(d.schema, 1);
-  for (const c of d.cases) {
+  for (const c of d.scenarios) {
     const burst = c.steps.find((s) => s.step === 'burst')!;
     assert.deepEqual(burst.watched, [
       { label: 'Tokens left', before: '5', after: '0' },
@@ -192,7 +192,7 @@ test('token-bucket\'s burst step: Tokens left 5 → 0, Accepted 0 → 5 and Reje
   const p = await collectProject('scenes/explainers/token-bucket', { write: false });
   const { html } = await buildExplainer(p, join(folder, 'token-bucket.html'));
   const said = [...html.matchAll(/<p>(What changed: [^<]*)<\/p>/g)].map((m) => m[1]);
-  // Four steps of each of the three cases change something watched; the comparison does not.
+  // Four steps of each of the three scenarios change something watched; the comparison does not.
   assert.equal(said.length, 12);
   assert.equal(said.filter((s) => s === 'What changed: Tokens left: 5 → 0; Accepted: 0 → 5; Rejected: R6').length, 3);
 });

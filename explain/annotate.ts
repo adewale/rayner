@@ -5,6 +5,7 @@ import type {TextShaping} from '../src/text-context.ts';
 import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject } from '../src/index.ts';
 import type { Box as BoxT } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
+import { selfDescribed } from './look.ts';
 
 const paperFor = (text: Text, fill: string): Rectangle => new Rectangle({
   width: text.width() + 0.12, height: text.height() + 0.08, fill, stroke: 'none',
@@ -52,18 +53,19 @@ export function dimension(a: Vec, b: Vec, label: string, { color, background, si
   t.moveTo([mid[0] + n[0] * side * gap, mid[1] + n[1] * side * gap]);
   if (background) g.add(paperFor(t, background));
   g.add(t);
-  return g;
+  return selfDescribed(g, () => ({ what: `A dimension line marked “${label}”`, parts: [] }));
 }
 
-/** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head. */
-export function pin(at: Vec, { color, size = 0.24, shaping, label }: AnnotationLook & { label?: string }): Group {
+/** A pin stuck in at `at`: a round head above it on a short needle, and an optional label beside the head, on its `side` (right by default). */
+export function pin(at: Vec, { color, size = 0.24, shaping, label, side = 'right' }: AnnotationLook & { label?: string; side?: 'left' | 'right' }): Group {
   const head: Vec = [at[0], at[1] + 0.32];
   const g = new Group(
     new Line(at, [head[0], head[1] - 0.07], { stroke: color, strokeWidth: 0.025 }),
     new Circle({ radius: 0.075, fill: color, fillOpacity: 1, stroke: 'none' }).moveTo(head),
   );
-  if (label) g.add(new Text(label, { fontSize: size, color, anchor: 'start', shaping }).moveTo([head[0] + 0.14, head[1]], [-1, 0]));
-  return g;
+  const out = side === 'left' ? -1 : 1;
+  if (label) g.add(new Text(label, { fontSize: size, color, anchor: side === 'left' ? 'end' : 'start', shaping }).moveTo([head[0] + out * 0.14, head[1]], [-out, 0]));
+  return selfDescribed(g, () => ({ what: label ? `A pin marked “${label}”` : 'A pin', parts: [] }));
 }
 
 export type Side = 'above' | 'below' | 'left' | 'right';
@@ -293,4 +295,112 @@ export function oneStrokeEach(m: Mobject): Mobject {
     }
   }
   return m;
+}
+
+/** One entry of a legend: a swatch and the words for what it means. */
+export interface LegendItem {
+  /** What the swatch means, in the reader's words. */
+  label: string;
+  /** A filled square of this colour; `'none'` with a `stroke` for an empty square outlined in it. */
+  fill?: string;
+  /** A short line of this colour; with `fill`, the square's outline. */
+  stroke?: string;
+  /** Draw the line or outline dashed. */
+  dashed?: boolean;
+  /** The colour's name in words, when the nearest plain name (`colourName`) is not the one the captions use. */
+  name?: string;
+}
+
+/**
+ * The nearest plain English name of a colour, from its hue, saturation and lightness: grey, black or
+ * white for a colour with little saturation, brown for a dark orange or yellow, else red, orange,
+ * yellow, green, teal, blue, purple or pink. A legend says its swatches with these words, so a
+ * caption's "purple fill" finds the swatch that keys it.
+ */
+export function colourName(hex: string): string {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 'coloured';
+  const h6 = m[1]!.length === 3 ? [...m[1]!].map((c) => c + c).join('') : m[1]!;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h6.slice(i, i + 2), 16) / 255) as [number, number, number];
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    l = (max + min) / 2,
+    d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (sat < 0.18 || d < 0.08) return l < 0.2 ? 'black' : l > 0.85 ? 'white' : 'grey';
+  const hue = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  if (hue >= 20 && hue < 65 && l < 0.36) return 'brown';
+  if (hue < 15 || hue >= 345) return 'red';
+  if (hue < 40) return 'orange';
+  if (hue < 65) return 'yellow';
+  if (hue < 165) return 'green';
+  if (hue < 195) return 'teal';
+  if (hue < 255) return 'blue';
+  if (hue < 290) return 'purple';
+  return 'pink';
+}
+
+/** How a legend says one swatch: "purple fill", "dashed red line", "green fill with a dashed outline". */
+export function swatchWords(item: LegendItem): string {
+  const name = (c: string) => item.name ?? colourName(c);
+  if (item.fill === 'none' && item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} outline`;
+  if (item.fill && item.stroke) return `${name(item.fill)} fill with a ${item.dashed ? 'dashed ' : ''}${colourName(item.stroke)} outline`;
+  if (item.fill) return `${name(item.fill)} fill`;
+  if (item.stroke) return `${item.dashed ? 'dashed ' : ''}${name(item.stroke)} line`;
+  throw new Error(`legend: the entry "${item.label}" needs a fill or a stroke for its swatch`);
+}
+
+export interface LegendLook {
+  ink: string;
+  shaping?: TextShaping;
+  /** Text size; the swatch is about as tall as the text. */
+  size?: number;
+  /** Where the first entry starts: its swatch's left edge, on the entry's centre line. */
+  at?: Vec;
+  /** Entries stacked (`column`, the default) or side by side (`row`). */
+  direction?: 'column' | 'row';
+  /** Space between entries: from one entry's top to the next in a column, between entries in a row. */
+  gap?: number;
+}
+
+/**
+ * Swatches with words, in order: each a filled square, a short line or both, then its label. It
+ * describes itself as its swatch→meaning pairs ("Key: purple fill, cat’s bits; dashed blue line,
+ * the browser"), so the words a caption uses for a colour or a dash are on the stage too.
+ */
+export function legend(items: readonly LegendItem[], { ink, shaping, size = 0.3, at = [0, 0], direction = 'column', gap }: LegendLook): Group {
+  if (!items.length) throw new Error('legend: a legend needs at least one entry');
+  const labels = new Set<string>();
+  for (const item of items) {
+    if (!item.label.trim()) throw new Error('legend: every entry needs words for what its swatch means');
+    if (labels.has(item.label)) throw new Error(`legend: two entries say "${item.label}"; each swatch needs its own meaning`);
+    labels.add(item.label);
+    swatchWords(item);
+  }
+  const side = size * 0.9,
+    long = size * 1.8,
+    step = gap ?? (direction === 'row' ? size * 1.2 : size * 1.6);
+  const g = new Group();
+  let x = at[0],
+    y = at[1];
+  for (const item of items) {
+    const width = item.fill ? side : long,
+      cy = y;
+    const swatch = item.fill
+      ? new Rectangle({
+          width: side,
+          height: side,
+          fill: item.fill,
+          fillOpacity: 1,
+          stroke: item.stroke ?? 'none',
+          strokeWidth: item.stroke ? 0.035 : 0,
+          ...(item.dashed ? { dashArray: '0.06 0.04' } : {}),
+        }).moveTo([x + side / 2, cy])
+      : new Line([x, cy], [x + long, cy], { stroke: item.stroke!, strokeWidth: 0.05, ...(item.dashed ? { dashArray: '0.12 0.07' } : {}) });
+    const text = new Text(item.label, { fontSize: size, color: ink, anchor: 'start', shaping }).moveTo([x + width + size * 0.45, cy], [-1, 0]);
+    g.add(new Group(swatch, text));
+    if (direction === 'row') x = text.box()![2] + step;
+    else y -= step;
+  }
+  return selfDescribed(g, () => ({ what: `Key: ${items.map((item) => `${swatchWords(item)}, ${item.label}`).join('; ')}`, parts: [] }));
 }

@@ -1,9 +1,9 @@
 {
   "name": "rayner",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && node tools/copy-vendor.ts && node tools/build-cli.ts",
+    "build:lib": "rm -rf dist && tsc -p tsconfig.lib.json && tsc -p tsconfig.recipes.json && node tools/copy-vendor.ts && node tools/build-cli.ts",
     "test": "node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
     "test:full": "FULL=1 node --expose-gc --test test/*.test.ts test/browser/*.test.ts",
     "fonts": "tools/fonts.sh",
@@ -21,14 +21,15 @@
     "site:export": "node tools/explain-site.ts",
     "test:embeds": "EXPLAIN_BROWSER=1 node --test test/browser/*.test.ts",
     "release:check": "node tools/prepare-release.ts",
-    "bench": "node tools/bench.ts"
+    "bench": "node tools/bench.ts",
+    "recipes": "node recipes/render.ts"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "fast-check": "4.10.2",
     "shiki": "4.5.0"
   },
-  "description": "Step-through technical explainers from one TypeScript scene. Portable HTML with no browser runtime dependencies.",
+  "description": "Technical explainers drawn from a tested TypeScript model, each step's pictures checked against its state. Read step by step or explore in the player, from one portable HTML page.",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
@@ -38,9 +39,21 @@
       "types": "./dist/explain/index.d.ts",
       "default": "./dist/explain/index.js"
     },
+    "./drawing": {
+      "types": "./dist/explain/drawing.d.ts",
+      "default": "./dist/explain/drawing.js"
+    },
     "./lettering": {
       "types": "./dist/src/lettering.d.ts",
       "default": "./dist/src/lettering.js"
+    },
+    "./output": {
+      "types": "./dist/src/output.d.ts",
+      "default": "./dist/src/output.js"
+    },
+    "./testing": {
+      "types": "./dist/explain/testing.d.ts",
+      "default": "./dist/explain/testing.js"
     }
   },
   "bin": {
@@ -57,8 +70,11 @@
     "integrations",
     "app/embed*",
     "app/loader.ts",
+    "docs/*.md",
+    "FAQ.md",
     "skills",
     "scenes/tutorial",
+    "recipes",
     "tools/lettering.py",
     "tools/lib/lettering.ts",
     "tools/lib/lettering-validation.ts",

@@ -17,7 +17,7 @@
 //   expressjs/expressjs.com 4ca3fa8 behind-proxies.mdx:26, 31, 53, 60, 63  the guide's description and warnings
 //
 // The model covers IPv4 addresses and IPv4 ranges only; proxy-addr also handles IPv6 and IPv4-mapped
-// addresses, which no case here uses. test/explain-trust-proxy.test.ts holds the twelve answers of real
+// addresses, which no scenario here uses. test/explain-trust-proxy.test.ts holds the twelve answers of real
 // Express 5.3.0 and checks the model against them.
 
 /** Documentation addresses (RFC 5737), except the load balancer's private one (RFC 1918). */
@@ -171,6 +171,21 @@ export function readAddresses(socket: string, xff: string | null, trust: Trust):
     break;
   }
   return addrs.map((addr, index) => ({ addr, index, verdict: index < last ? 'trusted' : index === last ? 'answer' : 'unread' }));
+}
+/** One address Express reads, with who it belongs to: a machine on the route, or an entry the attacker wrote. */
+export interface Position extends Reading {
+  who: Hop['id'] | 'forged';
+}
+/**
+ * The routes view: the addresses Express reads for a request, each tied to its source by the route, not by
+ * looking its address up. Counted from Express: the proxies nearest first (the last one's is the socket
+ * address), then the sender, then whatever the sender wrote, right-most entry first.
+ */
+export function positions(r: Request, trust: Trust): Position[] {
+  const got = atExpress(r);
+  const written = forwarded('', r.sent).slice(1).map(() => 'forged' as const);
+  const who: Position['who'][] = [...r.via.toReversed().map((h) => h.id), r.sender.id, ...written];
+  return readAddresses(got.socket, got.xff, trust).map((reading, i) => ({ ...reading, who: who[i]! }));
 }
 /** req.ip. */
 export function reqIp(socket: string, xff: string | null, trust: Trust): string {

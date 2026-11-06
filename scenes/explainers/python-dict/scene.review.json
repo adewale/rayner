@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "question",
       "opening": true,
@@ -44,21 +44,6 @@
       ]
     },
     {
-      "step": "lookup",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
-        },
-        {
-          "key": "dict-entries"
-        },
-        {
-          "key": "dict-result"
-        }
-      ]
-    },
-    {
       "step": "broken",
       "opening": true,
       "targets": [
@@ -81,6 +66,9 @@
           "key": "dict-index"
         },
         {
+          "key": "dict-route"
+        },
+        {
           "key": "dict-entries"
         },
         {
@@ -96,16 +84,7 @@
           "key": "dict-index"
         },
         {
-          "key": "dict-result"
-        }
-      ]
-    },
-    {
-      "step": "predict",
-      "opening": true,
-      "targets": [
-        {
-          "key": "dict-index"
+          "key": "dict-route"
         },
         {
           "key": "dict-result"

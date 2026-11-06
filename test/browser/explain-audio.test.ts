@@ -69,16 +69,17 @@ async function ready(page:Page,step='listen') {
   await page.waitForFunction(name=>document.querySelector('[aria-current=step]')?.getAttribute('data-step')===name&&!document.querySelector('#content.loading'),step);
 }
 
-test('audio is opt-in, offline, gesture-triggered and follows the score at both tempos',options,async()=>{
+test('audio is opt-in, offline, gesture-triggered and follows the score at its tempo',options,async()=>{
   const plain=await readFile(join(folder,'plain.html'),'utf8');
   assert.ok(!plain.includes('score-audio')&&!plain.includes('createOscillator'),'a plain page carries no optional sound UI or DSP');
-  for(const bpm of [96,120]) for(const timing of ['syncopated','straight']) {
+  const bpm=96;
+  for(const timing of ['syncopated','straight']) {
     const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
     const errors:string[]=[],external:string[]=[];
     page.on('pageerror',error=>errors.push(error.message));
     await page.route('**/*',route=>{if(new URL(route.request().url()).origin!==server.url){external.push(route.request().url());return route.abort();}return route.continue();});
     try {
-      await observed(page);const response=await page.goto(`${server.url}/melody-rhythm.html?tempo=${bpm}&timing=${timing}`);await ready(page);
+      await observed(page);const response=await page.goto(`${server.url}/melody-rhythm.html?timing=${timing}`);await ready(page);
       assert.match(response!.headers()['content-security-policy']!,/connect-src 'none'/);
       assert.equal(await page.evaluate(()=>(window as any).scoreProbe.contexts),0,'no context or autoplay before a gesture');
       assert.equal(await page.locator('.score-audio').isVisible(),true);
@@ -157,9 +158,9 @@ test('audio: resume completion cannot restart sound after microtask Stop, Next o
   });
 });
 
-test('audio, motion on: scheduled resumes and reader actions never sound a departed step or case',options,async()=>{
+test('audio, motion on: scheduled resumes and reader actions never sound a departed step or scenario',options,async()=>{
   await fc.assert(fc.asyncProperty(
-    fc.array(fc.record({action:fc.constantFrom('play','stop','next','previous','case','pulse'),release:fc.boolean()}),{minLength:1,maxLength:16}),
+    fc.array(fc.record({action:fc.constantFrom('play','stop','next','previous','scenario','pulse'),release:fc.boolean()}),{minLength:1,maxLength:16}),
     fc.scheduler(),async(actions,scheduler)=>{
       const page=await browser.newPage({reducedMotion:'no-preference'});
       try {
@@ -185,7 +186,7 @@ test('audio, motion on: scheduled resumes and reader actions never sound a depar
         await page.goto(server.url+'/melody-rhythm.html');await ready(page);
         await page.getByRole('button',{name:'Play A: even beats',exact:true}).click();
         await scheduler.waitFor(page.waitForFunction(()=>document.querySelector<HTMLElement>('.score-audio')?.dataset.playing==='true'));
-        for(const {action,release} of [{action:'case',release:false},{action:'play',release:false},{action:'next',release:true},...actions]) {
+        for(const {action,release} of [{action:'scenario',release:false},{action:'play',release:false},{action:'next',release:true},...actions]) {
           const playing=await page.evaluate(action=>{
             const click=(selector:string|HTMLButtonElement|undefined)=>{
               const b=typeof selector==='string'?document.querySelector<HTMLButtonElement>(selector):selector;
@@ -195,11 +196,11 @@ test('audio, motion on: scheduled resumes and reader actions never sound a depar
             if(action==='stop') click(Array.from(document.querySelectorAll<HTMLButtonElement>('.score-audio button')).find(b=>b.textContent==='Stop'));
             if(action==='next') click('.stepper button[aria-label="Next step"]');
             if(action==='previous') click('.stepper button[aria-label="Previous step"]');
-            if(action==='case') click('.case input:not(:checked)');
+            if(action==='scenario') click('.scenario input:not(:checked)');
             if(action==='pulse') click('.score-audio input');
             return document.querySelector<HTMLElement>('.score-audio')?.dataset.playing;
           },action);
-          if(action==='case') assert.equal(playing,'false','case changes stop sound before loading');
+          if(action==='scenario') assert.equal(playing,'false','scenario changes stop sound before loading');
           if(release&&scheduler.count()) await scheduler.waitOne();
           await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
           assert.equal(await page.evaluate(()=>(window as any).owners?.some((o:any)=>o.live&&o.owner!==location.search+'|'+(window as any).__audioEpoch)??false),false,action);

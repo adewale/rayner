@@ -1,6 +1,27 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
+    {
+      "step": "ask",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "Agent"
+        },
+        {
+          "text": "Application"
+        },
+        {
+          "text": "needs API_KEY"
+        },
+        {
+          "text": "must not read"
+        }
+      ]
+    },
     {
       "step": "reader-boundary",
       "opening": true,
@@ -16,30 +37,12 @@
         },
         {
           "text": "Application"
-        }
-      ]
-    },
-    {
-      "step": "reader-auth",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
         },
         {
-          "text": "Agent"
+          "text": "op:// reference"
         },
         {
-          "text": "op CLI"
-        },
-        {
-          "text": "Application"
-        },
-        {
-          "text": "Service token"
-        },
-        {
-          "text": "Resolved key"
+          "text": "secret value"
         }
       ]
     }

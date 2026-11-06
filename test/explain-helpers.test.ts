@@ -4,9 +4,12 @@
 // explain/look.ts, and the HTML escaping in explain/trace.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, traceScene, loadFonts } from '../src/index.ts';
-import { stage, bindSnapshots, findingsOf, edgePartOf, regionBox, REGIONS } from '../explain/index.ts';
-import { diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
+import { stage, regionBox, REGIONS } from '../explain/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
+import { findingsOf, edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity } from '../explain/look.ts';
 import { PALETTES, palette } from '../explain/palettes.ts';
@@ -158,13 +161,13 @@ const specArb = fc.record(
 test('diagramKey ignores CRLF, surrounding space, and the default style however it is written', () => {
   fc.assert(
     fc.property(specArb, fc.constantFrom('', ' ', '\n', '\r\n', '\t '), fc.constantFrom('default', '', undefined), (spec, pad, unstyled) => {
-      const variant = { ...spec, source: pad + spec.source.replace(/\r?\n/g, '\r\n') + pad };
+      const scenario = { ...spec, source: pad + spec.source.replace(/\r?\n/g, '\r\n') + pad };
       // The default style is the same render whether named, empty or absent.
       if (spec.style === 'default' || spec.style === '') {
-        if (unstyled === undefined) delete (variant as { style?: string }).style;
-        else variant.style = unstyled;
+        if (unstyled === undefined) delete (scenario as { style?: string }).style;
+        else scenario.style = unstyled;
       }
-      assert.equal(diagramKey(variant as never), diagramKey(spec as never));
+      assert.equal(diagramKey(scenario as never), diagramKey(spec as never));
     }),
     params(),
   );
@@ -263,6 +266,18 @@ test('whatever the validator accepts, a Diagram can draw and describe without in
     }),
     params<[Mutation]>(300, { examples: ['valueOf', 'constructor', '__proto__', 'toString', 'hasOwnProperty'].map((family): [Mutation] => [[fixture(), ['family'], family]]) }),
   );
+});
+
+test('two diagrams on one stage have two frames, each a part of its own with the role frame', async () => {
+  const scene = new Scene(new NullSink(), { skipUntil: Infinity });
+  const other = fixedSnapshot({ ...spec, source: spec.source + '\n%% another' }, fixture().parts, { palette: fixture().palette });
+  const [a, b] = [new Diagram(scene, spec, fixture(), { box: 'left' }), new Diagram(scene, other.spec, other, { box: 'right' })];
+  await a.build();
+  await b.build();
+  const frames = scene.familyMembers().filter((m) => m.role === 'frame');
+  assert.equal(frames.length, 2);
+  assert.notEqual(frames[0]!.key, frames[1]!.key, 'one key per part, the frames too');
+  assert.equal(a.get('__frame'), frames[0], 'the frame is still found by its id in the snapshot');
 });
 
 test('a hidden diagram leaves the stage, so nothing describes it, and reveal brings it back', async () => {
@@ -628,8 +643,12 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Diagram', 'REGIONS', 'bindSnapshots', 'caseName', 'describeExplainer', 'edgePartOf', 'findingsOf', 'palette',
-    'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'variantsOf', 'withSettings',
+    'Card', 'CodeBlock', 'Diagram', 'REGIONS', 'diagramsOf', 'mermaid', 'palette', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'stagedStep',
+  ]);
+  // The tooling went to rayner/testing.
+  assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [
+    'InvariantSink', 'MotionSink', 'TraceSink', 'analyzeMotion', 'bindSnapshots', 'describeExplainer', 'jsonObject', 'loadFonts',
+    'machinesOf', 'perf', 'scenarioName', 'scenariosOf', 'takeMissingGlyphs', 'traceScene', 'viewMismatch', 'withSettings',
   ]);
 });
 
@@ -646,4 +665,46 @@ test('htmlEscape output has no markup characters and decodes back to the text', 
     }),
     params(),
   );
+});
+
+// ---- state diagrams: composites and regions ---------------------------------------
+
+test('state diagrams name [*] dots by their state and region, count composites as states, and dim keeps a composite whole', async () => {
+  const { readSnapshots } = await import('../tools/lib/explain-project.ts');
+  const { COMPOSITE, REGIONS } = await import('./fixtures/state-composite/scene.ts');
+  const { wordsFor } = await import('../explain/words.ts');
+  const store = await readSnapshots('test/fixtures/state-composite/scene');
+  const draw = async (source: string) => {
+    const captured = Object.values(store).find((s) => s.spec.source === source);
+    assert.ok(captured, 'the fixture snapshot is captured');
+    const d = new Diagram(new Scene(new NullSink(), { skipUntil: Infinity }), captured.spec, captured, { box: 'full' });
+    await d.build();
+    return d;
+  };
+  const names = (d: Diagram) => d.describe().parts.map((p) => p.name);
+
+  // A composite's start dot is named by its state; links to it use that name, not on_start.
+  const composite = await draw(COMPOSITE);
+  assert.equal(composite.describe().blank, undefined);
+  assert.match(composite.describe().what, /\b5 states, 6 transitions$/, 'off, on, idle, brewing, ready; the dot is not a state');
+  for (const name of ['start of on', 'start of on → idle', 'on → off: POWER_OFF']) assert.ok(names(composite).includes(name), name);
+
+  // Each concurrent region's start is numbered; the diagram's own start is just "start".
+  const regions = await draw(REGIONS);
+  assert.equal(regions.describe().blank, undefined);
+  assert.match(regions.describe().what, /\b6 states, 9 transitions$/, 'off, on and four region states');
+  for (const name of ['start', 'start → off', 'start of on, region 1 → paused', 'start of on, region 2 → unmuted'])
+    assert.ok(names(regions).includes(name), name);
+  assert.ok(!names(regions).some((n) => /__r\d|_start\b/.test(n)), 'no part falls back to a capture id');
+
+  // Keeping the composite keeps what is drawn inside it; the outside state and its links fade.
+  await regions.dim(['on']);
+  const dimmed = new Set(regions.describe().parts.filter((p) => p.dimmed).map((p) => p.name));
+  for (const name of ['off', 'start → off', 'on → off: POWER_OFF', 'off → on: POWER']) assert.ok(dimmed.has(name), `${name} fades`);
+  for (const name of ['paused', 'muted', 'start of on, region 2', 'paused → playing: PLAY', 'unmuted → muted: MUTE'])
+    assert.ok(!dimmed.has(name), `${name} stays`);
+
+  assert.equal(wordsFor('fr').pseudostate('start', 'on', 2), 'début d’on, région 2');
+  assert.equal(wordsFor('fr').pseudostate('end', 'veille'), 'fin de veille');
+  assert.equal(wordsFor('en').pseudostate('end'), 'end');
 });

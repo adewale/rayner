@@ -9,7 +9,7 @@ import { chromeFor } from './embed-strings.ts';
  * of the frame's default name.
  *
  * Each step the page settles on reaches the host as a `rayner:step` event on the iframe (it bubbles)
- * and through `onStep`; the returned dispose function's `goTo` asks the page for a step, a case or
+ * and through `onStep`; the returned dispose function's `goTo` asks the page for a step, a scenario or
  * both, and does nothing once disposed.
  */
 export function mountExplainer(
@@ -49,7 +49,7 @@ export function mountExplainer(
     frame.remove();
   };
   return Object.assign(dispose, {
-    /** Show `step` (by name) and `settings` (by id, over the case on show); a message to the page, which validates both. */
+    /** Show `step` (by name) and `settings` (by id, over the scenario on show); a message to the page, which validates both. */
     goTo(step?: string, settings?: Record<string, string>) {
       if (!disposed) frame.contentWindow?.postMessage(gotoMessage(step, settings), origin);
     },

@@ -1,7 +1,6 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/wcag-map.ts';
+import { frames as readerFrames, ANSWER } from '../lib/readers/wcag-map.ts';
 import { Scene } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { stage, settingsOf } from '../../../explain/index.ts';
 import {
   GUIDELINES,
   LEVELS,
@@ -14,9 +13,9 @@ import {
   opened,
   principleOf,
   tally,
-  totals,
 } from '../lib/wcag-map.ts';
 import type { Criterion, Level, Version } from '../lib/wcag-map.ts';
+import { listed } from '../lib/format.ts';
 
 // Of the light styles, github-light draws the root's label plainly; hand-drawn, excalidraw and pen-and-ink
 // outline it in the paper colour on a dark circle, which smears it. A mark's colour stands for a version:
@@ -115,8 +114,6 @@ const ofThem = (n: number, all: number, level: Level) =>
   level === 'AAA'
     ? ''
     : `, ${n === all ? 'all' : n === 0 ? 'none' : n} of them at level ${level === 'A' ? 'A' : 'A or AA'}`;
-const listed = (xs: readonly string[]) =>
-  xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`;
 
 export default class WcagMapExplainer extends Scene {
   static meta = {
@@ -137,6 +134,34 @@ export default class WcagMapExplainer extends Scene {
       'https://www.w3.org/TR/2023/CRD-WCAG22-20230125/#focus-visible',
       'https://www.w3.org/TR/2023/CRD-WCAG22-20230517/#focus-visible',
       'https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/',
+    ],
+    answer: ANSWER,
+    claims: [
+      {
+        says: 'means meeting every',
+        test: 'test/explain-wcag-map.test.ts: every version and level includes everything the level below it asks for',
+      },
+      { says: 'Every one dates from 2.0', shown: true as const },
+    ],
+    checks: [
+      {
+        question:
+          'A site meets all 24 criteria labelled AA in WCAG 2.2 but fails 1.1.1 Non-text Content, a level A criterion. Does it conform at level AA?',
+        answer:
+          'No. Level AA’s list includes every level A criterion, so failing one level A criterion fails level AA too, however many AA criteria pass.',
+      },
+      {
+        question:
+          'A contract asks for WCAG 2.1 level AA. A team checked its pages against the WCAG 2.2 level AA list and met all 55. What is still unchecked, and what did they check that 2.1 does not ask for?',
+        answer:
+          '4.1.1 Parsing is still unchecked: it is on the 2.1 AA list of 50 but 2.2 removed it. The six criteria 2.2 added at A or AA are extra work for a 2.1 contract.',
+      },
+      {
+        question:
+          'Keyboard focus on a new site is invisible. Does that fail 2.4.7 Focus Visible under a WCAG 2.0 level A policy, a WCAG 2.2 level A policy, or a WCAG 2.2 level AA policy?',
+        answer:
+          'Only under the 2.2 level AA policy. 2.4.7 is a level AA criterion in 2.0, 2.1 and the final 2.2 text, so neither level A list includes it, although drafts of 2.2 had moved it to level A.',
+      },
     ],
   };
   static settings = [
@@ -164,12 +189,12 @@ export default class WcagMapExplainer extends Scene {
       t22 = tally('2.2', level);
 
     // ------------------------------------------------------------------ 2.0
-    await readerFirst(this, s, readerFrames(level, open));
+    await s.steps(readerFrames(level, open), { kind: 'short' });
     await this.step('v20', {
-      detail: true,
-      title: `WCAG 2.0 at level ${level} asks for ${t20.total} success criteria`,
-      line: `Each number counts the criteria level ${level} asks for.`,
-      caption: `WCAG 2.0 (${PUBLISHED['2.0']}) sorts its success criteria under ${PRINCIPLES.length} principles and ${guidelinesIn('2.0').length} guidelines. Conforming at level ${level} means meeting ${asks[level]}. The number on each topic counts the criteria under it that level ${level} asks for: ${t20.total} in all. We will add the criteria from 2.1 and 2.2, then subtract the one 2.2 removed, to see exactly what this conformance level asks for.`,
+      kind: 'detail',
+      title: `The same list as a tree: ${PRINCIPLES.length} principles and ${guidelinesIn('2.0').length} guidelines in WCAG 2.0`,
+      line: `Each number counts the criteria level ${level} asks for under that topic.`,
+      caption: `WCAG 2.0 (${PUBLISHED['2.0']}) sorts its success criteria under ${PRINCIPLES.length} principles and ${guidelinesIn('2.0').length} guidelines. Conforming at level ${level} means meeting ${asks[level]}, and the number on each topic counts those under it. The next two steps show where in this tree 2.1 and 2.2 put their changes.`,
     });
     await s.clear();
     let topics = mapTopics('2.0', level);
@@ -182,10 +207,10 @@ export default class WcagMapExplainer extends Scene {
     // One new guideline, 2.5 (wcag.json gives it versions 2.1 and 2.2); the tests hold the model to that.
     const fresh = guideline(c21.newGuidelines[0]!);
     await this.step('v21', {
-      detail: true,
-      title: `WCAG 2.1 adds guideline ${fresh.num} and ${c21.added.length} criteria for level ${level}`,
+      kind: 'detail',
+      title: `WCAG 2.1’s additions land in ${gained21.length} guidelines, one of them new`,
       line: `Marked guidelines gained criteria; ${fresh.num} ${fresh.name} is new.`,
-      caption: `WCAG 2.1 (${PUBLISHED['2.1']}) keeps all of 2.0 and adds ${c21.addedAll} criteria${ofThem(c21.added.length, c21.addedAll, level)}. The marked guidelines gained criteria for this level; ${fresh.num} ${fresh.name}, new under ${nameOfPrinciple(principleOf(fresh.num))}, holds ${t21.guidelines[fresh.num]} of them. Level ${level} now asks for ${t21.total}.`,
+      caption: `WCAG 2.1 (${PUBLISHED['2.1']}) keeps all of 2.0 and adds ${c21.addedAll} criteria${ofThem(c21.added.length, c21.addedAll, level)}. They land in the ${gained21.length} marked guidelines; ${fresh.num} ${fresh.name}, new under ${nameOfPrinciple(principleOf(fresh.num))}, holds ${t21.guidelines[fresh.num]} of them.`,
     });
     const next21 = mapTopics('2.1', level);
     await d.morph({ source: source(next21) }, { ops: edits(topics, next21) });
@@ -201,11 +226,14 @@ export default class WcagMapExplainer extends Scene {
     const gained22 = guidelinesIn('2.2').filter((g) => t22.guidelines[g.num]! > t21.guidelines[g.num]!);
     const lost22 = guidelinesIn('2.2').filter((g) => t22.guidelines[g.num]! < t21.guidelines[g.num]!);
     const where = listed(c22.principlesGained.map(nameOfPrinciple));
+    const gain = (num: string) => t22.principles[num]! - t20.principles[num]!;
+    const top = Math.max(...PRINCIPLES.map((p) => gain(p.num)));
+    const most = PRINCIPLES.filter((p) => gain(p.num) === top);
     await this.step('v22', {
-      detail: true,
-      title: `WCAG 2.2 adds ${c22.addedAll} criteria and removes 4.1.1 Parsing`,
-      line: `${t21.total}, plus ${c22.added.length}, minus ${c22.removed.length}: ${t22.total} criteria.`,
-      caption: `WCAG 2.2 (${PUBLISHED['2.2']}) adds ${c22.addedAll} criteria${ofThem(c22.added.length, c22.addedAll, level)}, under ${where}. It also removes 4.1.1 Parsing, so guideline 4.1 drops from ${t21.guidelines['4.1']} to ${t22.guidelines['4.1']}. Level ${level} now asks for ${t22.total}: ${t21.total}, plus ${c22.added.length}, minus ${c22.removed.length}.`,
+      kind: 'detail',
+      title: `WCAG 2.2 adds criteria under ${where}, and removes 4.1.1 Parsing`,
+      line: `Green: guidelines that gained criteria. Red: guideline 4.1, which lost one.`,
+      caption: `WCAG 2.2 (${PUBLISHED['2.2']}) adds ${c22.addedAll} criteria${ofThem(c22.added.length, c22.addedAll, level)}, under ${where}. It also removes 4.1.1 Parsing, so guideline 4.1 drops from ${t21.guidelines['4.1']} to ${t22.guidelines['4.1']}. Since 2.0, ${most.length === 1 ? `${most[0]!.name} has gained the most at level ${level}, from ${t20.principles[most[0]!.num]} to ${t22.principles[most[0]!.num]}` : `${listed(most.map((p) => p.name))} have gained the most at level ${level}, ${top} each`}.`,
     });
     const next22 = mapTopics('2.2', level);
     await d.morph({ source: source(next22) }, { ops: edits(topics, next22) });
@@ -222,7 +250,7 @@ export default class WcagMapExplainer extends Scene {
 
     // ------------------------------------------------------------------ Parsing
     await this.step('parsing', {
-      detail: true,
+      kind: 'detail',
       title: '4.1.1 Parsing is obsolete, so WCAG 2.2 drops it',
       line: 'Its markup problems are gone or covered by other criteria.',
       // 2.0 Recommendation, 4.1.1; guidelines/sc/20/parsing.html:5; guidelines/index.html:93.
@@ -249,7 +277,7 @@ export default class WcagMapExplainer extends Scene {
     const added = (['2.1', '2.2'] as const).filter((v) => by(v).length).map((v) => `${range(by(v))} in ${v}`);
     const forLevel = `for level ${level}`;
     await this.step('open', {
-      detail: true,
+      kind: 'detail',
       title: gone.length
         ? `Guideline ${open} ${later.length ? `gained ${later.length} and ` : ''}lost 4.1.1 Parsing ${forLevel}`
         : later.length === now.length
@@ -274,57 +302,5 @@ export default class WcagMapExplainer extends Scene {
       added: c.added,
       ...(c.removed ? { removed: c.removed } : {}),
     }));
-
-    // ------------------------------------------------------------------ 2.4.7, where it is shown
-    if (open === '2.4' && level !== 'A') {
-      await this.step('focus-visible', {
-        detail: true,
-        title: '2.4.7 Focus Visible is still level AA',
-        line: 'Drafts made it level A; since May 2023 it is AA again.',
-        // "(Level A)" in every 2.2 draft from WD-WCAG22-20200227 to CRD-WCAG22-20230125; "(Level AA)" from
-        // CRD-WCAG22-20230517 on. The change logs of those drafts and of REC-WCAG22-20231005 keep
-        // "2019-11-10: Promoted Focus Visible from Level AA to Level A."; REC-WCAG22-20241212 drops it.
-        // guidelines/sc/20/focus-visible.html:5 at the pinned tag: "AA".
-        caption:
-          'Drafts of WCAG 2.2 from February 2020 to January 2023 made 2.4.7 Focus Visible level A. From the May 2023 draft on it is AA again, as in 2.0 and 2.1, but the October 2023 Recommendation’s change log still listed the move to A. The December 2024 update deleted that entry.',
-      });
-      await d.dim([gid('2.4'), cid('2.4.7')]);
-      await d.mark([cid('2.4.7')], { as: 'still level AA' });
-      this.state.focusVisible = criteria('2.2', level, '2.4').find((c) => c.num === '2.4.7')!.level;
-    }
-
-    // ------------------------------------------------------------------ totals
-    const gain = (num: string) => t22.principles[num]! - t20.principles[num]!;
-    const top = Math.max(...PRINCIPLES.map((p) => gain(p.num)));
-    const most = PRINCIPLES.filter((p) => gain(p.num) === top);
-    await this.step('totals', {
-      detail: true,
-      title: `WCAG 2.2 at level ${level}: ${t22.total} criteria, ${PRINCIPLES.map((p) => t22.principles[p.num]).join(', ')} by principle`,
-      line: `Level ${level}: ${t20.total} in 2.0, ${t21.total} in 2.1, ${t22.total} in 2.2.`,
-      caption: `${level === 'A' ? 'Level A is the minimum.' : `The list for level ${level} includes ${level === 'AA' ? 'level A' : 'levels A and AA'}.`} From 2.0 to 2.2 the list for level ${level} grew from ${t20.total} to ${t22.total}: ${c21.added.length} more in 2.1, then ${c22.added.length} added and ${c22.removed.length} removed in 2.2. ${most.length === 1 ? `${most[0]!.name} gained the most, from ${t20.principles[most[0]!.num]} to ${t22.principles[most[0]!.num]}` : `${listed(most.map((p) => p.name))} gained the most, ${top} each`}.`,
-    });
-    await s.clear();
-    const all = totals();
-    // Three cards side by side: by version, by principle, by level.
-    const column = (i: number) => regionBox('full', { left: -7.55 + i * 5.1, right: -7.55 + i * 5.1 + 4.85 });
-    const byVersion = await s.card(
-      VERSIONS.map((v) => [`WCAG ${v}`, String(all[v][level])] as [string, string]),
-      { at: column(0), title: `Level ${level}`, fontSize: 0.42, enter: false },
-    );
-    const byPrinciple = await s.card(
-      PRINCIPLES.map((p) => [p.name, String(t22.principles[p.num])] as [string, string]),
-      { at: column(1), title: `WCAG 2.2, level ${level}`, fontSize: 0.42, enter: false },
-    );
-    const byLevel = await s.card(
-      LEVELS.map((l) => [`Level ${l}`, String(all['2.2'][l])] as [string, string]),
-      { at: column(2), title: 'WCAG 2.2', fontSize: 0.42, enter: false },
-    );
-    await s.enter(byVersion, byPrinciple, byLevel);
-    await byLevel.mark(`Level ${level}`, { as: 'this level' });
-    this.state.totals = {
-      versions: VERSIONS.map((v) => all[v][level]),
-      principles: t22.principles,
-      levels: all['2.2'],
-    };
   }
 }

@@ -12,7 +12,8 @@ test('the vendored glyph bundle matches its recorded upstream bytes', () => {
   assert.equal(createHash('sha256').update(bytes).digest('hex'), pin.sha256, 'review and record a changed glyph bundle');
 });
 import { fc, params } from './lib/pbt.ts';
-import { loadFonts, shaperFor, takeMissingGlyphs, Text } from '../src/index.ts';
+import { shaperFor, Text } from '../src/index.ts';
+import { loadFonts, takeMissingGlyphs } from '../explain/testing.ts';
 import { FALLBACK } from '../src/font-data.ts';
 
 await loadFonts();

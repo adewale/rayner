@@ -2,7 +2,9 @@
 // describe) and caption holds (Step.hold, captionWpm). Counts: test/lib/pbt.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Rectangle, FadeIn, traceScene } from '../src/index.ts';
+import { Scene, Rectangle, FadeIn } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { traceScene } from '../explain/testing.ts';
 import type { Step, Sink } from '../src/index.ts';
 import { fc, params } from './lib/pbt.ts';
 

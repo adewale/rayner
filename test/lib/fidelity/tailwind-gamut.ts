@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
 import { assertStepState } from '../explainer-state.ts';
+import { assertSteps, idsOf } from '../steps.ts';
 import { SHADES, rows, summarize } from '../../../scenes/explainers/lib/tailwind-gamut.ts';
 import type { Shade } from '../../../scenes/explainers/lib/tailwind-gamut.ts';
 
-/** Every case's step state equals the gamut model's answers for that shade and screen. */
+/** Every scenario's step state equals the gamut model's answers for that shade and screen. */
 export function check(trace: Trace, values: Record<string, string>): void {
   const shade = values.shade as Shade,
     screen = values.screen;
@@ -13,8 +14,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const all = rows(shade),
     sum = summarize(shade);
 
-  assertStepState(trace, 'oklch', { palette: all.map((r) => [r.family, r.L, r.C, r.h]) });
-  assertStepState(trace, 'srgb-edge', { srgbEdge: all.map((r) => r.srgb) });
+  assertStepState(trace, 'srgb-edge', { palette: all.map((r) => [r.family, r.L, r.C, r.h]), srgbEdge: all.map((r) => r.srgb) });
   assertStepState(trace, 'palette', { outsideSrgb: sum.outsideSrgb, furthest: sum.furthest });
   assertStepState(trace, 'share', { ofSrgb: all.map((r) => r.ofSrgb) });
   assertStepState(trace, 'p3-edge', { outsideP3: [], nearestP3: sum.nearestP3, p3OfSrgb: all.map((r) => r.p3OfSrgb) });
@@ -25,8 +25,7 @@ export function check(trace: Trace, values: Record<string, string>): void {
   const title = (step: string) => String(trace.steps.find((s) => s.step === step)!.meta.title);
   assert.ok(title('palette').startsWith(`${sum.outsideSrgb.length} of the ${all.length} ${shade} shades`), title('palette'));
   assert.ok(title('share').endsWith(`${sum.mostOfSrgb.value.toFixed(1)}%`), title('share'));
-  assert.deepEqual(
-    trace.steps.map((s) => s.step),
-    ['reader-edge', 'reader-display', 'oklch', 'srgb-edge', 'palette', 'share', 'p3-edge', screen === 'srgb' ? 'srgb-screen' : 'p3-screen'],
-  );
+  // The scenario's screen picks its last step.
+  assertSteps(trace, ['srgb-edge', 'palette', 'share', 'p3-edge', screen === 'srgb' ? 'srgb-screen' : 'p3-screen']);
+  assert.ok(!idsOf(trace).includes(screen === 'srgb' ? 'p3-screen' : 'srgb-screen'), 'only the chosen screen has a step');
 }

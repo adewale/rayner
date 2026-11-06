@@ -41,7 +41,7 @@ export const RFC_EXAMPLES: Record<string, { dtstart: string; rrule: string }> = 
   'weekly until 24 December 1997': { dtstart: '19970902T090000Z', rrule: 'FREQ=WEEKLY;UNTIL=19971224T000000Z' },
 };
 
-/** Every input the test sends: each case's copy, the series before and after the invitation, the refusals, the RFC examples. */
+/** Every input the test sends: each scenario's copy, the series before and after the invitation, the refusals, the RFC examples. */
 export function inputs() {
   const calendars: Record<string, { ics: string; from: string; to: string }> = {};
   const window = { from: '2026-01-01', to: '2028-01-01' };

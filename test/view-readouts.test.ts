@@ -4,9 +4,10 @@
 // pairs a label with the wrong field agrees with itself).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, TraceSink, loadFonts } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { TraceSink, loadFonts } from '../explain/testing.ts';
 import type { SceneClass, SceneState, Step, View } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
 
@@ -31,7 +32,7 @@ async function readoutAtSteps(S: SceneClass): Promise<Array<{ step: string; stat
           }
         }
       }
-      out.push({ step: s.path, state: this.events.at(-1)!.state, shown: v ? v.shown : null,
+      out.push({ step: s.path, state: this.events.at(-1)!.state, shown: v ? v.texts : null,
         marks: v ? v.family().map(m => m.key).filter((key): key is string => !!key?.startsWith('result:')) : [] });
     }
   }
@@ -60,14 +61,14 @@ const tenths = (x: number): string => (Number.isInteger(x) ? String(x) : x.toFix
 test('token-bucket: reader labels and comparison marks pair balances, refill times and outcomes with the full traced values', async () => {
   const expected429 = new Map([[1, [6, 7, 9]], [2, [6, 9]], [4, [6]]]);
   for (const rate of ['1', '2', '4']) {
-    const rows = (await readoutAtSteps(withSettings(TokenBucketExplainer, { rate }))).filter((r) => r.shown);
-    assert.equal(rows.length, 5, `rate ${rate}: the readout is on screen at all five steps`);
-    assert.deepEqual(rows.map(r => r.step), ['balance', 'burst', 'refill', 'later', 'trace']);
+    const all = await readoutAtSteps(withSettings(TokenBucketExplainer, { rate }));
+    const rows = all.filter((r) => r.shown), steps = all.map((r) => r.step);
+    assert.deepEqual(rows.map((r) => r.step), steps.slice(steps.indexOf('balance')), `rate ${rate}: the readout is on screen at every step from balance on`);
     for (const { step, state, shown, marks } of rows) {
       if (step === 'trace') {
         assert.deepEqual(shown, [...Array.from({length: 10}, (_, i) => String(i + 1)), '1 / s', '2 / s', '4 / s', 'Request', 'Circle: 200     Cross: 429']);
         const responses = Array.from({length: 10}, (_, i) => expected429.get(Number(rate))!.includes(i + 1) ? 429 : 200);
-        assert.deepEqual(state.responses, responses, 'selected case has the independently fixed outcomes');
+        assert.deepEqual(state.responses, responses, 'selected scenario has the independently fixed outcomes');
         const expected = [...expected429].flatMap(([r, rejected]) => Array.from({length: 10}, (_, i) => `result:${r}:R${i + 1}:${rejected.includes(i + 1) ? 429 : 200}`));
         assert.deepEqual(marks.sort(), expected.sort(), 'all thirty pictured outcomes agree with the independently fixed schedule');
         continue;

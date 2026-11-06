@@ -1,4 +1,5 @@
-import type { Scene, SceneState, StepRecord } from '../src/index.ts';
+import type { Scene, SceneState } from '../src/index.ts';
+import type { StepRecord } from '../src/testing.ts';
 import { wordsFor, describedIn, markHeading } from './words.ts';
 import type { Words } from './words.ts';
 interface WalkRecord {
@@ -147,7 +148,7 @@ export function watchedChanges(
 }
 /**
  * Refuse a `meta.watch` that cannot work: not a record, more than eight entries, an empty key or
- * label, or a key that is never in the state of any step of any case (`steps`, all cases' steps).
+ * label, or a key that is never in the state of any step of any scenario (`steps`, all scenarios' steps).
  */
 export function checkWatch(watch: unknown, steps: readonly { before?: SceneState; after?: SceneState }[]): void {
   if (watch === undefined) return;
@@ -159,7 +160,7 @@ export function checkWatch(watch: unknown, steps: readonly { before?: SceneState
     if (!key) throw new Error('meta.watch has an empty key');
     if (typeof label !== 'string' || !label.trim()) throw new Error(`meta.watch gives "${key}" an empty label`);
     if (!steps.some((s) => Object.hasOwn(s.before ?? {}, key) || Object.hasOwn(s.after ?? {}, key)))
-      throw new Error(`meta.watch names "${key}", which is never in the scene's state at any step of any case`);
+      throw new Error(`meta.watch names "${key}", which is never in the scene's state at any step of any scenario`);
   }
 }
 const pictureOf = (state: unknown): Picture | undefined => (state as { picture?: Picture } | undefined)?.picture;

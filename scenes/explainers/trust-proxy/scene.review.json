@@ -1,36 +1,20 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
-      "step": "reader-path",
+      "step": "routes",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Express"
+          "key": "routes-positions"
         }
       ]
     },
     {
-      "step": "reader-answer",
-      "opening": true,
+      "step": "routes",
       "targets": [
         {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Order"
-        },
-        {
-          "text": "Address"
-        },
-        {
-          "text": "Decision"
-        },
-        {
-          "text": "req.ip"
+          "key": "routes-addresses"
         }
       ]
     },

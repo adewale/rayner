@@ -10,7 +10,7 @@ import {buildExplainer} from '../../tools/lib/explain-build.ts';
 import {serve} from '../../tools/lib/explain-serve.ts';
 import {launch} from '../../tools/lib/browser.ts';
 import {storyFrames,inspectStoryFrame,covered} from '../../tools/lib/explain-story-review.ts';
-import type {StoryClaim} from '../../tools/lib/explain-story-review.ts';
+import type {StorySubject} from '../../tools/lib/explain-story-review.ts';
 
 const enabled=!!process.env.EXPLAIN_BROWSER;
 const options={skip:enabled?false:'set EXPLAIN_BROWSER=1 for served birthday reader checks'};
@@ -18,8 +18,7 @@ let project:Project,folder:string,browser:Browser,server:Awaited<ReturnType<type
 before(async()=>{
   if(!enabled)return;
   project=await collectProject('scenes/explainers/birthday-paradox',{write:false});
-  assert.deepEqual(project.variants.map(v=>v.values),
-    [10,23,50].flatMap(people=>['any','one'].map(question=>({people:String(people),question}))));
+  assert.deepEqual(project.scenarios.map(v=>v.values),[10,23,40].map(people=>({people:String(people)})));
   folder=await mkdtemp(join(tmpdir(),'rayner-birthday-reader-'));
   await buildExplainer(project,join(folder,'birthday.html'));
   server=await serve(folder,0,'birthday.html');browser=await launch();
@@ -29,21 +28,21 @@ after(async()=>{
   await browser?.close();server?.close();if(folder)await rm(folder,{recursive:true,force:true});
 });
 
-test('every birthday card and its day number are visible together in each phone opening',options,async()=>{
+test('every birthday card and its date are visible together in each phone opening',options,async()=>{
   let openings=0,cards=0,labels=0;
-  for(const variant of project.variants){
-    const people=Number(variant.values.people);
+  for(const scenario of project.scenarios){
+    const people=Number(scenario.values.people);
     // Name each person independently: fitting a broad group or most of a row
     // must not earn credit for the final card beyond the right-hand edge.
-    const claims:StoryClaim[]=[{step:'question',opening:true,
+    const claims:StorySubject[]=[{step:'room',opening:true,
       targets:Array.from({length:people},(_,i)=>({key:`person-${i}`}))}];
-    const frame=(await storyFrames(variant.Scene,claims)).get('question')!;
+    const frame=(await storyFrames(scenario.Scene,claims)).get('room')!;
     const targets=frame.targets.filter(t=>t.opening);
     assert.equal(targets.length,people);
     const indices=new Set(targets.flatMap(t=>t.indices));
     const days=frame.labels.filter(label=>label.indices.some(index=>indices.has(index)));
-    assert.equal(days.length,people,'each person must retain a readable day number');
-    assert.ok(days.every(label=>/^\d{1,3}$/.test(label.text)));
+    assert.equal(days.length,people,'each person must retain a readable date');
+    assert.ok(days.every(label=>/^([1-9]|[12]\d|3[01]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/.test(label.text)));
     for(const viewport of [{width:320,height:568},{width:390,height:844}]){
       const page=await browser.newPage({viewport,reducedMotion:'reduce'});
       try{
@@ -53,12 +52,12 @@ test('every birthday card and its day number are visible together in each phone 
             (window as unknown as {birthdayStep?:string}).birthdayStep=(event as CustomEvent<{step:string}>).detail.step;
           });
         });
-        await page.goto(`${server.url}/birthday.html?${new URLSearchParams({...variant.values,step:'question'})}`);
+        await page.goto(`${server.url}/birthday.html?${new URLSearchParams({...scenario.values,step:'room'})}`);
         await page.waitForSelector('[data-ready=true]');
-        await page.waitForFunction(()=>(window as unknown as {birthdayStep?:string}).birthdayStep==='question'&&
+        await page.waitForFunction(()=>(window as unknown as {birthdayStep?:string}).birthdayStep==='room'&&
           !document.querySelector('#content.loading')&&!document.querySelector('svg.leaving'));
         const seen=await inspectStoryFrame(page,frame);
-        const name=`${people}/${variant.values.question}/${viewport.width}`;
+        const name=`${people}/${viewport.width}`;
         for(const target of targets){
           assert.ok(target.indices.length>0);
           for(const index of target.indices){
@@ -83,5 +82,5 @@ test('every birthday card and its day number are visible together in each phone 
       }finally{await page.close();}
     }
   }
-  assert.equal(openings,12);assert.equal(cards,332);assert.equal(labels,332);
+  assert.equal(openings,6);assert.equal(cards,146);assert.equal(labels,146);
 });

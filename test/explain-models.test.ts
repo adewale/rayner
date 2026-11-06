@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import {
   sha256,
   pkceChallenge,
@@ -11,16 +12,21 @@ import {
   RingBuffer,
   Full,
   ringStory,
+  ringStart,
+  ringNext,
   exec,
   sunlight,
   daylightYear,
+  noonShare,
+  noonPatch,
+  sunDistance,
 } from '../scenes/explainers/lib/models.ts';
-import { find, closeness, distance, run } from '../scenes/explainers/lib/2password.ts';
+import { find, closeness, distance, run, ITEMS } from '../scenes/explainers/lib/2password.ts';
 import { Repo, AUTHOR } from '../scenes/explainers/lib/git.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import type { View } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
-import { loadFonts } from '../src/index.ts';
+import { withSettings } from '../explain/testing.ts';
+import { loadFonts } from '../explain/testing.ts';
 import TokenBucketExplainer from '../scenes/explainers/token-bucket/scene.ts';
 
 test('SHA-256 and PKCE agree with independent crypto and the RFC 7636 vector', () => {
@@ -68,6 +74,25 @@ test('rate changes alter real decisions while balances stay inside capacity', ()
     successes.push(results.filter(Boolean).length);
   }
   assert.deepEqual(successes, [7, 8, 9]);
+});
+test('token-bucket: the explainer schedule gets the answers golang.org/x/time/rate gives', () => {
+  // tools/oracle/token-bucket runs rate.NewLimiter(r, 5).AllowN(t, 1) on this schedule.
+  const oracle = JSON.parse(readFileSync(new URL('./fixtures/token-bucket-xtime.json', import.meta.url), 'utf8')) as {
+    module: string; burst: number; schedule: number[]; runs: Record<string, { at: number; status: number; tokens: number }[]>;
+  };
+  assert.equal(oracle.module, 'golang.org/x/time v0.15.0');
+  assert.deepEqual(oracle.schedule, [0, 0, 0, 0, 0, 0, 0.5, 1, 1, 5]);
+  assert.deepEqual(Object.keys(oracle.runs).sort(), ['1', '2', '4']);
+  for (const [rate, calls] of Object.entries(oracle.runs)) {
+    const bucket = new TokenBucket(Number(rate), oracle.burst);
+    assert.deepEqual(
+      oracle.schedule.map((at) => ({ at, status: bucket.allow(at) ? 200 : 429, tokens: bucket.tokens })),
+      calls,
+      `rate ${rate}`,
+    );
+  }
+  // The long wait is clipped by the cap at 2 and 4 tokens a second, not at 1.
+  assert.deepEqual(Object.values(oracle.runs).map((c) => c.at(-1)!.tokens), [3, 4, 4]);
 });
 test('token buckets match an independent quarter-token ledger at varied rates and capacities', () => {
   fc.assert(fc.property(
@@ -139,6 +164,11 @@ test('ring wraps into freed slots and Full changes no state', () => {
     },
   ), params(300));
 });
+test('the ring machine refuses a pop of an empty ring, saying so, and takes a push to a full ring as Full', () => {
+  assert.deepEqual({ ...ringNext(ringStart(4), 'pop') }, { reason: 'the ring is empty, so pop has no value to take' });
+  const full = [1, 2, 3, 4].reduce((st) => ringNext(st, 'push') as ReturnType<typeof ringStart>, ringStart(4));
+  assert.equal((ringNext(full, 'push') as ReturnType<typeof ringStart>).error, 'Full');
+});
 test('shell execution returns a new filesystem and never mutates its input', () => {
   const original = { fs: {}, steps: 0 };
   const next = exec(
@@ -154,6 +184,81 @@ test('shell execution returns a new filesystem and never mutates its input', () 
   assert.equal(next.stdout, '');
   assert.equal(exec(original, [['cat', 'shout.txt']]).stdout, '');
   assert.equal(exec(next.shell, [['cat', 'shout.txt']]).stdout, 'HELLO\n');
+});
+test('property: exec leaves any shell it is given unchanged and puts a redirect’s write only in the shell it returns', () => {
+  const name = fc.constantFrom('a.txt', 'b.txt', 'shout.txt');
+  const stage = fc.oneof(
+    fc.tuple(fc.constant('echo'), fc.string({ maxLength: 6 })),
+    fc.constant(['tr', 'a-z', 'A-Z'] as const),
+    fc.tuple(fc.constant('cat'), name),
+  );
+  fc.assert(fc.property(
+    fc.dictionary(name, fc.string({ maxLength: 6 })),
+    fc.nat(5),
+    fc.array(stage, { minLength: 1, maxLength: 4 }),
+    fc.option(name, { nil: undefined }),
+    (files, steps, stages, redirect) => {
+      const shell = { fs: { ...files }, steps },
+        before = structuredClone(shell);
+      const run = exec(shell, stages, redirect);
+      assert.deepEqual(shell, before);
+      if (redirect) {
+        assert.equal(run.stdout, '');
+        assert.ok(redirect in run.shell.fs);
+      }
+      for (const f of Object.keys(run.shell.fs)) if (f !== redirect) assert.equal(run.shell.fs[f], shell.fs[f]);
+    },
+  ), params(300));
+});
+test('noon sunlight per square metre is sin of the noon altitude, and the orbit is about 3.4% farther in July', () => {
+  fc.assert(fc.property(
+    fc.double({ min: -90, max: 90, noNaN: true }),
+    fc.double({ min: -23.44, max: 23.44, noNaN: true }),
+    (latitude, declination) => {
+      const share = noonShare(latitude, declination), altitude = sunlight(latitude, declination).altitude;
+      assert.ok(share >= 0 && share <= 1);
+      // A beam one metre across at right angles to the rays lights 1 / sin(altitude) metres of level ground.
+      if (altitude > 0) assert.ok(Math.abs(share - 1 / (1 / Math.sin((altitude * Math.PI) / 180))) < 1e-12);
+      else assert.equal(share, 0);
+    },
+  ), params(300));
+  // By hand: London's June noon Sun at 61.94° gives sin 61.94° = 0.882; December's 15.06° gives 0.260.
+  assert.ok(Math.abs(noonShare(51.5, 23.44) - 0.882) < 0.001);
+  assert.ok(Math.abs(noonShare(51.5, -23.44) - 0.26) < 0.001);
+  assert.equal(noonShare(69.65, -23.44), 0);
+  // Wikipedia's R = 1.00014 − 0.01671 cos g − 0.00014 cos 2g: 0.98329 AU at perihelion (g = 0) and
+  // 1.01671 AU half a year later (g = 180°), 3.4% farther, so sunlight is (1.01671 / 0.98329)² = 1.069 times stronger in January.
+  assert.ok(Math.abs(sunDistance(2) - 0.98329) < 1e-9);
+  assert.ok(Math.abs(sunDistance(2 + 365 / 2) - 1.01671) < 1e-9);
+  const days = Array.from({ length: 365 }, (_, d) => sunDistance(d));
+  assert.equal(days.indexOf(Math.min(...days)), 2, 'nearest in early January');
+  assert.ok([184, 185].includes(days.indexOf(Math.max(...days))), 'farthest in early July');
+  assert.ok(Math.abs(sunDistance(2 + 365 / 2) / sunDistance(2) - 1.034) < 0.001);
+});
+test('a noon beam one metre across lights the stretch of level ground its two edge rays meet, and none when the Sun is down', () => {
+  const rad = Math.PI / 180;
+  fc.assert(fc.property(
+    fc.double({ min: -90, max: 90, noNaN: true }),
+    fc.double({ min: -23.44, max: 23.44, noNaN: true }),
+    (latitude, declination) => {
+      const altitude = sunlight(latitude, declination).altitude, patch = noonPatch(latitude, declination);
+      if (altitude <= 0) return assert.equal(patch, null);
+      // Geometry, not the formula: one edge ray lands at the origin, travelling (cos a, −sin a); the other runs
+      // parallel, one metre away at right angles, through (sin a, cos a). Where it meets the ground, y = 0.
+      const a = altitude * rad, t = Math.cos(a) / Math.sin(a);
+      const x = Math.sin(a) + t * Math.cos(a);
+      assert.ok(patch !== null && Math.abs(patch - x) < 1e-9 * Math.max(1, x), `${latitude}, ${declination}: ${patch} against ${x}`);
+      assert.ok(patch >= 1 - 1e-12, 'no patch is shorter than the beam is wide');
+      assert.ok(Math.abs(patch * noonShare(latitude, declination) - 1) < 1e-9, 'the share per m² is one over the patch');
+    },
+  ), params(300));
+  // London: 1.13 m in June against 3.85 m in December, 3.4 times as long; Tromsø's December noon Sun is down;
+  // Quito's June and December patches are one length.
+  assert.equal(noonPatch(51.5, 23.44)!.toFixed(2), '1.13');
+  assert.equal(noonPatch(51.5, -23.44)!.toFixed(2), '3.85');
+  assert.equal((noonPatch(51.5, -23.44)! / noonPatch(51.5, 23.44)!).toFixed(1), '3.4');
+  assert.equal(noonPatch(69.65, -23.44), null);
+  assert.equal(noonPatch(0, 23.44), noonPatch(0, -23.44));
 });
 test('sunlight follows the sunrise equation: bounded, hemisphere-symmetric, polar extremes and mid-latitude hours', () => {
   fc.assert(fc.property(
@@ -186,6 +291,17 @@ test('sunlight follows the sunrise equation: bounded, hemisphere-symmetric, pola
   // ω = acos(2.1445 × 0.0580) = 82.86° and the day at 65°N is 11.0 h (a day's shift gives 11.2).
   assert.equal(daylightYear(65)[2], 11);
 });
+test('on the equator the day–night line cuts the circle in half: 12 hours at every declination and on every day of the year', () => {
+  // The seasons page says the equator's circle is always cut in half; it draws only the two solstices.
+  fc.assert(fc.property(
+    fc.double({ min: -23.44, max: 23.44, noNaN: true }),
+    (declination) => assert.ok(Math.abs(sunlight(0, declination).daylight - 12) < 1e-12, `${declination}°`),
+  ), params(300));
+  // daylightYear's declination, δ = −23.44° × cos(360° × (day + 10) / 365), on each of the 365 days.
+  const declination = (day: number) => -23.44 * Math.cos((2 * Math.PI * (day + 10)) / 365);
+  for (let day = 0; day < 365; day++) assert.ok(Math.abs(sunlight(0, declination(day)).daylight - 12) < 1e-12, `day ${day}`);
+  assert.deepEqual(daylightYear(0), Array(12).fill(12));
+});
 test('blob ids are SHA-1 of the typed bytes, across the hash\'s padding boundaries and in UTF-8', () => {
   // With the 8-byte header "blob NN\0", 47, 48 and 56 bytes of content make 55, 56 and 64-byte
   // messages, SHA-1's one- and two-block padding edges.
@@ -195,7 +311,7 @@ test('blob ids are SHA-1 of the typed bytes, across the hash\'s padding boundari
     assert.equal(new Repo().blob(content), expected, JSON.stringify(content));
   }
 });
-test('both git cases hash the exact typed bytes used by the Git CLI', () => {
+test('both git scenarios hash the exact typed bytes used by the Git CLI', () => {
   for (const change of ['add', 'edit']) {
     const repo = new Repo(),
       hello = repo.blob('hello\n'),
@@ -250,6 +366,18 @@ test('2password find port gives upstream test answers', () => {
   assert.equal(closeness(['opnai', 'key'], 'OpenAI API Key'), (1 - 1 / 6 + 1) / 2);
   assert.ok(!JSON.stringify(find(['cloud', 'databse'])).includes('secret-'));
 });
+test('2password find returns references and no field value, and compares queries with titles alone', () => {
+  const queries = [['cloud api', 'databse'], ['cloud'], ['cloud key'], ['clod api'], ['database', 'nothing like this']];
+  const values = ITEMS.flatMap((i) => i.fields.map((f) => f.value));
+  // Every value the vault holds is absent from every answer find prints.
+  for (const q of queries) {
+    const printed = JSON.stringify(find(q));
+    for (const v of values) assert.ok(!printed.includes(v), `${q.join(', ')} printed ${v}`);
+  }
+  // Changing every secret changes no answer: only titles decide what comes back.
+  const changed = ITEMS.map((i) => ({ ...i, fields: i.fields.map((f) => ({ ...f, value: `${i.title} other secret` })) }));
+  for (const q of queries) assert.deepEqual(find(q, changed), find(q));
+});
 test('2password run strips the service token only when op holds one', () => {
   const ref = { API_KEY: 'op://Personal/Cloud API/credential' };
   const service = run('service', ref, ['app']),
@@ -263,31 +391,31 @@ test('2password run strips the service token only when op holds one', () => {
 
 // Picture side of the fidelity pattern for state-machine and ring-buffer: each View of scene.state
 // (state-machine's Session card; ring-buffer's readout, card values and waiting push argument)
-// shows, at the end of every step of every case, exactly what that step's traced state renders.
+// shows, at the end of every step of every scenario, exactly what that step's traced state renders.
 // Imports are aliased so that blocks like this one can sit side by side in this file.
 import { collectProject as collectViewProject } from '../tools/lib/explain-project.ts';
 import { assertViewFollowsState as viewFollowsState } from './lib/view-fidelity.ts';
-import { loadFonts as loadViewFonts } from '../src/index.ts';
+import { loadFonts as loadViewFonts } from '../explain/testing.ts';
 import type { Scene as ViewScene, View as StateView } from '../src/index.ts';
-import { withSettings as viewSettings } from '../explain/index.ts';
+import { withSettings as viewSettings } from '../explain/testing.ts';
 import RingBufferExplainer from '../scenes/explainers/ring-buffer/scene.ts';
-test('state-machine: its Session card shows the traced state at every step, in every case', async () => {
+test('state-machine: its Session card shows the traced state at every step, in every scenario', async () => {
   const project = await collectViewProject('scenes/explainers/state-machine', { write: false });
-  for (const variant of project.variants) {
+  for (const scenario of project.scenarios) {
     const checked = await viewFollowsState(
-      variant.Scene,
+      scenario.Scene,
       (scene) => (scene as unknown as { readout?: StateView }).readout,
     );
-    const expected=variant.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
-    assert.deepEqual(variant.trace.steps.filter(s=>s.meta.detail===true).map(s=>s.step),expected);
-    assert.equal(checked, expected.length, `${JSON.stringify(variant.values)}: the Session card is checked at every program-walkthrough step`);
+    const expected=scenario.values.events==='success'?['machine','connect','opened','close','terminal']:['machine','connect','error','terminal'];
+    assert.deepEqual(scenario.trace.steps.filter(s=>s.meta.kind === 'detail').map(s=>s.step),expected);
+    assert.equal(checked, expected.length, `${JSON.stringify(scenario.values)}: the Session card is checked at every program-walkthrough step`);
   }
 });
-test('ring-buffer views show the traced state at every step, in both cases', async () => {
+test('ring-buffer views show the traced state at every step, in both scenarios', async () => {
   await loadViewFonts();
   for (const operations of ['wrap', 'full']) {
     const Ring = viewSettings(RingBufferExplainer, { operations });
-    for (const name of ['readout', 'results', 'incoming'] as const) {
+    for (const name of ['ring', 'readout', 'results'] as const) {
       const pick = (scene: ViewScene) => (scene as unknown as Record<typeof name, StateView | undefined>)[name];
       assert.equal(await viewFollowsState(Ring, pick), 4, `${operations}: ${name} checked at all four steps`);
     }

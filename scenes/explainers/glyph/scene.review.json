@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "reader-width",
       "opening": true,
@@ -24,10 +24,13 @@
           "key": "reader-picture"
         },
         {
-          "text": "a"
+          "text": "l"
         },
         {
-          "text": "Same character"
+          "text": "advance 0.218"
+        },
+        {
+          "text": "advance 0.540"
         }
       ]
     }

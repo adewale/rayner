@@ -11,7 +11,8 @@
 // steps list, a step it has not seen. Absolute numbers on a shared machine move with whatever
 // else runs, so there is no stored baseline: each metric's HEAD median is compared with BASE's
 // from the same run (tools/lib/bench-stats.ts), and a metric that looks slower is measured
-// again; only a regression seen both times fails. Layout shift while stepping must be zero.
+// again; only a regression seen both times fails. Layout shift while stepping must be zero; content a
+// reader opens with a disclosure on the way to the last step may push what is below it.
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, readFile, lstat, readlink, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';

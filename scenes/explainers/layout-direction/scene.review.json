@@ -1,15 +1,30 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
+    {
+      "step": "code",
+      "opening": true,
+      "targets": [
+        {
+          "text": "stage(this, { direction: 'rtl' })"
+        },
+        {
+          "text": "s.card(rows, { at: 'start' })"
+        }
+      ],
+      "settings": {
+        "direction": "rtl"
+      }
+    },
     {
       "step": "columns",
       "opening": true,
       "targets": [
         {
-          "text": "RTL at start"
+          "text": "Start, rtl"
         },
         {
-          "text": "LTR at end"
+          "text": "End, own ltr"
         },
         {
           "text": "Field"
@@ -17,17 +32,38 @@
         {
           "text": "123"
         }
-      ]
+      ],
+      "settings": {
+        "direction": "rtl"
+      }
+    },
+    {
+      "step": "columns",
+      "opening": true,
+      "targets": [
+        {
+          "text": "Start, ltr"
+        },
+        {
+          "text": "End, own ltr"
+        },
+        {
+          "text": "Field"
+        },
+        {
+          "text": "123"
+        }
+      ],
+      "settings": {
+        "direction": "ltr"
+      }
     },
     {
       "step": "updates",
       "opening": true,
       "targets": [
         {
-          "text": "RTL at start"
-        },
-        {
-          "text": "LTR at end"
+          "text": "End, own ltr"
         },
         {
           "text": "Field"
@@ -38,40 +74,22 @@
       ]
     },
     {
-      "step": "reader-place",
+      "step": "physical",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "text": "Left, rtl"
         },
         {
-          "text": "Start"
-        },
-        {
-          "text": "End"
-        }
-      ]
-    },
-    {
-      "step": "reader-fields",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "RTL columns"
-        },
-        {
-          "text": "LTR override"
-        },
-        {
-          "text": "123"
+          "text": "Right, rtl"
         },
         {
           "text": "Field"
         }
-      ]
+      ],
+      "settings": {
+        "direction": "rtl"
+      }
     }
   ]
 }

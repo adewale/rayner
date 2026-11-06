@@ -1,0 +1,5 @@
+# Construction and scope
+
+The opening compares database-read counts, not a benchmark. The later code diff and diagram edit retain the same getUser lookup on the miss path; the hit's early return is the consequential change. The two scenarios are read off the code's two paths: a hit runs lines 2 and 3; a miss runs lines 2 to 6, so it makes the original query plus a KV get and a KV put.
+
+The source is the pinned Lantern cache example linked in scene metadata. The selected hit has a usable saved value and the miss has none. The third check question reads `if (hit)` with the Workers KV behaviour linked in the sources (`get(key, "json")` parses the stored text and resolves with `null` for a missing key); it is an inference from that documentation and the code, not a run against Workers KV. Freshness, expiry beyond the TTL, invalidation, concurrent fills, write propagation between locations and service failures are outside these two scenarios. The scene demonstrates the code/diagram edit and the request path, not a complete deployed cache.

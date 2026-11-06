@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Scene, NullSink, loadFonts } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { readSnapshots } from '../tools/lib/explain-project.ts';
@@ -11,6 +13,7 @@ import {
   PLACEMENTS,
   computeProbability,
   endpointsOn,
+  flows,
   frac,
   nodeShares,
   passes,
@@ -105,7 +108,7 @@ const EXPECTED: Record<`${Policy} ${PlacementKey}`, { shares: string[]; percent:
   'cluster 1-1-1': { shares: ['1/3', '1/3', '1/3'], percent: ['33.3%', '33.3%', '33.3%'], hop: '2/3', passes: [true, true, true] },
 };
 
-test('each case’s pod shares, second hops and health checks', () => {
+test('each scenario’s pod shares, second hops and health checks', () => {
   for (const [name, want] of Object.entries(EXPECTED)) {
     const [policy, key] = name.split(' ') as [Policy, PlacementKey];
     const counts = PLACEMENTS[key];
@@ -123,6 +126,19 @@ test('each case’s pod shares, second hops and health checks', () => {
 const placements = fc
   .array(fc.integer({ min: 0, max: 6 }), { minLength: 1, maxLength: 6 })
   .filter((c) => c.some((n) => n > 0));
+
+// proxier.go:1104-1110 marks every packet of a Cluster external chain for masquerade, "in case we cross
+// nodes"; under Local no masquerade rule applies (1112-1146). So the pod sees the entry node's address under
+// Cluster whichever node it runs on, the same node included, and the client's under Local.
+test('under Cluster every outside request is source-NATed to its entry node; under Local none is', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 0, max: 5 }), (node) => {
+      assert.equal(seenSource('cluster', node), `10.240.0.${node + 1}`);
+      assert.equal(seenSource('local', node), '198.51.100.79');
+    }),
+    params(50),
+  );
+});
 
 test('for any placement, the shares sum to 1 and follow each policy’s rule', () => {
   fc.assert(
@@ -155,6 +171,37 @@ test('for any placement, the shares sum to 1 and follow each policy’s rule', (
     }),
     params(300),
   );
+});
+
+test('traffic-policy flow view: each band is a node’s share times its rule’s share, and only Cluster’s bands cross nodes', () => {
+  fc.assert(
+    fc.property(placements, (counts) => {
+      for (const policy of ['cluster', 'local'] as const) {
+        const f = flows(counts, policy);
+        const pods = podsOf(counts);
+        // Summed into each pod, the bands are its share; summed out of each node, the node's share.
+        for (const p of pods) {
+          const into = f.filter((b) => b.pod === p.id).reduce((a, b) => a + value(b.share), 0);
+          assert.ok(Math.abs(into - value(shares(counts, policy)[p.id]!)) < 1e-12, `${policy} ${counts} into ${p.id}`);
+        }
+        counts.forEach((_, j) => {
+          const out = f.filter((b) => b.node === j).reduce((a, b) => a + value(b.share), 0);
+          assert.ok(Math.abs(out - value(nodeShares(counts, policy)[j]!)) < 1e-12, `${policy} ${counts} out of node ${j}`);
+        });
+        // A band that lands on another node's pod is a second hop.
+        const away = f.filter((b) => pods.find((p) => p.id === b.pod)!.node !== b.node).reduce((a, b) => a + value(b.share), 0);
+        assert.ok(Math.abs(away - value(secondHop(counts, policy))) < 1e-12, `${policy} ${counts} crossing bands`);
+        assert.ok(f.every((b) => value(b.share) > 0));
+      }
+    }),
+    params(300),
+  );
+  // The default scenario: under Local, Node 2's whole half is one band into pod d, three times as wide as each of Node 1's.
+  const local = flows([3, 1, 0], 'local');
+  assert.deepEqual(local.map((b) => [b.node, b.pod, frac(b.share)]), [[0, 'a', '1/6'], [0, 'b', '1/6'], [0, 'c', '1/6'], [1, 'd', '1/2']]);
+  const cl = flows([3, 1, 0], 'cluster');
+  assert.equal(cl.length, 12);
+  assert.ok(cl.every((b) => frac(b.share) === '1/12'));
 });
 
 // ---------------------------------------------------------------- architecture words (explain/diagrams.ts)

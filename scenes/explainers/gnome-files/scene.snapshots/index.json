@@ -1,26 +1,14 @@
 {
   "version": 2,
-  "importer": "82e109ba821c7b3c",
+  "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "8bf3b5d08e7f7b79d8b05c6e89cce56f494bac95f336adcec60d9ea86fcd19ba",
+  "sourceHash": "a5458bdb2b6ceca9de31e0a2d40dac48f31fd857bc3d819f5a4563152bec4ee5",
   "diagrams": {
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 1: P2\\n    2 Folder size in Properties: 5: P2\\n    3 Select All: 5: P2\\n    4 Undo the move: 4: P2\",\"github-light\"]": "d7adee6b3923992e.json",
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 1: P6\\n    2 Folder size in Properties: 5: P6\\n    4 Undo the move: 1: P6\",\"github-light\"]": "76ecc6942bf76205.json",
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 3: P1\\n    2 Folder size in Properties: 5: P1\\n    3 Select All: 5: P1\\n    4 Undo the move: 1: P1\",\"github-light\"]": "63c751489254dd5f.json",
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 3: P5\\n    2 Folder size in Properties: 5: P5\\n    3 Select All: 1: P5\\n    4 Undo the move: 5: P5\",\"github-light\"]": "736fd57013a0ca51.json",
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 4: P4\\n    2 Folder size in Properties: 4: P4\\n    3 Select All: 1: P4\\n    4 Undo the move: 4: P4\",\"github-light\"]": "c64cea1e04cac328.json",
-    "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 5: P3\\n    2 Folder size in Properties: 4: P3\\n    3 Select All: 1: P3\\n    4 Undo the move: 1: P3\",\"github-light\"]": "8b215279c29f520b.json",
-    "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P1\\n    6 Grid view to list view: 5: P1\\n  section List view layout\\n    11 New folder in list view: 2: P1\\n  section Search\\n    10 Search with filters: 3: P1\",\"github-light\"]": "3e623df99e85332f.json",
-    "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P2\\n    6 Grid view to list view: 4: P2\\n  section List view layout\\n    11 New folder in list view: 4: P2\\n  section Search\\n    10 Search with filters: 3: P2\",\"github-light\"]": "d03e251a98bcc57c.json",
-    "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P3\\n    6 Grid view to list view: 5: P3\\n  section List view layout\\n    11 New folder in list view: 5: P3\\n  section Search\\n    10 Search with filters: 5: P3\",\"github-light\"]": "df2a4ade4a1ed1e9.json",
-    "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P4\\n    6 Grid view to list view: 5: P4\\n  section List view layout\\n    11 New folder in list view: 3: P4\\n  section Search\\n    10 Search with filters: 5: P4\",\"github-light\"]": "e5392a6eb9a18b86.json",
-    "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P5\\n    6 Grid view to list view: 5: P5\\n  section List view layout\\n    11 New folder in list view: 2: P5\\n  section Search\\n    10 Search with filters: 4: P5\",\"github-light\"]": "769d3f43d940118c.json",
-    "[\"journey\\n  section Menu structure\\n    5 Change the sort order: 5: P6\\n    6 Grid view to list view: 5: P6\\n  section List view layout\\n    11 New folder in list view: 5: P6\\n  section Search\\n    10 Search with filters: 5: P6\",\"github-light\"]": "c0a1d86d8cd1ea9f.json",
-    "[\"journey\\n  section Menu structure\\n    7 Open Item Location: 1: P1\\n    8 Show Hidden Files: 4: P1\\n    9 Add To Bookmarks: 2: P1\",\"github-light\"]": "8b3255a5a95d6c64.json",
-    "[\"journey\\n  section Menu structure\\n    7 Open Item Location: 1: P2\\n    8 Show Hidden Files: 5: P2\\n    9 Add To Bookmarks: 3: P2\",\"github-light\"]": "1ee1888b4c438beb.json",
-    "[\"journey\\n  section Menu structure\\n    7 Open Item Location: 5: P3\\n    8 Show Hidden Files: 5: P3\\n    9 Add To Bookmarks: 1: P3\",\"github-light\"]": "61a8002bf9cdff63.json",
-    "[\"journey\\n  section Menu structure\\n    7 Open Item Location: 5: P4\\n    8 Show Hidden Files: 5: P4\\n    9 Add To Bookmarks: 3: P4\",\"github-light\"]": "8a96cc7175e1e5ac.json",
-    "[\"journey\\n  section Menu structure\\n    7 Open Item Location: 5: P5\\n    8 Show Hidden Files: 5: P5\\n    9 Add To Bookmarks: 2: P5\",\"github-light\"]": "d360c3b0af0229dd.json",
-    "[\"journey\\n  section Menu structure\\n    7 Open Item Location: 5: P6\\n    8 Show Hidden Files: 5: P6\\n    9 Add To Bookmarks: 5: P6\",\"github-light\"]": "485ab1ae44e5e4c9.json"
+    "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 5: P3\\n    2 Folder size in Properties: 4: P3\\n    3 Select All: 1: P3\\n    4 Undo the move: 1: P3\",\"github-light\"]": "8b215279c29f520b.json"
   }
 }

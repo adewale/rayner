@@ -3,13 +3,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  Scene, StringSink, SnapshotSink, MotionSink, analyzeMotion, renderAt, indexScene, toSvgString,
-  Mobject, Group, Rectangle, Circle, Square, Polygon, Text, Code,
-  Transform, FadeIn, FadeOut, Indicate, Flash, Create, AnimationGroup, LaggedStart,
+  Scene, Mobject, Group, Rectangle, Circle, Square, Polygon, Text, Code,
+  Transform, FadeIn, FadeOut, Create, AnimationGroup, LaggedStart,
   Restore, TransformFromCopy, Succession, TransformMatchingText,
-  RED, BLUE, GREEN, RIGHT, LEFT, UP, DOWN, loadFonts,
-} from '../src/index.ts';
+  } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt, indexScene, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion, loadFonts } from '../explain/testing.ts';
+import { Indicate, Flash } from './lib/transient.ts';
 import type { SceneOptions, Sink } from '../src/index.ts';
+import type { Vec } from '../src/index.ts';
+// Manim's values, which the package no longer exports.
+const BLUE = '#58c4dd';
+const DOWN: Vec = [0, -1];
+const GREEN = '#83c167';
+const LEFT: Vec = [-1, 0];
+const RED = '#fc6255';
+const RIGHT: Vec = [1, 0];
+const UP: Vec = [0, 1];
 
 await loadFonts();
 Scene.captionWpm = Infinity;
@@ -77,7 +87,7 @@ test('restore() on a Code keeps `lines` naming its own children, not the saved c
   code.restore();
   assert.equal(code.lines.length, 2);
   code.lines.forEach((l, i) => assert.equal(l, code.children[i], `line ${i} is the child, not a detached copy`));
-  assert.equal(code.lines[0]!.children[0]!.style.fill, '#dddddd', 'the colour is restored');
+  assert.equal(code.lines[0]!.children[0]!.style.fill, '#1f2328', 'the colour is restored (the neutral ink, as a Code without a colour has)');
   // The same through the Restore animation
   const scene = new Scene(new SnapshotSink());
   scene.add(code);

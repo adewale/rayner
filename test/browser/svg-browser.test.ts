@@ -9,7 +9,7 @@ import { fc, params } from '../lib/pbt.ts';
 
 const options = { skip: !process.env.EXPLAIN_BROWSER && 'set EXPLAIN_BROWSER=1 for actual DOM record patching' };
 test('DomSink applies text changes with shared attributes and removes prototype-sensitive own attributes', options, async () => {
-  const bundle = await build({ entryPoints: [join(ROOT, 'src/index.ts')], bundle: true, write: false, platform: 'browser', format: 'iife', globalName: 'Rayner', target: 'es2022' });
+  const bundle = await build({ entryPoints: [join(ROOT, 'src/output.ts')], bundle: true, write: false, platform: 'browser', format: 'iife', globalName: 'Rayner', target: 'es2022' });
   const browser = await launch();
   try {
     const page = await browser.newPage();
@@ -18,7 +18,7 @@ test('DomSink applies text changes with shared attributes and removes prototype-
     const texts = fc.array(fc.string({ unit: 'binary', maxLength: 30 }), { minLength: 2, maxLength: 8 });
     await fc.assert(fc.asyncProperty(texts, async (values) => {
       const result = await page.evaluate((values) => {
-        const { DomSink } = (globalThis as unknown as { Rayner: typeof import('../../src/index.ts') }).Rayner;
+        const { DomSink } = (globalThis as unknown as { Rayner: typeof import('../../src/output.ts') }).Rayner;
         const host = document.querySelector('main')!;
         host.replaceChildren();
         const sink = new DomSink(host, { realtime: false });

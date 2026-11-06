@@ -24,11 +24,11 @@ test('reusing a campaign requires every protected owner to have run successfully
 });
 test('archive and story must bind the same clean, fully validated checkout and Node version', () => {
   const sha = 'a'.repeat(40);
-  const story = {sourceCommit: sha, cases: 38, stepWidths: 200, consoleErrors: [] as string[], runtimeConnections: [] as string[]};
+  const story = {sourceCommit: sha, scenarios: 38, stepWidths: 200, consoleErrors: [] as string[], runtimeConnections: [] as string[]};
   const archive = {sourceCommit: sha, dirty: false, node: 'v24.22.1', gates: {package: true, browser: true, letteringCapture: true}};
   const valid = (s = story, a = archive) => reusableProof(s, a, sha, 'v24.22.1');
   assert.equal(valid(), true);
-  for (const change of [{sourceCommit: 'b'.repeat(40)}, {cases: 0}, {stepWidths: 0}, {consoleErrors: ['broken']}, {runtimeConnections: ['remote']}])
+  for (const change of [{sourceCommit: 'b'.repeat(40)}, {scenarios: 0}, {stepWidths: 0}, {consoleErrors: ['broken']}, {runtimeConnections: ['remote']}])
     assert.equal(valid({...story, ...change}), false);
   for (const change of [{sourceCommit: 'b'.repeat(40)}, {dirty: true}, {node: 'v24.0.0'}, {gates: {package: true, browser: false, letteringCapture: true}}])
     assert.equal(valid(story, {...archive, ...change}), false);

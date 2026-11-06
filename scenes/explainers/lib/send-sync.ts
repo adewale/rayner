@@ -77,6 +77,11 @@ export const WRAPS: Record<Wrapper, readonly Ctor[]> = {
   mutex: ['Mutex'],
   'arc-mutex': ['Mutex', 'Arc'],
 };
+/**
+ * Types the check questions ask about that no step draws: a Mutex inside an Rc, and a guard inside an
+ * Arc. test/explain-send-sync.test.ts compiles the model's answers for them whenever rustc is on PATH.
+ */
+export const CHECK_TYPES: readonly RustType[] = [t('Rc', t('Mutex', I32)), t('Arc', t('MutexGuard', I32))];
 /** The four single types the scene places first, one per quadrant. */
 export const SINGLES: readonly RustType[] = [I32, t('Rc', I32), t('Cell', I32), t('MutexGuard', I32)];
 
@@ -114,3 +119,16 @@ export function threads(wrapper: Wrapper, inner: Inner) {
   for (const ctor of WRAPS[wrapper]) type = t(ctor, type);
   return { name: nameOf(type), spawnMove: isSend(type), scopeBorrow: isSend(t('&', type)) };
 }
+
+/**
+ * The program the explainer opens on, and the lines of rustc's error it shows. The test in
+ * test/explain-send-sync.test.ts compiles OPENING inside a function and checks that rustc's error
+ * is E0277 and contains each of OPENING_ERROR's lines, joined as rustc prints them.
+ */
+export const OPENING = ['let x = Arc::new(Cell::new(0));', 'thread::spawn(move || x.set(1));'] as const;
+export const OPENING_TYPE = t('Arc', INNERS.cell);
+export const OPENING_ERROR = [
+  '`Cell<i32>` cannot be shared between threads safely',
+  'the trait `Sync` is not implemented for `Cell<i32>`',
+  'required for `Arc<Cell<i32>>` to implement `Send`',
+] as const;

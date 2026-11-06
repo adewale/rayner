@@ -17,8 +17,8 @@ import type { ShareManifest } from './lib/explain-share.ts';
 import { join, resolve, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
-import { EXPLAINERS } from '../scenes/explainers/catalog.ts';
-import { ROOT, collectProject, defaultVariant } from './lib/explain-project.ts';
+import { EXPLAINERS, SHOWCASE } from '../scenes/explainers/catalog.ts';
+import { ROOT, collectProject, defaultScenario } from './lib/explain-project.ts';
 import { writeDescriptions, checkBuilt } from './lib/explain-site-describe.ts';
 import { replaceHeaderBlocks } from './lib/site-headers.ts';
 import { buildInputs } from './lib/build-inputs.ts';
@@ -61,8 +61,9 @@ const exists = (file: string) =>
     () => true,
     () => false,
   );
+const only = values.only === 'showcase' ? SHOWCASE.join(',') : values.only;
 const selected = selectExport(
-  values.only,
+  only,
   await readArtifact(join(built, 'catalog.json'), parseCatalog),
   await readArtifact(join(built, 'evidence.json'), catalogEvidence),
   values.entry,
@@ -107,14 +108,14 @@ try {
     await writeEmbedFiles(target, built, share, origin, path);
     await mkdir(join(target, id), { recursive: true });
     const project = await collectProject(join(ROOT, 'scenes/explainers', id), { write: false });
-    const variant = defaultVariant(project);
+    const scenario = defaultScenario(project);
     await useProjectLettering(project);
     for (const s of share.steps) {
-      const step = variant.trace.steps.find((step) => step.step === s.step);
-      if (!step || step.meta.detail) throw new Error(`Invalid public step: ${id}/${s.step}`);
+      const step = scenario.trace.steps.find((step) => step.step === s.step);
+      if (!step || step.meta.kind === 'detail') throw new Error(`Invalid public step: ${id}/${s.step}`);
       await writeFile(
         join(target, id, s.step + '.png'),
-        await cardPng(variant.Scene, restingTime(step, variant.trace.fps)),
+        await cardPng(scenario.Scene, restingTime(step, scenario.trace.fps)),
       );
       if (origin) await writeFile(join(target, id, s.step + '.html'), sharePage(share, s, origin, path));
       shared++;

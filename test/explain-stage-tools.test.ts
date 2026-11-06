@@ -3,7 +3,9 @@
 // plays without a motion failure and seeks exactly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Rectangle, Group, VMobject, Text, MotionSink, analyzeMotion, StringSink, renderAt, toSvgString } from '../src/index.ts';
+import { Scene, Rectangle, Group, VMobject, Text } from '../src/index.ts';
+import { NullSink, StringSink, renderAt, toSvgString } from '../src/output.ts';
+import { MotionSink, analyzeMotion } from '../explain/testing.ts';
 import type { Box, Mobject, Vec } from '../src/index.ts';
 import { stage } from '../explain/index.ts';
 import { oneStrokeEach } from '../explain/annotate.ts';
@@ -38,7 +40,7 @@ test('a step line sits under a numbered title; a line too wide for one line fail
       const s = stage(this);
       await this.step('one', { title: 'A title', line: 'A short line under it.' });
       await this.wait(0.2);
-      const keyed = this.mobjects.filter((m) => m.key === '__chrome');
+      const keyed = this.mobjects.filter((m) => m.role === 'chrome');
       const line = keyed.find((m) => m instanceof Text && m.text === 'A short line under it.')!;
       const badge = keyed.find((m) => m instanceof Group)!;
       assert.ok(line, 'the line is drawn');
@@ -76,7 +78,7 @@ test('focus zooms onto a target below the heading, which stays put on screen at 
     }
   }
   const { scene, events, seen } = await run(Focused, (sc) => {
-    const heading = sc.mobjects.find((m) => m.key === '__heading' && (m as Text).text === 'Close up');
+    const heading = sc.mobjects.find((m) => m.role === 'heading' && (m as Text).text === 'Close up');
     return heading ? { heading: onScreen(sc, heading.box()!), frame: sc.frame.box()!, fading: (heading.style.opacity ?? 1) < 1 } : null;
   });
   assert.deepEqual(events, []);
@@ -153,7 +155,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
         many.startNewPath([x, y]);
         many.addLineTo([x + (i % 3 ? 0.6 : 0.03), y + 0.02]);
       }
-      const drawn = await s.draw(many, { tool: 'pen', runTime: 2, describe: 'twelve strokes' });
+      const drawn = await s.sketch(many, { tool: 'pen', runTime: 2, describe: 'twelve strokes' });
       assert.ok(drawn instanceof Group && drawn.children.length === 12, 'one path per stroke');
       await this.step('two', { title: 'Done' });
       await this.wait(0.2);
@@ -163,7 +165,7 @@ test('draw: the tool rides the tip without jumps, leaves no trace, and the drawi
   assert.deepEqual(events, [], JSON.stringify(events.slice(0, 3)));
   // The tool is gone when the play ends: nothing but the strokes, paper and heading parts remain.
   const stageFurniture = (m: Mobject) => {
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.key === '__paper' || a.key === '__heading' || a.key === '__chrome') return true;
+    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'paper' || a.role === 'heading' || a.role === 'chrome') return true;
     return false;
   };
   const filled = scene
@@ -232,4 +234,31 @@ await this.step('two',{title:'Second',caption:'No line here.'});await s.enter(ne
   const transcript = html.slice(html.indexOf('<details class="transcript"'), html.indexOf('</details>', html.indexOf('<details class="transcript"')));
   assert.ok(transcript.includes('<p><strong>A line &amp; a &lt;tag&gt;.</strong></p><p>The first caption.</p>'), transcript);
   assert.ok(transcript.includes('>Second</a><p>No line here.</p>'), 'a step without a line has no empty paragraph');
+});
+
+test("engine defaults take the stage's palette: an axis, outlines and text drawn without a colour read on its paper", async () => {
+  const { Axes, Circumscribe, SurroundingRectangle } = await import('../src/index.ts');
+  const { palette } = await import('../explain/index.ts');
+  const { sceneColors } = await import('../explain/stage.ts');
+  const p = palette('pen-and-ink'), accent = sceneColors(p).accent;
+  assert.notEqual(accent, p.ink, 'the roles differ on this palette, so the test can tell them apart');
+  let seen: Record<string, string | undefined> = {};
+  class S extends Scene {
+    override async construct() {
+      const s = stage(this, { palette: p });
+      assert.deepEqual(this.colors, sceneColors(p));
+      await this.step('one', { title: 'Defaults' });
+      const axes = new Axes({ xRange: [0, 4, 1], yRange: [0, 2, 1], width: 4, height: 2, xLabel: 't' });
+      const text = new Text('plain'), given = new Text('given', { color: '#123456' }).shift([3, 0]);
+      const outline = new SurroundingRectangle(given), ring = new Circumscribe(text, { keep: true });
+      await s.enter(axes, text, given, outline, { describe: 'an axis and two words' });
+      await this.play(ring);
+      seen = {
+        axis: axes.xAxis.line.style.stroke, label: axes.xLabel!.children[0]!.style.fill, outline: outline.style.stroke,
+        ring: ring.outline.style.stroke, text: text.children[0]!.style.fill, given: given.children[0]!.style.fill,
+      };
+    }
+  }
+  await new S(new NullSink()).run();
+  assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: accent, ring: accent, text: p.ink, given: '#123456' });
 });

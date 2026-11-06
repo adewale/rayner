@@ -1,7 +1,7 @@
 // Known heights (specs/player-tile.md T6): each explainer's natural framed height at three widths, so
 // a host can size its iframe before the page loads. Measured as the loader shows the page: in a frame
 // whose parentOrigin is the host's, so --player-reserve is 0 and the page draws only the tile, the
-// frame following the page's height. Default case, first step, transcript and steps rows closed.
+// frame following the page's height. Default scenario, first step, transcript and steps rows closed.
 import type { Browser } from 'playwright-core';
 
 export const EMBED_WIDTHS = [390, 640, 900] as const;

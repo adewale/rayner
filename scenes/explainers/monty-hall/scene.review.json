@@ -1,12 +1,18 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "choice",
       "opening": true,
       "targets": [
         {
-          "key": "monty-doors"
+          "key": "door-0"
+        },
+        {
+          "key": "door-1"
+        },
+        {
+          "key": "door-2"
         },
         {
           "key": "monty-rule"
@@ -17,32 +23,80 @@
       ]
     },
     {
-      "step": "host",
+      "step": "rounds",
+      "settings": {
+        "host": "informed"
+      },
       "opening": true,
       "targets": [
         {
-          "key": "monty-doors"
+          "key": "strip:informed"
         },
         {
-          "key": "monty-rule"
+          "key": "monty-heads"
         },
         {
-          "key": "monty-result"
+          "key": "monty-key"
         }
       ]
     },
     {
-      "step": "reveal",
+      "step": "rounds",
+      "settings": {
+        "host": "random"
+      },
       "opening": true,
       "targets": [
         {
-          "key": "monty-doors"
+          "key": "strip:random"
         },
         {
-          "key": "monty-rule"
+          "key": "monty-heads"
         },
         {
-          "key": "monty-result"
+          "key": "monty-key"
+        }
+      ]
+    },
+    {
+      "step": "odds",
+      "settings": {
+        "host": "informed"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "strip:informed"
+        },
+        {
+          "key": "monty-stay"
+        },
+        {
+          "key": "monty-switch"
+        },
+        {
+          "key": "monty-key"
+        }
+      ]
+    },
+    {
+      "step": "odds",
+      "settings": {
+        "host": "random"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "strip:random"
+        },
+        {
+          "key": "monty-stay"
+        },
+        {
+          "key": "monty-switch"
+        },
+        {
+          "key": "monty-key"
         }
       ]
     },
@@ -51,43 +105,19 @@
       "opening": true,
       "targets": [
         {
-          "key": "monty-worlds"
-        }
-      ]
-    },
-    {
-      "step": "odds",
-      "opening": true,
-      "targets": [
-        {
-          "key": "monty-stay"
+          "key": "strip:informed"
         },
         {
-          "key": "monty-switch"
-        }
-      ]
-    },
-    {
-      "step": "many",
-      "opening": true,
-      "targets": [
-        {
-          "key": "monty-removed"
+          "key": "strip:random"
         },
         {
-          "key": "monty-stay"
+          "key": "monty-readout-informed"
         },
         {
-          "key": "monty-switch"
-        }
-      ]
-    },
-    {
-      "step": "rules",
-      "opening": true,
-      "targets": [
+          "key": "monty-readout-random"
+        },
         {
-          "key": "monty-rules"
+          "key": "monty-key"
         }
       ]
     },
@@ -96,7 +126,13 @@
       "opening": true,
       "targets": [
         {
-          "key": "monty-doors"
+          "key": "door-0"
+        },
+        {
+          "key": "door-1"
+        },
+        {
+          "key": "door-2"
         },
         {
           "key": "monty-result"

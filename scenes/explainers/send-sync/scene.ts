@@ -1,11 +1,9 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/send-sync.ts';
-import { Scene, Text } from '../../../src/index.ts';
+import { Scene, Text, Rectangle, Group, view } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf } from '../../../explain/index.ts';
+import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
-import { SINGLES, WRAPS, build, nameOf, isSend, isSync, quadrantOf, threads } from '../lib/send-sync.ts';
-import type { Inner, Wrapper, Quadrant, Layer } from '../lib/send-sync.ts';
+import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from '../lib/send-sync.ts';
+import type { Inner, Wrapper, Quadrant, Layer, RustType } from '../lib/send-sync.ts';
 
 // Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in lib/send-sync.ts
 // and test/explain-send-sync.test.ts.
@@ -19,17 +17,18 @@ const NOMICON =
 // 0.536 units (43 px on a 1280 px stage) to be 12 px there; native text is 0.54 units, so it reads
 // at 12 px without a close-up.
 // The camera frames one quadrant at 0.975 of the chart's box, and the plot is square (569 px), so a
-// quadrant is 284.5 px across and the box's shorter side sets the scale. The box is 7.8 units square,
-// the most the stage has room for under the heading, so a quadrant is 7.6 units and a point label of
-// 20.3 px is 0.543 units (20 px would be 0.535). That size still fits the longest name,
-// "x is Arc<Mutex<Cell<i32>>>", inside its quadrant, to the right of its point, with 0.1 units to spare.
+// quadrant is 284.5 px across and the box's shorter side sets the scale. The box is 7.7 units tall,
+// from the stage's foot to just under the heading's line (whose foot is near y = 3.3, so a taller box
+// draws a framed quadrant's top edge through it), so a quadrant is 7.51 units and a point label of
+// 20.4 px is 0.538 units. That size still fits the longest name, "x is Arc<Mutex<Cell<i32>>>", inside
+// its quadrant, to the right of its point.
 // The axis labels are 48 px of a 696 px chart, so they read in the whole chart, and stand 16 px further
 // off the plot than usual so that none of them shows at the edge of a framed quadrant.
 // The code block runs from -7.8 to 7.8: its longest line at 0.54 units needs a box 15.6 units wide,
 // and a narrower box shrinks every line below 0.536.
 const SIZE = 0.54;
 const HEAD =
-  '---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.3\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\n';
+  '---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.4\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\n';
 // Every point sits at one fixed spot per quadrant: at the left edge, so its name fits to its right, and
 // below the quadrant's own name, which Mermaid centres in it.
 // Mermaid's quadrant numbers, with x = Send and y = Sync: 1 both, 2 Sync only, 3 neither, 4 Send only.
@@ -47,7 +46,7 @@ const chart = (points: readonly { name: string; q: Quadrant }[]) =>
   points.map((p) => `  ${p.name}: [${SPOT[p.q][0]}, ${SPOT[p.q][1]}]\n`).join('');
 
 // The chart takes the left half; words take the right.
-const LEFT: Box = [-7.85, -4.42, -0.05, 3.38];
+const LEFT: Box = [-7.85, -4.5, -0.05, 3.2];
 const RIGHT: Box = [0.45, -4.25, 7.55, 3.05];
 const ZOOM = 1.25;
 
@@ -60,6 +59,26 @@ const traits = (send: boolean, sync: boolean) =>
 // refuse a point name with a colon. A name for a value, "x is ...", starts with a plain word. The
 // scene's last step is about a value x of the built type.
 const valueName = (type: string) => `x is ${type}`;
+/** The script's one-sentence answer (script.md); the arc-cell step's caption opens with it. */
+const ANSWER = 'Arc<T> is Send only when T is both Send and Sync';
+/** Where each quadrant's cell sits in the small map under the right column, in Mermaid's numbering. */
+const MAP: Record<Quadrant, [number, number]> = { 1: [6.35, -1.95], 2: [4.15, -1.95], 3: [4.15, -2.95], 4: [6.35, -2.95] };
+// The check questions' types: a plain Cell, moved or borrowed; and the two types no step draws.
+const CELL = {
+  send: isSend(INNERS.cell),
+  sync: isSync(INNERS.cell),
+  spawn: isSend(INNERS.cell),
+  scope: isSend(t('&', INNERS.cell)),
+};
+const [RC_MUTEX, ARC_GUARD] = CHECK_TYPES as [RustType, RustType];
+/** What the steps record, accumulated: the fields the views below draw from. */
+interface SendSyncState {
+  /** The quadrant the step's point is in, which the small map fills. */
+  here: Quadrant;
+  /** In a wrapper step: the wrapper, and the type it wraps. */
+  wrap: { ctor: string; inside: Layer };
+  threads: { name: string; spawnMove: boolean; scopeBorrow: boolean };
+}
 
 export default class SendSyncExplainer extends Scene {
   static meta = {
@@ -77,12 +96,40 @@ export default class SendSyncExplainer extends Scene {
       REFERENCE + '#L729-L734',
       NOMICON + '#L8-L29',
     ],
+    // The script's answer, stated by the arc-cell step, and three questions on types or uses no step draws;
+    // each answer is the model's, compiled by test/explain-send-sync.test.ts.
+    answer: ANSWER,
+    checks: [
+      {
+        question: 'Take a plain Cell<i32> c, with no Arc. Does thread::spawn(move || c.set(1)) compile? Does a scoped thread that borrows &c?',
+        answer: `${CELL.spawn ? 'The move compiles' : 'The move is refused'}: it hands the whole Cell to the new thread, and Cell<i32> is ${CELL.send ? '' : 'not '}Send. The borrow ${CELL.scope ? 'compiles' : 'is refused'}: the scoped thread would share c with its parent through &c, and Cell<i32> is ${CELL.sync ? '' : 'not '}Sync.`,
+      },
+      {
+        question: 'Mutex made Cell<i32> safe to share. Does Rc<Mutex<i32>> cross to another thread?',
+        answer: `${isSend(RC_MUTEX) ? 'Yes' : 'No'}. Rc’s plain owner count is the problem, not the value inside, so Rc<T> is neither Send nor Sync whatever T is, and ${nameOf(RC_MUTEX)} is ${traits(isSend(RC_MUTEX), isSync(RC_MUTEX))}.`,
+      },
+      {
+        question: 'Is Arc<MutexGuard<i32>> Send?',
+        answer: `${isSend(ARC_GUARD) ? 'Yes' : 'No'}. Arc needs T to be both Send and Sync, and MutexGuard<i32> is Sync but not Send, so ${nameOf(ARC_GUARD)} is neither.`,
+      },
+    ],
+    // The sentences that reach beyond the scenario on screen, and what holds them. The rule table test reads the
+    // impl lines; the evaluator test holds the model to rustc 1.99.1's answers.
+    claims: [
+      { says: 'Arc<T> is Send only when T is both Send and Sync', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
+      { says: 'Mutex<T> needs only T: Send', test: 'test/explain-send-sync.test.ts: the rule table is the standard library’s impl lines' },
+      { says: 'a move closure that owns x is Send only if', test: 'test/explain-send-sync.test.ts: the evaluator gives rustc’s answers' },
+      { says: 'every combination occurs', shown: true as const },
+      // The quadrant's name, as the chart labels it.
+      { says: '“Send only”', shown: true as const },
+    ],
   };
   static settings = [
     {
       id: 'wrapper',
       label: 'Wrapper',
-      default: 'arc',
+      // The default builds the fix for the opening's Cell; Arc<T> alone rebuilds the refused x.
+      default: 'arc-mutex',
       options: [
         { value: 'arc', label: 'Arc<T>' },
         { value: 'mutex', label: 'Mutex<T>' },
@@ -107,6 +154,7 @@ export default class SendSyncExplainer extends Scene {
       inner = values.inner as Inner;
     const s = stage(this, { style: 'hand-drawn', headingSize: 0.6 });
     const ink = s.palette.ink;
+    const st = () => this.state as unknown as SendSyncState;
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */
     const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => {
@@ -137,39 +185,114 @@ export default class SendSyncExplainer extends Scene {
       }
       return out;
     };
-    /** A card at the top of the right column, with lines under it. */
-    const column = async (rows: readonly (readonly [string, string])[], words: readonly string[], title?: string) => {
-      const card = await s.card(rows, {
-        at: RIGHT,
-        align: 'top',
-        fontSize: SIZE,
-        enter: false,
-        ...(title ? { title } : {}),
-      });
-      // Left-aligned with the lines under it.
-      card.shift([RIGHT[0] + 0.1 - card.box()![0], 0]);
-      const text = lines(words, RIGHT[3] - card.height() - 0.35);
-      await s.enter(card, ...text);
+    /** A card at the top of the right column, drawn from the state by `rows`: a view check holds to it. */
+    const column = async (rows: (st: SendSyncState) => readonly (readonly [string, string])[], title?: string) => {
+      const card = view(
+        this,
+        (state) => {
+          const c = new Card(this, s.palette, rows(state as unknown as SendSyncState), {
+            at: RIGHT,
+            align: 'top',
+            fontSize: SIZE,
+            ...(title ? { title } : {}),
+          });
+          // Left-aligned with the column's lines.
+          c.shift([RIGHT[0] + 0.1 - c.box()![0], 0]);
+          return c;
+        },
+        { place: false },
+      );
+      await s.enter(card);
       return card;
     };
 
-    /** A point's two answers, said on the point, with the column's words beside the chart. */
-    const tell = async (chartOf: Diagram, point: string, send: boolean, sync: boolean, words: readonly string[]) => {
+    /**
+     * A small map of the four quadrants under the right column, the one in view filled, so a close-up
+     * of one quadrant keeps its place in the 2 × 2.
+     */
+    const locator = async (here: Quadrant) => {
+      this.state.here = here;
+      const map = view(
+        this,
+        (state) => {
+          const filled = (state as unknown as SendSyncState).here;
+          const parts = ([1, 2, 3, 4] as const).map((n) =>
+            new Rectangle({
+              width: 2.1,
+              height: 0.92,
+              fill: n === filled ? s.emphasis : s.palette.paper,
+              stroke: s.soft,
+              strokeWidth: 0.025,
+            }).moveTo(MAP[n]),
+          );
+          const word = (text: string, at: [number, number], edge: [number, number]) =>
+            new Text(text, { fontSize: SIZE, color: ink }).moveTo(at, edge);
+          return new Group(
+            ...parts,
+            word('Sync', [3.0, MAP[2][1]], [1, 0]),
+            word('Not Sync', [3.0, MAP[3][1]], [1, 0]),
+            word('Not Send', [MAP[3][0], -3.8], [0, 0]),
+            word('Send', [MAP[4][0], -3.8], [0, 0]),
+          );
+        },
+        { place: false },
+      );
+      await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[st().here]}” filled` });
+    };
+    /** A point's two answers, said on the point, with the column's words and the map beside the chart. */
+    const tell = async (
+      chartOf: Diagram,
+      point: string,
+      send: boolean,
+      sync: boolean,
+      here: Quadrant,
+      words: (st: SendSyncState) => readonly string[],
+    ) => {
       await chartOf.note(`point:${point}:label`, `Send: ${yesNo(send)}, Sync: ${yesNo(sync)}`, {
         side: 'below',
         size: SIZE,
       });
-      await s.enter(...lines(words, RIGHT[3]));
+      await s.enter(view(this, (state) => new Group(...lines(words(state as unknown as SendSyncState), RIGHT[3])), { place: false }));
+      await locator(here);
     };
 
+    // ------------------------------------------------------------------ the refused program
+    // The opening is the same in every scenario: the Arc<Cell<i32>> rustc refuses. The setting picks
+    // the type built at the end.
+    const opening = build('arc', 'cell'),
+      openRun = threads('arc', 'cell');
+    const [cellLayer, arcCell] = opening as [Layer, Layer];
+    if (openRun.spawnMove || nameOf(OPENING_TYPE) !== arcCell.name)
+      throw new Error('The opening program must be one the model says rustc refuses');
+    await this.step('spawn', {
+      title: 'rustc refuses to send this Arc to another thread',
+      line: 'Predict: isn’t Arc the thread-safe pointer? Why is x refused?',
+      // functions.rs:125-129: spawn needs F: Send + 'static. The error lines are rustc's, checked in
+      // test/explain-send-sync.test.ts.
+      caption: `x is an Arc, the pointer the standard library provides for sharing one value between threads; here it holds a Cell<i32>. thread::spawn runs a closure on a new thread, and move hands x to that closure. rustc refuses with error E0277, and the error names two traits: Sync, which Cell<i32> lacks, and Send, which ${arcCell.name} needed for the move.`,
+    });
+    const opener = await s.code(
+      [
+        ...OPENING,
+        // rustc's lines, wrapped to the reader's size.
+        'error[E0277]: `Cell<i32>` cannot be shared',
+        '              between threads safely',
+        '= help: the trait `Sync` is not implemented',
+        '        for `Cell<i32>`',
+        '= note: required for `Arc<Cell<i32>>` to',
+        '        implement `Send`',
+      ],
+      { at: [-7.8, -3.6, 7.8, 2.75], fontSize: SIZE },
+    );
+    await opener.focus([4, 7], { as: 'the two traits' });
+    this.state.opening = openRun;
+
     // ------------------------------------------------------------------ the two questions
-    await readerFirst(this, s, readerFrames(wrapper, inner));
     await this.step('questions', {
-      detail: true,
-      title: 'Send and Sync are two separate questions',
-      line: 'Send: move it to another thread. Sync: share &T between threads.',
+      title: 'Send and Sync: the two questions in that error',
+      line: 'Predict: Cell::set writes through a shared &self. Which quadrant holds Cell<i32>?',
       caption:
-        'Send asks whether a value can move to another thread. Sync asks whether several threads can hold a shared reference to it at once: the standard library defines T as Sync exactly when &T is Send. The compiler answers both for every type, so each type falls in one of four quadrants.',
+        'thread::spawn needs everything its closure owns to be Send: safe to move to another thread. Sync is the other question: can several threads hold a shared reference &T to it at once? The standard library defines T as Sync exactly when &T is Send. rustc answers both questions for a type, so the type lands in one of four quadrants.',
     });
     await s.clear();
     const singles = SINGLES.map((type) => ({
@@ -178,7 +301,7 @@ export default class SendSyncExplainer extends Scene {
       send: isSend(type),
       sync: isSync(type),
     }));
-    const d = await s.show({ source: chart(singles) }, { box: LEFT, build: 'frame' });
+    let d = await s.show({ source: chart(singles) }, { box: LEFT, build: 'frame' });
     await d.reveal(([1, 2, 3, 4] as const).map((n) => `quadrant-label:${n}`));
     await s.enter(
       ...lines(
@@ -193,68 +316,119 @@ export default class SendSyncExplainer extends Scene {
     );
     this.state.singles = Object.fromEntries(singles.map((p) => [p.name, { send: p.send, sync: p.sync }]));
 
-    // ------------------------------------------------------------------ one type per quadrant
+    // ------------------------------------------------------------------ the culprit, then the aha
     const SINGLE_STEPS: Record<string, { id: string; title: string; line: string; caption: string; source: string }> = {
-      i32: {
-        id: 'i32',
-        title: 'i32 is Send and Sync',
-        line: 'Auto traits: a type built from Send and Sync parts gets both.',
-        // marker.rs:92 and :657 declare both as auto traits; :521 says primitive types are Sync;
-        // the Nomicon (lines 20-23) says almost all primitives are Send and Sync.
-        caption:
-          'Send and Sync are auto traits: the compiler gives them to any type built only from parts that have them. Primitives such as i32 have both, so i32 sits in the top-right quadrant. Each point sits at one fixed spot in its quadrant, so only the quadrant carries meaning.',
-        source: 'Both are auto traits.',
-      },
-      'Rc<i32>': {
-        id: 'rc',
-        title: 'Rc<i32> is neither Send nor Sync',
-        line: 'Rc counts its owners with a plain integer, not an atomic one.',
-        // marker.rs:74-79: two threads cloning Rcs to one value could update the count at once,
-        // undefined behaviour because Rc does not use atomic operations. rc.rs:334 and :342.
-        caption:
-          'Rc counts its owners with a plain integer, not an atomic one. Two threads cloning Rcs that share one count could update it at the same moment, which is undefined behaviour. So rc.rs declares Rc neither Send nor Sync, whatever it holds.',
-        source: 'See rc.rs:334, 342.',
-      },
       'Cell<i32>': {
         id: 'cell',
-        title: 'Cell<i32> can move but cannot be shared',
-        line: 'Cell::set takes &self and does no synchronisation: not Sync.',
+        title: 'Answer: Cell<i32> can move but cannot be shared',
+        line: 'Predict: now wrap it in Arc. Which quadrant does Arc<Cell<i32>> land in?',
         // marker.rs:541-548: Cell::set takes &self and performs no synchronization, so Cell cannot
         // be Sync. cell.rs:320 Send where T: Send; cell.rs:328 !Sync.
         caption:
-          'Cell::set takes &self and does no synchronisation, so two threads holding &Cell could write to it at once. That is why cell.rs makes Cell not Sync. It still makes Cell<T> Send whenever T is, so a whole Cell can move to another thread.',
+          'Cell::set writes through a shared &self without synchronisation. Two threads sharing &Cell could therefore write to the same value at once, so Cell is not Sync. Moving ownership is different: the old owner gives up the Cell rather than keeping shared access to it. Cell<T> is Send when T is, so a whole Cell<i32> can move to another thread.',
         source: 'See cell.rs:320, 328.',
+      },
+      'Rc<i32>': {
+        id: 'rc',
+        title: 'Rc<i32> is neither Send nor Sync, whatever it holds',
+        line: 'Rc is the single-threaded Arc: its owner count is a plain integer.',
+        // marker.rs:74-79: two threads cloning Rcs to one value could update the count at once,
+        // undefined behaviour because Rc does not use atomic operations. rc.rs:334 and :342.
+        caption:
+          'Rc is the single-threaded version of Arc: it counts its owners with a plain integer, not an atomic one. Two threads cloning Rcs that share one count could update it at the same moment, which is undefined behaviour. Rc is therefore neither Send nor Sync, whatever it holds. Arc’s atomic count fixes exactly that, and nothing about the value inside.',
+        source: 'See rc.rs:334, 342.',
+      },
+      i32: {
+        id: 'i32',
+        title: 'i32 is Send and Sync',
+        line: 'Predict: three quadrants are filled. What could be Sync but not Send?',
+        // marker.rs:92 and :657 declare both as auto traits; :521 says primitive types are Sync;
+        // the Nomicon (lines 20-23) says almost all primitives are Send and Sync.
+        caption:
+          'Send and Sync are auto traits: a type made of parts that have them gets them too, unless its library opts out, as Rc does for both and Cell does for Sync. Primitives such as i32 have both, so i32 sits in the top-right quadrant. A point’s place inside its quadrant means nothing.',
+        source: 'Both are auto traits.',
       },
       'MutexGuard<i32>': {
         id: 'guard',
-        title: 'MutexGuard<i32> can be shared but cannot move',
-        line: 'Dropping it must unlock on the thread that locked: not Send.',
+        title: 'Answer: MutexGuard<i32> can be shared but cannot move',
+        line: 'Predict: what could make the opening’s Cell safe to share?',
         // mutex.rs:282-289: not Send because with POSIX threads a lock must be released on the thread
         // that acquired it. mutex.rs:291-294: Sync if T: Sync, because &MutexGuard gives &T.
         caption:
-          'Dropping a MutexGuard unlocks its mutex, and with POSIX threads a lock must be released on the thread that took it, so mutex.rs makes the guard not Send. A shared &MutexGuard gives out &i32, so mutex.rs makes the guard Sync when the value inside is Sync.',
+          'Dropping a MutexGuard unlocks its mutex. Rust supports platforms that require the unlocking thread to be the one that took the lock, so the guard cannot move to another thread: it is not Send. A shared &MutexGuard gives access through &i32 without moving the guard, so it is Sync when the value inside is Sync. Send and Sync really are two separate questions: every combination occurs.',
         source: 'See mutex.rs:289, 294.',
       },
     };
-    for (const p of singles) {
-      const meta = SINGLE_STEPS[p.name]!;
-      await this.step(meta.id, { detail: true, title: meta.title, line: meta.line, caption: meta.caption });
-      await s.clearOverlays();
-      await d.reveal([`point:${p.name}`, `point:${p.name}:label`]);
-      await d.focus([`plate:${p.q}`], { zoom: ZOOM });
-      await tell(d, p.name, p.send, p.sync, [
+    const single = (name: string) => singles.find((p) => p.name === name)!;
+    const place = async (name: string, prepare?: () => Promise<void>) => {
+      const p = single(name),
+        meta = SINGLE_STEPS[name]!;
+      await this.step(meta.id, { title: meta.title, line: meta.line, caption: meta.caption });
+      if (prepare) await prepare();
+      else await s.clearOverlays();
+      const chartOf = d;
+      await chartOf.reveal([`point:${p.name}`, `point:${p.name}:label`]);
+      await chartOf.focus([`plate:${p.q}`], { zoom: ZOOM });
+      await tell(chartOf, p.name, p.send, p.sync, p.q, () => [
         meta.source,
         ...(p.name === 'i32' ? ['Only the quadrant counts: a point’s place inside it means nothing.'] : []),
       ]);
       this.state.shown = p.name;
-    }
+    };
+    await place(cellLayer.name);
+
+    // Arc<Cell<i32>>: the point leaves "Send only" for "Neither".
+    await this.step('arc-cell', {
+      title: `Answer: ${arcCell.name} is ${traits(arcCell.send, arcCell.sync)}`,
+      line: 'Arc makes its count thread-safe, not the value inside.',
+      // sync.rs:135-147: Arc gives shared ownership of the data but adds no thread safety to it.
+      // sync.rs:284, 286: Send and Sync for Arc<T> both need T: Send + Sync.
+      caption: `${ANSWER}, and the same holds for Sync. Cloning an Arc gives another owner of the same T, so a clone moved to another thread shares T between threads, and Arc adds no locking around it. ${cellLayer.name} is ${traits(cellLayer.send, cellLayer.sync)}, so ${arcCell.name} is ${traits(arcCell.send, arcCell.sync)}: the point moves from “${QUADRANT[cellLayer.quadrant]}” to “${QUADRANT[arcCell.quadrant]}”, and thread::spawn refuses x.`,
+    });
+    await s.clear();
+    const shared = valueName(arcCell.name);
+    d = await s.show({ source: chart([{ name: cellLayer.name, q: cellLayer.quadrant }]) }, { box: LEFT });
+    await d.morph(
+      { source: chart([{ name: shared, q: cellLayer.quadrant }]) },
+      { ops: [{ kind: 'rename_point', from: cellLayer.name, to: shared }] },
+    );
+    const [ax, ay] = SPOT[arcCell.quadrant];
+    await d.morph(
+      { source: chart([{ name: shared, q: arcCell.quadrant }]) },
+      { ops: [{ kind: 'move_point', label: shared, x: ax, y: ay }] },
+    );
+    await d.focus([`plate:${arcCell.quadrant}`], { zoom: ZOOM });
+    // The opening's wrap is the same in every scenario.
+    await tell(d, shared, arcCell.send, arcCell.sync, arcCell.quadrant, () => [
+      'Arc needs T: Send + Sync',
+      `T here: ${cellLayer.name}`,
+      'See sync.rs:284, 286.',
+    ]);
+    this.state.opened = arcCell;
+
+    // ------------------------------------------------------------------ the rest of the map
+    // Back to the map of single types, with Cell<i32> already on it, to fill the other quadrants.
+    for (const [i, name] of ['Rc<i32>', 'i32', 'MutexGuard<i32>'].entries())
+      await place(
+        name,
+        i
+          ? undefined
+          : async () => {
+              await s.clear();
+              d = await s.show({ source: chart(singles) }, { box: LEFT, build: 'frame' });
+              await d.reveal([
+                ...([1, 2, 3, 4] as const).map((n) => `quadrant-label:${n}`),
+                `point:${cellLayer.name}`,
+                `point:${cellLayer.name}:label`,
+              ]);
+            },
+      );
 
     // ------------------------------------------------------------------ the wrapper rules
     const layers = build(wrapper, inner);
     const ctors = WRAPS[wrapper];
     await this.step('rules', {
-      detail: true,
-      title: 'Arc needs Send and Sync inside; Mutex needs Send',
+      title: 'The fix: Mutex<T> needs only T: Send, and is Sync too',
       line:
         wrapper === 'arc'
           ? 'Arc clones on several threads reach one T with no added safety.'
@@ -264,7 +438,7 @@ export default class SendSyncExplainer extends Scene {
       // sync.rs:135-147: Arc gives shared ownership of the data but adds no thread safety to it.
       // mutex.rs:240-256: Mutex gives one thread at a time access to T, so T need not be Sync.
       caption:
-        'Arc<T> is Send or Sync only when T is both: clones of one Arc on several threads all reach the same T, and Arc adds no thread safety to it. Mutex<T> needs only T: Send, because its lock lets one thread at a time use the value. The lines omit ?Sized and the allocator.',
+        'A Mutex lets one thread at a time use the value inside, behind its lock, so Mutex<T> needs only T: Send, and is then Sync as well: the lock supplies the synchronisation Cell lacks. Arc<T>, as before, needs T to be both. The lines omit ?Sized and the allocator. The setting picks the type built next, from the inside out.',
     });
     await s.clear();
     const code = await s.code(
@@ -300,14 +474,14 @@ export default class SendSyncExplainer extends Scene {
             ? ' Clones of one Arc on several threads would all reach the one value.'
             : '';
       await this.step(`wrap-${ctor.toLowerCase()}`, {
-        detail: true,
         title: `${now.name} is ${traits(now.send, now.sync)}`,
         line: `${ctor} needs T: ${ctor === 'Arc' ? 'Send + Sync' : 'Send'}; ${was.name} is ${traits(was.send, was.sync)}.`,
         caption:
           `Wrapping ${was.name} in ${ctor} gives ${now.name}. ${ctor} needs the type inside to be ${needs}, and ${was.name} is ${traits(was.send, was.sync)}, so ${now.name} is ${traits(now.send, now.sync)}.${why} ` +
           (moved
             ? `The point moves from “${QUADRANT[was.quadrant]}” to “${QUADRANT[now.quadrant]}”.`
-            : `The point stays in “${QUADRANT[now.quadrant]}”.`),
+            : `The point stays in “${QUADRANT[now.quadrant]}”.`) +
+          (now.name === arcCell.name ? ' This is the opening’s x.' : ''),
       });
       await s.clearOverlays();
       if (!q) q = await s.show({ source: chart(points) }, { box: LEFT });
@@ -321,11 +495,13 @@ export default class SendSyncExplainer extends Scene {
         await q.morph({ source: chart(points) }, { ops: [{ kind: 'move_point', label: to, x, y }] });
       }
       await q.focus([`plate:${now.quadrant}`], { zoom: ZOOM });
-      await tell(q, to, now.send, now.sync, [
-        `${ctor} needs T: ${ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
-        `T here: ${was.name}`,
-      ]);
       this.state.built = now;
+      // The wrapper and the type it wraps, which the column's lines state.
+      this.state.wrap = { ctor, inside: was };
+      await tell(q, to, now.send, now.sync, now.quadrant, (st) => [
+        `${st.wrap.ctor} needs T: ${st.wrap.ctor === 'Arc' ? 'Send + Sync' : 'Send'}`,
+        `T here: ${st.wrap.inside.name}`,
+      ]);
     }
 
     // ------------------------------------------------------------------ what the thread APIs accept
@@ -333,7 +509,6 @@ export default class SendSyncExplainer extends Scene {
     const both = run.spawnMove && run.scopeBorrow,
       none = !run.spawnMove && !run.scopeBorrow;
     await this.step('threads', {
-      detail: true,
       title: both
         ? 'Both thread APIs accept x'
         : none
@@ -353,21 +528,21 @@ export default class SendSyncExplainer extends Scene {
             : run.spawnMove
               ? 'accepts the move and rejects the borrow'
               : 'accepts the borrow and rejects the move'
-      } for x: ${run.name}.`,
+      } for x: ${run.name}.${inner === 'cell' && both ? ' The opening’s Cell can cross once a Mutex guards it.' : ''}`,
     });
     await s.clearOverlays();
     await q!.mark([`point:${valueName(run.name)}`], {
       color: both ? s.good : s.bad,
       as: both ? 'accepted' : 'rejected',
     });
+    this.state.threads = run;
     await column(
-      [
-        ['thread::spawn', yesNo(run.spawnMove)],
-        ['thread::scope', yesNo(run.scopeBorrow)],
+      (st) => [
+        ['spawn, needs Send', yesNo(st.threads.spawnMove)],
+        ['scope, needs Sync', yesNo(st.threads.scopeBorrow)],
       ],
-      ['spawn needs x: Send', 'scope needs x: Sync'],
       'Compiles?',
     );
-    this.state.threads = run;
+    await locator(layers.at(-1)!.quadrant);
   }
 }

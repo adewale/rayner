@@ -8,6 +8,8 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
+    // Members marked @internal (Mobject.id) are left out of the published types.
+    "stripInternal": true,
     "sourceMap": true,
     "tsBuildInfoFile": "node_modules/.cache/tsc/lib.tsbuildinfo"
   },

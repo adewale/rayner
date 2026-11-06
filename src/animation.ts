@@ -2,17 +2,20 @@
 // begin() settles the endpoints (and aligns their structure); every frame
 // is then `mobject = blend(start, end, rateFunc(t / runTime))`.
 
-import { smooth, thereAndBack, linear, clip } from './rate.ts';
+import { smooth, linear, clip } from './rate.ts';
 import type { RateFunc } from './rate.ts';
 import type { Mobject, PathFunc, AnimateBuilderBase } from './mobject.ts';
-import { Group, adoptState } from './mobject.ts';
+import { Group, adoptState, followScene, Mobject as MobjectClass } from './mobject.ts';
 import type { VMobject } from './vmobject.ts';
 import type { Scene } from './scene.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
 import { Circle, SurroundingRectangle, boxOf } from './shapes.ts';
-import { YELLOW } from './color.ts';
+import { NEUTRAL_COLORS } from './color.ts';
+import { jsonObject } from './json.ts';
+import type { JsonObject } from './json.ts';
+import type { SceneState } from './scene.ts';
 
 export interface AnimOpts {
   runTime?: number;
@@ -68,6 +71,28 @@ abstract class AnimationTiming {
   abstract interpolate(alpha: number): void;
   abstract finish(alpha?: number): void;
   abstract cleanUpFromScene(scene: Scene): void;
+  /** The mobjects this animation writes: what play() admits to the scene and allows one writer each. */
+  abstract targets(): Mobject[];
+  /**
+   * What this animation decided when it began, for the step's trace: read once, right
+   * after begin(), and recorded with Scene.record. null (the default) records nothing.
+   * Matching transforms report what they paired, TransformDiff the hunks it animated,
+   * a View's sync what its morph paired, Follow the interval it sampled.
+   */
+  evidence(): Evidence | null { return null; }
+}
+
+/**
+ * Record what an animation decided as it began. Called by whoever began it: play() for
+ * the animations it is given and a Succession's members, a group for its own members.
+ * A group records nothing itself; its members do, in the order they begin.
+ */
+export function recordEvidence(a: ScheduledAnimation, scene: Scene | null): void {
+  if (!scene || a instanceof AnimationGroup) return;
+  const e = a.evidence();
+  if (!e) return;
+  const { kind, ...data } = e;
+  scene.record(kind, data);
 }
 export type ScheduledAnimation = Animation | AnimationGroup;
 
@@ -77,6 +102,12 @@ export class Animation extends AnimationTiming {
   families!: FamilyRow[];
   slots!: { index: Int32Array; count: number };
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(opts); this.mobject = mobject; }
+  override targets(): Mobject[] { return [this.mobject]; }
+  /**
+   * What takes the scene's colours before this begins (see Mobject.defaultColors): what it draws,
+   * and what it morphs toward, so both endpoints are fixed in the scene's colours.
+   */
+  paints(): Mobject[] { return this.targets(); }
   /** Called when play starts. Copies live here, never in the constructor. */
   override begin(): void {
     this.starting = this.createStartingMobject();
@@ -133,6 +164,133 @@ export class Animation extends AnimationTiming {
   interpolateSubmobject(..._row: [...FamilyRow, number]): void {}
 }
 
+// A shared, non-drawing target makes simultaneous SetStates on one Scene
+// visible to play()'s ordinary overlap check. Separate scenes do not conflict.
+const stateTargets = new WeakMap<object, Group>();
+
+export interface SetStateOpts {
+  /** The event that set the state: recorded as `{ kind: 'event', event }` as this begins. */
+  event?: string;
+}
+
+/**
+ * Replace a scene's JSON state when this member begins, usually inside a Succession. `next`
+ * is the state, or a function of the state when this begins (a copy, so it cannot change the
+ * scene's): a model step, so each member of a replay starts where the one before left it.
+ */
+export class SetState<S extends object = SceneState> extends Animation {
+  readonly host: Scene<S>;
+  readonly event: string | undefined;
+  private readonly snapshot: JsonObject | null;
+  private readonly update: ((current: S) => S) | null;
+
+  constructor(host: Scene<S>, next: NoInfer<S> | ((current: NoInfer<S>) => NoInfer<S>), { event }: SetStateOpts = {}) {
+    if (event !== undefined && (typeof event !== 'string' || !event.trim())) throw new TypeError('SetState event must be a nonempty string');
+    const update = typeof next === 'function' ? (next as (current: S) => S) : null;
+    const snapshot = update ? null : jsonObject(next, 'SetState state');
+    let target = stateTargets.get(host);
+    if (!target) { target = new Group(); stateTargets.set(host, target); }
+    super(target, { runTime: 0, remover: true });
+    this.host = host;
+    this.event = event;
+    this.snapshot = snapshot;
+    this.update = update;
+  }
+
+  override begin(): void {
+    const next = this.update
+      ? this.update(jsonObject(this.host.state, 'SetState current state') as S)
+      : this.snapshot;
+    this.host.state = jsonObject(next, 'SetState state') as Scene<S>['state'];
+    super.begin();
+  }
+
+  /** `{ kind: 'event', event }` when an event set the state; nothing otherwise. */
+  override evidence(): Evidence | null { return this.event === undefined ? null : { kind: 'event', event: this.event }; }
+}
+
+export interface FollowSpec {
+  /** Where the value starts: a number, or a function read when the play begins (so a Succession member starts where the one before left it). */
+  from: number | (() => number);
+  /** Where the value ends. */
+  to: number;
+  /**
+   * The picture at one value: a fresh mobject for each target, in `targets` order (or the one
+   * mobject, for one target), each the same family shape as its target. Follow writes each
+   * into its target with `become`, so it writes exactly its targets, and only from the value:
+   * nothing can carry over from what the previous frame left.
+   */
+  draw: (value: number) => Mobject | readonly Mobject[];
+}
+export interface FollowOpts extends AnimOpts {
+  /** The mobjects `draw` redraws: play() admits them and refuses a second writer of any of them. */
+  targets: readonly Mobject[];
+}
+
+/**
+ * Several drawings following one number: a bucket's level and the chart's climb
+ * from the same elapsed time, a dot, a radius and a readout from the same angle.
+ * Each frame samples the value between `from` and `to` at the eased alpha, draws
+ * the picture at that value and writes it into the targets, so the drawings always
+ * agree. Correct by construction: Follow writes nothing but its declared targets,
+ * and only from the value, so a seek renders what a full run renders and play()'s
+ * one-writer check covers everything it touches. No updater is registered. The value is exact at both ends; an easing that overshoots samples
+ * outside them, as a Transform would. See docs/CHOREOGRAPHY.md.
+ */
+export class Follow extends Animation {
+  readonly spec: FollowSpec;
+  private readonly written: Mobject[];
+  /** The value the play began from. Set by begin(). */
+  start = 0;
+
+  constructor(spec: FollowSpec, { targets, ...opts }: FollowOpts) {
+    if (!Array.isArray(targets) || !targets.length || !targets.every((m) => m instanceof MobjectClass))
+      throw new TypeError('Follow needs the mobjects draw() redraws: targets: [a, b, ...]');
+    if (!Number.isFinite(spec.to)) throw new RangeError(`Follow: to must be a finite number, not ${String(spec.to)}`);
+    if (typeof spec.from !== 'function' && !Number.isFinite(spec.from)) throw new RangeError(`Follow: from must be a finite number or a function, not ${String(spec.from)}`);
+    if (typeof spec.draw !== 'function') throw new TypeError('Follow: draw must be a function of the value');
+    if (new Set(targets).size !== targets.length) throw new TypeError('Follow: each target once');
+    super(targets[0]!, opts);
+    this.spec = spec;
+    this.written = [...targets];
+  }
+
+  override targets(): Mobject[] { return this.written; }
+
+  /** The interval it sampled and what it wrote: `{ kind: 'follow', from, to, targets }`, targets by key (or class). */
+  override evidence(): Evidence {
+    return { kind: 'follow', from: this.start, to: this.spec.to, targets: this.written.map((m) => m.key ?? m.constructor.name) };
+  }
+
+  override begin(): void {
+    const from = typeof this.spec.from === 'function' ? this.spec.from() : this.spec.from;
+    if (!Number.isFinite(from)) throw new RangeError(`Follow: from() must return a finite number, not ${String(from)}`);
+    this.start = from;
+    this.interpolate(0);
+  }
+
+  /** The value at an eased alpha: exact at 0 and 1. */
+  valueAt(alpha: number): number {
+    return alpha <= 0 ? this.start : alpha >= 1 ? this.spec.to : this.start + (this.spec.to - this.start) * alpha;
+  }
+
+  override interpolate(alpha: number): void {
+    const drawn = this.spec.draw(this.valueAt(alpha));
+    const pictures = drawn instanceof MobjectClass ? [drawn] : drawn;
+    if (pictures.length !== this.written.length)
+      throw new TypeError(`Follow: draw returned ${pictures.length} pictures for ${this.written.length} targets`);
+    pictures.forEach((picture, i) => {
+      const target = this.written[i]!;
+      if (pictures.indexOf(picture) !== i || this.written.includes(picture))
+        throw new TypeError('Follow: draw must return fresh mobjects, one per target, not a target itself');
+      target.become(picture);
+    });
+    for (const m of this.written) m.invalidateBox();
+  }
+
+  override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(...this.written); }
+}
+
 /** A path's structure: its subpaths and their closed flags. */
 interface PathShape { subpaths: Float32Array[]; closed: boolean[] }
 
@@ -164,8 +322,10 @@ export class Transform extends Animation {
     this.sameStructure = false;
   }
 
+  override paints(): Mobject[] { return [this.mobject, this.target]; }
+
   override begin(): void {
-    // An animation that built its own target (FadeIn, Indicate, .animate) hands it
+    // An animation that built its own target (FadeIn, .animate) hands it
     // over as is: nothing else holds it, so copying it again is pure cost. And a
     // target that is a copy of the mobject needs no alignment: same structure.
     this.targetCopy = this.ownsTarget ? this.target : this.target.copy();
@@ -296,6 +456,32 @@ export class FadeOut extends Transform {
   }
 }
 
+export interface GrowFromEdgeOpts extends AnimOpts {
+  /** Nonzero by default to keep the starting path nondegenerate; in [0, 1]. */
+  initialScale?: number;
+}
+
+/** Fade in while expanding along one axis from a fixed cardinal edge. */
+export class GrowFromEdge extends FadeIn {
+  readonly edge: Vec;
+  readonly axis: 0 | 1;
+  readonly initialScale: number;
+
+  constructor(mobject: Mobject, edge: Readonly<Vec> = [0, -1], { initialScale = 0.001, ...opts }: GrowFromEdgeOpts = {}) {
+    if (!Array.isArray(edge) || edge.length !== 2 || !Number.isFinite(edge[0]) || !Number.isFinite(edge[1]) ||
+      Math.abs(edge[0]) + Math.abs(edge[1]) !== 1 || (edge[0] !== 0 && edge[1] !== 0))
+      throw new TypeError('GrowFromEdge edge must be one unit step along an axis: [0, 1], [0, -1], [-1, 0] or [1, 0]');
+    if (!Number.isFinite(initialScale) || initialScale < 0 || initialScale > 1)
+      throw new RangeError('GrowFromEdge initialScale must be finite and in [0, 1]');
+    super(mobject, opts);
+    this.edge = [edge[0], edge[1]]; this.axis = edge[0] === 0 ? 1 : 0; this.initialScale = initialScale;
+  }
+
+  override createStartingMobject(): Mobject {
+    return super.createStartingMobject().stretch(this.initialScale, this.axis, { aboutEdge: this.edge });
+  }
+}
+
 /**
  * Draw a path in: the stroke traces along the path, then the fill fades in.
  * Fill-only shapes (glyphs, filled dots) have no stroke to trace, so they get
@@ -364,28 +550,6 @@ export class Write extends Create {
   constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { lagRatio: 0.3, ...opts }); }
 }
 
-export interface IndicateOpts extends TransformOpts { scaleFactor?: number; color?: string }
-
-/** Scale up and recolor, there and back. */
-export class Indicate extends Transform {
-  scaleFactor: number;
-  color: string;
-
-  constructor(mobject: Mobject, { scaleFactor = 1.2, color = '#ffff00', ...opts }: IndicateOpts = {}) {
-    super(mobject, mobject, { rateFunc: thereAndBack, ...opts });
-    this.scaleFactor = scaleFactor; this.color = color;
-  }
-  override begin(): void {
-    const t = this.mobject.copy().scale(this.scaleFactor);
-    for (const m of t.family()) {
-      if (m.style.stroke !== 'none') m.style.stroke = this.color;
-      if (m.style.fill !== 'none') m.style.fill = this.color;
-    }
-    this.target = t; this.ownsTarget = true; this.sameStructure = true;
-    super.begin();
-  }
-}
-
 /** Run several animations together; lagRatio staggers their start times. */
 export class AnimationGroup extends AnimationTiming {
   animations: ScheduledAnimation[];
@@ -422,7 +586,14 @@ export class AnimationGroup extends AnimationTiming {
     }
     return this;
   }
-  override begin(): void { for (const a of this.animations) a.begin(); }
+  /** The scene the play runs on, set by play() (see bindSuccessions): members record their evidence to it as they begin. */
+  scene: Scene | null = null;
+  override begin(): void {
+    for (const a of this.animations) {
+      a.begin();
+      recordEvidence(a, this.scene);
+    }
+  }
   /** Each member lands where the group's own timeline puts it at rateFunc(1) (a there-and-back group ends at the start). */
   override finish(alpha: number = this.rateFunc(1)): void {
     this.animations.forEach((a, i) => a.finish(a.rateFunc(this.memberTime(alpha, i))));
@@ -441,8 +612,9 @@ export class AnimationGroup extends AnimationTiming {
   }
   /** A group has no mobject; nested groups contribute their leaf members. */
   get mobjects(): Mobject[] {
-    return this.animations.flatMap((a) => a instanceof AnimationGroup ? a.mobjects : [a.mobject]).filter(Boolean);
+    return this.animations.flatMap((a) => a.targets()).filter(Boolean);
   }
+  override targets(): Mobject[] { return this.mobjects; }
 }
 
 export class LaggedStart extends AnimationGroup {
@@ -508,11 +680,31 @@ export class MoveAlongPath extends Animation {
   }
 }
 
-/** Fade in, hold, fade out around a mobject: a one-shot "look here". */
-export class Flash extends Animation {
-  constructor(mobject: Mobject, opts: AnimOpts = {}) { super(mobject, { rateFunc: linear, ...opts }); }
-  override interpolateSubmobject(sub: Mobject, start: Mobject, alpha: number): void {
-    sub.style.opacity = start.style.opacity * Math.sin(Math.PI * alpha);
+/** Travel along a fixed route while fading in and out; remove the token by default. */
+export class PulseAlongPath extends MoveAlongPath {
+  readonly sourcePath: VMobject;
+
+  constructor(mobject: Mobject, path: VMobject, opts: MoveAlongPathOpts = {}) {
+    super(mobject, path, { rateFunc: linear, remover: true, ...opts });
+    this.sourcePath = path;
+  }
+
+  override begin(): void {
+    // The path, like the starting geometry, is fixed when the play begins.
+    this.path = this.sourcePath.copy();
+    super.begin();
+  }
+
+  override interpolate(alpha: number): void {
+    super.interpolate(alpha);
+    const opacity = Math.sin(Math.PI * alpha);
+    for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity * opacity;
+  }
+
+  override cleanUpFromScene(scene: Scene): void {
+    super.cleanUpFromScene(scene);
+    // A removed token can be used again without inheriting its invisible end.
+    if (this.remover) for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity;
   }
 }
 
@@ -561,11 +753,14 @@ export class Circumscribe extends Animation {
   /** The outline's opacity when the play began: what drawing in reaches. Set by begin(). */
   baseOpacity!: number;
 
-  constructor(target: Mobject | Box, { color = YELLOW, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+  constructor(target: Mobject | Box, { color, shape = 'rect', buff = 0.15, strokeWidth = 0.04, cornerRadius = 0, keep = false, fadeOut = true, ...opts }: CircumscribeOpts = {}) {
+    const stroke = color ?? NEUTRAL_COLORS.accent;
     const fit = (): VMobject => shape === 'circle'
-      ? circleAround(target, buff, { stroke: color, strokeWidth })
-      : new SurroundingRectangle(target, { buff, cornerRadius, stroke: color, strokeWidth });
-    super(fit(), { rateFunc: linear, ...opts, remover: !keep });
+      ? circleAround(target, buff, { stroke, strokeWidth })
+      : new SurroundingRectangle(target, { buff, cornerRadius, stroke, strokeWidth });
+    const outline = fit();
+    if (color === undefined) followScene(outline, { stroke: 'accent' });
+    super(outline, { rateFunc: linear, ...opts, remover: !keep });
     this.target = target; this.shape = shape; this.buff = buff; this.cornerRadius = cornerRadius;
     this.keep = keep; this.fadeOut = fadeOut;
   }
@@ -657,7 +852,7 @@ export class Restore extends Transform {
  * animation in the play begins (see takeCopies), so it is `source` as the
  * play found it whatever the argument order; until then `mobject` is an empty
  * placeholder, so the copy, a different mobject from `source`, conflicts with
- * nothing: `play(new TransformFromCopy(a, b), new Indicate(a))` and
+ * nothing: `play(new TransformFromCopy(a, b), a.animate.scale(1.2))` and
  * `play(new Create(a), new TransformFromCopy(a, b))` are fine.
  */
 export class TransformFromCopy extends Transform {
@@ -706,7 +901,7 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * Run animations one after another: each begins when the previous ends, as
  * consecutive play() calls would, so members may drive the same mobject:
  *
- *   await this.play(new Succession([new Indicate(box), box.animate.shift(RIGHT), new FadeOut(box)]));
+ *   await this.play(new Succession([new Create(box), box.animate.shift([1, 0]), new FadeOut(box)]));
  *
  * Each member begins at its turn (its endpoints are fixed from the state the
  * previous one left) and is finished and cleaned up at its end, through the
@@ -716,14 +911,12 @@ export function takeCopies(anims: readonly ScheduledAnimation[]): void {
  * rate functions, and a group rate function must not run time backwards.
  */
 export class Succession extends AnimationGroup {
-  /** The scene the members join as they begin; set by play() (see bindSuccessions). */
-  scene: Scene | null;
   /** Index of the member running now; earlier ones have finished. Set by begin(). */
   active: number;
 
+  /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
   constructor(animations: Playable[], opts: AnimOpts = {}) {
     super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x)), { rateFunc: linear, ...opts, lagRatio: 1 });
-    this.scene = null;
     this.active = -1;
   }
 
@@ -782,11 +975,16 @@ class BuiltTransform extends Transform {
   }
 }
 
-/** Give every Succession in `anims` (nested in groups too) the scene its members will join. */
+/**
+ * Bind nested schedules to their scene, validating scene-bound state changes before
+ * beginning: a Succession's members join it as they begin, and every group records
+ * its members' evidence to it.
+ */
 export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
+    if (a instanceof SetState && a.host !== scene) throw new Error('SetState must play on the scene it belongs to');
     if (!(a instanceof AnimationGroup)) continue;
-    if (a instanceof Succession) a.scene = scene;
+    a.scene = scene;
     bindSuccessions(a.animations, scene);
   }
 }
@@ -798,8 +996,58 @@ import { VMobject as VMobjectClass } from './vmobject.ts';
 import { Text } from './text.ts';
 import type { Evidence } from './scene.ts';
 
-/** What a part matches by: equal strings pair up; undefined never matches. */
-export type MatchKey = (part: Mobject) => string | undefined;
+/**
+ * What a part matches by: equal strings pair up; undefined never matches.
+ * `root` is the picture the part belongs to (the transform's source or target),
+ * so a key can stop reading ancestors there; a key that ignores it is fine.
+ */
+export type MatchKey = (part: Mobject, root: Mobject) => string | undefined;
+
+export interface MatchByKeyOpts {
+  /** How parts under no key below the root pair, when given; it takes precedence over `unkeyed`. */
+  fallback?: MatchKey;
+  /**
+   * Parts under no key below the root, without a fallback: 'fade' (default) pairs them with
+   * nothing, so they fade out and in; 'by-place' pairs each with the part at the same place in
+   * the other picture, as if the whole picture were one keyed component.
+   */
+  unkeyed?: 'fade' | 'by-place';
+  /**
+   * A keyed Text whose words change: 'by-place' (default) morphs its glyphs place by
+   * place, as a readout's digits should; 'whole' pairs it only with the same words, so a
+   * relabelled part fades out and in, as a renamed state or event should.
+   */
+  text?: 'by-place' | 'whole';
+}
+
+/**
+ * Pair parts by the keys their author gave (`mobject.key`). A part inside a
+ * keyed container pairs with the part at the same place inside the container
+ * of the same key on the other side, so a keyed cell, label or node is kept as
+ * one component wherever it moves and its own parts morph inside it. A keyed
+ * part pairs by its own key; the nearest key wins when keyed containers nest.
+ * Anything under no key below the root pairs by `fallback`, by default not at
+ * all. The root's own key, and keys above it, are not read: they would make
+ * every part the same component. A key two containers share pairs by distance,
+ * as any repeated key does. `View.sync({ match: 'key' })` uses the defaults.
+ */
+export function matchByKey({ fallback, unkeyed = 'fade', text = 'by-place' }: MatchByKeyOpts = {}): MatchKey {
+  return (part, root) => {
+    const path: number[] = [];
+    let under = false;
+    for (let m: Mobject = part; m !== root; m = m.parent!) {
+      if (!m.parent) return fallback?.(part, root); // not under the root: nothing above it is this picture's
+      if (m.key !== undefined) {
+        const words = text === 'whole' && m instanceof Text ? `|${m.text}` : '';
+        return `${m.key}${words}|${path.reverse().join('.')}`;
+      }
+      path.push(m.parent.children.indexOf(m));
+      under = true;
+    }
+    if (fallback) return fallback(part, root);
+    return unkeyed === 'by-place' && under ? `\u0000|${path.reverse().join('.')}` : undefined;
+  };
+}
 
 export interface MatchingOpts extends TransformOpts {
   /** Unmatched parts fade (default). false: morph them into each other by index, fading only the leftovers. */
@@ -810,6 +1058,12 @@ export interface MatchingOpts extends TransformOpts {
    * in a diagram have no order and pair by distance alone.
    */
   ordered?: boolean;
+  /**
+   * Unmatched parts in turn instead of together: the source's go over the first half, the
+   * target's come over the second, while matched parts morph throughout. A part that leaves and
+   * one that takes its place (a word replaced by another) never overlap. Default false.
+   */
+  staged?: boolean;
 }
 
 export interface TransformMatchingOpts extends MatchingOpts { key: MatchKey }
@@ -856,6 +1110,7 @@ export class TransformMatching extends Animation {
   ordered: boolean;
   pathFunc: PathFunc | null;
   replace: boolean;
+  staged: boolean;
   // Set by begin(), in source order: [source part, target part]
   /** Parts paired by key. */
   pairs!: Array<[Mobject, Mobject]>;
@@ -872,23 +1127,22 @@ export class TransformMatching extends Animation {
   frames!: FrameRow[];
   /** The source family after begin() attached the copies: whose boxes go stale each frame. */
   touched!: Mobject[];
-  /** The scene begin() records the pairing to (Scene.record); set by play(), see bindRecorders. */
-  scene: Scene | null;
 
-  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, ...opts }: TransformMatchingOpts) {
+  constructor(mobject: Mobject, target: Mobject, { key, fadeMismatches = true, ordered = false, pathFunc = null, replace = true, staged = false, ...opts }: TransformMatchingOpts) {
     super(mobject, opts);
     this.target = target; this.key = key; this.fadeMismatches = fadeMismatches; this.ordered = ordered;
-    this.pathFunc = pathFunc; this.replace = replace;
-    this.scene = null;
+    this.pathFunc = pathFunc; this.replace = replace; this.staged = staged;
   }
+
+  override paints(): Mobject[] { return [this.mobject, this.target]; }
 
   /** How many parts were matched, morphed, faded out and faded in. */
   summary(): MatchSummary {
     return { matched: this.pairs.length, morphed: this.morphed.length, removed: this.removed.length, added: this.added.length };
   }
 
-  /** What begin() records to the scene: the counts, as `match` evidence. */
-  evidence(): Evidence { return { kind: 'match', ...this.summary() }; }
+  /** What play() records once this has begun: the counts, as `match` evidence. */
+  override evidence(): Evidence { return { kind: 'match', ...this.summary() }; }
 
   override begin(): void {
     const src = this.mobject, tgt = this.target;
@@ -914,7 +1168,7 @@ export class TransformMatching extends Animation {
     // Ordered: runs pair first and decide which line is which; a lone leftover
     // then pairs only within its own line, so stray letters do not fly across
     // the text (and each line stays one piece, the way MotionSink sees a Text)
-    const pairOf = matchParts(sParts, tParts, this.key, this.ordered, (runs) => {
+    const pairOf = matchParts(sParts, tParts, [src, tgt], this.key, this.ordered, (runs) => {
       mapFrames(runs);
       return [sf, Int32Array.from(tf, (f) => sIndex.get(toSource.get(tFrames[f]!)!) ?? -1)];
     });
@@ -989,15 +1243,17 @@ export class TransformMatching extends Animation {
     });
     this.touched = src.family();
     this.interpolate(0);
-    if (this.scene) { const { kind, ...data } = this.evidence(); this.scene.record(kind, data); }
   }
 
   override interpolate(alpha: number): void {
     const n = this.moves.length + this.fadesOut.length + this.fadesIn.length;
     let i = 0;
     for (const { sub, start, end } of this.moves) sub.interpolate(start, end, this.subAlpha(alpha, i++, n), this.pathFunc);
-    for (const r of this.fadesOut) fade(r, 1 - this.subAlpha(alpha, i++, n), alpha, true);
-    for (const r of this.fadesIn) fade(r, this.subAlpha(alpha, i++, n), alpha, false);
+    // Staged: what leaves is gone by halfway, and what comes starts there.
+    const out = this.staged ? (a: number) => Math.min(1, 2 * a) : (a: number) => a,
+      into = this.staged ? (a: number) => Math.max(0, 2 * a - 1) : (a: number) => a;
+    for (const r of this.fadesOut) fade(r, 1 - out(this.subAlpha(alpha, i++, n)), alpha, true);
+    for (const r of this.fadesIn) fade(r, into(this.subAlpha(alpha, i++, n)), alpha, false);
     for (const { node, from, to, start, end } of this.frames) {
       if (start && end) { node.interpolateData(start, end, alpha, this.pathFunc); continue; }
       const mine = node.pointArrays();
@@ -1044,9 +1300,9 @@ export class TransformMatchingText extends TransformMatching {
     const texts = [...this.mobject.family(), ...this.target.family()].filter(m => 'text' in m && m.children.length > 0);
     type ClusterText = Mobject & {clusterMatching?: boolean; clusterKey?: (cluster: number) => string | undefined};
     if (texts.length && texts.every(m => (m as ClusterText).clusterMatching))
-      this.key = part => {
+      this.key = (part, root) => {
         const cluster = (part as Mobject & {cluster?: number}).cluster;
-        return cluster == null ? plain(part) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part);
+        return cluster == null ? plain(part, root) : (part.parent as ClusterText | null)?.clusterKey?.(cluster) ?? plain(part, root);
       };
     try { super.begin(); } finally { this.key = plain; }
     fadeInsideLines(this, true);
@@ -1086,13 +1342,13 @@ const IDENTITY: Carry = { k: 1, bx: 0, by: 0 };
 const shapeKeyOf: MatchKey = (p) => (p instanceof VMobjectClass ? p.shapeKey() : undefined);
 
 // A glyph's cluster is the UTF-16 index in its Text's source string where its character starts
-const textKeyOf: MatchKey = (p) => {
+const textKeyOf: MatchKey = (p, root) => {
   const t = p.parent, cluster = (p as { cluster?: number }).cluster;
   if (t instanceof Text && cluster != null) {
     const cp = t.text.codePointAt(cluster);
     return `${t.font} ${t.weight} ${cp === undefined ? '' : String.fromCodePoint(cp)}`;
   }
-  const k = shapeKeyOf(p);
+  const k = shapeKeyOf(p, root);
   return k === undefined ? undefined : 'shape ' + k;
 };
 
@@ -1153,11 +1409,11 @@ function median(ds: Vec[]): Vec {
  * a group that moves as a whole keeps its order, which nearest-first greedy
  * pairing does not. Deterministic: ties go to the earlier part.
  */
-function matchParts(src: Mobject[], tgt: Mobject[], key: MatchKey, ordered: boolean, scopes: (runs: Int32Array) => [Int32Array, Int32Array]): Int32Array {
+function matchParts(src: Mobject[], tgt: Mobject[], roots: [Mobject, Mobject], key: MatchKey, ordered: boolean, scopes: (runs: Int32Array) => [Int32Array, Int32Array]): Int32Array {
   // Keys as small integers, -1 for "never matches"
   const ids = new Map<string, number>();
-  const idOf = (p: Mobject) => { const k = key(p); if (k === undefined) return -1; let i = ids.get(k); if (i === undefined) ids.set(k, (i = ids.size)); return i; };
-  const ks = src.map(idOf), kt = tgt.map(idOf);
+  const idOf = (p: Mobject, root: Mobject) => { const k = key(p, root); if (k === undefined) return -1; let i = ids.get(k); if (i === undefined) ids.set(k, (i = ids.size)); return i; };
+  const ks = src.map((p) => idOf(p, roots[0])), kt = tgt.map((p) => idOf(p, roots[1]));
   const cs = src.map(ownCenter), ct = tgt.map(ownCenter);
   const dist2 = (i: number, j: number) => (cs[i]![0] - ct[j]![0]) ** 2 + (cs[i]![1] - ct[j]![1]) ** 2;
   const pairOf = new Int32Array(src.length).fill(-1), taken = new Uint8Array(tgt.length);
@@ -1372,12 +1628,6 @@ export class TransformDiff extends TransformMatching {
 }
 
 /** Give every matching transform in `anims` (nested in groups too) the scene it records its pairing to. */
-export function bindRecorders(anims: readonly ScheduledAnimation[], scene: Scene): void {
-  for (const a of anims) {
-    if (a instanceof TransformMatching) a.scene = scene;
-    else if (a instanceof AnimationGroup) bindRecorders(a.animations, scene);
-  }
-}
 
 // A span's children are its line's glyphs, which carry their source index
 const clusterOf = (g: Mobject): number => (g as { cluster?: number }).cluster ?? -1;

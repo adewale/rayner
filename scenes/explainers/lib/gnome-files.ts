@@ -116,6 +116,9 @@ export const GROUPS: readonly (readonly number[])[] = [SESSION.slice(0, 4), SESS
 export const gaveUp = (p: Participant): number[] => SESSION.filter((n) => colourOf(n, p) === 'black');
 /** Who was unable to complete a task. */
 export const quitters = (n: number): Participant[] => PARTICIPANTS.filter((p) => colourOf(n, p) === 'black');
+/** Who struggled on a task: graded moderate difficulty or worse, give-ups included. */
+export const struggled = (n: number): Participant[] =>
+  PARTICIPANTS.filter((p) => ['orange', 'red', 'black'].includes(colourOf(n, p)));
 /** Every black cell, as [task, participant], in session order. */
 export const giveUps = (): [number, Participant][] => SESSION.flatMap((n) => quitters(n).map((p): [number, Participant] => [n, p]));
 

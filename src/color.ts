@@ -23,6 +23,7 @@ export function toHex(rgb: Readonly<RGB>): string {
   return '#' + hex2(rgb[0]) + hex2(rgb[1]) + hex2(rgb[2]);
 }
 
+/** The colour `t` of the way from `a` to `b` in sRGB, as `#rrggbb` (Manim's `interpolate_color`); an unparseable end is taken whole. */
 export function lerpColor(a: string, b: string, t: number): string {
   if (a === b) return a;
   const ca = parseColor(a), cb = parseColor(b);
@@ -31,18 +32,31 @@ export function lerpColor(a: string, b: string, t: number): string {
   return toHex([ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t, ca[2] + (cb[2] - ca[2]) * t]);
 }
 
-// A small palette in manim's spirit
-export const WHITE = '#ffffff';
-export const BLACK = '#000000';
-export const GREY = '#888888';
-export const GREY_D = '#444444';
-export const BLUE = '#58c4dd';
-export const BLUE_D = '#29abca';
-export const TEAL = '#5cd0b3';
-export const GREEN = '#83c167';
-export const YELLOW = '#ffff00';
-export const GOLD = '#f0ac5f';
-export const RED = '#fc6255';
-export const MAROON = '#c55f73';
-export const PURPLE = '#9a72ac';
-export const ORANGE = '#ff862f';
+/**
+ * The colours a scene's engine defaults take. A part built without a colour (a `Text` with no
+ * `color`, an `Axes` with no `stroke`, a `SurroundingRectangle`, a `Circumscribe`) takes one of
+ * these by role when it first enters the scene: `ink` for text and lines, `soft` for guides and
+ * secondary labels, `accent` for emphasis and plotted data, `bad` for a `Cross`, and `paper` for the
+ * background an SVG sink draws. A stage sets them from its palette; a scene without one keeps
+ * `NEUTRAL_COLORS`, dark ink on white paper.
+ */
+export interface SceneColors {
+  paper: string;
+  ink: string;
+  soft: string;
+  accent: string;
+  bad: string;
+}
+/** A role an engine default takes from the scene's colours. */
+export type ColorRole = Exclude<keyof SceneColors, 'paper'>;
+/**
+ * The colours of a scene without a stage: dark ink on white paper. Each role has its own value, so a
+ * style field still holding one is known to be the default (see `Mobject.defaultColors`).
+ */
+export const NEUTRAL_COLORS: Readonly<SceneColors> = Object.freeze({
+  paper: '#ffffff',
+  ink: '#1f2328',
+  soft: '#59636e',
+  accent: '#0969da',
+  bad: '#cf222e',
+});

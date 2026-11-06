@@ -4,7 +4,7 @@ import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPLAINERS, PRODUCT, SHOWCASE } from '../scenes/explainers/catalog.ts';
-import { collectProject, defaultVariant, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs } from './lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { restingTime, htmlEscape, pictureSummary, stepWords } from '../explain/trace.ts';
 import { buildExplainer, buildLoader } from './lib/explain-build.ts';
@@ -18,7 +18,7 @@ import type { ShareManifest } from './lib/explain-share.ts';
 import { measureEmbed, embedSizeProblems } from './lib/explain-embed-size.ts';
 import { serve } from './lib/explain-serve.ts';
 import { launch } from './lib/browser.ts';
-import { reviewClaims } from './lib/explain-review-scene.ts';
+import { reviewSubjects } from './lib/explain-review-scene.ts';
 import { narrowOpeningPlan } from './lib/explain-story-review.ts';
 import type { NarrowOpeningObligation } from './lib/explain-review-plan.ts';
 import { buildInputs } from './lib/build-inputs.ts';
@@ -27,7 +27,8 @@ import { selectedIds, selectExport } from './lib/explain-export-selection.ts';
 const { values } = parseArgs({ options: {
   check: { type: 'boolean' }, only: { type: 'string' }, entry: { type: 'string' }, out: { type: 'string' },
 } });
-const requested = selectedIds(values.only, EXPLAINERS.map(item => item.id));
+const only = values.only === 'showcase' ? SHOWCASE.join(',') : values.only;
+const requested = selectedIds(only, EXPLAINERS.map(item => item.id));
 if (values.entry && !requested.includes(values.entry)) throw new Error(`--entry must name a selected explainer: ${values.entry}`);
 const items = EXPLAINERS.filter(item => requested.includes(item.id));
 const collection = items.length === EXPLAINERS.length;
@@ -59,16 +60,16 @@ for (const item of items) {
     `${item.id}: requested outlines have a hash`,
   );
   assert.equal(Buffer.byteLength(html), receipt.bytes, `${item.id}: receipt reports actual page bytes`);
-  // The poster uses a representative step of the default case; tile links start at step one.
-  const variant = defaultVariant(project),
-    step = variant.trace.steps.find((s) => s.step === item.step) ?? variant.trace.steps[0]!;
+  // The poster uses a representative step of the default scenario; tile links start at step one.
+  const scenario = defaultScenario(project),
+    step = scenario.trace.steps.find((s) => s.step === item.step) ?? scenario.trace.steps[0]!;
   await writeFile(
     join(directory, item.id + '.png'),
-    await stillPng(variant.Scene, restingTime(step, variant.trace.fps), 960),
+    await stillPng(scenario.Scene, restingTime(step, scenario.trace.fps), 960),
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });
-  const pictured = variant.trace.steps.filter((x) => !x.meta.detail && shareable(x.step));
+  const pictured = scenario.trace.steps.filter((x) => x.meta.kind !== 'detail' && shareable(x.step));
   const share: ShareManifest = {
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -84,7 +85,7 @@ for (const item of items) {
       step: s.step,
       title: stepWords(s).title,
       caption: stepWords(s).caption,
-      picture: pictureSummary(s.after),
+      picture: pictureSummary(s.shown),
     });
   }
   await writeFile(join(directory, item.id, 'steps.json'), JSON.stringify(share, null, 2) + '\n');
@@ -96,29 +97,29 @@ for (const item of items) {
     join(directory, item.id, 'inputs.json'),
     JSON.stringify(await sceneInputs(project, inputs.hash), null, 2) + '\n',
   );
-  const claims = await reviewClaims(project);
+  const subjects = await reviewSubjects(project);
   const narrowOpenings = [];
-  for (const variant of project.variants)
-    narrowOpenings.push({ settings: variant.values, steps: await narrowOpeningPlan(variant, claims) });
+  for (const scenario of project.scenarios)
+    narrowOpenings.push({ settings: scenario.values, steps: await narrowOpeningPlan(scenario, subjects) });
   evidence.push({
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
     lang: project.Scene.meta?.lang ?? 'en',
-    cases: project.variants.map((v) => v.values),
+    scenarios: project.scenarios.map((v) => v.values),
     narrowOpenings,
     diagrams: Object.keys(project.store).length,
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],
     entry: {
-      step: variant.trace.steps.find((step) => !step.meta.detail)?.step ?? variant.trace.steps[0]!.step,
-      settings: variant.values,
+      step: scenario.trace.steps.find((step) => step.meta.kind !== 'detail')?.step ?? scenario.trace.steps[0]!.step,
+      settings: scenario.values,
     },
     sourceHash: project.sourceHash,
     engineHash: project.engineHash,
     snapshotHashes: baseReceipt(project).snapshotHashes,
   });
   console.log(
-    `${item.id}: ${project.variants.length} cases · ${Object.keys(project.store).length} diagrams${check ? ' · checks passed' : ''}`,
+    `${item.id}: ${project.scenarios.length} scenarios · ${Object.keys(project.store).length} diagrams${check ? ' · checks passed' : ''}`,
   );
 }
 await buildLoader(join(directory, 'loader.js'));
@@ -139,20 +140,20 @@ await buildLoader(join(directory, 'loader.js'));
   }
   console.log(`Embed heights at 390, 640 and 900 px: ${items.length} explainers`);
 }
-const cases = evidence.reduce((n, s) => n + s.cases.length, 0),
+const scenarios = evidence.reduce((n, s) => n + s.scenarios.length, 0),
   diagrams = evidence.reduce((n, s) => n + s.diagrams, 0),
   styles = new Set(evidence.flatMap((s) => s.styles)),
   families = new Set(evidence.flatMap((s) => s.families));
 const totals = {
   explainers: evidence.length,
-  cases,
+  scenarios,
   diagrams,
   styles: styles.size,
   families: families.size,
 };
 const evidenceDocument: import('./lib/explain-artifacts.ts').CatalogEvidence = { version: 2, checked: !!check, totals, scenes: evidence };
 const catalog: import('./lib/explain-artifacts.ts').Catalog = {
-  version: 1,
+  version: 2,
   product: PRODUCT,
   totals,
   scenes: items.map((item) => {
@@ -161,13 +162,12 @@ const catalog: import('./lib/explain-artifacts.ts').Catalog = {
       ...item,
       title: data.title,
       lang: data.lang,
-      cases: data.cases.length,
+      scenarios: data.scenarios.length,
       entry: data.entry,
-      showcase: SHOWCASE.some((id) => id === item.id),
     };
   }),
 };
-const selected = selectExport(values.only, catalog, evidenceDocument, values.entry);
+const selected = selectExport(only, catalog, evidenceDocument, values.entry);
 await writeFile(join(directory, 'evidence.json'), JSON.stringify(selected.evidence, null, 2) + '\n');
 await writeFile(join(directory, 'catalog.json'), JSON.stringify(selected.catalog, null, 2) + '\n');
 const css = await readFile(join(ROOT, 'app/embed.css'), 'utf8'),

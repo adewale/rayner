@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 out/
 dist/
 .claude/scheduled_tasks.lock

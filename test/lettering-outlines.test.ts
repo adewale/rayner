@@ -4,10 +4,11 @@ import { mkdtemp, readFile, writeFile, rm, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { Scene, Text, NullSink, SnapshotSink, renderAt, renderElements, toSvgString } from '../src/index.ts';
+import { Scene, Text } from '../src/index.ts';
+import { NullSink, SnapshotSink, renderAt, renderElements, toSvgString } from '../src/output.ts';
 import { runKey, bindLettering, snapshotProvider, unpackLettering } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
-import { collectProject, defaultVariant, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
 import { pageSnapshot } from '../tools/lib/lettering.ts';
@@ -92,7 +93,7 @@ test('math: fraction rules and script scales are stored; symbol glyphs agree wit
   assert.ok(new Set(glyphs.filter((p) => p.gid >= 0).map((p) => p.s)).size > 1, 'superscript scales');
 });
 
-test('capture rejects an unrequested script and a Math object without opt-in', { skip: !capture && 'set EXPLAIN_LETTERING=1 to refresh snapshots' }, async () => {
+test('capture rejects an unrequested script and a MathTex object without opt-in', { skip: !capture && 'set EXPLAIN_LETTERING=1 to refresh snapshots' }, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lettering-closed-'));
   try {
     const source = await readFile(join(fixtures, 'arabic/scene.ts'), 'utf8');
@@ -100,7 +101,7 @@ test('capture rejects an unrequested script and a Math object without opt-in', {
     await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /Script not requested/);
     const math = await readFile(join(fixtures, 'math/scene.ts'), 'utf8');
     await writeFile(join(dir, 'scene.ts'), math.replace('lettering: {math:true}', 'lettering: {math:false}'));
-    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /Math requires/);
+    await assert.rejects(collectProject(dir, { captureLettering: true, write: false }), /MathTex requires/);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
@@ -116,9 +117,9 @@ test('requested pages run offline in Chromium without errors or network requests
     for (const id of ids) {
       const project = await collectProject(join(fixtures, id), { write: false });
       const { html } = await buildExplainer(project, join(dir, id + '.html'));
-      const variant = defaultVariant(project);
-      const first = variant.trace.steps[0]!;
-      const scene = await renderAt(variant.Scene, restingTime(first, variant.trace.fps), new SnapshotSink());
+      const scenario = defaultScenario(project);
+      const first = scenario.trace.steps[0]!;
+      const scene = await renderAt(scenario.Scene, restingTime(first, scenario.trace.fps), new SnapshotSink());
       const expected = renderElements(scene, { relative: false })
         .filter((record) => record.tag === 'path').map((record) => String(record.attrs.d)).sort();
       assert.ok(expected.length > 0, `${id}: the source fixture draws outlines`);

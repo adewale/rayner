@@ -1,6 +1,18 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
+    {
+      "step": "timeline",
+      "opening": true,
+      "targets": [
+        {
+          "key": "lantern-timeline-nudge-played"
+        },
+        {
+          "key": "lantern-timeline-nudge-seeked"
+        }
+      ]
+    },
     {
       "step": "objects",
       "targets": [
@@ -12,42 +24,6 @@
         },
         {
           "text": "emits"
-        }
-      ]
-    },
-    {
-      "step": "reader-object",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "0 s"
-        },
-        {
-          "text": "0.5 s"
-        },
-        {
-          "text": "1 s"
-        }
-      ]
-    },
-    {
-      "step": "reader-outputs",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Scene"
-        },
-        {
-          "text": "Fixed clock"
-        },
-        {
-          "text": "Sink"
         }
       ]
     }

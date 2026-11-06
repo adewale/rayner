@@ -16,13 +16,13 @@ import type {TextShaping} from './text-context.ts';
 // not from constructor values, so it stays right after shift, scale or rotate.
 // Graphs are built at the axes' position when called: move the axes first.
 
-import { Group } from './mobject.ts';
-import type { Style } from './mobject.ts';
+import { Group, followScene } from './mobject.ts';
+import type { Mobject, Style } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { Dot, Line, Polygon, Rectangle } from './shapes.ts';
 import type { DotOpts } from './shapes.ts';
 import { Text } from './text.ts';
-import { BLUE, GREY, WHITE } from './color.ts';
+import { NEUTRAL_COLORS } from './color.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 
@@ -82,8 +82,9 @@ export class NumberLine extends Group {
     const [min, max, step = 1] = range;
     if (!(max > min) || !(step > 0)) throw new RangeError(`NumberLine: range [${min}, ${max}, ${step}] needs max > min and step > 0`);
     this.min = min; this.max = max; this.step = step;
-    const lineStyle: Style = { stroke: WHITE, strokeWidth: 0.03, ...style, fill: 'none' };
-    const stroke = lineStyle.stroke!;
+    // Without a stroke the lines take the scene's ink (a Mobject's default stroke), and so do the tip and labels.
+    const lineStyle: Style = { strokeWidth: 0.03, ...style, fill: 'none' };
+    const stroke = style.stroke;
     // Built along +x about the origin, then turned as one piece
     const line = new Line([-length / 2, 0], [length / 2, 0], lineStyle);
     this.add(line);
@@ -91,7 +92,9 @@ export class NumberLine extends Group {
     if (includeTip) {
       const e = length / 2;
       // Clockwise on screen, like Arrow's tip
-      this.add(new Polygon([[e + tipLength, 0], [e, -tipWidth / 2], [e, tipWidth / 2]], { fill: stroke, stroke: 'none' }));
+      const tip = new Polygon([[e + tipLength, 0], [e, -tipWidth / 2], [e, tipWidth / 2]], { fill: stroke ?? NEUTRAL_COLORS.ink, stroke: 'none' });
+      if (stroke === undefined) followScene(tip, { fill: 'ink' });
+      this.add(tip);
       this.tipIdx = 1;
     }
     const ticks = new Group();
@@ -106,7 +109,7 @@ export class NumberLine extends Group {
     // Labels last, after the turn, so they stay upright
     const numbers = new Group();
     if (includeNumbers) {
-      const dir = V.normalize(snap(labelDirection ?? V.rotate(V.DOWN, rotation)));
+      const dir = V.normalize(snap(labelDirection ?? V.rotate([0, -1], rotation)));
       const places = decimals ?? decimalsOf(step);
       for (const x of numbersToInclude ?? this.tickValues()) {
         if (numbersToExclude.some((e) => Math.abs(e - x) < 1e-9 * this.step)) continue;
@@ -230,7 +233,7 @@ export class Axes extends Group {
       includeTip: tips, numbersToExclude: y0 < this.crossY ? [this.crossX] : [], ...axisStyle, shaping, ...xAxisStyle, range: xRange, length: width,
     });
     const y = new NumberLine({
-      includeTip: tips, labelDirection: V.LEFT, numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
+      includeTip: tips, labelDirection: [-1, 0], numbersToExclude: x0 < this.crossX ? [this.crossY] : [], ...axisStyle, shaping, ...yAxisStyle,
       range: yRange, length: height, rotation: Math.PI / 2,
     });
     // Both lines are centered on the origin: slide each across so they meet
@@ -240,15 +243,16 @@ export class Axes extends Group {
     y.shift([x.n2p(this.crossX)[0] - y.n2p(this.crossY)[0], 0]);
     this.add(x, y);
     this.xLabelIdx = this.yLabelIdx = -1;
-    const color = axisStyle.labelColor ?? axisStyle.stroke ?? WHITE;
+    // Without either, the labels take the scene's ink.
+    const color = axisStyle.labelColor ?? axisStyle.stroke;
     if (xLabel != null) {
       const end = x.tip ? x.tip.right() : x.n2p(x.max);
-      this.add(new Text(xLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0.15, 0]), V.LEFT));
+      this.add(new Text(xLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0.15, 0]), [-1, 0]));
       this.xLabelIdx = this.children.length - 1;
     }
     if (yLabel != null) {
       const end = y.tip ? y.tip.top() : y.n2p(y.max);
-      this.add(new Text(yLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0, 0.15]), V.DOWN));
+      this.add(new Text(yLabel, { fontSize: axisLabelFontSize, color, shaping }).moveTo(V.add(end, [0, 0.15]), [0, -1]));
       this.yLabelIdx = this.children.length - 1;
     }
   }
@@ -285,11 +289,11 @@ export class Axes extends Group {
    * interval, so the path is a true function of x. Non-finite values
    * (1/x at 0) break the curve into separate subpaths.
    */
-  plot(fn: (x: number) => number, { xRange, samples = 64, color = BLUE, ...style }: PlotOpts = {}): VMobject {
+  plot(fn: (x: number) => number, { xRange, samples = 64, color, ...style }: PlotOpts = {}): VMobject {
     const [a, b] = xRange ?? [this.xAxis.min, this.xAxis.max];
     const n = Math.max(2, Math.round(samples));
     const xs = Array.from({ length: n }, (_, i) => i === n - 1 ? b : a + (b - a) * i / (n - 1));
-    const m = new VMobject({ stroke: color, strokeWidth: 0.05, ...style, fill: 'none' });
+    const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.accent, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
     let run: Array<[number, number]> = [];
     const flush = () => { if (run.length > 1) this.addSmoothRun(m, run); run = []; };
     for (const x of xs) {
@@ -301,8 +305,8 @@ export class Axes extends Group {
   }
 
   /** A polyline through data points, in the order given: straight segments, no smoothing. */
-  lineGraph(points: ReadonlyArray<readonly [x: number, y: number]>, { color = BLUE, ...style }: Style & { color?: string } = {}): VMobject {
-    const m = new VMobject({ stroke: color, strokeWidth: 0.05, ...style, fill: 'none' });
+  lineGraph(points: ReadonlyArray<readonly [x: number, y: number]>, { color, ...style }: Style & { color?: string } = {}): VMobject {
+    const m = accented(new VMobject({ stroke: color ?? NEUTRAL_COLORS.accent, strokeWidth: 0.05, ...style, fill: 'none' }), color ?? style.stroke, 'stroke');
     points.forEach(([x, y], i) => { if (i === 0) m.startNewPath(this.c2p(x, y)); else m.addLineTo(this.c2p(x, y)); });
     return m;
   }
@@ -315,13 +319,13 @@ export class Axes extends Group {
    * each top edge straight to its new height, through zero when the sign flips.
    */
   bar(values: readonly number[], {
-    x, gap = 0.4, width = 1 - gap, colors = BLUE, labels, labelFontSize = 0.22, labelColor, fillOpacity = 0.85, ...style
+    x, gap = 0.4, width = 1 - gap, colors, labels, labelFontSize = 0.22, labelColor, fillOpacity = 0.85, ...style
   }: BarOpts = {}): Group {
-    const palette = typeof colors === 'string' ? [colors] : colors;
+    const palette = colors === undefined ? [NEUTRAL_COLORS.accent] : typeof colors === 'string' ? [colors] : colors;
     const g = new Group();
     values.forEach((v, i) => {
       const cx = x?.[i] ?? i + 0.5, l = cx - width / 2, r = cx + width / 2;
-      const rect = new Rectangle({ fill: palette[i % palette.length], fillOpacity, stroke: 'none', ...style });
+      const rect = accented(new Rectangle({ fill: palette[i % palette.length], fillOpacity, stroke: 'none', ...style }), colors ?? style.fill, 'fill');
       // Replace the default geometry; closed explicitly so a zero bar still has four curves
       rect.subpaths = []; rect.closed = [];
       const p0 = this.c2p(l, v);
@@ -336,7 +340,9 @@ export class Axes extends Group {
       const depth = nb ? Math.max(0, ...[[nb[0], nb[1]], [nb[2], nb[1]], [nb[0], nb[3]], [nb[2], nb[3]]].map((c) => V.dot(V.sub(c as Vec, base), down))) : 0;
       labels.forEach((s, i) => {
         const at = V.add(this.c2p(x?.[i] ?? i + 0.5, this.yAxis.min), V.mul(down, depth + 0.15));
-        g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? this.xAxis.line.style.stroke, shaping: this.shaping }).moveTo(at, V.mul(down, -1)));
+        // The x axis' colour, or the scene's ink while the axis still takes it.
+        const line = this.xAxis.line, axisColor = line.defaultColors?.stroke ? undefined : line.style.stroke;
+        g.add(new Text(s, { fontSize: labelFontSize, color: labelColor ?? axisColor, shaping: this.shaping }).moveTo(at, V.mul(down, -1)));
       });
     }
     return g;
@@ -344,17 +350,17 @@ export class Axes extends Group {
 
   /** A Dot at data coordinates (x, y). */
   dot(x: number, y: number, opts: DotOpts = {}): Dot {
-    return new Dot({ color: BLUE, ...opts }).moveTo(this.c2p(x, y));
+    return accented(new Dot({ color: NEUTRAL_COLORS.accent, ...opts }), opts.color ?? opts.fill, 'fill').moveTo(this.c2p(x, y));
   }
 
   /** A vertical guide at `x`, across the y range unless `from`/`to` say otherwise. */
   verticalLine(x: number, { from = this.yAxis.min, to = this.yAxis.max, ...style }: GuideLineOpts = {}): Line {
-    return new Line(this.c2p(x, from), this.c2p(x, to), { stroke: GREY, strokeWidth: 0.025, ...style });
+    return guide(new Line(this.c2p(x, from), this.c2p(x, to), { stroke: NEUTRAL_COLORS.soft, strokeWidth: 0.025, ...style }), style.stroke);
   }
 
   /** A horizontal guide at `y` (a capacity, a threshold), across the x range unless `from`/`to` say otherwise. */
   horizontalLine(y: number, { from = this.xAxis.min, to = this.xAxis.max, ...style }: GuideLineOpts = {}): Line {
-    return new Line(this.c2p(from, y), this.c2p(to, y), { stroke: GREY, strokeWidth: 0.025, ...style });
+    return guide(new Line(this.c2p(from, y), this.c2p(to, y), { stroke: NEUTRAL_COLORS.soft, strokeWidth: 0.025, ...style }), style.stroke);
   }
 
   /**
@@ -362,14 +368,14 @@ export class Axes extends Group {
    * plot's curve from a to b, then down to the axis and back. `fn` must be
    * finite on [a, b].
    */
-  areaUnder(fn: (x: number) => number, [a, b]: readonly [number, number], { samples = 64, color = BLUE, fillOpacity = 0.3, ...style }: Omit<PlotOpts, 'xRange'> = {}): VMobject {
+  areaUnder(fn: (x: number) => number, [a, b]: readonly [number, number], { samples = 64, color, fillOpacity = 0.3, ...style }: Omit<PlotOpts, 'xRange'> = {}): VMobject {
     const n = Math.max(2, Math.round(samples));
     const run = Array.from({ length: n }, (_, i): [number, number] => {
       const x = i === n - 1 ? b : a + (b - a) * i / (n - 1), y = fn(x);
       if (!Number.isFinite(y)) throw new RangeError(`areaUnder: fn(${x}) is ${y}`);
       return [x, y];
     });
-    const m = new VMobject({ fill: color, fillOpacity, stroke: 'none', ...style });
+    const m = accented(new VMobject({ fill: color ?? NEUTRAL_COLORS.accent, fillOpacity, stroke: 'none', ...style }), color ?? style.fill, 'fill');
     this.addSmoothRun(m, run);
     m.addLineTo(this.c2p(b, 0)).addLineTo(this.c2p(a, 0)).closePath();
     return m;
@@ -423,6 +429,17 @@ const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.m
 function decimalsOf(step: number): number {
   for (let k = 0; k < 6; k++) if (Math.abs(step * 10 ** k - Math.round(step * 10 ** k)) < 1e-9) return k;
   return 6;
+}
+
+/** Plotted data takes the scene's accent when its caller gave no colour. */
+function accented<M extends Mobject>(m: M, given: unknown, field: 'fill' | 'stroke'): M {
+  if (given === undefined) followScene(m, { [field]: 'accent' });
+  return m;
+}
+/** A guide line takes the scene's soft colour when its caller gave no stroke. */
+function guide(m: Line, given: string | undefined): Line {
+  if (given === undefined) followScene(m, { stroke: 'soft' });
+  return m;
 }
 
 /** Zero out rounding dust (cos(π/2)) so a rotated DOWN is exactly a side. */

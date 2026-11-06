@@ -4,7 +4,9 @@
 // glyph set, so after warm-up the heap must settle.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderAt, SnapshotSink, traceScene, loadFonts, Scene } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { renderAt, SnapshotSink } from '../src/output.ts';
+import { traceScene, loadFonts } from '../explain/testing.ts';
 import { explainer } from './lib/scenes.ts';
 
 Scene.captionWpm = Infinity;

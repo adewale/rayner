@@ -1,6 +1,20 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
+    {
+      "step": "evaluate",
+      "settings": {
+        "date": "2007-06-04"
+      },
+      "targets": [
+        {
+          "text": "FULLW,20070604,2"
+        },
+        {
+          "text": "Trips that run"
+        }
+      ]
+    },
     {
       "step": "day",
       "settings": {
@@ -22,41 +36,26 @@
       ]
     },
     {
-      "step": "reader-date",
+      "step": "week",
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Route"
-        },
-        {
-          "text": "Trip"
-        },
-        {
-          "text": "Service"
-        },
-        {
-          "text": "date"
-        },
-        {
-          "text": "FULLW"
+          "key": "gtfs-week:day"
         }
       ]
     },
     {
-      "step": "reader-stop",
+      "step": "week",
+      "settings": {
+        "date": "2007-06-04"
+      },
       "opening": true,
       "targets": [
         {
-          "key": "reader-picture"
+          "key": "gtfs-week:FULLW:20070604"
         },
         {
-          "text": "Fixed times"
-        },
-        {
-          "text": "Headway patterns"
+          "text": "removed"
         }
       ]
     }

@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
-      "step": "start",
+      "step": "question",
       "opening": true,
       "targets": [
         {
@@ -17,7 +17,10 @@
       ]
     },
     {
-      "step": "branch",
+      "step": "lost",
+      "settings": {
+        "history": "diverged"
+      },
       "opening": true,
       "targets": [
         {
@@ -28,51 +31,9 @@
         },
         {
           "key": "git-files"
-        }
-      ]
-    },
-    {
-      "step": "feature",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
         },
         {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        }
-      ]
-    },
-    {
-      "step": "switch",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        }
-      ]
-    },
-    {
-      "step": "main",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
+          "text": "no branch"
         }
       ]
     },
@@ -93,21 +54,6 @@
     },
     {
       "step": "countercase",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        }
-      ]
-    },
-    {
-      "step": "predict",
       "opening": true,
       "targets": [
         {

@@ -1,6 +1,24 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
+    {
+      "step": "shares",
+      "settings": {
+        "policy": "local",
+        "pods": "3-1-0"
+      },
+      "targets": [
+        {
+          "text": "Pod d"
+        },
+        {
+          "text": "50%"
+        },
+        {
+          "text": "Pod a"
+        }
+      ]
+    },
     {
       "step": "local-path",
       "settings": {
@@ -19,42 +37,6 @@
         },
         {
           "text": "from 198.51.100.79"
-        }
-      ]
-    },
-    {
-      "step": "reader-nodes",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Node 1"
-        },
-        {
-          "text": "Node 2"
-        },
-        {
-          "text": "Node 3"
-        }
-      ]
-    },
-    {
-      "step": "reader-shares",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Pod"
-        },
-        {
-          "text": "Cluster"
-        },
-        {
-          "text": "Local"
         }
       ]
     },
@@ -144,6 +126,49 @@
         },
         {
           "key": "traffic-compare:local:share:Pods a, b and c"
+        }
+      ]
+    },
+    {
+      "step": "flow",
+      "settings": {
+        "policy": "local"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "traffic-flow:local"
+        }
+      ]
+    },
+    {
+      "step": "flow",
+      "settings": {
+        "policy": "cluster"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "traffic-flow:cluster"
+        }
+      ]
+    },
+    {
+      "step": "flow",
+      "settings": {
+        "policy": "local",
+        "pods": "3-1-0"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "traffic-flow:local:band:2:d"
+        },
+        {
+          "key": "traffic-flow:local:pod:d"
+        },
+        {
+          "text": "50%"
         }
       ]
     }

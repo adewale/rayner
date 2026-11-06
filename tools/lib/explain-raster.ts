@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { toSvgString } from '../../src/index.ts';
+import { toSvgString } from '../../src/output.ts';
 import type { Scene } from '../../src/index.ts';
 import { FRAME } from '../../src/svg.ts';
 

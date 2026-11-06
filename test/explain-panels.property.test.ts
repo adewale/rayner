@@ -3,7 +3,9 @@
 // finish only. Counts: test/lib/pbt.ts (FULL=1 is 10x).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Scene, NullSink, Text, loadFonts } from '../src/index.ts';
+import { Scene, Text } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box, Vec } from '../src/index.ts';
 import { Card, CodeBlock } from '../explain/panels.ts';
 import type { CardRow } from '../explain/panels.ts';
@@ -651,4 +653,47 @@ test('a row whose value count matches neither one nor the columns is refused', (
   assert.throws(() => new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Hits', 1, 2]], { columns: ['A', 'B', 'C'] }), /2 values for 3 columns/);
   const spanning = new Card(scene(), { paper: '#fff', ink: '#000', accent: '#00f', muted: '#888' }, [['Requests', 'A B C'], ['Hits', 0, 3]], { columns: ['LRU', 'MRU'] });
   assert.deepEqual(spanning.describe().parts.map((p) => p.name), ['Requests: A B C', 'Hits (LRU): 0', 'Hits (MRU): 3']);
+});
+
+test('a card or code panel a view draws refuses to change in place, and says to draw it from state', async () => {
+  const { view, Group } = await import('../src/index.ts');
+  const colors = { paper: '#ffffff', ink: '#111111', accent: '#0055cc', muted: '#666666' };
+  const sc = scene();
+  sc.state = { row: 'Hits' };
+  const cards = view(sc, (st) => new Card(sc, colors, [['Hits', 1], ['Misses', 2]], { lit: (st as { row: string }).row }));
+  const code = view(sc, () => new CodeBlock(sc, colors, ['a = 1', 'b = 2']));
+  const inside = view(sc, () => new Group(new CodeBlock(sc, colors, ['c = 3'])));
+  sc.add(cards, code, inside);
+  const card = cards.current as Card, panel = code.current as CodeBlock, nested = inside.current.children[0] as CodeBlock;
+  await assert.rejects(card.mark('Misses'), /card\.mark\(\) changes a Card that a view draws.*\{ lit, litAs \}/);
+  await assert.rejects(card.set({ Hits: 3 }), /card\.set\(\) changes a Card that a view draws.*view\.sync\(\)/);
+  await assert.rejects(panel.focus(1), /code\.focus\(\) changes a CodeBlock that a view draws.*\{ focus, focusAs \}/);
+  await assert.rejects(panel.morph(['a = 2']), /code\.morph\(\) changes a CodeBlock that a view draws/);
+  await assert.rejects(panel.clearMarks(), /code\.clearMarks\(\) changes a CodeBlock that a view draws/);
+  await assert.rejects(nested.focus(0), /code\.focus\(\) changes a CodeBlock that a view draws/, 'inside a view’s picture too');
+  // Not drawn by a view: the imperative route works as before.
+  const loose = new Card(sc, colors, [['Hits', 1]]);
+  sc.add(loose);
+  await loose.mark('Hits');
+  await loose.set({ Hits: 2 });
+  assert.equal(loose.values.get('Hits')!.text, '2');
+});
+
+test('the stage’s card and code panel are new Card and new CodeBlock, entered: the same picture and words', async () => {
+  const { stage } = await import('../explain/index.ts');
+  const { pictureFingerprint } = await import('../explain/stage.ts');
+  const sc = scene();
+  const s = stage(sc, { style: 'nord' });
+  const rows: CardRow[] = [['Requests', 'A B C'], ['Hits', 0, 3]];
+  const options = { columns: ['LRU', 'MRU'], width: 6, title: 'Cache', lit: 'Hits' };
+  const entered = await s.card(rows, { ...options, at: 'right' });
+  const built = new Card(sc, s.palette, rows, { ...options, at: 'right' });
+  assert.equal(pictureFingerprint(entered), pictureFingerprint(built));
+  assert.deepEqual(entered.describe(), built.describe());
+  const lines = ['const a = 1;', 'return a;'];
+  const code = await s.code(lines, { at: 'left', title: 'f', focus: 1 });
+  const made = new CodeBlock(sc, s.palette, lines, { at: 'left', title: 'f', focus: 1 });
+  assert.equal(pictureFingerprint(code), pictureFingerprint(made));
+  assert.deepEqual(code.describe(), made.describe());
+  assert.ok(sc.familyMembers().includes(entered) && sc.familyMembers().includes(code), 'and entered: on the stage');
 });

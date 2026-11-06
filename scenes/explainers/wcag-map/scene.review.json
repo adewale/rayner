@@ -1,32 +1,6 @@
 {
-  "version": 1,
-  "claims": [
-    {
-      "step": "focus-visible",
-      "settings": {
-        "level": "AA",
-        "guideline": "2.4"
-      },
-      "opening": true,
-      "targets": [
-        {
-          "key": "c2_4_7"
-        }
-      ]
-    },
-    {
-      "step": "focus-visible",
-      "settings": {
-        "level": "AAA",
-        "guideline": "2.4"
-      },
-      "opening": true,
-      "targets": [
-        {
-          "key": "c2_4_7"
-        }
-      ]
-    },
+  "version": 2,
+  "subjects": [
     {
       "step": "reader-focus",
       "opening": true,
@@ -69,6 +43,36 @@
         },
         {
           "text": "A + AA + AAA"
+        }
+      ]
+    },
+    {
+      "step": "reader-versions",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "2.0"
+        },
+        {
+          "text": "2.1"
+        },
+        {
+          "text": "2.2"
+        },
+        {
+          "text": "A"
+        },
+        {
+          "text": "4.1.1 Parsing"
+        },
+        {
+          "text": "Criteria"
+        },
+        {
+          "key": "versions-key"
         }
       ]
     }

@@ -272,6 +272,22 @@ export function guestCopy(change: Change): { copy: VEvent[]; messages: Message[]
   return { copy: copy ?? [], messages };
 }
 
+/**
+ * What a stored copy shows in each week of the organiser's rule (MASTER's DTSTART and RRULE): a meeting,
+ * moved or cancelled; a start its own master's EXDATE excludes; or nothing, because no VEVENT in the copy
+ * gives that week. A copy without a master has nothing to generate weeks from, or to exclude them from.
+ */
+export type Week = 'meeting' | 'moved' | 'cancelled' | 'excluded' | 'absent';
+export function weeks(components: readonly VEvent[]): { slot: Stamp; week: Week }[] {
+  const meetings = new Map(expand(components).map((m) => [m.slot, m]));
+  const master = components.find((c) => c.recurrenceId === null);
+  return occurrences(MASTER.dtstart, parseRule(MASTER.rrules[0]!)).map((slot) => {
+    const m = meetings.get(slot);
+    if (m) return { slot, week: m.cancelled ? 'cancelled' : m.start !== slot ? 'moved' : 'meeting' };
+    return { slot, week: master?.exdates.includes(slot) ? 'excluded' : 'absent' };
+  });
+}
+
 export function copyOf(change: Change, copy: Copy): VEvent[] {
   return copy === 'organiser' ? organiserCopy(change) : guestCopy(change).copy;
 }

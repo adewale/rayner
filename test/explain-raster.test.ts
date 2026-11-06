@@ -9,7 +9,9 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { Scene, NullSink, Rectangle, Text, toSvgString, loadFonts } from '../src/index.ts';
+import { Scene, Rectangle, Text } from '../src/index.ts';
+import { NullSink, toSvgString } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { Box } from '../src/index.ts';
 import { ROOT, collectProject } from '../tools/lib/explain-project.ts';
 import { band } from '../tools/lib/explain-raster.ts';

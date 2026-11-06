@@ -1,6 +1,0 @@
-
-> rayner@0.1.0 release:check
-> node tools/prepare-release.ts
-
-Package gate passed: tested archive install with diagram and PNG authoring, installed TypeScript consumer, executable JS bin, external native author, settings, checks, see, build, describeExplainer and its REFERENCE example, notices, lettering on request, one compiled engine, installed Arabic and maths capture, installed diagram capture.
-Tested archive retained at /workspace/rayner/out/release/rayner-0.1.0.tgz; integrity sha512-MH3y2VP0RWv3jm2eCL32PjT4pJUZ4l63m+spgsUC+YfUJ+JimcI15VpgHYn61EnI4Bfq62L2Gch1W5rxEsyY/w==

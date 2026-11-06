@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describeExplainer } from '../explain/index.ts';
-import type { ExplainerClass, ExplainerDescription } from '../explain/index.ts';
+import { describeExplainer } from '../explain/testing.ts';
+import type { ExplainerClass } from '../explain/index.ts';
+import type { ExplainerDescription } from '../explain/testing.ts';
 import { writeDescriptions, summaryOf, describeProject, checkBuilt } from '../tools/lib/explain-site-describe.ts';
 import { collectProject, loadScene, sceneInputs, ROOT } from '../tools/lib/explain-project.ts';
 import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
@@ -41,7 +42,7 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
     assert.ok(llms.indexOf('## Explainers') < llms.indexOf('## How these are made'));
     assert.match(
       llms,
-      /^- \[How does a ring buffer reuse storage\?\]\(\/projects\/rayner\/ring-buffer\): After five pushes, all slots hold values and both pointers return to slot 0\. JSON: \[ring-buffer\.json\]\(\/projects\/rayner\/ring-buffer\.json\)$/m,
+      /^- \[How does a ring buffer reuse storage\?\]\(\/projects\/rayner\/ring-buffer\): The simplest queue keeps its values in order in an array\. JSON: \[ring-buffer\.json\]\(\/projects\/rayner\/ring-buffer\.json\)$/m,
     );
     assert.match(llms, /^## How these are made\n\n- \[[^\]]+\]\(\/projects\/rayner\/glyph\): .+ JSON: \[glyph\.json\]\(\/projects\/rayner\/glyph\.json\)$/m);
     // A second export replaces its own llms.txt, with absolute links given --origin; a site's own
@@ -64,7 +65,7 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
   }
 });
 
-test("an explainer's llms.txt summary is the first sentence of its default case's first caption", () => {
+test("an explainer's llms.txt summary is the first sentence of its default scenario's first caption", () => {
   const step = (caption: string) => ({ step: 's', title: 'T', line: '', caption, start: 0, end: 1, state: {}, changed: {}, picture: '' });
   const d: ExplainerDescription = {
     schema: 1,
@@ -73,7 +74,7 @@ test("an explainer's llms.txt summary is the first sentence of its default case'
     lang: 'en',
     sources: [],
     settings: [{ id: 'n', label: 'N', default: 'b', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }],
-    cases: [
+    scenarios: [
       { values: { n: 'a' }, name: 'N: A', duration: 1, steps: [step('Not the default.')] },
       { values: { n: 'b' }, name: 'N: B', duration: 1, steps: [step('Version 4.3.3 sets  it.\nThe rest is detail.')] },
     ],
@@ -110,4 +111,18 @@ test("site:export refuses an explainer's built files when demos:build has not ru
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('llms.txt leaves out coverage-tier explainers', async () => {
+  const { llmsTxt } = await import('../tools/lib/explain-site-describe.ts');
+  const d = (title: string) => ({ title, settings: [], scenarios: [{ values: {}, steps: [{ caption: `${title} opens here.` }] }] }) as unknown as Parameters<typeof llmsTxt>[0][number]['d'];
+  const llms = llmsTxt(
+    [
+      { item: { id: 'shown', group: 'topic', tier: 'gallery' }, d: d('Shown') },
+      { item: { id: 'probe', group: 'topic', tier: 'coverage' }, d: d('Probe') },
+    ],
+    '',
+  );
+  assert.match(llms, /\[Shown\]\(\/shown\)/);
+  assert.ok(!llms.includes('probe'), 'a coverage scene is not listed');
 });

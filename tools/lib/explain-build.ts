@@ -6,16 +6,17 @@ import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
 import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
-import { SnapshotSink, renderAt } from '../../src/index.ts';
-import { chromeFor, caseNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
+import { SnapshotSink, renderAt } from '../../src/output.ts';
+import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
-import { ROOT, engineAlias, defaultVariant, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
+import { ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
 import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
 import { letteringLicences, pageSnapshot } from './lettering.ts';
 import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
 import {stepAudio} from '../../explain/audio.ts';
+import { logStart, outcomes, runLive } from '../../app/embed-live.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of
@@ -23,7 +24,7 @@ import {stepAudio} from '../../explain/audio.ts';
  * P2-P3), so an Arabic or Hebrew caption reads and aligns right to left while
  * the player's controls stay as they are. Every other page's style is as it was.
  */
-const RTL_CSS = '\nh1,.caption,.lede,.lede *,.changes span,.transcript h2,.transcript a,.transcript p,.steps button span,.steps .line{unicode-bidi:plaintext;text-align:start}\n';
+const RTL_CSS = '\nh1,.caption,.caption-ruler,.lede,.lede *,.changes span,.transcript h2,.transcript a,.transcript p,.steps button span,.steps .line{unicode-bidi:plaintext;text-align:start}\n';
 const rightToLeftPage = (project: Project) =>
   !!project.outlineLettering?.request.scripts?.some((script) => RTL_SCRIPTS.includes(script));
 
@@ -31,7 +32,7 @@ export async function buildExplainer(
   project: Project,
   out: string,
 ): Promise<{ html: string; receipt: Record<string, unknown> }> {
-  const v = defaultVariant(project),
+  const v = defaultScenario(project),
     first = v.trace.steps[0]!;
   // The page's own words follow the scene's language, and so do the picture descriptions where
   // explain/words.ts has words for it; elsewhere they are English, marked lang="en".
@@ -41,7 +42,7 @@ export async function buildExplainer(
   await useProjectLettering(project);
   let withAudio=false;
   // Validate every step, including clips after the first sound-bearing step.
-  for(const variant of project.variants) for(const step of variant.trace.steps)
+  for(const scenario of project.scenarios) for(const step of scenario.trace.steps)
     if(stepAudio(step.meta.audio)) withAudio=true;
   const sink = new SnapshotSink();
   await renderAt(v.Scene, restingTime(first, v.trace.fps), sink);
@@ -102,25 +103,43 @@ export async function buildExplainer(
   const js = scriptEscape(bundled.outputFiles[0]!.text),
     css = (await readFile(join(ROOT, 'app/embed.css'), 'utf8')) + (rightToLeftPage(project) ? RTL_CSS : '') +
       (withAudio ? '\n'+await readFile(join(ROOT,'app/embed-audio.css'),'utf8') : '') + playerCss(project.Scene.meta?.player, v.palette);
-  // Every case, every step: a link to it, its caption, what it changed of the state the author
+  // Every scenario, every step: a link to it, its caption, what it changed of the state the author
   // watches (meta.watch) and what its resting picture shows.
-  // The player shows the current case's section; without JavaScript every case shows.
-  const transcript = project.variants
-    .map(({ values, trace }) => {
+  // The player shows the current scenario's section; without JavaScript every scenario shows.
+  // A live step's events (docs/MACHINES.md, "The player"): what a reader without JavaScript, or an
+  // agent, can try there, from where the step leaves the machine (or from its start, when it is finished there).
+  const liveLines = await Promise.all(project.scenarios.map(async ({ Scene, trace, live }) => {
+    const lines = new Map<string, string>();
+    for (const [step, { index, machine }] of live ?? []) {
+      const times = trace.steps.find((s) => s.step === step);
+      const base = times && logStart(machine, (await runLive(Scene, times, index, [])).rest);
+      if (!base) continue;
+      const events = outcomes(machine, base.state).filter((o) => o.kind === 'next').map((o) => o.label);
+      lines.set(step, t.liveEvents(events.join(', '), base.from === 'start'));
+    }
+    return lines;
+  }));
+  const transcript = project.scenarios
+    .map(({ values, trace }, n) => {
       const key = new URLSearchParams(values).toString(),
-        name = caseNameIn(lang, project.Scene, values);
+        name = scenarioNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
         const href = `?${key ? key + '&' : ''}${new URLSearchParams({ step: s.step })}`,
-          shows = pictureHtml(s.after, trace.steps[i - 1]?.after),
+          shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));
-        const entry = project.Scene.meta?.caseNavigation === 'first' && i > 0
+        const entry = project.Scene.meta?.scenarioNavigation === 'first' && i > 0
           ? `<span>${htmlEscape(words.title)}</span>`
           : `<a href="${htmlEscape(href)}">${htmlEscape(words.title)}</a>`;
-        return `<li>${entry}${wordsHtml(words)}${changes.length ? `<p>${htmlEscape(t.changes(...changes))}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
+        const live = liveLines[n]!.get(s.step);
+        return `<li>${entry}${wordsHtml(words)}${changes.length ? `<p>${htmlEscape(t.changes(...changes))}</p>` : ''}${live ? `<p class="live-events">${htmlEscape(live)}</p>` : ''}${shows ? `<div${descriptionLang(lang)}>${shows}</div>` : ''}</li>`;
       });
-      return `<section data-case="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
+      return `<section data-scenario="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
     })
+    .join('');
+  // The scene's check questions after every scenario: the questions, each answer behind a disclosure.
+  const checks = (project.Scene.meta?.checks ?? [])
+    .map((c) => `<li><p>${htmlEscape(c.question)}</p><details><summary>${htmlEscape(t.showAnswer)}</summary><p>${htmlEscape(c.answer)}</p></details></li>`)
     .join('');
   const sources = (project.Scene.meta?.sources ?? [])
     .map((url) => `<li><a href="${htmlEscape(url)}" target="_blank" rel="noopener">${htmlEscape(url)}</a></li>`)
@@ -134,14 +153,14 @@ export async function buildExplainer(
   const licenses = notices.join('\n\n') + (project.outlineLettering
     ? letteringLicences(project.outlineLettering).filter((notice) => !notices.includes(notice)).map((notice) => '\n\n' + notice).join('')
     : '');
-  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
+  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${checks ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="check-questions">${checks}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
   const sri = (value: string) => "'sha256-" + createHash('sha256').update(value).digest('base64') + "'";
   const policy = `default-src 'none'; script-src ${sri(framedJs)} ${sri(js)}; style-src ${sri(css)}; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors *`;
   const receipt = {
     ...baseReceipt(project),
     title,
     artifactHash: hash(html),
-    variants: project.variants.map((v) => ({
+    scenarios: project.scenarios.map((v) => ({
       settings: v.values,
       steps: v.trace.steps.length,
       duration: v.trace.duration,

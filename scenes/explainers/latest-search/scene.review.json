@@ -1,18 +1,72 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
-      "step": "reader-order",
+      "step": "race",
       "opening": true,
       "targets": [
         {
           "key": "reader-picture"
         },
         {
-          "text": "A then B"
+          "key": "timeline-search:A:bar"
         },
         {
-          "text": "Latest intent: B"
+          "key": "timeline-search:B:bar"
+        },
+        {
+          "text": "“ca”"
+        },
+        {
+          "text": "“cat”"
+        },
+        {
+          "text": "The user wants “cat”"
+        }
+      ]
+    },
+    {
+      "step": "overwrite",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "key": "timeline-search:A:bar"
+        },
+        {
+          "key": "timeline-search:B:bar"
+        },
+        {
+          "key": "timeline-page-off:span:0"
+        },
+        {
+          "key": "timeline-page-off:span:1"
+        },
+        {
+          "key": "timeline-page-off:span:2"
+        },
+        {
+          "text": "Page shows"
+        },
+        {
+          "text": "No guard"
+        }
+      ]
+    },
+    {
+      "step": "tickets",
+      "opening": true,
+      "targets": [
+        {
+          "key": "reader-picture"
+        },
+        {
+          "text": "latest = 2"
+        },
+        {
+          "text": "const ticket = ++latest"
         }
       ]
     },
@@ -24,7 +78,7 @@
           "key": "reader-picture"
         },
         {
-          "text": "Latest 2"
+          "text": "latest = 2"
         }
       ]
     },
@@ -36,7 +90,7 @@
           "key": "reader-picture"
         },
         {
-          "text": "Latest 2"
+          "text": "latest = 2"
         }
       ]
     },
@@ -48,13 +102,58 @@
           "key": "reader-picture"
         },
         {
-          "text": "After"
+          "key": "timeline-search:A:bar"
+        },
+        {
+          "key": "timeline-search:B:bar"
+        },
+        {
+          "key": "timeline-page-off:span:0"
+        },
+        {
+          "key": "timeline-page-off:span:1"
+        },
+        {
+          "key": "timeline-page-off:span:2"
+        },
+        {
+          "key": "timeline-page-on:span:0"
+        },
+        {
+          "key": "timeline-page-on:span:1"
         },
         {
           "text": "No guard"
         },
         {
           "text": "Guard on"
+        }
+      ]
+    },
+    {
+      "step": "overwrite",
+      "settings": {
+        "order": "new-first"
+      },
+      "opening": true,
+      "targets": [
+        {
+          "key": "timeline-page-off:span:0"
+        },
+        {
+          "key": "timeline-page-off:span:1"
+        },
+        {
+          "key": "timeline-page-off:span:2"
+        },
+        {
+          "text": "No guard"
+        },
+        {
+          "text": "“ca”"
+        },
+        {
+          "text": "“cat”"
         }
       ]
     },
@@ -66,13 +165,16 @@
       "opening": true,
       "targets": [
         {
-          "text": "Ticket 1"
+          "text": "“ca”: ticket 1"
         },
         {
-          "text": "Latest 2"
+          "text": "latest = 2"
         },
         {
-          "text": "Discard A"
+          "text": "Drop “ca”"
+        },
+        {
+          "text": "Page now: “cat” with the guard, “ca” without"
         }
       ]
     },
@@ -84,13 +186,13 @@
       "opening": true,
       "targets": [
         {
-          "text": "Ticket 1"
+          "text": "“ca”: ticket 1"
         },
         {
-          "text": "Latest 2"
+          "text": "latest = 2"
         },
         {
-          "text": "Discard A"
+          "text": "Drop “ca”"
         }
       ]
     },
@@ -105,10 +207,10 @@
           "text": "Guard on"
         },
         {
-          "text": "A"
+          "text": "“ca”"
         },
         {
-          "text": "B"
+          "text": "“cat”"
         }
       ]
     }

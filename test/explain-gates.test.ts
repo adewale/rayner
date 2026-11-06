@@ -1,6 +1,6 @@
 // One seeded defect per gate, through the entry points `rayner check` uses:
-// collectProject (load, cases, named steps, drawable text) and checkProject
-// (every check on every case). Each scene breaks exactly one rule and must fail
+// collectProject (load, scenarios, named steps, drawable text) and checkProject
+// (every check on every scenario). Each scene breaks exactly one rule and must fail
 // with that gate's own message; the clean scene shows the same shape passes.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { collectProject, writeSnapshots, ROOT } from '../tools/lib/explain-project.ts';
 import { checkProject } from '../tools/lib/explain-check.ts';
+import { scenariosOf, resolveSettings } from '../explain/settings.ts';
 import { diagramKey } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { fixedSnapshot, square } from './lib/random-snapshot.ts';
@@ -36,7 +37,7 @@ const checked = async (dir: string) => checkProject(await collectProject(dir, { 
 
 test('a clean scene passes every gate', async () => {
   const report = await checked(await write(scene(`await this.step('one',{caption:'A label.'});${label('hello')}await this.step('two',{caption:'Another.'});${label('world', '[0,-2]')}`)));
-  assert.equal((report.variants as unknown[]).length, 1);
+  assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
 test('numerals outside Latin draw from the fallback faces and pass every gate, in sans and mono', async () => {
@@ -47,7 +48,7 @@ test('numerals outside Latin draw from the fallback faces and pass every gate, i
       ),
     ),
   );
-  assert.equal((report.variants as unknown[]).length, 1);
+  assert.equal((report.scenarios as unknown[]).length, 1);
 });
 
 // A diagram whose label B is readable only in mid-sweep: focus(['B']) zooms to it, focus('all') ends the step with it at 4 px.
@@ -128,6 +129,12 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Resting frames have colliding or cut-off text/,
   },
   {
+    // Every key is an identity, whatever it looks like: what the stage's chrome is for is its role.
+    gate: 'keys: two parts on the stage with one key',
+    source: scene(`await this.step('one');const a=new Text('a',{fontSize:.4});a.key='__shared';const b=new Text('b',{fontSize:.4}).shift([0,-1.5]);b.key='__shared';await s.enter(a,b,{describe:'two letters'});`),
+    message: /Keys in the scene: at the end of a step, a key names one mobject/,
+  },
+  {
     gate: 'a connector through a resting label',
     source: scene(`await this.step('one');const wire=new Line([-2,0],[2,0]);await s.enter(wire,{describe:'wire'});${label('target')}`),
     message: /A connector crosses "target"/,
@@ -199,7 +206,7 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Every drawing needs words for readers who cannot see it/,
   },
   {
-    gate: 'missing glyphs, named by case, step and code point',
+    gate: 'missing glyphs, named by scenario, step and code point',
     source: scene(
       `await this.step('one');${label('ok')}await this.step('two');await s.enter(new Text(settingsOf(this).k==='b'?'a中b':'ab',{fontSize:.4}).moveTo([0,-2]),{describe:'text'});`,
       '',
@@ -220,9 +227,15 @@ const gates: { gate: string; source: string; message: RegExp; snapshots?: () => 
     message: /Duplicate step names/,
   },
   {
-    gate: 'a case with no steps',
+    // The caption keys a colour the stage never names: hidden, the caption takes the key with it.
+    gate: 'a caption names a colour no word on the stage says',
+    source: scene(`await this.step('one',{caption:'The red dot is the answer.'});await s.enter(new Dot({color:s.bad}),{describe:'A dot'});`),
+    message: /Captions name a look the stage does not in the scene: one: the caption names “red”/,
+  },
+  {
+    gate: 'a scenario with no steps',
     source: `import{Scene,Dot,FadeIn}from'rayner';export default class Bad extends Scene{async construct(){await this.play(new FadeIn(new Dot()));}}`,
-    message: /Each case needs non-empty named steps/,
+    message: /Each scenario needs non-empty named steps/,
   },
   {
     gate: 'one scene export',
@@ -234,6 +247,25 @@ for (const { gate, source, message, snapshots } of gates)
   test(`gate fails with its own message: ${gate}`, async () => {
     await assert.rejects(checked(await write(source, snapshots?.())), message);
   });
+
+test('the key check names every key held twice, with no exception for the stage, whose chrome has a role instead', async () => {
+  const { KeySink } = await import('../tools/lib/explain-check.ts');
+  const { Scene, Text } = await import('../src/index.ts');
+  const { stage } = await import('../explain/index.ts');
+  const keys = new KeySink();
+  class Twice extends Scene {
+    override async construct() {
+      const s = stage(this);
+      // Numbered headings with lines crossfade at every step: their parts are 'chrome', never keyed.
+      for (const step of ['one', 'two', 'three']) await this.step(step, { title: step, line: `the ${step} step` });
+      const a = new Text('a'), b = new Text('b').shift([0, -1.5]);
+      a.key = b.key = '__shared';
+      await s.enter(a, b, { describe: 'two letters' });
+    }
+  }
+  await new Twice(keys).run();
+  assert.deepEqual(keys.problems, ['step "three": "__shared"']);
+});
 
 test('native legibility on screen: an 8 px label with the camera zoomed in 2x passes', async () => {
   await checked(await write(scene(`this.frame.scale(0.5);await this.step('one',{caption:'Close.'});${label('close up', '[0,0]', 0.1)}`)));
@@ -250,4 +282,42 @@ test('rayner check exits 1 and names the failing gate on stderr', async () => {
   assert.equal(refused?.status, 1, 'check must exit 1 on a scene whose seek differs from play');
   // The source CLI can follow Node's experimental type-stripping warning.
   assert.match(String(refused?.stderr), /^rayner: Seek mismatch at frame \d+ in the scene$/m);
+});
+
+// A scene with two settings (2 × 3 scenarios) and three steps; `nudgeIn` names the one scenario whose last
+// step moves its dot by a nudge each frame instead of by blending, as the lantern explainer's tiny scene does.
+const CASES_HEAD = `import{Scene,Text,Dot,Animation}from'rayner';import{stage,settingsOf}from'rayner/explain';`;
+const scenariosScene = (nudgeIn?: { motion: string; size: string }) =>
+  `${CASES_HEAD}class Nudge extends Animation{constructor(m){super(m,{runTime:1});this.live=false}begin(){super.begin();this.live=true}interpolate(){if(this.live)this.mobject.shift([0.1,0])}finish(){}}` +
+  `export default class Scenarios extends Scene{static settings=[` +
+  `{id:'motion',label:'Motion',default:'blend',options:[{value:'blend',label:'Blend'},{value:'nudge',label:'Nudge'}]},` +
+  `{id:'size',label:'Size',default:'small',options:[{value:'small',label:'Small'},{value:'mid',label:'Mid'},{value:'large',label:'Large'}]}];` +
+  `async construct(){const s=stage(this);const v=settingsOf(this);` +
+  `await this.step('one',{caption:'A label.'});${label('one')}await this.wait(0.3);` +
+  `await this.step('two',{caption:'Another.'});${label('two', '[0,2]')}await this.wait(0.3);` +
+  `await this.step('three',{caption:'The dot moves.'});const d=new Dot({radius:0.2}).moveTo([-3,-2]);await s.enter(d,{describe:'A dot'});` +
+  `const nudge=${nudgeIn ? `v.motion===${JSON.stringify(nudgeIn.motion)}&&v.size===${JSON.stringify(nudgeIn.size)}` : 'false'};` +
+  `await this.play(nudge?new Nudge(d):d.animate.moveTo([0,-2]),{runTime:1});}}`;
+
+test('rayner check seeks two frames in each step of every scenario: a nudge each frame in one scenario’s last step fails it with a seek mismatch naming that scenario', async () => {
+  const clean = await checked(await write(scenariosScene()));
+  const scenarios = clean.scenarios as { settings: Record<string, string>; steps: number; seekFrames: number }[];
+  assert.equal(scenarios.length, 6);
+  for (const v of scenarios) assert.equal(v.seekFrames, 2 * v.steps, JSON.stringify(v.settings));
+  // The last scenario built, and the last step in it: a check that stopped short of either would pass.
+  await assert.rejects(checked(await write(scenariosScene({ motion: 'nudge', size: 'large' }))), /Seek mismatch at frame \d+ in Motion: Nudge · Size: Large$/m);
+  await assert.rejects(checked(await write(scenariosScene({ motion: 'blend', size: 'mid' }))), /Seek mismatch at frame \d+ in Motion: Blend · Size: Mid$/m);
+});
+
+test('the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other', async () => {
+  const dir = await write(scenariosScene());
+  const project = await collectProject(dir, { write: false });
+  const combos = ['blend', 'nudge'].flatMap((motion) => ['small', 'mid', 'large'].map((size) => ({ motion, size })));
+  assert.deepEqual(project.scenarios.map((v) => v.values), combos);
+  assert.deepEqual(scenariosOf(project.Scene), combos);
+  const report = await checkProject(project, join(dir, 'checks'));
+  assert.deepEqual((report.scenarios as { settings: Record<string, string> }[]).map((v) => v.settings), combos);
+  // A value no option lists is refused, so no request reaches a scenario the build did not make.
+  assert.throws(() => resolveSettings(project.Scene, { motion: 'spring' }), /Unknown .* option/);
+  assert.throws(() => resolveSettings(project.Scene, { size: '0.1' }), /Unknown .* option/);
 });

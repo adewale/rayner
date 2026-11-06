@@ -2,7 +2,8 @@ import { Group, Rectangle } from '../../../../src/index.ts';
 import { gaveUp, task, PARTICIPANTS, colourOf, RGB, MEANING } from '../gnome-files.ts';
 import type { Participant, Colour } from '../gnome-files.ts';
 import { flow, label } from '../reader-drawing.ts';
-import type { ReaderFrame } from '../reader-drawing.ts';
+import type { StagedStep } from '../../../../explain/index.ts';
+import { stagedStep } from '../../../../explain/index.ts';
 // Locations and observations: the report's task findings, pages 11, 21–22, 25–26, 34 and 40.
 const locations: Record<number, string[]> = {
   1: ['View options', 'Icon size'],
@@ -18,6 +19,21 @@ const observations: Record<number, string> = {
   7: 'Those who gave up were unfamiliar with Open Item Location and had not checked the file context menu.',
   9: 'Over half the sample made six to nine attempts before completing this task or giving up.',
 };
+// Where each command sat, as a sentence, from the same findings.
+const placed: Record<number, string> = {
+  1: 'the icon size buttons were in View Options',
+  3: 'Select All was in the folder’s right-click menu',
+  4: 'Undo was in the Main Menu',
+  7: 'Open Item Location was in the file’s right-click menu',
+};
+const named: Record<number, string> = {
+  1: 'changing the icon size',
+  3: 'Select All',
+  4: 'Undo',
+  7: 'Open Item Location',
+  9: 'Add To Bookmarks',
+};
+const counted = ['No one', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
 // Short labels for the report's categories. Keep its full wording in the recorded outcomes.
 const outcomeLines: Record<Colour, readonly [string, string]> = {
   green: ['No', 'difficulty'],
@@ -27,41 +43,52 @@ const outcomeLines: Record<Colour, readonly [string, string]> = {
   black: ['Could not', 'complete'],
   gray: ['Outside', 'study scope'],
 };
-export function frames(p: Participant): ReaderFrame[] {
-  const n = gaveUp(p)[0]!,
-    name = task(n).name;
+const phrase: Record<Colour, string> = {
+  green: 'no difficulty',
+  yellow: 'very little difficulty',
+  orange: 'moderate difficulty',
+  red: 'severe difficulty',
+  black: 'could not complete it',
+  gray: 'outside the study’s scope',
+};
+export function frames(p: Participant): StagedStep[] {
+  const n = gaveUp(p)[0]!;
+  const row = PARTICIPANTS.map((q) => colourOf(n, q));
+  const stuck = row.filter((c) => c === 'black').length;
+  const rest = (['green', 'yellow', 'orange', 'red', 'gray'] as const)
+    .map((c) => [c, row.filter((x) => x === c).length] as const)
+    .filter(([, k]) => k > 0)
+    .map(([c, k]) => `${counted[k]!.toLowerCase()} ${phrase[c]}`);
   return [
-    {
+    stagedStep({
       id: 'reader-task',
-      title: 'Where would you look for this action?',
-      line: `${p}’s first give-up: ${name}.`,
-      caption: `The task was “${task(n).text}”. This schematic locates the command in the menu; it is not a screenshot of Files. ${observations[n]} The command’s presence in the menu did not ensure that participants found it.`,
-      values: { participant: p, task: n, location: locations[n] },
-      draw: (s) =>
+      title: `${p} gave up on ${named[n]}`,
+      line: `The command was there: ${placed[n]}.`,
+      caption: `The task read: ${task(n).text}. This schematic shows where the command sat; it is not a screenshot of Files. ${observations[n]} The command existed, and ${p} still did not find it. Was ${p} unlucky, or did the same menu lose other people too?`,
+      state: { participant: p, task: n, location: locations[n]! },
+      draw: (st, s) =>
         new Group(
-          flow(s, locations[n]!),
-          label('Task: ' + (n === 1 ? 'Change icon size' : name), 0, -1.5, s.palette.ink, 0.75),
-          label(`${p} could not complete it`, 0, -3, s.bad, 0.7),
+          flow(s, st.location),
+          label('Task: ' + (st.task === 1 ? 'Change icon size' : task(st.task).name), 0, -1.5, s.palette.ink, 0.75),
+          label(`${st.participant} could not complete it`, 0, -3, s.bad, 0.7),
         ),
-    },
-    {
+    }),
+    stagedStep({
       id: 'reader-sample',
-      title: 'Did everyone have the same difficulty?',
-      line: `One task, all six participants: ${name}.`,
-      caption:
-        'Difficulty labels describe completed tasks. “Could not complete” records an unfinished task; “Outside study scope” records an excluded approach. These six observations cannot estimate population failure rates or completion times.',
-      values: {
+      title: `${counted[stuck]} of the six gave up on ${named[n]}`,
+      line: `The others: ${rest.join(', ')}.`,
+      caption: `The same task split the six people, graded with the report’s colours; an approach outside the study’s scope counts as neither a success nor a give-up. If a few weaker users caused the trouble, the same names would keep failing. The next step tests that across all eleven tasks.`,
+      state: {
         task: n,
         outcomes: PARTICIPANTS.map((q) => {
           const colour = colourOf(n, q);
           return { participant: q, colour, meaning: MEANING[colour] };
         }),
       },
-      draw: (s) =>
+      draw: (st, s) =>
         new Group(
-          ...PARTICIPANTS.map((q, i) => {
-            const color = colourOf(n, q),
-              x = ((i % 3) - 1) * 4.8,
+          ...st.outcomes.map(({ participant: q, colour: color }, i) => {
+            const x = ((i % 3) - 1) * 4.8,
               y = 1.4 - Math.floor(i / 3) * 2.7;
             const outcome = new Group(
               new Rectangle({
@@ -78,6 +105,6 @@ export function frames(p: Participant): ReaderFrame[] {
             return outcome;
           }),
         ),
-    },
+    }),
   ];
 }

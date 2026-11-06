@@ -21,8 +21,8 @@ async function fixture(exercise: (f: {root: string; report: string; files: Map<s
   const root = join(folder, 'site'), report = join(folder, 'report.json');
   const files = new Map<string, Buffer>([
     ['/_headers', Buffer.from(`${prefix}/sample.html\n  Content-Security-Policy: ${csp}\n  Cache-Control: ${cache}\n${prefix}/sample\n  Content-Security-Policy: ${csp}\n  Cache-Control: ${cache}\n`)],
-    [`${prefix}/catalog.json`, Buffer.from(JSON.stringify({version: 1, totals: {explainers: 1, cases: 2}, scenes: [{id: 'sample', cases: 2}]}))],
-    [`${prefix}/sample.html`, Buffer.from('<!doctype html><title>A model</title><p>Two cases</p>')],
+    [`${prefix}/catalog.json`, Buffer.from(JSON.stringify({version: 2, totals: {explainers: 1, scenarios: 2}, scenes: [{id: 'sample', scenarios: 2}]}))],
+    [`${prefix}/sample.html`, Buffer.from('<!doctype html><title>A model</title><p>Two scenarios</p>')],
     [`${prefix}/sample.png`, Buffer.from('a reviewed picture')],
     [`${prefix}/loader.js`, Buffer.from('console.log("load")')],
     [`${prefix}/index.html`, Buffer.from('<h1>Examples</h1>')],

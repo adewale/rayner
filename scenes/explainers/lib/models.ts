@@ -1,4 +1,6 @@
 // Small, explicitly scoped executable models. Scenes consume their results, not hand-entered answers.
+import { refuse } from '../../../src/index.ts';
+import type { Refusal } from '../../../src/index.ts';
 class InvalidTransition extends Error {
   constructor() {
     super('InvalidTransition');
@@ -23,6 +25,30 @@ export function sessionAttempt(state: string, event: string): { state?: string; 
     return { error: error.message };
   }
 }
+/**
+ * A session a reader can drive: each event goes to reduceSession from the state the session is
+ * in. A pair with a row moves the session and records the row it read and the link it travelled;
+ * a pair with none throws InvalidTransition, recorded as `invalid`, and the session stays.
+ * No event is refused: the throw is what the explainer shows.
+ */
+export interface SessionState {
+  session: string;
+  event: string | null;
+  returns: string | null;
+  invalid: { state?: string; error?: string } | null;
+  /** The row the reducer read for the last event that had one, as 'state:EVENT'. */
+  row: string | null;
+  /** Every link travelled, as 'from:to:EVENT', in order. */
+  travelled: string[];
+}
+export const SESSION_EVENTS = ['CONNECT', 'OPENED', 'ERROR', 'CLOSE'] as const;
+export type SessionEvent = (typeof SESSION_EVENTS)[number];
+export const sessionStart = (): SessionState => ({ session: 'idle', event: null, returns: null, invalid: null, row: null, travelled: [] });
+export function sessionNext(st: SessionState, event: SessionEvent): SessionState {
+  const attempt = sessionAttempt(st.session, event);
+  if (attempt.error) return { ...st, event, returns: attempt.error, invalid: attempt, row: null };
+  return { session: attempt.state!, event, returns: attempt.state!, invalid: null, row: `${st.session}:${event}`, travelled: [...st.travelled, `${st.session}:${attempt.state}:${event}`] };
+}
 export class TokenBucket {
   tokens: number;
   lastRefill = 0;
@@ -40,6 +66,37 @@ export class TokenBucket {
     this.tokens--;
     return true;
   }
+}
+/** One call of allow(): when it came, whether it got 200, the balance it found after refill and what it left. */
+export interface BucketCall { at: number; ok: boolean; found: number; after: number }
+/**
+ * A client's requests through one TokenBucket, a call at a time: the bucket's fields, every call
+ * so far, and what the readout reports of them (each response, the balance each left, how many
+ * were accepted and which were refused, by name). The balance never leaves 0 to capacity:
+ * allow() caps refill with min(capacity, …) and spends only a whole token.
+ */
+export interface BucketState {
+  rate: number; capacity: number;
+  tokens: number; lastRefill: number;
+  calls: BucketCall[];
+  responses: (200 | 429)[]; balances: number[]; allowed: number; rejected: string[];
+}
+export const bucketStart = (rate: number, capacity = 5): BucketState =>
+  ({ rate, capacity, tokens: capacity, lastRefill: 0, calls: [], responses: [], balances: [], allowed: 0, rejected: [] });
+/** The next request, arriving at `at`: allow(at) on the bucket the state describes. */
+export function bucketRequest(st: BucketState, at: number): BucketState {
+  const bucket = new TokenBucket(st.rate, st.capacity);
+  Object.assign(bucket, { tokens: st.tokens, lastRefill: st.lastRefill });
+  const ok = bucket.allow(at),
+    call: BucketCall = { at, ok, found: bucket.tokens + (ok ? 1 : 0), after: bucket.tokens };
+  return {
+    ...st, tokens: bucket.tokens, lastRefill: bucket.lastRefill,
+    calls: [...st.calls, call],
+    responses: [...st.responses, ok ? 200 : 429],
+    balances: [...st.balances, bucket.tokens],
+    allowed: st.allowed + (ok ? 1 : 0),
+    rejected: ok ? st.rejected : [...st.rejected, `R${st.calls.length + 1}`],
+  };
 }
 export class Full extends Error {}
 export class RingBuffer<T> {
@@ -95,6 +152,63 @@ export function ringStory(which: string) {
   }
   return events;
 }
+/**
+ * A ring a reader can drive: push (the next value, 1 upward) and pop, one at a time, on the
+ * RingBuffer above. Beside the buffer it records what the picture needs: the operation and its
+ * result, the slots it outlined, the values in the tray under the ring (a run of pops, or of
+ * refused pushes, adds to the tray; anything else starts it afresh) and which slots are being
+ * reused. A pop of an empty ring, or a push past 9, is refused (undefined).
+ */
+export interface RingState {
+  head: number; tail: number; length: number; data: (number | null)[];
+  /** Slots that have held a value, and slots holding a value written into a slot used before. */
+  used: boolean[]; reused: boolean[];
+  /** The value the next push hands the buffer. */
+  next: number;
+  operation: string | null; error: string | null; returned: number[] | null;
+  marks: { slot: number; kind: 'push' | 'pop' | 'refused' }[];
+  tray: { label: string; values: number[]; refused: boolean } | null;
+}
+export type RingEvent = 'push' | 'pop';
+export function ringStart(capacity: number): RingState {
+  const empty = () => Array<boolean>(capacity).fill(false);
+  return { head: 0, tail: 0, length: 0, data: Array(capacity).fill(null), used: empty(), reused: empty(), next: 1, operation: null, error: null, returned: null, marks: [], tray: null };
+}
+/** The ring after one event, or the model's refusal: a pop of an empty ring has nothing to take. */
+export function ringNext(st: RingState, event: RingEvent): RingState | Refusal {
+  const ring = new RingBuffer<number>(st.data.length);
+  Object.assign(ring, { head: st.head, tail: st.tail, length: st.length, data: [...st.data] });
+  if (event === 'pop') {
+    if (!st.length) return refuse('the ring is empty, so pop has no value to take');
+    const slot = ring.head, value = ring.pop();
+    const run = st.operation === 'pop';
+    return {
+      ...st, ...ring.snapshot(),
+      reused: st.reused.map((r, i) => r && i !== slot),
+      operation: 'pop', error: null, returned: [value],
+      marks: run ? [...st.marks, { slot, kind: 'pop' }] : [{ slot, kind: 'pop' }],
+      tray: { label: 'popped:', values: run && st.tray && !st.tray.refused ? [...st.tray.values, value] : [value], refused: false },
+    };
+  }
+  const value = st.next, slot = ring.tail;
+  try {
+    ring.push(value);
+  } catch (error) {
+    if (!(error instanceof Full)) throw error;
+    return {
+      ...st, next: value + 1, operation: `push ${value}`, error: 'Full', returned: null,
+      marks: [{ slot, kind: 'refused' }],
+      tray: { label: 'refused, Full:', values: st.tray?.refused ? [...st.tray.values, value] : [value], refused: true },
+    };
+  }
+  return {
+    ...st, ...ring.snapshot(), next: value + 1,
+    used: st.used.map((u, i) => u || i === slot),
+    reused: st.reused.map((r, i) => (i === slot ? st.used[slot]! : r)),
+    operation: `push ${value}`, error: null, returned: null,
+    marks: [{ slot, kind: 'push' }],
+  };
+}
 export interface Shell {
   fs: Record<string, string>;
   steps: number;
@@ -128,13 +242,41 @@ export function sunlight(latitude: number, declination: number): { altitude: num
     daylight: cos <= -1 ? 24 : cos >= 1 ? 0 : (24 * Math.acos(cos)) / Math.PI,
   };
 }
+/**
+ * Sunlight on one square metre of flat ground at noon, as a share of what an overhead Sun gives:
+ * sin of the noon altitude, and 0 when the Sun is below the horizon. The beam that would cover
+ * one square metre with the Sun overhead is spread over 1 / sin(altitude) square metres. The air,
+ * which absorbs more at low angles, is left out.
+ */
+export function noonShare(latitude: number, declination: number): number {
+  return Math.max(0, Math.sin((sunlight(latitude, declination).altitude * Math.PI) / 180));
+}
+/**
+ * The length of level ground, in metres along the Sun's direction, that a noon beam one metre
+ * across (measured at right angles to its rays) lands on: 1 / sin of the noon altitude, so the
+ * share per square metre is 1 / patch. Null when the noon Sun is below the horizon.
+ */
+export function noonPatch(latitude: number, declination: number): number | null {
+  const { altitude } = sunlight(latitude, declination);
+  return altitude > 0 ? 1 / Math.sin((altitude * Math.PI) / 180) : null;
+}
+/**
+ * Earth's distance from the Sun in astronomical units on a day of the year (0 = 1 January):
+ * R = 1.00014 − 0.01671 cos g − 0.00014 cos 2g (Wikipedia, Position of the Sun), with the mean
+ * anomaly g = 360° × (day − 2) / 365, zero at perihelion about 2 days after 1 January, as that
+ * article's (N − 2) term puts it.
+ */
+export function sunDistance(day: number): number {
+  const g = (2 * Math.PI * (day - 2)) / 365;
+  return 1.00014 - 0.01671 * Math.cos(g) - 0.00014 * Math.cos(2 * g);
+}
 /** Day of the year (0 = 1 January) of each month's 15th, in a common year. */
-const MID_MONTH = [14, 45, 73, 104, 134, 165, 195, 226, 257, 287, 318, 348];
+export const MID_MONTH = [14, 45, 73, 104, 134, 165, 195, 226, 257, 287, 318, 348] as const;
 /** The Sun's declination in degrees, from the usual cosine approximation: −23.44° × cos(360° × (day + 10) / 365). */
-const declination = (day: number) => -23.44 * Math.cos((2 * Math.PI * (day + 10)) / 365);
+export const declinationOn = (day: number) => -23.44 * Math.cos((2 * Math.PI * (day + 10)) / 365);
 /** Daylight hours on the 15th of each month. */
 export function daylightYear(latitude: number): number[] {
-  return MID_MONTH.map((day) => Math.round(sunlight(latitude, declination(day)).daylight * 10) / 10);
+  return MID_MONTH.map((day) => Math.round(sunlight(latitude, declinationOn(day)).daylight * 10) / 10);
 }
 
 // SHA-256 (FIPS 180-4), used for the RFC 7636 example without host crypto globals.

@@ -1,0 +1,342 @@
+{
+  "source": "ERFA hd2ae via pyerfa",
+  "version": "2.0.1.5",
+  "rows": [
+    {
+      "latitude": -65,
+      "declination": -23.44,
+      "hourAngle": 0,
+      "azimuth": -0.0,
+      "altitude": 48.440000000000005
+    },
+    {
+      "latitude": -65,
+      "declination": -23.44,
+      "hourAngle": 45,
+      "azimuth": 302.90998594930755,
+      "altitude": 39.39731048080657
+    },
+    {
+      "latitude": -65,
+      "declination": -23.44,
+      "hourAngle": 90,
+      "azimuth": 259.6166678530769,
+      "altitude": 21.132062062452437
+    },
+    {
+      "latitude": -65,
+      "declination": -23.44,
+      "hourAngle": 120,
+      "azimuth": 233.69017602270037,
+      "altitude": 9.592955916698772
+    },
+    {
+      "latitude": -65,
+      "declination": 0,
+      "hourAngle": 0,
+      "azimuth": -0.0,
+      "altitude": 25.0
+    },
+    {
+      "latitude": -65,
+      "declination": 0,
+      "hourAngle": 45,
+      "azimuth": 312.18626118104527,
+      "altitude": 17.38771833485946
+    },
+    {
+      "latitude": -65,
+      "declination": 0,
+      "hourAngle": 90,
+      "azimuth": 270.0,
+      "altitude": 1.4826947434433058e-15
+    },
+    {
+      "latitude": -65,
+      "declination": 0,
+      "hourAngle": 120,
+      "azimuth": 242.37886965244215,
+      "altitude": -12.199081690448805
+    },
+    {
+      "latitude": -65,
+      "declination": 23.44,
+      "hourAngle": 0,
+      "azimuth": -0.0,
+      "altitude": 1.5600000000000025
+    },
+    {
+      "latitude": -65,
+      "declination": 23.44,
+      "hourAngle": 45,
+      "azimuth": 319.3689035392174,
+      "altitude": -4.95328029369222
+    },
+    {
+      "latitude": -65,
+      "declination": 23.44,
+      "hourAngle": 90,
+      "azimuth": 280.3833321469231,
+      "altitude": -21.132062062452437
+    },
+    {
+      "latitude": -65,
+      "declination": 23.44,
+      "hourAngle": 120,
+      "azimuth": 252.68894212906702,
+      "altitude": -33.66871796317845
+    },
+    {
+      "latitude": 0,
+      "declination": -23.44,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 66.56
+    },
+    {
+      "latitude": 0,
+      "declination": -23.44,
+      "hourAngle": 45,
+      "azimuth": 238.485147950218,
+      "altitude": 40.44774772093066
+    },
+    {
+      "latitude": 0,
+      "declination": -23.44,
+      "hourAngle": 90,
+      "azimuth": 246.55999999999997,
+      "altitude": 3.2188351915501765e-15
+    },
+    {
+      "latitude": 0,
+      "declination": -23.44,
+      "hourAngle": 120,
+      "azimuth": 243.40557854934315,
+      "altitude": -27.305739659346845
+    },
+    {
+      "latitude": 0,
+      "declination": 0,
+      "hourAngle": 0,
+      "azimuth": 0.0,
+      "altitude": 90.0
+    },
+    {
+      "latitude": 0,
+      "declination": 0,
+      "hourAngle": 45,
+      "azimuth": 270.0,
+      "altitude": 45.00000000000001
+    },
+    {
+      "latitude": 0,
+      "declination": 0,
+      "hourAngle": 90,
+      "azimuth": 270.0,
+      "altitude": 3.508354649267438e-15
+    },
+    {
+      "latitude": 0,
+      "declination": 0,
+      "hourAngle": 120,
+      "azimuth": 270.0,
+      "altitude": -29.999999999999993
+    },
+    {
+      "latitude": 0,
+      "declination": 23.44,
+      "hourAngle": 0,
+      "azimuth": -0.0,
+      "altitude": 66.56
+    },
+    {
+      "latitude": 0,
+      "declination": 23.44,
+      "hourAngle": 45,
+      "azimuth": 301.514852049782,
+      "altitude": 40.44774772093066
+    },
+    {
+      "latitude": 0,
+      "declination": 23.44,
+      "hourAngle": 90,
+      "azimuth": 293.43999999999994,
+      "altitude": 3.2188351915501765e-15
+    },
+    {
+      "latitude": 0,
+      "declination": 23.44,
+      "hourAngle": 120,
+      "azimuth": 296.59442145065685,
+      "altitude": -27.305739659346845
+    },
+    {
+      "latitude": 40.75,
+      "declination": -23.44,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 25.81
+    },
+    {
+      "latitude": 40.75,
+      "declination": -23.44,
+      "hourAngle": 45,
+      "azimuth": 221.82987057358503,
+      "altitude": 13.40384708461248
+    },
+    {
+      "latitude": 40.75,
+      "declination": -23.44,
+      "hourAngle": 90,
+      "azimuth": 251.8169364614465,
+      "altitude": -15.049908148570227
+    },
+    {
+      "latitude": 40.75,
+      "declination": -23.44,
+      "hourAngle": 120,
+      "azimuth": 269.8626614088077,
+      "altitude": -37.38620882703527
+    },
+    {
+      "latitude": 40.75,
+      "declination": 0,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 49.25
+    },
+    {
+      "latitude": 40.75,
+      "declination": 0,
+      "hourAngle": 45,
+      "azimuth": 236.86511464268688,
+      "altitude": 32.38999415464042
+    },
+    {
+      "latitude": 40.75,
+      "declination": 0,
+      "hourAngle": 90,
+      "azimuth": 270.0,
+      "altitude": 2.657806635085995e-15
+    },
+    {
+      "latitude": 40.75,
+      "declination": 0,
+      "hourAngle": 120,
+      "azimuth": 290.6499722178821,
+      "altitude": -22.258287795349375
+    },
+    {
+      "latitude": 40.75,
+      "declination": 23.44,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 72.69000000000001
+    },
+    {
+      "latitude": 40.75,
+      "declination": 23.44,
+      "hourAngle": 45,
+      "azimuth": 259.33866238188955,
+      "altitude": 48.68869328703324
+    },
+    {
+      "latitude": 40.75,
+      "declination": 23.44,
+      "hourAngle": 90,
+      "azimuth": 288.18306353855354,
+      "altitude": 15.049908148570234
+    },
+    {
+      "latitude": 40.75,
+      "declination": 23.44,
+      "hourAngle": 120,
+      "azimuth": 307.094349852739,
+      "altitude": -5.040733566650522
+    },
+    {
+      "latitude": 65,
+      "declination": -23.44,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 1.5600000000000025
+    },
+    {
+      "latitude": 65,
+      "declination": -23.44,
+      "hourAngle": 45,
+      "azimuth": 220.63109646078257,
+      "altitude": -4.95328029369222
+    },
+    {
+      "latitude": 65,
+      "declination": -23.44,
+      "hourAngle": 90,
+      "azimuth": 259.6166678530769,
+      "altitude": -21.132062062452437
+    },
+    {
+      "latitude": 65,
+      "declination": -23.44,
+      "hourAngle": 120,
+      "azimuth": 287.311057870933,
+      "altitude": -33.66871796317845
+    },
+    {
+      "latitude": 65,
+      "declination": 0,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 25.0
+    },
+    {
+      "latitude": 65,
+      "declination": 0,
+      "hourAngle": 45,
+      "azimuth": 227.81373881895468,
+      "altitude": 17.38771833485946
+    },
+    {
+      "latitude": 65,
+      "declination": 0,
+      "hourAngle": 90,
+      "azimuth": 270.0,
+      "altitude": 1.4826947434433058e-15
+    },
+    {
+      "latitude": 65,
+      "declination": 0,
+      "hourAngle": 120,
+      "azimuth": 297.6211303475578,
+      "altitude": -12.199081690448805
+    },
+    {
+      "latitude": 65,
+      "declination": 23.44,
+      "hourAngle": 0,
+      "azimuth": 180.0,
+      "altitude": 48.440000000000005
+    },
+    {
+      "latitude": 65,
+      "declination": 23.44,
+      "hourAngle": 45,
+      "azimuth": 237.09001405069245,
+      "altitude": 39.39731048080657
+    },
+    {
+      "latitude": 65,
+      "declination": 23.44,
+      "hourAngle": 90,
+      "azimuth": 280.3833321469231,
+      "altitude": 21.132062062452437
+    },
+    {
+      "latitude": 65,
+      "declination": 23.44,
+      "hourAngle": 120,
+      "azimuth": 306.30982397729963,
+      "altitude": 9.592955916698772
+    }
+  ]
+}

@@ -9,10 +9,12 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, StringSink, SnapshotSink, MotionSink,
-  analyzeMotion, renderAt, renderText, traceScene, indexScene, stepTime, loadFonts, VMobject,
-  diffLines, diffTokens, parseUnifiedDiff, tokenize, hunkHeader,
+  Scene, Code, Text, FadeIn, LaggedStart, TransformDiff, TransformMatchingText, VMobject,
+  diffLines, parseUnifiedDiff,
 } from '../src/index.ts';
+import { StringSink, SnapshotSink, renderAt, renderText, indexScene, stepTime } from '../src/output.ts';
+import { MotionSink, analyzeMotion, traceScene, loadFonts } from '../explain/testing.ts';
+import { diffTokens, tokenize, hunkHeader } from '../src/diff.ts';
 import type { Hunk, Mobject, Sink } from '../src/index.ts';
 import { drawsFrom } from './lib/random-scene.ts';
 
@@ -327,13 +329,46 @@ test('every matching transform records its counts when it begins in a scene', as
   })(new StringSink()).run();
   assert.deepEqual(s.steps[0]!.evidence, [{ kind: 'match', matched: 5, morphed: 0, removed: 0, added: 1 }]);
   assert.deepEqual(s.evidence, s.steps[0]!.evidence);
-  // Outside a scene there is nowhere to record: begin() still works
+  // Outside a scene there is nowhere to record: begin() still works, and evidence() reads the counts
   const free = new TransformMatchingText(new Text('ab'), new Text('abc'));
   free.begin();
-  assert.equal(free.scene, null);
+  assert.deepEqual(free.evidence(), { kind: 'match', matched: 2, morphed: 0, removed: 0, added: 1 });
   // record() copies as JSON
   const data = { n: 1 };
   s.record('note', data);
   data.n = 2;
   assert.deepEqual(s.evidence.at(-1), { kind: 'note', n: 1 });
+});
+
+test('every animation that decides something records it as it begins: nested in groups and successions, in begin order', async () => {
+  await loadFonts();
+  const { view, Follow, Succession, AnimationGroup, Dot, linear } = await import('../src/index.ts');
+  const s = await new (class extends Scene<{ word: string }> {
+    override state = { word: 'cache' };
+    override async construct() {
+      await this.step('a');
+      const readout = view(this, (st) => new Text(st.word));
+      readout.key = 'readout';
+      const plain = view(this, (st) => new Text(st.word));
+      const dot = new Dot();
+      this.add(readout, plain, dot);
+      this.state = { word: 'cached' };
+      await this.play(new AnimationGroup([
+        new TransformMatchingText(new Text('ab'), new Text('abc')),
+        new Succession([
+          readout.sync({ runTime: 0.2 }),
+          new Follow({ from: 1, to: 2, draw: (x) => new Dot().moveTo([x, 0]) }, { targets: [dot], runTime: 0.2, rateFunc: linear }),
+          plain.sync({ runTime: 0.2, match: 'index' }),
+        ]),
+      ]));
+    }
+  })(new StringSink()).run();
+  assert.deepEqual(s.steps[0]!.evidence, [
+    { kind: 'match', matched: 2, morphed: 0, removed: 0, added: 1 },
+    // A View's sync records its morph, named by the View's key
+    { kind: 'match', matched: 5, morphed: 0, removed: 0, added: 1, view: 'readout' },
+    // A Follow records the interval it sampled and what it wrote, by key or class
+    { kind: 'follow', from: 1, to: 2, targets: ['Dot'] },
+    // A sync by index pairs nothing by key: it records nothing
+  ]);
 });

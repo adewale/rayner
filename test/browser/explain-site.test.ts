@@ -41,7 +41,7 @@ test(
         ['python-dict', 'mr-cache'],
       );
       assert.equal(catalog.totals.explainers, 2);
-      assert.equal(catalog.totals.cases, 4);
+      assert.equal(catalog.totals.scenarios, 4);
       assert.deepEqual(catalog.product.entry, {
         id: 'mr-cache',
         step: 'reader-request',

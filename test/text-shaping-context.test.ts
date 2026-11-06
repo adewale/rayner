@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Scene, Text, Code, NullSink, loadFonts} from '../src/index.ts';
+import {Scene, Text, Code} from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import {bindLettering, textShaping} from '../src/lettering-outlines.ts';
 import type {LetteringProvider} from '../src/lettering-outlines.ts';
 

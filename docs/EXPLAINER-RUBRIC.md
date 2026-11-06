@@ -1,37 +1,70 @@
-# Explainer editorial rubric
+# Judging an explainer
 
-Use this to assess a reader-paced *lesson*, not its animation polish, topic popularity or suitability as a product hero. Read the gallery title, the declared default case, every resting step and caption, at least one countercase where available, the ending, and the source/test trail. Resolve the default from `settings[].default` in `describe.json`, **not** from the first case in the array. Inspect the pictures and the pivotal before → operation → after bridge; motion earns nothing merely by existing. For a one-case scene, assess an internal contrast or an explicit limit rather than deducting points for having no setting.
+Use this to judge whether a reader-paced explainer teaches, not how polished its animation is. It asks for a judgement with evidence rather than a score. Scores from earlier editions, such as the /24 totals in the assessments kept in [Git history at ce11e0a](https://github.com/adewale/rayner/tree/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence), measured adherence to a list and are not comparable with anything here.
 
-Score six dimensions from 0 to 4 (24 total). Apply the same anchors to each: **0** missing/contradicted; **1** asserted but not demonstrated; **2** partly shown, with a substantial inference left to the reader; **3** shown with a small gap or avoidable detour; **4** directly earned and easy to inspect. Record a specific reason for any score below 4. Equal-weight totals are a *triage order*, not calibrated measurements of comprehension; equal totals tie. Do not break ties by subjective decimal points.
+The criteria are 3Blue1Brown's Summer of Math Exposition's, with Grant Sanderson's advice on the craft behind them; the skill's [Script first](../skills/rayner-explainers/SKILL.md#script-first) cites them and says how to write for them.
 
-| Dimension | What earns 4 |
+## How to read
+
+Read `script.md` straight through first. Identify the observation being explained, the rule or mechanism that accounts for it, and a changed condition whose result the reader could now predict. Point to the sentences that connect those three. A numbered sequence and a correct answer are insufficient if the causal bridge is missing. Distinguish a rule being explained from an input the lesson assumes, and ask whether the reader has been told which is which.
+
+Then read the explanation as a newcomer: the gallery title, every resting step and caption of the declared default scenario (from `settings[].default` in `describe.json`, not the first scenario listed), at least one other scenario where there is one, the ending, and the source and test trail. Use the page itself at 1280 × 800 and on a phone, from the first step and from fresh links to later steps. Check that the page supports the script's reasoning: each new inference has visible evidence, a useful comparison or an explicit premise. Keep the guiding question in mind: how valuable is this compared with the typical explanation of the same thing a reader could find?
+
+## Working documents
+
+Keep each fact where it can be maintained:
+
+| Where | What belongs there |
 | --- | --- |
-| **Q — Question and promise** | The opening gives a specific puzzle or decision, and the declared default case answers the gallery title. A topic label or a puzzle delayed behind a tool inventory is not enough. |
-| **P — Progression and payoff** | Each step answers a needed question; the decisive before → operation → after correspondence is shown rather than jumped; the ending resolves the opening. A smooth morph without a causal bridge does not qualify. |
-| **V — Visible evidence** | Resting pictures retain the decisive values, paths and comparisons; a stable label, reference or identity lets the reader follow the same thing across representations. The evidence can be inspected at phone width and on direct entry to its step, without replaying motion or remembering another view. |
-| **B — Boundaries and countercases** | A materially different case or internal comparison tests a plausible wrong generalization; the changed input, fixed assumptions and resulting difference or invariant are visible. Conditional prose keeps the conclusion true for its scope. One-case scenes can score 4. |
-| **G — Grounding and calibration** | The top claim traces to an appropriate source, version, observed run or independently checked model, with an actual result or an identified comparison—not merely a box labelled “verified.” Distinguish a model from its external oracle, a reproducibility check from factual truth, and approximation from exactness. |
-| **E — Reader economy** | The opening gives the reader a reason to continue before a long detour; terms arrive when needed, labels sit by their referents and prose interprets rather than duplicates the image. A still can earn 4 when motion adds nothing. This is not a reward for fewer steps. |
+| `script.md` | The explanation addressed to the reader, including predictions and the scope needed to interpret the conclusion. No implementation directions, revision history, verification report or copied ending quiz. |
+| `scene.ts` metadata and steps | The published captions, scenarios, one-sentence answer, ending questions and disclosed answers. Read or describe the scene to inspect them; do not maintain a parallel step inventory in Markdown. |
+| Optional `notes.md` | Non-obvious visual decisions, source interpretation and model limits useful to the next author. Link to the owning source or test rather than copying its assertions. Omit this file when it adds nothing. |
+| Models, tests and review receipts | Computation and evidence for correctness, picture fidelity and served behavior. They do not establish reader comprehension. |
 
-**Before scoring:** a failing build, incorrect case or step restoration, known false claim, inaccessible continuation, or materially misleading picture is a fix-first issue, not a small score deduction. Mark it separately, repair and regrade. For a pivotal claim, record its case, step, pictured witness and source/test. Inspect both forward arrival and a fresh direct link at phone width; an automatically advanced screenshot is not evidence of a resting picture until its caption and state are checked. The 0–4 scores cannot certify factual truth: inspect source and model tests for the top claim, and commission domain review where the cost of error merits it. `rayner check` and `rayner review` provide rendering/navigation evidence, not independent fact-checking or comprehension testing.
+The script is an editorial draft of the explanation, not a generated transcript. If a rewrite changes the reasoning, update the corresponding scene prose and check its offered scenarios. Do not leave a stronger promise in the script than the page fulfills. Source links belong in `meta.sources`; notes can explain why a source or convention was chosen. Revision history belongs in Git.
 
-**How to report:** give Q/P/V/B/G/E, total, one observable strength or improvement, the assessed commit/export, and the limits of the review. Sort by total descending, ties together (alphabetical display within a tie is only for finding rows). Regrade after substantive changes; do not compare totals from different editions as if they were controlled reader-study results. As an *unscored* diagnostic, show the countercase's input before its answer and ask an unfamiliar reader to predict the outcome and why; record their actual answer, not a presumed retention or comprehension score. See the dated [29-scene assessment](https://github.com/adewale/rayner/blob/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence/explainer-stack-rank-2026-10-30.md).
+Use the ending questions in `meta.checks` to challenge the script: can its reasoning answer a changed condition, or does it only reveal the quiz answer? This can expose a weak explanation before reader testing, but only a newcomer study measures what readers understand.
 
-**Checks from the player redesign** (unscored, but cite them in V and E):
+## The criteria
 
-- *Crop test* (V). Open each step from a direct link at phone width and cover the caption. The resting picture should still say which step it is, what it is about and which values matter. A picture that needs its caption to be read at all loses V.
-- *Step length* (E). Captions use their natural height. Keep the reasoning needed to connect the visible evidence to its consequence; cut repetition and split a step when it introduces a new idea or decision.
-- *Roles* (E). The title states what the picture proves, the line says what to notice, the caption gives the reasoning. A line that reads as a second caption, or a caption that repeats the title, is duplication.
-- *Layout* (V, E). The step's change is the strongest mark; a mark means the same thing in every step; regions share edges; labels sit by their referents.
+For each, say how well it is met (strong, adequate or weak) and cite the steps that show it.
 
-## Choose a hero separately
+- **Motivation.** Is it clear early why the topic matters and why someone should want the answer? A problem the reader feels, or a surprising result, before the machinery.
+- **Concrete before abstract.** Does it start from a specific case and let the general idea emerge, or open on a definition, a taxonomy or an inventory of parts and fill it in later?
+- **Earned names and discovery.** Does each term arrive after the reader has seen why it is needed? Could the reader nearly see each next idea before it is shown, or are ideas handed down?
+- **Story.** Do the steps solve a problem, each following from the last, or list facts in a sensible order? Does it end on the practical boundary or the strongest comparison, rather than on a list of what the model leaves out or a second topic? Those belong in notes or a detail step.
+- **Economy.** Could any step be removed without losing an inference? The common cases are an opening that states the answer followed by a walkthrough that derives it again, and two steps that make the same point with different numbers.
+- **Clarity.** Is jargon explained when it arrives, is the goal easy to follow, and does each resting picture teach on its own (opened from a direct link with the caption hidden, it still says what it shows and which values matter)? Does each step fit one screen, with its point in the caption's first sentence, on a phone too? A caption over about 80 words rarely does; move history and side facts to notes or a detail step.
+- **Novelty.** Does the presentation feel fresh: a better example, an angle the usual explanations miss, an obscure idea brought into the light? Or is it the standard treatment, redrawn?
+- **Memorability.** Is there a moment that would stick months later, an aha or shift in perspective, and does the explainer build up to it? Does motion earn its place there?
+- **The reader's own work.** Does the reader commit to a prediction, choose a scenario that changes the outcome, or answer the check questions (`meta.checks`) afterwards? Does every setting change the conclusion? A setting whose other option only changes the numbers doubles the scenarios and teaches nothing. Where a check question is about events (press this, then that), can the reader answer it on the page with a live machine? Ask for reasoning or transfer, not recall of arbitrary details. An expert answering without the lesson does not invalidate a question; evaluate what newcomers learn.
+- **Grounding.** Does every claimed value, path or comparison trace to a model tested against the real thing, with a scenario that could prove a tempting generalisation wrong? Is every sentence that reaches beyond the scenarios shown ("every", "never", "only") backed by a test or narrowed, does the script say what the model leaves out, and does a claim resting only on the explainer's own model say so? `rayner check` lists the sweeping sentences nothing backs and the code names reaching the reader's words.
 
-A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, write down the prospective **author's job**, a reproducible reader puzzle, the **Rayner leverage** (what coordinated model, code, state and picture reveal that a still or code diff would not), a **consequential counterfactual**, the source/test trail, and the claim's limit. Score these editorial prompts **J/R/C, 0–4 each**, alongside—not added to—the lesson score:
+## Fix first
 
-| Hero prompt | 0 | 2 | 4 |
-| --- | --- | --- | --- |
-| **J — Author job** | No identifiable task or observed puzzle. | A task is named but its example result or intended reader is vague. | A particular author can explain a reproducible failure, decision or surprising result to a named audience. |
-| **R — Rayner leverage** | A generic animation or API inventory. | One tool feature appears, but code, model and picture need not agree. | A model-driven change visibly coordinates the relevant code, state, picture and caption; an independent check or bounded source supports the example. |
-| **C — Counterfactual value** | Another input merely recolours the picture. | An alternate input changes a number but not the inference. | One changed condition changes the outcome or exposes an invariant, and a reader can inspect both results and their limit. |
+These are failures, not shortcomings to weigh:
 
-These are **selection prompts**, not measured demand or evidence that Rayner is better than another tool. Do not punish a lesson for needing only a still or one case. Reassess hero fit independently of the historical /24 ranks; see the [portfolio review](https://github.com/adewale/rayner/blob/ce11e0ac611cc7b4babc24a573039ef96f179c3f/docs/evidence/explainer-portfolio-review-2026-10-30.md).
+- **No answer.** The explainer never makes clear what it is answering, or names the answer only after the details: the reader should know what the explainer is about within the first third of the steps. `rayner check` fails a declared `meta.answer` that no step states and reports where it first appears.
+- **Untrue.** A known false claim, a picture that misleads, a sentence that a setting makes false, or a claim beyond what the model and its sources support.
+- **Broken.** A failing build or check, a step or scenario that restores wrongly from a fresh link, or a continuation a keyboard or screen-reader user cannot reach.
+
+`rayner check` and `rayner review` give rendering and navigation evidence; they do not establish truth or learning. For a consequential claim, inspect the model's tests against its source.
+
+## Verdict
+
+End with one of these, and the one change that would help most:
+
+- **Good.** It meets most of the criteria strongly and has no fix-first failure.
+- **Improve.** The subject and the model are worth it, and a rewrite of the script, a reordering of steps or a few pictures would make it good. Say whether that is easy (the existing pictures can be reused) or a rebuild.
+- **Keep for coverage.** As a lesson it is weak or redundant, but it is the only scene exercising an engine feature, diagram family, language or check, so it stays in the collection as a test, out of the gallery.
+- **Delete.** Weak as a lesson, and anything it covers is covered elsewhere.
+
+For an explainer about Rayner itself (its checks, its player, its lettering), the reader is someone writing explainers: judge motivation and novelty for that reader, or keep it for coverage.
+
+When several explainers must be ordered, compare them in pairs, blind where possible, rather than adding up judgements.
+
+## Choosing a hero
+
+A clear niche lesson can be valuable without being a good front-door example. For a gallery hero, also write down the author's job (a reproducible failure, decision or surprising result, explained to a named audience), what Rayner adds (what the coordinated model, code and picture show that a still or diff would not, with an independent check behind it), and the other scenario that matters (one changed condition that changes the outcome, with both results inspectable). These are editorial reasons to select a lesson. The benchmark records reviewers' preferences between the pages it tested; it does not measure reader demand or newcomer learning.
+
+The showcase tier selects subject examples to study, not a measured learning outcome. Prefer a small set of complementary mechanisms and consequential alternative scenarios over broad engine coverage. Keep authoring recipes in their own collection; a toolchain lesson joins the showcase only when it stands on its own as a lesson, as lantern's still-versus-playback comparison does. The catalog is the source of truth for the current selection. A lesson’s benchmark status must remain explicit; selection alone does not demonstrate that it beats another tool.

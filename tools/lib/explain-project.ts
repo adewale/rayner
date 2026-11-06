@@ -9,15 +9,21 @@ import { dirname, resolve, join, basename, relative, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { Scene, NullSink } from '../../src/index.ts';
+import { Scene } from '../../src/index.ts';
+import { NullSink } from '../../src/output.ts';
+import { machinesOf } from '../../explain/testing.ts';
 import { traceRun } from '../../src/trace.ts';
 import type { Palette } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { paperOf, paletteOf } from '../../explain/stage.ts';
 import { checkWatch } from '../../explain/trace.ts';
+import { checkScriptMeta } from '../../explain/script.ts';
+import { checkClaimsMeta } from '../../explain/claims.ts';
 import { takeMissingGlyphs } from '../../src/lettering.ts';
-import type { Trace } from '../../src/index.ts';
+import type { Machine } from '../../src/index.ts';
+import type { Trace } from '../../explain/testing.ts';
 
-import { variantsOf, withSettings, bindSnapshots, caseName, resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/index.ts';
+import { scenariosOf, withSettings, bindSnapshots, scenarioName } from '../../explain/testing.ts';
 import type { ExplainerClass, SnapshotStore, Settings } from '../../explain/index.ts';
 import type { DiagramResolver } from '../../integrations/agentic-mermaid/snapshot.ts';
 import { diagramKey, RENDERER } from '../../integrations/agentic-mermaid/snapshot.ts';
@@ -63,7 +69,10 @@ export function engineAlias(node = false, outlines = false): Plugin {
         let file: string | undefined;
         if (args.path === 'rayner') file = join(ROOT, 'src/index.ts');
         else if (args.path === 'rayner/explain') file = join(ROOT, 'explain/index.ts');
+        else if (args.path === 'rayner/drawing') file = join(ROOT, 'explain/drawing.ts');
         else if (args.path === 'rayner/lettering') file = join(ROOT, 'src/lettering.ts');
+        else if (args.path === 'rayner/output') file = join(ROOT, 'src/output.ts');
+        else if (args.path === 'rayner/testing') file = join(ROOT, 'explain/testing.ts');
         else if (args.path.startsWith('.') || args.path.startsWith('/')) {
           const absolute = resolve(args.resolveDir, args.path);
           const compiled = absolute.match(/\/dist\/(src|explain|integrations\/agentic-mermaid)\/(.+)\.js$/);
@@ -165,8 +174,8 @@ export interface Project {
   sourceHash: string;
   engineHash: string;
   store: SnapshotStore;
-  /** Each case: its scene, trace and final stage colours (absent without a stage). */
-  variants: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette }[];
+  /** Each scenario: its scene, trace and final stage colours (absent without a stage). */
+  scenarios: { values: Settings; Scene: ExplainerClass; trace: Trace; paper?: string; palette?: Palette; live?: Map<string, { index: number; machine: Machine<object, string> }> }[];
   edits: number;
   /** The faces cut for `static meta.lettering`; absent when the scene asks for none. */
   lettering?: Lettering;
@@ -323,16 +332,16 @@ export async function collectProject(
       return inspect(result);
     },
     async morph(before, after, ops) {
-      const { replayMorph } = await import('../../integrations/agentic-mermaid/build/index.ts');
-      replayMorph(before, after, ops);
+      const { replayMorphExplained } = await import('./explain-morph.ts');
+      replayMorphExplained(before, after, ops);
       edits++;
     },
   };
-  const variants: Project['variants'] = [];
+  const scenarios: Project['scenarios'] = [];
   const undrawable: string[] = [];
   let lettering: Lettering | undefined;
   try {
-    // Only a scene that asks for lettering runs this: once per case with the whole
+    // Only a scene that asks for lettering runs this: once per scenario with the whole
     // source faces, to learn which letters to cut them to (explain-lettering.ts).
     if (request) {
       lettering = await prepareLettering(
@@ -340,7 +349,7 @@ export async function collectProject(
         request,
         async () => {
           const counted = edits;
-          for (const values of variantsOf(Source)) {
+          for (const values of scenariosOf(Source)) {
             const scene = await new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), {
               skipUntil: Infinity,
             }).run();
@@ -355,14 +364,14 @@ export async function collectProject(
         Object.defineProperty(previous, key, { value: store[key], enumerable: true, writable: true, configurable: true });
     }
     await useProjectLettering({ lettering });
-    for (const values of variantsOf(Source)) {
+    for (const values of scenariosOf(Source)) {
       const collect = new (withSettings(bindSnapshots(Source, resolver), values))(new NullSink(), { skipUntil: Infinity });
-      // Text the embedded fonts cannot draw shows as nothing: name it by case and step, then fail.
+      // Text the embedded fonts cannot draw shows as nothing: name it by scenario and step, then fail.
       let step = '(before the first step)';
       const blanks = () => {
         for (const [text, chars] of takeMissingGlyphs())
           undrawable.push(
-            `${caseName(Source, values) || 'The scene'}, step ${step}: "${text}" has ${[...chars].map((c) => `${c} (U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`).join(', ')}`,
+            `${scenarioName(Source, values) || 'The scene'}, step ${step}: "${text}" has ${[...chars].map((c) => `${c} (U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`).join(', ')}`,
           );
       };
       takeMissingGlyphs();
@@ -377,7 +386,7 @@ export async function collectProject(
         paper = paperOf(ran),
         names = trace.steps.map((s) => s.step);
       if (!names.length || names.some((name) => !name.trim()))
-        throw new Error(`Each case needs non-empty named steps: ${JSON.stringify(values)}`);
+        throw new Error(`Each scenario needs non-empty named steps: ${JSON.stringify(values)}`);
       if (new Set(names).size !== names.length)
         throw new Error(`Duplicate step names prevent stable links: ${JSON.stringify(values)}`);
       // The page never draws these (offPage): they stay out of what it carries
@@ -389,24 +398,31 @@ export async function collectProject(
           new Text(`${i + 1}. ${String(s.meta.title ?? s.step)}`, {shaping: textContextOf(Bound)});
         }
       }));
-      variants.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}) });
+      // The steps a reader can drive a machine at (app/embed-live.ts): the page's transcript lists their events.
+      // Each machine at the step it last played in (as liveSteps in app/embed-live.ts finds them; a later machine wins a step).
+      const live = new Map<string, { index: number; machine: Machine<object, string> }>();
+      for (const [index, machine] of machinesOf(ran).entries()) if (machine.lastPlayedIn !== null) live.set(machine.lastPlayedIn, { index, machine });
+      scenarios.push({ values, Scene: Bound, trace, palette: paletteOf(ran), ...(paper ? { paper } : {}), ...(live.size ? { live } : {}) });
     }
     if (undrawable.length)
       throw new Error(`The embedded fonts cannot draw these characters:\n${[...new Set(undrawable)].join('\n')}`);
-    // The state readers follow must be state the scene keeps, in some step of some case.
-    checkWatch(Source.meta?.watch, variants.flatMap((v) => v.trace.steps));
+    // The state readers follow must be state the scene keeps, in some step of some scenario.
+    checkWatch(Source.meta?.watch, scenarios.flatMap((v) => v.trace.steps));
+    // The script's answer and check questions must be usable before any scenario is checked against them.
+    checkScriptMeta(Source.meta);
+    checkClaimsMeta(Source.meta);
     await outline?.finish();
     if (write) await writeSnapshots(base, store, loaded.sourceHash);
-    return { ...loaded, Scene: Source, store, variants, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };
+    return { ...loaded, Scene: Source, store, scenarios, edits, ...(lettering ? { lettering } : {}), ...(outline ? { outlineLettering: outline.snapshot } : {}) };
   } finally {
     await builder?.close();
     await naturalBuilder?.close();
   }
 }
-/** The default case, or the case these values choose with every other setting at its default, as a URL does. */
-export function defaultVariant(project: Project, values: Settings = {}) {
+/** The default scenario, or the scenario these values choose with every other setting at its default, as a URL does. */
+export function defaultScenario(project: Project, values: Settings = {}) {
   const want = resolveSettings(project.Scene, values);
-  return project.variants.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]))!;
+  return project.scenarios.find((v) => Object.keys(want).every((key) => v.values[key] === want[key]))!;
 }
 export const sceneSlug = (p: Project) => p.Scene.meta?.id ?? basename(p.file).replace(/\.[^.]+$/, '');
 /** The fields every page receipt carries: what was built, from which sources. */

@@ -13,12 +13,12 @@ export function completedCampaign(jobs: {name: string; conclusion: string | null
   return requiredJobs.every(name => jobs.filter(job => job.name === name).length === 1 &&
     jobs.find(job => job.name === name)!.conclusion === 'success');
 }
-export function reusableProof(story: {sourceCommit?: string; cases?: number; stepWidths?: number; consoleErrors?: unknown[]; runtimeConnections?: unknown[]},
+export function reusableProof(story: {sourceCommit?: string; scenarios?: number; stepWidths?: number; consoleErrors?: unknown[]; runtimeConnections?: unknown[]},
   archive: {sourceCommit?: string; dirty?: boolean; node?: string; gates?: {package?: boolean; browser?: boolean; letteringCapture?: boolean}},
   commit: string, node: string): boolean {
   return /^[a-f0-9]{40}$/.test(commit) && story.sourceCommit === commit && archive.sourceCommit === commit &&
     archive.dirty === false && archive.node === node && archive.gates?.package === true && archive.gates.browser === true &&
-    archive.gates.letteringCapture === true && Number.isSafeInteger(story.cases) && story.cases! > 0 &&
+    archive.gates.letteringCapture === true && Number.isSafeInteger(story.scenarios) && story.scenarios! > 0 &&
     Number.isSafeInteger(story.stepWidths) && story.stepWidths! > 0 &&
     Array.isArray(story.consoleErrors) && story.consoleErrors.length === 0 &&
     Array.isArray(story.runtimeConnections) && story.runtimeConnections.length === 0;

@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
-      "step": "question",
+      "step": "room",
       "opening": true,
       "targets": [
         {
@@ -11,94 +11,67 @@
       ]
     },
     {
-      "step": "pairs",
-      "opening": true,
-      "targets": [
-        {
-          "key": "birthday-growth"
-        }
-      ]
-    },
-    {
-      "step": "count",
-      "opening": true,
-      "targets": [
-        {
-          "key": "birthday-n"
-        },
-        {
-          "key": "birthday-pairs"
-        }
-      ]
-    },
-    {
-      "step": "avoid",
-      "opening": true,
-      "targets": [
-        {
-          "key": "birthday-factors"
-        }
-      ]
-    },
-    {
       "step": "chance",
       "opening": true,
       "targets": [
         {
-          "key": "birthday-no"
+          "key": "birthday-people"
         },
         {
-          "key": "birthday-yes"
+          "key": "birthday-footer"
         }
       ]
     },
     {
-      "step": "sample",
+      "step": "you",
       "opening": true,
       "targets": [
         {
-          "key": "birthday-trials"
+          "key": "birthday-you-lines"
         },
         {
-          "key": "birthday-observed"
+          "key": "birthday-comparisons"
         },
         {
-          "key": "birthday-theory"
+          "key": "birthday-chance"
         }
       ]
     },
     {
-      "step": "questions",
+      "step": "pairs",
       "opening": true,
       "targets": [
         {
-          "key": "birthday-questions"
+          "key": "birthday-pair-lines"
+        },
+        {
+          "key": "birthday-pairs"
+        },
+        {
+          "key": "birthday-chance"
         }
       ]
     },
     {
-      "step": "occupied",
+      "step": "exact",
       "opening": true,
       "targets": [
         {
           "key": "birthday-days"
         }
-      ],
-      "settings": {
-        "question": "any"
-      }
+      ]
     },
     {
-      "step": "occupied",
+      "step": "estimate",
       "opening": true,
       "targets": [
         {
-          "key": "birthday-days"
+          "key": "birthday-shortcut"
+        },
+        {
+          "key": "birthday-exact"
         }
-      ],
-      "settings": {
-        "question": "one"
-      }
+      ]
     }
   ]
 }

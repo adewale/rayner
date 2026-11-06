@@ -1,27 +1,29 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/periodic-groups.ts';
 import {
   Scene,
   Group,
   Text,
   Rectangle,
   Line,
-  Animation,
+  Arrow,
+  SetState,
   AnimationGroup,
   Succession,
   FadeIn,
   view,
   linear,
+  matchByKey,
+  lerpColor,
 } from '../../../src/index.ts';
 import type { ScheduledAnimation, SceneState, View, Mobject, Vec, MatchKey } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { lerpColor } from '../../../src/color.ts';
 import {
   POSITIONS,
-  GROUP_NAMES,
+  position,
   NAMES,
   CAPACITY,
   NIST_UP_TO,
+  NIST_EXCEPTIONS,
+  periodLength,
   predicted,
   listed,
   coreOf,
@@ -31,10 +33,12 @@ import {
   symbolOf,
   atomicNumber,
   configText,
+  subshellText,
   shorthand,
   beyondCore,
 } from '../lib/periodic-groups.ts';
 import type { Block, Symbol, Subshell } from '../lib/periodic-groups.ts';
+import { listed as list } from '../lib/format.ts';
 
 // The table: 18 numbered columns, 7 periods, the f block's two rows below.
 const PITCH_X = 0.82,
@@ -48,6 +52,15 @@ const rowY = (row: number) => 2.29 - (row - 1) * PITCH_Y;
 const HEADER_Y = 2.78;
 const STRIP_Y = -2.24;
 const fRowY = (row: number) => -3.03 - (row - 1) * PITCH_Y;
+/**
+ * The opening's small, unlabelled table and its caption, one row under the comparison: the
+ * caption's left edge, the table's scale, and its centre. The caption is about 6.2 wide and the
+ * table 14.76 × 0.4 = 5.9, so the pair, 1 apart, centres on the stage.
+ */
+const CONTEXT_LABEL_X = -6.6,
+  CONTEXT_SCALE = 0.4,
+  CONTEXT_X = 3.6,
+  CONTEXT_Y = -2.8;
 /** The empty rectangle above the d block, periods 1 to 3: where the words go. */
 const NOTE_X = colX(3) - CELL_W / 2,
   NOTE_RIGHT = colX(12) + CELL_W / 2;
@@ -71,40 +84,75 @@ const ELEMENTS = {
 } as const satisfies Record<string, Symbol>;
 type Choice = keyof typeof ELEMENTS;
 
-const cellAt = (z: number): Vec => {
+/** A cell in the table. Helium sits over beryllium until the blocks step moves it over neon. */
+const cellAt = (z: number, heliumOverNeon = true): Vec => {
+  if (z === 2 && !heliumOverNeon) return [colX(2), rowY(1)];
   const p = POSITIONS[z - 1]!;
   return p.group != null ? [colX(p.group), rowY(p.period)] : [colX(p.fColumn! + 2), fRowY(p.period - 5)];
 };
-const nameOf = (symbol: Symbol) => NAMES[symbol] ?? symbol;
-const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
-const list = (items: string[]) =>
-  items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
 /**
- * A program step at its turn in a Succession: when it begins, the scene's state becomes
- * the model's answer for that point, so the syncs after it show that state. Draws nothing.
+ * Every run of the filling rule through element 118, in order. A row starts at each run of
+ * 2, which is where the table starts a row: just after a noble gas.
  */
-class Apply extends Animation {
-  readonly host: Scene;
-  readonly next: SceneState;
-  constructor(host: Scene, next: SceneState) {
-    super(new Group(), { runTime: 0, remover: true });
-    this.host = host;
-    this.next = next;
+interface Run {
+  sub: Subshell;
+  from: number;
+  to: number;
+  row: number;
+}
+const RUNS: Run[] = [];
+{
+  let from = 1,
+    row = 0;
+  for (const sub of predicted(POSITIONS.length)) {
+    if (sub.l === 's') row++;
+    RUNS.push({ sub, from, to: from + sub.electrons - 1, row });
+    from += sub.electrons;
   }
-  override begin(): void {
-    this.host.state = JSON.parse(JSON.stringify(this.next)) as SceneState;
-    super.begin();
+}
+/** How many cells each row of runs holds, laid side by side. */
+const ROW_CELLS = Array.from({ length: 7 }, (_, r) =>
+  RUNS.filter((run) => run.row === r + 1).reduce((sum, run) => sum + run.sub.electrons, 0),
+);
+
+// The fill step lays each row's runs side by side, before any table: smaller cells, a
+// small gap between runs, 32 across at most. The longest rows and their "= 32" span the
+// stage; the short rows leave the upper right for the notes.
+const PK_PITCH = 0.42,
+  PK_W = 0.38,
+  PK_H = 0.64,
+  PK_GAP = 0.12,
+  PK_LEFT = -7.45;
+const pkRowY = (row: number) => 2.4 - (row - 1) * 0.8;
+const PACKED: Vec[] = [];
+const ROW_END: number[] = [];
+{
+  let row = 0,
+    x = PK_LEFT;
+  for (const run of RUNS) {
+    if (run.row !== row) {
+      row = run.row;
+      x = PK_LEFT;
+    } else x += PK_GAP;
+    for (let i = 0; i < run.sub.electrons; i++) PACKED[run.from + i - 1] = [x + (i + 0.5) * PK_PITCH, pkRowY(row)];
+    x += run.sub.electrons * PK_PITCH;
+    ROW_END[row] = x;
   }
 }
 
+const nameOf = (symbol: Symbol) => NAMES[symbol] ?? symbol;
+const cap = (text: string) => text[0]!.toUpperCase() + text.slice(1);
+const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
+
 /**
- * Parts pair across a redraw only when they are the same thing in the same place: the
- * same words, or a shape of the same size. A cell keeps its place and changes colour;
- * a badge, a note or a block label that is new or gone fades, and no letter travels
- * from one label into another.
+ * Parts pair across a redraw by the keys the pictures give them: an element's cell and
+ * symbol keep their identity wherever they go, so the runs slide from their rows into the
+ * table. Anything unkeyed pairs only when it is the same thing in the same place: the same
+ * words, or a shape of the same size; a badge, a note or a block label that is new or gone
+ * fades, and no letter travels between labels.
  */
-const samePlace: MatchKey = (part: Mobject) => {
+const samePlace: MatchKey = matchByKey({ fallback: (part: Mobject) => {
   const owner = part.parent instanceof Text ? part.parent : part;
   const b = owner.box();
   if (!b) return undefined;
@@ -112,7 +160,22 @@ const samePlace: MatchKey = (part: Mobject) => {
   return part.parent instanceof Text
     ? `${part.parent.text}@${at}#${(part as { cluster?: number }).cluster ?? ''}`
     : `${(b[2] - b[0]).toFixed(2)}x${(b[3] - b[1]).toFixed(2)}@${at}`;
-};
+} });
+
+/** The script's one-sentence answer (meta.answer), which the stack step states. */
+const ANSWER =
+  'The table’s gaps and widths come from stacking electron-filling runs of 2, 10 and 6, with runs of 14 below';
+
+/** Of the 108 elements in the NIST reference, how many it lists as the filling rule predicts. */
+const RULE_MATCHES = NIST_UP_TO - Object.keys(NIST_EXCEPTIONS).length;
+
+/** A jump down a column as the row it adds: 8 = 2 + 6, from the subshell capacities. */
+function rowSum(jump: number): string {
+  const rows: Block[][] = [['s'], ['s', 'p'], ['s', 'd', 'p'], ['s', 'f', 'd', 'p']];
+  const row = rows.find((r) => r.reduce((sum, b) => sum + CAPACITY[b], 0) === jump);
+  if (!row) throw new Error(`A jump of ${jump} is not one row`);
+  return `${jump} = ${row.map((b) => CAPACITY[b]).join(' + ')}`;
+}
 
 /** One family member, as the family step writes it. */
 interface Member {
@@ -128,12 +191,34 @@ interface Member {
 export default class PeriodicGroupsExplainer extends Scene {
   static meta = {
     id: 'periodic-groups',
-    title: 'What puts an element in its group?',
+    title: 'Why does the periodic table have this shape?',
     player: { minStageWidth: 880 },
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Group_(periodic_table)&oldid=1381612279',
+      'https://en.wikipedia.org/w/index.php?title=Aufbau_principle&oldid=1360487775',
       'https://physics.nist.gov/PhysRefData/ASD/ionEnergy.html',
       'https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/periodic-groups.ts',
+    ],
+    // The script's answer and check questions (script.md); the stack step states the answer.
+    answer: ANSWER,
+    // Sentences that speak for all 118 elements, not only the five scenarios, and the test that holds each.
+    claims: [
+      { says: 'every full run is 2, 6, 10 or 14 long', test: 'test/explain-periodic-groups.test.ts: the filling rule fills runs of 2, 6, 10 and 14' },
+      { says: 'every jump down step 1’s column is one of those row lengths', test: 'test/explain-periodic-groups.test.ts: down a group, each jump in atomic number is one whole period' },
+      { says: 'Slide every run of 6 to the right edge and every run of 10 into the middle', test: 'test/explain-periodic-groups.test.ts: stack into the s, d, p and f columns, helium apart' },
+      { says: 'Every group 1 element ends in one s electron', test: 'test/explain-periodic-groups.test.ts: every group 1 element ends in one s electron' },
+      { says: 'Every halogen ends in two s and five p electrons', test: 'test/explain-periodic-groups.test.ts: every halogen in two s and five p electrons' },
+      { says: 'Each badge counts the electrons after the noble gas that closes the row above', shown: true as const },
+    ],
+    checks: [
+      {
+        question: 'Keep the runs of 14 inside the main table instead of putting them below. How wide would its longest rows be, and why?',
+        answer: '32 cells: 2 + 14 + 10 + 6. Putting the 14-cell runs below removes 14 columns from those rows, leaving an 18-column main table. The detached rows save width; they are still part of the same filling sequence.',
+      },
+      {
+        question: 'Silicon (14) ends 3s² 3p² and tin (50) ends 5s² 4d¹⁰ 5p². Silicon has 4 electrons after neon, tin has 14 after krypton, yet both sit in column 14. Use the stacked runs to explain why.',
+        answer: 'Each lands on the 2nd cell of a run of 6, and runs of 6 start after 2 + 10 columns, so both land in column 2 + 10 + 2 = 14. Tin’s row has a run of 10 (4d¹⁰) that fills columns 3 to 12. Silicon’s row has none, so its run of 6 slides across ten empty columns to reach the same place.',
+      },
     ],
   };
   static settings = [
@@ -167,10 +252,6 @@ export default class PeriodicGroupsExplainer extends Scene {
     const jumps = gaps(group);
     const filling = predicted(z);
     const actual = listed(z);
-    const named = GROUP_NAMES[group - 1]!;
-    // Each electron is one cell: the subshell that cell's electron enters, by the filling rule.
-    const runs: { sub: Subshell; from: number; to: number }[] = [];
-    filling.reduce((from, sub) => (runs.push({ sub, from, to: from + sub.electrons - 1 }), from + sub.electrons), 1);
     const family: Member[] = members.map((m) => {
       if (m.z > NIST_UP_TO)
         return { symbol: m.symbol, z: m.z, config: null, core: null, counted: '', uncounted: '', count: null };
@@ -193,18 +274,20 @@ export default class PeriodicGroupsExplainer extends Scene {
 
     // ---- the table, drawn from this.state --------------------------------------
     const drawTable = (state: SceneState) => {
-      // These steps compare a family or a few counts. The complete table is
-      // context; give the actual comparison its own readable native drawing.
-      const compact = state.note === 'column' || state.note === 'count';
+      // The opening compares a family's atomic numbers. The complete table is
+      // context there; give the comparison its own readable native drawing.
+      const compact = state.note === 'column';
+      // The fill step lays the runs side by side in rows, before the table exists.
+      const packed = state.layout === 'rows';
+      const heliumOverNeon = state.helium !== 'over-be';
       const lit = Number(state.lit ?? 0),
-        coreZ = Number(state.core ?? 0);
+        trail = state.trail == null ? null : Number(state.trail);
       const blocks = !!state.blocks,
         band = !!state.band,
         onlyFamily = !!state.family;
-      const spotlight = new Set(((state.limit ?? []) as Symbol[]).map(atomicNumber));
       const memberZ = new Set(members.map((m) => m.z));
       const picture = new Group();
-      for (let col = 1; !compact && col <= 18; col++) {
+      for (let col = 1; !compact && !packed && col <= 18; col++) {
         const hot = band && col === group;
         picture.add(
           new Text(String(col), { fontSize: 0.24, color: hot ? INK : SOFT, weight: hot ? 'bold' : 'normal' }).moveTo([
@@ -214,54 +297,44 @@ export default class PeriodicGroupsExplainer extends Scene {
         );
       }
       for (const p of POSITIONS) {
-        // In the family step, only the column stays.
+        // In the family step, only the column stays; in the fill step, only the cells filled so far.
         if (onlyFamily && !memberZ.has(p.z)) continue;
-        const [x, y] = cellAt(p.z);
-        const filled = p.z <= lit,
-          inCore = filled && p.z <= coreZ,
-          chosen = p.z === z,
-          lead = filled && !inCore;
-        const solid = lead || blocks;
-        const fill = solid ? BLOCK[p.block] : filled ? tint(p.block, 0.22) : PAPER;
+        if (packed && p.z > lit) continue;
+        const [x, y] = packed ? PACKED[p.z - 1]! : cellAt(p.z, heliumOverNeon);
+        const chosen = p.z === z;
+        // Solid in its run's colour: every cell from the stack step on, the cells filled so far
+        // in the fill step, and in the blocks step the chosen element's own electrons.
+        const solid = trail != null ? p.z <= trail : blocks || p.z <= lit;
+        const fill = solid ? BLOCK[p.block] : trail != null ? tint(p.block, 0.22) : PAPER;
         const stroke = chosen ? INK : solid ? BLOCK[p.block] : RULE;
         const letter = solid ? PAPER : INK,
           number = solid ? PAPER : SOFT;
-        picture.add(
-          new Rectangle({
-            width: CELL_W,
-            height: CELL_H,
-            cornerRadius: 0,
-            fill,
-            fillOpacity: 1,
-            stroke: compact && !chosen ? SOFT : stroke,
-            strokeWidth: compact ? (chosen ? 0.12 : 0.045) : chosen ? 0.05 : lead ? 0.03 : 0.015,
-          }).moveTo([x, y]),
-        );
-        if (!compact)
+        const cell = new Rectangle({
+          width: packed ? PK_W : CELL_W,
+          height: packed ? PK_H : CELL_H,
+          cornerRadius: 0,
+          fill,
+          fillOpacity: 1,
+          stroke: compact && !chosen ? SOFT : stroke,
+          strokeWidth: compact ? (chosen ? 0.12 : 0.045) : chosen ? 0.05 : 0.015,
+        }).moveTo([x, y]);
+        if (!compact) cell.key = `periodic-cell:${p.z}`;
+        picture.add(cell);
+        if (compact) continue;
+        const letters = new Text(p.symbol, {
+          fontSize: packed ? 0.23 : 0.3,
+          color: letter,
+          weight: chosen ? 'bold' : 'normal',
+        }).moveTo([x, packed ? y : y - 0.11]);
+        letters.key = `periodic-symbol:${p.z}`;
+        picture.add(letters);
+        if (!packed)
           picture.add(
-            new Text(p.symbol, { fontSize: 0.3, color: letter, weight: chosen ? 'bold' : 'normal' }).moveTo([
-              x,
-              y - 0.11,
-            ]),
             new Text(String(p.z), { fontSize: 0.22, font: 'mono', color: number }).moveTo(
               [x - CELL_W / 2 + 0.05, y + 0.175],
               [-1, 0],
             ),
           );
-        // What the ending's caveat points at.
-        if (spotlight.has(p.z)) {
-          const outline = new Rectangle({
-            width: CELL_W + 0.1,
-            height: CELL_H + 0.1,
-            cornerRadius: 0,
-            fill: 'none',
-            stroke: INK,
-            strokeWidth: 0.06,
-            dashArray: '0.12 0.08',
-          }).moveTo([x, y]);
-          outline.key = `periodic-limit:${p.symbol}`;
-          picture.add(outline);
-        }
       }
       // The chosen column, outlined over its cells.
       const top = rowY(members[0]!.period) + CELL_H / 2 + 0.05,
@@ -277,7 +350,30 @@ export default class PeriodicGroupsExplainer extends Scene {
             strokeWidth: compact ? 0.14 : 0.04,
           }).moveTo([colX(group), (top + bottom) / 2]),
         );
-      // Where helium's count alone would put it: over beryllium.
+      // Where rows 2 and 3 laid their runs of 6 before sliding them over the runs of 6 below.
+      if (state.slid)
+        for (const row of [2, 3]) {
+          const x0 = colX(3) - CELL_W / 2,
+            x1 = colX(8) + CELL_W / 2;
+          picture.add(
+            new Rectangle({
+              width: x1 - x0,
+              height: CELL_H,
+              cornerRadius: 0,
+              fill: 'none',
+              stroke: SOFT,
+              strokeWidth: 0.025,
+              dashArray: '0.1 0.07',
+            }).moveTo([(x0 + x1) / 2, rowY(row)]),
+            new Arrow([x1 + 0.06, rowY(row)], [colX(13) - CELL_W / 2 - 0.06, rowY(row)], {
+              stroke: SOFT,
+              strokeWidth: 0.03,
+              tipLength: 0.18,
+              tipWidth: 0.16,
+            }),
+          );
+        }
+      // Where helium's run alone would put it: over beryllium.
       if (state.ghost && !compact)
         picture.add(
           new Rectangle({
@@ -291,8 +387,10 @@ export default class PeriodicGroupsExplainer extends Scene {
           }).moveTo([colX(2), rowY(1)]),
           new Text('He?', { fontSize: 0.26, color: SOFT }).moveTo([colX(2), rowY(1) - 0.04]),
         );
-      // The blocks, measured under the columns: 2 + 10 + 6, and the f block's 14.
-      if (blocks) {
+      // The runs' widths, measured under the columns: 2 + 10 + 6, and the f rows' 14. They are
+      // named s, d, p and f only once the blocks step has named them.
+      if (state.strip) {
+        const named = state.strip === 'named';
         const span = (from: number, to: number, block: Block, label: string) => {
           const x0 = colX(from) - CELL_W / 2,
             x1 = colX(to) + CELL_W / 2;
@@ -303,11 +401,11 @@ export default class PeriodicGroupsExplainer extends Scene {
             new Text(label, { fontSize: 0.22, color: INK }).moveTo([(x0 + x1) / 2, STRIP_Y - 0.22]),
           );
         };
-        span(1, 2, 's', 's: 2 columns');
-        span(3, 12, 'd', 'd: 10 columns');
-        span(13, 18, 'p', 'p: 6 columns');
+        span(1, 2, 's', named ? 's: 2 columns' : '2 columns');
+        span(3, 12, 'd', named ? 'd: 10 columns' : '10 columns');
+        span(13, 18, 'p', named ? 'p: 6 columns' : '6 columns');
         if (!onlyFamily)
-          ['f: 14 columns,', 'no group', 'number'].forEach((line, i) =>
+          [named ? 'f: 14 columns,' : '14 columns,', 'no group', 'number'].forEach((line, i) =>
             picture.add(
               new Text(line, { fontSize: 0.22, color: INK }).moveTo(
                 [colX(1) - CELL_W / 2, fRowY(1) + 0.12 - i * 0.32],
@@ -318,7 +416,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       }
       if (compact) {
         picture.key = 'periodic-context';
-        picture.scale(0.3).moveTo([4.1, -2.9]);
+        picture.scale(CONTEXT_SCALE).moveTo([CONTEXT_X, CONTEXT_Y]);
       }
       return picture;
     };
@@ -365,110 +463,48 @@ export default class PeriodicGroupsExplainer extends Scene {
             picture.add(jump);
           }
         });
-        say(`Group ${group}`, [-6.4, -2.45], { size: 0.72, bold: true });
-        say(`in the ${POSITIONS.length}-cell table`, [-6.4, -3.3], { size: 0.68 });
+        // The small table's caption, beside it: the two make one row centred under the comparison.
+        say(`Group ${group}`, [CONTEXT_LABEL_X, CONTEXT_Y + 0.42], { size: 0.72, bold: true });
+        say(`in the ${POSITIONS.length}-cell table`, [CONTEXT_LABEL_X, CONTEXT_Y - 0.42], { size: 0.68 });
       }
       if (note === 'fill') {
-        say(`${Name}: ${z} electron${z > 1 ? 's' : ''}, in filling order`, [NOTE_X, rowY(1)], {
-          size: 0.24,
-          color: SOFT,
-        });
-        say(String(state.filling ?? ''), [NOTE_X, rowY(2) + 0.08], { size: 0.4 });
-      }
-      if (note === 'count') {
-        picture.key = 'periodic-count-comparison';
-        const past = here.count,
-          verdict = `${past} counted ${past === group ? '=' : '≠'} group ${group}`;
-        say(choice === 'cu' ? `${past} counted either way = group ${group}` : verdict, [0, 2.65], {
-          size: 0.68,
-          bold: true,
-          edge: [0, 0],
-        });
-        if (choice === 'cu') {
-          say('Filling rule:', [-6.4, 1.15], { size: 0.68 });
-          say(shorthand(filling, z), [-2.2, 1.15], { size: 0.68 });
-          say('NIST lists:', [-6.4, -0.15], { size: 0.68 });
-          say(shorthand(actual, z), [-2.2, -0.15], { size: 0.68 });
-        } else if (choice === 'he') {
-          for (const [x, upper, lower, column] of [
-            [-3.5, 'He?', 'Be', here.count],
-            [3.5, 'He', 'Ne', group],
-          ] as const) {
-            const pair = new Group(
-              new Rectangle({
-                width: 2.2,
-                height: 1.0,
-                fill: PAPER,
-                stroke: INK,
-                strokeWidth: 0.04,
-                ...(upper === 'He?' ? { dashArray: '0.12 0.08' } : {}),
-              }).moveTo([x, 1.35]),
-              new Text(upper, { fontSize: 0.72, color: INK }).moveTo([x, 1.35]),
-              new Rectangle({ width: 2.2, height: 1.0, fill: PAPER, stroke: INK, strokeWidth: 0.04 }).moveTo([x, 0.1]),
-              new Text(lower, { fontSize: 0.72, color: INK }).moveTo([x, 0.1]),
-              new Text(`Group ${column}`, { fontSize: 0.68, color: INK }).moveTo([x, -1.0]),
-            );
-            pair.key = `periodic-helium:${column}`;
-            pair.children[0]!.key = `${pair.key}:outline`;
-            pair.children[1]!.key = `${pair.key}:upper`;
-            pair.children[3]!.key = `${pair.key}:lower`;
-            pair.children[4]!.key = `${pair.key}:group`;
-            picture.add(pair);
-          }
-        } else {
-          say(shorthand(filling, z), [-3.4, 1.7], { size: 0.68, edge: [0, 0] });
-          const equation = new Text(`${z} - ${core} = ${here.count}`, {
-            fontSize: 0.6,
-            font: 'mono',
-            color: INK,
-          }).moveTo([4, 1.7]);
-          equation.key = 'periodic-core-equation';
-          picture.add(equation);
-          const cells = POSITIONS.filter((p) => p.z > core && p.z <= z);
-          for (const [row, title] of ['Element', 'Count', 'Group'].entries())
-            say(title, [-6.85, 0.6 - row * 0.92], { size: 0.68 });
-          cells.forEach((p, i) => {
-            const x = cells.length === 1 ? 1 : -3.8 + i * 1.35;
-            const cell = new Group(
-              new Text(p.symbol, { fontSize: 0.68, color: INK, weight: p.z === z ? 'bold' : 'normal' }).moveTo([
-                x,
-                0.6,
-              ]),
-              new Text(Number(state.badges) > i ? String(i + 1) : '–', {
-                fontSize: 0.62,
-                font: 'mono',
-                color: BLOCK[p.block],
-              }).moveTo([x, -0.32]),
-              new Text(String(p.group), { fontSize: 0.62, font: 'mono', color: INK, weight: 'bold' }).moveTo([
-                x,
-                -1.24,
-              ]),
-            );
-            cell.key = `periodic-count:${p.symbol}`;
-            cell.children[0]!.key = `${cell.key}:symbol`;
-            cell.children[1]!.key = `${cell.key}:count`;
-            cell.children[2]!.key = `${cell.key}:group`;
-            picture.add(cell);
+        // The element's own runs, by length, in the space right of the short rows; the names
+        // s, p, d and f come two steps later.
+        const lengths = (state.runs ?? []) as number[];
+        const left = ROW_END[3]! + 1.5;
+        say(`${Name}: ${z} electron${z > 1 ? 's' : ''}, one per cell`, [left, pkRowY(1)], { size: 0.32, color: SOFT });
+        say(lengths.length > 1 ? `${lengths.join(' + ')} = ${lengths.reduce((a, b) => a + b, 0)}` : String(lengths[0] ?? ''), [
+          left,
+          pkRowY(2) + 0.04,
+        ], { size: 0.5 });
+        const rows = (state.rows ?? null) as number[] | null;
+        if (rows) {
+          say('Every full run is 2, 6, 10 or 14 cells', [left, pkRowY(3) + 0.08], { size: 0.34 });
+          // Each row's length, at its right end.
+          rows.forEach((n, i) => say(`= ${n}`, [ROW_END[i + 1]! + 0.16, pkRowY(i + 1) - 0.02], { size: 0.34, bold: true }));
+          // Colour says the run's length; the legend says it in words too, spread under the longest rows.
+          const legendY = pkRowY(7) - 1.0,
+            legendPitch = (ROW_END[6]! - PK_LEFT) / 4;
+          (['s', 'p', 'd', 'f'] as Block[]).forEach((b, i) => {
+            const x = PK_LEFT + i * legendPitch;
+            picture.add(new Line([x, legendY], [x + 0.6, legendY], { stroke: BLOCK[b], strokeWidth: 0.34 }));
+            say(`run of ${CAPACITY[b]}`, [x + 1.0, legendY - 0.02], { size: 0.34 });
           });
         }
-        say(`Group ${group}`, [-6.4, -2.45], { size: 0.72, bold: true });
-        say(`in the ${POSITIONS.length}-cell table`, [-6.4, -3.3], { size: 0.68 });
+      }
+      if (note === 'stack') {
+        // Where the scenario's last electron lands, in the empty first row.
+        say(String(state.landingRun ?? ''), [NOTE_X, rowY(1) - 0.04], { size: 0.28 });
       }
       if (note === 'blocks') {
-        const why: Record<Choice, string[]> = {
-          na: ['3s¹ lands in the s block:', 'its first column.'],
-          cl: ['3s² 3p⁵ counts 7, then the', '10 d columns: 7 + 10 = 17.'],
-          fe: ['4s² 3d⁶: 2 s columns', 'then the 6th d column: 8.'],
-          cu: ['4s² 3d⁹: 2 s columns', 'then the 9th d column: 11.'],
-          he: ['1s holds only 2: helium is', 'full, as neon is at 2s² 2p⁶.'],
-        };
+        // The scenario's configuration and where its last electron lands, in the empty space above the d block.
         say('2 + 10 + 6 = 18 numbered columns', [NOTE_X, rowY(1)], { size: 0.3, bold: true });
-        why[choice].forEach((line, i) => say(line, [NOTE_X, rowY(2) + 0.08 - i * 0.38], { size: 0.27 }));
+        ((state.landing ?? []) as string[]).forEach((line, i) => say(line, [NOTE_X, rowY(1) - 0.5 - i * 0.38], { size: 0.27 }));
       }
       if (note === 'family') {
         // Beside each member, NIST's configuration with the endings lined up: the core
         // and any f electrons in the soft colour, since the count leaves them out. Then the
-        // count, in the same dark badge the count step used.
+        // count, in a dark badge.
         const right = group <= 9,
           size = 0.28,
           gap = 0.12;
@@ -517,36 +553,10 @@ export default class PeriodicGroupsExplainer extends Scene {
           say(String(m.count), at, { size: 0.22, color: PAPER, edge: [0, 0], bold: true });
         }
       }
-      if (note === 'names') {
-        const rows = GROUP_NAMES.filter((g) => g.trivial || g.group === group).map((g) => ({
-          label: `${g.group}  ${g.trivial ?? g.byElement}`,
-          hot: g.group === group,
-          at: g.group,
-        }));
-        rows.push({ label: '3–10  named after their top element', hot: false, at: 3.5 });
-        rows.sort((a, b) => a.at - b.at);
-        const half = Math.ceil(rows.length / 2);
-        rows.forEach((r, i) => {
-          const x = NOTE_X + (i < half ? 0 : 4.2),
-            y = rowY(1) + 0.16 - (i % half) * 0.31;
-          say(r.label, [x, y], { size: 0.24, color: r.hot ? INK : SOFT, bold: r.hot });
-        });
-      }
-      if (note === 'limit') {
-        const lines: Record<Choice, string[]> = {
-          na: ['Hydrogen: 1s¹, the same ending,', 'but not a metal, so not an alkali metal.'],
-          cl: ['Tennessine (117) is beyond this model’s', 'captured NIST reference (1–108).'],
-          fe: ['“Iron group” can also mean', 'iron, cobalt and nickel: a row, not a column.'],
-          cu: ['Roentgenium (111) is in group 11;', 'authors differ on calling it a coinage metal.'],
-          he: ['By its count of 2, helium would sit', 'over beryllium, in the dashed cell.'],
-        };
-        lines[choice].forEach((line, i) => say(line, [NOTE_X, rowY(1) - i * 0.38], { size: 0.27 }));
-      }
       if (picture.children.length === 0) say('', [NOTE_X, rowY(1)]);
       return picture;
     };
 
-    const coreZ = (st: SceneState) => Number(st.core ?? 0);
     /** The resting picture in words, from the same state and data the two views draw. */
     const describe = (st: SceneState) => {
       const note = String(st.note ?? ''),
@@ -554,40 +564,45 @@ export default class PeriodicGroupsExplainer extends Scene {
       said.push(
         note === 'family'
           ? `Only group ${group} remains, ${name} outlined.`
-          : note === 'column' || note === 'count'
+          : note === 'column'
             ? `A readable comparison above a small, unlabelled ${POSITIONS.length}-cell periodic table with group ${group} outlined.`
-            : `Periodic table of 118 elements with group ${group} outlined and ${name} (${z}) in bold.`,
+            : note === 'names'
+              ? 'The table shows the named s, p, d and f widths, with helium now above neon.'
+            : note === 'fill'
+              ? `No table yet: one cell per element, ${name} (${z}) in bold.`
+              : note === 'stack'
+                ? `Periodic table of 118 elements with ${name} (${z}) in bold and helium over beryllium.`
+                : `Periodic table of 118 elements with group ${group} outlined and ${name} (${z}) in bold.`,
       );
       if (note === 'column')
         said.push(
           `Group ${group}, top to bottom: ${members.map((m) => `${nameOf(m.symbol)} (${m.symbol}, ${m.z})`).join(', ')}. Atomic-number gaps: ${jumps.join(', ')}.`,
         );
-      if (note !== 'family') {
+      if (note === 'stack' || note === 'names' || note === 'blocks') {
         if (st.blocks) said.push('All 118 element cells are filled in by block colour.');
-        else if (st.lit) said.push(`Cells 1 to ${st.lit} are filled in by subshell colour${coreZ(st) ? `, cells 1 to ${coreZ(st)} paler as the core` : ''}.`);
+        if (st.trail != null)
+          said.push(`${Name}’s ${st.trail} cell${Number(st.trail) > 1 ? 's are' : ' is'} solid in block colour; the other ${POSITIONS.length - Number(st.trail)} are pale.`);
       }
-      if (note === 'fill') said.push(`Note: ${String(st.filling)}.`);
-      if (note === 'count') {
-        const k = Number(st.badges);
-        if (choice !== 'cu' && choice !== 'he')
+      if (note === 'fill') {
+        said.push(`Cells 1 to ${st.lit} are filled in order, coloured by the run each one’s electron enters.`);
+        const rows = (st.rows ?? null) as number[] | null;
+        if (rows)
           said.push(
-            `Element, count and group rows: ${POSITIONS.filter((p) => p.z > core && p.z <= z)
-              .map((p, i) => `${p.symbol}: ${i < k ? i + 1 : 'not counted yet'}, group ${p.group}`)
-              .join('; ')}.`,
+            `Each row starts with a run of 2 and lays its runs side by side: rows of ${list(rows.map(String))} cells. A legend reads blue as a run of 2, gold 6, red 10 and black 14.`,
           );
-        said.push(
-          choice === 'cu'
-            ? `Note: filling rule ${shorthand(filling, z)}; NIST lists ${shorthand(actual, z)}; ${here.count} counted either way = group ${group}.`
-            : choice === 'he'
-              ? `Two comparisons: helium's count of 2 over beryllium in group 2, and helium's actual position over neon in group 18.`
-              : `Note: ${shorthand(filling, z)}; ${here.count} counted ${here.count === group ? '=' : '≠'} group ${group}.`,
-        );
+        const lengths = (st.runs ?? []) as number[];
+        said.push(`Note: ${name}’s ${z} electrons are runs of ${lengths.join(', ')}.`);
       }
-      if (st.ghost) said.push('A dashed cell marked He? sits over beryllium, where a count of 2 would put helium.');
-      if (st.blocks && note !== 'family')
-        said.push(
-          'Under the columns, the s block spans 2, d 10 and p 6; the 14 f columns sit below with no group number.',
-        );
+      if (note === 'stack') said.push(`Note: ${String(st.landingRun ?? '')}.`);
+      if (note === 'names') said.push('The run widths are named s, p, d and f, and helium has moved above neon because its first shell is full.');
+      if (note === 'blocks') said.push(`Note: ${((st.landing ?? []) as string[]).join(' ')}`);
+      if (st.slid)
+        said.push('Dashed outlines in rows 2 and 3, columns 3 to 8, mark where their runs of 6 sat before sliding 10 columns right.');
+      if (st.ghost) said.push('A dashed cell marked He? sits over beryllium, where helium’s run alone would put it.');
+      if (st.strip === 'runs' && note !== 'family')
+        said.push('Under the columns, runs of 2, 10 and 6 stack into blocks 2, 10 and 6 columns wide; the 14-cell runs sit below with no group number.');
+      if (st.strip === 'named' && note !== 'family')
+        said.push('Under the columns, the s block spans 2, d 10 and p 6; the 14 f columns sit below with no group number.');
       if (note === 'family')
         said.push(
           family
@@ -596,35 +611,26 @@ export default class PeriodicGroupsExplainer extends Scene {
             )
             .join('; ') + '.',
         );
-      if (note === 'names')
-        said.push(`A list of group names, with group ${group}, ${named.trivial ?? named.byElement}, in bold.`);
-      if (Array.isArray(st.limit)) said.push(`Dashed outlines mark ${(st.limit as string[]).join(', ')}.`);
       return said.join(' ');
     };
     const base = { element: symbol, z, group };
-    const apply = (next: SceneState) => new Apply(this, next);
+    const apply = (next: SceneState) => new SetState(this, next);
 
-    // ---- 1. the column ------------------------------------------------------------
-    const others = members.filter((m) => m.z !== z);
-    await readerFirst(this, s, readerFrames(symbol));
+    // ---- 1. the column: a puzzle to predict ------------------------------------------
+    const distinct = [...new Set(jumps)].sort((a, b) => a - b);
     await this.step('column', {
-      title: `What puts ${name} in group ${group}?`,
-      line: 'The jumps between neighbours in the column are uneven.',
-      caption: (
-        {
-          na: `Sodium is element 11. Its group runs from hydrogen (1) to francium (87), with gaps of ${list(jumps.map(String))}. Those changing gaps rule out a fixed interval between neighbours; electron configurations explain the shared column.`,
-          cl: `Chlorine, element 17, shares group 17 with ${list(others.map((m) => nameOf(m.symbol)))}, with jumps of ${list(jumps.map(String))}. That chlorine’s atomic number equals its group number is a coincidence: bromine, 35, is in group 17 too.`,
-          fe: `Iron, element 26, shares group 8 with ${list(others.map((m) => nameOf(m.symbol)))}, with jumps of ${list(jumps.map(String))}. Nothing in those numbers says 8; counting iron’s electrons does.`,
-          cu: `Copper, element 29, shares group 11 with ${list(others.map((m) => nameOf(m.symbol)))}, with jumps of ${list(jumps.map(String))}. Nothing in those numbers says 11; counting copper’s electrons does.`,
-          he: `Helium, element 2, heads the last column, above ${list(others.map((m) => nameOf(m.symbol)))}; the jumps are ${list(jumps.map(String))}. Helium has two electrons, yet it is not in group 2.`,
-        } satisfies Record<Choice, string>
-      )[choice],
+      title: `Why are the jumps down ${name}’s column uneven?`,
+      line: `Predict: what makes the jumps down the column ${list(distinct.map(String))}?`,
+      caption: `${Name} is element ${z}, in group ${group}. Down its column the atomic number rises by ${list(jumps.map(String))}. Rows of equal length would give equal jumps, so the lower rows must hold more elements. To see why, add electrons one at a time in the order an atom fills them, then line up the runs they make.`,
     });
     await s.clear();
     this.state = { ...base, note: 'column', band: true, members: members.map((m) => m.z), gaps: jumps };
     // Both pictures are drawn from this.state, so every resting picture is the state it shows.
     const table = view(this, drawTable, { place: false });
     const notes = view(this, drawNotes, { place: false });
+    // Named, so each redraw's evidence says which picture it paired.
+    table.key = 'periodic:table';
+    notes.key = 'periodic:notes';
     this.table = table;
     this.notes = notes;
     s.keep(table, notes, { describe: () => describe(this.state) });
@@ -633,125 +639,174 @@ export default class PeriodicGroupsExplainer extends Scene {
       new AnimationGroup([redraw(runTime), notes.sync({ runTime, match: samePlace })], { rateFunc: linear });
     await this.play(new FadeIn(table), new FadeIn(notes), { runTime: 0.8 });
 
-    // ---- 2. fill the cells in order -----------------------------------------------
+    // ---- 2. fill: every electron in order, the runs laid side by side in rows -------------
+    const own = filling.map((sub) => sub.electrons);
+    const last = filling.at(-1)!,
+      partial = last.electrons < CAPACITY[last.l];
+    const full = partial ? own.slice(0, -1) : own;
+    const ownRuns = partial
+      ? `${Name}’s ${z} are runs of ${list(full.map(String))}, then ${last.electrons} into a run of ${CAPACITY[last.l]}.`
+      : `${Name}’s ${z} fill ${full.length === 1 ? `one run of ${full[0]}` : `runs of ${list(full.map(String))}`}.`;
     await this.step('fill', {
-      detail: true,
-      title: `Cells 1 to ${z}, read in order, are ${name}’s electrons`,
-      line: `${configText(filling)}: one cell per electron.`,
-      caption: (
-        {
-          na: 'Each cell up to sodium adds one electron to a subshell, named by shell number and letter: two in 1s (hydrogen and helium), two in 2s, six in 2p, then one in 3s. A run of same-coloured cells is one subshell.',
-          cl: 'Each cell up to chlorine adds one electron to a subshell, named by shell number and letter: 1s², 2s², 2p⁶, 3s², then five of the six places in 3p. The gap in rows 2 and 3 is where the 10 d columns open from row 4.',
-          fe: 'Each cell up to iron adds one electron to a subshell, named by shell number and letter. Row 4 opens with 4s in potassium and calcium, then six cells of 3d: by the filling rule, 3d fills after 4s.',
-          cu: 'Each cell up to copper adds one electron to a subshell, named by shell number and letter. Row 4 opens with 4s, then nine cells of 3d, so the filling rule predicts 4s² 3d⁹ for copper.',
-          he: 'Helium’s two electrons are hydrogen’s cell and its own, both in 1s: shell 1, subshell s. The first row has only two cells because the first shell has one subshell, with room for two.',
-        } satisfies Record<Choice, string>
-      )[choice],
+      title: 'One electron per cell, in runs laid side by side',
+      line: 'Predict: slide the runs so that runs of one length share columns. What shape do you get?',
+      caption: `Give each element a cell and add its electrons one at a time; in a neutral atom the atomic number counts them. A filling rule arranges them in runs, and every full run is 2, 6, 10 or 14 long. ${ownRuns} Lay each run beside the last, starting a new row at each run of 2: the rows hold ${list(ROW_CELLS.map(String))} cells, and every jump down step 1’s column is one of those row lengths.`,
     });
     {
-      const seq: ScheduledAnimation[] = [];
-      runs.forEach((run, i) => {
-        seq.push(
-          apply({ ...base, note: 'fill', band: true, lit: run.to, filling: configText(filling.slice(0, i + 1)) }),
-        );
-        seq.push(both(Math.min(0.75, 0.25 + run.sub.electrons * 0.05)));
-      });
-      await this.play(new Succession(seq));
-      this.state = { ...base, note: 'fill', band: true, lit: z, filling: configText(filling) };
-    }
-
-    // ---- 3. count past the core ------------------------------------------------------
-    await this.step('count', {
-      title: (
-        {
-          na: 'Past neon’s core, sodium has 1 electron: group 1',
-          cl: 'Past neon, chlorine counts 7 but sits in group 17',
-          fe: 'Past argon’s core, iron has 8 electrons: group 8',
-          cu: 'Copper counts 11 past argon by either configuration',
-          he: 'Helium counts 2, but sits in group 18',
-        } satisfies Record<Choice, string>
-      )[choice],
-      line: core ? `${coreSymbol} closes the row above; count from there.` : 'No noble gas comes before helium.',
-      caption: (
-        {
-          na: 'Neon closes the row above, and its 10 electrons form sodium’s core, leaving one 3s electron. IUPAC’s numbering is based on the s, p and d electrons beyond the preceding noble gas: sodium has 1, and sits in group 1.',
-          cl: 'Chlorine carries neon’s core plus seven: 3s² 3p⁵. Counting from sodium gives 1 and 2, then aluminium counts 3 in group 13, and every count after it is 10 short of its column. The count gives chlorine 7, not 17.',
-          fe: 'Iron carries argon’s 18-electron core plus 4s² 3d⁶. Two s and six d electrons make 8, and from potassium to iron each count matches its group number.',
-          cu: 'The filling rule predicts 4s² 3d⁹, but NIST lists copper’s ground state as 3d¹⁰ 4s¹, one electron moved from 4s to 3d. Both arrangements hold 11 electrons beyond argon’s core, so copper is in group 11 either way.',
-          he: 'With no noble gas before it, both of helium’s electrons count. A count of 2 would put helium in group 2, in the dashed cell over beryllium; the table puts it in group 18, over neon.',
-        } satisfies Record<Choice, string>
-      )[choice],
-    });
-    {
-      // Count the cells past the core one at a time; the last count is the element's.
-      const counting = {
+      const fillState = (lit: number, runs: number, done: boolean): SceneState => ({
         ...base,
-        note: 'count',
-        band: true,
-        lit: z,
-        core,
-        coreSymbol,
-        count: here.count,
-        adjustment: here.adjustment,
-        listed: shorthand(actual, z),
-        listedCount: counted(actual, z),
-        ghost: choice === 'he',
-      };
-      const seq: ScheduledAnimation[] = [apply({ ...counting, badges: 0 }), both(0.6)];
-      for (let k = 1; k <= z - core; k++) seq.push(apply({ ...counting, badges: k }), both(0.22));
+        note: 'fill',
+        layout: 'rows',
+        lit,
+        filling: configText(filling),
+        runs: own.slice(0, runs),
+        ...(done ? { rows: ROW_CELLS } : {}),
+      });
+      const seq: ScheduledAnimation[] = [];
+      RUNS.forEach((run, i) => {
+        // The scenario's last run stops at its own electron first.
+        if (run.from <= z && z < run.to) seq.push(apply(fillState(z, own.length, false)), both(0.6));
+        seq.push(
+          apply(fillState(run.to, Math.min(own.length, i + 1), false)),
+          both(run.to <= z ? Math.min(0.75, 0.25 + run.sub.electrons * 0.05) : 0.2),
+        );
+      });
+      seq.push(apply(fillState(POSITIONS.length, own.length, true)), both(0.6));
       await this.play(new Succession(seq));
-      this.state = { ...counting, badges: z - core };
+      this.state = fillState(POSITIONS.length, own.length, true);
     }
 
-    // ---- 4. the blocks --------------------------------------------------------------
+    // ---- 3. stack: runs of one length share columns, and the table appears --------------
+    // The landing column, from the run widths: 2 columns first, then 10, then 6.
+    const landed =
+      last.l === 's'
+        ? last.electrons
+        : last.l === 'd'
+          ? CAPACITY.s + last.electrons
+          : CAPACITY.s + CAPACITY.d + last.electrons;
+    const sum =
+      last.l === 's'
+        ? `${landed}`
+        : last.l === 'd'
+          ? `${CAPACITY.s} + ${last.electrons} = ${landed}`
+          : `${CAPACITY.s} + ${CAPACITY.d} + ${last.electrons} = ${landed}`;
+    const landingRun = `${Name}’s last electron: ${ordinal(last.electrons)} of a run of ${CAPACITY[last.l]}, column ${sum}`;
+    await this.step('stack', {
+      title: 'Stack runs of one length in the same columns',
+      line: 'Runs of 2 at the left, 10 in the middle, 6 at the right, 14 in two rows below.',
+      caption: `Slide every run of 6 to the right edge and every run of 10 into the middle, and lift the runs of 14 into two rows below so the table stays 18 columns wide. Rows 2 and 3 have no run of 10, so their runs of 6 slide 10 columns and leave a gap. ${ANSWER}. ${
+        (
+          {
+            na: 'Sodium’s 11th electron starts a run of 2, so it lands in column 1.',
+            cl: `Chlorine’s 17th electron is the 5th in a run of 6, which starts after 2 + 10 columns: column ${landed}.`,
+            fe: `Iron’s 26th electron is the 6th in a run of 10, which starts after 2 columns: column ${landed}.`,
+            cu: `Copper’s 29th electron is the 9th in a run of 10: column 2 + 9 = ${landed}.`,
+            he: 'Helium’s 2nd electron ends a run of 2 in column 2, over beryllium, yet helium is in group 18; step 4 says why.',
+          } satisfies Record<Choice, string>
+        )[choice]
+      }`,
+    });
+    this.state = {
+      ...base,
+      note: 'stack',
+      lit: POSITIONS.length,
+      blocks: true,
+      helium: 'over-be',
+      slid: true,
+      strip: 'runs',
+      landed,
+      landingRun,
+    };
+    await this.play(both(2.4));
+
+    // Name only what the picture now needs; configuration machinery stays in the details.
+    await this.step('names', {
+      title: 'The runs have names; helium needs one move',
+      line: 's holds 2, p holds 6, d holds 10 and f holds 14 electrons.',
+      caption: `Each run is a subshell, named by its shell number and a letter for its length: s holds 2, p 6, d 10 and f 14. By the filling rule, ${name}’s runs read ${configText(filling)}. Those widths give the table its blocks and gaps. Widths alone leave helium over beryllium; the table puts it over neon because its 1s² completes shell 1, as 2s² 2p⁶ completes neon’s shell 2. That grouping is chemistry we bring; sliding cells does not prove it.`,
+    });
+    this.state = { ...base, note: 'names', blocks: true, lit: POSITIONS.length, strip: 'named', helium: 'over-ne', capacity: CAPACITY };
+    await this.play(both(1.2));
+
+    // ---- 4. blocks: the runs named as subshells, and their order ----------------------------
+    const landing: string[] = (
+      {
+        na: [`${Name}: ${configText(filling)}`, `${subshellText(last)} starts a run of ${CAPACITY.s}: s column ${landed}, group ${group}.`],
+        cl: [
+          `${Name}: ${configText(filling)}`,
+          `${ordinal(last.electrons)} p column, after ${CAPACITY.s} s and ${CAPACITY.d} d: ${sum}.`,
+          `Its ${here.count} after neon alone would say ${here.count}: ${group - here.count} short.`,
+        ],
+        fe: [`${Name}: ${configText(filling)}`, `${ordinal(last.electrons)} d column, after ${CAPACITY.s} s: ${sum}.`],
+        cu: [
+          `Filling rule: ${shorthand(filling, z)}, so ${sum}.`,
+          `NIST lists ${shorthand(actual, z)}: still ${counted(actual, z)} after [${coreSymbol}].`,
+        ],
+        he: [`${Name}: ${configText(filling)}, column ${landed} by its run (He?),`, 'but 1s² fills shell 1, as 2s² 2p⁶ fills neon’s shell 2.'],
+      } satisfies Record<Choice, string[]>
+    )[choice];
     await this.step('blocks', {
-      detail: true,
-      title: 'The 18 columns are 2 for s, 10 for d, 6 for p',
-      line: 'Each block is as wide as its subshell holds.',
-      caption: (
-        {
-          na: 'The blocks are subshells laid side by side: s holds 2 electrons, d holds 10 and p holds 6, so 2 + 10 + 6 = 18 numbered columns. The f block’s 14 columns sit below, unnumbered. Sodium’s last electron is in s, the first column.',
-          cl: 'From row 4 down, the 10 d columns fill before p, so bromine counts 2 + 10 + 5 = 17. Chlorine has the same s² p⁵ pattern, but no filled d subshell beneath it, so it sits 10 columns past its count of 7, over bromine.',
-          fe: 'The blocks are subshells laid side by side: 2 columns for s, 10 for d and 6 for p. Iron’s 4s² takes the two s columns and its 3d⁶ reaches the sixth d column: 2 + 6 = 8.',
-          cu: 'The blocks are subshells laid side by side: 2 columns for s, 10 for d and 6 for p. By the filling rule, copper’s 4s² takes the s columns and 3d⁹ reaches the ninth d column: 2 + 9 = 11, as NIST’s 3d¹⁰ 4s¹ also gives.',
-          he: 'Each block is as wide as its subshell holds: 2, 10 and 6 make 18 columns. The first shell has only 1s, so helium’s 1s² completes it, as neon’s 2s² 2p⁶ completes the second shell. The table groups helium with the other full shells.',
-        } satisfies Record<Choice, string>
-      )[choice],
+      kind: 'detail',
+      title: `Which run fills next: ${name}’s ${z} electrons in order`,
+      line: `The solid cells are ${name}’s ${z} electrons, in the order they fill.`,
+      caption: `Subshells fill lowest n + l first, where n is the shell and l runs from 0 for s to 3 for f, and lower n first on a tie: Madelung’s empirical rule, which NIST’s reference configurations follow for ${RULE_MATCHES} of the first ${NIST_UP_TO} elements. ${
+        (
+          {
+            na: 'Sodium’s 3s¹ follows 2p⁶ because n + l is 3 for both and 2p has the lower n.',
+            cl: 'Chlorine has 7 electrons after neon yet sits in group 17: 3d (n + l = 5) waits until after 4s, and shell 2 has no d at all, so rows 2 and 3 have no d run. Rows 1 and 2 hold 10 electrons, so from aluminium to argon the atomic number equals the group.',
+            fe: 'Iron’s 4s² comes before its 3d⁶ because n + l is 4 for 4s and 5 for 3d.',
+            cu: 'Copper is one of the 20 exceptions: the rule gives 4s² 3d⁹ and NIST lists 3d¹⁰ 4s¹. Both put 11 electrons after argon, so the group is 11 either way.',
+            he: 'Helium’s run puts it in column 2, the cell marked He?, but the table moves it over neon: 1s² completes shell 1, which has no p subshell, as 2s² 2p⁶ completes neon’s shell 2.',
+          } satisfies Record<Choice, string>
+        )[choice]
+      }`,
     });
     this.state = {
       ...base,
       note: 'blocks',
       band: true,
-      lit: z,
+      lit: POSITIONS.length,
+      trail: z,
       core,
-      blocks: true,
+      coreSymbol,
+      strip: 'named',
       capacity: CAPACITY,
+      ruleMatches: RULE_MATCHES,
       block: here.block,
+      landed,
+      landing,
+      count: here.count,
+      adjustment: here.adjustment,
+      listed: shorthand(actual, z),
+      listedCount: counted(actual, z),
+      ghost: choice === 'he',
     };
-    await this.play(both(0.9));
+    await this.play(both(1.2));
 
-    // ---- 5. the family ----------------------------------------------------------------
+    // ---- 5. the family: the jumps, explained --------------------------------------------
     await this.step('family', {
-      detail: true,
+      kind: 'detail',
       title: (
         {
           na: 'Every group 1 element ends in one s electron',
           cl: 'Every halogen ends in two s and five p electrons',
-          fe: 'Group 8 counts 8, even where the ending changes',
+          fe: 'Iron, ruthenium and osmium each end with 8 s and d electrons',
           cu: 'Copper, silver and gold all end in d¹⁰ s¹',
-          he: 'Every noble gas ends with its outer shell full',
+          he: 'Neon to radon end in s² p⁶; helium ends in 1s²',
         } satisfies Record<Choice, string>
       )[choice],
-      line: 'Each core is the noble gas one row up.',
-      caption: (
-        {
-          na: 'Lithium to francium each carry the previous noble gas as a core plus one s electron. Each jump in atomic number is the row added to that core: 8 from lithium to sodium, 32 from caesium to francium. Hydrogen’s 1s¹ ends the same way.',
-          cl: 'Each halogen ends in s² p⁵. From bromine down, a full d¹⁰ sits beneath that ending and the count reaches 17; fluorine and chlorine count 7 and take the same column. Tennessine is outside our NIST reference.',
-          fe: 'NIST lists ruthenium as 4d⁷ 5s¹ rather than iron’s d⁶ s² pattern, yet 7 + 1 is still 8. Osmium and hassium carry 4f¹⁴ and 5f¹⁴, which the count leaves out. The column follows the count of 8 rather than one exact ending.',
-          cu: 'NIST lists silver and gold with the same d¹⁰ s¹ ending as copper. Gold also carries 4f¹⁴, which the count leaves out because f electrons have their own 14 unnumbered columns. Roentgenium is outside our NIST reference.',
-          he: 'From neon down, each noble gas ends in s² p⁶, a full outer s and p. Helium’s 1s² is shorter because the first shell has no p subshell, and it is still full. Neon and argon count 8 and shift 10 columns; krypton onward counts 18.',
-        } satisfies Record<Choice, string>
-      )[choice],
+      line: `Each jump is a row: ${distinct.map(rowSum).join(', ')}.`,
+      caption: `Each badge counts the electrons after the noble gas that closes the row above (every electron, in row 1), leaving out f electrons. ${
+        (
+          {
+            na: 'Lithium to francium each carry the previous noble gas plus one s electron, and hydrogen’s 1s¹ ends the same way. Each jump is the row the upper member starts: 2 from hydrogen to lithium, 8 from lithium to sodium.',
+            cl: 'Each halogen ends in s² p⁵. From bromine down, a full d¹⁰ sits beneath that ending and the count reaches 17; fluorine and chlorine count 7 and take the same column. Tennessine is outside our NIST reference. From chlorine to bromine the jump is row 4’s 18 cells.',
+            fe: 'NIST lists ruthenium as 4d⁷ 5s¹ where iron has 3d⁶ 4s², yet 7 + 1 is still 8. Osmium and hassium carry 4f¹⁴ and 5f¹⁴, which the count leaves out. Ruthenium is 18 after iron, the length of row 5, and osmium 32 after ruthenium, the length of row 6.',
+            cu: 'NIST lists silver and gold with copper’s d¹⁰ s¹ ending. Gold also carries 4f¹⁴, which the count leaves out because f electrons have their own 14 unnumbered columns. Roentgenium is outside our NIST reference. Silver sits one row of 18 below copper, and gold a row of 32 below silver.',
+            he: 'From neon to radon, each noble gas ends in s² p⁶, a full s and p subshell; helium’s 1s² is shorter because shell 1 has no p subshell. Neon and argon count 8, ten short of their column, because rows 2 and 3 have no d run; from krypton on the count is 18. Each noble gas closes its row, so each jump is the next row’s length.',
+          } satisfies Record<Choice, string>
+        )[choice]
+      }`,
     });
     this.state = {
       ...base,
@@ -760,97 +815,9 @@ export default class PeriodicGroupsExplainer extends Scene {
       lit: z,
       core,
       blocks: true,
+      strip: 'named',
       family: family.map((m) => ({ symbol: m.symbol, config: m.config, count: m.count })),
     };
     await this.play(both(1));
-
-    // ---- 6. the names -----------------------------------------------------------------
-    await this.step('names', {
-      detail: true,
-      title: (
-        {
-          na: 'Group 1: hydrogen and the alkali metals',
-          cl: 'Group 17: the halogens',
-          fe: 'Group 8: the iron group',
-          cu: 'Group 11: the copper group, or coinage metals',
-          he: 'Group 18: the noble gases',
-        } satisfies Record<Choice, string>
-      )[choice],
-      line:
-        named.cas === named.oldIupac
-          ? `CAS and the old IUPAC system both wrote ${named.cas}.`
-          : `CAS wrote ${named.cas}; the old IUPAC system wrote ${named.oldIupac}.`,
-      caption: (
-        {
-          na: 'Since 1988 IUPAC has recommended the numbers 1 to 18. Group 1 is also the lithium group; “hydrogen and alkali metals” keeps hydrogen in. This table puts lutetium in group 3; many textbooks put lanthanum there.',
-          cl: 'Since 1988 IUPAC has recommended the numbers 1 to 18. Group 17 is the halogens. CAS wrote VIIA and old IUPAC VIIB: both use VII, chlorine’s count of 7. This table puts lutetium in group 3; many textbooks put lanthanum there.',
-          fe: 'Since 1988 IUPAC has recommended the numbers 1 to 18. Groups 3 to 12 are usually named after their top element, so group 8 is the iron group. This table puts lutetium in group 3; many textbooks put lanthanum there.',
-          cu: 'Since 1988 IUPAC has recommended the numbers 1 to 18. Group 11 is the copper group; “coinage metals” is a looser name for copper, silver and gold. This table puts lutetium in group 3; many textbooks put lanthanum there.',
-          he: 'Since 1988 IUPAC has recommended the numbers 1 to 18. Group 18 is the noble gases, unknown when Mendeleev drew his first table; he later added them as group 0. This table puts lutetium in group 3; many textbooks put lanthanum there.',
-        } satisfies Record<Choice, string>
-      )[choice],
-    });
-    this.state = {
-      ...base,
-      note: 'names',
-      band: true,
-      lit: z,
-      core,
-      blocks: true,
-      name: named.trivial ?? named.byElement,
-      cas: named.cas,
-      oldIupac: named.oldIupac,
-    };
-    await this.play(both(0.9));
-
-    // ---- 7. the limit -----------------------------------------------------------------
-    await this.step('limit', {
-      detail: true,
-      title: (
-        {
-          na: 'Hydrogen ends in 1s¹ but is not an alkali metal',
-          cl: 'Tennessine lies beyond the captured reference',
-          fe: '“Iron group” can also name a row',
-          cu: 'Roentgenium is in group 11; “coinage metal” is disputed',
-          he: 'Helium sits over neon because its shell is full',
-        } satisfies Record<Choice, string>
-      )[choice],
-      line: (
-        {
-          na: 'Hydrogen is 1s¹ like the rest, but not a metal.',
-          cl: 'Our NIST reference covers elements 1 to 108.',
-          fe: 'Iron, cobalt and nickel: a row, not a column.',
-          cu: 'Element 111 is too short-lived to make coins.',
-          he: 'The dashed cell is where the count would put helium.',
-        } satisfies Record<Choice, string>
-      )[choice],
-      caption: (
-        {
-          na: 'Hydrogen’s 1s¹ ends like every group 1 element, so the count puts it at the top of the column. It is not a metal, so it is not an alkali metal: the count picks a column, and a name needs more.',
-          cl: 'The captured NIST reference ends at hassium (108). Beyond it, this scene uses a filling-rule prediction: tennessine (117) has an s² p⁵ ending and sits below astatine. Its configuration is not checked against that reference.',
-          fe: '“Iron group” usually means group 8, but in chemistry it can also mean iron, cobalt and nickel, three neighbours in row 4. The electron count fixes the column; which elements a name covers is a convention.',
-          cu: 'Roentgenium, 111, is in group 11 by the filling rule’s count; The NIST reference used here ends at 108. It is too radioactive and short-lived to use as coinage, so authors differ on calling it a coinage metal.',
-          he: 'Some dissent exists about where elements 1 and 2 belong. Helium’s count of 2 matches beryllium’s 2s², which is why the dashed cell sits over beryllium. Placing helium over neon follows its full shell rather than its count.',
-        } satisfies Record<Choice, string>
-      )[choice],
-    });
-    const spotlight: Record<Choice, Symbol[]> = {
-      na: ['H'],
-      cl: ['Ts'],
-      fe: ['Fe', 'Co', 'Ni'],
-      cu: ['Rg'],
-      he: ['He', 'Be'],
-    };
-    this.state = {
-      ...base,
-      note: 'limit',
-      band: true,
-      lit: z,
-      core,
-      blocks: true,
-      limit: spotlight[choice],
-      ghost: choice === 'he',
-    };
-    await this.play(both(0.9));
   }
 }

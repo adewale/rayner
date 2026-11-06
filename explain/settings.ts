@@ -1,5 +1,7 @@
 import type { LetteringRequest } from '../src/lettering-outlines.ts';
 import type { Scene, SceneClass } from '../src/index.ts';
+import { useDiagrams, snapshotResolver } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { SnapshotStore, DiagramResolver } from '../integrations/agentic-mermaid/snapshot.ts';
 
 export interface Setting {
   id: string;
@@ -22,18 +24,43 @@ export type ExplainerClass = SceneClass & {
     lettering?: LetteringRequest;
     /** Use Scene.text()/TextOpts.shaping instead of ambient lettering constructors. */
     textContext?: 'explicit';
-    /** A case picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
-    caseNavigation?: 'first';
+    /** A scenario picker starts at its first step; transcript links enter there too. Direct step URLs still work. */
+    scenarioNavigation?: 'first';
     /** Palette/corner cues and an optional standalone stage-width floor in CSS pixels (at most 4096). */
-    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number };
+    /**
+     * Palette/corner cues, an optional standalone stage-width floor in CSS pixels (at most 4096), and
+     * `outline`: show every step's title in the steps rail from the start. By default the rail names
+     * only the steps the reader has reached, so a later step's title cannot answer an earlier question.
+     */
+    player?: { accent?: boolean; paper?: boolean; corners?: 'rounded' | 'square'; minStageWidth?: number; outline?: boolean };
     watch?: Readonly<Record<string, string>>;
+    /**
+     * The script's answer to the reader's question, in one sentence. `check` fails when no teaching
+     * step's title, line or caption contains it, and reports the step where it first appears; it
+     * should come before the explanation elaborates.
+     */
+    answer?: string;
+    /**
+     * Questions a reader should be able to answer afterwards, each with its answer (at most six). The
+     * player asks them after the last step, with each answer behind a disclosure; the transcript and
+     * `describeExplainer` carry them too.
+     */
+    checks?: readonly { question: string; answer: string }[];
+    /**
+     * Claims that reach beyond the scenarios shown (a sentence with "every", "never", "only" and the like),
+     * each with the test that holds it: `says` is a phrase of the sentence, `test` is
+     * "test/<file>.test.ts: <part of the test's name>"; or `shown: true` when the sentence speaks only of
+     * what its own step draws. `check` fails a claim no step states or whose test is not there, and
+     * reports scope sentences no claim backs (explain/claims.ts).
+     */
+    claims?: readonly ({ says: string; test: string } | { says: string; shown: true })[];
   };
   settings?: readonly Setting[];
 };
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
-// Query parameters the embed reads itself.
-const reserved = new Set(['step', 'parentOrigin', 'theme']);
+// Query parameters the embed reads itself (`sent`: the events a reader sent at a live step, app/embed-live.ts).
+const reserved = new Set(['step', 'sent', 'parentOrigin', 'theme']);
 
 /** Validate declarations and selections once, at the author/URL boundary. */
 export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): Settings {
@@ -69,21 +96,32 @@ export function withSettings(Source: ExplainerClass, values: Settings = {}): Exp
   return Bound;
 }
 
-/** A case as readers see it, "Label: option · Label: option"; empty for a scene without settings. */
-export function caseName(Scene: ExplainerClass, values: Settings): string {
+/** A scenario as readers see it, "Label: option · Label: option"; empty for a scene without settings. */
+export function scenarioName(Scene: ExplainerClass, values: Settings): string {
   return (Scene.settings ?? [])
     .map((s) => `${s.label}: ${s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]}`)
     .join(' · ');
 }
 
 /** Finite cartesian product, in declaration order; refuse accidental build explosions. */
-export function variantsOf(Scene: ExplainerClass, limit = 64): Settings[] {
+export function scenariosOf(Scene: ExplainerClass, limit = 64): Settings[] {
   resolveSettings(Scene);
   const total = (Scene.settings ?? []).reduce((n, s) => n * s.options.length, 1);
-  if (!(total <= limit)) throw new Error(`Settings exceed ${limit} cases`);
-  let variants: Settings[] = [Object.freeze({})];
+  if (!(total <= limit)) throw new Error(`Settings exceed ${limit} scenarios`);
+  let scenarios: Settings[] = [Object.freeze({})];
   for (const s of Scene.settings ?? []) {
-    variants = variants.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
+    scenarios = scenarios.flatMap((v) => s.options.map((o) => Object.freeze({ ...v, [s.id]: o.value })));
   }
-  return variants;
+  return scenarios;
+}
+
+/** A subclass whose diagrams come from `source`: pinned snapshots, or a resolver that captures them. */
+export function bindSnapshots(Source: ExplainerClass, source: SnapshotStore | DiagramResolver): ExplainerClass {
+  const resolver = typeof source.diagram === 'function' ? (source as DiagramResolver) : snapshotResolver(source as SnapshotStore);
+  return class extends Source {
+    constructor(...args: ConstructorParameters<SceneClass>) {
+      super(...args);
+      useDiagrams(this, resolver);
+    }
+  };
 }

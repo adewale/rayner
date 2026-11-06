@@ -9,6 +9,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import { ROOT } from './lib/explain-project.ts';
 const run = promisify(execFile),
   folder = await mkdtemp(join(tmpdir(), 'rayner-package-'));
@@ -47,6 +48,24 @@ try {
   assert.equal(JSON.parse(await readFile(join(installed, 'package.json'), 'utf8')).version, version);
   for (const file of ['app/embed-audio.ts', 'app/embed-audio.css', 'explain/audio.ts', 'tools/lettering.py', 'tools/lettering-requirements.txt', 'tools/lettering-outline-fonts.sh', 'tools/lib/lettering.ts', 'vendor/glyph-math.js', 'vendor/licenses/LatinModernMath-GUST.txt', 'vendor/licenses/glyph-MIT.txt', 'LICENSE'])
     assert.ok(existsSync(join(installed, file)), `archive is missing ${file}`);
+  // Public-API extension recipes must work from the installed archive too.
+  await run(process.execPath, [join(installed, 'dist/recipes/render.js'), '--out', join(folder, 'recipe-output')], { cwd: folder });
+  const recipeTrace = JSON.parse(await readFile(join(folder, 'recipe-output/document.trace.json'), 'utf8'));
+  assert.equal(recipeTrace.steps.find((s: {step: string}) => s.step === 'result').after.destination, 'cache');
+  assert.match(await readFile(join(folder, 'recipe-output/continuous.txt'), 'utf8'), /1\.57/);
+  const choreographyTrace = JSON.parse(await readFile(join(folder, 'recipe-output/choreography.trace.json'), 'utf8'));
+  assert.equal(choreographyTrace.steps.at(-1).after.count, 9);
+  assert.ok(existsSync(join(folder, 'recipe-output/invariants.trace.json')), 'the invariant recipe runs from the archive');
+  // The drawing kit resolves from the installed archive as rayner/drawing.
+  const kit = await run(process.execPath, ['--input-type=module', '-e', "const k = await import('rayner/drawing'); console.log(Object.keys(k).sort().join(','))"], { cwd: folder });
+  // The same names the checkout's kit exports (test/drawing.test.ts pins those), 3D included.
+  const sourceKit = Object.keys(await import(pathToFileURL(join(ROOT, 'explain/drawing.ts')).href)).sort().join(',');
+  assert.equal(kit.stdout.trim(), sourceKit);
+  // So do the output and testing entry points, with the checkout's names.
+  for (const [entry, source] of [['rayner/output', 'src/output.ts'], ['rayner/testing', 'explain/testing.ts']] as const) {
+    const names = await run(process.execPath, ['--input-type=module', '-e', `const k = await import('${entry}'); console.log(Object.keys(k).sort().join(','))`], { cwd: folder });
+    assert.equal(names.stdout.trim(), Object.keys(await import(pathToFileURL(join(ROOT, source)).href)).sort().join(','), entry);
+  }
   await copyFile(join(ROOT, 'test/consumer/consumer.ts'), join(folder, 'consumer.ts'));
   await copyFile(join(ROOT, 'test/consumer/tsconfig.json'), join(folder, 'tsconfig.json'));
   await run(join(folder, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.json'], { cwd: folder });
@@ -55,6 +74,11 @@ try {
   // The starter is the tutorial's LRU/MRU explainer. Its model test runs as the tutorial says,
   // and it draws no diagram, so it checks without a browser.
   await run(process.execPath, ['--test', 'first/model.test.ts'], { cwd: folder });
+  await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
+  // Evidence references must resolve in the author's project, not the installed package.
+  const starter = join(folder, 'first/scene.ts');
+  await writeFile(starter, (await readFile(starter, 'utf8')).replace('static meta = {',
+    `static meta = { claims: [{ says: 'LRU evicts the item used longest ago', test: "first/model.test.ts: LRU matches Wikipedia" }],`));
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // Diagram capture and PNG tools ship in the default authoring install.
   assert.ok(existsSync(join(folder, 'node_modules/@resvg/resvg-js')));
@@ -124,7 +148,7 @@ try {
   await writeFile(join(folder, 'first/scene.ts'), native);
   await run(process.execPath, [cli, 'check', 'first'], { cwd: folder });
   // `see` reads a step from the terminal with no browser installed.
-  const seen = await run(process.execPath, [cli, 'see', 'first', 'one', '--case', 'case=b'], { cwd: folder });
+  const seen = await run(process.execPath, [cli, 'see', 'first', 'one', '--scenario', 'case=b'], { cwd: folder });
   assert.match(seen.stdout, /^outside · step 1 of 1: one · Case: B$/m);
   await run(process.execPath, [cli, 'build', 'first', '--out', 'public/outside.html'], { cwd: folder });
   const html = await readFile(join(folder, 'public/outside.html'), 'utf8');
@@ -132,10 +156,10 @@ try {
   assert.match(html, /id="licenses"/);
   assert.ok(!html.includes('node_modules/agentic-mermaid'));
   if (process.env.EXPLAIN_BROWSER) {
-    await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 1, claims: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
+    await writeFile(join(folder, 'first/scene.review.json'), JSON.stringify({ version: 2, subjects: [{ step: 'one', settings: { case: 'b' }, opening: true, targets: [{ text: 'b' }] }] }));
     await run(bin, ['review', 'first', '--out', 'review'], { cwd: folder });
     const reviewed = JSON.parse(await readFile(join(folder, 'review/review.json'), 'utf8'));
-    assert.equal(reviewed.cases, 2);
+    assert.equal(reviewed.scenarios, 2);
     assert.equal(reviewed.stepWidths, 4);
     assert.deepEqual(reviewed.consoleErrors, []);
     assert.equal(reviewed.artifactHash, JSON.parse(await readFile(join(folder, 'public/outside.html.receipt.json'), 'utf8')).artifactHash, 'review checks the same page that build publishes');
@@ -202,8 +226,9 @@ try {
   // keep their relative paths, so missing author-owned dependencies still fail.
   const copyAuthorSource = async (source: string, target: string) => {
     const code = (await readFile(source, 'utf8')).replace(
-      /(['"])(?:\.\.\/)+(src|explain)\/index\.ts\1/g,
-      (_match, quote: string, area: string) => `${quote}${area === 'src' ? 'rayner' : 'rayner/explain'}${quote}`,
+      /(['"])(?:\.\.\/)+(src\/index|src\/output|explain\/index|explain\/drawing)\.ts\1/g,
+      (_match, quote: string, area: string) =>
+        `${quote}${area === 'src/index' ? 'rayner' : area === 'src/output' ? 'rayner/output' : area === 'explain/index' ? 'rayner/explain' : 'rayner/drawing'}${quote}`,
     );
     await writeFile(target, code);
   };
@@ -214,6 +239,12 @@ try {
     const target = join(folder, 'outline-' + name);
     await mkdir(target);
     await copyAuthorSource(join(source, 'scene.ts'), join(target, 'scene.ts'));
+    // A claim names the test that backs it. An outside project keeps its tests beside its scenes,
+    // so carry each named test file over; check still fails if the named test is not in it.
+    for (const [, file] of (await readFile(join(source, 'scene.ts'), 'utf8')).matchAll(/test:\s*['"`]([^'"`:]+\.test\.ts):/g)) {
+      await mkdir(dirname(join(folder, file!)), { recursive: true });
+      await copyFile(join(ROOT, file!), join(folder, file!));
+    }
     if (name !== 'layout-direction') await copyFile(join(source, 'scene.lettering.json'), join(target, 'scene.lettering.json'));
     if (name === 'style' || name === 'font-metrics') {
       await cp(join(source, 'scene.snapshots'), join(target, 'scene.snapshots'), { recursive: true });
@@ -231,7 +262,7 @@ try {
   if (process.env.EXPLAIN_LETTERING === '1') {
     const target = join(folder, 'captured-lettering');
     await mkdir(target);
-    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,Math as Formula}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new Formula('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
+    await writeFile(join(target, 'scene.ts'), `import{Scene,Text,MathTex}from'rayner';import{stage}from'rayner/explain';export default class L extends Scene{static meta={id:'captured-lettering',title:'Captured lettering',lettering:{scripts:['Arab'],math:true}};async construct(){const s=stage(this,{heading:false});await this.step('arabic',{caption:'Arabic'});await s.enter(new Text('السَّلَامُ عَلَيْكُمْ',{color:s.palette.ink}));await this.step('math',{caption:'Maths'});await s.clear();await s.enter(new MathTex('\\\\frac{1}{2}+x^2',{color:s.palette.ink}));}}`);
     await run(bin, ['snapshots', target, '--refresh'], {
       cwd: folder,
       env: { ...process.env, RAYNER_LETTERING_FONTS: process.env.RAYNER_LETTERING_FONTS ?? join(ROOT, 'out/lettering-fonts') },
@@ -288,19 +319,19 @@ try {
     [
       '--input-type=module',
       '-e',
-      `import{Scene,NullSink}from'rayner';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
+      `import{Scene}from'rayner';import{NullSink}from'rayner/output';import{stage}from'rayner/explain';const scene=new Scene(new NullSink());await scene.run();stage(scene);console.log(scene.mobjects.length);`,
     ],
     { cwd: folder },
   );
   // The stage adds the paper, the heading's band and the heading.
   assert.equal(result.stdout.trim(), '3');
-  // describeExplainer from the installed package: the outside author's scene, both cases.
+  // describeExplainer from the installed package: the outside author's scene, both scenarios.
   const described = await run(
     process.execPath,
     [
       '--input-type=module',
       '-e',
-      `import{describeExplainer}from'rayner/explain';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.cases.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
+      `import{describeExplainer}from'rayner/testing';import S from'./first/scene.ts';const d=await describeExplainer(S);console.log(d.scenarios.map((c)=>c.values.case+':'+c.steps.map((s)=>s.step).join(',')).join(' '));`,
     ],
     { cwd: folder },
   );

@@ -1,18 +1,49 @@
-# Rayner: interactive technical explanations from TypeScript
+# Rayner: technical explainers checked against a tested model
 
-Rayner turns a TypeScript model into a step-through explanation. Readers can change a setting and see how the result changes; authors publish the cases as a portable HTML page with a transcript. It is for engineers and technical educators explaining protocols, algorithms and code changes.
+Rayner is for explaining how a protocol, an algorithm or a data structure behaves, drawn from a tested model. The author writes a TypeScript model of the subject and tests it against the real thing: CPython 3.12 for a dict's slots after a deletion, Git for a merge, XState for a statechart. Each step records the model's state, and `rayner check` fails a picture that differs from what that state draws: every view at the end of every step, every staged step, and every machine state a reader can reach. Two kinds of picture are checked another way: a Mermaid diagram against the renderer's output pinned beside the scene, and a hand-placed callout only by the scene's own tests. The result is one HTML page with no runtime dependencies, which opens from a file, a static host or an embed.
 
-[![A deleted dictionary slot keeps a marker so lookup can still reach key 8.](docs/images/dictionary-deletion.png)](https://oshineye.dev/projects/rayner/python-dict)
+## Read it, or explore it
+
+A reader reads an explainer as a sequence of steps. Each step is a resting picture with a title, a one-line point and a caption, and the transcript under the stage repeats every caption with a description of every picture, so the explanation survives without the animation. Each step has its own link.
+
+Where the author built the model as a [machine](docs/MACHINES.md), the reader can also explore it in the player: one button per event the model accepts, then Undo and Reset. An event the model refuses stays visible and says why, and the events sent so far sit in the URL, so a link reopens the same picture. Settings switch between scenarios, every one of them built and checked before the page was published.
+
+Rayner 0.2.0 has no video export: an explainer is read or explored on its page.
+
+## The authoring loop
+
+1. Script: `script.md` states the reader's question, the one-sentence answer the explanation must reach (`meta.answer`), and the questions a reader should be able to answer afterwards (`meta.checks`).
+2. Model: `model.ts` computes what the pictures will show, and `model.test.ts` compares it with the source, whether that is a published test vector, a reference implementation or the program itself.
+3. Scene: `scene.ts` names the steps and draws each one from the model's state.
+4. Check and review: `rayner check` runs every scenario and fails on the faults listed [below](#what-rayner-checks-for-you); `rayner review` builds the page, opens it in Chromium at phone and desktop widths and checks what is painted.
+5. Publish: `rayner review --out` saves the exact page it reviewed, with its receipt and a response-header recipe.
+
+`rayner init` writes the script, model, model test and scene of the tutorial's LRU/MRU explainer, so the loop starts from something that already passes.
 
 ## Start with a question
 
-[Why does a deleted dictionary slot need a marker?](https://oshineye.dev/projects/rayner/python-dict) Follow a lookup, try deleting a slot, and see why clearing it can make an existing key disappear. [Read the scene](scenes/explainers/python-dict/scene.ts) to see how the model supplies the picture and caption.
+[Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) See whose names set the bits, predict whether wolf gets through, then double the memory and compare the outcome. [Read the scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) to see how the model supplies the picture and caption.
 
 [Browse the subject lessons](https://oshineye.dev/projects/rayner/) · [Write your first scene](docs/TUTORIAL.md) · [API and CLI reference](docs/REFERENCE.md)
 
+[Why does the sunset line up with Manhattan’s streets?](https://oshineye.dev/projects/rayner/henge) Follow Earth’s tilt through the observer’s horizon, then rotate the street to see why the alignment seasons change. The fixed-tilt geometry explains the mechanism; it does not predict visiting times.
+
+## What Rayner checks for you
+
+An explainer written by hand, or by a language model, can look right and be wrong. Rayner's job is to check what an author, human or model, cannot easily check by eye:
+
+- **Every value comes from a model, and the model is tested against the real thing.** A scene draws numbers, paths and outcomes from a separate TypeScript model; its test compares the model with the program, library or published vectors it describes (CPython, Git, XState and others in the gallery), and a fidelity test asserts that every step of every scenario shows what the model computed.
+- **Pictures are checked against state and measured as painted.** `rayner check` runs every scenario, redraws each staged step's picture from the state its step recorded, and draws every state an event-driven [machine](docs/MACHINES.md) can reach. It fails on undersized desktop labels, text that collides, connectors that cross labels, a picture that moves after its caption starts, a jump to a step that draws differently from playing to it, and a drawing with no description in words. It also fails an explanation that never states its declared answer (`meta.answer`), and reports the step where the answer first appears.
+- **The page is reviewed as served.** `rayner review` opens the built page at phone and desktop widths, visits every resting step of every scenario, and checks what is actually painted.
+- **Agents can read it.** `rayner describe` and `rayner see` give every step as JSON or text, including the picture drawn as text, so an agent can inspect and revise a scene without a browser.
+
+Phone label estimates use the minimum stage geometry; `rayner review` checks the actual served layout. `meta.claims` links prose to named tests, but does not run them or verify their assertions. The checks cannot tell whether a caption is true or whether a reader learns. Write the script first (the [authoring skill](skills/rayner-explainers/SKILL.md) says how), and judge the result with [Judging an explainer](docs/EXPLAINER-RUBRIC.md).
+
+To use Rayner as a library, start with [engine fundamentals](docs/ENGINE-FUNDAMENTALS.md); the [engine map](docs/ENGINE.md) lists the guides and the invariants they keep, and the [drawing kit](docs/REFERENCE.md#drawing-kit) (`rayner/drawing`) draws the parts explanations keep needing.
+
 ## Write your first scene
 
-Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported. In an empty directory, install the published package and start the tutorial's two-case explainer of LRU and MRU cache replacement:
+Requires Node 24 or later and Chromium. Authoring targets Ubuntu and macOS; Windows is not yet supported. In an empty directory, install the published package and start the tutorial's two-scenario explainer of LRU and MRU cache replacement:
 
 ```sh
 mkdir my-rayner && cd my-rayner
@@ -24,19 +55,19 @@ npx rayner init my-explainer
 npx rayner preview my-explainer/scene.ts --watch
 ```
 
-Open the localhost URL printed by `preview`. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, then reload to see the rebuilt page. `init` also writes the scene's model, `model.ts`, and a test of it against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
+Open the localhost URL `preview` prints. Switch between **A B C D again** and **C D C D**, edit `my-explainer/scene.ts`, and reload to see the rebuilt page. `init` also writes the reader-facing script, `script.md`, the scene's model, `model.ts`, and a test of the model against published examples, `model.test.ts`. If Chromium is already installed, set `CHROMIUM_EXECUTABLE_PATH` instead of downloading it.
 
-When your explanation is ready, review every case and save the page to publish:
+When your explanation is ready, review every scenario and save the page to publish:
 
 ```sh
 npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 ```
 
-`review --out` checks every case, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, header recipe and loader. Check the model against its sources and inspect the screenshots: automated checks cannot establish that an explanation is true. [The tutorial](docs/TUTORIAL.md) develops a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it.
+`review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, header recipe and loader. Check the model against its sources and look at the screenshots, because no automated check can establish that an explanation is true. [The tutorial](docs/TUTORIAL.md) builds a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it.
 
 ## Look up an authoring feature
 
-The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) is an **API demo**, not a lesson or a complete inventory. Choose a feature to start at **Recipe**, where the code an author writes appears; then advance to **Result**. Its excerpts need the surrounding scene to run; the [feature guide](docs/FEATURE-TOUR.md) links the full source and specialized setup. Direct links to a Result step still work.
+The [feature tour](https://oshineye.dev/projects/rayner/feature-tour) answers "how do I write that?" for 15 features. Each feature opens at **Recipe**, which shows the lines an author writes and asks what they will draw; **Result** then shows the picture before and after those lines run. The excerpts need the surrounding scene to run, and the [feature guide](docs/FEATURE-TOUR.md) links the full source and the setup some features need.
 
 ## Work from this repository
 
@@ -50,7 +81,7 @@ npm run demos:build
 npm run demos:serve
 ```
 
-Open http://127.0.0.1:5175/explainers/. For a source change, run `npm run check` and `npm test`; [testing guidance](docs/TESTING.md) covers browser and capture checks. Report bugs in [GitHub issues](https://github.com/adewale/rayner/issues), with the scene, case, step and viewport needed to reproduce them. [The release guide](docs/RELEASING.md) records platform validation and the separate maintainer publishing workflow.
+Open http://127.0.0.1:5175/explainers/. For a source change, run `npm run check` and `npm test`; [testing guidance](docs/TESTING.md) covers browser and capture checks. Report bugs in [GitHub issues](https://github.com/adewale/rayner/issues), with the scene, scenario, step and viewport needed to reproduce them; before proposing a feature, read [what belongs in Rayner](docs/ENGINE.md#what-belongs-in-rayner). [The release guide](docs/RELEASING.md) records platform validation and the separate maintainer publishing workflow.
 
 ## Scope and limits
 
@@ -61,7 +92,7 @@ Scenes are ordinary TypeScript classes. Reader settings are finite choices, with
 - Diagram labels fit captured widths by default. Opt into [`lettering: 'natural'`](docs/LETTERING.md#diagram-measurements) to measure the requested face before layout. A diagram style does not implicitly select its font.
 - Player controls and generated picture descriptions are available in English and French. Other caption languages retain English controls and descriptions.
 - Phones use close-ups and a **Next view** tour. Review the opening and the whole tour so the caption's subject remains visible.
-- Builds enforce 1.5 MiB raw HTML and 450 KiB gzip page budgets. Diagram snapshots expand through the browser's native `DecompressionStream` API; the transcript remains readable without JavaScript. Split a scene or reduce its cases when it exceeds a budget.
+- Builds enforce 1.5 MiB raw HTML and 450 KiB gzip page budgets. Diagram snapshots expand through the browser's native `DecompressionStream` API; the transcript remains readable without JavaScript. Split a scene or reduce its scenarios when it exceeds a budget.
 - The example models are small and cited. They have not had subject-expert review.
 
 [FAQ](FAQ.md) · [Engine guides](docs/ENGINE.md) · [Agent authoring skill](skills/rayner-explainers/SKILL.md) · [Changelog](CHANGELOG.md)

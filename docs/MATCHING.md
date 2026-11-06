@@ -23,10 +23,58 @@ await this.play(new TransformMatching(before, after, { key: (part) => part.style
 | `TransformMatchingText` | are the same character in the same font and weight; anything else by shape. In an explainer with outline lettering, the same whole cluster drawn with the same number of glyphs ([lettering](LETTERING.md#changes-between-strings)) | `Text`, `Code`, groups of them |
 | `TransformMatchingShapes` | have the same `shapeKey()`: same path up to position and size | diagrams, symbols, anything drawn |
 | `TransformMatching` + `key` | map to the same string (`undefined` never matches) | identity you know: a node id, a color, a role |
+| `TransformMatching` + `matchByKey({ fallback?, unkeyed?, text? })` | sit at the same place inside containers with the same `mobject.key` | keyed cells, labels and nodes that move as units ([below](#keyed-components)) |
 
 A part is one drawable piece: a visible `VMobject` with points of its own (a
 glyph, an arrow's line or tip, a node's box). Containers are not parts; a
-`Text`'s advance box is not a part.
+`Text`'s advance box is not a part. A key function receives the part and the
+picture it belongs to (the transform's source or target), so it can stop
+reading ancestors at that root.
+
+## Keyed components
+
+A picture rebuilt from state names what persists by giving a container a
+`key`: a table cell `cell:${z}`, a state node `state:${id}`. `matchByKey()`
+pairs every part under a keyed container with the part at the same place under
+the container of the same key on the other side, so the cell is kept as one
+component wherever it moves and its own parts morph inside it. A keyed part
+(a lone `Rectangle` with a key) pairs by its own key. The nearest key wins when
+keyed containers nest. A key two containers share pairs by distance, like any
+repeated key.
+
+A keyed `Text` whose words change needs a decision, and `text` makes it. By
+place (the default), its glyphs morph place by place and a glyph with no
+counterpart fades inside it: right for a readout whose digits change. Whole,
+it pairs only with a `Text` of the same key and the same words, so a renamed
+state or event fades out and the new name fades in: right where the words are
+the identity. `statecharts` uses `text: 'whole'`.
+
+```js
+import { TransformMatching, matchByKey } from 'rayner';
+await this.play(new TransformMatching(before, after, { key: matchByKey() }));
+// A relabelled node's old name fades and the new one grows in
+diagram.sync({ match: matchByKey({ text: 'whole' }) });
+// Keyed cells keep their identity; the same word elsewhere stays put instead of fading
+table.sync({ match: matchByKey({ fallback: (part) => part.parent instanceof Text ? `${part.parent.text}@${where(part.parent)}` : undefined }) });
+```
+
+`mobject.find(key)` and `scene.find(key)` return the first part with a key,
+depth first in drawing order; `findAll(key or test)` returns every one. Use
+them, rather than walking `family()` or `children`, so the parts a scene
+addresses are the same ones matching, invariants and reviews address.
+
+What is under no key below the root pairs by the `fallback`, and by default
+not at all: it fades out and in, as a label that is new or gone should. With
+`unkeyed: 'by-place'` it pairs with the part at the same place in the other
+picture instead, as if the whole picture were one keyed component (`monty-hall`'s
+picture works this way). Pass a
+fallback to keep unkeyed parts that are the same thing in the same place
+(`periodic-groups` keys them by their words or size and position). The root's
+own key, and keys above it, are never read: they would make every part one
+component and reduce the morph to matching by index. `View.sync({ match: 'key' })`
+is `matchByKey()` with the defaults ([views](VIEWS.md#match)), and it is how a
+[machine](MACHINES.md)'s views morph unless the machine says otherwise, so the
+parts that stay through an event keep their identity.
 
 ## How parts pair
 
@@ -54,6 +102,13 @@ glyph, an arrow's line or tip, a node's box). Containers are not parts; a
   cross a line can still report a teleport in a few frames.
 - `fadeMismatches: false` morphs the unmatched parts into each other instead,
   by index, as manim's `transform_mismatches` does; only the surplus fades.
+- `staged: true` takes the unmatched parts in turn instead of together: the
+  source's shrink and fade over the first half, the target's grow and fade in
+  over the second, while matched parts morph throughout. A word and the word
+  that replaces it in the same place never overlap. A machine's views morph
+  this way when an event has no authored transition
+  ([machines](MACHINES.md#the-default-transition)); `view.sync({ staged: true })`
+  asks for it anywhere else.
 
 New parts live in the source while the animation plays: copies of them are
 added to the source's line their target line corresponds to, or to a bare copy
@@ -122,9 +177,9 @@ boundary, about 0.02% of copies.
 
 ## Diff-driven
 
-For a code change, what stayed and what changed is not a guess about shapes:
-it is the diff. `TransformDiff` takes the pairing from it, so the animation
-cannot show a change the diff does not contain.
+For a code change, the diff already says what stayed and what changed.
+`TransformDiff` takes its pairing from the diff, so the animation cannot show a
+change the diff does not contain.
 
 ```js
 import { Code, TransformDiff, diffLines, parseUnifiedDiff } from 'rayner';
@@ -140,7 +195,7 @@ await this.play(new TransformDiff(before, after, { hunks: parseUnifiedDiff(patch
   most like it, in order (an LCS over the hunk's lines, scored by shared token
   characters; a pair needs half of both lines' non-space characters in
   shared tokens). Their shared tokens' glyphs pair character for character
-  (`diffTokens`, addressed through `code.span(line, from, to)`); the rest of
+  (an internal token diff, addressed through `code.span(line, from, to)`); the rest of
   the two lines fades out and grows in. `return db.get(id)` ->
   `const row = await db.get(id)` keeps its call and swaps the words around it.
 - **Removed and added lines** fade out in place and grow in place.
@@ -182,24 +237,24 @@ or leave unequal gaps, or when the lines outside the hunks differ. Running
 ### Evidence
 
 In a scene, a matching transform records what it did as step evidence when it
-begins (`Scene.record`, see [the reference](REFERENCE.md#scene)): `{ kind: 'match', matched,
-morphed, removed, added }`, and for `TransformDiff`, `{ kind: 'diff', hunks,
-lines: { unchanged, changed, removed, added }, matched, morphed, removed, added }`.
-A View's internal morph (`view.sync()`) does not record evidence.
-The trace carries it per step, and `renderText` prints a one-line summary under the
-frame. The KV-cache explainer morphs its merge request's two texts with
+begins ([fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence)):
+`{ kind: 'match', matched, morphed, removed, added }`, and for `TransformDiff`,
+`{ kind: 'diff', hunks, lines: { unchanged, changed, removed, added }, matched,
+morphed, removed, added }`. A view's sync records its morph's `match` counts, with
+the view's key as `view`. The trace carries evidence per step, and `renderText`
+prints a one-line summary under the frame. The KV-cache explainer morphs its merge request's two texts with
 `TransformDiff`, and `test/explain-fidelity.test.ts` holds the hunks it
-records, in both of its cases, to `git diff --no-index --unified=0`, with its
+records, in both of its scenarios, to `git diff --no-index --unified=0`, with its
 line counts git's. The same file checks the match evidence behind the counts
 the glyph and git explainers put on screen.
 
 ## In the explainers
 
-- [`scenes/explainers/mr-cache/scene.ts`](../scenes/explainers/mr-cache/scene.ts): `TransformDiff`
+- [`scenes/explainers/mr-cache/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/mr-cache/scene.ts): `TransformDiff`
   on coloured `Code`, with tinted bars placed from `diff.plan`.
-- [`scenes/explainers/glyph/scene.ts`](../scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
+- [`scenes/explainers/glyph/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/glyph/scene.ts): `TransformMatchingShapes`
   pairing glyphs by outline across sizes and fonts, and `TransformMatchingText`
   for a text diff, with lines drawn between `pairs` and counts from `summary()`.
-- [`scenes/explainers/exgit/scene.ts`](../scenes/explainers/exgit/scene.ts): `TransformMatchingShapes`
+- [`scenes/explainers/exgit/scene.ts`](https://github.com/adewale/rayner/blob/main/scenes/explainers/exgit/scene.ts): `TransformMatchingShapes`
   keeping one row whole while another grows in, and `TransformMatchingText`
   morphing old git ids into new, with counts read from `scene.evidence`.

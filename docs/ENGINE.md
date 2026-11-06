@@ -1,51 +1,91 @@
 # Engine docs: a map
 
-The engine is `src/` (zero dependencies, exported through `src/index.ts`). Each guide below
-answers one question about it. The explainer layer built on top is documented in
-[the reference](REFERENCE.md), which also [names the explainers](REFERENCE.md#engine-features)
-that use each feature. Lantern's own engine notes are at the fork base, `2c7bad5`; links to
-them below say so.
+The engine is `src/`, exported through `src/index.ts`. It has no runtime dependencies and never shells out: token colours, Git hunks, diagram snapshots and requested lettering are captured at build time and checked in. Start with [engine fundamentals](ENGINE-FUNDAMENTALS.md), then run the [extension recipes](EXTENDING.md). The explainer layer on top (stage, diagrams, checks, page) is in [the reference](REFERENCE.md), which also [names the explainers](REFERENCE.md#engine-features) that use each feature. [Upstream](UPSTREAM.md) records what changed from Lantern.
+
+## Correctness by construction
+
+Five invariants hold the engine together. The API enforces each one where it can, and a check covers it where it cannot.
+
+1. **A frame is a pure function of time.** The clock is the frame count. An animation fixes its endpoints when it begins and computes each frame from alpha alone, so a seek can skip interpolations and must render the byte-identical frame a full run renders. An active updater may depend on earlier frames, so a play with one replays frame by frame ([fundamentals](ENGINE-FUNDAMENTALS.md#updaters-derived-pictures-and-seeking)). `rayner check` fails a step whose direct link draws differently from playing to it.
+2. **Each mobject has one writer.** Every animation reports the mobjects it writes (`targets()`), and `play()` rejects two animations that drive the same mobject, or an ancestor and its descendant, at once. [`Follow`](CHOREOGRAPHY.md#follow) writes only the targets it names.
+3. **Identity is a key.** A part is addressed by its `key` (`find`, `findAll`) and kept across morphs by it ([`matchByKey`](MATCHING.md#keyed-components)); `become` refuses to drop a keyed child, and `rayner check` fails two parts with one key at the end of a step, whatever the key. What a part is for, which many parts can share (the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`), is its `role`, never its key. `Mobject.id` is the renderer's number and is not part of the published types.
+4. **Anything a reader can reach is a view of state.** A [`view(scene, draw)`](VIEWS.md) keeps its `draw`, `stage.steps` records each step's, and a [`Machine`](MACHINES.md) is made of views. So `rayner check` redraws every staged step and every reachable machine state from the state alone and compares, and a fidelity test can compare any view with the traced state at every step.
+5. **Every claim can fail.** An [invariant](EXTENDING.md#hold-an-invariant-on-every-frame) that never holds in a run fails, and `test/explain-gates.test.ts` gives each check one seeded defect it must reject. A claim of success names the check that proves it and the deliberate defect that check was shown to reject.
+
+Three records say what happened, each answering a different question. The **trace** (`traceScene`) is what each step showed: its timing, the model before and after, what was shown (`shown`) and the step's evidence. **Evidence** is what an animation decided, recorded as it began ([fundamentals](ENGINE-FUNDAMENTALS.md#steps-state-and-evidence)). The **receipt** is what a build produced: source, engine and snapshot hashes, the page's `artifactHash` and each scenario's steps ([reference](REFERENCE.md#headers)).
+
+## Which guide answers which question
 
 | Module | Doc | The question it answers |
 | --- | --- | --- |
-| `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Lantern's README, "Model"](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/README.md#model) (at `2c7bad5`) | What is a scene made of, and why are points the truth? |
+| `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
 | `animation.ts`: `Restore`, `TransformFromCopy`, `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
-| `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family? |
+| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`, `SetState`, `Follow`; `mobject.ts`: `become` | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar or task, send a transient token, sequence model snapshots with views, or drive several drawings from one sampled number? |
+| `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText`, `matchByKey` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family, and keep a keyed cell or node as one component? |
 | `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline`, `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |
 | `graphing.ts`: `NumberLine`, `Axes` | [GRAPHING.md](GRAPHING.md) | How do I chart the program's own numbers? |
-| `view.ts`: `view`, `stateView`, `viewMismatch`; `panels.ts`: `StateReadout` | [VIEWS.md](VIEWS.md) | How do I make a picture a function of `scene.state`, and check it at every step? |
+| `view.ts`: `view`, `viewMismatch`; `panels.ts`: `StateReadout` | [VIEWS.md](VIEWS.md) | How do I make a picture a function of `scene.state`, and check it at every step? |
 | `text.ts`: `Code` spans and token colours; `svg.ts`: run merging; `tools/tokens.ts` | [CODE.md](CODE.md) | How do I address, colour and box part of a line of code, and what does colour cost? |
-| `diff.ts`, `animation.ts`: `TransformDiff`; `scene.ts`: `record()` | [MATCHING.md, "Diff-driven"](MATCHING.md#diff-driven) and [the reference, "Scene"](REFERENCE.md#scene) | How does a code morph follow the diff, and how does the trace prove it did? |
-| `verify.ts`, `trace.ts`, `timeline.ts` | [The reference, "Checks"](REFERENCE.md#checks); Lantern's [VERIFY.md](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/docs/VERIFY.md) (at `2c7bad5`) | Is the animation true, correct and smooth, and how is each checked? |
-| `perf.ts`, `svg.ts` | Lantern's [PERF.md](https://github.com/ivarvong/lantern/blob/2c7bad533be25fbd56d26a9a2b6c5651743f011e/docs/PERF.md) (at `2c7bad5`); run merging in [CODE.md](CODE.md#cost-elements-per-line) | Where does a frame's time go, and what made it faster? |
-| `fonts.ts`, `font-data.ts` | [The reference, "Scene"](REFERENCE.md#scene) (the fallback chain) and [upstream](UPSTREAM.md#engine-changes) | Which face draws a character, and what fails? |
+| `diff.ts`, `animation.ts`: `TransformDiff`; `scene.ts`: `record()` | [MATCHING.md, "Diff-driven"](MATCHING.md#diff-driven) | How does a code morph follow the diff, and how does the trace prove it did? |
+| `svg.ts`, `ascii.ts`, `trace.ts`, `timeline.ts` | [Scene outputs](SCENE-OUTPUTS.md) | How do I get frames, text, elements, step indexes and traces from a scene? |
+| `machine.ts`: `Machine`, `machinesOf`; `choreograph.ts`: `choreograph` | [Machines](MACHINES.md) | How do I drive a scene's model with events, author each event's motion part by part, and have every reachable state and transition checked? |
+| `scene.ts`: `addInvariant`; `verify.ts`: `InvariantSink` | [Extension recipes, "Hold an invariant on every frame"](EXTENDING.md#hold-an-invariant-on-every-frame) | How do I say what must stay true while things move, and have every frame checked? |
+| `verify.ts`, `trace.ts`, `timeline.ts` | [Testing](TESTING.md) and [the reference, "Checks"](REFERENCE.md#checks) | Is the animation true, correct and smooth, and what does each check establish? |
+| `perf.ts`, `svg.ts` | [Profiling](ENGINE-FUNDAMENTALS.md#outputs-checks-and-performance); run merging in [CODE.md](CODE.md#cost-elements-per-line) | Where does a frame's time go, and how should I measure it? |
+| `fonts.ts`, `font-data.ts` | [The reference, "Scene"](REFERENCE.md#scene) (the fallback chain) | Which face draws a character, and what fails? |
 | `lettering.ts` | [The reference, "Lettering on request"](REFERENCE.md#lettering-on-request) | How does an explainer draw Greek or Cyrillic, and what does that cost the explainers that do not? |
 | `lettering-outlines.ts`, `italic.ts`, `math.ts` | [LETTERING.md](LETTERING.md) | How does an explainer draw another face, real bold and italic, Arabic, Devanagari, Hebrew or maths from runs shaped at build time, and why does no other page carry that code? |
 
-Lantern's Mermaid flowchart layout and its JSON document format were deleted in this fork
-([upstream](UPSTREAM.md) lists what went); diagrams come from Agentic Mermaid capture instead.
+## What belongs in Rayner
 
-Every guide keeps the same guarantees: a frame is a pure function of alpha over endpoints
-fixed when its animation begins, so a seek renders the byte-identical frame a full run
-renders; nothing in `src/` imports a dependency or shells out; inputs computed outside the
-scene (token colours, git hunks, diagram snapshots) are produced at build time and checked in.
+Sort a feature request with one question: does it check, ground or publish the result, or does it do work a capable author would do anyway?
+
+- **Belongs:** work an author, human or model, cannot easily do or verify by eye, and that should be the same on every page: testing a model against its source, measuring what is painted, reviewing the served page, deterministic frames, portable and accessible pages, a description and transcript for every picture, and making the reader's own actions checkable ([the live machine](https://github.com/adewale/rayner/issues/88)). This work gets more valuable as authoring models improve, because there is more output to check.
+- **Does not belong:** work that needs judgement and improves with the author's skill: wording, pacing, narration, layout and how to teach. Rayner gives the author what that work needs (`describe`, `see`, the resting-picture descriptions, step timing) and leaves the work to the author, because a feature here would cap good authors at the feature's level. The same goes for guidance: the [authoring skill](../skills/rayner-explainers/SKILL.md) says what must be true and how it is checked, not how to draw.
+
+When a request is the second kind, the answer is usually to expose the data the author needs rather than build the behaviour.
+
+**Design records.** A design document ends with what was tried and not kept, and why, as Lantern's performance notes did and as [sampled parameters](PARAMETERS.md), [machines](MACHINES.md) and the [vocabulary](VOCABULARY.md) do. A proposal that cannot name its rejected alternatives, or the existing explainers it changes, is not ready.
+
+## Primitives considered and not built
+
+A review on 2026-11-03 found that 34 of the 40 explainers cleared the stage and redrew each step, and that the duplication the collection carried was layout arithmetic, not identity. It added keyed components (`matchByKey`, [matching](MATCHING.md#keyed-components)) and a `table()` in the drawing kit that places its measured columns and keys its header, rows and cells (`key:row:column`; a duplicated row key is refused), which python-dict's machines morph by. It turned these down:
+
+- **Keyed collections with separate slots.** Which entity an item is, which slot it occupies and where it is shown are model facts, and every scene's model already holds them (`ring-buffer` keys values `slot:${i}`). Once keyed components match, a collection is a key-naming convention, and moving entity identity into the drawing layer would take it away from the oracle-tested model.
+- **Persistent attachments.** In a redraw scene every label is recomputed anyway; in a morphing scene the `View` rebuild repositions arrows, and `Labeled` and the diagram `note()` cover static anchors. An attachment system needs a geometry plan, cycle rejection and a missing-target policy, which add up to a reactive constraint graph; "points are the truth" excludes one.
+- **A parameter rig.** One explainer, the token bucket, needed several drawings to follow one number, so the exported shape is one small animation, [`Follow`](CHOREOGRAPHY.md#follow). [Sampled parameters](PARAMETERS.md) records the survey.
+
+`stage.steps` keeps clear-and-redraw as its default transition: an author opts into entity continuity, with a view or a machine, when successive pictures show the same entities.
+
+## Public names
+
+The package has an entry point per audience. A scene is written with `rayner`, `rayner/explain`, `rayner/drawing` and the `LetteringRequest` type from `rayner/lettering`. `rayner/output` draws a scene's frames outside the built page, for a host page or a tool, and `rayner/testing` holds what an author's tests and tools use; no scene may import it ([the reference lists both](REFERENCE.md#testing-and-tooling-api)).
+
+Every value an entry point exports has one reason to be public, recorded in [`test/public-names.json`](https://github.com/adewale/rayner/blob/main/test/public-names.json):
+
+- **used**: an explainer, a tutorial scene or a recipe imports it and uses it. Who uses it is computed from their imports, through the collection's own re-exports, and never written down.
+- **tooling**: it lives in `rayner/output`, `rayner/testing` or `rayner/lettering` (whose values the build and the page call). A name in one of those is tooling and a name elsewhere is not.
+- **taught**: a guide section teaches it and a test runs it. The ledger names the section's anchor and the test file, and both must exist and mention the name. `Frame` is taught this way (the camera guide and `test/camera.test.ts`); every other scene name is used. A Manim name keeps a test that it means what Manim means whatever its reason: `smooth`, `rushInto`, `rushFrom` and `thereAndBack` are compared with Manim's own functions in `test/manim.test.ts` (latest-search rushes in, token-bucket rushes out and goes there and back; no library code has used `thereAndBack` since `Indicate` went), and `ArcBetweenPoints` turns counterclockwise for a positive angle, as Manim's does (`test/core.test.ts`).
+
+A name may also say what `rayner check` verifies about it (`check`), led by the name of a check in [the reference's table](REFERENCE.md#checks): `view` and `View` say "Views", `Machine` and `choreograph` say "Machines", `stagedStep` says "Staged steps". `test/public-names.test.ts` fails when a public name has no reason, when a `used` name has no user, when a `taught` section or test is missing or no longer mentions it, when a `check` names no check, and when the ledger lists a name no entry point exports. It also renders [the reference's engine features table](REFERENCE.md#engine-features) and [the skill's examples](../skills/rayner-explainers/SKILL.md#start-from-an-example) from the same file and fails when either document differs, and it fails an example that claims a name or a member its scenes do not use. `node tools/public-names.ts` prints every name with its reason and users; `--write` renders the tables.
+
+**Admitting a new abstraction.** A proposal for a new public name says which reason it will have, and, when it is an abstraction rather than a value, what `rayner check` can verify about it once it exists: a view is redrawn from state at every step, a machine's reachable states are explored, a keyed part is held to one key per part. A name whose correctness no check can see is admitted only when a test runs it and a guide teaches it.
+
+A name only the library uses becomes internal, and a name nothing uses is cut. In 0.2.0 that made internal the vector helpers `add`, `sub`, `mul`, `dot`, `norm`, `normalize`, `lerp`, `rotate` and `angleOf` (one-line arithmetic, and `dot` collided with the drawing kit's `dot`); `tokenize`, `diffTokens` and `hunkHeader`, which `TransformDiff` uses inside (`diffLines` and `parseUnifiedDiff` stay, as sources of hunks); `findingsOf` and `edgePartOf`, whose public routes are `d.findings()` and `d.link()`; and `stagedStepsOf`, which `rayner check` reads. `ViewSync` is now a type only, since `view.sync()` makes one. `easeInQuad`, `easeOutQuad` and `easeOutBack` were cut, being neither Manim's names nor used, and so was `wiggle`, which swings twice as often as Manim's. The nine direction vectors and fourteen Manim colours were cut: an explainer colours from its stage's palette, and engine defaults now take the scene's colours ([fundamentals](ENGINE-FUNDAMENTALS.md#geometry-and-paint)). `Indicate`, `Flash` and `MathTex`'s alias `Math` were cut too ([vocabulary](VOCABULARY.md#names-deliberately-kept)).
 
 ## Out of scope
 
-Each for a reason:
-
-- **3D.** The model is 2D point buffers drawn as SVG paths; depth sorting and a 3D camera would be a second engine.
+- **3D in the engine.** The model is 2D point buffers drawn as SVG paths; a z-buffer, lighting and a 3D camera would be a second engine. A 3D picture is a drawing instead: [`seenFrom(model, viewpoint)`](REFERENCE.md#3d-seenfrommodel-viewpoint) in the drawing kit turns a model and a viewpoint (plain state, turned by a `Follow`) into ordinary keyed 2D pieces in an explicit depth order, which `depthOrder` checks.
 - **Boolean path operations** (union, intersection, difference). Robust curve clipping is a geometry library in itself; an approximate one would break exact points, and a dependency would break zero runtime dependencies.
-- **Runtime LaTeX.** A TeX engine and its fonts are a large runtime dependency, so neither a page nor a build runs one. Maths is typeset once, when its snapshot is captured, by `glyph`'s TeX subset on Latin Modern Math, and stored as outlines in `scene.lettering.json`, checked in like the diagram snapshots. `MathTex` draws those outlines ([Maths](REFERENCE.md#maths)).
-- **`transform` matrices on the model.** Every move rewrites points, because points are the truth that traces, the verifiers and matching transforms read. The string serializer already writes shape-relative path data plus a `translate`, so a pure move keeps its `d` without a matrix in the model.
-- **Raster images.** A bitmap has no points to morph, would be fetched or embedded as bytes, and would make frames depend on a decoder; everything on stage is paths and glyph outlines.
+- **Runtime LaTeX.** A TeX engine and its fonts are a large dependency, so neither a page nor a build runs one. Maths is typeset once, when its snapshot is captured, by `glyph`'s TeX subset on Latin Modern Math, and stored as outlines in `scene.lettering.json`. `MathTex` draws those outlines ([Maths](REFERENCE.md#maths)).
+- **`transform` matrices on the model.** Every move rewrites points, because points are what traces, the verifiers and matching transforms read. The SVG serializer already writes shape-relative path data plus a `translate`, so a pure move keeps its `d` without a matrix in the model.
+- **Raster images.** A bitmap has no points to morph, would be embedded as bytes, and would make frames depend on a decoder; everything on stage is paths and glyph outlines.
 
-Lantern listed matching morphs as out of scope at the fork base; [MATCHING.md](MATCHING.md) adds them.
-Which of these changes are offered to the original project: [upstream](UPSTREAM.md#offered-upstream-draft-pr-description).
+The fork deleted Lantern's Mermaid flowchart layout and its JSON document format. Diagrams come from Agentic Mermaid capture, and [scene outputs](SCENE-OUTPUTS.md) gives the outputs the JSON documents produced, from native scenes.
 
 ## Embedded browser fonts
 
-Ordinary portable pages use SFNT copies of the embedded Inter, JetBrains Mono and Noto subsets. They retain the same glyphs and metrics while omitting the WOFF2 Brotli decoder. Authoring and pages that request additional lettering keep the full loader. `test/browser-fonts.test.ts` compares both loaders over fixed fallback examples and generated strings.
+Ordinary pages use SFNT copies of the embedded Inter, JetBrains Mono and Noto subsets: the same glyphs and metrics, without the WOFF2 Brotli decoder. Authoring, and pages that request lettering, keep the full loader. `test/browser-fonts.test.ts` compares both loaders over fixed fallback examples and generated strings.
 
-`npm run fonts` regenerates both representations. To rebuild only the browser copies from the committed subsets, run `node tools/fonts-sfnt.ts` with fonttools and brotli installed in Python; `RAYNER_LETTERING_PYTHON` selects a Python interpreter. The tool checks the original shaper pin before deriving its SFNT-only variant. No Python process runs when an author builds a normal page.
+`npm run fonts` regenerates both. To rebuild only the browser copies from the committed subsets, run `node tools/fonts-sfnt.ts` with fonttools and brotli installed in Python (`RAYNER_LETTERING_PYTHON` selects the interpreter); the tool checks the original shaper pin first. No Python runs when an author builds a page.

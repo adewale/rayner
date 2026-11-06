@@ -5,7 +5,7 @@
 *{box-sizing:border-box}
 ::selection{background:color-mix(in srgb,var(--accent) 30%,transparent)}
 body{margin:0;background:var(--bg);color:var(--fg);accent-color:var(--accent)}
-#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px);--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
+#content{--player-reserve:calc(var(--head-h,100px) + var(--lede-h,85px) + 115px + var(--caption-start,3.6rem));--stage-narrow-max:calc(100dvh - var(--player-reserve) - 52px);--player-cap:max(20rem,var(--player-floor,0px),calc((100dvh - var(--player-reserve))*16/9));max-width:1240px;margin:0 auto;padding:24px 16px 48px}
 #content:focus{outline:none}
 /* In a frame the page is the tile alone: the host's background shows around it and at its corners.
    The tile keeps 1px off the frame's edges, so its own edge is drawn inside the frame, and #content holds
@@ -18,16 +18,16 @@ a{color:var(--accent);text-underline-offset:.2em}
 h1{font-size:1.5rem;line-height:1.25;font-weight:650;letter-spacing:-.015em;margin:0;text-wrap:balance}
 h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 
-/* The card's header: the title, then the cases it can show, over a rule; the stage is mounted under it.
+/* The card's header: the title, then the scenarios it can show, over a rule; the stage is mounted under it.
    Without JavaScript the page's h1 stands in the card alone. */
 .head,.player>h1{padding:16px var(--inset);border-bottom:1px solid var(--line)}
 .head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px}
 .head h1{flex:1 1 20rem}
-.case{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
-.case legend{float:left;padding:0}
-/* One label style: the case legend, the step kicker, the rail heading and the view count. */
-.case legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
-.case legend+*{clear:left}
+.scenario{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.scenario legend{float:left;padding:0}
+/* One label style: the scenario legend, the step kicker, the rail heading and the view count. */
+.scenario legend,.lede .kicker,.lede-ruler .kicker,.rail h2,.view-controls>span,.changes>:first-child{font-size:.8125rem;font-weight:500;line-height:1.4;letter-spacing:.01em;color:var(--muted);font-variant-numeric:tabular-nums}
+.scenario legend+*{clear:left}
 .segments{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:var(--player-control-radius,11px);background:color-mix(in srgb,var(--line) 55%,transparent)}
 .segments label{position:relative;display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:var(--player-control-radius,8px);font-size:.9375rem;color:var(--muted);cursor:pointer;transition:background-color 150ms ease,color 150ms ease}
 .segments input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
@@ -50,13 +50,21 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 }
 
 /* Player: one card. Its header, the picture, one stepper row straight under it, then the step's words.
-   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, and 115px) is the room the header, the stepper row and the first lines
-   of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings). The card, not
+   --player-reserve (on #content: the header's measured height, --head-h, the tallest step heading's measured height, --lede-h, 115px, and --caption-start) is the room the header, the stepper row and the first lines
+   of the words need (head ~100 + stepper row 61 + the step heading ~85 + paddings + the caption's first two lines,
+   3.6rem at 1.125rem × 1.6), so a reader sees the picture and the start of what it means without scrolling. The card, not
    only the frame, is capped by the viewport's height, so the stage fills the card's width and Next
    is on screen at load; a floor of 20rem keeps a short landscape window's card usable. Tuned
    against the viewports in specs/player-redesign.md R2. */
 .player{position:relative;min-width:0}
-.frame{position:relative}
+.frame{position:relative;container-type:inline-size}
+/* A narrow stage (a phone) is taller than the picture's 16:9, up to 4:5 (NARROW_ASPECT in
+   app/embed-closeup.ts), so its close-ups show more of the picture at the same readable size.
+   It is never shorter than 16:9, and on a standalone page never so tall that the stepper row
+   and the caption's first lines leave the screen (--stage-narrow-max, which also leaves the 52 px
+   view row a narrow stage adds under the stepper). Under the loader, which
+   sizes the frame to its content, the cap is lifted (app/embed.ts) so height cannot feed back. */
+.stage.narrow{aspect-ratio:auto;height:clamp(calc(100cqw * 9 / 16),var(--stage-narrow-max),calc(100cqw * 5 / 4))}
 .stage{position:relative;min-width:0;aspect-ratio:16/9;overflow:hidden;background:var(--surface);touch-action:pan-y}
 .stage svg{width:100%;height:100%;display:block}
 .stage svg.glide{transition:transform 220ms var(--ease-out)}
@@ -69,25 +77,58 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .view-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px var(--inset) 0}
 .view-controls .button{min-height:44px}
 .view-controls[hidden]{display:none}
+/* Next's word sits on top of its other word, hidden, so Next and Start again are one width
+   and the step bar beside them never resizes at the end. */
+.button.primary>span{display:inline-flex;flex-direction:column}
+.button.primary>span::after{content:attr(data-other);height:0;overflow:hidden;visibility:hidden}
 .view-controls>span{margin-inline-end:auto}
 .overview{flex:none;display:block;width:44px;height:44px;padding:6px;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .overview[hidden]{display:none}
+/* A tour row kept in place for another step's tour holds the next close-up's 44 px slot. */
+.view-controls:has(>.overview[hidden])::after{content:"";flex:none;width:44px;height:44px}
 .overview:disabled{cursor:default}
 .overview .map{position:relative;display:block;width:32px;height:18px;border-radius:3px;background:color-mix(in srgb,var(--surface) 82%,transparent);box-shadow:0 0 0 1px var(--line-strong),0 1px 3px rgb(0 0 0/.15);overflow:hidden}
 .overview .map span{position:absolute;display:block}
 .overview .part{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 .overview .view{box-shadow:inset 0 0 0 1.5px var(--fg);border-radius:1px;transition:left 220ms var(--ease-out),top 220ms var(--ease-out)}
 @keyframes leave{to{opacity:0}}
+/* A live step's events (docs/MACHINES.md, "The player"), under the caption. A
+   refused event stays focusable and dimmed, one past the story's end is dashed, and each says why
+   on hover and on focus; the line under them says what the last event did. */
+.live{display:grid;gap:8px;padding:6px 0 4px}
+.live[hidden]{display:none}
+.live-lede,.live-said{margin:0;font-size:.875rem;color:var(--muted)}
+.live-lede{font-weight:500}
+.live-events,.live-tools{display:flex;flex-wrap:wrap;gap:8px}
+.live .button{min-height:44px}
+.live .event{position:relative}
+.live .event[aria-disabled=true]{opacity:.55;cursor:not-allowed}
+.live .event[data-outcome=beyond]{border-style:dashed}
+.live .event .reason{display:none;position:absolute;inset-block-start:calc(100% + 4px);inset-inline-start:0;z-index:2;width:max-content;max-width:min(32ch,80vw);padding:4px 8px;border-radius:6px;background:var(--fg);color:var(--bg);font-size:.8125rem;line-height:1.4;text-align:start;pointer-events:none}
+/* On hover only where hovering is real: a tap would leave a touch screen's tooltip over the row below. */
+.live .event:focus-visible .reason:not(:empty){display:block}
+@media(hover:hover){.live .event:hover .reason:not(:empty){display:block}}
+.live-said:empty{display:none}
 .words{display:grid;gap:6px;padding:14px var(--inset) 16px}
 .player>.caption{padding:14px var(--inset)}
-.caption{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
+.caption,.caption-ruler{margin:0;max-width:52ch;font-size:1.125rem;line-height:1.6;text-wrap:pretty}
+/* The caption keeps the tallest caption's height (--caption-h, measured by .caption-ruler at its
+   own width), so what follows it, the picture's description and the tools, never moves as the
+   reader steps; a short caption leaves room below it instead. */
+.words>.caption{min-height:var(--caption-h,0px)}
+.caption-ruler{position:absolute;top:0;left:0;min-height:0;visibility:hidden;pointer-events:none}
 .lede-ruler{position:absolute;top:0;left:0;margin:0;min-height:0;visibility:hidden;pointer-events:none}
 /* The step's heading on every width: "Step 3 of 4", the title, then the line. */
 .lede,.lede-ruler{max-width:68ch;font-size:1rem;line-height:1.45;text-wrap:pretty}
-.lede{margin:0 0 6px;display:flex;flex-direction:column;justify-content:flex-start}
+/* The heading keeps the tallest heading's height on its path (--lede-h, which the stage cap
+   already budgets), so a shorter heading never pulls the caption up as the reader steps. */
+.lede{margin:0 0 6px;display:flex;flex-direction:column;justify-content:flex-start;min-height:var(--lede-h,0px)}
 .lede>*,.lede-ruler>*{display:block}
 .lede strong,.lede-ruler strong{font-size:1.0625rem;font-weight:650}
 .lede .line,.lede-ruler .line{font-size:.9375rem;color:var(--muted)}
+/* The title keeps the tallest title's height (--lede-title-h), so the line under it starts
+   in the same place on every step; any room left over falls below the line. */
+.lede strong{min-height:var(--lede-title-h,0px)}
 .lede [hidden],.lede-ruler [hidden]{display:none}
 /* What the step changed of the state its author watches: a quiet label, then each change in a ring. */
 .changes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0;max-width:68ch;font-size:.875rem;line-height:1.4}
@@ -117,6 +158,16 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .tools .share{margin-inline-start:12px}
 .words>.tools{margin:8px 0 0;padding:10px 0 0;border:0;border-top:1px solid var(--line);justify-content:flex-start}.words>.tools .try{margin-inline-end:auto}
 @media(max-width:640px){.tools{flex-basis:100%;padding:0;border:0}.button.try{font-size:.9375rem}.stepper .button,.tools .button,.step-bar button{min-width:44px;min-height:44px}.step-bar button{min-width:0}}
+/* The scene's check questions after its last step: each question in view, its answer behind a disclosure. */
+.checks{margin:10px 0 2px;padding:12px 14px;max-width:68ch;border:1px solid var(--line);border-radius:var(--player-control-radius,8px);overflow-wrap:anywhere}
+.checks[hidden]{display:none}
+.checks h2{margin:0;font-size:1.0625rem}
+.checks .hint{margin:2px 0 6px;font-size:.875rem;color:var(--muted)}
+.checks ol{margin:0;padding-left:1.25rem;display:grid;gap:8px}
+.checks .question{margin:0;font-weight:600}
+.checks details{font-size:.9375rem}
+.checks summary{padding:4px 0;cursor:pointer;color:var(--muted)}
+.checks details p{margin:2px 0 0}
 .described{margin:2px 0 0;max-width:68ch;font-size:.9375rem;color:var(--muted)}
 .described summary{padding:6px 0;cursor:pointer}
 .described ul,.transcript li ul{margin:4px 0;padding-left:1.25rem;overflow-wrap:anywhere}
@@ -156,6 +207,8 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .steps .title{font-size:.9375rem;line-height:1.35}
 .steps .line{font-size:.8125rem;line-height:1.4;color:var(--muted)}
 .steps [data-state=done]::before{border-color:var(--accent);color:var(--accent)}
+/* A step not yet reached shows its number only, so its title cannot answer an earlier question. */
+.steps .unseen .title{color:var(--muted)}
 .steps [aria-current=step]{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .steps [aria-current=step]::before{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 
@@ -186,7 +239,23 @@ h2{font-size:1rem;line-height:1.4;margin:24px 0 8px;text-wrap:balance}
 .player:fullscreen{display:flex;flex-direction:column;justify-content:safe center;padding:16px;background:var(--tile);overflow:auto}
 .player:fullscreen>*{width:min(100%,max(var(--player-floor,0px),calc((100dvh - 300px)*16/9)));margin-inline:auto}
 
-@media(max-width:480px){.caption{font-size:1.0625rem}.stepper{gap:6px}}
+@media(max-width:480px){.caption,.caption-ruler{font-size:1.0625rem}.stepper{gap:6px}}
+/* The way back from the details says Back, and gives even that up when the row is tight (the
+   end of the details, with Start again and Try): it shrinks to its icon, its word moving to a
+   hidden second line rather than being cut, so the stepper row keeps one line on both paths at
+   every width. Its accessible name and tooltip stay the full words. */
+.stepper>.button.back{flex:1 1 0;min-width:44px;max-width:max-content}
+.button.back>span{display:block;min-width:0;height:1.5em;overflow:hidden;font-size:0;line-height:1.5em;text-align:start}
+.button.back>span::after{content:"\200B" attr(data-short);font-size:.9375rem;line-height:1.5}
+/* The step bar takes the room the controls leave rather than asking for its own, down to a few
+   pixels a segment, so every segment stays a target. Try at the end shrinks behind an ellipsis, as
+   Back does, rather than wrapping the row. The player measures the row's widest case (Start again,
+   Try and Back) once: when the tools do not fit beside it they take their own line on every step,
+   and the row keeps the widest case's height, so stepping never wraps it differently (embed.ts). */
+.step-bar{flex-basis:0;min-width:min(100%,calc(var(--segments,8)*8px))}
+.stepper>.button.try{flex:1 1 0;min-width:44px;max-width:max-content;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.stepper{min-height:var(--stepper-h,0px)}
+.stepper[data-stacked]>.tools{flex-basis:100%;padding-inline-start:0;border-inline-start:0}
 @media(prefers-reduced-motion:reduce){.tile,.button,.stage svg.glide,.overview .view,.segments label,.steps button{transition:none}.button:active:not(:disabled){transform:none}.step-bar .fill{transition:none}}
 
 /* Source notes remain a separate disclosure beneath the teaching path. */

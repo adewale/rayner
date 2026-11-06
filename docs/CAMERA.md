@@ -18,8 +18,8 @@ units. That has three consequences:
   whether the camera is home or zoomed in.
 
 It lives on the scene, not in `scene.mobjects`, so walks over the drawn list (renderers,
-verifiers, `clear()`, a scene's own bookkeeping) never meet it. `play()` animates it like
-anything else; it is just never added to the drawn list.
+verifiers, `clear()`, a scene's own bookkeeping) never meet it, although `play()` animates
+it like anything else.
 
 ## Moving it
 
@@ -39,8 +39,8 @@ await this.play(this.frame.animate.reset());                     // back to the 
 `fit`, `reset`, `scale` and `moveTo` keep the 16:9 aspect; `stretch` would not, and a
 non-16:9 box is letterboxed by the SVG renderer, which shows more than the box.
 
-Calling these without `.animate` between plays moves the camera in one frame: a cut. The
-motion verifier reports it (see below), as it should.
+Calling these without `.animate` between plays moves the camera in one frame, a cut, and
+the motion verifier reports it (see below).
 
 A camera can also follow something with an updater; frame updaters run after every other
 mobject's, so it sees this frame's positions:
@@ -71,11 +71,11 @@ By default the sinks write every mobject, on screen or not. `renderElements(scen
 and `toSvgString(scene, { cull: true })` (type `RenderOptions`) leave out a leaf whose box, grown
 by its stroke, leaves under 2 output pixels of the view (2 × view width ÷ `width`, the output's
 width in pixels, default 1280; `toSvgString` passes its own `width`), and skip a group whole only
-when it clears the view by 0.5 units. Culling is a pure function of the state, so seeks are unaffected, and the
-records it keeps are the same objects as without it. Every PNG the authoring
-tools draw turns it on because resvg 2.6.2 aborts on an element with `opacity` whose visible box is empty:
-seasons' noon zoom leaves a fading glyph at opacity 0.054 beyond the frame;
-rasterising that frame without culling aborts resvg. DOM sinks leave it off and keep one element per mobject. Tests:
+when it clears the view by 0.5 units. Culling is a pure function of the state, so seeks are
+unaffected, and the records it keeps are the same objects as without it. Every PNG the
+authoring tools draw turns it on, because resvg 2.6.2 aborts on an element with `opacity`
+whose visible box is empty: seasons' noon zoom leaves a glyph fading at opacity 0.054 beyond
+the frame. DOM sinks leave it off and keep one element per mobject. Tests:
 `test/camera.test.ts`, "cull: true leaves out what the camera cannot show; off by default" and
 "cull: 2 pixels of the output width, so a wider output keeps a thinner strip".
 
@@ -100,14 +100,15 @@ so a camera that glides past a small label does not make it read
 
 ## In the explainers
 
-- [seasons](../scenes/explainers/seasons/scene.ts), "noon": the stage's `s.focus(box, { exact: true })`
+- [seasons](https://github.com/adewale/rayner/blob/main/scenes/explainers/seasons/scene.ts), "noon": the stage's `s.focus(box, { exact: true })`
   onto a box the scene computes, a 2× zoom onto the noon angle with labels sized for the zoomed
   view, and `s.focus('all')` at the start of the next step. The stage keeps the heading and its
   line on screen over a paper band while the camera is away, so the box keeps the band's strip
   free of content.
-- [lantern](../scenes/explainers/lantern/scene.ts), "points": the diagram helper `d.focus(ids, { camera: true, also })`,
-  which moves the same camera; without `camera` a focus enlarges the artwork inside the diagram's box
-  ([reference](REFERENCE.md#diagrams)).
+- [lantern](https://github.com/adewale/rayner/blob/main/scenes/explainers/lantern/scene.ts), "begin": `s.focus(box, { exact: true })` onto
+  the classes the step is about and the listing below them, with the heading kept on screen.
 
-With `d.focus(…, { camera: true })` or a raw `this.frame` move the heading falls outside the
-view while zoomed; `s.focus` (the [stage](REFERENCE.md#stage)) keeps it on screen instead.
+The diagram helper `d.focus(ids, { camera: true })` moves the same camera; without `camera` a focus
+enlarges the artwork inside the diagram's box ([reference](REFERENCE.md#diagrams)). With
+`d.focus(…, { camera: true })` or a raw `this.frame` move, the heading falls outside the view while
+zoomed; `s.focus` (the [stage](REFERENCE.md#stage)) keeps it on screen.

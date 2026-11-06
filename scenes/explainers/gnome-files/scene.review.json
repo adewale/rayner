@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "reader-task",
       "opening": true,
@@ -34,6 +34,51 @@
         },
         {
           "text": "P6"
+        }
+      ]
+    },
+    {
+      "step": "give-ups",
+      "opening": true,
+      "targets": [
+        {
+          "key": "gave-up:P1"
+        },
+        {
+          "key": "gave-up:P2"
+        },
+        {
+          "key": "gave-up:P3"
+        },
+        {
+          "key": "gave-up:P4"
+        },
+        {
+          "key": "gave-up:P5"
+        },
+        {
+          "key": "gave-up:P6"
+        },
+        {
+          "key": "gave-up:task-1"
+        },
+        {
+          "key": "gave-up:task-3"
+        },
+        {
+          "key": "gave-up:task-4"
+        },
+        {
+          "key": "gave-up:task-7"
+        },
+        {
+          "key": "gave-up:task-9"
+        },
+        {
+          "key": "gave-up:total"
+        },
+        {
+          "key": "gave-up:none"
         }
       ]
     }

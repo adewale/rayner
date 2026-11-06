@@ -10,8 +10,8 @@ import {collectProject} from '../tools/lib/explain-project.ts';
 import type {Project} from '../tools/lib/explain-project.ts';
 import {buildExplainer, buildLoader} from '../tools/lib/explain-build.ts';
 import {serve} from '../tools/lib/explain-serve.ts';
-import {reviewStoryVariant} from '../tools/lib/explain-story-review.ts';
-import {reviewClaims} from '../tools/lib/explain-review-scene.ts';
+import {reviewStoryScenario} from '../tools/lib/explain-story-review.ts';
+import {reviewSubjects} from '../tools/lib/explain-review-scene.ts';
 
 const names = ['mr-cache', 'token-bucket', 'oauth-pkce', 'font-metrics', 'melody-rhythm', 'periodic-groups'];
 const projects = new Map<string, Project>();
@@ -34,23 +34,23 @@ after(async () => {
   if (folder) await rm(folder, {recursive: true, force: true});
 });
 
-test('WebKit checks served paint for every case of the cache, rate, PKCE, requested-font, music and periodic-table journeys', {skip: !process.env.EXPLAIN_WEBKIT && 'set EXPLAIN_WEBKIT=1; install Playwright WebKit'}, async () => {
+test('WebKit checks served paint for every scenario of the cache, rate, PKCE, requested-font, music and periodic-table journeys', {skip: !process.env.EXPLAIN_WEBKIT && 'set EXPLAIN_WEBKIT=1; install Playwright WebKit'}, async () => {
   const browser = await webkit.launch();
   try {
     const context = await browser.newContext({hasTouch: true, isMobile: true, reducedMotion: 'reduce'});
     const page = await context.newPage();
     const errors: string[] = [];
     page.on('pageerror', e => errors.push(e.message));
-    let cases = 0;
+    let scenarios = 0;
     const reviews = [];
     for (const [name, project] of projects) {
-      const claims = await reviewClaims(project);
-      for (const variant of project.variants) {
-        reviews.push({id: name, settings: variant.values, steps: await reviewStoryVariant(page, `${server!.url}/${name}.html`, variant, claims)});
-        cases++;
+      const claims = await reviewSubjects(project);
+      for (const scenario of project.scenarios) {
+        reviews.push({id: name, settings: scenario.values, steps: await reviewStoryScenario(page, `${server!.url}/${name}.html`, scenario, claims)});
+        scenarios++;
       }
     }
-    assert.equal(cases, 17, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 1 face, 4 music, 5 periodic-table');
+    assert.equal(scenarios, 16, 'exact case inventory: 2 cache, 3 rates, 2 PKCE, 2 face (natural and recorded widths), 2 music, 5 periodic-table');
     await page.setViewportSize({width: 390, height: 667});
     await page.goto(server!.url + '/melody-rhythm.html');
     await page.waitForSelector('[data-ready=true]');
@@ -75,7 +75,7 @@ test('WebKit checks served paint for every case of the cache, rate, PKCE, reques
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.deepEqual(errors, []);
     await mkdir('out/validation', {recursive: true});
-    await writeFile('out/validation/webkit.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), browser: browser.version(), cases, reviews, errors, limitation: 'WebKit mobile emulation, not physical iPhone hardware.'}, null, 2) + '\n');
+    await writeFile('out/validation/webkit.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), browser: browser.version(), scenarios, reviews, errors, limitation: 'WebKit mobile emulation, not physical iPhone hardware.'}, null, 2) + '\n');
   } finally { await browser.close(); }
 });
 
@@ -111,7 +111,7 @@ class Safari {
   }
 }
 
-test('native macOS Safari runs the introduction, case changes, requested lettering and iframe reader', {skip: !process.env.EXPLAIN_SAFARI && 'set EXPLAIN_SAFARI=1 on macOS with safaridriver enabled'}, async () => {
+test('native macOS Safari runs the introduction, scenario changes, requested lettering and iframe reader', {skip: !process.env.EXPLAIN_SAFARI && 'set EXPLAIN_SAFARI=1 on macOS with safaridriver enabled'}, async () => {
   assert.equal(process.platform, 'darwin', 'this lane must run real Safari on Mac');
   const reservation = createServer();
   await new Promise<void>(resolve => reservation.listen(0, '127.0.0.1', resolve));
@@ -144,18 +144,18 @@ test('native macOS Safari runs the introduction, case changes, requested letteri
     await driver.wait('return window.__readyStep==="diff"');
     await driver.open('/mr-cache.html?request=hit&step=request');
     await driver.click('input[name=request][value=miss]');
-    await driver.wait('return window.__readyStep==="request" && document.querySelector(".caption").textContent.startsWith("KV has no entry")');
+    await driver.wait('return window.__readyStep==="request" && document.querySelector(".caption").textContent.startsWith("Walked through the edited diagram and code, the miss")');
     assert.equal(await driver.execute('return document.documentElement.scrollWidth>innerWidth'), false);
     await driver.open('/font-metrics.html?step=cuts');
     assert.equal(await driver.execute('return document.querySelectorAll(".stage path").length>=9'), true);
     assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /EB Garamond/);
     await driver.open('/token-bucket.html?step=trace&rate=4');
-    assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /4 \/ s: R6 get 429/);
-    await driver.open('/periodic-groups.html?element=cl&step=count');
+    assert.match(await driver.execute<string>('return document.querySelector(".described").textContent'), /4 \/ s: R6 gets 429/);
+    await driver.open('/periodic-groups.html?element=cl&step=blocks');
     const periodic = await driver.execute<string>('return document.querySelector(".described").textContent');
-    assert.match(periodic, /Al: 3, group 13/);
-    assert.match(periodic, /Cl: 7, group 17/);
-    assert.match(await driver.execute<string>('return document.querySelector(".caption").textContent'), /aluminium counts 3 in group 13/);
+    assert.match(periodic, /2 \+ 10 \+ 5 = 17/);
+    assert.match(periodic, /Its 7 after neon alone would say 7: 10 short/);
+    assert.match(await driver.execute<string>('return document.querySelector(".caption").textContent'), /Chlorine has 7 electrons after neon yet sits in group 17/);
     await driver.open('/melody-rhythm.html');
     assert.equal(await driver.execute('return document.querySelectorAll(".score-playhead").length'), 0);
     await driver.click('.score-audio button[aria-label="Play A: even beats"]');
@@ -171,7 +171,7 @@ test('native macOS Safari runs the introduction, case changes, requested letteri
     await driver.wait('return !!document.querySelector("[data-ready=true]")');
     assert.equal(await driver.execute('return window.parent!==window'), true);
     await mkdir('out/validation', {recursive: true});
-    await writeFile('out/validation/native-safari.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), capabilities: created.capabilities, journeys: ['introduction', 'next', 'case-change', 'requested-face', 'rate-comparison', 'periodic-count', 'music-play-stop', 'iframe'], platform: process.platform}, null, 2) + '\n');
+    await writeFile('out/validation/native-safari.json', JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(), capabilities: created.capabilities, journeys: ['introduction', 'next', 'scenario-change', 'requested-face', 'rate-comparison', 'periodic-landing', 'music-play-stop', 'iframe'], platform: process.platform}, null, 2) + '\n');
   } finally {
     if (driver.session) await fetch(`${driver.endpoint}/session/${driver.session}`, {method: 'DELETE'}).catch(() => {});
     processDriver.kill();

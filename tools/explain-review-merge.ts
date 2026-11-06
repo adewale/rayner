@@ -17,6 +17,6 @@ const parts = await Promise.all(
       JSON.parse(await readFile(join(directory, `browser-review-shard-${n}-of-3.json`), 'utf8')) as ReviewReceipt,
   ),
 );
-const merged = mergeStoryReviews(parts, plan.cases, plan.catalogHash, await reviewCodeHash(ROOT));
+const merged = mergeStoryReviews(parts, plan.scenarios, plan.catalogHash, await reviewCodeHash(ROOT));
 await writeFile(output, JSON.stringify({sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: ROOT, encoding: 'utf8'}).trim(), ...merged}, null, 2) + '\n');
-console.log(`${merged.cases} cases and ${merged.stepWidths} step/width states verified across all three shards.`);
+console.log(`${merged.scenarios} scenarios, ${merged.stepWidths} step/width states and ${merged.liveStateWidths} live-state/width states verified across all three shards.`);

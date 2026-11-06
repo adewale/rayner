@@ -16,6 +16,8 @@ export type SettingsProblem =
 export interface Chrome {
   details: string;
   backToStory: string;
+  /** Back to the explanation's visible word, short so the stepper row never wraps; its name and tooltip stay backToStory. */
+  backToStoryShort: string;
   /** Accessible name of the player section. */
   player: string;
   /** The disclosure under the caption that lists what the picture shows. */
@@ -54,19 +56,19 @@ export interface Chrome {
   stepOf: (i: number, n: number, title?: string) => string;
   /** The footer mark's accessible name; its visible text is the name "Rayner", never translated. */
   madeWith: string;
-  /** The footer's way out of a frame: this page, at the reader's step and case, in a new tab. */
+  /** The footer's way out of a frame: this page, at the reader's step and scenario, in a new tab. */
   open: string;
   /** The loader's name for the frame when the host gives none. */
   frame: string;
   reducedMotion: string;
   copied: string;
-  /** A notice when the URL names a step this case does not have. */
+  /** A notice when the URL names a step this scenario does not have. */
   noStep: (step: string) => string;
   /** A notice when the URL's settings are invalid. */
   fallback: (problem: SettingsProblem) => string;
   /** The stage's accessible name: the explainer's title, the step's, and the line under it. */
   stageLabel: (title: string, step: string, line: string) => string;
-  /** "Label: option", the way a case is named in headings. */
+  /** "Label: option", the way a scenario is named in headings. */
   setting: (label: string, option: string) => string;
   transcript: string;
   sources: string;
@@ -85,15 +87,50 @@ export interface Chrome {
   startAgain: string;
   startAgainLabel: string;
   /** At rest on the last step of a scene with settings: show the next option of its first setting. */
-  tryCase: (label: string) => string;
+  tryScenario: (label: string) => string;
   /** The footer's one quiet line on how to move: with a keyboard and pointer, or by touch. */
   hintKeys: string;
   hintTouch: string;
+  /** A rail entry for a step the reader has not reached: its title stays hidden until then. */
+  notYet: (i: number) => string;
+  /** The heading over the scene's check questions after the last step, and in the transcript. */
+  checkYourself: string;
+  /** Under the check questions' heading: answer before opening. */
+  checkHint: string;
+  /** The disclosure that holds a check question's answer. */
+  showAnswer: string;
+  /** Accessible name of a live step's event buttons (docs/MACHINES.md, "The player"). */
+  liveControls: string;
+  /** Over the event buttons: sending from the step's picture, or again from the machine's start. */
+  liveFromRest: string;
+  liveFromStart: string;
+  /** Takes back the last event sent. */
+  undo: string;
+  /** Clears the events sent: the step's own picture again. */
+  reset: string;
+  resetLabel: string;
+  /** A refused event's reason when the model gives none. */
+  notPossible: string;
+  /** An event past where the explainer's story stops, with the story's reason. */
+  storyStops: (reason: string) => string;
+  /** Announced after an event: the event, then the picture it lands on. */
+  sentSaid: (event: string, picture: string) => string;
+  /** Announced when a refused event's button is pressed: the event and why. */
+  refusedSaid: (event: string, reason: string) => string;
+  /** Announced after Reset. */
+  resetSaid: string;
+  /** A notice when a link's events stop at one the machine does not take there. */
+  sentFallback: (event: string, reason: string) => string;
+  /** A notice when a link sends events to a step without a machine. */
+  notLive: string;
+  /** The transcript's line of a live step: the events a reader can send there. */
+  liveEvents: (events: string, fromStart: boolean) => string;
 }
 
 const EN: Chrome = {
   details: 'Details and sources',
   backToStory: 'Back to the explanation',
+  backToStoryShort: 'Back',
   player: 'Explainer',
   picture: 'What the picture shows',
   controls: 'Steps',
@@ -122,9 +159,9 @@ const EN: Chrome = {
   frame: 'Interactive explainer',
   reducedMotion: 'Reduced motion is on, so the finished step is shown.',
   copied: 'Link copied.',
-  noStep: (step) => `This case has no “${step}” step, so it opens at the first step.`,
+  noStep: (step) => `This scenario has no “${step}” step, so it opens at the first step.`,
   fallback: (p) =>
-    `${p.kind === 'option' ? `Unknown ${p.id} option: ${p.value}` : p.kind === 'setting' ? `Unknown setting: ${p.id}` : p.message}. Showing the default case.`,
+    `${p.kind === 'option' ? `Unknown ${p.id} option: ${p.value}` : p.kind === 'setting' ? `Unknown setting: ${p.id}` : p.message}. Showing the default scenario.`,
   stageLabel: (title, step, line) => `${title}: ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label}: ${option}`,
   transcript: 'Transcript',
@@ -137,14 +174,33 @@ const EN: Chrome = {
   changes: (...items) => `What changed: ${items.join('; ')}`,
   startAgain: 'Start again',
   startAgainLabel: 'Start again from step 1',
-  tryCase: (label) => `Try ‘${label}’`,
+  tryScenario: (label) => `Try ‘${label}’`,
   hintKeys: '← → to step · click a segment to jump',
   hintTouch: 'Tap a segment to jump; tap the current one to finish it',
+  notYet: (i) => `Step ${i}`,
+  checkYourself: 'Check yourself',
+  checkHint: 'Answer each one before you open it.',
+  showAnswer: 'Show the answer',
+  liveControls: 'Send events',
+  liveFromRest: 'Try it: send an event',
+  liveFromStart: 'Try it: send the events again, in your own order',
+  undo: 'Undo',
+  reset: 'Reset',
+  resetLabel: 'Reset: the step’s own picture',
+  notPossible: 'Not possible here',
+  storyStops: (reason) => `The story stops here: ${reason}`,
+  sentSaid: (event, picture) => `${event}. ${picture}`,
+  refusedSaid: (event, reason) => `${event}: ${reason}`,
+  resetSaid: 'Back to the step’s own picture.',
+  sentFallback: (event, reason) => `This link’s event “${event}” cannot be sent there (${reason}), so the picture stops before it.`,
+  notLive: 'This step has no events to send, so the link’s events are left out.',
+  liveEvents: (events, fromStart) => `Try it: ${fromStart ? 'from the start, send ' : 'send '}${events}.`,
 };
 /** French typography: a narrow no-break space (U+202F) before : ; ! ? and inside « ». */
 const FR: Chrome = {
   details: 'Détails et sources',
   backToStory: 'Revenir à l’explication',
+  backToStoryShort: 'Retour',
   player: 'Explication',
   picture: 'Ce que montre l’image',
   controls: 'Étapes',
@@ -173,7 +229,7 @@ const FR: Chrome = {
   frame: 'Explication interactive',
   reducedMotion: 'Les animations sont réduites : l’étape s’affiche terminée.',
   copied: 'Lien copié.',
-  noStep: (step) => `Ce cas n’a pas d’étape « ${step} » : il s’ouvre à la première étape.`,
+  noStep: (step) => `Ce scénario n’a pas d’étape « ${step} » : il s’ouvre à la première étape.`,
   fallback: (p) =>
     `${
       p.kind === 'option'
@@ -181,7 +237,7 @@ const FR: Chrome = {
         : p.kind === 'setting'
           ? `Cette explication n’a pas de réglage « ${p.id} »`
           : 'Les réglages de l’adresse ne sont pas valides'
-    }. Le cas par défaut est affiché.`,
+    }. Le scénario par défaut est affiché.`,
   stageLabel: (title, step, line) => `${title} : ${step}${line ? ` — ${line}` : ''}`,
   setting: (label, option) => `${label} : ${option}`,
   transcript: 'Transcription',
@@ -194,9 +250,27 @@ const FR: Chrome = {
   changes: (...items) => `Ce qui a changé\u202f: ${items.join('\u202f; ')}`,
   startAgain: 'Recommencer',
   startAgainLabel: 'Recommencer à l’étape 1',
-  tryCase: (label) => `Essayer «\u202f${label}\u202f»`,
+  tryScenario: (label) => `Essayer «\u202f${label}\u202f»`,
   hintKeys: '← → pour changer d’étape · cliquez un segment pour y aller',
   hintTouch: 'Touchez un segment pour y aller\u202f; touchez celui en cours pour le terminer',
+  notYet: (i) => `Étape ${i}`,
+  checkYourself: 'Vérifiez vos connaissances',
+  checkHint: 'Répondez à chaque question avant d’ouvrir la réponse.',
+  showAnswer: 'Voir la réponse',
+  liveControls: 'Envoyer des événements',
+  liveFromRest: 'À vous\u202f: envoyez un événement',
+  liveFromStart: 'À vous\u202f: renvoyez les événements, dans l’ordre de votre choix',
+  undo: 'Annuler',
+  reset: 'Réinitialiser',
+  resetLabel: 'Réinitialiser\u202f: l’image de l’étape',
+  notPossible: 'Impossible ici',
+  storyStops: (reason) => `L’histoire s’arrête ici\u202f: ${reason}`,
+  sentSaid: (event, picture) => `${event}. ${picture}`,
+  refusedSaid: (event, reason) => `${event}\u202f: ${reason}`,
+  resetSaid: 'Retour à l’image de l’étape.',
+  sentFallback: (event, reason) => `L’événement «\u202f${event}\u202f» de ce lien ne peut pas être envoyé là (${reason})\u202f: l’image s’arrête avant lui.`,
+  notLive: 'Cette étape n’a pas d’événements à envoyer\u202f: ceux du lien sont ignorés.',
+  liveEvents: (events, fromStart) => `À vous\u202f: ${fromStart ? 'depuis le début, envoyez ' : 'envoyez '}${events}.`,
 };
 export const CHROME: Readonly<Record<string, Chrome>> = { en: EN, fr: FR };
 
@@ -232,8 +306,8 @@ export function settingsProblem(Scene: ExplainerClass, values: Settings, error: 
     ? { kind: 'setting', id: unknown }
     : { kind: 'other', message: String((error as Error)?.message ?? error) };
 }
-/** A case's name, "Label: option · Label: option", with the language's punctuation. */
-export function caseNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {
+/** A scenario's name, "Label: option · Label: option", with the language's punctuation. */
+export function scenarioNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {
   const t = chromeFor(lang);
   return (Scene.settings ?? [])
     .map((s) => t.setting(s.label, s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]!))

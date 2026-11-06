@@ -22,6 +22,7 @@ import {
   spendAtIssue,
   dueByDefault,
   dueByInterval,
+  dueOffset,
   issue,
   shouldRenew,
   simulate,
@@ -93,7 +94,7 @@ test('Let’s Encrypt’s validity window: backdated 58.5 minutes, one second sh
   assert.equal(BACKDATE, 0.975);
 });
 
-test('the explainer’s eight cases', () => {
+test('the explainer’s eight scenarios', () => {
   const expect: Record<LifetimeKey, Record<Rule, [number, number, number]>> = {
     // [run that renews, hours after issue; renewals in 365 days; refused in 365 days]
     '90d': { fraction: [60 * DAY, 6, 0], fixed30: [60 * DAY, 6, 0] },
@@ -109,6 +110,28 @@ test('the explainer’s eight cases', () => {
     }
   // The title's claim: the 30-day rule renews 45-day certificates twice as often as the default.
   assert.equal(summarize('fixed30', '45d').renewalsPerYear, 2 * summarize('fraction', '45d').renewalsPerYear);
+});
+
+test('the margin view: 30 days back from expiry lands before issue only for certificates of 30 days or less', () => {
+  // Worked by hand from notAfter = notBefore + lifetime − 1 s: the due point is lifetime − 720 h − 1 s after notBefore.
+  const second = 1 / 3600,
+    close = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-9, `${a} vs ${b}`);
+  close(dueOffset('fixed30', LIFETIMES['90d'].hours), 2160 - 720 - second);
+  close(dueOffset('fixed30', LIFETIMES['64d'].hours), 1536 - 720 - second);
+  close(dueOffset('fixed30', LIFETIMES['45d'].hours), 1080 - 720 - second);
+  // The margin view's 160-hour row: 560 hours, 23.3 days, before notBefore, so due from issue.
+  close(dueOffset('fixed30', LIFETIMES['160h'].hours), 160 - 720 - second);
+  assert.equal((560 / DAY).toFixed(1), '23.3');
+  fc.assert(
+    fc.property(fc.integer({ min: 1, max: 400 * DAY }), (lifetime) => {
+      const c = issue(0, lifetime),
+        before = dueOffset('fixed30', lifetime) < 0;
+      assert.equal(before, lifetime <= FIXED_INTERVAL);
+      // Before issue means the first run already finds it due.
+      if (before) assert.equal(shouldRenew('fixed30', c, RUN_EVERY), true);
+    }),
+    params(200),
+  );
 });
 
 test('Boulder’s GCRA, against its own TestDecide vector', () => {

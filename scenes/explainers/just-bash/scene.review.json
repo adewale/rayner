@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "reader-pipeline",
       "opening": true,
@@ -16,6 +16,9 @@
         },
         {
           "text": "shout.txt"
+        },
+        {
+          "text": "prints nothing"
         }
       ]
     },

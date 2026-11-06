@@ -26,6 +26,8 @@
 //   src/backend/access/heap/hio.c:767, 859-860  otherwise add a page, which needs only room for len
 // MAXALIGN is 8 on a 64-bit build: pg_controldata on the measured server prints "Maximum data alignment: 8".
 
+import { percent as formatPercent } from './format.ts';
+
 export const BLCKSZ = 8192;
 export const MAXIMUM_ALIGNOF = 8;
 export const PAGE_HEADER = 24;
@@ -177,7 +179,7 @@ export function share(t: Tuple, p: Page): Share {
 export const total = (s: Share) => s.data + s.headers + s.padding + s.pointers + s.pageHeader + s.reserved + s.free;
 
 /** Everything the scene says about one column type at one fillfactor. */
-export interface Case {
+export interface Scenario {
   column: Column;
   label: string;
   fillfactor: number;
@@ -187,12 +189,11 @@ export interface Case {
   /** Pages for 10 000 rows: every page full but the last. */
   pagesFor10000: number;
 }
-export function caseOf(column: Column, fillfactor: number): Case {
+export function scenarioOf(column: Column, fillfactor: number): Scenario {
   const t = tuple(COLUMNS[column].attrs),
     p = fill(t.stored, fillfactor);
   return { column, label: COLUMNS[column].label, fillfactor, tuple: t, page: p, share: share(t, p), pagesFor10000: Math.ceil(10000 / p.rows) };
 }
 
 /** "11.0%": a share of the page to one decimal, as the pie's legend rounds it (a drawn slice shows at least 0.1%). */
-export const percent = (bytes: number) =>
-  bytes > 0 ? `${Math.max(0.1, Math.round((bytes / BLCKSZ) * 1000) / 10).toFixed(1)}%` : '0.0%';
+export const percent = (bytes: number) => formatPercent(bytes, { of: BLCKSZ, least: 0.1, rounding: 'Math.round' });

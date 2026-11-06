@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "claims": [
+  "version": 2,
+  "subjects": [
     {
       "step": "listen",
       "opening": true,
@@ -26,42 +26,6 @@
       ]
     },
     {
-      "step": "rhythm",
-      "opening": true,
-      "targets": [
-        {
-          "key": "score-a"
-        },
-        {
-          "key": "score-b"
-        }
-      ]
-    },
-    {
-      "step": "contour",
-      "opening": true,
-      "targets": [
-        {
-          "key": "score-a"
-        },
-        {
-          "key": "score-b"
-        }
-      ]
-    },
-    {
-      "step": "timing",
-      "opening": true,
-      "targets": [
-        {
-          "key": "score-a"
-        },
-        {
-          "key": "score-b"
-        }
-      ]
-    },
-    {
       "step": "bar",
       "opening": true,
       "targets": [
@@ -70,11 +34,14 @@
         },
         {
           "key": "score-b"
+        },
+        {
+          "key": "score-footer"
         }
       ]
     },
     {
-      "step": "phrase",
+      "step": "rhythm",
       "opening": true,
       "targets": [
         {
@@ -82,18 +49,9 @@
         },
         {
           "key": "score-b"
-        }
-      ]
-    },
-    {
-      "step": "predict",
-      "opening": true,
-      "targets": [
-        {
-          "key": "score-a"
         },
         {
-          "key": "score-b"
+          "key": "score-footer"
         }
       ]
     }

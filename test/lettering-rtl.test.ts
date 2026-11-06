@@ -9,10 +9,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { Scene, NullSink, Text, MathTex, TransformMatchingText, loadFonts } from '../src/index.ts';
+import { Scene, Text, MathTex, TransformMatchingText } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { bindLettering, runKey, unpackLettering, rightToLeft } from '../src/lettering-outlines.ts';
 import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
-import { collectProject, defaultVariant, ROOT } from '../tools/lib/explain-project.ts';
+import { collectProject, defaultScenario, ROOT } from '../tools/lib/explain-project.ts';
 import { buildExplainer } from '../tools/lib/explain-build.ts';
 import { pageSnapshot } from '../tools/lib/lettering.ts';
 
@@ -69,7 +71,7 @@ test('a page that asks for a right-to-left script sets each caption\'s direction
 
 test('TransformMatchingText pairs whole clusters: a conjunct that replaces a letter fades, kept clusters morph', async () => {
   const project = await collectProject(join(ROOT, 'test/lettering/matching'), { write: false });
-  const steps = defaultVariant(project).trace.steps;
+  const steps = defaultScenario(project).trace.steps;
   const match = (name: string) => {
     const e = steps.find((s) => s.step === name)!.evidence!.find((r) => r.kind === 'match')!;
     return { matched: e.matched, morphed: e.morphed, removed: e.removed, added: e.added };
@@ -163,7 +165,7 @@ test('capture of the Hebrew and matching fixtures is deterministic', { skip: !ca
 
 test('morphing maths reshapes nothing: no run for the TeX source is captured', { skip: !capture && 'set EXPLAIN_LETTERING=1 to capture' }, async () => {
   const dir = await mkdtemp(join(folder, 'math-'));
-  await writeFile(join(dir, 'scene.ts'), `import{Scene,Math,TransformMatchingText}from'rayner';export default class L extends Scene{static meta={id:'m',lettering:{math:true,faces:{sans:'eb-garamond'}}};async construct(){await this.step('one');const a=new Math('a+b');this.add(a);await this.play(new TransformMatchingText(a,new Math('a+c')));}}`);
+  await writeFile(join(dir, 'scene.ts'), `import{Scene,MathTex,TransformMatchingText}from'rayner';export default class L extends Scene{static meta={id:'m',lettering:{math:true,faces:{sans:'eb-garamond'}}};async construct(){await this.step('one');const a=new MathTex('a+b');this.add(a);await this.play(new TransformMatchingText(a,new MathTex('a+c')));}}`);
   const project = await collectProject(join(dir, 'scene.ts'), { captureLettering: true, write: false });
   const keys = Object.keys(project.outlineLettering!.runs).map((k) => JSON.parse(k) as [string, string, boolean]);
   assert.ok(keys.some(([f, t]) => f === 'math' && t === 'a+b'));

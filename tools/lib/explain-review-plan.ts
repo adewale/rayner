@@ -4,28 +4,64 @@ import { createHash } from 'node:crypto';
 import { join, relative, sep } from 'node:path';
 import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
+import { READ_PX } from '../../app/embed-closeup.ts';
+
+/** A planned label can round a few millionths of a CSS pixel in the browser's SVG matrix. */
+export function readableOpeningLabel(pixels: number | null | undefined): boolean {
+  return typeof pixels === 'number' && Number.isFinite(pixels) && pixels >= READ_PX - 1e-5;
+}
+
+/**
+ * The most live states the review visits per live step, the farthest included; every state one
+ * press away is visited however many there are (liveVisits in explain-live-review.ts).
+ */
+export const LIVE_STATES = 6;
+/** The legibility floor for a live state's labels, as at a 1280 px stage: `rayner check`'s MIN_PX. */
+export const LIVE_MIN_PX = 14;
+
+/** One live state reviewed at one width (reviewLiveStates in explain-live-review.ts). */
+export interface LiveStateReview {
+  step: string;
+  /** The events that reach it, from where the reader's events start. */
+  sent: string[];
+  width: number;
+  /** The reader views inspected: the whole picture, then, on a phone, the step's close-ups. */
+  views: number;
+  /** What the events changed (emphasis, else changed artwork, else the machine's views), shown in those views. */
+  targets: string[];
+  /** Labels painted in the whole picture. */
+  labels: number;
+  /** The smallest of them as at a 1280 px stage (CSS pixels × 1280 / the stage's width): at least LIVE_MIN_PX. */
+  minimumLabelPx1280: number | null;
+  /** At 390 px, the smallest label of what the events changed at its best view (whole picture or close-up), in CSS pixels: at least READ_PX; null when they have none. */
+  changedLabelPx?: number | null;
+}
 
 export interface ReviewScope {
   part: number;
   total: number;
 }
-export interface PlannedCase {
+export interface PlannedScenario {
   scene: string;
   settings: Record<string, string>;
   steps: string[];
   narrowOpenings: NarrowOpeningObligation[];
+  /** The steps where a machine is live (each machine's `step` in the built description); absent when none. */
+  live?: string[];
 }
-export interface ReviewedCase {
+export interface ReviewedScenario {
   scene: string;
   settings: Record<string, string>;
   steps: { step: string; width: number; views: number; targets: string[]; openingAt320?: NarrowOpeningReview }[];
+  /** The live states visited, each at both widths; absent when the scenario has no live step. */
+  live?: LiveStateReview[];
 }
 export type NarrowOpeningObligation =
   | { step: string; reviewed: true; targets: string[]; labels: string[] }
-  | { step: string; reviewed: false; reason: 'detail-step' | 'no-opening-claim' };
+  | { step: string; reviewed: false; reason: 'detail-step' | 'no-opening-subject' };
 export type NarrowOpeningReview =
   | { reviewed: true; width: 320; height: 568; targets: string[]; labels: string[]; minimumLabelPx: number | null }
-  | { reviewed: false; reason: 'detail-step' | 'no-opening-claim' };
+  | { reviewed: false; reason: 'detail-step' | 'no-opening-subject' };
 function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps: string[], scene: string) {
   assert.ok(Array.isArray(obligations), `${scene}: missing built narrow-opening obligations`);
   assert.deepEqual(
@@ -48,7 +84,7 @@ function validateNarrowObligations(obligations: NarrowOpeningObligation[], steps
       );
     } else {
       assert.ok(
-        obligation.reason === 'detail-step' || obligation.reason === 'no-opening-claim',
+        obligation.reason === 'detail-step' || obligation.reason === 'no-opening-subject',
         `${scene}: invalid narrow-opening exclusion`,
       );
     }
@@ -59,9 +95,11 @@ export interface ReviewReceipt {
   collectionChecks: boolean;
   catalogHash: string;
   reviewCodeHash: string;
-  cases: number;
+  scenarios: number;
   stepWidths: number;
-  results: ReviewedCase[];
+  /** Live states times widths: every visited live state at 390 and 1180 px. */
+  liveStateWidths?: number;
+  results: ReviewedScenario[];
   consoleErrors: string[];
   runtimeConnections: string[];
 }
@@ -75,55 +113,60 @@ export function reviewScope(args: readonly string[]): ReviewScope {
   return { part, total };
 }
 /** Assign each whole scene once, balancing its independently built step inventory. */
-export function reviewCases(cases: PlannedCase[], scope: ReviewScope): PlannedCase[] {
+export function reviewScenarios(scenarios: PlannedScenario[], scope: ReviewScope): PlannedScenario[] {
   const weights = new Map<string, number>();
-  for (const c of cases) weights.set(c.scene, (weights.get(c.scene) ?? 0) +
-    Math.max(1, c.steps.length * 2 + c.narrowOpenings.filter(o => o.reviewed).length));
+  for (const c of scenarios) weights.set(c.scene, (weights.get(c.scene) ?? 0) +
+    Math.max(1, c.steps.length * 2 + c.narrowOpenings.filter(o => o.reviewed).length + (c.live?.length ?? 0) * LIVE_STATES * 2));
   const loads = Array<number>(scope.total).fill(0), owners = new Map<string, number>();
   for (const [scene, weight] of [...weights].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))) {
     const part = loads.indexOf(Math.min(...loads));
     owners.set(scene, part + 1);
     loads[part]! += weight;
   }
-  return cases.filter(c => owners.get(c.scene) === scope.part);
+  return scenarios.filter(c => owners.get(c.scene) === scope.part);
 }
 export async function readStoryPlan(directory: string, expectedScenes?: readonly string[]) {
   const raw = await readFile(join(directory, 'evidence.json'), 'utf8');
   const catalog = catalogEvidence(JSON.parse(raw));
-  const cases: PlannedCase[] = [];
+  const scenarios: PlannedScenario[] = [];
   if (expectedScenes) assert.deepEqual(catalog.scenes.map(scene => scene.id), expectedScenes, 'complete source scene inventory');
   for (const scene of catalog.scenes) {
     const description = JSON.parse(await readFile(join(directory, scene.id, 'describe.json'), 'utf8')) as {
-      cases: { values: Record<string, string>; steps: { step: string }[] }[];
+      scenarios: { values: Record<string, string>; steps: { step: string }[]; machines?: { step?: string }[] }[];
     };
     assert.deepEqual(
-      description.cases.map((c) => c.values),
-      scene.cases,
-      `${scene.id}: description/case inventory differs`,
+      description.scenarios.map((c) => c.values),
+      scene.scenarios,
+      `${scene.id}: description/scenario inventory differs`,
     );
     assert.ok(Array.isArray(scene.narrowOpenings), `${scene.id}: rebuild catalog without a narrow-opening inventory`);
     const openings = scene.narrowOpenings;
     assert.deepEqual(
       openings.map((c) => c.settings),
-      scene.cases,
-      `${scene.id}: exact narrow-opening case inventory`,
+      scene.scenarios,
+      `${scene.id}: exact narrow-opening scenario inventory`,
     );
-    for (const [index, c] of description.cases.entries())
+    for (const [index, c] of description.scenarios.entries())
       validateNarrowObligations(
         openings[index]!.steps,
         c.steps.map((s) => s.step),
         scene.id,
       );
-    cases.push(
-      ...description.cases.map((c, index) => ({
-        scene: scene.id,
-        settings: c.values,
-        steps: c.steps.map((s) => s.step),
-        narrowOpenings: openings[index]!.steps,
-      })),
+    scenarios.push(
+      ...description.scenarios.map((c, index) => {
+        // Where machines are live: each at the step it last played in, once per step.
+        const live = [...new Set((c.machines ?? []).flatMap((m) => (m.step ? [m.step] : [])))];
+        return {
+          scene: scene.id,
+          settings: c.values,
+          steps: c.steps.map((s) => s.step),
+          narrowOpenings: openings[index]!.steps,
+          ...(live.length ? { live } : {}),
+        };
+      }),
     );
   }
-  return { scenes: catalog.scenes.map(scene => scene.id), cases, catalogHash: createHash('sha256').update(raw).digest('hex') };
+  return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: createHash('sha256').update(raw).digest('hex') };
 }
 export async function reviewCodeHash(root: string, buildHash?: string) {
   const files = [
@@ -133,6 +176,7 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     'tools/lib/explain-raster.ts',
     'tools/lib/explain-review-scene.ts',
     'tools/lib/explain-review-plan.ts',
+    'tools/lib/explain-live-review.ts',
     'tools/lib/explain-serve.ts',
     'tools/lib/explain-reader-shell.ts',
     'tools/lib/explain-check.ts',
@@ -170,11 +214,11 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     .update(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }))
     .digest('hex');
 }
-export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedCase[]) {
+export function validateReviewedScenarios(actual: ReviewedScenario[], expected: PlannedScenario[]) {
   assert.deepEqual(
     actual.map(({ scene, settings }) => ({ scene, settings })),
     expected.map(({ scene, settings }) => ({ scene, settings })),
-    'exact case inventory',
+    'exact scenario inventory',
   );
   for (const [i, c] of actual.entries()) {
     assert.ok(expected[i]!.steps.length, `${c.scene}: a story needs at least one step`);
@@ -187,6 +231,7 @@ export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedC
       c.steps.every((s) => s.targets.length > 0 && s.views >= 1),
       `${c.scene}: each step needs a verified subject and reader view`,
     );
+    validateLiveStates(c.live, expected[i]!.live ?? [], c.scene);
     const obligations = expected[i]!.narrowOpenings;
     validateNarrowObligations(obligations, expected[i]!.steps, c.scene);
     for (const step of c.steps) {
@@ -215,7 +260,7 @@ export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedC
         );
         assert.ok(
           obligation.labels.length
-            ? Number.isFinite(opening.minimumLabelPx) && opening.minimumLabelPx! >= 12 - 1e-6
+            ? readableOpeningLabel(opening.minimumLabelPx)
             : opening.minimumLabelPx === null,
           `${c.scene}/${step.step}: narrow-opening labels must reach 12px`,
         );
@@ -223,18 +268,45 @@ export function validateReviewedCases(actual: ReviewedCase[], expected: PlannedC
         assert.ok(!obligation.reviewed);
         assert.equal(opening.reason, obligation.reason, `${c.scene}/${step.step}: narrow-opening exclusion changed`);
         assert.ok(
-          opening.reason === 'detail-step' || opening.reason === 'no-opening-claim',
+          opening.reason === 'detail-step' || opening.reason === 'no-opening-subject',
           `${c.scene}/${step.step}: invalid narrow-opening exclusion`,
         );
       }
     }
   }
 }
-const caseKey = (c: { scene: string; settings: Record<string, string> }) =>
+/**
+ * Every live step the built description names was visited, and nothing else: at least one state
+ * each, every state at both widths, each with a subject shown in a reader view and labels at
+ * least LIVE_MIN_PX as at a 1280 px stage, and at 390 px what the events changed reading at least
+ * READ_PX at its best view.
+ */
+function validateLiveStates(live: LiveStateReview[] | undefined, steps: readonly string[], scene: string) {
+  if (!steps.length) {
+    assert.ok(!live?.length, `${scene}: live states reviewed where no machine is live`);
+    return;
+  }
+  assert.ok(Array.isArray(live), `${scene}: missing live-state review`);
+  assert.deepEqual([...new Set(live.map((s) => s.step))].sort(), [...steps].sort(), `${scene}: exact live-step inventory`);
+  const at = (width: number) => live.filter((s) => s.width === width).map((s) => JSON.stringify([s.step, s.sent]));
+  assert.ok(live.every((s) => s.width === 390 || s.width === 1180), `${scene}: live states are reviewed at 390 and 1180 px`);
+  assert.deepEqual(at(390), at(1180), `${scene}: every live state at both widths`);
+  assert.equal(new Set(at(390)).size, at(390).length, `${scene}: duplicate live state`);
+  for (const s of live) {
+    assert.ok(Array.isArray(s.sent) && s.sent.length > 0, `${scene}/${s.step}: a live state is reached by events`);
+    assert.ok(s.targets.length > 0 && s.views >= 1, `${scene}/${s.step} after [${s.sent}]: needs a verified subject and reader view`);
+    assert.ok(s.minimumLabelPx1280 === null ? s.labels === 0 : s.labels > 0 && s.minimumLabelPx1280 >= LIVE_MIN_PX - 1e-3,
+      `${scene}/${s.step} after [${s.sent}]: live-state labels must reach ${LIVE_MIN_PX}px at a 1280 px stage`);
+    if (s.width === 390)
+      assert.ok(s.changedLabelPx === null || readableOpeningLabel(s.changedLabelPx),
+        `${scene}/${s.step} after [${s.sent}]: what the events changed must read at ${READ_PX}px on a phone`);
+  }
+}
+const scenarioKey = (c: { scene: string; settings: Record<string, string> }) =>
   JSON.stringify([c.scene, Object.entries(c.settings).sort()]);
 export function mergeStoryReviews(
   parts: ReviewReceipt[],
-  expected: PlannedCase[],
+  expected: PlannedScenario[],
   catalogHash: string,
   codeHash: string,
 ): ReviewReceipt {
@@ -246,30 +318,32 @@ export function mergeStoryReviews(
     assert.deepEqual(p.scope, { part: i + 1, total }, 'exact shard inventory');
     assert.equal(p.catalogHash, catalogHash, 'stale catalog artifact');
     assert.equal(p.reviewCodeHash, codeHash, 'stale review implementation');
-    assert.equal(p.cases, p.results.length);
+    assert.equal(p.scenarios, p.results.length);
     assert.equal(
       p.stepWidths,
       p.results.reduce((n, c) => n + c.steps.length, 0),
     );
+    assert.equal(p.liveStateWidths ?? 0, p.results.reduce((n, c) => n + (c.live?.length ?? 0), 0), 'live-state count');
     assert.deepEqual(p.consoleErrors, []);
     assert.deepEqual(p.runtimeConnections, []);
     assert.equal(p.collectionChecks, i === 0, 'shared collection checks belong to exactly the first shard');
-    validateReviewedCases(
+    validateReviewedScenarios(
       p.results,
-      reviewCases(expected, p.scope),
+      reviewScenarios(expected, p.scope),
     );
   }
-  const byKey = new Map(ordered.flatMap((p) => p.results).map((c) => [caseKey(c), c]));
-  assert.equal(byKey.size, expected.length, 'missing or duplicate cases across shards');
-  const results = expected.map((c) => byKey.get(caseKey(c))!);
-  validateReviewedCases(results, expected);
+  const byKey = new Map(ordered.flatMap((p) => p.results).map((c) => [scenarioKey(c), c]));
+  assert.equal(byKey.size, expected.length, 'missing or duplicate scenarios across shards');
+  const results = expected.map((c) => byKey.get(scenarioKey(c))!);
+  validateReviewedScenarios(results, expected);
   return {
     scope: { part: 1, total: 1 },
     collectionChecks: true,
     catalogHash,
     reviewCodeHash: codeHash,
-    cases: results.length,
+    scenarios: results.length,
     stepWidths: results.reduce((n, c) => n + c.steps.length, 0),
+    liveStateWidths: results.reduce((n, c) => n + (c.live?.length ?? 0), 0),
     results,
     consoleErrors: [],
     runtimeConnections: [],

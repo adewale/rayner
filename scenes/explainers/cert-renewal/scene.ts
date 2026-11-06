@@ -1,7 +1,7 @@
-import { readerFirst } from '../lib/reader-drawing.ts';
-import { frames as readerFrames } from '../lib/readers/cert-renewal.ts';
-import { Scene, Group, Line, Rectangle, Text } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox } from '../../../explain/index.ts';
+import { Scene, Group, Line, Rectangle, Text, FadeOut, view } from '../../../src/index.ts';
+import { stage, settingsOf, regionBox, Card } from '../../../explain/index.ts';
+import type { CardOptions, CardRow } from '../../../explain/index.ts';
+import { keyed } from '../../../explain/drawing.ts';
 import {
   BACKDATE,
   BR_PHASES,
@@ -10,8 +10,14 @@ import {
   LE_DATES,
   LIFETIMES,
   LIMIT,
+  FIXED_INTERVAL,
   RUN_EVERY,
+  YEAR,
   ariSummary,
+  dueAt,
+  dueByInterval,
+  dueOffset,
+  issue,
   simulate,
   summarize,
   windowFor,
@@ -138,6 +144,32 @@ const at = (hours: number, short: boolean) => (short ? `hour ${Math.round(hours)
 const length = (hours: number, short: boolean) => (short ? `${Math.round(hours)} hours` : `${days(hours)} days`);
 const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
+/** The script's one-sentence answer (meta.answer), which the new-rule step states. */
+const ANSWER = 'renew at a share of the certificate’s life, not a fixed time before expiry';
+/** The check answers' numbers, from the model: lifetimes and settings no scenario offers. */
+const CHECK = (() => {
+  // A 20-day certificate, shorter than the 30-day margin but longer than ten days.
+  const twenty = 20 * DAY,
+    year = (r: Rule) => simulate(r, twenty, YEAR),
+    c20 = issue(0, twenty);
+  const shortLived = summarize('fixed30', '160h');
+  // A 45-day certificate with renew_before_expiry set to 10 days: the first run inside 10 days of expiry renews.
+  const c45 = issue(0, LIFETIMES['45d'].hours),
+    interval = 10 * DAY;
+  let tenDay = RUN_EVERY;
+  while (!dueByInterval(c45.notAfter, tenDay, interval)) tenDay += RUN_EVERY;
+  let tenDayRetries = 0;
+  for (let t = tenDay; t < c45.notAfter; t += RUN_EVERY) tenDayRetries++;
+  return {
+    twenty: {
+      fixed: { renewals: year('fixed30').issued.length - 1, refused: year('fixed30').refused.length, first: year('fixed30').refused[0] },
+      share: { due: dueAt('fraction', c20) - c20.notBefore, renewals: year('fraction').issued.length - 1 },
+      sameAsShort: year('fixed30').issued.length - 1 === shortLived.renewalsPerYear && year('fixed30').refused.length === shortLived.refusedPerYear,
+    },
+    tenDay: { at: tenDay, retries: tenDayRetries, fraction: summarize('fraction', '45d') },
+  };
+})();
+
 export default class CertRenewalExplainer extends Scene {
   static meta = {
     id: 'cert-renewal',
@@ -169,12 +201,38 @@ export default class CertRenewalExplainer extends Scene {
       'https://github.com/certbot/certbot/blob/v5.8.0/acme/src/acme/client.py#L115-L135',
       'https://github.com/certbot/certbot/blob/v5.8.0/acme/src/acme/client.py#L307-L371',
     ],
+    // The script's answer and check questions (script.md); the new-rule step states the answer.
+    answer: ANSWER,
+    // Sentences that reach past the strips on screen, and the test that holds each against the model.
+    claims: [
+      { says: 'every run renews until', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'renewing at every run', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'renews at every run until', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'every run tries to renew', test: 'test/explain-cert-renewal.test.ts: the 160-hour, 30-day case' },
+      { says: 'allows 5 certificates for the same names in 7 days', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+      { says: '5 per 7 days', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+      { says: 'check only for an order that names the certificate it replaces', test: 'test/explain-cert-renewal.test.ts: the exact-set limit' },
+    ],
+    checks: [
+      {
+        question: 'A CA issues 20-day certificates, and Certbot keeps renew_before_expiry at 30 days. How many certificates does it get in a year, and how many would the 4.1 default get?',
+        answer: `With the 30-day setting, ${CHECK.twenty.fixed.renewals} renewed and ${CHECK.twenty.fixed.refused} runs refused, the first at hour ${CHECK.twenty.fixed.first}${CHECK.twenty.sameAsShort ? ', exactly as for 160-hour certificates' : ''}: any certificate shorter than 30 days is due from issue, so every run asks until the limit refuses. The default renews two thirds of the way through, since 20 days is not under ten: at day ${days(CHECK.twenty.share.due)}, ${CHECK.twenty.share.renewals} times a year.`,
+      },
+      {
+        question: 'For 45-day certificates, someone sets renew_before_expiry to 10 days. When does Certbot 4.1 renew, and how long is left to retry?',
+        answer: `At day ${days(CHECK.tenDay.at)}, the first twice-daily run within 10 days of expiry, leaving ${CHECK.tenDay.retries} runs to retry. The setting replaces the default rather than adding to it: without it Certbot would renew at day ${days(CHECK.tenDay.fraction.due)} with ${CHECK.tenDay.fraction.retries} runs to spare.`,
+      },
+      {
+        question: 'A client renews at a random time inside Let’s Encrypt’s ARI window. Is that order exempt from the 5-in-7-days limit?',
+        answer: 'Not by its timing alone. Boulder exempts an order only when it names the certificate it replaces and arrives inside that certificate’s window. Certbot 5.8’s orders name no predecessor, so they are counted even when they follow the window.',
+      },
+    ],
   };
   static settings = [
     {
       id: 'lifetime',
       label: 'Certificate lifetime',
-      default: '45d',
+      default: '160h',
       options: (Object.keys(LIFETIMES) as LifetimeKey[]).map((k) => ({ value: k, label: LIFETIMES[k].label })),
     },
     {
@@ -192,6 +250,12 @@ export default class CertRenewalExplainer extends Scene {
       life = LIFETIMES[key],
       short = key === '160h',
       s = stage(this, { style: STYLE, headingSize: 0.6 });
+    /** A card drawn from the step's state, brought in as `s.card` brings one in; its words are the card's own. */
+    const cardOf = async (rowsOf: (st: Record<string, unknown>) => CardRow[], opts: CardOptions) => {
+      const v = view(this, (st) => new Card(this, s.palette, rowsOf(st), opts), { place: false });
+      await s.enter(v, { runTime: 0.35, shift: [0, -0.08] });
+      return v;
+    };
     const mine = summarize(rule, key),
       theirs = summarize(other, key),
       byRule = { [rule]: mine, [other]: theirs } as Record<Rule, typeof mine>;
@@ -200,12 +264,11 @@ export default class CertRenewalExplainer extends Scene {
       perWindow = (r: Rule) => simulate(r, life.hours, window);
 
     // ------------------------------------------------------------------ limit
-    await readerFirst(this, s, readerFrames(key, rule));
+    const adjective = life.label.replace(/ (day|hour)s$/, '-$1');
     await this.step('limit', {
-      detail: true,
       title: 'Public certificates shrink from 398 days to 47',
       line: `${BR_PHASES[0].days} days, then ${BR_PHASES[1].days} from ${BR_PHASES[1].from.slice(0, 4)}, ${BR_PHASES[2].days} from ${BR_PHASES[2].from.slice(0, 4)} and ${BR_PHASES[3].days} from ${BR_PHASES[3].from.slice(0, 4)}.`,
-      caption: `The CA/Browser Forum’s Baseline Requirements cap how long a publicly trusted TLS certificate may be valid. The cap was ${BR_PHASES[0].days} days until 15 March 2026 and ${BR_PHASES[1].days} days from then. It falls to ${BR_PHASES[2].days} days in March 2027 and to ${BR_PHASES[3].days} in March 2029. When the lifetime shrinks, does a rule that renews 30 days before expiry still leave enough time between certificates? We will compare it with a rule tied to the certificate’s lifetime.`,
+      caption: `The CA/Browser Forum caps how long a public TLS certificate may last: ${BR_PHASES[0].days} days until 15 March 2026, ${BR_PHASES[1].days} from then, ${BR_PHASES[2].days} from March 2027 and ${BR_PHASES[3].days} from March 2029. A renewal margin that used to occupy a small part of the lifetime can now exceed the whole lifetime. What should a job do when its certificate lasts less than the configured margin?`,
     });
     await s.clear();
     const line = await s.show({ source: BR_SOURCE }, { box: regionBox('full', { top: 3.1 }) });
@@ -213,19 +276,17 @@ export default class CertRenewalExplainer extends Scene {
 
     // ------------------------------------------------------------ letsencrypt
     await this.step('letsencrypt', {
-      detail: true,
       title: 'Let’s Encrypt’s default reaches 45 days in 2028',
       line: `The classic profile: 90 days, then ${LE_DATES[1].days} from ${LE_DATES[1].date.slice(0, 4)} and ${LE_DATES[2].days} from ${LE_DATES[2].date.slice(0, 4)}.`,
       caption:
-        'The same timeline, edited to Let’s Encrypt’s schedule. Its opt-in tlsserver profile has issued 45-day certificates since May 2026. The default classic profile issues 90-day certificates until February 2027, then 64-day ones, and 45-day ones from February 2028, a year before the 47-day cap.',
+        'The same timeline, edited to Let’s Encrypt’s schedule. The opt-in tlsserver profile has issued 45-day certificates since May 2026; the default classic profile moves from 90 days to 64 in February 2027 and to 45 in February 2028. Its opt-in shortlived profile issues 160-hour certificates.',
     });
     await line.morph({ source: LE_SOURCE }, { ops: LE_OPS });
     await line.dim(['period:period-2']);
     this.state.letsEncrypt = LE_DATES.map((d) => [d.date, d.profile, d.days]);
 
     // --------------------------------------------------------------- old-rule
-    const ninety = summarize('fixed30', '90d'),
-      ninetyNew = summarize('fraction', '90d');
+    const ninety = summarize('fixed30', '90d');
     const oneRenewal = gantt(
       [
         [
@@ -239,30 +300,173 @@ export default class CertRenewalExplainer extends Scene {
       '%d %b',
     );
     await this.step('old-rule', {
-      detail: true,
       title: 'Certbot 3.3 renews 30 days before expiry',
-      line: `A 90-day certificate is replaced by the run at day ${days(ninety.renewsAt)}.`,
-      caption: `Certbot 3.3 renews when the certificate expires within renew_before_expiry, 30 days unless the renewal file sets it. Let’s Encrypt dates a certificate 58.5 minutes before it issues it, so a 90-day one falls due just before the run at day ${days(ninety.renewsAt)}, which replaces it.`,
+      line:
+        key === '90d'
+          ? `Predict: what share of a 90-day life has passed at day ${days(ninety.renewsAt)}?`
+          : `Predict: when does a 30-day margin renew a ${adjective} certificate?`,
+      caption: `Certbot 3.3 renews when the certificate expires within renew_before_expiry, 30 days unless the renewal file sets it. Let’s Encrypt dates a certificate ${+(BACKDATE * 60).toFixed(1)} minutes before it issues it, so a 90-day one falls due just before the twice-daily run at day ${days(ninety.renewsAt)}, which replaces it.`,
     });
     await s.clear();
-    const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: 0.0 }) });
-    const code = await s.code(OLD_CODE, { at: regionBox('full', { top: -0.1 }), fontSize: 0.21 });
+    const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
+    const code = await s.code(OLD_CODE, { at: regionBox('full', { top: -0.35 }), fontSize: 0.2 });
     await code.focus([2, 3]);
     await chart.note('task:c2', `replaced at day ${days(ninety.renewsAt)}`, { side: 'right' });
     this.state.oldRule = { due: ninety.due, renewsAt: ninety.renewsAt };
 
-    // --------------------------------------------------------------- new-rule
-    await this.step('new-rule', {
-      detail: true,
-      title: 'Certbot 4.1 renews two thirds of the way through',
-      line: `Two thirds of 90 days is day ${days(ninetyNew.due)}; the replacement does not move.`,
-      caption: `Since 4.1, with renew_before_expiry unset and no ARI answer, Certbot renews two thirds of the way through a certificate’s life, or half way for certificates shorter than ten days. Two thirds of 90 days is day ${days(ninetyNew.due)}, the day the old rule chose, so for 90-day certificates nothing moved.`,
+    // ----------------------------------------------------------------- margin
+    // The cause behind old-rule's answer: a 90-day certificate and this scenario's, drawn to one time scale and lined up
+    // at expiry, each with the 30-day rule's due point counted back from its expiry. Where that point lies left of a
+    // bar, the certificate is due from issue.
+    const percent = (x: number) => `${Math.round(x * 100)}%`;
+    const rows = [...new Set<LifetimeKey>(['90d', key])].map((k) => ({
+      lifetime: k,
+      hours: LIFETIMES[k].hours,
+      due: dueOffset('fixed30', LIFETIMES[k].hours),
+      share: FIXED_INTERVAL / LIFETIMES[k].hours,
+    }));
+    const fixedHere = rows.at(-1)!,
+      renewsHere = summarize('fixed30', key).renewsAt;
+    const named = (k: LifetimeKey) => `${LIFETIMES[k].label.replace(/ (day|hour)s$/, '-$1')} certificate`;
+    // Where the due point falls, in the words each row prints and the caption says.
+    const marginWords = (r: (typeof rows)[number]) =>
+      r.due < 0 ? `due ${days(-r.due)} days before issue` : `due at day ${days(r.due)}`;
+    const ofLife = (share: number, k: LifetimeKey) => {
+      const life = `a ${LIFETIMES[k].label.replace(/ (day|hour)s$/, '-$1')} life`;
+      return share >= 1 ? `${+share.toFixed(1)} times ${life}` : `${percent(share)} of ${life}`;
+    };
+    const lifeLeft = (share: number) =>
+      Math.abs(share - 1 / 3) < 1e-9 ? 'a third' : Math.abs(share - 2 / 3) < 1e-9 ? 'two thirds' : percent(share);
+    await this.step('margin', {
+      title:
+        fixedHere.due < 0
+          ? `Answer: 30 days before expiry is ${days(-fixedHere.due)} days before issue`
+          : `Answer: 30 days before expiry is day ${days(fixedHere.due)}, ${percent(1 - fixedHere.share)} of the way through`,
+      line:
+        fixedHere.due < 0
+          ? `So it is due from issue, and the first run, at hour ${renewsHere}, renews it.`
+          : `The rule counts 30 days back from expiry: ${percent(fixedHere.share)} of a ${adjective} life.`,
+      caption: `Each bar is one certificate, from issue to expiry, drawn to one time scale and lined up at expiry. The highlighted line is the 30-day test: renew once expiry is less than 30 days away. The tick at the start of each 30-day bracket marks where that test starts to pass: 30 days before the right-hand end of each bar. On a 90-day certificate that is day ${days(rows[0]!.due)}, with ${lifeLeft(rows[0]!.share)} of its life left. ${
+        key === '90d'
+          ? 'A ninety-day lifetime is what the 30-day margin was written for.'
+          : fixedHere.due < 0
+            ? `A ${named(key)} is shorter than the margin: its due point falls ${Math.round(-fixedHere.due)} hours, ${days(-fixedHere.due)} days, before it was issued. It is due from the moment it exists, so the first twice-daily run, at hour ${renewsHere}, replaces it, and the replacement is due from issue too.`
+            : `A ${named(key)} falls due at day ${days(fixedHere.due)}, with ${lifeLeft(fixedHere.share)} of its life left.`
+      }`,
     });
-    await chart.clearNotes();
+    await chart.hide();
+    await code.focus([7, 8]);
+    // The rows' state first: the picture is a view of it.
+    this.state.margin = {
+      rows: rows.map(({ lifetime, hours, due, share }) => ({ lifetime, hours, due, share })),
+      renewsAt: renewsHere,
+    };
+    type MarginRow = (typeof rows)[number];
+    const marginState = (st: Record<string, unknown>) => st.margin as { rows: MarginRow[]; renewsAt: number };
+    // The rows are the phone's opening, so their words are large enough to read when the rows fill a narrow stage;
+    // the words left of the bars, each row's share of its life, wait for the close-up tour. The time scale is
+    // the 90-day certificate's, the same in every scenario.
+    const XE = 6.5,
+      perHour = 7.2 / LIFETIMES['90d'].hours,
+      xOfExpiry = (fromExpiry: number) => XE + fromExpiry * perHour;
+    const marginPicture = (st: Record<string, unknown>) => {
+      const marginRows = marginState(st).rows,
+        size = 0.32,
+        ink = s.palette.ink;
+      const row = (r: MarginRow, y: number) => {
+        const left = xOfExpiry(-r.hours),
+          dueX = xOfExpiry(-FIXED_INTERVAL),
+          yb = y - 0.4;
+        const bar = new Rectangle({
+          width: XE - left,
+          height: 0.34,
+          fill: s.emphasis,
+          fillOpacity: 0.2,
+          stroke: s.emphasis,
+          strokeWidth: 0.025,
+        }).moveTo([(left + XE) / 2, y]);
+        const name = new Text(named(r.lifetime), { fontSize: size, color: ink, weight: 'bold', anchor: 'end' }).moveTo(
+          [XE, y + 0.5],
+          [1, 0],
+        );
+        const bracket = new Group(
+          new Line([dueX, yb], [XE, yb], { stroke: s.bad, strokeWidth: 0.03 }),
+          new Line([XE, yb - 0.08], [XE, yb + 0.08], { stroke: s.bad, strokeWidth: 0.03 }),
+          new Line([dueX, y + 0.2], [dueX, yb - 0.08], { stroke: s.bad, strokeWidth: 0.04 }),
+          new Text('30 days', { fontSize: size, color: s.bad }).moveTo([(dueX + XE) / 2, yb - 0.33]),
+          new Text(marginWords(r), { fontSize: size, color: s.bad, anchor: 'end' }).moveTo([dueX - 0.15, yb], [1, 0]),
+        );
+        return new Group(bar, name, bracket);
+      };
+      const ys = marginRows.length === 1 ? [1.6] : [2.45, 0.78];
+      const subjects = marginRows.map((r, i) => keyed(row(r, ys[i]!), `margin:${r.lifetime}`));
+      const shares = marginRows.map((r, i) =>
+        new Text(`30 days is ${ofLife(r.share, r.lifetime)}`, {
+          fontSize: 0.24,
+          color: s.soft,
+          anchor: 'end',
+        }).moveTo([xOfExpiry(-LIFETIMES['90d'].hours) - 0.35, ys[i]!], [1, 0]),
+      );
+      return keyed(new Group(...subjects, ...shares), 'margin');
+    };
+    const marginView = view(this, marginPicture, { place: false });
+    await s.enter(marginView, {
+      describe: () => {
+        const marginRows = marginState(this.state).rows;
+        return `${marginRows.length === 1 ? 'One certificate' : 'Two certificates'} drawn to one time scale and lined up at expiry, each with a red 30-day bracket counted back from its right-hand end: ${marginRows
+          .map((r) => `a ${named(r.lifetime)}, ${marginWords(r)}, 30 days being ${ofLife(r.share, r.lifetime)}`)
+          .join('; ')}.`;
+      },
+    });
+    s.opening(...marginState(this.state).rows.map((r) => this.find(`margin:${r.lifetime}`)!));
+
+    // --------------------------------------------------------------- new-rule
+    const payoff =
+      byRule.fixed30.due === 0
+        ? `Thirty days is longer than a ${adjective} certificate’s whole life, so under the old rule every run tries to renew; the new one waits until ${at(byRule.fraction.due, short)}.`
+        : byRule.fixed30.due === byRule.fraction.due
+          ? `On a ${adjective} certificate both fall due at ${at(byRule.fraction.due, short)}.`
+          : `On a ${adjective} certificate the old rule falls due at ${at(byRule.fixed30.due, short)}, the new one at ${at(byRule.fraction.due, short)}.`;
+    // The scenario's own lifetime, with the replacement each rule makes: the answer to the old-rule step's prediction.
+    const share = short ? 'half' : 'two thirds',
+      both = byRule.fixed30.renewsAt === byRule.fraction.renewsAt,
+      // The default's due time, and the run that renews when that run comes noticeably later.
+      byRun =
+        byRule.fraction.renewsAt + BACKDATE - byRule.fraction.due >= 1
+          ? `, renewed by the run at ${at(byRule.fraction.renewsAt, short)}`
+          : '';
+    const replacements = gantt(
+      [
+        [
+          `One ${adjective} certificate`,
+          [
+            { label: 'First', id: 'c1', start: 0, hours: life.hours },
+            { label: `30-day rule, ${at(byRule.fixed30.renewsAt, short)}`, id: 'fixed30', start: byRule.fixed30.renewsAt, hours: life.hours },
+            { label: `Default, ${at(byRule.fraction.renewsAt, short)}`, id: 'fraction', start: byRule.fraction.renewsAt, hours: life.hours },
+          ],
+        ],
+      ],
+      '%d %b',
+    );
+    await this.step('new-rule', {
+      title: `Certbot 4.1 renews ${short ? 'half way' : 'two thirds of the way'} through a ${adjective} certificate`,
+      line: both
+        ? `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}, where the 30-day rule renews too.`
+        : `${upper(share)} of ${life.label} is ${at(byRule.fraction.due, short)}${byRun}; the 30-day rule renews at ${at(byRule.fixed30.renewsAt, short)}.`,
+      caption: `Certbot 4.1 changed the rule: ${ANSWER}. With renew_before_expiry unset, it renews two thirds of the way through, or half way under ten days, unless the CA sends an ARI answer, a renewal window of its own (RFC 9773). A fraction scales with the lifetime; a fixed number of days does not. ${payoff}`,
+    });
+    // The margin picture gives way to the replacements each rule makes, in the chart's place above the code.
+    await this.play(new FadeOut(marginView, { runTime: 0.3 }));
+    const replaced = await s.show({ source: replacements }, { box: regionBox('top', { bottom: -0.25 }) });
     await code.morph(NEW_CODE);
     await code.focus([6, 9]);
-    await chart.note('task:c2', `day ${days(ninetyNew.renewsAt)} under both`, { side: 'right' });
-    this.state.newRule = { due: ninetyNew.due, renewsAt: ninetyNew.renewsAt };
+    // Each replacement's row names its rule and when it starts; the chosen rule's row is marked.
+    await replaced.mark([`task:${rule}`], { as: 'the chosen rule' });
+    this.state.newRule = {
+      lifetime: key,
+      fixed30: { due: byRule.fixed30.due, renewsAt: byRule.fixed30.renewsAt },
+      fraction: { due: byRule.fraction.due, renewsAt: byRule.fraction.renewsAt },
+    };
 
     // ------------------------------------------------------------------- year
     // A strip per rule: a tick at each certificate's issue, a red mark at each refused run.
@@ -285,30 +489,33 @@ export default class CertRenewalExplainer extends Scene {
           ? 'the next twice-daily run, under an hour later,'
           : `the next twice-daily run, at ${at(c.renewsAt, short)},`;
     };
+    // The strips are views of the year's runs: each step's state holds the run its strip draws, and the
+    // lifetime and window the axis is drawn to.
+    interface YearRun { rule: Rule; issued: number[]; refused: number[]; lifetime: LifetimeKey; window: number }
     const X0 = -6.6,
       X1 = 6.0,
-      xOf = (hours: number) => X0 + ((X1 - X0) * hours) / window;
+      xIn = (run: YearRun) => (hours: number) => X0 + ((X1 - X0) * hours) / run.window;
     const ink = s.palette.ink;
-    const axisMarks = (() => {
-      const marks: [number, string][] = [];
-      if (short) for (let d = 0; d <= 14; d += 2) marks.push([d * DAY, stamp(d * DAY).slice(8, 10) + ' Mar']);
+    const AXIS_Y = -1.9;
+    const axisLine = (run: YearRun) => {
+      const xOf = xIn(run),
+        marks: [number, string][] = [];
+      if (run.lifetime === '160h') for (let d = 0; d <= 14; d += 2) marks.push([d * DAY, stamp(d * DAY).slice(8, 10) + ' Mar']);
       else
         for (let m = 0; m <= 12; m += 1) {
           const hours = (Date.UTC(2028, 2 + m, 1) - BASE) / 3600e3;
-          if (hours <= window) marks.push([hours, new Date(BASE + hours * 3600e3).toUTCString().slice(8, 11)]);
+          if (hours <= run.window) marks.push([hours, new Date(BASE + hours * 3600e3).toUTCString().slice(8, 11)]);
         }
-      return marks;
-    })();
-    const AXIS_Y = -1.9;
-    const axisLine = new Group(
-      new Line([X0, AXIS_Y], [X1, AXIS_Y], { stroke: s.soft, strokeWidth: 0.02 }),
-      ...axisMarks.flatMap(([h, label]) => [
-        new Line([xOf(h), AXIS_Y], [xOf(h), AXIS_Y - 0.1], { stroke: s.soft, strokeWidth: 0.02 }),
-        new Text(label, { fontSize: 0.22, color: s.soft }).moveTo([xOf(h), AXIS_Y - 0.32]),
-      ]),
-    );
-    const strip = (r: Rule, y: number) => {
-      const run = perWindow(r);
+      return new Group(
+        new Line([X0, AXIS_Y], [X1, AXIS_Y], { stroke: s.soft, strokeWidth: 0.02 }),
+        ...marks.flatMap(([h, label]) => [
+          new Line([xOf(h), AXIS_Y], [xOf(h), AXIS_Y - 0.1], { stroke: s.soft, strokeWidth: 0.02 }),
+          new Text(label, { fontSize: 0.22, color: s.soft }).moveTo([xOf(h), AXIS_Y - 0.32]),
+        ]),
+      );
+    };
+    const strip = (run: YearRun, y: number) => {
+      const xOf = xIn(run);
       // The first certificate is grey; each later tick is a renewal.
       const ticks = run.issued.map((t, i) =>
         new Rectangle({ width: 0.07, height: 0.62, fill: i ? s.emphasis : s.soft, stroke: 'none' }).moveTo([xOf(t), y]),
@@ -317,7 +524,7 @@ export default class CertRenewalExplainer extends Scene {
         new Rectangle({ width: 0.07, height: 0.26, fill: s.bad, stroke: 'none' }).moveTo([xOf(t), y - 0.52]),
       );
       const base = new Line([X0, y - 0.31], [X1, y - 0.31], { stroke: s.soft, strokeWidth: 0.015 });
-      const name = new Text(RULES[r].name, { fontSize: 0.26, color: ink, weight: 'bold', anchor: 'start' }).moveTo(
+      const name = new Text(RULES[run.rule].name, { fontSize: 0.26, color: ink, weight: 'bold', anchor: 'start' }).moveTo(
         [X0, y + 0.62],
         [-1, 0],
       );
@@ -333,16 +540,18 @@ export default class CertRenewalExplainer extends Scene {
       );
       return new Group(base, ...ticks, ...refusals, name, total, unit);
     };
-    const words = (r: Rule) => {
-      const run = perWindow(r);
-      const renewals = run.issued.slice(1);
-      return `${RULES[r].name}: a first certificate on 1 March, then ${renewals.length} renewals in ${span}, at ${renewals
+    const words = (run: YearRun) => {
+      const renewals = run.issued.slice(1),
+        isShort = run.lifetime === '160h';
+      return `${RULES[run.rule].name}: a first certificate on 1 March, then ${renewals.length} renewals in ${isShort ? 'two weeks' : 'a year'}, at ${renewals
         .slice(0, 3)
-        .map((t) => at(t, short))
+        .map((t) => at(t, isShort))
         .join(', ')}${renewals.length > 3 ? ' and so on' : ''}${
         run.refused.length ? `; ${run.refused.length} runs refused, the first at hour ${run.refused[0]}` : ''
       }`;
     };
+    const yearRun = (st: Record<string, unknown>) => st.year as YearRun,
+      otherRun = (st: Record<string, unknown>) => ({ ...yearRun(st), ...(st.otherRule as Omit<YearRun, 'lifetime' | 'window'>) });
     const limitedGaps = (() => {
       const run = perWindow(rule),
         after = run.issued.filter((t) => run.refused.length && t > run.refused[0]!);
@@ -350,28 +559,32 @@ export default class CertRenewalExplainer extends Scene {
       return lengths.length ? [Math.min(...lengths), Math.max(...lengths)] : null;
     })();
     await this.step('year', {
-      detail: true,
       title: `${life.label} under ${RULES[rule].short}: ${count(rule)} renewals in ${span}`,
       line:
         limitedGaps && mine.firstRefused != null
-          ? `Every run renews until hour ${mine.firstRefused}; then most are refused (red).`
+          ? `Every run renews until hour ${mine.firstRefused}; then most are refused.`
           : `Each certificate is ${dueWords(rule)}.`,
-      caption: `Each blue tick is a renewal, over ${span} from a first certificate on 1 March 2028. Under ${RULES[rule].short} a certificate is ${dueWords(rule)}, ${
+      caption: `Each tick after the first is a renewal, counted at the right, over ${span} from a first certificate on 1 March 2028. Under ${RULES[rule].short} a certificate is ${dueWords(rule)}, ${
         limitedGaps && mine.firstRefused != null
-          ? `so every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (red). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
+          ? `so even a fresh replacement is already due under the same rule. Every run renews until, at hour ${mine.firstRefused}, Let’s Encrypt starts refusing most runs (the short marks under the strip, counted as refused). Later ticks are ${limitedGaps[0]} to ${limitedGaps[1]} hours apart.`
           : `and ${replacedBy(rule)} replaces it.`
       }`,
     });
     await s.clear();
-    await s.enter(axisLine, strip(rule, 1.2), {
-      describe: () => `A ${span} axis from 1 March 2028 with one strip of ticks. ${words(rule)}`,
-    });
     this.state.year = {
       rule,
       issued: perWindow(rule).issued,
       refused: perWindow(rule).refused,
       renewalsPerYear: mine.renewalsPerYear,
+      lifetime: key,
+      window,
     };
+    const axisView = view(this, (st) => axisLine(yearRun(st)), { place: false }),
+      upperStrip = view(this, (st) => strip(yearRun(st), 1.2), { place: false });
+    await s.enter(axisView, upperStrip, {
+      describe: () =>
+        `A ${yearRun(this.state).lifetime === '160h' ? 'two weeks' : 'a year'} axis from 1 March 2028 with one strip of ticks. ${words(yearRun(this.state))}`,
+    });
 
     // ------------------------------------------------------------- other-rule
     const f30 = byRule.fixed30,
@@ -379,32 +592,38 @@ export default class CertRenewalExplainer extends Scene {
       ratio = f30.renewalsPerYear / frac.renewalsPerYear;
     const same = f30.renewalsPerYear === frac.renewalsPerYear,
       compare = ratio === 2 ? 'twice as often' : `${ratio.toFixed(1)} times as often`;
+    const otherOutcome =
+      theirs.firstRefused != null
+        ? `every run renews until, at hour ${theirs.firstRefused}, Let’s Encrypt starts refusing most runs (the short marks under the strip, counted as refused)`
+        : `${replacedBy(other)} replaces it`;
     await this.step('other-rule', {
-      detail: true,
       title: same
         ? `${RULES[other].name}: the same ${count(other)} renewals`
         : `${RULES[other].name}: ${count(other)} renewals instead`,
       line: same
         ? `Over 365 days both rules renew ${f30.renewalsPerYear} times.`
         : `In 365 days: ${f30.renewalsPerYear} under ${RULES.fixed30.short}, ${frac.renewalsPerYear} under ${RULES.fraction.short}.`,
-      caption: `The lower strip is the same ${short ? 'two weeks' : 'year'} under ${RULES[other].short}: a certificate is ${dueWords(other)}, and ${replacedBy(other)} replaces it. ${
+      caption: `The lower strip is the same ${short ? 'two weeks' : 'year'} under ${RULES[other].short}: a certificate is ${dueWords(other)}, and ${otherOutcome}. ${
         same
           ? `Over 365 days both rules renew ${f30.renewalsPerYear} times.`
           : `Over 365 days ${RULES.fixed30.short} renews ${f30.renewalsPerYear} times and ${RULES.fraction.short} ${frac.renewalsPerYear}: ${compare}.`
       }`,
     });
-    await s.enter(strip(other, -0.55), { describe: () => `A second strip. ${words(other)}` });
     this.state.otherRule = {
       rule: other,
       issued: perWindow(other).issued,
       refused: perWindow(other).refused,
       renewalsPerYear: theirs.renewalsPerYear,
     };
+    // The lower strip is drawn to the year's axis: the lifetime and window come from the year step's run.
+    const lowerStrip = view(this, (st) => strip(otherRun(st), -0.55), { place: false });
+    await s.enter(lowerStrip, { describe: () => `A second strip. ${words(otherRun(this.state))}` });
+    // The step compares the two rules, so a phone's tour reads both strips, not only the new one.
+    s.opening(upperStrip, lowerStrip);
 
     // ------------------------------------------------------------------ slack
     const limited = rule === 'fixed30' && mine.firstRefused != null;
     await this.step('slack', {
-      detail: true,
       title: limited
         ? `Renewing at every run, Let’s Encrypt refuses at hour ${mine.firstRefused}`
         : `A failed renewal leaves ${length(mine.slack, short)} to retry`,
@@ -412,11 +631,10 @@ export default class CertRenewalExplainer extends Scene {
         ? `${LIMIT.burst} per 7 days, one back every ${EMISSION} h; ${mine.refusedPerYear} refused in 365 days.`
         : `Room for ${mine.retries} twice-daily runs; ${RULES[other].short} leaves ${length(theirs.slack, short)}.`,
       caption: limited
-        ? `Every run renews, and Let’s Encrypt allows 5 certificates for the same names in 7 days, giving one back every ${EMISSION} hours. After ${perWindow(rule).issued.filter((t) => t < mine.firstRefused!).length - 1} renewals the run at hour ${mine.firstRefused} is refused. In 365 days ${mine.refusedPerYear} attempts are refused and ${mine.renewalsPerYear} succeed.`
-        : `When a renewal falls due the certificate still has ${length(mine.slack, short)} to run, time for ${mine.retries} twice-daily runs to try again if the CA or the challenge fails. ${upper(RULES[other].short)} leaves ${length(theirs.slack, short)}.`,
+        ? `Let’s Encrypt allows ${LIMIT.burst} certificates for the same names in 7 days and gives one back every ${EMISSION} hours. After ${perWindow(rule).issued.filter((t) => t < mine.firstRefused!).length - 1} renewals the run at hour ${mine.firstRefused} is refused; in 365 days ${mine.refusedPerYear} runs are refused and ${mine.renewalsPerYear} renew.`
+        : `When a renewal falls due the certificate still has ${length(mine.slack, short)} to run, time for ${mine.retries} twice-daily runs to try again if the CA or the challenge fails. ${upper(RULES[other].short)} leaves ${length(theirs.slack, short)}${theirs.firstRefused != null ? `, but renews at every run until Let’s Encrypt refuses it at hour ${theirs.firstRefused}` : ''}.`,
     });
     await s.clear();
-    const adjective = life.label.replace(/ (day|hour)s$/, '-$1');
     const windows = gantt(
       [
         [
@@ -482,19 +700,34 @@ export default class CertRenewalExplainer extends Scene {
       refused: mine.refusedPerYear,
     };
 
+    // --------------------------------------------------------------- replaces
+    await this.step('replaces', {
+      title: 'Certbot’s renewals still count against the limit',
+      line: 'Certbot’s order names no predecessor, so the limit check runs.',
+      caption: `Boulder skips the ${LIMIT.burst}-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s ARI window. Certbot 5.8’s order carries identifiers and a profile and names no predecessor, so its renewals are checked. The renewal window and this exemption are different: following the window does not itself name the replaced certificate. A refused order costs nothing; an issued certificate takes a token.`,
+    });
+    await s.clear();
+    await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), fontSize: 0.22 });
+    this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
+    await cardOf(
+      (st) => {
+        const { burst } = st.replaces as { burst: number };
+        return [
+          ['Names its predecessor, inside the window', 'no limit check'],
+          ['Anything else, Certbot 5.8 included', `${burst} per 7 days`],
+          ['Refused order', 'costs no token'],
+          ['Issued certificate', 'takes a token if one is left'],
+        ];
+      },
+      { at: regionBox('full', { top: -1.5 }), width: 11 },
+    );
+
     // -------------------------------------------------------------------- ari
     // The window and the runs come from Boulder's RenewalInfoSimple and Certbot's draw (lib/cert-renewal.ts).
     const ari = ariSummary(rule, key),
       when = (h: number) => (short ? `hour ${h.toFixed(1)}` : `day ${days(h)}`),
       pct = (p: number) => (p < 0.005 ? 'under 1%' : `${Math.round(p * 100)}%`),
       runList = ari.runs.map((r) => `${at(r.at, short)} (${pct(r.p)})`),
-      // The card says the unit once: "day 42 (<1%), 42.5 (39%), …".
-      runCard = ari.runs
-        .map(
-          (r, i) =>
-            `${i ? '' : short ? 'hour ' : 'day '}${short ? Math.round(r.at) : days(r.at)} (${r.p < 0.005 ? '<1%' : pct(r.p)})`,
-        )
-        .join(', '),
       listed =
         runList.length > 1 ? `${runList.slice(0, -1).join(', ')} or ${runList[runList.length - 1]}` : runList[0]!;
     // Under the 30-day rule a set renew_before_expiry can fire before the window opens.
@@ -502,16 +735,15 @@ export default class CertRenewalExplainer extends Scene {
     const [fewest, most] = ari.perYear,
       yearly = fewest === most ? `${fewest}` : `${fewest} ${most - fewest === 1 ? 'or' : 'to'} ${most}`;
     await this.step('ari', {
-      detail: true,
       title: `Let’s Encrypt’s ARI window: ${when(ari.start)} to ${when(ari.end)}`,
       line: settingFirst
         ? `The 30-day setting renews at ${at(ari.runs[0]!.at, short)}, before the window opens.`
         : ari.runs.length === 1 && ari.runs[0]!.at + BACKDATE >= ari.end
           ? `No run falls inside it; the next run, at ${at(ari.runs[0]!.at, short)}, renews.`
           : `Each run draws a random time in it; ${yearly} renewals in 365 days.`,
-      caption: `Certbot 4.1 and later ask Let’s Encrypt when to renew; the answer is a window 1% of the life either side of ${short ? 'half way' : 'two thirds'}. ${
+      caption: `Certbot 4.1 and later ask Let’s Encrypt when to renew; its ARI answer is a window 1% of the life either side of ${short ? 'half way' : 'two thirds'}. ${
         settingFirst
-          ? `The 30-day setting still renews on its own, at ${at(ari.runs[0]!.at, short)}, before the window opens, so the answer changes nothing.`
+          ? `The 30-day setting still renews on its own, at ${at(ari.runs[0]!.at, short)}, before the window opens, so the answer changes nothing until the setting is removed.`
           : ari.runs.length === 1 && ari.runs[0]!.at + BACKDATE >= ari.end
             ? `No run falls inside it, so the first run after it, at ${at(ari.runs[0]!.at, short)}, renews.`
             : `Each run draws a random time in it and renews once that time has passed: ${listed}.`
@@ -520,35 +752,29 @@ export default class CertRenewalExplainer extends Scene {
     await s.clear();
     const ariCode = await s.code(ARI_CODE, { at: regionBox('full', { bottom: -1.0 }), fontSize: 0.22 });
     await ariCode.focus(settingFirst ? [10, 12] : [4, 9], { as: settingFirst ? 'the setting first' : 'a fresh draw' });
-    await s.card(
-      [
-        ['Window', `${when(ari.start)} to ${when(ari.end)}`],
-        ['Runs that renew', runCard],
-        ['Renewals in 365 days', `${yearly} (${mine.renewalsPerYear} with no answer)`],
-      ],
+    this.state.ari = {
+      start: ari.start,
+      end: ari.end,
+      runs: ari.runs,
+      perYear: ari.perYear,
+      lifetime: key,
+      withoutAnswer: mine.renewalsPerYear,
+    };
+    await cardOf(
+      (st) => {
+        const a = st.ari as typeof ari & { lifetime: LifetimeKey; withoutAnswer: number },
+          isShort = a.lifetime === '160h',
+          on = (h: number) => (isShort ? `hour ${h.toFixed(1)}` : `day ${days(h)}`),
+          share = (p: number) => (p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`),
+          [low, high] = a.perYear;
+        return [
+          ['Window', `${on(a.start)} to ${on(a.end)}`],
+          // The card says the unit once: "day 42 (<1%), 42.5 (39%), …".
+          ['Runs that renew', a.runs.map((r, i) => `${i ? '' : isShort ? 'hour ' : 'day '}${isShort ? Math.round(r.at) : days(r.at)} (${share(r.p)})`).join(', ')],
+          ['Renewals in 365 days', `${low === high ? `${low}` : `${low} ${high - low === 1 ? 'or' : 'to'} ${high}`} (${a.withoutAnswer} with no answer)`],
+        ];
+      },
       { at: regionBox('full', { top: -1.25 }), width: 11 },
     );
-    this.state.ari = { start: ari.start, end: ari.end, runs: ari.runs, perYear: ari.perYear };
-
-    // --------------------------------------------------------------- replaces
-    await this.step('replaces', {
-      detail: true,
-      title: 'Certbot’s renewals still count against the limit',
-      line: 'Certbot’s order names no predecessor, so the limit check runs.',
-      caption:
-        'More frequent renewals matter if they consume an issuance limit. Boulder skips the 5-in-7-days check only for an order that names the certificate it replaces and arrives inside that certificate’s window. Certbot 5.8’s order carries identifiers and a profile, nothing more, so every renewal is checked. A refused order costs nothing; an issued certificate takes a token.',
-    });
-    await s.clear();
-    await s.code(EXEMPT_CODE, { at: regionBox('full', { bottom: -1.3 }), fontSize: 0.22 });
-    await s.card(
-      [
-        ['Names its predecessor, inside the window', 'no limit check'],
-        ['Anything else, Certbot 5.8 included', `${LIMIT.burst} per 7 days`],
-        ['Refused order', 'costs no token'],
-        ['Issued certificate', 'takes a token if one is left'],
-      ],
-      { at: regionBox('full', { top: -1.5 }), width: 11 },
-    );
-    this.state.replaces = { replacesSent: false, burst: LIMIT.burst, emissionHours: EMISSION };
   }
 }

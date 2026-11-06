@@ -14,6 +14,8 @@ import type { Project } from './explain-project.ts';
 export interface SiteItem {
   id: string;
   group: 'topic' | 'toolchain';
+  /** A coverage-tier explainer keeps its page and JSON but is not listed (scenes/explainers/catalog.ts). */
+  tier?: 'showcase' | 'gallery' | 'coverage';
 }
 
 const TITLE = '# Rayner explainers';
@@ -47,9 +49,9 @@ export async function checkBuilt(folder: string, scene: string, buildHash?: stri
     throw new Error(`${folder} is stale: ${changed.map((k) => CHANGED[k] ?? k).join(', ')} changed since it was built. Run npm run demos:build`);
 }
 
-/** The explainer's opening words: the first sentence of the default case's first caption. */
+/** The explainer's opening words: the first sentence of the default scenario's first caption. */
 export function summaryOf(d: ExplainerDescription): string {
-  const c = d.cases.find((c) => d.settings.every((s) => c.values[s.id] === s.default)) ?? d.cases[0],
+  const c = d.scenarios.find((c) => d.settings.every((s) => c.values[s.id] === s.default)) ?? d.scenarios[0],
     caption = (c?.steps[0]?.caption ?? '').replace(/\s+/g, ' ').trim();
   return /^.+?[.!?](?=\s+\p{Lu}|$)/u.exec(caption)?.[0] ?? caption;
 }
@@ -61,7 +63,7 @@ export function llmsTxt(entries: { item: SiteItem; d: ExplainerDescription }[], 
   const sections = (Object.keys(GROUPS) as SiteItem['group'][])
     .map((group) => {
       const lines = entries
-        .filter((e) => e.item.group === group)
+        .filter((e) => e.item.group === group && e.item.tier !== 'coverage')
         .map(({ item: { id }, d }) => `- [${linkText(d.title)}](${base}/${id}): ${summaryOf(d)} JSON: [${id}.json](${base}/${id}.json)`);
       return lines.length ? `## ${GROUPS[group]}\n\n${lines.join('\n')}\n` : '';
     })
@@ -69,7 +71,7 @@ export function llmsTxt(entries: { item: SiteItem; d: ExplainerDescription }[], 
   return [
     TITLE,
     '',
-    "> Step-through explainers made with Rayner. Each page has a JSON file beside it, from `describeExplainer`: every case and step, with its title, caption, the state the scene recorded, what the step changed, and the resting picture in words and drawn as text.",
+    "> Step-through explainers made with Rayner. Each page has a JSON file beside it, from `describeExplainer`: every scenario and step, with its title, caption, the state the scene recorded, what the step changed, and the resting picture in words and drawn as text.",
     '',
     'Each item links the page, gives the first sentence of its first caption, and links its JSON.',
     '',

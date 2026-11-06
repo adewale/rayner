@@ -11,14 +11,14 @@
 // 10.0 -> 9.0 stays put at its left edge. Fonts are loaded by Scene.run();
 // outside a scene, await loadFonts() first.
 
-import { Mobject, Group, animateBuilderBase } from './mobject.ts';
+import { Mobject, Group, animateBuilderBase, followScene, paintDefaults } from './mobject.ts';
 import type { Style, PathFunc } from './mobject.ts';
 import type { Box, AnimateBuilder, AnimateBuilderBase } from './mobject.ts';
 import { VMobject } from './vmobject.ts';
 import { Rectangle } from './shapes.ts';
 import { embeddedShaperFor } from './fonts.ts';
 import type { FontName } from './fonts.ts';
-import { WHITE } from './color.ts';
+import { NEUTRAL_COLORS } from './color.ts';
 import type { Vec } from './vec.ts';
 import {ambientTextContext} from './text-context.ts';
 import type {TextShaping} from './text-context.ts';
@@ -120,7 +120,7 @@ export class Text extends Group {
    */
   frameBox!: Float32Array;
 
-  constructor(text: string, { fontSize = 0.4, font = 'sans', color = WHITE, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOpts = {}, formula?: {display: boolean}) {
+  constructor(text: string, { fontSize = 0.4, font = 'sans', color: given, weight = 'normal', anchor = 'middle', fillOpacity = 1, tabWidth, shaping = ambientTextContext(), italic = false }: TextOpts = {}, formula?: {display: boolean}) {
     super();
     this.shaping = shaping; this.italic = italic; this.formula = formula;
     if (tabWidth != null) expandTabs('', tabWidth); // validates it
@@ -131,17 +131,18 @@ export class Text extends Group {
     this.weight = weight;
     this.anchor = anchor;
     this.mergeLeaves = true;
-    const bold = weight === 'bold';
+    const bold = weight === 'bold', color = given ?? NEUTRAL_COLORS.ink;
     this.build(text, fontSize, {
       fill: color, fillOpacity, stroke: bold ? color : 'none', strokeWidth: bold ? BOLD_STROKE * fontSize : 0,
     });
+    if (given === undefined) followScene(this, { fill: 'ink', stroke: 'ink' });
     // Centre the advance box, whose baseline is y=0 and bounds are
     // [0, -descent, width, ascent], rather than shifting it up by an ascent.
     this.shift([-this.run.width / 2, -(this.run.ascent - this.run.descent) / 2]);
   }
 
   /** Lay out glyphs with the pen at the origin and the baseline at y = 0. */
-  build(text: string, fontSize: number, style: Style): void {
+  build(text: string, fontSize: number, style: Style, defaults?: Mobject['defaultColors']): void {
     const { shaped, source } = shapedForm(text, this.tabWidth);
     const run = this.shapeRun(shaped, fontSize);
     if (this.shaping?.realBold?.(this)) style = {...style, stroke: 'none', strokeWidth: 0};
@@ -152,6 +153,8 @@ export class Text extends Group {
     for (const g of run.glyphs) {
       if (!g.path?.length) continue;
       const gl = new Glyph(g.path, g.s ?? scale, g.x + g.dx, g.dy, { ...style });
+      if (defaults) gl.defaultColors = { ...defaults }; else delete gl.defaultColors;
+      if (this._colors) paintDefaults(gl, this._colors);
       gl.cluster = this.formula ? undefined : source(g.cluster);
       gl.parent = this;
       this.children.push(gl);
@@ -166,7 +169,7 @@ export class Text extends Group {
   shapeRun(text: string, size: number): Run {
     if (this.shaping) return this.shaping.shape(this, text, size);
     if (this.italic) throw new Error("ItalicText needs static meta.lettering.styles to include 'italic' and a fresh lettering snapshot");
-    if (this.formula) throw new Error('Math requires meta.lettering.math and a fresh lettering snapshot');
+    if (this.formula) throw new Error('MathTex requires meta.lettering.math and a fresh lettering snapshot');
     return embeddedShaperFor(this.font)(text, size);
   }
   get clusterMatching(): boolean { return !!this.shaping?.clusterKey && !this.formula; }
@@ -232,13 +235,16 @@ export class Text extends Group {
    */
   setText(text: string): this {
     const at = this.anchorPoint();
-    const style: Style = this.children[0] ? { ...this.children[0].style } : { fill: WHITE, stroke: 'none' };
+    const first = this.children[0];
+    // The new glyphs keep the old ones' style, and any colour they still take from the scene.
+    const style: Style = first ? { ...first.style } : { fill: NEUTRAL_COLORS.ink, stroke: 'none' };
+    const defaults = first ? first.defaultColors : { fill: 'ink' as const };
     this.text = text;
     if (this.plain()) {
-      this.build(text, this.textSize(), style);
+      this.build(text, this.textSize(), style, defaults);
     } else {
       const { ex, ey } = this.frame();
-      this.build(text, this.run.fontSize, style);
+      this.build(text, this.run.fontSize, style, defaults);
       this.applyAffine(ex[0], ex[1], ey[0], ey[1], 0, 0, { aboutPoint: [0, 0] });
     }
     const now = this.anchorPoint();
@@ -367,7 +373,7 @@ function shapedForm(text: string, tabWidth: number | undefined): { shaped: strin
 export class Code extends Group {
   lines: Text[];
 
-  constructor(lines: readonly string[], { fontSize = 0.26, color = '#dddddd', lineHeight = 1.5, tabWidth = 4, spans = [], shaping }: CodeOpts = {}) {
+  constructor(lines: readonly string[], { fontSize = 0.26, color, lineHeight = 1.5, tabWidth = 4, spans = [], shaping }: CodeOpts = {}) {
     super();
     this.lines = lines.map((l, i) => {
       // `text` stays the source line, tabs and all; the glyphs are laid out with the tabs expanded
@@ -382,9 +388,10 @@ export class Code extends Group {
   override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     this.lines = (source as Code).lines.map(line => (copies.get(line) ?? line) as Text);
   }
-  /** A translucent bar behind line `i`, as wide as the block. */
-  highlight(i: number, color = '#ffff00'): Rectangle {
-    const r = new Rectangle({ width: this.width() + 0.3, height: this.lines[i]!.height() * 1.45, cornerRadius: 0.06, fill: color, fillOpacity: 0.18, stroke: 'none' });
+  /** A translucent bar behind line `i`, as wide as the block: the scene's accent unless given a colour. */
+  highlight(i: number, color?: string): Rectangle {
+    const r = new Rectangle({ width: this.width() + 0.3, height: this.lines[i]!.height() * 1.45, cornerRadius: 0.06, fill: color ?? NEUTRAL_COLORS.accent, fillOpacity: 0.18, stroke: 'none' });
+    if (color === undefined) followScene(r, { fill: 'accent' });
     return r.moveTo(this.lineCenter(i));
   }
   /** Where a highlight bar for line `i` sits. */
@@ -435,7 +442,7 @@ export class Code extends Group {
  * A span is not a scene member. `span.animate` plays as a Transform of its
  * line, so the span never joins the scene (two spans of one line can't then
  * animate in one play(): recolour a copy of the Code and Transform to it). An
- * animation built on the span itself (`new Indicate(span)`) would add the span
+ * animation built on the span itself (`new Create(span)`) would add the span
  * to the scene and draw its glyphs twice; draw a shape from span.box() instead.
  *
  * Fixed at creation. Once the line's text changes (Text.setText, or a

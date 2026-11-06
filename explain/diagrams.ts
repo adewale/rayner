@@ -8,15 +8,17 @@ import {
   Transform,
   Dot,
   MoveAlongPath,
+  GrowFromEdge,
+  PulseAlongPath,
   AnimationGroup,
   linear,
   Rectangle,
   Text,
 } from '../src/index.ts';
 import type { Scene, Mobject, Box, Vec, Style, PathFunc } from '../src/index.ts';
-import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises } from './look.ts';
+import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { diagramsOf, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramsOf, diagramKey, findingsOf, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
@@ -43,6 +45,11 @@ interface Part {
   route?: VMobject;
 }
 export type NoteSide = 'above' | 'below' | 'left' | 'right';
+/** What a picture of a diagram shows besides its parts: its marks with their words, and the parts dimming keeps. */
+interface PictureShows { marks: ReadonlyMap<string, { color: string; as: string }>; kept: ReadonlySet<string> | null }
+const pictureShows = Symbol('pictureShows');
+/** A note in a diagram's picture: beside part `id`, as `note(id, text, { side, color, size })` draws it. */
+export interface PictureNote { id: string; text: string; side?: NoteSide; color?: string; size?: number }
 interface Note {
   id: string;
   side: NoteSide;
@@ -199,7 +206,25 @@ const journeyName: Namer = ({ w, snapshot, info, words }) => {
   const tasks = snapshot.parts.filter((p) => p.role === 'task' && Number.isFinite(journeyScore(p)));
   return tasks.length ? extremes(w, w.curve, tasks.map(journeyScore), tasks.map((t) => textOf(t))) : undefined;
 };
-const NAMERS: Readonly<Record<string, Namer>> = { er: erName, journey: journeyName };
+/** Whether a state diagram part is a `[*]` dot, which capture marks with a `start` or `end` status. */
+const pseudostate = (info: SnapshotPart): 'start' | 'end' | undefined => {
+  const status = (info.channels as { status?: unknown } | undefined)?.status;
+  return status === 'start' || status === 'end' ? status : undefined;
+};
+/**
+ * State words for the `[*]` dots, which have no label. Their ids name the state they belong to,
+ * then its region when it has several: `_start`, `on_end`, `on__r2_start`. Each is named that
+ * way, "start of on, region 2", so descriptions and walks never fall back to the id. Undefined
+ * for any other part.
+ */
+const stateName: Namer = ({ w, info, end }) => {
+  const status = pseudostate(info);
+  if (!status) return undefined;
+  const m = /^(.*?)(?:__r(\d+))?_(?:start|end)$/s.exec(info.id);
+  if (!m) return undefined;
+  return w.pseudostate(status, m[1] ? end(m[1]) : undefined, m[2] ? Number(m[2]) : undefined);
+};
+const NAMERS: Readonly<Record<string, Namer>> = { er: erName, journey: journeyName, state: stateName };
 /** A journey's actors, as its task lines name them (`Task: 3: Alice, Bob`), in order of first mention. */
 function journeyActors(source: string): string[] {
   const out: string[] = [];
@@ -348,24 +373,6 @@ function clampedPosition(note: Mobject, box: Box, side: NoteSide, frame: Box): V
   y = Math.min(Math.max(y, frame[1] + h / 2 + 0.05), frame[3] - h / 2 - 0.05);
   return [x, y];
 }
-class GrowFromEdge extends FadeIn {
-  axis: 0 | 1;
-  edge: Vec;
-  constructor(mob: Mobject, axis: 0 | 1, edge: Vec, runTime: number) {
-    super(mob, { runTime });
-    this.axis = axis;
-    this.edge = edge;
-  }
-  override createStartingMobject(): Mobject {
-    return super.createStartingMobject().stretch(0.001, this.axis, { aboutEdge: this.edge });
-  }
-}
-class MessageToken extends MoveAlongPath {
-  override interpolate(alpha: number): void {
-    super.interpolate(alpha);
-    this.mobject.setOpacity(Math.sin(Math.PI * alpha));
-  }
-}
 /** Scale a style's lengths (stroke width, dashes) by k, as artwork scaled by k needs. */
 function scaleStyle(style: Style, k: number): void {
   if (style.strokeWidth != null) style.strokeWidth *= k;
@@ -412,6 +419,14 @@ export class Diagram {
   spec: DiagramSpec;
   snapshot: DiagramSnapshot;
   root = new Group();
+  /** Each part's id in the snapshot, by its mobject (a part's key is its id, but for the frame's). */
+  private partIds = new WeakMap<Mobject, string>();
+  /**
+   * The frame's key. Every family that draws a frame calls it `__frame`, so it is keyed by the
+   * diagram as first shown instead: the frames of two diagrams on one stage are two parts, and a
+   * morph keeps the frame's key.
+   */
+  private frameKey: string;
   parts = new Map<string, Part>();
   visible = new Set<string>();
   order: string[];
@@ -434,6 +449,8 @@ export class Diagram {
   /** The last walk, by step name, for the description. */
   private walked: { step: string | undefined; hops: string[]; trail: boolean } | null = null;
   notes: Note[] = [];
+  /** Notes notePicture built, for the description while they are on stage. */
+  private drawnNotes = new Map<Mobject, { id: string; text: string }>();
 
   constructor(
     scene: Scene,
@@ -443,6 +460,7 @@ export class Diagram {
   ) {
     const box = regionBox(where);
     this.scene = scene;
+    this.frameKey = `frame:${diagramKey(spec)}`;
     this.spec = spec;
     this.snapshot = snapshot;
     this.frameBox = box;
@@ -452,7 +470,9 @@ export class Diagram {
     emphasises(scene, () => this.emphasised());
     for (const info of partsOf(snapshot)) {
       const mob = new Group();
-      mob.key = info.id;
+      this.partIds.set(mob, info.id);
+      mob.key = info.id === '__frame' ? this.frameKey : info.id;
+      if (info.id === '__frame') mob.role = 'frame';
       if (info.from != null && info.to != null) Object.assign(mob, { [connectorPart]: true });
       for (const shape of info.shapes) {
         const paths = shape.textRun ? outlineText(shape.textRun, shape.style, scene.textShaping) : [new VMobject(shape.style)];
@@ -628,13 +648,13 @@ export class Diagram {
           return new AnimationGroup(
             [
               new Create(p.mob, { runTime, lagRatio: 0 }),
-              new MessageToken(token, p.route, { runTime, rateFunc: linear, remover: true }),
+              new PulseAlongPath(token, p.route, { runTime, rateFunc: linear }),
             ],
             { rateFunc: linear },
           );
         }
-        if (p.info.role === 'bar') return new GrowFromEdge(p.mob, 1, [0, -1], runTime);
-        if (p.info.role === 'task') return new GrowFromEdge(p.mob, 0, [-1, 0], runTime);
+        if (p.info.role === 'bar') return new GrowFromEdge(p.mob, [0, -1], { runTime });
+        if (p.info.role === 'task') return new GrowFromEdge(p.mob, [-1, 0], { runTime });
         return p.info.from
           ? new Create(p.mob, { runTime, lagRatio: 0 })
           : new FadeIn(p.mob, { runTime, shift: [0, 0.08] });
@@ -643,7 +663,7 @@ export class Diagram {
       // Draw in snapshot order, sorted once (by rank, not a search per comparison). Transient
       // route tokens (and notes) stay above artwork; the sort is stable among them.
       const rank = new Map(this.snapshot.parts.map((p, i) => [p.id, i]));
-      const at = (m: Mobject) => rank.get(m.key!) ?? this.snapshot.parts.length;
+      const at = (m: Mobject) => rank.get(this.partIds.get(m)!) ?? this.snapshot.parts.length;
       this.root.children.sort((a, b) => at(a) - at(b));
       await this.scene.play(new AnimationGroup(anims, { lagRatio: 0.12, rateFunc: linear }));
     }
@@ -763,14 +783,17 @@ export class Diagram {
    * by its words in reading order (participants and lanes first), with its emphasis,
    * and the notes on it. Parts drawn with no words are reported as blank.
    */
-  describe(): Seen {
+  describe(as: PictureShows | null = this.shown()): Seen {
     const w = wordsOf(this.scene);
+    const marks = as ? as.marks : this.marks,
+      kept = as ? as.kept : this.kept;
     const [family, thing, link] = familyNames(w, this.snapshot.family);
     // Blank parts are reported to the author, in English.
     const [english] = familyNames(wordsFor('en'), this.snapshot.family);
     const parts: SeenPart[] = [];
     const blank: string[] = [];
-    const journey = this.snapshot.family === 'journey';
+    const journey = this.snapshot.family === 'journey',
+      stateFamily = this.snapshot.family === 'state';
     let things = 0,
       links = 0;
     const step = this.scene.steps.at(-1)?.name;
@@ -778,7 +801,16 @@ export class Diagram {
     const walked = this.walked;
     const focused = this.inFocus();
     if (walked && walked.step === step && !walked.trail) parts.push({ name: walked.hops.join(', '), mark: w.path });
-    for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    // Live notes sit in the root: a picture that shows the diagram has its own, drawn from state.
+    if (!as) for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    // Notes drawn from state, in the order the stage draws them; ones no longer on stage are forgotten.
+    const present = this.scene.familyMembers();
+    const onStage = new Set(present);
+    for (const m of [...this.drawnNotes.keys()]) if (!onStage.has(m)) this.drawnNotes.delete(m);
+    for (const m of present) {
+      const n = this.drawnNotes.get(m);
+      if (n) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
+    }
     const order = [...this.order].sort((a, b) => +!isScaffold(this.parts.get(a)!.info) - +!isScaffold(this.parts.get(b)!.info));
     for (const id of order) {
       const info = this.parts.get(id)!.info;
@@ -796,11 +828,17 @@ export class Diagram {
         continue;
       }
       if (info.from && info.to) links++;
-      // A line through the things (a journey's experience curve) is not one of them.
-      else if ((!isScaffold(info) || info.role === 'actor') && info.role !== 'series') things++;
+      // A line through the things (a journey's experience curve) is not one of them. In a state
+      // diagram a composite (drawn as a group) is a state, and a `[*]` dot is not.
+      else if (
+        (!isScaffold(info) || info.role === 'actor' || (stateFamily && info.role === 'group')) &&
+        info.role !== 'series' &&
+        !(stateFamily && pseudostate(info))
+      )
+        things++;
       // A part in focus is said to be, unless a mark says more.
-      const mark = this.marks.get(id)?.as ?? (focused?.includes(id) ? w.focused : undefined);
-      const dimmed = !!this.kept && !this.kept.has(id) && !isScaffold(info);
+      const mark = marks.get(id)?.as ?? (focused?.includes(id) ? w.focused : undefined);
+      const dimmed = !!kept && !kept.has(id) && !isScaffold(info);
       parts.push({ name, ...(mark ? { mark } : {}), ...(dimmed ? { dimmed } : {}) });
     }
     const title = this.words('title');
@@ -829,29 +867,27 @@ export class Diagram {
    * Animations that bring each part to its current look: base style, then the
    * mark colour, then dimming. Parts not on screen change in place.
    */
-  private looks(ids: Iterable<string>, runTime: number, animate = true): Transform[] {
-    const anims: Transform[] = [];
-    for (const id of new Set(ids)) {
+  /** Each family member's style for part `id` as the diagram draws it, marked in `color` and dimmed or not. */
+  private styled(id: string, color: string | undefined, dim: boolean): Style[] {
       const p = this.parts.get(id)!;
       const fam = p.mob.family();
       const base = this.base.get(id)!;
-      const color = this.marks.get(id)?.color;
-      const dim = this.kept != null && !this.kept.has(id) && !isScaffold(p.info);
       const connector = !!(p.info.from && p.info.to);
       const within = (m: Mobject, test: (a: Mobject) => boolean) => {
         for (let a: Mobject | null = m; a && a !== p.mob; a = a.parent) if (test(a)) return true;
         return false;
       };
-      const styles = fam.map((m, i) => {
+      return fam.map((m, i) => {
         const b = base[i]!,
           st: Style = { ...b };
         if (this.zoom !== 1) scaleStyle(st, this.zoom);
         const text = within(m, (a) => !!labelOf(a));
         // Labels and other owned subjects keep their look. Cardinality marks
         // and explicitly captured marker carriers take their connector's mark.
-        const owned = within(m, (a) => a.key != null && a.key !== id && !a.key.startsWith('card:') &&
-          !this.parts.get(a.key)?.info.markerCarrier);
-        const marker = p.info.markerCarrier || within(m, (a) => !!a.key && !!this.parts.get(a.key)?.info.markerCarrier);
+        const partId = (a: Mobject) => this.partIds.get(a);
+        const owned = within(m, (a) => partId(a) != null && partId(a) !== id && !partId(a)!.startsWith('card:') &&
+          !this.parts.get(partId(a)!)?.info.markerCarrier);
+        const marker = p.info.markerCarrier || within(m, (a) => !!partId(a) && !!this.parts.get(partId(a)!)?.info.markerCarrier);
         // Paper inside an aggregation diamond or inheritance triangle denotes
         // a hollow marker. Colour its outline without turning it solid.
         const paper = parseColor(this.snapshot.palette.paper);
@@ -872,6 +908,14 @@ export class Diagram {
         if (dim) st.opacity = (b.opacity ?? 1) * this.dimmed;
         return st;
       });
+  }
+  private looks(ids: Iterable<string>, runTime: number, animate = true): Transform[] {
+    const anims: Transform[] = [];
+    for (const id of new Set(ids)) {
+      const p = this.parts.get(id)!;
+      const fam = p.mob.family();
+      const dim = this.kept != null && !this.kept.has(id) && !isScaffold(p.info);
+      const styles = this.styled(id, this.marks.get(id)?.color, dim);
       if (fam.every((m, i) => JSON.stringify(m.style) === JSON.stringify(styles[i]))) continue;
       if (animate && this.root.children.includes(p.mob) && this.scene.familyMembers().includes(p.mob)) {
         const target = p.mob.copy();
@@ -881,6 +925,134 @@ export class Diagram {
     }
     return anims;
   }
+  /** A picture drawn from this diagram (see picture()) that shows it while the live diagram is off the stage. */
+  shownBy: Mobject | null = null;
+  /** Say that `picture` shows this diagram: the stage describes the diagram while it is on stage. */
+  showBy(picture: Mobject): this {
+    this.shownBy = picture;
+    return this;
+  }
+  /**
+   * While a view shows this diagram by its picture and the live diagram is off the stage, a change
+   * to the live diagram reaches nothing a reader sees; the picture is drawn from state instead.
+   */
+  private refuseWhileShownBy(call: string, args = ''): void {
+    if (this.shownBy && !this.scene.familyMembers().includes(this.root))
+      throw new Error(`d.${call}(${args}) changes the live diagram, but a view shows it by its picture (showBy) and the live diagram is off the stage. Put the change in the state and draw it with d.picture(marks, { notes, dim }) in the view's draw, then play view.sync().`);
+  }
+  /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
+  link(from: string, to: string): { id: string; mob: Group; route: VMobject } {
+    const [a, b] = [this.end(from), this.end(to)];
+    const edge = [...this.parts.values()].find(
+      (p) => p.info.from != null && p.info.to != null && this.end(p.info.from) === a && this.end(p.info.to) === b,
+    );
+    if (!edge?.route || !edge.route.numCurves()) throw new Error(`link(): ${from} -> ${to} is not a real link`);
+    return { id: edge.info.id, mob: edge.mob, route: edge.route };
+  }
+  /**
+   * The whole diagram, copied, with the parts in `marks` (id to colour) in the look a mark gives
+   * them: a picture of the diagram that a view can draw from state, so marks such as a trail are
+   * part of that state. It carries the diagram's keys; once a view shows it, take the live
+   * diagram off the stage and call showBy(view), so each key is on stage once.
+   *
+   * `notes` adds a note beside each named part, as `note` draws and places one (see notePicture):
+   * the picture is then a Group of the diagram and its notes, which sit over it unclipped. `dim`
+   * fades every part but these, as `dim` does. `prefix` goes in front of every key in the picture
+   * (a note's is `note:<id>`), so two pictures
+   * of one diagram can be on stage together. Marks, notes and dimming name parts by their ids in
+   * the diagram, unprefixed.
+   *
+   * While a view shows the picture (see showBy), the stage describes the diagram as the picture
+   * shows it, as it describes the live diagram: its notes and its dimming, and each mark given as
+   * `{ color, as }` by its word (a mark given as a colour alone is drawn, not said).
+   */
+  picture(
+    marks: Readonly<Record<string, string | { color: string; as?: string }>> = {},
+    { notes = [], dim, prefix = '' }: { notes?: readonly PictureNote[]; dim?: readonly string[] | null; prefix?: string } = {},
+  ): Group {
+    const copy = this.root.copy();
+    const live = this.root.family(), drawn = copy.family();
+    const at = new Map(live.map((m, i) => [m, i] as const));
+    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id), typeof m === 'string' ? { color: m } : m] as const));
+    const kept = dim ? this.keptOf(dim) : null;
+    // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
+    // drawn or marked, the rest unseen.
+    for (const [id, part] of this.parts) {
+      // An owned part (a link's label) is styled with its owner's family.
+      if (!this.base.has(id)) continue;
+      const dimmed = !!kept && !kept.has(id) && !isScaffold(part.info);
+      const styles = this.styled(id, marked.get(id)?.color, dimmed), shown = this.visible.has(id);
+      part.mob.family().forEach((m, k) => {
+        const i = at.get(m);
+        if (i === undefined) return;
+        drawn[i]!.style = { ...styles[k]! } as typeof m.style;
+        if (!shown) drawn[i]!.style.opacity = 0;
+      });
+    }
+    copy.setStyle({ opacity: 1 }, false);
+    if (prefix) for (const m of copy.family()) if (m.key !== undefined) m.key = prefix + m.key;
+    const pictured = notes.length ? new Group(copy, ...notes.map((n) => this.notePicture(n.id, n.text, { ...n, key: `${prefix}note:${n.id}` }))) : copy;
+    const said = new Map([...marked].flatMap(([id, m]) => (m.as ? [[id, { color: m.color, as: m.as }] as const] : [])));
+    Object.assign(pictured, { [pictureShows]: { marks: said, kept } });
+    // Described with the diagram while it shows it; on its own, as the diagram it pictures.
+    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept })));
+  }
+  /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
+  private described(): boolean {
+    const present = new Set(this.scene.familyMembers());
+    return present.has(this.root) || (!!this.shownBy && present.has(this.shownBy));
+  }
+  /** Whether `m` is, or is inside, what shows this diagram, while that is on stage. */
+  private shows(m: Mobject): boolean {
+    if (!this.shownBy || !this.described()) return false;
+    for (let x: Mobject | null = m; x; x = x.parent) if (x === this.shownBy) return true;
+    return false;
+  }
+  /** The picture of this diagram that shows it now, when the live diagram is off the stage: what it marks and dims. */
+  private shown(): PictureShows | null {
+    if (!this.shownBy || this.scene.familyMembers().includes(this.root)) return null;
+    for (const m of this.shownBy.family()) {
+      const shows = (m as Mobject & { [pictureShows]?: PictureShows })[pictureShows];
+      if (shows) return shows;
+    }
+    return null;
+  }
+  /**
+   * A note beside part `id` as `note` draws and places one, without drawing it in: for a view's
+   * draw to build from state. It describes itself (“text” beside the part) and says that it
+   * emphasises it, as a note does; keyed `note:<id>` unless `key` says otherwise.
+   */
+  notePicture(
+    id: string,
+    text: string,
+    { side = 'above', color = this.accent, size = 0.22, key = `note:${id}` }: { side?: NoteSide; color?: string; size?: number; key?: string } = {},
+  ): Group {
+    const g = this.noteLook(text, color, size);
+    g.moveTo(notePosition(g, this.get(id).box()!, side, this.frameBox));
+    g.key = key;
+    const w = wordsOf(this.scene);
+    this.drawnNotes.set(g, { id, text });
+    // While the diagram is described, the note is one of its parts, as a live note is; otherwise it says itself.
+    return selfDescribed(
+      g,
+      () => (this.described() ? { what: '', parts: [] } : { what: w.note, parts: [{ name: w.beside(text, this.nameOf(id)) }] }),
+      () => [[g, `note ${text}`]],
+    );
+  }
+  /** A note's label on its raised, outlined paper, at the origin. */
+  private noteLook(text: string, color: string, size: number): Group {
+    const label = this.scene.text(text, {fontSize: size, color});
+    const bg = new Rectangle({
+      width: label.width() + size * 1.4,
+      height: size * 1.85,
+      fill: raised(this.snapshot.palette),
+      stroke: color,
+      strokeWidth: 0.014,
+      cornerRadius: 0.08,
+    });
+    label.moveTo(bg.center());
+    return new Group(bg, label);
+  }
   /**
    * Colour parts (and links' arrowheads) and thicken their outlines until unmarked. Labels keep
    * their ink. `as` is the word the description gives the mark ("rejected"), when marks are kinds.
@@ -889,12 +1061,14 @@ export class Diagram {
     ids: readonly string[],
     { color = this.accent, as = wordsOf(this.scene).marked, runTime = 0.45 }: { color?: string; as?: string; runTime?: number } = {},
   ): Promise<void> {
+    this.refuseWhileShownBy('mark');
     const tops = ids.map((id) => this.top(id));
     for (const id of tops) this.marks.set(id, { color, as });
     const anims = this.looks(tops, runTime);
     if (anims.length) await this.scene.play(...anims);
   }
   async unmark(ids?: readonly string[], { runTime = 0.45 } = {}): Promise<void> {
+    this.refuseWhileShownBy('unmark');
     const tops = ids ? ids.map((id) => this.top(id)) : [...this.marks.keys()];
     for (const id of tops) this.marks.delete(id);
     const anims = this.looks(tops, runTime);
@@ -902,23 +1076,39 @@ export class Diagram {
   }
   /**
    * Fade everything except these parts (and links between them, and the
-   * family's scaffolding such as lifelines and axes). `null` restores.
+   * family's scaffolding such as lifelines and axes). A kept group (a composite
+   * state, a subgraph, an architecture group) keeps what is drawn inside it.
+   * `null` restores.
    */
   async dim(keep: readonly string[] | null, { runTime = 0.5 } = {}): Promise<void> {
-    if (keep == null) this.kept = null;
-    else {
-      const kept = new Set(keep.map((id) => this.top(id)));
-      for (const p of this.parts.values())
-        if (!p.info.owner && p.info.from && p.info.to && !kept.has(p.info.id)) {
-          if ([p.info.from, p.info.to].every((n) => kept.has(this.end(n)))) kept.add(p.info.id);
-        }
-      this.kept = kept;
-    }
+    this.refuseWhileShownBy('dim');
+    this.kept = keep == null ? null : this.keptOf(keep);
     const anims = this.looks(
       [...this.parts.values()].filter((p) => !p.info.owner).map((p) => p.info.id),
       runTime,
     );
     if (anims.length) await this.scene.play(...anims);
+  }
+  /** The parts `dim(keep)` keeps: these, what a kept group draws inside it, and the links between kept parts. */
+  private keptOf(keep: readonly string[]): Set<string> {
+    const kept = new Set(keep.map((id) => this.top(id)));
+    // Members are not recorded on a group's parts, but the layout draws them inside its box.
+    const within = (inner: Box, outer: Box) =>
+      inner[0] >= outer[0] - 1e-6 && inner[1] >= outer[1] - 1e-6 && inner[2] <= outer[2] + 1e-6 && inner[3] <= outer[3] + 1e-6;
+    for (const id of [...kept]) {
+      const group = this.parts.get(id)!;
+      const outer = group.info.role === 'group' ? group.mob.box() : null;
+      if (outer)
+        for (const p of this.parts.values()) {
+          const box = !p.info.owner && p !== group && !(p.info.from && p.info.to) ? p.mob.box() : null;
+          if (box && within(box, outer)) kept.add(p.info.id);
+        }
+    }
+    for (const p of this.parts.values())
+      if (!p.info.owner && p.info.from && p.info.to && !kept.has(p.info.id)) {
+        if ([p.info.from, p.info.to].every((n) => kept.has(this.end(n)))) kept.add(p.info.id);
+      }
+    return kept;
   }
   /**
    * A short label beside a part, at a readable size whatever the diagram's
@@ -930,18 +1120,9 @@ export class Diagram {
     text: string,
     { side = 'above', color = this.accent, size = 0.22 }: { side?: NoteSide; color?: string; size?: number } = {},
   ): Promise<Group> {
+    this.refuseWhileShownBy('note');
     const anchor = this.get(id);
-    const label = this.scene.text(text, {fontSize: size, color});
-    const bg = new Rectangle({
-      width: label.width() + size * 1.4,
-      height: size * 1.85,
-      fill: raised(this.snapshot.palette),
-      stroke: color,
-      strokeWidth: 0.014,
-      cornerRadius: 0.08,
-    });
-    label.moveTo(bg.center());
-    const g = new Group(bg, label);
+    const g = this.noteLook(text, color, size);
     g.moveTo(notePosition(g, anchor.box()!, side, this.frameBox));
     this.root.add(g);
     this.attach();
@@ -968,6 +1149,8 @@ export class Diagram {
       trail = false,
     }: { runTime?: number; color?: string; parallel?: boolean; trail?: boolean | string } = {},
   ): Promise<void> {
+    // A token travels the live diagram's routes, where the picture draws them too; a trail marks the live diagram.
+    if (trail) this.refuseWhileShownBy('walk', '{ trail }');
     // Endpoints resolve as `get` resolves ids (so 'actor:A' and 'A' name the same participant).
     const path = hops.map(([from, to]) => {
       const [a, b] = [this.end(from), this.end(to)];
@@ -1031,7 +1214,7 @@ export class Diagram {
       const target = targetFor(m);
       targets.set(m, target);
       const animation = new Transform(m, target, { runTime });
-      if (this.visible.has(m.key!)) shown.push(animation);
+      if (this.visible.has(this.partIds.get(m)!)) shown.push(animation);
       else {
         animation.begin();
         animation.finish();
@@ -1162,6 +1345,9 @@ export class Diagram {
     if (ops && resolver.morph) await resolver.morph(this.spec, next, ops);
     const snapshot = await resolver.diagram(next);
     const target = new Diagram(this.scene, next, snapshot, { box: this.frameBox });
+    // The frame keeps its key through the morph.
+    const frame = target.parts.get('__frame');
+    if (frame) frame.mob.key = target.frameKey = this.frameKey;
     const animations = [];
     for (const [id, p] of this.parts)
       if (!p.info.owner && this.visible.has(id)) {
@@ -1182,6 +1368,7 @@ export class Diagram {
       }
     this.scene.add(target.root);
     this.parts = target.parts;
+    this.partIds = target.partIds;
     this.order = target.order;
     this.root = target.root;
     this.home = target.home;

@@ -16,16 +16,20 @@ export default class References extends Scene {
   ];
   override async construct() {
     const s = stage(this);
-    for (const [id, detail] of [
+    // The second scenario adds a note of its own, so a scenario change can alter the source
+    // steps while the teaching steps stay fixed.
+    const steps: (readonly [string, boolean])[] = [
       ['alpha', false],
       ['note', true],
       ['omega', false],
       ['source', true],
-    ] as const) {
+    ];
+    if (settingsOf(this).case === 'two') steps.push(['appendix', true]);
+    for (const [id, detail] of steps) {
       await this.step(id, {
         title: id,
         caption: `${id} in ${settingsOf(this).case}`,
-        detail: settingsOf(this).case === 'all' || detail,
+        kind: settingsOf(this).case === 'all' || detail ? 'detail' : 'main',
       });
       await s.clear();
       if (detail) await s.enter(new Rectangle({ width: 4, height: 2, fill: '#ff0044', stroke: 'none' }));

@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "subjects": [
+    {
+      "step": "door",
+      "targets": [{ "key": "door:panel" }, { "text": "open" }]
+    },
+    {
+      "step": "locked",
+      "targets": [{ "key": "door:bolt" }, { "text": "locked" }]
+    }
+  ]
+}

@@ -7,9 +7,10 @@ import { serve } from '../../tools/lib/explain-serve.ts';
 import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
-import { chromeFor, caseNameIn, CHROME, descriptionLang, descriptionsLang, settingsProblem } from '../../app/embed-strings.ts';
+import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang, settingsProblem } from '../../app/embed-strings.ts';
 import type { SettingsProblem } from '../../app/embed-strings.ts';
-import { caseName, resolveSettings } from '../../explain/index.ts';
+import { resolveSettings } from '../../explain/index.ts';
+import { scenarioName } from '../../explain/testing.ts';
 import { pictureSummary, pictureHtml, picture } from '../../explain/trace.ts';
 import { VOCABULARY, wordsFor, describedIn, familyNames, markHeading } from '../../explain/words.ts';
 import type { Words } from '../../explain/words.ts';
@@ -63,11 +64,11 @@ after(() => rm(folder, { recursive: true, force: true }));
 
 /** Every step's summary and full list, as a reader hears them (tags dropped, entities decoded). */
 const described = (project: Project) =>
-  project.variants.flatMap(({ trace }) =>
+  project.scenarios.flatMap(({ trace }) =>
     trace.steps.map((s, i) => ({
       step: s.step,
-      summary: pictureSummary(s.after),
-      html: pictureHtml(s.after, trace.steps[i - 1]?.after),
+      summary: pictureSummary(s.shown),
+      html: pictureHtml(s.shown, trace.steps[i - 1]?.shown),
     })),
   );
 const text = (html: string) =>
@@ -162,20 +163,20 @@ test('the invalid-settings notice names the problem in the page’s language; En
   assert.deepEqual(unknown.problem, { kind: 'setting', id: 'x' });
   // The validator checks declared settings first; so does the notice.
   assert.equal(both.problem.kind, 'option');
-  for (const p of [option, unknown, both]) assert.equal(chromeFor('en').fallback(p.problem), `${p.error}. Showing the default case.`);
+  for (const p of [option, unknown, both]) assert.equal(chromeFor('en').fallback(p.problem), `${p.error}. Showing the default scenario.`);
   assert.equal(
     chromeFor('fr').fallback(option.problem),
-    `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le cas par défaut est affiché.`,
+    `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le scénario par défaut est affiché.`,
   );
-  assert.equal(chromeFor('fr').fallback(unknown.problem), `Cette explication n’a pas de réglage «${NB}x${NB}». Le cas par défaut est affiché.`);
+  assert.equal(chromeFor('fr').fallback(unknown.problem), `Cette explication n’a pas de réglage «${NB}x${NB}». Le scénario par défaut est affiché.`);
   // The French notice never quotes the validator's English.
   assert.doesNotMatch(chromeFor('fr').fallback(PROBLEMS[2]!), /Invalid/);
 });
 
-test('a case name keeps English punctuation in English and takes French punctuation in French', () => {
+test('a scenario name keeps English punctuation in English and takes French punctuation in French', () => {
   const { Scene } = built.en.project;
-  assert.equal(caseNameIn('en', Scene, { n: '2' }), caseName(Scene, { n: '2' }));
-  assert.equal(caseNameIn('fr', built.fr.project.Scene, { n: '2' }), `Enfants à charge${NB}: 2`);
+  assert.equal(scenarioNameIn('en', Scene, { n: '2' }), scenarioName(Scene, { n: '2' }));
+  assert.equal(scenarioNameIn('fr', built.fr.project.Scene, { n: '2' }), `Enfants à charge${NB}: 2`);
 });
 
 test('every vocabulary key has a French entry; a language with none describes in English', () => {
@@ -320,10 +321,10 @@ test('quotient-familial: every English word in its descriptions is one its autho
 const GOLDEN_DESCRIPTIONS = [
   {
     id: "seasons",
-    step: "compare",
+    step: "distance",
     summary:
-      "A chart of daylight in hours, 0 to 24, through the months January to December; Tromsø’s daylight through the year, from 0.0 h to 24.0 h, flat at 24 h for 60 days and at 0 h for 61; Dashed lines at the March and September equinoxes and the June and December solstices; The same model’s curves for London, Quito, Sydney in grey, each named at its end, with Tromsø’s in red. New in this step: Dashed lines at the March and September equinoxes and the June and December solstices; The same model’s curves for London, Quito, Sydney in grey, each named at its end, with Tromsø’s in red.",
-    html: "<ul><li>A chart of daylight in hours, 0 to 24, through the months January to December;</li><li>Tromsø’s daylight through the year, from 0.0 h to 24.0 h, flat at 24 h for 60 days and at 0 h for 61;</li><li>Dashed lines at the March and September equinoxes and the June and December solstices;</li><li>The same model’s curves for London, Quito, Sydney in grey, each named at its end, with Tromsø’s in red.</li></ul>",
+      "A chart of daylight in hours, 0 to 24, through the months January to December; Tromsø’s daylight through the year, from 0.0 h to 24.0 h, flat at 24 h for 60 days and at 0 h for 61; 15 January marked on the chart at 0.0 h; The same model at 69.7° S, Tromsø’s curve turned upside down: 24.0 h on 15 January; Two bars on one scale of sunlight per square metre, in percent of an overhead Sun: the tilt moves Tromsø’s noon sunlight from 0% in December to 69% in June; the distance moves an overhead Sun’s from 97% in July to 103% in January, 7% more; Beside the 15 January dots: Tromsø 0.0 h, 69.7° S 24.0 h. New in this step: 15 January marked on the chart at 0.0 h; The same model at 69.7° S, Tromsø’s curve turned upside down: 24.0 h on 15 January; Two bars on one scale of sunlight per square metre, in percent of an overhead Sun: the tilt moves Tromsø’s noon sunlight from 0% in December to 69% in June; the distance moves an overhead Sun’s from 97% in July to 103% in January, 7% more; and 1 more.",
+    html: "<ul><li>A chart of daylight in hours, 0 to 24, through the months January to December;</li><li>Tromsø’s daylight through the year, from 0.0 h to 24.0 h, flat at 24 h for 60 days and at 0 h for 61;</li><li>15 January marked on the chart at 0.0 h;</li><li>The same model at 69.7° S, Tromsø’s curve turned upside down: 24.0 h on 15 January;</li><li>Two bars on one scale of sunlight per square metre, in percent of an overhead Sun: the tilt moves Tromsø’s noon sunlight from 0% in December to 69% in June; the distance moves an overhead Sun’s from 97% in July to 103% in January, 7% more;</li><li>Beside the 15 January dots: Tromsø 0.0 h, 69.7° S 24.0 h.</li></ul>",
   },
   {
     id: "mr-cache",
@@ -333,17 +334,16 @@ const GOLDEN_DESCRIPTIONS = [
   },
   {
     id: "glyph",
-    step: "morph",
-    summary:
-      "Code “label.txt”, 2 lines; Lines join the 6 paired letters of “cache miss” (c a c h e i) to their places in “cache hit”; the dropped m s s are crossed out and the new h t underlined; 5 labels. Removed: 1: - cache miss; added: 2: + cache hit.",
-    html: "<ul><li>Code “label.txt”, 2 lines:<ul><li>1: - cache miss (removed);</li><li>2: + cache hit (added).</li></ul></li><li>Lines join the 6 paired letters of “cache miss” (c a c h e i) to their places in “cache hit”; the dropped m s s are crossed out and the new h t underlined;</li><li>5 labels:<ul><li>cache miss;</li><li>cache hit;</li><li>3 shrink away: m s s;</li><li>6 paired: c a c h e i;</li><li>2 grow in: h t.</li></ul></li></ul>",
+    step: "letterforms",
+    summary: "Lines join each of the 14 glyphs of the top row to its smaller copy; nothing joins the JetBrains Mono row; 5 labels.",
+    html: "<ul><li>Lines join each of the 14 glyphs of the top row to its smaller copy; nothing joins the JetBrains Mono row;</li><li>5 labels:<ul><li>Hello, outlines;</li><li>Hello, outlines;</li><li>Hello, outlines;</li><li>14 of 14 paired;</li><li>0 of 14 paired.</li></ul></li></ul>",
   },
   {
     id: "exgit",
     step: "change",
     summary:
-      "Flowchart: 7 nodes, 7 links; Two rows, commit one: commit 161f392 names tree aaa96ce, which lists hello.txt as blob ce01362; under it, commit two: commit 7edf38a names tree 88e3870, which lists hello.txt as blob ce01362 and world.txt as blob cc628cc. The hello.txt blob ce01362 is outlined in both trees: one object, named twice; 1 label. Note: “parent” beside commit 7edf38a → commit 161f392; “one blob, two trees” beside blob ce01362; marked: tree 88e3870 hello.txt, world.txt → blob ce01362; tree aaa96ce hello.txt → blob ce01362; and 1 more. New in this step: commit 7edf38a; commit 7edf38a → commit 161f392; commit 7edf38a → tree 88e3870 hello.txt, world.txt; and 5 more.",
-    html: "<ul><li>Flowchart: 7 nodes, 7 links:<ul><li>“parent” beside commit 7edf38a → commit 161f392 (note);</li><li>“one blob, two trees” beside blob ce01362 (note);</li><li>tree aaa96ce hello.txt → blob ce01362 (marked);</li><li>tree 88e3870 hello.txt, world.txt → blob ce01362 (marked);</li><li>blob ce01362 (marked);</li><li>main;</li><li>main → commit 161f392;</li><li>commit 7edf38a;</li><li>commit 7edf38a → commit 161f392;</li><li>commit 7edf38a → tree 88e3870 hello.txt, world.txt;</li><li>commit 161f392;</li><li>commit 161f392 → tree aaa96ce hello.txt;</li><li>tree aaa96ce hello.txt;</li><li>tree 88e3870 hello.txt, world.txt;</li><li>tree 88e3870 hello.txt, world.txt → blob cc628cc;</li><li>blob cc628cc.</li></ul></li><li>Two rows, commit one: commit 161f392 names tree aaa96ce, which lists hello.txt as blob ce01362; under it, commit two: commit 7edf38a names tree 88e3870, which lists hello.txt as blob ce01362 and world.txt as blob cc628cc. The hello.txt blob ce01362 is outlined in both trees: one object, named twice;</li><li>1 label:<ul><li>The redraw kept all 76 shapes of commit one’s row and grew 98 new ones.</li></ul></li></ul>",
+      "Flowchart: 7 nodes, 7 links; Two rows, commit one: commit 161f392 names tree aaa96ce, which lists hello.txt as blob ce01362; under it, commit two: commit 7edf38a names tree 88e3870, which lists hello.txt as blob ce01362 and world.txt as blob cc628cc. The hello.txt blob ce01362 is outlined in both trees: one object, named twice. Note: “parent” beside commit 7edf38a → commit 161f392; “one blob, two trees” beside blob ce01362; marked: tree 88e3870 hello.txt, world.txt → blob ce01362; tree aaa96ce hello.txt → blob ce01362; and 1 more. New in this step: commit 7edf38a; commit 7edf38a → commit 161f392; commit 7edf38a → tree 88e3870 hello.txt, world.txt; and 4 more.",
+    html: "<ul><li>Flowchart: 7 nodes, 7 links:<ul><li>“parent” beside commit 7edf38a → commit 161f392 (note);</li><li>“one blob, two trees” beside blob ce01362 (note);</li><li>tree aaa96ce hello.txt → blob ce01362 (marked);</li><li>tree 88e3870 hello.txt, world.txt → blob ce01362 (marked);</li><li>blob ce01362 (marked);</li><li>main;</li><li>main → commit 161f392;</li><li>commit 7edf38a;</li><li>commit 7edf38a → commit 161f392;</li><li>commit 7edf38a → tree 88e3870 hello.txt, world.txt;</li><li>commit 161f392;</li><li>commit 161f392 → tree aaa96ce hello.txt;</li><li>tree aaa96ce hello.txt;</li><li>tree 88e3870 hello.txt, world.txt;</li><li>tree 88e3870 hello.txt, world.txt → blob cc628cc;</li><li>blob cc628cc.</li></ul></li><li>Two rows, commit one: commit 161f392 names tree aaa96ce, which lists hello.txt as blob ce01362; under it, commit two: commit 7edf38a names tree 88e3870, which lists hello.txt as blob ce01362 and world.txt as blob cc628cc. The hello.txt blob ce01362 is outlined in both trees: one object, named twice.</li></ul>",
   },
 ];
 test('English descriptions match the golden descriptions byte for byte', async () => {
@@ -366,7 +366,7 @@ test('a French page has French chrome and French descriptions, with no lang="en"
   assert.doesNotMatch(html, /<summary>Transcript<\/summary>/);
   // Each step's description in the transcript is French, in the page's language.
   const descriptions = [...html.matchAll(/<\/p><div( lang="en")?><ul><li>([^<]*)/g)];
-  assert.equal(descriptions.length, 2); // one step in each of two cases
+  assert.equal(descriptions.length, 2); // one step in each of two scenarios
   assert.ok(descriptions.every((m) => m[1] === undefined));
   assert.deepEqual(
     descriptions.map((m) => m[2]),
@@ -385,7 +385,7 @@ test('a page in a language with no vocabulary marks its English descriptions lan
 test('an English page is unchanged: English chrome and no lang attribute on its descriptions', () => {
   const { html } = built.en;
   assert.match(html, /^<!doctype html>\n<html lang="en">/);
-  assert.match(html, /<summary>Transcript<\/summary><section data-case="n=1"><h2>Children: 1<\/h2>/);
+  assert.match(html, /<summary>Transcript<\/summary><section data-scenario="n=1"><h2>Children: 1<\/h2>/);
   assert.match(html, /<h2>Sources<\/h2>/);
   assert.ok(html.includes('The interactive player could not start. The transcript is available below.'));
   assert.equal([...html.matchAll(/<\/p><div><ul>/g)].length, 2);
@@ -440,7 +440,7 @@ test(
       const invalid = await read('fr', '?n=9');
       assert.equal(
         invalid.notice,
-        `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le cas par défaut est affiché.`,
+        `Le réglage «${NB}Enfants à charge${NB}» n’a pas d’option «${NB}9${NB}». Le scénario par défaut est affiché.`,
       );
       const de = await read('de');
       assert.deepEqual([de.summaryLang, de.pictureLang, de.summary], ['en', 'en', '1 labelled value.']);
@@ -461,7 +461,7 @@ test(
           notice: undefined,
         },
       );
-      assert.equal((await read('en', '?n=9')).notice, 'Unknown n option: 9. Showing the default case.');
+      assert.equal((await read('en', '?n=9')).notice, 'Unknown n option: 9. Showing the default scenario.');
     } finally {
       try { await browser?.close(); }
       finally { server.close(); }

@@ -6,10 +6,12 @@ import {
   predicted, listed, counted, position, membersOf, gaps, periodLength, configText, shorthand, symbolOf,
 } from '../scenes/explainers/lib/periodic-groups.ts';
 import type { Subshell } from '../scenes/explainers/lib/periodic-groups.ts';
-import { loadFonts, Rectangle, Text } from '../src/index.ts';
+import { Rectangle, Text } from '../src/index.ts';
+import { loadFonts } from '../explain/testing.ts';
 import type { View, Mobject } from '../src/index.ts';
-import { withSettings } from '../explain/index.ts';
+import { withSettings } from '../explain/testing.ts';
 import { pictureHtml, pictureSummary } from '../explain/trace.ts';
+import { lerpColor } from '../src/color.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
 import { check } from './lib/fidelity/periodic-groups.ts';
@@ -120,6 +122,48 @@ test('down a group, each jump in atomic number is one whole period', () => {
   assert.deepEqual(gaps(17), [8, 18, 18, 32, 32]);
 });
 
+test('the filling rule fills runs of 2, 6, 10 and 14 that stack into the s, d, p and f columns, helium apart', () => {
+  // The fill step's claim, against the independently typed table: each run of the filling
+  // rule is one row's consecutive cells, and runs of one length share their columns.
+  const columns: Record<string, readonly (number | string)[]> = {
+    s: [1, 2], d: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12], p: [13, 14, 15, 16, 17, 18],
+    f: Array.from({ length: 14 }, (_, i) => `f${i + 1}`),
+  };
+  const where = (symbol: string): { row: number; column: number | string } => {
+    const r = TABLE_ROWS.findIndex((row) => row.includes(symbol));
+    if (r >= 0) return { row: r + 1, column: TABLE_ROWS[r]!.indexOf(symbol) + 1 };
+    const f = F_ROWS.findIndex((row) => row.includes(symbol));
+    return { row: f + 6, column: `f${F_ROWS[f]!.indexOf(symbol) + 1}` };
+  };
+  let from = 1, runs = 0;
+  for (const run of predicted(118)) {
+    const cells = Array.from({ length: run.electrons }, (_, i) => where(SYMBOLS[from + i - 1]!));
+    from += run.electrons;
+    assert.ok([2, 6, 10, 14].includes(run.electrons), `${run.n}${run.l} is full`);
+    assert.equal(new Set(cells.map((c) => c.row)).size, 1, `${run.n}${run.l} lies in one row`);
+    if (run.n === 1) assert.deepEqual(cells.map((c) => c.column), [1, 18], 'helium is the one cell the table moves');
+    else assert.deepEqual(cells.map((c) => c.column), columns[run.l], `${run.n}${run.l} fills the ${run.l} columns in order`);
+    runs++;
+  }
+  assert.equal(from, 119);
+  assert.equal(runs, 19);
+});
+
+test('every group 1 element ends in one s electron, and every halogen in two s and five p electrons', () => {
+  // The family step's titles, for every member of the two groups: NIST's configuration up to
+  // element 108, and the filling rule for tennessine (117), which the caption says NIST does not reach.
+  const outermost = (z: number) => {
+    const config = z <= NIST_UP_TO ? listed(z) : predicted(z),
+      n = Math.max(...config.map((s) => s.n));
+    return config.filter((s) => s.n === n).map((s) => `${s.l}${s.electrons}`).join(' ');
+  };
+  const group1 = membersOf(1), halogens = membersOf(17);
+  assert.deepEqual(group1.map((p) => p.symbol), ['H', 'Li', 'Na', 'K', 'Rb', 'Cs', 'Fr']);
+  assert.deepEqual(halogens.map((p) => p.symbol), ['F', 'Cl', 'Br', 'I', 'At', 'Ts']);
+  for (const p of group1) assert.equal(outermost(p.z), 's1', p.symbol);
+  for (const p of halogens) assert.equal(outermost(p.z), 's2 p5', p.symbol);
+});
+
 test('group names follow the IUPAC 1 to 18 order with the CAS and old IUPAC letters', () => {
   assert.deepEqual(GROUP_NAMES.map((g) => g.group), Array.from({ length: 18 }, (_, i) => i + 1));
   const at = (g: number) => GROUP_NAMES[g - 1]!;
@@ -130,53 +174,49 @@ test('group names follow the IUPAC 1 to 18 order with the CAS and old IUPAC lett
   assert.equal(configText(predicted(11)), '1s² 2s² 2p⁶ 3s¹');
 });
 
-test('every case records the model’s answers at each step', async () => {
+test('every scenario records the model’s answers at each step', async () => {
   const project = await collectProject('scenes/explainers/periodic-groups', { write: false });
-  assert.deepEqual(project.variants.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
-  for (const { values, trace } of project.variants) check(trace, values);
+  assert.deepEqual(project.scenarios.map((v) => v.values.element), ['na', 'cl', 'fe', 'cu', 'he']);
+  for (const { values, trace } of project.scenarios) check(trace, values);
 });
 
 test('the table and note text follow the recorded state at every resting step', async () => {
   await loadFonts();
   for (const element of ['na', 'cl', 'fe', 'cu', 'he']) {
     const Scene = withSettings(PeriodicGroupsExplainer, { element });
-    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).table as View | null), 7, `${element}: table`);
-    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).notes as View | null), 7, `${element}: notes`);
+    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).table as View | null), 6, `${element}: table`);
+    assert.equal(await assertViewFollowsState(Scene, (scene) => (scene as PeriodicGroupsExplainer).notes as View | null), 6, `${element}: notes`);
   }
 });
 
-test('reader descriptions match core shading and complete block fills in every periodic-table phase', async () => {
+test('reader descriptions match the run fills and complete block fills in every periodic-table phase', async () => {
   await loadFonts();
   // Independent table/configuration facts and authored colours, not model or renderer answers.
-  const cases: Array<{
-    element: string; symbol: string; z: number; core: number; group: number;
-    fill: Record<string, number>; count: Record<string, number>; family: Record<string, number>;
-  }> = [
-    { element: 'na', symbol: 'Na', z: 11, core: 10, group: 1,
-      fill: { '#133e7c': 5, '#856912': 6, '#f7f2e8': 107 },
-      count: { '#c5cad0': 4, '#ded4b9': 6, '#133e7c': 1, '#f7f2e8': 107 },
-      family: { '#133e7c': 7 } },
-    { element: 'cl', symbol: 'Cl', z: 17, core: 10, group: 17,
-      fill: { '#133e7c': 6, '#856912': 11, '#f7f2e8': 101 },
-      count: { '#c5cad0': 4, '#ded4b9': 6, '#133e7c': 2, '#856912': 5, '#f7f2e8': 101 },
-      family: { '#856912': 6 } },
-    { element: 'fe', symbol: 'Fe', z: 26, core: 18, group: 8,
-      fill: { '#133e7c': 8, '#856912': 12, '#9e1c2c': 6, '#f7f2e8': 92 },
-      count: { '#c5cad0': 6, '#ded4b9': 12, '#133e7c': 2, '#9e1c2c': 6, '#f7f2e8': 92 },
-      family: { '#9e1c2c': 4 } },
-    { element: 'cu', symbol: 'Cu', z: 29, core: 18, group: 11,
-      fill: { '#133e7c': 8, '#856912': 12, '#9e1c2c': 9, '#f7f2e8': 89 },
-      count: { '#c5cad0': 6, '#ded4b9': 12, '#133e7c': 2, '#9e1c2c': 9, '#f7f2e8': 89 },
-      family: { '#9e1c2c': 4 } },
-    { element: 'he', symbol: 'He', z: 2, core: 0, group: 18,
-      fill: { '#133e7c': 2, '#f7f2e8': 116 },
-      count: { '#133e7c': 2, '#f7f2e8': 116 },
-      family: { '#133e7c': 1, '#856912': 6 } },
+  // `trail`: the element's own cells, 1 to z, by block (H He Li Be ... read off the table).
+  const scenarios: Array<{ element: string; symbol: string; z: number; core: number; group: number; family: Record<string, number>; trail: Record<string, number> }> = [
+    { element: 'na', symbol: 'Na', z: 11, core: 10, group: 1, family: { '#133e7c': 7 }, trail: { s: 5, p: 6, d: 0 } },
+    { element: 'cl', symbol: 'Cl', z: 17, core: 10, group: 17, family: { '#856912': 6 }, trail: { s: 6, p: 11, d: 0 } },
+    { element: 'fe', symbol: 'Fe', z: 26, core: 18, group: 8, family: { '#9e1c2c': 4 }, trail: { s: 8, p: 12, d: 6 } },
+    { element: 'cu', symbol: 'Cu', z: 29, core: 18, group: 11, family: { '#9e1c2c': 4 }, trail: { s: 8, p: 12, d: 9 } },
+    { element: 'he', symbol: 'He', z: 2, core: 0, group: 18, family: { '#133e7c': 1, '#856912': 6 }, trail: { s: 2, p: 0, d: 0 } },
   ];
+  // The fill step runs all 118 cells, so it paints the same block colours the stack step stacks.
+  const BLOCK = { s: '#133e7c', p: '#856912', d: '#9e1c2c', f: '#0f0f0f' } as const;
+  const SIZE = { s: 14, p: 36, d: 40, f: 28 } as const;
   const allBlocks = { '#133e7c': 14, '#856912': 36, '#9e1c2c': 40, '#0f0f0f': 28 };
-  const phases = ['column', 'fill', 'count', 'blocks', 'family', 'names', 'limit'];
+  // The blocks step: the element's own cells solid, every other cell a pale tint of its block.
+  const trailColours = (trail: Record<string, number>) => {
+    const out: Record<string, number> = {};
+    for (const b of ['s', 'p', 'd', 'f'] as const) {
+      const own = trail[b] ?? 0;
+      if (own) out[BLOCK[b]] = own;
+      out[lerpColor('#f7f2e8', BLOCK[b], 0.22)] = SIZE[b] - own;
+    }
+    return out;
+  };
+  const phases = ['column', 'fill', 'stack', 'names', 'blocks', 'family'];
   let checked = 0;
-  for (const expected of cases) {
+  for (const expected of scenarios) {
     const Source = withSettings(PeriodicGroupsExplainer, { element: expected.element });
     const visited: string[] = [];
     await new Source({
@@ -184,17 +224,16 @@ test('reader descriptions match core shading and complete block fills in every p
       async stepEnd(scene, step) {
         if (!phases.includes(step.name)) return;
         const label = `${expected.element}/${step.name}`;
-        const blocks = ['blocks', 'family', 'names', 'limit'].includes(step.name);
+        const blocks = ['stack', 'names', 'family'].includes(step.name);
         assert.equal(scene.state.note, step.name, label);
         assert.equal(scene.state.element, expected.symbol, label);
         assert.equal(scene.state.z, expected.z, label);
         assert.equal(scene.state.group, expected.group, label);
-        assert.equal(scene.state.lit, step.name === 'column' ? undefined : expected.z, label);
-        assert.equal(scene.state.core, ['column', 'fill'].includes(step.name) ? undefined : expected.core, label);
+        assert.equal(scene.state.lit, step.name === 'column' ? undefined : step.name === 'family' ? expected.z : 118, label);
+        assert.equal(scene.state.core, ['column', 'fill', 'stack', 'names'].includes(step.name) ? undefined : expected.core, label);
         assert.equal(Boolean(scene.state.blocks), blocks, label);
-        const colours = step.name === 'column' ? { '#f7f2e8': 118 }
-          : step.name === 'fill' ? expected.fill : step.name === 'count' ? expected.count
-            : step.name === 'family' ? expected.family : allBlocks;
+        const colours = step.name === 'column' ? { '#f7f2e8': 118 } : step.name === 'family' ? expected.family
+          : step.name === 'blocks' ? trailColours(expected.trail) : allBlocks;
         const cells = (scene as PeriodicGroupsExplainer).table!.current.family()
           .filter((m): m is Rectangle => m instanceof Rectangle && m.style.fill !== 'none');
         assert.equal(cells.length, Object.values(colours).reduce((sum, n) => sum + n, 0), `${label}: complete cell inventory`);
@@ -205,92 +244,50 @@ test('reader descriptions match core shading and complete block fills in every p
           fills[cell.style.fill] = (fills[cell.style.fill] ?? 0) + 1;
         }
         assert.deepEqual(fills, colours, `${label}: actual table fill counts`);
-        const state = scene.describe();
+        // The strip under the table gives the run widths unnamed in stack, and names them from blocks on.
+        // The fill step has no table yet, so no strip: its rows end in their lengths instead.
+        const words = (scene as PeriodicGroupsExplainer).table!.current.family()
+          .filter((m): m is Text => m instanceof Text).map((t) => t.text);
+        if (step.name === 'fill') {
+          assert.ok(!words.some((w) => /columns/.test(w)), `${label}: no column strip before the table exists`);
+          const said = (scene as PeriodicGroupsExplainer).notes!.current.family()
+            .filter((m): m is Text => m instanceof Text).map((t) => t.text);
+          assert.deepEqual(said.filter((w) => w.startsWith('= ')), ['= 2', '= 8', '= 8', '= 18', '= 18', '= 32', '= 32'], `${label}: row lengths`);
+          for (const w of ['run of 2', 'run of 6', 'run of 10', 'run of 14']) assert.ok(said.includes(w), `${label}: legend ${w}`);
+        }
+        if (step.name === 'stack') {
+          for (const w of ['2 columns', '10 columns', '6 columns', '14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
+          assert.ok(!words.some((w) => /^[spdf]: /.test(w)), `${label}: no block named before the blocks step`);
+        }
+        if (step.name === 'names' || step.name === 'blocks')
+          for (const w of ['s: 2 columns', 'd: 10 columns', 'p: 6 columns', 'f: 14 columns,']) assert.ok(words.includes(w), `${label}: ${w}`);
+        const state = scene.describeShown();
         for (const description of [pictureSummary(state), pictureHtml(state)]) {
           assert.ok(description.length > 0, `${label}: reader description exists`);
-          if (blocks && step.name !== 'family') {
+          if (step.name === 'stack' || step.name === 'names') {
             assert.ok(description.includes('All 118 element cells are filled in by block colour.'), label);
             assert.ok(!description.includes('Cells 1 to'), `${label}: no partial-fill claim`);
-          } else if (['fill', 'count'].includes(step.name)) {
-            assert.ok(description.includes(`Cells 1 to ${expected.z} are filled in by subshell colour`), label);
+          } else if (step.name === 'blocks') {
+            assert.ok(description.includes(`’s ${expected.z} cell${expected.z > 1 ? 's are' : ' is'} solid in block colour; the other ${118 - expected.z} are pale.`), label);
+            assert.ok(!description.includes('Cells 1 to') && !description.includes('All 118 element cells'), `${label}: no whole-table fill claim`);
+          } else if (step.name === 'fill') {
+            assert.ok(description.includes('Cells 1 to 118 are filled in order'), label);
             assert.ok(!description.includes('All 118 element cells'), `${label}: no complete-block claim`);
           } else {
             assert.ok(!description.includes('Cells 1 to') && !description.includes('All 118 element cells'), label);
           }
-          assert.equal(description.includes('paler as the core'), step.name === 'count' && expected.core > 0,
-            `${label}: core shading is described only while it is painted`);
-          if (step.name === 'count' && expected.core > 0)
-            assert.ok(description.includes(`cells 1 to ${expected.core} paler as the core`), label);
+          // No phase paints a paler core any more, so none may describe one.
+          assert.ok(!description.includes('paler as the core'), `${label}: core shading is never claimed`);
         }
         visited.push(step.name); checked++;
       },
     }, { skipUntil: Infinity }).run();
     assert.deepEqual(visited, phases, `${expected.element}: complete phase inventory`);
   }
-  assert.equal(checked, 35);
+  assert.equal(checked, 30);
 });
 
-test('each boundary spotlight visibly encloses its named element cell', async () => {
-  await loadFonts();
-  // These subjects come from the five boundary captions, independently of the
-  // model, scene state and View renderer. Text equality cannot prove an outline.
-  const expected = {
-    na: ['H'], cl: ['Ts'], fe: ['Fe', 'Co', 'Ni'], cu: ['Rg'], he: ['He', 'Be'],
-  } as const;
-  let steps = 0, checked = 0;
-  for (const [element, symbols] of Object.entries(expected)) {
-    const Source = withSettings(PeriodicGroupsExplainer, { element });
-    await new Source({
-      async frame() {},
-      async stepEnd(scene, step) {
-        if (step.name !== 'limit') return;
-        const table = (scene as PeriodicGroupsExplainer).table!;
-        const family = table.current.family();
-        const outlines = family.filter((m) => m.key?.startsWith('periodic-limit:'));
-        assert.deepEqual(outlines.map((m) => m.key).sort(),
-          symbols.map((symbol) => `periodic-limit:${symbol}`).sort(), `${element}: complete boundary spotlight inventory`);
-        const labels = family.filter((m): m is Text => m instanceof Text && (SYMBOLS as readonly string[]).includes(m.text));
-        assert.equal(labels.length, 118, `${element}: complete element-label inventory`);
-        for (const symbol of symbols) {
-          const outline = outlines.find((m) => m.key === `periodic-limit:${symbol}`)!;
-          assert.ok(outline instanceof Rectangle, `${element}/${symbol}: spotlight is a rectangle`);
-          const named = labels.filter((m) => m.text === symbol);
-          assert.equal(named.length, 1, `${element}/${symbol}: exactly one element label`);
-          const label = named[0]!, labelBox = label.box()!, box = outline.box()!;
-          const contains = (outer: readonly number[], inner: readonly number[]) =>
-            outer[0]! <= inner[0]! && outer[1]! <= inner[1]! && outer[2]! >= inner[2]! && outer[3]! >= inner[3]!;
-          const cells = family.filter((m): m is Rectangle => m instanceof Rectangle && !outlines.includes(m) &&
-            m.width() < 1 && m.height() < 1 && contains(m.box()!, labelBox));
-          assert.equal(cells.length, 1, `${element}/${symbol}: one cell contains the complete symbol`);
-          const cell = cells[0]!, cellBox = cell.box()!;
-          assert.ok(contains(box, cellBox), `${element}/${symbol}: outline encloses the element cell`);
-          for (const axis of [0, 1] as const)
-            assert.ok(Math.abs(outline.center()[axis] - cell.center()[axis]) < 1e-4,
-              `${element}/${symbol}: outline is centered on the element cell`);
-          assert.ok(outline.width() > cell.width() + 0.05 && outline.width() < cell.width() + 0.2 &&
-            outline.height() > cell.height() + 0.05 && outline.height() < cell.height() + 0.2,
-            `${element}/${symbol}: spotlight closely surrounds one cell`);
-          for (const other of labels.filter((m) => m !== label))
-            assert.ok(!contains(box, other.box()!), `${element}/${symbol}: spotlight must not enclose ${other.text}`);
-          const style = outline.style;
-          assert.equal(style.fill, 'none', `${element}/${symbol}: outline leaves the element visible`);
-          assert.notEqual(style.stroke, 'none', `${element}/${symbol}: outline has a stroke colour`);
-          assert.ok(style.strokeWidth > 0 && style.strokeOpacity >= 0.95 && style.opacity >= 0.95 &&
-            (style.drawFraction ?? 1) >= 0.95, `${element}/${symbol}: outline has complete visible stroke`);
-          const dashes = (style.dashArray ?? '').trim().split(/[\s,]+/).map(Number);
-          assert.ok(dashes.length >= 2 && dashes.every((n) => Number.isFinite(n) && n > 0),
-            `${element}/${symbol}: outline has visible dashes and gaps`);
-          checked++;
-        }
-        steps++;
-      },
-    }, { skipUntil: Infinity }).run();
-  }
-  assert.equal(steps, 5);
-  assert.equal(checked, 8);
-});
-
-test('compact comparisons show the independently expected family, jumps and electron counts', async () => {
+test('the opening comparison and the answer note show the independently expected family, jumps and landing columns', async () => {
   await loadFonts();
   // Finite expectations from the table and caption subjects, not the scene's
   // model or its renderer. A correct trace must not excuse a wrong painted value.
@@ -301,24 +298,31 @@ test('compact comparisons show the independently expected family, jumps and elec
     cu: { members: [['Cu', 29], ['Ag', 47], ['Au', 79], ['Rg', 111]], jumps: [18, 32, 32] },
     he: { members: [['He', 2], ['Ne', 10], ['Ar', 18], ['Kr', 36], ['Xe', 54], ['Rn', 86], ['Og', 118]], jumps: [8, 8, 18, 18, 32, 32] },
   };
-  const rows: Record<string, readonly (readonly [string, number, number])[]> = {
-    na: [['Na', 1, 1]],
-    cl: [['Na', 1, 1], ['Mg', 2, 2], ['Al', 3, 13], ['Si', 4, 14], ['P', 5, 15], ['S', 6, 16], ['Cl', 7, 17]],
-    fe: [['K', 1, 1], ['Ca', 2, 2], ['Sc', 3, 3], ['Ti', 4, 4], ['V', 5, 5], ['Cr', 6, 6], ['Mn', 7, 7], ['Fe', 8, 8]],
+  // The old count step's answers, now said beside the table in the blocks step: each scenario's
+  // configuration and the column its last electron lands in, top to bottom.
+  const landings: Record<string, readonly string[]> = {
+    na: ['Sodium: 1s² 2s² 2p⁶ 3s¹', '3s¹ starts a run of 2: s column 1, group 1.'],
+    cl: ['Chlorine: 1s² 2s² 2p⁶ 3s² 3p⁵', '5th p column, after 2 s and 10 d: 2 + 10 + 5 = 17.', 'Its 7 after neon alone would say 7: 10 short.'],
+    fe: ['Iron: 1s² 2s² 2p⁶ 3s² 3p⁶ 4s² 3d⁶', '6th d column, after 2 s: 2 + 6 = 8.'],
+    cu: ['Filling rule: [Ar] 4s² 3d⁹, so 2 + 9 = 11.', 'NIST lists [Ar] 3d¹⁰ 4s¹: still 11 after [Ar].'],
+    he: ['Helium: 1s², column 2 by its run (He?),', 'but 1s² fills shell 1, as 2s² 2p⁶ fills neon’s shell 2.'],
   };
-  const verdicts: Record<string, string> = {
-    na: '1 counted = group 1', cl: '7 counted ≠ group 17', fe: '8 counted = group 8',
-    cu: '11 counted either way = group 11', he: '2 counted ≠ group 18',
+  // The stack step's note: where the last electron lands, counted in unnamed run widths.
+  const stacked: Record<string, string> = {
+    na: 'Sodium’s last electron: 1st of a run of 2, column 1',
+    cl: 'Chlorine’s last electron: 5th of a run of 6, column 2 + 10 + 5 = 17',
+    fe: 'Iron’s last electron: 6th of a run of 10, column 2 + 6 = 8',
+    cu: 'Copper’s last electron: 9th of a run of 10, column 2 + 9 = 11',
+    he: 'Helium’s last electron: 2nd of a run of 2, column 2',
   };
-  const coreEquations: Record<string, string> = { na: '11 - 10 = 1', cl: '17 - 10 = 7', fe: '26 - 18 = 8' };
-  let steps = 0, members = 0, jumps = 0, matrixRows = 0, equations = 0, configurations = 0, heliumPairs = 0;
+  let steps = 0, members = 0, jumps = 0, lines = 0, ghosts = 0, stacks = 0;
   for (const [element, expected] of Object.entries(families)) {
     const Source = withSettings(PeriodicGroupsExplainer, { element });
     const visited: string[] = [];
     await new Source({
       async frame() {},
       async stepEnd(scene, step) {
-        if (!['column', 'count'].includes(step.name)) return;
+        if (!['column', 'stack', 'blocks'].includes(step.name)) return;
         const picture = (scene as PeriodicGroupsExplainer).notes!.current;
         const parts = picture.family();
         const one = (key: string): Mobject => {
@@ -334,14 +338,22 @@ test('compact comparisons show the independently expected family, jumps and elec
             `${element}/${step.name}: ${value} is visible text`);
           return part;
         };
-        const words = (value: string): Text => {
-          const found = parts.filter((m) => m instanceof Text && m.text === value);
+        const words = (value: string, within: Mobject[] = parts): Text => {
+          const found = within.filter((m) => m instanceof Text && m.text === value);
           assert.equal(found.length, 1, `${element}/${step.name}: exactly one ${value}`);
           return text(found[0]!, value);
         };
-        const keys = (prefix: string) => parts.filter((m) => m.key?.startsWith(prefix) && !m.key.slice(prefix.length).includes(':')).map((m) => m.key);
-        if (step.name === 'column') {
+        if (step.name === 'stack') {
+          words(stacked[element]!);
+          // Stacking puts helium's run of 2 at the left, so helium sits over beryllium until blocks moves it.
+          const table = (scene as PeriodicGroupsExplainer).table!.current.family();
+          const he = words('He', table), be = words('Be', table), ne = words('Ne', table);
+          assert.ok(Math.abs(he.center()[0] - be.center()[0]) < 0.05 && he.center()[1] > be.center()[1], `${element}: helium over beryllium`);
+          assert.ok(Math.abs(he.center()[0] - ne.center()[0]) > 1, `${element}: helium not yet over neon`);
+          stacks++;
+        } else if (step.name === 'column') {
           assert.equal(picture.key, 'periodic-family-comparison');
+          const keys = (prefix: string) => parts.filter((m) => m.key?.startsWith(prefix) && !m.key.slice(prefix.length).includes(':')).map((m) => m.key);
           assert.deepEqual(keys('periodic-member:'), expected.members.map(([symbol]) => `periodic-member:${symbol}`));
           const expectedJumps = expected.members.slice(1).map(([symbol], i) => `periodic-jump:${expected.members[i]![0]}:${symbol}`);
           assert.deepEqual(parts.filter((m) => m.key?.startsWith('periodic-jump:')).map((m) => m.key), expectedJumps);
@@ -360,53 +372,31 @@ test('compact comparisons show the independently expected family, jumps and elec
             previousX = name.center()[0]; members++;
           });
         } else {
-          assert.equal(picture.key, 'periodic-count-comparison');
-          words(verdicts[element]!);
-          if (rows[element]) {
-            text(one('periodic-core-equation'), coreEquations[element]!); equations++;
-            const expectedRows = rows[element]!;
-            assert.deepEqual(keys('periodic-count:'), expectedRows.map(([symbol]) => `periodic-count:${symbol}`));
-            let previousX = -Infinity;
-            for (const [symbol, count, group] of expectedRows) {
-              const name = text(one(`periodic-count:${symbol}:symbol`), symbol);
-              const counted = text(one(`periodic-count:${symbol}:count`), String(count));
-              const column = text(one(`periodic-count:${symbol}:group`), String(group));
-              assert.ok(name.center()[0] > previousX && Math.abs(name.center()[0] - counted.center()[0]) < 1e-4 &&
-                Math.abs(name.center()[0] - column.center()[0]) < 1e-4 && name.center()[1] > counted.center()[1] && counted.center()[1] > column.center()[1],
-                `${symbol}: element, count and column stay aligned in periodic order`);
-              previousX = name.center()[0]; matrixRows++;
-            }
-          } else if (element === 'cu') {
-            const predicted = words('[Ar] 4s² 3d⁹'), listed = words('[Ar] 3d¹⁰ 4s¹');
-            assert.ok(predicted.center()[1] > listed.center()[1]);
-            assert.ok(Math.abs(predicted.center()[1] - words('Filling rule:').center()[1]) < 1e-4);
-            assert.ok(Math.abs(listed.center()[1] - words('NIST lists:').center()[1]) < 1e-4);
-            configurations += 2;
-          } else {
-            assert.equal(element, 'he');
-            assert.deepEqual(keys('periodic-helium:'), ['periodic-helium:2', 'periodic-helium:18']);
-            let previousX = -Infinity;
-            for (const [group, upper, lower] of [[2, 'He?', 'Be'], [18, 'He', 'Ne']] as const) {
-              const prefix = `periodic-helium:${group}`;
-              const top = text(one(`${prefix}:upper`), upper), bottom = text(one(`${prefix}:lower`), lower);
-              const label = text(one(`${prefix}:group`), `Group ${group}`), outline = one(`${prefix}:outline`);
-              assert.ok(outline instanceof Rectangle && outline.style.stroke !== 'none' && outline.style.strokeWidth > 0 &&
-                outline.style.opacity >= 0.95 && outline.style.strokeOpacity >= 0.95);
-              const box = outline.box()!, upperBox = top.box()!;
-              assert.ok(box[0] <= upperBox[0] && box[1] <= upperBox[1] && box[2] >= upperBox[2] && box[3] >= upperBox[3],
-                `helium ${group}: the outlined cell contains its named upper element`);
-              assert.equal(Boolean(outline.style.dashArray), group === 2, 'only the hypothetical helium position is dashed');
-              assert.ok(top.center()[0] > previousX && Math.abs(top.center()[0] - bottom.center()[0]) < 1e-4 &&
-                Math.abs(top.center()[0] - label.center()[0]) < 1e-4 && top.center()[1] > bottom.center()[1] && bottom.center()[1] > label.center()[1]);
-              previousX = top.center()[0]; heliumPairs++;
-            }
+          let previousY = words('2 + 10 + 6 = 18 numbered columns').center()[1];
+          for (const line of landings[element]!) {
+            const said = words(line);
+            assert.ok(said.center()[1] < previousY, `${element}: ${line} reads below the line before it`);
+            previousY = said.center()[1]; lines++;
           }
+          // Helium's run alone would put it in column 2: the dashed He? cell sits over beryllium.
+          const table = (scene as PeriodicGroupsExplainer).table!.current.family();
+          const ghost = table.filter((m) => m instanceof Text && m.text === 'He?');
+          assert.equal(ghost.length, element === 'he' ? 1 : 0, `${element}: He? only in helium's case`);
+          if (ghost.length) {
+            const be = words('Be', table);
+            assert.ok(Math.abs(ghost[0]!.center()[0] - be.center()[0]) < 0.05 && ghost[0]!.center()[1] > be.center()[1],
+              'He? sits directly over beryllium');
+            ghosts++;
+          }
+          // From the blocks step on, the table puts helium over neon.
+          const he = words('He', table), ne = words('Ne', table);
+          assert.ok(Math.abs(he.center()[0] - ne.center()[0]) < 0.05 && he.center()[1] > ne.center()[1], `${element}: helium over neon`);
         }
         visited.push(step.name); steps++;
       },
     }, { skipUntil: Infinity }).run();
-    assert.deepEqual(visited, ['column', 'count']);
+    assert.deepEqual(visited, ['column', 'stack', 'blocks']);
   }
-  assert.equal(steps, 10); assert.equal(members, 28); assert.equal(jumps, 23);
-  assert.equal(matrixRows, 16); assert.equal(equations, 3); assert.equal(configurations, 2); assert.equal(heliumPairs, 2);
+  assert.equal(steps, 15); assert.equal(members, 28); assert.equal(jumps, 23);
+  assert.equal(lines, 11); assert.equal(ghosts, 1); assert.equal(stacks, 5);
 });

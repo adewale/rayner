@@ -3,9 +3,10 @@ import { setImmediate as nextTurn } from 'node:timers/promises';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
-  Scene, Text, Code, DecimalNumber, Transform, NullSink, SnapshotSink, renderAt,
-  loadFonts, shaperFor,
+  Scene, Text, Code, DecimalNumber, Transform, shaperFor,
 } from '../src/index.ts';
+import { NullSink, SnapshotSink, renderAt } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { SANS, MONO } from '../src/font-data.ts';
 import {
   bindLettering, withSceneLettering, snapshotProvider, runKey,

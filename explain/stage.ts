@@ -1,6 +1,9 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation } from '../src/index.ts';
-import { dimension, pin, callout, tool, Draw, oneStrokeEach } from './annotate.ts';
+import { jsonObject } from '../src/json.ts';
+import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
+import type { StepAudio } from './audio.ts';
+import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
+import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
 import type { ShowOptions } from './diagrams.ts';
@@ -9,8 +12,8 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, regionBox, reading } from './look.ts';
-import type { Region } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, emphasises, partsSeen } from './look.ts';
+import type { Region, Emphasis } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
 import type { Seen } from './trace.ts';
@@ -47,24 +50,82 @@ type Entry = { enter?: boolean };
 export type Describe = { describe?: string | (() => string) };
 
 /**
- * Part of the stage's heading: its title (`__heading`), or its number, line or band
- * (`__chrome`), or inside one of them. Everything that leaves the heading out of a picture
+ * One step of a stepped explanation: its words, the state it records, and its picture as a
+ * function of that state. `rayner check` redraws every step from the state its trace recorded,
+ * after the run, and fails a step whose picture differs: a `draw` that reads anything another
+ * step changes, rather than its own state, cannot pass.
+ */
+export interface StagedStep<S extends object = Record<string, unknown>> {
+  id: string;
+  title: string;
+  line: string;
+  caption: string;
+  /** The step's model (JSON): it becomes the scene's state, and the trace records it. */
+  state: S;
+  /** The step's picture, from its state alone; the stage gives its palette and helpers. */
+  draw: (state: S, stage: StageApi) => Mobject;
+  audio?: StepAudio;
+  /** Which path this step is on, when not the list's (see StagedStepsOptions). */
+  kind?: StepKind;
+  /** Keys of the parts the step is about, when that is less than the whole picture: a phone opens on them. */
+  opening?: readonly string[];
+  /**
+   * What the picture shows, in words, from the step's state: for a picture whose meaning is its
+   * geometry rather than its labels. Without it the picture is described by its text. Either way,
+   * a part that describes itself (a card, a code panel, a note, a dimension line) is described by
+   * its own words as well.
+   */
+  describe?: (state: S) => string;
+}
+/**
+ * A staged step whose state has its own type, for a list that mixes them: `stage.steps` takes one
+ * state type per list, and TypeScript cannot infer a type per element of one array literal. Each
+ * draw still reads its own step's state typed, which is the state `stage.steps` hands it; `rayner
+ * check` also draws each step from other states, and a draw that throws on one has read its state.
+ */
+export const stagedStep = <S extends object>(step: StagedStep<S>): StagedStep => step as unknown as StagedStep;
+/** Options for `stage.steps`: `kind` puts every step on that path (default 'main'). */
+export interface StagedStepsOptions { kind?: StepKind }
+/** One staged step as `rayner check` redraws it: from the recorded state, compared with what was drawn. */
+export interface StagedRecord { step: string; kind: StepKind; redraw: (recorded: SceneState) => Mobject; drawn: string }
+const staged = new WeakMap<object, StagedRecord[]>();
+/** The steps `stage.steps` presented on a scene, in order: what `rayner check` redraws after a run. */
+export function stagedStepsOf(scene: Scene): StagedRecord[] {
+  let list = staged.get(scene);
+  if (!list) staged.set(scene, (list = []));
+  return list;
+}
+/** A picture's text and each part's box, rounded: what a redraw must reproduce. */
+export function pictureFingerprint(m: Mobject): string {
+  const round = (v: number) => Math.round(v * 1000) / 1000;
+  return JSON.stringify(m.family().map((x) => [x.constructor.name, x instanceof Text ? x.text : null, x.box()?.map(round) ?? null]));
+}
+// The stage, for a step's draw; declared structurally so StagedStep can name it inside stage().
+type StageApi = Stage;
+
+/**
+ * Part of the stage's heading: its title (role `'heading'`), or its number, line or band
+ * (`'chrome'`), or inside one of them. Everything that leaves the heading out of a picture
  * (the checks, the phone close-ups, the text drawing agents read) asks here, so a part
  * added to the heading is left out everywhere at once.
  */
 export function isHeading(m: Mobject): boolean {
-  for (let x: Mobject | null = m; x; x = x.parent) if (x.key === '__heading' || x.key === '__chrome') return true;
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'heading' || x.role === 'chrome') return true;
   return false;
 }
+/** The stage's paper (role `'paper'`), or undefined for a scene drawn without a stage. */
+export const paperPart = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'paper');
 /**
- * The colour of the stage's paper (`__paper`, its palette's `paper`) as `scene` has it, or undefined
+ * The colour of the stage's paper (its palette's `paper`) as `scene` has it, or undefined
  * for a scene drawn without a stage. Player palette cues are opt-in through `meta.player`.
  */
-export const paperOf = (scene: Scene): string | undefined => scene.mobjects.find((m) => m.key === '__paper')?.style.fill;
+export const paperOf = (scene: Scene): string | undefined => paperPart(scene)?.style.fill;
 const stagePalettes = new WeakMap<Scene, () => Palette>();
 /** The stage's final palette, including a palette adopted from a diagram. */
 export const paletteOf = (scene: Scene): Palette | undefined => stagePalettes.get(scene)?.();
 const isOptions = (v: unknown): v is object => !!v && !(v instanceof Mobject);
+/** The colours engine defaults take on a stage with this palette: ink and the stage's soft, emphasis and rejected colours. */
+export const sceneColors = (p: Palette): SceneColors => ({ paper: p.paper, ink: p.ink, soft: soft(p), accent: emphasis(p), bad: bad(p) });
 const HEADING_Y = 3.8;
 /** With a line under it, the heading moves up to make room. */
 const HEADING_Y_WITH_LINE = 3.98;
@@ -79,7 +140,7 @@ const HOME: Box = [-8, -4.5, 8, 4.5];
 
 export function stage(scene: Scene, options: StageOptions = {}) {
   // Each caption owns its opening; a previous step's subjects must not leak.
-  scene.onStep(() => reading(scene));
+  scene.onStep(() => opening(scene));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
     (at === 'start'
@@ -95,20 +156,22 @@ export function stage(scene: Scene, options: StageOptions = {}) {
   const adopt = !options.palette && !options.style;
   let colors = options.palette ?? palette(options.style ?? 'nord');
   stagePalettes.set(scene, () => ({ ...colors }));
+  // Engine defaults (a Text with no colour, an Axes, a SurroundingRectangle) take the stage's palette.
+  scene.colors = sceneColors(colors);
   const mode = options.heading ?? 'step';
   const paper = new Rectangle({ width: 16, height: 9, fill: colors.paper, stroke: 'none' });
-  paper.key = '__paper';
+  paper.role = 'paper';
   scene.add(paper);
   const numbered = options.numbered ?? mode === 'step';
   const headingSize = options.headingSize ?? 0.36;
   /**
    * The heading, at home (camera at rest): the title, a circled step number before it when
-   * numbered, and the step's line under it. The number and line are keyed `__chrome`: like the
+   * numbered, and the step's line under it. The number and line have the role `'chrome'`: like the
    * heading they belong to the stage, not the picture a step leaves.
    */
   const makeChrome = (text: string, line: string, number: number | null, step: string) => {
     const t = scene.text(text, { fontSize: headingSize, color: colors.ink, weight: 'bold' });
-    t.key = '__heading';
+    t.role = 'heading';
     const y = line ? HEADING_Y_WITH_LINE : HEADING_Y;
     const parts: Mobject[] = [];
     let badge: Group | null = null;
@@ -119,7 +182,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         new Circle({ radius: r, stroke: emphasis(colors), strokeWidth: headingSize * 0.06, fill: 'none' }),
         digit,
       );
-      badge.key = '__chrome';
+      badge.role = 'chrome';
     }
     const badgeW = badge ? headingSize * 1.24 + headingSize * 0.5 : 0;
     if (t.width() + badgeW > CHROME_WIDTH) t.setWidth(CHROME_WIDTH - badgeW);
@@ -136,7 +199,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           `Step "${step}": its line is ${l.width().toFixed(1)} units wide, longer than one line under the heading (${CHROME_WIDTH}); shorten it`,
         );
       l.moveTo([0, t.box()![1] - 0.08 - l.height() / 2]);
-      l.key = '__chrome';
+      l.role = 'chrome';
       parts.push(l);
     }
     return { heading: t, chrome: parts };
@@ -153,7 +216,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     (4.5 + CONTENT[3]) / 2,
   ]);
   band.style.opacity = 0;
-  band.key = '__chrome';
+  band.role = 'chrome';
   scene.add(band, heading);
   /** Each heading part's home placement; the camera maps it to the screen while it is away. */
   const home = new Map<Mobject, Mobject>([
@@ -214,32 +277,36 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       setHeading(
         typeof s.meta.title === 'string' ? s.meta.title : '',
         typeof s.meta.line === 'string' ? s.meta.line.trim() : '',
-        numbered && s.meta.detail !== true ? scene.steps.filter((step) => step.meta.detail !== true).length : null,
+        numbered && s.meta.kind !== 'detail' ? scene.steps.filter((step) => step.meta.kind !== 'detail').length : null,
         s.name,
       ),
     );
-  /** What a sighted reader sees: diagrams, then panels and described drawings, then other kept text. */
+  /**
+   * What a sighted reader sees: diagrams, then each kept object's parts that describe themselves
+   * (cards, code, notes, dimension lines, wherever they sit, a view's current picture included) and
+   * its `describe`, then other kept text.
+   */
   function look(): Seen[] {
     const w = wordsOf(scene);
     const present = new Set(scene.familyMembers());
     const seen: Seen[] = [];
-    for (const d of diagrams) if (present.has(d.root)) seen.push(d.describe());
+    for (const d of diagrams) if (present.has(d.root) || (d.shownBy && present.has(d.shownBy))) seen.push(d.describe());
     const told = new Set<() => string>();
     const labels: string[] = [];
     let blank = 0;
-    for (const [m, describe] of overlays)
+    for (const [m, describe] of overlays) {
       if (!present.has(m)) continue;
-      else if (m instanceof Card || m instanceof CodeBlock) seen.push(m.describe());
-      else if (describe) {
+      // A part that describes itself says so whatever else describes the object; `describe` speaks for the rest.
+      const parts = partsSeen(m, (t) => !!t.text.trim() && (t.style.opacity ?? 1) >= 0.5);
+      seen.push(...parts.seen);
+      if (describe) {
         if (!told.has(describe)) seen.push({ what: describe(), parts: [] });
         told.add(describe);
       } else {
-        const words = m
-          .family()
-          .filter((t): t is Text => t instanceof Text && !!t.text.trim() && (t.style.opacity ?? 1) >= 0.5);
-        labels.push(...words.map((t) => t.text));
-        if (!words.length) blank++;
+        labels.push(...parts.words);
+        if (!parts.words.length && !parts.seen.length) blank++;
       }
+    }
     if (labels.length) seen.push({ what: w.count(labels.length, w.label), parts: labels.map((name) => ({ name })) });
     if (blank)
       seen.push({
@@ -254,7 +321,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
   scene.onStep(() => {
     before = shownNames(look());
   });
-  scene.addDescriber(() => ({ picture: picture(look(), before, langOf(scene)) }));
+  scene.addDescriber(() => ({ picture: picture(look(), before, langOf(scene)) }), 'shown');
   const keepAll = (mobs: Mobject[], { describe }: Describe) => {
     const say = typeof describe === 'string' ? () => describe : describe;
     for (const m of mobs) overlays.set(m, say);
@@ -348,11 +415,20 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     get bad() {
       return bad(colors);
     },
+    /** A panel surface one shade off the paper. */
+    get raised() {
+      return raised(colors);
+    },
+    /** A hairline colour that separates without shouting. */
+    get rule() {
+      return rule(colors);
+    },
     async show(spec: DiagramSpec, opts: Omit<ShowOptions, 'box'> & { box?: Box | StageRegion } = {}): Promise<Diagram> {
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
       const snapshot = await diagramsOf(scene).diagram(spec);
       if (adopt) {
         colors = snapshot.palette;
+        scene.colors = sceneColors(colors);
         paper.setFill(colors.paper);
         heading.setFill(colors.ink);
         band.setFill(colors.paper);
@@ -384,8 +460,18 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step(). */
-    reading(...subjects: Mobject[]) {
-      reading(scene, ...subjects);
+    opening(...subjects: Mobject[]) {
+      opening(scene, ...subjects);
+    },
+    /**
+     * Say what this scene's own marks emphasise, read from its state whenever asked: each
+     * part that shows emphasis, by key (`['ring:mark:3', 'outlined: push']`) or as the mobject,
+     * with what it shows there. The stage's helpers (cards, code,
+     * diagrams, notes) register theirs; a scene that draws its own marks registers them here.
+     * Call once; `now` is read at every step boundary and must draw nothing.
+     */
+    emphasise(now: () => Emphasis) {
+      emphasises(scene, now);
     },
     /** Code on a panel; `code.focus(line)` keeps a bar on it. */
     async code(
@@ -485,15 +571,29 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           ...opts,
         }),
       );
-      keepAll([g], { describe: () => `A dimension line marked “${label}”` });
+      // The line describes itself.
+      keepAll([g], {});
       await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
       return g;
     },
     /** A pin stuck in at `at`, with an optional label; drawn in, and kept. */
-    async pin(at: Vec, opts: { label?: string; color?: string; size?: number } = {}) {
+    async pin(at: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right' } = {}) {
       const g = onScreen(pin(toScreen(at), {shaping: scene.textShaping, color: opts.color ?? emphasis(colors), ...opts }));
-      keepAll([g], { describe: () => (opts.label ? `A pin marked “${opts.label}”` : 'A pin') });
+      keepAll([g], {});
       await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
+      return g;
+    },
+    /**
+     * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line); faded in and kept.
+     * The kit's `legend` builds the same picture for a draw. It describes itself as its swatch→meaning pairs.
+     */
+    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; direction?: 'column' | 'row'; gap?: number; key?: string } = {}) {
+      const { key = 'legend', at = [0, 0], ...look } = opts;
+      const g = onScreen(legend(items, { ink: colors.ink, shaping: scene.textShaping, at: toScreen(at), ...look }));
+      g.children.forEach((entry, i) => (entry.key = `${key}:${items[i]!.label}`));
+      g.key = key;
+      keepAll([g], {});
+      await scene.play(new FadeIn(g, { runTime: 0.4 }));
       return g;
     },
     /** Words beside a target with a leader line to it; drawn in, and kept. */
@@ -521,7 +621,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * and keep it. `m` must not be on stage yet. A path of several strokes is split into one path
      * per stroke first; the result is what was drawn and kept. `describe` says what it shows.
      */
-    async draw(
+    async sketch(
       m: Mobject,
       {
         tool: kind = 'pen',
@@ -544,6 +644,38 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       await scene.play(new Draw(m, t, { runTime }));
       if (t) scene.remove(t);
       return m;
+    },
+    /**
+     * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in
+     * its picture, drawn from that model alone. `kind: 'short'` marks the steps as the reader's
+     * short path before the main one; each step's own `kind` overrides the list's.
+     */
+    async steps<S extends object>(list: readonly StagedStep<S>[], { kind: listKind = 'main' }: StagedStepsOptions = {}): Promise<void> {
+      for (const step of list) {
+        const kind = step.kind ?? listKind;
+        await scene.step(step.id, {
+          title: step.title, line: step.line, caption: step.caption,
+          ...(step.audio ? { audio: step.audio } : {}), ...(kind !== 'main' ? { kind } : {}),
+        });
+        await this.clear({ runTime: 0.18 });
+        const state = jsonObject(step.state as Record<string, unknown>, `step ${step.id} state`) as S;
+        scene.state = { ...state } as SceneState;
+        const drawing = step.draw(state, this as StageApi);
+        if (kind === 'short') drawing.key = 'reader-picture';
+        stagedStepsOf(scene).push({
+          step: step.id,
+          kind,
+          redraw: (recorded) => step.draw(recorded as S, this as StageApi),
+          drawn: pictureFingerprint(drawing),
+        });
+        // What the step is about, when that is less than the whole drawing: a phone opens on it.
+        const about = step.opening ? drawing.family().filter((m) => step.opening!.includes(m.key ?? '')) : [drawing];
+        this.opening(...about);
+        // Describe the drawn labels (or the step's own words for its picture), not the state object or the
+        // authored caption; a part that describes itself is described by itself, so its text is not repeated.
+        const words = partsSeen(drawing).words.filter(Boolean).join('. ');
+        await this.enter(drawing, { runTime: kind === 'short' ? 0.25 : 0.24, describe: step.describe ? step.describe(state) : words });
+      }
     },
   };
 }

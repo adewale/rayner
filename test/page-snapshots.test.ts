@@ -7,8 +7,8 @@ import {gzipSync} from 'node:zlib';
 import type {SnapshotStore} from '../integrations/agentic-mermaid/snapshot.ts';
 import {fc, params} from './lib/pbt.ts';
 import {collectProject} from '../tools/lib/explain-project.ts';
-import {bindSnapshots} from '../explain/index.ts';
-import {toSvgString} from '../src/index.ts';
+import { bindSnapshots } from '../explain/testing.ts';
+import { toSvgString } from '../src/output.ts';
 import type {SceneClass} from '../src/index.ts';
 
 import { fixture } from './lib/page-snapshot-fixture.ts';
@@ -110,7 +110,7 @@ test('compacted real flowchart, timeline and XY snapshots render byte-identical 
   for (const id of ['mr-cache', 'cert-renewal', 'tailwind-gamut']) {
     const project = await collectProject(`scenes/explainers/${id}`, {write: false});
     const compact = pageSnapshots(project.store);
-    const Source = project.variants[0]!.Scene;
+    const Source = project.scenarios[0]!.Scene;
     const original = await frames(Source);
     assert.ok(original.length >= 3, 'compare every resting picture, not an empty render');
     assert.deepEqual(await frames(bindSnapshots(Source, compact)), original, id);

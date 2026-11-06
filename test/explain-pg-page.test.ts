@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fc, params } from './lib/pbt.ts';
-import { Scene, NullSink, loadFonts } from '../src/index.ts';
+import { Scene } from '../src/index.ts';
+import { NullSink } from '../src/output.ts';
+import { loadFonts } from '../explain/testing.ts';
 import { Diagram } from '../explain/diagrams.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { readSnapshots } from '../tools/lib/explain-project.ts';
@@ -17,7 +19,7 @@ import {
   MAX_HEAP_TUPLE_SIZE,
   PAGE_HEADER,
   TUPLE_HEADER,
-  caseOf,
+  scenarioOf,
   fill,
   heapFreeSpace,
   maxalign,
@@ -92,7 +94,7 @@ const ITEMS: Record<Column, [number, number, number, number, number][]> = {
 
 test('the model gives the measured rows per page, page bounds and table sizes, for every column and fillfactor', () => {
   for (const [table, m] of Object.entries(MEASURED)) {
-    const c = caseOf(m.column, m.ff);
+    const c = scenarioOf(m.column, m.ff);
     assert.deepEqual(
       { rows: c.page.rows, lower: c.page.lower, upper: c.page.upper, pages: c.pagesFor10000 },
       { rows: m.rows, lower: m.lower, upper: m.upper, pages: m.pages },
@@ -103,7 +105,7 @@ test('the model gives the measured rows per page, page bounds and table sizes, f
 
 test('the model gives pageinspect’s line pointers and tuple headers', () => {
   for (const [column, items] of Object.entries(ITEMS) as [Column, (typeof ITEMS)[Column]][]) {
-    const c = caseOf(column, 100);
+    const c = scenarioOf(column, 100);
     for (const [lp, lpOff, lpLen, hoff, data] of items)
       assert.deepEqual(
         [c.page.offsets[lp - 1], c.tuple.lpLen, c.tuple.hoff, c.tuple.data],
@@ -121,13 +123,13 @@ test('the model gives pageinspect’s line pointers and tuple headers', () => {
 });
 
 test('a full int4 page splits as the researcher’s pie did, and every pie sums to the page', () => {
-  const sh = caseOf('int4', 100).share;
+  const sh = scenarioOf('int4', 100).share;
   assert.deepEqual(
     [sh.data, sh.headers, sh.padding, sh.pointers, sh.pageHeader, sh.free].map(percent),
     ['11.0%', '63.5%', '13.8%', '11.0%', '0.3%', '0.4%'],
   );
   for (const column of Object.keys(COLUMNS) as Column[])
-    for (const ff of [100, 70]) assert.equal(total(caseOf(column, ff).share), BLCKSZ, `${column} at ${ff}`);
+    for (const ff of [100, 70]) assert.equal(total(scenarioOf(column, ff).share), BLCKSZ, `${column} at ${ff}`);
   // Agentic Mermaid's legend never says 0.0% of a slice it draws: 4 of 8192 bytes is 0.1%.
   assert.equal(percent(4), '0.1%');
 });
