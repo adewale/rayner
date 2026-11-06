@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
-import { assertSteps, idsOf } from '../steps.ts';
-import { SHADES, rows, summarize } from '../../../scenes/explainers/tailwind-gamut/model.ts';
-import type { Shade } from '../../../scenes/explainers/tailwind-gamut/model.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertSteps, idsOf } from '../../../test/lib/steps.ts';
+import { SHADES, rows, summarize } from './model.ts';
+import type { Shade } from './model.ts';
 
 /** Every scenario's step state equals the gamut model's answers for that shade and screen. */
 export function check(trace: Trace, values: Record<string, string>): void {

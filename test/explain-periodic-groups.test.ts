@@ -14,7 +14,7 @@ import { pictureHtml, pictureSummary } from '../explain/trace.ts';
 import { lerpColor } from '../src/color.ts';
 import { collectProject } from '../tools/lib/explain-project.ts';
 import { assertViewFollowsState } from './lib/view-fidelity.ts';
-import { check } from './lib/fidelity/periodic-groups.ts';
+import { check } from '../scenes/explainers/periodic-groups/fidelity.ts';
 import PeriodicGroupsScene from '../scenes/explainers/periodic-groups/scene.ts';
 import { withScriptIntent } from '../tools/lib/explain-intent.ts';
 

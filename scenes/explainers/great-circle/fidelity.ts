@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { london, madrid, haversine, rhumb, tens } from '../../../scenes/explainers/great-circle/model.ts';
-import { assertStepState } from '../explainer-state.ts';
-import { assertSteps } from '../steps.ts';
+import { london, madrid, haversine, rhumb, tens } from './model.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertSteps } from '../../../test/lib/steps.ts';
 
 /** Every number a step draws or says comes from the route model; the model has its own GeographicLib oracle. */
-export function check(values: Record<string, string>, trace: Trace): void {
+export function check(trace: Trace, values: Record<string, string>): void {
   const L = london(), M = madrid();
   assertSteps(trace, ['question', 'shorter', 'stretch', 'globe', 'turn', 'north', 'another', 'gnomonic', 'limits']);
   for (const step of ['question', 'shorter', 'globe', 'turn', 'north', 'limits']) assertStepState(trace, step, { route: L });

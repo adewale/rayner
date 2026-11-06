@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import type { Trace } from '../../../src/trace.ts';
-import { henge, sunset, declination, type Street } from '../../../scenes/explainers/henge/model.ts';
-import { assertStepState } from '../explainer-state.ts';
-import { assertSteps } from '../steps.ts';
+import { henge, sunset, declination, type Street } from './model.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
+import { assertSteps } from '../../../test/lib/steps.ts';
 
 /** The coordinate model has an independent ERFA oracle; this binds each published scenario to it. */
-export function check(values: Record<string, string>, trace: Trace): void {
+export function check(trace: Trace, values: Record<string, string>): void {
   const model = henge(values.street as Street);
   const [december, , june] = model.seasons;
   const day = (d: { declination: number; hourAngle: number }) => ({ declination: d.declination, hourAngle: d.hourAngle });

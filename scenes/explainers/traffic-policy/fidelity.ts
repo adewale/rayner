@@ -1,5 +1,5 @@
 import type { Trace } from '../../../src/trace.ts';
-import { assertStepState } from '../explainer-state.ts';
+import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
@@ -14,8 +14,8 @@ import {
   secondHop,
   seenSource,
   shares,
-} from '../../../scenes/explainers/traffic-policy/model.ts';
-import type { PlacementKey, Policy } from '../../../scenes/explainers/traffic-policy/model.ts';
+} from './model.ts';
+import type { PlacementKey, Policy } from './model.ts';
 
 /** Every scenario's step state equals the model's answers for its policy and placement. */
 export function check(trace: Trace, values: Record<string, string>): void {
