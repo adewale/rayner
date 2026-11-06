@@ -1,50 +1,7 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "ask",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Agent"
-        },
-        {
-          "text": "Application"
-        },
-        {
-          "text": "needs API_KEY"
-        },
-        {
-          "text": "must not read"
-        }
-      ]
-    },
-    {
-      "step": "reader-boundary",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Agent"
-        },
-        {
-          "text": "op CLI"
-        },
-        {
-          "text": "Application"
-        },
-        {
-          "text": "op:// reference"
-        },
-        {
-          "text": "secret value"
-        }
-      ]
-    }
+    { "step": "ask", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "Agent" }, { "text": "Application" }, { "text": "needs API_KEY" }, { "text": "must not read" }] },
+    { "step": "reader-boundary", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "Agent" }, { "text": "op CLI" }, { "text": "Application" }, { "text": "op:// reference" }, { "text": "secret value" }] }
   ]
 }

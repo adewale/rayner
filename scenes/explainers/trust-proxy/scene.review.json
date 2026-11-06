@@ -1,39 +1,8 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "routes",
-      "opening": true,
-      "targets": [
-        {
-          "key": "routes-positions"
-        }
-      ]
-    },
-    {
-      "step": "routes",
-      "targets": [
-        {
-          "key": "routes-addresses"
-        }
-      ]
-    },
-    {
-      "step": "ranges",
-      "targets": [
-        {
-          "key": "ranges-current"
-        },
-        {
-          "key": "ranges-alternative"
-        },
-        {
-          "key": "service:edge"
-        },
-        {
-          "key": "service:balancer"
-        }
-      ]
-    }
+    { "step": "routes", "opening": true, "targets": [{ "key": "routes-positions" }] },
+    { "step": "routes", "targets": [{ "key": "routes-addresses" }] },
+    { "step": "ranges", "targets": [{ "key": "ranges-current" }, { "key": "ranges-alternative" }, { "key": "service:edge" }, { "key": "service:balancer" }] }
   ]
 }

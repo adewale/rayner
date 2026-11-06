@@ -6,7 +6,6 @@ import { drawDoor } from './picture.ts';
 // A machine explainer: the model in model.ts drives the door, the picture is a view of the state,
 // and the step where the machine last plays is live, so the reader presses the events there.
 export default class DoorMachine extends Scene<DoorState> {
-  static meta = { id: 'door' };
   override state = doorStart();
 
   override async construct() {

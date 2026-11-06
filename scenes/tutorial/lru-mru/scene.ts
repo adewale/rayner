@@ -7,7 +7,6 @@ const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
 export default class LruMru extends Scene {
   static meta = {
-    id: 'lru-mru',
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',

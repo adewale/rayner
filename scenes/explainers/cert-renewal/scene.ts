@@ -138,7 +138,6 @@ const upper = (t: string) => t[0]!.toUpperCase() + t.slice(1);
 
 export default class CertRenewalExplainer extends Scene {
   static meta = {
-    id: 'cert-renewal',
     sources: [
       'https://github.com/cabforum/servercert/blob/3574ae809e5f909b58ee4c26b7bac4a3b9e78421/docs/BR.md#632-certificate-operational-periods-and-key-pair-usage-periods',
       'https://letsencrypt.org/2025/12/02/from-90-to-45/',

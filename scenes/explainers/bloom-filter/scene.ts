@@ -14,7 +14,6 @@ const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ([
 
 export default class BloomFilter extends Scene {
   static meta = {
-    id: 'bloom-filter',
     sources: [
       'https://doi.org/10.1145/362686.362692',
       'https://www.jasondavies.com/bloomfilter/',

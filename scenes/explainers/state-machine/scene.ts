@@ -27,7 +27,6 @@ const DIAGRAM = regionBox('top', { bottom: 0.2 }),
   CARD = regionBox('full', { left: 2.35, top: -0.05 });
 export default class StateMachineExplainer extends Scene {
   static meta = {
-    id: 'state-machine',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/state-machine.ts'],
     claims: [
       {

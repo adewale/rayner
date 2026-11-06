@@ -1,17 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "tranches",
-      "opening": true,
-      "targets": [
-        {
-          "key": "qf-tranches:entier"
-        },
-        {
-          "key": "qf-tranches:parts"
-        }
-      ]
-    }
+    { "step": "tranches", "opening": true, "targets": [{ "key": "qf-tranches:entier" }, { "key": "qf-tranches:parts" }] }
   ]
 }

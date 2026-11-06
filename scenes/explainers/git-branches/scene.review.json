@@ -1,71 +1,9 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "question",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        }
-      ]
-    },
-    {
-      "step": "lost",
-      "settings": {
-        "history": "diverged"
-      },
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        },
-        {
-          "text": "no branch"
-        }
-      ]
-    },
-    {
-      "step": "merge",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        }
-      ]
-    },
-    {
-      "step": "countercase",
-      "opening": true,
-      "targets": [
-        {
-          "key": "git-history"
-        },
-        {
-          "key": "git-head"
-        },
-        {
-          "key": "git-files"
-        }
-      ]
-    }
+    { "step": "question", "opening": true, "targets": [{ "key": "git-history" }, { "key": "git-head" }, { "key": "git-files" }] },
+    { "step": "lost", "settings": { "history": "diverged" }, "opening": true, "targets": [{ "key": "git-history" }, { "key": "git-head" }, { "key": "git-files" }, { "text": "no branch" }] },
+    { "step": "merge", "opening": true, "targets": [{ "key": "git-history" }, { "key": "git-head" }, { "key": "git-files" }] },
+    { "step": "countercase", "opening": true, "targets": [{ "key": "git-history" }, { "key": "git-head" }, { "key": "git-files" }] }
   ]
 }

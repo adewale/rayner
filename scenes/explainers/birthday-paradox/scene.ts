@@ -10,7 +10,6 @@ const pct2 = (p: number) => percent(p, { digits: 2 });
 
 export default class BirthdayParadox extends Scene {
   static meta = {
-    id: 'birthday-paradox',
     sources: ['https://pudding.cool/2018/04/birthday-paradox/', 'https://mathworld.wolfram.com/BirthdayProblem.html'],
     // Sentences that reach past the rooms on screen, and the tests that hold them; the rest speak of their own step's squares.
     claims: [

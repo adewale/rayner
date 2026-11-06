@@ -34,7 +34,6 @@ const EVENTS = [
 
 export default class SeasonsExplainer extends Scene {
   static meta = {
-    id: 'seasons',
     sources: [
       'https://spaceplace.nasa.gov/seasons/en/',
       'https://gml.noaa.gov/grad/solcalc/calcdetails.html',

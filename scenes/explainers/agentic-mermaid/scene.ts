@@ -69,7 +69,6 @@ interface Report { ok: boolean; warnings: { code: string; edge: string; part: st
 // test/explain-real.test.ts runs the pinned verifier on each check question's diagram.
 export default class MermaidExplainer extends Scene {
   static meta = {
-    id: 'agentic-mermaid',
     sources: [
       'https://github.com/adewale/agentic-mermaid',
       'https://www.npmjs.com/package/agentic-mermaid/v/0.5.1',

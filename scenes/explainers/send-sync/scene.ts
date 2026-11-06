@@ -29,7 +29,6 @@ interface SendSyncState {
 
 export default class SendSyncExplainer extends Scene {
   static meta = {
-    id: 'send-sync',
     sources: [
       RUST + 'alloc/src/sync.rs#L284-L286',
       RUST + 'alloc/src/rc.rs#L334-L342',

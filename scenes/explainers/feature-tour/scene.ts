@@ -568,7 +568,6 @@ const centre = (b: readonly number[]): [number, number] => [(b[0]! + b[2]!) / 2,
 
 export default class FeatureTour extends Scene {
   static meta = {
-    id: 'feature-tour',
     // The maths scenario's formula, typeset once by rayner snapshots into scene.lettering.json.
     lettering: { math: true },
     scenarioNavigation: 'first' as const,

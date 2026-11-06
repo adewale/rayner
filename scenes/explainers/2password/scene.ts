@@ -21,7 +21,6 @@ const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
 export default class PasswordExplainer extends Scene {
   static meta = {
-    id: '2password',
     sources: [
       `${SOURCE}/src/discover.ts`,
       `${SOURCE}/src/op.ts`,

@@ -48,7 +48,6 @@ function straight(scene: Scene): true | string | undefined {
 
 export default class GreatCircle extends Scene {
   static meta = {
-    id: 'great-circle',
     sources: [
       'https://doi.org/10.1007/s00190-012-0578-z',
       'https://pubs.usgs.gov/publication/pp1395',

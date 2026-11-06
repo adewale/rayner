@@ -60,7 +60,6 @@ const formatState = (v: unknown) =>
 
 export default class TokenBucketExplainer extends Scene {
   static meta = {
-    id: 'token-bucket',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts',
       // The oracle: tools/oracle/token-bucket runs this schedule through rate.Limiter.

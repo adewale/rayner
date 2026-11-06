@@ -151,7 +151,6 @@ const NEXT = { loop: 'ABCD', reuse: 'CDCD' };
 
 export default class LruMru extends Scene {
   static meta = {
-    id: 'lru-mru',
     sources: [
       'https://en.wikipedia.org/w/index.php?title=Cache_replacement_policies&oldid=1376205644',
       'https://www.vldb.org/conf/1985/P127.PDF',
@@ -218,7 +217,7 @@ export default class LruMru extends Scene {
 
 Read it from the top:
 
-- `static meta` holds the id, which names the output files, and the sources the model was checked against. The title, answer and check questions come from the script's header.
+- `static meta` holds the sources the model was checked against. The id, which names the output files, is the folder's name, and the title, answer and check questions come from the script's header.
 - `static settings` declares one setting with two options. Each option is a scenario: the reader can switch between them, and `check` and `review` visit both. Both scenarios send A B C D first, then either repeat the loop or alternate C and D.
 - `trace` asks the model once per scenario. Every value on the card comes from it: `shown(n)` turns the trace into what the card shows after the first `n` requests, and `show(n)` updates the card and records the same values on `this.state`, where tests and `rayner describe` can read them.
 - `stage(this, { style: 'nord', headingSize: 0.54 })` draws the paper and a heading that follows the steps. The larger heading keeps the step number readable on a phone.

@@ -1,90 +1,10 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "advance",
-      "opening": true,
-      "targets": [
-        {
-          "text": "Ink on paper"
-        },
-        {
-          "text": "4.41 units"
-        }
-      ]
-    },
-    {
-      "step": "rulers",
-      "opening": true,
-      "targets": [
-        {
-          "key": "font-rulers-drawn"
-        },
-        {
-          "key": "font-rulers-measured"
-        },
-        {
-          "text": "Ink on paper"
-        },
-        {
-          "text": "Garamond: 4.41"
-        },
-        {
-          "text": "JetBrains Mono: 6.48"
-        }
-      ]
-    },
-    {
-      "step": "cuts",
-      "opening": true,
-      "targets": [
-        {
-          "text": "Regular"
-        },
-        {
-          "text": "Bold"
-        },
-        {
-          "text": "Italic"
-        },
-        {
-          "text": "Ink on paper"
-        },
-        {
-          "text": "4.41"
-        },
-        {
-          "text": "4.85"
-        },
-        {
-          "text": "4.24"
-        }
-      ]
-    },
-    {
-      "step": "diagram",
-      "opening": true,
-      "targets": [
-        {
-          "text": "Ink"
-        },
-        {
-          "text": "Paper"
-        },
-        {
-          "key": "edge:A->B#0",
-          "paint": "stroke"
-        }
-      ]
-    },
-    {
-      "step": "layout",
-      "opening": true,
-      "targets": [
-        {
-          "key": "font-layout"
-        }
-      ]
-    }
+    { "step": "advance", "opening": true, "targets": [{ "text": "Ink on paper" }, { "text": "4.41 units" }] },
+    { "step": "rulers", "opening": true, "targets": [{ "key": "font-rulers-drawn" }, { "key": "font-rulers-measured" }, { "text": "Ink on paper" }, { "text": "Garamond: 4.41" }, { "text": "JetBrains Mono: 6.48" }] },
+    { "step": "cuts", "opening": true, "targets": [{ "text": "Regular" }, { "text": "Bold" }, { "text": "Italic" }, { "text": "Ink on paper" }, { "text": "4.41" }, { "text": "4.85" }, { "text": "4.24" }] },
+    { "step": "diagram", "opening": true, "targets": [{ "text": "Ink" }, { "text": "Paper" }, { "key": "edge:A->B#0", "paint": "stroke" }] },
+    { "step": "layout", "opening": true, "targets": [{ "key": "font-layout" }] }
   ]
 }

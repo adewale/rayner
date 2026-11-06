@@ -63,7 +63,6 @@ const sameWords: MatchKey = (part, root) => {
 
 export default class IcalRecurrenceExplainer extends Scene {
   static meta = {
-    id: 'ical-recurrence',
     sources: [
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1',
       'https://www.rfc-editor.org/rfc/rfc5545#section-3.3.10',

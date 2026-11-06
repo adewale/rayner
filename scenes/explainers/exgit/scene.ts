@@ -52,7 +52,6 @@ const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).
 
 export default class GitExplainer extends Scene {
   static meta = {
-    id: 'exgit',
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',

@@ -23,7 +23,6 @@ const pct = (v: number) => percent(v, { of: 100 });
 
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
-    id: 'tailwind-gamut',
     sources: [
       THEME + '#L10-L323',
       BLOG + '#L356-L366',

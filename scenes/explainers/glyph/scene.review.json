@@ -1,38 +1,7 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "reader-width",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "Inter"
-        },
-        {
-          "text": "JetBrains Mono"
-        }
-      ]
-    },
-    {
-      "step": "reader-shape",
-      "opening": true,
-      "targets": [
-        {
-          "key": "reader-picture"
-        },
-        {
-          "text": "l"
-        },
-        {
-          "text": "advance 0.218"
-        },
-        {
-          "text": "advance 0.540"
-        }
-      ]
-    }
+    { "step": "reader-width", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "Inter" }, { "text": "JetBrains Mono" }] },
+    { "step": "reader-shape", "opening": true, "targets": [{ "key": "reader-picture" }, { "text": "l" }, { "text": "advance 0.218" }, { "text": "advance 0.540" }] }
   ]
 }

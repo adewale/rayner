@@ -44,7 +44,6 @@ const rowLines = (c: Char) => {
 
 export default class IsDigitExplainer extends Scene {
   static meta = {
-    id: 'isdigit',
     sources: [
       CPY + 'Doc/builtins/stdtypes.rst#L2432-L2523',
       CPY + 'Doc/builtins/functions.rst#L1050-L1086',

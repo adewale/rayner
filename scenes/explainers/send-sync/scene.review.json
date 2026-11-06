@@ -1,19 +1,6 @@
 {
   "version": 2,
   "subjects": [
-    {
-      "step": "spawn",
-      "targets": [
-        {
-          "text": "thread::spawn(move || x.set(1));"
-        },
-        {
-          "text": "= help: the trait `Sync` is not implemented"
-        },
-        {
-          "text": "= note: required for `Arc<Cell<i32>>` to"
-        }
-      ]
-    }
+    { "step": "spawn", "targets": [{ "text": "thread::spawn(move || x.set(1));" }, { "text": "= help: the trait `Sync` is not implemented" }, { "text": "= note: required for `Arc<Cell<i32>>` to" }] }
   ]
 }

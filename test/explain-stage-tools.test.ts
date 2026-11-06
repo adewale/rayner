@@ -264,7 +264,7 @@ test("engine defaults take the stage's palette: an axis, outlines and text drawn
   assert.deepEqual(seen, { axis: p.ink, label: p.ink, outline: accent, ring: accent, text: p.ink, given: '#123456' });
 });
 
-test('keepOpening holds its subjects through later steps; a step\'s own opening wins for that step; an empty call clears them', async () => {
+test('a kept opening holds its subjects through later steps; a step\'s own opening wins for that step; an empty kept call clears them', async () => {
   const seen: string[][] = [];
   class Kept extends Scene {
     override async construct() {
@@ -272,11 +272,11 @@ test('keepOpening holds its subjects through later steps; a step\'s own opening 
       const tower = Object.assign(new Rectangle({ width: 2, height: 1 }), { key: 'tower' });
       const note = Object.assign(new Text('note', { fontSize: 0.4 }).moveTo([3, 0]), { key: 'note' });
       const at = () => seen.push(openingOf(this).map((m) => m.key ?? ''));
-      await this.step('a'); this.add(tower, note); s.keepOpening(tower); at();
+      await this.step('a'); this.add(tower, note); s.opening(tower, { keep: true }); at();
       await this.step('b'); at();
       await this.step('c'); s.opening(note); at();
       await this.step('d'); at();
-      await this.step('e'); s.keepOpening(); at();
+      await this.step('e'); s.opening({ keep: true }); at();
       await this.step('f'); at();
     }
   }

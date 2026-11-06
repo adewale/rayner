@@ -250,6 +250,10 @@ export async function collectProject(
   // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own.
   const scriptIntent = await readIntent(file);
   const intent = scriptIntent ? adoptIntent(loaded.Scene as { meta?: Record<string, unknown> }, scriptIntent, file) : undefined;
+  // An explainer's id is its folder's name (or its file's, for a scene not named scene.ts), unless it declares one.
+  const ownMeta = (loaded.Scene as { meta?: Record<string, unknown> }).meta;
+  if (ownMeta?.id === undefined)
+    (loaded.Scene as { meta?: Record<string, unknown> }).meta = { ...ownMeta, id: basename(file) === 'scene.ts' ? basename(dirname(file)) : basename(file).replace(/\.[^.]+$/, '') };
   const outlineRequested = usesOutlineLettering(loaded.Scene);
   const outline = outlineRequested
     ? await prepareOutlineLettering(loaded.Scene, file, captureLettering, write) : undefined;
