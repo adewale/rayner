@@ -1,11 +1,14 @@
 import { Group, VMobject, Circle, Line } from '../../../src/index.ts';
-import type { Vec } from '../../../src/index.ts';
+import type { Mobject, Vec } from '../../../src/index.ts';
 import { hand, HAND, FREEHAND, freehand, rng, deviation, boxPolygon } from './model.ts';
 import type { Pt, Box } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
-import type { StagedStep } from '../../../explain/index.ts';
+import type { StagedStep, Diagram } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
+// Only these two seeds are pictured. The layout's construction is shared between them; the
+// decorative marks (sea strokes, gulls) depend on the seed. The magnifier compares each drawing's
+// actual ink with the construction band, so it must not suggest the ink is identical across seeds.
 /** The two drawings the plate compares: the first in grey, the second in ink. */
 export const SEEDS = { first: 1967, second: 7 } as const;
 export const GREY = '#6f6a66';
@@ -149,4 +152,79 @@ export function frames(seed: number): StagedStep[] {
       },
     }),
   ];
+}
+
+// The real timeline's marks, read back from the laid-out diagram, and the polylines every plate stroke is drawn as.
+export type Pathed = Mobject & { subpaths: Float32Array[] };
+export const pathed = (m: Mobject): m is Pathed => Array.isArray((m as Pathed).subpaths) && m.hasPoints();
+const hasText = (m: Mobject) => typeof (m as { text?: unknown }).text === 'string';
+
+/** Points along one subpath of a captured path, eight per cubic. */
+function samples(m: Pathed, i: number): Pt[] {
+  const a = m.subpaths[i]!,
+    vm = m as unknown as VMobject,
+    curves = (a.length / 2 - 1) / 3;
+  const out: Pt[] = [[a[0]!, a[1]!]];
+  for (let c = 0; c < curves; c++) for (let k = 1; k <= 8; k++) out.push(vm.pointOnCurve(i, c, k / 8) as Pt);
+  return out;
+}
+const lines = (m: Pathed) => m.subpaths.map((_, i) => samples(m, i));
+/** One timeline period read back as marks: its label box, marker, string and event tag. */
+export function anatomy(d: Diagram, i: number) {
+  const kids = d.get(`period:period-${i}`).children;
+  const texts = kids.filter(hasText).sort((a, b) => b.box()![1] - a.box()![1]);
+  const paths = kids.filter((m): m is Pathed => !hasText(m) && pathed(m));
+  const outlined = paths.filter((m) => m.style.fill === 'none' || !m.style.fillOpacity);
+  const boxes = outlined.filter((m) => m.subpaths.length === 4).sort((a, b) => b.box()![1] - a.box()![1]);
+  // The string is the narrower single outline, the ring the wider; the dot is the smallest fill.
+  const [string, ring] = outlined.filter((m) => m.subpaths.length === 1).sort((a, b) => a.width() - b.width()) as [
+    Pathed,
+    Pathed,
+  ];
+  const dot = paths.filter((m) => !outlined.includes(m)).sort((a, b) => a.width() - b.width())[0]!;
+  return {
+    period: {
+      box: boxes[0]!.box()! as Box,
+      sides: lines(boxes[0]!),
+      label: texts[0]!.box()! as Box,
+      text: (texts[0] as unknown as { text: string }).text,
+    },
+    event: {
+      box: boxes[1]!.box()! as Box,
+      sides: lines(boxes[1]!),
+      label: texts[1]!.box()! as Box,
+      text: (texts[1] as unknown as { text: string }).text,
+    },
+    ring: lines(ring)[0]!,
+    string: lines(string)[0]!,
+    dot: lines(dot)[0]!,
+    marks: paths.length + texts.length,
+    outlines: outlined.reduce((n, m) => n + m.subpaths.length, 0),
+    filled: paths.length - outlined.length,
+    words: texts.length,
+  };
+}
+
+/** Polylines as one path, a subpath each. */
+export function polylines(
+  ls: readonly (readonly Pt[])[],
+  stroke: string,
+  strokeWidth: number,
+  opts: { fill?: boolean; opacity?: number } = {},
+): VMobject {
+  const vm = new VMobject({
+    stroke,
+    strokeWidth,
+    strokeOpacity: opts.opacity ?? 1,
+    fill: opts.fill ? stroke : 'none',
+    fillOpacity: opts.fill ? 1 : 0,
+    lineCap: 'round',
+    lineJoin: 'round',
+  });
+  for (const l of ls) {
+    vm.startNewPath(l[0]! as Vec);
+    for (const p of l.slice(1)) vm.addLineTo(p as Vec);
+    if (opts.fill) vm.closePath();
+  }
+  return vm;
 }

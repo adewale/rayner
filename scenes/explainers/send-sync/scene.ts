@@ -1,11 +1,11 @@
-import { Scene, Text, Rectangle, Group, view } from '../../../src/index.ts';
-import type { Box } from '../../../src/index.ts';
+import { Scene, Group, view } from '../../../src/index.ts';
 import { stage, settingsOf, Card } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SINGLES, WRAPS, OPENING, OPENING_TYPE, CHECK_TYPES, INNERS, t, build, nameOf, isSend, isSync, quadrantOf, threads } from './model.ts';
 import type { Inner, Wrapper, Quadrant, Layer, RustType } from './model.ts';
+import { SIZE, SPOT, QUADRANT, chart, LEFT, RIGHT, ZOOM, valueName, columnLines, quadrantMap } from './picture.ts';
 
-// Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in lib/send-sync.ts
+// Sources, all at rust-lang/rust tag 1.99.1 unless named otherwise; lines are quoted in model.ts
 // and test/explain-send-sync.test.ts.
 const RUST = 'https://github.com/rust-lang/rust/blob/1.99.1/library/';
 const REFERENCE =
@@ -13,64 +13,21 @@ const REFERENCE =
 const NOMICON =
   'https://github.com/rust-lang/nomicon/blob/60ed8f3bb9d22a60865197a0ac74911436703430/src/send-and-sync.md';
 
-// Phone legibility sets every size here. On a 390 px page the stage is 358 px wide, so a label needs
-// 0.536 units (43 px on a 1280 px stage) to be 12 px there; native text is 0.54 units, so it reads
-// at 12 px without a close-up.
-// The camera frames one quadrant at 0.975 of the chart's box, and the plot is square (569 px), so a
-// quadrant is 284.5 px across and the box's shorter side sets the scale. The box is 7.7 units tall,
-// from the stage's foot to just under the heading's line (whose foot is near y = 3.3, so a taller box
-// draws a framed quadrant's top edge through it), so a quadrant is 7.51 units and a point label of
-// 20.4 px is 0.538 units. That size still fits the longest name, "x is Arc<Mutex<Cell<i32>>>", inside
-// its quadrant, to the right of its point.
-// The axis labels are 48 px of a 696 px chart, so they read in the whole chart, and stand 16 px further
-// off the plot than usual so that none of them shows at the edge of a framed quadrant.
-// The code block runs from -7.8 to 7.8: its longest line at 0.54 units needs a box 15.6 units wide,
-// and a narrower box shrinks every line below 0.536.
-const SIZE = 0.54;
-const HEAD =
-  '---\nconfig:\n  quadrantChart:\n    chartWidth: 696\n    chartHeight: 680\n    pointLabelFontSize: 20.4\n    quadrantLabelFontSize: 32\n    xAxisLabelFontSize: 48\n    yAxisLabelFontSize: 48\n    yAxisLabelPadding: 12\n---\n';
-// Every point sits at one fixed spot per quadrant: at the left edge, so its name fits to its right, and
-// below the quadrant's own name, which Mermaid centres in it.
-// Mermaid's quadrant numbers, with x = Send and y = Sync: 1 both, 2 Sync only, 3 neither, 4 Send only.
-const SPOT: Record<Quadrant, [number, number]> = {
-  1: [0.52, 0.625],
-  2: [0.02, 0.625],
-  3: [0.02, 0.125],
-  4: [0.52, 0.125],
-};
-const QUADRANT: Record<Quadrant, string> = { 1: 'Send and Sync', 2: 'Sync only', 3: 'Neither', 4: 'Send only' };
-const chart = (points: readonly { name: string; q: Quadrant }[]) =>
-  HEAD +
-  'quadrantChart\n  x-axis Not Send --> Send\n  y-axis Not Sync --> Sync\n' +
-  ([1, 2, 3, 4] as const).map((n) => `  quadrant-${n} ${QUADRANT[n]}\n`).join('') +
-  points.map((p) => `  ${p.name}: [${SPOT[p.q][0]}, ${SPOT[p.q][1]}]\n`).join('');
-
-// The chart takes the left half; words take the right.
-const LEFT: Box = [-7.85, -4.5, -0.05, 3.2];
-const RIGHT: Box = [0.45, -4.25, 7.55, 3.05];
-const ZOOM = 1.25;
-
 const WRAPPER_LABEL: Record<Wrapper, string> = { arc: 'Arc<T>', mutex: 'Mutex<T>', 'arc-mutex': 'Arc<Mutex<T>>' };
 const yesNo = (b: boolean) => (b ? 'yes' : 'no');
 const traits = (send: boolean, sync: boolean) =>
   send && sync ? 'Send and Sync' : send ? 'Send but not Sync' : sync ? 'Sync but not Send' : 'neither Send nor Sync';
-// The Agentic Mermaid verifier strips anything between < and > from a label before it compares it
-// with the drawing, so a name that starts with a nested generic fails capture, and its edit operations
-// refuse a point name with a colon. A name for a value, "x is ...", starts with a plain word. The
-// scene's last step is about a value x of the built type.
-const valueName = (type: string) => `x is ${type}`;
 /** The script's one-sentence answer (script.md); the arc-cell step's caption opens with it. */
 const ANSWER = 'Arc<T> is Send only when T is both Send and Sync';
-/** Where each quadrant's cell sits in the small map under the right column, in Mermaid's numbering. */
-const MAP: Record<Quadrant, [number, number]> = { 1: [6.35, -1.95], 2: [4.15, -1.95], 3: [4.15, -2.95], 4: [6.35, -2.95] };
-// The check questions' types: a plain Cell, moved or borrowed; and the two types no step draws.
-const CELL = {
-  send: isSend(INNERS.cell),
-  sync: isSync(INNERS.cell),
-  spawn: isSend(INNERS.cell),
-  scope: isSend(t('&', INNERS.cell)),
-};
-const [RC_MUTEX, ARC_GUARD] = CHECK_TYPES as [RustType, RustType];
+// The script's check answers (script.md) state the model's answers for a plain Cell, moved or
+// borrowed, and for the two types no step draws (test/explain-send-sync.test.ts compiles them with
+// rustc); hold the model to what they say, so a change that would make an answer false fails here.
+{
+  const [rcMutex, arcGuard] = CHECK_TYPES as [RustType, RustType];
+  const found = [isSend(INNERS.cell), isSync(INNERS.cell), isSend(t('&', INNERS.cell)), isSend(rcMutex), isSync(rcMutex), isSend(arcGuard), isSync(arcGuard), nameOf(rcMutex), nameOf(arcGuard)];
+  const stated = [true, false, false, false, false, false, false, 'Rc<Mutex<i32>>', 'Arc<MutexGuard<i32>>'];
+  if (JSON.stringify(found) !== JSON.stringify(stated)) throw new Error(`script.md's check answers state ${JSON.stringify(stated)}; the model gives ${JSON.stringify(found)}`);
+}
 /** What the steps record, accumulated: the fields the views below draw from. */
 interface SendSyncState {
   /** The quadrant the step's point is in, which the small map fills. */
@@ -80,10 +37,10 @@ interface SendSyncState {
   threads: { name: string; spawnMove: boolean; scopeBorrow: boolean };
 }
 
+// The title, answer and check questions come from script.md's intent header.
 export default class SendSyncExplainer extends Scene {
   static meta = {
     id: 'send-sync',
-    title: 'Can this Rust value cross a thread boundary?',
     sources: [
       RUST + 'alloc/src/sync.rs#L284-L286',
       RUST + 'alloc/src/rc.rs#L334-L342',
@@ -95,23 +52,6 @@ export default class SendSyncExplainer extends Scene {
       RUST + 'std/src/thread/scoped.rs#L201-L204',
       REFERENCE + '#L729-L734',
       NOMICON + '#L8-L29',
-    ],
-    // The script's answer, stated by the arc-cell step, and three questions on types or uses no step draws;
-    // each answer is the model's, compiled by test/explain-send-sync.test.ts.
-    answer: ANSWER,
-    checks: [
-      {
-        question: 'Take a plain Cell<i32> c, with no Arc. Does thread::spawn(move || c.set(1)) compile? Does a scoped thread that borrows &c?',
-        answer: `${CELL.spawn ? 'The move compiles' : 'The move is refused'}: it hands the whole Cell to the new thread, and Cell<i32> is ${CELL.send ? '' : 'not '}Send. The borrow ${CELL.scope ? 'compiles' : 'is refused'}: the scoped thread would share c with its parent through &c, and Cell<i32> is ${CELL.sync ? '' : 'not '}Sync.`,
-      },
-      {
-        question: 'Mutex made Cell<i32> safe to share. Does Rc<Mutex<i32>> cross to another thread?',
-        answer: `${isSend(RC_MUTEX) ? 'Yes' : 'No'}. Rc’s plain owner count is the problem, not the value inside, so Rc<T> is neither Send nor Sync whatever T is, and ${nameOf(RC_MUTEX)} is ${traits(isSend(RC_MUTEX), isSync(RC_MUTEX))}.`,
-      },
-      {
-        question: 'Is Arc<MutexGuard<i32>> Send?',
-        answer: `${isSend(ARC_GUARD) ? 'Yes' : 'No'}. Arc needs T to be both Send and Sync, and MutexGuard<i32> is Sync but not Send, so ${nameOf(ARC_GUARD)} is neither.`,
-      },
     ],
     // The sentences that reach beyond the scenario on screen, and what holds them. The rule table test reads the
     // impl lines; the evaluator test holds the model to rustc 1.99.1's answers.
@@ -157,34 +97,7 @@ export default class SendSyncExplainer extends Scene {
     const st = () => this.state as unknown as SendSyncState;
 
     /** Lines of text at the reader's size, wrapped to the right column, from `top` down. */
-    const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => {
-      const out: Text[] = [];
-      let y = top - SIZE * 0.6;
-      for (const row of rows) {
-        const head = typeof row !== 'string';
-        const words = (head ? row.text : row).split(' ');
-        let line = '';
-        const flush = () => {
-          out.push(
-            new Text(line, {
-              fontSize: SIZE,
-              color: head ? s.emphasis : ink,
-              weight: head ? 'bold' : 'normal',
-              anchor: 'start',
-            }).moveTo([RIGHT[0] + 0.1, y], [-1, 0]),
-          );
-          y -= SIZE * 1.45;
-          line = '';
-        };
-        for (const w of words) {
-          const next = line ? line + ' ' + w : w;
-          if (line && new Text(next, { fontSize: SIZE }).width() > RIGHT[2] - RIGHT[0] - 0.2) flush();
-          line = line ? line + ' ' + w : w;
-        }
-        flush();
-      }
-      return out;
-    };
+    const lines = (rows: readonly (string | { text: string; head: true })[], top: number) => columnLines(rows, top, { ink, emphasis: s.emphasis });
     /** A card at the top of the right column, drawn from the state by `rows`: a view check holds to it. */
     const column = async (rows: (st: SendSyncState) => readonly (readonly [string, string])[], title?: string) => {
       const card = view(
@@ -212,31 +125,7 @@ export default class SendSyncExplainer extends Scene {
      */
     const locator = async (here: Quadrant) => {
       this.state.here = here;
-      const map = view(
-        this,
-        (state) => {
-          const filled = (state as unknown as SendSyncState).here;
-          const parts = ([1, 2, 3, 4] as const).map((n) =>
-            new Rectangle({
-              width: 2.1,
-              height: 0.92,
-              fill: n === filled ? s.emphasis : s.palette.paper,
-              stroke: s.soft,
-              strokeWidth: 0.025,
-            }).moveTo(MAP[n]),
-          );
-          const word = (text: string, at: [number, number], edge: [number, number]) =>
-            new Text(text, { fontSize: SIZE, color: ink }).moveTo(at, edge);
-          return new Group(
-            ...parts,
-            word('Sync', [3.0, MAP[2][1]], [1, 0]),
-            word('Not Sync', [3.0, MAP[3][1]], [1, 0]),
-            word('Not Send', [MAP[3][0], -3.8], [0, 0]),
-            word('Send', [MAP[4][0], -3.8], [0, 0]),
-          );
-        },
-        { place: false },
-      );
+      const map = view(this, (state) => quadrantMap((state as unknown as SendSyncState).here, { ink, paper: s.palette.paper, emphasis: s.emphasis, soft: s.soft }), { place: false });
       await s.enter(map, { describe: () => `Map of the four quadrants, “${QUADRANT[st().here]}” filled` });
     };
     /** A point's two answers, said on the point, with the column's words and the map beside the chart. */

@@ -1,5 +1,5 @@
-import { Group, Text, Line, Rectangle, shaperFor } from '../../../src/index.ts';
-import type { FontName } from '../../../src/index.ts';
+import { Group, Text, Line, Rectangle, BraceLabel, shaperFor } from '../../../src/index.ts';
+import type { FontName, Mobject } from '../../../src/index.ts';
 import { label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
@@ -72,4 +72,31 @@ export function frames(font: FontName): StagedStep[] {
       },
     }),
   ];
+}
+
+/** A width ruler under a text: a tick at every glyph's pen position, and a brace labelled with the measured width. */
+export function ruler(text: Text, stops: readonly number[], label: string, color: string, size = 0.24): Group {
+  const [x0, y0] = text.box()!;
+  const y = y0 - 0.12;
+  const g = new Group();
+  for (const x of stops.slice(1))
+    g.add(new Line([x0 + x, y], [x0 + x, y - 0.14], { stroke: color, strokeWidth: 0.014 }));
+  // The brace spans the text's advance box: the width the shaper measured.
+  const brace = new BraceLabel(text, label, [0, -1], { fontSize: size, color, buff: 0.3, labelBuff: 0.1 });
+  brace.brace.setStroke(color, 0.022);
+  g.add(brace);
+  return g;
+}
+
+/** Thin lines from each source glyph (as `ghost` shows it) to the glyph it was paired with. */
+export function pairLines(pairs: Array<[Mobject, Mobject]>, ghostOf: (m: Mobject) => Mobject, color: string): Group {
+  const g = new Group();
+  for (const [a, b] of pairs) {
+    const p = ghostOf(a).box()!,
+      q = b.box()!;
+    g.add(
+      new Line([(p[0] + p[2]) / 2, p[1] - 0.1], [(q[0] + q[2]) / 2, q[3] + 0.1], { stroke: color, strokeWidth: 0.012 }),
+    );
+  }
+  return g;
 }

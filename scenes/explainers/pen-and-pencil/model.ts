@@ -3,6 +3,9 @@
 // that follows each line like a damped spring with tremor, pencil hatching clipped to a shape,
 // scenery drawn far to near only on paper the chart does not own, and Hershey single-stroke
 // letters. It models the method, not the page's code, which carries no licence.
+// Its limits: the spring hand (HAND) and the chained free hand (FREEHAND: each move turned by up to
+// 2° and stretched by up to 3%) are chosen models, not measured properties of a real hand. The
+// timeline is one made-up world (WORLD) of four periods with one event each.
 import { SIMPLEX } from './hershey-simplex.ts';
 
 export type Pt = [number, number];

@@ -1,3 +1,12 @@
+// The henge explainer's model: where the Sun sets and rises for an observer at New York's latitude, in
+// spherical horizon coordinates, and the days its sunset crosses a street's bearing.
+// Its limits: a fixed 23.44° tilt and a circular orbit, longitude 0 at the March equinox, so the
+// seasonal spacing is conceptual, not a prediction of calendar dates. The Sun's centre is timed at a
+// flat geometric horizon; refraction, terrain, observer elevation, local obstructions and the Sun's
+// changing apparent size are omitted. Half and full Sun use one solar radius (0.2666°) at the same
+// bearing, and their day gap converts longitude at the mean rate, so it is approximate (the real orbit
+// is slower in early July). Actual event times need a stated visible horizon and an ephemeris.
+// sky() is checked against ERFA's hd2ae (test/fixtures/henge-erfa.json, from tools/oracle/henge.py).
 /** Fixed-tilt teaching geometry, not an ephemeris. Angles are degrees; azimuth is north=0, east=90. */
 export const LATITUDE = 40.75;
 export const TILT = 23.44;

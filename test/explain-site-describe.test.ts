@@ -4,11 +4,9 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describeExplainer } from '../explain/testing.ts';
-import type { ExplainerClass } from '../explain/index.ts';
 import type { ExplainerDescription } from '../explain/testing.ts';
 import { writeDescriptions, summaryOf, describeProject, checkBuilt } from '../tools/lib/explain-site-describe.ts';
 import { collectProject, loadScene, sceneInputs, ROOT } from '../tools/lib/explain-project.ts';
-import RingBuffer from '../scenes/explainers/ring-buffer/scene.ts';
 
 test('site:export copies each explainer\'s describe.json from demos:build as <id>.json beside its page, and writes llms.txt at the site root', async () => {
   const root = await mkdtemp(join(tmpdir(), 'explain-site-'));
@@ -31,7 +29,8 @@ test('site:export copies each explainer\'s describe.json from demos:build as <id
     // in the bytes demos:build wrote.
     const json = await readFile(join(root, 'projects/rayner/ring-buffer.json'), 'utf8');
     assert.equal(json, await readFile(join(built, 'ring-buffer/describe.json'), 'utf8'));
-    assert.deepEqual(JSON.parse(json), await describeExplainer(RingBuffer as ExplainerClass));
+    // As the project collects it: the scene with its script's intent (title, answer, checks, checked against).
+    assert.deepEqual(JSON.parse(json), await describeExplainer((await collectProject(join(ROOT, 'scenes/explainers/ring-buffer'), { write: false })).Scene));
     // Copied, not described again: glyph's file is published as it is.
     assert.equal(await readFile(join(root, 'projects/rayner/glyph.json'), 'utf8'), glyph);
     const llms = await readFile(join(root, 'llms.txt'), 'utf8');

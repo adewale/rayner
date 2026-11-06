@@ -1,4 +1,4 @@
-// The two commits exgit draws, built with the object model in lib/git.ts, and what the second one writes.
+// The two commits exgit draws, built with the object model in model.ts, and what the second one writes.
 // test/explain-exgit.test.ts replays each change with the Git CLI and compares the objects it writes.
 import { Repo, AUTHOR, parseTree } from './model.ts';
 

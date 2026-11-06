@@ -1,14 +1,15 @@
-import { frames as readerFrames } from './picture.ts';
-import { Scene, Group, Rectangle, Text } from '../../../src/index.ts';
+import { frames as readerFrames, radar, sideLines, radarKey, CHROMA, SHARE, SIDE, SIZE } from './picture.ts';
+import type { Curve } from './picture.ts';
+import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
-import { stage, settingsOf, REGIONS, mermaid } from '../../../explain/index.ts';
+import { stage, settingsOf } from '../../../explain/index.ts';
 import type { Diagram } from '../../../explain/index.ts';
 import { SHADES, cssMap, inside, rows, summarize, swatch } from './model.ts';
-import type { Row, Shade } from './model.ts';
+import type { Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
 type Side = 'above' | 'below' | 'left' | 'right';
 
-// Sources. Every number on screen comes from lib/tailwind-gamut.ts, which cites the lines it uses.
+// Sources. Every number on screen comes from model.ts, which cites the lines it uses.
 const THEME =
   'https://github.com/tailwindlabs/tailwindcss/blob/c2b24dd15fed1c59dd521bd86082f520c9f5ad0d/packages/tailwindcss/theme.css';
 const BLOG =
@@ -18,44 +19,9 @@ const CSS4 = 'https://github.com/w3c/csswg-drafts/blob/e1bd39185acd650512f82e1ee
 const STYLE = 'hand-drawn';
 type Screen = 'srgb' | 'p3';
 
-// Radar-beta with a ring label on each ring. A 290 px canvas (radius 89 px rather than 120) keeps the
-// spoke and ring labels at least 14 px on a 1280 px stage when the chart fills the `main` region; the
-// legend is drawn natively in the side column, at the reader's size.
-const HEAD = mermaid.frontMatter({ radar: { tickLabels: true, width: 290, height: 290 } });
-interface Curve {
-  id: 'srgb' | 'tw' | 'p3';
-  label: string;
-  values: readonly number[];
-}
-interface Scale {
-  min: number;
-  max: number;
-  ticks: number;
-}
-/** Absolute chroma, 0 at the centre, rings 0.05 apart. */
-const CHROMA: Scale = { min: 0, max: 0.35, ticks: 7 };
-/** Chroma as a percentage of an edge: 50 at the centre, rings 25 apart, so 100 is a ring. */
-const SHARE: Scale = { min: 50, max: 150, ticks: 4 };
-const radar = (all: readonly Row[], curves: readonly Curve[], scale: Scale) =>
-  [
-    HEAD,
-    'radar-beta',
-    `  axis ${all.map((r) => `${r.family}["${r.family} ${Math.round(r.h)}°"]`).join(', ')}`,
-    ...curves.map((c) => `  curve ${c.id}["${c.label}"]{${c.values.join(', ')}}`),
-    `  max ${scale.max}`,
-    `  min ${scale.min}`,
-    `  ticks ${scale.ticks}`,
-    '  graticule polygon',
-    '  showLegend false',
-  ].join('\n');
-
-// The radar fills `main`; the side column holds a card, a few lines and the key.
-const SIDE: Box = [REGIONS.side[0], REGIONS.side[1], REGIONS.side[2], 3.05];
-const SIZE = 0.24;
-/** Hand-drawn's first three series colours, as a reader would name them. */
-const COLOUR_NAME: Record<Curve['id'], string> = { srgb: 'dark grey', tw: 'blue', p3: 'lavender' };
-
 const pct = (v: number) => percent(v, { of: 100 });
+
+const deg = (h: number) => `${h.toFixed(1)}°`;
 
 // The ending questions, from the model. Check 1: the default opening colour's mapped chroma, written back
 // at its original lightness and hue, still lies outside sRGB: the mapping moved lightness and hue too.
@@ -71,12 +37,17 @@ if (OPEN.furthest.family === OPEN.mostOfSrgb.family || RAW.srgb <= OPEN_ROW.srgb
 const ROOMY = OPEN.leastOfSrgb.family;
 const ROOMY_700 = rows('700').find((r) => r.family === ROOMY)!;
 if (!ROOMY_700.outsideSrgb) throw new Error(`${ROOMY}-700 must lie outside sRGB`);
-const deg = (h: number) => `${h.toFixed(1)}°`;
+// The script's check answers (script.md) quote these values; hold the model to the text they state.
+{
+  const stated = 'cyan|71.5|215.221|0.130|0.126|72.2|217.7°|lime|0.024|0.209|pink|90.4%|105.6%';
+  const found = [OPENING.family, (OPENING.L * 100).toFixed(1), OPENING.h, OPEN_ROW.shown.toFixed(3), OPEN_ROW.srgb.toFixed(3), (OPEN_MAPPED.L * 100).toFixed(1), deg(OPEN_MAPPED.h), RAW.family, OPEN.furthest.value.toFixed(3), RAW.srgb.toFixed(3), ROOMY, pct(OPEN.leastOfSrgb.value), pct(ROOMY_700.ofSrgb)].join('|');
+  if (found !== stated) throw new Error(`script.md's check answers state ${stated}; the model gives ${found}`);
+}
 
+// The title, answer and check questions come from script.md's intent header.
 export default class TailwindGamutExplainer extends Scene {
   static meta = {
     id: 'tailwind-gamut',
-    title: 'Will this Tailwind colour fit the display?',
     sources: [
       THEME + '#L10-L323',
       BLOG + '#L356-L366',
@@ -85,27 +56,11 @@ export default class TailwindGamutExplainer extends Scene {
       CSS4 + 'Overview.bs#L6383-L6609',
       'https://www.npmjs.com/package/colorjs.io/v/0.7.1',
     ],
-    // The script's answer and check questions (script.md); check holds a step (palette) to stating the answer.
-    answer: 'Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written',
     // Sentences about everything one radar draws.
     claims: [
       { says: 'lie outside, and only', shown: true as const },
       { says: 'every colour past it shows', shown: true as const },
       { says: 'lies beyond sRGB’s on every spoke', shown: true as const },
-    ],
-    checks: [
-      {
-        question: `An sRGB screen paints ${OPENING.family}-500 with chroma ${OPEN_ROW.shown.toFixed(3)}. Suppose you write that chroma yourself, at ${OPENING.family}-500’s own lightness and hue: oklch(${(OPENING.L * 100).toFixed(1)}% ${OPEN_ROW.shown.toFixed(3)} ${OPENING.h}). Does it fit sRGB?`,
-        answer: `No. The sRGB edge at that lightness and hue is ${OPEN_ROW.srgb.toFixed(3)}, below ${OPEN_ROW.shown.toFixed(3)}. The mapped colour fits because the final clip also moved it, to lightness ${(OPEN_MAPPED.L * 100).toFixed(1)}% and hue ${deg(OPEN_MAPPED.h)}, where the edge is higher. Whether a chroma fits depends on the lightness and hue it comes with.`,
-      },
-      {
-        question: `In raw chroma, ${RAW.family}-500 is the 500 colour furthest past the sRGB edge. Why does the share view put ${OPENING.family}-500 first instead?`,
-        answer: `The edge sits at a different chroma on every spoke. ${RAW.family}-500 overshoots by ${OPEN.furthest.value.toFixed(3)} on an edge at ${RAW.srgb.toFixed(3)}; ${OPENING.family}’s edge is ${OPEN_ROW.srgb.toFixed(3)}, so its smaller overshoot is a larger share of it.`,
-      },
-      {
-        question: `${ROOMY}-500 has the most room of the 500 shades, at ${pct(OPEN.leastOfSrgb.value)} of its sRGB edge. Does that make ${ROOMY}-700 safe on an sRGB screen?`,
-        answer: `No: ${ROOMY}-700 asks for ${pct(ROOMY_700.ofSrgb)} of its edge, so an sRGB screen maps it. The darker shade has its own lightness and chroma, and the edge moves with lightness, so a family’s name says nothing about whether it fits.`,
-      },
     ],
   };
   static settings = [
@@ -139,57 +94,9 @@ export default class TailwindGamutExplainer extends Scene {
     const tw = `Tailwind ${shade}`;
 
     /** Lines of text wrapped to the side column, from `top` down. */
-    const lines = (texts: readonly string[], top: number, size = SIZE) => {
-      const made: Text[] = [];
-      let y = top - size * 0.6;
-      const width = SIDE[2] - SIDE[0] - 0.1;
-      for (const text of texts) {
-        let line = '';
-        const flush = () => {
-          made.push(new Text(line, { fontSize: size, color: ink, anchor: 'start' }).moveTo([SIDE[0], y], [-1, 0]));
-          y -= size * 1.4;
-          line = '';
-        };
-        for (const w of text.split(' ')) {
-          const next = line ? `${line} ${w}` : w;
-          if (line && new Text(next, { fontSize: size }).width() > width) flush();
-          line = line ? `${line} ${w}` : w;
-        }
-        flush();
-        y -= size * 0.5;
-      }
-      return { made, bottom: y };
-    };
+    const lines = (texts: readonly string[], top: number, size = SIZE) => sideLines(texts, top, ink, size);
     /** The key: one swatch per curve shown, in the curve's own colour, at the foot of the side column. */
-    const key = (d: Diagram, curves: readonly Curve[]) => {
-      const rowsOut: Group[] = [];
-      curves.forEach((c, i) => {
-        const fill =
-          d
-            .get(`curve:${c.id}`)
-            .family()
-            .map((m) => m.style.fill)
-            .find((f) => f && f !== 'none') ?? ink;
-        const y = SIDE[1] + 0.35 + (curves.length - 1 - i) * 0.42;
-        const swatch = new Rectangle({
-          width: 0.26,
-          height: 0.26,
-          fill,
-          fillOpacity: 0.6,
-          stroke: fill,
-          strokeWidth: 0.02,
-        }).moveTo([SIDE[0] + 0.13, y]);
-        const label = new Text(c.label, { fontSize: SIZE, color: ink, anchor: 'start' }).moveTo(
-          [SIDE[0] + 0.4, y],
-          [-1, 0],
-        );
-        rowsOut.push(new Group(swatch, label));
-      });
-      return {
-        mobs: rowsOut,
-        describe: `Key: ${curves.map((c) => `${COLOUR_NAME[c.id]}, ${c.label}`).join('; ')}`,
-      };
-    };
+    const key = (d: Diagram, curves: readonly Curve[]) => radarKey(d, curves, ink);
     /** A card at the top of the side column, lines under it, and the key at its foot, entering together. */
     const column = async (
       d: Diagram | null,

@@ -1,5 +1,12 @@
 // How a CalDAV calendar stores a weekly meeting and its exceptions, and what a server does with them.
 // Pure TypeScript, no Node APIs: the scene and the tests both read from here.
+// Its limits: one six-occurrence weekly series in UTC. No time zones or daylight-saving transitions,
+// no general recurrence expansion (only the rule parts the series uses), and no scheduling client's
+// display policy: keeping STATUS:CANCELLED is the delivery behaviour of the server shown (sabre/dav
+// in Baïkal), not a claim that every calendar app leaves a cancelled event visible. expand() is the
+// model's own reading of the stored copy, not sabre/vobject's expand(), which drops a master-less
+// override whose RECURRENCE-ID equals its DTSTART (tested separately; the stored VEVENT is not
+// deleted). validate() follows sabre, which refuses a second RRULE that RFC 5545 only says SHOULD NOT occur.
 //
 // Sources (line numbers are those of the rfc-editor.org .txt files and of the tagged PHP files):
 // - RFC 5545 §3.6.1 (lines 2907–2957): in a VEVENT, recurid is "OPTIONAL, but MUST NOT occur more than

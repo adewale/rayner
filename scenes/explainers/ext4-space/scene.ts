@@ -23,14 +23,16 @@ import {
 } from './model.ts';
 import type { Size, Slice, Space, WholeStage } from './model.ts';
 
-// Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in lib/ext4-space.ts and
+// Sources: e2fsprogs at tag v1.47.3 and Linux at tag v6.8; lines are quoted in model.ts and
 // test/explain-ext4-space.test.ts, which also freezes mkfs.ext4 1.47.3 runs and a mounted kernel's statfs.
 const E2FS = 'https://github.com/tytso/e2fsprogs/blob/v1.47.3/';
 const LINUX = 'https://github.com/torvalds/linux/blob/v6.8/fs/ext4/';
 const STYLE = 'github-light';
 
 // Slice colours by name. A pie's colours go by slice position and a morph keeps its config, so each
-// pie's config lists the colours of the slices it will ever have, in order.
+// pie's config lists the colours of the slices it will ever have, in order. The whole-disk pies keep the
+// root reserve, the kernel's reserve and the metadata in their own colours, so free-but-reserved blocks
+// never read as occupied ones; the metadata-only pie has a different whole and its own component colours.
 const COLORS: Record<string, string> = {
   'Inode tables': '#8250df',
   Journal: '#bf8700',
@@ -62,11 +64,12 @@ const RATIOS = (Object.keys(SIZES) as Size[]).map((k) => {
   return (x.root / x.layout.metadata).toFixed(1);
 });
 /**
- * The script's one-sentence answer (script.md); the reserve step's caption states it. It names its
- * disks: at 2 GiB, a measured size, the reserve falls just short of the metadata (check 1).
+ * The answer in script.md's intent header, computed here because the reserve step's caption states it.
+ * It names its disks: at 2 GiB, a measured size, the reserve falls just short of the metadata (check 1).
  */
 const ANSWER = `Much of it is free space held back for root: the default 5% reserve is ${RATIOS.slice(0, -1).join(', ')} and ${RATIOS.at(-1)} times all the metadata on the ${(Object.keys(SIZES) as Size[]).map((k) => SIZES[k].label).join(', ').replace(/, ([^,]*)$/, ' and $1')} disks`;
 
+// The script's check answers rest on these; if one throws, the answer in script.md needs rewriting.
 // Check 1: doubling 1 GiB to 2 GiB also doubles the journal, and the 5% reserve falls just short.
 const TWO = space(2 * GiB, DEFAULT_RESERVE),
   ONE = space(GiB, DEFAULT_RESERVE);
@@ -98,10 +101,10 @@ interface Ext4State {
 }
 const CARD: Box = [1.35, -4.25, 7.55, 3.25];
 
+// The title, answer and check questions come from script.md's intent header.
 export default class Ext4SpaceExplainer extends Scene {
   static meta = {
     id: 'ext4-space',
-    title: 'Where does an empty ext4 filesystem’s space go?',
     sources: [
       E2FS + 'misc/mke2fs.conf.in#L1-L29',
       E2FS + 'misc/mke2fs.c#L1433-L1443',
@@ -124,28 +127,12 @@ export default class Ext4SpaceExplainer extends Scene {
       LINUX + 'super.c#L6807-L6829',
       LINUX + 'balloc.c#L620-L666',
     ],
-    // The script's answer and check questions (script.md); check holds a step (reserve) to stating the answer.
-    answer: ANSWER,
     // Sentences that reach past what one step draws, and the test that holds each.
     claims: [
       { says: 'users can write only', shown: true as const },
       { says: 'two bitmaps in every group', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
       { says: 'Every group has two bitmaps', test: 'test/explain-ext4-space.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
       { says: 'only the kernel’s', test: 'test/explain-ext4-space.test.ts: the model gives the mounted kernel’s statfs' },
-    ],
-    checks: [
-      {
-        question: `On the 1 GiB disk the default reserve just covers the metadata. Going to 2 GiB doubles the reserve, and also doubles the journal, from ${bytesOf(ONE.layout.journal)} to ${bytesOf(TWO.layout.journal)}. Does the 5% reserve still cover all the metadata?`,
-        answer: `No, it falls just short: ${count(TWO.root)} reserved blocks against ${count(TWO.layout.metadata)} of metadata, ${(TWO.root / TWO.layout.metadata).toFixed(3)} times. The journal is most of the metadata on a disk this small, so doubling it grows the metadata about as fast as the 5% reserve. These are the counts a recorded mkfs.ext4 1.47.3 run at 2 GiB gives.`,
-      },
-      {
-        question: 'At 4 TiB mke2fs switches to its big type, with one inode per 32 KiB of disk instead of 16 KiB. How does a 4 TiB disk’s metadata compare with that of a disk 128 MiB smaller?',
-        answer: `The bigger disk has less. Its inode tables are about half the size, so its metadata is ${count(BIG.layout.metadata)} blocks against ${count(BELOW.layout.metadata)}, and users can write ${bytesOf(BIG.users - BELOW.users)} more although the disk grew by only 128 MiB.`,
-      },
-      {
-        question: 'An administrator runs tune2fs -m 0 on the 1 TiB disk to reclaim the filesystem’s overhead. What do users get back, and what stays?',
-        answer: `They get back the root reserve, ${count(T5.root)} blocks or ${bytesOf(T5.root)}, which was free all along. The ${count(T5.layout.metadata)} blocks of inode tables, journal and other metadata stay, and so do the kernel’s ${count(T0.kernel)}.`,
-      },
     ],
   };
   static settings = [

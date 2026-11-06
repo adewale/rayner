@@ -1,4 +1,4 @@
-import { frames as readerFrames, ANSWER } from './picture.ts';
+import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
 import { stage, regionBox } from '../../../explain/index.ts';
 import {
@@ -19,24 +19,10 @@ const QUERIES = ['cloud api', 'databse'] as const;
 const BOUNDARY = 'graph LR\nAgent[Agent] --> Find[2password find]\nFind --> Op[op CLI]\nOp --> Vault[1Password vault]';
 const pad = (v: unknown, n: number) => String(v).padEnd(n);
 
-/** The check questions' answers, from the same find: a query whose words are in no title. */
-const CHECK = (() => {
-  const query = 'cloud key',
-    result = find([query]);
-  if (result.matches.length || result.suggestions) throw new Error(`“${query}” should find nothing`);
-  const best = Math.max(...ITEMS.map((i) => closeness(terms(query), i.title)));
-  return { blind: { query, best: best.toFixed(3), calls: result.opCalls.length } };
-})();
-const match0 = (() => {
-  const m = find(['cloud api']).matches[0]!,
-    [vault, title, field] = m.ref.slice('op://'.length).split('/');
-  return { ref: m.ref, vault: vault!, title: title!, field: field! };
-})();
-
+// The title, answer and check questions come from script.md's intent header.
 export default class PasswordExplainer extends Scene {
   static meta = {
     id: '2password',
-    title: 'Can an agent use a key it never sees?',
     sources: [
       `${SOURCE}/src/discover.ts`,
       `${SOURCE}/src/op.ts`,
@@ -44,28 +30,12 @@ export default class PasswordExplainer extends Scene {
       'https://developer.1password.com/docs/cli/secret-references/',
       'https://developer.1password.com/docs/service-accounts/use-with-1password-cli/',
     ],
-    // The script's answer and check questions (script.md); check holds reader-boundary to stating the answer.
-    answer: ANSWER,
     // Sentences that reach past the scenarios on screen, and what holds each.
     claims: [
       { says: 'The agent handles only an op:// reference', test: 'test/explain-models.test.ts: 2password find returns references and no field value' },
       { says: 'the agent searches titles, never values', test: 'test/explain-models.test.ts: compares queries with titles alone' },
       { says: 'contains every word of', shown: true as const },
       { says: 'every sample value is searched for in the output', shown: true as const },
-    ],
-    checks: [
-      {
-        question: `The agent searches for “${CHECK.blind.query}”, hoping to find the API key. What does find return, and why?`,
-        answer: `Nothing. No title contains “key”, so nothing matches, and no title is spelled close enough to be suggested (the closest scores ${CHECK.blind.best} against a cut-off of ${SUGGESTION_THRESHOLD}). find compares the query with titles only; it cannot know that ${match0.title} holds a key, and it makes ${CHECK.blind.calls} op call, the item list, without fetching any item.`,
-      },
-      {
-        question: 'The app prints API_KEY to stdout, and the agent reads stdout. Does passing a reference prevent that disclosure?',
-        answer: 'No. The app receives the resolved key and can print it. References keep field values out of find’s output and the launch request; they do not sandbox the app or redact its output.',
-      },
-      {
-        question: `The agent’s transcript, containing ${match0.ref}, is pasted into a team chat. What does the team learn, and can they read the key?`,
-        answer: `They learn names: a vault called ${match0.vault}, an item titled ${match0.title} and a field called ${match0.field}. Reading the value still needs an op session with access to that vault; the reference carries no permission. The names themselves can still be sensitive, since they say which vaults and items exist.`,
-      },
     ],
   };
   override async construct() {

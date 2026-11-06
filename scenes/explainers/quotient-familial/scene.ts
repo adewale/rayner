@@ -1,13 +1,14 @@
-import { Scene, Group, Rectangle, Text, Create, view } from '../../../src/index.ts';
+import { Scene, Group, Create, view } from '../../../src/index.ts';
 import { callout } from '../../../explain/drawing.ts';
 import type { View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, mermaid } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
 import { impot, bareme, tranche, repartition, BAREME, PARAMS, euros, pourcent, partsTexte, NNBSP } from './model.ts';
 import type { Impot } from './model.ts';
+import { drawRegle } from './picture.ts';
 
 // Every rule is read from openfisca-france at tag 176.1.3 (commit 5cc6563); the model in
-// ../lib/quotient-familial.ts quotes file and line for each one.
+// model.ts quotes file and line for each one.
 const OF =
   'https://github.com/openfisca/openfisca-france/blob/5cc6563749b88254b479ef89c98099cb9513d6cb/openfisca_france/';
 const STYLE = 'pen-and-ink';
@@ -28,12 +29,12 @@ const tauxTexte = (q: number) => pourcent(BAREME[2024][tranche(q)]!.rate);
 
 /** The script's one-sentence answer, stated in the multiplie step of every scenario. */
 const REPONSE = `Diviser change l’impôt parce que le barème est progressif${deux} chaque part repart du bas du barème, donc moins d’euros atteignent les tranches les plus taxées que sur le revenu entier`;
-// The check questions' scenarios: one child at three incomes, and the childless couple at 30 000 €.
+// The scenarios of script.md's check questions: one child at three incomes, and the childless couple at 30 000 €.
+// The guards below keep the script's answers true of the model.
 const DEFAUT = impot(65673.88, 1),
   UN30 = impot(30000, 1),
   UN150 = impot(150000, 1),
   BAS = impot(30000, 0),
-  PLAT = BAREME[2024][1]!.rate,
   // around(1 470 − 0,4525 × impôt) is 0 once the impôt passes 1 469,5 / 0,4525 = 3 247,51 €.
   FIN_DECOTE = Math.ceil((PARAMS[2024].decoteSeuil - 0.5) / PARAMS[2024].decoteTaux);
 if (UN30.plafonne || !DEFAUT.plafonne || !UN150.plafonne)
@@ -106,10 +107,10 @@ const chart = (opts: { width: number; height: number; x: string[]; y: string; ba
   ` bar [${opts.bars.map((v) => v.toFixed(2)).join(', ')}]` +
   (opts.line ? `\n line [${opts.line.map((v) => v.toFixed(2)).join(', ')}]` : '');
 
+// The title, answer and check questions come from script.md's intent header.
 export default class QuotientFamilialExplainer extends Scene {
   static meta = {
     id: 'quotient-familial',
-    title: 'Comment les parts changent-elles l’impôt d’un couple ?',
     lang: 'fr',
     watch: { rni: 'Revenu net imposable', parts: 'Parts', quotient: 'Quotient', impot: 'Impôt' },
     sources: [
@@ -123,23 +124,6 @@ export default class QuotientFamilialExplainer extends Scene {
       OF + 'model/prelevements_obligatoires/impot_revenu/ir.py#L3744-L3830',
       'https://github.com/openfisca/openfisca-france/commit/a59104153d67db9c269ad02b57dcefb10206e034',
       'https://github.com/openfisca/openfisca-france/tree/5cc6563749b88254b479ef89c98099cb9513d6cb/tests/leximpact/2024',
-    ],
-    // La réponse du script (script.md), énoncée par l’étape multiplie dans chaque cas, et trois questions
-    // qui demandent d’appliquer le mécanisme à un cas que la scène ne déroule pas.
-    answer: REPONSE,
-    checks: [
-      {
-        question: `Si l’impôt prenait ${pourcent(PLAT)} de chaque euro, sans tranches, un enfant de plus changerait-il l’impôt du couple à ${eur2(65673.88)}${nb}? Pourquoi${nb}?`,
-        answer: `Non${deux} ${pourcent(PLAT)} × (${eur2(65673.88)} ÷ ${partsTexte(DEFAUT.parts)}) × ${partsTexte(DEFAUT.parts)} = ${pourcent(PLAT)} × ${eur2(65673.88)} = ${eur2(PLAT * 65673.88)}, quel que soit le nombre de parts. Diviser ne change l’impôt que parce que le taux monte avec le revenu${deux} avec un seul taux, aucune part ne fait redescendre d’euros vers un taux plus bas.`,
-      },
-      {
-        question: `Avec un enfant, l’avantage de la demi-part reste sous le plafond de ${euros(PARAMS[2024].plafond)} à ${euros(30000)} mais le dépasse à ${eur2(65673.88)}. Pourquoi grandit-il avec le revenu, alors que le plafond reste fixe${nb}?`,
-        answer: `La demi-part retire des euros du haut du quotient. À ${euros(30000)}, ces euros étaient taxés à ${tauxTexte(30000 / 2)}, et l’avantage vaut ${eur2(UN30.avantage)}. À ${eur2(65673.88)}, le quotient sans enfant, ${eur2(65673.88 / 2)}, atteint la tranche à ${tauxTexte(65673.88 / 2)}${pv} la demi-part le ramène à ${eur2(DEFAUT.quotient)}, dans la tranche à ${tauxTexte(DEFAUT.quotient)}, et l’avantage vaut ${eur2(DEFAUT.avantage)}. Le plafond reprend donc ${eur2(DEFAUT.avantage - DEFAUT.plafond)} ici, et ${eur2(UN150.avantage - UN150.plafond)} à ${euros(150000)}.`,
-      },
-      {
-        question: `À ${euros(30000)} sans enfant, le barème donne ${eur2(BAS.plafQf)} d’impôt, et le couple ne paie rien. Quelle étape annule cet impôt, et l’annulerait-elle s’il valait ${euros(4000)}${nb}?`,
-        answer: `La décote${deux} ${euros(PARAMS[2024].decoteSeuil)} − ${pourcent(PARAMS[2024].decoteTaux)} × ${eur2(BAS.plafQf)} = ${euros(BAS.decote)}, plus que l’impôt, qui tombe à 0. Pour ${euros(4000)}, elle vaudrait ${euros(PARAMS[2024].decoteSeuil)} − ${euros(PARAMS[2024].decoteTaux * 4000)}, moins que zéro${deux} elle ne retire plus rien dès ${euros(FIN_DECOTE)} d’impôt.`,
-      },
     ],
     // The French sentences that reach beyond the scenario on screen, and the tests that hold them.
     claims: [
@@ -338,7 +322,8 @@ export default class QuotientFamilialExplainer extends Scene {
       if (x.base > 0)
         await calloutOf((st) => callout(s, bars.get(`bar:0:${pourcent(x.rate)}`), eur2(bareme(st.quotient as number).slices[i]!.tax), { side: 'above', gap: 0.2, size: 0.26 }));
     // The quotient's top tranche, not the household's taux marginal: when the plafond binds, OpenFisca's
-    // ir_taux_marginal is the two-part calculation's, which can be higher.
+    // ir_taux_marginal is the two-part calculation's, which can be higher. The default couple's quotient is
+    // in the 11 % tranche while its taux marginal is 30 % (test/explain-quotient-familial.test.ts holds both).
     await bars.mark([`bar:0:${pourcent(top.rate)}`], { as: 'dernière tranche du quotient' });
     this.state.parPart = r.parPart;
     this.state.tranche = top.rate;
@@ -362,30 +347,6 @@ export default class QuotientFamilialExplainer extends Scene {
     await bars.hide();
     await flow.unmark();
     // Two rulers on one scale of euros, each cut at the barème's thresholds and coloured by rate.
-    const RATE_FILL = ['#efe6d2', '#e3b47c', '#c8582a', '#8f2d1a', '#4d160d'],
-      RW = 6.4,
-      RX = -RW / 2,
-      RH = 0.45,
-      TXT = 0.3;
-    const mot = (t: string, color = s.palette.ink, bold = false) => new Text(t, { fontSize: TXT, color, weight: bold ? 'bold' : 'normal' });
-    /** One ruler of the income's euros, tranche by tranche, from the tranches the step records. */
-    const regle = (st: QfState, cle: 'entier' | 'parts', titre: string, y: number) => {
-      const g = new Group(mot(titre, s.palette.ink, true).moveTo([RX, y + RH + 0.28], [-1, 0]));
-      let x = RX;
-      st.tranches.forEach((t, k) => {
-        const w = (t[cle] / st.rni) * RW;
-        if (w <= 0) return;
-        const c = [x + w / 2, y + RH / 2] as [number, number];
-        g.add(new Rectangle({ width: w, height: RH, fill: RATE_FILL[k]!, stroke: s.palette.ink, strokeWidth: 0.02 }).moveTo(c));
-        const taux = mot(pourcent(t.rate), k >= 2 ? s.palette.paper : s.palette.ink);
-        if (taux.width() + 0.1 <= w) g.add(taux.moveTo(c));
-        const somme = mot(euros(t[cle]));
-        if (somme.width() + 0.15 <= w) g.add(somme.moveTo([c[0], y - 0.25]));
-        x += w;
-      });
-      g.key = `qf-tranches:${cle}`;
-      return g;
-    };
     this.state.tranches = rep;
     // Both rulers are one view of the tranches, the income, its parts and its quotient.
     const regles = view(
@@ -393,8 +354,8 @@ export default class QuotientFamilialExplainer extends Scene {
       (state) => {
         const st = state as unknown as QfState;
         return new Group(
-          regle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5),
-          regle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95),
+          drawRegle(st, 'entier', `Revenu entier, ${rniTexteDe(st.rni)}`, -1.5, s.palette),
+          drawRegle(st, 'parts', `Par parts, ${partsTexte(st.parts)} × ${eur2(st.quotient)}`, -2.95, s.palette),
         );
       },
       { place: false },

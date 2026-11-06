@@ -16,10 +16,14 @@ const TICKET: Record<Query, number> = { A: 1, B: 2 };
  * same size, so it sits in the same place in every step that shows it. */
 const CHECK = 'if (ticket === latest) publish(result)';
 const CODE_SIZE = 0.58;
-/** The script's answer, stated in the second step of both scenarios. */
+/** script.md's answer, word for word, stated in the second step of both scenarios, which check holds to it. */
 export const ANSWER = 'An older search can finish last, and an unguarded handler publishes whatever finishes last';
 
-/** The timeline's event clock: tick t sits at x(t); the last span runs on to the right edge. */
+/**
+ * The timeline's event clock: tick t sits at x(t); the last span runs on to the right edge. The run's four
+ * events, two starts then two landings, sit evenly spaced in the order they happened, so a bar's length is
+ * not a duration.
+ */
 const tickX = (t: number) => -3.2 + t * 2.4,
   RIGHT_EDGE = 6.8,
   ROW_LABEL_X = -7.1;

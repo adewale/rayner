@@ -1,8 +1,7 @@
-import type { Evidence, Box, Mobject, Vec, View } from '../../../src/index.ts';
+import type { Evidence, Box, Vec, View } from '../../../src/index.ts';
 import {
   Scene,
   Text,
-  Rectangle,
   Arrow,
   Group,
   FadeIn,
@@ -14,10 +13,11 @@ import { stage, settingsOf, regionBox, CodeBlock } from '../../../explain/index.
 import type { Diagram, NoteSide } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
 import { keyed } from '../../../explain/drawing.ts';
-import { objectLines, reachable, secondCommit } from './objects.ts';
+import { objectLines, reachable } from './objects.ts';
+import { short, CELL_Y, ROW_Y, blobCells, idRow, commitRow, rowWords } from './picture.ts';
+import type { RowState } from './picture.ts';
 
 const STYLE = 'catppuccin-mocha';
-const short = (id: string) => id.slice(0, 7);
 const DIAGRAM = regionBox('top', { bottom: -0.85 }),
   BOTTOM = regionBox('bottom', { top: -1.1 }),
   LEFT = regionBox('bottom', { top: -1.1, right: -0.15 }),
@@ -32,8 +32,6 @@ const treeOf = (repo: Repo, id: string): TreeState => ({
 });
 /** A tree's bytes as listed on stage: its header, its entries (mode, name, a zero byte, the id in hex), then its own id. */
 const treeLines = (tree: TreeState, id: string) => [`header  ${tree.header}`, ...tree.entries.map((e) => `${e.mode} ${e.name}\\0 ${e.id}`), `sha1    ${id}`];
-/** One commit's row as the steps record it: the commit, its tree and parents, and each entry's blob and text. */
-interface RowState { label: string; commit: string; tree: string; parents: string[]; entries: { file: string; blob: string; text: string }[] }
 type Tone = 'emphasis';
 /** What the steps record: the model's ids and objects, and what the pictures mark. */
 interface GitState {
@@ -60,45 +58,17 @@ const lastMatches = (scene: Scene, n: number): Evidence[] => {
 };
 /** In how many of the 40 positions two ids hold the same hex digit. */
 const samePlace = (a: string, b: string) => [...a].filter((c, i) => b[i] === c).length;
-/** How a byte reads in a cell: printable, or its escape. */
-const glyph = (b: number) => (b === 0 ? '\\0' : b === 10 ? '\\n' : b === 32 ? 'sp' : String.fromCharCode(b));
 
-/** The script's one-sentence answer (meta.answer), which the change step states. */
+/** The answer in script.md's intent header, which the change step's caption states. */
 const ANSWER = 'Git writes only the objects whose bytes are new, and names unchanged content again by its id';
-/** The check questions' commits, from the same model: a rename and a copy of hello.txt after commit one. */
-const RENAMED = secondCommit('rename'),
-  COPIED = secondCommit('copy');
-/** What a commit wrote, in words: "a tree and a commit". */
-const kinds = (c: ReturnType<typeof secondCommit>) => {
-  const types = c.written.map((id) => c.repo.objects[id]!.type);
-  return ['blob', 'tree', 'commit']
-    .filter((k) => types.includes(k))
-    .map((k) => `a ${k}`)
-    .join(' and ');
-};
 
+// The title, answer and check questions come from script.md's intent header.
 export default class GitExplainer extends Scene {
   static meta = {
     id: 'exgit',
-    title: 'What does Git store when a file changes?',
     sources: [
       'https://git-scm.com/book/en/v2/Git-Internals-Git-Objects',
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/lib/gitmodel.ts',
-    ],
-    answer: ANSWER,
-    checks: [
-      {
-        question: 'Starting again from commit one, a commit renames hello.txt to greeting.txt and changes nothing else. Which new objects does Git write, and why is no blob among them?',
-        answer: `${RENAMED.written.length} objects, ${kinds(RENAMED)}. The name lives in the tree’s bytes, so the tree changes, and so does the commit that names it. The file’s bytes are unchanged, so its id is still ${short(RENAMED.hello)} and the new tree names the stored blob.`,
-      },
-      {
-        question: 'Starting again from commit one, a commit adds copy.txt containing exactly hello and a newline. How many new blobs does Git write?',
-        answer: `None. Its bytes hash to ${short(COPIED.hello)}, which is already stored, so the new tree lists both names against that one blob. The commit writes ${COPIED.written.length} objects, ${kinds(COPIED)}.`,
-      },
-      {
-        question: 'Two people on different machines each commit a file containing hello and a newline. Do their blobs have the same id? Do their commits?',
-        answer: `The blobs do: both are ${short(COPIED.hello)}, because a blob’s id depends only on its bytes. Commits match only if all their bytes match, including the tree, the parents, the author and committer lines with their timestamps, and the message, so in practice they differ.`,
-      },
     ],
     claims: [
       { says: 'Git writes only the objects whose bytes are new', test: 'test/explain-exgit.test.ts: Git writes only the objects whose bytes are new' },
@@ -122,7 +92,8 @@ export default class GitExplainer extends Scene {
       repo = new Repo(),
       s = stage(this, { headingSize: 0.6, style: STYLE }),
       ink = s.palette.ink,
-      accent = s.emphasis;
+      accent = s.emphasis,
+      colours = { ink, soft: s.soft, accent };
     const st = () => this.state as unknown as GitState;
     /**
      * A code view: the lines `lines(state)` gives, laid out as s.code lays them out, with its bar on the
@@ -157,42 +128,9 @@ export default class GitExplainer extends Scene {
     this.state.hello = hello;
     // The bytes Git hashes: the header's and the content's, and the id they hash to.
     this.state.blob = { id: hello, bytes: all, header: header.length };
-    const cell = 0.98,
-      gap = 0.1,
-      cellY = 0.5;
-    /** The blob's cells, from the bytes the state records: `part` is the header's or the content's, with its label over it. */
-    const cellsOf = (part: 'header' | 'content') => (state: object) => {
-      const { bytes, header: n } = (state as unknown as GitState).blob;
-      const x0 = -((bytes.length - 1) * (cell + gap)) / 2;
-      const cells = bytes.map((b, i) => {
-        const isHead = i < n;
-        const box = new Rectangle({
-          width: cell,
-          height: 0.9,
-          cornerRadius: 0.08,
-          fill: isHead ? accent : ink,
-          fillOpacity: 0.1,
-          stroke: isHead ? accent : s.soft,
-          strokeWidth: 0.02,
-        });
-        const ch = new Text(glyph(b), { fontSize: 0.36, font: 'mono', color: isHead ? accent : ink });
-        const hex = new Text(b.toString(16).padStart(2, '0'), { fontSize: 0.22, font: 'mono', color: s.soft });
-        const x = x0 + i * (cell + gap);
-        box.moveTo([x, cellY]);
-        ch.moveTo([x, cellY]);
-        hex.moveTo([x, cellY - 0.72]);
-        return new Group(box, ch, hex);
-      });
-      const g = new Group(...(part === 'header' ? cells.slice(0, n) : cells.slice(n)));
-      const color = part === 'header' ? accent : ink;
-      const [a, , b] = g.box()!;
-      const t = new Text(part, { fontSize: 0.26, color });
-      t.moveTo([(a + b) / 2, cellY + 0.85]);
-      const rule = new Rectangle({ width: b - a, height: 0.03, fill: color, stroke: 'none' }).moveTo([(a + b) / 2, cellY + 0.58]);
-      return keyed(new Group(g, new Group(t, rule)), `exgit-${part}`);
-    };
-    const body = view(this, cellsOf('content'), { place: false }),
-      head = view(this, cellsOf('header'), { place: false });
+    const cellY = CELL_Y;
+    const body = view(this, (state) => blobCells((state as unknown as GitState).blob, 'content', colours), { place: false }),
+      head = view(this, (state) => blobCells((state as unknown as GitState).blob, 'header', colours), { place: false });
     const blobOf = () => st().blob;
     await s.enter(body, {
       runTime: 0.5,
@@ -208,25 +146,15 @@ export default class GitExplainer extends Scene {
     });
     const arrow = new Arrow([0, cellY - 1.1], [0, cellY - 2.05], { stroke: s.soft, strokeWidth: 0.03, tipLength: 0.2 });
     const how = new Text('SHA-1', { fontSize: 0.24, color: s.soft, anchor: 'start' }).moveTo([0.3, cellY - 1.57], [-1, 0]);
-    /** The blob's id, its first seven digits highlighted, from the state. */
-    const idRowOf = (state: object) => {
-      const id = (state as unknown as GitState).blob.id;
-      const idHead = new Text(short(id), { fontSize: 0.42, font: 'mono', color: accent, weight: 'bold' }),
-        idTail = new Text(id.slice(7), { fontSize: 0.42, font: 'mono', color: ink });
-      const idRow = new Group(idHead, idTail);
-      idTail.nextTo(idHead, [1, 0], 0.02);
-      idRow.moveTo([0, cellY - 2.65]);
-      return { idRow, idHead };
-    };
-    const idView = view(this, (state) => keyed(idRowOf(state).idRow, 'exgit-blob-id'), { place: false });
+    const idView = view(this, (state) => keyed(idRow((state as unknown as GitState).blob.id, colours).idRow, 'exgit-blob-id'), { place: false });
     await s.enter(arrow, how, { runTime: 0.4, describe: 'An arrow labelled SHA-1 from the bytes to their id' });
     await s.enter(idView, { runTime: 0.6, describe: () => `The blob id ${blobOf().id}, its first seven digits highlighted` });
     // The short name every later picture uses is this prefix of the real id.
     const abbrev = view(
       this,
       (state) => {
-        const { idHead } = idRowOf(state);
         const id = (state as unknown as GitState).blob.id;
+        const { idHead } = idRow(id, colours);
         return keyed(new BraceLabel(idHead, `${short(id)} names it from here on`, [0, -1], { fontSize: 0.26, color: s.soft, buff: 0.06, labelBuff: 0.12 }), 'exgit-abbrev');
       },
       { place: false },
@@ -378,42 +306,6 @@ export default class GitExplainer extends Scene {
     await note('parent', 'edge:C2->C1#0', 'parent', 'below');
     // Below the graph, each commit's row as native boxes with the model's ids:
     // the commit, then its tree holding each entry's blob, as the state records them from the stored bytes.
-    /** An object as a box: its kind and short id, then lines of what it holds. */
-    const objectBox = (kind: string, id: string, lines: readonly string[], width: number, height: number, stroke: string) => {
-      const rect = new Rectangle({ width, height, cornerRadius: 0.08, fill: ink, fillOpacity: 0.06, stroke, strokeWidth: 0.024 });
-      const top = (0.3 + lines.length * 0.28) / 2;
-      const headText = new Text(`${kind} ${short(id)}`, { fontSize: 0.21, font: 'mono', color: ink, weight: 'bold' });
-      headText.moveTo([0, top - 0.12]);
-      const rows = lines.map((l, i) => new Text(l, { fontSize: 0.19, font: 'mono', color: s.soft }).moveTo([0, top - 0.42 - i * 0.28]));
-      return new Group(rect, headText, ...rows);
-    };
-    const ROW_H = 1.2,
-      ENTRY_W = 3.62,
-      TREE_LEFT = -1.75;
-    const ROW_Y = [-1.7, -3.1];
-    /** One commit's row, from the state's record of it. `lit` outlines a blob in the emphasis colour; `skip` leaves it out, to arrive by copy. */
-    const commitRow = (row: RowState, y: number, { lit, skip }: { lit?: string | null; skip?: string | null } = {}) => {
-      const keyOf = (file: string) => `exgit-${row.label.replace(' ', '-')}:${file}`;
-      const name = new Text(row.label, { fontSize: 0.22, color: s.soft, anchor: 'end' }).moveTo([TREE_LEFT - 2.9, y], [1, 0]);
-      const commitBox = objectBox('commit', row.commit, [`tree ${short(row.tree)}`, ...row.parents.map((p) => `parent ${short(p)}`)], 2.5, ROW_H, s.soft).moveTo([TREE_LEFT - 1.45, y]);
-      const width = row.entries.length * ENTRY_W + 0.15;
-      const treeBox = new Rectangle({ width, height: ROW_H, cornerRadius: 0.08, fill: ink, fillOpacity: 0.03, stroke: s.soft, strokeWidth: 0.024 }).moveTo([TREE_LEFT + width / 2, y]);
-      const treeHead = new Text(`tree ${short(row.tree)}`, { fontSize: 0.21, font: 'mono', color: ink, weight: 'bold', anchor: 'start' }).moveTo([TREE_LEFT + 0.2, y + ROW_H / 2 - 0.25], [-1, 0]);
-      const parts: Mobject[] = [name, commitBox, treeBox, treeHead];
-      const blobs = new Map<string, Group>();
-      row.entries.forEach(({ file, blob, text }, k) => {
-        const x = TREE_LEFT + 0.2 + k * ENTRY_W,
-          by = y - 0.17;
-        parts.push(new Text(file, { fontSize: 0.19, font: 'mono', color: s.soft, anchor: 'start' }).moveTo([x, by], [-1, 0]));
-        const box = objectBox('blob', blob, [JSON.stringify(text)], 2.15, 0.66, file === lit ? accent : s.soft);
-        blobs.set(file, keyed(box.moveTo([x + 1.27 + 2.15 / 2, by]), keyOf(file)));
-        if (file !== skip) parts.push(box);
-      });
-      return { row: new Group(...parts), blobs };
-    };
-    /** A commit's row in words, from the same record the boxes show. */
-    const rowWords = (row: RowState) =>
-      `${row.label}: commit ${short(row.commit)} names tree ${short(row.tree)}, which lists ${row.entries.map((e) => `${e.file} as blob ${short(e.blob)}`).join(' and ')}`;
     const rowOf = (label: string, commit: string): RowState => {
       const text = objectLines(repo, commit),
         tree = text.find((l) => l.startsWith('tree '))!.slice(5);
@@ -432,7 +324,7 @@ export default class GitExplainer extends Scene {
       this,
       (state) => {
         const r = (state as unknown as GitState).rows;
-        return keyed(new Group(...r.commits.map((row, i) => commitRow(row, ROW_Y[i]!, { lit: r.shared, skip: i ? r.shared : null }).row)), 'exgit-rows');
+        return keyed(new Group(...r.commits.map((row, i) => commitRow(row, ROW_Y[i]!, { lit: r.shared, skip: i ? r.shared : null }, colours).row)), 'exgit-rows');
       },
       { place: false },
     );
@@ -467,7 +359,7 @@ export default class GitExplainer extends Scene {
         (state, shown) => {
           const r = (state as unknown as GitState).rows;
           const row = shown.copied ? 1 : 0;
-          return keyed(commitRow(r.commits[row]!, ROW_Y[row]!, { lit: r.shared, skip: r.shared }).blobs.get(r.shared!)!, 'exgit-shared-blob');
+          return keyed(commitRow(r.commits[row]!, ROW_Y[row]!, { lit: r.shared, skip: r.shared }, colours).blobs.get(r.shared!)!, 'exgit-shared-blob');
         },
         { place: false },
       );

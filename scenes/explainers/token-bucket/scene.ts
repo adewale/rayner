@@ -17,16 +17,15 @@ import {
   view,
   StateReadout,
   Circle,
-  Cross,
   rushFrom,
   thereAndBack,
 } from '../../../src/index.ts';
-import type { ScheduledAnimation as Animation, Mobject, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
+import type { ScheduledAnimation as Animation, SceneState, Vec, View, VMobject } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import { keyedParts } from '../../../explain/drawing.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { listed } from '../lib/format.ts';
+import { CHIP_Y, balanceLine, cappedAt as capAt, chipX, climb, distinct, drawArrivals, drawChart, drawComparison, drawRequest, fmt, name, startOf } from './picture.ts';
 
 // Six at once, three within the next second, then one after a four-second quiet spell:
 // long enough at 2 and 4 tokens a second for min(5, …) to throw refill away, not at 1.
@@ -52,10 +51,8 @@ const CODE = [
 const REFILL = [1, 3] as const,
   REFUSE = [4, 4] as const,
   SPEND = [5, 6] as const;
-const fmt = (n: number) => n.toFixed(1);
 /** Seconds as the captions write them: 5, 1.5. */
 const seconds = (t: number) => (Number.isInteger(t) ? String(t) : t.toFixed(1));
-const name = (i: number) => 'R' + (i + 1);
 const perSecond = (r: number) => `${r} token${r > 1 ? 's' : ''} a second`;
 
 /** The ten requests through the model at one refill rate. */
@@ -66,20 +63,7 @@ function runAt(rate: number): Call[] {
     return { at, ok, found: bucket.tokens + (ok ? 1 : 0), after: bucket.tokens };
   });
 }
-/**
- * The balance between the previous call and this one, as allow() would
- * compute it at each moment: what the last call left plus
- * (now − lastRefill) × rate, capped at five. Straight, with a corner where the
- * cap is reached; it ends at what this call found.
- */
-function climb(prev: { at: number; after: number }, call: Call, rate: number): [number, number][] {
-  const points: [number, number][] = [[prev.at, prev.after]];
-  if (prev.after + (call.at - prev.at) * rate > CAPACITY + 1e-9)
-    points.push([prev.at + (CAPACITY - prev.after) / rate, CAPACITY]);
-  points.push([call.at, call.found]);
-  return points;
-}
-const START = { at: 0, after: CAPACITY };
+const START = startOf(CAPACITY);
 /** How the readout and its description write a value of scene.state. */
 const formatState = (v: unknown) =>
   Array.isArray(v)
@@ -92,35 +76,10 @@ const formatState = (v: unknown) =>
         : v.toFixed(1)
       : String(v);
 
-// The check questions' runs, from the same model (test/explain-token-bucket.test.ts checks them).
-/** The schedule at 2 a second with a bucket of six tokens. */
-const SIX_TOKENS = (() => {
-  const bucket = new TokenBucket(2, 6);
-  return TIMES.map((at) => (bucket.allow(at) ? 200 : 429));
-})();
-/** One request every 0.4 s at 2 a second: the first refused, and how many of requests 101–200 get through. */
-const STEADY = (() => {
-  const bucket = new TokenBucket(2, CAPACITY),
-    ok = Array.from({ length: 200 }, (_, n) => bucket.allow(n * 0.4));
-  return { first: ok.indexOf(false) + 1, share: ok.slice(100).filter(Boolean).length };
-})();
-/** R10 moved to 1.5 s, at each rate: what R9 left, what R10 found, and its answer. */
-const MOVED = RATES.map((rate) => {
-  const bucket = new TokenBucket(rate, CAPACITY);
-  TIMES.slice(0, 9).forEach((at) => bucket.allow(at));
-  const left = bucket.tokens,
-    ok = bucket.allow(1.5);
-  return { rate, left, found: bucket.tokens + (ok ? 1 : 0), ok };
-});
-
-/** Drop repeated points; a line needs two distinct ones. */
-const distinct = (points: [number, number][]) =>
-  points.filter((p, i) => i === 0 || p[0] !== points[i - 1]![0] || p[1] !== points[i - 1]![1]);
-
+// The title, answer and check questions come from script.md's intent header.
 export default class TokenBucketExplainer extends Scene {
   static meta = {
     id: 'token-bucket',
-    title: 'How does a token bucket let a burst through but refuse a flood?',
     sources: [
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/token-bucket.ts',
       // The oracle: tools/oracle/token-bucket runs this schedule through rate.Limiter.
@@ -129,22 +88,6 @@ export default class TokenBucketExplainer extends Scene {
     ],
     // The readout's own words, which the captions use too.
     watch: { tokens: 'Tokens left', allowed: 'Accepted', rejected: 'Rejected' },
-    // check holds the burst step to stating the answer.
-    answer: 'A burst can spend only the tokens saved up, and only elapsed time adds more',
-    checks: [
-      {
-        question: 'R6 is refused at all three rates. Would a faster refill or a bigger bucket let it through, and why?',
-        answer: `A bigger bucket. R1 to R6 arrive at the same instant, so no time passes and refill adds nothing at any rate. A bucket of six tokens, still at 2 a second, answers R6 with ${SIX_TOKENS[5]}.`,
-      },
-      {
-        question: 'At 2 tokens a second, a client sends one request every 0.4 seconds from a full bucket and never pauses. Is any request refused, and what share gets through in the long run?',
-        answer: `Yes. Each gap earns 0.8 tokens and each request spends one, so the saved five drain by 0.2 a request and request ${STEADY.first} is the first refused. From then on ${STEADY.share} of every 100 get through, 2 a second: the refill rate, however long the flood lasts.`,
-      },
-      {
-        question: 'Suppose R10 arrived at 1.5 s instead of 5 s. At which of the three rates would it be refused?',
-        answer: `At ${listed(MOVED.filter((m) => !m.ok).map((m) => perSecond(m.rate)))} only. ${MOVED.map((m, i) => `${i ? 'at' : 'At'} ${m.rate} a second R9 leaves ${formatState(m.left)} and R10 finds ${formatState(m.found)}`).join('; ')}. Half a second has to earn the token R9 did not leave.`,
-      },
-    ],
     claims: [
       { says: 'A burst can spend only the tokens saved up, and only elapsed time adds more', test: 'test/explain-token-bucket.test.ts: a burst can spend only the tokens saved up' },
       { says: 'R6 is refused at every rate', test: 'test/explain-token-bucket.test.ts: R6 is refused at every refill rate' },
@@ -170,7 +113,8 @@ export default class TokenBucketExplainer extends Scene {
     const rate = Number(settingsOf(this).rate),
       s = stage(this, { headingSize: 0.6, style: 'github-dark' });
     const ink = s.palette.ink,
-      soft = s.soft;
+      soft = s.soft,
+      colours = { ink, soft, muted: s.palette.muted, paper: s.palette.paper, accent: s.palette.accent, good: s.good, bad: s.bad };
 
     // A dry run of the same model at every rate, so titles and captions can name its answers.
     const runs = new Map(RATES.map((r) => [r, runAt(r)] as const)),
@@ -182,8 +126,7 @@ export default class TokenBucketExplainer extends Scene {
         .join(', ');
     const refusedAt = (r: number) => runs.get(r)!.flatMap((c, i) => (c.ok ? [] : [name(i)]));
     /** When a climb from `prev` to `call` reached the capacity, where min(capacity, …) took over; null when it stayed under. */
-    const cappedAt = (prev: { at: number; after: number }, call: Call) =>
-      prev.after + (call.at - prev.at) * rate > CAPACITY + 1e-9 ? prev.at + (CAPACITY - prev.after) / rate : null;
+    const cappedAt = (prev: { at: number; after: number }, call: Call) => capAt(prev, call, rate, CAPACITY);
     /** The model's state: the bucket and every call so far, which every picture and description is drawn from. */
     const bucketOf = () => this.state as unknown as BucketState;
 
@@ -217,39 +160,9 @@ export default class TokenBucketExplainer extends Scene {
     };
     const gaugeSays = () => `The bucket, filled to ${fmt(bucketOf().tokens)} of ${CAPACITY} tokens`;
 
-    // ---- request chips: one per call, filled in as each answer comes back. The answer is all a
-    // chip holds, large enough to read on a phone in the whole picture, since a reader's press can
-    // change any of the ten; each request's name and arrival time are written around its box.
-    const PITCH = 1.46,
-      CHIP_Y = 2.3;
-    const chipX = (i: number) => (i - 4.5) * PITCH;
-    const chip = (i: number, result: boolean | null) => {
-      const color = result == null ? s.palette.muted : result ? s.good : s.bad;
-      const box = new Rectangle({
-        width: 1.3,
-        height: 0.95,
-        cornerRadius: 0.1,
-        fill: result == null ? s.palette.paper : color,
-        fillOpacity: result == null ? 1 : 0.22,
-        stroke: color,
-        strokeWidth: result == null ? 0.02 : 0.035,
-        ...(result == null ? { dashArray: '0.08 0.06' } : {}),
-      });
-      const answer = new Text(result == null ? '…' : result ? '200' : '429', {
-        fontSize: 0.58,
-        font: 'mono',
-        weight: 'bold',
-        color: result == null ? soft : ink,
-      }).moveTo([0, 0]);
-      const request = new Group(box, answer).moveTo([chipX(i), CHIP_Y]);
-      request.key = `request:${name(i)}`;
-      return request;
-    };
-    const times = TIMES.map((t, i) =>
-      new Text('t = ' + t, { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y + 0.72]),
-    );
-    times.forEach((time, i) => { time.key = `arrival:${name(i)}`; });
-    const names = TIMES.map((_, i) => Object.assign(new Text(name(i), { fontSize: 0.2, color: soft }).moveTo([chipX(i), CHIP_Y - 0.66]), { key: `name:${name(i)}` }));
+    // ---- request chips: one per call, filled in as each answer comes back (picture.ts).
+    const chip = (i: number, result: boolean | null) => drawRequest(i, result, colours);
+    const { times, names } = drawArrivals(TIMES, colours);
 
     // ---- the chart: tokens over time. Its y axis has the gauge's scale, so the
     // bucket's level always stands where the chart's line ends.
@@ -276,10 +189,7 @@ export default class TokenBucketExplainer extends Scene {
       [axes.c2p(TIMES.at(-1)! - 0.55, 1)[0], axes.c2p(TIMES.at(-1)! - 0.55, 1)[1] + 0.17],
       [-1, 0],
     );
-    const line = (points: [number, number][], color: string, width = 0.045) => {
-      const p = distinct(points);
-      return p.length < 2 ? null : axes.lineGraph(p, { color, strokeWidth: width });
-    };
+    const line = (points: [number, number][], color: string, width = 0.045) => balanceLine(axes, points, color, width);
 
     // ---- the gauge: a bucket whose level is the balance
     const SHELL_X = -6.75,
@@ -346,33 +256,7 @@ export default class TokenBucketExplainer extends Scene {
     /** The balance in the bucket. */
     const gaugePicture = (st: BucketState) => new Group(fill(st.tokens));
     /** Each call's climb, its drop when it spent a token, its dot, and the tags on the calls the captions name. */
-    const chartPicture = (st: BucketState) => {
-      const pic = keyedParts(), add = (m: Mobject | null, key: string) => { if (m) pic.add(m, key); };
-      const notes: Mobject[] = [];
-      st.calls.forEach((call, i) => {
-        const prev = st.calls[i - 1] ?? START;
-        add(line(climb(prev, call, rate), s.palette.accent), `balance:refill:${name(i)}`);
-        add(call.ok ? line([[call.at, call.found], [call.at, call.after]], s.palette.accent) : null, `balance:spend:${name(i)}`);
-        const dot = axes.dot(call.at, call.found, { radius: 0.085, color: call.ok ? s.good : s.bad });
-        add(dot, `balance:found:${name(i)}`);
-        // Refused calls are named by their dot; R7, the predicted call, also shows what it found.
-        if (i === 6)
-          // R7: centred above its dot, between the climb into it and the climb out.
-          add(new Text(`${name(i)}: ${fmt(call.found)}`, { fontSize: 0.22, color: call.ok ? s.good : s.bad }).moveTo([dot.center()[0], dot.center()[1] + 0.32], [0, 0]), 'balance:found:R7:value');
-        else if (!call.ok)
-          // Refused: above and to the left, since the line climbs away to the right.
-          add(new Text(name(i), { fontSize: 0.2, color: s.bad }).moveTo([dot.center()[0] - 0.12, dot.center()[1] + 0.28], [1, 0]), `balance:tag:${name(i)}`);
-        // The flat run along five is the refill min(5, …) threw away; say so where it is.
-        const full = cappedAt(prev, call);
-        if (full != null) {
-          const [x, y] = axes.c2p((full + call.at) / 2, CAPACITY);
-          const note = new Text('full: min(5, …)', { fontSize: 0.2, color: s.palette.accent }).moveTo([x, y + 0.24]);
-          note.key = i === TIMES.length - 1 ? 'balance:cap:note' : `balance:cap:note:${name(i)}`;
-          notes.push(note);
-        }
-      });
-      return new Group(...pic.group().children, ...notes);
-    };
+    const chartPicture = (st: BucketState) => drawChart(st, axes, { rate, capacity: CAPACITY, last: TIMES.length - 1 }, colours);
     const chipsPicture = (st: BucketState) => new Group(...TIMES.map((_, i) => chip(i, st.calls[i]?.ok ?? null)));
     const part = (v: View, key: string) => v.current.find(key)!;
 
@@ -479,7 +363,7 @@ export default class TokenBucketExplainer extends Scene {
           // formula, so the two agree at every frame, the corner where min(5, …) takes over included.
           const level = g.own('bucket:level');
           const rise = c.has(`balance:refill:${n}`, 'to') ? c.insert(`balance:refill:${n}`, c.to(`balance:refill:${n}`)) : null;
-          const climbed = climb(prev, call, rate);
+          const climbed = climb(prev, call, rate, CAPACITY);
           const balanceAt = (t: number) => (t >= call.at ? call.found : Math.min(CAPACITY, prev.after + (t - prev.at) * rate));
           const refill = new Follow(
             { from: prev.at, to: call.at, draw: (t) => (rise ? [fill(balanceAt(t)), climbTo(climbed, t)] : fill(balanceAt(t))) },
@@ -616,41 +500,9 @@ export default class TokenBucketExplainer extends Scene {
     // The curves explain refill in earlier steps. End on a large comparison of
     // their outcomes, so a phone reader sees all three rates together.
     await s.clear();
-    const comparison = view(this, (state) => {
-      const picture = new Group();
-      const first = -3.7,
-        pitch = 1.12;
-      for (let i = 0; i < TIMES.length; i++)
-        picture.add(new Text(String(i + 1), { fontSize: 0.7, color: ink }).moveTo([first + i * pitch, 2.5]));
-      for (const [row, r] of RATES.entries()) {
-        const y = 1.05 - row * 1.65;
-        picture.add(new Text(`${r} / s`, { fontSize: 0.7, color: ink }).moveTo([-6.25, y]));
-        if (r === rate)
-          picture.add(
-            new Rectangle({
-              width: 14.4,
-              height: 1.3,
-              cornerRadius: 0.12,
-              stroke: s.palette.accent,
-              strokeWidth: 0.05,
-            }).moveTo([0, y]),
-          );
-        const responses = r === rate ? (state.responses as number[]) : runs.get(r)!.map((c) => (c.ok ? 200 : 429));
-        for (const [i, response] of responses.entries()) {
-          const circle = new Circle({
-            radius: 0.24,
-            stroke: response === 200 ? s.good : s.bad,
-            strokeWidth: 0.06,
-          }).moveTo([first + i * pitch, y]);
-          const mark = response === 200 ? circle : new Cross(circle, { stroke: s.bad, strokeWidth: 0.06 });
-          mark.key = `result:${r}:R${i + 1}:${response}`;
-          picture.add(mark);
-        }
-      }
-      picture.add(new Text('Request', { fontSize: 0.7, color: ink }).moveTo([-6.0, 2.5]));
-      picture.add(new Text('Circle: 200     Cross: 429', { fontSize: 0.7, color: ink }).moveTo([0, -3.8]));
-      return picture;
-    });
+    const comparison = view(this, (state) =>
+      drawComparison(RATES.map((r) => [r, r === rate ? (state.responses as number[]) : runs.get(r)!.map((c) => (c.ok ? 200 : 429))] as const), rate, TIMES.length, colours),
+    );
     this.readout = comparison;
     await s.enter(comparison, {
       describe: () =>

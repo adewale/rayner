@@ -4,7 +4,7 @@ import { flow, label, tile } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
-/** The scene's one-sentence answer, which the reject step states in both histories. */
+/** The script's one-sentence answer (script.md's Answer line), which the reject step states in both histories. */
 export const ANSWER =
   'The reducer accepts an event only in a state that has a row for it, so a late OPENED cannot reopen a closed session';
 

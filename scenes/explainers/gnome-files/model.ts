@@ -14,6 +14,11 @@
 // The heat map is transcribed by hand from the report's page 7 and cross-checked by sampling the
 // centre of every cell in both the PDF page (rendered at 160 dpi) and the PNG: all 66 cells agree.
 // No image is copied; only the data, with attribution.
+//
+// What it leaves out: the data are six first-time GNOME users on two Files 47 development builds
+// (47.rc-7925df1ba and 47.rc-3faeec25e). They support an account of those sessions, not a failure rate
+// for all users, task times, later versions, or a causal experiment isolating menus from other design
+// factors.
 
 /** A heat-map cell, by the report's key (page 7). */
 export type Colour = 'green' | 'yellow' | 'orange' | 'red' | 'black' | 'gray';

@@ -1,4 +1,4 @@
-import { frames as readerFrames } from './picture.ts';
+import { frames as readerFrames, ruler, pairLines } from './picture.ts';
 import {
   Scene,
   Text,
@@ -6,12 +6,10 @@ import {
   FadeIn,
   TransformMatchingShapes,
   Group,
-  Line,
   SurroundingRectangle,
-  BraceLabel,
   shaperFor,
 } from '../../../src/index.ts';
-import type { Mobject, MatchSummary, FontName } from '../../../src/index.ts';
+import type { MatchSummary, FontName } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
 
 const WORD = 'Hello, outlines';
@@ -19,6 +17,11 @@ const SIZE = 0.9; // the size the fidelity test measures
 const SMALL = 0.6; // the smaller copy in the letterforms step
 const STYLE = 'pen-and-ink';
 const NAME: Record<FontName, string> = { sans: 'Inter', mono: 'JetBrains Mono' };
+// This explainer has no model of its own: every width and outline is the engine's, from the shaped runs of the
+// bundled Inter and JetBrains Mono files, never estimated character widths. The phrase has fifteen characters
+// but fourteen drawn glyphs, since the space has no outline. The shape-match result holds for this phrase and
+// these font files, not for any two fonts; the matcher removes translation and uniform scale, not differences
+// in the paths themselves.
 /** What the shaper hands back for a run: segment kinds and per-glyph advances. */
 function shape(font: FontName, text: string) {
   const run = shaperFor(font)(text, SIZE);
@@ -35,40 +38,11 @@ function shape(font: FontName, text: string) {
   };
 }
 
-/** A width ruler under a text: a tick at every glyph's pen position, and a brace labelled with the measured width. */
-function ruler(text: Text, stops: readonly number[], label: string, color: string, size = 0.24): Group {
-  const [x0, y0] = text.box()!;
-  const y = y0 - 0.12;
-  const g = new Group();
-  for (const x of stops.slice(1))
-    g.add(new Line([x0 + x, y], [x0 + x, y - 0.14], { stroke: color, strokeWidth: 0.014 }));
-  // The brace spans the text's advance box: the width the shaper measured.
-  const brace = new BraceLabel(text, label, [0, -1], { fontSize: size, color, buff: 0.3, labelBuff: 0.1 });
-  brace.brace.setStroke(color, 0.022);
-  g.add(brace);
-  return g;
-}
-
-/** Thin lines from each source glyph (as `ghost` shows it) to the glyph it was paired with. */
-function pairLines(pairs: Array<[Mobject, Mobject]>, ghostOf: (m: Mobject) => Mobject, color: string): Group {
-  const g = new Group();
-  for (const [a, b] of pairs) {
-    const p = ghostOf(a).box()!,
-      q = b.box()!;
-    g.add(
-      new Line([(p[0] + p[2]) / 2, p[1] - 0.1], [(q[0] + q[2]) / 2, q[3] + 0.1], { stroke: color, strokeWidth: 0.012 }),
-    );
-  }
-  return g;
-}
-
+// The title, answer and check questions come from script.md's intent header.
 export default class GlyphExplainer extends Scene {
   static meta = {
     id: 'glyph',
-    title: 'Why does the same text take different space?',
     sources: ['https://github.com/ivarvong/lantern/blob/2c7bad5/src/text.ts'],
-    // The script's answer and check questions (script.md); check holds a step (measure) to stating the answer.
-    answer: 'Width is the sum of the glyphs’ advances, and each font sets its own',
     claims: [
       {
         says: 'Inter gives each l and i only 0.218',
@@ -79,23 +53,6 @@ export default class GlyphExplainer extends Scene {
         test: 'test/explain-glyph.test.ts: only the H is wider than JetBrains Mono’s cell',
       },
       { says: 'Every glyph pairs with its 60% copy; with the other font, none do', shown: true as const },
-    ],
-    checks: [
-      {
-        question: 'A space adds no outline. Why can adding one still move the next word farther right?',
-        answer:
-          'A space has an advance even though it draws no ink. The pen moves by that advance before the next glyph, so the line grows without another outline.',
-      },
-      {
-        question:
-          '“illicit” and “mammoth” both have seven letters. Set each in JetBrains Mono instead of Inter: which one grows, and could the other shrink?',
-        answer:
-          'In JetBrains Mono both are 7 × 0.540 = 3.78 units. “illicit” is mostly thin stems that Inter gives 0.218 each, so it grows from 1.90 to 3.78. Inter gives m 0.788, more than JetBrains Mono’s cell, so “mammoth” shrinks from 4.24 to 3.78.',
-      },
-      {
-        question: 'Could moving or uniformly resizing the Inter glyphs make them match the JetBrains Mono paths that failed to pair?',
-        answer: 'No. The matcher already removes position and uniform size before comparing paths. Those operations cannot remove differences in the outlines themselves.',
-      },
     ],
   };
   static settings = [

@@ -38,6 +38,10 @@
 // Gamut mapping: "Binary Search Gamut Mapping with Local MINDE", Overview.bs l.6482–6609: hold OKLCh
 // lightness and hue, lower chroma by binary search, and return the clipped colour once it is within one
 // JND (deltaEOK 0.02, l.6518) of the colour being tried.
+// Its limits: the 300, 500 and 700 shades of the coloured families only, no greys. Gamut edges and
+// mapped colours are different calculations: the mapping ends with a clip, which can shift hue and
+// lightness. It models the pinned CSS algorithm (binary search; CSS Color 4 also allows EdgeSeeker and
+// ray trace), not a reader's screen, its calibration, colour management or a browser's own mapping.
 
 export type Space = 'srgb' | 'p3';
 export type Shade = '300' | '500' | '700';

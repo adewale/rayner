@@ -2,6 +2,12 @@
  * The just-bash explainer's script as a machine: the caller runs its command lines through `exec` (below),
  * keeps the shell each write returns, and reads what cat prints on the newest shell or on the shell it started with.
  * No drawing here. Tested in test/explain-just-bash.test.ts.
+ *
+ * Its limits: a teaching shell drawn from the JustBash and Lantern sources, not the upstream JustBash implementation.
+ * The filesystem is in memory and exec returns a new shell value. Only the branches shown exist (echo, an uppercase
+ * tr, cat); any other command throws. The pipeline hands strings from builtin to builtin and creates no kernel pipe.
+ * It has no Bash quoting or expansion, process execution, permissions or persistence, and cat on a missing file
+ * prints nothing rather than Bash's error message.
  */
 import { refuse } from '../../../src/index.ts';
 import type { Refusal } from '../../../src/index.ts';

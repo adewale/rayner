@@ -2,6 +2,12 @@
 // externalTrafficPolicy, under kube-proxy's iptables mode. Pure TypeScript with no Node APIs: the
 // scene runs it in the page.
 //
+// What it leaves out: shares are long-run averages, not a schedule or a throughput prediction, and
+// they assume the load balancer gives every healthy node an equal share (no weighting by pod count).
+// IPVS mode selects differently; topology-aware routing and session affinity are not modelled. The
+// source-address rule (seenSource) is for the outside-request path drawn here, not every Kubernetes
+// network implementation.
+//
 // Sources, kubernetes/kubernetes at tag v1.37.1 (commit f78e722310e50bcaca9276be22276d9e91d91308):
 //   pkg/proxy/iptables/proxier.go:390-392    computeProbability(n) = fmt.Sprintf("%0.10f", 1.0/float64(n))
 //   pkg/proxy/iptables/proxier.go:1454-1472  rule i of n matches "--probability" probability(n-i);

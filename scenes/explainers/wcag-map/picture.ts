@@ -67,6 +67,7 @@ function lists(st: Lists, s: Stage) {
     label('4.1.1 Parsing', x(parsing), below - 0.95, s.bad, 0.6),
   );
   // The key: each cell's colour names the version that added its criterion, and the dashed outline the gap 2.2 left.
+  // The strip carries its own key so the colours read with the caption hidden.
   const lead = label('Added in', 0, 0, s.palette.ink, 0.6).moveTo([0, 0], [-1, 0]);
   const swatches = legend(
     s,
@@ -88,7 +89,7 @@ function lists(st: Lists, s: Stage) {
   return g;
 }
 
-/** The page's one-sentence answer, stated by the version step. */
+/** The script's one-sentence answer (script.md), stated by the version step. */
 export const ANSWER = 'A level asks for its own criteria and those of the levels below it, in the WCAG version you name';
 export function frames(level: Level, guideline: string): StagedStep[] {
   const t20 = tally('2.0', level),
@@ -102,6 +103,7 @@ export function frames(level: Level, guideline: string): StagedStep[] {
   const buttons = ['Cancel', 'Pay'],
     at = (button: string, row: readonly string[]) => -3.5 + 7 * row.indexOf(button);
   return [
+    // An illustration of Focus Visible, not a claim that an outline alone meets every focus-related criterion.
     stagedStep({
       id: 'reader-focus',
       title: 'The outline shows which button Tab reached',

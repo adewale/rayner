@@ -18,6 +18,11 @@
  * Two adjustments are visible in the scene rather than hidden in the count: before
  * period 4 there is no d subshell, so the p block starts 10 columns over; and
  * helium's two electrons count to 2, but helium sits over neon in group 18.
+ *
+ * What it leaves out: the subshell capacities (2, 6, 10, 14) and the filling order are inputs,
+ * not derived from quantum mechanics. Helium's place over neon and the choice of Lu and Lr for
+ * group 3 are chemistry and convention brought to the table, not produced by stacking runs. It
+ * says nothing about chemical reactivity, ionisation energies or relativistic effects.
  */
 
 export type Block = 's' | 'p' | 'd' | 'f';

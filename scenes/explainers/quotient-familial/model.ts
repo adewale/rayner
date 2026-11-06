@@ -3,6 +3,11 @@
 // Every rule and number below is read from openfisca/openfisca-france at tag 176.1.3,
 // commit 5cc6563749b88254b479ef89c98099cb9513d6cb; paths are under openfisca_france/.
 // Pure TypeScript with no Node APIs: the scene runs it in the browser.
+//
+// What it leaves out: it stops at ip_net, before réductions and crédits d'impôt and before the 61 €
+// threshold below which the tax is not collected, and it covers only married or PACS couples with
+// children fully in their care. It is not a complete tax calculation for any household: parts, the
+// plafond and the décote follow the parameters for revenus 2024 and 2025 and the cases the scene offers.
 
 export type Year = 2024 | 2025;
 export interface Bracket {

@@ -1,5 +1,5 @@
-import { frames as readerFrames, SEEDS, GREY, px } from './picture.ts';
-import { Scene, VMobject, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
+import { frames as readerFrames, SEEDS, GREY, px, anatomy, polylines, pathed } from './picture.ts';
+import { Scene, Group, Line, Text, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, Diagram, diagramsOf } from '../../../explain/index.ts';
 import {
@@ -48,88 +48,15 @@ const FOCUS = 1; // Midnight
 /** The chart's share of the stage: the lower half, and a little more for the layout's own margin. */
 const CHART_BOX: Box = [-7.55, -4.25, 7.55, 0.5];
 
-type Pathed = Mobject & { subpaths: Float32Array[] };
-const pathed = (m: Mobject): m is Pathed => Array.isArray((m as Pathed).subpaths) && m.hasPoints();
-const hasText = (m: Mobject) => typeof (m as { text?: unknown }).text === 'string';
-
-/** Points along one subpath of a captured path, eight per cubic. */
-function samples(m: Pathed, i: number): Pt[] {
-  const a = m.subpaths[i]!,
-    vm = m as unknown as VMobject,
-    curves = (a.length / 2 - 1) / 3;
-  const out: Pt[] = [[a[0]!, a[1]!]];
-  for (let c = 0; c < curves; c++) for (let k = 1; k <= 8; k++) out.push(vm.pointOnCurve(i, c, k / 8) as Pt);
-  return out;
-}
-const lines = (m: Pathed) => m.subpaths.map((_, i) => samples(m, i));
 const grow = (b: Box, by: number): Box => [b[0] - by, b[1] - by, b[2] + by, b[3] + by];
 const union = (boxes: readonly Box[]): Box => boundsOf(boxes.map((b) => [[b[0], b[1]] as Pt, [b[2], b[3]] as Pt]));
 
-/** One timeline period read back as marks: its label box, marker, string and event tag. */
-function anatomy(d: Diagram, i: number) {
-  const kids = d.get(`period:period-${i}`).children;
-  const texts = kids.filter(hasText).sort((a, b) => b.box()![1] - a.box()![1]);
-  const paths = kids.filter((m): m is Pathed => !hasText(m) && pathed(m));
-  const outlined = paths.filter((m) => m.style.fill === 'none' || !m.style.fillOpacity);
-  const boxes = outlined.filter((m) => m.subpaths.length === 4).sort((a, b) => b.box()![1] - a.box()![1]);
-  // The string is the narrower single outline, the ring the wider; the dot is the smallest fill.
-  const [string, ring] = outlined.filter((m) => m.subpaths.length === 1).sort((a, b) => a.width() - b.width()) as [
-    Pathed,
-    Pathed,
-  ];
-  const dot = paths.filter((m) => !outlined.includes(m)).sort((a, b) => a.width() - b.width())[0]!;
-  return {
-    period: {
-      box: boxes[0]!.box()! as Box,
-      sides: lines(boxes[0]!),
-      label: texts[0]!.box()! as Box,
-      text: (texts[0] as unknown as { text: string }).text,
-    },
-    event: {
-      box: boxes[1]!.box()! as Box,
-      sides: lines(boxes[1]!),
-      label: texts[1]!.box()! as Box,
-      text: (texts[1] as unknown as { text: string }).text,
-    },
-    ring: lines(ring)[0]!,
-    string: lines(string)[0]!,
-    dot: lines(dot)[0]!,
-    marks: paths.length + texts.length,
-    outlines: outlined.reduce((n, m) => n + m.subpaths.length, 0),
-    filled: paths.length - outlined.length,
-    words: texts.length,
-  };
-}
-
-/** Polylines as one path, a subpath each. */
-function polylines(
-  ls: readonly (readonly Pt[])[],
-  stroke: string,
-  strokeWidth: number,
-  opts: { fill?: boolean; opacity?: number } = {},
-): VMobject {
-  const vm = new VMobject({
-    stroke,
-    strokeWidth,
-    strokeOpacity: opts.opacity ?? 1,
-    fill: opts.fill ? stroke : 'none',
-    fillOpacity: opts.fill ? 1 : 0,
-    lineCap: 'round',
-    lineJoin: 'round',
-  });
-  for (const l of ls) {
-    vm.startNewPath(l[0]! as Vec);
-    for (const p of l.slice(1)) vm.addLineTo(p as Vec);
-    if (opts.fill) vm.closePath();
-  }
-  return vm;
-}
 const fmt = (n: number, d = 3) => n.toFixed(d);
 
+// The title, answer and check questions come from script.md's intent header.
 export default class PenAndPencil extends Scene {
   static meta = {
     id: 'pen-and-pencil',
-    title: 'Can hand-drawn strokes keep a diagram’s layout?',
     sources: [
       'https://pele-art-diagrams.vercel.app/',
       'https://github.com/rheos/secondunit-videos/blob/main/references/pele-diagrams/README.md',
@@ -137,9 +64,6 @@ export default class PenAndPencil extends Scene {
       'https://paulbourke.net/dataformats/hershey/',
       'https://github.com/rough-stuff/rough/wiki',
     ],
-    // The script's answer and check questions (script.md); reader-separate states the answer.
-    answer:
-      'Lay the chart out first and let the hand only trace it, so a new drawing changes each stroke’s wobble and leaves every box where the layout put it',
     // Sentences about every line, box or stroke: the test that holds each, or "shown" where the sentence
     // speaks only of the drawing on screen in its own step. The hand is the explainer's own model.
     claims: [
@@ -166,20 +90,6 @@ export default class PenAndPencil extends Scene {
       {
         says: 'every error rode along into the lines after it',
         test: 'test/explain-pen-and-pencil.test.ts: with error, each corner carries the ones before',
-      },
-    ],
-    checks: [
-      {
-        question:
-          'Give the spring hand of the third step the opening’s route instead: a point that moves corner to corner as the opening’s hand did, each line starting where the last one stopped and up to 2° and 3% off. Would words still poke out of their boxes?',
-        answer:
-          'Yes. The spring keeps the ink close to whatever route it chases, but that route has wandered just as the opening’s boxes did, so the boxes still end up far from where the layout put them. The opening’s drawing was made exactly this way. What keeps the words inside is a route laid out before any ink; the spring only keeps each stroke near its route.',
-      },
-      {
-        question:
-          'Lower the spring hand’s damping to a quarter of its value, so the pen overshoots at every corner before settling. Would a second drawing then move any box?',
-        answer:
-          'No. The ink would stray further from its marks, about 0.02 units instead of 0.005 in this model. But each stroke still starts at rest on its own laid-out mark and chases only that mark, so the overshoot never carries into the next stroke, and every box stays where the layout put it.',
       },
     ],
   };

@@ -1,17 +1,25 @@
 # Will this Tailwind colour fit the display?
 
-You choose cyan-500. Tailwind writes it as oklch(71.5% 0.143 215.221): lightness, chroma and hue. Chroma measures how far the colour stands from grey. At this lightness and hue, cyan-500 asks for more chroma than an sRGB display can reproduce, so the page you are reading has no paint for it. What an sRGB screen shows instead is #00b8db, with chroma about 0.130: a duller cyan than the one you wrote. Is cyan the only family affected?
+- **Reader:** a front-end developer who uses Tailwind's colour names and has seen that Tailwind 4 writes them in oklch(), without knowing what chroma is or what a display's gamut does to it.
+- **Answer:** Most of these colours lie outside sRGB, so an sRGB screen shows them less vivid than written
+- **Changed condition:** the shade (300, 500 or 700) and the screen (sRGB or Display P3). The shade changes the requested colours and their limits, since the edge moves with lightness, so which colours overshoot and which goes furthest change; the screen decides the ending: on sRGB the overshooting colours are mapped down to the edge, on Display P3 every colour shows as written.
+- **Reader's own work:** predict whether the other shades fit after seeing the opening colour, and which colour goes furthest as a share of its own edge before the share view answers; choose the shade and the screen; answer the check questions.
+- **Checked against:** Color.js 0.7.1. `test/explain-tailwind-gamut.test.ts` compares the model's in-gamut answers, sRGB and Display P3 edges and CSS gamut-mapped colours for every vendored colour with Color.js 0.7.1's, captured for the colours parsed from npm tailwindcss@4.3.3's `theme.css`, which the vendored lines match. The conversion matrices are copied from CSS Color 4's sample code.
+- **Leaves out:** the grey families and the other shades; what a particular browser, calibration, colour management or physical screen produces, since the numbers are the colour a correct implementation of the pinned CSS mapping (binary search with local MINDE) would choose; the other mapping methods CSS Color 4 allows.
 
-Compare the seventeen coloured families at shade 500. To judge each one, we need the sRGB limit at that colour's own lightness and hue. The radar gives each family a spoke; its outline marks the greatest chroma that still fits sRGB. The outline changes from spoke to spoke because a display's limit is not the same for every lightness and hue.
+## Check yourself
 
-Overlay Tailwind's requested chroma. Fourteen of these seventeen colours extend beyond the sRGB outline. Red, fuchsia and pink fit. The overshoots look small in the raw chroma view: lime-500 extends furthest, about 0.024 past its edge. But each spoke's edge sits at a different chroma. Measured as a share of its own edge, which colour goes furthest?
+1. An sRGB screen paints cyan-500 with chroma 0.130. Suppose you write that chroma yourself, at cyan-500’s own lightness and hue: oklch(71.5% 0.130 215.221). Does it fit sRGB?
+   No. The sRGB edge at that lightness and hue is 0.126, below 0.130. The mapped colour fits because the final clip also moved it, to lightness 72.2% and hue 217.7°, where the edge is higher. Whether a chroma fits depends on the lightness and hue it comes with.
+2. In raw chroma, lime-500 is the 500 colour furthest past the sRGB edge. Why does the share view put cyan-500 first instead?
+   The edge sits at a different chroma on every spoke. lime-500 overshoots by 0.024 on an edge at 0.209; cyan’s edge is 0.126, so its smaller overshoot is a larger share of it.
+3. pink-500 has the most room of the 500 shades, at 90.4% of its sRGB edge. Does that make pink-700 safe on an sRGB screen?
+   No: pink-700 asks for 105.6% of its edge, so an sRGB screen maps it. The darker shade has its own lightness and chroma, and the edge moves with lightness, so a family’s name says nothing about whether it fits.
 
-Now measure each colour relative to its own edge. The sRGB edge becomes the 100% ring. Cyan reaches 113.1%, the largest relative overshoot, with yellow level with it to one decimal, even though lime had the largest absolute one. Cyan's available range is smaller, so its smaller excess is larger as a proportion. Pink sits at 90.4%, leaving more room before its edge. These are two comparisons of the same colours: extra chroma in absolute units, and chroma relative to the display's limit.
+## Why this explainer
 
-Add Display P3, a wider colour range. Its edge lies beyond sRGB's on each of these spokes, and all seventeen shade-500 colours fit inside it. Amber comes closest to that edge, at 98.4% of the available chroma.
+Tailwind 4 moved its palette to oklch "to make the colors more vivid", and most readers will never notice that many of those colours cannot be shown on the sRGB screens most people use. The opening makes that concrete with one colour: the swatch as written is empty, because this page has no paint for it, beside the duller colour an sRGB screen actually paints.
 
-What happens outside the chosen display's range? The CSS Color 4 mapping used here reduces chroma, compares the trial colour with its clipped version, and returns an in-range result once their difference is small enough. Clipping can shift hue as well. On sRGB, yellow-500 loses the most chroma in this group. On Display P3, all seventeen already fit, so this mapping leaves them unchanged.
+The radar gives each family its own spoke because a display's limit depends on lightness and hue together; there is no single chroma cutoff. The raw and relative views answer different questions, and the palette step asks which colour goes furthest as a share of its own edge before the share step answers. At shade 500 the raw leader (lime) and the share leader (cyan) differ, which is what makes the question worth asking and the share view worth having. Display P3 then shows that the colours were written for a wider gamut, and the screen setting picks which ending the reader sees. The opening always compares against sRGB, even when the chosen ending is Display P3.
 
-Changing the shade changes both the requested colours and their limits, because the edge moves with lightness. Changing the screen changes which ending applies. A colour's name alone cannot tell you whether it fits: the answer depends on its lightness, chroma and hue together, and on the display range you ask it to fit.
-
-These numbers come from Tailwind 4.3.3's theme and the CSS Color 4 conversion and mapping code, checked against Color.js 0.7.1. They describe the colour a correct implementation of that mapping would choose, not what a particular browser, calibration or physical screen produces.
+The check answers quote model values for shade 500; a guard in `scene.ts` fails the scene if the model stops giving them.

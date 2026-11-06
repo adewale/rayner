@@ -1,11 +1,10 @@
-import { Scene, Group, Rectangle, Text, VMobject, view } from '../../../src/index.ts';
-import type { Box, Mobject, View } from '../../../src/index.ts';
+import { Scene, Group, view } from '../../../src/index.ts';
+import type { Box, View } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, CodeBlock, mermaid } from '../../../explain/index.ts';
 import type { CardRow, CardOptions } from '../../../explain/index.ts';
 import {
   CLIENT_IP,
   PLACEMENTS,
-  add,
   endpointsOn,
   flows,
   frac,
@@ -23,17 +22,17 @@ import {
   value,
 } from './model.ts';
 import type { PlacementKey, Policy, Q } from './model.ts';
+import { NODES, POLICY, parse, flowPanel } from './picture.ts';
+import type { FlowState } from './picture.ts';
 
 // Sources: kubernetes/kubernetes at tag v1.37.1 and kubernetes/website at commit 0c2509f; the lines each
-// claim rests on are quoted in lib/traffic-policy.ts and beside the steps below.
+// claim rests on are quoted in model.ts and beside the steps below.
 const K8S = 'https://github.com/kubernetes/kubernetes/blob/v1.37.1/';
 const WEB = 'https://github.com/kubernetes/website/blob/0c2509f55f9de644acef9232e4ec1ab6cbd01dcc/content/en/docs/';
 
 // excalidraw was tried first: its hatched fills, recoloured and thickened by a mark, hid the marked labels.
 const STYLE = 'github-light';
-const NODES = ['Node 1', 'Node 2', 'Node 3'];
 const NAMES = ['one', 'two', 'three', 'four', 'five', 'six'];
-const POLICY: Record<Policy, string> = { cluster: 'Cluster', local: 'Local' };
 
 /**
  * The cluster as an architecture diagram: the load balancer under three node groups, each node's address
@@ -125,148 +124,13 @@ interface TrafficState {
 const BELOW: Box = [-7.55, -4.25, 7.55, -1.45];
 const SIZE = 0.24;
 
-// The flow picture: load balancer on top, nodes in the middle, pods at the bottom, each band as wide as
-// its share of the outside requests. Bands take their entry node's colour, so a pod fed by several
-// colours is fed by several nodes.
-const NODE_COLORS = ['#0969da', '#bf8700', '#1a7f37', '#8250df', '#cf222e', '#57606a'];
-const FLOW_W = 3.4,
-  BAR_H = 0.42,
-  FLOW_TEXT = 0.3;
-// Short enough for a phone's opening view to hold one whole panel at a readable size.
-const LB_Y = 1.2,
-  NODE_Y = -0.2,
-  POD_Y = -1.6;
-/** A band from [a0, a1] at height ya down to [b0, b1] at yb, its sides eased into vertical at both ends. */
-function band(a0: number, a1: number, ya: number, b0: number, b1: number, yb: number, color: string) {
-  const m = (ya + yb) / 2;
-  const v = new VMobject({ fill: color, fillOpacity: 0.4, stroke: 'none', strokeWidth: 0 });
-  v.startNewPath([a0, ya]);
-  v.addCubic([a0, m], [b0, m], [b0, yb]);
-  v.addLineTo([b1, yb]);
-  v.addCubic([b1, m], [a1, m], [a1, ya]);
-  v.closePath();
-  return v;
-}
-/** A fraction as the state records it ("1/6", "0"), read back as the model's exact fraction. */
-const parse = (f: string): Q => {
-  const [num, den = '1'] = f.split('/');
-  return q(Number(num), Number(den));
-};
-/** What the flow step records of one policy: each node's share, and every band as [node, pod, share]. */
-interface FlowState {
-  nodes: string[];
-  bands: [string, string, string][];
-}
-/**
- * One policy's flow, centred at x = cx, drawn from what the step records: the node shares and the
- * bands, each pod's share being the bands that reach it. The keys name the panel, each band and each pod.
- */
-function flowPanel(counts: readonly number[], policy: Policy, flow: FlowState, cx: number, ink: string, paper: string, mine: boolean) {
-  const pods = podsOf(counts),
-    node = flow.nodes.map(parse),
-    bands = flow.bands.map(([at, pod, f]) => ({ node: NODES.indexOf(at), pod, share: parse(f) }));
-  const share: Record<string, Q> = Object.fromEntries(
-    pods.map((p) => [p.id, bands.filter((b) => b.pod === p.id).reduce((sum, b) => add(sum, b.share), q(0))]),
-  );
-  const w = (x: Q) => value(x) * FLOW_W;
-  const text = (words: string, color = ink, size = FLOW_TEXT, bold = false) =>
-    new Text(words, { fontSize: size, color, weight: bold ? 'bold' : 'normal' });
-  const box = (x0: number, x1: number, y: number, fill: string, stroke = 'none') =>
-    new Rectangle({ width: x1 - x0, height: BAR_H, fill, stroke, strokeWidth: 0.025 }).moveTo([(x0 + x1) / 2, y + BAR_H / 2]);
-  const nodeX = counts.map((_, j) => cx + (j - (counts.length - 1) / 2) * 2.1);
-  // Pods sit in slots one unit apart, centred under their node: where they run, whatever their share.
-  const podX = new Map<string, number>();
-  counts.forEach((c, j) => pods.filter((p) => p.node === j).forEach((p, i) => podX.set(p.id, nodeX[j]! + (i - (c - 1) / 2) * 0.95)));
-  const parts: Mobject[] = [];
-  // The policy's name sits left of the load balancer, with "this scenario" under it for the scenario's own policy.
-  const nameAt: [number, number] = [cx - FLOW_W / 2 - 0.2, LB_Y + BAR_H / 2];
-  const title = new Group(text(POLICY[policy], ink, 0.34, true).moveTo(nameAt, [1, 0]));
-  if (mine) title.add(text('this scenario', ink).moveTo([nameAt[0], nameAt[1] - 0.42], [1, 0]));
-  // Load balancer bar, its bottom cut into one segment per node, in node order.
-  const lb = new Group(box(cx - FLOW_W / 2, cx + FLOW_W / 2, LB_Y, ink), text('Load balancer', paper).moveTo([cx, LB_Y + BAR_H / 2]));
-  let lbAt = cx - FLOW_W / 2;
-  const nodeIn = new Map<number, [number, number]>();
-  node.forEach((x, j) => {
-    nodeIn.set(j, [lbAt, lbAt + w(x)]);
-    lbAt += w(x);
-  });
-  // Node bars: as wide as the node's share; a node with no share is an empty dashed outline.
-  const nodeBars: Mobject[] = [];
-  const nodeSpan = new Map<number, [number, number]>();
-  counts.forEach((_, j) => {
-    const width = value(node[j]!) > 0 ? w(node[j]!) : 1.4;
-    const x0 = nodeX[j]! - width / 2;
-    nodeSpan.set(j, [x0, x0 + width]);
-    if (value(node[j]!) > 0) {
-      const [a0, a1] = nodeIn.get(j)!;
-      parts.push(band(a0, a1, LB_Y, x0, x0 + width, NODE_Y + BAR_H, NODE_COLORS[j]!));
-      nodeBars.push(new Group(box(x0, x0 + width, NODE_Y, NODE_COLORS[j]!), text(NODES[j]!, paper).moveTo([nodeX[j]!, NODE_Y + BAR_H / 2])));
-    } else {
-      const outline = box(x0, x0 + width, NODE_Y, 'none', ink);
-      outline.style.dashArray = '0.12 0.08';
-      nodeBars.push(new Group(outline, text(NODES[j]!).moveTo([nodeX[j]!, NODE_Y + BAR_H / 2]), text('no band').moveTo([nodeX[j]!, NODE_Y - 0.32])));
-    }
-  });
-  // Node to pod bands: out of each node bar in chain order, into each pod bar in node order.
-  const out = new Map([...nodeSpan].map(([j, [x0]]) => [j, x0]));
-  const into = new Map(pods.map((p) => [p.id, podX.get(p.id)! - w(share[p.id]!) / 2]));
-  const bandMobs: Mobject[] = [];
-  for (const b of bands) {
-    const o = out.get(b.node)!,
-      i = into.get(b.pod)!;
-    const m = band(o, o + w(b.share), NODE_Y, i, i + w(b.share), POD_Y + BAR_H, NODE_COLORS[b.node]!);
-    m.key = `traffic-flow:${policy}:band:${b.node + 1}:${b.pod}`;
-    bandMobs.push(m);
-    out.set(b.node, o + w(b.share));
-    into.set(b.pod, i + w(b.share));
-  }
-  const podBars = pods.map((p) => {
-    const x = podX.get(p.id)!,
-      width = w(share[p.id]!);
-    const g = new Group(
-      box(x - width / 2, x + width / 2, POD_Y, ink),
-      text(p.id, paper).moveTo([x, POD_Y + BAR_H / 2]),
-      text(percent(share[p.id]!)).moveTo([x, POD_Y - 0.3]),
-    );
-    g.key = `traffic-flow:${policy}:pod:${p.id}`;
-    return g;
-  });
-  const group = new Group(title, ...parts, ...bandMobs, lb, ...nodeBars, ...podBars);
-  group.key = `traffic-flow:${policy}`;
-  const words = () => {
-    const nodeWords = counts
-      .map((_, j) =>
-        value(node[j]!) === 0
-          ? `${NODES[j]} gets no band`
-          : `${NODES[j]} gets ${frac(node[j]!)} and passes it to ${bands
-              .filter((b) => b.node === j)
-              .map((b) => `pod ${b.pod} (${frac(b.share)})`)
-              .join(', ')}`,
-      )
-      .join('; ');
-    return `${POLICY[policy]}: bands as wide as their share of requests, from the load balancer to the nodes and on to the pods. ${nodeWords}. Pods end with ${pods.map((p) => `${p.id} ${percent(share[p.id]!)}`).join(', ')}.`;
-  };
-  return { group, words };
-}
-/** The script's one-sentence answer (script.md); the shares step's caption states it. */
+/** The answer in script.md's intent header, which the shares step's caption states. */
 const ANSWER = 'The load balancer weighs nodes, not pods';
 
-// The check questions' placements and chain, none of them drawn: 4, 1, 0 under Local; a four-pod chain;
-// and every placement of four pods on three nodes, kept when Local gives every pod the same share.
-const FOUR_ONE = shares([4, 1, 0], 'local'),
-  FOUR_ONE_NODES = nodeShares([4, 1, 0], 'local'),
-  CHAIN4 = rules(['a', 'b', 'c', 'd']);
-const EVEN4 = [0, 1, 2, 3, 4]
-  .flatMap((x) => [0, 1, 2, 3, 4].map((y) => [x, y, 4 - x - y]))
-  .filter((c) => c[2]! >= 0)
-  .filter((c) => new Set(Object.values(shares(c, 'local')).map(frac)).size === 1);
-/** The even placements up to the nodes' order, largest count first: "4, 0, 0" and "2, 2, 0". */
-const EVEN4_SHAPES = [...new Set(EVEN4.map((c) => [...c].sort((a, b) => b - a).join(', ')))];
-
+// The title, answer and check questions come from script.md's intent header.
 export default class TrafficPolicyExplainer extends Scene {
   static meta = {
     id: 'traffic-policy',
-    title: 'How does traffic policy divide requests among pods?',
     sources: [
       K8S + 'pkg/proxy/iptables/proxier.go#L390-L392',
       K8S + 'pkg/proxy/iptables/proxier.go#L1454-L1472',
@@ -279,23 +143,6 @@ export default class TrafficPolicyExplainer extends Scene {
       K8S + 'pkg/proxy/ipvs/proxier.go#L91-L92',
       WEB + 'tutorials/services/source-ip.md',
       WEB + 'tasks/access-application-cluster/create-external-load-balancer.md#preserving-the-client-source-ip',
-    ],
-    // The script's answer, stated by the shares step, and three questions on placements and chains the page
-    // does not draw; each answer is the model's.
-    answer: ANSWER,
-    checks: [
-      {
-        question: 'Under Local, with pods placed 4, 1, 0, what share of the requests does the pod on Node 2 get, and what does each pod on Node 1 get?',
-        answer: `Node 3 fails the health check, so Node 1 and Node 2 get ${frac(FOUR_ONE_NODES[0]!)} each. Node 2’s one pod keeps all of its ${frac(FOUR_ONE_NODES[1]!)}; Node 1 splits its ${frac(FOUR_ONE_NODES[0]!)} four ways, ${frac(FOUR_ONE.a!)} each. The lone pod gets ${value(FOUR_ONE.e!) / value(FOUR_ONE.a!)} times as many requests.`,
-      },
-      {
-        question: 'Under Cluster, every node’s chain lists four pods. With what probabilities do its rules match, and what share does each pod get?',
-        answer: `${CHAIN4.map((r) => (r.probability ? `1/${Math.round(1 / Number(r.probability))}` : 'always')).join(', then ')}: each rule matches 1/(n−i) of the requests that reach it, so each pod gets ${frac(ruleShares(4)[0]!)} of what the node receives.`,
-      },
-      {
-        question: 'Which placements of four pods on these three nodes give every pod the same share under Local?',
-        answer: `Only ${EVEN4_SHAPES.join(' and ')}, in any order of the nodes. Under Local each healthy node gets an equal share and splits it among its own pods, so the shares are even exactly when every node with pods runs the same number.`,
-      },
     ],
     // The sentences that reach beyond the scenario on screen, and the tests that hold them.
     claims: [

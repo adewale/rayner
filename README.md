@@ -19,7 +19,7 @@ A picture of a Python dict after `del d[0]` is easy to draw wrong. Draw slot 0 e
 | [Why does a Bloom filter answer “maybe”?](https://oshineye.dev/projects/rayner/bloom-filter) | Invariant tests of a teaching model with its own hashes, not a production filter |
 | [Why does the north have summer when Earth is farthest from the Sun?](https://oshineye.dev/projects/rayner/seasons) | Nothing external: a cited approximation of the Sun’s path, not validated against an almanac |
 
-Each explainer’s `notes.md` says what its model leaves out; the [Bloom filter’s scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
+Each explainer’s `script.md` says what its model is checked against and what it leaves out; the [Bloom filter’s scene](https://github.com/adewale/rayner/blob/main/scenes/explainers/bloom-filter/scene.ts) shows a model supplying a picture and its caption. [All explainers](https://oshineye.dev/projects/rayner/)
 
 ## Quick start
 

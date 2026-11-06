@@ -25,6 +25,13 @@
 //                                       targetFreeSpace <= PageGetHeapFreeSpace(page)
 //   src/backend/access/heap/hio.c:767, 859-860  otherwise add a page, which needs only room for len
 // MAXALIGN is 8 on a 64-bit build: pg_controldata on the measured server prints "Maximum data alignment: 8".
+//
+// Its limits: heap pages of a 64-bit build, with eight-byte maximum alignment; rows with no null
+// values (so no null bitmap) and no later updates or dead tuples; a short text is ASCII with a
+// one-byte length header (shortText refuses one that needs four), and longer or compressed values
+// are not modelled; columns in the order given; fillfactor only as the reserve hio.c leaves.
+// Table sizes are heap pages, not total storage with indexes or other relation files. The page
+// counts are checked against a measured Postgres 18.6 server in test/explain-pg-page.test.ts.
 
 import { percent as formatPercent } from '../lib/format.ts';
 

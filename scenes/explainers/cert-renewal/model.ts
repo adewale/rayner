@@ -1,6 +1,15 @@
 // When Certbot renews a certificate, under two rules, run by a twice-daily timer against
 // Let's Encrypt's per-identifier-set rate limit. Pure TypeScript: the scene and the tests
 // both read their numbers from here. Times are hours after the first certificate's notBefore.
+//
+// Its limits: the timer runs every twelve hours; certificate timestamps, backdating and limit
+// recovery come from the pinned Certbot and Boulder sources. An explicit stored renew_before_expiry
+// takes precedence over the 4.1 default. The rate-limit exemption needs both a replacement
+// identifier and an order inside the predecessor's ARI window, and the modelled Certbot 5.8 orders
+// carry no identifier. The ARI window is modelled around the due fraction from Boulder's rule, with
+// repeated random draws; it is not a captured CA response. BR_PHASES and LE_DATES are the published
+// schedules, context for the arithmetic, not a live policy lookup. Counts are consequences of these
+// timings, not forecasts for a deployed installation.
 
 export const DAY = 24;
 export const YEAR = 365 * DAY;

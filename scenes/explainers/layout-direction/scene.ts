@@ -7,10 +7,15 @@ const ROWS: [string, number][] = [['Field', 123]];
 /** The two cards' placement and the one field-direction override, as the code panel prints them. */
 const START = { at: 'start' } as const;
 const END = { at: 'end', direction: 'ltr' } as const;
+// The code panel leaves out the cards' width, font size and titles: they affect neither placement nor field order.
 const CARD = { width: 7.2, fontSize: 0.8, enter: false } as const;
-/** The answer, stated where the cards first appear. */
+/** script.md's answer, word for word, stated where the cards first appear. */
 const ANSWER = 'Start and End follow the stage’s direction, and a card’s field columns follow the stage unless the card sets its own';
 
+// This explainer has no model of its own: every card is the engine's own s.card, placed by the stage, and
+// the state records where each one landed, measured from the card. Its limit: Latin labels and digits only.
+// Font and script support and bidirectional text shaping are separate from the panel and field-column
+// directions shown here.
 /** Which half of the stage a card sits in, and which side of its value the field name sits on. */
 function layoutOf(card: Card) {
   const label = card.labels.get('Field')!.box()!,
@@ -22,33 +27,13 @@ function layoutOf(card: Card) {
   };
 }
 
+// The title, answer and check questions come from script.md's intent header.
 export default class LayoutDirectionExplainer extends Scene {
   static meta = {
     id: 'layout-direction',
-    title: 'How does RTL change panels and field columns?',
     sources: ['https://github.com/adewale/rayner/blob/main/docs/REFERENCE.md#stage'],
-    answer: ANSWER,
     // The code step's sentence speaks of the code panel it draws.
     claims: [{ says: 'This layout never says left or right', shown: true as const }],
-    checks: [
-      {
-        question:
-          'On the rtl stage, add a third card at end with no direction of its own. Which half does it go to, and which side of its value is its Field name?',
-        answer:
-          'The left half, because end is the left on an rtl stage. With no direction of its own it takes rtl columns from the stage, so its Field name sits to the right of its value.',
-      },
-      {
-        question:
-          'A flowchart whose arrows run left to right must sit on the left half of the page in both reading directions. Should it be placed at start, at end or at left?',
-        answer:
-          'At left. Start and end swap halves when the stage direction changes; left keeps its side in both, as the last step shows.',
-      },
-      {
-        question: 'Give the End card direction rtl instead of ltr. On the rtl stage, how do the two cards’ fields compare?',
-        answer:
-          'They match: both cards now have rtl columns, so both put Field to the right of 123. Neither card reverses the digits.',
-      },
-    ],
   };
   static settings = [
     {

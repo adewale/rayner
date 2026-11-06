@@ -1,5 +1,10 @@
 // Insert-only Bloom filter. Three seeded FNV-1a hashes are a small teaching
-// implementation, not a reproduction of Jason Davies's double-hash implementation.
+// implementation, not a reproduction of Jason Davies's double-hash implementation or a
+// production filter. What it leaves out: deletion, counting filters, other numbers of hashes,
+// and sizing a row for a target false-positive rate. The pass rates are measured over 10,000
+// fixed untaken sample names for these hashes, not the independent-uniform estimate
+// (setBits / size)^3, since these hashes need not be independent; and the counts of names
+// that fill each row (12 at 16 bits, 45 at 32) belong to the insertion order in MORE.
 export function fnv1a(text: string): number {
   let h = 2166136261;
   for (const byte of new TextEncoder().encode(text)) h = Math.imul(h ^ byte, 16777619) >>> 0;

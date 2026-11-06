@@ -1,4 +1,8 @@
 // The seasons explainer's model: the Sun's height, daylight and distance through the year, from a cosine approximation of its declination.
+// Its limits: daylight times the Sun's centre above a flat horizon, leaving out refraction, the Sun's disc and hills
+// or buildings, so almanac days are longer and polar nights shorter; noon sunlight leaves out the atmosphere's
+// absorption; no weather or temperature is modelled. The tilt is fixed at 23.44°, the year is 365 days, and the
+// yearly curve comes from the declination approximation, not an almanac checked date by date.
 export function sunlight(latitude: number, declination: number): { altitude: number; daylight: number } {
   const rad = Math.PI / 180;
   const cos = -Math.tan(latitude * rad) * Math.tan(declination * rad);

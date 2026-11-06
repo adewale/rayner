@@ -4,7 +4,7 @@ import { flow, label } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 
-/** The script's answer, stated by the second step. */
+/** The script's answer (its intent header's Answer), stated by the second step. */
 export const ANSWER = 'The agent handles only an op:// reference, and op puts the value into the app’s environment';
 
 /** Desktop approvals authenticate op, as the scene's run step assumes. */

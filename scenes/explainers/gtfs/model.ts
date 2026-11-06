@@ -1,6 +1,10 @@
 // Which trips of a GTFS feed run on a date, and what leaves a stop that day, read from the feed's
 // own tables. Pure TypeScript with no Node APIs: the scene runs it in the page.
 //
+// What it leaves out: realtime delays and cancellations, transfers and journey planning. It is held to
+// Google's sample feed (calendars, trips, stop times and frequencies) and to gtfs-kit's counts for it
+// (test/explain-gtfs.test.ts). It reads only the seven tables readFeed names.
+//
 // Every rule is from the GTFS Schedule reference at google/transit commit 3c9e7b9
 // (gtfs/spec/en/reference.md, lines as numbered at that commit):
 //   120  routes.txt: "A route is a group of trips that are displayed to riders as a single service."
@@ -360,7 +364,9 @@ export function dayChart(feed: Feed, date: GtfsDate) {
 }
 /** Thinner bars than Mermaid's default: with a section per service_id, the labels reach 14 px on the stage. */
 const GANTT_CONFIG = ['---', 'config:', '  gantt:', '    barHeight: 6', '---'];
-/** The day's chart as Mermaid: one section per service_id, one task per trip; trips that do not run are "done" (grey). */
+/** The day's chart as Mermaid: one section per service_id, one task per trip; trips that do not run are "done" (grey).
+ * A frequency trip's bar spans the hours its vehicles leave the first stop; it does not draw one vehicle travelling
+ * continuously. */
 export function ganttSource(feed: Feed, date: GtfsDate): string {
   return [
     ...GANTT_CONFIG,

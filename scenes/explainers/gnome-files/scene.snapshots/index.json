@@ -2,7 +2,7 @@
   "version": 2,
   "importer": "a766bb6141ca6fb0",
   "renderer": "agentic-mermaid@0.5.1",
-  "sourceHash": "a5458bdb2b6ceca9de31e0a2d40dac48f31fd857bc3d819f5a4563152bec4ee5",
+  "sourceHash": "2d013cf13e11e5737b686009a1e720b9b4331ee11c5f50e8a1ca132fad90ac27",
   "diagrams": {
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 1: P2\\n    2 Folder size in Properties: 5: P2\\n    3 Select All: 5: P2\\n    4 Undo the move: 4: P2\",\"github-light\"]": "d7adee6b3923992e.json",
     "[\"journey\\n  section Menu structure\\n    1 Change the icon size: 1: P6\\n    2 Folder size in Properties: 5: P6\\n    4 Undo the move: 1: P6\",\"github-light\"]": "76ecc6942bf76205.json",
