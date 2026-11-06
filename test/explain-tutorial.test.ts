@@ -15,6 +15,8 @@ import { run } from '../scenes/tutorial/lru-mru/model.ts';
 import '../scenes/tutorial/lru-mru/model.test.ts';
 // The machine starter's model tests: every event from every state, and every refusal's reason.
 import '../scenes/tutorial/door/model.test.ts';
+// The README's complete example: no route beats 7 or 15 moves, and solve() takes that many.
+import '../scenes/tutorial/hanoi/model.test.ts';
 
 const DIR = 'scenes/tutorial/lru-mru/';
 const tutorial = readFileSync('docs/TUTORIAL.md', 'utf8');
@@ -143,4 +145,13 @@ test('the hand-written captions say what the model does', async () => {
   for (const policy of ['lru', 'mru'] as const) assert.equal(run(policy, 4, SEQ.loop).filter((r) => r.hit).length, 4);
   assert.match(meta('loop', 'verdict').caption!, /MRU hits 3 times and LRU 0/);
   assert.match(meta('reuse', 'verdict').caption!, /LRU hits 4 times and MRU 0/);
+});
+
+test('the README shows the Hanoi explainer exactly as it is checked in, with package imports', () => {
+  const readme = readFileSync('README.md', 'utf8');
+  for (const file of ['model.ts', 'scene.ts']) {
+    const shown = readme.match(new RegExp(`<!-- hanoi/${file.replace('.', '\\.')} -->\\n\`\`\`ts\\n([\\s\\S]*?)\`\`\``))?.[1];
+    assert.ok(shown, `README.md shows hanoi/${file}`);
+    assert.equal(shown, packageImports(readFileSync(`scenes/tutorial/hanoi/${file}`, 'utf8')), `README.md's hanoi/${file} is scenes/tutorial/hanoi/${file} with package imports`);
+  }
 });
