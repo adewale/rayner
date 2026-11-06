@@ -1,7 +1,7 @@
 // XState's own answers for every chart the statecharts explainer draws, for test/statecharts.test.ts.
 //   node tools/oracle/statecharts.ts <directory holding node_modules/xstate> [--check]
 // Install the pinned release there first: npm install --prefix <directory> xstate@5.33.3
-// It builds each chart in CHARTS (scenes/explainers/lib/statecharts.ts) as an XState machine, then
+// It builds each chart in CHARTS (below, from scenes/explainers/statecharts/model.ts) as an XState machine, then
 // explores it with XState alone: from the initial snapshot, every event XState says the machine
 // takes, breadth first, recording each reachable configuration, what `can` reports and where each
 // event leads. Rayner's model is not run here; the test compares it with this file.

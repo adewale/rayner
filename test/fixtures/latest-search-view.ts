@@ -13,7 +13,7 @@ export default class LatestSearchExplainer extends Scene {
     id: 'latest-search',
     title: 'Why can an older search replace the latest result?',
     sources: [
-      'https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/latest-search.ts',
+      'https://github.com/adewale/rayner/blob/main/scenes/explainers/latest-search/model.ts',
       'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/then',
     ],
   };

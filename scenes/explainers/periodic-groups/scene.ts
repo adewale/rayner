@@ -60,7 +60,7 @@ export default class PeriodicGroupsExplainer extends Scene {
       'https://en.wikipedia.org/w/index.php?title=Group_(periodic_table)&oldid=1381612279',
       'https://en.wikipedia.org/w/index.php?title=Aufbau_principle&oldid=1360487775',
       'https://physics.nist.gov/PhysRefData/ASD/ionEnergy.html',
-      'https://github.com/adewale/rayner/blob/main/scenes/explainers/lib/periodic-groups.ts',
+      'https://github.com/adewale/rayner/blob/main/scenes/explainers/periodic-groups/model.ts',
     ],
     // Sentences that speak for all 118 elements, not only the five scenarios, and the test that holds each.
     claims: [
