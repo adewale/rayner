@@ -50,47 +50,113 @@ npx rayner review my-explainer/scene.ts --out public/my-explainer.html
 
 `review --out` checks every scenario, audits the served page at phone and desktop widths, and saves that exact HTML with its receipt, a response-header recipe and its loader. [The tutorial](docs/TUTORIAL.md) builds a complete explainer; [publishing](docs/PUBLISHING.md) covers hosting and embedding it. `npx rayner init --machine` writes the other starter, a door that locks, for explainers a reader drives with events.
 
-## What a scene looks like
+## A complete explainer
 
-The model is plain TypeScript, and its test holds it to a published source. From the starter `init` writes:
+This is the whole of [`scenes/tutorial/hanoi`](scenes/tutorial/hanoi), a Tower of Hanoi with three disks, or four with the **Disks** setting. `rayner check` explores all 27 arrangements of three disks and all 81 of four, and [`test/explain-tutorial.test.ts`](test/explain-tutorial.test.ts) fails if the code below differs from those files.
 
+![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](docs/images/hanoi-steps.png)
+
+The model is the rules and nothing else. A refused move carries the reason the reader will see:
+
+<!-- hanoi/model.ts -->
 ```ts
-// model.test.ts
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { run, type Policy } from './model.ts';
+import { refuse } from 'rayner';
+import type { Refusal } from 'rayner';
 
-const evictions = (policy: Policy, requests: string) =>
-  run(policy, 4, [...requests]).map((r) => r.evicted ?? '-').join(' ');
+export type Move = 'A→B' | 'A→C' | 'B→A' | 'B→C' | 'C→A' | 'C→B';
+export const MOVES: readonly Move[] = ['A→B', 'A→C', 'B→A', 'B→C', 'C→A', 'C→B'];
+/** Each peg's disks, bottom first; disk 1 is the smallest. */
+export type Tower = { pegs: number[][] };
 
-test("LRU matches Wikipedia's example: E replaces A, then F replaces B", () => {
-  assert.equal(evictions('lru', 'ABCDEDF'), '- - - - A - B');
-});
+/** `n` disks on peg A, the largest at the bottom. */
+export const start = (n: number): Tower => ({ pegs: [Array.from({ length: n }, (_, i) => n - i), [], []] });
+
+/** The tower after `move`, or the rule that refuses it. */
+export function next({ pegs }: Tower, move: Move): Tower | Refusal {
+  const [from, to] = ['ABC'.indexOf(move[0]!), 'ABC'.indexOf(move[2]!)];
+  const disk = pegs[from]!.at(-1), under = pegs[to]!.at(-1);
+  if (disk === undefined) return refuse(`peg ${move[0]} is empty`);
+  if (under !== undefined && under < disk) return refuse(`disk ${disk} cannot sit on the smaller disk ${under}`);
+  return { pegs: pegs.map((p, i) => (i === from ? p.slice(0, -1) : i === to ? [...p, disk] : p)) };
+}
+
+/** Carry the top `n` disks: the `n − 1` above go to the spare peg, disk `n` moves, then they follow it. */
+export function solve(n: number, from = 'A', to = 'C', spare = 'B'): Move[] {
+  if (n === 0) return [];
+  return [...solve(n - 1, from, spare, to), `${from}→${to}` as Move, ...solve(n - 1, spare, to, from)];
+}
 ```
 
-The scene states the answer the explanation must reach and draws each step’s words from the model’s trace (abridged):
+Its [test](scenes/tutorial/hanoi/model.test.ts) searches every arrangement, confirms that no route beats 7 moves for three disks or 15 for four, and checks that `solve()` takes that many.
 
+The scene draws each arrangement from the model's state, replays `solve()` across four steps, and leaves the last step live, so the reader can press moves and try to beat seven:
+
+<!-- hanoi/scene.ts -->
 ```ts
-// scene.ts
-export default class LruMru extends Scene {
+import { Scene, Group, Rectangle, Text, Machine, view, lerpColor } from 'rayner';
+import { stage, settingsOf } from 'rayner/explain';
+import { MOVES, next, solve, start, type Move, type Tower } from './model.ts';
+
+const key = <T extends object>(part: T, name: string) => Object.assign(part, { key: name });
+const say = (t: Tower) => t.pegs.map((p, i) => `${'ABC'[i]}: ${p.join(', ') || 'empty'}`).join('; ');
+
+export default class Hanoi extends Scene<Tower> {
   static meta = {
-    id: 'lru-mru',
-    title: 'What is the difference between LRU and MRU?',
-    answer: 'LRU evicts the item used longest ago',
-    // sources, and the questions the player asks after the last step
+    id: 'hanoi',
+    title: 'How few moves can carry a tower to another peg?',
+    answer: 'the smaller tower moves twice and the largest disk once',
+    checks: [
+      { question: 'Suppose the tower must end on B instead. Where must disks 1 and 2 be when disk 3 moves?', answer: 'On C: disk 3 needs B empty to land there, so the smaller tower waits on the other peg.' },
+      { question: 'How few moves carry five disks, and why?', answer: '31: the four-disk tower moves twice, 15 moves each time, and disk 5 moves once.' },
+    ],
   };
+  static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
+  override state = start(3);
 
   override async construct() {
-    // …
-    const [lruOut, mruOut] = [trace.lru[3]!.evicted, trace.mru[3]!.evicted];
-    await this.step('evict', {
-      title: 'D evicts opposite ends',
-      line: `LRU drops ${lruOut}, the oldest; MRU drops ${mruOut}, the newest.`,
-      caption: `LRU evicts the item used longest ago, ${lruOut}. MRU evicts the item used most recently, ${mruOut}. …`,
-    });
+    const n = Number(settingsOf(this).disks), moves = solve(n), few = (moves.length - 1) / 2;
+    const smaller = n === 3 ? 'disks 1 and 2' : `disks 1 to ${n - 1}`;
+    this.state = start(n);
+    const s = stage(this);
+    const { ink, paper } = s.palette;
+    // A floor wider than any arrangement, so the frame holds still; then each peg, its letter, and its
+    // disks bottom first. A disk keeps its key, so a move slides it.
+    const floor = () => key(new Rectangle({ width: 13, height: 0.08, stroke: 'none', fill: ink }).moveTo([0, -1.6]), 'floor');
+    const draw = ({ pegs }: Tower) => new Group(floor(), ...pegs.flatMap((disks, p) => {
+      const x = (p - 1) * 4.2;
+      return [
+        key(new Rectangle({ width: 0.12, height: 0.55 * n + 0.7, stroke: 'none', fill: ink }).moveTo([x, -1.6 + (0.55 * n + 0.7) / 2]), `peg:${p}`),
+        key(new Text('ABC'[p]!, { fontSize: 0.5, color: ink }).moveTo([x, -2.2]), `letter:${p}`),
+        ...disks.flatMap((d, i) => [
+          key(new Rectangle({ width: 0.8 + 0.75 * d, height: 0.5, stroke: ink, strokeWidth: 0.04, fill: lerpColor(paper, s.emphasis, 0.25 + 0.15 * d) })
+            .moveTo([x, -1.3 + 0.55 * i]), `disk:${d}`),
+          key(new Text(String(d), { fontSize: 0.36, color: ink }).moveTo([x, -1.3 + 0.55 * i]), `number:${d}`),
+        ]),
+      ];
+    }));
+    const tower = view(this, draw);
+    const machine = new Machine<Tower, Move>(this, { start: start(n), events: MOVES, next, views: [tower] });
+
+    await this.step('start', { title: 'Carry the tower from A to C', line: 'Predict: how few moves can do it?',
+      caption: `Move one disk at a time, from the top of a peg onto an empty peg or a larger disk. How few moves carry all ${n} disks from A to C?` });
+    await s.enter(tower, { describe: () => `Pegs, bottom disk first. ${say(this.state)}` });
+
+    await this.step('clear', { title: `Disk ${n} needs the others out of the way`, line: `So the smaller tower moves twice and the largest disk once.`,
+      caption: `Disk ${n} cannot move while a disk sits on it, and it needs C empty to land there, because it is the largest disk. So ${smaller} first stack on B, the spare peg: the same puzzle one size smaller, solved in ${few} moves. They will have to come back on top afterwards.` });
+    await this.play(machine.replay(moves.slice(0, few)));
+
+    await this.step('largest', { title: `Disk ${n} moves once`, line: `${few + 1} moves so far.`,
+      caption: `With C empty, disk ${n} goes straight there. It will not need to move again.` });
+    await this.play(machine.replay([moves[few]!]));
+
+    await this.step('solved', { title: `Answer: ${moves.length} moves`, line: `${few} + 1 + ${few}: the smaller tower twice, the largest disk once.`,
+      caption: `The smaller tower climbs back onto disk ${n}: ${few} more moves, ${moves.length} in all, and no route is shorter. Three disks take 7 moves and four take 15. Press the moves and try to beat it; a move the rules forbid is refused, with the reason.` });
+    await this.play(machine.replay(moves.slice(few + 1)));
   }
 }
 ```
+
+The [script](scenes/tutorial/hanoi/script.md) came first, and the steps follow its paragraphs. From a clone of this repository, `npm run rayner -- preview scenes/tutorial/hanoi/scene.ts --watch` serves it.
 
 ## What `rayner check` and `rayner review` catch
 
