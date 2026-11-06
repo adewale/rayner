@@ -311,7 +311,8 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
   player.append(head, frame, stepper, words, notice, transcript, foot, summary, ledeRuler);
   // A frame the loader sizes to its content has no viewport height to fit: the card takes
   // the page's width, and the host page scrolls (embed.css, --player-reserve).
-  if (window.parent !== window && params.has('parentOrigin')) {
+  const sizedToContent = window.parent !== window && params.has('parentOrigin');
+  if (sizedToContent) {
     root.style.setProperty('--player-reserve', '0px');
     // The frame's height follows the content, so a narrow stage's height must not follow the frame's.
     root.style.setProperty('--stage-narrow-max', '100000px');
@@ -740,7 +741,9 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // the same start, the size is a function of the scenario and the page's size alone.
     // Only a new scenario or page size starts again; the passes that settle a layout (here, and when
     // the card's resize brings reserve back) continue from where the last one left it.
-    const cause = `${innerWidth} ${innerHeight} ${shownScenario}`;
+    // In a frame the loader sizes to its content, the frame's height follows the layout rather than
+    // bounding it, so only its width is a cause; a height in the key would restart every re-measure.
+    const cause = `${innerWidth} ${sizedToContent ? '' : innerHeight} ${shownScenario}`;
     if (scenarioPhase.kind !== 'loading' && caption.clientWidth && cause !== measuredFor) {
       measuredFor = cause;
       for (const property of ['--head-h', '--lede-h', '--lede-title-h', '--caption-h', '--stepper-h']) root.style.removeProperty(property);
