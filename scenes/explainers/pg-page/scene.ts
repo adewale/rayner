@@ -59,6 +59,8 @@ interface PgState {
   tuples: [TupleState, TupleState];
   full: { rows: number; share: Share };
   why: { used: number; free: number; lower: number; upper: number; heapFree: number; needs: number; unrounded: number };
+  /** The pie's slices marked in the why step. */
+  pie: { marked: string[] };
   compare: Record<Column, { perRow: number; rows: number; pages: number }>;
 }
 
@@ -329,7 +331,14 @@ export default class PgPageExplainer extends Scene {
     await s.clear();
     this.state.why = { used, free: p.free, lower: p.lower, upper: p.upper, heapFree: p.heapFree, needs: t.stored, unrounded: t.lpLen };
     d = await s.show({ source: fullPie() }, { box: PIE_BOX });
-    await d.mark(['slice:Free space'], { as: 'too small for another row' });
+    // What the pie shows besides its source is state: the slices it marks. Its view draws them.
+    const whyPie = d;
+    this.state.pie = { marked: [] };
+    const pieView = s.diagramView(whyPie, (state) => ({
+      marks: Object.fromEntries((state as unknown as PgState).pie.marked.map((id) => [id, { color: whyPie.accent, as: 'too small for another row' }])),
+    }));
+    this.state.pie = { marked: ['slice:Free space'] };
+    await this.play(pieView.sync({ match: 'key', staged: true, runTime: 0.45 }));
     // The arithmetic, from the full page's row count, the row's cost and what the why step records.
     const why = cardOf(
       (state) => [
