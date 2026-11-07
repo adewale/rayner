@@ -149,8 +149,14 @@ export default class LatestSearchExplainer extends Scene {
       },
     });
     await this.play(new FadeIn(chart));
-    const code = await s.code(SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34 });
-    await code.focus([2, 2], { as: 'ticket' });
+    // The lines in focus are how the code is shown (this.shown); the panel is a view of them.
+    this.shown.codeFocus = { focus: [2, 2], focusAs: 'ticket' };
+    const code = view(
+      this,
+      (_st, sh) => s.codePicture(SEARCH_CODE, { at: [0.7, -3.35, 7.55, 2.6], fontSize: 0.34, ...(sh.codeFocus as { focus: [number, number]; focusAs: string }), key: 'code' }),
+      { place: false },
+    );
+    await s.enter(code, { runTime: 0.4 });
 
     const firstResult = run.snapshots[1]!;
     await this.step('first', {
@@ -169,7 +175,8 @@ export default class LatestSearchExplainer extends Scene {
     });
     this.state = snapshot(1);
     await this.play(chart.sync({ match: 'index', runTime: 0.55 }));
-    await code.focus([4, 5], { as: 'guard' });
+    this.shown.codeFocus = { focus: [4, 5], focusAs: 'guard' };
+    await this.play(code.sync({ match: 'key', staged: true, runTime: 0.4 }));
 
     const last = run.snapshots[2]!;
     await this.step('second', {

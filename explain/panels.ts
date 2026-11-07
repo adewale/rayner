@@ -44,9 +44,9 @@ export interface CardOptions {
    */
   key?: string;
   /**
-   * `false`: no panel behind the rows, for values written inside a drawing (a ring buffer's head
-   * and tail beside its ring). The card keeps its layout, keys and lit bar, and describes itself
-   * as a card does.
+   * `false`: no panel behind the rows and no padding, for values written inside a drawing (a ring
+   * buffer's head and tail inside its ring). The card keeps its rows, keys and lit bar, and
+   * describes itself as a card does.
    */
   panel?: boolean;
 }

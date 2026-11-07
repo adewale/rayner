@@ -140,8 +140,12 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | Member | What it does |
 | --- | --- |
 | `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
-| `s.card(rows, { at, align, width, title, columns, fontSize, direction, enter })` | Labelled values; returns a `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order |
-| `s.code(lines, { at, align, fontSize, title, diff, enter })` | Code on a panel; returns a `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed |
+| `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)); returns the `View`. Change `this.shown` and play `view.sync({ match: 'key', staged: true })` |
+| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `walk`, `morph` or `focus`; call `s.diagramView(d, draw)` again afterwards |
+| `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, litAs, key, panel, enter })` | Labelled values; returns a `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit` puts a bar on a row |
+| `s.cardPicture(rows, options)` | The same card, placed and laid out as `s.card` does, without entering it: for a view's draw ([below](#card-and-codeblock)) |
+| `s.code(lines, { at, align, fontSize, title, diff, added, focus, focusAs, width, fitHeight, key, enter })` | Code on a panel; returns a `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `focus` puts a bar on lines |
+| `s.codePicture(lines, options)` | The same panel without entering it: for a view's draw |
 | `s.note(text, { at, size })` | One line of secondary text, default at `[0, -3.9]` |
 | `s.enter(...mobs, { describe, ...fadeOptions })` | Keep native objects and fade them in together, in one play |
 | `s.keep(...mobs, { describe })` | Keep native objects without animating them; returns the first |
@@ -152,7 +156,6 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.sketch(m, { tool, color, runTime, describe })` | Draw `m` stroke by stroke at an even speed with a `'pen'` or `'pencil'` riding the tip (`false` for none), and keep it. Between strokes the tool travels at drawing speed, so it never jumps. `m` must not be on stage yet |
 | `s.steps(steps, { kind }?)` | Present steps in turn. Each step is `{ id, title, line, caption, state, draw, describe?, audio?, kind?, opening? }`: it clears the stage, makes `state` the scene's model, and fades in `draw(state, s)` as a view of that state, described by its words, or by `describe(state)` for a picture whose meaning is its geometry; a part that describes itself (a card, code, a note, a dimension line) is described by itself either way. A `draw` must read its state and nothing a different step changes, and `rayner check` holds it to both ([staged steps](#checks)). `opening` lists keys of the parts a phone opens on ([below](#the-phones-opening-emphasis-and-review-subjects)); without it the whole drawing is the opening's subject. A list takes one state type; `stagedStep(step)` (from `rayner/explain`) types one step's state for a list whose steps' states differ |
 | `s.opening(...subjects, { keep }?)` | Name the mobjects a phone's opening close-up should hold together this step ([below](#the-phones-opening-emphasis-and-review-subjects)); with `{ keep: true }` last, for this step and every later one until another kept opening replaces them (none clears them), though a step's own `s.opening` still wins for that step |
-| `s.emphasise(now)` | Say what the scene's own marks emphasise: `now()` returns `[mobject, what it shows]` pairs read from state whenever asked ([below](#the-phones-opening-emphasis-and-review-subjects)) |
 | `s.dimension(a, b, label, { offset, color, size })` | A dimension line from `a` to `b` with ticks, arrowheads and `label`, set off by `offset`; drawn in and kept. The drawing kit's `dimension` builds the same picture for a draw |
 | `s.legend(items, { at, size, direction, gap, key })` | A key of swatches and their meanings, drawn in and kept; the kit's `legend` for a draw |
 | `s.pin(at, { label, color, size, side })` | A pin stuck in at `at`, with an optional label to the head's `side` (`'right'` by default, or `'left'`); the kit's `pin` for a draw |
@@ -175,11 +178,11 @@ On a stage under 600 px wide, each step opens on a close-up and offers the rest 
 
 `s.opening(...subjects)` picks the opening: the mobjects a caption compares, which the first close-up should hold together. Pass mobjects (`diagram.root` for a whole diagram), not a box or words. A step has one opening, so a second call in the same step replaces the first, and the stage forgets the subjects at every step boundary: an unchanged picture under a new caption needs a fresh call. The planner measures the subjects' painted bounds and label sizes and opens on them only when they fit at a readable scale; otherwise the step opens on what it changed, and labels too small for the opening keep their own close-ups. An absent or unpainted subject is an error. For a picture that stays on stage while the steps change it, such as a machine's view, `s.opening(...subjects, { keep: true })` names the opening once for this step and every later one. `s.steps` calls it for every step, with the parts its `opening` keys name or else the whole drawing.
 
-Emphasis is what the stage's helpers mark: a lit card row, a code focus bar or diff line, a marked, travelled or focused diagram part, a note. Each helper registers what it emphasises, and so does a card built with `lit`, code built with `focus` and a diagram's `notePicture` wherever they are drawn; a scene that draws its own marks registers them once with `s.emphasise(now)`, where `now()` reads the scene's state and returns each mark with what it shows, as nine of the collection's scenes do:
+Emphasis is what a picture marks: a lit card row, a code focus bar or diff line, a marked, travelled or focused diagram part, a note. A card built with `lit`, code built with `focus` or `added`, a diagram picture's marks and a diagram's `notePicture` each say what they emphasise wherever they are drawn. A scene that draws its own marks says so where it draws them, with `emphasised(mobject, what)` from `rayner/drawing`, so the mark and its words come from the same state:
 
 ```ts
-const outline = s.keep(new SurroundingRectangle(slot)); // drawn by the scene, not a helper
-s.emphasise(() => (this.state.full ? [[outline, 'outlined: the full slot']] : []));
+const outline = new SurroundingRectangle(slot); // drawn by the scene's own draw
+if (st.full) emphasised(outline, 'outlined: the full slot');
 ```
 
  Emphasis counts per step: what a step newly emphasises, compared with the step before it, gives the tour its first stops after the opening, and becomes the review's primary subjects, which the tour must show whole. A step with neither new emphasis nor a declared subject is reviewed on the artwork it changed.
@@ -188,27 +191,37 @@ s.emphasise(() => (this.state.full ? [[outline, 'outlined: the full slot']] : []
 
 ### Card and CodeBlock
 
-| Method | What it does |
+A card or code panel is a picture of values: it is built once, with what it marks, and never changed in place. One whose values or marks change is drawn by a [view](VIEWS.md) from state, so a redraw from the same state draws the same card, and `rayner check` holds it to that at every step.
+
+| Option | What it does |
 | --- | --- |
-| `card.set({ Label: value })` | Crossfade changed values; unchanged values stay still. A row with a value per column takes an array, `{ Hits: [0, 3] }`. A card sizes to its first values, so pass `width` if later ones are longer; a wider card gives its columns the spare room |
-| `card.mark(label \| null, { as })` | A bar on one row that stays until moved |
-| `code.focus(i \| [a, b] \| null, { as })` | A bar on zero-based line `i`, or lines `a` to `b` inclusive |
-| `new Card(…, { lit, litAs })`, `new CodeBlock(…, { focus, focusAs })` | The same bar from the start, as `mark(lit, { as: litAs })` or `focus(focus, { as: focusAs })` leaves it, for a card or code drawn from state: the bar is part of the picture, described and emphasised, and a redraw from the state draws it again |
-| `code.morph(next, { markAdded })` | Pair lines by text: survivors move, removed lines fade, added lines arrive, marked if `markAdded` |
-| `code.clearMarks()` | Fade out the added and removed bars |
+| `lit`, `litAs` | A card's bar on one row, and the word the description gives it, such as `'rejected'` |
+| `focus`, `focusAs` | A code panel's bar on zero-based line `i`, or lines `[a, b]` inclusive, and its word |
+| `diff`, `added` | Added and removed bars: from lines that start `+ ` or `- `, or `added` for the indices an edit introduced |
+| `key` | Key the card or panel and its parts under this name, so `view.sync({ match: 'key', staged: true })` changes it in place: an unchanged value or line stays, a changed one fades out as its replacement fades in, and the bar moves. A card's value is keyed with its text; a line is keyed by its text and which occurrence of that text it is, so a line that moves pairs with itself |
+| `width`, `fitHeight` | A fixed width, so a panel drawn from state keeps its size as its values or lines change; in a box, shrink code to fit the box's height too |
+| `panel: false` | A card with no panel or padding, for values written inside a drawing (`ring-buffer`'s head, tail and length inside its ring; `token-bucket`'s balance) |
 
-`as` is the word the description gives the mark, such as `'rejected'`. Both are native `Group`s.
+Both are native `Group`s and describe themselves wherever they are drawn, a view's current picture included ([views](VIEWS.md#cards-code-annotations-and-notes-from-state)). `new Card(scene, s.palette, rows, options)` and `new CodeBlock(scene, s.palette, lines, options)` build one directly; `s.cardPicture` and `s.codePicture` build one placed as the stage places it, and `s.card` and `s.code` are those, faded in and kept. A test holds the two to the same picture and words. `CodeBlock` is a panel around the engine's `Code` (from `rayner`), which is plain code text with keyed lines and spans: use `Code` itself for `TransformDiff`, a token's span, or a layout of your own, and `CodeBlock` for code on the stage.
 
-`new Card(scene, s.palette, rows, options)` builds a card without entering it, for a [view](VIEWS.md) that rebuilds the card from state at every sync, as `state-machine` and `ring-buffer` do; `s.card` is that card, built the same way and faded in, and a test holds the two to the same picture and words. `new CodeBlock(scene, s.palette, lines, options)` does the same for a code panel, for a view or a staged step's draw whose code (a report, a listing) comes from state; `s.code` is that panel, placed and faded in. A built card or panel takes its mark from state with `lit` or `focus` (`isdigit`, `seasons`, `trust-proxy`, `exgit`, `agentic-mermaid`), and describes itself wherever it is drawn ([views](VIEWS.md#cards-code-annotations-and-notes-from-state)). A card or panel a view draws, as its picture or inside it, refuses `set`, `mark`, `focus`, `morph` and `clearMarks` with an error that says to put the change in the state and draw it with `lit` or `focus`: the view redraws its picture from state at the next sync, so a change made in place would be lost, and there is one way to mark a drawn panel. Give such a card a `key` and sync it with `view.sync({ match: 'key', staged: true })`: its parts are keyed under that name, each value's key holding its text, so an unchanged value stays, a changed one fades out as the new one fades in, and the bar moves to the `lit` row, as `set` and `mark` did.
+```ts
+// What the panel focuses is how the code is shown (this.shown), not the model.
+this.shown.focus = null;
+const block = view(this, (_st, sh) => s.codePicture(SOURCE, { at: 'main', focus: sh.focus as number | null, focusAs: 'update', key: 'block' }), { place: false });
+await s.enter(block);
+this.shown.focus = 1;
+await this.play(block.sync({ match: 'key', staged: true }));
+```
+
+An edit to code is the same: put the lines in the state, with `added` for what the edit introduced, and sync (`feature-tour`'s code edit).
 
 `columns` lays values side by side under headings, so a phone close-up of one card shows a comparison whole:
 
 ```ts
-const card = await s.card([['Requests', 'A B C D'], ['Evicted', 'A', 'C'], ['Hits', 0, 0]], { columns: ['LRU', 'MRU'], width: 6.8 });
-await card.set({ Hits: [0, 3] });
+const card = view(this, (st) => s.cardPicture([['Requests', 'A B C D'], ['Evicted', 'A', 'C'], ['Hits', st.lru, st.mru]], { columns: ['LRU', 'MRU'], width: 6.8, key: 'card' }), { place: false });
 ```
 
-A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `mark` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". `card.cells` holds each row's values; `card.values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
+A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `lit` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". `card.cells` holds each row's values; `card.values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
 
 ### Drawing kit
 
@@ -328,15 +341,13 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 | Method | What it does |
 | --- | --- |
 | `d.reveal(n \| ids \| 'rest')` | Bring in the next `n` parts in reading order, named parts, or the rest |
-| `d.walk(hops, { trail, parallel, color })` | A token travels real links; `trail` leaves them marked; `parallel` runs several journeys in one play |
-| `d.picture(marks, { notes, dim, prefix })`, `d.link(from, to)`, `d.showBy(view)` | The diagram copied with the parts in `marks` (id to a colour, or to `{ color, as }` to name the mark in the description) as a mark draws them, for a view to draw the diagram, and a trail, from state; while the view shows it, the diagram is described as the picture shows it, marks, notes and dimming included, as the live diagram would be; with `notes` (`{ id, text, side?, color?, size? }`, a Group of the diagram and its notes), `dim` (the parts `dim` keeps) and `prefix` (put before every key, so two pictures of one diagram can share the stage; `agentic-mermaid`, `feature-tour`); a link's id, part and route; and, once that view shows it and the live diagram is off the stage, the view that keeps the stage describing it (see `state-machine`). From then on `d.mark`, `d.unmark`, `d.dim`, `d.note` and a `d.walk` with a `trail` throw, since the live diagram they change is off the stage (a walk's token still travels the routes the picture draws): put the change in the state and draw it with `d.picture` |
-| `d.notePicture(id, text, { side, color, size, key })` | A note placed as `note` places one, without drawing it in, for a view's draw (`exgit`, `fork`); keyed `note:<id>`. While the diagram is on stage (or shown by a picture) the note is described among its parts, as a live note is, and otherwise by itself; it says it emphasises the part |
-| `d.mark(ids, { color, as })`, `d.unmark(ids?)` | Colour parts and thicken their outlines until unmarked; labels keep their ink; `as` names the mark in the description |
-| `d.dim(keep \| null)` | Fade everything but `keep`, links between kept parts and scaffolding; `null` restores. Dimmed parts keep 3:1 contrast with the paper |
-| `d.note(id, text, { side })` | A short label beside a part at a fixed readable size; `side` is `above`, `below`, `left` or `right` |
-| `d.clearNotes()` | Remove notes |
+| `d.walk(hops, { parallel, color })` | A token travels real links; `parallel` runs several journeys in one play. To leave the path marked, draw `d.trail(hops)` in the diagram's picture |
+| `d.picture(marks, { notes, dim, prefix })` | The diagram copied as it would be drawn with these marks, notes and dimming, for a view to draw from state (`s.diagramView` draws one). `marks` maps a part's id to a colour, or to `{ color, as }` to name the mark in the description; marked parts take the colour and thicker outlines, and labels keep their ink. `notes` are `{ id, text, side?, color?, size? }`, short labels beside parts at a fixed readable size (`side` is `above`, `below`, `left` or `right`). `dim` lists the parts to keep: everything else fades, but links between kept parts, what a kept group draws inside it, and scaffolding stay, and dimmed parts keep 3:1 contrast with the paper. `prefix` goes before every key, so two pictures of one diagram can share the stage (`agentic-mermaid`, `feature-tour`). While the picture shows the diagram it is described as the diagram, marks, notes and dimming included, and it says what it marks is emphasis |
+| `d.trail(hops, color?)` | The marks a walk's path leaves, said as travelled, for a picture's `marks` |
+| `d.notePicture(id, text, { side, color, size, key })` | One note placed as a picture places it, for a view's draw (`exgit`, `fork`); keyed `note:<id>`. While the diagram is on stage the note is described among its parts, and otherwise by itself |
+| `d.link(from, to)`, `d.showBy(view)` | A link's id, part and route; and the view that shows the diagram, so the stage describes it while the live diagram is off the stage (`s.diagramView` calls it) |
 | `d.focus(ids \| 'all', { zoom, camera, margin, also })` | Enlarge parts and their notes inside the diagram's own box (`zoom` above 1 goes closer). With `camera: true`, move the camera (`this.frame`) onto them and the native objects in `also` instead, with `margin` units around them (default 0.5); `also` needs `camera`. `'all'` puts the artwork back and brings the camera home. Parts in focus are described as focused |
-| `d.morph(next, { ops })` | Same-id parts move, arrivals fade in, departures fade out; marks, dimming and notes reset |
+| `d.morph(next, { ops })` | Same-id parts move, arrivals fade in, departures fade out; the walk and focus reset |
 | `d.hide()` | Fade the diagram out; `reveal` can bring parts back |
 | `d.get(id)` | A part as a native `Group` |
 | `d.findings()` | The verifier's warnings, each with the `part` it names |
@@ -345,7 +356,7 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 - Reading order: graphs read nodes with their outgoing links, sequence messages keep source order and carry a token, git commits read left to right, bars grow from the baseline. Scaffolding builds first. Labels travel with their owners.
 - `walk` throws on a hop the diagram does not have, requires the link to be revealed, follows its captured route, and records `{ step, from, to, edge }` in `state.walks`.
 - With `ops`, `morph` replays the edits through Agentic Mermaid's `mutate` at build time and fails unless the result serializes to `next`. The failure names the difference: facts (states, transitions, nodes, edges) the edits leave that `next` lacks, or that `next` has and the edits do not make, with `remove_state` suggested for a state whose last transition was removed; or, when the facts agree, the first line where only the order differs, since order changes the layout. Without `ops` it is a visual transition only.
-- A camera focus moves no point, so marks, dimming, notes and walks work the same while zoomed, and a label keeps its world size while the camera enlarges it on screen. The view stays 16:9 and inside the stage. The camera shows less of the stage, not only less of the diagram: the heading, cards and code are world objects too, so a focus that leaves them out of its box takes them out of view. Put what the resting picture needs inside the box (`also`), or end the step with `focus('all')`. The default, artwork focus, is for a diagram that shares the stage with text beside it (send-sync, gtfs, fork).
+- A camera focus moves no point, so pictures and walks work the same while zoomed, and a label keeps its world size while the camera enlarges it on screen. The view stays 16:9 and inside the stage. The camera shows less of the stage, not only less of the diagram: the heading, cards and code are world objects too, so a focus that leaves them out of its box takes them out of view. Put what the resting picture needs inside the box (`also`), or end the step with `focus('all')`. The default, artwork focus, is for a diagram that shares the stage with text beside it (send-sync, gtfs, fork).
 - One scene owns one clock: never call `Scene.play()` concurrently. Use `{ parallel: true }` or one native `play` for simultaneous tokens.
 - Descriptions name a link by the labels at its ends ("Attacker → Load balancer"), and a class or ER entity by its name.
 - The collection uses all 15 families. Captured diagrams use the 8 styles listed in `out/explainers/evidence.json` (the build's per-explainer list of families and styles, not step evidence); ring-buffer (dusk), seasons (tokyo-night) and token-bucket (github-dark) use a style only as the stage palette. Other styles are untested.
@@ -366,13 +377,17 @@ const d = await s.show({ source: `stateDiagram-v2
     ready --> idle: TAKE
   }
   on --> off: POWER_OFF` }, { box: 'full' });
-await d.walk([['off', 'on'], ['on_start', 'idle'], ['idle', 'brewing']], { trail: true });
+const hops: [string, string][] = [['off', 'on'], ['on_start', 'idle'], ['idle', 'brewing']];
+await d.walk(hops);
+// The path stays marked: the diagram is shown by a view that draws the trail.
+this.shown.walked = hops;
+const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(sh.walked as [string, string][]) }));
 ```
 
 - A composite `state on { … }` is a box with its name in a header. Its part id is `group:on`, and `'on'` finds it. A transition to or from the composite (`on --> off`) attaches to its border.
 - `--` inside a composite splits it into concurrent regions, with a dashed line between them.
 - `[*]` draws a start dot or an end state. Its id is `_start` (or `_end`) at the top level, `on_start` inside `on`, and `on__r2_start` in the second region of `on`. Descriptions call it "start of on, region 2". Read `d.parts` or the snapshot for other ids.
-- `mark`, `walk`, `note` and `dim` work on composites and their contents. Marking `on` fills its whole box. `dim(['on'])` keeps everything drawn inside `on` and fades the rest. `walk` follows real links only. An event that a child leaves to its parent is the parent's link (`on → off`), not a link from the child.
+- A picture's marks, notes and dimming, and `walk`, work on composites and their contents. Marking `on` fills its whole box. Dimming with `dim: ['on']` keeps everything drawn inside `on` and fades the rest. `walk` follows real links only. An event that a child leaves to its parent is the parent's link (`on → off`), not a link from the child.
 - A morph keeps every part whose id survives, so a composite and its states keep their identity. With `ops`, use Agentic Mermaid's state edits (`add_state`, `add_transition`, `remove_transition`, `make_composite`, `move_state` and others). The build replays them and requires the result to serialize to the next source. That source must include any state the edits declare explicitly, such as `off` once its last transition is removed. Agentic Mermaid 0.5.1 has no edit that adds a concurrency region, and it refuses `make_composite` after a `remove_transition` in the same list. Put `make_composite` first, or morph without `ops`, which is a visual transition only.
 - Size the chart for the stage. Mermaid sets state names at 12 px and transition labels a little smaller, and `check` needs imported labels to reach 14 px at 1280 px. In the `full` region, that means the chart must lay out within about 930 × 460 of its own pixels. Set `direction` for the chart and again inside each composite to fit it: an outer `TB` with an inner `LR` cycle, or an outer `LR` with regions stacked by an inner `TB`. A four-state cycle in a row beside a second region does not fit. Split it across steps, or focus the camera on part of it.
 

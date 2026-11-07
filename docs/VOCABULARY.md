@@ -30,7 +30,7 @@ One row per idea.
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. Every `View` is one: the constructor takes `(scene, draw)` | `View.render` (now `View.draw`), `view(build)`, `stateView` |
 | Staged steps | `stage.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
-| Emphasis a scene draws itself | `s.emphasise(now)` | What the scene's own marks emphasise, read from state at each step: each mark with what it shows; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export |
+| Emphasis a scene draws itself | `emphasised(mobject, what)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export; `s.emphasise(now)`, a callback read from state beside the draw |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
 | What a part is for | `role` | A job many parts can share: the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
@@ -144,7 +144,7 @@ a failed check and a rewrite every time it is used. `Circumscribe` stays, becaus
   columns, would split checks and helpers that should apply to both. `Diagram.fromGraph` was
   not needed either: git-branches and exgit draw their graphs with the kit, and `Diagram.morph`
   already handles graph edits.
-- `stateView`, a readout of state keys. `StateReadout` in a `view` does the same.
+- `stateView`, a readout of state keys, and `StateReadout`. A `Card` without a panel in a `view` does the same.
 - `view(build)`, a view not made from state. It cannot be checked against the state, so the
   `View` constructor takes `(scene, draw)` and every View keeps a `draw` the checks can call
   again.
