@@ -11,11 +11,13 @@ import * as kit from './drawing.ts';
 import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
+import { Action } from './action.ts';
+import type { Plan } from './action.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
-import type { DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
+import type { DiagramSpec, DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
 import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, partsSeen, REGIONS } from './look.ts';
@@ -390,10 +392,20 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
     view = next;
     return anims;
   }
-  async function enterPanel<T extends Mobject>(panel: T, { enter = true }: Entry, fade: FadeOpts): Promise<T> {
-    overlays.set(panel, undefined);
-    if (enter) await scene.play(new FadeIn(panel, fade));
-    return panel;
+  /** An action of the stage's (see Action): it is decided now and plays when awaited or composed. */
+  const act = <T>(name: string, make: () => Plan<T>, more?: { ready?: Promise<unknown>; late?: boolean }) =>
+    new Action<T>(scene, name, make, more);
+  /** Keep `panel` and fade it in over `fade.runTime`, or with `enter: false` only keep it. */
+  function enterPanel<T extends Mobject>(panel: T, { enter = true }: Entry, fade: FadeOpts & { runTime: number }): Plan<T> {
+    return {
+      value: panel,
+      start: () => overlays.set(panel, undefined),
+      beats: enter ? [{ runTime: fade.runTime, play: () => [new FadeIn(panel, fade)] }] : [],
+    };
+  }
+  /** Keep `g`, which describes itself, and play it in with `entry` over `runTime`. */
+  function drawIn<T extends Mobject>(g: T, runTime: number, entry: () => Animation): Plan<T> {
+    return { value: g, start: () => keepAll([g], {}), beats: [{ runTime, play: () => [entry()] }] };
   }
 
   const api = {
@@ -410,28 +422,37 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       if (looked.from !== paletteKey(colors)) looked = { from: paletteKey(colors), look: lookOf(colors) };
       return looked.look;
     },
-    async show(spec: DiagramSpec, opts: Omit<ShowOptions, 'box'> & { box?: Box | StageRegion } = {}): Promise<Diagram> {
+    /**
+     * Draw a diagram and build it in. It reads the diagram's layout first, so the diagram (its
+     * `value`) and how long it takes are known once it begins: play it in play() or await it.
+     */
+    show(spec: DiagramSpec, opts: Omit<ShowOptions, 'box'> & { box?: Box | StageRegion } = {}): Action<Diagram> {
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
-      const snapshot = await diagramsOf(scene).diagram(spec);
-      if (adopt) {
-        colors = snapshot.palette;
-        scene.colors = sceneColors(colors);
-        backdrop.setFill(colors.paper);
-        heading.setFill(colors.ink);
-        band.setFill(colors.paper);
-        home.get(band)!.setFill(colors.paper);
-        // The number and line take the adopted palette too, here and in their home copies.
-        for (const c of chrome)
-          for (const m of [c, home.get(c)!])
-            if (m instanceof Group) {
-              m.children[0]!.setStroke(emphasis(colors));
-              m.children[1]!.setFill(emphasis(colors));
-            } else m.setFill(soft(colors));
-      }
-      const diagram = new Diagram(scene, spec, snapshot, { ...opts, box: physical(opts.box) });
-      diagrams.add(diagram);
-      await diagram.build(opts.build, opts.runTime);
-      return diagram;
+      let snapshot: DiagramSnapshot | null = null;
+      const reading = (async () => {
+        snapshot = await diagramsOf(scene).diagram(spec);
+      })();
+      return act('s.show()', () => {
+        const read = snapshot!;
+        if (adopt) {
+          colors = read.palette;
+          scene.colors = sceneColors(colors);
+          backdrop.setFill(colors.paper);
+          heading.setFill(colors.ink);
+          band.setFill(colors.paper);
+          home.get(band)!.setFill(colors.paper);
+          // The number and line take the adopted palette too, here and in their home copies.
+          for (const c of chrome)
+            for (const m of [c, home.get(c)!])
+              if (m instanceof Group) {
+                m.children[0]!.setStroke(emphasis(colors));
+                m.children[1]!.setFill(emphasis(colors));
+              } else m.setFill(soft(colors));
+        }
+        const diagram = new Diagram(scene, spec, read, { ...opts, box: physical(opts.box) });
+        diagrams.add(diagram);
+        return diagram.buildPlan(opts.build, opts.runTime);
+      }, { ready: reading, late: true });
     },
     /**
      * Show diagram `d` by a view: `draw(state, shown)` gives what it marks, its notes and what stays
@@ -478,15 +499,15 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return direction;
     },
     /** Labelled values, entered: the kit's `card(s, rows, opts)`, faded in and kept. */
-    async card(
+    card(
       rows: readonly CardRow[],
       opts: CardOptions & Entry = {},
-    ): Promise<Card> {
-      return enterPanel(
+    ): Action<Card> {
+      return act('s.card()', () => enterPanel(
         card(this as StageApi, rows, opts),
         opts,
         { runTime: 0.35, shift: [0, -0.08] },
-      );
+      ));
     },
     /** Keep these subjects together in the reader's opening when they fit legibly.
      * Other artwork remains available in the close-up tour. Call after step().
@@ -501,19 +522,21 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       opening(scene, ...subjects);
     },
     /** Code on a panel, entered: the kit's `code(s, source, opts)`, faded in and kept. */
-    async code(
+    code(
       lines: readonly string[],
       opts: CodeOptions & Entry = {},
-    ): Promise<CodeBlock> {
-      return enterPanel(code(this as StageApi, lines, opts), opts, {
+    ): Action<CodeBlock> {
+      return act('s.code()', () => enterPanel(code(this as StageApi, lines, opts), opts, {
         runTime: 0.4,
-      });
+      }));
     },
     /** A plain line of supporting text in the stage's secondary colour. */
-    async note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Promise<Text> {
-      const t = scene.text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
-      if (t.width() > 15) t.setWidth(15);
-      return enterPanel(t, {}, { runTime: 0.3 });
+    note(text: string, { at = [0, -3.9], size = 0.24 }: { at?: Vec; size?: number } = {}): Action<Text> {
+      return act('s.note()', () => {
+        const t = scene.text(text, { fontSize: size, color: soft(colors) }).moveTo(at);
+        if (t.width() > 15) t.setWidth(15);
+        return enterPanel(t, {}, { runTime: 0.3 });
+      });
     },
     /**
      * Track native objects so `clearOverlays` and `clear` remove them with the rest; returns
@@ -525,117 +548,146 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       return first;
     },
     /** Keep these and fade them in together, in one play (options as for FadeIn, plus `describe`). */
-    async enter(...args: Mobject[] | [...Mobject[], FadeOpts & Describe]): Promise<void> {
-      const { describe, ...fade } = isOptions(args.at(-1)) ? (args.pop() as FadeOpts & Describe) : {};
-      const mobs = args as Mobject[];
-      keepAll(mobs, { describe });
-      if (mobs.length) await scene.play(...mobs.map((m) => new FadeIn(m, fade)));
+    enter(...args: Mobject[] | [...Mobject[], FadeOpts & Describe]): Action {
+      return act('s.enter()', () => {
+        const { describe, ...fade } = isOptions(args.at(-1)) ? (args.pop() as FadeOpts & Describe) : {};
+        const mobs = args as Mobject[];
+        return {
+          value: undefined,
+          start: () => keepAll(mobs, { describe }),
+          beats: mobs.length ? [{ runTime: fade.runTime ?? 1, play: () => mobs.map((m) => new FadeIn(m, fade)) }] : [],
+        };
+      });
     },
     /** Fade out cards, code and kept objects, in one play. */
-    async clearOverlays() {
-      const present = new Set(scene.familyMembers());
-      const shown = [...overlays.keys()].filter((g) => present.has(g));
-      if (shown.length) await scene.play(...shown.map((g) => new FadeOut(g, { runTime: 0.3 })));
-      overlays.clear();
+    clearOverlays(): Action {
+      return act('s.clearOverlays()', () => {
+        const present = new Set(scene.familyMembers());
+        const kept = [...overlays.keys()];
+        const shown = kept.filter((g) => present.has(g));
+        return {
+          value: undefined,
+          beats: shown.length ? [{ runTime: 0.3, play: () => shown.map((g) => new FadeOut(g, { runTime: 0.3 })) }] : [],
+          end: () => { for (const g of kept) overlays.delete(g); },
+        };
+      });
     },
     /**
      * Fade everything but the backdrop and heading in one play: a clean slate for the
      * next idea. A camera moved by `focus` glides home in the same play.
      */
-    async clear({ runTime = 0.4 } = {}) {
-      const gone = scene.mobjects.filter((m) => m !== backdrop && m !== heading && m !== band && !chrome.includes(m));
-      const anims: Animation[] = gone.map((m) => new FadeOut(m, { runTime }));
-      if (!atHome(scene.frame.box()!)) anims.push(...cameraTo([...STAGE_BOX], runTime));
-      if (anims.length) await scene.play(...anims);
-      for (const d of diagrams) d.forget();
-      overlays.clear();
+    clear({ runTime = 0.4 } = {}): Action {
+      return act('s.clear()', () => {
+        const gone = scene.mobjects.filter((m) => m !== backdrop && m !== heading && m !== band && !chrome.includes(m));
+        const away = !atHome(scene.frame.box()!);
+        const shown = [...diagrams], kept = [...overlays.keys()];
+        return {
+          value: undefined,
+          beats: gone.length || away ? [{
+            runTime,
+            play: () => {
+              const anims: Animation[] = gone.map((m) => new FadeOut(m, { runTime }));
+              if (away) anims.push(...cameraTo([...STAGE_BOX], runTime));
+              return anims;
+            },
+          }] : [],
+          end: () => {
+            for (const d of shown) d.forget();
+            for (const g of kept) overlays.delete(g);
+          },
+        };
+      });
     },
     /**
      * Move the camera so `target` (mobjects or a box) fills the stage below the heading, with
      * `margin` around it, or back home with `'all'`. The heading, its number and its line stay
      * where they are on screen, at their size; everything else is seen closer. The camera never
      * zooms out past the stage, and never shows beyond its edges. `exact: true` takes `target`, a
-     * 16:9 box, as the camera's view as it is. `with` plays other animations in the same play.
+     * 16:9 box, as the camera's view as it is. To move other things in the same play, play them
+     * together: `this.play(s.focus(box), new FadeIn(m, { runTime: 0.9 }))`.
      */
-    async focus(
+    focus(
       target: Mobject | readonly Mobject[] | Box | 'all',
       {
         margin = 0.4,
         runTime = 0.9,
         exact = false,
-        with: also = [],
-      }: { margin?: number; runTime?: number; exact?: boolean; with?: Animation[] } = {},
-    ) {
-      const box = target === 'all' ? [...STAGE_BOX] as Box : exact ? (target as Box) : viewFor(target, margin);
-      await scene.play(...cameraTo(box, runTime), ...also.map((a) => a.setOptions({ runTime })));
+      }: { margin?: number; runTime?: number; exact?: boolean } = {},
+    ): Action {
+      return act('s.focus()', () => {
+        const box = target === 'all' ? [...STAGE_BOX] as Box : exact ? (target as Box) : viewFor(target, margin);
+        return { value: undefined, beats: [{ runTime, play: () => cameraTo(box, runTime) }] };
+      });
     },
     /**
      * Move a kept object to a new place in one glide: a point, or a box or region it is scaled
      * down to fit (never up). The idea carried on from the step before, rather than cleared.
      */
-    async carry(m: Mobject, destination: Vec | Box | StageRegion, { runTime = 0.8 } = {}) {
-      const to = physical(destination);
-      const target = m.copy();
-      if (typeof to === 'string' || to.length === 4) {
-        const b = typeof to === 'string' ? regionBox(to) : (to as Box);
-        const k = Math.min(
-          1,
-          (b[2] - b[0]) / Math.max(1e-6, target.width()),
-          (b[3] - b[1]) / Math.max(1e-6, target.height()),
-        );
-        target.scale(k).moveTo(center(b));
-      } else target.moveTo(to as Vec);
-      await scene.play(new Transform(m, target, { runTime }));
+    carry(m: Mobject, destination: Vec | Box | StageRegion, { runTime = 0.8 } = {}): Action {
+      return act('s.carry()', () => {
+        const to = physical(destination);
+        const target = m.copy();
+        if (typeof to === 'string' || to.length === 4) {
+          const b = typeof to === 'string' ? regionBox(to) : (to as Box);
+          const k = Math.min(
+            1,
+            (b[2] - b[0]) / Math.max(1e-6, target.width()),
+            (b[3] - b[1]) / Math.max(1e-6, target.height()),
+          );
+          target.scale(k).moveTo(center(b));
+        } else target.moveTo(to as Vec);
+        return { value: undefined, beats: [{ runTime, play: () => [new Transform(m, target, { runTime })] }] };
+      });
     },
     /** A dimension line from `a` to `b` with `label`, set off by `offset`: the kit's `dimension`, sized for the screen, drawn in and kept. */
-    async dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Promise<Group> {
-      const g = onScreen(kit.dimension(this, toScreen(a), toScreen(b), label, opts));
-      // The line describes itself.
-      keepAll([g], {});
-      await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
-      return g;
+    dimension(a: Vec, b: Vec, label: string, opts: { offset?: number; color?: string; size?: number; key?: string } = {}): Action<Group> {
+      return act('s.dimension()', () => {
+        // The line describes itself.
+        const g = onScreen(kit.dimension(this, toScreen(a), toScreen(b), label, opts));
+        return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.1 }));
+      });
     },
     /** A pin stuck in at `point`, with an optional label: the kit's `pin`, sized for the screen, drawn in and kept. */
-    async pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Promise<Group> {
-      const g = onScreen(kit.pin(this, toScreen(point), opts));
-      keepAll([g], {});
-      await scene.play(new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
-      return g;
+    pin(point: Vec, opts: { label?: string; color?: string; size?: number; side?: 'left' | 'right'; key?: string } = {}): Action<Group> {
+      return act('s.pin()', () => {
+        const g = onScreen(kit.pin(this, toScreen(point), opts));
+        return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4, shift: [0, -0.15] }));
+      });
     },
     /**
      * A key of swatches and their meanings, its first entry starting at `at` (the swatch's left edge, on the entry's centre line):
      * the kit's `legend`, sized for the screen, faded in and kept. It describes itself as its swatch→meaning pairs.
      */
-    async legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Promise<Group> {
-      const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]) }));
-      keepAll([g], {});
-      await scene.play(new FadeIn(g, { runTime: 0.4 }));
-      return g;
+    legend(items: readonly LegendItem[], opts: { at?: Vec; size?: number; stack?: 'column' | 'row'; gap?: number; key: string }): Action<Group> {
+      return act('s.legend()', () => {
+        const g = onScreen(kit.legend(this, items, { ...opts, at: toScreen(opts.at ?? [0, 0]) }));
+        return drawIn(g, 0.4, () => new FadeIn(g, { runTime: 0.4 }));
+      });
     },
     /** Words beside a target with a leader line to it: the kit's `callout`, sized for the screen, drawn in and kept. */
-    async callout(
+    callout(
       target: Vec | Box | Mobject,
       text: string,
       opts: { side?: Side; gap?: number; color?: string; size?: number; key?: string } = {},
-    ): Promise<Group> {
-      const box = Array.isArray(target)
-        ? target.length === 2
-          ? ([...target, ...target] as Box)
-          : (target as Box)
-        : (target as Mobject).box();
-      if (!box) throw new Error('callout(): the target has no extent');
-      const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
-      const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
-      keepAll([g], {});
-      await scene.play(new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
-      return g;
+    ): Action<Group> {
+      return act('s.callout()', () => {
+        const box = Array.isArray(target)
+          ? target.length === 2
+            ? ([...target, ...target] as Box)
+            : (target as Box)
+          : (target as Mobject).box();
+        if (!box) throw new Error('callout(): the target has no extent');
+        const [a, b] = [toScreen([box[0], box[1]]), toScreen([box[2], box[3]])];
+        const g = onScreen(kit.callout(this, [a[0], a[1], b[0], b[1]], text, opts));
+        return drawIn(g, 0.6, () => new Create(g, { runTime: 0.6, lagRatio: 0.15 }));
+      });
     },
     /**
      * Draw `m` stroke by stroke at an even speed, with a pen or pencil riding the tip (or none),
      * and keep it. `m` must not be on stage yet. A path of several strokes is split into one path
      * per stroke first; the result is what was drawn and kept. `describe` says what it shows.
      */
-    async sketch(
+    sketch(
       m: Mobject,
       {
         tool: kind = 'pen',
@@ -643,21 +695,24 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         runTime = 1.5,
         describe,
       }: { tool?: ToolKind | false; color?: string; runTime?: number } & Describe = {},
-    ) {
-      // One path per stroke, so the tool can follow each in turn.
-      m = oneStrokeEach(m);
-      keepAll([m], { describe });
-      const t = kind
-        ? tool(kind, { ink: colors.ink, body: color ?? (kind === 'pen' ? soft(colors) : emphasis(colors)) })
-        : null;
-      if (t) {
-        // The tool is sized to the stage, as the camera shows it.
-        t.scale(view.k, { aboutPoint: [0, 0] });
-        for (const x of t.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
-      }
-      await scene.play(new Draw(m, t, { runTime }));
-      if (t) scene.remove(t);
-      return m;
+    ): Action<Mobject> {
+      return act('s.sketch()', () => {
+        // One path per stroke, so the tool can follow each in turn.
+        const strokes = oneStrokeEach(m);
+        const t = kind
+          ? tool(kind, { ink: colors.ink, body: color ?? (kind === 'pen' ? soft(colors) : emphasis(colors)) })
+          : null;
+        if (t) {
+          // The tool is sized to the stage, as the camera shows it.
+          t.scale(view.k, { aboutPoint: [0, 0] });
+          for (const x of t.family()) if (x.style.strokeWidth) x.style.strokeWidth *= view.k;
+        }
+        return {
+          value: strokes,
+          start: () => keepAll([strokes], { describe }),
+          beats: [{ runTime, play: () => [new Draw(strokes, t, { runTime })], after: () => { if (t) scene.remove(t); } }],
+        };
+      });
     },
     /**
      * Present steps in turn: each clears the stage, makes its model the scene's state, and fades in

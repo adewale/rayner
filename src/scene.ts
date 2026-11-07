@@ -513,6 +513,15 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOpts;
     const anims = list.map(prepareAnimation);
+    // What some animation reads before it can begin (a diagram's layout): wait for it, once, here.
+    const waits = anims.flatMap(function pending(a: Animation): Promise<unknown>[] {
+      const r = a.ready();
+      return [...(r ? [r] : []), ...(a instanceof AnimationGroup ? a.animations.flatMap(pending) : [])];
+    });
+    if (waits.length) {
+      await Promise.all(waits);
+      this.throwIfStopped();
+    }
     for (const a of anims) a.setOptions(opts);
     assertDisjoint(anims);
     perf.span('anim.begin', () => this.beginAnimations(anims));

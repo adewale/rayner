@@ -151,18 +151,18 @@ test('direction rejects malformed, boxed, inherited and coercing values before d
     assert.throws(() => card(stage(scene(), { heading: false }), [['field', '123']], { direction } as CardOptions), /Layout direction must/);
     const s = stage(sc, { heading: false });
     const count = sc.familyMembers().length, time = sc.time;
-    await assert.rejects(s.card([['field', '123']], { direction } as CardOptions), /Layout direction must/);
+    await assert.rejects(async () => s.card([['field', '123']], { direction } as CardOptions), /Layout direction must/);
     assert.equal(sc.familyMembers().length, count); assert.equal(sc.time, time);
   }
   for (const options of [Object.create({ direction: 'rtl' }), Object.create({ direction: coercing })]) {
     assert.throws(() => stage(scene(), options), /must be an own option/);
     assert.throws(() => card(stage(scene()), [['field', '123']], options), /must be an own option/);
-    await assert.rejects(stage(scene()).card([['field', '123']], options), /must be an own option/);
+    await assert.rejects(async () => stage(scene()).card([['field', '123']], options), /must be an own option/);
   }
   const getter = Object.defineProperty({}, 'direction', { get() { coerced++; return 'rtl'; } });
   assert.throws(() => stage(scene(), getter), /must be a data option/);
   assert.throws(() => card(stage(scene()), [['field', '123']], getter), /must be a data option/);
-  await assert.rejects(stage(scene()).card([['field', '123']], getter), /must be a data option/);
+  await assert.rejects(async () => stage(scene()).card([['field', '123']], getter), /must be a data option/);
   for (const malformed of [null, 1, false, 'rtl', []]) {
     assert.throws(() => stage(scene(), malformed as StageOptions), /Layout options must be an object/);
     assert.throws(() => card(stage(scene()), [['field', '123']], malformed as CardOptions), /Layout options must be an object/);

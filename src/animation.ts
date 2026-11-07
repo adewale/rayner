@@ -79,6 +79,12 @@ abstract class AnimationTiming {
    * a sampled animation the interval it sampled.
    */
   evidence(): Evidence | null { return null; }
+  /**
+   * What must settle before this animation can begin, or null (the default). play() waits for
+   * every one among its animations, a group's members included, before it begins any of them:
+   * rayner/explain's `s.show` and `d.morph` read a diagram's layout first.
+   */
+  ready(): Promise<unknown> | null { return null; }
 }
 
 /**
