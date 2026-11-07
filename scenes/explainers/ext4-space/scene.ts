@@ -1,4 +1,4 @@
-import { Scene } from '../../../src/index.ts';
+import { Scene, FadeOut } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Card, mermaid, answerOf, view } from '../../../explain/index.ts';
 import type { Diagram, CardRow, CardOptions, View } from '../../../explain/index.ts';
@@ -152,6 +152,18 @@ export default class Ext4SpaceExplainer extends Scene {
       return card.current;
     };
     const st = () => this.state as unknown as Ext4State;
+    // How a pie is shown apart from its slices, the slice it marks, is in `shown` under the pie's name.
+    type Marks = Record<string, { color: string; as: string }>;
+    /** Diagram `d` shown by a view of `shown[name]`, its marks. */
+    const pieView = (d: Diagram, name: string) => {
+      this.shown = { ...this.shown, [name]: {} };
+      return s.diagramView(d, (_st, sh) => ({ marks: sh[name] as Marks }));
+    };
+    /** Pie `name` marks these slices (in the pie's accent, as d.mark marks them), and nothing else. */
+    const markSlices = async (v: View, d: Diagram, name: string, ids: string[], as: string) => {
+      this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
+      await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));
+    };
     /** The disk's blocks, from what the opening records. */
     const ofDisk = (state: Ext4State, n: number) => percent(n, state.df.blocks);
     this.state.disk = { size, label: name, reserve: m };
@@ -239,7 +251,7 @@ export default class Ext4SpaceExplainer extends Scene {
         ],
       },
     );
-    await d3.mark(['slice:Root reserve'], { as: 'the answer' });
+    await markSlices(pieView(d3, 'answer'), d3, 'answer', ['slice:Root reserve'], 'the answer');
     await enterCard(
       cardOf(
         (st) => [
@@ -283,9 +295,9 @@ export default class Ext4SpaceExplainer extends Scene {
       },
       { box: PIE },
     );
-    await d2.mark(['slice:Inode tables'], { as: 'this step' });
-    await enterCard(
-      cardOf(
+    const d2View = pieView(d2, 'metadata');
+    await markSlices(d2View, d2, 'metadata', ['slice:Inode tables'], 'this step');
+    const inodeCard = cardOf(
         (st) => [
           ['Size type', st.inodes.type],
           ['One inode per', `${st.inodes.inodeRatio / 1024} KiB`],
@@ -295,8 +307,8 @@ export default class Ext4SpaceExplainer extends Scene {
           ['Of the disk', ofDisk(st, st.inodes.inodeTables)],
         ],
         { at: CARD, fontSize: SIZE, title: 'Inode tables' },
-      ),
-    );
+      );
+    await enterCard(inodeCard);
 
     // ------------------------------------------------------------------ journal
     await this.step('journal', {
@@ -310,16 +322,30 @@ export default class Ext4SpaceExplainer extends Scene {
         l.journal,
       )} blocks, ${bytesOf(l.journal)}: ${ofMeta(l.journal)} of the metadata and ${of(l.journal)} of the disk.`,
     });
-    await s.clearOverlays();
-    await d2.unmark();
-    await d2.mark(['slice:Journal'], { as: 'this step' });
+    // The last card goes (the pie, shown by its view, stays), and the pie marks this step's slice.
+    await this.play(new FadeOut(inodeCard, { runTime: 0.3 }));
+    await markSlices(d2View, d2, 'metadata', ['slice:Journal'], 'this step');
     // The table's rows from the model: each step's first disk size and its journal.
     const steps = JOURNAL_STEPS.map((b) => [`From ${bytesOf(b)}`, bytesOf(journalBlocks(b))] as [string, string]);
     this.state.journal = { journal: l.journal };
-    // The table is the same in every scenario; its marked row is the step this disk's blocks reach.
-    const journalCard = await s.card(steps, { at: CARD, fontSize: SIZE, title: 'Journal by disk size' });
+    // The table is the same in every scenario; its lit row, in `shown`, is the step this disk's blocks reach.
+    const journalCard = view(
+      this,
+      (state, sh) =>
+        new Card(this, s.palette, steps, {
+          at: CARD,
+          fontSize: SIZE,
+          title: 'Journal by disk size',
+          lit: (sh.journalRow ?? null) as string | null,
+          litAs: (state as unknown as Ext4State).disk.label,
+          key: 'journal',
+        }),
+      { place: false },
+    );
+    await enterCard(journalCard);
     const row = steps.filter((_, i) => JOURNAL_STEPS[i]! <= st().df.blocks).at(-1)!;
-    await journalCard.mark(row[0], { as: st().disk.label });
+    this.shown = { ...this.shown, journalRow: row[0] };
+    await this.play(journalCard.sync({ match: 'key', staged: true, runTime: 0.4 }));
 
     // ------------------------------------------------------------------ the rest
     await this.step('other', {
@@ -332,9 +358,8 @@ export default class Ext4SpaceExplainer extends Scene {
         l.files.resize + l.files.journalTree > 1 ? 'two index blocks' : 'an index block'
       } take ${l.filesTotal} blocks.`,
     });
-    await s.clearOverlays();
-    await d2.unmark();
-    await d2.mark(['slice:Other metadata'], { as: 'this step' });
+    await this.play(new FadeOut(journalCard, { runTime: 0.3 }));
+    await markSlices(d2View, d2, 'metadata', ['slice:Other metadata'], 'this step');
     // The descriptor blocks in each copy, which the card's "Blocks a copy" row adds up.
     this.state.descBlocks = l.descBlocks;
     this.state.other = {
@@ -393,7 +418,7 @@ export default class Ext4SpaceExplainer extends Scene {
               { kind: 'set_slice_value', label: 'Root reserve', value: chosen.root },
             ];
       await whole3.morph({ source: whole(chosen, 'users') }, { ops });
-      await whole3.mark(['slice:Users can write'], { as: 'changed' });
+      await markSlices(pieView(whole3, 'chosen'), whole3, 'chosen', ['slice:Users can write'], 'changed');
       this.state.chosen = {
         percent: m,
         root: chosen.root,
