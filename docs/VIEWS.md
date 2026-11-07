@@ -84,6 +84,13 @@ view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 view.tween((t) => state, { runTime, rateFunc }?)   // an Animation: the state at t, drawn at every frame (above)
 ```
 
+`sync()` and `rebuild()` are one pair: each redraws the view from the state as it is
+and puts the new picture where the current one stands, scaled as it is. `sync()` is
+an animation that morphs the picture there when its play begins, for a view on
+screen. `rebuild()` swaps the picture at once and returns the view, for a view not
+on screen yet, such as one about to be faded in after the state changed; on screen
+it would jump, which the motion check reports.
+
 Most draws read only the model, `state`. A picture that depends on which of several
 pictures is showing, which is not part of the model, reads it from `shown`, the
 scene's `this.shown`.

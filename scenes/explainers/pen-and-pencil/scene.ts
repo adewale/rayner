@@ -6,7 +6,7 @@ import {
 import type { Strokes } from './picture.ts';
 import { Scene, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
-import { stage, settingsOf, Diagram, diagramsOf, having } from '../../../explain/index.ts';
+import { stage, settingsOf, Diagram, diagramResolverOf, having } from '../../../explain/index.ts';
 import type { ExplainerMeta } from '../../../explain/index.ts';
 import {
   WORLD,
@@ -99,7 +99,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
 
     // The layout, read back as marks before the first step: the opening already draws on it.
     const spec = { source: WORLD, style: STYLE };
-    const plan = new Diagram(this, spec, await diagramsOf(this).diagram(spec), { box: CHART_BOX });
+    const plan = new Diagram(this, spec, await diagramResolverOf(this).diagram(spec), { box: CHART_BOX });
     const parts = facts.map((_, i) => anatomy(plan, i));
     const railMob = plan.get('rail').family().find(pathed)!;
     const rail = railMob.box()! as Box;

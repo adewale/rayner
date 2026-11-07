@@ -10,7 +10,7 @@ import { traceScene, loadFonts } from '../explain/testing.ts';
 import { stage, regionBox } from '../explain/index.ts';
 import { REGIONS } from '../explain/look.ts';
 import { bindSnapshots, diagramFindings, loadProject, loadSnapshots, pictureWordsAt } from '../explain/testing.ts';
-import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramsOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
+import { edgePartOf, diagramKey, snapshotResolver, useDiagrams, diagramResolverOf, RENDERER } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSnapshot } from '../explain/index.ts';
 import { raised, rule, emphasis, soft, good, bad, dimOpacity, seenSource } from '../explain/look.ts';
 import type { SeenSource } from '../explain/look.ts';
@@ -369,7 +369,7 @@ test('a snapshot stored under another spec is refused', async () => {
   );
 });
 
-test('diagramsOf returns the resolver last bound to that scene, and refuses an unbound scene', () => {
+test('diagramResolverOf returns the resolver last bound to that scene, and refuses an unbound scene', () => {
   fc.assert(
     fc.property(fc.array(fc.nat({ max: 3 }), { maxLength: 10 }), (binds) => {
       const scenes = Array.from({ length: 4 }, () => new Scene(new NullSink()));
@@ -380,8 +380,8 @@ test('diagramsOf returns the resolver last bound to that scene, and refuses an u
         last.set(scenes[i]!, r);
       }
       for (const scene of scenes)
-        if (last.has(scene)) assert.equal(diagramsOf(scene), last.get(scene));
-        else assert.throws(() => diagramsOf(scene), /No diagram snapshots/);
+        if (last.has(scene)) assert.equal(diagramResolverOf(scene), last.get(scene));
+        else assert.throws(() => diagramResolverOf(scene), /No diagram snapshots/);
     }),
     params(),
   );
@@ -645,7 +645,7 @@ test('the regions meant to sit side by side never overlap', () => {
 
 test('the explain entry point exports exactly its documented names', async () => {
   assert.deepEqual(Object.keys(await import('../explain/index.ts')).sort(), [
-    'Diagram', 'Machine', 'View', 'answerOf', 'diagramsOf', 'having', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'view',
+    'Diagram', 'Machine', 'View', 'answerOf', 'diagramResolverOf', 'having', 'isRefusal', 'mermaid', 'palette', 'refuse', 'regionBox', 'resolveSettings', 'settingsOf', 'stage', 'view',
   ]);
   // The tooling went to rayner/testing.
   assert.deepEqual(Object.keys(await import('../explain/testing.ts')).sort(), [

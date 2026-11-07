@@ -197,7 +197,7 @@ export function drawingKit(scene: Scene) {
 
 // What the collection writes, an outside author can write: emphasis a scene draws itself, a card
 // and code rebuilt inside a view, a diagram laid out before it is drawn, and colours mixed from the palette.
-import { Diagram, diagramsOf } from 'rayner/explain';
+import { Diagram, diagramResolverOf } from 'rayner/explain';
 import type { DiagramResolver, Card, CodeBlock, CodeOptions, Look } from 'rayner/explain';
 import { emphasised, card, code } from 'rayner/drawing';
 import { lerpColor } from 'rayner';
@@ -214,7 +214,7 @@ export async function publicCollection(scene: Scene): Promise<void> {
   const constructed = () => new Card();
   void [listing, direction, constructed];
   const spec: DiagramSpec = { source: 'graph LR\nA --> B' };
-  const resolver: DiagramResolver = diagramsOf(scene);
+  const resolver: DiagramResolver = diagramResolverOf(scene);
   const plan = new Diagram(scene, spec, await resolver.diagram(spec), { box: 'main' });
   // A diagram part's shapes and labels, addressed by the part's id rather than by child index.
   const outline = plan.shapes('A')[0], words: string | undefined = plan.labels('A')[0]?.text;

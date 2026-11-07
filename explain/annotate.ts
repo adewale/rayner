@@ -156,7 +156,7 @@ const traceable = (m: Mobject): m is VMobject => m instanceof VMobject && m.hasP
  * drawing speed (1 by default: any faster and the motion check sees the tool jump). The tool fades in and out over the first and last quarter second.
  * `subject` is what is drawn; `pen` is the tool, which is removed when the play ends.
  */
-export class Draw extends Create {
+export class Sketch extends Create {
   subject: Mobject;
   pen: Mobject | null;
   travel: number;

@@ -195,6 +195,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.callout(target, text, { side, gap, color, size, key })` | The kit's `callout`, sized for the screen, drawn in and kept: words beside a point, box or mobject, with a leader line ending in a dot on its nearest edge |
 | `s.look` | The colours to draw with, each reading on this paper ([colours](#colours)) |
 | `s.backdrop`, `s.heading` | The backdrop rectangle and the heading text |
+| `s.scene` | The scene the stage draws on. A drawing helper of your own that takes `s` first, as the kit's functions do, makes its text with `s.scene.text(...)`, so the text takes the scene's shaping |
 
 Annotations say a value where it is. Prefer a dimension, pin or callout on the drawing to a card beside it, and `carry` to `clear` when the next step builds on this one. One function makes each annotation: the kit's builds the picture in world coordinates, for a view's or a staged step's draw; the stage verb builds it with that function from the points the camera shows and maps it to the screen, so it keeps its size on screen while the camera is away. With the camera at home both give the same picture.
 
@@ -420,7 +421,7 @@ const source = mermaid.pie(slices.filter((s) => s.value > 0), {
 
 `reveal`, `walk`, `enlarge`, `morph` and `hide` are [actions](#actions): await one, or play it with others. `morph` reads the next diagram's layout when it is called, and a `play()` waits for that.
 
-To measure a diagram before anything is drawn, lay it out without `s.show`: `new Diagram(scene, spec, await diagramsOf(scene).diagram(spec), { box })`, both from `rayner/explain`, is the diagram `s.show` would build, not yet on stage (`pen-and-pencil` reads its marks this way).
+To measure a diagram before anything is drawn, lay it out without `s.show`: `new Diagram(scene, spec, await diagramResolverOf(scene).diagram(spec), { box })`, both from `rayner/explain`, is the diagram `s.show` would build, not yet on stage (`pen-and-pencil` reads its marks this way).
 
 | Method | What it does |
 | --- | --- |

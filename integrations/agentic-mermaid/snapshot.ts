@@ -100,11 +100,11 @@ export function useDiagrams(scene: Scene, resolver: DiagramResolver): void {
   resolvers.set(scene, resolver);
 }
 /**
- * The scene's diagram snapshots: `await diagramsOf(scene).diagram(spec)` is the laid-out diagram
+ * The scene's diagram snapshots: `await diagramResolverOf(scene).diagram(spec)` is the laid-out diagram
  * for `spec`, so `new Diagram(scene, spec, snapshot, { box })` can be measured before anything is
  * drawn (`s.show` does both and builds the diagram in).
  */
-export function diagramsOf(scene: Scene): DiagramResolver {
+export function diagramResolverOf(scene: Scene): DiagramResolver {
   const resolver = resolvers.get(scene);
   if (!resolver)
     throw new Error('No diagram snapshots are bound to this scene: run it through the rayner CLI, or bind them with bindSnapshots().');

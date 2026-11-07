@@ -116,6 +116,7 @@ The renames came with refactors that make a name's promise checkable:
 - `become` and `Transform`: animations named as verbs follow Manim's
   convention.
 - `keep`, `enter`, `focus`, `carry` and `opening`: stage verbs read well at their call sites.
+- `note` for a few words of secondary text, on the stage (`s.note`) and beside a diagram's part (`d.notePicture`, a picture's `notes`): in both a note comments on the picture rather than labelling it, and its owner says where it stands.
 - `describe`: words for what is shown, on the stage, on a part and in `rayner describe`. What a scene returns as JSON for its trace is named for what it is: `stateJson()` and `shownJson()`.
 - trace, evidence and receipt: three different records, each answering a different question.
 - Updaters (`addUpdater`). No explainer registers one, but the Lantern explainer teaches them as

@@ -49,7 +49,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `s.look` holds the colours a scene draws with, each reading on the stage's paper: `paper`, `ink`, `soft`, `emphasis`, `good`, `bad`, `raised` and `rule` (the panel colours) and `muted`. A palette (`palette(name)`, the `Palette` type) is the named style a stage is built from, not what a scene draws with. `lerpColor` mixes two colours. [Colours](docs/REFERENCE.md#colours)
 - A colour name means one colour: the emphasis colour is `emphasis` in `s.look`, in `scene.colors` and on a diagram (`d.emphasis`).
 - `s.backdrop` is the rectangle the stage is drawn on; "paper" names only its colour.
-- `diagramsOf(scene)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
+- `diagramResolverOf(scene)` returns the scene's diagram resolver, whose `diagram(spec)` lays out a diagram, so `new Diagram(...)` can be measured before anything is drawn.
 - A picture that should follow the model is a `view(scene, draw)`, and `view.sync()` morphs it to the current state. [Views](docs/VIEWS.md#api)
 - `view.sync()` matches parts by key and stages the change by default: what goes fades out before what comes fades in. `staged` defaults to `true` for every `match`; `staged: false` fades both at once. A key sync whose pictures carry no keys is refused with the fix: key the parts, or say `match: 'text'`, `'shapes'` or `'index'`. [Views](docs/VIEWS.md#match)
 - Parts with the same `key` are the same part across morphs (`matchByKey`, `match: 'key'`), and `find(key)` and `findAll` address them. [Matching](docs/MATCHING.md#which-key)

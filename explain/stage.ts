@@ -7,7 +7,7 @@ import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { isDetail, teaching } from './script.ts';
 import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
-import { tool, Draw, oneStrokeEach } from './annotate.ts';
+import { tool, Sketch, oneStrokeEach } from './annotate.ts';
 import * as kit from './drawing.ts';
 import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
@@ -17,7 +17,7 @@ import type { Plan } from './action.ts';
 import type { ShowOptions, PictureNote } from './diagrams.ts';
 import type { Card, CodeBlock, CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { card, code } from './drawing.ts';
-import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramResolverOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { DiagramSpec, DiagramSnapshot } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette } from '../src/color.ts';
 import { palette } from './palettes.ts';
@@ -431,7 +431,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
       if (options.style && spec.style == null) spec = { ...spec, style: options.style };
       let snapshot: DiagramSnapshot | null = null;
       const reading = (async () => {
-        snapshot = await diagramsOf(scene).diagram(spec);
+        snapshot = await diagramResolverOf(scene).diagram(spec);
       })();
       return act('s.show()', () => {
         const read = snapshot!;
@@ -711,7 +711,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
         return {
           value: strokes,
           start: () => keepAll([strokes], { describe }),
-          beats: [{ runTime, play: () => [new Draw(strokes, t, { runTime })], after: () => { if (t) scene.remove(t); } }],
+          beats: [{ runTime, play: () => [new Sketch(strokes, t, { runTime })], after: () => { if (t) scene.remove(t); } }],
         };
       });
     },

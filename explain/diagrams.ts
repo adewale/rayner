@@ -22,7 +22,7 @@ import { center, unionBoxes } from '../src/box.ts';
 import { paintsFill } from '../src/mobject.ts';
 import { regionBox, boxCenter, raised, emphasis, dimOpacity, emphasises, selfDescribed } from './look.ts';
 import type { Region } from './look.ts';
-import { diagramsOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
+import { diagramResolverOf, diagramKey, diagramFindings, SVG_PX_PER_UNIT } from '../integrations/agentic-mermaid/snapshot.ts';
 import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
@@ -1274,7 +1274,7 @@ export class Diagram {
     const before = this.spec, spec = next;
     let snapshot: DiagramSnapshot | null = null;
     const reading = (async () => {
-      const resolver = diagramsOf(this.scene);
+      const resolver = diagramResolverOf(this.scene);
       if (ops && resolver.morph) await resolver.morph(before, spec, ops);
       snapshot = await resolver.diagram(spec);
     })();
