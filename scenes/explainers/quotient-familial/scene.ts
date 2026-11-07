@@ -608,14 +608,6 @@ export default class QuotientFamilialExplainer extends Scene {
           added: year === 2025 ? lines.flatMap((l, i) => (l === '    2025-01-01:' ? [i, i + 1] : [])) : [],
           key: 'bareme',
         });
-        // A panel wider than its code centres it; a morph left the code at the panel's left padding.
-        panel.code.shift([panel.panel.box()![0] + 0.35 - panel.code.box()![0], 0]);
-        const seen = new Map<string, number>();
-        for (const line of panel.code.lines) {
-          const n = seen.get(line.text) ?? 0;
-          seen.set(line.text, n + 1);
-          line.key = `bareme:line:${line.text}#${n}`;
-        }
         return panel;
       },
       { place: false },

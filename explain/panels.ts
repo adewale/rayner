@@ -522,6 +522,9 @@ export class CodeBlock extends Group {
       height = this.code.height() + 2 * pad + (head ? 0.42 : 0);
     this.panel = panelRect(colors, width, height);
     this.code.moveTo([0, head ? -0.21 : 0]);
+    // Code reads from the left: in a panel wider than it needs (a fixed `width`), the code keeps
+    // its left padding rather than floating to the middle.
+    this.code.shift([-width / 2 + pad + 0.05 - this.code.box()![0], 0]);
     // A title wider than the panel shrinks to fit it, as a card's does.
     if (head && head.width() > width - 2 * pad) head.scale((width - 2 * pad) / head.width());
     if (head) head.moveTo([-width / 2 + pad, height / 2 - 0.3], [-1, 0]);

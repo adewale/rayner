@@ -146,15 +146,6 @@ export default class IcalRecurrenceExplainer extends Scene {
           ...(shownCode.focusAs ? { focusAs: shownCode.focusAs } : {}),
           key: 'stored',
         });
-        // A panel wider than its code centres it; a morph left the code at the panel's left padding, as
-        // a panel as wide as its code has it. (Stand-in until CodeBlock aligns code left in a wider panel.)
-        panel.code.shift([panel.panel.box()![0] + 0.35 - panel.code.box()![0], 0]);
-        const seen = new Map<string, number>();
-        for (const line of panel.code.lines) {
-          const n = seen.get(line.text) ?? 0;
-          seen.set(line.text, n + 1);
-          line.key = `stored:line:${line.text}#${n}`;
-        }
         return panel;
       },
       { place: false },
