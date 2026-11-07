@@ -864,7 +864,7 @@ class BuiltTransform extends Transform {
  */
 export function bindSuccessions(anims: readonly ScheduledAnimation[], scene: Scene): void {
   for (const a of anims) {
-    // A scene-bound animation (one that changes its scene's state, such as rayner/explain's SetState) names its scene as `host`.
+    // A scene-bound animation (one that changes its scene's state, such as a machine's change of state) names its scene as `host`.
     const host = (a as { host?: unknown }).host;
     if (host && host !== scene) throw new Error(`${a.constructor.name} must play on the scene it belongs to`);
     if (!(a instanceof AnimationGroup)) continue;

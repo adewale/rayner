@@ -1,7 +1,7 @@
 import type { Evidence, Box } from '../../../src/index.ts';
 import { Scene, FadeIn, FadeOut } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
-import type { CodeBlock, Diagram, NoteSide, View } from '../../../explain/index.ts';
+import type { CodeBlock, Diagram, NoteSide, View, ExplainerMeta } from '../../../explain/index.ts';
 import { Repo, AUTHOR, parseTree } from './model.ts';
 import { objectLines, reachable } from './objects.ts';
 import { short, blobCells, blobIdRow, rowWords, codePanel, hashArrow, abbrevBrace, commitRows, sharedBlob, idLabel, changedId, pairCounts } from './picture.ts';
@@ -72,7 +72,7 @@ export default class GitExplainer extends Scene<GitState, GitShown> {
       { says: 'Git writes only the objects whose bytes are new', test: 'model.test.ts: Git writes only the objects whose bytes are new' },
       { says: 'Changed bytes change every id above them', test: 'model.test.ts: Git writes only the objects whose bytes are new' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'change',

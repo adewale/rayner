@@ -1,6 +1,6 @@
 import { Scene, Group } from '../../../src/index.ts';
 import { settingsOf, stage, having } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { bloomStory, locations, saturation } from './model.ts';
 import { label } from '../../../explain/drawing.ts';
 import { drawBits, drawPipeline, takenLabel } from './picture.ts';
@@ -31,7 +31,7 @@ export default class BloomFilter extends Scene<{}, {}> {
       { says: 'Keep taking names and the row only fills', test: 'model.test.ts: the row only fills' },
       { says: 'From then on every name finds three 1s', test: 'model.test.ts: a full row says maybe to every name' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'bits',

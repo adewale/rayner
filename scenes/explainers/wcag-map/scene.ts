@@ -1,7 +1,7 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
-import type { NoteSide } from '../../../explain/index.ts';
+import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 import {
   GUIDELINES,
   LEVELS,
@@ -159,7 +159,7 @@ export default class WcagMapExplainer extends Scene<WcagState, { map?: MapShown 
       },
       { says: 'Every one dates from 2.0', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'level',

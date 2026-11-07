@@ -1,7 +1,7 @@
 import { Scene, FadeOut, Create } from '../../../src/index.ts';
 import type { Box, Group } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
-import type { Diagram, CardRow, CardOptions, View, Having, Card } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View, Having, Card, ExplainerMeta } from '../../../explain/index.ts';
 import { callout, card } from '../../../explain/drawing.ts';
 import {
   BLCKSZ,
@@ -100,7 +100,7 @@ export default class PgPageExplainer extends Scene<PgState, PgShown> {
         test: 'model.test.ts: stored in a multiple of MAXALIGN',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'column',

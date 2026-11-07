@@ -1,5 +1,5 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, linear } from '../../../src/index.ts';
-import type { View, Choreography, CodeOptions } from '../../../explain/index.ts';
+import type { View, Choreography, CodeOptions, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Machine, view } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
@@ -42,7 +42,7 @@ export default class RingBufferExplainer extends Scene<RingState, {}> {
       'https://github.com/ivarvong/lantern/blob/2c7bad5/scenes/ring-buffer.doc.json',
       'https://tc39.es/ecma262/2025/#sec-array.prototype.shift',
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'operations',

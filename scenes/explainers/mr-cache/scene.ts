@@ -12,7 +12,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, having } from '../../../explain/index.ts';
-import type { NoteSide } from '../../../explain/index.ts';
+import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // fidelity.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
@@ -71,7 +71,7 @@ export default class CacheMRExplainer extends Scene<CacheState, { flow?: FlowSta
       { says: 'every lookup is a database read', shown: true as const },
       { says: 'so only a miss reaches D1', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'request',

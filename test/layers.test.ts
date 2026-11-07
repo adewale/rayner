@@ -2,7 +2,8 @@
 // imports only the layers under it. This holds the rules the code keeps today. The one import the
 // section records as a departure, the kit naming the stage's type, is allowed here as exactly that
 // and no wider. Every module under explain/ is placed in a layer, so a new one must be placed
-// before the rules can judge it.
+// before the rules can judge it. Of a step's metadata the engine types and reads only its caption,
+// as the section records; the explainer layer declares the rest.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -100,6 +101,25 @@ test('inside explain/, each layer imports only the layers under it; the kit name
 
 test('the player imports the library and nothing from the command, the tests, the scenes or capture', () => {
   assert.deepEqual(broken('player', importsIn('app')), []);
+});
+
+test('the engine types and reads a step\'s caption only: its title, line and kind are declared by the explainer layer', () => {
+  const fieldsOf = (file: string, declared: (n: ts.Node) => boolean) => {
+    const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true);
+    const names: string[] = [];
+    const visit = (n: ts.Node): void => {
+      if (ts.isInterfaceDeclaration(n) && n.name.text === 'StepMeta' && declared(n))
+        for (const m of n.members) names.push(m.name ? m.name.getText(source) : '[key]');
+      ts.forEachChild(n, visit);
+    };
+    visit(source);
+    return names;
+  };
+  const inModule = (n: ts.Node) => ts.isModuleBlock(n.parent) && ts.isStringLiteral(n.parent.parent.name) && n.parent.parent.name.text === '../src/scene.ts';
+  assert.deepEqual(fieldsOf('src/scene.ts', (n) => ts.isSourceFile(n.parent)), ['caption', '[key]'], 'the engine\'s StepMeta: a caption and anything else');
+  assert.deepEqual(fieldsOf('explain/script.ts', inModule), ['title', 'line', 'kind'], 'explain/script.ts declares the rest on it');
+  const reads = sources('src').filter((f) => /\bStepKind\b|meta\??\.(title|line|kind)\b|'(short|detail)'/.test(readFileSync(join(ROOT, f), 'utf8')));
+  assert.deepEqual(reads, [], 'no engine module names a step\'s kind or reads its title, line or kind');
 });
 
 test('each rule rejects a seeded break and allows what the layers allow', () => {

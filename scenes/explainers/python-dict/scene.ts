@@ -1,7 +1,7 @@
 import { Scene, FadeIn, Text, matchByKey } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { settingsOf, stage, Machine, view } from '../../../explain/index.ts';
-import type { Stage, StagedStep } from '../../../explain/index.ts';
+import type { Stage, StagedStep, ExplainerMeta } from '../../../explain/index.ts';
 import { dictStory, route, EMPTY, DELETED, DICT_EVENTS, dictStart, dictNext } from './model.ts';
 import type { DictTable, DictLookup, DictState, DictEvent, DictPolicy } from './model.ts';
 import { picture, stateView, visit, type View } from './picture.ts';
@@ -29,7 +29,7 @@ export default class PythonDict extends Scene<DictState, {}> {
       { says: 'whose key never matches', test: 'model.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
       { says: 'keeps only', test: 'model.test.ts: dictionary slots and deleted entries match captured CPython 3.12 storage' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'key',

@@ -8,7 +8,6 @@ They are ordinary animations on native mobjects: pass them to `play`,
 | --- | --- | --- |
 | Stretch from a baseline while fading in | `GrowFromEdge` | Captured chart bars grow from the bottom; Gantt tasks from the left |
 | Move a temporary token along a route while it fades in and out | `PulseAlongPath` | Captured sequence-message build-ins |
-| Adopt the next model state at a particular point inside a schedule | `SetState` | Every [machine](MACHINES.md) event; periodic-groups' configuration steps |
 | Drive drawings from one sampled number | `view.tween`; `c.follow` in an authored transition | Great circle and henge: a globe and a sky redrawn from a turning viewpoint; token bucket: the gauge and the chart's climb from the same elapsed time; ring-buffer pointers turning round the ring |
 
 The first two replaced private classes in `explain/diagrams.ts`, whose diagram
@@ -29,7 +28,7 @@ node node_modules/rayner/dist/recipes/render.js --scene choreography --out out/c
 ```
 
 [The full recipe](../recipes/choreography.ts) shows parallel growth and route travel,
-then two state and view updates in a succession. The runner also writes its text
+then two state changes, each assigned and drawn by a sync of the readout. The runner also writes its text
 frame, element records, step index and trace; `--step result` gives the final
 readout. These are raw engine examples: a published explainer also needs a model,
 descriptions, a script and a reader review.
@@ -38,7 +37,6 @@ descriptions, a script and a reader review.
 
 ```ts
 import { GrowFromEdge } from 'rayner';
-import { SetState, view } from 'rayner/explain';
 await this.play(new GrowFromEdge(bar, [0, -1]));                 // up from its bottom edge
 await this.play(new GrowFromEdge(task, [-1, 0], { runTime: 0.6 })); // right from its left edge
 ```
@@ -87,48 +85,6 @@ scene at the invisible end of the pulse. It is not a persistent indication for a
 resting picture: draw a mark, or a diagram picture's `trail`, when the reader needs that evidence.
 No adjacency assertion or walk record is implied by moving along an arbitrary path.
 
-## SetState
-
-```ts
-import { Succession } from 'rayner';
-import { stage, SetState, view } from 'rayner/explain';
-import { card } from 'rayner/drawing';
-const s = stage(this, { style: 'github-dark' });
-const readout = view(this, (st) => card(s, [['count', st.count]], { panel: false, key: 'readout' }), { place: false });
-const sync = () => readout.sync();
-await this.play(new Succession([
-  new SetState(this, { count: 3 }), sync(),
-  new SetState(this, { count: 9 }), sync(),
-]));
-```
-
-Signature: `new SetState(scene, nextState | (current) => nextState, { event? })`, the state typed as the scene's model.
-
-Given a function, it computes the next state from a copy of the state when it begins,
-so a member of a replay starts where the one before left it; with `event`, it records
-`{ kind: 'event', event }` as it begins. [Machines](MACHINES.md) build on this form.
-
-It draws nothing and defaults to zero duration. When its turn begins it replaces
-the whole scene state, so a View sync after it in the same schedule draws that
-operation's state rather than the last state of the sequence. For one change before
-one `play()`, assigning `scene.state` directly is enough.
-
-The constructor validates and copies the snapshot with Rayner's plain-JSON rules;
-later changes to the input cannot change it. Each begin assigns a fresh copy, so
-reusing the animation does not share mutable state. Typed scenes require their
-state type. Invalid numbers, cycles, functions and class instances are refused
-instead of being silently altered by `JSON.stringify`.
-
-Use it on the scene it names. A nested schedule bound to another scene is rejected
-before it starts. State changes on the same scene share a non-drawing ownership
-target, so parallel `SetState`s are rejected by the normal overlap checker. Put
-them in a `Succession`. Independent code or custom animations that write state
-outside this convention are still the author's responsibility.
-
-The snapshot must come from your model or source, not an invented answer. `SetState`
-does not execute an asynchronous program, verify a model or interpolate categorical
-states. Seeking replays the state changes at their scheduled turns.
-
 ## Following one number
 
 A sync morphs between two pictures; some values must be sampled along the way, so a
@@ -149,7 +105,7 @@ await this.play(orbit.tween((t) => ({ angle: Math.PI * t }), { runTime: 1, rateF
 
 The picture is the view's draw of the state at every frame, so `rayner check` holds it
 to its draw as it holds any view, and the play ends with the state at `stateAt(1)`,
-with no `SetState` after it. `stateAt` must be a function of `t` alone and return JSON.
+with nothing after it. `stateAt` must be a function of `t` alone and return JSON.
 The great-circle explainer turns its globe this way, and the henge explainer runs its
 year and lowers its camera.
 
@@ -216,13 +172,10 @@ a step that ends with an action made in it and never played fails.
 
 ## Composition and verification
 
-Growth and pulse capture geometry at `begin()`; `SetState` freezes the supplied
-snapshot at construction and applies a fresh copy when its turn begins. All three
-support the existing fixed-frame seek model and expose their written target to
-the ordinary schedule ownership checks. Growth and pulse can be sampled out of
-order without integrating previous frames.
-`SetState` is a discrete scheduled action; it is not a continuous binding or a
-reversible state transition.
+Growth and pulse capture geometry at `begin()`. Both support the existing
+fixed-frame seek model and expose their written target to the ordinary schedule
+ownership checks, and both can be sampled out of order without integrating
+previous frames.
 
 `test/choreography.test.ts` checks independent geometry and opacity expectations,
 the old growth and message-token frame sequences, malformed inputs, state isolation,

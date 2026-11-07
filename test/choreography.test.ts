@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import { MoveAlongPath } from '../src/extras.ts';
-import { SetState, view, stage } from '../explain/index.ts';
+import { view, stage } from '../explain/index.ts';
+import { SetState } from '../explain/state.ts';
 import { card } from '../explain/drawing.ts';
 import { isFurniture } from '../explain/stage.ts';
 import assert from 'node:assert/strict';

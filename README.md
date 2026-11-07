@@ -131,11 +131,12 @@ The scene is the explanation: each step's words, and which moves it plays. How o
 ```ts
 import { Scene } from 'rayner';
 import { stage, settingsOf, Machine, view } from 'rayner/explain';
+import type { ExplainerMeta } from 'rayner/explain';
 import { MOVES, finished, next, solve, start, type Move, type Tower } from './model.ts';
 import { drawTower, sayTower } from './picture.ts';
 
 export default class Hanoi extends Scene<Tower, {}> {
-  static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] };
+  static meta = { sources: ['https://en.wikipedia.org/wiki/Tower_of_Hanoi'] } satisfies ExplainerMeta;
   static settings = [{ id: 'disks', label: 'Disks', default: '3', options: [{ value: '3', label: '3' }, { value: '4', label: '4' }] }];
   override state = start(3);
 

@@ -2,7 +2,7 @@ import { Scene, Group, Text, diffLines } from '../../../src/index.ts';
 import type { Box, MatchKey, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { Diagram, Stage, NoteSide, DiagramPicture } from '../../../explain/index.ts';
+import type { Diagram, Stage, NoteSide, DiagramPicture, ExplainerMeta } from '../../../explain/index.ts';
 import {
   DTSTART,
   GUEST_MEETING,
@@ -115,7 +115,7 @@ export default class IcalRecurrenceExplainer extends Scene<IcalState, IcalShown>
       { says: 'Bob has no rule, only that meeting', test: 'model.test.ts: the copies view' },
       { says: 'puts every VEVENT with one UID in one calendar object', test: 'model.test.ts: every marker in the ER source says what the model allows' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'change',

@@ -3,7 +3,7 @@ import type { Curve } from './picture.ts';
 import { Scene, Group, Text } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf } from '../../../explain/index.ts';
-import type { Diagram, PictureNote, View } from '../../../explain/index.ts';
+import type { Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SHADES, rows, summarize } from './model.ts';
 import type { Row, Shade } from './model.ts';
 import { listed, percent } from '../lib/format.ts';
@@ -53,7 +53,7 @@ export default class TailwindGamutExplainer extends Scene<GamutState, { dotNotes
       { says: 'every colour past it shows', shown: true as const },
       { says: 'lies beyond sRGB’s on every spoke', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'shade',

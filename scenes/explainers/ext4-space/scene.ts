@@ -2,7 +2,7 @@ import { Scene, FadeOut } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, mermaid, answerOf, view, having } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
-import type { Diagram, CardRow, CardOptions, View, Having, Card } from '../../../explain/index.ts';
+import type { Diagram, CardRow, CardOptions, View, Having, Card, ExplainerMeta } from '../../../explain/index.ts';
 import {
   BLOCK,
   DEFAULT_RESERVE,
@@ -111,7 +111,7 @@ export default class Ext4SpaceExplainer extends Scene<Ext4State, Ext4Shown> {
       { says: 'Every group has two bitmaps', test: 'model.test.ts: the model gives dumpe2fs’s counts for every measured size and reserve' },
       { says: 'only the kernel’s', test: 'model.test.ts: the model gives the mounted kernel’s statfs' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'size',

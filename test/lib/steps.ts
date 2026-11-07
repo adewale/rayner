@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { traceScene } from '../../explain/testing.ts';
 import type { Trace } from '../../explain/testing.ts';
-import type { StepKind } from '../../src/index.ts';
+import type { StepKind } from '../../explain/index.ts';
 import type { SceneClass } from '../../src/index.ts';
 
 /** A path through the steps: one kind, or 'story', every step but the details. */

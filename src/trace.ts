@@ -1,7 +1,7 @@
 // Trace: the scene as a list of step boundaries with structured state.
 // This is the agent-facing form: no geometry, just what each step is called,
 // when it happens, what the author attached to it (meta) and what the scene
-// says its state is (describe()). Stable across float-formatting churn, so it
+// says its state is (stateJson()). Stable across float-formatting churn, so it
 // is also what golden tests hash. A step that recorded evidence (Scene.record)
 // carries it too; steps that recorded none have no `evidence` key, so their
 // traces hash as they did before the channel existed.
@@ -16,10 +16,10 @@ export interface StepRecord {
   /** When the caption-reading hold began, if there was one. */
   hold?: number;
   meta: StepMeta;
-  /** The model when the step began and when it ended (Scene.describe). */
+  /** The model when the step began and when it ended (Scene.stateJson). */
   before: SceneState;
   after?: SceneState;
-  /** What was shown when the step ended, apart from the model (Scene.describeShown); absent when nothing was. */
+  /** What was shown when the step ended, apart from the model (Scene.shownJson); absent when nothing was. */
   shown?: SceneState;
   /** What the step recorded with Scene.record(), when it recorded anything. */
   evidence?: Evidence[];
@@ -42,10 +42,10 @@ export class TraceSink implements Sink {
   constructor() { this.events = []; }
   async frame(): Promise<void> {}
   async stepBegin(scene: Scene, s: Step): Promise<void> {
-    this.events.push({ step: s.path, phase: 'begin', t: round(scene.time), frame: scene.frameCount, meta: s.meta, state: scene.describe() });
+    this.events.push({ step: s.path, phase: 'begin', t: round(scene.time), frame: scene.frameCount, meta: s.meta, state: scene.stateJson() });
   }
   async stepEnd(scene: Scene, s: Step): Promise<void> {
-    this.events.push({ step: s.path, phase: 'end', t: round(scene.time), frame: scene.frameCount, state: scene.describe(), shown: scene.describeShown(), ...(s.hold != null ? { hold: round(s.hold) } : {}), evidence: s.evidence?.slice() ?? [] });
+    this.events.push({ step: s.path, phase: 'end', t: round(scene.time), frame: scene.frameCount, state: scene.stateJson(), shown: scene.shownJson(), ...(s.hold != null ? { hold: round(s.hold) } : {}), evidence: s.evidence?.slice() ?? [] });
   }
   /** Compact form: one entry per step with begin/end state. */
   steps(): StepRecord[] {

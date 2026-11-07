@@ -27,7 +27,7 @@ import { outlineText } from '../integrations/agentic-mermaid/text.ts';
 import { recordWalk } from './trace.ts';
 import { wordsOf, wordsFor, familyNames } from './words.ts';
 import type { Words } from './words.ts';
-import type { Seen, SeenPart } from './trace.ts';
+import type { Description, DescriptionPart } from './trace.ts';
 import { lerpColor, parseColor } from '../src/color.ts';
 import type {
   DiagramSpec,
@@ -801,14 +801,14 @@ export class Diagram {
    * by its words in reading order (participants and lanes first), with its emphasis,
    * and the notes on it. Parts drawn with no words are reported as blank.
    */
-  describe(as: PictureShows | null = this.shown()): Seen {
+  describe(as: PictureShows | null = this.shown()): Description {
     const w = wordsOf(this.scene);
     const marks = as?.marks ?? new Map<string, { color: string; as: string }>(),
       kept = as?.kept ?? null;
     const [family, thing, link] = familyNames(w, this.snapshot.family);
     // Blank parts are reported to the author, in English.
     const [english] = familyNames(wordsFor('en'), this.snapshot.family);
-    const parts: SeenPart[] = [];
+    const parts: DescriptionPart[] = [];
     const blank: string[] = [];
     const journey = this.snapshot.family === 'journey',
       stateFamily = this.snapshot.family === 'state';

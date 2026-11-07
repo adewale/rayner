@@ -2,6 +2,7 @@ import { frames as readerFrames, ruler, pairLines, WORD, SIZE, measuredRows, adv
 import { Scene, Text, Create, FadeIn, TransformMatchingShapes, shaperFor } from '../../../src/index.ts';
 import type { MatchSummary, FontName } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
 
 const SMALL = 0.6; // the smaller copy in the letterforms step
@@ -51,7 +52,7 @@ export default class GlyphExplainer extends Scene<GlyphState, { lit?: string }> 
       },
       { says: 'Every glyph pairs with its 60% copy; with the other font, none do', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'font',

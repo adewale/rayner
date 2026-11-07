@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { Scene, Text, Group, Rectangle, Transform, AnimationGroup, TransformMatching, matchByKey } from '../src/index.ts';
 import { NullSink, StringSink, SnapshotSink, renderAt } from '../src/output.ts';
 import { machinesOf, TraceSink, traceScene, loadFonts } from '../explain/testing.ts';
-import { stage, SetState, Machine, refuse, isRefusal, view } from '../explain/index.ts';
+import { stage, Machine, refuse, isRefusal, view } from '../explain/index.ts';
+import { SetState } from '../explain/state.ts';
 import { exploreMachines } from '../tools/lib/explain-check.ts';
 import { logStart } from '../app/embed-live.ts';
 

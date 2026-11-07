@@ -3,7 +3,7 @@ import { Scene, Text, FadeIn, Create, Transform, AnimationGroup, Succession } fr
 import type { Animation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, Machine, view } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
-import type { Card, View, Choreography, Transition, CodeBlock } from '../../../explain/index.ts';
+import type { Card, View, Choreography, Transition, CodeBlock, ExplainerMeta } from '../../../explain/index.ts';
 import { reduceSession, sessionStart, sessionNext, SESSION_EVENTS } from './model.ts';
 import type { SessionState, SessionEvent } from './model.ts';
 const SOURCE =
@@ -35,7 +35,7 @@ export default class StateMachineExplainer extends Scene<SessionState, {}> {
         test: 'model.test.ts: both session histories come from the reducer; closed rejects all modeled events',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'events',

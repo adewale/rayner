@@ -2,7 +2,7 @@ import { table } from '../../../explain/drawing.ts';
 import { answerOf, view, having } from '../../../explain/index.ts';
 import { Scene, Text, FadeIn } from '../../../src/index.ts';
 import { stage, regionBox, resolveSettings } from '../../../explain/index.ts';
-import type { ExplainerClass, Diagram, PictureNote, View } from '../../../explain/index.ts';
+import type { ExplainerClass, Diagram, PictureNote, View, ExplainerMeta } from '../../../explain/index.ts';
 import { TokenBucket } from '../token-bucket/model.ts';
 import { PLACEMENTS } from '../traffic-policy/model.ts';
 import { drawChoice, drawOffered, drawTimeline, drawUnbuilt, perSecond } from './picture.ts';
@@ -121,7 +121,7 @@ export default class ForkExplainer extends Scene<ForkState, ForkShown> {
         test: 'test/explain-gates.test.ts: the build makes every combination of options a scenario, rayner check tests each, and a reader can open no other',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   override async construct() {
     const answer = answerOf(this);
     const s = stage(this, { headingSize: 0.6, style: STYLE });

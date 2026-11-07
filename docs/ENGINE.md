@@ -16,13 +16,13 @@ Three records say what happened, each answering a different question. The **trac
 
 ## Which guide answers which question
 
-Modules are in `src/` (the engine taken from Lantern) unless named with `explain/`. Views, machines, `SetState` and choreography are Rayner's pictures of state, so they live in `explain/` and are exported from `rayner/explain`, not from `rayner`. `Restore`, `TransformFromCopy` and `Underline` live in `src/` but are exported from `rayner/extras`, not from `rayner`.
+Modules are in `src/` (the engine taken from Lantern) unless named with `explain/`. Views, machines and choreography are Rayner's pictures of state, so they live in `explain/` and are exported from `rayner/explain`, not from `rayner`. `Restore`, `TransformFromCopy` and `Underline` live in `src/` but are exported from `rayner/extras`, not from `rayner`.
 
 | Module | Doc | The question it answers |
 | --- | --- | --- |
 | `mobject.ts`, `vmobject.ts`, `shapes.ts`, `scene.ts` | [Fundamentals](ENGINE-FUNDAMENTALS.md) and [extension recipes](EXTENDING.md) | What is a scene made of, how does ownership work, and how do I extend it? |
 | `animation.ts`: `Restore`, `TransformFromCopy` (both from `rayner/extras`), `Succession` (`saveState` in `mobject.ts`) | [ANIMATIONS.md](ANIMATIONS.md) | How do I come back to a saved look, derive one thing from another, or run animations one after another in one play? |
-| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`; `mobject.ts`: `become`; in `explain/`: `state.ts` (`SetState`), `view.ts` (`tween`), `choreograph.ts` (`follow`) | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar or task, send a transient token, sequence model snapshots with views, or drive several drawings from one sampled number? |
+| `animation.ts`: `GrowFromEdge`, `PulseAlongPath`; `mobject.ts`: `become`; in `explain/`: `view.ts` (`tween`), `choreograph.ts` (`follow`) | [Reusable choreography](CHOREOGRAPHY.md) | How do I grow a bar or task, send a transient token, or drive several drawings from one sampled number? |
 | `animation.ts`: `TransformMatching`, `TransformMatchingShapes`, `TransformMatchingText`, `matchByKey` (`shapeKey()` in `vmobject.ts`) | [MATCHING.md](MATCHING.md) | How do I morph by what the parts are instead of where they sit in the family, and keep a keyed cell or node as one component? |
 | `animation.ts`: `Circumscribe`; `shapes.ts`: `SurroundingRectangle`, `Underline` (from `rayner/extras`), `Cross`, `Brace`, `BraceLabel` | [EMPHASIS.md](EMPHASIS.md) | How do I point at part of the picture so the step's resting picture still shows it? |
 | `frame.ts` (`scene.frame`); `svg.ts`: `cull` | [CAMERA.md](CAMERA.md) | How do I zoom and pan without moving anything I drew? |
@@ -61,7 +61,12 @@ Where the code departs from the stack:
 
 - **The kit names the stage's type.** Each kit function takes the stage `s` first, to read its colours and text shaping, so `drawing.ts` imports the `Stage` type. Its values come only from the core and the engine; the test allows that one type import and no other. The stage draws its own annotations (`s.callout`, `s.dimension`, `s.pin`, `s.legend`) with `annotate.ts`, the module the kit's `callout`, `dimension`, `pin` and `legend` are drawn with, rather than by calling the kit's functions.
 - **The core's colour type is in diagram replay.** `Palette` is declared in `integrations/agentic-mermaid/snapshot.ts`, which the look, the palettes and the panels import it from.
-- **The engine carries explanation concepts.** `src/scene.ts` holds a step's `kind` (`StepKind`: short, main, detail), its title, line and caption in `StepMeta`, the caption-reading hold (`Scene.captionWpm`), `scene.shown`, and the describers (`describe`, `describeShown`, `addDescriber`). These belong to the explainer layer; they are recorded here and not yet moved.
+- **The engine carries a step's caption, what is shown, and the trace's JSON hooks.** `src/scene.ts` keeps them because the engine's own work reads them:
+  - The caption-reading hold (`StepMeta.caption`, `Scene.captionWpm`, `Step.hold`) is part of the timeline. It adds frames to every captioned step of every scene, with a stage or without one (the command and the player run both), and seeking, the trace and the player stop at it. Moving its arithmetic into `explain/` would need each scene to register it, through a stage every scene must make before its first step or a base class every scene must extend, and a scene that missed it would play a different timeline from the same source.
+  - `scene.shown` is half of the typed scene, `Scene<Model, Shown>`, which views, machines and staged steps take their types from, and the trace records it at the end of every step beside the state. Moving it means a base class from the explain layer for every scene.
+  - `stateJson()`, `shownJson()` and `addJson()` are how the trace reads a step's state and what is shown. A helper adds its own JSON with `addJson`, as the stage adds its picture's description and recorded walks are kept; the hooks name nothing of an explanation.
+
+  A step's title, line and kind (`StepKind`) belong to the explainer layer, and the engine reads none of them: `explain/script.ts` declares them on the engine's open `StepMeta` interface, so they are typed wherever `rayner/explain` is loaded, and collection refuses a title or line that is not a string or a kind that is not short, main or detail. `test/layers.test.ts` holds the engine to that.
 - **The player and the command import modules, not entry points.** `app/` reads `explain/stage.ts`, `words.ts`, `look.ts`, `machine.ts` and `trace.ts` directly, and the command reaches the library's compiled modules by its private specifier ([public names](#public-names)). Both are above the library, so the direction holds, but those modules' exports are an interface the player depends on.
 
 ## What belongs in Rayner

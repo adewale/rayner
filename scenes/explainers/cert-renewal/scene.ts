@@ -1,7 +1,7 @@
 import { Scene, Text, FadeOut } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { CardOptions, CardRow, Diagram, NoteSide } from '../../../explain/index.ts';
+import type { CardOptions, CardRow, Diagram, NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 import {
   BACKDATE,
   BR_PHASES,
@@ -203,7 +203,7 @@ export default class CertRenewalExplainer extends Scene<CertState, CertShown> {
       { says: '5 per 7 days', test: 'model.test.ts: the exact-set limit' },
       { says: 'check only for an order that names the certificate it replaces', test: 'model.test.ts: the exact-set limit' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'lifetime',

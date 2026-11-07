@@ -2,7 +2,7 @@ import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
 import { stage, regionBox, answerOf, view, having } from '../../../explain/index.ts';
 import { code } from '../../../explain/drawing.ts';
-import type { NoteSide } from '../../../explain/index.ts';
+import type { NoteSide, ExplainerMeta } from '../../../explain/index.ts';
 import {
   ITEMS,
   SOURCE,
@@ -57,7 +57,7 @@ export default class PasswordExplainer extends Scene<PasswordState, PasswordShow
       { says: 'contains every word of', shown: true as const },
       { says: 'every sample value is searched for in the output', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   override async construct() {
     const s = stage(this, { headingSize: 0.6, style: STYLE }),
       hot = s.look.emphasis;

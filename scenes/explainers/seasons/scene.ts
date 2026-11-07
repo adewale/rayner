@@ -1,6 +1,7 @@
 import { Scene, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view, having } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { emphasised } from '../../../explain/drawing.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
 import {
@@ -55,7 +56,7 @@ export default class SeasonsExplainer extends Scene<SeasonState, {}> {
         test: 'model.test.ts: on the equator the day–night line cuts the circle in half',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'place',

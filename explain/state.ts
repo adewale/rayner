@@ -1,6 +1,8 @@
-// Rayner's animations of state: SetState adopts a model state at its place in a schedule, and
-// Follow writes the pictures of one sampled number into its targets (under view.tween and a
-// transition's follow). Kept out of src/, the engine taken from Lantern.
+// Rayner's animations of state: SetState adopts a model state at its place in a schedule built
+// before it plays (each event of a machine's send and replay), and Follow writes the pictures of
+// one sampled number into its targets (under view.tween and a transition's follow). Kept out of
+// src/, the engine taken from Lantern. SetState is the machine's own: no entry point exports it,
+// and a scene changes its state by assigning `this.state` and syncing its views.
 import { Animation } from '../src/animation.ts';
 import type { AnimOpts } from '../src/animation.ts';
 import { Group, Mobject as MobjectClass } from '../src/mobject.ts';
@@ -13,13 +15,14 @@ import type { Scene, SceneState, Evidence } from '../src/scene.ts';
 // visible to play()'s ordinary overlap check. Separate scenes do not conflict.
 const stateTargets = new WeakMap<object, Group>();
 
+/** @internal */
 export interface SetStateOpts {
   /** The event that set the state: recorded as `{ kind: 'event', event }` as this begins. */
   event?: string;
 }
 
 /**
- * Replace a scene's JSON state when this member begins, usually inside a Succession. `next`
+ * @internal Replace a scene's JSON state when this member begins, inside a machine's Succession. `next`
  * is the state, or a function of the state when this begins (a copy, so it cannot change the
  * scene's): a model step, so each member of a replay starts where the one before left it.
  */

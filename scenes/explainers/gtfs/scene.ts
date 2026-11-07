@@ -2,7 +2,7 @@ import { Scene } from '../../../src/index.ts';
 import type { Box } from '../../../src/index.ts';
 import { stage, settingsOf, mermaid, answerOf, view, having } from '../../../explain/index.ts';
 import { card, code } from '../../../explain/drawing.ts';
-import type { Diagram, View } from '../../../explain/index.ts';
+import type { Diagram, View, ExplainerMeta } from '../../../explain/index.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import {
   readFeed,
@@ -161,7 +161,7 @@ export default class GtfsExplainer extends Scene<GtfsState, GtfsShown> {
       { says: 'AB1 runs only on the dates its service', test: 'model.test.ts: a route has departures only on dates' },
       { says: 'only FULLW runs', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'date',

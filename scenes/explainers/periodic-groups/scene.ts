@@ -1,7 +1,6 @@
-import { Scene, AnimationGroup, Succession, FadeIn, linear } from '../../../src/index.ts';
-import type { View } from '../../../explain/index.ts';
-import type { ScheduledAnimation } from '../../../src/index.ts';
-import { stage, settingsOf, answerOf, SetState, view } from '../../../explain/index.ts';
+import { Scene, AnimationGroup, FadeIn, linear } from '../../../src/index.ts';
+import type { View, ExplainerMeta } from '../../../explain/index.ts';
+import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
 import {
   POSITIONS,
   CAPACITY,
@@ -65,7 +64,7 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
       { says: 'Every halogen ends in two s and five p electrons', test: 'model.test.ts: every halogen in two s and five p electrons' },
       { says: 'Each badge counts the electrons after the noble gas that closes the row above', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'element',
@@ -122,7 +121,6 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
     // How each state looks is picture.ts's; the steps below set the state.
     const followed: Followed = { z, group, name, Name, members, jumps, family };
     const base = { element: symbol, z, group };
-    const apply = (next: PeriodicState) => new SetState(this, next);
 
     // ---- 1. the column: a puzzle to predict ------------------------------------------
     const distinct = [...new Set(jumps)].sort((a, b) => a - b);
@@ -170,18 +168,17 @@ export default class PeriodicGroupsExplainer extends Scene<PeriodicState, {}> {
         runs: own.slice(0, runs),
         ...(done ? { rows: ROW_CELLS } : {}),
       });
-      const seq: ScheduledAnimation[] = [];
-      RUNS.forEach((run, i) => {
+      // Each state in turn: assign it, then redraw both pictures from it.
+      const fillTo = async (next: PeriodicState, runTime: number) => {
+        this.state = next;
+        await this.play(both(runTime));
+      };
+      for (const [i, run] of RUNS.entries()) {
         // The scenario's last run stops at its own electron first.
-        if (run.from <= z && z < run.to) seq.push(apply(fillState(z, own.length, false)), both(0.6));
-        seq.push(
-          apply(fillState(run.to, Math.min(own.length, i + 1), false)),
-          both(run.to <= z ? Math.min(0.75, 0.25 + run.sub.electrons * 0.05) : 0.2),
-        );
-      });
-      seq.push(apply(fillState(POSITIONS.length, own.length, true)), both(0.6));
-      await this.play(new Succession(seq));
-      this.state = fillState(POSITIONS.length, own.length, true);
+        if (run.from <= z && z < run.to) await fillTo(fillState(z, own.length, false), 0.6);
+        await fillTo(fillState(run.to, Math.min(own.length, i + 1), false), run.to <= z ? Math.min(0.75, 0.25 + run.sub.electrons * 0.05) : 0.2);
+      }
+      await fillTo(fillState(POSITIONS.length, own.length, true), 0.6);
     }
 
     // ---- 3. stack: runs of one length share columns, and the table appears --------------

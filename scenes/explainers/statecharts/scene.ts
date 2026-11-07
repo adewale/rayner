@@ -1,5 +1,5 @@
 import { Scene, Group, Dot, FadeIn, AnimationGroup, Succession, matchByKey, CurvedArrow } from '../../../src/index.ts';
-import type { Transition } from '../../../explain/index.ts';
+import type { Transition, ExplainerMeta } from '../../../explain/index.ts';
 import type { MatchKey, Box, Mobject, Arrow } from '../../../src/index.ts';
 import { stage, regionBox, view, having, Machine } from '../../../explain/index.ts';
 import { CONTROLS, RUNS, player, coffee, coffeeWithFrother, flatten, run, activeStates, chartCounts, flatCounts, send, drivenStart, drivenNext, events as chartEvents } from './model.ts';
@@ -36,7 +36,7 @@ export default class Statecharts extends Scene<Model, Shown> {
       { says: 'Only the drawing changes', test: 'model.test.ts: flattening each drawn chart reaches the configurations and transitions XState reaches' },
       { says: 'every state while on would pair one of the four brewing states with still or frothing', test: 'model.test.ts: every pair is reachable' },
     ],
-  };
+  } satisfies ExplainerMeta;
 
   override async construct() {
     const s = stage(this, { style: 'github-light', headingSize: 0.54 });

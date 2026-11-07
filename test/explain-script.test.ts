@@ -1,7 +1,7 @@
 // The script gate: meta.answer stated by some teaching step, where reported; meta.questions well formed (explain/script.ts).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { answerStep, checkScriptMeta, normalise, scriptReport, QUESTIONS_MAX } from '../explain/script.ts';
+import { answerStep, checkScriptMeta, checkStepMeta, normalise, scriptReport, QUESTIONS_MAX } from '../explain/script.ts';
 
 const step = (name: string, meta: Record<string, unknown>) => ({ step: name, meta });
 const steps = [
@@ -37,6 +37,15 @@ test('the gate fails an answer no step states, reports where a stated one first 
   assert.deepEqual(late.missing, ['questions']);
   assert.match(scriptReport({ answer: 'Never said' }, steps).problems[0]!, /No step states meta.answer/);
   assert.deepEqual(scriptReport(undefined, steps), { questions: 0, missing: ['answer', 'questions'], problems: [] });
+});
+
+test('collection refuses a step whose title or line is not a string or whose kind is not short, main or detail, naming the step', () => {
+  checkStepMeta([...steps, step('aside', { kind: 'detail' }), step('first', { kind: 'short', line: 'A line' })]);
+  for (const meta of [{ title: false }, { line: [] }, { kind: 'yes' }])
+    assert.throws(() => checkStepMeta([...steps, step('bad', meta)]), /^TypeError: step bad: (title|line|kind) must be/);
+  // The old flags are refused by name, so a scene written for them says what to write instead.
+  for (const meta of [{ detail: true }, { reader: true }])
+    assert.throws(() => checkStepMeta([step('bad', meta)]), /step bad: say kind: 'detail' or kind: 'short'/);
 });
 
 test('malformed script meta is refused', () => {

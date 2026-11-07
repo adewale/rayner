@@ -51,6 +51,35 @@ export function normalise(text: string): string {
     .replace(/[.!?…:;,\s]+$/u, '');
 }
 
+/** Which path a step is on: the reader's short path, the main story, or a detail players skip. */
+export type StepKind = 'short' | 'main' | 'detail';
+// A step's words and path are the explain layer's: it declares them on the engine's open StepMeta,
+// so `this.step(name, { title, line, caption, kind })` is typed wherever rayner/explain is loaded.
+declare module '../src/scene.ts' {
+  interface StepMeta {
+    /** The step's heading, which the stage draws and the player names the step by. */
+    title?: string;
+    /** One short line under the title, drawn on the picture. */
+    line?: string;
+    /** Which path the step is on (default 'main'): a 'short' path a reader can take first, or a 'detail' after the story that players skip. */
+    kind?: StepKind;
+  }
+}
+const KINDS: readonly unknown[] = ['short', 'main', 'detail'] satisfies StepKind[];
+/**
+ * Refuse a step whose words or path the explain layer cannot read: a title or line that is not a
+ * string, a kind that is not short, main or detail, or the old `detail` and `reader` flags.
+ * Collection runs it over every step of every scenario.
+ */
+export function checkStepMeta(steps: readonly { step: string; meta: Readonly<Record<string, unknown>> }[]): void {
+  for (const { step, meta } of steps) {
+    for (const key of ['title', 'line'] as const)
+      if (meta[key] !== undefined && typeof meta[key] !== 'string') throw new TypeError(`step ${step}: ${key} must be a string`);
+    if (meta.kind !== undefined && !KINDS.includes(meta.kind)) throw new TypeError(`step ${step}: kind must be 'short', 'main' or 'detail'`);
+    if ('detail' in meta || 'reader' in meta) throw new TypeError(`step ${step}: say kind: 'detail' or kind: 'short'`);
+  }
+}
+
 /** A step as the reading-path rule reads it: a trace's step record, a scene's step, or anything with their `meta`. */
 export type TeachingStep = { readonly meta: Readonly<Record<string, unknown>> };
 type Step = TeachingStep & { step: string };

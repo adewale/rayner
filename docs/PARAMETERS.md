@@ -23,8 +23,8 @@ updater on the stage or the camera stops a seek from skipping, so any animation 
 
 - **No scene registered an updater**, and none used `DecimalNumber`. The private
   `Animation` subclasses in scenes were `Nudge` (`lantern`, a deliberately
-  history-dependent counterexample), `SyncToCall` (`token-bucket`, since replaced by
-  `SetState` and the readout's sync) and the recipe's `FollowAngle`.
+  history-dependent counterexample), `SyncToCall` (`token-bucket`, since replaced by a
+  machine event and the readout's sync) and the recipe's `FollowAngle`.
 - **`token-bucket` changed.** Its refill member drew the chart's climb with `Create`
   while the gauge waited at the previous level and jumped in the spend member, so
   gauge and chart disagreed during refill. The between-call balance,

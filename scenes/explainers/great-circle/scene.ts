@@ -3,7 +3,7 @@ import type { Viewpoint, SeenPicture, Seen } from '../../../explain/geo.ts';
 import { depthOrder, seenPictures, latLon, toLatLon } from '../../../explain/geo.ts';
 import type { Group, Vec } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { greatCircle, pole, london, madrid, haversine, rhumb, tens, RADIUS_KM } from './model.ts';
 import { MERCATOR, TROPICS, mercator, stretched, globe, westward, gnomonic, onEquator, turnWords } from './picture.ts';
 import type { MapState, GlobeState, Pair } from './picture.ts';
@@ -68,7 +68,7 @@ export default class GreatCircle extends Scene<GlobeState & { turn: { from: numb
       { says: 'The route never changes; only where you look from does', shown: true },
       { says: 'The route did not change as the globe turned; only where you stood did', shown: true },
     ],
-  };
+  } satisfies ExplainerMeta;
 
   static settings = [{ id: 'second', label: 'Second route', default: 'madrid', options: [
     { value: 'madrid', label: 'Madrid to New York' }, { value: 'equator', label: 'Two cities on the equator' },

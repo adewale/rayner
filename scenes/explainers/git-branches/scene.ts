@@ -1,6 +1,6 @@
 import { Scene } from '../../../src/index.ts';
 import { settingsOf, stage } from '../../../explain/index.ts';
-import type { Stage } from '../../../explain/index.ts';
+import type { Stage, ExplainerMeta } from '../../../explain/index.ts';
 import { gitStory, currentFiles, history, moveMainToFeature, unreachable } from './model.ts';
 import type { GitFrame } from './model.ts';
 import { picture } from './picture.ts';
@@ -12,7 +12,7 @@ export default class GitBranches extends Scene<{}, {}> {
       'https://git-scm.com/docs/git-branch/2.52.0',
       'https://learngitbranching.js.org/',
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'history',

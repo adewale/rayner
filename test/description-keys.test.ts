@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { picture, pictureSummary, pictureHtml } from '../explain/trace.ts';
-import type { Seen } from '../explain/trace.ts';
+import type { Description } from '../explain/trace.ts';
 
 test('authored mark words survive grouping, summary and HTML as literal words', () => {
   // [authored word, sentence heading, HTML spelling]. Expected prose is authored here,
@@ -25,7 +25,7 @@ test('authored mark words survive grouping, summary and HTML as literal words', 
     ['rejected & <held>', 'Rejected & <held>', 'rejected &amp; &lt;held&gt;'],
   ] as const;
   for (const [mark, heading, escaped] of cases) {
-    const authored: Seen[] = [
+    const authored: Description[] = [
       { what: 'A path', parts: [
         { name: 'Start & finish', mark },
         { name: 'Middle <node>', mark },

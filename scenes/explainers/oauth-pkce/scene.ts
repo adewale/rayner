@@ -1,5 +1,5 @@
 import { Scene, Text, Arrow, Dot, AnimationGroup, Succession, FadeIn } from '../../../src/index.ts';
-import type { Choreography, Transition, Diagram, PictureNote, Stage, View } from '../../../explain/index.ts';
+import type { Choreography, Transition, Diagram, PictureNote, Stage, View, ExplainerMeta } from '../../../explain/index.ts';
 import type { ScheduledAnimation } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, Machine, view, having } from '../../../explain/index.ts';
 import { card } from '../../../explain/drawing.ts';
@@ -67,7 +67,7 @@ export default class OAuthExplainer extends Scene<OAuthState, OAuthShown> {
         test: 'model.test.ts: in every order of the sign-in’s messages, only a request without a challenge lets the malicious app get a token',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'attacker',

@@ -1,5 +1,6 @@
 import { Scene, Text, Group } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf, view, having } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { callout, card, code } from '../../../explain/drawing.ts';
 import {
   CHARS,
@@ -84,7 +85,7 @@ export default class IsDigitExplainer extends Scene<DigitState, {}> {
       { says: 'The innermost box holds the only single characters int() accepts', test: 'model.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
       { says: 'For one character, only isdecimal() matches int()', test: 'model.test.ts: int() accepts a non-ASCII character exactly when isdecimal() does' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'char',

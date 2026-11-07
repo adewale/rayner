@@ -1,5 +1,5 @@
-// Property tests for src/scene.ts's helper hooks (onStep, addDescriber,
-// describe) and caption holds (Step.hold, captionWpm). Counts: test/lib/pbt.ts.
+// Property tests for src/scene.ts's helper hooks (onStep, addJson,
+// stateJson) and caption holds (Step.hold, captionWpm). Counts: test/lib/pbt.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Scene, Rectangle, FadeIn } from '../src/index.ts';
@@ -239,27 +239,27 @@ test('a listener removed during a step does not run for it, and one added during
   );
 });
 
-// ---- describe / addDescriber -----------------------------------------------------
+// ---- stateJson / addJson ---------------------------------------------------------
 
 const key = fc.oneof(fc.string({ maxLength: 6 }), fc.constantFrom('__proto__', 'constructor', 'walks', 'toString'));
 const json = fc.dictionary(key, fc.jsonValue({ maxDepth: 2 }), { maxKeys: 5 });
 /** A JSON copy with every key kept as an own key, as JSON.parse gives. */
 const own = (o: object) => JSON.parse(JSON.stringify(o));
 
-test('describe is the state merged, left to right, with each live describer, every key kept', () => {
+test('stateJson is the state merged, left to right, with each live addJson part, every key kept', () => {
   fc.assert(
-    fc.property(json, fc.array(fc.tuple(json, fc.boolean()), { maxLength: 4 }), (state, describers) => {
+    fc.property(json, fc.array(fc.tuple(json, fc.boolean()), { maxLength: 4 }), (state, parts) => {
       const scene = new Scene(new NullSink());
       scene.state = own(state);
-      const offs = describers.map(([d]) => scene.addDescriber(() => own(d)));
-      describers.forEach(([, drop], i) => drop && offs[i]!());
+      const offs = parts.map(([d]) => scene.addJson(() => own(d)));
+      parts.forEach(([, drop], i) => drop && offs[i]!());
       const expected: Record<string, unknown> = {};
       const put = (o: Record<string, unknown>) => {
         for (const [k, v] of Object.entries(o)) Object.defineProperty(expected, k, { value: v, enumerable: true, writable: true, configurable: true });
       };
       put(own(state));
-      for (const [d, drop] of describers) if (!drop) put(own(d));
-      const got = scene.describe();
+      for (const [d, drop] of parts) if (!drop) put(own(d));
+      const got = scene.stateJson();
       assert.deepEqual(Object.entries(got), Object.entries(expected));
       assert.equal(Object.getPrototypeOf(got), Object.prototype);
     }),
@@ -267,13 +267,13 @@ test('describe is the state merged, left to right, with each live describer, eve
   );
 });
 
-test('describe returns a copy: changing it leaves the state alone', () => {
+test('stateJson returns a copy: changing it leaves the state alone', () => {
   fc.assert(
     fc.property(json, (state) => {
       const scene = new Scene(new NullSink());
       scene.state = own(state);
       const before = JSON.stringify(scene.state);
-      const d = scene.describe();
+      const d = scene.stateJson();
       for (const k of Object.keys(d)) d[k] = 'changed';
       assert.equal(JSON.stringify(scene.state), before);
     }),
@@ -281,25 +281,25 @@ test('describe returns a copy: changing it leaves the state alone', () => {
   );
 });
 
-test('registering the same describer twice and removing one leaves the other', () => {
+test('registering the same addJson part twice and removing one leaves the other', () => {
   fc.assert(
     fc.property(json, fc.nat({ max: 1 }), (d, which) => {
       const scene = new Scene(new NullSink());
       const f = () => own(d);
-      const offs = [scene.addDescriber(f), scene.addDescriber(f)];
+      const offs = [scene.addJson(f), scene.addJson(f)];
       offs[which]!();
-      assert.deepEqual(Object.entries(scene.describe()), Object.entries(own(d)));
+      assert.deepEqual(Object.entries(scene.stateJson()), Object.entries(own(d)));
     }),
     params(),
   );
 });
 
-test('a describer that does not return an object is refused with a clear error', () => {
+test('an addJson part that does not return an object is refused with a clear error', () => {
   fc.assert(
     fc.property(fc.oneof(fc.constantFrom(undefined, null), fc.integer(), fc.string(), fc.array(fc.integer())), (bad) => {
       const scene = new Scene(new NullSink());
-      scene.addDescriber(() => bad as never);
-      assert.throws(() => scene.describe(), /must return a JSON object/);
+      scene.addJson(() => bad as never);
+      assert.throws(() => scene.stateJson(), /must return a JSON object/);
     }),
     params(),
   );

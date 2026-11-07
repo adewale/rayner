@@ -43,7 +43,7 @@ test('an awaited action plays each beat in a play of its own; composed in a Succ
   await d.walk([['A', 'B']]);
   const fps = a.scene.fps;
   assert.equal(a.scene.frameCount - before, 2 * Math.round(0.18 * fps) + Math.round(0.8 * fps));
-  assert.deepEqual(a.scene.describe().walks, [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.deepEqual(a.scene.stateJson().walks, [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
 
   // Composed: a Succession of an entry, a reveal and the walk is one play of their summed run time,
   // and the walk is recorded at the same moment, after its move.
@@ -54,7 +54,7 @@ test('an awaited action plays each beat in a play of its own; composed in a Succ
   await b.scene.play(new Succession([b.s.enter(dot, { runTime: 0.5 }), e.reveal('rest'), e.walk([['A', 'B']])]));
   const reveal = 0.65 + 2 * 0.12 * 0.65;
   assert.equal(b.scene.frameCount - start, Math.round((0.5 + reveal + 0.18 + 0.8 + 0.18) * fps));
-  assert.deepEqual(b.scene.describe().walks, [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
+  assert.deepEqual(b.scene.stateJson().walks, [{ from: 'A', to: 'B', edge: 'edge:A->B#0' }]);
   assert.ok(e.visible.has('B') && b.scene.familyMembers().includes(dot));
   // The token faded out and left the diagram, as an awaited walk's does.
   assert.equal(e.root.family().filter((m) => m.constructor.name === 'Dot').length, 0);
@@ -72,7 +72,7 @@ test('actions play together in one play: a camera move beside a walk, and a valu
   assert.equal(scene.frameCount - before, Math.round((0.18 + 0.8 + 0.18) * scene.fps));
   assert.ok(scene.familyMembers().includes(card.value), 'the card was faded in and kept');
   assert.notDeepEqual(scene.frame.box(), [-8, -4.5, 8, 4.5], 'the camera moved');
-  assert.equal((scene.describe().walks as unknown[]).length, 1);
+  assert.equal((scene.stateJson().walks as unknown[]).length, 1);
 });
 
 test('s.show composes in play(), which waits for the layout it reads, and gives its diagram once it begins', async () => {
@@ -138,6 +138,6 @@ test('an action’s errors surface when it plays, awaited or composed, not when 
   await assert.rejects(async () => walk, /B -> A is not a real link/);
   // Revealed by the reveal before it in the same Succession: a walk checks its links when it plays.
   await scene.play(new Succession([d.reveal(['A', 'B', 'edge:A->B#0']), d.walk([['A', 'B']])]));
-  assert.equal((scene.describe().walks as unknown[]).length, 1);
+  assert.equal((scene.stateJson().walks as unknown[]).length, 1);
   await assert.rejects(scene.play(s.focus([])), /nothing to look at/);
 });

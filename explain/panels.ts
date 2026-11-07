@@ -3,7 +3,7 @@ import type { Scene, Vec, Box, Mobject } from '../src/index.ts';
 import type { Palette } from '../src/color.ts';
 import { soft, raised, rule, boxCenter, emphasis, good, bad, regionBox, emphasisSource, seenSource } from './look.ts';
 import type { Region, Emphasis } from './look.ts';
-import type { Seen } from './trace.ts';
+import type { Description } from './trace.ts';
 import { wordsOf } from './words.ts';
 import { layoutDirection } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
@@ -267,7 +267,7 @@ export class Card extends Group {
   [emphasisSource](): Emphasis {
     return this.lit ? [[this.bar, `row ${this.lit.label}: ${this.row(this.lit.label).cells.map((c) => c.text).join(', ')}`]] : [];
   }
-  [seenSource](): Seen { return this.describe(); }
+  [seenSource](): Description { return this.describe(); }
 
   protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     const from = source as Card;
@@ -285,7 +285,7 @@ export class Card extends Group {
   }
 
   /** The rows as a reader sees them, the lit one with its word. */
-  describe(): Seen {
+  describe(): Description {
     const w = wordsOf(this.scene);
     // A value in a column is named by its row and its column: "Hits (LRU): 0".
     const parts = this.rows.flatMap((r) =>
@@ -451,7 +451,7 @@ export class CodeBlock extends Group {
     }
   }
 
-  [seenSource](): Seen { return this.describe(); }
+  [seenSource](): Description { return this.describe(); }
 
   /** Lines i, or [a, b] inclusive, checked against the code. */
   private lines(lines: number | readonly [number, number]): [number, number] {
@@ -480,7 +480,7 @@ export class CodeBlock extends Group {
   }
 
   /** The lines as a reader sees them, with the lit, added and removed ones named. */
-  describe(): Seen {
+  describe(): Description {
     const w = wordsOf(this.scene);
     const kinds = new Map(this.marks.map((m) => [m.line, w[m.kind]]));
     const f = this.lit;

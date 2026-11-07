@@ -19,7 +19,7 @@ test('JSON state retains valid values, own prototype-sensitive keys and independ
 test('state and evidence refuse silent data loss and cycles with a useful field path', () => {
   const scene = new Scene<{count: number}>(new NullSink());
   scene.state = {count: 1};
-  assert.deepEqual(scene.describe(), {count: 1});
+  assert.deepEqual(scene.stateJson(), {count: 1});
   for (const bad of [NaN, Infinity, -Infinity, ()=>1, Symbol('x'), 1n, new Date(), new Map(), new Set(), {[Symbol('key')]: 1}, [undefined], Array(1)]) {
     assert.throws(() => jsonObject({answer: bad}), /state.answer/);
     assert.throws(() => scene.record('example', {answer: bad}), /scene evidence.answer/);
@@ -33,14 +33,10 @@ test('state and evidence refuse silent data loss and cycles with a useful field 
   const cyclic: Record<string, unknown> = {}; cyclic.self = cyclic;
   assert.throws(() => jsonObject(cyclic), /state.self/);
 });
-test('known step metadata fields fail before the existing step is ended', async () => {
+test('a caption that is not a string fails before the existing step is ended; other fields are the layer above\'s', async () => {
   const scene = new Scene(new NullSink());
   await scene.step('first');
-  for (const meta of [{caption: 4}, {title: false}, {line: []}, {kind: 'yes'}])
-    await assert.rejects(scene.step('bad', meta as never), /must be/);
-  // The old flags are refused by name, so a scene written for them says what to write instead.
-  for (const meta of [{detail: true}, {reader: true}])
-    await assert.rejects(scene.step('bad', meta as never), /say kind: 'detail' or kind: 'short'/);
+  await assert.rejects(scene.step('bad', {caption: 4} as never), /step bad: caption must be a string/);
   assert.equal(scene.steps.length, 1);
   assert.equal(scene.currentStep?.name, 'first');
 });

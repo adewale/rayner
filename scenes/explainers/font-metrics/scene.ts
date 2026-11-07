@@ -1,5 +1,6 @@
 import { Scene, ItalicText } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { SAMPLE, GAP, drawLayout, drawAdvance, drawRulers, drawCuts } from './picture.ts';
 import type { CutsState, Pen } from './picture.ts';
 
@@ -26,7 +27,7 @@ export default class FontMetrics extends Scene<FontState, {}> {
         test: 'scene.test.ts: every Garamond glyph in the phrase advances less than a JetBrains Mono cell',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'widths',

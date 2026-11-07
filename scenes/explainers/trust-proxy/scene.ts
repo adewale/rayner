@@ -1,7 +1,7 @@
 import { Scene, Text, Group, FadeIn } from '../../../src/index.ts';
 import type { Box, FadeOpts } from '../../../src/index.ts';
 import { stage, settingsOf, regionBox, answerOf as scriptAnswerOf, view, having } from '../../../explain/index.ts';
-import type { CardOptions, CardRow, View } from '../../../explain/index.ts';
+import type { CardOptions, CardRow, View, ExplainerMeta } from '../../../explain/index.ts';
 import { keyed, card, code } from '../../../explain/drawing.ts';
 import {
   ADDR,
@@ -218,7 +218,7 @@ export default class TrustProxyExplainer extends Scene<TrustState, TrustShown> {
       { says: 'assumes every path has the same length', test: 'model.test.ts: with 2, an attacker straight at the load balancer chooses req.ip' },
       { says: 'the short path has only one', shown: true as const },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'trust',

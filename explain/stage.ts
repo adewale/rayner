@@ -1,10 +1,11 @@
 import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Create } from '../src/index.ts';
 import { View } from './view.ts';
 import { jsonObject } from '../src/json.ts';
-import type { Scene, Vec, Box, FadeOpts, Animation, StepKind, SceneColors } from '../src/index.ts';
+import type { Scene, Vec, Box, FadeOpts, Animation, SceneColors } from '../src/index.ts';
 import { center, unionBoxes } from '../src/box.ts';
 import { STAGE_BOX, atHome } from '../src/svg.ts';
 import { isDetail, teaching } from './script.ts';
+import type { StepKind } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { tool, Draw, oneStrokeEach } from './annotate.ts';
 import * as kit from './drawing.ts';
@@ -24,7 +25,7 @@ import { soft, emphasis, bad, lookOf, bindStagePalette, regionBox, opening, part
 import type { Region, Look } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
-import type { Seen } from './trace.ts';
+import type { Description } from './trace.ts';
 import { layoutDirection, physicalAt } from './layout-direction.ts';
 import type { LayoutDirection } from './layout-direction.ts';
 
@@ -299,10 +300,10 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
    * (cards, code, notes, dimension lines, wherever they sit, a view's current picture included) and
    * its `describe`, then other kept text.
    */
-  function look(): Seen[] {
+  function look(): Description[] {
     const w = wordsOf(scene);
     const present = new Set(scene.familyMembers());
-    const seen: Seen[] = [];
+    const seen: Description[] = [];
     for (const d of diagrams) if (present.has(d.root) || (d.shownBy && present.has(d.shownBy))) seen.push(d.describe());
     const told = new Set<() => string>();
     const labels: string[] = [];
@@ -334,7 +335,7 @@ export function stage<S extends object, Sh extends object>(scene: Scene<S, Sh>, 
   scene.onStep(() => {
     before = shownNames(look());
   });
-  scene.addDescriber(() => ({ picture: picture(look(), before, langOf(scene)) }), 'shown');
+  scene.addJson(() => ({ picture: picture(look(), before, langOf(scene)) }), 'shown');
   const keepAll = (mobs: Mobject[], { describe }: Describe) => {
     const say = typeof describe === 'string' ? () => describe : describe;
     for (const m of mobs) overlays.set(m, say);

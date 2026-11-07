@@ -7,6 +7,7 @@ import type { Strokes } from './picture.ts';
 import { Scene, Create, FadeOut, LaggedStart } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, Diagram, diagramsOf, having } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import {
   WORLD,
   TITLE,
@@ -76,7 +77,7 @@ export default class PenAndPencil extends Scene<PenState, { layout?: { marked: s
         test: 'model.test.ts: with error, each corner carries the ones before',
       },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [
     {
       id: 'hand',

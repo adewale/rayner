@@ -14,10 +14,10 @@ export function choreography(scene: Scene<{count: number}>) {
   const opts: GrowFromEdgeOpts = { initialScale: 0.01, runTime: 0.5 };
   const grow = new GrowFromEdge(new Rectangle(), [1, 0], opts);
   const pulse = new PulseAlongPath(new Dot(), new Line([0, 0], [2, 0]), { remover: false, fromCurrent: false });
-  const state = new SetState(scene, { count: 3 });
+  scene.state = { count: 3 };
   // @ts-expect-error A typed scene's count is a number.
-  new SetState(scene, { count: 'three' });
-  return [grow, pulse, state];
+  scene.state = { count: 'three' };
+  return [grow, pulse];
 }
 import type { AnimOpts, TextOpts } from 'rayner';
 import { jsonObject } from 'rayner/testing';
@@ -118,7 +118,7 @@ export class Tour extends Scene {
     code.saveState();
     await this.play(new Succession([new TransformFromCopy(code, new Code(['n = 2;']).shift([0, -1])), new Restore(code)]));
     this.onStep((s: Step) => s.name);
-    this.addDescriber(() => ({ frame: frame.width(), mismatch }));
+    this.addJson(() => ({ frame: frame.width(), mismatch }));
   }
 }
 
@@ -133,7 +133,7 @@ import type { LetteringRequest as OutlineRequest } from 'rayner';
 export const outlineRequest = { scripts: ['Arab'], math: true, faces: { sans: 'inter' } } satisfies OutlineRequest;
 export const formula = () => new MathTex('x^2');
 
-import { stage, SetState, View, view } from 'rayner/explain';
+import { stage, View, view } from 'rayner/explain';
 import type {LayoutDirection, StageRegion, DiagramSpec} from 'rayner/explain';
 export async function authorLayout(scene: Scene): Promise<void> {
   const direction: LayoutDirection = 'rtl', at: StageRegion = 'start';
@@ -228,7 +228,7 @@ import { Group, Mobject, VMobject, Circle, Polygon, Arc, Cross, CurvedArrow, Bra
 import type { Box, Vec, SceneState, ScheduledAnimation, MatchKey, FadeOpts, FontName, SceneClass, Sink, Style } from 'rayner';
 import { callout, dimension, pin, legend, keyed, keyedParts } from 'rayner/drawing';
 import { Machine, refuse, isRefusal, answerOf, settingsOf, resolveSettings, regionBox, mermaid } from 'rayner/explain';
-import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass } from 'rayner/explain';
+import type { Refusal, Transition, Choreography, CardOptions, CardRow, NoteSide, PictureNote, DiagramPicture, Palette, Stage, ExplainerClass, ExplainerMeta, Setting, StepKind, Description } from 'rayner/explain';
 import { Write, MoveAlongPath, Square, Underline, ArcBetweenPoints } from 'rayner/extras';
 import { seenFrom, seenPictures, depthOrder, latLon, toLatLon, greatArc, circleOn, between, project } from 'rayner/geo';
 import type { Model3D, Part, Seen, SeenOptions, SeenPicture, Vec3, Viewpoint } from 'rayner/geo';
@@ -246,10 +246,21 @@ type DoorEvent = 'open' | 'close';
 const doorNext = <S extends Door>(state: S, event: DoorEvent): S | Refusal =>
   event === 'open' ? (state.door === 'open' ? refuse('the door is open already') : { ...state, door: 'open' }) : state.door === 'closed' ? refuse('the door is closed already') : { ...state, door: 'closed' };
 type CollectionModel = Door & { phase: string; count: number };
+// @ts-expect-error A misspelt meta key does not compile.
+export const misspelt = { id: 'x', titel: 'X' } satisfies ExplainerMeta;
+// @ts-expect-error So does a misspelt player key.
+export const misspeltPlayer = { player: { acent: true } } satisfies ExplainerMeta;
+// A step's kind is the explain layer's, declared on the engine's StepMeta once rayner/explain is loaded.
+export const detail: StepKind = 'detail';
+export const stepMeta = (scene: Scene) => scene.step('aside', { title: 'Aside', line: 'A line', caption: 'Words.', kind: detail });
+// @ts-expect-error A kind outside short, main and detail does not compile.
+export const badKind = (scene: Scene) => scene.step('aside', { kind: 'details' });
+// What a card's, code panel's or diagram's describe() returns.
+export const words = (d: Description) => d.parts.map((p) => `${p.name}${p.mark ? ` (${p.mark})` : ''}`).join(', ') || d.what;
 
 export class Collection extends Scene<CollectionModel> {
-  static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.' };
-  static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }];
+  static meta = { id: 'collection', title: 'What the collection uses', answer: 'Every part of it.', player: { corners: 'square' } } satisfies ExplainerMeta;
+  static settings = [{ id: 'case', label: 'Case', default: 'a', options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }] satisfies readonly Setting[];
   override state = { door: 'open' as 'open' | 'closed', phase: 'start', count: 0 };
   override async construct() {
     const s: Stage = stage(this);

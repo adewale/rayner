@@ -4,6 +4,7 @@ import { depthOrder, seenPictures } from '../../../explain/geo.ts';
 import type { Group } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { settingsOf, stage, answerOf, view, having } from '../../../explain/index.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
 import { henge, declination, sunset } from './model.ts';
 import type { Street } from './model.ts';
 import { dome, year, look, globes, crossedBy } from './sky.ts';
@@ -31,7 +32,7 @@ export default class Henge extends Scene<HengeState, {}> {
       { says: 'crossed on the way out and on the way back', test: 'scene.test.ts: Henge dome and year are drawn in depth order' },
       { says: 'the street’s circle, the horizon', test: 'scene.test.ts: Henge street view from the centre' },
     ],
-  };
+  } satisfies ExplainerMeta;
   static settings = [{ id: 'street', label: 'Street direction', default: 'manhattan', options: [
     { value: 'manhattan', label: 'Manhattan: 29° north of west' }, { value: 'west', label: 'Due west' },
   ] }];
