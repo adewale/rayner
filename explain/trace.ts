@@ -257,6 +257,29 @@ export function pictureSummary(state: unknown): string {
     .map(sentence)
     .join(' ');
 }
+/** An entry's emphasised parts, each with its word: "bulb (lit)". */
+const markedParts = (e: Pick<PictureEntry, 'marked'>) =>
+  Object.entries(e.marked ?? {}).flatMap(([word, names]) => names.map((n) => `${n} (${word})`));
+/** What an entry shows, its emphasis and its parts, in any order: equal when the thing looks as it did. */
+const entryKey = (e: Pick<PictureEntry, 'marked'> & { items?: readonly string[] }) => [...markedParts(e), ...(e.items ?? [])].sort().join('\n');
+/**
+ * What changed of the picture since `previous` (a step's or event's shown state), in words:
+ * each described thing that was not there, or whose emphasis or parts differ from the thing
+ * of the same name before, named with its emphasised parts, in the picture's language. A thing
+ * that only moved in the list is not a change. Empty when nothing changed: what a screen reader
+ * hears after a live event, rather than the whole picture.
+ */
+export function pictureChange(state: unknown, previous?: unknown): string {
+  const p = pictureOf(state);
+  if (!p?.entries.length) return '';
+  const w = wordsFor(p.lang);
+  const before = new Map<string, Set<string>>();
+  for (const e of pictureOf(previous)?.entries ?? []) before.set(e.what, (before.get(e.what) ?? new Set()).add(entryKey(e)));
+  return p.entries
+    .filter((e) => !before.get(e.what)?.has(entryKey(e)))
+    .map((e) => [e.what, ...markedParts(e)].join(', ').replace(/[\u00a0\u202f]?[.;,]+$/, ''))
+    .join(w.separator);
+}
 /**
  * The picture as nested lists, each thing's emphasised parts first, punctuated so it
  * reads as sentences when flattened. Given the previous step's state, a thing whose
@@ -266,16 +289,14 @@ export function pictureHtml(state: unknown, previous?: unknown): string {
   const p = pictureOf(state);
   if (!p?.entries.length) return '';
   const w = wordsFor(p.lang);
-  const marked = (e: PictureEntry) => Object.entries(e.marked ?? {}).flatMap(([word, names]) => names.map((n) => `${n} (${word})`));
-  const key = (e: PictureEntry) => [...marked(e), ...e.items].sort().join('\n');
-  const before = new Map((pictureOf(previous)?.entries ?? []).map((e) => [e.what, key(e)]));
+  const before = new Map((pictureOf(previous)?.entries ?? []).map((e) => [e.what, entryKey(e)]));
   const li = (text: string, last: boolean, sub = '') =>
     `<li>${htmlEscape(end(text, sub ? w.colon : last ? '.' : w.semicolon))}${sub}</li>`;
   const ul = (texts: string[]) => `<ul>${texts.map((t, i) => li(t, i === texts.length - 1)).join('')}</ul>`;
   return `<ul>${p.entries
     .map((e, i) => {
-      const same = e.items.length && before.get(e.what) === key(e);
-      const items = [...marked(e), ...(same ? [w.restAsBefore] : e.items)];
+      const same = e.items.length && before.get(e.what) === entryKey(e);
+      const items = [...markedParts(e), ...(same ? [w.restAsBefore] : e.items)];
       return li(e.what, i === p.entries.length - 1, items.length ? ul(items) : '');
     })
     .join('')}</ul>`;

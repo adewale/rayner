@@ -7,7 +7,7 @@ import { isHex } from '../src/color.ts';
 import { resolveSettings } from '../explain/index.ts';
 import { bindSnapshots, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
-import { restingTime, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
+import { restingTime, pictureChange, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';
 import { paletteOf, paperOf } from '../explain/stage.ts';
 import { connectHost, reportHeight } from './embed-protocol.ts';
@@ -21,7 +21,7 @@ import { changeText, chromeFor, descriptionsLang, settingsProblem } from './embe
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { offPath } from '../explain/script.ts';
-import { SENT, acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from './embed-live.ts';
+import { SENT, acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, runLive } from './embed-live.ts';
 import type { Live, LiveDraw, LiveRun, LiveSession, LogStart } from './embed-live.ts';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string): HTMLElementTagNameMap[K] => {
@@ -1093,7 +1093,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
       const before = describedShown;
       describePicture(step, shown);
       // What the event changed of the picture, or the whole picture when no description changed.
-      const change = pictureChange(before, describedShown);
+      const change = pictureChange(describedShown, before);
       liveSaid.textContent = what === undefined ? t.resetSaid : t.sentSaid(what, change ? `${change}.` : summary.textContent ?? '');
       liveRow.dataset.landed = encodeLog(log);
       document.dispatchEvent(new CustomEvent('rayner:sent', { detail: { step: step.step, sent: log, settings: values } }));
