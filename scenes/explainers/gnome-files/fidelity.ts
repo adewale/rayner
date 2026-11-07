@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
 import { assertSteps } from '../../../test/lib/steps.ts';
 import { COLOURS, GROUPS, PARTICIPANTS, SCORE, gaveUp, giveUps, quitters, scoreOf } from './model.ts';

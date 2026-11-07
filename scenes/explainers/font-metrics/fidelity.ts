@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { pictureHtml } from '../../../explain/trace.ts';
 import { assertSteps } from '../../../test/lib/steps.ts';
 import type { FidelityRun } from '../../../test/lib/fidelity.ts';

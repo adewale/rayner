@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Trace } from '../../../src/trace.ts';
+import type { Trace } from '../../../explain/testing.ts';
 import { Scene, Code, parseUnifiedDiff } from '../../../src/index.ts';
 import type { VMobject, Sink } from '../../../src/index.ts';
 import { assertStepState } from '../../../test/lib/explainer-state.ts';
