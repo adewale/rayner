@@ -3,7 +3,8 @@ import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
 import { captionLookProblems } from '../../explain/caption-looks.ts';
 import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
-import { letteringWeight, pageSnapshot } from './lettering.ts';
+import { letteringWeight } from './lettering.ts';
+import { sceneEntry } from './scene-entry.ts';
 import { isHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -26,7 +27,7 @@ import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
 import { paints } from '../../src/mobject.ts';
 import { STAGE_BOX, atHome, viewOf } from '../../src/svg.ts';
 import type { Project } from './explain-project.ts';
-import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { letteringReport, useProjectLettering } from './explain-lettering.ts';
 
 const SWALLOW =
   'Do not catch around awaited animation/step calls in construct(): a broad catch can swallow StopScene. Catch model errors before animation.';
@@ -657,8 +658,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
-  // The lettering the page carries, once for every scenario: the bare runtime below runs it
-  const shipped = project.outlineLettering ? JSON.stringify(await pageSnapshot(project.outlineLettering)) : '';
   for (const v of project.scenarios) {
     const where = `in ${scenarioName(project.Scene, v.values) || 'the scene'}`;
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
@@ -782,14 +781,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(small, [], `Labels never reach ${MIN_PX}px at 1280px stage ${where}: ${JSON.stringify(small)}`);
     const blank = v.trace.steps.flatMap((s) => undescribed(s.shown).map((m) => `${s.step}: ${m}`));
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
-    // A lettered explainer's bare runtime puts its faces in place first, as its page does.
-    const lettered = project.lettering
-      ? [
-          `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`,
-          `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
-        ]
-      : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(LIB_ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(LIB_ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];${project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : ''}export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
+    // The bare runtime runs what the page ships: its lettering, faces and snapshots (sceneEntry).
+    const contents = await sceneEntry(project, { target: 'bare', values: v.values });
     const b = await build({
       stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
       bundle: true,
