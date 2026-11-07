@@ -252,7 +252,7 @@ test('deliberate defect: a transition that breaks an invariant on the way fails,
   assert.ok(explored!.problems.some((p) => /^UP: the invariant "the box stays on screen" fails 50% through the transition/.test(p)), JSON.stringify(explored!.problems));
 });
 
-test('a machine plays under one shown: it records it, refuses another, and exploration draws its states under it', async () => {
+test('what is shown may change between a machine\'s events; exploration draws its states under the last', async () => {
   class Shown extends Scene<Lamp> {
     machine!: Machine<Lamp, 'UP' | 'OFF'>;
     override state = { level: 0 };
@@ -269,22 +269,24 @@ test('a machine plays under one shown: it records it, refuses another, and explo
       this.machine = new Machine<Lamp, 'UP' | 'OFF'>(this, { start: { level: 0 }, events: ['UP', 'OFF'], next, views: [picture], runTime: 0.3 });
       this.shown = { room: 'kitchen' };
       await this.step('press');
-      await this.play(this.machine.replay(['UP', 'UP']));
-      // Afterwards the scene shows another room; the machine's states were seen in the kitchen.
+      await this.play(this.machine.send('UP'));
+      // A guided tour moves what is shown between events (a code panel's focus, say).
       this.shown = { room: 'study' };
+      await this.play(this.machine.send('UP'));
+      // Afterwards the scene shows another room without playing the machine there.
+      this.shown = { room: 'hall' };
       await this.play(picture.sync({ runTime: 0.2 }));
-      await assert.rejects(this.play(this.machine.send('OFF')), /plays under shown \{"room":"study"\}, but this machine played under \{"room":"kitchen"\}/);
     }
   }
   const scene = await new Shown(new NullSink()).run() as Shown;
-  assert.deepEqual(scene.machine.playedUnder, { room: 'kitchen' });
+  assert.deepEqual(scene.machine.playedUnder, { room: 'study' });
   const [explored] = await exploreMachines(scene);
   assert.deepEqual(explored!.problems, []);
   assert.equal(explored!.states, 3);
-  // The states were drawn in the kitchen, where the machine played, not the study the run ended in.
-  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /kitchen lamp/);
+  // The states were drawn in the study, where the machine last played, not the hall the run ended in.
+  assert.match(scene.machine.spec.views[0]!.texts.join(' '), /study lamp/);
   // Exploration put back what the run left shown.
-  assert.deepEqual(scene.shown, { room: 'study' });
+  assert.deepEqual(scene.shown, { room: 'hall' });
 });
 
 test('exploration checks a machine on the stage where it last played, not the stage the run ends with', async () => {

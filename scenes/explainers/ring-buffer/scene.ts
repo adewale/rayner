@@ -1,7 +1,7 @@
 import { Scene, AnimationGroup, Succession, Text, Group, FadeIn, Transform, StateReadout, linear } from '../../../src/index.ts';
 import type { View, Choreography } from '../../../explain/index.ts';
 import type { ScheduledAnimation, Vec, Mobject, SceneState } from '../../../src/index.ts';
-import { stage, settingsOf, regionBox, Card, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, regionBox, Card, CodeBlock, Machine, view } from '../../../explain/index.ts';
 import { ringStory, ringStart, ringNext } from './model.ts';
 import type { RingState, RingEvent } from './model.ts';
 import { frames as readerFrames, arrayQueue, SLOTS, C, R, SLOT, angle, polar, pushArg, pointer, pointerAt, drawRing, sayRing } from './picture.ts';
@@ -59,6 +59,10 @@ export default class RingBufferExplainer extends Scene {
   results?: View;
   /** The ring itself (slots, values, pointers, outlines, push(v) and the tray): a View of `this.state`. */
   ring?: View;
+  /** The card's panel, labels and lit row: a View of `this.state`. */
+  card?: View;
+  /** The code panel and its focus on the last operation's lines: a View of `this.state`. */
+  code?: View;
 
   override async construct() {
     const which = settingsOf(this).operations!,
@@ -126,21 +130,29 @@ export default class RingBufferExplainer extends Scene {
     s.keep(readout, { describe: ringWords });
     await this.play(new FadeIn(ring));
     await this.play(new FadeIn(readout));
-    // The card keeps its panel, title and labels; a View holds its values.
-    const card = new Card(
+    // The card keeps its panel, title and labels; a View holds its values. The card is drawn from
+    // the state too: its Result row is lit while push is refused with Full.
+    const blankCard = (lit: string | null) =>
+      new Card(
+        this,
+        s.palette,
+        [
+          ['Operation', '–'],
+          ['Result', '–'],
+        ],
+        { at: regionBox('full', { left: -0.25, bottom: 1.0 }), width: 7.4, fontSize: 0.27, lit, key: 'card' },
+      );
+    const placeholders = blankCard(null);
+    const rows = (['Operation', 'Result'] as const).map((label) => ({ label, at: placeholders.values.get(label)!.anchorPoint() }));
+    const card = (this.card = view(
       this,
-      s.palette,
-      [
-        ['Operation', '–'],
-        ['Result', '–'],
-      ],
-      { at: regionBox('full', { left: -0.25, bottom: 1.0 }), width: 7.4, fontSize: 0.27 },
-    );
-    const rows = (['Operation', 'Result'] as const).map((label) => {
-      const placeholder = card.values.get(label)!;
-      card.remove(placeholder);
-      return { label, at: placeholder.anchorPoint() };
-    });
+      (st) => {
+        const c = blankCard(st.error != null ? 'Result' : null);
+        for (const label of ['Operation', 'Result']) c.remove(c.values.get(label)!);
+        return c;
+      },
+      { place: false },
+    ));
     const resultOf = (st: SceneState) =>
       st.error != null
         ? String(st.error)
@@ -165,20 +177,24 @@ export default class RingBufferExplainer extends Scene {
       { place: false },
     ));
     // The card's own values were taken out, so the view's words describe it.
-    let resultMarked = false;
     s.keep(results, {
       describe: () =>
-        `A card: Operation: ${String(this.state.operation ?? '–')}, Result: ${resultOf(this.state)}${resultMarked ? ' (marked)' : ''}`,
+        `A card: Operation: ${String(this.state.operation ?? '–')}, Result: ${resultOf(this.state)}${this.state.error != null ? ' (marked)' : ''}`,
     });
     await this.play(new FadeIn(card, { runTime: 0.35, shift: [0, -0.08] }), new FadeIn(results, { runTime: 0.35 }));
-    const code = await s.code(CODE, {
-      at: regionBox('full', { left: -0.25, top: card.box()![1] - 0.25 }),
-      fontSize: 0.2,
-    });
+    // The code panel focuses the lines the last operation ran: push's first line when it threw
+    // Full, pop's body after a pop, push's body after a push.
+    const focusOf = (st: SceneState): [number, number] | number | null =>
+      st.error != null ? 1 : st.operation === 'pop' ? [8, 12] : st.operation != null ? [2, 4] : null;
+    const codeAt = regionBox('full', { left: -0.25, top: card.box()![1] - 0.25 });
+    const code = (this.code = view(this, (st) => new CodeBlock(this, s.palette, CODE, { at: codeAt, fontSize: 0.2, focus: focusOf(st), key: 'code' }), { place: false }));
+    await s.enter(code, { runTime: 0.4 });
 
     // The reader could press push or pop; each press is one model step, its motion authored below.
     // A transition morphs the ring's parts in turn; anything it does not name lands at the end.
-    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ runTime: 0.45 })]);
+    const fields = () => together([readout.sync({ runTime: 0.45 }), results.sync({ runTime: 0.45 }), card.sync({ match: 'key', staged: true, runTime: 0.45 })]);
+    /** The code's focus moves to the lines this operation runs, as it begins. */
+    const focus = () => code.sync({ match: 'key', staged: true, runTime: 0.4 });
     /** One angle drives a pointer round the ring, the short way, drawn afresh at each sampled angle. */
     const turn = (c: Choreography, name: 'head' | 'tail', from: number, to: number) => {
       const a0 = angle(from), a1 = a0 + turnBetween(from, to);
@@ -192,6 +208,7 @@ export default class RingBufferExplainer extends Scene {
       const was = `ring:incoming:${pushArg(before.operation) ?? 'none'}`, now = `ring:incoming:${pushArg(after.operation) ?? 'none'}`;
       if (was !== now) out.push(c.leave(was, { runTime: 0.4 }), c.enter(now, {}, { runTime: 0.4 }));
       if (!c.has('ring:arg', 'from')) out.push(c.enter('ring:arg', {}, { runTime: 0.3 }));
+      out.push(focus());
       return together(out);
     };
     /** The outline on `slot`, drawn unless it was already there (then it lands with the rest). */
@@ -210,7 +227,7 @@ export default class RingBufferExplainer extends Scene {
       next: ringNext,
       // The ring would take 10 and on; this story pushes the values 1 to 9.
       bound: (st, event) => (event === 'push' && st.next > 9 ? 'This story pushes the values 1 to 9' : undefined),
-      views: [ring, readout, results],
+      views: [ring, readout, results, card, code],
       // A push takes 1.8 s, a pop 2.1 s and a refused push, which travels, is crossed and is trayed, 3 s.
       runTime: ({ event, after }) => (event === 'pop' ? 2.1 : after.error ? 3 : 1.8),
       transition: {
@@ -269,8 +286,6 @@ export default class RingBufferExplainer extends Scene {
     const story = ringStory(which);
     const replays: RingEvent[][] = which === 'wrap' ? [['push', 'push', 'push', 'push', 'push'], ['pop', 'pop'], ['push', 'push']] : [['push', 'push', 'push', 'push', 'push'], ['push'], ['push']];
     for (let g = 0; g < replays.length; g++) {
-      const last = (this.state as unknown as RingState);
-      const ending = replays[g]!.reduce((st, e) => machine.after(st, e)!, last);
       await this.step(['fill', 'next', 'result'][g]!, {
         title:
           g === 0
@@ -305,13 +320,8 @@ export default class RingBufferExplainer extends Scene {
                 ? 'push checks length === capacity on its first line, so with length 5 it throws Full before writing a slot or moving either marker. The 6 is crossed out short of slot 0 and goes to the refused tray, and head, tail and length do not change.'
                 : 'push 7 is refused the same way and joins 6 in the refused tray; the ring still holds 1 to 5. Some ring buffers overwrite the oldest value instead. This one refuses, so no stored value is lost and the caller must handle Full.',
       });
-      await code.focus(ending.error ? 1 : replays[g]![0] === 'pop' ? [8, 12] : [2, 4]);
+      // The code's focus and the card's lit Result row are drawn from the state each event leaves.
       await this.play(machine.replay(replays[g]!));
-      // The card's Result row is marked once, when push first throws Full; it stays marked.
-      if (ending.error && !resultMarked) {
-        resultMarked = true;
-        await card.mark('Result');
-      }
     }
   }
 }

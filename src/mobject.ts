@@ -695,6 +695,10 @@ const KEEP_ON_RESTORE = new Set(['id', 'parent', 'children', 'updaters', 'saved'
 // become() also keeps each member's key, the address matching, find() and invariants use, and its role.
 const KEEP_ON_BECOME = new Set([...KEEP_ON_RESTORE, 'key', 'role']);
 
+/** An object's own enumerable fields, symbols included: what Object.assign (and so copy()) carries. */
+const ownFields = (o: object): (string | symbol)[] =>
+  [...Object.keys(o), ...Object.getOwnPropertySymbols(o).filter((k) => Object.prototype.propertyIsEnumerable.call(o, k))];
+
 /** Rewrite `m`'s data from `state` in place (see restore()); `state` itself is never touched. */
 export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string> = KEEP_ON_RESTORE): void {
   const fresh = state.copy();
@@ -712,9 +716,10 @@ export function adoptState(m: Mobject, state: Mobject, keep: ReadonlySet<string>
   };
   for (const [to, from] of pairs) {
     const t = to as unknown as Record<string, unknown>, f = from as unknown as Record<string, unknown>;
-    const adopt = (k: string) => !keep.has(k) && k[0] !== '_';
-    for (const k of Object.keys(t)) if (!(k in f) && adopt(k)) delete t[k];
-    for (const k of Object.keys(f)) if (adopt(k)) t[k] = place(f[k]);
+    const adopt = (k: string | symbol) => typeof k === 'symbol' || (!keep.has(k) && k[0] !== '_');
+    // Symbol-keyed fields (what a drawn part says it emphasises or shows) are data like any other.
+    for (const k of ownFields(t)) if (!(k in f) && adopt(k)) delete t[k as string];
+    for (const k of ownFields(f)) if (adopt(k)) t[k as string] = place(f[k as string]);
     to._bbox = null;
     to.touchPoints();
   }

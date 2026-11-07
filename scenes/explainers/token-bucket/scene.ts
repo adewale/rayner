@@ -1,7 +1,7 @@
 import { Scene, FadeIn, Create, Transform, AnimationGroup, Succession, rushFrom, thereAndBack } from '../../../src/index.ts';
 import type { View } from '../../../explain/index.ts';
 import type { ScheduledAnimation as Animation, SceneState, VMobject } from '../../../src/index.ts';
-import { stage, settingsOf, Machine, view } from '../../../explain/index.ts';
+import { stage, settingsOf, Machine, view, CodeBlock } from '../../../explain/index.ts';
 import { TokenBucket, bucketStart, bucketRequest } from './model.ts';
 import type { BucketCall as Call, BucketState } from './model.ts';
 import { listed } from '../lib/format.ts';
@@ -197,17 +197,30 @@ export default class TokenBucketExplainer extends Scene {
     s.keep(chart, { describe: chartSays });
     s.keep(chips, ...times, ...names, { describe: chipsSay });
     await this.play(new FadeIn(chips, { runTime: 0.4 }), ...[...times, ...names].map((t) => new FadeIn(t)));
-    const code = await s.code(CODE, {
-      at: [2.15, -2.25, 7.75, 1.55],
-      title: `bucket.allow(now), rate = ${rate}`,
-      fontSize: 0.22,
-    });
-    code.code.lines[1]!.key = 'balance:cap';
+    // The code panel is a view of the state: its bar is on the refill lines before any request,
+    // then on the lines that answered the last one, spend or refuse.
+    const focusOf = (st: BucketState) => {
+      const last = st.calls.at(-1);
+      return !last ? { focus: REFILL, focusAs: 'refill' } : last.ok ? { focus: SPEND, focusAs: 'spend' } : { focus: REFUSE, focusAs: 'refuse' };
+    };
+    const code = view(
+      this,
+      (st) => {
+        const panel = new CodeBlock(this, s.palette, CODE, {
+          at: [2.15, -2.25, 7.75, 1.55],
+          title: `bucket.allow(now), rate = ${rate}`,
+          fontSize: 0.22,
+          ...focusOf(st as unknown as BucketState),
+          key: 'code',
+        });
+        panel.code.lines[1]!.key = 'balance:cap';
+        return panel;
+      },
+      { place: false },
+    );
+    const codeLines = () => (code.current as CodeBlock).code.lines;
+    await s.enter(code, { runTime: 0.4 });
     await this.play(new FadeIn(readout), new FadeIn(readoutTitle));
-    await code.focus(REFILL, { as: 'refill' });
-
-    /** The focus bar's place on lines a..b, as CodeBlock.focus draws it, for use inside a Succession. */
-    const bar = (lines: readonly [number, number]) => barAt(code, lines);
 
     // ---------------------------------------- the machine: one request at a time
     // Each request is one call of allow() on the model, at the time the schedule gives it. The
@@ -222,14 +235,15 @@ export default class TokenBucketExplainer extends Scene {
       // request at the last request's time shows the model would go on, and the bound stops the story.
       next: (st) => bucketRequest(st, TIMES[st.calls.length] ?? TIMES.at(-1)!),
       bound: (st) => (st.calls.length >= TIMES.length ? `The client sends ${TIMES.length} requests` : undefined),
-      views: [gauge, chart, chips, readout],
+      views: [gauge, chart, chips, readout, code],
       runTime: REFILL_S + ANSWER_S,
       transition: {
         request: (t) => {
           const { before, after } = t;
           const g = t.choreograph(gauge),
             c = t.choreograph(chart),
-            q = t.choreograph(chips);
+            q = t.choreograph(chips),
+            k = t.choreograph(code);
           const i = before.calls.length,
             call = after.calls[i]!,
             prev = before.calls.at(-1) ?? START,
@@ -272,9 +286,19 @@ export default class TokenBucketExplainer extends Scene {
             // shows and goes in one there-and-back, and is gone by the end of the answer.
             answer.push(new Succession([new Transform(missing, ring(1), { runTime: 0.58, rateFunc: thereAndBack }), g.leave('bucket:missing', { runTime: 0.02 })]));
           }
+          // The focus bar follows allow(): on the refill lines while the bucket refills, then on the
+          // line that answered.
+          const bar = k.own('code:bar');
           return new Succession([
-            refill,
-            new AnimationGroup([...answer, g.rest({ runTime: ANSWER_S }), c.rest({ runTime: ANSWER_S }), q.rest({ runTime: ANSWER_S })]),
+            new AnimationGroup([refill, new Transform(bar, barAt(t.target(code) as CodeBlock, REFILL), { runTime: REFILL_S })]),
+            new AnimationGroup([
+              ...answer,
+              new Transform(bar, k.to('code:bar'), { runTime: ANSWER_S }),
+              g.rest({ runTime: ANSWER_S }),
+              c.rest({ runTime: ANSWER_S }),
+              q.rest({ runTime: ANSWER_S }),
+              k.rest({ runTime: ANSWER_S }),
+            ]),
           ]);
         },
       },
@@ -334,26 +358,15 @@ export default class TokenBucketExplainer extends Scene {
         line: lines[index],
         caption: captions[index],
       });
-      // Ask the program, one request at a time. The focus bar follows allow(): on the refill lines
-      // while the bucket refills, then on the line that answered. It is the code's, not the
-      // model's, so it moves beside the machine, a call at a time.
-      for (let i = from; i < to; i++) {
-        const ok = bucketRequest(bucketOf(), TIMES[i]!).calls[i]!.ok;
-        await this.play(
-          machine.send('request'),
-          new Succession([new Transform(code.bar, bar(REFILL), { runTime: REFILL_S }), new Transform(code.bar, bar(ok ? SPEND : REFUSE), { runTime: ANSWER_S })]),
-        );
-      }
-      // The bar already stands where the last call left it; this names those lines for the description.
-      const last = bucketOf().calls.at(-1)!;
-      await code.focus(last.ok ? SPEND : REFUSE, { as: last.ok ? 'spend' : 'refuse', runTime: 0.2 });
+      // Ask the program, one request at a time; the code's focus bar moves with each call.
+      for (let i = from; i < to; i++) await this.play(machine.send('request'));
       // What a phone reader is shown first: R5's 200 beside R6's 429, then what R7 found.
       if (index === 0) s.opening(part(chips, 'request:R5'), part(chips, 'request:R6'), names[4]!, names[5]!);
       // R7 (its climb, dot, drop and tag) and R6's tag, where the climb to R7 starts, are read together.
       if (index === 1)
         s.opening(...['balance:refill:R7', 'balance:found:R7', 'balance:spend:R7', 'balance:found:R7:value', 'balance:tag:R6'].flatMap((k) => chart.current.find(k) ?? []));
       if (index === 2)
-        s.opening(code.code.lines[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!, names[8]!, names[9]!,
+        s.opening(codeLines()[1]!, part(chips, 'request:R9'), part(chips, 'request:R10'), times[8]!, times[9]!, names[8]!, names[9]!,
           readout.current.children[0]!, readout.current.values['Tokens left']!,
           ...['balance:refill:R10', 'balance:found:R10', 'balance:spend:R10', 'balance:cap:note'].flatMap((k) => chart.current.find(k) ?? []));
     }
