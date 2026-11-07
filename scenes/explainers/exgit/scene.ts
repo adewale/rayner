@@ -24,6 +24,12 @@ const treeOf = (repo: Repo, id: string): TreeState => ({
 const treeLines = (tree: TreeState, id: string) => [`header  ${tree.header}`, ...tree.entries.map((e) => `${e.mode} ${e.name}\\0 ${e.id}`), `sha1    ${id}`];
 type Tone = 'emphasis';
 /** What the steps record: the model's ids and objects, and what the pictures mark. */
+/** How the model is shown, apart from it: each code panel's focus, the diagram's marks and its notes. */
+interface GitShown {
+  focus?: Record<string, [number, number]>;
+  diagram: { source: string; marks: { part: string; tone: Tone; as: string }[] };
+  notes: { id: string; part: string; text: string; side: NoteSide }[];
+}
 interface GitState {
   hello: string;
   blob: { id: string; bytes: number[]; header: number };
@@ -33,9 +39,6 @@ interface GitState {
   c2: string;
   trees: Record<string, TreeState>;
   commits: Record<string, string[]>;
-  focus?: Record<string, [number, number]>;
-  diagram: { source: string; marks: { part: string; tone: Tone; as: string }[] };
-  notes: { id: string; part: string; text: string; side: NoteSide }[];
   rows: { commits: RowState[]; shared: string | null };
   samePlace: { tree: number; commit: number };
   paired: { tree: number; commit: number };
@@ -82,20 +85,21 @@ export default class GitExplainer extends Scene {
       accent = s.emphasis,
       colours = { ink, soft: s.soft, accent };
     const st = () => this.state as unknown as GitState;
+    const sh = () => this.shown as unknown as GitShown;
     /**
      * A code view: the lines `lines(state)` gives, laid out as s.code lays them out, with its bar on the
-     * focus the state records for `name`. The panel describes itself and says what it emphasises.
+     * focus `shown` records for `name`. The panel describes itself and says what it emphasises.
      */
     const codeView = (name: string, at: Box, lines: (g: GitState) => string[]) => {
-      const draw = (state: object) => {
+      const draw = (state: object, shown: object) => {
         const g = state as unknown as GitState,
-          focus = g.focus?.[name];
+          focus = (shown as Partial<GitShown>).focus?.[name];
         return codePanel(this, s.palette, name, lines(g), at, focus);
       };
       return { v: view(this, draw, { place: false }) };
     };
     const focus = async (code: { v: View }, name: string, lines: readonly [number, number]) => {
-      this.state.focus = { ...(st().focus ?? {}), [name]: lines };
+      this.shown.focus = { ...(sh().focus ?? {}), [name]: lines };
       await this.play(code.v.sync({ match: 'index', runTime: 0.4 }));
     };
 
@@ -146,15 +150,15 @@ export default class GitExplainer extends Scene {
     // with the marks the state records, and the live diagram, off the stage, keeps its geometry and description.
     let d: Diagram;
     const colorOf: Record<Tone, string> = { emphasis: accent };
-    const picture = (state: object) => {
-      const g = (state as unknown as GitState).diagram;
+    const picture = (_state: object, shown: object) => {
+      const g = (shown as GitShown).diagram;
       if (d.spec.source !== g.source) throw new Error('The diagram on show is not the one the state records');
       return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])));
     };
     let diagramView: View | undefined;
     /** The view takes the live diagram's place: the same picture, now drawn from the state, and described as the diagram with its marks and notes. */
     const adopt = () => {
-      this.state.diagram = { source: d.spec.source!, marks: [] };
+      this.shown.diagram = { source: d.spec.source!, marks: [] };
       if (diagramView) diagramView.rebuild();
       else diagramView = view(this, picture, { place: false });
       this.add(diagramView);
@@ -162,19 +166,19 @@ export default class GitExplainer extends Scene {
       d.showBy(diagramView);
       s.keep(diagramView);
     };
-    const mark = async (marks: GitState['diagram']['marks'], runTime = 0.45) => {
-      this.state.diagram = { ...st().diagram, marks };
+    const mark = async (marks: GitShown['diagram']['marks'], runTime = 0.45) => {
+      this.shown.diagram = { ...sh().diagram, marks };
       await this.play(diagramView!.sync({ match: 'index', runTime }));
     };
     // Notes beside the diagram's parts, each its own view of the state, as Diagram.note draws and places one;
     // each describes itself and says what it emphasises.
     const notes = new Map<string, View>();
-    const notePicture = (id: string) => (state: object) => {
-      const n = (state as unknown as GitState).notes.find((x) => x.id === id)!;
+    const notePicture = (id: string) => (_state: object, shown: object) => {
+      const n = (shown as GitShown).notes.find((x) => x.id === id)!;
       return d.notePicture(n.part, n.text, { side: n.side, color: accent, key: `exgit-note:${id}` });
     };
     const note = async (id: string, part: string, text: string, side: NoteSide) => {
-      this.state.notes = [...(st().notes ?? []), { id, part, text, side }];
+      this.shown.notes = [...(sh().notes ?? []), { id, part, text, side }];
       const v = view(this, notePicture(id), { place: false });
       notes.set(id, v);
       await s.enter(v, { runTime: 0.35, shift: [0, -0.06] });
@@ -182,9 +186,9 @@ export default class GitExplainer extends Scene {
     /** The marks go and the notes fade, then the live diagram, back in the view's place, morphs to `next`. */
     const morph = async (next: string) => {
       const going = [...notes.values()];
-      if (going.length || st().diagram.marks.length) {
-        this.state.diagram = { ...st().diagram, marks: [] };
-        this.state.notes = [];
+      if (going.length || sh().diagram.marks.length) {
+        this.shown.diagram = { ...sh().diagram, marks: [] };
+        this.shown.notes = [];
         notes.clear();
         await this.play(diagramView!.sync({ match: 'index', runTime: 0.4 }), ...going.map((v) => new FadeOut(v, { runTime: 0.4 })));
       }
@@ -193,7 +197,7 @@ export default class GitExplainer extends Scene {
       await d.morph({ source: next });
       adopt();
     };
-    const walk = async (hops: [string, string][], trail: GitState['diagram']['marks']) => {
+    const walk = async (hops: [string, string][], trail: GitShown['diagram']['marks']) => {
       await d.walk(hops);
       await mark(trail);
     };
@@ -276,7 +280,7 @@ export default class GitExplainer extends Scene {
       (add ? `T2 --> Hello\nT2 --> New` : `T2 --> New`);
     const CHANGE = `graph LR\nMain([main])\n${objects}\nMain --> C1`;
     Object.assign(this.state, { nextBlob, t2, c2 });
-    this.state.focus = {};
+    this.shown.focus = {};
     await this.play(new FadeOut(commitCode.v, { runTime: 0.3 }));
     await morph(CHANGE);
     await note('parent', 'edge:C2->C1#0', 'parent', 'below');
@@ -367,7 +371,7 @@ export default class GitExplainer extends Scene {
     this.state.samePlace = inPlace;
     // Everything but the diagram goes: the rows, the shared blob and the notes.
     const leaving = [rows, ...(same ? [same] : []), ...notes.values()];
-    this.state.notes = [];
+    this.shown.notes = [];
     notes.clear();
     await this.play(...leaving.map((m) => new FadeOut(m, { runTime: 0.3 })));
     this.state.commits = { ...st().commits, [c2]: objectLines(repo, c2) };
