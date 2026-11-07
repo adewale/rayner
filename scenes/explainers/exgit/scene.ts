@@ -152,7 +152,6 @@ export default class GitExplainer extends Scene {
       return d.picture(Object.fromEntries(g.marks.map((m) => [m.part, { color: colorOf[m.tone], as: m.as }])));
     };
     let diagramView: View | undefined;
-    s.emphasise(() => (st().diagram?.marks ?? []).map((m) => [m.part, `mark ${colorOf[m.tone]} ${m.as}`] as [string, string]));
     /** The view takes the live diagram's place: the same picture, now drawn from the state, and described as the diagram with its marks and notes. */
     const adopt = () => {
       this.state.diagram = { source: d.spec.source!, marks: [] };

@@ -30,24 +30,27 @@ export default class LruMru extends Scene {
       const pair = (i: number): [string, string] => [lru[i]!, mru[i]!];
       return { Requests: requests.slice(0, n).join(' '), 'Newest first': pair(0), Evicted: pair(1), Hits: pair(2) };
     };
-    type CardState = ReturnType<typeof shown> & { lit: string | null };
-    // The card is a view of the state: each step changes the state, and the card is redrawn from it.
+    type CardState = ReturnType<typeof shown>;
+    // The card is a view: its values are the model's (this.state), and the row it lights is how the
+    // step shows them (this.shown). Each step changes them, and the card is redrawn from both.
     const show = async (n: number, lit: string | null = null) => {
-      this.state = { ...shown(n), lit };
+      this.state = shown(n);
+      this.shown = { lit };
       await this.play(card.sync({ match: 'key', staged: true }));
     };
 
     await this.step('full', { title: 'Same items, same order', line: 'A, B and C missed and filled all three slots.', caption: 'Both caches have seen the same three requests, so both hold C, B, A from newest to oldest. The next request, D, misses in both and forces each policy to evict one item.' });
-    this.state = { ...shown(3), lit: null };
-    const card = view(this, (st) => {
-      const c = st as CardState;
+    this.state = shown(3);
+    this.shown = { lit: null };
+    const card = view(this, (st, sh) => {
+      const c = st as CardState, lit = (sh as { lit: string | null }).lit;
       return new Card(this, s.palette, [
         ['Requests', c.Requests],
         ['Slots', SIZE],
         ['Newest first', ...c['Newest first']],
         ['Evicted', ...c.Evicted],
         ['Hits', ...c.Hits],
-      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit: c.lit, key: 'cache' });
+      ], { columns: ['LRU', 'MRU'], width: 6.8, fontSize: 0.3, lit, key: 'cache' });
     }, { place: false });
     await s.enter(card, { runTime: 0.35 });
 
