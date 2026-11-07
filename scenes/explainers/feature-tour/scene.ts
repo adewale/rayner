@@ -80,9 +80,14 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
       'const d = await s.show({source:',
       "  'graph LR\\nA[Start] --> B[Finish]'},",
       "  {box: 'main'});",
-      "await d.walk([['A', 'B']], {trail: true});",
+      'this.shown.walked = [];',
+      'const v = s.diagramView(d, (st, sh) =>',
+      '  ({marks: d.trail(sh.walked)}));',
+      "await d.walk([['A', 'B']]);",
+      "this.shown.walked = [['A', 'B']];",
+      "await this.play(v.sync({match: 'key', staged: true}));",
     ],
-    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; trail: true is the walk option this scenario is about.",
+    recipe: "s.show draws a diagram from geometry captured at build time. d.walk sends a token along an edge that exists in the diagram, here Start → Finish; the walked edge is then recorded in this.shown, and the diagram’s view draws it as a trail.",
     caption: "The trail stays on Start → Finish after the token has gone, so the route can be inspected at rest, and it follows the captured edge rather than a shortcut. The unmarked copy on the left is a separate drawing of the flowchart before the walk.",
     point: 'The trail stays on Start → Finish after the walk ends.',
   },
@@ -685,7 +690,12 @@ export default class FeatureTour extends Scene {
         }
       }
       await panels([before], 'the captured flowchart, no path marked');
-      await d.walk([['A', 'B']], { trail: true });
+      // The walked edge is how the diagram is shown (this.shown); its view draws it as a trail.
+      this.shown.walked = [];
+      const v = s.diagramView(d, (_st, sh) => ({ marks: d.trail(sh.walked as [string, string][]) }));
+      await d.walk([['A', 'B']]);
+      this.shown.walked = [['A', 'B']];
+      await this.play(v.sync({ match: 'key', staged: true }));
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
