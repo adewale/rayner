@@ -92,7 +92,7 @@ await this.play(new Create(new BraceLabel(span, 'the retry loop', [1, 0], { font
 
 `Code.highlight(i)` is a filled bar behind one line, for the line about to run;
 an outline or brace points at a span while the caption says something about it.
-A code panel's `focus` option, a diagram picture's marks and `d.notePicture` build
+A card's or code panel's `lit` option, a diagram picture's marks and `d.notePicture` build
 on the same idea for explainers, drawn from state by a [view](VIEWS.md).
 
 ## In the explainers

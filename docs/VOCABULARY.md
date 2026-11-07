@@ -31,7 +31,9 @@ One row per idea.
 | View | `view(scene, draw)`, `view.sync()` | A picture kept equal to `draw(scene.state)`; sync morphs it there. Every `View` is one: the constructor takes `(scene, draw)` | `View.render` (now `View.draw`), `view(build)`, `stateView` |
 | Staged steps | `stage.steps([...])` | A list of steps, each `{ id, title, line, caption, state, draw }`; each step's state becomes the model and its picture is drawn from it | `lesson()`, `readerFirst()`, `presentFrame()` and the three `*Frame` types in the scene library |
 | The phone's opening | **`s.opening(...)`**, a step's `opening` keys | The parts a caption compares, which the first close-up holds together; set per step | `s.reading(...)` and `reading` ("reading" sat beside the reader and its reader steps) |
-| Emphasis a scene draws itself | `emphasised(mobject, what)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export; `s.emphasise(now)`, a callback read from state beside the draw |
+| Emphasis a scene draws itself | `emphasised(mobject, as)` | A mark the scene's own draw makes, tagged with what it shows where it is drawn; the phone's tour visits new emphasis first | `emphasises(scene, now)` from `explain/look.ts`, which the package did not export; `s.emphasise(now)`, a callback read from state beside the draw |
+| What a mark says | `as` | The word a mark's description gives it, the same everywhere: a card's `lit: { row, as }`, a code panel's `lit: { lines, as }`, a diagram mark's `{ color, as }`, `emphasised(m, as)`. A code panel's highlighted lines are lit; `focus` means only the camera (`s.focus`) | `litAs` on a card; `focus` and `focusAs` on a code panel; `emphasised(m, what)` |
+| A card or code panel | `card(s, rows, opts)`, `code(s, lines, opts)` in `rayner/drawing`; `s.card`, `s.code` | The kit builds the picture, placed as the stage places it (its direction and regions), and the stage verb builds with the kit and enters it. `Card` and `CodeBlock` are types only. The engine's `Code` is plain highlighted code text with no panel | `new Card(scene, palette, …)` and `new CodeBlock(scene, palette, …)`, which ignored the stage's direction; `s.cardPicture`, `s.codePicture` |
 | Identity | `key`, `find(key)`, `findAll(match)` | How a part is addressed and kept across morphs: the same key in two pictures is the same part | `Mobject.id`, now internal: the renderer's number |
 | What a part is for | `role` | A job many parts can share: the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts; a view's `sync()` matches this way, staged, unless told otherwise | `match: 'keys'` |
@@ -145,7 +147,12 @@ agents mostly write, such a name is worse than none. `Circumscribe` stays, becau
   columns, would split checks and helpers that should apply to both. `Diagram.fromGraph` was
   not needed either: git-branches and exgit draw their graphs with the kit, and `Diagram.morph`
   already handles graph edits.
-- `stateView`, a readout of state keys, and `StateReadout`. A `Card` without a panel in a `view` does the same.
+- `stateView`, a readout of state keys, and `StateReadout`. A card without a panel (`card(s, rows, { panel: false })`) in a `view` does the same.
+- `s.cardPicture` and `s.codePicture`, stage methods that built a picture without entering it. A
+  picture a view draws comes from the drawing kit, as `callout(s, …)` does, and the stage verb
+  enters it; one convention for both, and a constructor that skipped the stage's direction is gone.
+- `focus` for a code panel's highlighted lines. It is the camera's word (`s.focus`); the lines
+  are lit, as a card's row is.
 - `view(build)`, a view not made from state. It cannot be checked against the state, so the
   `View` constructor takes `(scene, draw)` and every View keeps a `draw` the checks can call
   again.

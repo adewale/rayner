@@ -184,23 +184,24 @@ A card, a code panel, a diagram's marks and notes, and an annotation are never c
 place: a picture that changes is drawn by a view, and what it marks comes from the state, or
 from `shown` when it is presentation rather than model. A draw is synchronous and builds its
 picture whole, so each has a builder a draw can call, which puts the mark in the picture and
-lets the part describe itself. The stage's `s.card`, `s.code` and `s.callout` enter the same
-pictures for a part that does not change.
+lets the part describe itself. The drawing kit builds cards, code panels and annotations
+(`card`, `code` and `callout` from `rayner/drawing`); the stage's `s.card`, `s.code` and
+`s.callout` enter the same pictures for a part that does not change.
 
 ```ts
-import { Card, CodeBlock, view, having } from 'rayner/explain';
-import { callout } from 'rayner/drawing';
+import { view, having } from 'rayner/explain';
+import { card, code, callout } from 'rayner/drawing';
 
 // A marked card: the row the state names is lit, and the description says so.
 const counts = view(this, (st) =>
-  new Card(this, s.palette, rows(st), { at: box, lit: st.chosen, litAs: 'this check' }), { place: false });
+  card(s, rows(st), { at: box, lit: { row: st.chosen, as: 'this check' } }), { place: false });
 await s.enter(counts);                      // no describe: the card describes itself, its lit row too
 
-// A focused code panel, and a callout beside the focused line, from the same state.
+// A code panel with lit lines, and a callout beside the lit line, from the same state.
 const program = view(this, (st) => {
-  const code = new CodeBlock(this, s.palette, lines(st), { at: box, focus: st.passes ? [1, 2] : 1, focusAs: 'run' });
-  const line = code.code.lines[1]!.box()!;
-  return new Group(code, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.good : s.bad }));
+  const panel = code(s, lines(st), { at: box, lit: { lines: st.passes ? [1, 2] : 1, as: 'run' } });
+  const line = panel.code.lines[1]!.box()!;
+  return new Group(panel, callout(s, line, `returns ${st.passes}`, { side: 'right', color: st.passes ? s.good : s.bad }));
 }, { place: false });
 
 // A diagram note, placed as a diagram picture places one, from the state's words.
@@ -224,8 +225,8 @@ A diagram shown by a view keeps its live parts off the stage. For a `reveal`, `w
 `enlarge`, which move the live parts, hand the stage back with `s.liveDiagram(d)` first and show
 it by its view again afterwards; a walk's token travels the same routes the picture draws.
 
-- **Marks are part of the picture.** `lit` and `focus` put the card's or panel's bar on its
-  row or lines; unlit, the bar is there and hidden, so a sync from unlit to lit morphs one
+- **Marks are part of the picture.** `lit` puts the card's or panel's bar on its row
+  (`{ row, as }`) or lines (`{ lines, as }`), `as` the word its description gives them; unlit, the bar is there and hidden, so a sync from unlit to lit morphs one
   family shape. A staged step's redraw from its recorded state draws the bar again,
   so `rayner check` compares it with what was drawn. The view check compares text, so it covers a
   mark through the description rather than the bar's place.
@@ -240,7 +241,7 @@ it by its view again afterwards; a walk's token travels the same routes the pict
 - **They say what they emphasise** to the phone's close-ups, by key, so a redrawn mark at the
   same place with the same words is not new emphasis. [The reference says what counts as
   emphasis](REFERENCE.md#the-phones-opening-emphasis-and-review-subjects), and how a scene
-  marks its own drawing with `emphasised(mobject, what)`.
+  marks its own drawing with `emphasised(mobject, as)`.
 - **Two pictures of one diagram.** Every part of a diagram picture is keyed by its id, so two
   on the stage at once would give one key to two parts. `prefix` puts a word before every key in
   the picture, the frame's too; marks, notes and dimming still
@@ -251,7 +252,7 @@ it by its view again afterwards; a walk's token travels the same routes the pict
 
 ## Other readouts
 
-- **A readout of state is a card.** `new Card(this, s.palette, rows, { key, panel: false })`
+- **A readout of state is a card.** `card(s, rows, { key, panel: false })`
   in a view writes values inside a drawing without a panel (`ring-buffer`, `token-bucket`);
   synced with the default keyed, staged sync, a changed value fades across and an unchanged one
   stays. Give it `width` so its labels keep their places as values grow.

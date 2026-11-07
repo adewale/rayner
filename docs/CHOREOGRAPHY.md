@@ -91,9 +91,10 @@ No adjacency assertion or walk record is implied by moving along an arbitrary pa
 
 ```ts
 import { Succession } from 'rayner';
-import { Card, palette, SetState, view } from 'rayner/explain';
-const colors = palette('github-dark');
-const readout = view(this, (s) => new Card(this, colors, [['count', s.count]], { panel: false, key: 'readout' }), { place: false });
+import { stage, SetState, view } from 'rayner/explain';
+import { card } from 'rayner/drawing';
+const s = stage(this, { style: 'github-dark' });
+const readout = view(this, (st) => card(s, [['count', st.count]], { panel: false, key: 'readout' }), { place: false });
 const sync = () => readout.sync();
 await this.play(new Succession([
   new SetState(this, { count: 3 }), sync(),

@@ -68,8 +68,8 @@ export default class Bucket extends Scene<Tokens, { lit?: string | null }> {
     const s = stage(this);
     this.state = { tokens: 5, rejected: [] };
     this.shown.lit = null;
-    const card = view(this, (st, sh) => s.cardPicture([['Tokens', st.tokens]], { lit: sh.lit, key: 'card' }), { place: false });
-    await s.enter(card);
+    const tokens = view(this, (st, sh) => card(s, [['Tokens', st.tokens]], { lit: sh.lit ? { row: sh.lit } : null, key: 'card' }), { place: false });
+    await s.enter(tokens);
   }
 }
 ```
@@ -172,10 +172,9 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
 | `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)), both typed from the scene; returns the `View`. Change `this.shown` and play `view.sync()` |
 | `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `enlarge` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
-| `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, litAs, key, panel, enter })` | Labelled values; returns a `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit` puts a bar on a row |
-| `s.cardPicture(rows, options)` | The same card, placed and laid out as `s.card` does, without entering it: for a view's draw ([below](#card-and-codeblock)) |
-| `s.code(lines, { at, align, fontSize, title, diff, added, focus, focusAs, width, fitHeight, key, enter })` | Code on a panel; returns a `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `focus` puts a bar on lines |
-| `s.codePicture(lines, options)` | The same panel without entering it: for a view's draw |
+| `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, key, panel, enter })` | Labelled values: the drawing kit's `card(s, rows, options)`, faded in and kept; returns the `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit: { row, as }` puts a bar on a row ([below](#card-and-codeblock)) |
+| `s.code(lines, { at, align, fontSize, title, diff, added, lit, width, fitHeight, key, enter })` | Code on a panel: the kit's `code(s, lines, options)`, faded in and kept; returns the `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `lit: { lines, as }` puts a bar on lines |
+| `s.direction` | `'ltr'` or `'rtl'`, from the `direction` option: where `start` and `end` fall, and the field order of the stage's cards |
 | `s.note(text, { at, size })` | One line of secondary text, default at `[0, -3.9]` |
 | `s.enter(...mobs, { describe, ...fadeOptions })` | Keep native objects and fade them in together, in one play |
 | `s.keep(...mobs, { describe })` | Register objects for description and for `s.clear`, without adding or animating them (add them with `this.add` or a play); returns the first |
@@ -198,7 +197,7 @@ Annotations say a value where it is. Prefer a dimension, pin or callout on the d
 
 `{ enter: false }` creates a card or code panel without playing it, so `s.enter(card, code)` can bring several in together.
 
-`describe` says in words what kept objects show together: a sentence, or a function for a drawing that changes. Without it, the description lists their visible text, and `check` fails a kept drawing that has no text. Either way, a part that describes itself is described by its own words wherever it sits, a view's current picture included: a card or code panel as the stage describes one it entered, its lit row or focused lines with their word; a diagram note; a dimension line or pin. So a view of a card needs no `describe`, and one given says what else the view shows.
+`describe` says in words what kept objects show together: a sentence, or a function for a drawing that changes. Without it, the description lists their visible text, and `check` fails a kept drawing that has no text. Either way, a part that describes itself is described by its own words wherever it sits, a view's current picture included: a card or code panel as the stage describes one it entered, its lit row or lines with their word; a diagram note; a dimension line or pin. So a view of a card needs no `describe`, and one given says what else the view shows.
 
 Emphasis is the style's accent, or orange for styles whose accent is grey or near-black (hand-drawn, pen-and-ink, blueprint). `s.soft` keeps at least 4.5:1 contrast with the paper.
 
@@ -208,7 +207,7 @@ On a stage under 600 px wide, each step opens on a close-up and offers the rest 
 
 `s.opening(...subjects)` picks the opening: the mobjects a caption compares, which the first close-up should hold together. Pass mobjects (`diagram.root` for a whole diagram), not a box or words. A step has one opening, so a second call in the same step replaces the first, and the stage forgets the subjects at every step boundary: an unchanged picture under a new caption needs a fresh call. The planner measures the subjects' painted bounds and label sizes and opens on them only when they fit at a readable scale; otherwise the step opens on what it changed, and labels too small for the opening keep their own close-ups. An absent or unpainted subject is an error. For a picture that stays on stage while the steps change it, such as a machine's view, `s.opening(...subjects, { keep: true })` names the opening once for this step and every later one. `s.steps` calls it for every step, with the parts its `opening` keys name or else the whole drawing.
 
-Emphasis is what a picture marks: a lit card row, a code focus bar or diff line, a marked, travelled or focused diagram part, a note. A card built with `lit`, code built with `focus` or `added`, a diagram picture's marks and a diagram's `notePicture` each say what they emphasise wherever they are drawn. A scene that draws its own marks says so where it draws them, with `emphasised(mobject, what)` from `rayner/drawing`, so the mark and its words come from the same state:
+Emphasis is what a picture marks: a lit card row or code line, a diff line, a marked, travelled or focused diagram part, a note. A card or code panel built with `lit`, code built with `added`, a diagram picture's marks and a diagram's `notePicture` each say what they emphasise wherever they are drawn. The word for what a mark says is `as` everywhere: `lit: { row, as }`, `lit: { lines, as }`, a diagram mark's `{ color, as }`. A scene that draws its own marks says so where it draws them, with `emphasised(mobject, as)` from `rayner/drawing`, so the mark and its words come from the same state:
 
 ```ts
 const outline = new SurroundingRectangle(slot); // drawn by the scene's own draw
@@ -225,21 +224,22 @@ A card or code panel is a picture of values: it is built once, with what it mark
 
 | Option | What it does |
 | --- | --- |
-| `lit`, `litAs` | A card's bar on one row, and the word the description gives it, such as `'rejected'` |
-| `focus`, `focusAs` | A code panel's bar on zero-based line `i`, or lines `[a, b]` inclusive, and its word |
+| `lit` | A card's bar on one row, `{ row, as }`, or a code panel's on zero-based line `i` or lines `[a, b]` inclusive, `{ lines, as }`. `as` is the word the description gives what is lit, such as `'rejected'`; without it a row is "marked" and lines are "focused", in the scene's language. `null` lights nothing |
 | `diff`, `added` | Added and removed bars: from lines that start `+ ` or `- `, or `added` for the indices an edit introduced |
 | `key` | Key the card or panel and its parts under this name, so `view.sync()` changes it in place: an unchanged value or line stays, a changed one fades out as its replacement fades in, and the bar moves. A card's value is keyed with its text; a line is keyed by its text and which occurrence of that text it is, so a line that moves pairs with itself |
 | `width`, `fitHeight` | A fixed width, so a panel drawn from state keeps its size as its values or lines change; in a box, shrink code to fit the box's height too |
 | `panel: false` | A card with no panel or padding, for values written inside a drawing (`ring-buffer`'s head, tail and length inside its ring; `token-bucket`'s balance) |
 
-Both are native `Group`s and describe themselves wherever they are drawn, a view's current picture included ([views](VIEWS.md#cards-code-annotations-and-notes-from-state)). `new Card(scene, s.palette, rows, options)` and `new CodeBlock(scene, s.palette, lines, options)` build one directly; `s.cardPicture` and `s.codePicture` build one placed as the stage places it, and `s.card` and `s.code` are those, faded in and kept. A test holds the two to the same picture and words. `CodeBlock` is a panel around the engine's `Code` (from `rayner`), which is plain code text with keyed lines and spans: use `Code` itself for `TransformDiff`, a token's span, or a layout of your own, and `CodeBlock` for code on the stage.
+Both are native `Group`s and describe themselves wherever they are drawn, a view's current picture included ([views](VIEWS.md#cards-code-annotations-and-notes-from-state)). The drawing kit builds them: `card(s, rows, options)` and `code(s, lines, options)` from `rayner/drawing` return one in the stage's colours, placed as the stage places it (`at: 'start' | 'end'` and a card's field order follow `s.direction`), for a view's draw. `s.card` and `s.code` build with them and enter the panel, faded in and kept; a test holds the two to the same picture and words. `rayner/explain` exports `Card` and `CodeBlock` as types only, for a view's type (`View<Card>`) or a panel's parts (`card.values`, `block.code`): a scene builds one with the kit, never with `new`.
+
+`CodeBlock` is a panel around the engine's `Code` (from `rayner`), which is plain highlighted code text with keyed lines and spans, and no panel or stage colours. Use `Code` itself for `TransformDiff`, a token's span, or a layout of your own; use `code(s, …)` or `s.code` for code on the stage, with a title, a lit bar or diff marks, that describes itself.
 
 ```ts
-// What the panel focuses is how the code is shown (this.shown, typed { focus?: number | null }), not the model.
-this.shown.focus = null;
-const block = view(this, (_st, sh) => s.codePicture(SOURCE, { at: 'main', focus: sh.focus, focusAs: 'update', key: 'block' }), { place: false });
+// The lit line is how the code is shown (this.shown, typed { lit?: { lines: number; as: string } | null }), not the model.
+this.shown.lit = null;
+const block = view(this, (_st, sh) => code(s, SOURCE, { at: 'main', lit: sh.lit ?? null, key: 'block' }), { place: false });
 await s.enter(block);
-this.shown.focus = 1;
+this.shown.lit = { lines: 1, as: 'update' };
 await this.play(block.sync());
 ```
 
@@ -248,10 +248,10 @@ An edit to code is the same: put the lines in the state, with `added` for what t
 `columns` lays values side by side under headings, so a phone close-up of one card shows a comparison whole:
 
 ```ts
-const card = view(this, (st) => s.cardPicture([['Requests', 'A B C D'], ['Evicted', 'A', 'C'], ['Hits', st.lru, st.mru]], { columns: ['LRU', 'MRU'], width: 6.8, key: 'card' }), { place: false });
+const cache = view(this, (st) => card(s, [['Requests', 'A B C D'], ['Evicted', 'A', 'C'], ['Hits', st.lru, st.mru]], { columns: ['LRU', 'MRU'], width: 6.8, key: 'card' }), { place: false });
 ```
 
-A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `lit` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". `card.cells` holds each row's values; `card.values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
+A row gives one value per column, or one value that spans them all (Requests above). The headings sit above the first row with a value per column. `lit` lights the whole row. The description names each value by its row and column, "Hits (MRU): 3". A card's `cells` holds each row's values; its `values` keeps each row's last one. The [LRU/MRU tutorial scene](../scenes/tutorial/lru-mru/scene.ts) uses one.
 
 ### Drawing kit
 
@@ -261,7 +261,7 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | --- | --- |
 | `keyed(m, key)` | Sets `m.key` and returns `m`, for any mobject a scene draws itself |
 | `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it |
-| `emphasised(m, what)` | Marks `m` as emphasis, with words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) |
+| `emphasised(m, as)` | Marks `m` as emphasis, `as` the words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) |
 | `label(text, x, y, color, size?, key?)` | A centred line of text |
 | `tile(text, x, y, width, height, s, { active?, bad?, key?, size? })` | A labelled box, emphasised or marked bad |
 | `segment(a, b, color, width?, key?)`, `dot(text, x, y, s, active?, key?)` | A stroke; a labelled circle |
@@ -273,6 +273,8 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | `dimension(s, a, b, label, { offset, color, size, key })` | `s.dimension`'s picture: a dimension line in the stage's emphasis. Describes itself, “A dimension line marked …” |
 | `legend(s, items, { at, size, direction, gap, key })` | Swatches with words: each item `{ label, fill?, stroke?, dashed?, name? }` is a filled square, a short line or an outlined square (`fill: 'none'`), then its label in the stage's ink. Entries stack (`direction: 'column'`) or sit in a row, the first starting at `at`. Keyed `key`, each entry `key:<label>`; a repeated label or an entry with no swatch is refused. Describes itself as its pairs, “Key: purple fill, cat’s bits; dashed blue line, the browser”, naming each colour by its nearest plain name (`colourName`) or the item's `name`, so a caption's colour word is said on the stage (`bloom-filter`, `wcag-map`, `trust-proxy`) |
 | `pin(s, at, { label, color, size, side, key })` | `s.pin`'s picture. Describes itself, “A pin marked …”. `great-circle` pins its two cities on the globe |
+| `card(s, rows, { at, align, width, title, columns, fontSize, direction, lit, key, panel })` | `s.card`'s picture: labelled values on a panel, for a view's draw ([card and code](#card-and-codeblock)). `at: 'start' \| 'end'` and the field order follow the stage's direction. Describes itself, its lit row with its word |
+| `code(s, lines, { at, align, fontSize, title, diff, added, lit, width, fitHeight, key })` | `s.code`'s picture: code on a panel, one string per line. `at: 'start' \| 'end'` follows the stage's direction. Describes itself, its lit, added and removed lines with their words |
 
 **Keyed cells.** A table keys every part, so the same row in two pictures is the same part and a keyed morph (a view's `sync()`, which matches by key) or a transition's `t.choreograph(view)` keeps it wherever it moves:
 
@@ -557,7 +559,7 @@ Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte
 | Catch lint | A `try`/`catch` or `.catch()` around awaited code in `construct()` |
 | Motion | Any pop (opacity changes by 0.5 or more in a frame), cut-in or cut-out, teleport or resize spike, flicker, or misplaced handoff |
 | Hold | The picture changes after a step's caption hold begins, where the player stops |
-| Views | At the end of every step, a [view](VIEWS.md) on the stage whose words, or whose parts' kinds, text, boxes and opacity, differ from a fresh draw of the step's state placed where a sync would put it (a card's lit row and a code panel's focus bar included); or a view whose draw ignores its state, drawing the same picture from that state with every value changed, from the empty state and from every step's recorded state (a view first seen with an empty state is exempt). Each `s.steps` picture is a view of its step's state, so this covers staged steps |
+| Views | At the end of every step, a [view](VIEWS.md) on the stage whose words, or whose parts' kinds, text, boxes and opacity, differ from a fresh draw of the step's state placed where a sync would put it (a card's lit row and a code panel's lit bar included); or a view whose draw ignores its state, drawing the same picture from that state with every value changed, from the empty state and from every step's recorded state (a view first seen with an empty state is exempt). Each `s.steps` picture is a view of its step's state, so this covers staged steps |
 | Keys | Two parts on the stage with the same `key` at the end of a step, so `find` would answer with whichever comes first |
 | Machines | A state some [machine](MACHINES.md)'s events reach, from its start or from its state at its live step, collides, has a label under 14 px, has no description, does not show its state, or is described exactly as another reachable state; an authored transition breaks an invariant on the way or does not end on the pictures of the state it reaches; a `bound` stops an event the model refuses anyway; the machine's views are not on the stage of the step it last played in. Each is reported by its shortest events |
 | Invariants | An invariant the scene registered with `this.addInvariant(name, check)` fails on any frame of the full run, mid-animation included, or never holds on any frame (it found nothing to check: a key it reads may be misspelt); the report lists the frames each invariant held on (`invariants`) |
