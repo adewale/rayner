@@ -36,10 +36,10 @@ type Cubic = [Vec, Vec, Vec, Vec];
 export class VMobject extends Mobject {
   subpaths: Float32Array[];
   closed: boolean[];
-  /** Render record cache, owned by svg.ts. */
+  /** @internal Render record cache, owned by svg.ts. */
   _rec: AttrsCache | null;
   /** Path data memo, assigned on first pathData(). */
-  declare _dCache?: PathCache;
+  private declare _dCache?: PathCache;
 
   constructor(style: Style = {}) {
     super(style);
@@ -58,7 +58,7 @@ export class VMobject extends Mobject {
   override pointKind(): string { return 'path'; }
 
   /** `src` is the mobject this one was copied from: same class. */
-  override copyData(src: Mobject): void {
+  protected override copyData(src: Mobject): void {
     const s = src as VMobject;
     this.subpaths = s.subpaths.map((a) => new Float32Array(a));
     this.closed = [...s.closed];
@@ -68,7 +68,7 @@ export class VMobject extends Mobject {
   override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc: PathFunc | null = null): this {
     super.interpolate(a, b, alpha, pathFunc);
     // Either side may be a non-path (alignment pairs by index): then it has no `closed`
-    const ac = (a as Partial<VMobject>).closed, bc = (b as Partial<VMobject>).closed;
+    const ac = (a as Partial<Pick<VMobject, 'closed'>>).closed, bc = (b as Partial<Pick<VMobject, 'closed'>>).closed;
     if (ac && bc && bc.length === this.closed.length) {
       const from = alpha < 0.5 ? ac : bc;
       for (let i = 0; i < this.closed.length; i++) this.closed[i] = from[i]!;
@@ -267,6 +267,7 @@ export class VMobject extends Mobject {
   }
 
   /** Make this and `other` have equal subpath counts and equal curves per subpath. */
+  /** @internal */
   override alignData(other: Mobject): void {
     if (!(other instanceof VMobject)) return;
     // Equalize subpath counts: pad with a point-sized subpath at the center

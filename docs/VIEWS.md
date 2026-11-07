@@ -62,13 +62,7 @@ view.texts              // the strings it shows, in family order
 view.sync({ runTime, rateFunc, lagRatio, match, staged }?)   // an Animation: play it, compose it; staged: what goes leaves before what comes
 view.rebuild()          // rebuild now, unanimated: for a View not on screen yet
 view.tween((t) => state, { runTime, rateFunc }?)   // an Animation: the state at t, drawn at every frame (above)
-view.placed(state, shown?)   // the picture of `state`, placed where a sync would put it now, not taken: what a transition morphs into
-view.fit(picture)       // scale and move a freshly drawn picture to where the current one is (see Placement)
-view.swap(picture)      // make `picture` the View's child in place of the current one, unanimated
 ```
-
-`fit` and `swap` are the two halves of `rebuild()`, which a sync also ends with; a scene
-rarely calls them itself.
 
 Most draws read only the model, `state`. A picture that depends on which of several
 pictures is showing, which is not part of the model, reads it from `shown`, the

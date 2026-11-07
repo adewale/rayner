@@ -35,7 +35,7 @@ One row per idea.
 | What a part is for | `role` | A job many parts can share: the stage's `'paper'`, `'heading'` and `'chrome'`, a diagram's `'frame'`. Copies carry it; it is never an identity | Keys starting `__` (`__chrome`, `__heading`, `__paper`, `__frame`), which made a key double as a role and needed an exception in the one-key-one-part check |
 | Matching by key | `matchByKey()`, `match: 'key'` | Keyed parts pair with keyed parts | `match: 'keys'` |
 | A state change | `SetState(scene, next, { event })` | A model step at its place in a schedule | |
-| Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay`, `outcome`, `reachable` | `Session`, `sessionsOf`; describe's `sessions` field (now `machines`) |
+| Event-driven model | `Machine`, `machinesOf(scene)` | `start`, `events`, `next`, `views`; `send`, `replay` | `Session`, `sessionsOf`; describe's `sessions` field (now `machines`) |
 | Refused event | `next` returns `refuse(reason)`, the reason in the reader's words (`undefined` refuses with none) | Which buttons a reader cannot press in a state, and why; one function, so the buttons, their reasons and the model cannot disagree | A refused event returning the same state; `why(state, event)`, a reason in a function of its own |
 | Where the story stops | `bound(state, event)` | An event the model would take but the explainer's story does not reach; the player says so instead of calling it refused | |
 | Live step | the step a machine last played in (`lastPlayedIn`) | Where the player gives the reader a button per event, and where `rayner check` explores the machine | |

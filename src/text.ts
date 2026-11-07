@@ -178,7 +178,7 @@ export class Text extends Group {
 
   override pointArrays(): Float32Array[] { return [this.frameBox]; }
   override pointKind(): string { return 'box'; }
-  override copyData(src: Mobject): void { this.frameBox = new Float32Array((src as Text).frameBox); }
+  protected override copyData(src: Mobject): void { this.frameBox = new Float32Array((src as Text).frameBox); }
 
   /** Exact advance width, in scene units. */
   advance(): number { return this.frameBox[2]! - this.frameBox[0]!; }
@@ -293,7 +293,7 @@ export class DecimalNumber extends Text {
   override interpolate(a: Mobject, b: Mobject, alpha: number, pathFunc?: PathFunc | null): this {
     // Alignment pairs family members by index, so either side may be another
     // class; its `value` is then undefined and the plain blend runs
-    const va = (a as Partial<DecimalNumber>).value, vb = (b as Partial<DecimalNumber>).value;
+    const va = (a as Partial<Pick<DecimalNumber, 'value'>>).value, vb = (b as Partial<Pick<DecimalNumber, 'value'>>).value;
     if (va === vb) return super.interpolate(a, b, alpha, pathFunc);
     Mobject.prototype.interpolate.call(this, a, b, alpha, pathFunc);
     return this.setValue(va! + (vb! - va!) * alpha);
@@ -386,7 +386,7 @@ export class Code extends Group {
     for (const s of spans) this.span(s.line, s.from, s.to).setFill(s.color);
     this.moveTo([0, 0]);
   }
-  override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
+  protected override rebindReferences(source: Mobject, copies: ReadonlyMap<Mobject, Mobject>): void {
     this.lines = (source as Code).lines.map(line => (copies.get(line) ?? line) as Text);
   }
   /** A translucent bar behind line `i`, as wide as the block: the scene's accent unless given a colour. */
@@ -492,6 +492,7 @@ export class CodeSpan extends Group {
   }
 
   // Moving a span moves glyphs the line owns: the line's boxes (and the block's) go stale too
+  /** @internal */
   override invalidateBox(): void { super.invalidateBox(); this.owner?.invalidateBox(); }
   override applyAffine(...args: Parameters<Mobject['applyAffine']>): this {
     super.applyAffine(...args);

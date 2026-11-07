@@ -15,7 +15,7 @@ between.
 
 The engine already gives the guarantee this needs. A frame is
 `interpolate(rateFunc(alpha))` over endpoints fixed in `begin()`, and only an active
-updater stops a seek from skipping (`Scene.hasUpdaters()`), so any animation whose
+updater on the stage or the camera stops a seek from skipping, so any animation whose
 `interpolate` writes absolute geometry from alpha is seek-exact.
 `test/recipes.test.ts` shows it for the recipe's `FollowAngle`.
 

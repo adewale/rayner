@@ -145,7 +145,7 @@ export class Machine<S extends object, E extends string> {
   }
 
   /**
-   * What the scene showed when this machine last played (`scene.shown`), or null before it played.
+   * @internal What the scene showed when this machine last played (`scene.shown`), or null before it played.
    * A machine never changes what is shown; a guided tour may change it between events. Exploration
    * draws every reachable state under the last, and the live player explores under it too.
    */
@@ -159,7 +159,7 @@ export class Machine<S extends object, E extends string> {
   get lastPlayedIn(): string | null { return this.playedInStep; }
 
   /**
-   * What `event` does from `state`: the next state; or, refused by the model, its reason (what
+   * @internal What `event` does from `state`: the next state; or, refused by the model, its reason (what
    * `refuse` was given, or null for `undefined`); or beyond the story, the bound's reason, or `end`'s
    * where the state is finished and the model would take the event. The bound is asked first, so
    * `next` is never asked for a state the story does not reach.
@@ -173,20 +173,20 @@ export class Machine<S extends object, E extends string> {
     return ended === undefined ? model : { beyond: ended };
   }
 
-  /** What the model alone says of `event` from `state`, the story's bound aside: the next state, or a refusal and its reason. */
+  /** @internal What the model alone says of `event` from `state`, the story's bound aside: the next state, or a refusal and its reason. */
   model(state: S, event: E): { next: S } | { refused: string | null } {
     const next = this.spec.next(state, event);
     return next === undefined ? { refused: null } : isRefusal(next) ? { refused: next.reason } : { next };
   }
 
-  /** The state after `event` from `state`, or undefined when the model refuses it or it is beyond the story. */
+  /** @internal The state after `event` from `state`, or undefined when the model refuses it or it is beyond the story. */
   after(state: S, event: E): S | undefined {
     const o = this.outcome(state, event);
     return 'next' in o ? o.next : undefined;
   }
 
   /**
-   * The transition for `event` from `before` to `after`, with each view's target placed where it
+   * @internal The transition for `event` from `before` to `after`, with each view's target placed where it
    * will land now (when the transition is built: its turn in a play, or exploration).
    */
   transitionFor(event: E, before: S, after: S): Transition<S, E> {
@@ -245,7 +245,7 @@ export class Machine<S extends object, E extends string> {
   }
 
   /**
-   * Every state reachable from `from` (default: the start), breadth first, with the shortest
+   * @internal Every state reachable from `from` (default: the start), breadth first, with the shortest
    * events that reach it (so a state that fails a check is reported by its shortest way there),
    * up to `limit` states. States are compared as JSON, as traces compare them.
    */

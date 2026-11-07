@@ -68,6 +68,7 @@ abstract class AnimationTiming {
   abstract begin(): void;
   abstract interpolate(alpha: number): void;
   abstract finish(alpha?: number): void;
+  /** @internal Remove what the animation took off the stage, after it finished. */
   abstract cleanUpFromScene(scene: Scene): void;
   /** The mobjects this animation writes: what play() admits to the scene and allows one writer each. */
   abstract targets(): Mobject[];
@@ -114,7 +115,7 @@ export class Animation extends AnimationTiming {
     this.interpolate(0);
   }
 
-  createStartingMobject(): Mobject { return this.mobject.copy(); }
+  protected createStartingMobject(): Mobject { return this.mobject.copy(); }
 
   /** The mobjects whose families are zipped as arguments to interpolateSubmobject. */
   allMobjects(): Mobject[] { return [this.mobject, this.starting]; }
@@ -131,6 +132,7 @@ export class Animation extends AnimationTiming {
    */
   override finish(alpha: number = this.rateFunc(1)): void { this.interpolate(alpha); }
 
+  /** @internal */
   override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(this.mobject); }
 
   /** alpha already passed through rateFunc by the scene. */
@@ -207,7 +209,7 @@ export class Transform extends Animation {
       this.shapes = new WeakMap();
       const from = this.mobject.family(), to = this.targetCopy.family();
       for (const m of [...from, ...to]) {
-        const p = m as Partial<VMobject>;
+        const p = m as Partial<Pick<VMobject, 'subpaths' | 'closed'>>;
         if (p.subpaths && p.closed) this.shapes.set(m, { subpaths: p.subpaths.map((a) => a.slice()), closed: p.closed.slice() });
       }
       for (let i = 0; i < from.length; i++) from[i]!.alignData(to[i]!);
@@ -264,6 +266,7 @@ export class Transform extends Animation {
     sub.interpolate(start, target, alpha, this.pathFunc);
   }
 
+  /** @internal */
   override cleanUpFromScene(scene: Scene): void {
     super.cleanUpFromScene(scene);
     if (this.replace) scene.replace(this.mobject, this.target);
@@ -298,7 +301,7 @@ export class FadeIn extends Transform {
     this.mobjectStart = start;
     super.begin();
   }
-  override createStartingMobject(): Mobject { return this.mobjectStart; }
+  protected override createStartingMobject(): Mobject { return this.mobjectStart; }
 }
 
 export class FadeOut extends Transform {
@@ -348,7 +351,7 @@ export class GrowFromEdge extends FadeIn {
     this.edge = [edge[0], edge[1]]; this.axis = edge[0] === 0 ? 1 : 0; this.initialScale = initialScale;
   }
 
-  override createStartingMobject(): Mobject {
+  protected override createStartingMobject(): Mobject {
     return super.createStartingMobject().stretch(this.initialScale, this.axis, { aboutEdge: this.edge });
   }
 }
@@ -469,6 +472,7 @@ export class AnimationGroup extends AnimationTiming {
   override finish(alpha: number = this.rateFunc(1)): void {
     this.animations.forEach((a, i) => a.finish(a.rateFunc(this.memberTime(alpha, i))));
   }
+  /** @internal */
   override cleanUpFromScene(scene: Scene): void { for (const a of this.animations) a.cleanUpFromScene(scene); }
   /** Member i's own time fraction at group alpha. */
   private memberTime(alpha: number, i: number): number {
@@ -572,6 +576,7 @@ export class PulseAlongPath extends MoveAlongPath {
     for (const [sub, start] of this.families) sub!.style.opacity = start!.style.opacity * opacity;
   }
 
+  /** @internal */
   override cleanUpFromScene(scene: Scene): void {
     super.cleanUpFromScene(scene);
     // A removed token can be used again without inheriting its invisible end.
@@ -823,7 +828,7 @@ export class Succession extends AnimationGroup {
     while (this.active < this.animations.length) this.advance();
   }
 
-  /** Members were cleaned up as each finished. */
+  /** @internal Members were cleaned up as each finished. */
   override cleanUpFromScene(_scene: Scene): void {}
 
   /** Members join the scene as they begin; these are the ones that have. */
@@ -1142,6 +1147,7 @@ export class TransformMatching extends Animation {
     this.mobject.invalidateBox();
   }
 
+  /** @internal */
   override cleanUpFromScene(scene: Scene): void {
     super.cleanUpFromScene(scene);
     if (this.replace) scene.replace(this.mobject, this.target);

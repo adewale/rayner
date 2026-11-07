@@ -133,6 +133,7 @@ export class Follow extends Animation {
     for (const m of this.written) m.invalidateBox();
   }
 
+  /** @internal */
   override cleanUpFromScene(scene: Scene): void { if (this.remover) scene.remove(...this.written); }
 }
 

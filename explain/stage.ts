@@ -489,7 +489,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       if (!shown) throw new Error('liveDiagram(): the diagram is not shown by a view (see diagramView)');
       scene.add(d.root);
       scene.remove(shown.view);
-      d.shownBy = null;
+      d.unshow();
     },
     /**
      * A card placed and laid out as `card` places one (`at: 'start' | 'end'` and its field direction

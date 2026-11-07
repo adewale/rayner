@@ -42,7 +42,7 @@ test('known step metadata fields fail before the existing step is ended', async 
   for (const meta of [{detail: true}, {reader: true}])
     await assert.rejects(scene.step('bad', meta as never), /say kind: 'detail' or kind: 'short'/);
   assert.equal(scene.steps.length, 1);
-  assert.equal(scene.current?.name, 'first');
+  assert.equal(scene.currentStep?.name, 'first');
 });
 
 test('JSON arrays refuse subclasses, inherited entries and iterator substitution', () => {
