@@ -4,8 +4,9 @@ Read this to draw, animate, inspect or extend a scene without the publishing
 workflow. The [tutorial](TUTORIAL.md) covers authoring an explainer, and
 [extension recipes](EXTENDING.md) give runnable examples. Every name below is a
 public export of `rayner` unless another entry point is shown: sinks, seeking and
-other ways to draw frames are `rayner/output`, and traces, frame checks and profiling
-are `rayner/testing`.
+other ways to draw frames are `rayner/output`; traces, frame checks and profiling
+are `rayner/testing`; `view` is `rayner/explain`; and `Write` and `Restore` are
+`rayner/extras`.
 
 ## The model
 
@@ -23,6 +24,11 @@ so changing the sink changes the output and leaves the scene alone.
 | `Scene` | Admission, ordering, named steps, model state and one fixed-rate clock |
 | `Frame` | The scene's camera, used as the SVG viewBox rather than drawn |
 | `Sink` | A consumer of frames and optional step-boundary notifications |
+
+The shapes are `Line`, `Arrow`, `CurvedArrow`, `Arc` (`{ center, radius, startAngle, angle }`,
+radians counterclockwise), `Circle`, `Dot`, `Rectangle` and `Polygon` (`new Polygon(corners,
+style)`, closed), with `Labeled` to put a label on one; the emphasis shapes are in
+[Emphasis](EMPHASIS.md).
 
 The drawing area is 16 × 9 scene units, centred on `[0, 0]`, with positive y up.
 An output width changes pixel size, not those coordinates. A `Box` is
@@ -43,7 +49,7 @@ version, and `invalidateBox()`, which drops the cached layout bounds.
 
 Style includes fill, stroke, their opacity and width, overall opacity, and optional
 SVG paint details such as dashes and joins. `setFill`, `setStroke` and `setOpacity`
-update it. `Create`/`Write` use the transient `drawFraction` to reveal a path.
+update it. `Create` and `Write` (`rayner/extras`) use the transient `drawFraction` to reveal a path.
 Changing `style` or point arrays behind the supported methods risks stale caches.
 
 A colour left out takes the scene's. `scene.colors` holds five (`paper`, `ink`, `soft`,
@@ -55,6 +61,8 @@ a parent already on stage), each field still holding its default takes the scene
 field set since keeps what it was set to. A stage sets `scene.colors` from its palette, so an
 axis drawn without a `stroke` reads on any paper. A scene without a stage draws dark ink on white
 paper, and the SVG sinks draw `paper` behind the frame unless given a `background`.
+`lerpColor(a, b, t)` gives the colour `t` of the way from `a` to `b` in sRGB, as `#rrggbb`
+(Manim's `interpolate_color`), for a colour between two of the palette's.
 
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
 and `setHeight`. Bounds describe geometry only; clipping, paint order and stroke
@@ -82,8 +90,8 @@ does. If it stores named child references, implement `rebindReferences(source, m
 so the clone names its children, not the original's. Use `copyData(source)` for
 additional mutable data that the base class cannot copy itself.
 
-`saveState()` stores a copy. `restore()` restores immediately; `Restore` does it as
-an animation. A generic transform can align or replace child structure, so retain
+`saveState()` stores a copy. `restore()` restores immediately; `Restore`
+(`rayner/extras`) does it as an animation. A generic transform can align or replace child structure, so retain
 references only to parts whose identity your operation promises to preserve.
 See [restoration and sequencing](ANIMATIONS.md).
 

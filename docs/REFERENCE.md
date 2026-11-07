@@ -59,7 +59,6 @@ Plain Latin Extended (`Latn`), Greek (`Grek`) and Cyrillic (`Cyrl`) requests use
 
 ```ts
 import type { LetteringRequest } from 'rayner/lettering';
-import { seenFrom, latLon, circleOn, depthOrder } from 'rayner/geo';
 
 static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts: ['Grek'] } satisfies LetteringRequest };
 ```
@@ -70,8 +69,9 @@ static meta = { id: 'alphabet', title: 'Αλφάβητο', lettering: { scripts:
 - The cuts are pinned beside the scene in `scene.lettering.json`, keyed by the source face's hash and the letters. A build reuses them. When the letters change it cuts again, which needs `pip install fonttools brotli` (or `PYFTSUBSET` set to the path of `pyftsubset`). Commit the file with the scene.
 - A letter outside the request still fails every command, as before. So does a combining mark after a letter the embedded faces draw: write the precomposed letter.
 - A lettered page's receipt and its `check` report have a `lettering` entry: the scripts and, for each cut, its source, letter count, WOFF2 bytes and SHA-256, plus `pageBytes`, the base64 the page carries. The Greek test fixture's two cuts hold 24 letters in 6,740 bytes of base64.
+- `rayner/lettering` is tooling the build and the page call, apart from the types a scene names: `LetteringRequest` (what `meta.lettering` takes), `LetteringScript` and `SubsetLetteringRequest`. `useLettering(faces)` puts a page's cuts in place before anything shapes text, or with `null` goes back to the embedded faces; `LetteringFaces` is what it takes, one base64 WOFF2 cut per family (`sans`, `mono`). `takeLetteringUse()` returns the code points each requested face drew since the last call, by family, and clears the record (the build reads it to cut the faces); `takeMissingGlyphs()` returns what no face, requested or embedded, could draw.
 - An explainer that asks for nothing carries no lettering code: the build leaves the optional lettering exports out of its bundle. `test/lettering.test.ts` checks that, lettering isolation and glyph coverage.
-- The subset workflow does not replace faces, shape complex scripts or draw real bold and italic. For those requests and typeset maths, use the [outline workflow](LETTERING.md#supported-requests): `faces` (such as `eb-garamond` for the pen-and-ink style), `styles: ['bold', 'italic']` with `ItalicText` ([bold and italic](LETTERING.md#bold-and-italic)), and `math`. Neither workflow implicitly selects a diagram style's font. Only OFL and Apache-2.0 faces may be embedded, and their notices join the page's licence block automatically.
+- The subset workflow does not replace faces, shape complex scripts or draw real bold and italic. For those requests and typeset maths, use the [outline workflow](LETTERING.md#supported-requests): `faces` (such as `eb-garamond` for the pen-and-ink style), `styles: ['bold', 'italic']` with `ItalicText` ([bold and italic](LETTERING.md#bold-and-italic)), and `math`. Neither workflow implicitly selects a diagram style's font. [Supported requests](LETTERING.md#supported-requests) says which licences an embedded face may have; its notice joins the page's licence block automatically.
 
 ### Maths
 
@@ -132,7 +132,7 @@ const s = stage(this, { style: 'nord' });
 | `direction` | `'ltr'` (default) or `'rtl'`: card field order and the physical halves named by `start`/`end` |
 | `palette` | Colours for the stage, for example `palette('dusk')` in a scene with no diagrams |
 | `heading` | `'step'` (default), a fixed string, or `false` for no heading |
-| `headingSize` | The heading's font size, 0.36 by default; at 0.54 it reads at 12 px on a 390 px page without a close-up |
+| `headingSize` | The heading's font size, 0.36 by default; at 0.5 it reads at about 12 px on a 390 px page without a close-up |
 | `numbered` | A circled step number before the title; on by default when the heading follows the steps |
 
 With neither `style` nor `palette`, the stage adopts the first diagram's palette.
@@ -149,7 +149,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | `s.note(text, { at, size })` | One line of secondary text, default at `[0, -3.9]` |
 | `s.enter(...mobs, { describe, ...fadeOptions })` | Keep native objects and fade them in together, in one play |
 | `s.keep(...mobs, { describe })` | Keep native objects without animating them; returns the first |
-| `s.clearOverlays()` | Fade out cards, code, notes (the stage's and the diagrams') and kept objects |
+| `s.clearOverlays()` | Fade out cards, code, the stage's notes and kept objects; a diagram, and a view that shows one, stay |
 | `s.clear({ runTime })` | Fade out everything except paper and heading, and bring the camera home, in one play |
 | `s.focus(target \| 'all', { margin, runTime, exact, with })` | Move the camera so a mobject, mobjects or a box fill the stage below the heading, with `margin`; `'all'` goes home. Never zooms out past the stage or shows beyond its edges. `exact: true` takes a 16:9 box as the view as it is; `with` plays other animations in the same play |
 | `s.carry(m, to, { runTime })` | Glide a kept object to a point, or into a box or region it is shrunk to fit (never enlarged): carry an idea on instead of clearing it |
@@ -230,6 +230,8 @@ A row gives one value per column, or one value that spans them all (Requests abo
 | Function | Draws |
 | --- | --- |
 | `keyed(m, key)` | Sets `m.key` and returns `m`, for any mobject a scene draws itself |
+| `keyedParts()` | A picture built from keyed parts: `add(m, key)` keys `m`, keeps it in order and returns it, `group()` returns the parts as one Group. A key added twice is refused at the `add` that repeats it |
+| `emphasised(m, what)` | Marks `m` as emphasis, with words for what it shows (`'outlined: the full slot'`), so the phone's tour and the descriptions find the mark where it is drawn; `null` takes the mark off. Returns `m` ([emphasis](#the-phones-opening-emphasis-and-review-subjects)) |
 | `label(text, x, y, color, size?, key?)` | A centred line of text |
 | `tile(text, x, y, width, height, s, { active?, bad?, key?, size? })` | A labelled box, emphasised or marked bad |
 | `segment(a, b, color, width?, key?)`, `dot(text, x, y, s, active?, key?)` | A stroke; a labelled circle |
@@ -260,13 +262,15 @@ table(['Entry', 'Key', 'Value'], rows, s, { key: 'dict-entries' }); // dict-entr
 
 The collection's scenes import the same functions through `explain/drawing.ts`.
 
-#### 3D: `seenFrom(model, viewpoint)`
+### 3D: `seenFrom(model, viewpoint)`
 
-`seenFrom` draws a 3D model through a viewpoint as ordinary keyed 2D mobjects. There is no second renderer: the result is a Group of paths and dots like any other picture, and the same model and viewpoint always draw the same picture.
+`rayner/geo`, an opt-in entry point beside the drawing kit, draws 3D. `seenFrom` draws a 3D model through a viewpoint as ordinary keyed 2D mobjects. There is no second renderer: the result is a Group of paths and dots like any other picture, and the same model and viewpoint always draw the same picture.
 
 ```ts
+import { seenFrom, latLon, circleOn } from 'rayner/geo';
+import type { Model3D } from 'rayner/geo';
 
-const model = {
+const model: Model3D = {
   body: { radius: 1, fill: '#eef5fb', stroke: '#59636e' },        // the sphere every part is seen against
   parts: [
     { kind: 'path', key: 'equator', lines: [circleOn([0, 0, 1], 90)], closed: true, color: '#59636e', hidden: 'dashed' },
@@ -276,11 +280,12 @@ const model = {
 const globe = seenFrom(model, { kind: 'orthographic', yaw: -30, pitch: 40 }, { at: [0, 0], scale: 3 });
 ```
 
-- **The model** is plain JSON: a `body` (the sphere, centred at the origin) and `parts`, each a `point`, a `path` (polylines drawn as one stroke) or a `face` (rings filled even-odd). Model x points to latitude 0, longitude 0, y to 90° E and z to the north pole. `latLon(lat, lon, r?)`, `greatArc(a, b, step?)` and `circleOn(pole, angle, r?)` (90° is a great circle) make points on the sphere.
-- **The viewpoint** is plain JSON state, `{ kind, yaw, pitch }`: the longitude and latitude that face the viewer, north up. `orthographic` looks from far away; `perspective` from `distance` radii (default 3); `gnomonic` from the sphere's centre onto the plane touching it at (pitch, yaw), out to `limit` degrees; `mercator` unrolls the sphere with `yaw` as the central meridian and clips to `window` (scene units) and `limit` degrees of latitude. The maps draw only parts that lie on the sphere, and no body, so a globe and its flat maps are drawn from one model.
+- **The model** is plain JSON: a `body` (the sphere, centred at the origin) and `parts`, each a `point`, a `path` (polylines drawn as one stroke) or a `face` (rings filled even-odd). Model x points to latitude 0, longitude 0, y to 90° E and z to the north pole. `latLon(lat, lon, r?)`, `greatArc(a, b, step?)` and `circleOn(pole, angle, r?)` (90° is a great circle) make points on the sphere, and `toLatLon(p)` gives a point's latitude and longitude back in degrees. Type a model `Model3D`, so each part's `kind` stays a literal.
+- **The viewpoint** (type `Viewpoint`) is plain JSON state, `{ kind, yaw, pitch }`: the longitude and latitude that face the viewer, north up. `orthographic` looks from far away; `perspective` from `distance` radii (default 3); `gnomonic` from the sphere's centre onto the plane touching it at (pitch, yaw), out to `limit` degrees; `mercator` unrolls the sphere with `yaw` as the central meridian and clips to `window` (scene units) and `limit` degrees of latitude. The maps draw only parts that lie on the sphere, and no body, so a globe and its flat maps are drawn from one model.
 - **Depth is an explicit order**, not a sort: far pieces (what the body hides), then the body, then the near surface (faces, paths, points), then what stands off the sphere on the near side. On a convex body nothing on the near surface can hide anything else there, so the order never depends on the viewpoint. A part's far piece is culled (`hidden: 'cull'`, the default), dashed and dimmed (`'dashed'`, for a translucent body) or drawn in its own style before the body (`'behind'`, for a part that sticks out past the limb). A point is always a Dot, transparent where it is out of sight.
 - **Pieces are stable**: each part gives the same pieces at every viewpoint (its near piece keyed `key`, its far piece `key:hidden`), so a view's tween can redraw the picture frame by frame with `become`. A camera move is a tween of the viewpoint in the state, drawing `seenFrom(model, viewpoint(t))`; `between(a, b, t)` interpolates two viewpoints of one kind, turning yaw the short way. Frames stay a pure function of time, so a seek lands on the frame a full play shows.
 - **`project(p, viewpoint, radius?, options?)`** returns where a point lands and whether it is seen, for a label beside a part.
+- **`seenPictures(m)`** returns the seenFrom drawings in `m`'s family, outermost first.
 - **`depthOrder(picture)`** returns `true` when every seenFrom drawing in `picture` keeps the order (layers far, body, near; every far point hidden and every near point seen, from the viewpoint the drawing records; each piece drawn where that viewpoint puts it), a message naming the first part out of order, or `undefined` when there is no such drawing. Register it with `scene.addInvariant` and `rayner check` holds it on every frame. It rejects a picture whose viewpoint changed without a redraw, and a turn drawn by morphing between two endpoint pictures, which draws parts on their way behind the globe across its face (`test/seen-from.test.ts`). Turn the viewpoint with a view's tween, and change kind (map to globe) by clearing and entering.
 
 The great-circle explainer draws Mercator's map, the globe and the gnomonic map from one model, and turns the globe with a view's tween over its pitch until the route is seen edge-on. The henge explainer draws New York's sky as a sphere: from outside (orthographic) with each day's path a small circle about the celestial pole, turned through the year by a view's tween over the orbital longitude; and from its centre (gnomonic), where the horizon and the street's vertical circle stay straight, lowering the gaze from the sky to the street with a view's tween over the pitch. A view from the centre draws the sphere as a map does, so a scene that wants a camera's left and right mirrors its model for that view. A face as large as a hemisphere is cut by the limb at two nearly opposite points, where the arc seenFrom draws between them strays off the limb; henge draws its ground and Earth's night side as eight sectors, rim to centre.
@@ -340,6 +345,7 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 
 | Method | What it does |
 | --- | --- |
+| `d.build(mode, runTime)` | Build the diagram in: its scaffolding, then with `mode` `'all'` (the default) the rest in reading order, or with `'frame'` only the scaffolding; `runTime` per reveal, 0.65 s by default. `s.show`'s `build` option calls it |
 | `d.reveal(n \| ids \| 'rest')` | Bring in the next `n` parts in reading order, named parts, or the rest |
 | `d.walk(hops, { parallel, color })` | A token travels real links; `parallel` runs several journeys in one play. To leave the path marked, draw `d.trail(hops)` in the diagram's picture |
 | `d.picture(marks, { notes, dim, prefix })` | The diagram copied as it would be drawn with these marks, notes and dimming, for a view to draw from state (`s.diagramView` draws one). `marks` maps a part's id to a colour, or to `{ color, as }` to name the mark in the description; marked parts take the colour and thicker outlines, and labels keep their ink. `notes` are `{ id, text, side?, color?, size? }`, short labels beside parts at a fixed readable size (`side` is `above`, `below`, `left` or `right`). `dim` lists the parts to keep: everything else fades, but links between kept parts, what a kept group draws inside it, and scaffolding stay, and dimmed parts keep 3:1 contrast with the paper. `prefix` goes before every key, so two pictures of one diagram can share the stage (`agentic-mermaid`, `feature-tour`). While the picture shows the diagram it is described as the diagram, marks, notes and dimming included, and it says what it marks is emphasis |
@@ -351,6 +357,7 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 | `d.hide()` | Fade the diagram out; `reveal` can bring parts back |
 | `d.get(id)` | A part as a native `Group` |
 | `d.findings()` | The verifier's warnings, each with the `part` it names |
+| `d.describe()` | What a reader is told of the diagram as it is shown now: what it is and how big, then each shown part by its words in reading order, with its emphasis and notes (`{ what, parts, blank? }`, where `blank` lists drawn parts with no words). The stage's description and `describeExplainer`'s `picture` use it |
 
 - Parts have semantic ids. Graph nodes use their Mermaid id. A bare name also finds a sequence participant (`actor:A`), a class (`class:Name`), an ER entity (`entity:Name`), or an architecture service, junction or group. Other ids look like `edge:A->B#0`, `bar:0:Jan` or `message:A->B#0`; read `d.parts` or the snapshot to find them.
 - Reading order: graphs read nodes with their outgoing links, sequence messages keep source order and carry a token, git commits read left to right, bars grow from the baseline. Scaffolding builds first. Labels travel with their owners.
@@ -359,7 +366,7 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 - A camera focus moves no point, so pictures and walks work the same while zoomed, and a label keeps its world size while the camera enlarges it on screen. The view stays 16:9 and inside the stage. The camera shows less of the stage, not only less of the diagram: the heading, cards and code are world objects too, so a focus that leaves them out of its box takes them out of view. Put what the resting picture needs inside the box (`also`), or end the step with `focus('all')`. The default, artwork focus, is for a diagram that shares the stage with text beside it (send-sync, gtfs, fork).
 - One scene owns one clock: never call `Scene.play()` concurrently. Use `{ parallel: true }` or one native `play` for simultaneous tokens.
 - Descriptions name a link by the labels at its ends ("Attacker → Load balancer"), and a class or ER entity by its name.
-- The collection uses all 15 families. Captured diagrams use the 8 styles listed in `out/explainers/evidence.json` (the build's per-explainer list of families and styles, not step evidence); ring-buffer (dusk), seasons (tokyo-night) and token-bucket (github-dark) use a style only as the stage palette. Other styles are untested.
+- The collection uses all 15 families. Captured diagrams use the 9 styles listed in `out/explainers/evidence.json` (the build's per-explainer list of families and styles, not step evidence); ring-buffer (dusk) and seasons (tokyo-night) use a style only as the stage palette, and token-bucket uses github-dark that way, a style feature-tour captures. Other styles are untested.
 
 ### State machines and graphs
 
@@ -395,7 +402,7 @@ Hand drawing is still justified when position itself carries meaning that a layo
 
 ## Engine features
 
-These are the engine's own features, imported from `rayner` (views, machines, `SetState` and `choreograph` from `rayner/explain`) and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
+These are the engine's own features, imported from `rayner` (views, machines, `SetState` and `choreograph` from `rayner/explain`; `Underline`, `Restore` and `TransformFromCopy` from `rayner/extras`) and used beside the helpers. Each guide explains one feature and ends with "In the explainers", what the scenes named here do with it; [the engine map](ENGINE.md) lists the guides by module. What you draw with them is a native drawing: keep it with `s.keep` or `s.enter`, with `describe` when it has no text of its own ([stage](#stage)).
 
 <!-- generated from test/public-names.json by `node tools/repo/public-names.ts --write`: engine features -->
 | Feature | What a scene uses | Guide | Used by |
@@ -410,7 +417,7 @@ These are the engine's own features, imported from `rayner` (views, machines, `S
 | Restore, copies, sequencing | `saveState()` and `Restore`, `TransformFromCopy`, `Succession` | [Animations](ANIMATIONS.md) | `saveState()`: `feature-tour`; `Restore`: `feature-tour`; `TransformFromCopy`: `feature-tour`; `Succession`: `great-circle`, `just-bash`, `latest-search`, `monty-hall`, `oauth-pkce`, `periodic-groups`, `ring-buffer`, `state-machine`, `statecharts`, `token-bucket`; no explainer yet: `restore()` |
 <!-- end of generated engine features -->
 
-Patterns these scenes write by hand, candidates for `explain/` once two explainers use one and its shape settles: card and code-focus changes returned as animations rather than played, so they can join a `Succession`; a `Card` whose values are a view; a state readout in the stage's palette; a camera box that keeps the heading out; reading recorded evidence for counts on screen; lines between a matching transform's pairs; a code panel that leaves its `Code` loose for `TransformDiff`, which replaces it.
+Patterns these scenes write by hand, candidates for `explain/` once two explainers use one and its shape settles: a camera box that keeps the heading out; reading recorded evidence for counts on screen; lines between a matching transform's pairs; a code panel that leaves its `Code` loose for `TransformDiff`, which replaces it.
 
 ### Optional score audio
 
@@ -499,13 +506,13 @@ The package has an entry point per audience. A scene is written with `rayner` (t
 | `withIntent` | `rayner/testing` | A scene class with its script's intent adopted, for a test that runs it directly | [Scene](#scene) |
 | `bindSnapshots` | `rayner/testing` | Run a scene with diagrams outside the CLI, from its pinned snapshots | [Describe](#describe) |
 
-`refuse` and `isRefusal` (a model's refusal of an event, [machines](MACHINES.md#refused-events-bounds-and-authored-transitions)) and `shaperFor` stay in `rayner`, since models and scenes call them; so do `settingsOf` and `resolveSettings` in `rayner/explain`.
+`shaperFor` stays in `rayner`, and `refuse` and `isRefusal` (a model's refusal of an event, [machines](MACHINES.md#refused-events-bounds-and-authored-transitions)), `settingsOf` and `resolveSettings` in `rayner/explain`, since models and scenes call them.
 
 The collection's own tests show each in use: `test/lib/explainer-state.ts` compares a trace with a model, and `test/lib/view-fidelity.ts` compares a view with the traced state at every step.
 
 ## Snapshots
 
-Every command except `init` runs every scenario, captures any diagram missing from `scene.snapshots/` beside the scene (a scene with no diagrams keeps no such folder), and deletes unused ones; `rayner snapshots` stops there. Commit the folder; `index.json` maps each diagram's key to its own file. A diagram is captured again when its spec changes, which changes its key, or when a different Agentic Mermaid release captured it; a change to Rayner's own capture code does not invalidate the cache. `--refresh` recaptures everything, and CI captures every committed snapshot afresh and fails on any difference (`test/snapshot-capture.test.ts`). Capture needs Chromium and the authoring packages listed in [the README](../README.md#write-your-first-scene).
+Every command except `init` runs every scenario, captures any diagram missing from `scene.snapshots/` beside the scene (a scene with no diagrams keeps no such folder), and deletes unused ones; `rayner snapshots` stops there. Commit the folder; `index.json` maps each diagram's key to its own file. A diagram is captured again when its spec changes, which changes its key, or when a different Agentic Mermaid release captured it; a change to Rayner's own capture code does not invalidate the cache. `--refresh` recaptures everything, and CI captures every committed snapshot afresh and fails on any difference (`test/snapshot-capture.test.ts`). Capture needs Chromium and the `rayner-cli` package ([the README's quick start](../README.md#quick-start)).
 
 Capture asserts that its output equals Agentic Mermaid's `renderMermaidSVG` byte for byte, and fails on SVG it cannot convert (unsupported paint, masks, filters). Chromium resolves CSS, transforms and markers at build time with network requests blocked. The page receives resolved geometry and text runs; it never runs Agentic Mermaid.
 
@@ -594,7 +601,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 
 | Command | What it does |
 | --- | --- |
-| `init <directory>` | Write the tutorial's explainer: `scene.ts` with one setting, its model `model.ts`, and `model.test.ts`, which tests the model against published examples. With `--machine`, write a [machine](MACHINES.md) explainer instead (a door that opens, closes, locks and unlocks): `model.ts`, whose `next` refuses events with `refuse(reason)`; `model.test.ts`, which pins every event from every state and every reason; `scene.ts`, a view of the state and a machine whose last step is live; and `scene.review.json`. It passes `check` and `review` as written |
+| `init <directory>` | Write the tutorial's explainer: `script.md`, its intent; `scene.ts` with one setting; its model `model.ts`; and `model.test.ts`, which tests the model against published examples. With `--machine`, write a [machine](MACHINES.md) explainer instead (a door that opens, closes, locks and unlocks): `script.md`; `model.ts`, whose `next` refuses events with `refuse(reason)`; `model.test.ts`, which pins every event from every state and every reason; `picture.ts`, which draws the state; `scene.ts`, a view of the state and a machine whose last step is live; and `scene.review.json`. It passes `check` and `review` as written |
 | `preview <scene>` | Build and serve the page; use `shots` for a contact sheet |
 | `snapshots <scene>` | Capture and verify diagrams; replay morph edits |
 | `check <scene>` | The checks above, starting with the folder's `model.test.ts` when there is one |
@@ -602,6 +609,8 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `build <scene>` | The page, its receipt, its header recipe and `loader.js` |
 | `shots <scene>` | A contact sheet of every step, as SVG and PNG |
 | `describe <scene>` | [`describeExplainer`](#describe) as JSON: every scenario and step, with words, state, what changed and the picture in words and as text |
+| `version` | Print the version; `--version` does the same |
+| `help` | Print the commands and options; `--help`, or no command, does the same |
 | `see <scene> [step]` | One step of [`describeExplainer`](#describe)'s description: its resting picture drawn as text, then its title, caption, the picture in words and what it changed in `scene.state` (`key: before → after`). The last step by default; needs no browser, so an agent can read a scene from a terminal |
 
 | Option | Applies to | Effect |
@@ -610,7 +619,8 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 | `--refresh` | all but `init` | Recapture every diagram |
 | `--scenario id=value` | `shots`, `see` | One scenario; repeat for several settings |
 | `--port <n>` | `preview` | Default 5174 |
-| `--watch` | `preview` | Rebuild the page when a source file changes; reload the browser to see it |
+| `--watch` | `preview` | Rebuild the page when a `.ts`, `.mts`, `.js` or `.mjs` file beside the scene changes; reload the browser to see it. It does not react to `script.md`: rerun `preview` after editing the script |
+| `--subjects <file>` | `review` | Read the [review subjects](#reader-review) from this file instead of `scene.review.json` |
 | `--machine` | `init` | Write the machine starter instead of the tutorial's explainer |
 
 `CHROMIUM_EXECUTABLE_PATH` selects a Chromium for capture; otherwise it is looked up in `PLAYWRIGHT_BROWSERS_PATH` and Playwright's cache. If an authoring package is missing, the command prints the line that installs it.
@@ -621,7 +631,7 @@ The collection's reviewer (`npm run demos:review`) reads each scene's `scene.rev
 
 `build` writes one self-contained HTML file: one explainer, all its scenarios, a poster, a transcript, sources and licence notices. It makes no network requests and uses no storage.
 
-Diagram payloads are compressed losslessly inside the page and decoded with the browser’s native `DecompressionStream` API before the player starts. The transcript remains readable without JavaScript. Builds enforce limits of 1.5 MiB for raw HTML and 450 KiB for its gzip representation, including the poster and transcript. Receipts report `bytes` and `gzipBytes`. Reduce scenarios or split an explanation that exceeds either budget.
+Diagram payloads are compressed losslessly inside the page and decoded with the browser’s native `DecompressionStream` API before the player starts. The transcript remains readable without JavaScript. Builds enforce limits of 1.5 MiB for raw HTML and 450 KiB for its gzip representation, including the poster and transcript, and a scene may have at most 64 scenarios ([settings](#settings)), each of which adds to the page. Receipts report `bytes` and `gzipBytes`. Reduce scenarios or split an explanation that exceeds either budget.
 
 The transcript lists, for every scenario, each step as a link to it, its caption, a "What changed: Label: before → after; …" line when the scene declares [`meta.watch`](#scene) and the step changes a watched value, a live step's events ("Try it yourself: press push, pop."; "from the beginning, press …" when the step played every event its story has), and what its resting picture shows. Without JavaScript every scenario shows. The player shows the current scenario's section, and its links move the player.
 
@@ -670,7 +680,7 @@ The steps rail shows words only. Pictures of each step, drawn in the reader's br
 
 The stage's accessible description is a one-sentence summary of the picture. "What the picture shows", under the caption, opens the full description: each diagram, card, code panel and described drawing, with what is marked, dimmed or changed in this step.
 
-The stage takes focus from Tab or a click. With the stage focused, `+`, `-` and `0` zoom and reset, and arrow keys pan when zoomed. Otherwise left and right arrows change step, except on a button, link or field; on a page that has just loaded, before the reader clicks anything, they change step too. In a frame the arrows work once the frame has focus, so the page never takes a key from its host. In the step bar only the current segment is a Tab stop; there left and right arrows change step, Home and End go to the first and last step, and focus follows the current segment. Pinch, Ctrl-scroll and double-click zoom; when zoomed, drag pans and a click recentres on the point clicked. Zoom goes up to 6×, keeps its place across steps, and resets when the scenario changes. It narrows the stage's SVG `viewBox` inside the author's camera (`ReaderSink` in `app/embed-zoom.ts`) rather than scaling the element, so the drawing stays sharp, the page does not move, an author's camera move keeps playing under it, and **Whole picture** shows the author's frame. A stage under 600 px wide is taller than the picture's 16:9, up to 4:5, so a close-up shows the picture's full height below the heading where it fits, and a step needs fewer views; the stage is never shorter than 16:9, and on a standalone page never so tall that the stepper row and the caption's first lines leave the screen. The margin around the picture is the scenario's paper. On such a stage, each step opens on a close-up of what it changed (what it brought new before what it only moved or scaled, such as a panel carried aside), zoomed whenever a label near the change is under 12 px so that it reads at 12 px, and kept below the heading the stage draws, zooming a little further when that is what it takes; there the stage leaves out the heading it draws on a wide page, which would be too small to read, and the step's heading under the stepper row gives its number, title and line. A view count and **Next view** button, in one row under the stepper row, let readers inspect the step's other close-ups without advancing the step. The row is hidden when the step has one view. On a step with more than one view the footer's hint says how Next view differs from Next, and Next view names that hint as its description. The close-ups that show what the step newly emphasised with the stage's helpers (a lit card row, a code focus or diff line, a marked, travelled or focused diagram part, a note) come right after the first, then the rest of the change, each group in reading order from the first. The small corner map moves through the same views. **Whole picture** shows the author's frame and keeps it for later steps, and the crosshair button brings close-ups back. A vertical swipe scrolls the page; a sideways drag or a pinch moves the view. With reduced motion, the previous picture crossfades into the step's resting picture instead of playing.
+The stage takes focus from Tab or a click. With the stage focused, `+`, `-` and `0` zoom and reset, and arrow keys pan when zoomed. Otherwise left and right arrows change step, except on a button, link or field; on a page that has just loaded, before the reader clicks anything, they change step too. In a frame the arrows work once the frame has focus, so the page never takes a key from its host. In the step bar only the current segment is a Tab stop; there left and right arrows change step, Home and End go to the first and last step, and focus follows the current segment. Pinch, Ctrl-scroll and double-click zoom; when zoomed, drag pans and a click recentres on the point clicked. Zoom goes up to 6×, keeps its place across steps, and resets when the scenario changes. It narrows the stage's SVG `viewBox` inside the author's camera (`ReaderSink` in `app/embed-zoom.ts`) rather than scaling the element, so the drawing stays sharp, the page does not move, an author's camera move keeps playing under it, and **Whole picture** shows the author's frame. A stage under 600 px wide is taller than the picture's 16:9, up to 4:5, so a close-up shows the picture's full height below the heading where it fits, and a step needs fewer views; the stage is never shorter than 16:9, and on a standalone page never so tall that the stepper row and the caption's first lines leave the screen. The margin around the picture is the scenario's paper. On such a stage, each step opens on a close-up of what it changed (what it brought new before what it only moved or scaled, such as a panel carried aside), zoomed whenever a label near the change is under 12 px so that it reads at 12 px, and kept below the heading the stage draws, zooming a little further when that is what it takes; there the stage leaves out the heading it draws on a wide page, which would be too small to read, and the step's heading under the stepper row gives its number, title and line. A view count and **Next view** button, in one row under the stepper row, let readers inspect the step's other close-ups without advancing the step. The row is hidden when the step has one view. On a step with more than one view the footer's hint says how Next view differs from Next, and Next view names that hint as its description. The close-ups that show what the step newly [emphasised](#the-phones-opening-emphasis-and-review-subjects) come right after the first, then the rest of the change, each group in reading order from the first. The small corner map moves through the same views. **Whole picture** shows the author's frame and keeps it for later steps, and the crosshair button brings close-ups back. A vertical swipe scrolls the page; a sideways drag or a pinch moves the view. With reduced motion, the previous picture crossfades into the step's resting picture instead of playing.
 
 Tab order follows the card: scenario picker, stage and optional audio controls, step navigation, explanation disclosure, secondary tools on phones, steps row (narrow), transcript, then footer links. On wider pages the secondary tools sit with step navigation. On a wide page the rail pane follows the card, so its list comes after the footer.
 
@@ -710,7 +720,22 @@ Under the same rule as the resize message (framed, with a valid `parentOrigin`; 
 
 ### Headers
 
-`<page>.html.headers.json` is the response-header recipe: a CSP that pins the inline script and style by SHA-256, `connect-src 'none'`, no fonts, base or objects, and `frame-ancestors *`, plus `Cache-Control: public, max-age=0, must-revalidate`. `<page>.html.receipt.json` records source, engine and snapshot hashes, the artifact hash and each scenario's steps, and, for a page that asked for lettering, what its lettering weighs ([lettering on request](#lettering-on-request)).
+`<page>.html.headers.json` is the response-header recipe: a CSP that pins the inline script and style by SHA-256, `connect-src 'none'`, no fonts, base or objects, and `frame-ancestors *`, plus `Cache-Control: public, max-age=0, must-revalidate`. `<page>.html.receipt.json` is the receipt: what the build produced, from which inputs. Its fields:
+
+| Field | What it records |
+| --- | --- |
+| `version` | The receipt's format, 1 |
+| `scene`, `title` | The explainer's id and page title |
+| `sourceHash` | The scene's code bundled with what it imports from its own folder, the engine left out, with the checkout's and the author's folders replaced so the hash is the same wherever it is built |
+| `engine` | A fixed label for the engine's lineage (`lantern@2c7bad5+explainer`), not a hash |
+| `agenticMermaid` | The Agentic Mermaid release whose capture the snapshots replay |
+| `snapshotHashes` | One hash per diagram snapshot the page carries |
+| `letteringHash` | The outline lettering snapshot's hash, for a page that uses the [outline workflow](LETTERING.md) |
+| `artifactHash` | The page's own hash |
+| `scenarios` | Each scenario's `settings`, number of `steps` and `duration` |
+| `bytes`, `gzipBytes` | The page's size, raw and gzipped, held to [the page budget](#page) |
+| `headers` | The response headers above, as the header recipe holds them |
+| `lettering` | For a page that asked for subset lettering, what it weighs ([lettering on request](#lettering-on-request)) |
 
 ## Repository scripts
 
@@ -741,10 +766,10 @@ Tests that hold a model to an outside tool compare against frozen answers, and a
 
 | Tool | Runs when | Test |
 | --- | --- | --- |
-| rustc | `rustc` is on `PATH`, or `RUSTC` names one | `test/explain-send-sync.test.ts` |
-| Python's `unicodedata` at Unicode 17.0.0 | `python3` on `PATH`, or `PYTHON`, has it | `test/explain-isdigit.test.ts` |
-| sabre/vobject 4.5.7 in Docker | `SABRE_DOCKER=1` | `test/explain-ical-recurrence.test.ts` |
-| A checkout of w3c/wcag | `WCAG_REPO=<checkout>` | `test/explain-wcag-map.test.ts` |
+| rustc | `rustc` is on `PATH`, or `RUSTC` names one | `scenes/explainers/send-sync/model.test.ts` |
+| Python's `unicodedata` at Unicode 17.0.0 | `python3` on `PATH`, or `PYTHON`, has it | `scenes/explainers/isdigit/model.test.ts` |
+| sabre/vobject 4.5.7 in Docker | `SABRE_DOCKER=1` | `scenes/explainers/ical-recurrence/model.test.ts` |
+| A checkout of w3c/wcag | `WCAG_REPO=<checkout>` | `scenes/explainers/wcag-map/model.test.ts` |
 | Manim | `MANIM_DIR=<checkout of 3b1b/manim>` at the commit `test/manim-oracle.json` names, with `python3` and numpy 1.26.4 (so Python 3.12 or earlier); `UPDATE_ORACLE=1` rewrites `test/manim-oracle.json` | `test/manim.test.ts` |
 
 The Manim answers for `distribute` depend on numpy's version. In cases 1 and 3 several pieces have the same length at the cut, and manim chooses among them with `np.argpartition`, whose order for ties is not fixed: numpy 1.26.4 reproduces the frozen answers, and numpy 2.0.2, 2.3.5 and 2.5.3 give other counts for those two cases. Refresh the oracle only with numpy 1.26.4.
