@@ -1,6 +1,8 @@
 import { frames as readerFrames } from './picture.ts';
 import { Scene, Arrow, FadeIn, Create } from '../../../src/index.ts';
-import { stage, regionBox, answerOf } from '../../../explain/index.ts';
+import { stage, regionBox, answerOf, view, CodeBlock } from '../../../explain/index.ts';
+import type { NoteSide } from '../../../explain/index.ts';
+import { wordsOf } from '../../../explain/words.ts';
 import {
   ITEMS,
   SOURCE,
@@ -52,22 +54,57 @@ export default class PasswordExplainer extends Scene {
     });
     await s.clear();
     const boundary = await s.show({ source: BOUNDARY }, { box: 'top' });
-    await boundary.walk(
-      [
-        ['Agent', 'Find'],
-        ['Find', 'Op'],
-      ],
-      { trail: true },
-    );
+    // What the boundary diagram shows besides its source is state: the hops walked and what stays
+    // undimmed. Its view draws them; each change is the state changed and the view synced.
+    type BoundaryState = { walked: [string, string][]; dim: string[] | null };
+    this.state.boundary = { walked: [], dim: null } satisfies BoundaryState;
+    const boundaryView = s.diagramView(boundary, (st) => {
+      const b = st.boundary as BoundaryState;
+      return { marks: boundary.trail(b.walked), dim: b.dim };
+    });
+    const showBoundary = async (change: Partial<BoundaryState>) => {
+      this.state.boundary = { ...(this.state.boundary as BoundaryState), ...change };
+      await this.play(boundaryView.sync({ match: 'key', staged: true }));
+    };
+    const handled: [string, string][] = [
+      ['Agent', 'Find'],
+      ['Find', 'Op'],
+    ];
+    await boundary.walk(handled);
+    await showBoundary({ walked: handled });
     const W = 14;
-    const listing = await s.code(
-      [
-        pad('title', W) + pad('category', 16) + 'vault',
-        ...ITEMS.map((i) => pad(i.title, W) + pad(i.category, 16) + i.vault),
-      ],
-      { at: [-5.5, -4.25, 5.5, -0.5], fontSize: 0.3 },
+    const cell = (query: string, title: string) => {
+      if (matches(query, title)) return 'match';
+      const missing = terms(query).filter((t) => !title.toLowerCase().includes(t));
+      return `no ${missing.join(', ')}`;
+    };
+    const spelled = (title: string) =>
+      closeness(terms(missQuery), title) >= SUGGESTION_THRESHOLD ? 'close: suggested' : 'not close';
+    // The listing is a view of the state: which columns it shows (each item's category and vault, or
+    // what each query found) and the lines in focus.
+    type ListingState = { columns: 'item' | 'queries'; focus: [number, number] };
+    const listingLines = (columns: ListingState['columns']) =>
+      columns === 'item'
+        ? [pad('title', W) + pad('category', 16) + 'vault', ...ITEMS.map((i) => pad(i.title, W) + pad(i.category, 16) + i.vault)]
+        : [
+            pad('title', W) + pad(hitQuery, 16) + missQuery,
+            ...ITEMS.map((i) => pad(i.title, W) + pad(cell(hitQuery, i.title), 16) + spelled(i.title)),
+          ];
+    this.state.listing = { columns: 'item', focus: [1, ITEMS.length] } satisfies ListingState;
+    const listing = view(
+      this,
+      (st) => {
+        const l = st.listing as ListingState;
+        return new CodeBlock(this, s.palette, listingLines(l.columns), {
+          at: [-5.5, -4.25, 5.5, -0.5],
+          fontSize: 0.3,
+          focus: l.focus,
+          key: 'listing',
+        });
+      },
+      { place: false },
     );
-    await listing.focus([1, ITEMS.length]);
+    await s.enter(listing, { runTime: 0.4 });
 
     const near = ITEMS.find((i) => i.title === suggestion.title)!;
     const word = near.title.toLowerCase(),
@@ -78,19 +115,12 @@ export default class PasswordExplainer extends Scene {
       line: `${match.title} contains every word of “${hitQuery}”; ${near.title} is ${editWords} from “${missQuery}”.`,
       caption: `${match.title} contains every word of “${hitQuery}”, so it matches. No title contains “${missQuery}”, so find compares spellings instead: “${missQuery}” is ${editWords} from “${word}”, close enough that ${near.title} comes back as a suggestion. Both answers compare the query with titles; neither looks at a secret.`,
     });
-    await boundary.dim(['Agent', 'Find']);
-    const cell = (query: string, title: string) => {
-      if (matches(query, title)) return 'match';
-      const missing = terms(query).filter((t) => !title.toLowerCase().includes(t));
-      return `no ${missing.join(', ')}`;
-    };
-    const spelled = (title: string) =>
-      closeness(terms(missQuery), title) >= SUGGESTION_THRESHOLD ? 'close: suggested' : 'not close';
-    await listing.morph([
-      pad('title', W) + pad(hitQuery, 16) + missQuery,
-      ...ITEMS.map((i) => pad(i.title, W) + pad(cell(hitQuery, i.title), 16) + spelled(i.title)),
-    ]);
-    await listing.focus([1 + ITEMS.indexOf(ITEMS.find((i) => i.title === match.title)!), 1 + ITEMS.indexOf(near)]);
+    await showBoundary({ dim: ['Agent', 'Find'] });
+    this.state.listing = {
+      columns: 'queries',
+      focus: [1 + ITEMS.indexOf(ITEMS.find((i) => i.title === match.title)!), 1 + ITEMS.indexOf(near)],
+    } satisfies ListingState;
+    await this.play(listing.sync({ match: 'key', staged: true }));
     this.state.matches = Object.fromEntries(
       QUERIES.map((q) => [q, ITEMS.filter((i) => matches(q, i.title)).map((i) => i.title)]),
     );
@@ -124,14 +154,25 @@ export default class PasswordExplainer extends Scene {
       },
       { box: 'full' },
     );
-    await sequence.mark(['message:T->A#0']);
-    // What the two calls cost, said on op itself, and what the agent's reply holds, said on the reply.
-    await sequence.note(
-      'O',
-      `${found.opCalls.length} calls, ${approvals} approval${approvals === 1 ? '' : 's'}`,
-      { side: 'right' },
-    );
-    await sequence.note('message:T->A#0', `secret values: ${leaked || 'none'}`, { side: 'below' });
+    // The reply marked and the notes are state, drawn by the sequence diagram's view.
+    type SequenceState = { marked: string[]; notes: { id: string; text: string; side: NoteSide }[] };
+    this.state.sequence = { marked: [], notes: [] } satisfies SequenceState;
+    const sequenceView = s.diagramView(sequence, (st) => {
+      const q = st.sequence as SequenceState;
+      return {
+        marks: Object.fromEntries(q.marked.map((id) => [id, { color: sequence.accent, as: wordsOf(this).marked }])),
+        notes: q.notes,
+      };
+    });
+    this.state.sequence = {
+      marked: ['message:T->A#0'],
+      // What the two calls cost, said on op itself, and what the agent's reply holds, said on the reply.
+      notes: [
+        { id: 'O', text: `${found.opCalls.length} calls, ${approvals} approval${approvals === 1 ? '' : 's'}`, side: 'right' },
+        { id: 'message:T->A#0', text: `secret values: ${leaked || 'none'}`, side: 'below' },
+      ],
+    } satisfies SequenceState;
+    await this.play(sequenceView.sync({ match: 'key', staged: true }));
     this.state.leaked = leaked;
 
     const ref = match.ref;
@@ -142,10 +183,20 @@ export default class PasswordExplainer extends Scene {
       caption: 'The agent passes the reference to run, and op resolves it as it starts the app: op’s environment holds the reference, the app’s holds the value. The agent’s request never contained the key, but the app can still print what it receives.',
     });
     await s.clear();
-    const command = await s.code([`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
-      at: regionBox('top', { bottom: 1.2 }),
-      fontSize: 0.3,
-    });
+    // The command is a view of the state: the line in focus.
+    this.state.commandFocus = null;
+    const command = view(
+      this,
+      (st) =>
+        new CodeBlock(this, s.palette, [`2password run --env "API_KEY=${ref}" -- app`, `→ ${launched.argv.join(' ')}`], {
+          at: regionBox('top', { bottom: 1.2 }),
+          fontSize: 0.3,
+          focus: st.commandFocus as number | null,
+          key: 'command',
+        }),
+      { place: false },
+    );
+    await s.enter(command, { runTime: 0.4 });
     const before = await s.code(
       Object.entries(launched.opEnv).map(([k, v]) => `${k}=${v}`),
       {
@@ -171,7 +222,8 @@ export default class PasswordExplainer extends Scene {
       new Create(s.keep(pass, { describe: 'An arrow from op’s environment to the app’s' })),
       new FadeIn(child),
     );
-    await command.focus(1);
+    this.state.commandFocus = 1;
+    await this.play(command.sync({ match: 'key', staged: true }));
     this.state.argv = launched.argv;
     this.state.childEnv = launched.childEnv;
   }
