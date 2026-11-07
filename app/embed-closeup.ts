@@ -26,7 +26,7 @@ import { paints, paintsStroke } from '../src/mobject.ts';
 import { STAGE_BOX, viewOf } from '../src/svg.ts';
 import { labelOf, readingLabelSize } from '../explain/diagrams.ts';
 import { emphasisOf, newlyEmphasised, openingOf } from '../explain/look.ts';
-import { isHeading } from '../explain/stage.ts';
+import { isFurniture, isHeading } from '../explain/stage.ts';
 import { IDENTITY, ZOOM_MAX, clampZoom } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 
@@ -123,9 +123,6 @@ function hashShape(m: Mobject, box: Box): string {
   return (h >>> 0).toString(36);
 }
 
-/** The paper and the heading frame every step; the heading changes each step but says nothing about where to look. */
-const fixed = (m: Mobject) => m.role === 'paper' || isHeading(m);
-
 /**
  * A world box in the units of the camera's view `view`: 16 wide, centred on the origin.
  * The identity at home. `rayner check` maps its labels the same way (inView there).
@@ -179,7 +176,7 @@ function leavesOf(scene: Scene, fresh: ReadonlySet<Mobject> = new Set()): Leaf[]
     for (const child of m.children) walk(child, top, o, c, text, stress);
   };
   const view = viewOf(scene);
-  for (const top of scene.mobjects) if (!fixed(top)) walk(top, top, 1, view, false, null);
+  for (const top of scene.mobjects) if (!isFurniture(top)) walk(top, top, 1, view, false, null);
   return out;
 }
 /** Rows a unit tall, top first, then left to right: the order parts are read in. */

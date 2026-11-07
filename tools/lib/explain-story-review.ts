@@ -12,7 +12,7 @@ import type { Scene, SceneClass, Mobject } from '../../src/index.ts';
 import type { ElementRecord } from '../../src/output.ts';
 import { emphasisOf, newlyEmphasised } from '../../explain/look.ts';
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
-import { isHeading } from '../../explain/stage.ts';
+import { isFurniture, isHeading } from '../../explain/stage.ts';
 import { NARROW_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
 import type { Project } from './explain-project.ts';
@@ -399,13 +399,9 @@ export async function storyFrame(
     if (!changed.has(index) || Number(r.attrs.opacity ?? 1) < 0.95) continue;
     const m = byId.get(r.id);
     if (!m) continue;
-    let fixed = false,
-      subject = m;
-    for (let a: Mobject | null = m; a; a = a.parent) {
-      if (a.role === 'paper' || a.role === 'frame' || isHeading(a)) fixed = true;
-      if (labelOf(a)) subject = a;
-    }
-    if (fixed || added.has(subject)) continue;
+    let subject = m;
+    for (let a: Mobject | null = m; a; a = a.parent) if (labelOf(a)) subject = a;
+    if (isFurniture(m, { frame: true }) || added.has(subject)) continue;
     // Invisible route helpers are not narrative artwork.
     if (!realInk(r)) continue;
     add(`changed: ${labelOf(subject)?.text ?? subject.key ?? 'drawing'}`, [subject], false, true);

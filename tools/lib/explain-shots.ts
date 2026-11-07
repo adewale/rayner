@@ -6,6 +6,7 @@ import { NullSink, SnapshotSink, renderAt } from '../../src/output.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
 import { restingTime, stepWords } from '../../explain/trace.ts';
+import { paperOf } from '../../explain/stage.ts';
 import type { Project } from './explain-project.ts';
 import { CARD } from './explain-share.ts';
 import { useProjectLettering } from './explain-lettering.ts';
@@ -27,7 +28,7 @@ class CardSink extends SnapshotSink {
   paper: string | undefined;
   override async frame(scene: Scene): Promise<void> {
     await super.frame(scene);
-    this.paper = scene.mobjects.find((m) => m.role === 'paper')?.style.fill;
+    this.paper = paperOf(scene);
   }
 }
 

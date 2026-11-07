@@ -6,7 +6,7 @@ import { renderElements } from '../../src/output.ts';
 import type { Box, Mobject, Scene, Vec } from '../../src/index.ts';
 import { contains, intersect, nonempty, pad, pointsBox } from '../../src/box.ts';
 import { isDiagramConnector, labelOf } from '../../explain/diagrams.ts';
-import { isHeading } from '../../explain/stage.ts';
+import { isFurniture, isHeading } from '../../explain/stage.ts';
 
 function visible(m: Mobject): boolean {
   for (let a: Mobject | null = m; a; a = a.parent) if (a.style.opacity < 0.95) return false;
@@ -139,9 +139,7 @@ export function restingRouteProblems(scene: Scene): string[] {
   const endpoints = routes.flatMap((m) => m.subpaths.flatMap((p, j): Vec[] => m.closed[j] || p.length < 8 ? [] : [[p[0]!, p[1]!], [p.at(-2)!, p.at(-1)!]]));
   const unjoined = (p: Vec) => endpoints.filter((q) => Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1])) <= 4 * 2 ** -23 * Math.max(1, ...p.map(Math.abs), ...q.map(Math.abs))).length === 1;
   for (const m of routes) {
-    let fixed = false;
-    for (let a: Mobject | null = m; a; a = a.parent) if (a.role === 'paper' || isHeading(a)) fixed = true;
-    if (fixed) continue;
+    if (isFurniture(m)) continue;
     const routeRank = order.get(m.id)!;
     const clip = clipped(m, view);
     if (!clip) continue;

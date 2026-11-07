@@ -107,6 +107,15 @@ export function isHeading(m: Mobject): boolean {
   for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'heading' || x.role === 'chrome') return true;
   return false;
 }
+/**
+ * Stage furniture: the paper, or part of the heading (isHeading), or inside one of them; with
+ * `frame`, a diagram's frame (role `'frame'`) too. It frames every step and says nothing about
+ * where to look, so the close-ups, the review and the layout checks leave it out.
+ */
+export function isFurniture(m: Mobject, { frame = false }: { frame?: boolean } = {}): boolean {
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'paper' || (frame && x.role === 'frame')) return true;
+  return isHeading(m);
+}
 /** The stage's paper (role `'paper'`), or undefined for a scene drawn without a stage. */
 export const paperPart = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'paper');
 /**
