@@ -125,12 +125,12 @@ export default class IcalRecurrenceExplainer extends Scene {
     /** The object as it stands: the change's, else the invitation's, else the series'. */
     const stored = (st: Record<string, unknown>) => ((st.change ?? st.invite ?? st.series) as { components: VEvent[] }).components;
     // Alice's stored object is a view: its lines are the model's VEVENTs; the lines each edit added and
-    // the lines in focus are how the step shows them, in `shown.stored`. The panel keeps the widest width
-    // it has had, as a morph kept it, and keys each line by its text, so a line that stays glides to its row.
+    // the lines in focus are how the step shows them, in `shown.stored`. The panel is as wide as the widest
+    // object shown so far, and keys each line by its text, so a line that stays glides to its row.
     type StoredShown = { added: number[]; focus: [number, number] | null; focusAs?: string };
     const codeOpts = { at: CODE, align: 'top', fontSize: CODE_SIZE, title: 'Alice’s stored object, some lines left out', fitHeight: true } as const;
     const naturalWidth = (vs: readonly VEvent[]) => s.codePicture(lines(vs), codeOpts).panel.width();
-    // The widest of the objects shown so far: a morph widened the panel for wider lines and kept it wide.
+    // The widest of the objects shown so far: the panel widens for wider lines and then stays wide.
     const widthFor = (st: Record<string, unknown>) =>
       Math.max(...[SERIES, ...(st.invite || st.change ? [INVITED] : []), ...(st.change ? [stored(st)] : [])].map(naturalWidth));
     this.shown.stored = { added: [], focus: null } satisfies StoredShown;
@@ -435,7 +435,7 @@ export default class IcalRecurrenceExplainer extends Scene {
         label: 'repeats by',
       },
     ] as const;
-    // The notes and dimming go first, as the morph took them; the live schema takes the edit, then its view shows it again.
+    // The notes and dimming go first, since the live schema the morph moves shows neither; it takes the edit, then its view shows it again.
     if (copy === 'organiser') await showEr(plainEr);
     s.liveDiagram(er);
     await er.morph({ source: erSource('sabre') }, { ops });

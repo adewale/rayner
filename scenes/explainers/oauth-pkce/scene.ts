@@ -11,8 +11,6 @@ const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart
 /** A value's first six characters, as the notes say it; the server compares all of them. */
 // Six characters keep the attack's note, both prefixes side by side, within one phone close-up.
 const prefix = (value: string) => `${value.slice(0, 6)}…`;
-/** The word a diagram's mark gives its parts by default, in this explainer's language. */
-const MARKED = 'marked';
 /** What a diagram shows besides its source, kept in the state: its marks (with their words) and its notes. */
 type Shown = { marks: Record<string, { color: string; as: string }>; notes: PictureNote[] };
 const NOTHING_SHOWN: Shown = { marks: {}, notes: [] };
@@ -119,7 +117,7 @@ export default class OAuthExplainer extends Scene {
     const derived = () => this.shown.derive as Derived;
     const deriveView = s.diagramView(derive, (_st, sh) => {
       const dv = sh.derive as Derived;
-      return { marks: { ...derive.trail(dv.walked), ...(dv.marked ? marked(['C'], CHALLENGE, MARKED) : {}) } };
+      return { marks: { ...derive.trail(dv.walked), ...(dv.marked ? { C: CHALLENGE } : {}) } };
     });
     const values = view(
       this,

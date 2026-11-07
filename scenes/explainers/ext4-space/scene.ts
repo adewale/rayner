@@ -159,7 +159,7 @@ export default class Ext4SpaceExplainer extends Scene {
       this.shown = { ...this.shown, [name]: {} };
       return s.diagramView(d, (_st, sh) => ({ marks: sh[name] as Marks }));
     };
-    /** Pie `name` marks these slices (in the pie's accent, as d.mark marks them), and nothing else. */
+    /** Pie `name` marks these slices, in the pie's accent, and nothing else. */
     const markSlices = async (v: View, d: Diagram, name: string, ids: string[], as: string) => {
       this.shown = { ...this.shown, [name]: Object.fromEntries(ids.map((id) => [id, { color: d.accent, as }])) };
       await this.play(v.sync({ match: 'key', staged: true, runTime: 0.45 }));

@@ -282,7 +282,7 @@ export default class CertRenewalExplainer extends Scene {
     await s.clear();
     const chart = await s.show({ source: oneRenewal }, { box: regionBox('top', { bottom: -0.25 }) });
     // The code under the charts is a view: which Certbot's code it shows and the lines in focus are in
-    // `shown.code`. It keeps the old code's width and fits the region's height, as a morph laid it out, and
+    // `shown.code`. Both versions take the old code's width and fit the region's height, and the panel
     // keys each line by its text, so a line both versions share glides to its new row.
     type CodeShown = { version: 'old' | 'new'; focus: [number, number] };
     const codeOpts = { at: regionBox('full', { top: -0.35 }), fontSize: 0.2, fitHeight: true } as const;

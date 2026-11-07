@@ -197,7 +197,7 @@ export default class TrafficPolicyExplainer extends Scene {
     // How the cluster diagram is shown, apart from its source: the nodes marked, the links walked and
     // the notes. That is `shown`, not the model; the diagram's view draws it, and each change is a sync.
     // A step's slate starts plain: the overlays clear and what the diagram shows leaves `shown`. A focus
-    // moves the live diagram, so it stands in for the view while it moves.
+    // moves the live diagram, so the stage shows the live diagram, not the view, while it moves.
     type ClusterShown = { marks: Record<string, { color: string; as: string }>; walked: [string, string][]; notes: PictureNote[] };
     const PLAIN: ClusterShown = { marks: {}, walked: [], notes: [] };
     const drawCluster = (of: Diagram) => (_st: object, sh: Record<string, unknown>) => {
