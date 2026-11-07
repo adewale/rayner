@@ -2,7 +2,7 @@ import { Scene, Text, Circle, Line, Dot, Rectangle, Arrow, Group, Axes, Transfor
 import { seenFrom, between, latLon, circleOn, project } from '../../../explain/geo.ts';
 import { Square, Restore, Underline, ArcBetweenPoints, MoveAlongPath, Write, TransformFromCopy } from '../../../src/extras.ts';
 import type { SceneState, Mobject, Vec } from '../../../src/index.ts';
-import { stage, settingsOf, palette, answerOf, view } from '../../../explain/index.ts';
+import { stage, settingsOf, palette, answerOf, view, CodeBlock } from '../../../explain/index.ts';
 import { bars, tile, keyed } from '../../../explain/drawing.ts';
 
 type Feature =
@@ -90,12 +90,16 @@ export const RECIPES: Record<Feature, { title: string; result: string; code: str
     title: 'Show the author’s code, then focus a line',
     result: 'Two plain lines, then the second marked as the update',
     code: [
-      'const block = await s.code([',
-      "  'let count = 0;', 'count += 1;'",
-      "], {at: 'main'});",
-      "await block.focus(1, {as: 'update'});",
+      'this.shown.focus = null;',
+      'const block = view(this, (st, sh) => new CodeBlock(',
+      "  this, s.palette, ['let count = 0;', 'count += 1;'],",
+      "  {at: 'main', focus: sh.focus, focusAs: 'update',",
+      "   key: 'block'}), {place: false});",
+      'await s.enter(block);',
+      'this.shown.focus = 1;',
+      "await this.play(block.sync({match: 'key', staged: true}));",
     ],
-    recipe: "s.code draws the lines as a code panel. block.focus(1, {as: 'update'}) points at the line with index 1, the second, and says why.",
+    recipe: "A view draws the lines as a code panel, its focus from this.shown, which says how the scene is shown. Setting focus to 1 and syncing points at the line with index 1, the second, and focusAs: 'update' says why.",
     caption: "The update bar stays on count += 1 after the focus finishes, which ties the caption to the line it explains. The plain copy on the left is a separate drawing of the panel before the focus.",
     point: 'The update bar stays on count += 1 after the motion stops.',
   },
@@ -685,8 +689,16 @@ export default class FeatureTour extends Scene {
     } else if (feature === 'code') {
       await panels([], 'the two lines, nothing marked');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
-      const block = await s.code(['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45 });
-      await block.focus(1, { as: 'update' });
+      // The focused line is how the panel is shown (this.shown); the panel is a view of it.
+      this.shown.focus = null;
+      const block = view(
+        this,
+        (_st, sh) => new CodeBlock(this, s.palette, ['let count = 0;', 'count += 1;'], { at: AFTER, fontSize: 0.45, focus: sh.focus as number | null, focusAs: 'update', key: 'block' }),
+        { place: false },
+      );
+      await s.enter(block, { runTime: 0.4 });
+      this.shown.focus = 1;
+      await this.play(block.sync({ match: 'key', staged: true }));
     } else if (feature === 'code-diff') {
       await panels([], 'count += 1');
       await s.code(['let count = 0;', 'count += 1;'], { at: BEFORE, fontSize: 0.36 });
