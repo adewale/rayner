@@ -95,7 +95,8 @@ export default class StateMachineExplainer extends Scene {
     const diagram = view(this, (st) => drawTrails(d, st as unknown as SessionState), { place: false });
     const ring = view(this, (st) => drawRing(d, st as unknown as SessionState), { place: false });
     const reducer = view(this, (st) => drawReading(st as unknown as SessionState, spans), { place: false });
-    s.keep(diagram, { describe: () => session().travelled.length ? `Travelled: ${session().travelled.map((l) => { const [from, to, event] = l.split(':'); return `${from} → ${to}: ${event}`; }).join('; ')}` : '' });
+    // The diagram picture says its travelled links itself.
+    s.keep(diagram);
     s.keep(ring, { describe: () => `A ring around ${session().session}, the state the session is in` });
     s.keep(reducer, {
       describe: () => {

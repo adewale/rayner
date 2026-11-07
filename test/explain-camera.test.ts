@@ -79,7 +79,7 @@ test('focus with camera moves the camera, not the diagram; a view’s notes, mar
       const v = s.diagramView(d, (_st, sh) =>
         sh.emphasis
           ? {
-              marks: { B: { color: d.accent, as: 'marked' }, ...d.trail(sh.walked as [string, string][]) },
+              marks: { B: d.accent, ...d.trail(sh.walked as [string, string][]) },
               dim: ['A', 'B'],
               notes: [{ id: 'B', text: 'here', side: 'above' }],
             }

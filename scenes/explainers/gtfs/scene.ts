@@ -178,7 +178,7 @@ export default class GtfsExplainer extends Scene {
     type ErMarks = { marked: string[]; as: string | null };
     const drawEr = (d: Diagram) => (_st: object, sh: Record<string, unknown>) => {
       const { marked, as } = sh.er as ErMarks;
-      return { marks: Object.fromEntries(marked.map((id) => [id, { color: d.accent, as: as ?? 'marked' }])) };
+      return { marks: Object.fromEntries(marked.map((id) => [id, as ? { color: d.accent, as } : d.accent])) };
     };
     const markEr = async (v: View, marks: ErMarks) => {
       this.shown.er = marks;
