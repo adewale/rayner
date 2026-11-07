@@ -1,6 +1,7 @@
 import { Scene, FadeIn, FadeOut, Create } from '../../../src/index.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, view } from '../../../explain/index.ts';
+import { emphasised } from '../../../explain/drawing.ts';
 import { sunlight, daylightYear, noonShare, noonPatch, sunDistance, declinationOn } from './model.ts';
 import {
   SUN, TILT, R, CY, JUNE_C, DEC_C,
@@ -248,8 +249,7 @@ export default class SeasonsExplainer extends Scene {
     await s.enter(monthsSaid, { describe: 'June on the right; December on the left' });
     // The step compares June's daylight with December's, so a phone's tour visits June's line
     // too, though it did not change; the next step moves on to the other places.
-    let comparingJune = true;
-    s.emphasise(() => (comparingJune ? [['june-daylight-latitude', 'June daylight']] : []));
+    const juneDaylight = emphasised(this.find('june-daylight-latitude')!, 'June daylight');
 
     // -------------------------------------------------------------- spread
     // The two noon beams from the globes, set down on one stretch of level ground under them, to scale:
@@ -280,7 +280,7 @@ export default class SeasonsExplainer extends Scene {
             ? `${beamSaid('December', december.altitude, decPatch, decShare)}. Counted at Earth’s average distance, as the percentages are, both beams carry the same sunlight; ${longer.month}’s spreads it over ${longer.ratio.toFixed(1)} times as much ground as ${longer.other}’s, which is how ${pct(longer.from)} per m² falls to ${pct(longer.to)}.`
             : `December’s Sun stands at the same ${degrees(december.altitude)}, so the beam lands on the same ${metres(decPatch)} and the share stays ${pct(decShare)}.`),
     });
-    comparingJune = false;
+    emphasised(juneDaylight, null);
     this.state.patch = { june: junePatch, december: decPatch };
     await this.play(...[juneSaid, decSaid].map((c) => new FadeOut(c, { runTime: 0.3 })));
     const spread = view(this, (st) => drawSpread(st as unknown as SeasonState, colours), { place: false });
