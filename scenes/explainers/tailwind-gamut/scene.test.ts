@@ -4,7 +4,6 @@ import { Scene } from '../../../src/index.ts';
 import { NullSink } from '../../../src/output.ts';
 import { loadFonts, loadSnapshots } from '../../../explain/testing.ts';
 import { Diagram } from '../../../explain/index.ts';
-import { radarData } from '../../../explain/diagrams.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 import { wordsFor } from '../../../explain/words.ts';
 
@@ -57,33 +56,4 @@ test('a French scene says a radar chart in French', async () => {
   assert.equal(seen.what, 'Graphique en toile : 2 courbes, 17 axes de 0 à 0,35');
   assert.ok(seen.parts[0]!.name.startsWith('sRGB edge : 0,248 pour red 25°, 0,193 pour orange 48°'), seen.parts[0]!.name);
   assert.deepEqual(wordsFor('fr').families.radar, ['Graphique en toile', 'courbe']);
-});
-
-test('radarData reads axes, plain and keyed curves, several curves on a line, and the default scale', () => {
-  const data = radarData(
-    [
-      '---',
-      'config:',
-      '  radar:',
-      '    maxWidth: 3',
-      '---',
-      'radar-beta',
-      '  axis a["Speed"], b, c["Cost, total"]',
-      '  curve x["Now"]{1, 2.5, 3}, y{c: 4, a: 1}',
-      '  curve z{0, 0, 0}',
-    ].join('\n'),
-  );
-  assert.deepEqual(data.axes, [
-    { id: 'a', label: 'Speed' },
-    { id: 'b', label: 'b' },
-    { id: 'c', label: 'Cost, total' },
-  ]);
-  assert.deepEqual(data.curves, [
-    { id: 'x', label: 'Now', values: [1, 2.5, 3] },
-    { id: 'y', label: 'y', values: [1, NaN, 4] },
-    { id: 'z', label: 'z', values: [0, 0, 0] },
-  ]);
-  assert.equal(data.min, 0);
-  assert.equal(data.max, 4);
-  assert.deepEqual([radarData('radar-beta\n  axis a, b\n  curve q{1, 2}\n  max 10\n  min 5').min, radarData('radar-beta\n  max 10\n  min 5').max], [5, 10]);
 });

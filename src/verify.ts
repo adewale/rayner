@@ -25,7 +25,7 @@
 import { VMobject } from './vmobject.ts';
 import { copiedFrom } from './animation.ts';
 import type { Box, HasText, Mobject } from './mobject.ts';
-import { paintsFill, paintsStroke } from './mobject.ts';
+import { mobjectName, paintsFill, paintsStroke } from './mobject.ts';
 import type { Scene, Sink, Step } from './scene.ts';
 import { FRAME } from './svg.ts';
 import { pad } from './box.ts';
@@ -91,16 +91,19 @@ function partsOf(a: readonly string[] | undefined, b: readonly string[] | undefi
 // Text-like mobjects carry their string as `text`; read it structurally
 const textOf = (m: Mobject): string | undefined => (m as HasText).text;
 
+// A leaf is named as an error names a mobject (mobjectName: its key, else its text, else its kind),
+// inside the nearest ancestor with a key or a text when it has neither; never by its internal id.
 function describeLeaf(m: Mobject): string {
-  let p = m;
-  while (p && textOf(p) == null && p.parent) { p = p.parent; }
-  const text = textOf(p);
-  const label = text != null ? `"${text.length > 28 ? text.slice(0, 27) + '…' : text}"` : '';
-  return `${m.constructor.name}#${m.id}${label ? ' in ' + (p.constructor.name) + ' ' + label : ''}`;
+  if (m.key !== undefined || textOf(m) != null) return mobjectName(m);
+  let p = m.parent;
+  while (p && p.key === undefined && textOf(p) == null) p = p.parent;
+  return p ? `${mobjectName(m)} in ${mobjectName(p)}` : mobjectName(m);
 }
 
 export class MotionSink implements Sink {
+  /** @internal Each frame's leaf samples, keyed by the renderer's id; analyzeMotion reads them. */
   frames: MotionFrame[];
+  /** @internal Each sampled leaf's name, keyed by the renderer's id; analyzeMotion reports with them. */
   labels: Map<number, string>;
   constructor() { this.frames = []; this.labels = new Map(); }
   async frame(scene: Scene): Promise<void> {
@@ -159,7 +162,7 @@ export function analyzeMotion(sink: MotionSink, opts: MotionOptions = {}): Motio
   const F = sink.frames;
   const events: MotionEvent[] = [];
   const ev = (kind: MotionKind, f: number, id: number, magnitude: number, detail = '') =>
-    events.push({ kind, frame: f, t: +F[f]!.t.toFixed(3), step: F[f]!.step, what: sink.labels.get(id) ?? `#${id}`, magnitude: +magnitude.toFixed(3), detail });
+    events.push({ kind, frame: f, t: +F[f]!.t.toFixed(3), step: F[f]!.step, what: sink.labels.get(id) ?? 'a leaf', magnitude: +magnitude.toFixed(3), detail });
 
   const disp = (f: number, id: number): number => {
     const a = F[f - 1]?.leaves.get(id), b = F[f]?.leaves.get(id);

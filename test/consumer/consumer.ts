@@ -145,8 +145,8 @@ export async function authorLayout(scene: Scene): Promise<void> {
 }
 
 
-// Author and wire contracts are checked through the installed public declarations.
-function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
+// Author contracts are checked through the installed public declarations.
+function authorContracts() {
   interface CounterState {count: number}
   class Counter extends Scene<CounterState, { lit?: boolean }> {
     override state = {count: 0};
@@ -168,9 +168,6 @@ function authorContracts(packed: import('rayner').PackedLetteringSnapshot) {
   const schedule = new AnimationGroup([]);
   // @ts-expect-error a group schedules animations, it owns no drawable target
   schedule.mobject;
-  const expanded = (_value: import('rayner').LetteringSnapshot) => {};
-  // @ts-expect-error packed glyph references are not expanded outline paths
-  expanded(packed);
   return Counter;
 }
 

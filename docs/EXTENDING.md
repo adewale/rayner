@@ -46,7 +46,7 @@ inputs without learning a JSON animation language.
 - `Diamond extends VMobject` builds one custom path with `setPolygon`.
 - `StatusBadge extends Group` combines that path and a text label. Getters find
   the badge's own children, including after `copy()`.
-- `statusRow(labels)` is an ordinary function arranging several badges.
+- `statusRow(labels)` is an ordinary function arranging several badges, each keyed by its label so the scene finds one with `row.find(label)`.
 
 All of them work with `FadeIn`, `Transform`, `Group`, copying, layout and the SVG
 renderer without registering anything, because they are built from existing path

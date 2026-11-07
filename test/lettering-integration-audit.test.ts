@@ -9,7 +9,7 @@ import { collectProject, ROOT } from '../tools/lib/explain-project.ts';
 import { contactSheet } from '../tools/lib/explain-shots.ts';
 import { validateLetteringSnapshot } from '../tools/lib/lettering-validation.ts';
 import { unpackLettering } from '../src/lettering-outlines.ts';
-import type { LetteringSnapshot } from '../src/lettering-outlines.ts';
+import type { LetteringSnapshot, PackedLetteringSnapshot } from '../src/lettering-outlines.ts';
 import type { Run, Segment, ShapedGlyph } from '../vendor/glyph.js';
 import { fc, params } from './lib/pbt.ts';
 
@@ -104,6 +104,11 @@ const oneGlyph = (cluster = 0, gid = 1): ShapedGlyph => ({
   gid, cluster, x: 0, dx: 0, dy: 0, ax: 1, s: 1,
   path: [{ tag: 'MoveTo', x: 0, y: 0 }, { tag: 'LineTo', x: 1, y: 1 }],
 });
+// The wire contract, checked by the type-checker: packed glyph references are not expanded outline paths.
+export const wireContract = (packed: PackedLetteringSnapshot, expanded: (snapshot: LetteringSnapshot) => void) =>
+  // @ts-expect-error a packed snapshot is not an expanded one
+  expanded(packed);
+
 const singleRun = (snapshot: LetteringSnapshot): Run => Object.values(snapshot.runs)[0]!;
 
 test('serialized snapshot schema accepts finite runs with source-bound clusters across all families', () => {

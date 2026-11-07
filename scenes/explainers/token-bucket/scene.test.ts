@@ -5,7 +5,12 @@ import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import { withSettings, loadFonts } from '../../../explain/testing.ts';
 import TokenBucketExplainer from './scene.ts';
 import { TokenBucket } from './model.ts';
-import { explainerMeta } from '../../../tools/lib/explain-intent.ts';
+import { readFileSync } from 'node:fs';
+import { withIntent } from '../../../explain/testing.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
+
+// The scene's metadata with its script's intent adopted, as the command adopts it.
+const scriptMeta = withIntent(TokenBucketExplainer, readFileSync('scenes/explainers/token-bucket/script.md', 'utf8'), 'scenes/explainers/token-bucket/script.md').meta as ExplainerMeta;
 
 test('token-bucket: the state readout shows scene.state at the end of every step, at every rate', async () => {
   await loadFonts();
@@ -30,7 +35,7 @@ const run = (rate: number, times = TIMES, capacity = 5) => {
 };
 
 test('token-bucket: the script\'s check answers are the model\'s, word for word', () => {
-  const [bigger, steady, moved] = explainerMeta(TokenBucketExplainer, 'scenes/explainers/token-bucket').questions!.map((c) => c.answer);
+  const [bigger, steady, moved] = scriptMeta.questions!.map((c) => c.answer);
   // As the scene wrote them before they moved to script.md, rebuilt from the model now.
   const perSecond = (r: number) => `${r} token${r > 1 ? 's' : ''} a second`;
   const say = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));

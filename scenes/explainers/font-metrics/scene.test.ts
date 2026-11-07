@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+// The command's collector, not rayner/testing's loadProject: this scene asks for lettering, which only the command cuts.
 import { collectProject } from '../../../tools/lib/explain-project.ts';
 
 test('font metrics: every Garamond glyph in the phrase advances less than a JetBrains Mono cell', async () => {

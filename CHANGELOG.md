@@ -239,6 +239,7 @@ These 0.1.x exports had no explainer using them. [The engine map](docs/ENGINE.md
   - `Labeled`'s and `Axes`' child indexes are private: read `shape`, `label`, `xLabel` and `yLabel`.
   - The renderer's point buffers and path data (`pointArrays`, `boundingPointArrays`, `pathData`, `toPathD`, `roundedRelative`, `Text.frameBox`), a morph's alignment (`splitCurve`, `insertNCurves`, `zipFamilies`, `starting`, `slots`, `allMobjects`, `subAlpha`, `paints`, and `Transform`'s `ownsTarget`, `sameStructure` and `targetCopy`), `play()`'s `setOptions` and `ready`, `AnimationGroup`'s schedule, the animations' stored options, `Mobject.updaters`, `Text`'s cluster matching, `TransformMatching`'s plan and `DomSink`'s DOM plumbing are internal. `interpolateSubmobject` is `protected`.
   - `LetteringSnapshot`, `PackedLetteringSnapshot`, `StoredLetteringSnapshot` and `Outcome` are no longer exported.
+  - `MotionSink`'s `frames` and `labels`, keyed by the renderer's ids, are internal; `analyzeMotion` names a leaf by its key, else its text, else its kind, inside the nearest keyed or lettered ancestor, never by an id.
 
 ### Known limits
 

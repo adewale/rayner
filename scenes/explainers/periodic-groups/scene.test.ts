@@ -2,15 +2,15 @@ import { test } from 'node:test';
 import type { View } from '../../../explain/index.ts';
 import assert from 'node:assert/strict';
 import { Rectangle, Text } from '../../../src/index.ts';
-import { loadFonts, loadProject, pictureWordsAt, withSettings } from '../../../explain/testing.ts';
+import { loadFonts, loadProject, pictureWordsAt, withIntent, withSettings } from '../../../explain/testing.ts';
 import type { Mobject } from '../../../src/index.ts';
 import { lerpColor } from '../../../src/index.ts';
 import { assertViewFollowsState } from '../../../test/lib/view-fidelity.ts';
 import { check } from './fidelity.ts';
 import PeriodicGroupsScene from './scene.ts';
-import { withScriptIntent } from '../../../tools/lib/explain-intent.ts';
+import { readFileSync } from 'node:fs';
 
-const PeriodicGroupsExplainer = withScriptIntent(PeriodicGroupsScene, 'scenes/explainers/periodic-groups');
+const PeriodicGroupsExplainer = withIntent(PeriodicGroupsScene, readFileSync('scenes/explainers/periodic-groups/script.md', 'utf8'), 'scenes/explainers/periodic-groups/script.md');
 type PeriodicGroupsExplainer = PeriodicGroupsScene;
 const project = loadProject(PeriodicGroupsExplainer, 'scenes/explainers/periodic-groups');
 

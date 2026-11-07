@@ -29,7 +29,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
     assert.equal(solstice.toFixed(3), '0.984');
     assert.equal(Math.round((1 / solstice ** 2 - 1) * 100), 3);
     assert.equal(Math.round((share / solstice ** 2) * 100), 27);
-    const { questions } = (scenario.Scene as unknown as { meta: { questions: { answer: string }[] } }).meta;
+    const questions = scenario.Scene.meta?.questions ?? [];
     assert.match(questions[0]!.answer, /^About 27%\. On the solstice Earth is about 0\.984 of its average distance/);
     // The second: an axis that always leans north toward the Sun gives December June's values, 16.4 h and 88%.
     assert.equal(sunlight(51.5, 23.44).daylight.toFixed(1), '16.4');

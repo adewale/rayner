@@ -4,7 +4,12 @@ import { diagramFindings, loadSnapshots } from '../../../explain/testing.ts';
 import type { DiagramSnapshot } from '../../../explain/index.ts';
 import { verifyMermaid, WARNING_SEVERITY } from 'agentic-mermaid/agent';
 import MermaidExplainer, { BROKEN, BROKEN_REPORT } from './scene.ts';
-import { explainerMeta } from '../../../tools/lib/explain-intent.ts';
+import { readFileSync } from 'node:fs';
+import { withIntent } from '../../../explain/testing.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
+
+// The scene's metadata with its script's intent adopted, as the command adopts it.
+const scriptMeta = withIntent(MermaidExplainer, readFileSync('scenes/explainers/agentic-mermaid/script.md', 'utf8'), 'scenes/explainers/agentic-mermaid/script.md').meta as ExplainerMeta;
 
 /** This explainer's pinned snapshots, as test/explain-real.test.ts reads the collection's. */
 const corpus: { id: string; s: DiagramSnapshot }[] = [];
@@ -28,7 +33,7 @@ test('the Mermaid explainer’s check answers are what the pinned verifier repor
     const r = verifyMermaid(source);
     return { ok: r.ok, warnings: (r.warnings ?? []).map((w) => `${w.code} ${(w as { edge?: string }).edge}`) };
   };
-  const [undeclared, second, rectangle, single] = explainerMeta(MermaidExplainer, 'scenes/explainers/agentic-mermaid').questions!;
+  const [undeclared, second, rectangle, single] = scriptMeta.questions!;
   // Both edges labelled yes: the verifier does not compare what labels say (no longer a check question; the claim stands).
   assert.deepEqual(report('graph LR\nA{Cached} -->|yes| B[Reply]\nA -->|yes| C[Database]'), { ok: true, warnings: [] });
   // A node used only as an edge's target: Mermaid creates it as a rectangle labelled with its id.

@@ -246,7 +246,7 @@ export async function collectProject(
   const { file } = loaded;
   // A misspelt meta key would be ignored: refuse any key ExplainerMeta does not name, before anything runs.
   try { checkExplainerMeta(loaded.Scene.meta); } catch (e) { throw new Error(`${file}: ${(e as Error).message}`); }
-  // A script with an intent header is the one home of the title, answer, checks and what the
+  // A script with an intent header is the one home of the title, answer, questions and what the
   // model is checked against (tools/lib/explain-intent.ts): the scene reads them as its own.
   const scriptIntent = await readIntent(file);
   const intent = scriptIntent ? adoptIntent(loaded.Scene as { meta?: Record<string, unknown> }, scriptIntent, file) : undefined;

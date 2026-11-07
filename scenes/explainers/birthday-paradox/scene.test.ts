@@ -2,7 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { birthdayChance, birthdayStory, evenOdds, pairCount, pairShortcut, dateOf } from './model.ts';
 import BirthdayParadox from './scene.ts';
-import { explainerMeta } from '../../../tools/lib/explain-intent.ts';
+import { readFileSync } from 'node:fs';
+import { withIntent } from '../../../explain/testing.ts';
+import type { ExplainerMeta } from '../../../explain/index.ts';
+
+// The scene's metadata with its script's intent adopted, as the command adopts it.
+const scriptMeta = withIntent(BirthdayParadox, readFileSync('scenes/explainers/birthday-paradox/script.md', 'utf8'), 'scenes/explainers/birthday-paradox/script.md').meta as ExplainerMeta;
 
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<2e-14,`${a} != ${b}`);
 
@@ -18,7 +23,7 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
     // The shortcut is exact for comparisons against one fixed birthday.
     close(pairShortcut(n-1),birthdayChance(n,'one'));
   }
-  assert.equal(explainerMeta(BirthdayParadox, 'scenes/explainers/birthday-paradox').answer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs, each a chance to match`);
+  assert.equal(scriptMeta.answer,`A room of ${evenOdds('any')} people gives a better than even chance that two share a birthday, because ${evenOdds('any')} people make ${pairCount(evenOdds('any'))} pairs, each a chance to match`);
   // Dates of a 365-day year, checked against the calendar of a non-leap year.
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   for(let day=1;day<=365;day++){
@@ -47,7 +52,7 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
   assert.equal((100*birthdayChance(13,'any',100)).toFixed(1),'55.7');assert.equal((100*birthdayChance(12,'any',100)).toFixed(1),'49.7');
   assert.equal(evenOdds('one',100)-1,69);close(pairShortcut(69,100),birthdayChance(70,'one',100));
   assert.equal((100*birthdayChance(70,'one',100)).toFixed(1),'50.0');assert.equal((100*birthdayChance(69,'one',100)).toFixed(1),'49.5');
-  const [merged,calendar]=explainerMeta(BirthdayParadox, 'scenes/explainers/birthday-paradox').questions!;
+  const [merged,calendar]=scriptMeta.questions!;
   assert.match(merged!.answer, /529 new pairs/);
   assert.match(merged!.answer, /1,035 pairs, compared with 506/);
   assert.match(calendar!.answer, /13 people suffice/);
