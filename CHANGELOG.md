@@ -14,6 +14,8 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
 - Each `s.steps` picture is a view of its step's state, so `rayner check` holds it to its draw as it holds every view; the separate staged-step check is gone.
 - `rayner check` fails a view whose draw never depends on its state (or on what is shown) at any step that shows it. [Checks](docs/REFERENCE.md#checks)
+- `s.diagramView(d, draw)` shows a diagram by a view of the state (its marks, notes and dimming, as `d.picture` takes them); `s.liveDiagram(d)` hands back for a morph, reveal or walk. `d.trail(hops)` gives a walk's trail as marks. mr-cache is converted.
+- `new CodeBlock(..., { key })` keys a code panel's parts, so a panel drawn in a view moves its focus bar by key.
 - `new Card(..., { key })` keys a card's parts, so a card drawn in a view syncs by key as `set` and `mark` changed it. The tutorial's card is a view of its state.
 - Views, `Machine`, `SetState` and `choreograph` moved from `src/` to `explain/` and are imported from `rayner/explain`; `src/` is the engine taken from Lantern.
 - Three opt-in entry points: `rayner/geo` (`seenFrom` and the globe, out of `rayner/drawing`), `rayner/audio` (the score types) and `rayner/extras` (`Write`, `TransformFromCopy`, `Restore`, `MoveAlongPath`, `ArcBetweenPoints`, `Square`, `Underline`, out of `rayner`).

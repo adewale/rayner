@@ -7,7 +7,7 @@ import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './an
 import type { LegendItem } from './annotate.ts';
 import type { Side, ToolKind } from './annotate.ts';
 import { Diagram } from './diagrams.ts';
-import type { ShowOptions } from './diagrams.ts';
+import type { ShowOptions, PictureNote } from './diagrams.ts';
 import { Card, CodeBlock } from './panels.ts';
 import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
@@ -130,10 +130,19 @@ const CONTENT: Box = [-7.55, -4.25, 7.55, 3.25];
 /** The camera's home box: the whole stage. */
 const HOME: Box = [-8, -4.5, 8, 4.5];
 
+/** What a diagram's view draws from the state (see diagramView): its marks, notes and the parts left undimmed, as `d.picture` takes them. */
+export interface DiagramPicture {
+  marks?: Readonly<Record<string, string | { color: string; as?: string }>>;
+  notes?: readonly PictureNote[];
+  dim?: readonly string[] | null;
+  prefix?: string;
+}
 export function stage(scene: Scene, options: StageOptions = {}) {
   // Each caption owns its opening; a previous step's subjects must not leak, unless opening(..., { keep: true })
   // named them for every step that follows.
   let kept: Mobject[] = [];
+  /** Each diagram shown by a view of the state (diagramView): the view and what it draws. */
+  const diagramViews = new Map<Diagram, { draw: (state: SceneState) => DiagramPicture; view: View }>();
   scene.onStep(() => opening(scene, ...kept));
   const direction = layoutDirection(options);
   const physical = <T extends Vec | Box | StageRegion | undefined>(at: T): Exclude<T, 'start' | 'end'> | Region =>
@@ -439,6 +448,41 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       diagrams.add(diagram);
       await diagram.build(opts.build, opts.runTime);
       return diagram;
+    },
+    /**
+     * Show diagram `d` by a view of the scene's state: `draw(state)` gives what it marks, its notes
+     * and what stays undimmed, as `d.picture` takes them, and the view takes the live diagram's place.
+     * Change them in the state and play `view.sync({ match: 'key', staged: true })`; `rayner check`
+     * redraws the view from the state at every step. For a morph, a reveal or a walk, hand the stage
+     * back with `liveDiagram(d)`, then call this again to show the diagram by its view once more.
+     */
+    diagramView(d: Diagram, draw: (state: SceneState) => DiagramPicture = () => ({})): View {
+      let shown = diagramViews.get(d);
+      if (!shown) {
+        const entry = { draw, view: null as unknown as View };
+        entry.view = new View(scene, (st) => {
+          const p = entry.draw(st);
+          return d.picture(p.marks ?? {}, { notes: p.notes ?? [], dim: p.dim ?? null, ...(p.prefix ? { prefix: p.prefix } : {}) });
+        }, { place: false });
+        diagramViews.set(d, (shown = entry));
+      } else {
+        shown.draw = draw;
+        // The live diagram may have changed (a morph): the view draws it as it is now.
+        shown.view.rebuild();
+      }
+      scene.add(shown.view);
+      scene.remove(d.root);
+      d.showBy(shown.view);
+      keepAll([shown.view], {});
+      return shown.view;
+    },
+    /** The live diagram back in its view's place, for a morph, a reveal or a walk (see diagramView). */
+    liveDiagram(d: Diagram): void {
+      const shown = diagramViews.get(d);
+      if (!shown) throw new Error('liveDiagram(): the diagram is not shown by a view (see diagramView)');
+      scene.add(d.root);
+      scene.remove(shown.view);
+      d.shownBy = null;
     },
     /** Labelled values; `card.set({...})` updates them, `card.mark(row)` lights one. */
     async card(

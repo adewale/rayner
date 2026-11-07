@@ -12,6 +12,7 @@ import {
 } from '../../../src/index.ts';
 import type { Box, Mobject } from '../../../src/index.ts';
 import { stage, settingsOf, answerOf } from '../../../explain/index.ts';
+import type { NoteSide } from '../../../explain/index.ts';
 // The merge request: the two texts TransformDiff animates, which
 // fidelity.ts holds to the real git diff.
 import { BEFORE_CODE, AFTER_CODE, BEFORE_SPANS, AFTER_SPANS } from './code.ts';
@@ -89,6 +90,20 @@ export default class CacheMRExplainer extends Scene {
     });
     await s.clear();
     const flow = await s.show({ source: BEFORE }, { box: 'top' });
+    // What the flow diagram shows besides its source is state: the hops walked, its notes and what
+    // stays undimmed. Its view draws them, and each change is the state changed and the view synced.
+    type FlowState = { walked: [string, string][]; notes: { id: string; text: string; side: NoteSide }[]; dim: string[] | null };
+    const flowState = () => this.state.flow as FlowState;
+    const drawFlow = (st: object) => {
+      const f = (st as { flow: FlowState }).flow;
+      return { marks: flow.trail(f.walked), notes: f.notes, dim: f.dim };
+    };
+    const showFlow = async (change: Partial<FlowState>, runTime = 0.45) => {
+      this.state.flow = { ...flowState(), ...change };
+      await this.play(flowView.sync({ match: 'key', staged: true, runTime }));
+    };
+    this.state.flow = { walked: [], notes: [], dim: null } satisfies FlowState;
+    let flowView = s.diagramView(flow, drawFlow);
     const colors = s.palette,
       hot = s.emphasis;
     const before = new Code(BEFORE_CODE, { fontSize: FONT, color: colors.ink, spans: BEFORE_SPANS }),
@@ -105,13 +120,12 @@ export default class CacheMRExplainer extends Scene {
     s.keep(shown.rect, shown.label, before, { describe: panelWords });
     // Three objects on the scene, not a group: TransformDiff replaces the Code by itself.
     await this.play(...[shown.rect, shown.label, before].map((m) => new FadeIn(m, { runTime: 0.4 })));
-    await flow.walk(
-      [
-        ['Request', 'H'],
-        ['H', 'D1'],
-      ],
-      { trail: true },
-    );
+    const handled: [string, string][] = [
+      ['Request', 'H'],
+      ['H', 'D1'],
+    ];
+    await flow.walk(handled);
+    await showFlow({ walked: handled });
     const outline = { buff: 0.06, cornerRadius: 0.06, stroke: hot, strokeWidth: 0.03 };
     const query = s.keep(new SurroundingRectangle(linesBox(before, 1, 1), outline), {
       describe: 'Line 2, the D1 query, outlined',
@@ -126,8 +140,7 @@ export default class CacheMRExplainer extends Scene {
       caption:
         'The first line stays and the closing brace moves down to make room. The old return keeps its D1 call inside const row = await, and the added lines grow in. The outlined lines check KV first, so only a miss reaches D1, and the row is then written to KV for 300 seconds.',
     });
-    await flow.clearNotes();
-    await flow.unmark();
+    await showFlow({ walked: [], notes: [] });
     await this.play(new FadeOut(query, { runTime: 0.3 }));
     s.keep(merged.rect, after, { describe: panelWords });
     // The diff drives the morph: unchanged lines travel whole, the rewritten
@@ -196,8 +209,10 @@ export default class CacheMRExplainer extends Scene {
     });
     // The diff's bars and what they said go; the diagram takes the same edit.
     await this.play(...[bars, lookup.outline, ...said].map((m) => new FadeOut(m, { runTime: 0.4 })));
+    s.liveDiagram(flow);
     await flow.morph({ source: AFTER }, { ops: OPS });
-    await flow.note('KV', 'TTL 300 s', { side: 'above' });
+    flowView = s.diagramView(flow, drawFlow);
+    await showFlow({ notes: [{ id: 'KV', text: 'TTL 300 s', side: 'above' }] });
     this.state.databaseReads = 'misses only';
 
     await this.step('request', {
@@ -216,18 +231,16 @@ export default class CacheMRExplainer extends Scene {
           : 'Walked through the edited diagram and code, the miss finds nothing at line 3 and runs on: line 4 reads D1 as before the change, line 5 writes the row to KV for 300 seconds, and line 6 returns it. A later lookup for the same user can take the hit row until that entry expires, although KV can take 60 seconds or longer to show a new write in other locations.',
     });
     const path = PATH[which];
-    await flow.clearNotes();
-    await flow.dim([...new Set(path.flat())]);
-    await flow.walk(path, { trail: true });
+    await showFlow({ notes: [], dim: [...new Set(path.flat())] });
+    await flow.walk(path);
+    await showFlow({ walked: path.map(([a, b]) => [a, b] as [string, string]) });
     // A hit runs the lookup and returns; a miss runs the lookup too, then the lines outlined here.
     const [a, b] = which === 'hit' ? [1, 2] : [3, 5];
     const ran = s.keep(new SurroundingRectangle(linesBox(after, a, b), outline), {
       describe: `Lines ${a + 1} to ${b + 1}, ${which === 'hit' ? 'the ones this request runs' : 'the ones only a miss runs'}, outlined`,
     });
     await this.play(new Create(ran, { runTime: 0.5 }));
-    await flow.note('D1', which === 'hit' ? '0 reads' : '1 read', {
-      side: 'below',
-    });
+    await showFlow({ notes: [{ id: 'D1', text: which === 'hit' ? '0 reads' : '1 read', side: 'below' }] });
     this.state.request = which;
     this.state.reads = which === 'hit' ? 0 : 1;
     // Keep the comparison together. The preceding walk follows the captured
