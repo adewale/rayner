@@ -24,6 +24,7 @@ import type { Project } from './explain-project.ts';
 import { join } from 'node:path';
 import { rasterize } from './explain-raster.ts';
 import { readableOpeningLabel, type NarrowOpeningReview, type NarrowOpeningObligation } from './explain-review-plan.ts';
+import { DESKTOP_VIEWPORT, PHONE_VIEWPORT, REVIEW_VIEWPORTS, REVIEW_WIDTHS } from './review-sizes.ts';
 
 export interface StorySubject {
   step: string;
@@ -968,10 +969,7 @@ export async function reviewStoryScenario(
   }
   assert.equal(narrow.size, scenario.trace.steps.length, 'every step has a narrow-opening review or explicit exclusion');
   assert.equal(frames.size, scenario.trace.steps.length, 'every traced step has a resting frame');
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 1180, height: 980 },
-  ]) {
+  for (const viewport of REVIEW_VIEWPORTS) {
     await page.setViewportSize(viewport);
     for (const [index, step] of scenario.trace.steps.entries()) {
       const query = stepQuery(scenario.values, step.step);
@@ -999,7 +997,7 @@ export async function reviewStoryScenario(
       );
       if (index === 0 && shell) {
         assert.deepEqual(await page.evaluate(readerShellProblems, shell), [], 'reader shell');
-        if (viewport.width === 1180 && shell.crop) assert.deepEqual(await page.evaluate(cropTest, shell.crop), [], 'standalone tile');
+        if (viewport.width === DESKTOP_VIEWPORT.width && shell.crop) assert.deepEqual(await page.evaluate(cropTest, shell.crop), [], 'standalone tile');
       }
       assert.equal(await page.evaluate(() => innerWidth), viewport.width, 'review must use the declared viewport');
       assert.equal(await page.locator('.caption').innerText(), stepWords(step).caption);
@@ -1039,13 +1037,13 @@ export async function reviewStoryScenario(
         width: viewport.width,
         views: views.length,
         targets: [...verified],
-        ...(viewport.width === 390 ? { openingAt320: narrow.get(step.step)! } : {}),
+        ...(viewport.width === PHONE_VIEWPORT.width ? { openingAt320: narrow.get(step.step)! } : {}),
       });
     }
   }
   assert.deepEqual(
     results.map(({ step, width }) => ({ step, width })),
-    [390, 1180].flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
+    REVIEW_WIDTHS.flatMap((width) => scenario.trace.steps.map((step) => ({ step: step.step, width }))),
     'every traced step must be reviewed exactly once at each width',
   );
   return results;

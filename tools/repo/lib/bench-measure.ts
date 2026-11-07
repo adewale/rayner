@@ -1,6 +1,7 @@
 import type { Browser } from 'playwright-core';
 import { blocking, longestGap } from './bench-stats.ts';
 import { STEP_TYPE } from '../../../app/embed-protocol.ts';
+import { PHONE_VIEWPORT } from '../../lib/review-sizes.ts';
 export type Sample = {
   ready: number;
   motion: number;
@@ -11,7 +12,7 @@ export type Sample = {
   shift: number;
   trace: PageLog;
 };
-const VIEWPORT = { width: 390, height: 844 };
+const VIEWPORT = PHONE_VIEWPORT;
 
 /** What the page records, from before its own script runs (timestamps are performance.now()). */
 export type PageLog = {

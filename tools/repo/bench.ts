@@ -25,6 +25,7 @@ import type { Sample } from './lib/bench-measure.ts';
 import { MIN_PAIRS, compare, order, verdict, worstShift } from './lib/bench-stats.ts';
 import type { Comparison, Rule } from './lib/bench-stats.ts';
 import { sha256 } from '../lib/hash.ts';
+import { PHONE_VIEWPORT } from '../lib/review-sizes.ts';
 
 const { values: flags } = parseArgs({
   options: {
@@ -48,7 +49,7 @@ if (!Number.isFinite(readMs) || readMs < 0 || readMs > 2_147_483_647) throw new 
 if (new Set(ids).size !== ids.length || ids.some((id) => !EXPLAINERS.some((e) => e.id === id))) throw new Error('--explainers must name distinct catalog entries');
 const [{ launch }, { ROOT }, { serve }] = await Promise.all([import('../lib/browser.ts'), import('../lib/explain-project.ts'), import('../lib/explain-serve.ts')]);
 // A phone: the narrow stage opens each step on a close-up, so its layout work is measured too.
-const VIEWPORT = { width: 390, height: 844 };
+const VIEWPORT = PHONE_VIEWPORT;
 
 const METRICS: { key: Exclude<keyof Sample, 'shift' | 'trace'>; label: string; rule: Rule }[] = [
   { key: 'ready', label: 'load → ready', rule: { rel: 0.1, floor: 100 } },

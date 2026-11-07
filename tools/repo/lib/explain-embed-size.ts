@@ -4,9 +4,10 @@
 // frame following the page's height. Default scenario, first step, transcript and steps rows closed.
 import type { Browser } from 'playwright-core';
 import type { EmbedSize } from '../../lib/explain-share.ts';
+import { EMBED_WIDTHS } from '../../lib/review-sizes.ts';
 export type { EmbedSize };
 
-export const EMBED_WIDTHS = [390, 640, 900] as const;
+export { EMBED_WIDTHS };
 
 /**
  * The least a framed page can be at `width`: the 16:9 stage, plus the stepper row (61 px). The header,

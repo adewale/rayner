@@ -28,6 +28,7 @@ import { paints } from '../../src/mobject.ts';
 import { STAGE_BOX, atHome, viewOf } from '../../src/svg.ts';
 import type { Project } from './explain-project.ts';
 import { letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { MIN_PX, PHONE_VIEWPORT, STAGE_PX_PER_UNIT } from './review-sizes.ts';
 
 const SWALLOW =
   'Do not catch around awaited animation/step calls in construct(): a broad catch can swallow StopScene. Catch model errors before animation.';
@@ -68,10 +69,7 @@ export function lintConstruct(source: string): string[] {
   walk(file);
   return errors;
 }
-/** Smallest label, in CSS pixels at a 1280-pixel stage, a reader must be able to see. */
-export const MIN_PX = 14;
-/** Reader CSS pixels per scene unit on a 1280-pixel stage, with the camera home. */
-const STAGE_PX_PER_UNIT = 1280 / 16;
+export { MIN_PX };
 const FRAME = STAGE_BOX;
 /** Anything with a camera: a Scene, or a test's stand-in. Without one, the view is the whole stage. */
 interface Viewed {
@@ -176,7 +174,7 @@ export function restingTextProblems(scene: Viewed): string[] {
  * depends on the served page's headings and viewport; only browser review measures it.
  * Do not duplicate the player's CSS/DOM height calculation here or assume its 4:5 maximum.
  */
-const PHONE_PAGE = 390,
+const PHONE_PAGE = PHONE_VIEWPORT.width,
   PHONE_W = PHONE_PAGE - 32,
   PHONE_H = PHONE_W * 9 / 16;
 /** One label across a scenario: its largest size at 1280 px, and in the phone's close-ups at rest. */

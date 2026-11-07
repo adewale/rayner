@@ -9,6 +9,7 @@ import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { htmlEscape } from '../../explain/trace.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from '../../app/embed-share.ts';
+import type { EmbedWidth } from './review-sizes.ts';
 
 export { shareable };
 
@@ -16,7 +17,7 @@ export { shareable };
 export interface EmbedSize {
   schema: 1;
   aspect: '16/9';
-  heights: Record<'390' | '640' | '900', number>;
+  heights: Record<EmbedWidth, number>;
 }
 
 /**

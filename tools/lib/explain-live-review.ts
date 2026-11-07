@@ -14,7 +14,7 @@ import type { LogStart } from '../../app/embed-live.ts';
 import { chromeFor } from '../../app/embed-strings.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
 import { stepWords } from '../../explain/trace.ts';
-import { MIN_PX } from './explain-check.ts';
+import { MIN_PX, PHONE_VIEWPORT, REVIEW_VIEWPORTS, STAGE_PX } from './review-sizes.ts';
 import { covered, inspectStoryFrame, storyFrame, storyMemory, verifyStoryTargets } from './explain-story-review.ts';
 import type { StoryFrame, StoryMemory, StoryView } from './explain-story-review.ts';
 import type { Project } from './explain-project.ts';
@@ -149,10 +149,7 @@ export async function reviewLiveStates(
   const results: LiveStateReview[] = [];
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const settle = () => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 1180, height: 980 },
-  ]) {
+  for (const viewport of REVIEW_VIEWPORTS) {
     await page.setViewportSize(viewport);
     for (const [n, subject] of subjects.entries()) {
       const name = `${subject.step} after [${subject.sent.join(', ')}]`, where = `${name} at ${viewport.width}px`;
@@ -205,20 +202,20 @@ export async function reviewLiveStates(
       const verified = verifyStoryTargets(frame, views, name, viewport.width);
       assert.ok(verified.size, `${where}: nothing the events changed is painted in a reader view`);
       // The check's legibility rule, on the served page: each label in the whole picture, as at a 1280 px stage.
-      const perStage = 1280 / (whole.stage[2] - whole.stage[0]);
+      const perStage = STAGE_PX / (whole.stage[2] - whole.stage[0]);
       const labels = labelPixels(frame.labels, [whole]).map((l) => ({ ...l, px: l.px * perStage }));
       const small = labels.filter((l) => l.px < MIN_PX - 1e-3);
       assert.deepEqual(small.map((l) => `“${l.text}” is ${l.px.toFixed(1)} px at a 1280 px stage`), [], `${where}: labels under ${MIN_PX} px`);
       const changed = new Set(frame.targets.flatMap((t) => t.indices)),
         changedLabels = labelPixels(frame.labels.filter((l) => l.indices.some((i) => changed.has(i))), views);
       // On a phone, what a press changed must read at the phone's floor in the whole picture or a close-up.
-      if (viewport.width === 390)
+      if (viewport.width === PHONE_VIEWPORT.width)
         assert.deepEqual(changedLabels.filter((l) => !readableOpeningLabel(l.px)).map((l) => `“${l.text}” is ${l.px.toFixed(1)} px at its best view`), [],
           `${where}: what the events changed reads under ${READ_PX} px on a phone`);
       results.push({
         step: subject.step, sent: subject.sent, width: viewport.width, views: views.length, targets: [...verified],
         labels: labels.length, minimumLabelPx1280: labels.length ? Math.min(...labels.map((l) => l.px)) : null,
-        ...(viewport.width === 390 ? { changedLabelPx: changedLabels.length ? Math.min(...changedLabels.map((l) => l.px)) : null } : {}),
+        ...(viewport.width === PHONE_VIEWPORT.width ? { changedLabelPx: changedLabels.length ? Math.min(...changedLabels.map((l) => l.px)) : null } : {}),
       });
     }
   }
