@@ -1020,7 +1020,14 @@ export class Diagram {
       return key === undefined ? [] : [[prefix + key, m.as ? `mark ${m.color} ${m.as}` : `mark ${m.color}`]];
     });
     // Described with the diagram while it shows it; on its own, as the diagram it pictures.
-    return selfDescribed(pictured, () => (this.shows(pictured) ? { what: '', parts: [] } : this.describe({ marks: said, kept, walk: false })), () => emphasis);
+    // Read from the part it is called on, so a picture that takes this one's fields (a view landing
+    // it with become) answers for itself, not for the copy it was drawn as.
+    const diagram = this;
+    return selfDescribed(
+      pictured,
+      function (this: Mobject) { return diagram.shows(this) ? { what: '', parts: [] } : diagram.describe({ marks: said, kept, walk: false }); },
+      () => emphasis,
+    );
   }
   /** Whether the stage describes this diagram now: its root, or the picture that shows it, is on stage. */
   private described(): boolean {
@@ -1061,7 +1068,7 @@ export class Diagram {
     return selfDescribed(
       g,
       () => (this.described() ? { what: '', parts: [] } : { what: w.note, parts: [{ name: w.beside(text, this.nameOf(id)) }] }),
-      () => [[g, `note ${text}`]],
+      function (this: Mobject) { return [[this, `note ${text}`]] as const; },
     );
   }
   /** A note's label on its raised, outlined paper, at the origin. */
