@@ -505,7 +505,7 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
     // An .animate builder is never the options: its prototype is not Object.prototype (Mobject.animate)
     const isOpts = last && Object.getPrototypeOf(last) === Object.prototype;
     const opts = (isOpts ? list.pop() : {}) as PlayOpts;
-    const anims = list.map(prepareAnimation);
+    const anims = list.map((x) => prepareAnimation(x));
     // What some animation reads before it can begin (a diagram's layout): wait for it, once, here.
     const waits = anims.flatMap(function pending(a: Animation): Promise<unknown>[] {
       const r = a.ready();

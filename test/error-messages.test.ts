@@ -23,6 +23,7 @@ const PREFIX = /^(new [A-Z]\w*\(\)|static (meta|settings)|scene\.(snapshots|lett
 /** Computed prefixes, by file and the expression that opens the message: what each one holds. */
 const ALLOWED: Record<string, Record<string, string>> = {
   'src/json.ts': { api: 'the call cloneJson was given by its caller' },
+  'src/animation.ts': { api: "the call that took the animations, 'this.play()' or 'new Succession()'" },
   'src/shapes.ts': { api: "the constructor boxOf's caller names" },
   'src/fonts.ts': { label: "decodeFont's subject, which its caller names with a prefix ('loadFonts(): the embedded sans face')" },
   'src/mobject.ts': { 'm.${name}': 'the method of every mobject that was assigned to, m.box' },

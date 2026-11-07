@@ -518,10 +518,10 @@ export function animationName(a: object): string {
 }
 
 /** Normalize play() arguments: builders become Transforms. */
-export function prepareAnimation(x: unknown): ScheduledAnimation {
+export function prepareAnimation(x: unknown, api = 'this.play()'): ScheduledAnimation {
   if (isAnimateBuilder(x)) return fromAnimateBuilder(x);
   if (x instanceof AnimationTiming) return x as ScheduledAnimation;
-  throw new TypeError('this.play(): it takes animations and mobject.animate builders; pass an Animation, an action, or m.animate');
+  throw new TypeError(`${api}: it takes animations and mobject.animate builders; pass an Animation, an action, or m.animate`);
 }
 
 export interface MoveAlongPathOpts extends AnimOpts { fromCurrent?: boolean }
@@ -806,7 +806,7 @@ export class Succession extends AnimationGroup {
 
   /** Members join `scene` (set by play(), see bindSuccessions) as they begin, as each would in a play of its own. */
   constructor(animations: Playable[], opts: AnimOpts = {}) {
-    super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x)), { rateFunc: linear, ...opts, lagRatio: 1 });
+    super(animations.map((x) => isAnimateBuilder(x) ? new BuiltTransform(x) : prepareAnimation(x, 'new Succession()')), { rateFunc: linear, ...opts, lagRatio: 1 });
     this.active = -1;
   }
 
