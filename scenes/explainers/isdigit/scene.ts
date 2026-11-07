@@ -174,19 +174,32 @@ export default class IsDigitExplainer extends Scene {
       return { parsed: 'value' in result, said: `int('${st.char}')  ${'value' in result ? `returns ${result.value}` : 'raises ValueError'}` };
     };
     // The source is the same in every scenario; the branch this character takes is its state's.
-    const transform = await s.code(
-      [
-        '// unicodeobject.c:9538-9552, abridged',
-        'if (ch < 127) out[i] = ch;',
-        "else if (Py_UNICODE_ISSPACE(ch)) out[i] = ' ';",
-        'else {',
-        '    int decimal = Py_UNICODE_TODECIMAL(ch);',
-        "    if (decimal < 0) { out[i] = '?'; break; }",
-        "    out[i] = '0' + decimal; }",
-      ],
-      { at: [-WIDE, -2.75, WIDE, TOP], fontSize: SIZE },
+    const transform = view(
+      this,
+      (st) =>
+        new CodeBlock(
+          this,
+          s.palette,
+          [
+            '// unicodeobject.c:9538-9552, abridged',
+            'if (ch < 127) out[i] = ch;',
+            "else if (Py_UNICODE_ISSPACE(ch)) out[i] = ' ';",
+            'else {',
+            '    int decimal = Py_UNICODE_TODECIMAL(ch);',
+            "    if (decimal < 0) { out[i] = '?'; break; }",
+            "    out[i] = '0' + decimal; }",
+          ],
+          {
+            at: [-WIDE, -2.75, WIDE, TOP],
+            fontSize: SIZE,
+            focus: answer(st).parsed ? 6 : 5,
+            focusAs: 'the branch this character takes',
+            key: 'transform',
+          },
+        ),
+      { place: false },
     );
-    await transform.focus(answer(this.state).parsed ? 6 : 5, { as: 'the branch this character takes' });
+    await s.enter(transform, { runTime: 0.4 });
     // What int() does with it: a view of the state's answer, where the stage's note went.
     const said = view(this, (st) => this.text(answer(st).said, { fontSize: SIZE, color: s.soft }).moveTo([0, -3.55]), { place: false });
     await s.enter(said, { runTime: 0.3 });
