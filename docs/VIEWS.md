@@ -54,6 +54,21 @@ view's draw of it into the picture, so the picture is that draw at every frame a
 the play ends with the state at `stateAt(1)` ([following one
 number](CHOREOGRAPHY.md#following-one-number)).
 
+## Changing what is shown
+
+Every way to change the picture changes the state and lets the views draw it. They differ in when the state changes and who decides it:
+
+| I want to… | Use | Because |
+| --- | --- | --- |
+| Change the model for a step and show the change | Assign `this.state` (or one field), then `await this.play(v.sync())` | A sync draws the state as it is when it begins, so a change made before the play is the one it shows. This is the common case: about 250 assignments to the state and 80 syncs in the collection |
+| Put several model steps in one play, each drawn as it is reached | `new Succession([new SetState(this, next), v.sync(), …])` | A sync in a schedule reads the state when its turn comes, so the state has to change at its turn inside the schedule, not before the play; `SetState` is that change as an animation ([SetState](CHOREOGRAPHY.md#setstate)). periodic-groups' fill step and the choreography recipe |
+| Let the reader drive the model with events, and have every state they reach checked | A [`Machine`](MACHINES.md): `machine.replay(events)` in the scene, `machine.send(event)` for one | Each event is a `SetState` computed by the tested `next`, then the views' sync or the event's transition: a schedule built for a state, which `rayner check` explores from every reachable state and the player replays at the live step. [Nine explainers](MACHINES.md#nine-machines) and two tutorial scenes |
+| Show a sequence of steps, each its own picture of its own state | `s.steps([...])` | It makes each step, sets its state, clears the stage and fades in its `draw` as a view of that state, so `rayner check` redraws every step from its state. 34 lists in 22 explainers |
+| Move a value continuously, the picture right at every frame | `v.tween((t) => stateAt(t))` | A sync morphs between two endpoint pictures; a tween sets the state at every frame and redraws, so a dot on a circle stays on it ([following one number](CHOREOGRAPHY.md#following-one-number)). great-circle, henge |
+| Author an event's motion part by part | The transition's `t.choreograph(v)`, and `c.follow` for parts that follow one number | It names the keyed parts of the view's picture now and of its picture of the next state, animates them in your order, and `rest()` lands the parts no call named, so the transition still ends on the state's picture ([authored transitions](MACHINES.md#refused-events-bounds-and-authored-transitions)) |
+
+The first two rows do one job in two spellings. A loop of assignments and plays, `this.state = next; await this.play(v.sync())`, gives the same states, pictures and words as one play of a `Succession` of `SetState` and sync pairs; only the step's timing differs by the rounding of each play to whole frames. `SetState` does a job of its own inside a schedule that is built before it plays, as a machine's events are.
+
 ## API
 
 ```ts

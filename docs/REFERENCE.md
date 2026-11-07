@@ -80,6 +80,7 @@ export default class Bucket extends Scene<Tokens, { lit?: string | null }> {
 - `s.steps([...])` types each step from its own `state`, so one list holds steps whose states differ. A step's state is the scene's state while the step shows, not the scene's declared model type: a scene that reads `this.state` after its steps sets it first. Write the list in the call, where each draw is typed; a list built elsewhere gives each step its type, `StagedStep<Shift>`, or (with named draw functions) is a tuple, `[...] as const`.
 - Type a helper a draw calls with the model type, not `SceneState`: an interface is not assignable to a JSON record.
 - `settingsOf(this)` returns `Readonly<Record<string, string>>`; TypeScript gives an instance no link to its class's `static settings`, so a setting's options are not in its type.
+- Which way to change the state (assign it and sync, `SetState`, a machine, `s.steps`, a tween or an authored transition) depends on when the change happens and what decides it: [changing what is shown](VIEWS.md#changing-what-is-shown) has the table.
 
 ### Lettering on request
 
