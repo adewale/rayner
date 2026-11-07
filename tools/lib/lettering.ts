@@ -8,6 +8,7 @@ import { resolve, join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
+import { embeddedFaces } from '../../src/fonts.ts';
 import { bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
 import type { ExplainerClass } from '../../explain/settings.ts';
@@ -201,11 +202,8 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     }
     fonts.set(name!, { file, license: '', hash: digest });
   }
-  const coverage = await Promise.all([SANS, MONO, ...FALLBACK.map(([, data]) => data)].map(async (data) => {
-    const result = await loadFont(Buffer.from(data, 'base64'));
-    if (result.tag !== 'Ok') throw new Error('Cannot decode existing font coverage');
-    return result.value;
-  }));
+  const embedded = await embeddedFaces();
+  const coverage = [embedded.sans, embedded.mono, ...embedded.fallback];
   const snapshot: LetteringSnapshot = { version: 2, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
   const used = new Set<number>();
   const usedMath = new Set<number>();
