@@ -5,7 +5,7 @@
  * the question (its `#` heading), a few labelled lines, and the questions a reader should be able
  * to answer afterwards (`## Check yourself`); the rest is the author's own prose. Rayner holds the
  * scene to the parts it can check: the page's title is the question, some step states the answer,
- * and the player asks the check questions. A script with no `**Answer:**` line has no intent
+ * and the player asks the reader questions. A script with no `**Answer:**` line has no intent
  * header and is not read, so scripts written as reader prose keep working.
  *
  *     # How few moves can carry a tower to another peg?
@@ -24,8 +24,8 @@ export interface Intent {
   question: string;
   /** Every labelled line, by its label as written (`Reader`, `Answer`, `Changed condition`, …). */
   fields: Record<string, string>;
-  /** The `## Check yourself` items: each question, then its answer on the indented lines under it. */
-  checks: { question: string; answer: string }[];
+  /** The reader questions, the `## Check yourself` items: each question, then its answer on the indented lines under it. */
+  questions: { question: string; answer: string }[];
 }
 
 /** The labels an intent header must have: the answer the scene must state, and what the model is checked against. */
@@ -56,17 +56,17 @@ export function parseIntent(text: string, where = 'script.md'): Intent | null {
   const missing = REQUIRED.filter((label) => !fields[label]?.trim());
   if (!question) missing.unshift('the # question' as never);
   if (missing.length) throw new Error(`${where}: the intent header has no ${missing.join(', ')}`);
-  const checks = items.map((c) => ({ question: c.question, answer: c.answer.join(' ') }));
-  for (const c of checks) if (!c.answer) throw new Error(`${where}: check "${c.question}" has no answer under it`);
-  return { question, fields, checks };
+  const questions = items.map((c) => ({ question: c.question, answer: c.answer.join(' ') }));
+  for (const c of questions) if (!c.answer) throw new Error(`${where}: the question "${c.question}" has no answer under it`);
+  return { question, fields, questions };
 }
 
-/** What the scene's metadata takes from an intent: its title, answer, checks and what its model is checked against. */
-export function intentMeta(intent: Intent): { title: string; answer: string; checks?: Intent['checks']; checkedAgainst: string } {
+/** What the scene's metadata takes from an intent: its title, answer, reader questions and what its model is checked against. */
+export function intentMeta(intent: Intent): { title: string; answer: string; questions?: Intent['questions']; checkedAgainst: string } {
   return {
     title: intent.question,
     answer: intent.fields['Answer']!.replace(/\.$/, ''),
-    ...(intent.checks.length ? { checks: intent.checks } : {}),
+    ...(intent.questions.length ? { questions: intent.questions } : {}),
     checkedAgainst: intent.fields['Checked against']!,
   };
 }

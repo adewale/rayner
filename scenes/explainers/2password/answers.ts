@@ -1,7 +1,7 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { ITEMS, SUGGESTION_THRESHOLD, closeness, find, terms } from './model.ts';
 
-/** The first check's query, which matches no title, and what find returns for it. */
+/** The first question's query, which matches no title, and what find returns for it. */
 export const query = 'cloud key',
   result = find([query]);
 const best = Math.max(...ITEMS.map((i) => closeness(terms(query), i.title))).toFixed(3),
@@ -9,7 +9,7 @@ const best = Math.max(...ITEMS.map((i) => closeness(terms(query), i.title))).toF
 const m = find(['cloud api']).matches[0]!,
   [vault, title, field] = m.ref.slice('op://'.length).split('/');
 
-export const checks = {
+export const questions = {
   1: () => ({
     question: `The agent searches for “${query}”, hoping to find the API key. What does find return, and why?`,
     answer: `Nothing. No title contains “key”, so nothing matches, and no title is spelled close enough to be suggested (the closest scores ${best} against a cut-off of ${SUGGESTION_THRESHOLD}). find compares the query with titles only; it cannot know that ${title} holds a key, and it makes ${calls} op call, the item list, without fetching any item.`,

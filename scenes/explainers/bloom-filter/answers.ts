@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { listed } from '../lib/format.ts';
 import { TAKEN, locations, makeFilter, membership } from './model.ts';
 
@@ -12,7 +12,7 @@ export const CLEARED = ([16, 32] as const).map((size) => {
   return { size, cat: membership(row, 'cat'), shared: locations('dog', size).filter((i) => locations('cat', size).includes(i)) };
 });
 
-export const checks = {
+export const questions = {
   1: () => ({
     question: `In the 32-bit filter, someone also takes eel, whose hashes are ${listed(EEL.at)}. What does the filter now say about wolf, and about owl?`,
     answer: `wolf gets ${EEL.wolf ? 'maybe' : 'definitely not'}, a false positive: bit 23 now comes from eel, 22 from cat and 1 from dog and eel. owl still gets ${EEL.owl ? 'maybe' : 'definitely not'}: eel set bit 20, but bits ${listed(EEL.owlZeros)} are still 0.`,

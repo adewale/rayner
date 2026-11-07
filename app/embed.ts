@@ -241,26 +241,26 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     // Spaces between the items keep them apart for assistive technology; flex layout drops them.
     row.replaceChildren(...(said.length ? [el('span', t.changed), ...said.flatMap((c) => [' ', el('span', c, 'change')])] : []));
   };
-  // The scene's check questions (meta.checks), asked after its last teaching step: each question
+  // The scene's reader questions (meta.questions), asked after its last teaching step: each question
   // in view, its answer behind a disclosure, so the reader answers before looking.
-  const checks = Source.meta?.checks?.length ? el('section', undefined, 'checks') : undefined;
-  if (checks) {
+  const questions = Source.meta?.questions?.length ? el('section', undefined, 'reader-questions') : undefined;
+  if (questions) {
     const heading = el('h2', t.checkYourself);
     heading.id = 'check-yourself';
-    checks.setAttribute('aria-labelledby', heading.id);
+    questions.setAttribute('aria-labelledby', heading.id);
     const list = el('ol');
-    for (const c of Source.meta!.checks!) {
+    for (const c of Source.meta!.questions!) {
       const item = el('li'), answer = el('details');
       answer.append(el('summary', t.showAnswer), el('p', c.answer));
       item.append(el('p', c.question, 'question'), answer);
       list.append(item);
     }
-    checks.append(heading, el('p', t.checkHint, 'hint'), list);
-    checks.hidden = true;
+    questions.append(heading, el('p', t.questionsHint, 'hint'), list);
+    questions.hidden = true;
   }
   // The step's words, under the controls, so a long caption never moves Next.
   const words = el('div', undefined, 'words');
-  words.append(lede, caption, ...(changes ? [changes] : []), ...(checks ? [checks] : []), described);
+  words.append(lede, caption, ...(changes ? [changes] : []), ...(questions ? [questions] : []), described);
   // Measure the tallest heading and title: the stage cap budgets them and the heading keeps their height.
   const ledeRuler = el('p', undefined, 'lede-ruler');
   ledeRuler.setAttribute('aria-hidden', 'true');
@@ -672,7 +672,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
     }
     else lastStory = selected;
     endControls(atEnd(), atEnd() ? tryLabel() : '');
-    if (checks) checks.hidden = selected !== mainIndices().at(-1);
+    if (questions) questions.hidden = selected !== mainIndices().at(-1);
     reached.add(step.step);
     nameSteps();
     // Done, current, to do, in the rail and on the step bar. Only the current segment is a Tab

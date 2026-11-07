@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { DAY, LIFETIMES, RUN_EVERY, YEAR, dueAt, dueByInterval, issue, simulate, summarize } from './model.ts';
 
 const days = (hours: number) => +(hours / DAY).toFixed(1);
@@ -21,7 +21,7 @@ const CHECK = {
   tenDay: { at: tenDay, retries: tenDayRetries, fraction: summarize('fraction', '45d') },
 };
 
-export const checks = {
+export const questions = {
   1: () =>
     `With the 30-day setting, ${CHECK.twenty.fixed.renewals} renewed and ${CHECK.twenty.fixed.refused} runs refused, the first at hour ${CHECK.twenty.fixed.first}${CHECK.twenty.sameAsShort ? ', exactly as for 160-hour certificates' : ''}: any certificate shorter than 30 days is due from issue, so every run asks until the limit refuses. The default renews two thirds of the way through, since 20 days is not under ten: at day ${days(CHECK.twenty.share.due)}, ${CHECK.twenty.share.renewals} times a year.`,
   2: () =>

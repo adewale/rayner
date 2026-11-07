@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { RingBuffer } from './model.ts';
 import { arrayQueue } from './picture.ts';
 import { grouped } from '../lib/format.ts';
@@ -27,7 +27,7 @@ while (queue.length) {
   queue = step.after;
 }
 
-export const checks = {
+export const questions = {
   1: () =>
     `The pops return ${carry.out.join(', ')}, and head wraps to slot ${carry.head}. Tail is still at slot ${carry.slot8}, so 8 goes there. Reading from head gives ${carry.left.join(', ')}: the order comes from head, not from the slot numbers.`,
   2: () =>

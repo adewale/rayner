@@ -3,7 +3,7 @@
 - **Reader:** a developer choosing a replacement policy who assumes recently used data is always worth keeping.
 - **Answer:** LRU evicts the item used longest ago
 - **Changed condition:** the last four of eight requests through three slots. After A B C D, repeating A B C D gives LRU 0 hits and MRU 3; changing them to C D C D gives LRU 4 and MRU 0. The first four requests, and so the first eviction, are the same in both.
-- **Reader's own work:** predict which item each policy evicts when D arrives; switch the requests between A B C D again and C D C D; answer the check questions.
+- **Reader's own work:** predict which item each policy evicts when D arrives; switch the requests between A B C D again and C D C D; answer the reader questions.
 - **Checked against:** the worked LRU and MRU examples in Wikipedia's "Cache replacement policies", in `model.test.ts`; Chou and DeWitt (VLDB 1985) for when MRU suits a file scanned over and over.
 - **Leaves out:** the cost of tracking recency, latency, and random access, where Chou and DeWitt report that the choice is immaterial; the hit counts are for eight requests through three slots.
 

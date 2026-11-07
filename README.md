@@ -58,7 +58,7 @@ An explainer is three files with one job each. The **script** states the intent,
 
 ![The explainer's four steps for three disks: the tower on peg A; disks 1 and 2 moved to B; disk 3 moved to C; the tower rebuilt on C after 7 moves.](https://raw.githubusercontent.com/adewale/rayner/main/docs/images/hanoi-steps.png)
 
-The script's header is what the explainer must achieve. Rayner reads it: the question is the page's title, some step must state the answer, the player asks the check questions, and the page says what the model is checked against. Below the header is the author's own reasoning:
+The script's header is what the explainer must achieve. Rayner reads it: the question is the page's title, some step must state the answer, the player asks the reader questions (the script's `## Check yourself` list), and the page says what the model is checked against. Below the header is the author's own reasoning:
 
 <!-- hanoi/script.md -->
 ```md

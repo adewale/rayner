@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { listed } from '../lib/format.ts';
 import { SAMPLE_FEED } from './feed.ts';
 import { readFeed, tripsOn } from './model.ts';
@@ -12,7 +12,7 @@ const ADD_WE = 'WE,20070604,1',
   CUT_NEXT = tripsOn(plus(CUT_WE), '20070616').length,
   TUESDAY = tripsOn(plus('FULLW,20070605,2'), '20070605').length;
 
-export const checks = {
+export const questions = {
   1: () =>
     `calendar_dates.txt: ${ADD_WE}. exception_type 1 adds service WE on that date, so ${listed(ADDED)} run, ${ADDED.length} of the ${FEED.trips.length} trips; routes.txt, trips.txt and stop_times.txt stay as they are.`,
   2: () =>

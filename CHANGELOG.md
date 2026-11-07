@@ -8,7 +8,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 
 - An explainer is three files: `script.md` states the intent for its author, `model.ts` expresses the system's constraints, and `scene.ts` explains the system, with a picture module for how a state looks.
 - A script's intent header (`# question`, labelled lines such as **Answer** and **Checked against**, and `## Check yourself`) is read as the scene's metadata. [Reference](docs/REFERENCE.md#scene)
-- The intent header is the one home of the title, answer, check questions and what the model is checked against. A scene that declares them too is refused.
+- The intent header is the one home of the title, answer, reader questions and what the model is checked against. A scene that declares them too is refused.
 - The page shows what the model is checked against under Sources.
 - `answerOf(this)` in `rayner/explain` reads the script's answer, so a caption that states it keeps no copy. `withIntent(Scene, scriptText)` in `rayner/testing` adopts a script for a test that runs a scene directly.
 - `meta.id` defaults to the scene's folder name (or its file's name when the file is not `scene.ts`).
@@ -29,7 +29,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - A step's `kind: 'short' | 'main' | 'detail'` puts it on the reader's short path, in the story, or under Details and sources.
 - `scene.state` holds the model as plain JSON and `scene.shown` holds what is shown apart from it. The trace records both at every step.
 - Functions, class instances, cycles and non-finite numbers in `scene.state` or `scene.shown` are refused with a field path.
-- `meta.answer` is the explanation's one-sentence answer, which some step must state. `meta.checks` are the questions the player asks after the last step.
+- `meta.answer` is the explanation's one-sentence answer, which some step must state. `meta.questions` are the reader questions the player asks after the last step: the script's `## Check yourself` list. `describeExplainer` and `rayner describe` give them as `questions`, and `answers.ts` computes their answers as `questions`.
 - `meta.watch` names the state a reader should follow, and the player shows each step's changes to it ("Tokens left: 5 → 0").
 - `rayner init` writes the tutorial's LRU/MRU explainer with its script, model and model test. [Tutorial](docs/TUTORIAL.md#2-generate-the-explainer)
 - `rayner init --machine` writes a machine explainer (a door that locks): a model that refuses with reasons, its test, a live step and review subjects. It passes `check` and `review` as written.
@@ -115,7 +115,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - On pages at least 1100 px wide the tile has a steps rail beside it.
 - The step bar counts teaching steps and names a step only once the reader has reached it, so a later "Answer: …" cannot give an earlier question away.
 - Next stays in place however long the caption is.
-- After the last step the player asks the check questions, each answer behind a disclosure.
+- After the last step the player asks the reader questions, each answer behind a disclosure.
 - At a live step, the step where a machine last played, the reader drives the machine: one button per event, then Undo and Reset. [The player](docs/MACHINES.md#the-player)
 - An event the model refuses, or one past where the story stops, stays focusable with `aria-disabled` and says why.
 - The events sit in the URL as `sent=`, so a link reopens the same picture, and Back takes an event back.
@@ -148,7 +148,7 @@ Rayner turns a tested TypeScript model into a step-through explanation a reader 
 - `scene.review.json` declares subjects from the caption's meaning, and `--out page.html` saves the exact page the review checked.
 - `meta.claims` links a sentence to a named `node:test` declaration and checks that the test exists; it does not run the test or establish what it asserts.
 - `rayner check` runs the `model.test.ts` beside the scene first and fails, naming each failing test; the report records `model: { file, tests, passed }`, and `skipped` when some were.
-- An explainer's `answers.ts` computes its script's answer and check answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
+- An explainer's `answers.ts` computes its script's answer and its reader questions' answers from the model; `rayner check` fails when `script.md` says otherwise, and reports `answers: { file, compared }`.
 - `rayner check` fails a path in backticks in the script's Checked against line that is not in the explainer's folder, and reports them as `checkedAgainst`.
 - A claim's test is looked for in the scene's folder first, so `meta.claims` can name `model.test.ts: …`.
 

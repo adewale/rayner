@@ -1,4 +1,4 @@
-// The script's check answers, computed from the model: rayner check holds script.md's to these.
+// The answers to the script's reader questions, computed from the model: rayner check holds script.md's to these.
 import { INT4, INT8, TEXT_CHARS, fill, shortText, tuple } from './model.ts';
 import type { Attr } from './model.ts';
 
@@ -7,7 +7,7 @@ const rowOf = (attrs: readonly Attr[]) => {
   const tu = tuple(attrs);
   return { ...tu, rows: fill(tu.stored, 100).rows };
 };
-/** The rows the check answers compare: one and two int4s, an int2, and a 15-character text after an int4 or an int8. */
+/** The rows the answers compare: one and two int4s, an int2, and a 15-character text after an int4 or an int8. */
 export const ONE = rowOf([INT4]),
   TWO = rowOf([INT4, INT4]),
   SMALL_INT = rowOf([INT2]),
@@ -15,7 +15,7 @@ export const ONE = rowOf([INT4]),
   NARROW15 = rowOf([INT4, shortText(T15)]),
   WIDE15 = rowOf([INT8, shortText(T15)]);
 
-export const checks = {
+export const questions = {
   1: () =>
     `No. The first int4 ends at byte ${ONE.lpLen}, and the second fills bytes ${ONE.lpLen} to ${TWO.lpLen - 1}, the padding one int4 leaves. Both tuples take ${ONE.stored} bytes, so both rows cost ${ONE.perRow} and a page holds ${TWO.rows} of either.`,
   2: () =>

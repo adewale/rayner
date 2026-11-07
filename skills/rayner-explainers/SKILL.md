@@ -35,8 +35,8 @@ Write the script before you draw anything. Explainers grown from a model without
 
 The answer still comes early, as the payoff of the first concrete problem, within the first few steps: the reader should know what the explainer is about before the details, and recognise the definition when it arrives rather than be handed it cold.
 
-- **Check questions.** Ask the reader to explain the mechanism or transfer it to an unseen condition. Avoid definitions alone and recall of seeded dates or labels. An expert may answer without the lesson; that does not invalidate the exercise. Evidence of learning needs newcomers, their prior knowledge, and their reasoning before and after reading.
-- **Test it alone.** Read the scene's steps back as a newcomer would: does each make the next feel inevitable, and could they answer the script's check questions?
+- **Reader questions.** The script's `## Check yourself` list. Ask the reader to explain the mechanism or transfer it to an unseen condition. Avoid definitions alone and recall of seeded dates or labels. An expert may answer without the lesson; that does not invalidate the exercise. Evidence of learning needs newcomers, their prior knowledge, and their reasoning before and after reading.
+- **Test it alone.** Read the scene's steps back as a newcomer would: does each make the next feel inevitable, and could they answer the script's reader questions?
 
 The script starts with an intent header, which Rayner reads: the `#` question, the labelled lines and `## Check yourself`. [The reference's Scene section](../../docs/REFERENCE.md#scene) gives its rules (which lines are required, what each becomes, that a scene declaring them too is refused, and how `answers.ts` computes an answer from the model so `rayner check` fails when the two differ). [`scenes/tutorial/hanoi/script.md`](../../scenes/tutorial/hanoi/script.md) is the smallest complete script; the README prints it, and a test keeps that copy equal to the file. Below the header the script is the author's own prose: why this example, what the reader should take away, what was tried and dropped. There is no word quota, and it does not have to read as the page reads. Every explainer in `scenes/explainers/` and `scenes/tutorial/` is written this way.
 
@@ -70,10 +70,10 @@ Checks establish deterministic, readable pictures; they cannot establish that a 
 
 Readers learn from what they do more than from what they watch. In a blind comparison of three Rayner explainers with pages the same models wrote without Rayner, from one script, the reviewer preferred the plain page in all three pairs, twice over, mainly because those let the reader commit to predictions and drive a live machine ([the benchmark](https://github.com/adewale/rayner/blob/main/bench/explainers/README.md)). A [`Machine`](https://github.com/adewale/rayner/blob/main/docs/MACHINES.md) replays events through the model, has every reachable state checked, and at the step where it last played gives the reader a button per event, so the reader drives the model themselves. Where the subject is not driven by events, use what else exists:
 
-- **Ask, then answer.** A step asks a check question and the next step answers it. The rail hides a step's title until the reader reaches it, so "Answer: …" is safe on the answering step; keep the answer out of the asking step itself.
+- **Ask, then answer.** A step asks a reader question and the next step answers it. The rail hides a step's title until the reader reaches it, so "Answer: …" is safe on the answering step; keep the answer out of the asking step itself.
 - **A scenario that changes the outcome.** A setting is the reader's own lever; give them one whose other option changes the conclusion. A setting whose other option only changes the numbers doubles the scenarios and teaches nothing: drop it.
-- **Questions the page can answer.** Where a check question is about events (merge again, delete then look up), a live machine lets the reader find the answer by pressing.
-- **The check questions at the end**, from `meta.checks`.
+- **Questions the page can answer.** Where a reader question is about events (merge again, delete then look up), a live machine lets the reader find the answer by pressing.
+- **The reader questions at the end**, from `meta.questions`.
 
 ## Which way to step
 
@@ -100,7 +100,7 @@ A good live step, the step where the machine last plays:
 
 Commands are `rayner <command>`, from the `rayner-cli` package (install it beside `rayner`: `npm install --save-dev rayner rayner-cli`; scenes import only `rayner`), or `npm run rayner -- <command>` in a checkout; `rayner --help` prints the commands, the options and how to install Chromium for diagram capture.
 
-1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first; its [intent header](../../docs/REFERENCE.md#scene) becomes the page's title, answer, check questions and what the model is checked against. Keep one default-exported `Scene` subclass with static `meta` (sources, and `lang` if not English; the id is the folder's name) and, if a second scenario teaches something, static `settings`.
+1. `rayner init <directory>` writes the tutorial's explainer: `script.md`, `scene.ts`, the model `model.ts` and its test `model.test.ts`; `rayner init --machine <directory>` writes a [machine](#which-way-to-step) explainer instead, with `scene.review.json`. Rewrite the script first; its [intent header](../../docs/REFERENCE.md#scene) becomes the page's title, answer, reader questions and what the model is checked against. Keep one default-exported `Scene` subclass with static `meta` (sources, and `lang` if not English; the id is the folder's name) and, if a second scenario teaches something, static `settings`.
 2. `rayner preview scene.ts --watch` while you work; `see` and `describe` give any step as text and JSON when you need to read it without a browser.
 3. `rayner check scene.ts` until it passes. It runs the folder's `model.test.ts` first and fails, naming the failing tests, when the model test does.
 4. `rayner review scene.ts --out public/<id>.html` when the scene settles. It checks every scenario, reviews the served page at phone and desktop widths, and keeps that exact page with its receipt. Look at its screenshots.

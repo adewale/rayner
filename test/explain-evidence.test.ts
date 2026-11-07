@@ -1,5 +1,5 @@
-// rayner check's folder evidence (tools/lib/explain-evidence.ts): the model test it runs, the check
-// answers it computes from the model, and the files the script's Checked against line names.
+// rayner check's folder evidence (tools/lib/explain-evidence.ts): the model test it runs, the reader
+// questions' answers it computes from the model, and the files the script's Checked against line names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -55,10 +55,10 @@ test('a model test that cannot load fails the run, saying so', async () => {
   }
 });
 
-test('answers.ts holds the script’s answer and check answers, by number or by question, as the answer gate compares them', async () => {
+test('answers.ts holds the script’s answer and its reader questions’ answers, by number or by question, as the answer gate compares them', async () => {
   const meta = {
     answer: 'Seven moves',
-    checks: [
+    questions: [
       { question: 'How many for 4 disks?', answer: '15: the three-disk tower twice, and disk 4 once.' },
       { question: 'And for five?', answer: '31.' },
     ],
@@ -71,23 +71,23 @@ test('answers.ts holds the script’s answer and check answers, by number or by 
     const n = 4;
     const right = await compareAnswers(at, meta, async () => ({
       answer: () => 'seven moves.',
-      checks: { 1: () => ({ question: `How many for ${n} disks?`, answer: `${2 ** n - 1}: the three-disk tower twice, and disk ${n} once` }), 'And for five?': () => `${2 ** 5 - 1}` },
+      questions: { 1: () => ({ question: `How many for ${n} disks?`, answer: `${2 ** n - 1}: the three-disk tower twice, and disk ${n} once` }), 'And for five?': () => `${2 ** 5 - 1}` },
     }));
     assert.deepEqual(right?.problems, []);
     assert.equal(right?.compared, 3);
     const wrong = await compareAnswers(at, meta, async () => ({
       answer: () => 'Eight moves',
-      checks: { 1: () => ({ question: 'How many for three disks?', answer: '15: the three-disk tower twice, and disk 4 once.' }), 2: () => '32', 3: () => 'none', 'And for six?': () => '63', },
+      questions: { 1: () => ({ question: 'How many for three disks?', answer: '15: the three-disk tower twice, and disk 4 once.' }), 2: () => '32', 3: () => 'none', 'And for six?': () => '63', },
     }));
     assert.deepEqual(wrong?.problems, [
       'The answer: script.md says "Seven moves", the model gives "Eight moves"',
-      'Check 1\'s question: script.md says "How many for 4 disks?", the model gives "How many for three disks?"',
-      'Check 2 ("And for five?"): script.md says "31.", the model gives "32"',
-      'answers.ts computes check 3, and the script asks 2',
+      'Question 1: script.md says "How many for 4 disks?", the model gives "How many for three disks?"',
+      'The answer to question 2 ("And for five?"): script.md says "31.", the model gives "32"',
+      'answers.ts computes question 3, and the script asks 2',
       'answers.ts computes the answer to "And for six?", and the script asks no such question',
     ]);
     const empty = await compareAnswers(at, meta, async () => ({ answers: {} }));
-    assert.deepEqual(empty?.problems, ['answers.ts exports neither answer nor checks']);
+    assert.deepEqual(empty?.problems, ['answers.ts exports neither answer nor questions']);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

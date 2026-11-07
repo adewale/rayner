@@ -19,7 +19,7 @@ export async function check(trace: Trace, values: Record<string, string>, { scen
   assert.ok(Math.abs(layout.wrong - 12 * 0.54) < 1e-5 && Math.abs(layout.actual - em.Regular * 0.9) < 1e-6);
   const overlap = (layout.wrong - (layout.actual + 0.5)).toFixed(2);
   assert.equal(overlap, '1.57');
-  assert.ok(String((project.Scene as unknown as { meta: { checks: { answer: string }[] } }).meta.checks[0]!.answer).includes(`about ${overlap} units before the phrase ends`));
+  assert.ok(String((project.Scene as unknown as { meta: { questions: { answer: string }[] } }).meta.questions[0]!.answer).includes(`about ${overlap} units before the phrase ends`));
   // The rulers step draws both measurements under the opening's upper row, pen stop by pen stop from the
   // phrase's start: JetBrains Mono's 12 cells of 0.54 and Garamond's own advances. Every Garamond advance is
   // narrower than the cell, so the gap between matching stops grows at each glyph, ending at the opening's

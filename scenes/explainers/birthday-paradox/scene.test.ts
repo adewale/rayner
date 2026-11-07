@@ -47,7 +47,7 @@ test('the birthday story: thresholds, pairs, the shortcut, dates, and the answer
   assert.equal((100*birthdayChance(13,'any',100)).toFixed(1),'55.7');assert.equal((100*birthdayChance(12,'any',100)).toFixed(1),'49.7');
   assert.equal(evenOdds('one',100)-1,69);close(pairShortcut(69,100),birthdayChance(70,'one',100));
   assert.equal((100*birthdayChance(70,'one',100)).toFixed(1),'50.0');assert.equal((100*birthdayChance(69,'one',100)).toFixed(1),'49.5');
-  const [merged,calendar]=explainerMeta(BirthdayParadox, 'scenes/explainers/birthday-paradox').checks!;
+  const [merged,calendar]=explainerMeta(BirthdayParadox, 'scenes/explainers/birthday-paradox').questions!;
   assert.match(merged!.answer, /529 new pairs/);
   assert.match(merged!.answer, /1,035 pairs, compared with 506/);
   assert.match(calendar!.answer, /13 people suffice/);

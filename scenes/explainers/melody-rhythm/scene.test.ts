@@ -19,7 +19,7 @@ test('the music comparison preserves pitches and total beats while moving exactl
   // The first check's version C, which no case shows: D cut to half a beat, the next E held 1.5, so beat 3 (index 2) gets no new start and nothing crosses the bar line.
   {const durations=[1,.5,1.5,1,1,1,1,1];let at=0;const c=durations.map(duration=>{const n={at,duration};at+=duration;return n;});
     assert.deepEqual(c.map(n=>n.at),[0,1,1.5,3,4,5,6,7]);assert.ok(!c.some(n=>n.at===2)&&c.some(n=>n.at<2&&n.at+n.duration>2));
-    assert.ok(!c.some(n=>n.at<4&&n.at+n.duration>4));assert.match(explainerMeta(MelodyRhythm, 'scenes/explainers/melody-rhythm').checks![0]!.answer,/^Beat 3 of bar 1/);}
+    assert.ok(!c.some(n=>n.at<4&&n.at+n.duration>4));assert.match(explainerMeta(MelodyRhythm, 'scenes/explainers/melody-rhythm').questions![0]!.answer,/^Beat 3 of bar 1/);}
   // A half-beat rest in place of the longer E (no longer a check question; the claim stands): G still starts at 3.5 and holds across beat 4 (the bar line).
   {const g={at:2+1+.5,duration:1};assert.equal(g.at,phrase('syncopated')[3]!.at);assert.ok(g.at<4&&g.at+g.duration>4);}
   // The second check: B counted in threes, bar lines at beats 3 and 6. The first E (index 2) holds across the line at 3, G starts
@@ -27,12 +27,12 @@ test('the music comparison preserves pitches and total beats while moving exactl
   {const b=phrase('syncopated'),across=(t:number)=>b.filter(n=>n.at<t&&n.at+n.duration>t);
     assert.deepEqual(across(3),[b[2]]);assert.equal(b[2]!.midi,64);assert.equal(b[2]!.at,2);assert.equal(b[3]!.at,3.5);
     assert.deepEqual(across(6),[]);assert.deepEqual(b.filter(n=>n.at===6).map(n=>n.midi),[60]);
-    assert.match(explainerMeta(MelodyRhythm, 'scenes/explainers/melody-rhythm').checks![1]!.answer,/^The first E\. It starts on beat 3 of bar 1 .* brings a C that starts exactly there\.$/);}
+    assert.match(explainerMeta(MelodyRhythm, 'scenes/explainers/melody-rhythm').questions![1]!.answer,/^The first E\. It starts on beat 3 of bar 1 .* brings a C that starts exactly there\.$/);}
   // The third check: the E after G at a full beat, later notes straight after it. D and both Cs start at 5.5, 6.5 and 7.5,
   // none on a beat of bar 2, and the last C ends at 8.5, half a beat past the end of bar 2.
   {const durations=phrase('syncopated').map((n,i)=>i===4?1:n.duration);let at=0;const v=durations.map(duration=>{const n={at,duration};at+=duration;return n;});
     assert.deepEqual(v.slice(5).map(n=>n.at),[5.5,6.5,7.5]);assert.ok(!v.some(n=>n.at>=4&&n.at<8&&Number.isInteger(n.at)));
-    assert.equal(v.at(-1)!.at+v.at(-1)!.duration,8.5);assert.match(explainerMeta(MelodyRhythm, 'scenes/explainers/melody-rhythm').checks![2]!.answer,/^None\. D and both Cs/);}
+    assert.equal(v.at(-1)!.at+v.at(-1)!.duration,8.5);assert.match(explainerMeta(MelodyRhythm, 'scenes/explainers/melody-rhythm').questions![2]!.answer,/^None\. D and both Cs/);}
   for(const timing of ['straight','syncopated'] as const) for(const bpm of [96,120]) {
     const m=musicStory(timing,bpm);
     assert.equal(m.movedStarts,timing==='straight'?0:2);assert.equal(m.movedDurations,m.movedStarts);

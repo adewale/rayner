@@ -133,8 +133,8 @@ export async function buildExplainer(
       return `<section data-scenario="${htmlEscape(key)}">${name ? `<h2>${htmlEscape(name)}</h2>` : ''}<ol>${steps.join('')}</ol></section>`;
     })
     .join('');
-  // The scene's check questions after every scenario: the questions, each answer behind a disclosure.
-  const checks = (project.Scene.meta?.checks ?? [])
+  // The scene's reader questions after every scenario: the questions, each answer behind a disclosure.
+  const questions = (project.Scene.meta?.questions ?? [])
     .map((c) => `<li><p>${htmlEscape(c.question)}</p><details><summary>${htmlEscape(t.showAnswer)}</summary><p>${htmlEscape(c.answer)}</p></details></li>`)
     .join('');
   const checkedAgainst = (project.Scene.meta as { checkedAgainst?: string } | undefined)?.checkedAgainst;
@@ -150,7 +150,7 @@ export async function buildExplainer(
   const licenses = notices.join('\n\n') + (project.outlineLettering
     ? letteringLicences(project.outlineLettering).filter((notice) => !notices.includes(notice)).map((notice) => '\n\n' + notice).join('')
     : '');
-  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${checks ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="check-questions">${checks}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
+  const html = `<!doctype html>\n<html lang="${htmlEscape(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEscape(title)}</title><meta name="generator" content="Rayner"><style>${css}</style></head><body><script>${framedJs}</script><main id="content"><div class="layout tile"><section class="player"><h1>${htmlEscape(title)}</h1><div class="stage poster">${sink.svg}</div><p class="caption">${htmlEscape(stepWords(first).caption)}</p><details class="transcript" open><summary>${htmlEscape(t.transcript)}</summary>${transcript}${questions ? `<h2>${htmlEscape(t.checkYourself)}</h2><ol class="reader-questions">${questions}</ol>` : ''}${sources ? `<h2>${htmlEscape(t.sources)}</h2><ul>${sources}</ul>` : ''}</details></section></div></main><template id="licenses"><pre>${htmlEscape(licenses)}</pre></template><script>${js}</script></body></html>\n`;
   const sri = (value: string) => "'sha256-" + createHash('sha256').update(value).digest('base64') + "'";
   const policy = `default-src 'none'; script-src ${sri(framedJs)} ${sri(js)}; style-src ${sri(css)}; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors *`;
   const receipt = {
