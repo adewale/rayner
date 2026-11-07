@@ -961,7 +961,9 @@ export class Diagram {
     const copy = this.root.copy();
     const live = this.root.family(), drawn = copy.family();
     const at = new Map(live.map((m, i) => [m, i] as const));
-    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id), typeof m === 'string' ? { color: m } : m] as const));
+    // A mark given as a colour alone is said as marked, in the scene's language.
+    const word = wordsOf(this.scene).marked;
+    const marked = new Map(Object.entries(marks).map(([id, m]) => [this.top(id), typeof m === 'string' ? { color: m, as: word } : { as: word, ...m }] as const));
     const kept = dim ? this.keptOf(dim) : null;
     // Every part in the diagram's own look, whatever the live diagram shows now: revealed parts as
     // drawn or marked, the rest unseen.

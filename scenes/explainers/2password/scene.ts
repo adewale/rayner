@@ -159,7 +159,7 @@ export default class PasswordExplainer extends Scene {
     const sequenceView = s.diagramView(sequence, (_st, sh) => {
       const q = sh.sequence as SequenceShown;
       return {
-        marks: Object.fromEntries(q.marked.map((id) => [id, { color: sequence.accent, as: 'marked' }])),
+        marks: Object.fromEntries(q.marked.map((id) => [id, sequence.accent])),
         notes: q.notes,
       };
     });

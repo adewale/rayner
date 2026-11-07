@@ -29,7 +29,7 @@ const rich = `import{Scene,Text}from'rayner';import{stage}from'rayner/explain';e
 await this.step('flux',{title:'Flux',caption:'Le revenu passe par le barème.'});
 const d=await s.show({source:'graph LR\\nA["Revenu"] --> B["Barème"]\\nB --> C["Impôt"]'},{box:[-8,0,8,3.4]});
 this.shown.trail=[];this.shown.keep=null;
-const v=s.diagramView(d,(st,sh)=>({marks:{A:{color:d.accent,as:'en évidence'},...d.trail(sh.trail)},notes:[{id:'C',text:'plafond'}],dim:sh.keep}));
+const v=s.diagramView(d,(st,sh)=>({marks:{A:d.accent,...d.trail(sh.trail)},notes:[{id:'C',text:'plafond'}],dim:sh.keep}));
 await s.card([['Parts','2'],['Quotient','15 000 €']],{title:'Foyer',at:[-4,-2],lit:'Parts'});
 await this.step('trajet',{title:'Trajet',caption:'Le revenu va au barème.'});
 await d.walk([['A','B']]);this.shown.trail=[['A','B']];this.shown.keep=['A','B'];await this.play(v.sync({match:'key',staged:true}));

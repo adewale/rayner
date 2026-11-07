@@ -95,7 +95,8 @@ const boxOf = (span: CodeSpan, color: string) =>
   new SurroundingRectangle(span.box()!, { buff: 0.035, cornerRadius: 0.04, stroke: color, strokeWidth: 0.02 });
 
 /** The diagram with the links the session travelled in the trail's colour. */
-export const drawTrails = (d: Diagram, st: SessionState) => new Group(keyed(d.picture(Object.fromEntries(st.travelled.map((l) => { const [from, to] = l.split(':'); return [d.link(from!, to!).id, d.accent]; }))), 'diagram'));
+export const drawTrails = (d: Diagram, st: SessionState) =>
+  new Group(keyed(d.picture(d.trail(st.travelled.map((l) => l.split(':').slice(0, 2) as [string, string]))), 'diagram'));
 // What the views mark is emphasis the phone's close-ups visit first and review holds to the caption:
 // the ring, the row read or the throw hit, each tagged where it is drawn; the travelled links are the
 // diagram picture's marks, which report themselves.

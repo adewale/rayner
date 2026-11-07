@@ -77,7 +77,7 @@ test('token-bucket: reader labels and comparison marks pair balances, refill tim
       const { tokens, lastRefill, allowed, rejected } = state as { tokens: number; lastRefill: number; allowed: number; rejected: string[] };
       assert.deepEqual(
         shown,
-        ['Tokens left', tenths(tokens), 'Last refill (s)', tenths(lastRefill), 'Accepted', String(allowed), 'Rejected', rejected.length ? rejected.join(', ') : 'none'],
+        ['Bucket balance', 'Tokens left', tenths(tokens), 'Last refill (s)', tenths(lastRefill), 'Accepted', String(allowed), 'Rejected', rejected.length ? rejected.join(', ') : 'none'],
         `rate ${rate}, step "${step}"`,
       );
     }
