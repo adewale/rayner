@@ -5,7 +5,7 @@ import type { Trace } from '../src/testing.ts';
 import { StopScene } from '../src/output.ts';
 import { isHex } from '../src/color.ts';
 import { resolveSettings } from '../explain/index.ts';
-import { PAGE_QUERY, bindSnapshots, stepQuery, withSettings } from '../explain/settings.ts';
+import { PAGE_QUERY, bindSnapshots, settingsProblem, stepQuery, withSettings } from '../explain/settings.ts';
 import type { ExplainerClass, Settings, SnapshotStore } from '../explain/index.ts';
 import { restingTime, pictureChange, pictureHtml, pictureSummary, stepWords, watchedChanges } from '../explain/trace.ts';
 import { playerProperties } from './embed-style.ts';
@@ -17,7 +17,7 @@ import { ReaderSink, ReaderView, StageZoom, stageSize } from './embed-zoom.ts';
 import type { Zoom } from './embed-zoom.ts';
 import { NARROW_PX, closeUps, stageScale, stepLayouts } from './embed-closeup.ts';
 import type { StepLayout } from './embed-closeup.ts';
-import { changeText, chromeFor, descriptionsLang, settingsProblem } from './embed-strings.ts';
+import { changeText, chromeFor, descriptionsLang } from './embed-strings.ts';
 import { HOME, SHARE_META, SHARE_STEPS_META, shareable } from './embed-share.ts';
 import { storyIndices, adjacentStep } from './embed-steps.ts';
 import { offPath } from '../explain/script.ts';
@@ -1285,7 +1285,7 @@ export async function mountEmbed(root: HTMLElement, Source: ExplainerClass, snap
         next = resolveSettings(Source, request);
       } catch (error) {
         next = resolveSettings(Source);
-        fallback = t.fallback(settingsProblem(Source, request, error));
+        fallback = t.fallback(settingsProblem(error));
       }
       wanted = next;
       for (const [id, inputs] of choices) for (const input of inputs) input.checked = input.value === next[id];

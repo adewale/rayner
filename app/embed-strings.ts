@@ -2,16 +2,12 @@
 // the scene (`meta.lang`). A language without a table here gets English. The generated picture
 // descriptions have their own vocabulary (explain/words.ts); a page in a language it lacks
 // shows them in English and marks them lang="en".
-import type { ExplainerClass, Settings } from '../explain/index.ts';
+import type { ExplainerClass, Settings, SettingsProblem } from '../explain/settings.ts';
+import { scenarioName } from '../explain/settings.ts';
 import { describedIn, primaryLanguage, wordsFor } from '../explain/words.ts';
 import type { WatchedChange } from '../explain/trace.ts';
 
-/** What is wrong with a URL's settings, so each language can say it in its own words. */
-export type SettingsProblem =
-  | { kind: 'option'; id: string; label: string; value: string }
-  | { kind: 'setting'; id: string }
-  /** Anything else the validator refuses, with its (English) message. */
-  | { kind: 'other'; message: string };
+export type { SettingsProblem } from '../explain/settings.ts';
 
 export interface Chrome {
   details: string;
@@ -294,29 +290,9 @@ export const descriptionLang = (lang = 'en') => {
   const tag = descriptionsLang(lang);
   return tag ? ` lang="${tag}"` : '';
 };
-/**
- * Why `resolveSettings` refused a URL's `values`, found the way it checks them: a declared
- * setting's unknown option first, then an undeclared setting.
- */
-export function settingsProblem(Scene: ExplainerClass, values: Settings, error: unknown): SettingsProblem {
-  for (const s of Scene.settings ?? []) {
-    const value = Object.hasOwn(values, s.id) ? values[s.id]! : undefined;
-    if (value !== undefined && !s.options.some((o) => o.value === value))
-      return { kind: 'option', id: s.id, label: s.label, value };
-  }
-  const declared = new Set((Scene.settings ?? []).map((s) => s.id));
-  const unknown = Object.keys(values).find((id) => !declared.has(id));
-  return unknown !== undefined
-    ? { kind: 'setting', id: unknown }
-    : { kind: 'other', message: String((error as Error)?.message ?? error) };
-}
 /** A scenario's name, "Label: option · Label: option", with the language's punctuation. */
-export function scenarioNameIn(lang: string, Scene: ExplainerClass, values: Settings): string {
-  const t = chromeFor(lang);
-  return (Scene.settings ?? [])
-    .map((s) => t.setting(s.label, s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]!))
-    .join(' · ');
-}
+export const scenarioNameIn = (lang: string, Scene: ExplainerClass, values: Settings): string =>
+  scenarioName(Scene, values, chromeFor(lang).setting);
 /** One watched change as a reader reads it: "Tokens: 5 → 0", "Tokens: 5" (it appeared), "Tokens: removed". */
 export const changeText = (t: Chrome, c: WatchedChange): string =>
   t.setting(c.label, c.after === undefined ? t.removed : c.before === undefined ? c.after : `${c.before} → ${c.after}`);
