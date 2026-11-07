@@ -458,9 +458,9 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      * Show diagram `d` by a view: `draw(state, shown)` gives what it marks, its notes and what stays
      * undimmed, as `d.picture` takes them, usually from `shown` (how the model is shown), and the view
      * takes the live diagram's place. Change them in `this.shown` and play
-     * `view.sync({ match: 'key', staged: true })`; `rayner check` redraws the view at every step. For a
-     * morph, a reveal or a walk, hand the stage back with `liveDiagram(d)`, then call this again to
-     * show the diagram by its view once more.
+     * `view.sync({ match: 'key', staged: true })`; `rayner check` redraws the view at every step. A walk
+     * runs over the view as it is. For a morph, a reveal or a focus, hand the stage back with `liveDiagram(d)`,
+     * then call this again to show the diagram by its view once more.
      */
     diagramView(d: Diagram, draw: (state: SceneState, shown: SceneState) => DiagramPicture = () => ({})): View {
       let shown = diagramViews.get(d);
@@ -483,7 +483,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       d.showBy(shown.view);
       return shown.view;
     },
-    /** The live diagram back in its view's place, for a morph, a reveal or a walk (see diagramView). */
+    /** The live diagram back in its view's place, for a morph, a reveal or a focus (see diagramView). */
     liveDiagram(d: Diagram): void {
       const shown = diagramViews.get(d);
       if (!shown) throw new Error('liveDiagram(): the diagram is not shown by a view (see diagramView)');

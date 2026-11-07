@@ -273,10 +273,10 @@ export function viewMismatch(
 
 // ---- internals ---------------------------------------------------------
 
-/** build() must make a new picture each time: the old one is what morphs into it. */
+/** draw() must make a new picture each time: the old one is what morphs into it. */
 function fresh<M extends Mobject>(m: M, old: Mobject | null): M {
-  if (!(m instanceof Mobject)) throw new TypeError('view(): build() must return a mobject');
-  if (m === old || m.parent) throw new Error(`view(): build() returned ${m.constructor.name}#${m.id}, which is ${m === old ? 'the picture on screen' : 'inside another mobject'}; build a new one each time`);
+  if (!(m instanceof Mobject)) throw new TypeError('view(): draw() must return a mobject');
+  if (m === old || m.parent) throw new Error(`view(): draw() returned ${m.constructor.name}#${m.id}, which is ${m === old ? 'the picture on screen' : 'inside another mobject'}; draw a new one each time`);
   return m;
 }
 

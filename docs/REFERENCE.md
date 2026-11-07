@@ -141,7 +141,7 @@ With neither `style` nor `palette`, the stage adopts the first diagram's palette
 | --- | --- |
 | `s.show(spec, { box, build, runTime })` | Draw a diagram and build it in; returns a `Diagram` |
 | `s.diagramView(d, (state, shown) => ({ marks, notes, dim, prefix }))` | Show diagram `d` by a view that draws its marks, notes and dimming from state, usually from `shown` ([below](#diagrams)); returns the `View`. Change `this.shown` and play `view.sync({ match: 'key', staged: true })` |
-| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `walk`, `morph` or `focus`; call `s.diagramView(d, draw)` again afterwards |
+| `s.liveDiagram(d)` | Hand the stage back to the live diagram, for a `reveal`, `morph` or `focus` (a `walk` runs over the view); call `s.diagramView(d, draw)` again afterwards |
 | `s.card(rows, { at, align, width, title, columns, fontSize, direction, lit, litAs, key, panel, enter })` | Labelled values; returns a `Card`. `columns` puts values side by side under headings; `direction` overrides the stage's field order; `lit` puts a bar on a row |
 | `s.cardPicture(rows, options)` | The same card, placed and laid out as `s.card` does, without entering it: for a view's draw ([below](#card-and-codeblock)) |
 | `s.code(lines, { at, align, fontSize, title, diff, added, focus, focusAs, width, fitHeight, key, enter })` | Code on a panel; returns a `CodeBlock`. With `diff`, lines starting `+ ` or `- ` are marked added or removed; `focus` puts a bar on lines |

@@ -1,4 +1,4 @@
-// Agentic Mermaid 0.4.1's style colours, copied so the page needs no Agentic Mermaid;
+// Agentic Mermaid 0.5.1's style colours, copied so the page needs no Agentic Mermaid;
 // test/browser/explain-capture.test.ts checks them against the installed styles.
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
 export const PALETTES: Record<string, Palette> = {
