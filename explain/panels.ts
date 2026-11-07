@@ -437,6 +437,12 @@ export interface CodeOptions {
   focus?: number | readonly [number, number] | null;
   /** The word the description gives the focused lines (default "focused", in the scene's language), as `focus`'s `as`. */
   focusAs?: string;
+  /**
+   * Key the panel and its parts under this name, for a panel drawn in a view: `view.sync({ match:
+   * 'key', staged: true })` then moves the focus bar as `focus` did, keeps the lines that stay, and
+   * fades a changed line out as its replacement fades in. A line already keyed keeps its key.
+   */
+  key?: string;
 }
 /** A bar behind an added or removed line. */
 interface LineMark {
@@ -518,6 +524,15 @@ export class CodeBlock extends Group {
       this.bar.invalidateBox();
       this.bar.setOpacity(1);
       this.focused = { lines: [a, b], as: options.focusAs ?? wordsOf(scene).focused };
+    }
+    if (options.key) {
+      const k = options.key;
+      this.key = k;
+      this.panel.key = `${k}:panel`;
+      this.bar.key = `${k}:bar`;
+      this.code.key ??= `${k}:code`;
+      this.code.lines.forEach((line, i) => (line.key ??= `${k}:line:${i}:${line.text}`));
+      this.marks.forEach((m) => (m.mob.key ??= `${k}:mark:${m.line}:${m.kind}`));
     }
   }
 

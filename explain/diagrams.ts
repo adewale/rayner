@@ -447,7 +447,7 @@ export class Diagram {
   /** How opaque dimmed parts stay on this diagram's paper. */
   private dimmed: number;
   /** The last walk, by step name, for the description. */
-  private walked: { step: string | undefined; hops: string[]; trail: boolean } | null = null;
+  private walked: { step: string | undefined; hops: string[]; edges: string[]; trail: boolean } | null = null;
   notes: Note[] = [];
   /** Notes notePicture built, for the description while they are on stage. */
   private drawnNotes = new Map<Mobject, { id: string; text: string }>();
@@ -797,10 +797,12 @@ export class Diagram {
     let things = 0,
       links = 0;
     const step = this.scene.steps.at(-1)?.name;
-    // A trail already marks the path; a walk without one names it.
+    // A trail already marks the path, on the live diagram or drawn from state as travelled marks; a
+    // walk without one names it.
     const walked = this.walked;
     const focused = this.inFocus();
-    if (walked && walked.step === step && !walked.trail) parts.push({ name: walked.hops.join(', '), mark: w.path });
+    const trailed = walked?.edges.every((id) => marks.get(id)?.as === w.travelled);
+    if (walked && walked.step === step && !walked.trail && !trailed) parts.push({ name: walked.hops.join(', '), mark: w.path });
     // Live notes sit in the root: a picture that shows the diagram has its own, drawn from state.
     if (!as) for (const n of this.notes) parts.push({ name: w.beside(n.text, this.nameOf(n.id)), mark: w.note });
     // Notes drawn from state, in the order the stage draws them; ones no longer on stage are forgotten.
@@ -939,6 +941,13 @@ export class Diagram {
   private refuseWhileShownBy(call: string, args = ''): void {
     if (this.shownBy && !this.scene.familyMembers().includes(this.root))
       throw new Error(`d.${call}(${args}) changes the live diagram, but a view shows it by its picture (showBy) and the live diagram is off the stage. Put the change in the state and draw it with d.picture(marks, { notes, dim }) in the view's draw, then play view.sync().`);
+  }
+  /**
+   * The marks a walk's trail leaves along these hops, for a picture drawn from state (see picture,
+   * and stage.diagramView): each link travelled, in `color` (the diagram's accent), said as travelled.
+   */
+  trail(hops: readonly (readonly [string, string])[], color: string = this.accent): Record<string, { color: string; as: string }> {
+    return Object.fromEntries(hops.map(([from, to]) => [this.link(from, to).id, { color, as: wordsOf(this.scene).travelled }]));
   }
   /** The link from `from` to `to`, its endpoints resolved as walk resolves them: its id, its part and its route. */
   link(from: string, to: string): { id: string; mob: Group; route: VMobject } {
@@ -1173,6 +1182,7 @@ export class Diagram {
     this.walked = {
       step: this.scene.currentStep?.name,
       hops: path.map(({ edge }) => wordsOf(this.scene).arrow(this.endName(edge.info.from!), this.endName(edge.info.to!))),
+      edges: path.map(({ edge }) => edge.info.id),
       trail: !!trailColor,
     };
     if (parallel && path.length) {
