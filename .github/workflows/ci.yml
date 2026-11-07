@@ -228,6 +228,23 @@ jobs:
           retention-days: 7
           overwrite: true
 
+  # Main requires each compatibility context by name, but a job skipped by `if` reports only
+  # "compatibility", so without this a prose-only pull request could never merge. Scope must
+  # have decided full is false: a failed scope leaves these skipped and the contexts missing.
+  compatibility-prose:
+    needs: scope
+    if: needs.scope.outputs.full == 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26, macos-15-intel]
+        node: ['24.0.0', '24']
+    name: compatibility (${{ matrix.os }}, ${{ matrix.node }})
+    runs-on: ubuntu-24.04  # reports only; nothing here needs the named platform
+    timeout-minutes: 5
+    steps:
+      - run: echo 'No code changed, so there is nothing to run on this platform.'
+
   compatibility:
     needs: [scope, check]
     if: needs.scope.outputs.full == 'true'
