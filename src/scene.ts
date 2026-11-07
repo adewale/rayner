@@ -137,12 +137,6 @@ function admitRoots(current: readonly Mobject[], incoming: readonly Mobject[], b
   return roots;
 }
 
-/**
- * A scene with typed state: `S` is the model's type (what `state` holds) and `Sh` the type of what
- * is shown of it (`shown`). An explainer declares both, `class X extends Scene<Model, Shown>`, and
- * every view, staged step, machine and SetState on it is typed from them. Untyped, both are JSON
- * records (SceneState).
- */
 declare const sceneTypes: unique symbol;
 /**
  * A state type as a scene holds it: `S`'s own properties (an interface's too, which can then go
@@ -150,6 +144,12 @@ declare const sceneTypes: unique symbol;
  */
 type Held<S> = unknown extends S ? any : { [K in keyof S]: S[K] };
 
+/**
+ * A scene with typed state: `S` is the model's type (what `state` holds) and `Sh` the type of what
+ * is shown of it (`shown`). An explainer declares both, `class X extends Scene<Model, Shown>`, and
+ * every view, staged step, machine and SetState on it is typed from them. Untyped, both are JSON
+ * records (SceneState).
+ */
 export class Scene<S extends object = SceneState, Sh extends object = SceneState> {
   sink: Sink;
   fps: number;
@@ -166,7 +166,11 @@ export class Scene<S extends object = SceneState, Sh extends object = SceneState
    * draw may read it; a machine never changes it. Kept apart so the model holds only the domain.
    */
   shown: NoInfer<Held<Sh>>;
-  /** Type-only, never set: the model and shown types, which views, steps and machines on the scene infer theirs from. */
+  /**
+   * Type-only, never set: the model and shown types, which views, steps and machines on the scene
+   * infer theirs from. Each is joined with any JSON record, so a typed scene goes wherever a
+   * `Scene` does; its `state` and `shown` still hold it to its own types.
+   */
   declare readonly [sceneTypes]?: { state: S | Record<string, any>; shown: Sh | Record<string, any> };
   /** Every Scene.record() so far, in order, across steps. */
   evidence: Evidence[];
