@@ -55,6 +55,12 @@ export interface CardOptions {
    * and the bar moves to the lit row.
    */
   key?: string;
+  /**
+   * `false`: no panel behind the rows, for values written inside a drawing (a ring buffer's head
+   * and tail beside its ring). The card keeps its layout, keys and lit bar, and describes itself
+   * as a card does.
+   */
+  panel?: boolean;
 }
 const ROW = 1.9; // row pitch, in font sizes
 /** Shrink a value towards its anchored edge, never mirroring it. */
@@ -186,7 +192,9 @@ export class Card extends Group {
     const width = Math.min(options.width ?? Math.max(3.2, natural), cap);
     const pitch = size * ROW;
     const height = (rows.length + (n ? 1 : 0) + (titleText ? 1.15 : 0)) * pitch + 2 * PAD - size * 0.55;
-    this.panel = panelRect(colors, width, height);
+    this.panel = options.panel === false
+      ? new Rectangle({ width, height, cornerRadius: 0.1, fill: raised(colors), fillOpacity: 0, stroke: 'none' })
+      : panelRect(colors, width, height);
     this.bar = tint(emphasis(colors), width - 0.12, pitch * 0.92).setOpacity(0);
     this.add(this.panel, this.bar);
     const left = edge * (-width / 2 + PAD);
