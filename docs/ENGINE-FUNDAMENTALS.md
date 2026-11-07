@@ -57,7 +57,7 @@ the curves of subpath `i` or of the whole path, `pointOnCurve(i, c, t)` is the p
 at parameter `t` on curve `c`, `curveLength(i, c)` and `arcLength()` measure a curve
 and the whole path, `curveParamAt(i, c, s)` is the parameter a length `s` along a
 curve reaches, and `pointFromProportion(t)` is the point a fraction `t` of the path's
-length along it, which `PulseAlongPath` and the stage's sketch travel by.
+length along it, which `MoveAlongPath` (`rayner/extras`) and the stage's sketch travel by.
 
 `applyPointsFunction(fn)` maps every point of the family through `fn([x, y])`, and
 `applyAffine(a, b, c, d, e, f)` applies the affine map `[a c; b d]p + [e f]` without
@@ -86,17 +86,17 @@ paper, and the SVG sinks draw `paper` behind the frame unless given a `backgroun
 Common layout operations are `nextTo`, `alignTo`, `arrange`, `moveTo`, `setWidth`
 and `setHeight`; `arrangeInGrid(cols, { buff })` lays the children out row by row,
 `cols` to a row, each centred in a cell as wide as the widest and as tall as the
-tallest.
+tallest. Bounds describe geometry only; clipping, paint order and stroke
+also decide what collides on screen, which is why `rayner check` measures painted
+labels separately.
 
 A `Text`'s `advance()` is its exact advance width and `textSize()` the size it is
 drawn at now, after any scaling. `shapeRun(text, size)` shapes a string with the
 text's own shaping and returns the run, `{ glyphs, width, ascent, descent }`, as
 `font-metrics` reads it. `tabWidth` is the tab stop a text's tabs are laid out to,
-which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places between `prefix` and
-`suffix`; `setValue(v)` redraws it in place for a new value, and
-`DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show. Bounds describe geometry only; clipping, paint order and stroke
-also decide what collides on screen, which is why `rayner check` measures painted
-labels separately.
+which `Code` sets. A `DecimalNumber` shows `value` with `decimals` places between
+`prefix` and `suffix`; `setValue(v)` redraws it in place for a new value, and
+`DecimalNumber.format(v, decimals, prefix, suffix)` is the string it would show.
 
 ## Ownership, identity and copying
 
@@ -196,8 +196,8 @@ too: a [view](VIEWS.md) ties a picture to the state it was drawn from.
 ## Updaters, derived pictures and seeking
 
 `mobject.addUpdater((object, dt) => ...)` runs before a rendered frame. Camera
-updaters run after ordinary objects. `mobject.update(dt)` runs a mobject's updaters
-once, as the scene does before each frame. Clear registrations with `clearUpdaters()`
+updaters run after ordinary objects. `mobject.update(dt)` runs the updaters of a mobject and
+its descendants once, as the scene does before each frame. Clear registrations with `clearUpdaters()`
 when they are no longer needed. An updater that integrates `velocity * dt` depends
 on previous frames. The engine conservatively replays any play or wait with active
 updaters, including an updater that merely reads the current value.

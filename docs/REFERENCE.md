@@ -438,7 +438,7 @@ To measure a diagram before anything is drawn, lay it out without `s.show`: `new
 | `d.get(id)` | A part as a native `Group` |
 | `d.shapes(id)`, `d.labels(id)` | A part's own drawn shapes in drawing order (a node's outline, a link's line and arrowhead, a task's bar), without its labels, the plates behind them or the parts it owns; and its own labels, each with the `text` it reads. Address a part's pieces through these, not through `d.get(id).children` (`cert-renewal` places a callout by a task's bar, `pen-and-pencil` reads a period's marks) |
 | `d.emphasis` | The diagram's emphasis colour, as the stage's `s.look.emphasis` for its style: what `trail`, notes and walks colour with by default |
-| `d.snapshot` | The captured snapshot the diagram is drawn from, to read and not change: its `parts`, each with its shapes and text runs, and Agentic Mermaid's `findings` (a `Findings`: `ok` and the `warnings`, each a `Finding`) (`agentic-mermaid` reads the verifier's report, `font-metrics` a label's captured run) |
+| `d.snapshot` | The captured snapshot the diagram is drawn from, to read and not change: its `parts`, each with its shapes and text runs, and Agentic Mermaid's `findings`, a `Findings` (`ok` and its `warnings`, each a `Finding`; `agentic-mermaid` reads the verifier's report, `font-metrics` a label's captured run) |
 | `d.findings()` | The verifier's warnings, each with the `part` it names |
 | `d.describe()` | What a reader is told of the diagram as it is shown now: what it is and how big, then each shown part by its words in reading order, with its emphasis and notes (a `Description`, `{ what, parts, blank? }`, where `blank` lists drawn parts with no words). The stage's description and `describeExplainer`'s `picture` use it |
 
