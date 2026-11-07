@@ -485,14 +485,21 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       scene.remove(shown.view);
       d.shownBy = null;
     },
-    /** Labelled values; `card.set({...})` updates them, `card.mark(row)` lights one. */
+    /**
+     * A card placed and laid out as `card` places one (`at: 'start' | 'end'` and its field direction
+     * follow the stage's direction), without entering it: for a view's draw, which builds the card
+     * from state at every sync.
+     */
+    cardPicture(rows: readonly CardRow[], opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): Card {
+      return new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: layoutDirection(opts, direction) });
+    },
+    /** Labelled values, entered: `cardPicture`'s card, faded in and kept. */
     async card(
       rows: readonly CardRow[],
       opts: Omit<CardOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
     ): Promise<Card> {
-      const cardDirection = layoutDirection(opts, direction);
       return enterPanel(
-        new Card(scene, colors, rows, { ...opts, at: physical(opts.at), direction: cardDirection }),
+        this.cardPicture(rows, opts),
         opts,
         { runTime: 0.35, shift: [0, -0.08] },
       );
@@ -519,12 +526,16 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     emphasise(now: () => Emphasis) {
       emphasises(scene, now);
     },
-    /** Code on a panel; `code.focus(line)` keeps a bar on it. */
+    /** A code panel placed as `code` places one, without entering it: for a view's draw. */
+    codePicture(lines: readonly string[], opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } = {}): CodeBlock {
+      return new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) });
+    },
+    /** Code on a panel, entered: `codePicture`'s panel, faded in and kept. */
     async code(
       lines: readonly string[],
       opts: Omit<CodeOptions, 'at'> & { at?: Vec | Box | StageRegion } & Entry = {},
     ): Promise<CodeBlock> {
-      return enterPanel(new CodeBlock(scene, colors, lines, { ...opts, at: physical(opts.at) }), opts, {
+      return enterPanel(this.codePicture(lines, opts), opts, {
         runTime: 0.4,
       });
     },
