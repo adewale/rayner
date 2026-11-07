@@ -5,18 +5,20 @@ import { dirname, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { pageSize } from './page-budget.ts';
-import { pageSnapshots, packPageSnapshots } from './page-snapshots.ts';
+import { packPageSnapshots } from './page-snapshots.ts';
+import { sceneEntry, shippedStore } from './scene-entry.ts';
 import { SnapshotSink, renderAt } from '../../src/output.ts';
 import { chromeFor, scenarioNameIn, changeText, descriptionLang } from '../../app/embed-strings.ts';
 import { restingTime, pictureHtml, htmlEscape, stepWords, watchedChanges, wordsHtml } from '../../explain/trace.ts';
 import { ROOT, LIB_ROOT, engineAlias, defaultScenario, hash, scriptEscape, sceneSlug, baseReceipt } from './explain-project.ts';
 import type { Project } from './explain-project.ts';
-import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
-import { letteringLicences, pageSnapshot } from './lettering.ts';
+import { letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { letteringLicences } from './lettering.ts';
 import { RTL_SCRIPTS } from '../../src/lettering-outlines.ts';
 import { playerCss } from '../../app/embed-style.ts';
 import {stepAudio} from '../../explain/audio.ts';
 import { logStart, outcomes, runLive } from '../../app/embed-live.ts';
+import { stepQuery } from '../../explain/settings.ts';
 
 /**
  * A page whose lettering asks for a right-to-left script sets the direction of
@@ -48,7 +50,7 @@ export async function buildExplainer(
   await renderAt(v.Scene, restingTime(first, v.trace.fps), sink);
   // A page that asked for lettering puts its faces in place before the player shapes anything.
   // Every other page's entry is as it was: it never imports src/lettering.ts.
-  const snapshots = pageSnapshots(project.store);
+  const snapshots = shippedStore(project.store);
   const rawSnapshots = JSON.stringify(snapshots);
   const rawCompressed = gzipSync(rawSnapshots, {level: 9});
   const packedCompressed = gzipSync(JSON.stringify(packPageSnapshots(snapshots)), {level: 9});
@@ -57,16 +59,8 @@ export async function buildExplainer(
   const payload = zipped ? `await inflateSnapshots(${JSON.stringify(compressed)})` : rawSnapshots;
   const snapshotImport = zipped ? `import{inflateSnapshots}from ${JSON.stringify(join(ROOT, 'app/embed-snapshots.ts'))};` : '';
   const soundImport=withAudio ? `import{mountAudio}from ${JSON.stringify(join(ROOT,'app/embed-audio.ts'))};` : '';
-  const mount = `mountEmbed(root,Source,${payload}${withAudio?',mountAudio':''})`,
-    lettered = project.lettering
-      ? `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`
-      : '';
-  const author = project.outlineLettering
-    ? `import Original from 'virtual:author';import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};const Source=bindLettering(Original,${JSON.stringify(await pageSnapshot(project.outlineLettering))});`
-    : `import Source from 'virtual:author';`;
   // The script's intent reaches the bundled scene as it reached the one the build ran.
-  const adopted = project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : '';
-  const entry = `${author}import{mountEmbed}from ${JSON.stringify(join(ROOT, 'app/embed.ts'))};${soundImport}${lettered}${snapshotImport}${adopted}const root=document.getElementById('content');(async()=>{${lettered ? `await useLettering(${JSON.stringify(pageFaces(project.lettering))});` : ''}await ${mount};root.dataset.ready='true'})().catch(error=>{console.error(error);const p=document.createElement('p');p.setAttribute('role','alert');p.textContent=${JSON.stringify(t.failed)};root.append(p)});`;
+  const entry = await sceneEntry(project, { target: 'page', snapshots: payload, imports: soundImport + snapshotImport, audio: withAudio, failed: t.failed });
   const bundled = await build({
     stdin: { contents: entry, resolveDir: ROOT, sourcefile: 'explainer-entry.ts', loader: 'ts' },
     bundle: true,
@@ -123,10 +117,10 @@ export async function buildExplainer(
   }));
   const transcript = project.scenarios
     .map(({ values, trace }, n) => {
-      const key = new URLSearchParams(values).toString(),
+      const key = stepQuery(values),
         name = scenarioNameIn(lang, project.Scene, values);
       const steps = trace.steps.map((s, i) => {
-        const href = `?${key ? key + '&' : ''}${new URLSearchParams({ step: s.step })}`,
+        const href = `?${stepQuery(values, s.step)}`,
           shows = pictureHtml(s.shown, trace.steps[i - 1]?.shown),
           words = stepWords(s),
           changes = watchedChanges(s, project.Scene.meta?.watch, lang).map((c) => changeText(t, c));

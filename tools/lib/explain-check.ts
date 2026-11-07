@@ -3,7 +3,8 @@ import { claimsReport, checkClaimsMeta } from '../../explain/claims.ts';
 import { captionLookProblems } from '../../explain/caption-looks.ts';
 import { describesItself, seenSource } from '../../explain/look.ts';
 import { restingRouteProblems } from './explain-layout.ts';
-import { letteringWeight, pageSnapshot } from './lettering.ts';
+import { letteringWeight } from './lettering.ts';
+import { sceneEntry } from './scene-entry.ts';
 import { isHeading } from '../../explain/stage.ts';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -22,8 +23,12 @@ import { restingFrame, restingTime, undescribed, watchedChanges } from '../../ex
 import { labelOf, readingLabelSize } from '../../explain/diagrams.ts';
 import { closeUps, stageScale, stepLayouts, toView, viewBox, viewZoom } from '../../app/embed-closeup.ts';
 import type { Box, Mobject, Scene, Sink, Step } from '../../src/index.ts';
+import { contains, intersect, nonempty, overlaps } from '../../src/box.ts';
+import { paints } from '../../src/mobject.ts';
+import { STAGE_BOX, atHome, viewOf } from '../../src/svg.ts';
 import type { Project } from './explain-project.ts';
-import { pageFaces, letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { letteringReport, useProjectLettering } from './explain-lettering.ts';
+import { MIN_PX, PHONE_VIEWPORT, STAGE_PX_PER_UNIT } from './review-sizes.ts';
 
 const SWALLOW =
   'Do not catch around awaited animation/step calls in construct(): a broad catch can swallow StopScene. Catch model errors before animation.';
@@ -64,19 +69,13 @@ export function lintConstruct(source: string): string[] {
   walk(file);
   return errors;
 }
-/** Smallest label, in CSS pixels at a 1280-pixel stage, a reader must be able to see. */
-export const MIN_PX = 14;
-/** Reader CSS pixels per scene unit on a 1280-pixel stage, with the camera home. */
-const STAGE_PX_PER_UNIT = 1280 / 16;
-const FRAME: Box = [-8, -4.5, 8, 4.5];
+export { MIN_PX };
+const FRAME = STAGE_BOX;
 /** Anything with a camera: a Scene, or a test's stand-in. Without one, the view is the whole stage. */
 interface Viewed {
   familyMembers(): Mobject[];
   frame?: { box(): Box | null };
 }
-/** The box of the world on screen: the camera's (`scene.frame`), which the SVG viewBox shows. */
-export const viewOf = (scene: Pick<Viewed, 'frame'>): Box => [...(scene.frame?.box() ?? FRAME)] as Box;
-const isHome = (view: Box) => view.every((v, i) => Math.abs(v - FRAME[i]!) < 1e-6);
 /**
  * A label's size as the reader sees it, in CSS pixels at a 1280-pixel stage: its size
  * in the world times the camera's zoom. A label the camera has zoomed in on reads
@@ -88,25 +87,20 @@ export function labelPx(m: Mobject, scene: Pick<Viewed, 'frame'>): number | null
   const size = readingLabelSize(m);
   return size == null ? null : size * STAGE_PX_PER_UNIT * viewZoom(viewOf(scene));
 }
-/** `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips to its frame). */
-function clipped(m: Mobject, box: Box): Box {
-  const out: Box = [...box];
-  for (let a: Mobject | null = m; a; a = a.parent)
-    if (a.clipBox) {
-      out[0] = Math.max(out[0], a.clipBox[0]);
-      out[1] = Math.max(out[1], a.clipBox[1]);
-      out[2] = Math.min(out[2], a.clipBox[2]);
-      out[3] = Math.min(out[3], a.clipBox[3]);
-    }
+/**
+ * `box` cut down to every clip around `m`: the part of it that is drawn (a diagram clips
+ * to its frame); null when nothing of it is.
+ */
+function clipped(m: Mobject, box: Box): Box | null {
+  let out: Box | null = nonempty(box) ? [...box] : null;
+  for (let a: Mobject | null = m; a && out; a = a.parent) if (a.clipBox) out = intersect(out, a.clipBox);
   return out;
 }
 /** Fully drawn and inside the viewport: a label a reader can see at its size. */
-const readable = (m: Mobject, box: Box | null, viewport: Box) =>
+const readable = (m: Mobject, box: Box | null, viewport: Box | null) =>
   !!box &&
-  box[0] >= viewport[0] - 1e-5 &&
-  box[2] <= viewport[2] + 1e-5 &&
-  box[1] >= viewport[1] - 1e-5 &&
-  box[3] <= viewport[3] + 1e-5 &&
+  !!viewport &&
+  contains(viewport, box, 1e-5) &&
   m.style.opacity >= 0.95 &&
   (m.style.drawFraction ?? 1) >= 0.95;
 
@@ -120,22 +114,15 @@ const readable = (m: Mobject, box: Box | null, viewport: Box) =>
  */
 export function restingTextProblems(scene: Viewed): string[] {
   const view = viewOf(scene),
-    zoomed = !isHome(view);
+    zoomed = !atHome(view);
   const texts: { m: Mobject; box: Box; native: boolean; text: string }[] = [];
   const problems: string[] = [];
   const chromeBoxes: { box: Box; text: string }[] = [];
   const visible = (m: Mobject) => {
     for (let a: Mobject | null = m; a; a = a.parent) if ((a.style.opacity ?? 1) < 0.5) return false;
     // Text is drawn by the fill (and any stroke) of its paths: with neither it shows nothing.
-    // A group's own paint is never drawn, so look at the paths it holds.
-    const painted = (x: Mobject) =>
-      (x.style.opacity ?? 1) >= 0.5 &&
-      ((!!x.style.fill && x.style.fill !== 'none' && (x.style.fillOpacity ?? 1) >= 0.5) ||
-        (!!x.style.stroke &&
-          x.style.stroke !== 'none' &&
-          (x.style.strokeOpacity ?? 1) >= 0.5 &&
-          (x.style.strokeWidth ?? 0) > 0));
-    return m.family().some((x) => !x.children.length && painted(x));
+    // A group's own paint is never drawn, so look at the paths it holds. Legible, not merely present: half opacity at least.
+    return m.family().some((x) => !x.children.length && (x.style.opacity ?? 1) >= 0.5 && paints(x.style, { min: 0.5 }));
   };
   const seen = new Set<Mobject>();
   for (const m of scene.familyMembers()) {
@@ -151,13 +138,13 @@ export function restingTextProblems(scene: Viewed): string[] {
     const drawn = m.box();
     if (!drawn) continue;
     const box = clipped(m, drawn);
-    if (!(box[2] > box[0] && box[3] > box[1])) continue;
-    const shown = box[0] < view[2] && box[2] > view[0] && box[1] < view[3] && box[3] > view[1];
+    if (!box) continue;
+    const shown = overlaps(box, view, { touching: false });
     if (zoomed && !shown) continue; // off screen while the camera looks elsewhere
     const native = m instanceof Text;
     // The heading, and its number and line: stage furniture, kept clear of the picture by the stage itself.
     const heading = isHeading(m);
-    if (zoomed && (native || heading) && (box[0] < view[0] || box[1] < view[1] || box[2] > view[2] || box[3] > view[3]))
+    if (zoomed && (native || heading) && !contains(view, box))
       problems.push(`"${text}" is cut off by the frame`);
     if (!heading) texts.push({ m, box, native, text });
     else chromeBoxes.push({ box, text });
@@ -165,23 +152,18 @@ export function restingTextProblems(scene: Viewed): string[] {
   // The heading's line takes room under the title: content text must stay clear of all of it.
   for (const t of texts)
     for (const c of chromeBoxes)
-      if (t.box[0] < c.box[2] && t.box[2] > c.box[0] && t.box[1] < c.box[3] && t.box[3] > c.box[1])
+      if (overlaps(t.box, c.box, { touching: false }))
         problems.push(`"${t.text}" runs into the heading's "${c.text}"`);
   for (const t of texts)
-    if (t.native && (t.box[0] < FRAME[0] || t.box[1] < FRAME[1] || t.box[2] > FRAME[2] || t.box[3] > FRAME[3]))
+    if (t.native && !contains(FRAME, t.box))
       problems.push(`"${t.text}" crosses the stage edge`);
   const area = (b: Box) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
   for (let i = 0; i < texts.length; i++)
     for (let j = i + 1; j < texts.length; j++) {
       const a = texts[i]!,
         b = texts[j]!;
-      const overlap: Box = [
-        Math.max(a.box[0], b.box[0]),
-        Math.max(a.box[1], b.box[1]),
-        Math.min(a.box[2], b.box[2]),
-        Math.min(a.box[3], b.box[3]),
-      ];
-      if (overlap[2] <= overlap[0] || overlap[3] <= overlap[1]) continue;
+      const overlap = intersect(a.box, b.box);
+      if (!overlap) continue;
       if (area(overlap) > 0.12 * Math.min(area(a.box), area(b.box))) problems.push(`"${a.text}" overlaps "${b.text}"`);
     }
   return problems;
@@ -192,7 +174,7 @@ export function restingTextProblems(scene: Viewed): string[] {
  * depends on the served page's headings and viewport; only browser review measures it.
  * Do not duplicate the player's CSS/DOM height calculation here or assume its 4:5 maximum.
  */
-const PHONE_PAGE = 390,
+const PHONE_PAGE = PHONE_VIEWPORT.width,
   PHONE_W = PHONE_PAGE - 32,
   PHONE_H = PHONE_W * 9 / 16;
 /** One label across a scenario: its largest size at 1280 px, and in the phone's close-ups at rest. */
@@ -445,8 +427,7 @@ export class LegibilitySink implements Sink {
     record.px = Math.max(record.px, px);
     const close = this.phoneViews.get(frame);
     if (!close) return;
-    const inside = (v: Box) =>
-      !!box && box[0] >= v[0] - 1e-6 && box[2] <= v[2] + 1e-6 && box[1] >= v[1] - 1e-6 && box[3] <= v[3] + 1e-6;
+    const inside = (v: Box) => !!box && contains(v, box, 1e-6);
     if (chrome) return;
     const complete = close.views.filter((v) => inside(v.box));
     // The opening can frame a comparison at a smaller scale than its detail
@@ -675,8 +656,6 @@ export async function checkProject(project: Project, out: string): Promise<Recor
   assert.deepEqual(checkedAgainst?.problems ?? [], [], `script.md's Checked against names files that are not there: ${checkedAgainst?.problems.join('; ')}`);
   await useProjectLettering(project);
   const scenarios = [];
-  // The lettering the page carries, once for every scenario: the bare runtime below runs it
-  const shipped = project.outlineLettering ? JSON.stringify(await pageSnapshot(project.outlineLettering)) : '';
   for (const v of project.scenarios) {
     const where = `in ${scenarioName(project.Scene, v.values) || 'the scene'}`;
     // The scene's own invariants of the picture (Scene.addInvariant), checked on every frame of this full run.
@@ -800,14 +779,8 @@ export async function checkProject(project: Project, out: string): Promise<Recor
     assert.deepEqual(small, [], `Labels never reach ${MIN_PX}px at 1280px stage ${where}: ${JSON.stringify(small)}`);
     const blank = v.trace.steps.flatMap((s) => undescribed(s.shown).map((m) => `${s.step}: ${m}`));
     assert.deepEqual(blank, [], `Every drawing needs words for readers who cannot see it ${where}`);
-    // A lettered explainer's bare runtime puts its faces in place first, as its page does.
-    const lettered = project.lettering
-      ? [
-          `import{useLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering.ts'))};`,
-          `await useLettering(${JSON.stringify(pageFaces(project.lettering))});`,
-        ]
-      : ['', ''];
-    const contents = `${project.outlineLettering ? `import{bindLettering}from ${JSON.stringify(join(LIB_ROOT, 'src/lettering-outlines.ts'))};` : ''}import * as author from ${JSON.stringify(project.file)};import{bindSnapshots,withSettings}from ${JSON.stringify(join(LIB_ROOT, 'explain/settings.ts'))};import{NullSink,toSvgString}from ${JSON.stringify(join(LIB_ROOT, 'src/output.ts'))};${lettered[0]}const Source=author[${JSON.stringify(project.exportName)}];${project.intent ? `Source.meta={...Source.meta,...${JSON.stringify(project.intent)}};` : ''}export async function run(){${lettered[1]}const Lettered=${project.outlineLettering ? `bindLettering(Source,${shipped})` : 'Source'};const C=withSettings(bindSnapshots(Lettered,${JSON.stringify(project.store)}),${JSON.stringify(v.values)});const s=await new C(new NullSink(),{skipUntil:Infinity}).run();return{steps:s.steps.map(s=>s.name),state:s.describe(),svg:toSvgString(s)}}`;
+    // The bare runtime runs what the page ships: its lettering, faces and snapshots (sceneEntry).
+    const contents = await sceneEntry(project, { target: 'bare', values: v.values });
     const b = await build({
       stdin: { contents, resolveDir: LIB_ROOT, loader: 'ts' },
       bundle: true,

@@ -1,14 +1,14 @@
 // Optional outline snapshots. This module has no installation side effects: a
 // page without lettering never imports a provider or carries a lettering store.
 import type { SceneClass } from './scene.ts';
-import { shapeChain, embeddedShaperFor } from './fonts.ts';
-import type { FontName, Shaper } from './fonts.ts';
-import { loadFont } from '../vendor/glyph.js';
+import { decodeFont, embeddedChain, embeddedFaces, embeddedShaperFor, memoShaper } from './fonts.ts';
+import type { FontName, ShapedRun, Shaper } from './fonts.ts';
 import type { Font, Run, Segment } from '../vendor/glyph.js';
-import { SANS, MONO, FALLBACK } from './font-data.ts';
 import { Text, CodeSpan } from './text.ts';
 import type { Box } from './mobject.ts';
+import { unionBoxes } from './box.ts';
 import {bindTextContext, withTextContext} from './text-context.ts';
+import { LETTERING_SCRIPTS } from './lettering.ts';
 import type {TextShaping} from './text-context.ts';
 
 /** Real cuts an explainer can ask for, instead of the stroked faux bold and no italic. */
@@ -158,30 +158,16 @@ function isNumericReplay(text: string, templates: readonly [string, string][]): 
   return isNumericText(text) || templates.some(([prefix, suffix]) => text.startsWith(prefix) && text.endsWith(suffix)
     && text.length > prefix.length + suffix.length && isNumericText(text.slice(prefix.length, text.length - suffix.length)));
 }
-async function decode(data: string): Promise<Font> {
-  const bytes = Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0));
-  const result = await loadFont(bytes);
-  if (result.tag !== 'Ok') throw new Error('Cannot decode numeric lettering subset: ' + JSON.stringify(result.error));
-  return result.value;
-}
-let baseFaces: Promise<Record<FontName, Font[]>> | undefined;
-function numericFallbackFaces(): Promise<Record<FontName, Font[]>> {
-  return baseFaces ??= (async () => {
-    const [sans, mono, ...fallback] = await Promise.all([SANS, MONO, ...FALLBACK.map(([, data]) => data)].map(decode));
-    return { sans: [sans!, ...fallback], mono: [mono!, sans!, ...fallback] };
-  })();
-}
 interface ReplayState {
   ready?: Promise<void>;
-  /** By run family: 'sans', 'mono', or a cut such as 'sans/bold'. */
-  chains: Record<string, Font[]>;
+  /** Unit-size shapers for numeric replay, by run family: 'sans', 'mono', or a cut such as 'sans/bold'. */
+  chains: Record<string, (text: string, size: number) => ShapedRun>;
   templates: Record<string, [string, string][]>;
-  memo: Map<string, Run>;
 }
 const replays = new WeakMap<LetteringSnapshot, ReplayState>();
 export const scriptFaceNames: Readonly<Record<string, string>> = {
   Arab: 'noto-naskh-arabic', Deva: 'noto-sans-devanagari', Hebr: 'noto-sans-hebrew',
-  Hani: 'noto-sans-sc', Latn: 'inter', Grek: 'inter', Cyrl: 'inter',
+  Hani: 'noto-sans-sc', ...Object.fromEntries(LETTERING_SCRIPTS.map((script) => [script, 'inter'])),
 };
 /** The registry face a family's cuts come from when the request names none. */
 export const defaultCutFace: Readonly<Record<FontName, string>> = { sans: 'inter', mono: 'jetbrains-mono' };
@@ -200,21 +186,15 @@ export function requestCuts(request: LetteringRequest): LetteringCut[] {
 export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProvider {
   const snapshot = unpackLettering(stored);
   let replay = replays.get(snapshot);
-  if (!replay) replays.set(snapshot, replay = { chains: {}, templates: {}, memo: new Map() });
+  if (!replay) replays.set(snapshot, replay = { chains: {}, templates: {} });
   const state = replay;
   const lookup = (font: string, text: string, size: number, display = false) => {
     const run = snapshot.runs[runKey(font, text, display)];
     if (run) return scaledRun(run, size);
     if (font !== 'math' && state.chains[font]
       && isNumericReplay(text, state.templates[font] ?? [])) {
-      const key = runKey(font, text);
-      let numeric = state.memo.get(key);
-      if (!numeric) {
-        numeric = shapeChain(state.chains[font], font, text, 1);
-        if (numeric.glyphs.some((g) => g.gid === 0)) throw new Error(`Numeric lettering cannot draw ${JSON.stringify(text)}`);
-        state.memo.set(key, numeric);
-        if (state.memo.size > 4096) state.memo.delete(state.memo.keys().next().value!);
-      }
+      const numeric = state.chains[font](text, 1);
+      if (numeric.glyphs.some((g) => g.gid === 0)) throw new Error(`Numeric lettering cannot draw ${JSON.stringify(text)}`);
       return scaledRun(numeric, size);
     }
     throw new Error(`Lettering snapshot has no run for ${JSON.stringify(text)} (${font}); run rayner snapshots`);
@@ -229,12 +209,12 @@ export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProv
             ? [{ font, cut, family }] : [];
         }));
         if (!families.length) return;
-        const fallback = await numericFallbackFaces();
+        const embedded = await embeddedFaces();
         const scriptNames = [...new Set((snapshot.request.scripts ?? []).flatMap((script) => scriptFaceNames[script] ?? []))];
         const decoded = new Map<string, Promise<Font>>();
         const face = (name: string) => {
           let f = decoded.get(name);
-          if (!f) decoded.set(name, f = decode(snapshot.faces[name]!.data));
+          if (!f) decoded.set(name, f = decodeFont(snapshot.faces[name]!.data, 'Cannot decode numeric lettering subset'));
           return f;
         };
         for (const { font, cut, family } of families) {
@@ -245,12 +225,15 @@ export function snapshotProvider(stored: StoredLetteringSnapshot): LetteringProv
             return found ? [face(found)] : [];
           }));
           const name = cut ? cutFace(snapshot.request.faces?.[font] ?? defaultCutFace[font], cut) : snapshot.request.faces?.[font];
+          let chain: Font[];
           if (name) {
             if (!snapshot.faces[name]) throw new Error(`Lettering snapshot has no subset for requested face ${name}`);
-            state.chains[family] = [await face(name), ...scripts, ...fallback[font]];
+            chain = [await face(name), ...scripts, ...embeddedChain(embedded, font)];
           } else {
-            state.chains[family] = [fallback[font][0]!, ...scripts, ...fallback[font].slice(1)];
+            const [own, ...rest] = embeddedChain(embedded, font);
+            chain = [own!, ...scripts, ...rest];
           }
+          state.chains[family] = memoShaper(chain, family);
         }
       })();
     },
@@ -366,13 +349,7 @@ function spanBox(span: CodeSpan): Box | undefined {
   const result: Box = [left, frame[1]!, right, frame[3]!];
   const selectedClusters = new Set(selected.map((glyph) => form.source[glyph.cluster] ?? text.text.length));
   const inkGlyphs = text.children.filter((glyph) => selectedClusters.has((glyph as { cluster?: number }).cluster ?? -1));
-  for (const glyph of inkGlyphs) {
-    const ink = glyph.box();
-    if (!ink) continue;
-    result[0] = Math.min(result[0], ink[0]); result[1] = Math.min(result[1], ink[1]);
-    result[2] = Math.max(result[2], ink[2]); result[3] = Math.max(result[3], ink[3]);
-  }
-  return result;
+  return unionBoxes([result, ...inkGlyphs.map((glyph) => glyph.box())])!;
 }
 export function textShaping(provider: LetteringProvider): TextShaping {
   let context = contexts.get(provider);
@@ -408,5 +385,5 @@ export function bindLettering(Source: SceneClass, provider: LetteringProvider | 
 export function usesOutlineLettering(Source: object): boolean {
   const r = letteringOf(Source);
   return !!r && (Object.hasOwn(r, 'faces') || Object.hasOwn(r, 'math') || Object.hasOwn(r, 'styles') ||
-    (Array.isArray(r.scripts) && r.scripts.some((s) => !['Latn', 'Grek', 'Cyrl'].includes(s))));
+    (Array.isArray(r.scripts) && r.scripts.some((s) => !(LETTERING_SCRIPTS as readonly string[]).includes(s))));
 }

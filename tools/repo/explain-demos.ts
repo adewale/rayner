@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { EXPLAINERS, PRODUCT, SHOWCASE } from '../../scenes/explainers/catalog.ts';
+import { EXPLAINERS, PRODUCT } from '../../scenes/explainers/catalog.ts';
 import { collectProject, defaultScenario, ROOT, baseReceipt, sceneInputs } from '../lib/explain-project.ts';
 import { describeProject, checkBuilt } from './lib/explain-site-describe.ts';
 import { restingTime, htmlEscape, pictureSummary, stepWords } from '../../explain/trace.ts';
+import { teaching } from '../../explain/script.ts';
 import { buildExplainer, buildLoader } from '../lib/explain-build.ts';
 import { stillPng } from '../lib/explain-shots.ts';
 import { checkProject } from '../lib/explain-check.ts';
 import { shareable } from '../lib/explain-share.ts';
 import { useProjectLettering } from '../lib/explain-lettering.ts';
-import { galleryPage } from './lib/explain-gallery.ts';
+import { galleryPage, galleryTokens } from './lib/explain-gallery.ts';
 import { builtOutputHashes } from './lib/explain-built-files.ts';
 import type { ShareManifest } from '../lib/explain-share.ts';
 import { measureEmbed, embedSizeProblems } from './lib/explain-embed-size.ts';
@@ -21,16 +22,16 @@ import { launch } from '../lib/browser.ts';
 import { reviewSubjects } from '../lib/explain-review-scene.ts';
 import { narrowOpeningPlan } from '../lib/explain-story-review.ts';
 import { buildInputs } from '../lib/build-inputs.ts';
-import { selectedIds, selectExport } from './lib/explain-export-selection.ts';
+import { isWholeCollection, onlyIds, selectedIds, selectExport } from './lib/explain-export-selection.ts';
 
 const { values } = parseArgs({ options: {
   check: { type: 'boolean' }, only: { type: 'string' }, entry: { type: 'string' }, out: { type: 'string' },
 } });
-const only = values.only === 'showcase' ? SHOWCASE.join(',') : values.only;
+const only = onlyIds(values.only);
 const requested = selectedIds(only, EXPLAINERS.map(item => item.id));
 if (values.entry && !requested.includes(values.entry)) throw new Error(`--entry must name a selected explainer: ${values.entry}`);
 const items = EXPLAINERS.filter(item => requested.includes(item.id));
-const collection = items.length === EXPLAINERS.length;
+const collection = isWholeCollection(items);
 const check = values.check;
 const directory = resolve(values.out ?? join(ROOT, 'out/explainers'));
 const inputs = await buildInputs(ROOT);
@@ -68,7 +69,7 @@ for (const item of items) {
   );
   // Export renders cards for selected public teaching steps; collection checks need only metadata.
   await mkdir(join(directory, item.id), { recursive: true });
-  const pictured = scenario.trace.steps.filter((x) => x.meta.kind !== 'detail' && shareable(x.step));
+  const pictured = teaching(scenario.trace.steps).filter((x) => shareable(x.step));
   const share: ShareManifest = {
     id: item.id,
     title: project.Scene.meta?.title ?? item.id,
@@ -110,7 +111,7 @@ for (const item of items) {
     styles: [...new Set(Object.values(project.store).map((s) => s.spec.style ?? 'default'))],
     families: [...new Set(Object.values(project.store).map((s) => s.family))],
     entry: {
-      step: scenario.trace.steps.find((step) => step.meta.kind !== 'detail')?.step ?? scenario.trace.steps[0]!.step,
+      step: teaching(scenario.trace.steps)[0]!.step,
       settings: scenario.values,
     },
     sourceHash: project.sourceHash,
@@ -168,8 +169,7 @@ const catalog: import('../lib/explain-artifacts.ts').Catalog = {
 const selected = selectExport(only, catalog, evidenceDocument, values.entry);
 await writeFile(join(directory, 'evidence.json'), JSON.stringify(selected.evidence, null, 2) + '\n');
 await writeFile(join(directory, 'catalog.json'), JSON.stringify(selected.catalog, null, 2) + '\n');
-const css = await readFile(join(ROOT, 'app/embed.css'), 'utf8'),
-  tokens = css.slice(0, css.indexOf('\nbody{'));
+const tokens = await galleryTokens(ROOT);
 await writeFile(join(directory, 'index.html'), galleryPage(selected.catalog, tokens, collection));
 // Two embeds in a host's articles. The tile is the edge: the host draws no card around an embed, and
 // its own text above and below each one shows where the explainer begins and ends.

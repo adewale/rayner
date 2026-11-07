@@ -8,7 +8,8 @@ import { NullSink, StringSink } from '../src/output.ts';
 import { loadFonts, traceScene } from '../explain/testing.ts';
 import type { Sink } from '../src/index.ts';
 import { stage, Machine, refuse, view } from '../explain/index.ts';
-import { acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, pictureChange, runLive } from '../app/embed-live.ts';
+import { acceptedLog, decodeLog, encodeLog, liveSteps, logStart, outcomes, runLive } from '../app/embed-live.ts';
+import { pictureChange } from '../explain/trace.ts';
 
 await loadFonts();
 
@@ -198,7 +199,13 @@ test('a kept run plays the next event from its picture, landing where a fresh ru
 
 test('an event is announced by what it changed of the picture', () => {
   const at = (...entries: object[]) => ({ picture: { entries } });
-  assert.equal(pictureChange(at({ what: 'A lamp, dim', items: [] }, { what: 'Code' }), at({ what: 'A lamp, bright', marked: { lit: ['bulb'] }, items: [] }, { what: 'Code' })), 'A lamp, bright, bulb (lit)');
+  assert.equal(pictureChange(at({ what: 'A lamp, bright', marked: { lit: ['bulb'] }, items: [] }, { what: 'Code' }), at({ what: 'A lamp, dim', items: [] }, { what: 'Code' })), 'A lamp, bright, bulb (lit)');
   assert.equal(pictureChange(at({ what: 'Same' }), at({ what: 'Same' })), '');
-  assert.equal(pictureChange(undefined, at({ what: 'New.' })), 'New');
+  assert.equal(pictureChange(at({ what: 'New.' }), undefined), 'New');
+  // A thing that only moved in the list is not news; one whose parts changed is.
+  assert.equal(pictureChange(at({ what: 'Code', items: ['a'] }, { what: 'A lamp', items: [] }), at({ what: 'A lamp', items: [] }, { what: 'Code', items: ['a'] })), '');
+  assert.equal(pictureChange(at({ what: 'Code', items: ['b'] }, { what: 'A lamp', items: [] }), at({ what: 'A lamp', items: [] }, { what: 'Code', items: ['a'] })), 'Code');
+  // In the picture's language: French sets a no-break space before the semicolon between things.
+  const fr = (...entries: object[]) => ({ picture: { entries, lang: 'fr' } });
+  assert.equal(pictureChange(fr({ what: 'Une lampe', items: ['x'] }, { what: 'Du code', items: ['y'] }), fr()), 'Une lampe\u202f; Du code');
 });

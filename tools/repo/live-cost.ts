@@ -21,6 +21,8 @@ import { buildExplainer } from '../lib/explain-build.ts';
 import { serve } from '../lib/explain-serve.ts';
 import { launch } from '../lib/browser.ts';
 import { SENT, acceptedLog, encodeLog, logStart, outcomes, runLive } from '../../app/embed-live.ts';
+import { stepQuery } from '../../explain/settings.ts';
+import { median } from './lib/bench-stats.ts';
 
 const { values: flags } = parseArgs({
   options: {
@@ -30,7 +32,6 @@ const { values: flags } = parseArgs({
   },
 });
 const presses = Number(flags.presses), cpu = Number(flags.cpu);
-const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length % 2 ? s[(s.length - 1) / 2]! : (s[s.length / 2 - 1]! + s[s.length / 2]!) / 2; };
 const ms = (xs: number[]) => `${Math.round(median(xs))} / ${Math.round(Math.max(...xs))}`;
 
 /** Click `event`'s button; resolve with the time to the first new picture on the stage and to the landing on `want`. */
@@ -95,7 +96,7 @@ try {
         const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: motion === 'reduce' ? 'reduce' : 'no-preference' });
         const page = await context.newPage();
         if (cpu > 1) await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: cpu });
-        await page.goto(`${server.url}/${id}.html?${new URLSearchParams({ ...scenario.values, step })}`);
+        await page.goto(`${server.url}/${id}.html?${stepQuery(scenario.values, step)}`);
         await page.waitForSelector('[data-ready=true]');
         await landed(page, '');
         for (const [i, log] of walk.entries()) {

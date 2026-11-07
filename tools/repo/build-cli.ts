@@ -5,12 +5,14 @@
 import { build } from 'esbuild';
 import type { Metafile } from 'esbuild';
 import { chmod, copyFile, cp, mkdir, rm } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { realpathSync } from 'node:fs';
 
-export const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+import { ROOT } from '../lib/roots.ts';
+import { relativePosix } from '../lib/hash.ts';
+export { ROOT };
 /** What rayner-cli ships beside its bundle, as paths in this repository and in the package. */
 export const CLI_FILES = [
   'app',
@@ -52,7 +54,7 @@ export async function buildCli(out = join(ROOT, 'cli')): Promise<Metafile> {
           // The command and the scenes it loads share the library's compiled modules (one engine),
           // reached through rayner's internal entry: the same files `rayner` itself loads.
           b.onResolve({ filter: /^\.?\.?\// }, (args) => {
-            const name = relative(ROOT, resolve(args.resolveDir, args.path)).replaceAll('\\', '/');
+            const name = relativePosix(ROOT, resolve(args.resolveDir, args.path));
             if (libraryModule(name)) return { path: 'rayner/internal/' + name.replace(/\.ts$/, '.js'), external: true };
             return undefined;
           });

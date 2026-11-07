@@ -9,6 +9,8 @@ import type { Vec } from './vec.ts';
 import { lerpColor, NEUTRAL_COLORS } from './color.ts';
 import type { ColorRole, SceneColors } from './color.ts';
 import { perf } from './perf.ts';
+import { center, pointsBox } from './box.ts';
+import type { Box } from './box.ts';
 import type { MergedCache } from './svg.ts';
 
 let nextId = 1;
@@ -41,6 +43,27 @@ export interface Style extends SvgPaint {
 /** A mobject's resolved style: every field set except the transient drawFraction. */
 export type StyleRecord = Required<Omit<Style, keyof SvgPaint | 'drawFraction'>> & Pick<Style, keyof SvgPaint | 'drawFraction'>;
 
+/**
+ * Whether a style's fill shows: a paint other than none, at an opacity above zero and at
+ * least `min`. An unset fill paints nothing; an unset opacity is 1. The style's own
+ * `opacity` (and its parents') is the caller's to weigh.
+ */
+export function paintsFill(style: Style, { min = 0 }: { min?: number } = {}): boolean {
+  const o = style.fillOpacity ?? 1;
+  return !!style.fill && style.fill !== 'none' && o > 0 && o >= min;
+}
+/** Whether a style's stroke shows: as paintsFill, and with a width above zero (unset is 0). */
+export function paintsStroke(style: Style, { min = 0 }: { min?: number } = {}): boolean {
+  const o = style.strokeOpacity ?? 1;
+  return !!style.stroke && style.stroke !== 'none' && (style.strokeWidth ?? 0) > 0 && o > 0 && o >= min;
+}
+/**
+ * Whether a style paints anything: its fill or its stroke shows (paintsFill, paintsStroke).
+ * `min` is the least paint opacity that counts: 0 asks whether anything is there at all,
+ * a higher one whether it is there strongly enough to read.
+ */
+export const paints = (style: Style, opts: { min?: number } = {}): boolean => paintsFill(style, opts) || paintsStroke(style, opts);
+
 const DEFAULT_STYLE: StyleRecord = {
   fill: 'none',
   fillOpacity: 1,
@@ -50,8 +73,7 @@ const DEFAULT_STYLE: StyleRecord = {
   opacity: 1,
 };
 
-/** [minX, minY, maxX, maxY] in scene units. */
-export type Box = [minX: number, minY: number, maxX: number, maxY: number];
+export type { Box } from './box.ts';
 
 /** Called every frame with the mobject it was added to and the frame's dt. */
 export type Updater<M extends Mobject = Mobject> = (m: M, dt: number) => void;
@@ -254,25 +276,14 @@ export class Mobject {
     perf.count('box()');
     if (this._bbox) return this._bbox;
     perf.count('box() miss');
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const m of this.family()) {
-      for (const a of m.boundingPointArrays()) {
-        for (let i = 0; i < a.length; i += 2) {
-          const x = a[i]!, y = a[i + 1]!;
-          if (x < minX) minX = x; if (x > maxX) maxX = x;
-          if (y < minY) minY = y; if (y > maxY) maxY = y;
-        }
-      }
-    }
-    if (minX === Infinity) return null;
-    return (this._bbox = [minX, minY, maxX, maxY]);
+    return (this._bbox = pointsBox(this.family().flatMap((m) => m.boundingPointArrays())));
   }
 
   /** Point on the box in `direction`: ORIGIN = center, UR = upper right. */
   boxPoint(direction: Readonly<Vec> = [0, 0]): Vec {
     const b = this.box();
     if (!b) return [0, 0];
-    const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+    const [cx, cy] = center(b);
     const hw = (b[2] - b[0]) / 2, hh = (b[3] - b[1]) / 2;
     return [cx + direction[0] * hw, cy + direction[1] * hh];
   }
@@ -596,7 +607,7 @@ export class Mobject {
    * parent and updaters (manim's `become`): with the same family shape each member takes its
    * counterpart's data, so children keep their identities too. With a different shape the
    * children are replaced, which is refused when any of them carries a key. `other` is not
-   * changed. Follow writes each frame's drawing into its targets this way.
+   * changed. A sampled animation can write each frame's drawing into its targets this way.
    */
   become(other: Mobject): this {
     if (this.sameShapeAs(other)) {

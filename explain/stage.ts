@@ -2,6 +2,9 @@ import { Mobject, Group, Rectangle, Circle, Text, FadeIn, FadeOut, Transform, Cr
 import { View } from './view.ts';
 import { jsonObject } from '../src/json.ts';
 import type { Scene, Vec, Box, FadeOpts, Animation, SceneState, StepKind, SceneColors } from '../src/index.ts';
+import { center, unionBoxes } from '../src/box.ts';
+import { STAGE_BOX, atHome } from '../src/svg.ts';
+import { isDetail, teaching } from './script.ts';
 import type { StepAudio } from './audio.ts';
 import { dimension, pin, callout, legend, tool, Draw, oneStrokeEach } from './annotate.ts';
 import type { LegendItem } from './annotate.ts';
@@ -13,7 +16,7 @@ import type { CardRow, CardOptions, CodeOptions } from './panels.ts';
 import { diagramsOf } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Palette, DiagramSpec } from '../integrations/agentic-mermaid/snapshot.ts';
 import { palette } from './palettes.ts';
-import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen } from './look.ts';
+import { soft, emphasis, good, bad, raised, rule, regionBox, opening, partsSeen, REGIONS } from './look.ts';
 import type { Region } from './look.ts';
 import { picture, shownNames } from './trace.ts';
 import { wordsOf, langOf } from './words.ts';
@@ -105,6 +108,15 @@ export function isHeading(m: Mobject): boolean {
   for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'heading' || x.role === 'chrome') return true;
   return false;
 }
+/**
+ * Stage furniture: the paper, or part of the heading (isHeading), or inside one of them; with
+ * `frame`, a diagram's frame (role `'frame'`) too. It frames every step and says nothing about
+ * where to look, so the close-ups, the review and the layout checks leave it out.
+ */
+export function isFurniture(m: Mobject, { frame = false }: { frame?: boolean } = {}): boolean {
+  for (let x: Mobject | null = m; x; x = x.parent) if (x.role === 'paper' || (frame && x.role === 'frame')) return true;
+  return isHeading(m);
+}
 /** The stage's paper (role `'paper'`), or undefined for a scene drawn without a stage. */
 export const paperPart = (scene: Scene): Mobject | undefined => scene.mobjects.find((m) => m.role === 'paper');
 /**
@@ -126,9 +138,7 @@ const LINE_SIZE = 0.3;
 /** The widest the heading and its line may be, in scene units. */
 const CHROME_WIDTH = 14.6;
 /** Where content goes when the camera focuses on it: the stage below the heading and its line. */
-const CONTENT: Box = [-7.55, -4.25, 7.55, 3.25];
-/** The camera's home box: the whole stage. */
-const HOME: Box = [-8, -4.5, 8, 4.5];
+const CONTENT: Readonly<Box> = REGIONS.full;
 
 /** What a diagram's view draws from the state (see diagramView): its marks, notes and the parts left undimmed, as `d.picture` takes them. */
 export interface DiagramPicture {
@@ -280,7 +290,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       setHeading(
         typeof s.meta.title === 'string' ? s.meta.title : '',
         typeof s.meta.line === 'string' ? s.meta.line.trim() : '',
-        numbered && s.meta.kind !== 'detail' ? scene.steps.filter((step) => step.meta.kind !== 'detail').length : null,
+        // The step's own number: teaching steps so far, itself included (the scene has pushed it).
+        numbered && !isDetail(s) ? teaching(scene.steps).length : null,
         s.name,
       ),
     );
@@ -347,14 +358,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
     if (Array.isArray(target) && typeof target[0] === 'number') b = target as Box;
     else {
       const mobs = (Array.isArray(target) ? target : [target]) as Mobject[];
-      const boxes = mobs.map((m) => m.box()).filter((x): x is Box => !!x);
-      if (!boxes.length) throw new Error('focus(): nothing to look at');
-      b = [
-        Math.min(...boxes.map((x) => x[0])),
-        Math.min(...boxes.map((x) => x[1])),
-        Math.max(...boxes.map((x) => x[2])),
-        Math.max(...boxes.map((x) => x[3])),
-      ];
+      b = unionBoxes(mobs.map((m) => m.box()));
+      if (!b) throw new Error('focus(): nothing to look at');
     }
     const w = b[2] - b[0] + 2 * margin,
       h = b[3] - b[1] + 2 * margin;
@@ -362,8 +367,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
       1,
       Math.min((CONTENT[2] - CONTENT[0]) / Math.max(w, 1e-6), (CONTENT[3] - CONTENT[1]) / Math.max(h, 1e-6)),
     );
-    const cc: Vec = [(CONTENT[0] + CONTENT[2]) / 2, (CONTENT[1] + CONTENT[3]) / 2],
-      tc: Vec = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    const cc = center(CONTENT),
+      tc = center(b);
     const hw = 8 / z,
       hh = 4.5 / z;
     // Put the target's centre where the content area's centre is on screen, then keep the view on the stage.
@@ -378,7 +383,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
    */
   function cameraTo(box: Box, runTime: number): Animation[] {
     const k = (box[2] - box[0]) / 16,
-      next = { k, shift: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] as Vec };
+      next = { k, shift: center(box) };
     const anims: Animation[] = [new Transform(scene.frame, scene.frame.copy().fit(box, { margin: 0 }), { runTime })];
     for (const m of [heading, ...chrome]) if (home.has(m)) anims.push(new Transform(m, pinned(m, next), { runTime }));
     const away = Math.abs(k - 1) > 1e-9 || Math.abs(next.shift[0]) > 1e-9 || Math.abs(next.shift[1]) > 1e-9;
@@ -565,9 +570,8 @@ export function stage(scene: Scene, options: StageOptions = {}) {
      */
     async clear({ runTime = 0.4 } = {}) {
       const gone = scene.mobjects.filter((m) => m !== paper && m !== heading && m !== band && !chrome.includes(m));
-      const atHome = scene.frame.box()!.every((v, i) => Math.abs(v - HOME[i]!) < 1e-6);
       const anims: Animation[] = gone.map((m) => new FadeOut(m, { runTime }));
-      if (!atHome) anims.push(...cameraTo(HOME, runTime));
+      if (!atHome(scene.frame.box()!)) anims.push(...cameraTo([...STAGE_BOX], runTime));
       if (anims.length) await scene.play(...anims);
       for (const d of diagrams) d.forget();
       overlays.clear();
@@ -588,7 +592,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
         with: also = [],
       }: { margin?: number; runTime?: number; exact?: boolean; with?: Animation[] } = {},
     ) {
-      const box = target === 'all' ? HOME : exact ? (target as Box) : viewFor(target, margin);
+      const box = target === 'all' ? [...STAGE_BOX] as Box : exact ? (target as Box) : viewFor(target, margin);
       await scene.play(...cameraTo(box, runTime), ...also.map((a) => a.setOptions({ runTime })));
     },
     /**
@@ -605,7 +609,7 @@ export function stage(scene: Scene, options: StageOptions = {}) {
           (b[2] - b[0]) / Math.max(1e-6, target.width()),
           (b[3] - b[1]) / Math.max(1e-6, target.height()),
         );
-        target.scale(k).moveTo([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
+        target.scale(k).moveTo(center(b));
       } else target.moveTo(to as Vec);
       await scene.play(new Transform(m, target, { runTime }));
     },

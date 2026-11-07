@@ -1,11 +1,11 @@
 // Byte pins for the built files site:export consumes. Source-input pins alone cannot detect
 // a changed HTML page or picture in out/explainers after demos:build finished.
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { sha256 } from '../../lib/hash.ts';
 
 const rootFiles = ['loader.js', 'index.html', 'catalog.json', 'evidence.json'];
-const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
+const digest = sha256;
 
 async function outputNames(dir: string, ids: readonly string[], collection: boolean): Promise<string[]> {
   const paths = [...rootFiles, ...(collection ? ['embed-lab.html'] : [])];

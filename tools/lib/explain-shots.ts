@@ -6,6 +6,8 @@ import { NullSink, SnapshotSink, renderAt } from '../../src/output.ts';
 import { rasterize, band } from './explain-raster.ts';
 import { defaultScenario } from './explain-project.ts';
 import { restingTime, stepWords } from '../../explain/trace.ts';
+import { paperOf } from '../../explain/stage.ts';
+import { isHex } from '../../src/color.ts';
 import type { Project } from './explain-project.ts';
 import { CARD } from './explain-share.ts';
 import { useProjectLettering } from './explain-lettering.ts';
@@ -27,7 +29,7 @@ class CardSink extends SnapshotSink {
   paper: string | undefined;
   override async frame(scene: Scene): Promise<void> {
     await super.frame(scene);
-    this.paper = scene.mobjects.find((m) => m.role === 'paper')?.style.fill;
+    this.paper = paperOf(scene);
   }
 }
 
@@ -42,7 +44,7 @@ export async function cardPicture(Source: Project['Scene'], time: number) {
   const sink = new CardSink({ width: CARD.inner, cull: true, background: CARD.background });
   await renderAt(Source, time, sink);
   const x = (CARD.width - CARD.inner) / 2,
-    fill = sink.paper && /^#[0-9a-f]{3,8}$/i.test(sink.paper) ? sink.paper : CARD.background,
+    fill = isHex(sink.paper, { alpha: true }) ? sink.paper : CARD.background,
     inner = sink.svg.replace(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" /, `<svg x="${x}" `);
   if (inner === sink.svg) throw new Error('cardPicture: unexpected SVG root');
   return rasterize(

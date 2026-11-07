@@ -6,17 +6,15 @@
 // nothing never reaches this file's work: see collectProject.
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createHash } from 'node:crypto';
-import { useLettering, takeLetteringUse } from '../../src/lettering.ts';
+import { LETTERING_SCRIPTS, useLettering, takeLetteringUse } from '../../src/lettering.ts';
 import type { SubsetLetteringRequest, LetteringScript, LetteringFaces } from '../../src/lettering.ts';
 import type { FontName } from '../../src/index.ts';
+import { ROOT } from './roots.ts';
+import { sha256 } from './hash.ts';
 
-const ROOT = new URL('../../', import.meta.url);
-const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 
 /** Code point ranges per script. Keep in step with tools/repo/lettering-fonts.sh, which cuts the sources to them. */
 export const SCRIPTS: Record<LetteringScript, readonly (readonly [number, number])[]> = {
@@ -52,7 +50,7 @@ export interface Lettering {
 export function letteringRequest(Scene: { meta?: object }): SubsetLetteringRequest | undefined {
   const value = (Scene.meta as { lettering?: unknown } | undefined)?.lettering;
   if (value === undefined) return undefined;
-  const known = Object.keys(SCRIPTS);
+  const known: readonly string[] = LETTERING_SCRIPTS;
   const fail = (why: string) => {
     throw new Error(`meta.lettering ${why}. Ask for { scripts: [...] } with some of ${known.join(', ')}`);
   };
@@ -109,7 +107,7 @@ export async function prepareLettering(
   { write = true }: { write?: boolean } = {},
 ): Promise<Lettering> {
   const sources = Object.fromEntries(
-    await Promise.all(FAMILIES.map(async (f) => [f, await readFile(new URL(SOURCES[f].file, ROOT))] as const)),
+    await Promise.all(FAMILIES.map(async (f) => [f, await readFile(join(ROOT, SOURCES[f].file))] as const)),
   ) as Record<FontName, Buffer>;
   await useLettering({ sans: sources.sans.toString('base64'), mono: sources.mono.toString('base64') });
   takeLetteringUse();
@@ -151,7 +149,7 @@ async function cut(family: FontName, codePoints: number[]): Promise<string> {
     await promisify(execFile)(
       tool,
       [
-        fileURLToPath(new URL(SOURCES[family].file, ROOT)),
+        join(ROOT, SOURCES[family].file),
         '--unicodes=' + codePoints.map((cp) => 'U+' + hex(cp)).join(','),
         '--layout-features=' + SOURCES[family].features,
         '--flavor=woff2',

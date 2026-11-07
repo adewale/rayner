@@ -51,12 +51,26 @@ export function normalise(text: string): string {
     .replace(/[.!?…:;,\s]+$/u, '');
 }
 
-type Step = { step: string; meta: Record<string, unknown> };
-/** Teaching steps, as the player counts them: every step not marked `detail`, or every step. */
-function teaching<T extends Step>(steps: readonly T[]): T[] {
-  const main = steps.filter((s) => s.meta.kind !== 'detail');
-  return main.length ? main : [...steps];
+/** A step as the reading-path rule reads it: a trace's step record, a scene's step, or anything with their `meta`. */
+export type TeachingStep = { readonly meta: Readonly<Record<string, unknown>> };
+type Step = TeachingStep & { step: string };
+/** Whether a step is marked `detail`: reference, linkable and reviewable, outside the reading path. */
+export const isDetail = (step: TeachingStep): boolean => step.meta.kind === 'detail';
+/**
+ * The indices of the teaching steps, the reading path the player steps through and numbers:
+ * every step not marked `detail`, or every step when all of them are.
+ */
+export function teachingIndices(steps: readonly TeachingStep[]): number[] {
+  const main = steps.flatMap((s, i) => (isDetail(s) ? [] : [i]));
+  return main.length ? main : steps.map((_, i) => i);
 }
+/** The teaching steps themselves (teachingIndices). */
+export function teaching<T extends TeachingStep>(steps: readonly T[]): T[] {
+  return teachingIndices(steps).map((i) => steps[i]!);
+}
+/** Whether `steps[index]` is off the reading path: a detail step, while some step is not one. */
+export const offPath = (steps: readonly TeachingStep[], index: number): boolean =>
+  !!steps[index] && isDetail(steps[index]) && steps.some((s) => !isDetail(s));
 
 /**
  * Where a scenario's steps first state `answer`: the teaching step (1-based) whose title, line or

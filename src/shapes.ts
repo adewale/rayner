@@ -7,6 +7,7 @@ import type { Mobject, Style } from './mobject.ts';
 import * as V from './vec.ts';
 import type { Vec } from './vec.ts';
 import type { Box } from './mobject.ts';
+import { center } from './box.ts';
 import { NEUTRAL_COLORS } from './color.ts';
 import { Text } from './text.ts';
 
@@ -243,7 +244,7 @@ export class SurroundingRectangle extends Rectangle {
     const b = boxOf(target);
     super({ width: b[2] - b[0] + 2 * buff, height: b[3] - b[1] + 2 * buff, cornerRadius, stroke: NEUTRAL_COLORS.accent, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'accent' });
-    this.shift([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
+    this.shift(center(b));
   }
 }
 
@@ -270,7 +271,7 @@ export class Cross extends VMobject {
     super({ stroke: NEUTRAL_COLORS.bad, strokeWidth: 0.06, fill: 'none', ...style });
     if (style.stroke === undefined) followScene(this, { stroke: 'bad' });
     const b = boxOf(target);
-    const cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+    const [cx, cy] = center(b);
     const w = (b[2] - b[0]) / 2 * scale, h = (b[3] - b[1]) / 2 * scale;
     this.startNewPath([cx - w, cy + h]); this.addLineTo([cx + w, cy - h]);
     this.startNewPath([cx + w, cy + h]); this.addLineTo([cx - w, cy - h]);
@@ -312,7 +313,7 @@ export class Brace extends VMobject {
     const cos = snap(Math.cos(angle)), sin = snap(Math.sin(angle));
     const along: Vec = [cos, sin];
     // The box's corners, from its center, measured along the brace and out from it
-    const c: Vec = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+    const c = center(b);
     const corners = ([[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] as Vec[]).map((p) => V.sub(p, c));
     const ts = corners.map((p) => V.dot(p, along));
     const lo = Math.min(...ts), hi = Math.max(...ts);

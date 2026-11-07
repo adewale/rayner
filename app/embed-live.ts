@@ -9,11 +9,12 @@ import { NullSink, StopScene } from '../src/output.ts';
 import { machinesOf } from '../explain/machine.ts';
 import type { Scene, SceneClass, SceneState, Sink } from '../src/index.ts';
 import type { Machine } from '../explain/machine.ts';
+import { PAGE_QUERY } from '../explain/settings.ts';
 
 type AnyMachine = Machine<object, string>;
 
-/** The URL key that holds the reader's events, beside `step` (explain/settings.ts reserves it). */
-export const SENT = 'sent';
+/** The URL key that holds the reader's events, beside `step` (explain/settings.ts PAGE_QUERY). */
+export const SENT = PAGE_QUERY.sent;
 
 /** A step where the reader can drive a machine: the machine's place in `machinesOf(scene)`, and the machine. */
 export interface Live {
@@ -273,17 +274,3 @@ export async function runLive(
   return result;
 }
 
-type Entry = { what: string; marked?: Record<string, string[]>; items?: string[] };
-/**
- * What an event changed of the picture, in words: each described thing whose description differs
- * from the one in the same place before (its words and its emphasised parts), joined. Empty when
- * no description changed. What a screen reader hears after an event, rather than the whole picture.
- */
-export function pictureChange(before: unknown, after: unknown): string {
-  const entries = (shown: unknown): Entry[] => (shown as { picture?: { entries?: Entry[] } } | undefined)?.picture?.entries ?? [];
-  const was = entries(before);
-  return entries(after)
-    .filter((e, i) => JSON.stringify(e) !== JSON.stringify(was[i]))
-    .map((e) => [e.what, ...Object.entries(e.marked ?? {}).flatMap(([word, names]) => names.map((n) => `${n} (${word})`))].join(', ').replace(/[.;,]+$/, ''))
-    .join('; ');
-}

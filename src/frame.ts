@@ -7,7 +7,8 @@
 
 import { Mobject } from './mobject.ts';
 import type { Box } from './mobject.ts';
-import { FRAME } from './svg.ts';
+import { FRAME, STAGE_BOX } from './svg.ts';
+import { center } from './box.ts';
 
 export interface FrameFitOpts {
   /** Space kept around the target on every side, in scene units. */
@@ -33,7 +34,7 @@ export class Frame extends Mobject {
 
   constructor() {
     super();
-    this.corners = new Float32Array([-FRAME.w / 2, -FRAME.h / 2, FRAME.w / 2, FRAME.h / 2]);
+    this.corners = new Float32Array(STAGE_BOX);
   }
 
   override pointArrays(): Float32Array[] { return [this.corners]; }
@@ -47,7 +48,7 @@ export class Frame extends Mobject {
     const b = target instanceof Mobject ? target.box() : target;
     if (!b) throw new RangeError('Frame.fit(): the target has no points to fit');
     const w = Math.max(b[2] - b[0] + 2 * margin, (b[3] - b[1] + 2 * margin) * ASPECT);
-    return this.place((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, w);
+    return this.place(...center(b), w);
   }
 
   /** Back to the default frame: 16 × 9 at the origin. */

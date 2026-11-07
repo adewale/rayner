@@ -4,9 +4,9 @@
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
 import {readFile} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { sha256 } from '../lib/hash.ts';
 const repo = resolve(process.argv[2] ?? '');
 if (!process.argv[2]) { console.error('usage: node tools/repo/vendor-glyph.ts <path to glyph repo>'); process.exit(2); }
 // The revision vendor/glyph.pin.json records, and vendor/glyph-math.js is built from.
@@ -22,5 +22,5 @@ await build({
   bundle: true, format: 'esm', platform: 'neutral', outfile: new URL('../../vendor/glyph.js', import.meta.url).pathname, logLevel: 'warning',
 });
 console.log('vendor/glyph.js rebuilt');
-console.log('sha256:', createHash('sha256').update(await readFile(new URL('../../vendor/glyph.js', import.meta.url))).digest('hex'));
+console.log('sha256:', sha256(await readFile(new URL('../../vendor/glyph.js', import.meta.url))));
 console.log(`Built from glyph ${REVISION}. Record the bytes and sha256 in vendor/glyph.pin.json deliberately.`);

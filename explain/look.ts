@@ -1,6 +1,7 @@
-import { lerpColor, parseColor } from '../src/color.ts';
+import { contrastRatio, lerpColor, parseColor } from '../src/color.ts';
 import { Text } from '../src/index.ts';
 import type { Box, Mobject, Scene } from '../src/index.ts';
+import { center } from '../src/box.ts';
 import type { Palette } from '../integrations/agentic-mermaid/snapshot.ts';
 import type { Seen } from './trace.ts';
 
@@ -16,13 +17,9 @@ export function soft(p: Palette): string {
 }
 /** WCAG contrast of a colour against the paper. */
 function contrast(p: Palette, color: string): number {
-  const lum = (c: string) => {
-    const lin = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-    const [r, g, b] = parseColor(c) ?? [255, 255, 255];
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  };
-  const [a, z] = [lum(color), lum(p.paper)].sort((x, y) => y - x);
-  return (a! + 0.05) / (z! + 0.05);
+  // A colour this cannot read counts as white.
+  const rgb = (c: string) => parseColor(c) ?? ([255, 255, 255] as const);
+  return contrastRatio(rgb(color), rgb(p.paper));
 }
 /** Of a colour for dark paper and one for light paper, the one that reads on this paper. */
 const onPaper = (p: Palette, dark: string, light: string) => (contrast(p, dark) >= contrast(p, light) ? dark : light);
@@ -184,4 +181,4 @@ export function regionBox(
   const b: Box = typeof r === 'string' ? [...REGIONS[r]] : [...r];
   return [left ?? b[0], bottom ?? b[1], right ?? b[2], top ?? b[3]];
 }
-export const boxCenter = (b: Box): [number, number] => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
+export const boxCenter = (b: Box): [number, number] => center(b);

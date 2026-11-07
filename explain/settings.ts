@@ -59,8 +59,34 @@ export type ExplainerClass = SceneClass & {
 };
 /** Settings bound by `withSettings`, per bound class: visible from the first line of any constructor. */
 const bound = new WeakMap<object, Settings>();
-// Query parameters the embed reads itself (`sent`: the events a reader sent at a live step, app/embed-live.ts).
-const reserved = new Set(['step', 'sent', 'parentOrigin', 'theme']);
+/**
+ * The query keys a page reads itself, beside its settings: the step, the events a reader sent
+ * at a live step (app/embed-live.ts), the embedding host's origin and the theme. No setting may
+ * take one as its id.
+ */
+export const PAGE_QUERY = { step: 'step', sent: 'sent', parentOrigin: 'parentOrigin', theme: 'theme' } as const;
+const reserved = new Set<string>(Object.values(PAGE_QUERY));
+/** A page's query for a scenario's `values` at `step` (the scenario's first step without one), without the `?`. */
+export const stepQuery = (values: Readonly<Record<string, string>>, step?: string): string =>
+  new URLSearchParams({ ...values, ...(step === undefined ? {} : { [PAGE_QUERY.step]: step }) }).toString();
+
+/** What is wrong with a URL's settings, so each language can say it in its own words. */
+export type SettingsProblem =
+  | { kind: 'option'; id: string; label: string; value: string }
+  | { kind: 'setting'; id: string }
+  /** Anything else the validator refuses, with its (English) message. */
+  | { kind: 'other'; message: string };
+/** What resolveSettings throws: its English message, and the problem for a page to say in its own words. */
+export class SettingsError extends Error {
+  readonly problem: SettingsProblem;
+  constructor(problem: SettingsProblem, message = problem.kind === 'other' ? problem.message : '') {
+    super(message);
+    this.problem = problem;
+  }
+}
+/** Why resolveSettings refused: the problem it found, or its message for any other error. */
+export const settingsProblem = (error: unknown): SettingsProblem =>
+  error instanceof SettingsError ? error.problem : { kind: 'other', message: String((error as Error)?.message ?? error) };
 
 /** Validate declarations and selections once, at the author/URL boundary. */
 export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): Settings {
@@ -73,10 +99,10 @@ export function resolveSettings(Scene: ExplainerClass, values: Settings = {}): S
       throw new Error(`Invalid options/default for setting: ${s.id}`);
     // Own keys only: an id such as `constructor` must not read Object.prototype.
     const value = Object.hasOwn(values, s.id) ? values[s.id]! : s.default;
-    if (!options.includes(value)) throw new Error(`Unknown ${s.id} option: ${value}`);
+    if (!options.includes(value)) throw new SettingsError({ kind: 'option', id: s.id, label: s.label, value }, `Unknown ${s.id} option: ${value}`);
     result[s.id] = value;
   }
-  for (const id of Object.keys(values)) if (!(id in result)) throw new Error(`Unknown setting: ${id}`);
+  for (const id of Object.keys(values)) if (!(id in result)) throw new SettingsError({ kind: 'setting', id }, `Unknown setting: ${id}`);
   return Object.freeze(result);
 }
 
@@ -96,10 +122,15 @@ export function withSettings(Source: ExplainerClass, values: Settings = {}): Exp
   return Bound;
 }
 
-/** A scenario as readers see it, "Label: option · Label: option"; empty for a scene without settings. */
-export function scenarioName(Scene: ExplainerClass, values: Settings): string {
+/**
+ * A scenario as readers see it, "Label: option · Label: option"; empty for a scene without
+ * settings. `setting` names one setting, in English unless given a language's (embed-strings.ts
+ * scenarioNameIn).
+ */
+export function scenarioName(Scene: ExplainerClass, values: Settings,
+  setting: (label: string, option: string) => string = (label, option) => `${label}: ${option}`): string {
   return (Scene.settings ?? [])
-    .map((s) => `${s.label}: ${s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]}`)
+    .map((s) => setting(s.label, s.options.find((o) => o.value === values[s.id])?.label ?? values[s.id]!))
     .join(' · ');
 }
 

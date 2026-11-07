@@ -5,19 +5,20 @@ import { readFileSync } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { execFileSync } from 'node:child_process';
 import { resolve, join, dirname } from 'node:path';
-import { createHash } from 'node:crypto';
 import { loadFont } from '../../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from '../../src/font-data.ts';
+import { embeddedFaces } from '../../src/fonts.ts';
 import { bindLettering, cutFace, defaultCutFace, letteringOf, packLettering, unpackLettering, numericAlphabet, requestCuts, runKey, scaledRun, scriptCuts, scriptFaceNames, snapshotProvider, usesLettering } from '../../src/lettering-outlines.ts';
 import type { LetteringCut, PackedLetteringSnapshot, StoredLetteringSnapshot, LetteringSnapshot, LetteringProvider, LetteringRequest } from '../../src/lettering-outlines.ts';
 import type { ExplainerClass } from '../../explain/settings.ts';
 import type { Run } from '../../vendor/glyph.js';
 import { licenceOf, validateLetteringSnapshot } from './lettering-validation.ts';
 import { LIB_ROOT, ROOT } from './roots.ts';
+import { sha256 } from './hash.ts';
 
 // The capture's files ship with the command (ROOT); the shaper and fallback faces it replays with, with the library.
 const root = ROOT;
-const hash = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex');
+const hash = sha256;
 const json = (x: unknown) => JSON.stringify(x, null, 2) + '\n';
 /**
  * The faces a scene may ask for, each cut as a file in the font cache that
@@ -201,11 +202,8 @@ export async function prepareLettering(Source: ExplainerClass, file: string, cap
     }
     fonts.set(name!, { file, license: '', hash: digest });
   }
-  const coverage = await Promise.all([SANS, MONO, ...FALLBACK.map(([, data]) => data)].map(async (data) => {
-    const result = await loadFont(Buffer.from(data, 'base64'));
-    if (result.tag !== 'Ok') throw new Error('Cannot decode existing font coverage');
-    return result.value;
-  }));
+  const embedded = await embeddedFaces();
+  const coverage = [embedded.sans, embedded.mono, ...embedded.fallback];
   const snapshot: LetteringSnapshot = { version: 2, builderHash, request, runs: {}, faces: {}, shaper: 'uharfbuzz+python-bidi/fonttools; glyph-math@6398654' };
   const used = new Set<number>();
   const usedMath = new Set<number>();

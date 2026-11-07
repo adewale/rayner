@@ -3,8 +3,10 @@ import type {TextShaping} from '../src/text-context.ts';
 // with a leader line, and a drawing tool that rides the tip of a stroke as it is drawn. They are
 // native mobjects, so they seek, trace and check like everything else.
 import { Group, Line, Circle, Rectangle, Polygon, Text, Create, VMobject } from '../src/index.ts';
-import type { Box as BoxT } from '../src/index.ts';
 import type { Mobject, Vec, Box } from '../src/index.ts';
+import { center, overlaps, pointsBox } from '../src/box.ts';
+import { paintsFill } from '../src/mobject.ts';
+import { isHex, parseColor } from '../src/color.ts';
 import { selfDescribed } from './look.ts';
 
 const paperFor = (text: Text, fill: string): Rectangle => new Rectangle({
@@ -86,8 +88,7 @@ export function callout(
   { color, background, size = 0.24, shaping, side = 'right', gap = 0.55 }: AnnotationLook & { side?: Side; gap?: number },
 ): Group {
   const b = boxOf(target),
-    cx = (b[0] + b[2]) / 2,
-    cy = (b[1] + b[3]) / 2;
+    [cx, cy] = center(b);
   const t = new Text(text, { fontSize: size, color, shaping });
   const edge: Vec = side === 'right' ? [b[2], cy] : side === 'left' ? [b[0], cy] : side === 'above' ? [cx, b[3]] : [cx, b[1]];
   const dir: Vec = side === 'right' ? [1, 0] : side === 'left' ? [-1, 0] : side === 'above' ? [0, 1] : [0, -1];
@@ -245,17 +246,6 @@ export class Draw extends Create {
   }
 }
 
-const subBox = (a: Float32Array): BoxT => {
-  const b: BoxT = [Infinity, Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < a.length; i += 2) {
-    b[0] = Math.min(b[0], a[i]!);
-    b[1] = Math.min(b[1], a[i + 1]!);
-    b[2] = Math.max(b[2], a[i]!);
-    b[3] = Math.max(b[3], a[i + 1]!);
-  }
-  return b;
-};
-const overlaps = (a: BoxT, b: BoxT) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
 /**
  * One path per stroke, so a tool can follow each: a renderer restarts a stroke's dash pattern at
  * every subpath, so a path of several subpaths is drawn in all of them at once. Stroked paths
@@ -265,11 +255,11 @@ const overlaps = (a: BoxT, b: BoxT) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b
 export function oneStrokeEach(m: Mobject): Mobject {
   const split = (v: VMobject): Mobject | null => {
     if (v.subpaths.length < 2) return null;
-    const filled = v.style.fill !== 'none' && (v.style.fillOpacity ?? 1) > 0;
+    const filled = paintsFill(v.style);
     const clusters: number[][] = [];
-    const boxes = v.subpaths.map(subBox);
+    const boxes = v.subpaths.map((a) => pointsBox([a]));
     for (let i = 0; i < boxes.length; i++) {
-      const join = filled ? clusters.find((c) => c.some((j) => overlaps(boxes[i]!, boxes[j]!))) : undefined;
+      const join = filled ? clusters.find((c) => c.some((j) => !!boxes[i] && !!boxes[j] && overlaps(boxes[i]!, boxes[j]!))) : undefined;
       if (join) join.push(i);
       else clusters.push([i]);
     }
@@ -318,10 +308,9 @@ export interface LegendItem {
  * caption's "purple fill" finds the swatch that keys it.
  */
 export function colourName(hex: string): string {
-  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return 'coloured';
-  const h6 = m[1]!.length === 3 ? [...m[1]!].map((c) => c + c).join('') : m[1]!;
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h6.slice(i, i + 2), 16) / 255) as [number, number, number];
+  const trimmed = hex.trim();
+  if (!isHex(trimmed)) return 'coloured';
+  const [r, g, b] = parseColor(trimmed)!.map((v) => v / 255) as [number, number, number];
   const max = Math.max(r, g, b),
     min = Math.min(r, g, b),
     l = (max + min) / 2,

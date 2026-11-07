@@ -6,7 +6,8 @@ import { access } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep, isAbsolute } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { normalise } from '../../explain/script.ts';
-import { LIB_ROOT } from './explain-project.ts';
+import { COMPILED, LIB_ROOT } from './roots.ts';
+import { entryPoints } from './entry-points.ts';
 
 /** The model test beside the scene and what its run found: how many tests ran and passed, how many were skipped, and the names of those that failed. */
 export interface ModelTestReport {
@@ -21,26 +22,15 @@ export interface ModelTestReport {
 const exists = (file: string) => access(file).then(() => true, () => false);
 
 /** The package's entry points, as the model test's imports name them, and the module each is. */
-const ENTRY_POINTS: Record<string, string> = {
-  rayner: 'src/index',
-  'rayner/explain': 'explain/index',
-  'rayner/drawing': 'explain/drawing',
-  'rayner/geo': 'explain/geo',
-  'rayner/audio': 'explain/score',
-  'rayner/extras': 'src/extras',
-  'rayner/lettering': 'src/lettering',
-  'rayner/output': 'src/output',
-  'rayner/testing': 'explain/testing',
-};
 /**
  * A module hook for the model test's process: a `rayner` import that Node cannot resolve from the
  * explainer's folder (one outside a project that installs Rayner) is this Rayner, the one running
  * the check. Where Node can resolve it, it is left alone.
  */
 function raynerResolution(): string {
-  const built = import.meta.url.endsWith('.js');
+  const built = COMPILED;
   const map = Object.fromEntries(
-    Object.entries(ENTRY_POINTS).map(([name, path]) => [name, pathToFileURL(join(LIB_ROOT, built ? `dist/${path}.js` : `${path}.ts`)).href]),
+    [...entryPoints()].map(([name, path]) => [name, pathToFileURL(join(LIB_ROOT, built ? `dist/${path}.js` : `${path}.ts`)).href]),
   );
   const hook = `const map=${JSON.stringify(map)};export async function resolve(s,c,next){try{return await next(s,c)}catch(e){if(Object.hasOwn(map,s))return{url:map[s],shortCircuit:true};throw e}}`;
   const register = `import{register}from'node:module';register(${JSON.stringify('data:text/javascript,' + encodeURIComponent(hook))});`;

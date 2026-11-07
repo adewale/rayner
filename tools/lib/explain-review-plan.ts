@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { join, relative, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {catalogEvidence} from './explain-artifacts.ts';
 import { buildInputs } from './build-inputs.ts';
+import { COMPILED } from './roots.ts';
 import { READ_PX } from '../../app/embed-closeup.ts';
+import { listTree, relativePosix, sha256 } from './hash.ts';
+import { MIN_PX, PHONE_VIEWPORT, REVIEW_WIDTHS } from './review-sizes.ts';
 
 /** A planned label can round a few millionths of a CSS pixel in the browser's SVG matrix. */
 export function readableOpeningLabel(pixels: number | null | undefined): boolean {
@@ -17,7 +19,7 @@ export function readableOpeningLabel(pixels: number | null | undefined): boolean
  */
 export const LIVE_STATES = 6;
 /** The legibility floor for a live state's labels, as at a 1280 px stage: `rayner check`'s MIN_PX. */
-export const LIVE_MIN_PX = 14;
+export const LIVE_MIN_PX = MIN_PX;
 
 /** One live state reviewed at one width (reviewLiveStates in explain-live-review.ts). */
 export interface LiveStateReview {
@@ -166,7 +168,7 @@ export async function readStoryPlan(directory: string, expectedScenes?: readonly
       }),
     );
   }
-  return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: createHash('sha256').update(raw).digest('hex') };
+  return { scenes: catalog.scenes.map(scene => scene.id), scenarios, catalogHash: sha256(raw) };
 }
 export async function reviewCodeHash(root: string, buildHash?: string) {
   const files = [
@@ -181,38 +183,29 @@ export async function reviewCodeHash(root: string, buildHash?: string) {
     'tools/lib/explain-reader-shell.ts',
     'tools/lib/explain-check.ts',
   ];
-  if (import.meta.url.endsWith('.js')) {
+  if (COMPILED) {
     // Installed tools are bundled; individual source module paths do not exist.
     files.length = 0;
-    for (const entry of await readdir(join(root, 'dist/tools'), { recursive: true, withFileTypes: true }))
-      if (entry.isFile()) files.push(relative(root, join(entry.parentPath, entry.name)).split(sep).join('/'));
+    for (const entry of await listTree(join(root, 'dist/tools')))
+      if (entry.isFile()) files.push(relativePosix(root, join(entry.parentPath, entry.name)));
   }
   // Companion claims are review inputs even though they do not change the
   // runtime scene or catalog evidence. Old shards must not vouch for new claims.
   const sceneRoot = join(root, 'scenes/explainers');
-  const entries = await readdir(sceneRoot, { recursive: true, withFileTypes: true }).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === 'ENOENT') return [];
-      throw error;
-    },
-  );
+  const entries = await listTree(sceneRoot, { optional: true });
   for (const entry of entries)
     if ((entry.isFile() || entry.isSymbolicLink()) && entry.name.endsWith('.review.json'))
-      files.push('scenes/explainers/' + relative(sceneRoot, join(entry.parentPath, entry.name)).split(sep).join('/'));
+      files.push('scenes/explainers/' + relativePosix(sceneRoot, join(entry.parentPath, entry.name)));
   const inputs = await Promise.all(
     files.sort().map(async (file) => ({
       file,
-      sha256: createHash('sha256')
-        .update(await readFile(join(root, file)))
-        .digest('hex'),
+      sha256: sha256(await readFile(join(root, file))),
     })),
   );
   // The caption inventory does not change for player-only edits. Bind the same
   // complete runtime/build inputs as the artifacts so old shards cannot vouch
   // for changed CSS, player helpers or page generation.
-  return createHash('sha256')
-    .update(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }))
-    .digest('hex');
+  return sha256(JSON.stringify({ inputs, buildHash: buildHash ?? (await buildInputs(root)).hash }));
 }
 export function validateReviewedScenarios(actual: ReviewedScenario[], expected: PlannedScenario[]) {
   assert.deepEqual(
@@ -224,7 +217,7 @@ export function validateReviewedScenarios(actual: ReviewedScenario[], expected: 
     assert.ok(expected[i]!.steps.length, `${c.scene}: a story needs at least one step`);
     assert.deepEqual(
       c.steps.map(({ step, width }) => ({ step, width })),
-      [390, 1180].flatMap((width) => expected[i]!.steps.map((step) => ({ step, width }))),
+      REVIEW_WIDTHS.flatMap((width) => expected[i]!.steps.map((step) => ({ step, width }))),
       `${c.scene}: exact step/width inventory`,
     );
     assert.ok(
@@ -235,7 +228,7 @@ export function validateReviewedScenarios(actual: ReviewedScenario[], expected: 
     const obligations = expected[i]!.narrowOpenings;
     validateNarrowObligations(obligations, expected[i]!.steps, c.scene);
     for (const step of c.steps) {
-      if (step.width !== 390) {
+      if (step.width !== PHONE_VIEWPORT.width) {
         assert.equal(step.openingAt320, undefined, `${c.scene}/${step.step}: duplicate narrow-opening receipt`);
         continue;
       }

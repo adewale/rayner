@@ -16,29 +16,58 @@ import type { Font, Run, ShapedGlyph } from '../vendor/glyph.js';
 import { SANS, MONO, FALLBACK } from './font-data.ts';
 import { perf } from './perf.ts';
 
-const FONTS = { sans: SANS, mono: MONO };
-/** The faces each name draws with, in fallback order, by their names in FACES. */
-const CHAINS: Record<keyof typeof FONTS, readonly string[]> = {
-  sans: ['sans', ...FALLBACK.map(([name]) => name)],
-  mono: ['mono', 'sans', ...FALLBACK.map(([name]) => name)],
-};
-const FACES: ReadonlyMap<string, string> = new Map([...Object.entries(FONTS), ...FALLBACK]);
-
 /** The embedded faces. */
-export type FontName = keyof typeof FONTS;
+export type FontName = 'sans' | 'mono';
 /** Shape `text` at `size` scene units: glyph outlines and advances. Memoized. */
 export type Shaper = (text: string, size: number) => Run;
 
-function bytesOf(b64: string): Uint8Array {
+/** Base64 font data as bytes. */
+export function bytesOf(b64: string): Uint8Array {
   const bin = atob(b64); const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
+/** Decode base64 font data; `label` names it when it cannot be decoded. */
+export async function decodeFont(b64: string, label: string): Promise<Font> {
+  const r = await loadFont(bytesOf(b64));
+  if (r.tag !== 'Ok') throw new Error(`${label}: ${JSON.stringify(r.error)}`);
+  return r.value;
+}
+
+/** The embedded faces, decoded: the two families and the fallbacks in FALLBACK's order. */
+export interface EmbeddedFaces { sans: Font; mono: Font; fallback: readonly Font[] }
+let embeddedDecode: Promise<EmbeddedFaces> | null = null;
+/**
+ * Decode the embedded faces, once; every caller shares the decode. A fallback face
+ * that cannot load is left out, so its characters are reported missing, which every
+ * command does; it must not stop text that never needs it. A family that cannot load throws.
+ */
+export function embeddedFaces(): Promise<EmbeddedFaces> {
+  return embeddedDecode ??= (async () => {
+    const fallback: Font[] = [];
+    for (const [, b64] of FALLBACK) {
+      const r = await loadFont(bytesOf(b64));
+      if (r.tag === 'Ok') fallback.push(r.value);
+    }
+    return { sans: await decodeFont(SANS, 'sans'), mono: await decodeFont(MONO, 'mono'), fallback };
+  })();
+}
+/**
+ * The faces `font` draws with, in fallback order, as a browser falls back across a
+ * font-family list: mono, then sans, then the fallbacks. `extra` faces join each
+ * family right after its embedded face, so a character the embedded faces draw is
+ * drawn as before.
+ */
+export function embeddedChain(faces: EmbeddedFaces, font: FontName,
+  extra: Readonly<Partial<Record<FontName, readonly Font[]>>> = {}): Font[] {
+  const sans = [faces.sans, ...(extra.sans ?? [])];
+  return font === 'mono' ? [faces.mono, ...(extra.mono ?? []), ...sans, ...faces.fallback] : [...sans, ...faces.fallback];
+}
 
 let loading: Promise<Record<FontName, Shaper>> | null = null;
 
-/** Shaped runs kept per face: far more than one scene uses, so seeks never reshape. */
-const SHAPE_MEMO_MAX = 8192;
+/** Shaped runs kept per shaper: far more than one scene uses, so seeks never reshape. */
+export const SHAPE_MEMO_MAX = 8192;
 let shapers: Readonly<Record<FontName, Shaper>> | null = null;
 let compatibilityShapers: Readonly<Record<FontName, Shaper>> | undefined;
 /** Legacy useLettering() selection; the decoded embedded table stays immutable. */
@@ -53,7 +82,7 @@ export function takeMissingGlyphs(): Map<string, string> {
   return out;
 }
 /** A run's undrawable clusters. Control characters have no glyph in any face, so they are not missing. */
-function undrawable(text: string, r: Run): string {
+export function undrawable(text: string, r: Run): string {
   const chars = [...text],
     starts = [...new Set(r.glyphs.map((g) => g.cluster))].sort((a, b) => a - b);
   return r.glyphs
@@ -85,7 +114,7 @@ export function embeddedShaperFor(font: FontName): Shaper {
 }
 
 /** Characters that draw with the character before them, whatever face it took: marks, joiners, variation selectors. */
-const ATTACHED = /^[\p{M}\u200C\u200D\uFE00-\uFE0F\u{E0100}-\u{E01EF}]$/u;
+export const ATTACHED = /^[\p{M}\u200C\u200D\uFE00-\uFE0F\u{E0100}-\u{E01EF}]$/u;
 
 /**
  * Shape `text` in the first face of `chain`, falling back per character to the
@@ -123,41 +152,46 @@ export function shapeChain(chain: readonly Font[], key: string, text: string, si
   return { glyphs, width: pen, ascent: first.ascent, descent: first.descent, s: first.s };
 }
 
+/** A shaped run with its undrawable clusters (see undrawable): empty when the faces draw all of it. */
+export type ShapedRun = Run & { missing: string };
+/**
+ * A shaper over `chain`, memoized. Shaping is a pure function of (font, text,
+ * size): re-running a scene (every seek does) then costs no shaping at all, and
+ * identical segment arrays let Text reuse its flattened outlines. The memo is
+ * bounded to `max` runs, least recently used out first: a DecimalNumber shapes a
+ * new string every frame, so a long count (or a Worker serving many scenes) would
+ * otherwise keep every one of them. `first` annotates a run when it is first
+ * shaped; `each` sees every call, memoized or not, as a check needs to see each
+ * string it draws.
+ */
+export function memoShaper<X extends object = object>(chain: readonly Font[], key: string, hooks: {
+  first?: (text: string, run: ShapedRun) => X;
+  each?: (text: string, size: number, run: ShapedRun & X) => void;
+} = {}, max = SHAPE_MEMO_MAX): (text: string, size: number) => ShapedRun & X {
+  const memo = new Map<string, ShapedRun & X>();
+  return (text, size) => {
+    const k = size + '\u0000' + text;
+    let r = memo.get(k);
+    if (r) { memo.delete(k); memo.set(k, r); }
+    else {
+      const run = shapeChain(chain, key, text, size), shaped: ShapedRun = Object.assign(run, { missing: undrawable(text, run) });
+      memo.set(k, (r = Object.assign(shaped, hooks.first?.(text, shaped)) as ShapedRun & X));
+      if (memo.size > max) memo.delete(memo.keys().next().value!);
+    }
+    hooks.each?.(text, size, r);
+    return r;
+  };
+}
+
 async function buildShapers(): Promise<Record<FontName, Shaper>> {
   const end = perf.begin('fonts.decode');
-  const out: Partial<Record<FontName, Shaper>> = {};
-  const faces = new Map<string, Font>();
-  for (const [name, b64] of FACES) {
-    const r = await loadFont(bytesOf(b64));
-    if (r.tag === 'Ok') faces.set(name, r.value);
-    // A fallback face that cannot load leaves its characters missing, which every command reports;
-    // it must not stop text that never needs it.
-    else if (name in FONTS) throw new Error(name + ': ' + JSON.stringify(r.error));
-  }
-  for (const key of Object.keys(FONTS) as FontName[]) {
-    const chain = CHAINS[key].flatMap((name) => faces.get(name) ?? []);
-    // Shaping is a pure function of (font, text, size): memoize it. Re-running a
-    // scene (every seek does) then costs no shaping at all, and identical
-    // segment arrays let Text reuse its flattened outlines.
-    // The memo is bounded, least recently used out first: a DecimalNumber shapes a new
-    // string every frame, so a long count (or a Worker serving many scenes) would
-    // otherwise keep every one of them.
-    const memo = new Map<string, Run & { missing?: string }>();
-    out[key] = (text, size) => {
-      const k = size + '\u0000' + text;
-      let r = memo.get(k);
-      if (r) { memo.delete(k); memo.set(k, r); }
-      else {
-        memo.set(k, (r = shapeChain(chain, key, text, size)));
-        r.missing = undrawable(text, r);
-        if (memo.size > SHAPE_MEMO_MAX) memo.delete(memo.keys().next().value!);
-      }
-      // Recorded on every call, memoized or not: a check needs to see each string it draws.
-      if (r.missing) missing.set(text, r.missing);
-      return r;
-    };
-  }
+  const faces = await embeddedFaces();
+  // Recorded on every call, memoized or not: a check needs to see each string it draws.
+  const each = (text: string, _size: number, r: ShapedRun) => { if (r.missing) missing.set(text, r.missing); };
+  const out: Record<FontName, Shaper> = {
+    sans: memoShaper(embeddedChain(faces, 'sans'), 'sans', { each }),
+    mono: memoShaper(embeddedChain(faces, 'mono'), 'mono', { each }),
+  };
   end();
-  // Both keys of FONTS were filled above
-  return out as Record<FontName, Shaper>;
+  return out;
 }

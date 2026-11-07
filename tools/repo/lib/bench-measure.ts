@@ -1,5 +1,7 @@
 import type { Browser } from 'playwright-core';
 import { blocking, longestGap } from './bench-stats.ts';
+import { STEP_TYPE } from '../../../app/embed-protocol.ts';
+import { PHONE_VIEWPORT } from '../../lib/review-sizes.ts';
 export type Sample = {
   ready: number;
   motion: number;
@@ -10,7 +12,7 @@ export type Sample = {
   shift: number;
   trace: PageLog;
 };
-const VIEWPORT = { width: 390, height: 844 };
+const VIEWPORT = PHONE_VIEWPORT;
 
 /** What the page records, from before its own script runs (timestamps are performance.now()). */
 export type PageLog = {
@@ -22,7 +24,7 @@ export type PageLog = {
   tasks: [number, number][];
   shifts: [number, number][];
 };
-function record() {
+function record(stepType: string) {
   const r: PageLog = { ready: 0, clicks: [], steps: [], stage: [], frames: [], tasks: [], shifts: [] };
   (window as unknown as { __bench: PageLog }).__bench = r;
   const tasks = (entries: PerformanceEntry[]) => entries.forEach((e) => r.tasks.push([e.startTime, e.duration]));
@@ -39,7 +41,7 @@ function record() {
   };
   // The event's own time: when the reader pressed, including any wait for the main thread.
   document.addEventListener('click', (e) => r.clicks.push(e.timeStamp), true);
-  document.addEventListener('rayner:step', (e) => r.steps.push([(e as CustomEvent).detail.step, performance.now()]));
+  document.addEventListener(stepType, (e) => r.steps.push([(e as CustomEvent).detail.step, performance.now()]));
   // The stage's picture changing: a new picture put on it, or a drawn element inside it patched.
   // The stage element's own attributes (its label) change with the caption, not the picture.
   new MutationObserver((list) => {
@@ -72,7 +74,7 @@ export async function measure(
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
     if (cpu > 1) await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: cpu });
-    await page.addInitScript(record);
+    await page.addInitScript(record, STEP_TYPE);
     const until = (step: string) =>
       page.waitForFunction(
         (s) => (window as unknown as { __bench: PageLog }).__bench.steps.some(([n]) => n === s),

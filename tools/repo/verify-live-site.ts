@@ -5,9 +5,9 @@ import {createHash} from 'node:crypto';
 import {readFile, readdir, realpath, lstat, mkdir, rm, writeFile} from 'node:fs/promises';
 import {dirname, extname, join, relative, resolve, sep} from 'node:path';
 import {parseArgs} from 'node:util';
+import { posixPath, sha256 } from '../lib/hash.ts';
 
 type FilePin = {path: string; sha256: string; bytes: number};
-const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const mediaTypes: Record<string, string[]> = {
   '.html': ['text/html'], '.js': ['text/javascript', 'application/javascript'],
   '.json': ['application/json'], '.png': ['image/png'], '.css': ['text/css'],
@@ -100,7 +100,7 @@ async function main() {
   for (const entry of await readdir(join(root, prefix), {recursive: true, withFileTypes: true})) {
     assert.ok(!entry.isSymbolicLink(), 'reviewed collection must not contain symlinks');
     if (!entry.isFile()) continue;
-    const path = '/' + join(entry.parentPath, entry.name).slice(root.length + 1).split(sep).join('/');
+    const path = '/' + posixPath(join(entry.parentPath, entry.name).slice(root.length + 1));
     assert.ok(path === manifestPath || pins.has(path), `unlisted local collection file: ${path}`);
   }
   assert.ok(pins.has('/_headers') && pins.has(prefix + '/catalog.json') && pins.has(prefix + '/loader.js'), 'manifest must include headers, catalog and loader');

@@ -1,6 +1,6 @@
 // Colors travel through the API as hex strings and are parsed only to blend.
 
-type RGB = [r: number, g: number, b: number];
+export type RGB = [r: number, g: number, b: number];
 
 const cache = new Map<string, RGB>();
 
@@ -15,6 +15,28 @@ export function parseColor(hex: string | null | undefined): RGB | null {
   c = [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
   cache.set(hex, c);
   return c;
+}
+
+/** Whether `s` is a hex colour: #rgb or #rrggbb, and with `alpha` #rgba or #rrggbbaa too. */
+export function isHex(s: unknown, { alpha = false }: { alpha?: boolean } = {}): s is string {
+  return typeof s === 'string' && (alpha ? /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i : /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i).test(s);
+}
+
+/**
+ * WCAG relative luminance, 0 for black to 1 for white, of a colour parseColor reads (alpha
+ * ignored) or of channels 0 to 255. Linearised with sRGB's 0.04045 threshold; WCAG 2's 0.03928
+ * gives the same values for 8-bit channels.
+ */
+export function luminance(color: string | Readonly<RGB>): number {
+  const c = typeof color === 'string' ? parseColor(color) : color;
+  if (!c) throw new Error(`luminance: not a colour: ${JSON.stringify(color)}`);
+  const lin = (v: number) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+}
+/** WCAG contrast ratio of two colours, from 1 to 21, whichever is lighter. */
+export function contrastRatio(a: string | Readonly<RGB>, b: string | Readonly<RGB>): number {
+  const x = luminance(a), y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
 const hex2 = (n: number): string => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');

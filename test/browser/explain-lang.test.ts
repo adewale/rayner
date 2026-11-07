@@ -7,7 +7,8 @@ import { serve } from '../../tools/lib/explain-serve.ts';
 import { collectProject, ROOT } from '../../tools/lib/explain-project.ts';
 import type { Project } from '../../tools/lib/explain-project.ts';
 import { buildExplainer } from '../../tools/lib/explain-build.ts';
-import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang, settingsProblem } from '../../app/embed-strings.ts';
+import { chromeFor, scenarioNameIn, CHROME, descriptionLang, descriptionsLang } from '../../app/embed-strings.ts';
+import { settingsProblem } from '../../explain/settings.ts';
 import type { SettingsProblem } from '../../app/embed-strings.ts';
 import { resolveSettings } from '../../explain/index.ts';
 import { scenarioName } from '../../explain/testing.ts';
@@ -153,7 +154,7 @@ test('the invalid-settings notice names the problem in the page’s language; En
     try {
       resolveSettings(Scene, values);
     } catch (error) {
-      return { error: (error as Error).message, problem: settingsProblem(Scene, values, error) };
+      return { error: (error as Error).message, problem: settingsProblem(error) };
     }
     throw new Error('accepted');
   };
