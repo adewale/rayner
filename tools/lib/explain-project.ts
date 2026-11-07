@@ -247,12 +247,14 @@ export async function readSnapshots(base: string): Promise<SnapshotStore> {
 export async function writeSnapshots(base: string, store: SnapshotStore, sourceHash: string): Promise<void> {
   const folder = base + '.snapshots';
   await mkdir(folder, { recursive: true });
+  const previousIndex = await readJson(join(folder, 'index.json'));
+  let changed = false;
   const keys = Object.keys(store).sort();
   const names = Object.fromEntries(keys.map((key) => [key, snapshotFileName(key)]));
   for (const key of keys) {
     const path = join(folder, names[key]!),
       body = json(store[key]);
-    if ((await readFile(path, 'utf8').catch(() => null)) !== body) await writeFile(path, body);
+    if ((await readFile(path, 'utf8').catch(() => null)) !== body) { changed = true; await writeFile(path, body); }
   }
   const keep = new Set([...Object.values(names), 'index.json']);
   // Files only: a folder someone put here is theirs, not a stale snapshot.
@@ -262,7 +264,11 @@ export async function writeSnapshots(base: string, store: SnapshotStore, sourceH
     version: 2,
     importer: IMPORTER,
     renderer: RENDERER,
-    sourceHash,
+    // Capture provenance, not a requirement that today's implementation have identical bytes.
+    // Source and engine hashes still invalidate live build caches through sceneInputs.
+    sourceHash: !changed && previousIndex?.version === 2 && previousIndex.importer === IMPORTER &&
+      JSON.stringify(previousIndex.diagrams) === JSON.stringify(names)
+      ? previousIndex.sourceHash : sourceHash,
     diagrams: names,
   });
   if ((await readFile(join(folder, 'index.json'), 'utf8').catch(() => null)) !== index)

@@ -1,25 +1,39 @@
-// Every explainer's committed scene.snapshots/index.json records the source hash of the scene it
-// was written for. A change to a scene, or to anything it bundles (the engine, the explain kit, a
-// shared model), changes that hash; the catalog build then rewrites the index, and the story review,
-// on a fresh checkout, finds the scene's files changed under it and fails far from the cause. This
-// test fails here instead, naming each stale scene: refresh with `rayner snapshots <scene>`.
-import { test } from 'node:test';
+// The committed store must contain exactly the diagrams executed by today's scenarios.
+// Input hashes remain capture provenance and build-cache keys, not a frozen implementation.
+import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { loadScene, ROOT } from '../tools/lib/explain-project.ts';
+import {readdir, readFile, mkdtemp, rm} from 'node:fs/promises';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {collectProject, readSnapshots, writeSnapshots, ROOT} from '../tools/lib/explain-project.ts';
+import {fixture} from './lib/page-snapshot-fixture.ts';
 
-test('every committed snapshot index matches the source of the scene it was written for', async () => {
-  const stale: string[] = [];
+test('committed snapshot stores cover the diagrams used by every current scenario', async () => {
   let checked = 0;
   for (const id of (await readdir(join(ROOT, 'scenes/explainers'))).sort()) {
-    const folder = join(ROOT, 'scenes/explainers', id);
-    const index = await readFile(join(folder, 'scene.snapshots/index.json'), 'utf8').catch(() => null);
-    if (index === null) continue;
-    const { sourceHash } = await loadScene(join(folder, 'scene.ts'));
-    if ((JSON.parse(index) as { sourceHash?: string }).sourceHash !== sourceHash) stale.push(id);
+    const base = join(ROOT, 'scenes/explainers', id, 'scene');
+    if (!(await readFile(base + '.snapshots/index.json', 'utf8').catch(() => null))) continue;
+    const committed = await readSnapshots(base);
+    const project = await collectProject(base + '.ts', {write: false});
+    assert.deepEqual(project.store, committed, `${id}: diagram inputs changed; review and recapture the affected diagrams`);
     checked++;
   }
   assert.ok(checked > 30, `checked ${checked} explainers`);
-  assert.deepEqual(stale, [], `stale snapshot indexes; run \`node tools/explain.ts snapshots scenes/explainers/<id>/scene.ts\` for each`);
+});
+
+test('unchanged captured diagrams preserve provenance across implementation refactors', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'rayner-snapshot-provenance-'));
+  const base = join(folder, 'scene');
+  try {
+    const store = fixture([0, 1]);
+    await writeSnapshots(base, store, 'captured-source');
+    const before = await readFile(base + '.snapshots/index.json', 'utf8');
+    await writeSnapshots(base, structuredClone(store), 'refactored-source');
+    assert.equal(await readFile(base + '.snapshots/index.json', 'utf8'), before);
+    const changed = fixture([0, 2]);
+    await writeSnapshots(base, changed, 'changed-capture');
+    const index = JSON.parse(await readFile(base + '.snapshots/index.json', 'utf8'));
+    assert.equal(index.sourceHash, 'changed-capture');
+    assert.deepEqual(await readSnapshots(base), changed);
+  } finally { await rm(folder, {recursive: true, force: true}); }
 });
