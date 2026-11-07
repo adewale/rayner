@@ -1,7 +1,7 @@
 import { Group, Arrow, Circle, Text, SurroundingRectangle, Cross } from '../../../src/index.ts';
 import type { Vec } from '../../../src/index.ts';
 import { keyedParts } from '../../../explain/drawing.ts';
-import { label, tile } from '../../../explain/drawing.ts';
+import { label, tile, emphasised } from '../../../explain/drawing.ts';
 import type { StagedStep } from '../../../explain/index.ts';
 import { stagedStep } from '../../../explain/index.ts';
 import type { RingState } from './model.ts';
@@ -146,7 +146,11 @@ const mark = (k: Ink, i: number, color: string) =>
   });
 const trayLabelAt = (k: Ink, text: string) => new Text(text, { fontSize: 0.24, color: k.soft, anchor: 'start' }).moveTo([-7.35, TRAY_Y], [-1, 0]);
 
-/** The ring, drawn from the machine's state: every piece keyed, so a transition can move each. */
+/**
+ * The ring, drawn from the machine's state: every piece keyed, so a transition can move each. What it
+ * marks is emphasis the phone's close-ups visit first and review holds to the caption: each outlined
+ * slot, and the value the tray took last.
+ */
 export function drawRing(st: RingState, k: Ink): Group {
   const { add, group } = keyedParts();
   for (let i = 0; i < SLOTS; i++) {
@@ -157,7 +161,7 @@ export function drawRing(st: RingState, k: Ink): Group {
   add(pointer(k, 'head', st.head), 'ring:pointer:head');
   add(pointer(k, 'tail', st.tail), 'ring:pointer:tail');
   const colour = { push: TAIL, pop: k.head, refused: k.bad } as const;
-  for (const m of st.marks) add(mark(k, m.slot, colour[m.kind]), `ring:mark:${m.slot}`);
+  for (const m of st.marks) add(emphasised(mark(k, m.slot, colour[m.kind]), `outlined: ${m.kind} at slot ${m.slot}`), `ring:mark:${m.slot}`);
   const v = pushArg(st.operation);
   // No argument (a pop): an unseen ring holds the place.
   add(v == null ? new Group(new Circle({ radius: 0.32, opacity: 0 }).moveTo(IN)) : new Group(token(k, v, false)).moveTo(IN), `ring:incoming:${v ?? 'none'}`);
@@ -180,6 +184,7 @@ export function drawRing(st: RingState, k: Ink): Group {
       const j = i - (all.length - shown);
       if (j < 0) return;
       const bad = new Group(token(k, value, st.tray!.refused)).moveTo([x + j * 0.95, TRAY_Y]);
+      if (i === all.length - 1) emphasised(bad, `${st.tray!.label} ${value}`);
       add(bad, `ring:tray:${i}`);
       if (st.tray!.refused) add(new Cross(bad, { stroke: k.bad, strokeWidth: 0.035, scale: 0.95 }), `ring:tray:${i}:cross`);
     });
