@@ -107,7 +107,7 @@ export async function prepareLettering(
   { write = true }: { write?: boolean } = {},
 ): Promise<Lettering> {
   const sources = Object.fromEntries(
-    await Promise.all(FAMILIES.map(async (f) => [f, await readFile(new URL(SOURCES[f].file, ROOT))] as const)),
+    await Promise.all(FAMILIES.map(async (f) => [f, await readFile(join(ROOT, SOURCES[f].file))] as const)),
   ) as Record<FontName, Buffer>;
   await useLettering({ sans: sources.sans.toString('base64'), mono: sources.mono.toString('base64') });
   takeLetteringUse();
